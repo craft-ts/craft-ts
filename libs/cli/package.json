@@ -39,12 +39,21 @@
     "craft-ts": "./src/bin/craft-ts.js"
   },
   "dependencies": {
+    "@craft-ts/attest": "^0.8.3",
     "@craft-ts/deploy": "^0.8.3"
   },
   "peerDependencies": {
+    "@craft-ts/dev-tools": "^0.8.3",
+    "@craft-ts/style-testing": "^0.8.3",
     "typescript": ">=5.4.0"
   },
   "peerDependenciesMeta": {
+    "@craft-ts/dev-tools": {
+      "optional": true
+    },
+    "@craft-ts/style-testing": {
+      "optional": true
+    },
     "typescript": {
       "optional": true
     }

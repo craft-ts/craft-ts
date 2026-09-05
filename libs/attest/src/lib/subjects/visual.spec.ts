@@ -5,8 +5,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createEvidenceStore } from '../evidence-store.js';
 import {
   clusterByDiffShape,
+  observeVisualRun,
   observeVisuals,
+  parseVisualRunReport,
   storeVisual,
+  VISUAL_REPORT_FORMAT,
   visualEvidence,
   visualSubjectId,
 } from './visual.js';
@@ -23,7 +26,10 @@ afterEach(async () => {
 describe('visual subjects', () => {
   it('names a subject by component and scenario', () => {
     expect(
-      visualSubjectId({ component: 'component:app.ts:Card', scenario: 'viewport=md' }),
+      visualSubjectId({
+        component: 'component:app.ts:Card',
+        scenario: 'viewport=md',
+      }),
     ).toBe('visual:component:app.ts:Card#viewport=md');
   });
 
@@ -48,6 +54,42 @@ describe('visual subjects', () => {
       fingerprint: 'code-1',
     });
   });
+
+  it('parses a portable run and fingerprints it from the current graph', () => {
+    const report = parseVisualRunReport({
+      format: VISUAL_REPORT_FORMAT,
+      version: 1,
+      captures: [
+        {
+          component: 'component:apps/demo/card.ts:Card',
+          scenario: 'viewport=md',
+          digest: { nodes: [] },
+          image: 'card.png',
+        },
+      ],
+    });
+
+    expect(observeVisualRun(report, () => 'current-code')).toMatchObject([
+      {
+        subject: 'visual:component:apps/demo/card.ts:Card#viewport=md',
+        kind: 'visual',
+        fingerprint: 'current-code',
+      },
+    ]);
+  });
+
+  it('rejects duplicate visual subjects', () => {
+    expect(() =>
+      parseVisualRunReport({
+        format: VISUAL_REPORT_FORMAT,
+        version: 1,
+        captures: [
+          { component: 'Card', scenario: 'base', digest: {} },
+          { component: 'Card', scenario: 'base', digest: {} },
+        ],
+      }),
+    ).toThrow(/duplicate subject/);
+  });
 });
 
 describe('storeVisual', () => {
@@ -65,7 +107,10 @@ describe('storeVisual', () => {
     });
 
     expect(stored.subject).toBe('visual:Card#base');
-    expect(await store.getText(stored.evidence, '.digest.json')).toContain('nodes');
+    expect(await store.getText(stored.evidence, '.digest.json')).toContain(
+      'nodes',
+    );
+    expect(stored.evidence).toBe(visualEvidence({ nodes: [] }));
     expect(stored.image).toBeTypeOf('string');
     expect(stored.image).not.toBe(stored.evidence);
   });

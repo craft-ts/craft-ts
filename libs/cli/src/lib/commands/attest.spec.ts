@@ -26,6 +26,30 @@ const REPORT = {
   ],
 };
 
+const visualRun = (color = 'rgb(0, 0, 0)') => ({
+  format: 'craft-ts-visual-report',
+  version: 1,
+  captures: [
+    {
+      component: 'component:apps/demo/card.ts:Card',
+      scenario: 'base',
+      digest: {
+        digestVersion: 1,
+        nodes: [{ path: 'card', styles: { color } }],
+        signature: {
+          columns: {},
+          lines: {},
+          wrapped: [],
+          clipped: [],
+          scrollbars: [],
+          overlaps: [],
+        },
+      },
+      image: 'card.png',
+    },
+  ],
+});
+
 async function workspace(): Promise<{
   root: string;
   io: CraftCliIo;
@@ -49,11 +73,19 @@ async function workspace(): Promise<{
   };
 }
 
-const slices = (fingerprints: Readonly<Record<string, string>>): WorkspaceSlices => ({
-  fingerprintFor: (file, fullName) => fingerprints[`${file}#${fullName}`] ?? 'code-1',
+const slices = (
+  fingerprints: Readonly<Record<string, string>>,
+): WorkspaceSlices => ({
+  fingerprintFor: (file, fullName) =>
+    fingerprints[`${file}#${fullName}`] ?? 'code-1',
   leavesFor: (file, fullName) => ({
-    [`body:${file}#${fullName}`]: fingerprints[`${file}#${fullName}`] ?? 'code-1',
+    [`body:${file}#${fullName}`]:
+      fingerprints[`${file}#${fullName}`] ?? 'code-1',
     'libs/core/src/lib/state.ts#state:count': 'node-1',
+  }),
+  fingerprintForNode: (nodeId) => fingerprints[nodeId] ?? 'visual-code-1',
+  leavesForNode: (nodeId) => ({
+    [nodeId]: fingerprints[nodeId] ?? 'visual-code-1',
   }),
   nodeHashes: () => ({ 'libs/core/src/lib/state.ts#state:count': 'node-1' }),
 });
@@ -74,7 +106,9 @@ describe('craft-ts attest', () => {
     );
     expect(code).toBe(1);
     expect(out[0]).toBe('current 0  renewed 0  review 0  missing 2');
-    expect(out.join('\n')).toContain('test:libs/core/src/lib/state.spec.ts#state > counts');
+    expect(out.join('\n')).toContain(
+      'test:libs/core/src/lib/state.spec.ts#state > counts',
+    );
     expect(root).toBeTypeOf('string');
   });
 
@@ -87,18 +121,21 @@ describe('craft-ts attest', () => {
     );
     expect(out.at(-1)).toContain('marked as a bulk renewal');
 
-    const ledger = await readFile(join(root, '.craft/attestations.jsonl'), 'utf8');
+    const ledger = await readFile(
+      join(root, '.craft/attestations.jsonl'),
+      'utf8',
+    );
     expect(ledger.split('\n').filter(Boolean)).toHaveLength(2);
     // The mark that keeps a bulk renewal from reading like somebody looking.
     expect(JSON.parse(ledger.split('\n')[0] as string).bulk).toBe(true);
 
     const second = await workspace();
-    await writeFile(join(second.root, 'report.json'), JSON.stringify(REPORT), 'utf8');
     await writeFile(
-      join(second.root, 'ledger.jsonl'),
-      ledger,
+      join(second.root, 'report.json'),
+      JSON.stringify(REPORT),
       'utf8',
     );
+    await writeFile(join(second.root, 'ledger.jsonl'), ledger, 'utf8');
     const code = await runAttestCommand(
       ['status', '--report', 'report.json', '--ledger', 'ledger.jsonl'],
       second.io,
@@ -118,7 +155,11 @@ describe('craft-ts attest', () => {
     );
 
     const moved = await workspace();
-    await writeFile(join(moved.root, 'report.json'), JSON.stringify(REPORT), 'utf8');
+    await writeFile(
+      join(moved.root, 'report.json'),
+      JSON.stringify(REPORT),
+      'utf8',
+    );
     await writeFile(
       join(moved.root, '.craft-ledger.jsonl'),
       await readFile(join(root, '.craft/attestations.jsonl'), 'utf8'),
@@ -138,6 +179,84 @@ describe('craft-ts attest', () => {
     expect(moved.out[1]).toContain('the code moved, the output did not');
   });
 
+  it('attests a visual report, stores its evidence, and carries it across code movement', async () => {
+    const { root, io, out } = await workspace();
+    await writeFile(
+      join(root, 'report.json'),
+      JSON.stringify(visualRun()),
+      'utf8',
+    );
+    await writeFile(join(root, 'card.png'), new Uint8Array([137, 80, 78, 71]));
+
+    expect(
+      await runAttestCommand(
+        ['renew', '--all', '--report', 'report.json'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(0);
+    const ledgerText = await readFile(
+      join(root, '.craft/attestations.jsonl'),
+      'utf8',
+    );
+    const attestation = JSON.parse(ledgerText.trim());
+    expect(attestation.subject).toBe(
+      'visual:component:apps/demo/card.ts:Card#base',
+    );
+    expect(
+      await readFile(
+        join(
+          root,
+          '.craft/evidence',
+          attestation.evidence.slice(0, 2),
+          `${attestation.evidence}.digest.json`,
+        ),
+        'utf8',
+      ),
+    ).toContain('digestVersion');
+
+    out.splice(0);
+    expect(
+      await runAttestCommand(
+        ['status', '--report', 'report.json'],
+        io,
+        dependencies({ 'component:apps/demo/card.ts:Card': 'visual-code-2' }),
+      ),
+    ).toBe(0);
+    expect(out[0]).toBe('current 0  renewed 1  review 0  missing 0');
+  });
+
+  it('queues a visual report when its digest changed', async () => {
+    const { root, io, out } = await workspace();
+    await writeFile(
+      join(root, 'report.json'),
+      JSON.stringify(visualRun()),
+      'utf8',
+    );
+    await writeFile(join(root, 'card.png'), new Uint8Array([137, 80, 78, 71]));
+    await runAttestCommand(
+      ['renew', '--all', '--report', 'report.json'],
+      io,
+      dependencies(),
+    );
+
+    await writeFile(
+      join(root, 'report.json'),
+      JSON.stringify(visualRun('rgb(255, 0, 0)')),
+      'utf8',
+    );
+    out.splice(0);
+    expect(
+      await runAttestCommand(
+        ['status', '--report', 'report.json'],
+        io,
+        dependencies({ 'component:apps/demo/card.ts:Card': 'visual-code-2' }),
+      ),
+    ).toBe(1);
+    expect(out[0]).toBe('current 0  renewed 0  review 1  missing 0');
+    expect(out.join('\n')).toContain('the output changed');
+  });
+
   it('names the nodes that moved when asked why', async () => {
     const { root, io } = await workspace();
     await runAttestCommand(
@@ -147,7 +266,11 @@ describe('craft-ts attest', () => {
     );
 
     const asked = await workspace();
-    await writeFile(join(asked.root, 'report.json'), JSON.stringify(REPORT), 'utf8');
+    await writeFile(
+      join(asked.root, 'report.json'),
+      JSON.stringify(REPORT),
+      'utf8',
+    );
     await writeFile(
       join(asked.root, 'ledger.jsonl'),
       await readFile(join(root, '.craft/attestations.jsonl'), 'utf8'),
@@ -179,12 +302,14 @@ describe('craft-ts attest', () => {
     const { io, err } = await workspace();
     const code = await runAttestCommand(['status'], io, dependencies());
     expect(code).toBe(1);
-    expect(err.join('\n')).toContain('Point --report at a test runner report');
+    expect(err.join('\n')).toContain('Point --report at Vitest JSON');
   });
 
   it('rejects an unknown option instead of quietly checking something else', async () => {
     const { io, err } = await workspace();
-    expect(await runAttestCommand(['status', '--nope'], io, dependencies())).toBe(1);
+    expect(
+      await runAttestCommand(['status', '--nope'], io, dependencies()),
+    ).toBe(1);
     expect(err[0]).toContain('--nope');
   });
 

@@ -7,8 +7,10 @@ import {
   createSliceIndex,
   fingerprintOf,
   merkleRoot,
+  portableNodeId,
   sliceChange,
   sliceOf,
+  sliceOfPortableNode,
 } from './code-slice';
 
 const temporaryDirectories: string[] = [];
@@ -247,6 +249,25 @@ describe('code slices', () => {
     expect(componentSlice.nodes).toContain(service?.id);
     // …and the component that renders the service is not an ingredient of it.
     expect(serviceSlice.nodes).not.toContain(widget?.id);
+  });
+
+  it('resolves a portable node id to the same slice in another worktree', async () => {
+    const root = await fixture({
+      'app.ts': `
+        export const Widget = craftComponent('Widget', {}, () => ({}), () => div());
+      `,
+    });
+    const graph = analyze(root);
+    const index = createSliceIndex(graph);
+    const widget = graph.nodes.find((node) => node.label === 'Widget');
+    const portable = portableNodeId(widget?.id ?? '', root);
+
+    expect(portable).toContain('app.ts');
+    expect(portable).not.toContain(root);
+    expect(sliceOfPortableNode(index, portable, root)).toMatchObject({
+      root: portable,
+      nodes: [portable],
+    });
   });
 });
 

@@ -21,18 +21,26 @@ import {
   applyRenewals,
   canonicalJson,
   createEvidenceStore,
+  diffTestRuns,
   evidenceHash,
+  isVisualRunReport,
+  observeVisualRun,
   observeTests,
+  parseVisualRunReport,
   parseLedger,
   parseVitestReport,
   reportOn,
   serialiseLedger,
+  storeVisual,
+  testSubjectId,
   withAttestations,
   type Attestation,
   type Ledger,
   type SubjectObservation,
+  type VisualRunCapture,
   type Verdict,
 } from '@craft-ts/attest';
+import type { LayoutDigest } from '@craft-ts/style-testing';
 import { parseArguments } from '../args.js';
 import type { CraftCliIo } from '../io.js';
 
@@ -70,7 +78,7 @@ Verbs:
 Options:
   --ledger <path>      Ledger file (default: .craft/attestations.jsonl)
   --evidence <dir>     Evidence store (default: .craft/evidence)
-  --report <path>      Test runner report, JSON (vitest --reporter=json)
+  --report <path>      Vitest JSON or craft-ts visual report
   --before/--after     Two such reports, for \`diff\`
   --tsconfig <path>    Project the code graph is built from
   --root <dir>         Repository root (default: the working directory)
@@ -99,6 +107,16 @@ const BASELINE = 'graph-baseline';
 const sliceKey = (subject: string, fingerprint: string): string =>
   `${fingerprint}.${evidenceHash(subject).slice(0, 8)}`;
 const TOOL_VERSION = '0.8.3';
+const VERDICTS: readonly Verdict[] = [
+  'ok',
+  'ok-with-note',
+  'rejected',
+  'known-issue',
+  'blocked',
+];
+
+const isVerdict = (value: string): value is Verdict =>
+  VERDICTS.some((verdict) => verdict === value);
 
 export interface AttestDependencies {
   /**
@@ -118,6 +136,8 @@ export interface AttestDependencies {
 export interface WorkspaceSlices {
   fingerprintFor(file: string, fullName: string): string;
   leavesFor(file: string, fullName: string): Readonly<Record<string, string>>;
+  fingerprintForNode(nodeId: string): string;
+  leavesForNode(nodeId: string): Readonly<Record<string, string>>;
   /** `nodeId → hash` for every node in the graph. */
   nodeHashes(): Readonly<Record<string, string>>;
 }
@@ -139,9 +159,29 @@ const defaultLoadSlices = async (options: {
     tsConfigFilePath: options.tsConfigFilePath,
   });
   const rootPrefix = `${resolve(options.rootDir)}/`;
+  const codeSliceModule = await import(
+    '@craft-ts/dev-tools/scripts/code-slice.js'
+  );
+  const visualSlices = new Map<
+    string,
+    ReturnType<typeof codeSliceModule.sliceOfPortableNode>
+  >();
+  const prepareVisualSlice = (nodeId: string) => {
+    const known = visualSlices.get(nodeId);
+    if (known) return known;
+    const created = codeSliceModule.sliceOfPortableNode(
+      index.slices,
+      nodeId,
+      options.rootDir,
+    );
+    visualSlices.set(nodeId, created);
+    return created;
+  };
   return {
     fingerprintFor: (file, fullName) => index.fingerprintFor(file, fullName),
     leavesFor: (file, fullName) => index.leavesFor(file, fullName),
+    fingerprintForNode: (nodeId) => prepareVisualSlice(nodeId).fingerprint,
+    leavesForNode: (nodeId) => prepareVisualSlice(nodeId).leaves,
     nodeHashes: () =>
       Object.fromEntries(
         [...index.slices.hashes].map(([id, hash]) => [
@@ -151,6 +191,18 @@ const defaultLoadSlices = async (options: {
       ),
   };
 };
+
+interface VisualArtifact {
+  readonly capture: VisualRunCapture;
+  readonly reportDirectory: string;
+}
+
+interface ObservedRun {
+  readonly list: readonly SubjectObservation[];
+  readonly workspace: WorkspaceSlices;
+  readonly leaves: ReadonlyMap<string, Readonly<Record<string, string>>>;
+  readonly visuals: ReadonlyMap<string, VisualArtifact>;
+}
 
 export async function runAttestCommand(
   argv: readonly string[],
@@ -169,7 +221,10 @@ export async function runAttestCommand(
   }
 
   const rootDir = resolve(io.cwd, parsed.values['root'] ?? '.');
-  const ledgerPath = resolve(rootDir, parsed.values['ledger'] ?? DEFAULT_LEDGER);
+  const ledgerPath = resolve(
+    rootDir,
+    parsed.values['ledger'] ?? DEFAULT_LEDGER,
+  );
   const store = createEvidenceStore(
     resolve(rootDir, parsed.values['evidence'] ?? DEFAULT_EVIDENCE),
   );
@@ -185,29 +240,44 @@ export async function runAttestCommand(
       tsConfigFilePath: parsed.values['tsconfig'] ?? 'tsconfig.json',
     });
 
-  const observations = async (): Promise<{
-    readonly list: readonly SubjectObservation[];
-    readonly workspace: WorkspaceSlices;
-    readonly leaves: ReadonlyMap<string, Readonly<Record<string, string>>>;
-  }> => {
+  const observations = async (): Promise<ObservedRun> => {
     const reportPath = parsed.values['report'];
     if (!reportPath) {
       throw new Error(
-        'craft-ts attest: no run to look at. Point --report at a test runner report (vitest --reporter=json --outputFile=…).',
+        'craft-ts attest: no run to look at. Point --report at Vitest JSON or a craft-ts visual report.',
       );
     }
     const workspace = await slices();
-    const run = parseVitestReport(
-      JSON.parse(await readFile(resolve(rootDir, reportPath), 'utf8')),
-      { rootDir },
-    );
+    const absoluteReportPath = resolve(rootDir, reportPath);
+    const raw = JSON.parse(await readFile(absoluteReportPath, 'utf8'));
     const leaves = new Map<string, Readonly<Record<string, string>>>();
+    if (isVisualRunReport(raw)) {
+      const run = parseVisualRunReport(raw);
+      const list = observeVisualRun(run, (component) =>
+        workspace.fingerprintForNode(component),
+      );
+      const visuals = new Map<string, VisualArtifact>();
+      for (const capture of run.captures) {
+        const subject = `visual:${capture.component}#${capture.scenario}`;
+        leaves.set(subject, workspace.leavesForNode(capture.component));
+        visuals.set(subject, {
+          capture,
+          reportDirectory: dirname(absoluteReportPath),
+        });
+      }
+      return { list, workspace, leaves, visuals };
+    }
+
+    const run = parseVitestReport(raw, { rootDir });
     const list = observeTests(run, (testCase) => {
       const subject = `test:${testCase.file}#${testCase.fullName}`;
-      leaves.set(subject, workspace.leavesFor(testCase.file, testCase.fullName));
+      leaves.set(
+        subject,
+        workspace.leavesFor(testCase.file, testCase.fullName),
+      );
       return workspace.fingerprintFor(testCase.file, testCase.fullName);
     });
-    return { list, workspace, leaves };
+    return { list, workspace, leaves, visuals: new Map() };
   };
 
   try {
@@ -231,7 +301,15 @@ export async function runAttestCommand(
       case 'unwatched':
         return await unwatched(io, json, store, await slices());
       case 'review':
-        return await review(io, parsed.values['port']);
+        return await review(
+          io,
+          ledger,
+          store,
+          ledgerPath,
+          parsed.values['port'],
+          await observations(),
+          { now, user },
+        );
       default:
         io.writeError(`Unknown verb: ${parsed.command}`);
         io.writeError(ATTEST_HELP);
@@ -266,6 +344,90 @@ async function writeLedgerFile(path: string, ledger: Ledger): Promise<void> {
   await writeFile(path, serialiseLedger(ledger), 'utf8');
 }
 
+const isLayoutDigest = (value: unknown): value is LayoutDigest => {
+  if (typeof value !== 'object' || value === null) return false;
+  const digest = value as Partial<LayoutDigest>;
+  return (
+    digest.digestVersion === 1 &&
+    Array.isArray(digest.nodes) &&
+    typeof digest.signature === 'object' &&
+    digest.signature !== null
+  );
+};
+
+async function persistVisuals(
+  store: ReturnType<typeof createEvidenceStore>,
+  observed: ObservedRun,
+  subjects: ReadonlySet<string>,
+): Promise<
+  ReadonlyMap<string, { readonly evidence: string; readonly image?: string }>
+> {
+  const stored = new Map<
+    string,
+    { readonly evidence: string; readonly image?: string }
+  >();
+  const observations = new Map(
+    observed.list.map((observation) => [observation.subject, observation]),
+  );
+  for (const subject of subjects) {
+    const artifact = observed.visuals.get(subject);
+    const observation = observations.get(subject);
+    if (!artifact || !observation) continue;
+    let image: Uint8Array | undefined;
+    if (artifact.capture.image) {
+      const imagePath = resolve(
+        artifact.reportDirectory,
+        artifact.capture.image,
+      );
+      try {
+        image = await readFile(imagePath);
+      } catch {
+        throw new Error(
+          `visual report: screenshot '${artifact.capture.image}' for '${subject}' does not exist.`,
+        );
+      }
+    }
+    const result = await storeVisual(store, {
+      component: artifact.capture.component,
+      scenario: artifact.capture.scenario,
+      digest: artifact.capture.digest,
+      fingerprint: observation.fingerprint,
+      ...(image ? { image } : {}),
+      assumptions: artifact.capture.assumptions ?? [],
+    });
+    stored.set(subject, {
+      evidence: result.evidence,
+      ...(result.image ? { image: result.image } : {}),
+    });
+  }
+  return stored;
+}
+
+async function persistSliceManifests(
+  store: ReturnType<typeof createEvidenceStore>,
+  observed: ObservedRun,
+  subjects: ReadonlySet<string>,
+): Promise<void> {
+  const observations = new Map(
+    observed.list.map((observation) => [observation.subject, observation]),
+  );
+  for (const subject of subjects) {
+    const observation = observations.get(subject);
+    const leaves = observed.leaves.get(subject);
+    if (!observation || !leaves) continue;
+    await store.putAs(
+      sliceKey(subject, observation.fingerprint),
+      `${canonicalJson(leaves)}\n`,
+      '.slice.json',
+    );
+  }
+  await store.putAs(
+    BASELINE,
+    `${canonicalJson(observed.workspace.nodeHashes())}\n`,
+    '.json',
+  );
+}
+
 async function status(
   io: CraftCliIo,
   json: boolean,
@@ -288,7 +450,9 @@ async function status(
   }
   for (const entry of report.statuses) {
     if (entry.state === 'review' || entry.state === 'missing') {
-      io.write(`  ${entry.state.padEnd(8)} ${entry.subject}${entry.reason ? ` — ${entry.reason}` : ''}`);
+      io.write(
+        `  ${entry.state.padEnd(8)} ${entry.subject}${entry.reason ? ` — ${entry.reason}` : ''}`,
+      );
     }
   }
   for (const subject of report.orphaned) {
@@ -314,15 +478,19 @@ async function diff(
   const before = values['before'];
   const after = values['after'];
   if (!before || !after) {
-    io.writeError('craft-ts attest diff: --before and --after are both required.');
+    io.writeError(
+      'craft-ts attest diff: --before and --after are both required.',
+    );
     return 1;
   }
   const read = async (path: string) =>
-    parseVitestReport(JSON.parse(await readFile(resolve(rootDir, path), 'utf8')), {
-      rootDir,
-    });
+    parseVitestReport(
+      JSON.parse(await readFile(resolve(rootDir, path), 'utf8')),
+      {
+        rootDir,
+      },
+    );
 
-  const { diffTestRuns, testSubjectId } = await import('@craft-ts/attest');
   const [left, right] = [await read(before), await read(after)];
   const fingerprints = (run: Awaited<ReturnType<typeof read>>) =>
     Object.fromEntries(
@@ -345,7 +513,11 @@ async function diff(
     io.write(JSON.stringify(report, null, 2));
     return report.red.length === 0 ? 0 : 1;
   }
-  const section = (name: string, subjects: readonly string[], note?: string) => {
+  const section = (
+    name: string,
+    subjects: readonly string[],
+    note?: string,
+  ) => {
     if (subjects.length === 0) return;
     io.write(`${name} (${subjects.length})${note ? ` — ${note}` : ''}`);
     for (const subject of subjects) io.write(`  ${subject}`);
@@ -412,7 +584,9 @@ async function why(
     return 0;
   }
 
-  const { sliceChange } = await import('@craft-ts/dev-tools/scripts/code-slice.js');
+  const { sliceChange } = await import(
+    '@craft-ts/dev-tools/scripts/code-slice.js'
+  );
   const change = sliceChange(
     JSON.parse(recorded) as Record<string, string>,
     current,
@@ -441,16 +615,13 @@ async function renew(
   store: ReturnType<typeof createEvidenceStore>,
   ledgerPath: string,
   parsed: ReturnType<typeof parseArguments>,
-  observed: {
-    readonly list: readonly SubjectObservation[];
-    readonly leaves: ReadonlyMap<string, Readonly<Record<string, string>>>;
-    readonly workspace: WorkspaceSlices;
-  },
+  observed: ObservedRun,
   clock: { readonly now: () => string; readonly user: () => string },
 ): Promise<number> {
   const all = parsed.flags.has('all');
   const only =
-    parsed.values['subject'] ?? (all ? undefined : argumentAfter(parsed, 'renew'));
+    parsed.values['subject'] ??
+    (all ? undefined : argumentAfter(parsed, 'renew'));
   if (!all && !only) {
     io.writeError(
       'craft-ts attest renew: name a subject, or pass --all to renew every reviewable one.',
@@ -487,23 +658,16 @@ async function renew(
     ...(all ? { bulk: true as const } : {}),
   }));
 
+  const targetSubjects = new Set([
+    ...attestations.map((entry) => entry.subject),
+    ...report.statuses
+      .filter((entry) => entry.state === 'renewed')
+      .map((entry) => entry.subject),
+  ]);
+  await persistVisuals(store, observed, targetSubjects);
   // The slice manifest is written under the fingerprint, which is already its
   // content address — that is what lets `why` name the nodes that moved.
-  for (const attestation of attestations) {
-    const leaves = observed.leaves.get(attestation.subject);
-    if (leaves) {
-      await store.putAs(
-        sliceKey(attestation.subject, attestation.fingerprint),
-        `${canonicalJson(leaves)}\n`,
-        '.slice.json',
-      );
-    }
-  }
-  await store.putAs(
-    BASELINE,
-    `${canonicalJson(observed.workspace.nodeHashes())}\n`,
-    '.json',
-  );
+  await persistSliceManifests(store, observed, targetSubjects);
 
   const carried = applyRenewals(ledger, report);
   await writeLedgerFile(ledgerPath, withAttestations(carried, attestations));
@@ -533,7 +697,9 @@ async function unwatched(
   for (const hash of await store.list()) {
     const manifest = await store.getText(hash, '.slice.json');
     if (!manifest) continue;
-    for (const node of Object.keys(JSON.parse(manifest) as Record<string, string>)) {
+    for (const node of Object.keys(
+      JSON.parse(manifest) as Record<string, string>,
+    )) {
       watched.add(node);
     }
   }
@@ -541,7 +707,9 @@ async function unwatched(
   const moved = Object.keys(after).filter(
     (node) => before[node] !== undefined && before[node] !== after[node],
   );
-  const appeared = Object.keys(after).filter((node) => before[node] === undefined);
+  const appeared = Object.keys(after).filter(
+    (node) => before[node] === undefined,
+  );
   const result = {
     moved: moved.filter((node) => !watched.has(node)).sort(),
     appeared: appeared.filter((node) => !watched.has(node)).sort(),
@@ -554,14 +722,25 @@ async function unwatched(
   io.write(
     `${result.moved.length} node(s) moved and ${result.appeared.length} appeared with no attested subject covering them.`,
   );
-  for (const node of [...result.moved, ...result.appeared]) io.write(`  ${node}`);
+  for (const node of [...result.moved, ...result.appeared])
+    io.write(`  ${node}`);
   if (result.moved.length + result.appeared.length === 0) {
-    io.write('  Everything that moved is covered by something somebody looked at.');
+    io.write(
+      '  Everything that moved is covered by something somebody looked at.',
+    );
   }
   return 0;
 }
 
-async function review(io: CraftCliIo, port: string | undefined): Promise<number> {
+async function review(
+  io: CraftCliIo,
+  ledger: Ledger,
+  store: ReturnType<typeof createEvidenceStore>,
+  ledgerPath: string,
+  port: string | undefined,
+  observed: ObservedRun,
+  clock: { readonly now: () => string; readonly user: () => string },
+): Promise<number> {
   let module: typeof import('@craft-ts/style-testing/review');
   try {
     module = await import('@craft-ts/style-testing/review');
@@ -571,9 +750,98 @@ async function review(io: CraftCliIo, port: string | undefined): Promise<number>
     );
     return 1;
   }
-  const running = await module.startReviewServer({ port: Number(port ?? 4320) });
+  const report = reportOn(ledger, observed.list, { toolVersion: TOOL_VERSION });
+  const statuses = report.statuses.filter(
+    (status) =>
+      (status.state === 'review' || status.state === 'missing') &&
+      observed.visuals.has(status.subject),
+  );
+  if (statuses.length === 0) {
+    io.write('Nothing visual to review.');
+    return 0;
+  }
+
+  const subjects = new Set(statuses.map((status) => status.subject));
+  const stored = await persistVisuals(store, observed, subjects);
+  await persistSliceManifests(
+    store,
+    observed,
+    new Set([
+      ...subjects,
+      ...report.statuses
+        .filter((status) => status.state === 'renewed')
+        .map((status) => status.subject),
+    ]),
+  );
+
+  const items: import('@craft-ts/style-testing/review').ReviewItem[] = [];
+  for (const status of statuses) {
+    const artifact = observed.visuals.get(status.subject);
+    if (!artifact || !isLayoutDigest(artifact.capture.digest)) {
+      throw new Error(
+        `visual report: '${status.subject}' does not contain a layout digest v1.`,
+      );
+    }
+    const approvedText = status.attestation
+      ? await store.getText(status.attestation.evidence, '.digest.json')
+      : undefined;
+    const approvedValue = approvedText ? JSON.parse(approvedText) : undefined;
+    items.push({
+      subject: status.subject,
+      reason: status.reason ?? 'the output changed',
+      digest: artifact.capture.digest,
+      ...(isLayoutDigest(approvedValue) ? { approved: approvedValue } : {}),
+      ...(stored.get(status.subject)?.image
+        ? { image: stored.get(status.subject)?.image }
+        : {}),
+    });
+  }
+
+  const queue = module.buildReviewQueue(items);
+  const cards = new Map(queue.cards.map((card) => [card.shape, card]));
+  const observations = new Map(
+    observed.list.map((observation) => [observation.subject, observation]),
+  );
+  let currentLedger = applyRenewals(ledger, report);
+
+  const running = await module.startReviewServer({
+    port: Number(port ?? 4320),
+    items,
+    imageFor: async (hash) => await store.get(hash, '.png'),
+    onDecision: async (decision) => {
+      const card = cards.get(decision.shape);
+      if (!card) throw new Error('review: that diff cluster no longer exists.');
+      if (!isVerdict(decision.verdict)) {
+        throw new Error(`review: unknown verdict '${decision.verdict}'.`);
+      }
+      const verdict = decision.verdict;
+      const attestations = card.cluster.map((subject): Attestation => {
+        const observation = observations.get(subject);
+        if (!observation) {
+          throw new Error(`review: '${subject}' disappeared from the run.`);
+        }
+        return {
+          subject,
+          kind: observation.kind,
+          fingerprint: observation.fingerprint,
+          evidence: observation.evidence,
+          verdict,
+          assumptions: observation.assumptions ?? [],
+          by: clock.user(),
+          at: clock.now(),
+          toolVersion: TOOL_VERSION,
+          ...(decision.note ? { note: decision.note } : {}),
+          ...(card.cluster.length > 1 ? { cluster: card.cluster } : {}),
+        };
+      });
+      currentLedger = withAttestations(currentLedger, attestations);
+      await writeLedgerFile(ledgerPath, currentLedger);
+    },
+  });
   io.write(`Review queue at ${running.url}`);
-  io.write('  j/k move · a accept · n accept with a note · r reject · ^C to stop');
+  io.write(
+    '  j/k move · a accept · n accept with a note · r reject · ^C to stop',
+  );
   // The command owns the process until the reviewer is done. Returning here
   // would close the socket the moment the queue opened.
   await new Promise<void>((resolve) => {

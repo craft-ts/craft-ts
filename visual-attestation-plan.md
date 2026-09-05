@@ -20,16 +20,16 @@ s'ouvre que si une mesure de la vague 2 le justifie.
 
 Deux questions distinctes, deux caches :
 
-| question | clé | coût d'une erreur |
-| --- | --- | --- |
-| faut-il **re-rendre** ce scénario ? | empreinte de la tranche de code | du CPU |
-| faut-il **redemander à un humain** ? | empreinte de la **preuve produite** | du temps humain |
+| question                             | clé                                 | coût d'une erreur |
+| ------------------------------------ | ----------------------------------- | ----------------- |
+| faut-il **re-rendre** ce scénario ?  | empreinte de la tranche de code     | du CPU            |
+| faut-il **redemander à un humain** ? | empreinte de la **preuve produite** | du temps humain   |
 
 D'où la règle centrale : si le code change mais que la preuve est identique,
 l'attestation se **reporte automatiquement**, avec la mention « code changé, sortie
 inchangée ». C'est ce qui rend le système survivable à un refactor, et ce qui autorise
 une empreinte de code volontairement **prudente** — trop grossière ne coûte que du
-calcul. Seule une empreinte trop *fine* est dangereuse.
+calcul. Seule une empreinte trop _fine_ est dangereuse.
 
 La preuve n'est pas un PNG mais un **digest de layout** : les mesures du rendu. Stable,
 diffable, et surtout : il permet d'assertir automatiquement débordement, troncature,
@@ -59,7 +59,7 @@ ne demande plus d'œil. Le PNG est conservé, mais uniquement pour l'humain.
   hypothèse ». Une hypothèse qui change fait échouer l'assertion d'exhaustivité.
 - **Le déterminisme est une fonctionnalité, pas de l'hygiène.** Il porte deux
   mécanismes indépendants : le report automatique et la dichotomie. Un rendu instable
-  fabrique des bascules fantômes *et* noie la file de revue. Il est livré avant tout
+  fabrique des bascules fantômes _et_ noie la file de revue. Il est livré avant tout
   usage visuel du registre, jamais après.
 - **Une empreinte trop grossière est acceptable, une empreinte trop fine ne l'est
   pas.** En cas de doute sur l'inclusion d'un nœud dans une tranche, on l'inclut.
@@ -76,31 +76,31 @@ ne demande plus d'œil. Le PNG est conservé, mais uniquement pour l'humain.
 
 ## Carte des fichiers
 
-| Fichier | Responsabilité |
-| --- | --- |
+| Fichier                                                 | Responsabilité                                                        |
+| ------------------------------------------------------- | --------------------------------------------------------------------- |
 | Modify `libs/dev-tools/src/scripts/dependency-graph.ts` | Identifiants stables (sans numéro de ligne) + hash de source par nœud |
-| Create `libs/dev-tools/src/scripts/code-slice.ts` | Fermeture transitive dans le graphe + empreinte merkle d'une tranche |
-| Create `libs/dev-tools/src/scripts/slice-precision.ts` | Rejeu d'historique git pour mesurer la précision d'invalidation |
-| Create `libs/attest/src/lib/attestation.ts` | Modèle : sujet, empreinte, preuve, verdict, hypothèses |
-| Create `libs/attest/src/lib/ledger.ts` | Registre : une ligne par attestation, trié, fusionnable sans conflit |
-| Create `libs/attest/src/lib/state.ts` | `current` / `renewed` / `review` / `missing` + report automatique |
-| Create `libs/attest/src/lib/evidence-store.ts` | CAS local des preuves lourdes, hors git |
-| Create `libs/attest/src/lib/subjects/test.ts` | Adaptateur sujet `test` : inventaire, empreinte, diff avant/après |
-| Create `libs/attest/src/lib/subjects/visual.ts` | Adaptateur sujet `visual` : scénario, digest, PNG |
-| Create `libs/cli/src/lib/commands/attest.ts` | `status`, `diff`, `why`, `renew`, `review`, `unwatched` |
-| Modify `libs/cli/src/lib/run.ts` | Enregistrement de la commande |
-| Create `libs/style-testing/src/lib/determinism.ts` | Horloge, aléatoire, polices, animations, réseau, navigateur épinglé |
-| Create `libs/style-testing/src/lib/digest.ts` | Digest de layout v1 + signature discrète |
-| Create `libs/style-testing/src/lib/assertions.ts` | Débordement, troncature, chevauchement, contraste, cible tactile |
-| Create `libs/style-testing/src/lib/transitions.ts` | Recherche de bascules par dichotomie sur un paramètre continu |
-| Create `libs/style-testing/src/lib/margin.ts` | Marge entre le contenu réel et la bascule la plus proche |
-| Create `libs/style-testing/src/lib/review/` | Serveur local de revue : file, diff, « pourquoi », regroupement |
-| Create `libs/style-testing/src/lib/page.ts` | `visualPage` : découverte par point fixe, budget (vague 3) |
-| Create `libs/style-testing/src/lib/neighborhood.ts` | Voisinages mesurés, diamètre, `visualNeighborhood` (vague 3) |
-| Create `libs/style-testing/src/lib/seam.ts` | `visualSeam` déclaré **et vérifié expérimentalement** (vague 3) |
-| Modify `libs/style/src/plugin/vite.ts` | Découverte des fichiers `*.visual.ts` |
-| Modify `libs/i18n/src/testing.ts` | Pseudo-locale, locale la plus longue mesurée, bornes de tokens |
-| Create `apps/docs/guide/style/attestation.md` | Documentation |
+| Create `libs/dev-tools/src/scripts/code-slice.ts`       | Fermeture transitive dans le graphe + empreinte merkle d'une tranche  |
+| Create `libs/dev-tools/src/scripts/slice-precision.ts`  | Rejeu d'historique git pour mesurer la précision d'invalidation       |
+| Create `libs/attest/src/lib/attestation.ts`             | Modèle : sujet, empreinte, preuve, verdict, hypothèses                |
+| Create `libs/attest/src/lib/ledger.ts`                  | Registre : une ligne par attestation, trié, fusionnable sans conflit  |
+| Create `libs/attest/src/lib/state.ts`                   | `current` / `renewed` / `review` / `missing` + report automatique     |
+| Create `libs/attest/src/lib/evidence-store.ts`          | CAS local des preuves lourdes, hors git                               |
+| Create `libs/attest/src/lib/subjects/test.ts`           | Adaptateur sujet `test` : inventaire, empreinte, diff avant/après     |
+| Create `libs/attest/src/lib/subjects/visual.ts`         | Adaptateur sujet `visual` : scénario, digest, PNG                     |
+| Create `libs/cli/src/lib/commands/attest.ts`            | `status`, `diff`, `why`, `renew`, `review`, `unwatched`               |
+| Modify `libs/cli/src/lib/run.ts`                        | Enregistrement de la commande                                         |
+| Create `libs/style-testing/src/lib/determinism.ts`      | Horloge, aléatoire, polices, animations, réseau, navigateur épinglé   |
+| Create `libs/style-testing/src/lib/digest.ts`           | Digest de layout v1 + signature discrète                              |
+| Create `libs/style-testing/src/lib/assertions.ts`       | Débordement, troncature, chevauchement, contraste, cible tactile      |
+| Create `libs/style-testing/src/lib/transitions.ts`      | Recherche de bascules par dichotomie sur un paramètre continu         |
+| Create `libs/style-testing/src/lib/margin.ts`           | Marge entre le contenu réel et la bascule la plus proche              |
+| Create `libs/style-testing/src/lib/review/`             | Serveur local de revue : file, diff, « pourquoi », regroupement       |
+| Create `libs/style-testing/src/lib/page.ts`             | `visualPage` : découverte par point fixe, budget (vague 3)            |
+| Create `libs/style-testing/src/lib/neighborhood.ts`     | Voisinages mesurés, diamètre, `visualNeighborhood` (vague 3)          |
+| Create `libs/style-testing/src/lib/seam.ts`             | `visualSeam` déclaré **et vérifié expérimentalement** (vague 3)       |
+| Modify `libs/style/src/plugin/vite.ts`                  | Découverte des fichiers `*.visual.ts`                                 |
+| Modify `libs/i18n/src/testing.ts`                       | Pseudo-locale, locale la plus longue mesurée, bornes de tokens        |
+| Create `apps/docs/guide/style/attestation.md`           | Documentation                                                         |
 
 ## Types à figer
 
@@ -109,11 +109,16 @@ ne demande plus d'œil. Le PNG est conservé, mais uniquement pour l'humain.
 export type SubjectKind = 'test' | 'visual' | 'doc-example' | 'api-surface';
 
 export interface Attestation {
-  readonly subject: string;          // 'visual:route(/users)#viewport=md+query=error'
+  readonly subject: string; // 'visual:route(/users)#viewport=md+query=error'
   readonly kind: SubjectKind;
-  readonly fingerprint: string;      // merkle de la tranche de code
-  readonly evidence: string;         // hash de la preuve jugée
-  readonly verdict: 'ok' | 'ok-with-note' | 'rejected' | 'known-issue' | 'blocked';
+  readonly fingerprint: string; // merkle de la tranche de code
+  readonly evidence: string; // hash de la preuve jugée
+  readonly verdict:
+    | 'ok'
+    | 'ok-with-note'
+    | 'rejected'
+    | 'known-issue'
+    | 'blocked';
   readonly assumptions: readonly Assumption[];
   readonly by: string;
   readonly at: string;
@@ -127,19 +132,27 @@ export interface Attestation {
 
 /** Toute réduction qui n'est pas exactement vraie. */
 export type Assumption =
-  | { readonly kind: 'sampling'; readonly axis: string; readonly samples: number;
-      readonly transitions: readonly number[] }
-  | { readonly kind: 'seam'; readonly node: string;
-      readonly closes: readonly SeamDirection[]; readonly reason: string }
+  | {
+      readonly kind: 'sampling';
+      readonly axis: string;
+      readonly samples: number;
+      readonly transitions: readonly number[];
+    }
+  | {
+      readonly kind: 'seam';
+      readonly node: string;
+      readonly closes: readonly SeamDirection[];
+      readonly reason: string;
+    }
   | { readonly kind: 'neighborhood'; readonly members: readonly string[] };
 
 export type SeamDirection = 'inline' | 'block' | 'baseline' | 'order';
 
 export type AttestationState =
-  | 'current'    // empreinte inchangée : rien à faire
-  | 'renewed'    // code changé, preuve identique : reporté sans humain
-  | 'review'     // preuve différente : file d'attente humaine
-  | 'missing';   // sujet jamais attesté
+  | 'current' // empreinte inchangée : rien à faire
+  | 'renewed' // code changé, preuve identique : reporté sans humain
+  | 'review' // preuve différente : file d'attente humaine
+  | 'missing'; // sujet jamais attesté
 ```
 
 ```ts
@@ -151,11 +164,17 @@ export interface LayoutDigest {
 }
 
 export interface LayoutNode {
-  readonly path: string;                 // adresse stable dans l'arbre rendu
+  readonly path: string; // adresse stable dans l'arbre rendu
   readonly box: readonly [number, number, number, number]; // arrondi au 0.5 px
-  readonly intrinsic?: { readonly minContent: number; readonly maxContent: number };
-  readonly text?: { readonly content: string; readonly lines: number;
-                    readonly clipped: number };
+  readonly intrinsic?: {
+    readonly minContent: number;
+    readonly maxContent: number;
+  };
+  readonly text?: {
+    readonly content: string;
+    readonly lines: number;
+    readonly clipped: number;
+  };
   readonly styles: Readonly<Record<StyleKey, string>>;
   readonly overflow: { readonly inline: boolean; readonly block: boolean };
   readonly zOrder: number;
@@ -163,10 +182,22 @@ export interface LayoutNode {
 
 /** Liste fermée. L'élargir change `digestVersion`. */
 export type StyleKey =
-  | 'display' | 'position' | 'color' | 'background-color'
-  | 'border-width' | 'border-radius' | 'font' | 'letter-spacing'
-  | 'opacity' | 'visibility' | 'transform' | 'overflow'
-  | 'flex' | 'grid-template-columns' | 'gap' | 'z-index';
+  | 'display'
+  | 'position'
+  | 'color'
+  | 'background-color'
+  | 'border-width'
+  | 'border-radius'
+  | 'font'
+  | 'letter-spacing'
+  | 'opacity'
+  | 'visibility'
+  | 'transform'
+  | 'overflow'
+  | 'flex'
+  | 'grid-template-columns'
+  | 'gap'
+  | 'z-index';
 
 /** Les faits DISCRETS. C'est sur eux que la dichotomie cherche des bascules. */
 export interface LayoutSignature {
@@ -227,7 +258,7 @@ Deux chiffres à consigner **dans ce fichier** :
 
 - **taux d'invalidation médian** : fraction des tranches invalidées par un commit
   moyen. Attendu : bas. Au-delà de 25 %, le graphe est trop grossier ;
-- **faux négatifs** : une tranche dont l'empreinte n'a *pas* bougé alors qu'un fichier
+- **faux négatifs** : une tranche dont l'empreinte n'a _pas_ bougé alors qu'un fichier
   de sa fermeture a été modifié. Attendu : **zéro**. Un seul cas est bloquant, c'est le
   mode de défaillance dangereux.
 
@@ -243,24 +274,24 @@ npx tsx libs/dev-tools/src/bin/craft-slice-precision.ts \
   --tsconfig apps/demo/tsconfig.graph.json --commits 20
 ```
 
-| chiffre | mesuré | seuil |
-| --- | --- | --- |
-| taux d'invalidation médian | **0,0 %** | ≤ 25 % |
-| taux maximal | 45,5 % (un commit de 88 fichiers) | — |
-| faux négatifs | **0** | 0, bloquant |
-| tranches épargnées par le hash au nœud | 64 | — |
+| chiffre                                | mesuré                            | seuil       |
+| -------------------------------------- | --------------------------------- | ----------- |
+| taux d'invalidation médian             | **0,0 %**                         | ≤ 25 %      |
+| taux maximal                           | 45,5 % (un commit de 88 fichiers) | —           |
+| faux négatifs                          | **0**                             | 0, bloquant |
+| tranches épargnées par le hash au nœud | 64                                | —           |
 
 224 tranches (composants, routes, services). **Le point de décision est franchi**
 et la vague 2 est ouverte.
 
 Écart assumé sur la définition de « faux négatif ». Le plan la pose au niveau
-*fichier* — « une tranche dont l'empreinte n'a pas bougé alors qu'un fichier de sa
+_fichier_ — « une tranche dont l'empreinte n'a pas bougé alors qu'un fichier de sa
 fermeture a été modifié » — mais c'est exactement la précision que la tâche 2 exige :
 un nœud voisin modifié dans le même fichier ne **doit pas** invalider. Les deux
 chiffres sont donc rapportés séparément :
 
-- `falseNegatives`, au niveau **nœud** (empreinte immobile alors qu'un nœud *de la
-  fermeture* a changé de source) : le seul mode de défaillance dangereux, attendu et
+- `falseNegatives`, au niveau **nœud** (empreinte immobile alors qu'un nœud _de la
+  fermeture_ a changé de source) : le seul mode de défaillance dangereux, attendu et
   mesuré à zéro ;
 - `fileScopedNonInvalidations` : les 64 tranches que le hash au nœud a épargnées.
   C'est la fonctionnalité, pas un défaut, et la nommer autrement aurait fait passer un
@@ -397,11 +428,11 @@ viewport et par le nombre de voisinages. Consigner les chiffres dans ce fichier.
 
 #### Mesure — 2026-09-05, Chromium, `libs/style-testing/e2e/transitions.spec.ts`
 
-| axe | plage | rendus | temps mur |
-| --- | --- | --- | --- |
-| `userCard/title` (caractères) | 1 → 68 | 15 | 41 ms |
-| `row` (largeur du conteneur, px) | 80 → 400 | 14 | 50 ms |
-| `cart/total` (grille de magnitude) | 0 → 10 000 000 | 25 | 63 ms |
+| axe                                | plage          | rendus | temps mur |
+| ---------------------------------- | -------------- | ------ | --------- |
+| `userCard/title` (caractères)      | 1 → 68         | 15     | 41 ms     |
+| `row` (largeur du conteneur, px)   | 80 → 400       | 14     | 50 ms     |
+| `cart/total` (grille de magnitude) | 0 → 10 000 000 | 25     | 63 ms     |
 
 **≈ 3 ms par rendu, 14 à 25 rendus par axe.** Le coût est supportable : même
 multiplié par cinq points d'arrêt de viewport et cinq voisinages, un axe reste sous
@@ -505,7 +536,11 @@ font 4096 combinaisons. Deux réductions le ramènent à une poignée :
 
 ```ts
 export const productPageVisual = visualPage(productPage, {
-  data: { productStore: constant({ /* … */ }) },   // typé, pas un input de descendant
+  data: {
+    productStore: constant({
+      /* … */
+    }),
+  }, // typé, pas un input de descendant
   content: { 'productCard/title': atTransitions() }, // mesuré, pas deviné
   pinned: { 'de-facture-longue': [provideLocale('de-DE'), total(12_345_678)] },
   budget: { scenarios: 60, neighborhoodDiameter: 8 },
@@ -549,7 +584,7 @@ approximation. Un point d'axe, pas N.
 
 Locale générée : allongement de 40 %, encadrement `[[…]]` pour rendre la troncature
 visible, accentuation de chaque caractère pour faire ressortir les **chaînes en dur non
-externalisées**, paramètres préservés. Elle trouve la casse *future*, avant les
+externalisées**, paramètres préservés. Elle trouve la casse _future_, avant les
 traducteurs.
 
 ### Tâche 26 — Pluriels et paramètres
@@ -629,34 +664,33 @@ vérifier que la suite **échoue en nommant la géométrie qui a bougé** — pa
 - Toute réduction qui n'est pas exactement vraie est inscrite dans l'attestation, et un
   changement d'hypothèse fait échouer l'exhaustivité.
 
-
 ---
 
 # État de la mise en œuvre — 2026-09-05
 
 Vagues 0, 1, 2 et 4 livrées ; vague 3 volontairement **fermée** (voir la tâche 15).
 
-| tâche | état | où |
-| --- | --- | --- |
-| 1 · identifiants stables | fait | `dependency-graph.ts`, `code-slice.spec.ts` |
-| 2 · hash par nœud, fermeture, merkle | fait | `code-slice.ts` |
-| 3 · mesure de précision | fait — **0 % médian, 0 faux négatif** | `slice-precision.ts` |
-| 4 · modèle et registre | fait | `libs/attest/src/lib/{attestation,ledger}.ts` |
-| 5 · état et report automatique | fait | `state.ts` |
-| 6 · sujet `test` | fait | `subjects/test.ts`, `test-slice.ts` |
-| 7 · CLI | fait | `libs/cli/src/lib/commands/attest.ts` |
-| 8 · rapport inverse | fait | `attest unwatched` |
-| 9 · harnais déterministe | fait — **100 rendus, 1 digest** | `determinism.ts` |
-| 10 · digest v1 + migration | fait | `digest.ts` |
-| 11 · assertions automatiques | fait — témoin allemand vert | `assertions.ts` |
-| 12 · sujet `visual` sur la matrice | fait | `subjects/visual.ts`, `lib/attest.ts` |
-| 13 · surface de revue | fait | `lib/review/` |
-| 14 · bascules par dichotomie | fait | `transitions.ts` |
-| 15 · marge avant rupture | fait — **≈ 3 ms/rendu** | `margin.ts` |
-| 16 – 23 · la page | **non ouvert** (conditionnel) | — |
-| 24 · locale la plus longue | fait | `i18n/src/lib/visual-testing.ts` |
-| 25 · pseudo-locale | fait | idem |
-| 26 · pluriels et bornes de tokens | fait | idem |
+| tâche                                | état                                              | où                                                                                |
+| ------------------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1 · identifiants stables             | fait                                              | `dependency-graph.ts`, `code-slice.spec.ts`                                       |
+| 2 · hash par nœud, fermeture, merkle | fait                                              | `code-slice.ts`                                                                   |
+| 3 · mesure de précision              | fait — **0 % médian, 0 faux négatif**             | `slice-precision.ts`                                                              |
+| 4 · modèle et registre               | fait                                              | `libs/attest/src/lib/{attestation,ledger}.ts`                                     |
+| 5 · état et report automatique       | fait                                              | `state.ts`                                                                        |
+| 6 · sujet `test`                     | fait                                              | `subjects/test.ts`, `test-slice.ts`                                               |
+| 7 · CLI                              | fait                                              | `libs/cli/src/lib/commands/attest.ts`                                             |
+| 8 · rapport inverse                  | fait                                              | `attest unwatched`                                                                |
+| 9 · harnais déterministe             | fait — **100 rendus, 1 digest**                   | `determinism.ts`                                                                  |
+| 10 · digest v1 + migration           | fait                                              | `digest.ts`                                                                       |
+| 11 · assertions automatiques         | fait — témoin allemand vert                       | `assertions.ts`                                                                   |
+| 12 · sujet `visual` sur la matrice   | fait — **4 scénarios sur une route réelle**       | `subjects/visual.ts`, `lib/attest.ts`, `apps/demo/e2e/visual-attestation.spec.ts` |
+| 13 · surface de revue                | fait — rapport visuel raccordé à la CLI et au CAS | `lib/review/`, `libs/cli/src/lib/commands/attest.ts`                              |
+| 14 · bascules par dichotomie         | fait                                              | `transitions.ts`                                                                  |
+| 15 · marge avant rupture             | fait — **≈ 3 ms/rendu**                           | `margin.ts`                                                                       |
+| 16 – 23 · la page                    | **non ouvert** (conditionnel)                     | —                                                                                 |
+| 24 · locale la plus longue           | fait                                              | `i18n/src/lib/visual-testing.ts`                                                  |
+| 25 · pseudo-locale                   | fait                                              | idem                                                                              |
+| 26 · pluriels et bornes de tokens    | fait                                              | idem                                                                              |
 
 ## Écarts assumés
 
@@ -685,12 +719,18 @@ Vagues 0, 1, 2 et 4 livrées ; vague 3 volontairement **fermée** (voir la tâch
 
 ```sh
 npx tsc -b tsconfig.json --pretty false
-node tools/run-lib-vitest.mjs libs/attest/vitest.config.ts          # 33
-node tools/run-lib-vitest.mjs libs/style-testing/vitest.config.mts  # 73
-node tools/run-lib-vitest.mjs libs/dev-tools/vitest.config.mts      # 747
+node tools/run-lib-vitest.mjs libs/attest/vitest.config.ts          # 35
+node tools/run-lib-vitest.mjs libs/style-testing/vitest.config.mts  # 75
+node tools/run-lib-vitest.mjs libs/dev-tools/vitest.config.mts      # 748
 node tools/run-lib-vitest.mjs libs/i18n/vitest.config.ts            # 26
-node tools/run-lib-vitest.mjs libs/cli/vitest.config.ts             # 53
+node tools/run-lib-vitest.mjs libs/cli/vitest.config.ts             # 55
 npx playwright test --config libs/style-testing/playwright.config.ts  # 9, Chromium
+CRAFT_VISUAL_REPORT=.craft/runs/design-system.json \
+  npx playwright test apps/demo/e2e/visual-attestation.spec.ts \
+  --config apps/demo/playwright.config.ts --project chromium          # 1, Chromium
+npx tsx libs/cli/src/bin/craft-ts.ts attest status \
+  --report .craft/runs/design-system.json \
+  --tsconfig apps/demo/tsconfig.graph.json
 npx tsx libs/dev-tools/src/bin/craft-slice-precision.ts \
   --tsconfig apps/demo/tsconfig.graph.json --commits 20
 ```
@@ -698,6 +738,24 @@ npx tsx libs/dev-tools/src/bin/craft-slice-precision.ts \
 Deux échecs préexistants dans `libs/cli/src/lib/demo-manifests.spec.ts` : ils
 demandent un `dist/apps/demo` construit, absent d'un worktree neuf. Sans rapport avec
 ce plan.
+
+## Vérification sur une route réelle — 2026-09-05
+
+`/design-system` est maintenant capturée dans les quatre cellules de la matrice du
+thème : `base`, `scheme=dark`, `viewport=md` et leur combinaison. Le rapport emploie
+l'identifiant portable
+`component:apps/demo/src/app/examples/design-system/design-system-demo.ts:designSystemDemo` ;
+la CLI l'a résolu contre `apps/demo/tsconfig.graph.json` et a calculé :
+
+- une empreinte de tranche commune aux quatre scénarios :
+  `39a2a638df0af359fa53af241d20f755` ;
+- quatre digests distincts ;
+- `missing: 4` dans un ledger vide, puis une file locale de **4 éléments regroupés
+  en 1 décision** (même forme « jamais attesté »).
+
+Aucun verdict n'a été écrit pendant cette vérification : le premier jugement reste
+nécessairement humain. Les rapports et PNG vont dans `.craft/runs/`, hors git ; le
+ledger reste versionné.
 
 ## Vérification humaine restant à faire
 
@@ -707,5 +765,3 @@ ce plan.
   Le mécanisme est couvert par `state.spec.ts` et `attest.spec.ts`, et la stabilité des
   identifiants par `code-slice.spec.ts` — mais la boucle complète sur du vrai code n'a
   pas encore été faite à la main.
-- **Brancher le sujet `visual` sur des routes réelles** de la demo, plutôt que sur les
-  pages-fixtures de `libs/style-testing/e2e/`.

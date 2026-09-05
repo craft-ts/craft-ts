@@ -43,6 +43,44 @@ export interface ComponentCaptures {
   readonly captures: readonly ScenarioCapture[];
 }
 
+export const VISUAL_REPORT_FORMAT = 'craft-ts-visual-report';
+
+export interface VisualReportCapture {
+  /** Repository-relative graph node id. */
+  readonly component: string;
+  readonly scenario: string;
+  readonly digest: LayoutDigest;
+  /** Screenshot path, relative to the report file unless absolute. */
+  readonly image?: string;
+  readonly assumptions?: readonly unknown[];
+}
+
+export interface VisualReport {
+  readonly format: typeof VISUAL_REPORT_FORMAT;
+  readonly version: 1;
+  readonly captures: readonly VisualReportCapture[];
+}
+
+/** Builds the JSON value consumed by `craft-ts attest --report`. */
+export function visualReport(
+  captures: readonly VisualReportCapture[],
+): VisualReport {
+  const sorted = [...captures].sort((left, right) =>
+    visualSubject(left.component, left.scenario).localeCompare(
+      visualSubject(right.component, right.scenario),
+    ),
+  );
+  const subjects = sorted.map((capture) =>
+    visualSubject(capture.component, capture.scenario),
+  );
+  const duplicate = subjects.find(
+    (subject, index) => index > 0 && subjects[index - 1] === subject,
+  );
+  if (duplicate)
+    throw new Error(`visualReport: duplicate subject '${duplicate}'.`);
+  return { format: VISUAL_REPORT_FORMAT, version: 1, captures: sorted };
+}
+
 export const visualSubject = (component: string, scenario: string): string =>
   `visual:${component}#${scenario}`;
 

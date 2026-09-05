@@ -1,6 +1,6 @@
 # Attestation: a judgement that survives a refactor
 
-A snapshot suite records *what the output was*. Renaming a local variable
+A snapshot suite records _what the output was_. Renaming a local variable
 changes no pixel, and yet the whole suite asks to be looked at again — so people
 run `--update-snapshots`, and the file that was supposed to record a human
 decision records nothing at all.
@@ -23,7 +23,7 @@ From which the rule the whole design rests on: **when the code changes and the
 evidence does not, the attestation carries itself forward**, marked `renewed`,
 with a note saying "code changed, output unchanged".
 
-That is also why the code fingerprint is allowed to be *cautious*. A slice that
+That is also why the code fingerprint is allowed to be _cautious_. A slice that
 is too wide only costs a re-run. Only a slice that is too narrow is dangerous —
 it misses a regression in silence, and nobody is ever asked about it again.
 
@@ -63,7 +63,9 @@ import {
 
 await makeDeterministic(page);
 await page.goto('/users');
-const digest = await collectLayoutDigest(page, { root: '[data-testid=userCard]' });
+const digest = await collectLayoutDigest(page, {
+  root: '[data-testid=userCard]',
+});
 
 assertNoLayoutViolations(digest, { scenario: 'locale=de-DE' });
 // → userCard/title hides 34px of "Benutzerkontoeinstellungen".
@@ -83,7 +85,10 @@ hundred consecutive renders of one scenario must produce a hundred identical
 digests before anything else is worth building:
 
 ```ts
-await assertDeterministic(async () => JSON.stringify(await digestOf(page)), 100);
+await assertDeterministic(
+  async () => JSON.stringify(await digestOf(page)),
+  100,
+);
 ```
 
 ## Where it tips over
@@ -93,7 +98,7 @@ it has are **thresholds**. `findTransitions` samples a coarse grid — word
 boundaries, digit-count changes — and bisects only inside the intervals where
 the discrete signature actually moved.
 
-Then the report that arrives *before* the bug:
+Then the report that arrives _before_ the bug:
 
 ```
 userCard/title: 1 → 2 lines at 34 characters.
@@ -104,7 +109,11 @@ Nothing is broken. That is the point: it fails in CI, with no human and no
 pixel, on the translation nobody has written yet.
 
 ```ts
-const search = await findTransitions(signatureAt, { axis: 'title', min: 1, max: 80 });
+const search = await findTransitions(signatureAt, {
+  axis: 'title',
+  min: 1,
+  max: 80,
+});
 assertMargins([marginOf(search, longest.longestLength)]);
 ```
 
@@ -125,14 +134,18 @@ The catalogue is a TypeScript value, which makes two of these exact:
   per locale. They are axis points by construction.
 
 The **pseudo-locale** is the approximation, and it is the one that finds the
-*future* case: 40% longer, `[[bracketed]]` so truncation is visible, every letter
+_future_ case: 40% longer, `[[bracketed]]` so truncation is visible, every letter
 accented so an un-externalised string stands out.
 
 ```ts
-import { longestLocale, pseudoCatalog, findHardCodedText } from '@craft-ts/i18n/testing';
+import {
+  longestLocale,
+  pseudoCatalog,
+  findHardCodedText,
+} from '@craft-ts/i18n/testing';
 
 longestLocale([en, de, ja], usedKeys); // → { id: 'de-DE', longestKey: 'account.settings' }
-findHardCodedText(visibleStrings);      // → ['Submit']  ← never went through the catalogue
+findHardCodedText(visibleStrings); // → ['Submit']  ← never went through the catalogue
 ```
 
 Two pressures, opposite failure modes, kept apart throughout: a rising
@@ -142,6 +155,24 @@ from its siblings in an `auto` track. A long sentence with spaces in it usually
 does not move `min-content` at all.
 
 ## The command line
+
+Capture a real route into a portable report, then let the CLI derive every
+fingerprint from the current dependency graph:
+
+```sh
+CRAFT_VISUAL_REPORT=.craft/runs/design-system.json \
+  npx playwright test apps/demo/e2e/visual-attestation.spec.ts \
+  --config apps/demo/playwright.config.ts --project chromium
+
+craft-ts attest status \
+  --report .craft/runs/design-system.json \
+  --tsconfig apps/demo/tsconfig.graph.json
+```
+
+The report contains repository-relative graph node ids, digests and screenshot
+paths. It deliberately contains no code fingerprint: accepting a fingerprint
+from an old browser run could keep a stale slice current forever. Reports and
+screenshots are regenerable and ignored; the ledger is not.
 
 ```sh
 craft-ts attest status --report vitest-report.json
@@ -158,7 +189,7 @@ a person last actually looked at it. A review that cannot answer "why am I being
 asked this?" is a review that gets stamped.
 
 **`unwatched`** lists the nodes that moved and belong to no attested subject —
-*what changed while nobody was looking*. It falls out of the machinery for free.
+_what changed while nobody was looking_. It falls out of the machinery for free.
 
 `renew --all` is allowed and is **marked** as a bulk renewal in every
 attestation it writes, and `status` counts them. A bulk renewal that left no

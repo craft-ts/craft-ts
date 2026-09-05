@@ -11,7 +11,11 @@
  * opaque value and is canonically hashed; if this module ever needs to know
  * what a `LayoutNode` is, the boundary has moved to the wrong place.
  */
-import { evidenceHashOf, type EvidenceStore } from '../evidence-store.js';
+import {
+  canonicalJson,
+  evidenceHashOf,
+  type EvidenceStore,
+} from '../evidence-store.js';
 import type { Assumption, SubjectObservation } from '../attestation.js';
 
 export interface VisualScenarioRef {
@@ -29,6 +33,86 @@ export interface VisualCapture extends VisualScenarioRef {
   /** Optional screenshot, kept for the reviewer only. */
   readonly image?: Uint8Array;
   readonly assumptions?: readonly Assumption[];
+}
+
+export const VISUAL_REPORT_FORMAT = 'craft-ts-visual-report';
+
+/**
+ * Portable output of a browser run.
+ *
+ * The code fingerprint is deliberately absent: the CLI derives it from the
+ * current dependency graph. A report that could supply its own fingerprint
+ * could accidentally keep a stale slice current forever.
+ */
+export interface VisualRunCapture extends VisualScenarioRef {
+  readonly digest: unknown;
+  /** Screenshot path, relative to the report file unless absolute. */
+  readonly image?: string;
+  readonly assumptions?: readonly Assumption[];
+}
+
+export interface VisualRunReport {
+  readonly format: typeof VISUAL_REPORT_FORMAT;
+  readonly version: 1;
+  readonly captures: readonly VisualRunCapture[];
+}
+
+export function isVisualRunReport(value: unknown): value is VisualRunReport {
+  if (typeof value !== 'object' || value === null) return false;
+  const report = value as Partial<VisualRunReport>;
+  return (
+    report.format === VISUAL_REPORT_FORMAT &&
+    report.version === 1 &&
+    Array.isArray(report.captures) &&
+    report.captures.every((capture) => {
+      if (typeof capture !== 'object' || capture === null) return false;
+      const candidate = capture as Partial<VisualRunCapture>;
+      return (
+        typeof candidate.component === 'string' &&
+        candidate.component.length > 0 &&
+        typeof candidate.scenario === 'string' &&
+        candidate.scenario.length > 0 &&
+        'digest' in candidate &&
+        (candidate.image === undefined ||
+          typeof candidate.image === 'string') &&
+        (candidate.assumptions === undefined ||
+          Array.isArray(candidate.assumptions))
+      );
+    })
+  );
+}
+
+export function parseVisualRunReport(value: unknown): VisualRunReport {
+  if (!isVisualRunReport(value)) {
+    throw new Error(
+      `visual report: expected { format: '${VISUAL_REPORT_FORMAT}', version: 1, captures: [...] }.`,
+    );
+  }
+  const subjects = new Set<string>();
+  for (const capture of value.captures) {
+    const subject = visualSubjectId(capture);
+    if (subjects.has(subject)) {
+      throw new Error(`visual report: duplicate subject '${subject}'.`);
+    }
+    subjects.add(subject);
+  }
+  return value;
+}
+
+/** Derives observations from a run and the current graph, never stale input. */
+export function observeVisualRun(
+  report: VisualRunReport,
+  fingerprintFor: (component: string) => string,
+): readonly SubjectObservation[] {
+  return observeVisuals(
+    report.captures.map((capture) => ({
+      component: capture.component,
+      scenario: capture.scenario,
+      digest: capture.digest,
+      fingerprint: fingerprintFor(capture.component),
+      assumptions: capture.assumptions ?? [],
+    })),
+  );
 }
 
 export const visualSubjectId = (ref: VisualScenarioRef): string =>
@@ -70,8 +154,11 @@ export async function storeVisual(
   store: EvidenceStore,
   capture: VisualCapture,
 ): Promise<StoredVisual> {
+  // The bytes are the same canonical bytes `visualEvidence` hashes. If the
+  // store used pretty JSON here, the ledger's evidence address would point at
+  // an object that does not exist and the next review could not load it.
   const evidence = await store.put(
-    `${JSON.stringify(capture.digest, null, 2)}\n`,
+    canonicalJson(capture.digest),
     '.digest.json',
   );
   const image = capture.image
@@ -109,8 +196,9 @@ export function clusterByDiffShape<Item extends { readonly subject: string }>(
   }
   return [...byShape.values()]
     .map((subjects) => subjects.sort())
-    .sort((left, right) =>
-      right.length - left.length ||
-      (left[0] ?? '').localeCompare(right[0] ?? ''),
+    .sort(
+      (left, right) =>
+        right.length - left.length ||
+        (left[0] ?? '').localeCompare(right[0] ?? ''),
     );
 }
