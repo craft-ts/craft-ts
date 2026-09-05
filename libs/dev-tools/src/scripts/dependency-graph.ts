@@ -3786,17 +3786,21 @@ function addPrimitiveMemberProperty(
   const exposedMethods = readStringArray(
     primitive?.details?.['exposedMethods'],
   );
-  const propertyNode = addNode(builder, {
-    id: `property:${primitiveId}:${memberPath}`,
-    kind: 'property',
-    label: `${primitive?.label ?? primitiveId}.${memberPath}`,
-    filePath: node.getSourceFile().getFilePath(),
-    line: node.getStartLineNumber(),
-    details: {
-      member: memberPath,
-      ...(exposedMethods.includes(member) ? { exposedMethod: true } : {}),
+  const propertyNode = addNode(
+    builder,
+    {
+      id: `property:${primitiveId}:${memberPath}`,
+      kind: 'property',
+      label: `${primitive?.label ?? primitiveId}.${memberPath}`,
+      filePath: node.getSourceFile().getFilePath(),
+      line: node.getStartLineNumber(),
+      details: {
+        member: memberPath,
+        ...(exposedMethods.includes(member) ? { exposedMethod: true } : {}),
+      },
     },
-  });
+    node,
+  );
   addEdge(builder, primitiveId, propertyNode.id, 'contains', 'ast', {
     property: memberPath.split('.')[0],
   });
@@ -3809,14 +3813,18 @@ function addServiceMemberProperty(
   memberPath: string,
   node: Node,
 ): DependencyGraphNode {
-  const propertyNode = addNode(builder, {
-    id: `property:${service.node.id}:${memberPath}`,
-    kind: 'property',
-    label: `${service.node.label}.${memberPath}`,
-    filePath: service.node.filePath,
-    line: node.getStartLineNumber(),
-    details: { member: memberPath },
-  });
+  const propertyNode = addNode(
+    builder,
+    {
+      id: `property:${service.node.id}:${memberPath}`,
+      kind: 'property',
+      label: `${service.node.label}.${memberPath}`,
+      filePath: service.node.filePath,
+      line: node.getStartLineNumber(),
+      details: { member: memberPath },
+    },
+    node,
+  );
   addEdge(builder, service.node.id, propertyNode.id, 'contains', 'type', {
     member: memberPath,
   });

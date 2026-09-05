@@ -274,28 +274,26 @@ npx tsx libs/dev-tools/src/bin/craft-slice-precision.ts \
   --tsconfig apps/demo/tsconfig.graph.json --commits 20
 ```
 
-| chiffre                                | mesuré                            | seuil       |
-| -------------------------------------- | --------------------------------- | ----------- |
-| taux d'invalidation médian             | **0,0 %**                         | ≤ 25 %      |
-| taux maximal                           | 45,5 % (un commit de 88 fichiers) | —           |
-| faux négatifs                          | **0**                             | 0, bloquant |
-| tranches épargnées par le hash au nœud | 64                                | —           |
+| chiffre                    | tranche = nœuds seuls | tranche = nœuds **+ fichiers** | seuil       |
+| -------------------------- | --------------------- | ------------------------------ | ----------- |
+| taux d'invalidation médian | 0,0 %                 | **0,0 %**                      | ≤ 25 %      |
+| taux maximal               | 45,5 %                | 55,8 % (un commit de 88 fichiers) | —        |
+| faux négatifs              | 0                     | **0**                          | 0, bloquant |
 
 224 tranches (composants, routes, services). **Le point de décision est franchi**
 et la vague 2 est ouverte.
 
-Écart assumé sur la définition de « faux négatif ». Le plan la pose au niveau
-_fichier_ — « une tranche dont l'empreinte n'a pas bougé alors qu'un fichier de sa
-fermeture a été modifié » — mais c'est exactement la précision que la tâche 2 exige :
-un nœud voisin modifié dans le même fichier ne **doit pas** invalider. Les deux
-chiffres sont donc rapportés séparément :
+La colonne de droite est celle qui est livrée : elle ajoute le hash de chaque fichier
+touché par la fermeture, après le faux négatif décrit plus bas. Ce filet de sécurité
+ne coûte **rien à la médiane** — elle reste à 0 % — et ne se paie que sur les gros
+commits transverses, où re-rendre est de toute façon la bonne réponse.
 
-- `falseNegatives`, au niveau **nœud** (empreinte immobile alors qu'un nœud _de la
-  fermeture_ a changé de source) : le seul mode de défaillance dangereux, attendu et
-  mesuré à zéro ;
-- `fileScopedNonInvalidations` : les 64 tranches que le hash au nœud a épargnées.
-  C'est la fonctionnalité, pas un défaut, et la nommer autrement aurait fait passer un
-  succès pour une alerte.
+Note de vocabulaire : le plan pose « faux négatif » au niveau _fichier_ (« une tranche
+dont l'empreinte n'a pas bougé alors qu'un fichier de sa fermeture a été modifié »).
+L'outil le mesure au niveau **nœud** — empreinte immobile alors qu'un nœud _de la
+fermeture_ a changé de source — parce que c'est le seul mode de défaillance qui ne
+puisse être qu'un défaut d'implémentation. Les deux valent zéro dans la version
+livrée, puisque le fichier est désormais une feuille.
 
 ---
 
@@ -756,6 +754,67 @@ la CLI l'a résolu contre `apps/demo/tsconfig.graph.json` et a calculé :
 Aucun verdict n'a été écrit pendant cette vérification : le premier jugement reste
 nécessairement humain. Les rapports et PNG vont dans `.craft/runs/`, hors git ; le
 ledger reste versionné.
+
+## Contradiction trouvée dans le plan, et comment elle a été tranchée
+
+La vérification humaine de fin de vague 2 a été faite pour de vrai, sur
+`/design-system` de la demo. Elle a mis au jour un **faux négatif**, c'est-à-dire le
+seul mode de défaillance que le plan déclare bloquant.
+
+Le plan demande deux choses qui s'excluent :
+
+1. **Tâche 2, deuxième point** — « un nœud modifié dans le même fichier qu'un nœud de
+   la tranche, mais absent de la fermeture, **ne doit pas** changer l'empreinte. C'est
+   la propriété que la demande initiale réclame. »
+2. **Contraintes globales et risques** — « en cas de doute sur l'inclusion d'un nœud
+   dans une tranche, on l'inclut » ; « faux négatifs, attendu : zéro. Un seul cas est
+   bloquant. »
+
+Le cas concret : dans `design-system-demo.ts`,
+
+```ts
+const initialShowcase = () => ({ tone: 'info', size: 'md', progress: 40 });
+```
+
+n'est pas une primitive craft. Le graphe ne le modélise donc pas, il n'appartient à
+aucune fermeture, et il n'a pas de hash. Passer `progress` de 40 à 55 **change le
+rendu** et ne bougeait **aucune empreinte** : `current 4`, personne n'est prévenu,
+jamais.
+
+Ce n'est pas un cas de coin. Toute fonction utilitaire de module — une valeur par
+défaut, un formateur, un comparateur — est dans ce trou.
+
+### Arbitrage
+
+Le plan tranche lui-même : trop grossier est acceptable, trop fin ne l'est pas. Chaque
+tranche porte donc, **en plus** des hashes de nœuds, un hash par fichier qu'elle
+touche (`fileLeavesOf` dans `code-slice.ts`). La garantie devient explicite au lieu
+d'être un accident de quels types de nœuds portent une plage source.
+
+Le prix est exactement celui que le plan dit supportable : un refactor cosmétique
+re-rend le composant et ressort **`renewed`** — le report automatique l'absorbe, la
+file de revue reste vide, aucun humain n'est dérangé. C'est la promesse initiale,
+tenue ; ce qui est perdu, c'est seulement le calcul économisé.
+
+### Boucle vérifiée de bout en bout, sur du vrai code
+
+| geste | attendu | obtenu |
+| --- | --- | --- |
+| attester 4 scénarios de `/design-system` | — | `current 4` |
+| déplacer `constant` de 20 lignes (cosmétique) | rien en file | **`renewed 4`**, `review 0` |
+| `progress: 40 → 55` (vrai changement) | re-rendu | **`renewed 4`** (empreinte bougée) |
+| recapturer après ce changement | un humain | **`review 4` — « the output changed »** |
+| `attest why <sujet>` | nommer ce qui a bougé | 3 nœuds `property:` nommés |
+
+### Ce qui reste ouvert
+
+La fermeture **exacte** existe : au lieu de hacher le fichier entier, résoudre les
+identifiants référencés dans la plage source d'un nœud jusqu'à leurs déclarations, et
+inclure celles-là. `initialShowcase` rentrerait dans la tranche parce qu'il est
+référencé ; un voisin que personne n'appelle resterait dehors. Cela satisferait les
+deux exigences au lieu d'en sacrifier une. C'est un travail de graphe non trivial et
+il n'a pas été fait : la version sûre est livrée, la version précise est un choix à
+prendre.
 
 ## Vérification humaine restant à faire
 

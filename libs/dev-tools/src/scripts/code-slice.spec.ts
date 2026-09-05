@@ -157,7 +157,25 @@ describe('code slices', () => {
     `,
   };
 
-  it('does not move when a node of the same file, outside the closure, changes', async () => {
+  // The two fixtures live in different temporary directories, so the node ids
+  // differ by their absolute path. The root is stripped before the fingerprint
+  // is taken, which is what a repository-relative graph does.
+  const fingerprintOfService = (root: string, label = 'counter') => {
+    const graph = analyze(root);
+    const index = createSliceIndex(graph);
+    const service = graph.nodes.find((node) => node.label === label);
+    const slice = sliceOf(index, service?.id ?? '');
+    return fingerprintOf(
+      Object.fromEntries(
+        Object.entries(slice.leaves).map(([id, hash]) => [
+          id.replace(root, '<root>'),
+          hash,
+        ]),
+      ),
+    );
+  };
+
+  it('keeps a node hash to itself when a sibling in the same file changes', async () => {
     const before = await fixture(twoServices);
     const after = await fixture({
       'app.ts': twoServices['app.ts'].replace(
@@ -166,25 +184,59 @@ describe('code slices', () => {
       ),
     });
 
-    // The two fixtures live in different temporary directories, so the node
-    // ids differ by their absolute path. The root is stripped before the
-    // fingerprint is taken, which is what a repository-relative graph does.
-    const fingerprint = (root: string) => {
+    const nodeHashes = (root: string) => {
       const graph = analyze(root);
-      const index = createSliceIndex(graph);
       const counter = graph.nodes.find((node) => node.label === 'counter');
-      const slice = sliceOf(index, counter?.id ?? '');
-      return fingerprintOf(
-        Object.fromEntries(
-          Object.entries(slice.leaves).map(([id, hash]) => [
-            id.replace(root, '<root>'),
-            hash,
-          ]),
-        ),
+      const index = createSliceIndex(graph);
+      return Object.fromEntries(
+        Object.entries(sliceOf(index, counter?.id ?? '').leaves)
+          .filter(([id]) => !id.startsWith('file:'))
+          .map(([id, hash]) => [id.replace(root, '<root>'), hash]),
       );
     };
 
-    expect(fingerprint(after)).toBe(fingerprint(before));
+    // Node granularity holds: not one leaf of the closure moved.
+    expect(nodeHashes(after)).toEqual(nodeHashes(before));
+  });
+
+  it('still invalidates on a same-file edit, because the file is a leaf too', async () => {
+    const before = await fixture(twoServices);
+    const after = await fixture({
+      'app.ts': twoServices['app.ts'].replace(
+        "state('other', 0)",
+        "state('other', 999)",
+      ),
+    });
+
+    // Deliberately coarser than the plan's task 2 asks for, and the reason is
+    // the test below: the graph does not model plain declarations, so node
+    // hashes alone let a real change through in silence. The plan's own
+    // tie-breaker — coarse is acceptable, a single false negative is blocking —
+    // decides it. The cost is a re-render the evidence comparison absorbs.
+    expect(fingerprintOfService(after)).not.toBe(fingerprintOfService(before));
+  });
+
+  it('catches a plain helper the graph does not model at all', async () => {
+    const withHelper = {
+      'app.ts': `
+        const initialCount = () => 40;
+
+        export const counter = craftService({ name: 'counter' }, () => {
+          const count = state('count', initialCount());
+          return { count };
+        });
+      `,
+    };
+    const before = await fixture(withHelper);
+    const after = await fixture({
+      'app.ts': withHelper['app.ts'].replace('=> 40;', '=> 55;'),
+    });
+
+    // `initialCount` is not a craft primitive, so it is in no closure and has
+    // no node hash. Under node hashes alone this edit changed the render and
+    // moved no fingerprint — a missed regression, in silence, which is the one
+    // failure mode the design says it will never accept.
+    expect(fingerprintOfService(after)).not.toBe(fingerprintOfService(before));
   });
 
   it('moves when a node inside the closure changes', async () => {
