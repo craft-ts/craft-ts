@@ -29,6 +29,9 @@
       "@craft-ts/style": ["./libs/style/src/index.ts"],
       "@craft-ts/style/vite": ["./libs/style/src/plugin/vite.ts"],
       "@craft-ts/style-testing": ["./libs/style-testing/src/index.ts"],
+      "@craft-ts/style-testing/review": [
+        "./libs/style-testing/src/lib/review/index.ts"
+      ],
       "@craft-ts/component/testing": ["./libs/component/testing/public-api.ts"],
       "test-type": ["./libs/test-type/src/index.ts"],
       "@craft-ts/dev-tools": ["./libs/dev-tools/src/index.ts"],

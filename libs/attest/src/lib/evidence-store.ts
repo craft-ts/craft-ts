@@ -56,6 +56,15 @@ export interface EvidenceStore {
   readonly directory: string;
   /** Writes a body and returns its hash. Idempotent. */
   put(body: EvidenceBody, extension?: string): Promise<string>;
+  /**
+   * Writes a body under a name the caller already owns.
+   *
+   * Used for the slice manifest behind a fingerprint: the fingerprint is
+   * already a content address of those leaves, so re-hashing them would create
+   * a second address for the same fact and `attest why` would have to carry a
+   * pointer nobody can reconstruct.
+   */
+  putAs(name: string, body: EvidenceBody, extension?: string): Promise<string>;
   get(hash: string, extension?: string): Promise<Uint8Array | undefined>;
   getText(hash: string, extension?: string): Promise<string | undefined>;
   has(hash: string, extension?: string): Promise<boolean>;
@@ -91,6 +100,10 @@ export function createEvidenceStore(directory: string): EvidenceStore {
       // so rewriting it would only risk tearing a file another process reads.
       if (!(await read(path))) await write(path, body);
       return hash;
+    },
+    async putAs(name, body, extension = '.json') {
+      await write(pathFor(directory, name, extension), body);
+      return name;
     },
     async get(hash, extension = '.json') {
       return await read(pathFor(directory, hash, extension));

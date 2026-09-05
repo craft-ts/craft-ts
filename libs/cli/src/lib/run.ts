@@ -1,3 +1,4 @@
+import { runAttestCommand } from './commands/attest.js';
 import { runCheckCommand } from './commands/check.js';
 import { runDeployCommand } from './commands/deploy.js';
 import { runManifestCommand } from './commands/manifest.js';
@@ -12,6 +13,7 @@ can still change between minor versions. Pin the version in a pipeline.
 Usage: craft-ts <command> [options]
 
 Commands:
+  attest               Record and query human judgements that survive a refactor
   check                Validate a deployment manifest before building
   manifest             Resolve the manifest to its provider-neutral artefact form
   providers            List the deployment providers and their capabilities
@@ -40,6 +42,7 @@ export async function runCraftCli(
     return command === undefined ? 1 : 0;
   }
 
+  if (command === 'attest') return await runAttestCommand(rest, io);
   if (command === 'check') return await runCheckCommand(rest, io);
   if (command === 'manifest') return await runManifestCommand(rest, io);
   if (command === 'providers') return runProvidersCommand(rest, io);

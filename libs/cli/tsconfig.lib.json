@@ -17,7 +17,16 @@
   ],
   "references": [
     {
+      "path": "../attest/tsconfig.lib.json"
+    },
+    {
       "path": "../deploy/tsconfig.lib.json"
+    },
+    {
+      "path": "../dev-tools/tsconfig.lib.json"
+    },
+    {
+      "path": "../style-testing/tsconfig.lib.json"
     }
   ]
 }

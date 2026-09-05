@@ -25,6 +25,9 @@
       "path": "./libs/effect"
     },
     {
+      "path": "./libs/attest"
+    },
+    {
       "path": "./libs/deploy"
     },
     {

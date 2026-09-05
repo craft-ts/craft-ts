@@ -4,6 +4,14 @@ export type ParsedArguments = Readonly<{
   flags: ReadonlySet<string>;
   /** Options the command does not know about. */
   unknown: readonly string[];
+  /**
+   * Every bare argument, in order, `command` included.
+   *
+   * A verb that takes a target — `attest why <subject>` — needs the second
+   * positional, and dropping it silently would make the command act on
+   * whatever the default happens to be.
+   */
+  positional: readonly string[];
 }>;
 
 export type OptionSpec = Readonly<{
@@ -26,12 +34,14 @@ export function parseArguments(
   const values: Record<string, string> = {};
   const flags = new Set<string>();
   const unknown: string[] = [];
+  const positional: string[] = [];
   let command: string | null = null;
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index] as string;
     if (!argument.startsWith('-')) {
       command ??= argument;
+      positional.push(argument);
       continue;
     }
     const name = argument.replace(/^--?/, '');
@@ -52,5 +62,5 @@ export function parseArguments(
     unknown.push(argument);
   }
 
-  return { command, values, flags, unknown };
+  return { command, values, flags, unknown, positional };
 }
