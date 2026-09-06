@@ -26,6 +26,16 @@ export interface FrameView {
 
 const ATTESTED = 'data-craft-attested';
 const PATH = 'data-craft-path';
+const DECOR = 'data-craft-decor';
+const UNRENDERED = new Set([
+  'HEAD',
+  'SCRIPT',
+  'STYLE',
+  'LINK',
+  'META',
+  'TITLE',
+  'TEMPLATE',
+]);
 
 export const viewOf = (frame: HTMLIFrameElement): FrameView | undefined => {
   const view = frame.contentWindow;
@@ -34,6 +44,26 @@ export const viewOf = (frame: HTMLIFrameElement): FrameView | undefined => {
     ? { document, window: view as Window & typeof globalThis }
     : undefined;
 };
+
+/**
+ * Waits until the replay can be measured for what it will look like.
+ *
+ * Fonts load asynchronously, and a text box measured before its face arrives
+ * carries the fallback's metrics — half a pixel out, on one span, which reads
+ * as an unfaithful replay and sends the reviewer to the screenshot for no
+ * reason. Bounded, because a font that never arrives must not hang the review.
+ */
+export async function whenReady(
+  view: FrameView,
+  timeoutMs = 3000,
+): Promise<void> {
+  const fonts = (view.document as Document & { fonts?: FontFaceSet }).fonts;
+  if (!fonts) return;
+  await Promise.race([
+    fonts.ready,
+    new Promise((resolve) => view.window.setTimeout(resolve, timeoutMs)),
+  ]);
+}
 
 /** Re-measures the replay with the collector that produced the evidence. */
 export function measureReplay(view: FrameView, root: string): LayoutDigest {
@@ -55,9 +85,26 @@ export function checkReplay(
   view: FrameView,
   root: string,
   attested: LayoutDigest,
+  options: { readonly tolerance?: number } = {},
 ): ReplayFidelity {
-  return replayFidelity(measureReplay(view, root), attested);
+  return replayFidelity(measureReplay(view, root), attested, options);
 }
+
+/**
+ * Half a pixel — one quantum of the digest's own rounding.
+ *
+ * An inline element's rect is the union of its line boxes, and on a real page
+ * one of those lands on a rounding boundary and falls the other way in a
+ * frame. Measured on the demo route: 35 of 36 nodes match exactly and one
+ * differs by half a pixel, with the same fonts, the same viewport and the same
+ * text-rendering.
+ *
+ * Asking for this forgives exactly one quantum, and a genuine half-pixel
+ * regression with it. That is acceptable *here* and nowhere else: this check
+ * decides which artefact to put in front of the reviewer, not whether a human
+ * is asked at all. That decision is the evidence hash, and it stays exact.
+ */
+export const REVIEW_TOLERANCE = 0.5;
 
 /**
  * The three tiers, painted into the replay.
@@ -81,13 +128,13 @@ export function markTiers(
   document.getElementById('craft-review-tiers')?.remove();
   const style = document.createElement('style');
   style.id = 'craft-review-tiers';
+  // Every declaration here must be layout-neutral. `outline` and `opacity`
+  // are; `position: relative` was not, and it moved the very tree this is
+  // supposed to annotate — the fidelity check caught it as an unfaithful
+  // replay, which is what that check is for.
   style.textContent = `
-    [${ATTESTED}] { position: relative; }
-    ${
-      options.dimDecor
-        ? `:root body > *:not(:has([${ATTESTED}])):not([${ATTESTED}]) { opacity: .25; filter: grayscale(1); }`
-        : ''
-    }
+    [${ATTESTED}] { outline: 2px solid #1570ef; outline-offset: 6px; }
+    ${options.dimDecor ? `[${DECOR}] { opacity: .3; }` : ''}
     ${
       options.hideChrome
         ? `[data-craft-chrome] { visibility: hidden !important; }`
@@ -113,15 +160,52 @@ export function markTiers(
     );
   }
 
+  const root = document.querySelector(options.root);
+  for (const element of document.querySelectorAll(`[${DECOR}]`)) {
+    element.removeAttribute(DECOR);
+  }
+  if (!root) return;
+
   // Anything painted over the subject but not part of it. Marked so a reviewer
   // can lift it and see what it was covering — the one thing a screenshot can
   // never do, because those pixels are gone.
-  const root = document.querySelector(options.root);
+  const holdsPinned = new Set<Element>();
   for (const element of document.querySelectorAll('body *')) {
-    if (root && (root.contains(element) || element.contains(root))) continue;
+    if (root.contains(element) || element.contains(root)) continue;
     const position = view.window.getComputedStyle(element).position;
     if (position === 'fixed' || position === 'sticky') {
       element.setAttribute('data-craft-chrome', '');
+      for (
+        let ancestor = element.parentElement;
+        ancestor;
+        ancestor = ancestor.parentElement
+      ) {
+        holdsPinned.add(ancestor);
+      }
+    }
+  }
+
+  // The topmost decor elements: for every ancestor of the subject, the
+  // children that do not lead to it.
+  //
+  // Marking only the tops is what keeps nested opacity from compounding into
+  // an unreadable page, and dimming top-level children alone — the first
+  // attempt — dimmed nothing at all, because a real application hangs its
+  // whole page off one root.
+  for (
+    let ancestor: Element | null = root.parentElement;
+    ancestor && ancestor !== document.documentElement.parentElement;
+    ancestor = ancestor.parentElement
+  ) {
+    for (const sibling of ancestor.children) {
+      if (sibling.contains(root)) continue;
+      // `head` and its kin paint nothing; marking them says nothing and makes
+      // the marked set harder to read when debugging.
+      if (UNRENDERED.has(sibling.tagName)) continue;
+      // Never dim something that holds a fixed or sticky descendant: opacity
+      // makes a containing block, and the pinned element would move.
+      if (holdsPinned.has(sibling)) continue;
+      sibling.setAttribute(DECOR, '');
     }
   }
 }

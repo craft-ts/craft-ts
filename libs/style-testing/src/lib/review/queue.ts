@@ -110,6 +110,8 @@ export interface ReviewQueue {
 }
 
 const NEW_SUBJECT = 'never attested — nothing to compare against';
+const OPAQUE_CHANGE =
+  'the output changed in a way the readable diff does not show';
 
 /**
  * Groups the queue by the shape of its diff, largest cluster first.
@@ -139,8 +141,14 @@ export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
     // subjects cannot: there is no previous evidence proving that the same
     // change happened. Grouping them here would turn four unseen screenshots
     // into one blind decision.
+    // Never empty. `deltaShape([])` is the empty string, and a card addressed
+    // by an empty shape is a card no decision can be filed against: the server
+    // rejects it as a missing shape and the reviewer is told nothing useful.
+    // An empty delta is reachable — the evidence can differ in text content or
+    // in the discrete signature, neither of which the readable diff reports —
+    // so the case is named rather than left to produce an unusable card.
     const shape = item.approved
-      ? deltaShape(deltas)
+      ? deltaShape(deltas) || `${OPAQUE_CHANGE}:${item.subject}`
       : `${NEW_SUBJECT}:${item.subject}`;
     const known = byShape.get(shape);
     if (known) known.push(item);

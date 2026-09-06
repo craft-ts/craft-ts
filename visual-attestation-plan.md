@@ -825,11 +825,85 @@ deux exigences au lieu d'en sacrifier une. C'est un travail de graphe non trivia
 il n'a pas été fait : la version sûre est livrée, la version précise est un choix à
 prendre.
 
+## Le cadrage de la preuve, et ce que le relecteur regarde vraiment
+
+Défaut trouvé à l'usage : les rendus de la revue ne ressemblaient pas à la page.
+La capture était une capture **d'élément**, donc elle commençait à l'intérieur du
+padding du shell et tranchait ce qui dépassait de la boîte. Mesuré sur
+`/design-system` en 375×900 :
+
+| | mesuré |
+| --- | --- |
+| `.design-system-host` | x=64, largeur 247 |
+| `.content` | padding 32px + marge 24px, **hors capture** |
+| `.clear-cache-btn` | `position: fixed`, dépasse de **32px** hors de la boîte |
+| hauteur du host | 1582px dans une fenêtre de 900 |
+
+La capture prend maintenant la **région** — racine ∪ fenêtre, bornée au document
+— ce qui rend d'un coup les marges, le débordement et les deux rectangles dans un
+seul repère. Un champ unique, `origin`, débloque les trois usages : tracer la
+pliure, élargir le cadre, projeter une boîte du digest sur l'image.
+
+### Attesté n'est pas regardé
+
+La capture mesure aussi l'écart, et il est large : **36 nœuds attestés, 21 hors
+écran, 1 occulté** par le bouton fixe de la page. L'occultation est demandée au
+navigateur (`elementFromPoint`) plutôt que calculée sur des rectangles, et sur
+cinq points plutôt qu'un — un bouton posé sur un coin laisse le centre parfaitement
+dégagé. Les réponses venant d'un ancêtre sont ignorées : elles sont *derrière*
+l'élément, et les compter annonçait six nœuds masqués là où il y en a un.
+
+### Le rejeu, gelé et vérifié
+
+Le PNG ne suffisait pas pour désigner un élément. La page est donc **gelée** :
+DOM, `adoptedStyleSheets` (invisibles à `outerHTML`), feuilles liées inlinées,
+état de formulaire, et surtout **conditionnelles aplaties**. Sans cet
+aplatissement le rejeu réévalue `(min-width: 48rem)` et
+`(prefers-color-scheme: dark)` — les deux axes de la matrice — contre la machine
+du relecteur, et les quatre scénarios s'effondrent en silence.
+
+Le snapshot ne porte **aucun script** : l'inertie est une propriété de l'artefact,
+pas un garde-fou. L'app de revue agit depuis le parent, dans une iframe de même
+origine.
+
+Et il est **vérifié, pas cru** : re-mesuré avec le collecteur qui a produit la
+preuve, comparé au digest attesté. Ce contrôle a attrapé trois vrais défauts
+pendant sa propre construction — un marqueur qui posait `position: relative` sur
+la racine attestée et déplaçait l'arbre qu'il devait seulement annoter, une
+bordure de 1px sur l'iframe qui retranchait 2px de sa fenêtre interne, et un cadre
+dimensionné sur la hauteur de l'image au lieu de celle de la fenêtre.
+
+Tolérance assumée : **un demi-pixel**, le quantum du digest lui-même. Sur la vraie
+route, 35 nœuds sur 36 correspondent exactement et un rect d'élément *inline*
+tombe sur une frontière d'arrondi. Ce contrôle décide quel artefact montrer, pas
+si un humain est convoqué — cette décision-là reste le hash de preuve, exact.
+
+### Savoir ce qui est jugé
+
+Les chemins du digest **sont** l'ensemble attesté. Trois niveaux : changé (le
+diff lisible), attesté (le digest), décor (le reste, atténué et jamais retiré).
+Première tentative ratée et corrigée : n'atténuer que les enfants directs de
+`body` n'atténue rien, une vraie app accrochant toute sa page à une seule racine.
+
+Et l'erreur devient **inenregistrable** plutôt que découragée : un refus porte le
+chemin du nœud visé, donc le serveur refuse celui qui nomme un élément que ce
+sujet n'atteste pas. `findings` et `degraded` sont ajoutés à `KEY_ORDER` — un
+champ absent de cette liste survit à la lecture et disparaît à la réécriture
+suivante, ce qui est la pire façon de perdre la remarque d'un relecteur.
+
+Boucle vérifiée de bout en bout sur la demo : 4 scénarios groupés en 2 décisions,
+un clic sur `div/section/div[0]/h1` transformé en remarque typée, refus enregistré
+sur les 2 scénarios du groupe avec la grappe inscrite dans chacun.
+
 ## Vérification humaine restant à faire
 
-- **Fin de vague 2.** Attester une poignée de scénarios, faire un refactor purement
-  cosmétique (renommer une variable locale, déplacer une fonction), relancer
-  `craft-ts attest status`. Attendu : rien en file d'attente, attestations `renewed`.
-  Le mécanisme est couvert par `state.spec.ts` et `attest.spec.ts`, et la stabilité des
-  identifiants par `code-slice.spec.ts` — mais la boucle complète sur du vrai code n'a
-  pas encore été faite à la main.
+- **Le repli en mode photo n'a pas de sélection d'élément.** Projeter les boîtes du
+  digest sur l'image — avec le cadre dessiné, pour que la projection s'auto-vérifie —
+  reste à faire. Aujourd'hui la vue photo montre la pliure et le contexte, mais on ne
+  pointe un nœud que dans le rejeu.
+- **Le zoom « ajuster à la fenêtre » ne s'applique qu'à l'image.** Mettre le rejeu à
+  l'échelle demande un `transform: scale()`, jamais une largeur : changer la largeur
+  relayoute, et le rejeu cesse d'être ce qui a été mesuré.
+- **La sélection n'est pas encore restaurée d'une carte à l'autre.** Changer de carte
+  vide la liste des remarques en cours, ce qui est voulu, mais un aller-retour la perd
+  aussi.

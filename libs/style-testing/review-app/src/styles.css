@@ -449,3 +449,142 @@ select {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ---------------------------------------------------------------- *
+ * The frozen page, the screenshot, and the line between what was on
+ * screen and what was only ever attested.
+ * ---------------------------------------------------------------- */
+
+.view-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.view-toggle button {
+  padding: 6px 10px;
+  border: 1px solid var(--line, #d0d5dd);
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.view-toggle button {
+  color: #aeb5c3;
+  border-color: #373d49;
+  background: #1b1f26;
+}
+
+.view-toggle button[aria-pressed='true'] {
+  border-color: #5b8def;
+  background: #202a3d;
+  color: #e6ecf7;
+  font-weight: 600;
+}
+
+.view-toggle button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chip.coverage {
+  font-variant-numeric: tabular-nums;
+}
+
+.replay-holder,
+.image-holder {
+  position: relative;
+  display: block;
+  overflow: auto;
+  max-width: 100%;
+}
+
+.replay-holder iframe {
+  display: block;
+  /* No border. A border on the frame is subtracted from the viewport inside
+     it, so a 1px rule made every measurement 2px narrower than the evidence
+     and the replay was reported unfaithful. The frame has to be exactly the
+     captured viewport; decoration goes on the holder around it. */
+  border: 0;
+  background: #fff;
+}
+
+.replay-holder {
+  border: 1px solid var(--line, #d0d5dd);
+  border-radius: 8px;
+}
+
+.image-holder {
+  /* The fold is positioned against the picture, so the picture has to be the
+     positioning context and nothing may sit between them. */
+  display: inline-block;
+  line-height: 0;
+}
+
+.image-holder .fold {
+  position: absolute;
+  pointer-events: none;
+  border: 2px dashed #1570ef;
+  box-shadow: 0 0 0 9999px rgba(16, 24, 40, 0.35);
+}
+
+.image-holder .fold::after {
+  content: 'on screen at capture';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #1570ef;
+  color: #fff;
+  font: 600 11px/1.4 system-ui, sans-serif;
+}
+
+.notice.warning {
+  border-color: #dc6803;
+  background: #fffaeb;
+  color: #93370d;
+}
+
+.notice.degraded {
+  border-color: #dc6803;
+  background: #fffaeb;
+  color: #93370d;
+  margin-bottom: 12px;
+}
+
+.findings-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line, #eaecf0);
+}
+
+.findings-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.findings-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 8px;
+  border: 1px solid var(--line, #eaecf0);
+  border-radius: 6px;
+}
+
+.findings-list .code {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.findings-empty {
+  border: 0;
+  opacity: 0.7;
+}

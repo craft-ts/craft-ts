@@ -230,6 +230,20 @@ export async function startReviewServer(
       return;
     }
 
+    // An empty, same-origin document for the replay frame to rest on when a
+    // card has no snapshot. `about:blank` is refused by the DOM security rules
+    // and the refusal breaks the render; a relative path is allowed, cheap,
+    // and visible in the network panel for what it is.
+    if (request.method === 'GET' && url.pathname === '/api/blank') {
+      response.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'public, max-age=31536000, immutable',
+        'content-security-policy': "script-src 'none'; object-src 'none'",
+      });
+      response.end('<!doctype html><meta charset="utf-8"><title>No frozen page</title>');
+      return;
+    }
+
     const digestPrefix = '/api/digest/';
     if (request.method === 'GET' && url.pathname.startsWith(digestPrefix)) {
       void (async () => {

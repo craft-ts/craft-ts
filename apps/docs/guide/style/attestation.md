@@ -198,6 +198,86 @@ attestation it writes, and `status` counts them. A bulk renewal that left no
 trace would turn the register into a rubber stamp, which is worse than having no
 register.
 
+## What a reviewer is shown
+
+Two artefacts, and the reviewer switches between them.
+
+**The frozen page** is the render itself: the DOM, the styles, and the form
+state, serialised at the moment the digest was taken. It replays as a real
+document — real boxes, real `:hover` — which is what lets someone click an
+element and name it instead of clicking a pixel and hoping.
+
+Freezing means more than serialising the DOM. Craft injects its styles through
+`adoptedStyleSheets`, which `outerHTML` cannot see at all. And keeping the
+stylesheets verbatim would leave every `@media` to be re-evaluated against the
+*reviewer's* window: on the demo's route the two conditions in play are
+`(min-width: 48rem)` and `(prefers-color-scheme: dark)` — exactly the two axes of
+the matrix — so four scenarios would collapse into whatever that laptop said.
+Media and supports are therefore evaluated at capture time and their winning
+branch inlined. Container queries are left alone, because they ask about the
+page's own layout, which the replay reproduces.
+
+The snapshot carries **no script**. Inertness is a property of the artefact, not
+a guard that has to hold: nothing to block, nothing to leak, no `craftMethod`
+firing on a stray click. The review application does its interactive work from
+the parent frame, reaching into a same-origin iframe.
+
+**The screenshot** is the fallback, and the check on the checker: the digest is
+blind to anything that does not move a box or a listed style, so a swapped
+background or a wrong icon passes every automated test and is obvious to an eye.
+
+### The replay is checked, not trusted
+
+Before anything is drawn on it, the replay is re-measured with the collector
+that produced the evidence and compared against the attested digest. A missing
+font, a media query left conditional, a stylesheet that could be neither read
+nor fetched — each produces a document that looks plausible and measures
+differently, and a reviewer would judge it without ever knowing.
+
+When it does not match, the card says so and falls back to the screenshot, and
+the verdict is recorded as `degraded`: judging a photograph and judging the
+document are different claims.
+
+Two things the check caught while it was being built, which is what it is for:
+a marker stylesheet that set `position: relative` on the attested root and moved
+the tree it was supposed to annotate, and a 1px border on the frame, which is
+subtracted from the viewport inside it and made every measurement 2px narrow.
+
+## Knowing what is actually being judged
+
+A capture shows the whole page — shell, navigation, neighbours — because a
+component has to be judged in the frame it sits in. So the reviewer has to be
+able to tell the subject from the decor, or a remark lands on a card that does
+not cover it.
+
+The digest answers this exactly: its paths **are** the attested set. Three tiers
+follow, and all three come from data that already exists:
+
+| tier | source | shown as |
+| --- | --- | --- |
+| changed | the paths in the readable diff | outlined, and the reason the card is here |
+| attested | the digest's own paths | selectable, highlighted on hover |
+| decor | everything else | dimmed, never removed |
+
+And the mistake is made unrecordable rather than merely discouraged. A rejection
+carries the path of the node it is about, so the server can refuse one that
+names something this subject does not attest:
+
+> `demo-nav/toggle` is not attested by this subject. File the remark on the card
+> that covers it.
+
+### Attested is not the same as looked at
+
+The capture also records the gap, because it is large. On the demo's route: **36
+nodes attested, 21 off screen, 1 covered** by the page's own fixed button. An
+attestation that stayed quiet about that would claim a coverage it does not
+have, so the card states it and the screenshot draws the line where the viewport
+ended.
+
+The one covered node is the case only the frozen page can resolve: **lift the
+page chrome** and see what was underneath. In a screenshot those pixels have
+already been replaced.
+
 ## The review queue
 
 Two mechanisms keep it from being abandoned, and neither is optional. The
