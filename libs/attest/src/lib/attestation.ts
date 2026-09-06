@@ -55,6 +55,20 @@ export type Assumption =
     }
   | { readonly kind: 'neighborhood'; readonly members: readonly string[] };
 
+/**
+ * A remark aimed at one node, rather than at a whole scenario.
+ *
+ * "The title is cut" is prose somebody has to re-read the screenshot to act
+ * on. `{ path: 'userCard/title', note: 'cut at 34px' }` is a fact with an
+ * address — and it is the *same* address the digest and `attest why` use, so a
+ * finding can be followed back to the code that produced it.
+ */
+export interface Finding {
+  /** A path from the subject's digest. Validated before it is recorded. */
+  readonly path: string;
+  readonly note: string;
+}
+
 export interface Attestation {
   /** `visual:route(/users)#viewport=md+query=error` */
   readonly subject: string;
@@ -80,6 +94,35 @@ export interface Attestation {
    * this is the trace, and `attest status` counts it.
    */
   readonly bulk?: true;
+  /** What the reviewer pointed at, when they pointed at something. */
+  readonly findings?: readonly Finding[];
+  /**
+   * Set when the verdict was reached without a faithful replay.
+   *
+   * Judging a screenshot instead of the frozen document is a reduction: the
+   * reviewer could not open anything the picture did not already show, and
+   * could not see what the page's own chrome was covering. Same rule as `bulk`
+   * — a reduction that is not exactly true is written down, so that "judged on
+   * a verified replay" and "judged on a photograph" stay different claims.
+   */
+  readonly degraded?: true;
+}
+
+/**
+ * Findings that name a node the subject does not contain.
+ *
+ * The point of typing a rejection is that the mistake becomes impossible to
+ * record silently: a reviewer looking at a whole page can easily point at the
+ * navigation, or at a neighbouring component, and file it against this
+ * subject. The attested set is known exactly — it is the digest's own paths —
+ * so the tool can say so instead of storing it.
+ */
+export function unknownFindings(
+  findings: readonly Finding[],
+  attestedPaths: readonly string[],
+): readonly Finding[] {
+  const attested = new Set(attestedPaths);
+  return findings.filter((finding) => !attested.has(finding.path));
 }
 
 export type AttestationState =

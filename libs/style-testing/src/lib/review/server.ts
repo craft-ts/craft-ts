@@ -11,10 +11,19 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildReviewQueue, type ReviewCard, type ReviewItem } from './queue.js';
 
+export interface ReviewFinding {
+  readonly path: string;
+  readonly note: string;
+}
+
 export interface ReviewDecisionRequest {
   readonly shape: string;
   readonly verdict: string;
   readonly note?: string;
+  /** Nodes the reviewer pointed at. Checked against the card's attested set. */
+  readonly findings?: readonly ReviewFinding[];
+  /** Set when the verdict was reached on the screenshot, not a faithful replay. */
+  readonly degraded?: boolean;
 }
 
 export interface ReviewApiQueue {
@@ -32,6 +41,16 @@ export interface ReviewServerOptions {
   ) => void | Promise<void>;
   /** Serves a stored screenshot by hash. */
   readonly imageFor?: (hash: string) => Promise<Uint8Array | undefined>;
+  /**
+   * Serves a stored frozen document by hash.
+   *
+   * Same origin as the review application on purpose: the snapshot carries no
+   * script of its own, so every interactive thing a reviewer does — dimming the
+   * decor, selecting a node — is done by the parent frame reaching into the
+   * iframe. A cross-origin frame would make all of that impossible and push the
+   * work back into the snapshot, where it would stop being inert.
+   */
+  readonly snapshotFor?: (hash: string) => Promise<string | undefined>;
   /** Override used by package tests and embedders. */
   readonly appRoot?: string;
 }
@@ -92,6 +111,13 @@ const readJson = async (request: IncomingMessage): Promise<unknown> =>
     request.on('error', reject);
   });
 
+const isFinding = (value: unknown): value is ReviewFinding =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as ReviewFinding).path === 'string' &&
+  (value as ReviewFinding).path.length > 0 &&
+  typeof (value as ReviewFinding).note === 'string';
+
 const isDecision = (value: unknown): value is ReviewDecisionRequest => {
   if (typeof value !== 'object' || value === null) return false;
   const decision = value as Partial<ReviewDecisionRequest>;
@@ -99,9 +125,31 @@ const isDecision = (value: unknown): value is ReviewDecisionRequest => {
     typeof decision.shape === 'string' &&
     decision.shape.length > 0 &&
     typeof decision.verdict === 'string' &&
-    (decision.note === undefined || typeof decision.note === 'string')
+    (decision.note === undefined || typeof decision.note === 'string') &&
+    (decision.degraded === undefined ||
+      typeof decision.degraded === 'boolean') &&
+    (decision.findings === undefined ||
+      (Array.isArray(decision.findings) && decision.findings.every(isFinding)))
   );
 };
+
+/**
+ * Findings that name a node the card does not attest.
+ *
+ * The reviewer is shown a whole page, so pointing at a neighbour is an easy
+ * mistake. It is refused here rather than stored, because a remark filed
+ * against the wrong subject is worse than no remark: it reads as coverage.
+ */
+export function findingsOutsideCard(
+  card: ReviewCard,
+  findings: readonly ReviewFinding[],
+): readonly string[] {
+  const attested = new Set(card.members.flatMap((member) => member.attested));
+  return findings
+    .filter((finding) => !attested.has(finding.path))
+    .map((finding) => finding.path)
+    .sort();
+}
 
 export async function startReviewServer(
   options: ReviewServerOptions = {},
@@ -160,6 +208,12 @@ export async function startReviewServer(
           if (!card) {
             throw new Error('review: that diff cluster no longer exists.');
           }
+          const stray = findingsOutsideCard(card, decision.findings ?? []);
+          if (stray.length > 0) {
+            throw new Error(
+              `review: ${stray.join(', ')} ${stray.length === 1 ? 'is' : 'are'} not attested by this subject. File the remark on the card that covers it.`,
+            );
+          }
           await options.onDecision?.(decision);
           cards = cards.filter(
             (candidate) => candidate.shape !== decision.shape,
@@ -170,6 +224,33 @@ export async function startReviewServer(
             error: error instanceof Error ? error.message : 'bad request',
           });
         }
+      })();
+      return;
+    }
+
+    const snapshotPrefix = '/api/snapshot/';
+    if (request.method === 'GET' && url.pathname.startsWith(snapshotPrefix)) {
+      void (async () => {
+        const hash = decodeURIComponent(
+          url.pathname.slice(snapshotPrefix.length),
+        );
+        if (!/^[a-f0-9]{32}$/.test(hash)) {
+          response.writeHead(400).end();
+          return;
+        }
+        const html = await options.snapshotFor?.(hash);
+        if (html === undefined) {
+          response.writeHead(404).end();
+          return;
+        }
+        response.writeHead(200, {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'public, max-age=31536000, immutable',
+          // The document has no script of its own; this makes sure the browser
+          // will not run one if a snapshot ever grows one by accident.
+          'content-security-policy': "script-src 'none'; object-src 'none'",
+        });
+        response.end(html);
       })();
       return;
     }

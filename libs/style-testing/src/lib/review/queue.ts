@@ -23,6 +23,12 @@ import {
 } from '../digest.js';
 import type { VisualCaptureMetadata } from '../attest.js';
 
+/** What the snapshot said it could not reproduce, recorded at capture time. */
+export interface SnapshotRiskNote {
+  readonly kind: string;
+  readonly detail: string;
+}
+
 export interface ReviewItem {
   readonly subject: string;
   /** Why this is in the queue, in one line. */
@@ -32,6 +38,16 @@ export interface ReviewItem {
   readonly approved?: LayoutDigest;
   /** Evidence hash of the screenshot, for the store. */
   readonly image?: string;
+  /** Evidence hash of the frozen document, when one was captured. */
+  readonly snapshot?: string;
+  /**
+   * What the snapshot declared it could not reproduce.
+   *
+   * Whether the replay *actually* measures like the attested digest is checked
+   * in the browser that shows it, not here: that is the only place the answer
+   * is about the document the reviewer is looking at.
+   */
+  readonly risks?: readonly SnapshotRiskNote[];
   readonly metadata?: VisualCaptureMetadata;
   /** Human feedback from the latest rejected review, when available. */
   readonly rejectionReason?: string;
@@ -40,7 +56,20 @@ export interface ReviewItem {
 export interface ReviewMember {
   readonly subject: string;
   readonly image?: string;
+  readonly snapshot?: string;
+  readonly risks?: readonly SnapshotRiskNote[];
   readonly metadata?: VisualCaptureMetadata;
+  /**
+   * Every node this subject attests, as digest paths.
+   *
+   * The exact set the verdict covers. The review dims everything else, and a
+   * finding filed outside it is refused rather than stored — which is what
+   * stops a remark about the navigation being recorded against a card that
+   * does not cover it.
+   */
+  readonly attested: readonly string[];
+  /** The attested nodes that moved. Why this card is in the queue. */
+  readonly changed: readonly string[];
 }
 
 export interface ReviewCard {
@@ -49,6 +78,8 @@ export interface ReviewCard {
   /** `.card padding 8→12`, ready to read. */
   readonly changes: readonly string[];
   readonly image?: string;
+  readonly snapshot?: string;
+  readonly risks?: readonly SnapshotRiskNote[];
   /**
    * Subjects whose change reads identically.
    *
@@ -82,8 +113,19 @@ export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
   const byShape = new Map<string, ReviewItem[]>();
   const changesByShape = new Map<string, readonly string[]>();
 
+  const changedByItem = new Map<string, readonly string[]>();
+  const attestedByItem = new Map<string, readonly string[]>();
+
   for (const item of items) {
     const deltas = item.approved ? digestDelta(item.approved, item.digest) : [];
+    attestedByItem.set(
+      item.subject,
+      item.digest.nodes.map((node) => node.path).sort(),
+    );
+    changedByItem.set(
+      item.subject,
+      [...new Set(deltas.map((delta) => delta.path))].sort(),
+    );
     // Two changed subjects may legitimately share an exact delta. Two new
     // subjects cannot: there is no previous evidence proving that the same
     // change happened. Grouping them here would turn four unseen screenshots
@@ -111,13 +153,19 @@ export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
         reason: first.reason,
         changes: changesByShape.get(shape) ?? [],
         ...(first.image ? { image: first.image } : {}),
+        ...(first.snapshot ? { snapshot: first.snapshot } : {}),
+        ...(first.risks?.length ? { risks: first.risks } : {}),
         cluster: group.map((item) => item.subject).sort(),
         members: [...group]
           .sort((left, right) => left.subject.localeCompare(right.subject))
           .map((item) => ({
             subject: item.subject,
             ...(item.image ? { image: item.image } : {}),
+            ...(item.snapshot ? { snapshot: item.snapshot } : {}),
+            ...(item.risks?.length ? { risks: item.risks } : {}),
             ...(item.metadata ? { metadata: item.metadata } : {}),
+            attested: attestedByItem.get(item.subject) ?? [],
+            changed: changedByItem.get(item.subject) ?? [],
           })),
         ...(first.rejectionReason
           ? { rejectionReason: first.rejectionReason }

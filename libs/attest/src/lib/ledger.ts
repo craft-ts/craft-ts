@@ -29,12 +29,20 @@ const KEY_ORDER: readonly (keyof Attestation)[] = [
   'at',
   'toolVersion',
   'note',
+  'findings',
   'carriedFrom',
   'cluster',
   'bulk',
+  'degraded',
 ];
 
-/** One attestation as a line: keys in a fixed order, so a diff reads. */
+/**
+ * One attestation as a line: keys in a fixed order, so a diff reads.
+ *
+ * Only the keys listed above are written. A field that is not in `KEY_ORDER`
+ * survives being read and is then dropped the next time the ledger is
+ * rewritten — silently, which is the worst way to lose a reviewer's remark.
+ */
 export function serialiseAttestation(attestation: Attestation): string {
   const ordered: Record<string, unknown> = {};
   for (const key of KEY_ORDER) {

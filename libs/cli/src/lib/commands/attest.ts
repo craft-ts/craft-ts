@@ -378,17 +378,18 @@ const isLayoutDigest = (value: unknown): value is LayoutDigest => {
   );
 };
 
+interface StoredArtifacts {
+  readonly evidence: string;
+  readonly image?: string;
+  readonly snapshot?: string;
+}
+
 async function persistVisuals(
   store: ReturnType<typeof createEvidenceStore>,
   observed: ObservedRun,
   subjects: ReadonlySet<string>,
-): Promise<
-  ReadonlyMap<string, { readonly evidence: string; readonly image?: string }>
-> {
-  const stored = new Map<
-    string,
-    { readonly evidence: string; readonly image?: string }
-  >();
+): Promise<ReadonlyMap<string, StoredArtifacts>> {
+  const stored = new Map<string, StoredArtifacts>();
   const observations = new Map(
     observed.list.map((observation) => [observation.subject, observation]),
   );
@@ -410,17 +411,33 @@ async function persistVisuals(
         );
       }
     }
+    let snapshot: string | undefined;
+    if (artifact.capture.snapshot) {
+      const snapshotPath = resolve(
+        artifact.reportDirectory,
+        artifact.capture.snapshot,
+      );
+      try {
+        snapshot = await readFile(snapshotPath, 'utf8');
+      } catch {
+        // Missing is survivable — the card falls back to the screenshot and
+        // says so. Silently pretending there was never a snapshot is not.
+        snapshot = undefined;
+      }
+    }
     const result = await storeVisual(store, {
       component: artifact.capture.component,
       scenario: artifact.capture.scenario,
       digest: artifact.capture.digest,
       fingerprint: observation.fingerprint,
       ...(image ? { image } : {}),
+      ...(snapshot ? { snapshot } : {}),
       assumptions: artifact.capture.assumptions ?? [],
     });
     stored.set(subject, {
       evidence: result.evidence,
       ...(result.image ? { image: result.image } : {}),
+      ...(result.snapshot ? { snapshot: result.snapshot } : {}),
     });
   }
   return stored;
@@ -833,6 +850,12 @@ async function review(
       ...(stored.get(status.subject)?.image
         ? { image: stored.get(status.subject)?.image }
         : {}),
+      ...(stored.get(status.subject)?.snapshot
+        ? { snapshot: stored.get(status.subject)?.snapshot }
+        : {}),
+      ...(artifact.capture.snapshotRisks?.length
+        ? { risks: artifact.capture.snapshotRisks }
+        : {}),
       ...(artifact.capture.metadata
         ? { metadata: artifact.capture.metadata }
         : {}),
@@ -853,6 +876,7 @@ async function review(
     port: Number(port ?? 4320),
     items,
     imageFor: async (hash) => await store.get(hash, '.png'),
+    snapshotFor: async (hash) => await store.getText(hash, '.snapshot.html'),
     onDecision: async (decision) => {
       const card = cards.get(decision.shape);
       if (!card) throw new Error('review: that diff cluster no longer exists.');
@@ -876,6 +900,12 @@ async function review(
           at: clock.now(),
           toolVersion: TOOL_VERSION,
           ...(decision.note ? { note: decision.note } : {}),
+          // A finding names a node of *this* subject; the server refuses one
+          // that does not, so what lands here is already checked.
+          ...(decision.findings && decision.findings.length > 0
+            ? { findings: decision.findings }
+            : {}),
+          ...(decision.degraded ? { degraded: true as const } : {}),
           ...(card.cluster.length > 1 ? { cluster: card.cluster } : {}),
         };
       });

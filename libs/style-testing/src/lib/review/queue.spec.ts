@@ -101,13 +101,61 @@ describe('buildReviewQueue', () => {
         subject: 'a',
         image: 'image-a',
         metadata: { viewport: { width: 375, height: 900 } },
+        attested: ['card'],
+        changed: ['card'],
       },
       {
         subject: 'b',
         image: 'image-b',
         metadata: { viewport: { width: 768, height: 900 } },
+        attested: ['card'],
+        changed: ['card'],
       },
     ]);
+  });
+
+  it('tells each member which nodes it attests and which of them moved', () => {
+    const queue = buildReviewQueue([item('visual:Card#base', 'card', '8px')]);
+    const [member] = queue.cards[0]?.members ?? [];
+
+    // The exact set the verdict covers. Everything else on the page is decor,
+    // and a remark filed against decor is refused rather than stored.
+    expect(member?.attested).toEqual(['card']);
+    expect(member?.changed).toEqual(['card']);
+  });
+
+  it('attests every node, and marks as changed only the ones that moved', () => {
+    const twoNodes = (radius: string) =>
+      layoutDigest([
+        {
+          path: 'card',
+          rect: { x: 0, y: 0, width: 100, height: 40 },
+          styles: { ...blank, 'border-radius': radius },
+          scroll: { width: 100, height: 40, clientWidth: 100, clientHeight: 40 },
+          zOrder: 0,
+        },
+        {
+          path: 'card/title',
+          parent: 'card',
+          rect: { x: 0, y: 0, width: 100, height: 20 },
+          styles: blank,
+          scroll: { width: 100, height: 20, clientWidth: 100, clientHeight: 20 },
+          zOrder: 0,
+        },
+      ] satisfies MeasuredElement[]);
+    const before = twoNodes('4px');
+    const after = twoNodes('8px');
+    const queue = buildReviewQueue([
+      {
+        subject: 'visual:Card#base',
+        reason: 'the output changed',
+        approved: before,
+        digest: after,
+      },
+    ]);
+    const [member] = queue.cards[0]?.members ?? [];
+    expect(member?.attested).toEqual(['card', 'card/title']);
+    expect(member?.changed).toEqual(['card']);
   });
 
   it('keeps the previous rejection reason on the review card', () => {
@@ -152,6 +200,122 @@ describe('expandDecision', () => {
     const [card] = queue.cards;
     if (!card) throw new Error('the queue should hold one card');
     expect(expandDecision({ card, verdict: 'ok' })[0]?.cluster).toBeUndefined();
+  });
+});
+
+describe('findings are checked against what the card attests', () => {
+  it('accepts a remark aimed at a node of the subject', async () => {
+    const recorded: unknown[] = [];
+    const running = await startReviewServer({
+      port: 0,
+      items: [item('visual:Card#base', 'card', '8px')],
+      onDecision: (decision) => void recorded.push(decision),
+    });
+
+    try {
+      const queue = (await fetch(`${running.url}/api/review`).then((value) =>
+        value.json(),
+      )) as ReviewApiQueue;
+      const response = await fetch(`${running.url}/api/decisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: queue.cards[0]?.shape,
+          verdict: 'rejected',
+          note: 'the radius is wrong',
+          findings: [{ path: 'card', note: 'too round' }],
+        }),
+      });
+
+      expect(response.ok).toBe(true);
+      expect(recorded).toEqual([
+        {
+          shape: queue.cards[0]?.shape,
+          verdict: 'rejected',
+          note: 'the radius is wrong',
+          findings: [{ path: 'card', note: 'too round' }],
+        },
+      ]);
+    } finally {
+      await running.close();
+    }
+  });
+
+  it('refuses a remark aimed at something this subject does not cover', async () => {
+    // The mistake this exists to prevent: the reviewer is shown a whole page,
+    // points at the navigation, and the remark is filed against a card that
+    // does not attest it — where it would read as coverage.
+    const recorded: unknown[] = [];
+    const running = await startReviewServer({
+      port: 0,
+      items: [item('visual:Card#base', 'card', '8px')],
+      onDecision: (decision) => void recorded.push(decision),
+    });
+
+    try {
+      const queue = (await fetch(`${running.url}/api/review`).then((value) =>
+        value.json(),
+      )) as ReviewApiQueue;
+      const response = await fetch(`${running.url}/api/decisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: queue.cards[0]?.shape,
+          verdict: 'rejected',
+          note: 'the nav is misaligned',
+          findings: [{ path: 'demo-nav/toggle', note: 'misaligned' }],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect((await response.json()) as { error: string }).toEqual({
+        error:
+          'review: demo-nav/toggle is not attested by this subject. File the remark on the card that covers it.',
+      });
+      expect(recorded).toEqual([]);
+      // And the card is still in the queue: nothing was decided.
+      expect(
+        (await fetch(`${running.url}/api/review`).then((value) =>
+          value.json(),
+        )) as ReviewApiQueue,
+      ).toMatchObject({ decisions: 1 });
+    } finally {
+      await running.close();
+    }
+  });
+
+  it('serves a frozen document beside the screenshot', async () => {
+    const running = await startReviewServer({
+      port: 0,
+      items: [
+        {
+          ...item('visual:Card#base', 'card', '8px'),
+          snapshot: 'a'.repeat(32),
+        },
+      ],
+      snapshotFor: async (hash) =>
+        hash === 'a'.repeat(32) ? '<!doctype html><p>frozen' : undefined,
+    });
+
+    try {
+      const response = await fetch(
+        `${running.url}/api/snapshot/${'a'.repeat(32)}`,
+      );
+      expect(response.headers.get('content-type')).toContain('text/html');
+      // The document has no script; the header makes sure one could not run
+      // even if a snapshot ever grew one by accident.
+      expect(response.headers.get('content-security-policy')).toContain(
+        "script-src 'none'",
+      );
+      expect(await response.text()).toContain('frozen');
+
+      expect(
+        (await fetch(`${running.url}/api/snapshot/${'b'.repeat(32)}`)).status,
+      ).toBe(404);
+      expect((await fetch(`${running.url}/api/snapshot/nope`)).status).toBe(400);
+    } finally {
+      await running.close();
+    }
   });
 });
 
