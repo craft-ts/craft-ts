@@ -102,6 +102,14 @@ interface ReplayState {
   readonly summary: string;
   /** Supporting detail, one line each. */
   readonly report: readonly string[];
+  /**
+   * What is painted over the subject in this replay, named.
+   *
+   * Read back from the page rather than from the capture's metadata: the
+   * metadata counts covered *nodes*, and one button sitting on five of them is
+   * one thing to lift, not five.
+   */
+  readonly chrome: readonly string[];
 }
 
 const scenarioOf = (subject: string): string =>
@@ -377,6 +385,7 @@ export const ReviewApp = craftComponent(
             faithful: false,
             summary: 'The frozen page could not be opened.',
             report: [],
+            chrome: [],
           };
         }
         // Fonts first: a box measured before its face arrives carries the
@@ -396,7 +405,7 @@ export const ReviewApp = craftComponent(
             })
           : undefined;
 
-        markTiers(view, {
+        const chrome = markTiers(view, {
           root: params.target,
           attested: params.attested,
           changed: params.changed,
@@ -421,6 +430,7 @@ export const ReviewApp = craftComponent(
             fidelity?.summary ??
             'There is no attested digest to check this frozen page against, so it cannot be vouched for.',
           report: fidelity?.report ?? [],
+          chrome,
         };
       },
     });
@@ -506,6 +516,7 @@ export const ReviewApp = craftComponent(
           faithful: false,
           summary: '',
           report: [],
+          chrome: [],
         } satisfies ReplayState)
       );
     });
@@ -546,13 +557,19 @@ export const ReviewApp = craftComponent(
     const coveredCount = craftComputed('coveredCount', function* () {
       return (yield* member())?.metadata?.coverage?.occluded ?? 0;
     });
+    /** What this replay would lift, named from the replay itself. */
+    const chrome = craftComputed('chrome', function* () {
+      return (yield* replay()).chrome;
+    });
     const overlayLabel = craftComputed('overlayLabel', function* () {
-      const covered = yield* coveredCount();
-      const what =
-        covered === 0
-          ? "the page's own overlays"
-          : `${covered} overlay${covered === 1 ? '' : 's'}`;
-      return `${(yield* hideChrome()) ? 'Show' : 'Hide'} ${what}`;
+      const covering = yield* chrome();
+      const verb = (yield* hideChrome()) ? 'Show' : 'Hide';
+      // Named, not counted, when there is one of them: "Hide 1 overlay" asks
+      // the reviewer what an overlay is; `button.clear-cache-btn` tells them
+      // exactly what is about to disappear.
+      return covering.length === 1
+        ? `${verb} ${covering[0]}`
+        : `${verb} the ${covering.length} elements covering this`;
     });
     const degraded = craftComputed('degraded', function* () {
       if (!(yield* canReplay())) return true;
@@ -723,6 +740,7 @@ export const ReviewApp = craftComponent(
       replay,
       showingReplay,
       fellBack,
+      chrome,
       selection,
       band,
       degraded,
@@ -762,6 +780,7 @@ export const ReviewApp = craftComponent(
     replay,
     showingReplay,
     fellBack,
+    chrome,
     selection,
     band,
     degraded,
@@ -1040,9 +1059,17 @@ export const ReviewApp = craftComponent(
                           // Only the page can do this. In a screenshot those
                           // pixels have already been replaced.
                           title:
-                            "The application's own fixed elements sit over this component. Only the frozen page can lift them; in a screenshot those pixels are gone.",
+                            'Something in the application is painted over this component. Only the frozen page can lift it; in a screenshot those pixels have already been replaced.',
+                          // Offered only when there is something to lift. A
+                          // control that is always present and does nothing on
+                          // most cards reads as broken — and on those cards it
+                          // was, because it marked every fixed element on the
+                          // page whether or not it covered anything.
                           hidden: function* () {
-                            return !(yield* showingReplay());
+                            return (
+                              !(yield* showingReplay()) ||
+                              (yield* chrome()).length === 0
+                            );
                           },
                           'aria-pressed': function* () {
                             return String(yield* hideChrome());

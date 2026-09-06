@@ -138,13 +138,70 @@ test('lifting the page chrome reveals what it covered', async ({ page }) => {
   const frame = page.frameLocator('#craft-replay-frame');
   await expect(frame.locator('.pinned')).toBeVisible();
 
-  // The label carries the count, so the reviewer knows there is something to
-  // lift without having to try the button first.
-  const lift = page.getByRole('button', { name: /overlay/i });
-  await expect(lift).toHaveText('Hide 1 overlay');
+  // The label names what will disappear, read back from the replay itself.
+  // "Hide 1 overlay" asked the reviewer what an overlay is, and counted
+  // covered nodes rather than the one thing sitting on them.
+  const lift = page.getByRole('button', { name: /div\.pinned/ });
+  await expect(lift).toHaveText('Hide div.pinned');
   await lift.click();
-  await expect(lift).toHaveText('Show 1 overlay');
+  await expect(lift).toHaveText('Show div.pinned');
   await expect(frame.locator('.pinned')).toBeHidden();
+
+  // And it can be put back: lifting must not be a one-way trip, which it was
+  // while the probe ran through its own `visibility: hidden`.
+  await lift.click();
+  await expect(lift).toHaveText('Hide div.pinned');
+  await expect(frame.locator('.pinned')).toBeVisible();
+});
+
+test('the lift is not offered when nothing is covering the subject', async ({
+  browser,
+}) => {
+  // The control used to mark every fixed element on the page, so it was there
+  // on cards where it had nothing to do — and clicking it did nothing, which
+  // is exactly what a broken control looks like.
+  const clear = SNAPSHOT.replace(
+    '.pinned { position: fixed; left: 300px; top: 120px;',
+    '.pinned { position: fixed; left: 300px; top: 400px;',
+  );
+  const source = await browser.newPage();
+  await source.setViewportSize({ width: 375, height: 200 });
+  await source.setContent(clear);
+  const digest = (await collectCapture(source, { root: '.host' })).digest;
+  await source.close();
+
+  const uncovered = await startReviewServer({
+    port: 0,
+    items: [
+      {
+        subject: 'visual:component:demo:Card#base',
+        reason: 'the output changed',
+        digest,
+        approved,
+        snapshot: 'a'.repeat(32),
+        evidence: 'b'.repeat(32),
+        metadata: {
+          viewport: { width: 375, height: 200 },
+          screenshot: { width: 375, height: 400 },
+          target: '.host',
+        },
+      },
+    ],
+    snapshotFor: async () => clear,
+    digestFor: async () => JSON.stringify(digest),
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.goto(uncovered.url);
+    await expect(
+      page.frameLocator('#craft-replay-frame').locator('.title'),
+    ).toBeVisible();
+    await expect(page.locator('.overlay-toggle:not([hidden])')).toHaveCount(0);
+    await page.close();
+  } finally {
+    await uncovered.close();
+  }
 });
 
 test('switching to the screenshot marks the decision as degraded', async ({

@@ -28,6 +28,7 @@ export interface FrameView {
 const ATTESTED = 'data-craft-attested';
 const PATH = 'data-craft-path';
 const DECOR = 'data-craft-decor';
+const CHROME = 'data-craft-chrome';
 const UNRENDERED = new Set([
   'HEAD',
   'SCRIPT',
@@ -178,7 +179,7 @@ export function markTiers(
     readonly dimDecor: boolean;
     readonly hideChrome: boolean;
   },
-): void {
+): readonly string[] {
   const { document } = view;
   document.getElementById('craft-review-tiers')?.remove();
   const style = document.createElement('style');
@@ -191,17 +192,13 @@ export function markTiers(
     [${ATTESTED}] { outline: 2px ${TIERS.subject.style} ${TIERS.subject.colour}; outline-offset: 6px; }
     ${options.dimDecor ? `[${DECOR}] { opacity: .3; }` : ''}
     ${
-      options.hideChrome
-        ? `[data-craft-chrome] { visibility: hidden !important; }`
-        : ''
+      options.hideChrome ? `[${CHROME}] { visibility: hidden !important; }` : ''
     }
     [data-craft-tier="changed"] { outline: 2px ${TIERS.changed.style} ${TIERS.changed.colour}; outline-offset: 1px; }
     [data-craft-tier="attested"]:hover { outline: 2px dashed ${TIERS.subject.colour}; outline-offset: 1px; cursor: crosshair; }
     [data-craft-tier="occluded"] { outline: 2px ${TIERS.occluded.style} ${TIERS.occluded.colour}; outline-offset: 1px; }
     [data-craft-picked] { outline: 3px ${TIERS.picked.style} ${TIERS.picked.colour} !important; outline-offset: 2px; }
   `;
-  document.head?.appendChild(style);
-
   const changed = new Set(options.changed);
   const occluded = new Set(options.occluded);
   for (const [element, path] of markPaths(view, options.root)) {
@@ -219,24 +216,62 @@ export function markTiers(
   for (const element of document.querySelectorAll(`[${DECOR}]`)) {
     element.removeAttribute(DECOR);
   }
-  if (!root) return;
+  for (const element of document.querySelectorAll(`[${CHROME}]`)) {
+    element.removeAttribute(CHROME);
+  }
+  if (!root) {
+    document.head?.appendChild(style);
+    return [];
+  }
 
-  // Anything painted over the subject but not part of it. Marked so a reviewer
-  // can lift it and see what it was covering — the one thing a screenshot can
-  // never do, because those pixels are gone.
+  // Which elements make opacity unsafe on their subtree: a fixed or sticky
+  // descendant moves when an ancestor becomes a containing block.
   const holdsPinned = new Set<Element>();
   for (const element of document.querySelectorAll('body *')) {
     if (root.contains(element) || element.contains(root)) continue;
     const position = view.window.getComputedStyle(element).position;
-    if (position === 'fixed' || position === 'sticky') {
-      element.setAttribute('data-craft-chrome', '');
-      for (
-        let ancestor = element.parentElement;
-        ancestor;
-        ancestor = ancestor.parentElement
-      ) {
-        holdsPinned.add(ancestor);
+    if (position !== 'fixed' && position !== 'sticky') continue;
+    for (
+      let ancestor = element.parentElement;
+      ancestor;
+      ancestor = ancestor.parentElement
+    ) {
+      holdsPinned.add(ancestor);
+    }
+  }
+
+  // What is actually painted over the subject.
+  //
+  // Asked of the page rather than guessed from `position`. Marking every fixed
+  // element outside the subject offered to lift a header that covered nothing
+  // — the control looked broken because it was doing nothing — and left an
+  // absolutely positioned element that *was* covering a node unliftable, while
+  // the card went on saying that node was covered.
+  const covering = new Map<Element, string>();
+  const { innerWidth, innerHeight } = view.window;
+  for (const element of document.querySelectorAll(`[${PATH}]`)) {
+    const box = element.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) continue;
+    const inset = 1;
+    const samples: readonly (readonly [number, number])[] = [
+      [box.left + box.width / 2, box.top + box.height / 2],
+      [box.left + inset, box.top + inset],
+      [box.right - inset, box.top + inset],
+      [box.left + inset, box.bottom - inset],
+      [box.right - inset, box.bottom - inset],
+    ];
+    for (const [x, y] of samples) {
+      // Skipped, never clamped: a clamped point is a point somewhere else, and
+      // what is over *that* says nothing about this element.
+      if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
+      const hit = document.elementFromPoint(x, y);
+      // An ancestor answering the probe means the sample fell in a gap or a
+      // padding — it is behind the element, not over it.
+      if (!hit || root.contains(hit) || hit === root || hit.contains(element)) {
+        continue;
       }
+      hit.setAttribute(CHROME, '');
+      covering.set(hit, describeElement(hit));
     }
   }
 
@@ -263,7 +298,21 @@ export function markTiers(
       sibling.setAttribute(DECOR, '');
     }
   }
+
+  // Applied last, so the probe above is not looking through its own
+  // `visibility: hidden` — with the sheet in place first, lifting the chrome
+  // once made it impossible to find again, and the control disappeared.
+  document.head?.appendChild(style);
+  return [...new Set(covering.values())];
 }
+
+/** `button.clear-cache-btn` — short enough for a label, precise enough to find. */
+const describeElement = (element: Element): string => {
+  const first = String(element.className || '')
+    .split(/\s+/)
+    .filter(Boolean)[0];
+  return `${element.tagName.toLowerCase()}${first ? `.${first}` : ''}`;
+};
 
 /**
  * Writes each attested node's address onto the replayed element.

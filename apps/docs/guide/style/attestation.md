@@ -338,9 +338,24 @@ next, for a reason that had nothing to do with what was being judged. It is not
 offered while the frozen page is on screen, because scaling that page would
 relayout it and it would stop being the render that was measured.
 
-The one covered node is the case only the frozen page can resolve: **lift the
-page chrome** and see what was underneath. In a screenshot those pixels have
+The one covered node is the case only the frozen page can resolve: **lift what
+is covering it** and see what was underneath. In a screenshot those pixels have
 already been replaced.
+
+The control names what it will lift — `Hide button.clear-cache-btn` — and is
+offered only when something is actually covering the component. It used to read
+"Hide 1 overlay", which asked the reviewer what an overlay is and counted the
+wrong thing: covered *nodes*, when one button sitting on five of them is one
+thing to lift. Worse, it marked every fixed element on the page whether or not
+it covered anything, and marked nothing that covered without being fixed — so on
+most cards it lifted something irrelevant, and on the cards that mattered it
+could do nothing while the coverage line insisted a node was covered.
+
+What is lifted is now decided by probing the replay with the collector's own
+rule, which is also where the clamping bug in that rule was found: a sample
+point outside the viewport was pulled back to the edge, so a node straddling the
+fold was reported as covered by whatever happened to sit on the fold line.
+Samples outside the viewport are skipped in both places now.
 
 ## The review queue
 

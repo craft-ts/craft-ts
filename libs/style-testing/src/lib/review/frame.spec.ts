@@ -95,12 +95,13 @@ describe('markTiers', () => {
     ).toBeNull();
   });
 
-  it('marks the page chrome that sits over the subject', () => {
+  it('carries the rule that lifts whatever is covering the subject', () => {
+    // *What* is covering is decided by probing the page, which jsdom cannot
+    // do: every box it reports is zero-sized. The browser suite makes that
+    // claim against a real engine; what is checkable here is that asking to
+    // lift produces the rule which does it.
     const { view } = replay();
-    const pinned = view.document.querySelector('.pinned') as HTMLElement;
-    pinned.style.position = 'fixed';
-
-    markTiers(view, {
+    const covering = markTiers(view, {
       root: '.host',
       attested: [],
       changed: [],
@@ -109,9 +110,7 @@ describe('markTiers', () => {
       hideChrome: true,
     });
 
-    // Marked so a reviewer can lift it and see what it covered — the one thing
-    // a screenshot can never do, because those pixels are gone.
-    expect(pinned.hasAttribute('data-craft-chrome')).toBe(true);
+    expect(covering).toEqual([]);
     expect(
       view.document.getElementById('craft-review-tiers')?.textContent,
     ).toContain('visibility: hidden');

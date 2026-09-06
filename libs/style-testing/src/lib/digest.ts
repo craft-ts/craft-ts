@@ -656,10 +656,12 @@ export function measureInPage(
       [box.left + inset, box.bottom - inset],
       [box.right - inset, box.bottom - inset],
     ];
-    for (const [rawX, rawY] of samples) {
-      const x = Math.min(Math.max(rawX, 0), innerWidth - 1);
-      const y = Math.min(Math.max(rawY, 0), innerHeight - 1);
-      if (y < 0 || y >= innerHeight) continue;
+    for (const [x, y] of samples) {
+      // Skipped, never clamped. Clamping a sample that falls outside the
+      // viewport probes a point somewhere else, and what covers *that* says
+      // nothing about this element — a node straddling the fold was reported
+      // as covered by whatever happened to sit on the fold line.
+      if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
       const hit = document.elementFromPoint(x, y);
       // An ancestor answering the probe means the sample fell in a gap or a
       // padding — it is *behind* the element, not over it. Counting those
