@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { expect, test, type TestInfo } from '@playwright/test';
 import {
@@ -7,6 +7,8 @@ import {
   collectCapture,
   determinismScript,
   metadataFromScope,
+  replayFidelity,
+  snapshotPage,
   visualMatrix,
   visualReport,
 } from '@craft-ts/style-testing';
@@ -70,7 +72,19 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
     const clip = clipOf(scope.region);
     await page.screenshot({ path: imagePath, clip, fullPage: true });
 
+    // The frozen document, beside the picture. It is what lets a reviewer
+    // point at a node instead of at pixels, and it is checkable — see below.
+    const snapshot = await snapshotPage(page, { root: '.design-system-host' });
+    const snapshotName = imageName.replace(/\.png$/, '.snapshot.html');
+    await writeFile(
+      imagePathFor(testInfo, reportPath, snapshotName),
+      snapshot.html,
+      'utf8',
+    );
+
     captures.push({
+      snapshot: snapshotName,
+      ...(snapshot.risks.length > 0 ? { snapshotRisks: snapshot.risks } : {}),
       component: DESIGN_SYSTEM_COMPONENT,
       scenario: scenario.id,
       digest,
@@ -87,6 +101,43 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
       },
     });
   }
+
+  // Fidelity, verified rather than assumed: the frozen document is replayed in
+  // a window that disagrees with the capture on both axes, re-measured, and
+  // compared with the digest the ledger will hold. A replay that measures
+  // differently is a replay a reviewer would judge instead of the real thing.
+  const auditor = await browser.newPage();
+  for (const capture of captures) {
+    // The captured width, not the reviewer's. A snapshot freezes the styles,
+    // not the box the page lays itself out in: this route is fluid, so
+    // replaying it at 1280 gives a 1152px component instead of a 247px one.
+    // The colour scheme *is* flipped, because that one must be frozen — it is
+    // a media query, and re-evaluating it is what would silently turn a dark
+    // scenario light.
+    await auditor.setViewportSize(capture.metadata.viewport);
+    await auditor.emulateMedia({
+      colorScheme: capture.metadata.colorScheme === 'dark' ? 'light' : 'dark',
+    });
+    await auditor.setContent(
+      await readFile(
+        imagePathFor(
+          testInfo,
+          reportPath,
+          capture.snapshot as string,
+        ),
+        'utf8',
+      ),
+    );
+    const replayed = await collectCapture(auditor, {
+      root: '.design-system-host',
+    });
+    const fidelity = replayFidelity(replayed.digest, capture.digest);
+    expect(
+      fidelity.report.join('\n'),
+      `replay of '${capture.scenario}'`,
+    ).toBe('');
+  }
+  await auditor.close();
 
   const report = visualReport(captures);
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');

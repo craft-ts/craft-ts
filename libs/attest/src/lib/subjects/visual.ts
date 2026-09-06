@@ -32,6 +32,14 @@ export interface VisualCapture extends VisualScenarioRef {
   readonly fingerprint: string;
   /** Optional screenshot, kept for the reviewer only. */
   readonly image?: Uint8Array;
+  /**
+   * Optional frozen document, kept for the reviewer only.
+   *
+   * Like the screenshot, and for the same reason: it is what a human looks at,
+   * never what the verdict is keyed on. Hashing it would put a reviewer in the
+   * queue for a reordered attribute.
+   */
+  readonly snapshot?: string;
   readonly assumptions?: readonly Assumption[];
 }
 
@@ -65,6 +73,13 @@ export interface VisualRunCapture extends VisualScenarioRef {
   readonly digest: unknown;
   /** Screenshot path, relative to the report file unless absolute. */
   readonly image?: string;
+  /** Frozen-document path, relative to the report file unless absolute. */
+  readonly snapshot?: string;
+  /** What the snapshot could not reproduce. Shown, never hidden. */
+  readonly snapshotRisks?: readonly {
+    readonly kind: string;
+    readonly detail: string;
+  }[];
   readonly metadata?: VisualCaptureMetadata;
   readonly assumptions?: readonly Assumption[];
 }
@@ -123,6 +138,10 @@ export function isVisualRunReport(value: unknown): value is VisualRunReport {
         'digest' in candidate &&
         (candidate.image === undefined ||
           typeof candidate.image === 'string') &&
+        (candidate.snapshot === undefined ||
+          typeof candidate.snapshot === 'string') &&
+        (candidate.snapshotRisks === undefined ||
+          Array.isArray(candidate.snapshotRisks)) &&
         (candidate.metadata === undefined ||
           isVisualCaptureMetadata(candidate.metadata)) &&
         (candidate.assumptions === undefined ||
@@ -190,6 +209,8 @@ export interface StoredVisual {
   readonly evidence: string;
   /** Hash of the screenshot, when there is one. */
   readonly image?: string;
+  /** Hash of the frozen document, when there is one. */
+  readonly snapshot?: string;
 }
 
 /**
@@ -214,10 +235,16 @@ export async function storeVisual(
   const image = capture.image
     ? await store.put(capture.image, '.png')
     : undefined;
+  // Stored under its own address so scenarios that share a document share one
+  // object — a colour-scheme axis changes the styles, not usually the markup.
+  const snapshot = capture.snapshot
+    ? await store.put(capture.snapshot, '.snapshot.html')
+    : undefined;
   return {
     subject: visualSubjectId(capture),
     evidence,
     ...(image ? { image } : {}),
+    ...(snapshot ? { snapshot } : {}),
   };
 }
 

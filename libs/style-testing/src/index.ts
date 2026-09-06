@@ -23,4 +23,6 @@ export * from './lib/digest.ts';
 export * from './lib/assertions.ts';
 export * from './lib/transitions.ts';
 export * from './lib/margin.ts';
+export * from './lib/snapshot.ts';
+export * from './lib/replay.ts';
 export * from './lib/attest.ts';

@@ -127,6 +127,19 @@ export interface VisualReportCapture {
   readonly component: string;
   readonly scenario: string;
   readonly digest: LayoutDigest;
+  /**
+   * Snapshot file name, beside the report.
+   *
+   * A review aid like the screenshot, never the evidence: the evidence stays
+   * the digest hash. Hashing the document would queue a human every time an
+   * attribute was reordered.
+   */
+  readonly snapshot?: string;
+  /** What the snapshot could not reproduce, carried so the card can say it. */
+  readonly snapshotRisks?: readonly {
+    readonly kind: string;
+    readonly detail: string;
+  }[];
   /** Screenshot path, relative to the report file unless absolute. */
   readonly image?: string;
   readonly metadata?: VisualCaptureMetadata;
