@@ -415,6 +415,15 @@ export interface CaptureScope {
    * having both in one coordinate space is what lets the review draw the fold.
    */
   readonly region: Rect;
+  /**
+   * Whether the requested root actually matched something.
+   *
+   * A collector asked for `.userCard` that quietly measures the whole document
+   * instead produces a digest that looks perfectly valid and describes
+   * something else entirely. The fallback stays — a measurement is better than
+   * a crash — but it stops being silent.
+   */
+  readonly rootMatched: boolean;
   /** Every path in the digest. The exact set the verdict covers. */
   readonly attested: readonly string[];
   /** Attested, but off screen when the capture was taken. */
@@ -488,9 +497,8 @@ export function measureInPage(
   ): element is Element & { style: CSSStyleDeclaration } =>
     'style' in element;
 
-  const root: Element =
-    (options.root ? document.querySelector(options.root) : null) ??
-    document.documentElement;
+  const requested = options.root ? document.querySelector(options.root) : null;
+  const root: Element = requested ?? document.documentElement;
 
   const addressOf = (element: Element): string => {
     const parts: string[] = [];
@@ -687,6 +695,7 @@ export function measureInPage(
         height: rootBox.height,
       },
       viewport: { width: innerWidth, height: innerHeight },
+      rootMatched: options.root ? requested !== null : true,
       region: {
         x: left,
         y: top,

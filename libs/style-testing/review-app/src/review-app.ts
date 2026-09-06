@@ -75,6 +75,9 @@ interface Finding {
 interface ReplayState {
   readonly loaded: boolean;
   readonly faithful: boolean;
+  /** One sentence a reviewer can act on. */
+  readonly summary: string;
+  /** Supporting detail, one line each. */
   readonly report: readonly string[];
 }
 
@@ -175,7 +178,8 @@ export const ReviewApp = craftComponent(
           return {
             loaded: false,
             faithful: false,
-            report: ['The frozen document could not be opened.'],
+            summary: 'The frozen page could not be opened.',
+            report: [],
           };
         }
         // Fonts first: a box measured before its face arrives carries the
@@ -208,9 +212,10 @@ export const ReviewApp = craftComponent(
         return {
           loaded: true,
           faithful: fidelity?.faithful ?? false,
-          report: fidelity?.report ?? [
-            'No attested digest to check this replay against, so it cannot be vouched for.',
-          ],
+          summary:
+            fidelity?.summary ??
+            'There is no attested digest to check this frozen page against, so it cannot be vouched for.',
+          report: fidelity?.report ?? [],
         };
       },
     });
@@ -265,7 +270,12 @@ export const ReviewApp = craftComponent(
     const replay = craftComputed('replay', function* () {
       return (
         (yield* inspect.value()) ??
-        ({ loaded: false, faithful: false, report: [] } satisfies ReplayState)
+        ({
+          loaded: false,
+          faithful: false,
+          summary: '',
+          report: [],
+        } satisfies ReplayState)
       );
     });
     const showingReplay = craftComputed('showingReplay', function* () {
@@ -278,6 +288,24 @@ export const ReviewApp = craftComponent(
      * claim from judging the document: the reviewer could not lift the page's
      * own chrome to see what it was covering.
      */
+    /**
+     * How many attested nodes the page's own chrome is sitting on.
+     *
+     * In the label, not only in a tooltip: a control named "hide overlays"
+     * asks the reviewer to guess whether there is anything to hide, and the
+     * capture already knows the answer.
+     */
+    const coveredCount = craftComputed('coveredCount', function* () {
+      return (yield* member())?.metadata?.coverage?.occluded ?? 0;
+    });
+    const overlayLabel = craftComputed('overlayLabel', function* () {
+      const covered = yield* coveredCount();
+      const what =
+        covered === 0
+          ? "the page's own overlays"
+          : `${covered} overlay${covered === 1 ? '' : 's'}`;
+      return `${(yield* hideChrome()) ? 'Show' : 'Hide'} ${what}`;
+    });
     const degraded = craftComputed('degraded', function* () {
       if (!(yield* canReplay())) return true;
       if (!(yield* showingReplay())) return true;
@@ -410,6 +438,8 @@ export const ReviewApp = craftComponent(
       replay,
       showingReplay,
       degraded,
+      coveredCount,
+      overlayLabel,
       inspectFrame,
       toggleChrome,
       addFinding,
@@ -439,6 +469,7 @@ export const ReviewApp = craftComponent(
     replay,
     showingReplay,
     degraded,
+    overlayLabel,
     inspectFrame,
     toggleChrome,
     addFinding,
@@ -654,42 +685,61 @@ export const ReviewApp = craftComponent(
                       return `${coverage.attested} attested · ${seen} on screen · ${coverage.occluded} covered`;
                     }),
                   ]),
-                  div({ class: 'view-toggle', role: 'group' }, [
-                    button(
-                      'ShowReplay',
+                  div({ class: 'evidence-views' }, [
+                    span({ class: 'field-label', id: 'evidence-views-label' }, 'Evidence'),
+                    div(
                       {
-                        type: 'button',
-                        'data-view': 'replay',
-                        disabled: function* () {
-                          return !(yield* canReplay());
-                        },
-                        'aria-pressed': function* () {
-                          return String(yield* showingReplay());
-                        },
-                        *click() {
-                          yield* evidenceView.choose('replay');
-                        },
+                        class: 'view-toggle',
+                        role: 'group',
+                        'aria-labelledby': 'evidence-views-label',
                       },
-                      'Frozen page',
-                    ),
-                    button(
-                      'ShowImage',
-                      {
-                        type: 'button',
-                        'data-view': 'image',
-                        'aria-pressed': function* () {
-                          return String(!(yield* showingReplay()));
-                        },
-                        *click() {
-                          yield* evidenceView.choose('image');
-                        },
-                      },
-                      'Screenshot',
+                      [
+                        button(
+                          'ShowReplay',
+                          {
+                            type: 'button',
+                            'data-view': 'replay',
+                            title:
+                              'The page itself, frozen at the moment it was measured. Click any part of the component to write a remark about that node.',
+                            disabled: function* () {
+                              return !(yield* canReplay());
+                            },
+                            'aria-pressed': function* () {
+                              return String(yield* showingReplay());
+                            },
+                            *click() {
+                              yield* evidenceView.choose('replay');
+                            },
+                          },
+                          'Page',
+                        ),
+                        button(
+                          'ShowImage',
+                          {
+                            type: 'button',
+                            'data-view': 'image',
+                            title:
+                              'The screenshot. It shows what the measurements cannot — a wrong icon, a missing background — and marks where the viewport ended.',
+                            'aria-pressed': function* () {
+                              return String(!(yield* showingReplay()));
+                            },
+                            *click() {
+                              yield* evidenceView.choose('image');
+                            },
+                          },
+                          'Screenshot',
+                        ),
+                      ],
                     ),
                     button(
                       'ToggleChrome',
                       {
                         type: 'button',
+                        class: 'overlay-toggle',
+                        // Only the page can do this. In a screenshot those
+                        // pixels have already been replaced.
+                        title:
+                          "The application's own fixed elements sit over this component. Only the frozen page can lift them; in a screenshot those pixels are gone.",
                         hidden: function* () {
                           return !(yield* showingReplay());
                         },
@@ -698,14 +748,14 @@ export const ReviewApp = craftComponent(
                         },
                         click: toggleChrome,
                       },
-                      // Only the replay can do this. In a screenshot those
-                      // pixels have already been replaced.
-                      'Lift page chrome',
+                      overlayLabel,
                     ),
                   ]),
+                  label({ class: 'field-label', htmlFor: 'evidence-zoom' }, 'Zoom'),
                   select(
                     'EvidenceZoom',
                     {
+                      id: 'evidence-zoom',
                       'aria-label': 'Evidence zoom',
                       value: zoom,
                       *change(event: Event) {
@@ -719,6 +769,14 @@ export const ReviewApp = craftComponent(
                   ),
                 ]),
                 p(
+                  { class: 'evidence-help' },
+                  function* () {
+                    return (yield* showingReplay())
+                      ? 'The render itself, frozen. Everything outside the subject is dimmed; click a part of it to write a remark about that node.'
+                      : 'A picture of the same render. The dashed box marks what was on screen when it was captured; the rest is attested but was never visible.';
+                  },
+                ),
+                section(
                   {
                     class: 'notice warning',
                     role: 'status',
@@ -731,10 +789,34 @@ export const ReviewApp = craftComponent(
                       );
                     },
                   },
-                  function* () {
-                    const state = yield* replay();
-                    return `This frozen page does not measure like the evidence, so it is not the render that was attested: ${state.report.join(' ')} Judge the screenshot instead — the decision will be recorded as made without a faithful replay.`;
-                  },
+                  [
+                    strong(function* () {
+                      return (yield* replay()).summary;
+                    }),
+                    ul(
+                      {
+                        class: 'fidelity-detail',
+                        hidden: function* () {
+                          return (yield* replay()).report.length === 0;
+                        },
+                      },
+                      forNode(
+                        function* () {
+                          return (yield* replay()).report.map((line) => ({
+                            line,
+                          }));
+                        },
+                        { track: (entry) => entry.line },
+                        (entry) =>
+                          li({ class: 'code' }, function* () {
+                            return (yield* entry()).line;
+                          }),
+                      ),
+                    ),
+                    p(
+                      'Judge the screenshot instead. The decision will be recorded as made without a faithful replay.',
+                    ),
+                  ],
                 ),
                 figure(
                   {

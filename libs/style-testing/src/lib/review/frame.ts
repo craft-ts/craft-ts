@@ -87,7 +87,24 @@ export function checkReplay(
   attested: LayoutDigest,
   options: { readonly tolerance?: number } = {},
 ): ReplayFidelity {
-  return replayFidelity(measureReplay(view, root), attested, options);
+  const measured = measureInPage(
+    { root, styleKeys: STYLE_KEYS as readonly string[] },
+    view.window,
+  );
+  // Asked and answered before anything is compared. Without this the selector
+  // missing produced "36 nodes are absent" followed by `html`, `html/head`,
+  // `html/head/meta` — every symptom of one cause, and none of them saying it.
+  if (!measured.scope.rootMatched) {
+    return {
+      faithful: false,
+      missing: attested.nodes.map((node) => node.path),
+      unexpected: [],
+      moved: [],
+      summary: `The frozen page contains no element matching '${root}', so nothing in it is the component this evidence is about.`,
+      report: [],
+    };
+  }
+  return replayFidelity(layoutDigest(measured.elements), attested, options);
 }
 
 /**

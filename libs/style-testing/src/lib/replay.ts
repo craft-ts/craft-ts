@@ -24,7 +24,16 @@ export interface ReplayFidelity {
   readonly unexpected: readonly string[];
   /** Same node, different measurement. */
   readonly moved: readonly string[];
-  /** What to show a reviewer, in the order they would read it. */
+  /**
+   * One sentence naming what went wrong, in a reviewer's terms.
+   *
+   * Separate from `report`, and it carries the whole message on its own. A
+   * total mismatch used to print "36 nodes are absent" followed by forty
+   * paths — every symptom of one cause, none of them naming it — and a
+   * reviewer cannot act on a list of addresses.
+   */
+  readonly summary: string;
+  /** The supporting detail, one line each. Empty when the summary suffices. */
   readonly report: readonly string[];
 }
 
@@ -67,33 +76,32 @@ export function replayFidelity(
   });
   const moved = [...new Set(deltas.map((delta) => delta.path))].sort();
 
+  const faithful =
+    missing.length === 0 && unexpected.length === 0 && moved.length === 0;
+
+  // The whole attested set gone means one thing went wrong, not N: the
+  // document on screen is not this component. Listing its nodes would describe
+  // forty symptoms of a single cause.
+  const total = inAttested.size > 0 && missing.length === inAttested.size;
+
+  const summary = faithful
+    ? 'The frozen page measures exactly like the evidence.'
+    : total
+      ? 'None of the attested nodes are in the frozen page. It is showing a different document, or the subject it was captured from is missing from it.'
+      : missing.length > 0
+        ? `${missing.length} of ${inAttested.size} attested nodes are missing from the frozen page — a stylesheet or a script-built element did not survive the capture.`
+        : `${moved.length} node${moved.length === 1 ? '' : 's'} measure${moved.length === 1 ? 's' : ''} differently here than when the evidence was taken.`;
+
   const report: string[] = [];
-  if (missing.length > 0) {
+  if (!total) {
     report.push(
-      `${missing.length} attested node(s) are absent from the replay — a stylesheet or a script-built element did not survive.`,
-      ...missing.slice(0, 5).map((path) => `  ${path}`),
-    );
-  }
-  if (unexpected.length > 0) {
-    report.push(
-      `${unexpected.length} node(s) appear in the replay and not in the evidence.`,
-      ...unexpected.slice(0, 5).map((path) => `  ${path}`),
-    );
-  }
-  if (moved.length > 0) {
-    report.push(
-      `${moved.length} node(s) measure differently in the replay:`,
-      ...deltas.slice(0, 8).map((delta) => `  ${formatDelta(delta)}`),
+      ...missing.slice(0, 4).map((path) => `missing: ${path}`),
+      ...unexpected.slice(0, 4).map((path) => `unexpected: ${path}`),
+      ...deltas.slice(0, 6).map((delta) => formatDelta(delta)),
     );
   }
 
-  return {
-    faithful: missing.length === 0 && unexpected.length === 0 && moved.length === 0,
-    missing,
-    unexpected,
-    moved,
-    report,
-  };
+  return { faithful, missing, unexpected, moved, summary, report };
 }
 
 /**
@@ -113,7 +121,8 @@ export function assertReplayFaithful(
   throw new Error(
     [
       `assertReplayFaithful: the replay${options.subject ? ` of '${options.subject}'` : ''} is not the render that was measured.`,
-      ...fidelity.report,
+      `  ${fidelity.summary}`,
+      ...fidelity.report.map((line) => `  ${line}`),
       '  Judging it would record a verdict about a document nobody attested.',
     ].join('\n'),
   );

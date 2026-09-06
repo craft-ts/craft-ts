@@ -138,7 +138,12 @@ test('lifting the page chrome reveals what it covered', async ({ page }) => {
   const frame = page.frameLocator('#craft-replay-frame');
   await expect(frame.locator('.pinned')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Lift page chrome' }).click();
+  // The label carries the count, so the reviewer knows there is something to
+  // lift without having to try the button first.
+  const lift = page.getByRole('button', { name: /overlay/i });
+  await expect(lift).toHaveText('Hide 1 overlay');
+  await lift.click();
+  await expect(lift).toHaveText('Show 1 overlay');
   await expect(frame.locator('.pinned')).toBeHidden();
 });
 
@@ -155,6 +160,54 @@ test('switching to the screenshot marks the decision as degraded', async ({
   // the document, and the ledger has to be able to tell them apart.
   await expect(page.locator('.notice.degraded')).toBeVisible();
   await expect(page.locator('.image-holder .fold')).toBeVisible();
+});
+
+test('an unfaithful replay says what went wrong in one sentence', async ({
+  browser,
+}) => {
+  // A snapshot whose subject is not in it at all — the shape of the failure a
+  // stale capture produces. The old message answered it with "36 attested
+  // node(s) are absent" and forty paths beginning `html/head/meta`: every
+  // symptom of one cause, and none of them naming it.
+  const stale = await startReviewServer({
+    port: 0,
+    items: [
+      {
+        subject: 'visual:component:demo:Card#base',
+        reason: 'the output changed',
+        digest: attested,
+        approved,
+        snapshot: 'c'.repeat(32),
+        evidence: 'd'.repeat(32),
+        metadata: {
+          viewport: { width: 375, height: 200 },
+          screenshot: { width: 375, height: 400 },
+          target: '.host',
+        },
+      },
+    ],
+    snapshotFor: async () =>
+      '<!doctype html><html><head></head><body><p>a different page</p></body></html>',
+    digestFor: async () => JSON.stringify(attested),
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.goto(stale.url);
+
+    const notice = page.locator('.notice.warning');
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText("no element matching '.host'");
+    // No wall of addresses, and no dump of the document's own structure.
+    await expect(notice).not.toContainText('html/head');
+    await expect(page.locator('.fidelity-detail')).toBeHidden();
+
+    // And the verdict that follows is marked for what it is.
+    await expect(page.locator('.notice.degraded')).toBeVisible();
+    await page.close();
+  } finally {
+    await stale.close();
+  }
 });
 
 test('a click becomes a remark aimed at one node', async ({ page }) => {

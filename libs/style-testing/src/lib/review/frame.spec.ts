@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { markPaths, markTiers, onPick, viewOf } from './frame.ts';
+import { checkReplay, markPaths, markTiers, onPick, viewOf } from './frame.ts';
+import { layoutDigest, type MeasuredElement } from '../digest.ts';
 
 /**
  * A snapshot, replayed into an iframe, driven entirely from outside it.
@@ -168,5 +169,38 @@ describe('onPick', () => {
     expect(
       view.document.querySelector('.body')?.hasAttribute('data-craft-picked'),
     ).toBe(true);
+  });
+});
+
+describe('checkReplay', () => {
+  const attested = layoutDigest([
+    {
+      path: 'div',
+      rect: { x: 0, y: 0, width: 100, height: 40 },
+      styles: {},
+      scroll: { width: 100, height: 40, clientWidth: 100, clientHeight: 40 },
+      zOrder: 0,
+    },
+  ] satisfies MeasuredElement[]);
+
+  it('names the missing subject instead of listing forty symptoms', () => {
+    const { view } = replay();
+    const fidelity = checkReplay(view, '.not-in-this-document', attested);
+
+    // The failure this replaces printed "36 attested node(s) are absent"
+    // followed by `html`, `html/head`, `html/head/meta` — every symptom of one
+    // cause, and none of them saying what it was.
+    expect(fidelity.faithful).toBe(false);
+    expect(fidelity.summary).toContain("no element matching '.not-in-this-document'");
+    expect(fidelity.report).toEqual([]);
+    expect(fidelity.summary).not.toContain('html/head');
+  });
+
+  it('does not report a missing subject when the root is the document', () => {
+    const { view } = replay();
+    // No selector means the document itself, which always matches.
+    expect(checkReplay(view, ':root', attested).summary).not.toContain(
+      'no element matching',
+    );
   });
 });

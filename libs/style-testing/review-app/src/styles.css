@@ -451,41 +451,79 @@ select {
 }
 
 /* ---------------------------------------------------------------- *
- * The frozen page, the screenshot, and the line between what was on
- * screen and what was only ever attested.
+ * The page, the screenshot, and the line between what was on screen
+ * and what was only ever attested.
+ *
+ * Every colour here comes from the palette the rest of this file uses.
+ * The first version reached for `var(--line, …)`, a token this app does
+ * not define, so every border fell back to a light-theme value — and the
+ * notices were light cards dropped into a dark application.
  * ---------------------------------------------------------------- */
+
+.evidence-views {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.evidence-views > .field-label {
+  color: #8b93a5;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
 
 .view-toggle {
   display: inline-flex;
-  gap: 4px;
-  margin-left: auto;
-}
-
-.view-toggle button {
-  padding: 6px 10px;
-  border: 1px solid var(--line, #d0d5dd);
-  border-radius: 6px;
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-}
-
-.view-toggle button {
-  color: #aeb5c3;
-  border-color: #373d49;
+  padding: 3px;
+  border: 1px solid #373d49;
+  border-radius: 8px;
   background: #1b1f26;
 }
 
+.view-toggle button {
+  padding: 5px 12px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #aeb5c3;
+}
+
+.view-toggle button:hover:not(:disabled) {
+  color: #e7e9ee;
+}
+
 .view-toggle button[aria-pressed='true'] {
-  border-color: #5b8def;
-  background: #202a3d;
+  border-color: #3e4e8c;
+  background: #202a51;
   color: #e6ecf7;
   font-weight: 600;
 }
 
 .view-toggle button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+  color: #6b7385;
+}
+
+.overlay-toggle {
+  padding: 6px 12px;
+  white-space: nowrap;
+  border: 1px solid #373d49;
+  border-radius: 8px;
+  background: #1b1f26;
+  color: #aeb5c3;
+}
+
+.overlay-toggle[aria-pressed='true'] {
+  border-color: #5b4526;
+  background: #34291c;
+  color: #ffcc80;
+}
+
+.evidence-help {
+  margin: 0 0 10px;
+  color: #8b93a5;
 }
 
 .chip.coverage {
@@ -500,24 +538,24 @@ select {
   max-width: 100%;
 }
 
+.replay-holder {
+  border: 1px solid #303541;
+  border-radius: 8px;
+}
+
 .replay-holder iframe {
   display: block;
-  /* No border. A border on the frame is subtracted from the viewport inside
-     it, so a 1px rule made every measurement 2px narrower than the evidence
-     and the replay was reported unfaithful. The frame has to be exactly the
-     captured viewport; decoration goes on the holder around it. */
+  /* No border. A border on the frame is subtracted from the viewport
+     inside it, so a 1px rule made every measurement 2px narrower than the
+     evidence and the replay was reported unfaithful. The frame has to be
+     exactly the captured viewport; decoration goes on the holder. */
   border: 0;
   background: #fff;
 }
 
-.replay-holder {
-  border: 1px solid var(--line, #d0d5dd);
-  border-radius: 8px;
-}
-
 .image-holder {
-  /* The fold is positioned against the picture, so the picture has to be the
-     positioning context and nothing may sit between them. */
+  /* The fold is positioned against the picture, so the picture has to be
+     the positioning context and nothing may sit between them. */
   display: inline-block;
   line-height: 0;
 }
@@ -525,8 +563,8 @@ select {
 .image-holder .fold {
   position: absolute;
   pointer-events: none;
-  border: 2px dashed #1570ef;
-  box-shadow: 0 0 0 9999px rgba(16, 24, 40, 0.35);
+  border: 2px dashed #7f9cff;
+  box-shadow: 0 0 0 9999px rgba(8, 10, 14, 0.55);
 }
 
 .image-holder .fold::after {
@@ -536,29 +574,28 @@ select {
   bottom: 4px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #1570ef;
-  color: #fff;
-  font: 600 11px/1.4 system-ui, sans-serif;
+  background: #202a51;
+  color: #d8deff;
+  font: 600 11px/1.4 Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
-.notice.warning {
-  border-color: #dc6803;
-  background: #fffaeb;
-  color: #93370d;
+.notice.warning,
+.notice.degraded {
+  color: #ffcc80;
+  border: 1px solid #5b4526;
+  background: #2b2216;
 }
 
 .notice.degraded {
-  border-color: #dc6803;
-  background: #fffaeb;
-  color: #93370d;
-  margin-bottom: 12px;
+  width: 100%;
+  margin: 0 0 12px;
 }
 
 .findings-panel {
   display: grid;
   gap: 8px;
-  padding: 12px 0;
-  border-top: 1px solid var(--line, #eaecf0);
+  padding: 14px 0 0;
+  border-top: 1px solid #2a2e37;
 }
 
 .findings-list {
@@ -571,20 +608,38 @@ select {
 
 .findings-list li {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: baseline;
-  padding: 6px 8px;
-  border: 1px solid var(--line, #eaecf0);
-  border-radius: 6px;
+  padding: 7px 10px;
+  border: 1px solid #2a2e37;
+  border-radius: 7px;
+  background: #171a20;
 }
 
 .findings-list .code {
+  color: #aeb5c3;
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 12px;
   word-break: break-all;
 }
 
+.findings-list button {
+  margin-left: auto;
+  padding: 3px 9px;
+  border: 1px solid #373d49;
+  border-radius: 6px;
+  background: #1b1f26;
+  color: #aeb5c3;
+  font-size: 12px;
+}
+
 .findings-empty {
   border: 0;
-  opacity: 0.7;
+  background: none;
+  color: #8b93a5;
 }
+
+.notice.warning strong { display: block; margin-bottom: 6px; }
+.notice.warning p { margin: 8px 0 0; opacity: .85; }
+.fidelity-detail { margin: 0; padding-left: 18px; }
+.fidelity-detail li { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; word-break: break-all; }

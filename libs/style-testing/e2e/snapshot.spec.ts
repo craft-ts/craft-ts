@@ -162,7 +162,10 @@ test('an unfaithful replay is reported, not passed off as the original', async (
   const fidelity = replayFidelity(replayed.digest, digest);
   expect(fidelity.faithful).toBe(false);
   expect(fidelity.moved.length).toBeGreaterThan(0);
-  expect(fidelity.report.join('\n')).toContain('measure differently');
+  // One sentence a reviewer can act on, then the addresses behind it — not a
+  // wall of paths they have to interpret.
+  expect(fidelity.summary).toContain('measure differently');
+  expect(fidelity.report.join('\n')).toContain('@card width 200→320');
   expect(() => assertReplayFaithful(replayed.digest, digest)).toThrow(
     /nobody attested/,
   );
