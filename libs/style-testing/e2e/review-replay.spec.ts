@@ -212,7 +212,7 @@ test('an unfaithful replay says what went wrong in one sentence', async ({
     ).toHaveAttribute('aria-pressed', 'true');
 
     // Asking for the page anyway still works, and still says what it is.
-    await page.getByRole('button', { name: 'Page' }).click();
+    await page.getByRole('button', { name: 'Page', exact: true }).click();
     await expect(page.locator('.replay-holder')).toBeVisible();
     await expect(notice).toContainText('You asked for the page anyway');
 
@@ -379,6 +379,7 @@ test('a drag selects every node the box touches', async ({ page }) => {
   // A box dragged over both rows of the component. One remark covering a whole
   // region is the common case; adding the nodes one at a time means retyping
   // the same sentence for each.
+  await page.locator('#craft-replay-frame').scrollIntoViewIfNeeded();
   const box = await page.locator('#craft-replay-frame').boundingBox();
   if (!box) throw new Error('no frame box');
   await page.mouse.move(box.x + 8, box.y + 45);
@@ -392,42 +393,65 @@ test('a drag selects every node the box touches', async ({ page }) => {
 
   await expect(page.locator('.selection-band')).toBeHidden();
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(3);
-  // The count is in the label: one sentence is about to be written against
-  // all three, and the reviewer has to see how many they caught first.
-  await page.getByLabel('Decision note').fill('this row is misaligned');
-  await expect(
-    page.getByRole('button', { name: 'Add remark on 3 selected nodes' }),
-  ).toBeEnabled();
+  // The count is stated next to the field that is about to name the group.
+  await expect(page.locator('.selection-tag')).toHaveText(
+    '3 elements selected',
+  );
 
   // Ctrl-click takes one back out without disturbing the rest.
   await frame.locator('.title').click({ modifiers: ['ControlOrMeta'] });
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(2);
 });
 
-test('a click becomes a remark aimed at one node', async ({ page }) => {
+test('two complaints in one reason keep their own groups', async ({ page }) => {
+  // The shape of a real rejection: this row is wrong, and further down that
+  // other thing is wrong too. Filing them as one remark against every node
+  // would record the second complaint against the first group's nodes.
   await page.goto(running.url);
   const frame = page.frameLocator('#craft-replay-frame');
 
+  const reason = page.getByLabel('Decision note');
+  await reason.fill('The title is cut at 34px in German. ');
+
   await frame.locator('.title').click();
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(1);
-
-  await page.getByLabel('Decision note').fill('cut at 34px in German');
+  // Right-click on the selection, which is the gesture the menu exists for.
+  await frame.locator('.title').click({ button: 'right' });
   await page
-    .getByRole('button', { name: 'Add remark on 1 selected node' })
+    .getByRole('menuitem', { name: 'Add 1 node to the reason' })
     .click();
 
-  const finding = page.locator('.findings-list li').first();
-  await expect(finding).toContainText('cut at 34px in German');
-  await expect(finding.locator('.code')).toContainText('div');
+  // Referencing a group leaves the outline behind: it has been recorded.
+  await expect(frame.locator('[data-craft-picked]')).toHaveCount(0);
+  await expect(reason).toHaveValue(/\[#1: 1 node\]/);
 
-  await page.getByLabel('Decision note').fill('the title does not fit');
+  await reason.press('End');
+  await reason.pressSequentially('And the body overflows its box. ');
+  await frame.locator('.body').click({ button: 'right' });
+  await page
+    .getByRole('menuitem', { name: 'Add 1 node to the reason' })
+    .click();
+
+  // Both groups are listed, and the reason carries both references.
+  await expect(page.locator('.findings-list li')).toHaveCount(2);
+
   await page.getByRole('button', { name: /Reject R/ }).click();
-
   await expect(page.getByText('Review complete')).toBeVisible();
+
   expect(decisions).toHaveLength(1);
-  expect(decisions[0]).toMatchObject({
-    verdict: 'rejected',
-    note: 'the title does not fit',
-    findings: [{ note: 'cut at 34px in German' }],
-  });
+  const decision = decisions[0] as {
+    note: string;
+    findings: { path: string; note: string }[];
+  };
+  // The reason is recorded as prose — the tokens were scaffolding for writing
+  // it, not part of what is attested.
+  expect(decision.note).not.toContain('[#');
+  expect(decision.note).toContain('The title is cut at 34px in German.');
+  // And each group carries the sentence it stands in, not the whole reason.
+  expect(decision.findings).toHaveLength(2);
+  expect(decision.findings[0]?.note).toBe(
+    'The title is cut at 34px in German.',
+  );
+  expect(decision.findings[1]?.note).toBe('And the body overflows its box.');
+  expect(decision.findings[0]?.path).not.toBe(decision.findings[1]?.path);
 });

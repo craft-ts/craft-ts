@@ -321,16 +321,23 @@ export function selectionOf(view: FrameView): readonly string[] {
  * - a click selects one node;
  * - ctrl (or cmd) click adds or removes one, keeping the rest;
  * - dragging a box selects everything the box touches, adding to the selection
- *   when ctrl or cmd is held.
+ *   when ctrl or cmd is held;
+ * - right-clicking asks for a menu on the selection, taking the node under the
+ *   cursor first when it was not already in it.
  *
- * The band is reported to the caller rather than drawn here. Drawing it would
- * mean inserting an element into the frozen document, and the whole claim this
- * page makes is that nothing was inserted into it.
+ * The band and the menu are reported to the caller rather than drawn here.
+ * Drawing them would mean inserting elements into the frozen document, and the
+ * whole claim this page makes is that nothing was inserted into it.
  */
 export function onPick(
   view: FrameView,
   handler: (paths: readonly string[]) => void,
-  options: { readonly onBand?: (band: Rect | undefined) => void } = {},
+  options: {
+    readonly onBand?: (band: Rect | undefined) => void;
+    readonly onMenu?: (
+      at: { readonly x: number; readonly y: number } | undefined,
+    ) => void;
+  } = {},
 ): () => void {
   const { document } = view;
   let origin: { x: number; y: number } | undefined;
@@ -380,7 +387,21 @@ export function onPick(
     );
   };
 
+  const onContext = (event: MouseEvent): void => {
+    const picked = (event.target as Element | null)?.closest?.(`[${PATH}]`);
+    // Outside the subject the page's own context menu is the right answer:
+    // there is nothing here to file a remark against.
+    if (!picked) return;
+    event.preventDefault();
+    const path = picked.getAttribute(PATH) ?? '';
+    // Right-clicking outside the current selection moves it rather than
+    // opening a menu about nodes the reviewer is no longer pointing at.
+    if (!selectionOf(view).includes(path)) commit([path]);
+    options.onMenu?.({ x: event.clientX, y: event.clientY });
+  };
+
   const onDown = (event: MouseEvent): void => {
+    options.onMenu?.(undefined);
     if (event.button !== 0) return;
     origin = { x: event.clientX, y: event.clientY };
     banding = false;
@@ -427,10 +448,12 @@ export function onPick(
   document.addEventListener('mousedown', onDown, true);
   document.addEventListener('mousemove', onMove, true);
   document.addEventListener('mouseup', onUp, true);
+  document.addEventListener('contextmenu', onContext, true);
   return () => {
     document.removeEventListener('click', onClick, true);
     document.removeEventListener('mousedown', onDown, true);
     document.removeEventListener('mousemove', onMove, true);
     document.removeEventListener('mouseup', onUp, true);
+    document.removeEventListener('contextmenu', onContext, true);
   };
 }

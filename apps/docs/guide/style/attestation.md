@@ -267,6 +267,10 @@ not cover it.
 The digest answers this exactly: its paths **are** the attested set. Three tiers
 follow, and all three come from data that already exists:
 
+The screen is laid out in the order the work happens: the queue on the left,
+the evidence in the middle, the verdict on the right, where it stays in place
+while a long capture is scrolled.
+
 | tier | source | shown as |
 | --- | --- | --- |
 | changed | the paths in the readable diff | outlined, and the reason the card is here |
@@ -279,12 +283,37 @@ one. Entries for tiers this card has none of are not shown, so the legend
 describes the page in front of the reviewer rather than the system in general.
 
 Selection is a set, not a node. Ctrl-click (cmd on a Mac) adds one, and dragging
-a box takes everything it touches; the count is in the button, because one
-sentence is about to be filed against all of them. A remark that covers a row of
-buttons was otherwise the same sentence retyped once per button, which is also
-how a queue fills with findings nobody can group afterwards. The band is drawn
-beside the frame and never inside it: adding an element to the frozen document
-would break the only claim it makes.
+a box takes everything it touches; the count is stated beside the reason field
+that is about to name them. A remark covering a row of buttons was otherwise the
+same sentence retyped once per button, which is also how a queue fills with
+findings nobody can group afterwards. The band is drawn beside the frame and
+never inside it: adding an element to the frozen document would break the only
+claim it makes.
+
+### One reason, several complaints
+
+A rejection is rarely about one thing. Right-clicking a selection drops a
+reference into the reason **where the reviewer is typing**:
+
+> The title is cut at 34px in German. `[#1: 2 nodes]` And the row below
+> overflows its box. `[#2: 5 nodes]`
+
+The reason stays one piece of prose, and each reference carries the text written
+since the one before it — so the second complaint is filed against the second
+group and not, as a single note against every node would have it, against all
+seven.
+
+Position settles that, not punctuation. The first rule tried was "the sentence
+the token stands in", and it was wrong for the way people write: the complaint
+is typed, ended, and *then* the group is pointed at, so the caret is past the
+full stop and the token opens the next sentence rather than closing its own.
+Referencing first and explaining after reads the other way round, so a group
+with nothing before it takes what follows.
+
+The tokens are scaffolding. What is recorded is the prose with them removed,
+plus the addresses each one pointed at — and the text remains the only state:
+deleting a reference deletes it, with no second list left holding a claim the
+reason no longer makes.
 
 And the mistake is made unrecordable rather than merely discouraged. A rejection
 carries the path of the node it is about, so the server can refuse one that

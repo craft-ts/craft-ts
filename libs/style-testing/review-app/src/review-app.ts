@@ -62,6 +62,9 @@ import type { LayoutDigest } from '../../src/lib/digest';
  */
 const FRAME_ID = 'craft-replay-frame';
 
+/** The reason field, which is also where group references are inserted. */
+const NOTE_ID = 'review-note';
+
 type DecisionVerdict =
   | 'ok'
   | 'ok-with-note'
@@ -161,6 +164,70 @@ const legendEntry = (
     ],
   );
 
+/**
+ * A group of nodes the reason points at, and the token that stands for it.
+ *
+ * One reason usually carries more than one complaint — this row is misaligned,
+ * and further down that button is cut — so the reference has to live *inside*
+ * the sentence it belongs to rather than beside the whole text. The token is
+ * plain text in the textarea, which makes the reason the only thing that has
+ * to survive: deleting a token deletes its reference, with no second list to
+ * keep in step.
+ */
+interface Mention {
+  readonly id: number;
+  readonly paths: readonly string[];
+}
+
+const mentionToken = (id: number, count: number): string =>
+  `[#${id}: ${count} node${count === 1 ? '' : 's'}]`;
+
+const ANY_MENTION = /\[#\d+: \d+ nodes?\]/g;
+
+const mentionPattern = (id: number): RegExp =>
+  new RegExp(`\\[#${id}: \\d+ nodes?\\]`);
+
+/** The prose of a reason, with the reference tokens taken back out. */
+const proseOf = (text: string): string =>
+  text
+    .replace(ANY_MENTION, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
+/**
+ * What a reference carries: everything written since the previous one.
+ *
+ * The first rule tried was "the sentence the token stands in", and it was
+ * wrong for the way people actually write. A reviewer types the complaint,
+ * ends it, and *then* points at the group — so the caret is past the full stop
+ * and the token opens the next sentence rather than closing its own.
+ *
+ * Position, not punctuation, settles it: each reference takes the text between
+ * the reference before it and itself. Referencing first and explaining after
+ * reads the other way round, so a group with nothing before it takes what
+ * follows instead.
+ */
+const MENTION_WITH_ID = /\[#(\d+): \d+ nodes?\]/g;
+
+const noteForMention = (text: string, id: number): string => {
+  const tokens = [...text.matchAll(MENTION_WITH_ID)];
+  const at = tokens.findIndex((token) => Number(token[1]) === id);
+  const self = tokens[at];
+  if (at < 0 || !self || self.index === undefined) return proseOf(text);
+
+  const previous = tokens[at - 1];
+  const from =
+    previous && previous.index !== undefined
+      ? previous.index + previous[0].length
+      : 0;
+  const before = proseOf(text.slice(from, self.index));
+  if (before) return before;
+
+  const next = tokens[at + 1];
+  const to = next?.index ?? text.length;
+  return proseOf(text.slice(self.index + self[0].length, to)) || proseOf(text);
+};
+
 const eventValue = (event: Event): string =>
   (event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement)
     .value;
@@ -197,10 +264,29 @@ export const ReviewApp = craftComponent(
         release: () => set('auto'),
       }),
     );
-    const findings = yield* state(
-      'findings',
-      [] as readonly Finding[],
-      ({ set }) => ({ replace: (value: readonly Finding[]) => set(value) }),
+    /**
+     * Every group the reviewer has ever named on this card.
+     *
+     * A registry, not the truth: which of them the decision carries is decided
+     * by whether their token is still in the reason. Editing the text is
+     * therefore the only way to edit the references, and there is no way for
+     * the two to disagree.
+     */
+    const mentions = yield* state(
+      'mentions',
+      [] as readonly Mention[],
+      ({ set }) => ({
+        replace: (value: readonly Mention[]) => set(value),
+        clear: () => set([]),
+      }),
+    );
+    /** Where the reviewer right-clicked, in the frame's own coordinates. */
+    const menuAt = yield* state(
+      'menuAt',
+      undefined as { x: number; y: number } | undefined,
+      ({ set }) => ({
+        show: (at: { x: number; y: number } | undefined) => set(at),
+      }),
     );
     const hideChrome = yield* state('hideChrome', false, ({ set }) => ({
       choose: (value: boolean) => set(value),
@@ -253,6 +339,12 @@ export const ReviewApp = craftComponent(
           | undefined,
       ) {
         yield* band.show(rect);
+      },
+    );
+    const showMenu = craftMethod(
+      'showMenu',
+      function* (at: { x: number; y: number } | undefined) {
+        yield* menuAt.show(at);
       },
     );
     // Replaced on every re-mark. Without it each toggle of the page chrome
@@ -317,7 +409,10 @@ export const ReviewApp = craftComponent(
         // nodes the reviewer had already pointed at.
         markSelection(view, params.selected);
         stopPicking?.();
-        stopPicking = onPick(view, selectNodes, { onBand: showBand });
+        stopPicking = onPick(view, selectNodes, {
+          onBand: showBand,
+          onMenu: showMenu,
+        });
 
         return {
           loaded: true,
@@ -366,7 +461,33 @@ export const ReviewApp = craftComponent(
       return list[yield* activeIndex()];
     });
     const hasNote = craftComputed('hasNote', function* () {
-      return (yield* note()).trim().length > 0;
+      // The prose, not the raw field: a reason made only of group references
+      // names what is wrong with nothing and explains nothing.
+      return proseOf(yield* note()).length > 0;
+    });
+    /**
+     * The groups this reason actually points at.
+     *
+     * Derived from the text every time rather than tracked alongside it. A
+     * reviewer who deletes a token has removed that reference, and there is no
+     * second list left holding a claim the reason no longer makes.
+     */
+    const activeMentions = craftComputed('activeMentions', function* () {
+      const text = yield* note();
+      return (yield* mentions()).filter((mention) =>
+        mentionPattern(mention.id).test(text),
+      );
+    });
+    const findings = craftComputed('findings', function* () {
+      const text = yield* note();
+      return (yield* activeMentions()).flatMap((mention) =>
+        mention.paths.map(
+          (path): Finding => ({
+            path,
+            note: noteForMention(text, mention.id),
+          }),
+        ),
+      );
     });
     const member = craftComputed('member', function* () {
       return (yield* current())?.members[0];
@@ -501,36 +622,67 @@ export const ReviewApp = craftComponent(
      * where the cursor was: the address is the digest's own, so the remark can
      * be followed to the code that produced the node.
      */
-    const addFinding = craftMethod('addFinding', function* () {
-      const paths = yield* selection();
-      const text = (yield* note()).trim();
-      if (paths.length === 0 || text.length === 0) return;
-      const aimed = new Set(paths);
-      const existing = yield* findings();
-      yield* findings.replace([
-        ...existing.filter((finding) => !aimed.has(finding.path)),
-        ...paths.map((path) => ({ path, note: text })),
-      ]);
-      yield* note.clear();
-    });
+    /**
+     * Drops a reference to the current selection where the reviewer is typing.
+     *
+     * At the caret, not appended: the point of the token is that it sits in the
+     * sentence that explains it, so a second complaint further down the reason
+     * can name a different group without either of them losing its text.
+     */
+    const addSelectionToReason = craftMethod(
+      'addSelectionToReason',
+      function* () {
+        const paths = yield* selection();
+        if (paths.length === 0) return;
+        const known = yield* mentions();
+        const id =
+          known.reduce((highest, one) => Math.max(highest, one.id), 0) + 1;
+        const token = mentionToken(id, paths.length);
 
-    const removeFinding = craftMethod(
-      'removeFinding',
-      function* (path: string) {
-        const existing = yield* findings();
-        yield* findings.replace(
-          existing.filter((finding) => finding.path !== path),
-        );
+        const field = document.getElementById(NOTE_ID);
+        const text = yield* note();
+        const caret =
+          field instanceof HTMLTextAreaElement
+            ? (field.selectionStart ?? text.length)
+            : text.length;
+        const before = text.slice(0, caret);
+        const after = text.slice(caret);
+        // A space on each side, including at the very end of the text: the
+        // reviewer keeps typing straight after inserting, and without it the
+        // next word ran into the token.
+        const lead = before && !/\s$/.test(before) ? ' ' : '';
+        const trail = /^\s/.test(after) ? '' : ' ';
+        const spaced = `${before}${lead}${token}${trail}${after}`;
+
+        yield* mentions.replace([...known, { id, paths }]);
+        yield* note.write(spaced);
+        yield* menuAt.show(undefined);
+        // The group is recorded; leaving it outlined would say it still is
+        // not. Cleared in the frame as well as in the state — the outlines are
+        // painted there and nothing else repaints them until the next pick.
+        yield* selection.clear();
+        const holder = document.getElementById(FRAME_ID);
+        const view =
+          holder instanceof HTMLIFrameElement ? viewOf(holder) : undefined;
+        if (view) markSelection(view, []);
+
+        if (field instanceof HTMLTextAreaElement) {
+          const at = before.length + lead.length + token.length + trail.length;
+          field.focus();
+          field.setSelectionRange(at, at);
+        }
       },
     );
 
     const decide = craftMethod('decide', function* (verdict: DecisionVerdict) {
       const card = yield* current();
       if (!card) return;
-      const writtenNote = (yield* note()).trim();
+      // Recorded as prose. The tokens are scaffolding for writing the reason;
+      // what is attested is the sentence, plus the addresses it pointed at.
+      const writtenNote = proseOf(yield* note());
       if (verdict === 'rejected' && writtenNote.length === 0) {
         yield* rejectionAttempted.show();
-        document.querySelector<HTMLTextAreaElement>('#review-note')?.focus();
+        document.getElementById(NOTE_ID)?.focus();
         return;
       }
       const pointed = yield* findings();
@@ -542,7 +694,8 @@ export const ReviewApp = craftComponent(
         ...((yield* degraded()) ? { degraded: true } : {}),
       });
       yield* note.clear();
-      yield* findings.replace([]);
+      yield* mentions.clear();
+      yield* selection.clear();
       yield* rejectionAttempted.clear();
     });
 
@@ -577,8 +730,10 @@ export const ReviewApp = craftComponent(
       overlayLabel,
       inspectFrame,
       toggleChrome,
-      addFinding,
-      removeFinding,
+      mentions,
+      activeMentions,
+      menuAt,
+      addSelectionToReason,
     };
   },
   ({
@@ -598,7 +753,8 @@ export const ReviewApp = craftComponent(
     decide,
     current,
     evidenceView,
-    findings,
+    activeMentions,
+    menuAt,
     hideChrome,
     member,
     coveredCount,
@@ -612,8 +768,7 @@ export const ReviewApp = craftComponent(
     overlayLabel,
     inspectFrame,
     toggleChrome,
-    addFinding,
-    removeFinding,
+    addSelectionToReason,
   }) =>
     div({ class: 'app-shell' }, [
       header({ class: 'topbar' }, [
@@ -784,574 +939,607 @@ export const ReviewApp = craftComponent(
                     ),
                   ],
                 ),
-                section({ class: 'evidence-toolbar' }, [
-                  div({ class: 'metadata' }, [
-                    span({ class: 'chip' }, function* () {
-                      const viewport = (yield* card()).members[0]?.metadata
-                        ?.viewport;
-                      return viewport
-                        ? `Viewport ${viewport.width}×${viewport.height}`
-                        : 'Viewport unknown';
-                    }),
-                    span({ class: 'chip' }, function* () {
-                      const screenshot = (yield* card()).members[0]?.metadata
-                        ?.screenshot;
-                      return screenshot
-                        ? `Capture ${screenshot.width}×${screenshot.height}`
-                        : 'Capture size unknown';
-                    }),
-                    span({ class: 'chip' }, function* () {
-                      return (
-                        (yield* card()).members[0]?.metadata?.colorScheme ??
-                        'scheme unknown'
-                      );
-                    }),
-                    span({ class: 'chip' }, function* () {
-                      const browser = (yield* card()).members[0]?.metadata
-                        ?.browser;
-                      return browser
-                        ? `${browser.name} ${browser.version}`
-                        : 'browser unknown';
-                    }),
-                    // What the verdict covers against what anybody could look
-                    // at. Said out loud, on the same rule as `bulk`: an
-                    // attestation must not claim a coverage it does not have.
-                    span({ class: 'chip coverage' }, function* () {
-                      const coverage = (yield* card()).members[0]?.metadata
-                        ?.coverage;
-                      if (!coverage) return 'coverage unknown';
-                      const seen =
-                        coverage.attested -
-                        coverage.offScreen -
-                        coverage.occluded;
-                      return `${coverage.attested} attested · ${seen} on screen · ${coverage.occluded} covered`;
-                    }),
-                  ]),
-                  div({ class: 'evidence-views' }, [
-                    span(
-                      { class: 'field-label', id: 'evidence-views-label' },
-                      'Evidence',
-                    ),
-                    div(
-                      {
-                        class: 'view-toggle',
-                        role: 'group',
-                        'aria-labelledby': 'evidence-views-label',
-                      },
-                      [
-                        button(
-                          'ShowReplay',
-                          {
-                            type: 'button',
-                            'data-view': 'replay',
-                            title:
-                              'The page itself, frozen at the moment it was measured. Click any part of the component to write a remark about that node.',
-                            disabled: function* () {
-                              return !(yield* canReplay());
-                            },
-                            'aria-pressed': function* () {
-                              return String(yield* showingReplay());
-                            },
-                            *click() {
-                              yield* evidenceView.choose('replay');
-                            },
-                          },
-                          'Page',
-                        ),
-                        button(
-                          'ShowImage',
-                          {
-                            type: 'button',
-                            'data-view': 'image',
-                            title:
-                              'The screenshot. It shows what the measurements cannot — a wrong icon, a missing background — and marks where the viewport ended.',
-                            'aria-pressed': function* () {
-                              return String(!(yield* showingReplay()));
-                            },
-                            *click() {
-                              yield* evidenceView.choose('image');
-                            },
-                          },
-                          'Screenshot',
-                        ),
-                      ],
-                    ),
-                    button(
-                      'ToggleChrome',
-                      {
-                        type: 'button',
-                        class: 'overlay-toggle',
-                        // Only the page can do this. In a screenshot those
-                        // pixels have already been replaced.
-                        title:
-                          "The application's own fixed elements sit over this component. Only the frozen page can lift them; in a screenshot those pixels are gone.",
-                        hidden: function* () {
-                          return !(yield* showingReplay());
-                        },
-                        'aria-pressed': function* () {
-                          return String(yield* hideChrome());
-                        },
-                        click: toggleChrome,
-                      },
-                      overlayLabel,
-                    ),
-                  ]),
-                  // Only the picture can be scaled. Scaling the frozen page
-                  // would relayout it, and it would stop being the render that
-                  // was measured — so the control is not offered there rather
-                  // than offered and inert.
-                  label(
-                    {
-                      class: 'field-label',
-                      htmlFor: 'evidence-zoom',
-                      hidden: function* () {
-                        return yield* showingReplay();
-                      },
-                    },
-                    'Zoom',
-                  ),
-                  select(
-                    'EvidenceZoom',
-                    {
-                      id: 'evidence-zoom',
-                      hidden: function* () {
-                        return yield* showingReplay();
-                      },
-                      'aria-label': 'Evidence zoom',
-                      value: zoom,
-                      *change(event: Event) {
-                        yield* zoom.choose(eventValue(event) as ZoomMode);
-                      },
-                    },
-                    [
-                      option({ value: 'fit' }, 'Fit to window'),
-                      option({ value: 'actual' }, 'Actual size'),
-                    ],
-                  ),
-                ]),
-                p({ class: 'evidence-help' }, function* () {
-                  return (yield* showingReplay())
-                    ? 'The render itself, frozen. Everything outside the subject is dimmed; click a part of it to write a remark about that node.'
-                    : 'A picture of the same render. The dashed box marks what was on screen when it was captured; the rest is attested but was never visible.';
-                }),
-                // What the outlines drawn into the frame mean. Without it a
-                // reviewer meets a dotted orange box around a button they never
-                // touched and has no way to find out what it is telling them.
-                ul(
-                  {
-                    class: 'tier-legend',
-                    hidden: function* () {
-                      return !(yield* showingReplay());
-                    },
-                  },
-                  [
-                    legendEntry(TIERS.subject),
-                    legendEntry(TIERS.changed, function* () {
-                      return ((yield* member())?.changed.length ?? 0) === 0;
-                    }),
-                    legendEntry(TIERS.occluded, function* () {
-                      return (yield* coveredCount()) === 0;
-                    }),
-                    legendEntry(TIERS.picked),
-                  ],
-                ),
-                section(
-                  {
-                    class: 'notice warning',
-                    role: 'status',
-                    // Shown in both views, not only on the page. The reviewer
-                    // who was moved to the photograph is exactly the one who
-                    // needs to be told why, and hiding this with the frame
-                    // left them looking at a picture for no stated reason.
-                    hidden: function* () {
-                      const state = yield* replay();
-                      return (
-                        !(yield* canReplay()) || !state.loaded || state.faithful
-                      );
-                    },
-                  },
-                  [
-                    strong(function* () {
-                      const summary = (yield* replay()).summary;
-                      return (yield* fellBack())
-                        ? `Showing the screenshot: ${summary.charAt(0).toLowerCase()}${summary.slice(1)}`
-                        : summary;
-                    }),
-                    ul(
-                      {
-                        class: 'fidelity-detail',
-                        hidden: function* () {
-                          return (yield* replay()).report.length === 0;
-                        },
-                      },
-                      forNode(
-                        function* () {
-                          return (yield* replay()).report.map((line) => ({
-                            line,
-                          }));
-                        },
-                        { track: (entry) => entry.line },
-                        (entry) =>
-                          li({ class: 'code' }, function* () {
-                            return (yield* entry()).line;
-                          }),
+                div({ class: 'evidence-column' }, [
+                  section({ class: 'evidence-toolbar' }, [
+                    div({ class: 'metadata' }, [
+                      span({ class: 'chip' }, function* () {
+                        const viewport = (yield* card()).members[0]?.metadata
+                          ?.viewport;
+                        return viewport
+                          ? `Viewport ${viewport.width}×${viewport.height}`
+                          : 'Viewport unknown';
+                      }),
+                      span({ class: 'chip' }, function* () {
+                        const screenshot = (yield* card()).members[0]?.metadata
+                          ?.screenshot;
+                        return screenshot
+                          ? `Capture ${screenshot.width}×${screenshot.height}`
+                          : 'Capture size unknown';
+                      }),
+                      span({ class: 'chip' }, function* () {
+                        return (
+                          (yield* card()).members[0]?.metadata?.colorScheme ??
+                          'scheme unknown'
+                        );
+                      }),
+                      span({ class: 'chip' }, function* () {
+                        const browser = (yield* card()).members[0]?.metadata
+                          ?.browser;
+                        return browser
+                          ? `${browser.name} ${browser.version}`
+                          : 'browser unknown';
+                      }),
+                      // What the verdict covers against what anybody could look
+                      // at. Said out loud, on the same rule as `bulk`: an
+                      // attestation must not claim a coverage it does not have.
+                      span({ class: 'chip coverage' }, function* () {
+                        const coverage = (yield* card()).members[0]?.metadata
+                          ?.coverage;
+                        if (!coverage) return 'coverage unknown';
+                        const seen =
+                          coverage.attested -
+                          coverage.offScreen -
+                          coverage.occluded;
+                        return `${coverage.attested} attested · ${seen} on screen · ${coverage.occluded} covered`;
+                      }),
+                    ]),
+                    div({ class: 'evidence-views' }, [
+                      span(
+                        { class: 'field-label', id: 'evidence-views-label' },
+                        'Evidence',
                       ),
-                    ),
-                    p(function* () {
-                      return (yield* showingReplay())
-                        ? 'You asked for the page anyway. It is on screen, but it is not what was measured — the decision will be recorded as made without a faithful replay.'
-                        : 'Judge the picture. Switch to Page to look at the frozen copy anyway; either way the decision is recorded as made without a faithful replay.';
-                    }),
-                  ],
-                ),
-                figure(
-                  {
-                    class: function* () {
-                      return `evidence-canvas zoom-${yield* zoom()}`;
-                    },
-                  },
-                  [
-                    div(
-                      {
-                        class: 'replay-holder',
-                        hidden: function* () {
-                          return !(yield* showingReplay());
+                      div(
+                        {
+                          class: 'view-toggle',
+                          role: 'group',
+                          'aria-labelledby': 'evidence-views-label',
                         },
-                      },
-                      [
-                        iframe({
-                          id: function* () {
-                            const active = yield* current();
-                            return (yield* card()).shape === active?.shape
-                              ? FRAME_ID
-                              : '';
-                          },
-                          title: 'Frozen page, as captured',
-                          // Sized to the captured viewport, never to the
-                          // reviewer's window: the snapshot freezes the styles,
-                          // not the box the page lays itself out in.
-                          width: function* () {
-                            return String(
-                              (yield* card()).members[0]?.metadata?.viewport
-                                ?.width ?? 375,
-                            );
-                          },
-                          height: function* () {
-                            // The captured viewport, not the picture's height.
-                            // The frame has to reproduce the window the page laid
-                            // itself out in; anything taller is a different
-                            // viewport and measures differently.
-                            return String(
-                              (yield* card()).members[0]?.metadata?.viewport
-                                ?.height ?? 900,
-                            );
-                          },
-                          src: function* () {
-                            // Only the card on screen loads a document. Every
-                            // other card in the queue is rendered and hidden, and
-                            // giving each one an iframe would parse the same
-                            // page as many times as the queue is long.
-                            const active = yield* current();
-                            const own = yield* card();
-                            const hash =
-                              own.shape === active?.shape
-                                ? own.members[0]?.snapshot
-                                : undefined;
-                            return hash ? snapshotUrl(hash) : '/api/blank';
-                          },
-                          load: inspectFrame,
-                        }),
-                        // Drawn in this document, on top of the frame — never
-                        // inside it. Inserting an element into the frozen page
-                        // would break the one claim it makes: that nothing was
-                        // added to it after it was measured.
-                        div({
-                          class: 'selection-band',
-                          'aria-hidden': 'true',
+                        [
+                          button(
+                            'ShowReplay',
+                            {
+                              type: 'button',
+                              'data-view': 'replay',
+                              title:
+                                'The page itself, frozen at the moment it was measured. Click any part of the component to write a remark about that node.',
+                              disabled: function* () {
+                                return !(yield* canReplay());
+                              },
+                              'aria-pressed': function* () {
+                                return String(yield* showingReplay());
+                              },
+                              *click() {
+                                yield* evidenceView.choose('replay');
+                              },
+                            },
+                            'Page',
+                          ),
+                          button(
+                            'ShowImage',
+                            {
+                              type: 'button',
+                              'data-view': 'image',
+                              title:
+                                'The screenshot. It shows what the measurements cannot — a wrong icon, a missing background — and marks where the viewport ended.',
+                              'aria-pressed': function* () {
+                                return String(!(yield* showingReplay()));
+                              },
+                              *click() {
+                                yield* evidenceView.choose('image');
+                              },
+                            },
+                            'Screenshot',
+                          ),
+                        ],
+                      ),
+                      button(
+                        'ToggleChrome',
+                        {
+                          type: 'button',
+                          class: 'overlay-toggle',
+                          // Only the page can do this. In a screenshot those
+                          // pixels have already been replaced.
+                          title:
+                            "The application's own fixed elements sit over this component. Only the frozen page can lift them; in a screenshot those pixels are gone.",
                           hidden: function* () {
-                            return !(yield* band());
+                            return !(yield* showingReplay());
                           },
-                          style: function* () {
-                            const rect = yield* band();
-                            return rect
-                              ? `left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px`
-                              : '';
+                          'aria-pressed': function* () {
+                            return String(yield* hideChrome());
                           },
-                        }),
-                      ],
-                    ),
-                    div(
+                          click: toggleChrome,
+                        },
+                        overlayLabel,
+                      ),
+                    ]),
+                    // Only the picture can be scaled. Scaling the frozen page
+                    // would relayout it, and it would stop being the render that
+                    // was measured — so the control is not offered there rather
+                    // than offered and inert.
+                    label(
                       {
-                        class: 'image-holder',
+                        class: 'field-label',
+                        htmlFor: 'evidence-zoom',
                         hidden: function* () {
                           return yield* showingReplay();
                         },
                       },
+                      'Zoom',
+                    ),
+                    select(
+                      'EvidenceZoom',
+                      {
+                        id: 'evidence-zoom',
+                        hidden: function* () {
+                          return yield* showingReplay();
+                        },
+                        'aria-label': 'Evidence zoom',
+                        value: zoom,
+                        *change(event: Event) {
+                          yield* zoom.choose(eventValue(event) as ZoomMode);
+                        },
+                      },
                       [
-                        img({
-                          hidden: function* () {
-                            return !(yield* card()).image;
-                          },
-                          alt: function* () {
-                            return `Current rendering for ${scenarioOf((yield* card()).subject)}`;
-                          },
-                          src: function* () {
-                            const hash = (yield* card()).image;
-                            return hash ? imageUrl(hash) : '';
-                          },
-                        }),
-                        // Where the viewport ended. Everything below it is
-                        // attested and was never on anybody's screen.
-                        div({
-                          class: 'fold',
-                          hidden: function* () {
-                            const metadata = (yield* card()).members[0]
-                              ?.metadata;
-                            return !(
-                              metadata?.visibleBand && metadata.screenshot
-                            );
-                          },
-                          style: function* () {
-                            const metadata = (yield* card()).members[0]
-                              ?.metadata;
-                            const band = metadata?.visibleBand;
-                            const shot = metadata?.screenshot;
-                            if (!band || !shot) return '';
-                            const percent = (value: number, total: number) =>
-                              `${Math.max(0, Math.min(100, (value / total) * 100))}%`;
-                            return [
-                              `left:${percent(band.x, shot.width)}`,
-                              `top:${percent(band.y, shot.height)}`,
-                              `width:${percent(band.width, shot.width)}`,
-                              `height:${percent(band.height, shot.height)}`,
-                            ].join(';');
-                          },
-                        }),
+                        option({ value: 'fit' }, 'Fit to window'),
+                        option({ value: 'actual' }, 'Actual size'),
                       ],
                     ),
-                    p(
-                      {
-                        class: 'no-image',
-                        hidden: function* () {
-                          return Boolean((yield* card()).image);
-                        },
-                      },
-                      'No screenshot was captured.',
-                    ),
-                    figcaption(function* () {
-                      const target = (yield* card()).members[0]?.metadata
-                        ?.target;
-                      return target
-                        ? `Current evidence · captured element ${target}`
-                        : 'Current evidence';
-                    }),
-                  ],
-                ),
-                section({ class: 'diff-panel' }, [
-                  h3('Measured change'),
+                  ]),
+                  p({ class: 'evidence-help' }, function* () {
+                    return (yield* showingReplay())
+                      ? 'The render itself, frozen. Everything outside the subject is dimmed. Click a part of it to aim at that node, ctrl-click to add another, drag a box to take everything it touches — then right-click to drop a reference into the reason.'
+                      : 'A picture of the same render. The dashed box marks what was on screen when it was captured; the rest is attested but was never visible.';
+                  }),
+                  // What the outlines drawn into the frame mean. Without it a
+                  // reviewer meets a dotted orange box around a button they never
+                  // touched and has no way to find out what it is telling them.
                   ul(
-                    forNode(
-                      function* () {
-                        return (yield* card()).changes;
+                    {
+                      class: 'tier-legend',
+                      hidden: function* () {
+                        return !(yield* showingReplay());
                       },
-                      {
-                        track: (change) => change,
-                        empty: () =>
-                          li('New subject: nothing has been approved yet.'),
-                      },
-                      (change) => li(span({ class: 'code' }, change)),
-                    ),
+                    },
+                    [
+                      legendEntry(TIERS.subject),
+                      legendEntry(TIERS.changed, function* () {
+                        return ((yield* member())?.changed.length ?? 0) === 0;
+                      }),
+                      legendEntry(TIERS.occluded, function* () {
+                        return (yield* coveredCount()) === 0;
+                      }),
+                      legendEntry(TIERS.picked),
+                    ],
                   ),
-                ]),
-                section(
-                  {
-                    class: 'previous-rejection',
-                    hidden: function* () {
-                      return !(yield* card()).rejectionReason;
+                  section(
+                    {
+                      class: 'notice warning',
+                      role: 'status',
+                      // Shown in both views, not only on the page. The reviewer
+                      // who was moved to the photograph is exactly the one who
+                      // needs to be told why, and hiding this with the frame
+                      // left them looking at a picture for no stated reason.
+                      hidden: function* () {
+                        const state = yield* replay();
+                        return (
+                          !(yield* canReplay()) ||
+                          !state.loaded ||
+                          state.faithful
+                        );
+                      },
                     },
-                  },
-                  [
-                    h3('Previous rejection reason'),
-                    p(function* () {
-                      return (yield* card()).rejectionReason ?? '';
-                    }),
-                  ],
-                ),
-                section(
-                  {
-                    class: 'findings-panel',
-                    hidden: function* () {
-                      return !(yield* showingReplay());
-                    },
-                  },
-                  [
-                    h3('Remarks on a specific node'),
-                    small(
-                      { class: 'decision-help' },
-                      'Click a part of the frozen page to aim at it. Ctrl-click (cmd on a Mac) adds another, and dragging a box takes everything it touches — one remark can cover a whole row. A remark carries the node address the digest uses, so it can be followed back to the code, and one aimed at something this subject does not attest is refused.',
-                    ),
-                    ul(
-                      { class: 'findings-list' },
-                      forNode(
-                        findings,
+                    [
+                      strong(function* () {
+                        const summary = (yield* replay()).summary;
+                        return (yield* fellBack())
+                          ? `Showing the screenshot: ${summary.charAt(0).toLowerCase()}${summary.slice(1)}`
+                          : summary;
+                      }),
+                      ul(
                         {
-                          track: (finding) => finding.path,
-                          empty: () =>
-                            li(
-                              { class: 'findings-empty' },
-                              'No node has been pointed at yet.',
-                            ),
+                          class: 'fidelity-detail',
+                          hidden: function* () {
+                            return (yield* replay()).report.length === 0;
+                          },
                         },
-                        (finding) =>
-                          li([
-                            span({ class: 'code' }, function* () {
-                              return (yield* finding()).path;
+                        forNode(
+                          function* () {
+                            return (yield* replay()).report.map((line) => ({
+                              line,
+                            }));
+                          },
+                          { track: (entry) => entry.line },
+                          (entry) =>
+                            li({ class: 'code' }, function* () {
+                              return (yield* entry()).line;
                             }),
-                            span(function* () {
-                              return (yield* finding()).note;
-                            }),
+                        ),
+                      ),
+                      p(function* () {
+                        return (yield* showingReplay())
+                          ? 'You asked for the page anyway. It is on screen, but it is not what was measured — the decision will be recorded as made without a faithful replay.'
+                          : 'Judge the picture. Switch to Page to look at the frozen copy anyway; either way the decision is recorded as made without a faithful replay.';
+                      }),
+                    ],
+                  ),
+                  figure(
+                    {
+                      class: function* () {
+                        return `evidence-canvas zoom-${yield* zoom()}`;
+                      },
+                    },
+                    [
+                      div(
+                        {
+                          class: 'replay-holder',
+                          hidden: function* () {
+                            return !(yield* showingReplay());
+                          },
+                        },
+                        [
+                          iframe({
+                            id: function* () {
+                              const active = yield* current();
+                              return (yield* card()).shape === active?.shape
+                                ? FRAME_ID
+                                : '';
+                            },
+                            title: 'Frozen page, as captured',
+                            // Sized to the captured viewport, never to the
+                            // reviewer's window: the snapshot freezes the styles,
+                            // not the box the page lays itself out in.
+                            width: function* () {
+                              return String(
+                                (yield* card()).members[0]?.metadata?.viewport
+                                  ?.width ?? 375,
+                              );
+                            },
+                            height: function* () {
+                              // The captured viewport, not the picture's height.
+                              // The frame has to reproduce the window the page laid
+                              // itself out in; anything taller is a different
+                              // viewport and measures differently.
+                              return String(
+                                (yield* card()).members[0]?.metadata?.viewport
+                                  ?.height ?? 900,
+                              );
+                            },
+                            src: function* () {
+                              // Only the card on screen loads a document. Every
+                              // other card in the queue is rendered and hidden, and
+                              // giving each one an iframe would parse the same
+                              // page as many times as the queue is long.
+                              const active = yield* current();
+                              const own = yield* card();
+                              const hash =
+                                own.shape === active?.shape
+                                  ? own.members[0]?.snapshot
+                                  : undefined;
+                              return hash ? snapshotUrl(hash) : '/api/blank';
+                            },
+                            load: inspectFrame,
+                          }),
+                          // Drawn in this document, on top of the frame — never
+                          // inside it. Inserting an element into the frozen page
+                          // would break the one claim it makes: that nothing was
+                          // added to it after it was measured.
+                          div({
+                            class: 'selection-band',
+                            'aria-hidden': 'true',
+                            hidden: function* () {
+                              return !(yield* band());
+                            },
+                            style: function* () {
+                              const rect = yield* band();
+                              return rect
+                                ? `left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px`
+                                : '';
+                            },
+                          }),
+                          // The right-click menu, in this document for the
+                          // same reason as the band. One action, because the
+                          // gesture exists to shorten one thing: naming the
+                          // group you are pointing at, inside the sentence you
+                          // are writing.
+                          div(
+                            {
+                              class: 'pick-menu',
+                              role: 'menu',
+                              hidden: function* () {
+                                return !(yield* menuAt());
+                              },
+                              style: function* () {
+                                const at = yield* menuAt();
+                                return at ? `left:${at.x}px;top:${at.y}px` : '';
+                              },
+                            },
                             button(
-                              'RemoveFinding',
+                              'AddSelectionFromMenu',
                               {
                                 type: 'button',
-                                *click() {
-                                  yield* removeFinding((yield* finding()).path);
-                                },
+                                role: 'menuitem',
+                                click: addSelectionToReason,
                               },
-                              'Remove',
+                              function* () {
+                                const count = (yield* selection()).length;
+                                return `Add ${count} node${count === 1 ? '' : 's'} to the reason`;
+                              },
                             ),
-                          ]),
+                          ),
+                        ],
+                      ),
+                      div(
+                        {
+                          class: 'image-holder',
+                          hidden: function* () {
+                            return yield* showingReplay();
+                          },
+                        },
+                        [
+                          img({
+                            hidden: function* () {
+                              return !(yield* card()).image;
+                            },
+                            alt: function* () {
+                              return `Current rendering for ${scenarioOf((yield* card()).subject)}`;
+                            },
+                            src: function* () {
+                              const hash = (yield* card()).image;
+                              return hash ? imageUrl(hash) : '';
+                            },
+                          }),
+                          // Where the viewport ended. Everything below it is
+                          // attested and was never on anybody's screen.
+                          div({
+                            class: 'fold',
+                            hidden: function* () {
+                              const metadata = (yield* card()).members[0]
+                                ?.metadata;
+                              return !(
+                                metadata?.visibleBand && metadata.screenshot
+                              );
+                            },
+                            style: function* () {
+                              const metadata = (yield* card()).members[0]
+                                ?.metadata;
+                              const band = metadata?.visibleBand;
+                              const shot = metadata?.screenshot;
+                              if (!band || !shot) return '';
+                              const percent = (value: number, total: number) =>
+                                `${Math.max(0, Math.min(100, (value / total) * 100))}%`;
+                              return [
+                                `left:${percent(band.x, shot.width)}`,
+                                `top:${percent(band.y, shot.height)}`,
+                                `width:${percent(band.width, shot.width)}`,
+                                `height:${percent(band.height, shot.height)}`,
+                              ].join(';');
+                            },
+                          }),
+                        ],
+                      ),
+                      p(
+                        {
+                          class: 'no-image',
+                          hidden: function* () {
+                            return Boolean((yield* card()).image);
+                          },
+                        },
+                        'No screenshot was captured.',
+                      ),
+                      figcaption(function* () {
+                        const target = (yield* card()).members[0]?.metadata
+                          ?.target;
+                        return target
+                          ? `Current evidence · captured element ${target}`
+                          : 'Current evidence';
+                      }),
+                    ],
+                  ),
+                  section({ class: 'diff-panel' }, [
+                    h3('Measured change'),
+                    ul(
+                      forNode(
+                        function* () {
+                          return (yield* card()).changes;
+                        },
+                        {
+                          track: (change) => change,
+                          empty: () =>
+                            li('New subject: nothing has been approved yet.'),
+                        },
+                        (change) => li(span({ class: 'code' }, change)),
                       ),
                     ),
+                  ]),
+                ]),
+                div({ class: 'decision-column' }, [
+                  section(
+                    {
+                      class: 'previous-rejection',
+                      hidden: function* () {
+                        return !(yield* card()).rejectionReason;
+                      },
+                    },
+                    [
+                      h3('Previous rejection reason'),
+                      p(function* () {
+                        return (yield* card()).rejectionReason ?? '';
+                      }),
+                    ],
+                  ),
+                  section(
+                    {
+                      class: 'findings-panel',
+                      hidden: function* () {
+                        return (yield* activeMentions()).length === 0;
+                      },
+                    },
+                    [
+                      h3('Groups this reason points at'),
+                      ul(
+                        { class: 'findings-list' },
+                        forNode(
+                          activeMentions,
+                          { track: (mention) => mention.id },
+                          (mention) =>
+                            li([
+                              span({ class: 'mention-tag' }, function* () {
+                                const one = yield* mention();
+                                return `#${one.id} · ${one.paths.length} node${one.paths.length === 1 ? '' : 's'}`;
+                              }),
+                              span({ class: 'code' }, function* () {
+                                return (yield* mention()).paths.join('  ');
+                              }),
+                            ]),
+                        ),
+                      ),
+                      small(
+                        { class: 'decision-help' },
+                        'Each reference carries what you wrote since the one before it, so two complaints in one reason stay apart. Delete a reference in the text to drop its group with it.',
+                      ),
+                    ],
+                  ),
+                  section({ class: 'decision-panel' }, [
+                    p(
+                      {
+                        class: 'notice degraded',
+                        hidden: function* () {
+                          return !(yield* degraded());
+                        },
+                      },
+                      // Written into the attestation, not just shown: judging a
+                      // photograph and judging the document are different claims.
+                      'This decision will be recorded as made without a faithful replay.',
+                    ),
+                    div({ class: 'field-row' }, [
+                      label({ htmlFor: NOTE_ID }, 'Decision reason'),
+                      // The count of what is outlined, next to the field that is
+                      // about to name it. A reviewer who dragged a box needs to
+                      // see what they caught without looking back at the page.
+                      span(
+                        {
+                          class: 'selection-tag',
+                          hidden: function* () {
+                            return (yield* selection()).length === 0;
+                          },
+                        },
+                        function* () {
+                          const count = (yield* selection()).length;
+                          return `${count} element${count === 1 ? '' : 's'} selected`;
+                        },
+                      ),
+                    ]),
+                    textarea('ReviewNote', {
+                      id: NOTE_ID,
+                      'aria-label': 'Decision note',
+                      'aria-describedby': 'review-note-help review-note-error',
+                      'aria-invalid': rejectionReasonMissing,
+                      placeholder:
+                        'Explain what is wrong or why this decision is appropriate…',
+                      value: note,
+                      *input(event: Event) {
+                        yield* note.write(eventValue(event));
+                      },
+                    }),
                     button(
-                      'AddFinding',
+                      'AddSelectionToReason',
                       {
                         type: 'button',
+                        class: 'link-button',
                         disabled: function* () {
-                          return (
-                            !(yield* hasNote()) ||
-                            (yield* selection()).length === 0
-                          );
+                          return (yield* selection()).length === 0;
                         },
-                        click: addFinding,
+                        click: addSelectionToReason,
                       },
-                      // The count is in the label: a reviewer who dragged a box
-                      // over a row needs to see how many nodes they caught
-                      // before one sentence is written against all of them.
                       function* () {
                         const count = (yield* selection()).length;
                         return count === 0
-                          ? 'Add remark — nothing selected yet'
-                          : `Add remark on ${count} selected node${count === 1 ? '' : 's'}`;
+                          ? 'Select part of the page to reference it here'
+                          : `Insert a reference to ${count} selected node${count === 1 ? '' : 's'}`;
                       },
                     ),
-                  ],
-                ),
-                section({ class: 'decision-panel' }, [
-                  p(
-                    {
-                      class: 'notice degraded',
-                      hidden: function* () {
-                        return !(yield* degraded());
-                      },
-                    },
-                    // Written into the attestation, not just shown: judging a
-                    // photograph and judging the document are different claims.
-                    'This decision will be recorded as made without a faithful replay.',
-                  ),
-                  label({ htmlFor: 'review-note' }, 'Decision reason'),
-                  textarea('ReviewNote', {
-                    id: 'review-note',
-                    'aria-label': 'Decision note',
-                    'aria-describedby': 'review-note-help review-note-error',
-                    'aria-invalid': rejectionReasonMissing,
-                    placeholder:
-                      'Explain what is wrong or why this decision is appropriate…',
-                    value: note,
-                    *input(event: Event) {
-                      yield* note.write(eventValue(event));
-                    },
-                  }),
-                  small(
-                    { id: 'review-note-help', class: 'decision-help' },
-                    'A reason is required for Reject so the code can be corrected.',
-                  ),
-                  small(
-                    {
-                      id: 'review-note-error',
-                      class: 'field-error',
-                      role: 'alert',
-                      hidden: function* () {
-                        return !(yield* rejectionReasonMissing());
-                      },
-                    },
-                    'Explain why this rendering should be rejected.',
-                  ),
-                  div({ class: 'decision-actions' }, [
-                    button(
-                      'RejectReviewCard',
+                    small(
+                      { id: 'review-note-help', class: 'decision-help' },
+                      'A reason is required for Reject so the code can be corrected. Right-click a selection in the frozen page to drop a reference where you are typing.',
+                    ),
+                    small(
                       {
-                        type: 'button',
-                        class: 'danger',
-                        'data-hotkey': 'r',
-                        disabled: decision.isLoading,
-                        *click() {
-                          yield* decide('rejected');
+                        id: 'review-note-error',
+                        class: 'field-error',
+                        role: 'alert',
+                        hidden: function* () {
+                          return !(yield* rejectionReasonMissing());
                         },
                       },
-                      ['Reject ', span({ class: 'key' }, 'R')],
+                      'Explain why this rendering should be rejected.',
                     ),
-                    button(
-                      'BlockReviewCard',
-                      {
-                        type: 'button',
-                        disabled: decision.isLoading,
-                        *click() {
-                          yield* decide('blocked');
+                    div({ class: 'decision-actions' }, [
+                      button(
+                        'RejectReviewCard',
+                        {
+                          type: 'button',
+                          class: 'danger',
+                          'data-hotkey': 'r',
+                          disabled: decision.isLoading,
+                          *click() {
+                            yield* decide('rejected');
+                          },
                         },
-                      },
-                      'Block',
-                    ),
-                    button(
-                      'KnownIssueReviewCard',
-                      {
-                        type: 'button',
-                        disabled: decision.isLoading,
-                        *click() {
-                          yield* decide('known-issue');
+                        ['Reject ', span({ class: 'key' }, 'R')],
+                      ),
+                      button(
+                        'BlockReviewCard',
+                        {
+                          type: 'button',
+                          disabled: decision.isLoading,
+                          *click() {
+                            yield* decide('blocked');
+                          },
                         },
-                      },
-                      'Known issue',
-                    ),
-                    button(
-                      'AcceptWithNoteReviewCard',
-                      {
-                        type: 'button',
-                        'data-hotkey': 'n',
-                        disabled: function* () {
-                          return (
-                            (yield* decision.isLoading()) || !(yield* hasNote())
-                          );
+                        'Block',
+                      ),
+                      button(
+                        'KnownIssueReviewCard',
+                        {
+                          type: 'button',
+                          disabled: decision.isLoading,
+                          *click() {
+                            yield* decide('known-issue');
+                          },
                         },
-                        *click() {
-                          yield* decide('ok-with-note');
+                        'Known issue',
+                      ),
+                      button(
+                        'AcceptWithNoteReviewCard',
+                        {
+                          type: 'button',
+                          'data-hotkey': 'n',
+                          disabled: function* () {
+                            return (
+                              (yield* decision.isLoading()) ||
+                              !(yield* hasNote())
+                            );
+                          },
+                          *click() {
+                            yield* decide('ok-with-note');
+                          },
                         },
-                      },
-                      ['Accept with note ', span({ class: 'key' }, 'N')],
-                    ),
-                    button(
-                      'AcceptReviewCard',
-                      {
-                        type: 'button',
-                        class: 'primary',
-                        'data-hotkey': 'a',
-                        disabled: decision.isLoading,
-                        *click() {
-                          yield* decide('ok');
+                        ['Accept with note ', span({ class: 'key' }, 'N')],
+                      ),
+                      button(
+                        'AcceptReviewCard',
+                        {
+                          type: 'button',
+                          class: 'primary',
+                          'data-hotkey': 'a',
+                          disabled: decision.isLoading,
+                          *click() {
+                            yield* decide('ok');
+                          },
                         },
-                      },
-                      ['Accept ', span({ class: 'key' }, 'A')],
-                    ),
+                        ['Accept ', span({ class: 'key' }, 'A')],
+                      ),
+                    ]),
                   ]),
                 ]),
               ],

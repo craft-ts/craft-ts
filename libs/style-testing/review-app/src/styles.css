@@ -173,9 +173,39 @@ select {
   min-width: 0;
   padding: 28px clamp(18px, 4vw, 56px) 48px;
 }
+/* Queue, then evidence, then the decision. The reviewer looks left to right
+   and the thing they are judging never leaves the screen while they write. */
 .review-card {
-  width: min(1180px, 100%);
+  width: min(1700px, 100%);
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  align-items: start;
+  gap: 0 28px;
+}
+.review-card > .review-heading,
+.review-card > .notice.cluster,
+.review-card > .cluster-members {
+  grid-column: 1 / -1;
+}
+.evidence-column {
+  min-width: 0;
+}
+.decision-column {
+  min-width: 0;
+  /* Sticky, so a long capture can be scrolled without losing the verdict.
+     `top` clears the topbar. */
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #2a2e37;
+  border-radius: 10px;
+  background: #171a20;
+}
+.decision-column .decision-panel {
+  margin: 0;
 }
 .review-heading {
   display: flex;
@@ -443,6 +473,12 @@ select {
   .review-panel {
     padding: 20px 14px 32px;
   }
+  .review-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .decision-column {
+    position: static;
+  }
   .review-heading,
   .evidence-toolbar {
     align-items: stretch;
@@ -699,4 +735,80 @@ select {
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 12px;
   word-break: break-all;
+}
+
+/* ---------------------------------------------------------------- *
+ * Naming a group inside the sentence that explains it
+ * ---------------------------------------------------------------- */
+
+.field-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* What is outlined, stated next to the field about to name it. */
+.selection-tag {
+  padding: 2px 8px;
+  border: 1px solid #4a5570;
+  border-radius: 999px;
+  background: #202a51;
+  color: #d8deff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.link-button {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #9db2ff;
+  font-size: 12px;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-button:disabled {
+  color: #6b7488;
+  text-decoration: none;
+  cursor: default;
+}
+
+/* The right-click menu, drawn over the frame and never inside it. */
+.pick-menu {
+  position: absolute;
+  z-index: 3;
+  padding: 4px;
+  border: 1px solid #3c424e;
+  border-radius: 8px;
+  background: #1b1f26;
+  box-shadow: 0 10px 30px #0009;
+}
+.pick-menu button {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: #e7e9ee;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pick-menu button:hover {
+  background: #2a2e37;
+}
+
+.mention-tag {
+  align-self: start;
+  padding: 2px 7px;
+  border: 1px solid #4a5570;
+  border-radius: 5px;
+  background: #202a51;
+  color: #d8deff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
