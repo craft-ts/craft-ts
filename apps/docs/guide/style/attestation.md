@@ -301,6 +301,14 @@ attestation that stayed quiet about that would claim a coverage it does not
 have, so the card states it and the screenshot draws the line where the viewport
 ended.
 
+"Fit to window" bounds both axes. Bounding the width alone — which is what it
+did — fits a picture wider than the canvas and does nothing whatsoever to a
+narrow one, and every capture on the demo route is 375 or 768 wide and 916 tall:
+the control showed the whole render on one scenario and two thirds of it on the
+next, for a reason that had nothing to do with what was being judged. It is not
+offered while the frozen page is on screen, because scaling that page would
+relayout it and it would stop being the render that was measured.
+
 The one covered node is the case only the frozen page can resolve: **lift the
 page chrome** and see what was underneath. In a screenshot those pixels have
 already been replaced.

@@ -309,6 +309,68 @@ test('the check measures the card on screen, not the first one', async ({
   }
 });
 
+test('fitting to the window fits the whole picture, not just its width', async ({
+  browser,
+}) => {
+  // Every capture here is 375 or 768 wide and over 900 tall. Bounding only the
+  // width fits a picture wider than the canvas and does nothing whatsoever to a
+  // narrow one, so "fit to window" showed about two thirds of the render and
+  // left the rest below the fold of a scroller nobody expected — the whole
+  // picture on one scenario, part of it on the next, for a reason that had
+  // nothing to do with what was being judged.
+  const shot = await browser.newPage();
+  await shot.setViewportSize({ width: 375, height: 400 });
+  await shot.setContent(
+    '<div style="width:375px;height:1200px;background:linear-gradient(#fff,#333)"></div>',
+  );
+  const image = await shot.screenshot({ fullPage: true });
+  await shot.close();
+
+  const tall = await startReviewServer({
+    port: 0,
+    items: [
+      {
+        subject: 'visual:component:demo:Card#base',
+        reason: 'the output changed',
+        digest: attested,
+        approved,
+        image: '1'.repeat(32),
+        metadata: {
+          viewport: { width: 375, height: 400 },
+          screenshot: { width: 375, height: 1200 },
+          visibleBand: { x: 0, y: 0, width: 375, height: 400 },
+          target: '.host',
+        },
+      },
+    ],
+    imageFor: async () => image,
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.goto(tall.url);
+
+    const canvas = page.locator('.evidence-canvas');
+    const picture = page.locator('.image-holder img');
+    await expect(picture).toBeVisible();
+
+    const fitted = await picture.boundingBox();
+    const frame = await canvas.boundingBox();
+    if (!fitted || !frame) throw new Error('no box');
+    expect(fitted.height).toBeLessThanOrEqual(frame.height);
+    // Scaled, not cropped: the aspect ratio of the capture survives.
+    expect(fitted.width / fitted.height).toBeCloseTo(375 / 1200, 2);
+
+    // And the other mode still means something: actual size is actual size.
+    await page.getByLabel('Evidence zoom').selectOption('actual');
+    const actual = await picture.boundingBox();
+    expect(actual?.height).toBeGreaterThan(frame.height);
+    await page.close();
+  } finally {
+    await tall.close();
+  }
+});
+
 test('a drag selects every node the box touches', async ({ page }) => {
   await page.goto(running.url);
   const frame = page.frameLocator('#craft-replay-frame');

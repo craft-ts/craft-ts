@@ -283,7 +283,18 @@ select {
   box-shadow: 0 12px 40px #0008;
 }
 .evidence-canvas.zoom-fit img {
+  /* Both axes, or the control does not do what it is called. Bounding the
+     width alone fits a picture wider than the canvas and does nothing at all
+     to a narrow one — and every capture here is 375 or 768 wide and over 900
+     tall, so "fit to window" showed two thirds of the render and left the rest
+     below the fold of a scroller nobody expected to be there.
+
+     A percentage would resolve against the canvas's own height, which is
+     `auto` under a `max-height` and therefore indefinite; these are the
+     canvas's bound and its padding, spelled out. */
   max-width: 100%;
+  max-height: calc(68vh - 64px);
+  width: auto;
 }
 .evidence-canvas.zoom-actual img {
   max-width: none;

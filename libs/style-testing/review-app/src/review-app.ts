@@ -896,14 +896,27 @@ export const ReviewApp = craftComponent(
                       overlayLabel,
                     ),
                   ]),
+                  // Only the picture can be scaled. Scaling the frozen page
+                  // would relayout it, and it would stop being the render that
+                  // was measured — so the control is not offered there rather
+                  // than offered and inert.
                   label(
-                    { class: 'field-label', htmlFor: 'evidence-zoom' },
+                    {
+                      class: 'field-label',
+                      htmlFor: 'evidence-zoom',
+                      hidden: function* () {
+                        return yield* showingReplay();
+                      },
+                    },
                     'Zoom',
                   ),
                   select(
                     'EvidenceZoom',
                     {
                       id: 'evidence-zoom',
+                      hidden: function* () {
+                        return yield* showingReplay();
+                      },
                       'aria-label': 'Evidence zoom',
                       value: zoom,
                       *change(event: Event) {
