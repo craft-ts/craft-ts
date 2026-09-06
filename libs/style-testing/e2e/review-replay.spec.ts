@@ -197,10 +197,24 @@ test('an unfaithful replay says what went wrong in one sentence', async ({
 
     const notice = page.locator('.notice.warning');
     await expect(notice).toBeVisible();
-    await expect(notice).toContainText("no element matching '.host'");
+    await expect(notice).toContainText("no '.host' in it");
     // No wall of addresses, and no dump of the document's own structure.
     await expect(notice).not.toContainText('html/head');
     await expect(page.locator('.fidelity-detail')).toBeHidden();
+
+    // The reviewer is put in front of the artefact that is still worth
+    // judging, rather than left staring at a page the check has already
+    // rejected — and told, in the same sentence, why they were moved.
+    await expect(notice).toContainText('Showing the screenshot');
+    await expect(page.locator('.replay-holder')).toBeHidden();
+    await expect(
+      page.getByRole('button', { name: 'Screenshot' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    // Asking for the page anyway still works, and still says what it is.
+    await page.getByRole('button', { name: 'Page' }).click();
+    await expect(page.locator('.replay-holder')).toBeVisible();
+    await expect(notice).toContainText('You asked for the page anyway');
 
     // And the verdict that follows is marked for what it is.
     await expect(page.locator('.notice.degraded')).toBeVisible();
@@ -208,6 +222,124 @@ test('an unfaithful replay says what went wrong in one sentence', async ({
   } finally {
     await stale.close();
   }
+});
+
+test('the check measures the card on screen, not the first one', async ({
+  browser,
+}) => {
+  // Every card in the queue renders a holder, and they all carried the same
+  // id. `getElementById` returns the first match, so from card two onwards the
+  // fidelity check measured card one's frame — which by then holds the blank
+  // page — and reported the subject as missing from a document nobody meant to
+  // look at. The check was right; its subject was wrong.
+  // A different delta from the first card's, or the queue clusters the two
+  // into one and there is no second card to move to.
+  const second = SNAPSHOT.replace('Account settings', 'Billing').replace(
+    '.body { position: absolute; left: 0; top: 60px; width: 375px; height: 60px; }',
+    '.body { position: absolute; left: 0; top: 60px; width: 375px; height: 40px; }',
+  );
+  const source = await browser.newPage();
+  await source.setViewportSize({ width: 375, height: 200 });
+  await source.setContent(second);
+  const secondDigest = (await collectCapture(source, { root: '.host' })).digest;
+  await source.close();
+
+  const two = await startReviewServer({
+    port: 0,
+    items: [
+      {
+        subject: 'visual:component:demo:Card#base',
+        reason: 'the output changed',
+        digest: attested,
+        approved,
+        snapshot: 'a'.repeat(32),
+        evidence: 'b'.repeat(32),
+        metadata: {
+          viewport: { width: 375, height: 200 },
+          screenshot: { width: 375, height: 400 },
+          target: '.host',
+        },
+      },
+      {
+        subject: 'visual:component:demo:Card#billing',
+        reason: 'the output changed',
+        digest: secondDigest,
+        approved: attested,
+        snapshot: 'e'.repeat(32),
+        evidence: 'f'.repeat(32),
+        metadata: {
+          viewport: { width: 375, height: 200 },
+          screenshot: { width: 375, height: 400 },
+          target: '.host',
+        },
+      },
+    ],
+    snapshotFor: async (hash) =>
+      hash === 'a'.repeat(32)
+        ? SNAPSHOT
+        : hash === 'e'.repeat(32)
+          ? second
+          : undefined,
+    digestFor: async (hash) =>
+      hash === 'b'.repeat(32)
+        ? JSON.stringify(attested)
+        : hash === 'f'.repeat(32)
+          ? JSON.stringify(secondDigest)
+          : undefined,
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.goto(two.url);
+    await page.getByRole('button', { name: /Next/ }).click();
+
+    // Exactly one frame answers to the id, and it is the one being reviewed.
+    await expect(page.locator('#craft-replay-frame')).toHaveCount(1);
+    await expect(
+      page.frameLocator('#craft-replay-frame').locator('.title'),
+    ).toHaveText('Billing');
+    // Nothing to warn about: the card on screen replays faithfully.
+    // Every card renders a panel, so the claim is that none of them is
+    // showing a warning — not that a particular one is hidden.
+    await expect(page.locator('.notice.warning:not([hidden])')).toHaveCount(0);
+    await expect(page.locator('.notice.degraded:not([hidden])')).toHaveCount(0);
+    await page.close();
+  } finally {
+    await two.close();
+  }
+});
+
+test('a drag selects every node the box touches', async ({ page }) => {
+  await page.goto(running.url);
+  const frame = page.frameLocator('#craft-replay-frame');
+  await expect(frame.locator('[data-craft-path]').first()).toBeVisible();
+
+  // A box dragged over both rows of the component. One remark covering a whole
+  // region is the common case; adding the nodes one at a time means retyping
+  // the same sentence for each.
+  const box = await page.locator('#craft-replay-frame').boundingBox();
+  if (!box) throw new Error('no frame box');
+  await page.mouse.move(box.x + 8, box.y + 45);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 150, { steps: 8 });
+  // Drawn beside the frame, never inside it: adding an element to the frozen
+  // page would break the only claim it makes.
+  await expect(page.locator('.selection-band')).toBeVisible();
+  await expect(frame.locator('.selection-band')).toHaveCount(0);
+  await page.mouse.up();
+
+  await expect(page.locator('.selection-band')).toBeHidden();
+  await expect(frame.locator('[data-craft-picked]')).toHaveCount(3);
+  // The count is in the label: one sentence is about to be written against
+  // all three, and the reviewer has to see how many they caught first.
+  await page.getByLabel('Decision note').fill('this row is misaligned');
+  await expect(
+    page.getByRole('button', { name: 'Add remark on 3 selected nodes' }),
+  ).toBeEnabled();
+
+  // Ctrl-click takes one back out without disturbing the rest.
+  await frame.locator('.title').click({ modifiers: ['ControlOrMeta'] });
+  await expect(frame.locator('[data-craft-picked]')).toHaveCount(2);
 });
 
 test('a click becomes a remark aimed at one node', async ({ page }) => {
@@ -219,7 +351,7 @@ test('a click becomes a remark aimed at one node', async ({ page }) => {
 
   await page.getByLabel('Decision note').fill('cut at 34px in German');
   await page
-    .getByRole('button', { name: 'Add remark on the selected node' })
+    .getByRole('button', { name: 'Add remark on 1 selected node' })
     .click();
 
   const finding = page.locator('.findings-list li').first();

@@ -16,6 +16,7 @@ import {
   measureInPage,
   STYLE_KEYS,
   type LayoutDigest,
+  type Rect,
 } from '../digest.js';
 import { replayFidelity, type ReplayFidelity } from '../replay.js';
 
@@ -95,12 +96,18 @@ export function checkReplay(
   // missing produced "36 nodes are absent" followed by `html`, `html/head`,
   // `html/head/meta` — every symptom of one cause, and none of them saying it.
   if (!measured.scope.rootMatched) {
+    const empty = (view.document.body?.childElementCount ?? 0) === 0;
     return {
       faithful: false,
       missing: attested.nodes.map((node) => node.path),
       unexpected: [],
       moved: [],
-      summary: `The frozen page contains no element matching '${root}', so nothing in it is the component this evidence is about.`,
+      // Named as one cause with its likely explanations, not as its forty
+      // symptoms. The reviewer's next move is different in each case, and
+      // "36 nodes are absent" told them neither.
+      summary: empty
+        ? 'The frozen page is empty — nothing was loaded into it, so there is nothing here to compare with the evidence.'
+        : `The frozen page has no '${root}' in it, so what it shows is not this component. That happens when the stored snapshot is older than the report it is paired with, or when the component's root selector changed after it was captured.`,
       report: [],
     };
   }
@@ -122,6 +129,37 @@ export function checkReplay(
  * is asked at all. That decision is the evidence hash, and it stays exact.
  */
 export const REVIEW_TOLERANCE = 0.5;
+
+/**
+ * What each outline in the replay means.
+ *
+ * Exported because the legend beside the frame draws from this exact object: a
+ * legend that keeps its own copy of `#dc6803` is a legend that will one day
+ * name the wrong colour, and an unexplained outline on a page under review is
+ * worse than no outline at all.
+ */
+export const TIERS = {
+  subject: {
+    colour: '#1570ef',
+    style: 'solid',
+    label: 'The component this evidence is about',
+  },
+  changed: {
+    colour: '#d92d20',
+    style: 'solid',
+    label: 'Measured differently from the last accepted render',
+  },
+  occluded: {
+    colour: '#dc6803',
+    style: 'dotted',
+    label: "Covered by the page's own overlay when it was captured",
+  },
+  picked: {
+    colour: '#7f56d9',
+    style: 'solid',
+    label: 'Selected — a remark you add will name this node',
+  },
+} as const;
 
 /**
  * The three tiers, painted into the replay.
@@ -150,17 +188,17 @@ export function markTiers(
   // supposed to annotate — the fidelity check caught it as an unfaithful
   // replay, which is what that check is for.
   style.textContent = `
-    [${ATTESTED}] { outline: 2px solid #1570ef; outline-offset: 6px; }
+    [${ATTESTED}] { outline: 2px ${TIERS.subject.style} ${TIERS.subject.colour}; outline-offset: 6px; }
     ${options.dimDecor ? `[${DECOR}] { opacity: .3; }` : ''}
     ${
       options.hideChrome
         ? `[data-craft-chrome] { visibility: hidden !important; }`
         : ''
     }
-    [data-craft-tier="changed"] { outline: 2px solid #d92d20; outline-offset: 1px; }
-    [data-craft-tier="attested"]:hover { outline: 2px dashed #1570ef; outline-offset: 1px; cursor: crosshair; }
-    [data-craft-tier="occluded"] { outline: 2px dotted #dc6803; outline-offset: 1px; }
-    [data-craft-picked] { outline: 3px solid #7f56d9 !important; outline-offset: 2px; }
+    [data-craft-tier="changed"] { outline: 2px ${TIERS.changed.style} ${TIERS.changed.colour}; outline-offset: 1px; }
+    [data-craft-tier="attested"]:hover { outline: 2px dashed ${TIERS.subject.colour}; outline-offset: 1px; cursor: crosshair; }
+    [data-craft-tier="occluded"] { outline: 2px ${TIERS.occluded.style} ${TIERS.occluded.colour}; outline-offset: 1px; }
+    [data-craft-picked] { outline: 3px ${TIERS.picked.style} ${TIERS.picked.colour} !important; outline-offset: 2px; }
   `;
   document.head?.appendChild(style);
 
@@ -238,32 +276,161 @@ export function markPaths(
   view: FrameView,
   root: string,
 ): readonly (readonly [Element, string])[] {
-  measureInPage(
-    { root, styleKeys: [], markPathAttribute: PATH },
-    view.window,
-  );
+  measureInPage({ root, styleKeys: [], markPathAttribute: PATH }, view.window);
   return [...view.document.querySelectorAll(`[${PATH}]`)].map(
     (element) => [element, element.getAttribute(PATH) ?? ''] as const,
   );
 }
 
-/** Wires clicks in the replay to the path they land on. */
+const PICKED = 'data-craft-picked';
+
+/** How far the pointer has to travel before a click becomes a drag. */
+const DRAG_THRESHOLD = 4;
+
+/**
+ * Paints a selection onto the replay.
+ *
+ * Separate from `onPick` because the selection outlives the annotations: the
+ * frame is re-marked whenever the reviewer lifts the page's chrome, and a
+ * selection that vanished every time they did that would make the two controls
+ * fight each other.
+ */
+export function markSelection(view: FrameView, paths: readonly string[]): void {
+  const wanted = new Set(paths);
+  for (const element of view.document.querySelectorAll(`[${PATH}]`)) {
+    const path = element.getAttribute(PATH) ?? '';
+    if (wanted.has(path)) element.setAttribute(PICKED, '');
+    else element.removeAttribute(PICKED);
+  }
+}
+
+/** The current selection, read back from the frame itself. */
+export function selectionOf(view: FrameView): readonly string[] {
+  return [...view.document.querySelectorAll(`[${PICKED}]`)]
+    .map((element) => element.getAttribute(PATH) ?? '')
+    .filter(Boolean);
+}
+
+/**
+ * Turns pointing at the replay into a set of node addresses.
+ *
+ * Three gestures, because one remark usually covers more than one node — a row
+ * of buttons, a whole column — and adding them one at a time means retyping
+ * the same sentence:
+ *
+ * - a click selects one node;
+ * - ctrl (or cmd) click adds or removes one, keeping the rest;
+ * - dragging a box selects everything the box touches, adding to the selection
+ *   when ctrl or cmd is held.
+ *
+ * The band is reported to the caller rather than drawn here. Drawing it would
+ * mean inserting an element into the frozen document, and the whole claim this
+ * page makes is that nothing was inserted into it.
+ */
 export function onPick(
   view: FrameView,
-  handler: (path: string) => void,
+  handler: (paths: readonly string[]) => void,
+  options: { readonly onBand?: (band: Rect | undefined) => void } = {},
 ): () => void {
-  const listener = (event: Event): void => {
-    const target = event.target as Element | null;
-    const picked = target?.closest?.(`[${PATH}]`);
-    if (!picked) return;
+  const { document } = view;
+  let origin: { x: number; y: number } | undefined;
+  let banding = false;
+  // A drag ends with a `click` on the two points' common ancestor. Without
+  // this the band's own selection would be overwritten by that click, one
+  // frame after it was made.
+  let justBanded = false;
+
+  const additive = (event: MouseEvent | PointerEvent): boolean =>
+    event.ctrlKey || event.metaKey;
+
+  const bandOf = (event: MouseEvent): Rect => {
+    const start = origin ?? { x: event.clientX, y: event.clientY };
+    return {
+      x: Math.min(start.x, event.clientX),
+      y: Math.min(start.y, event.clientY),
+      width: Math.abs(event.clientX - start.x),
+      height: Math.abs(event.clientY - start.y),
+    };
+  };
+
+  const commit = (paths: readonly string[]): void => {
+    markSelection(view, paths);
+    handler(paths);
+  };
+
+  const onClick = (event: Event): void => {
+    const picked = (event.target as Element | null)?.closest?.(`[${PATH}]`);
     event.preventDefault();
     event.stopPropagation();
-    for (const previous of view.document.querySelectorAll('[data-craft-picked]')) {
-      previous.removeAttribute('data-craft-picked');
+    if (justBanded) {
+      justBanded = false;
+      return;
     }
-    picked.setAttribute('data-craft-picked', '');
-    handler(picked.getAttribute(PATH) ?? '');
+    if (!picked) return;
+    const path = picked.getAttribute(PATH) ?? '';
+    const current = selectionOf(view);
+    if (!additive(event as MouseEvent)) {
+      commit([path]);
+      return;
+    }
+    commit(
+      current.includes(path)
+        ? current.filter((entry) => entry !== path)
+        : [...current, path],
+    );
   };
-  view.document.addEventListener('click', listener, true);
-  return () => view.document.removeEventListener('click', listener, true);
+
+  const onDown = (event: MouseEvent): void => {
+    if (event.button !== 0) return;
+    origin = { x: event.clientX, y: event.clientY };
+    banding = false;
+    // Stops the frozen page from starting a text selection under the band.
+    event.preventDefault();
+  };
+
+  const onMove = (event: MouseEvent): void => {
+    if (!origin) return;
+    const travelled = Math.max(
+      Math.abs(event.clientX - origin.x),
+      Math.abs(event.clientY - origin.y),
+    );
+    if (!banding && travelled < DRAG_THRESHOLD) return;
+    banding = true;
+    options.onBand?.(bandOf(event));
+  };
+
+  const onUp = (event: MouseEvent): void => {
+    if (!origin) return;
+    const band = bandOf(event);
+    const wasBanding = banding;
+    origin = undefined;
+    banding = false;
+    options.onBand?.(undefined);
+    if (!wasBanding) return;
+    justBanded = true;
+
+    const inside: string[] = [];
+    for (const element of document.querySelectorAll(`[${PATH}]`)) {
+      const box = element.getBoundingClientRect();
+      const touches =
+        box.right >= band.x &&
+        box.left <= band.x + band.width &&
+        box.bottom >= band.y &&
+        box.top <= band.y + band.height;
+      if (touches) inside.push(element.getAttribute(PATH) ?? '');
+    }
+    const kept = additive(event) ? selectionOf(view) : [];
+    commit([...new Set([...kept, ...inside.filter(Boolean)])]);
+  };
+
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('mousedown', onDown, true);
+  document.addEventListener('mousemove', onMove, true);
+  document.addEventListener('mouseup', onUp, true);
+  return () => {
+    document.removeEventListener('click', onClick, true);
+    document.removeEventListener('mousedown', onDown, true);
+    document.removeEventListener('mousemove', onMove, true);
+    document.removeEventListener('mouseup', onUp, true);
+  };
 }

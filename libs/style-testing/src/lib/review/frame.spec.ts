@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { checkReplay, markPaths, markTiers, onPick, viewOf } from './frame.ts';
+import {
+  checkReplay,
+  markPaths,
+  markSelection,
+  onPick,
+  markTiers,
+  selectionOf,
+  viewOf,
+} from './frame.ts';
 import { layoutDigest, type MeasuredElement } from '../digest.ts';
 
 /**
@@ -121,9 +129,9 @@ describe('markTiers', () => {
     };
     markTiers(view, options);
     markTiers(view, { ...options, dimDecor: false });
-    expect(
-      view.document.querySelectorAll('#craft-review-tiers'),
-    ).toHaveLength(1);
+    expect(view.document.querySelectorAll('#craft-review-tiers')).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -131,16 +139,48 @@ describe('onPick', () => {
   it('turns a click into the path of the node under it', () => {
     const { view } = replay();
     markPaths(view, '.host');
-    const picked: string[] = [];
-    const stop = onPick(view, (path) => picked.push(path));
+    const picked: (readonly string[])[] = [];
+    const stop = onPick(view, (paths) => picked.push(paths));
 
     (view.document.querySelector('.title') as HTMLElement).click();
     expect(picked).toHaveLength(1);
-    expect(picked[0]).toContain('h2');
+    expect(picked[0]).toHaveLength(1);
+    expect(picked[0]?.[0]).toContain('h2');
 
     stop();
     (view.document.querySelector('.body') as HTMLElement).click();
     expect(picked).toHaveLength(1);
+  });
+
+  it('adds to the selection when ctrl is held, and takes away again', () => {
+    // One remark usually covers more than one node. Without this the reviewer
+    // writes the same sentence once per node, and the queue fills with
+    // near-duplicate findings nobody can group afterwards.
+    const { view } = replay();
+    markPaths(view, '.host');
+    let picked: readonly string[] = [];
+    onPick(view, (paths) => (picked = paths));
+
+    const title = view.document.querySelector('.title') as HTMLElement;
+    const body = view.document.querySelector('.body') as HTMLElement;
+
+    title.click();
+    body.dispatchEvent(
+      new view.window.MouseEvent('click', { bubbles: true, ctrlKey: true }),
+    );
+    expect(picked).toHaveLength(2);
+    expect(selectionOf(view)).toHaveLength(2);
+
+    // Ctrl-clicking one already in the set removes it rather than re-adding.
+    body.dispatchEvent(
+      new view.window.MouseEvent('click', { bubbles: true, ctrlKey: true }),
+    );
+    expect(picked).toHaveLength(1);
+
+    // A plain click still replaces the whole selection.
+    body.click();
+    expect(picked).toHaveLength(1);
+    expect(picked[0]).toContain('p');
   });
 
   it('ignores a click on something the subject does not attest', () => {
@@ -170,6 +210,50 @@ describe('onPick', () => {
       view.document.querySelector('.body')?.hasAttribute('data-craft-picked'),
     ).toBe(true);
   });
+
+  it('ignores the click a drag ends with', () => {
+    // A drag finishes with a `click` on the two corners' common ancestor. Left
+    // alone it lands one frame after the band's own selection and replaces it
+    // with a single node — the selection would appear and then vanish.
+    const { view } = replay();
+    markPaths(view, '.host');
+    let picked: readonly string[] = [];
+    onPick(view, (paths) => (picked = paths));
+
+    const host = view.document.querySelector('.host') as HTMLElement;
+    const at = (type: string, x: number, y: number) =>
+      host.dispatchEvent(
+        new view.window.MouseEvent(type, {
+          bubbles: true,
+          clientX: x,
+          clientY: y,
+        }),
+      );
+
+    at('mousedown', 0, 0);
+    at('mousemove', 200, 200);
+    at('mouseup', 200, 200);
+    const afterBand = picked;
+    host.click();
+    expect(picked).toBe(afterBand);
+  });
+});
+
+describe('markSelection', () => {
+  it('re-applies a selection the frame has been re-marked without', () => {
+    // Lifting the page's chrome re-marks the frame. A selection that
+    // disappeared every time the reviewer did that would make the two controls
+    // fight each other.
+    const { view } = replay();
+    const paths = markPaths(view, '.host');
+    const title = paths.find(([element]) => element.className === 'title');
+
+    markSelection(view, title ? [title[1]] : []);
+    expect(selectionOf(view)).toEqual(title ? [title[1]] : []);
+
+    markSelection(view, []);
+    expect(selectionOf(view)).toEqual([]);
+  });
 });
 
 describe('checkReplay', () => {
@@ -191,7 +275,10 @@ describe('checkReplay', () => {
     // followed by `html`, `html/head`, `html/head/meta` — every symptom of one
     // cause, and none of them saying what it was.
     expect(fidelity.faithful).toBe(false);
-    expect(fidelity.summary).toContain("no element matching '.not-in-this-document'");
+    expect(fidelity.summary).toContain("no '.not-in-this-document' in it");
+    // And it says what to look at, because the reviewer's next move differs
+    // depending on which of the two causes it is.
+    expect(fidelity.summary).toContain('older than the report');
     expect(fidelity.report).toEqual([]);
     expect(fidelity.summary).not.toContain('html/head');
   });

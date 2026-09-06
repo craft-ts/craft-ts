@@ -42,13 +42,24 @@ import type {
 import {
   checkReplay,
   markTiers,
+  markSelection,
   onPick,
   REVIEW_TOLERANCE,
+  TIERS,
   viewOf,
   whenReady,
 } from '../../src/lib/review/frame';
 import type { LayoutDigest } from '../../src/lib/digest';
 
+/**
+ * The id of the frame holding the card being reviewed.
+ *
+ * Every card in the queue renders a holder, but only one of them carries this
+ * id: `getElementById` returns the first match in the document, so a shared id
+ * handed the checker the *first* card's frame — a blank page — whenever the
+ * reviewer had moved past card one. The check was right and its subject was
+ * wrong, which is the worst way for a check to fail.
+ */
 const FRAME_ID = 'craft-replay-frame';
 
 type DecisionVerdict =
@@ -58,7 +69,16 @@ type DecisionVerdict =
   | 'known-issue'
   | 'blocked';
 type ZoomMode = 'fit' | 'actual';
-type EvidenceView = 'replay' | 'image';
+/**
+ * Which artefact is on screen.
+ *
+ * `auto` is the state a card opens in, and it is not a third view: it defers
+ * to the replay's own fidelity check, so a frozen page that fails that check
+ * is never the first thing a reviewer sees. Choosing either view pins it —
+ * a reviewer who asks for the page after being sent to the photograph gets
+ * the page, broken and labelled as such.
+ */
+type EvidenceView = 'auto' | 'replay' | 'image';
 
 interface Finding {
   readonly path: string;
@@ -115,6 +135,32 @@ const digestUrl = (hash: string): string =>
 const imageUrl = (hash: string): string =>
   `/api/evidence/${encodeURIComponent(hash)}`;
 
+/**
+ * One line of the legend, drawn from the same object that paints the frame.
+ *
+ * The swatch takes its colour and its border style from `TIERS`, so a legend
+ * that says "dotted orange" cannot survive the outline becoming something
+ * else.
+ */
+const legendEntry = (
+  tier: (typeof TIERS)[keyof typeof TIERS],
+  hidden?: () => Generator<unknown, boolean>,
+) =>
+  li(
+    {
+      class: 'tier-legend-entry',
+      ...(hidden ? { hidden } : {}),
+    },
+    [
+      span({
+        class: 'tier-swatch',
+        'aria-hidden': 'true',
+        style: `border-color:${tier.colour};border-style:${tier.style}`,
+      }),
+      tier.label,
+    ],
+  );
+
 const eventValue = (event: Event): string =>
   (event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement)
     .value;
@@ -143,8 +189,13 @@ export const ReviewApp = craftComponent(
     );
     const evidenceView = yield* state(
       'evidenceView',
-      'replay' as EvidenceView,
-      ({ set }) => ({ choose: (mode: EvidenceView) => set(mode) }),
+      'auto' as EvidenceView,
+      ({ set }) => ({
+        choose: (mode: EvidenceView) => set(mode),
+        // Every card is judged on its own artefact: a pin taken on one card
+        // must not decide what the next reviewer sees on the next one.
+        release: () => set('auto'),
+      }),
     );
     const findings = yield* state(
       'findings',
@@ -154,6 +205,59 @@ export const ReviewApp = craftComponent(
     const hideChrome = yield* state('hideChrome', false, ({ set }) => ({
       choose: (value: boolean) => set(value),
     }));
+    /**
+     * The nodes a remark would be aimed at.
+     *
+     * A set, not a single path: one remark usually covers a row of buttons or
+     * a whole column, and adding them one at a time means retyping the same
+     * sentence for each. Mirrored from the frame, which stays the authority on
+     * what is highlighted.
+     */
+    const selection = yield* state(
+      'selection',
+      [] as readonly string[],
+      ({ set }) => ({
+        replace: (paths: readonly string[]) => set(paths),
+        clear: () => set([]),
+      }),
+    );
+    /** The rubber band being dragged, in the frame's own coordinates. */
+    const band = yield* state(
+      'band',
+      undefined as
+        | { x: number; y: number; width: number; height: number }
+        | undefined,
+      ({ set }) => ({
+        show: (
+          rect:
+            | { x: number; y: number; width: number; height: number }
+            | undefined,
+        ) => set(rect),
+      }),
+    );
+
+    // Callable from inside the frozen frame: a craftMethod is a plain function
+    // that drives its own generator, which is what lets a listener living in
+    // another document write back into this component's state.
+    const selectNodes = craftMethod(
+      'selectNodes',
+      function* (paths: readonly string[]) {
+        yield* selection.replace(paths);
+      },
+    );
+    const showBand = craftMethod(
+      'showBand',
+      function* (
+        rect:
+          | { x: number; y: number; width: number; height: number }
+          | undefined,
+      ) {
+        yield* band.show(rect);
+      },
+    );
+    // Replaced on every re-mark. Without it each toggle of the page chrome
+    // added another listener, and one click produced two selections.
+    let stopPicking: (() => void) | undefined;
 
     /**
      * Measures the replay the reviewer is actually looking at.
@@ -171,6 +275,7 @@ export const ReviewApp = craftComponent(
         readonly changed: readonly string[];
         readonly occluded: readonly string[];
         readonly hideChrome: boolean;
+        readonly selected: readonly string[];
       }) => payload,
       loader: async ({ params }): Promise<ReplayState> => {
         const view = viewOf(params.frame);
@@ -207,7 +312,12 @@ export const ReviewApp = craftComponent(
           dimDecor: true,
           hideChrome: params.hideChrome,
         });
-        onPick(view, () => undefined);
+        // Re-applied after the marking, which rebuilds the frame's
+        // annotations: lifting the page's chrome must not silently drop the
+        // nodes the reviewer had already pointed at.
+        markSelection(view, params.selected);
+        stopPicking?.();
+        stopPicking = onPick(view, selectNodes, { onBand: showBand });
 
         return {
           loaded: true,
@@ -279,7 +389,24 @@ export const ReviewApp = craftComponent(
       );
     });
     const showingReplay = craftComputed('showingReplay', function* () {
-      return (yield* evidenceView()) === 'replay' && (yield* canReplay());
+      if (!(yield* canReplay())) return false;
+      const chosen = yield* evidenceView();
+      if (chosen !== 'auto') return chosen === 'replay';
+      // Unpinned: the page, unless it has already failed its own check. While
+      // the check is still running `loaded` is false and the page stays up, so
+      // the reviewer sees the render rather than a flash of photograph.
+      const state = yield* replay();
+      return !state.loaded || state.faithful;
+    });
+    /** Was this reviewer sent to the photograph rather than choosing it? */
+    const fellBack = craftComputed('fellBack', function* () {
+      const state = yield* replay();
+      return (
+        (yield* canReplay()) &&
+        (yield* evidenceView()) === 'auto' &&
+        state.loaded &&
+        !state.faithful
+      );
     });
     /**
      * Whether this verdict would be reached without a faithful replay.
@@ -326,11 +453,15 @@ export const ReviewApp = craftComponent(
     );
     const movePrevious = craftMethod('movePrevious', function* () {
       const index = yield* selectedIndex();
+      yield* evidenceView.release();
+      yield* selection.clear();
       yield* selectedIndex.select(Math.max(0, index - 1));
     });
     const moveNext = craftMethod('moveNext', function* () {
       const list = yield* cards();
       const index = yield* selectedIndex();
+      yield* evidenceView.release();
+      yield* selection.clear();
       yield* selectedIndex.select(
         Math.min(Math.max(0, list.length - 1), index + 1),
       );
@@ -349,6 +480,7 @@ export const ReviewApp = craftComponent(
         changed: active.changed,
         occluded: (active.metadata?.occluded ?? []).map((entry) => entry.path),
         hideChrome: chrome,
+        selected: yield* selection(),
       });
     }
 
@@ -370,27 +502,27 @@ export const ReviewApp = craftComponent(
      * be followed to the code that produced the node.
      */
     const addFinding = craftMethod('addFinding', function* () {
-      const frame = document.getElementById(FRAME_ID);
-      const view = frame instanceof HTMLIFrameElement ? viewOf(frame) : undefined;
-      const path = view?.document
-        .querySelector('[data-craft-picked]')
-        ?.getAttribute('data-craft-path');
+      const paths = yield* selection();
       const text = (yield* note()).trim();
-      if (!path || text.length === 0) return;
+      if (paths.length === 0 || text.length === 0) return;
+      const aimed = new Set(paths);
       const existing = yield* findings();
       yield* findings.replace([
-        ...existing.filter((finding) => finding.path !== path),
-        { path, note: text },
+        ...existing.filter((finding) => !aimed.has(finding.path)),
+        ...paths.map((path) => ({ path, note: text })),
       ]);
       yield* note.clear();
     });
 
-    const removeFinding = craftMethod('removeFinding', function* (path: string) {
-      const existing = yield* findings();
-      yield* findings.replace(
-        existing.filter((finding) => finding.path !== path),
-      );
-    });
+    const removeFinding = craftMethod(
+      'removeFinding',
+      function* (path: string) {
+        const existing = yield* findings();
+        yield* findings.replace(
+          existing.filter((finding) => finding.path !== path),
+        );
+      },
+    );
 
     const decide = craftMethod('decide', function* (verdict: DecisionVerdict) {
       const card = yield* current();
@@ -437,6 +569,9 @@ export const ReviewApp = craftComponent(
       canReplay,
       replay,
       showingReplay,
+      fellBack,
+      selection,
+      band,
       degraded,
       coveredCount,
       overlayLabel,
@@ -465,9 +600,14 @@ export const ReviewApp = craftComponent(
     evidenceView,
     findings,
     hideChrome,
+    member,
+    coveredCount,
     canReplay,
     replay,
     showingReplay,
+    fellBack,
+    selection,
+    band,
     degraded,
     overlayLabel,
     inspectFrame,
@@ -539,6 +679,8 @@ export const ReviewApp = craftComponent(
                         : 'false';
                     },
                     *click() {
+                      yield* evidenceView.release();
+                      yield* selection.clear();
                       yield* selectedIndex.select(index);
                     },
                   },
@@ -686,7 +828,10 @@ export const ReviewApp = craftComponent(
                     }),
                   ]),
                   div({ class: 'evidence-views' }, [
-                    span({ class: 'field-label', id: 'evidence-views-label' }, 'Evidence'),
+                    span(
+                      { class: 'field-label', id: 'evidence-views-label' },
+                      'Evidence',
+                    ),
                     div(
                       {
                         class: 'view-toggle',
@@ -751,7 +896,10 @@ export const ReviewApp = craftComponent(
                       overlayLabel,
                     ),
                   ]),
-                  label({ class: 'field-label', htmlFor: 'evidence-zoom' }, 'Zoom'),
+                  label(
+                    { class: 'field-label', htmlFor: 'evidence-zoom' },
+                    'Zoom',
+                  ),
                   select(
                     'EvidenceZoom',
                     {
@@ -768,30 +916,53 @@ export const ReviewApp = craftComponent(
                     ],
                   ),
                 ]),
-                p(
-                  { class: 'evidence-help' },
-                  function* () {
-                    return (yield* showingReplay())
-                      ? 'The render itself, frozen. Everything outside the subject is dimmed; click a part of it to write a remark about that node.'
-                      : 'A picture of the same render. The dashed box marks what was on screen when it was captured; the rest is attested but was never visible.';
+                p({ class: 'evidence-help' }, function* () {
+                  return (yield* showingReplay())
+                    ? 'The render itself, frozen. Everything outside the subject is dimmed; click a part of it to write a remark about that node.'
+                    : 'A picture of the same render. The dashed box marks what was on screen when it was captured; the rest is attested but was never visible.';
+                }),
+                // What the outlines drawn into the frame mean. Without it a
+                // reviewer meets a dotted orange box around a button they never
+                // touched and has no way to find out what it is telling them.
+                ul(
+                  {
+                    class: 'tier-legend',
+                    hidden: function* () {
+                      return !(yield* showingReplay());
+                    },
                   },
+                  [
+                    legendEntry(TIERS.subject),
+                    legendEntry(TIERS.changed, function* () {
+                      return ((yield* member())?.changed.length ?? 0) === 0;
+                    }),
+                    legendEntry(TIERS.occluded, function* () {
+                      return (yield* coveredCount()) === 0;
+                    }),
+                    legendEntry(TIERS.picked),
+                  ],
                 ),
                 section(
                   {
                     class: 'notice warning',
                     role: 'status',
+                    // Shown in both views, not only on the page. The reviewer
+                    // who was moved to the photograph is exactly the one who
+                    // needs to be told why, and hiding this with the frame
+                    // left them looking at a picture for no stated reason.
                     hidden: function* () {
                       const state = yield* replay();
                       return (
-                        !(yield* showingReplay()) ||
-                        !state.loaded ||
-                        state.faithful
+                        !(yield* canReplay()) || !state.loaded || state.faithful
                       );
                     },
                   },
                   [
                     strong(function* () {
-                      return (yield* replay()).summary;
+                      const summary = (yield* replay()).summary;
+                      return (yield* fellBack())
+                        ? `Showing the screenshot: ${summary.charAt(0).toLowerCase()}${summary.slice(1)}`
+                        : summary;
                     }),
                     ul(
                       {
@@ -813,9 +984,11 @@ export const ReviewApp = craftComponent(
                           }),
                       ),
                     ),
-                    p(
-                      'Judge the screenshot instead. The decision will be recorded as made without a faithful replay.',
-                    ),
+                    p(function* () {
+                      return (yield* showingReplay())
+                        ? 'You asked for the page anyway. It is on screen, but it is not what was measured — the decision will be recorded as made without a faithful replay.'
+                        : 'Judge the picture. Switch to Page to look at the frozen copy anyway; either way the decision is recorded as made without a faithful replay.';
+                    }),
                   ],
                 ),
                 figure(
@@ -832,43 +1005,67 @@ export const ReviewApp = craftComponent(
                           return !(yield* showingReplay());
                         },
                       },
-                      iframe({
-                        id: FRAME_ID,
-                        title: 'Frozen page, as captured',
-                        // Sized to the captured viewport, never to the
-                        // reviewer's window: the snapshot freezes the styles,
-                        // not the box the page lays itself out in.
-                        width: function* () {
-                          return String(
-                            (yield* card()).members[0]?.metadata?.viewport
-                              ?.width ?? 375,
-                          );
-                        },
-                        height: function* () {
-                          // The captured viewport, not the picture's height.
-                          // The frame has to reproduce the window the page laid
-                          // itself out in; anything taller is a different
-                          // viewport and measures differently.
-                          return String(
-                            (yield* card()).members[0]?.metadata?.viewport
-                              ?.height ?? 900,
-                          );
-                        },
-                        src: function* () {
-                          // Only the card on screen loads a document. Every
-                          // other card in the queue is rendered and hidden, and
-                          // giving each one an iframe would parse the same
-                          // page as many times as the queue is long.
-                          const active = yield* current();
-                          const own = yield* card();
-                          const hash =
-                            own.shape === active?.shape
-                              ? own.members[0]?.snapshot
-                              : undefined;
-                          return hash ? snapshotUrl(hash) : '/api/blank';
-                        },
-                        load: inspectFrame,
-                      }),
+                      [
+                        iframe({
+                          id: function* () {
+                            const active = yield* current();
+                            return (yield* card()).shape === active?.shape
+                              ? FRAME_ID
+                              : '';
+                          },
+                          title: 'Frozen page, as captured',
+                          // Sized to the captured viewport, never to the
+                          // reviewer's window: the snapshot freezes the styles,
+                          // not the box the page lays itself out in.
+                          width: function* () {
+                            return String(
+                              (yield* card()).members[0]?.metadata?.viewport
+                                ?.width ?? 375,
+                            );
+                          },
+                          height: function* () {
+                            // The captured viewport, not the picture's height.
+                            // The frame has to reproduce the window the page laid
+                            // itself out in; anything taller is a different
+                            // viewport and measures differently.
+                            return String(
+                              (yield* card()).members[0]?.metadata?.viewport
+                                ?.height ?? 900,
+                            );
+                          },
+                          src: function* () {
+                            // Only the card on screen loads a document. Every
+                            // other card in the queue is rendered and hidden, and
+                            // giving each one an iframe would parse the same
+                            // page as many times as the queue is long.
+                            const active = yield* current();
+                            const own = yield* card();
+                            const hash =
+                              own.shape === active?.shape
+                                ? own.members[0]?.snapshot
+                                : undefined;
+                            return hash ? snapshotUrl(hash) : '/api/blank';
+                          },
+                          load: inspectFrame,
+                        }),
+                        // Drawn in this document, on top of the frame — never
+                        // inside it. Inserting an element into the frozen page
+                        // would break the one claim it makes: that nothing was
+                        // added to it after it was measured.
+                        div({
+                          class: 'selection-band',
+                          'aria-hidden': 'true',
+                          hidden: function* () {
+                            return !(yield* band());
+                          },
+                          style: function* () {
+                            const rect = yield* band();
+                            return rect
+                              ? `left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px`
+                              : '';
+                          },
+                        }),
+                      ],
                     ),
                     div(
                       {
@@ -882,14 +1079,14 @@ export const ReviewApp = craftComponent(
                           hidden: function* () {
                             return !(yield* card()).image;
                           },
-                      alt: function* () {
-                        return `Current rendering for ${scenarioOf((yield* card()).subject)}`;
-                      },
-                      src: function* () {
-                        const hash = (yield* card()).image;
-                        return hash ? imageUrl(hash) : '';
-                      },
-                    }),
+                          alt: function* () {
+                            return `Current rendering for ${scenarioOf((yield* card()).subject)}`;
+                          },
+                          src: function* () {
+                            const hash = (yield* card()).image;
+                            return hash ? imageUrl(hash) : '';
+                          },
+                        }),
                         // Where the viewport ended. Everything below it is
                         // attested and was never on anybody's screen.
                         div({
@@ -897,7 +1094,9 @@ export const ReviewApp = craftComponent(
                           hidden: function* () {
                             const metadata = (yield* card()).members[0]
                               ?.metadata;
-                            return !(metadata?.visibleBand && metadata.screenshot);
+                            return !(
+                              metadata?.visibleBand && metadata.screenshot
+                            );
                           },
                           style: function* () {
                             const metadata = (yield* card()).members[0]
@@ -976,7 +1175,7 @@ export const ReviewApp = craftComponent(
                     h3('Remarks on a specific node'),
                     small(
                       { class: 'decision-help' },
-                      'Click an element in the frozen page, write the reason above, then add it. A remark carries the node address the digest uses, so it can be followed back to the code — and one aimed at something this subject does not attest is refused.',
+                      'Click a part of the frozen page to aim at it. Ctrl-click (cmd on a Mac) adds another, and dragging a box takes everything it touches — one remark can cover a whole row. A remark carries the node address the digest uses, so it can be followed back to the code, and one aimed at something this subject does not attest is refused.',
                     ),
                     ul(
                       { class: 'findings-list' },
@@ -1016,11 +1215,22 @@ export const ReviewApp = craftComponent(
                       {
                         type: 'button',
                         disabled: function* () {
-                          return !(yield* hasNote());
+                          return (
+                            !(yield* hasNote()) ||
+                            (yield* selection()).length === 0
+                          );
                         },
                         click: addFinding,
                       },
-                      'Add remark on the selected node',
+                      // The count is in the label: a reviewer who dragged a box
+                      // over a row needs to see how many nodes they caught
+                      // before one sentence is written against all of them.
+                      function* () {
+                        const count = (yield* selection()).length;
+                        return count === 0
+                          ? 'Add remark — nothing selected yet'
+                          : `Add remark on ${count} selected node${count === 1 ? '' : 's'}`;
+                      },
                     ),
                   ],
                 ),

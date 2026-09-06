@@ -234,9 +234,23 @@ font, a media query left conditional, a stylesheet that could be neither read
 nor fetched — each produces a document that looks plausible and measures
 differently, and a reviewer would judge it without ever knowing.
 
-When it does not match, the card says so and falls back to the screenshot, and
-the verdict is recorded as `degraded`: judging a photograph and judging the
-document are different claims.
+When it does not match, the card **moves the reviewer to the screenshot by
+itself** and says why in the same sentence, and the verdict is recorded as
+`degraded`: judging a photograph and judging the document are different claims.
+The choice is a fallback, not a lock — asking for the page brings it back, still
+labelled for what it is.
+
+The message names the cause, not its symptoms. A subject the frozen page does
+not contain reported "36 attested node(s) are absent" followed by forty
+addresses beginning `html/head/meta`: every consequence of one fact, and none of
+them stating it. It now reads
+
+> The frozen page has no `.design-system-host` in it, so what it shows is not
+> this component. That happens when the stored snapshot is older than the report
+> it is paired with, or when the component's root selector changed after it was
+> captured.
+
+which is the same finding with the reviewer's next move in it.
 
 Two things the check caught while it was being built, which is what it is for:
 a marker stylesheet that set `position: relative` on the attested root and moved
@@ -258,6 +272,19 @@ follow, and all three come from data that already exists:
 | changed | the paths in the readable diff | outlined, and the reason the card is here |
 | attested | the digest's own paths | selectable, highlighted on hover |
 | decor | everything else | dimmed, never removed |
+
+The outlines carry a legend, drawn from the same object that paints them — a key
+that keeps its own copy of a colour is a key that will one day name the wrong
+one. Entries for tiers this card has none of are not shown, so the legend
+describes the page in front of the reviewer rather than the system in general.
+
+Selection is a set, not a node. Ctrl-click (cmd on a Mac) adds one, and dragging
+a box takes everything it touches; the count is in the button, because one
+sentence is about to be filed against all of them. A remark that covers a row of
+buttons was otherwise the same sentence retyped once per button, which is also
+how a queue fills with findings nobody can group afterwards. The band is drawn
+beside the frame and never inside it: adding an element to the frozen document
+would break the only claim it makes.
 
 And the mistake is made unrecordable rather than merely discouraged. A rejection
 carries the path of the node it is about, so the server can refuse one that
