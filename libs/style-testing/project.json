@@ -8,13 +8,23 @@
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/libs/style-testing",
         "main": "libs/style-testing/src/index.ts",
-        "tsConfig": "libs/style-testing/tsconfig.lib.json"
+        "tsConfig": "libs/style-testing/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "libs/style-testing/review-app",
+            "glob": "index.html",
+            "output": "review-app"
+          },
+          {
+            "input": "libs/style-testing/review-app/src",
+            "glob": "**/*",
+            "output": "review-app/src"
+          }
+        ]
       }
     },
     "nx-release-publish": {

@@ -11,7 +11,11 @@
  * digest) goes into the ledger, and a scenario is only re-shown to a person
  * when the second one moves.
  */
-import type { LayoutDigest } from './digest.js';
+import {
+  visibleBandOf,
+  type CaptureScope,
+  type LayoutDigest,
+} from './digest.js';
 import type { VisualScenario } from './matrix.js';
 
 /** What `@craft-ts/attest` needs, restated so this file imports nothing. */
@@ -45,6 +49,79 @@ export interface ComponentCaptures {
 
 export const VISUAL_REPORT_FORMAT = 'craft-ts-visual-report';
 
+/** Rendering context shown to the reviewer; it is not part of the evidence hash. */
+export interface VisualCaptureMetadata {
+  readonly viewport?: {
+    readonly width: number;
+    readonly height: number;
+  };
+  readonly screenshot?: {
+    readonly width: number;
+    readonly height: number;
+  };
+  /**
+   * Where the captured image sits in page coordinates.
+   *
+   * The one field that makes three things possible at once: drawing the fold
+   * onto the picture, widening the frame past the subject, and mapping a
+   * digest box — whose coordinates are the viewport's — onto the image.
+   * Without it the transform is unrecoverable and every one of the three
+   * becomes guesswork.
+   */
+  readonly origin?: { readonly x: number; readonly y: number };
+  /** The part of the image that was actually on screen, in image coordinates. */
+  readonly visibleBand?: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
+  /**
+   * What the verdict covers against what a person could look at.
+   *
+   * Reported rather than hidden, on the same rule as `bulk` and `assumptions`:
+   * an attestation that claimed a human judged nodes nobody could see would be
+   * recording a coverage it does not have.
+   */
+  readonly coverage?: {
+    readonly attested: number;
+    readonly offScreen: number;
+    readonly occluded: number;
+  };
+  /** Attested paths that were off screen when the capture was taken. */
+  readonly offScreen?: readonly string[];
+  /** Attested paths covered by something outside the subject, and by what. */
+  readonly occluded?: readonly {
+    readonly path: string;
+    readonly by: string;
+  }[];
+  readonly colorScheme?: 'light' | 'dark' | 'no-preference';
+  readonly browser?: {
+    readonly name: string;
+    readonly version: string;
+  };
+  readonly target?: string;
+}
+
+/** Turns a capture scope into the metadata a review card reads. */
+export function metadataFromScope(
+  scope: CaptureScope,
+): VisualCaptureMetadata {
+  const band = visibleBandOf(scope);
+  return {
+    viewport: scope.viewport,
+    origin: { x: Math.floor(scope.region.x), y: Math.floor(scope.region.y) },
+    visibleBand: band,
+    coverage: {
+      attested: scope.attested.length,
+      offScreen: scope.offScreen.length,
+      occluded: scope.occluded.length,
+    },
+    ...(scope.offScreen.length > 0 ? { offScreen: scope.offScreen } : {}),
+    ...(scope.occluded.length > 0 ? { occluded: scope.occluded } : {}),
+  };
+}
+
 export interface VisualReportCapture {
   /** Repository-relative graph node id. */
   readonly component: string;
@@ -52,6 +129,7 @@ export interface VisualReportCapture {
   readonly digest: LayoutDigest;
   /** Screenshot path, relative to the report file unless absolute. */
   readonly image?: string;
+  readonly metadata?: VisualCaptureMetadata;
   readonly assumptions?: readonly unknown[];
 }
 

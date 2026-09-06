@@ -15,7 +15,13 @@
  * Every card also carries **why** it is here. A reviewer who cannot see what
  * changed and why they are being asked will approve, every time.
  */
-import { deltaShape, digestDelta, formatDelta, type LayoutDigest } from '../digest.js';
+import {
+  deltaShape,
+  digestDelta,
+  formatDelta,
+  type LayoutDigest,
+} from '../digest.js';
+import type { VisualCaptureMetadata } from '../attest.js';
 
 export interface ReviewItem {
   readonly subject: string;
@@ -26,6 +32,15 @@ export interface ReviewItem {
   readonly approved?: LayoutDigest;
   /** Evidence hash of the screenshot, for the store. */
   readonly image?: string;
+  readonly metadata?: VisualCaptureMetadata;
+  /** Human feedback from the latest rejected review, when available. */
+  readonly rejectionReason?: string;
+}
+
+export interface ReviewMember {
+  readonly subject: string;
+  readonly image?: string;
+  readonly metadata?: VisualCaptureMetadata;
 }
 
 export interface ReviewCard {
@@ -41,6 +56,10 @@ export interface ReviewCard {
    * the coverage is not a claim anyone has to take on faith.
    */
   readonly cluster: readonly string[];
+  /** Every scenario covered by this decision, including its own visual aid. */
+  readonly members: readonly ReviewMember[];
+  /** Why the latest review rejected this scenario. */
+  readonly rejectionReason?: string;
   readonly shape: string;
 }
 
@@ -59,17 +78,19 @@ const NEW_SUBJECT = 'never attested — nothing to compare against';
  * change, and clearing it first turns a two-hundred-item queue into a
  * five-item one before anybody loses patience.
  */
-export function buildReviewQueue(
-  items: readonly ReviewItem[],
-): ReviewQueue {
+export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
   const byShape = new Map<string, ReviewItem[]>();
   const changesByShape = new Map<string, readonly string[]>();
 
   for (const item of items) {
-    const deltas = item.approved
-      ? digestDelta(item.approved, item.digest)
-      : [];
-    const shape = item.approved ? deltaShape(deltas) : NEW_SUBJECT;
+    const deltas = item.approved ? digestDelta(item.approved, item.digest) : [];
+    // Two changed subjects may legitimately share an exact delta. Two new
+    // subjects cannot: there is no previous evidence proving that the same
+    // change happened. Grouping them here would turn four unseen screenshots
+    // into one blind decision.
+    const shape = item.approved
+      ? deltaShape(deltas)
+      : `${NEW_SUBJECT}:${item.subject}`;
     const known = byShape.get(shape);
     if (known) known.push(item);
     else {
@@ -91,6 +112,16 @@ export function buildReviewQueue(
         changes: changesByShape.get(shape) ?? [],
         ...(first.image ? { image: first.image } : {}),
         cluster: group.map((item) => item.subject).sort(),
+        members: [...group]
+          .sort((left, right) => left.subject.localeCompare(right.subject))
+          .map((item) => ({
+            subject: item.subject,
+            ...(item.image ? { image: item.image } : {}),
+            ...(item.metadata ? { metadata: item.metadata } : {}),
+          })),
+        ...(first.rejectionReason
+          ? { rejectionReason: first.rejectionReason }
+          : {}),
         shape,
       };
     });
@@ -100,7 +131,12 @@ export function buildReviewQueue(
 
 export type ReviewDecision = {
   readonly card: ReviewCard;
-  readonly verdict: 'ok' | 'ok-with-note' | 'rejected' | 'known-issue' | 'blocked';
+  readonly verdict:
+    | 'ok'
+    | 'ok-with-note'
+    | 'rejected'
+    | 'known-issue'
+    | 'blocked';
   readonly note?: string;
 };
 
@@ -111,9 +147,7 @@ export type ReviewDecision = {
  * shown, so a later reader can tell "this was judged" from "this was judged
  * alongside 199 others" — which are not the same claim.
  */
-export function expandDecision(
-  decision: ReviewDecision,
-): readonly {
+export function expandDecision(decision: ReviewDecision): readonly {
   readonly subject: string;
   readonly verdict: ReviewDecision['verdict'];
   readonly note?: string;

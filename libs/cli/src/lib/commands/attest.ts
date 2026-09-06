@@ -16,6 +16,7 @@
  * module-not-found stack.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import {
   applyRenewals,
@@ -23,6 +24,7 @@ import {
   createEvidenceStore,
   diffTestRuns,
   evidenceHash,
+  isAccepted,
   isVisualRunReport,
   observeVisualRun,
   observeTests,
@@ -62,6 +64,27 @@ const SPEC = {
   flags: ['all', 'json', 'help', 'apply'],
 } as const;
 
+const openReviewUrl = (url: string): void => {
+  if (process.env['CRAFT_ATTEST_NO_OPEN'] === '1') return;
+  const command =
+    process.platform === 'darwin'
+      ? { executable: 'open', arguments: [url] }
+      : process.platform === 'win32'
+        ? { executable: 'cmd', arguments: ['/c', 'start', '', url] }
+        : { executable: 'xdg-open', arguments: [url] };
+  try {
+    const child = spawn(command.executable, command.arguments, {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.once('error', () => undefined);
+    child.unref();
+  } catch {
+    // The URL is still printed below; a missing desktop opener is not a
+    // reason to stop the review server.
+  }
+};
+
 export const ATTEST_HELP = `craft-ts attest — a human judgement, recorded so it survives a refactor
 
 Usage: craft-ts attest <verb> [options]
@@ -72,7 +95,7 @@ Verbs:
   why <subject>        Which nodes of the subject's slice moved, and when a
                        person last actually looked at it
   renew                Record a verdict; --all marks the attestations as bulk
-  review               Open the local review surface
+  review               Open the local CraftTS review application
   unwatched            Nodes that moved and belong to no attested subject
 
 Options:
@@ -84,7 +107,7 @@ Options:
   --root <dir>         Repository root (default: the working directory)
   --subject <id>       Subject to act on
   --verdict <v>        ok | ok-with-note | rejected | known-issue | blocked
-  --note <text>        Recorded with the verdict
+  --note <text>        Recorded with the verdict; required for rejected
   --by <name>          Who is judging (default: $USER)
   --all                Renew every reviewable subject, marked as bulk
   --json               Emit a machine-readable report
@@ -453,6 +476,9 @@ async function status(
       io.write(
         `  ${entry.state.padEnd(8)} ${entry.subject}${entry.reason ? ` — ${entry.reason}` : ''}`,
       );
+      if (entry.attestation?.verdict === 'rejected' && entry.attestation.note) {
+        io.write(`    rejection reason: ${entry.attestation.note}`);
+      }
     }
   }
   for (const subject of report.orphaned) {
@@ -563,6 +589,7 @@ async function why(
   io.write(
     `  judged '${attestation.verdict}' by ${attestation.by} on ${attestation.at}${attestation.bulk ? ' (bulk renewal)' : ''}`,
   );
+  if (attestation.note) io.write(`  decision reason: ${attestation.note}`);
   if (attestation.carriedFrom) {
     io.write(
       `  carried forward since ${origin}: the code moved, the output did not.`,
@@ -640,8 +667,19 @@ async function renew(
     return 0;
   }
 
-  const verdict = (parsed.values['verdict'] ?? 'ok') as Verdict;
+  const verdictValue = parsed.values['verdict'] ?? 'ok';
   const note = parsed.values['note'];
+  if (!isVerdict(verdictValue)) {
+    io.writeError(`craft-ts attest renew: unknown verdict '${verdictValue}'.`);
+    return 1;
+  }
+  if (verdictValue === 'rejected' && !note?.trim()) {
+    io.writeError(
+      'craft-ts attest renew: --note is required with a rejected verdict.',
+    );
+    return 1;
+  }
+  const verdict = verdictValue;
   const attestations: Attestation[] = targets.map((entry) => ({
     subject: entry.subject,
     kind: entry.observation.kind,
@@ -782,9 +820,10 @@ async function review(
         `visual report: '${status.subject}' does not contain a layout digest v1.`,
       );
     }
-    const approvedText = status.attestation
-      ? await store.getText(status.attestation.evidence, '.digest.json')
-      : undefined;
+    const approvedText =
+      status.attestation && isAccepted(status.attestation.verdict)
+        ? await store.getText(status.attestation.evidence, '.digest.json')
+        : undefined;
     const approvedValue = approvedText ? JSON.parse(approvedText) : undefined;
     items.push({
       subject: status.subject,
@@ -793,6 +832,12 @@ async function review(
       ...(isLayoutDigest(approvedValue) ? { approved: approvedValue } : {}),
       ...(stored.get(status.subject)?.image
         ? { image: stored.get(status.subject)?.image }
+        : {}),
+      ...(artifact.capture.metadata
+        ? { metadata: artifact.capture.metadata }
+        : {}),
+      ...(status.attestation?.verdict === 'rejected' && status.attestation.note
+        ? { rejectionReason: status.attestation.note }
         : {}),
     });
   }
@@ -842,6 +887,7 @@ async function review(
   io.write(
     '  j/k move · a accept · n accept with a note · r reject · ^C to stop',
   );
+  openReviewUrl(running.url);
   // The command owns the process until the reviewer is done. Returning here
   // would close the socket the moment the queue opened.
   await new Promise<void>((resolve) => {

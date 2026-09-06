@@ -382,6 +382,59 @@ export interface CollectOptions extends DigestOptions {
   readonly intrinsic?: readonly string[];
 }
 
+export interface Rect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * What was attested, and what a human could actually have looked at.
+ *
+ * Deliberately **not** part of the digest. The digest is the reference and its
+ * hash is the evidence; folding "was this on screen" into it would change every
+ * evidence hash in the ledger to record something that is a property of the
+ * review, not of the render. This travels beside it, as a review aid.
+ *
+ * It exists because the two are not the same set, and the gap is large: on the
+ * demo's design-system route, 36 nodes are attested and 10 are visible and
+ * unobstructed. An attestation that did not say so would claim a human judged
+ * 26 nodes nobody could see.
+ */
+export interface CaptureScope {
+  /** The attested root's box, in viewport coordinates. */
+  readonly root: Rect;
+  readonly viewport: { readonly width: number; readonly height: number };
+  /**
+   * The region worth capturing: the root and the viewport, unioned.
+   *
+   * The root alone loses whatever the page paints around it — the shell's
+   * padding, a fixed button — and the viewport alone loses everything the root
+   * extends past. Their union is the only rectangle that holds both, and
+   * having both in one coordinate space is what lets the review draw the fold.
+   */
+  readonly region: Rect;
+  /** Every path in the digest. The exact set the verdict covers. */
+  readonly attested: readonly string[];
+  /** Attested, but off screen when the capture was taken. */
+  readonly offScreen: readonly string[];
+  /**
+   * Attested, but covered by something outside the root.
+   *
+   * Asked of the browser through `elementFromPoint` rather than computed from
+   * rectangles: stacking contexts, transforms and clipping make geometry a bad
+   * proxy, and a wrong answer here tells a reviewer they saw something they
+   * did not.
+   */
+  readonly occluded: readonly { readonly path: string; readonly by: string }[];
+}
+
+export interface CaptureResult {
+  readonly digest: LayoutDigest;
+  readonly scope: CaptureScope;
+}
+
 export interface DigestPage {
   evaluate<Argument, Result>(
     body: (argument: Argument) => Result,
@@ -401,7 +454,7 @@ export function measureInPage(options: {
   root?: string;
   intrinsic?: readonly string[];
   styleKeys: readonly string[];
-}): MeasuredElement[] {
+}): { elements: MeasuredElement[]; scope: CaptureScope } {
   const root: Element =
     (options.root ? document.querySelector(options.root) : null) ??
     document.documentElement;
@@ -452,9 +505,12 @@ export function measureInPage(options: {
 
   const wanted = new Set(options.intrinsic ?? []);
   const measured: MeasuredElement[] = [];
+  /** Recorded during the walk, so scope and digest share one addressing pass. */
+  const seen: { element: Element; path: string }[] = [];
 
   const visit = (element: Element, parent: string | undefined): void => {
     const path = addressOf(element);
+    seen.push({ element, path });
     const computed = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
     const styles: Record<string, string> = {};
@@ -521,7 +577,108 @@ export function measureInPage(options: {
   };
 
   visit(root, undefined);
-  return measured;
+
+  // Scope is computed here, in the same pass, so it uses the *same* `addressOf`
+  // as the digest. Two implementations of an address is two sets of node ids
+  // that drift, and a review that highlights the wrong element.
+  const offScreen: string[] = [];
+  const occluded: { path: string; by: string }[] = [];
+  const describe = (element: Element): string => {
+    const classes = String(element.className || '').split(/\s+/).filter(Boolean);
+    return `${element.tagName.toLowerCase()}${classes[0] ? `.${classes[0]}` : ''}`;
+  };
+
+  for (const { element, path } of seen) {
+    const box = element.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) continue;
+    if (box.bottom <= 0 || box.top >= innerHeight) {
+      offScreen.push(path);
+      continue;
+    }
+    // Five samples, not one. A fixed button parked over a component's corner
+    // leaves its centre perfectly clear, so a centre-only probe reports the
+    // node as visible and the reviewer approves something they cannot see.
+    const inset = 1;
+    const samples: [number, number][] = [
+      [box.left + box.width / 2, box.top + box.height / 2],
+      [box.left + inset, box.top + inset],
+      [box.right - inset, box.top + inset],
+      [box.left + inset, box.bottom - inset],
+      [box.right - inset, box.bottom - inset],
+    ];
+    for (const [rawX, rawY] of samples) {
+      const x = Math.min(Math.max(rawX, 0), innerWidth - 1);
+      const y = Math.min(Math.max(rawY, 0), innerHeight - 1);
+      if (y < 0 || y >= innerHeight) continue;
+      const hit = document.elementFromPoint(x, y);
+      // An ancestor answering the probe means the sample fell in a gap or a
+      // padding — it is *behind* the element, not over it. Counting those
+      // reported the root and every wrapper as hidden, which would have told a
+      // reviewer that six nodes were covered when one was.
+      if (hit && !root.contains(hit) && hit !== root && !hit.contains(element)) {
+        occluded.push({ path, by: describe(hit) });
+        break;
+      }
+    }
+  }
+
+  const rootBox = root.getBoundingClientRect();
+  // Clamped to the document, because an internal scroller makes the root taller
+  // than anything a screenshot can reach: on the demo's route the host is 1582
+  // tall inside a document of 916. A region nobody can capture produces
+  // metadata that disagrees with the picture beside it, and then the fold is
+  // drawn in the wrong place.
+  const pageWidth = document.documentElement.scrollWidth;
+  const pageHeight = document.documentElement.scrollHeight;
+  const left = Math.max(Math.min(rootBox.left, 0), 0);
+  const top = Math.max(Math.min(rootBox.top, 0), 0);
+  const right = Math.min(Math.max(rootBox.right, innerWidth), pageWidth);
+  const bottom = Math.min(Math.max(rootBox.bottom, innerHeight), pageHeight);
+
+  return {
+    elements: measured,
+    scope: {
+      root: {
+        x: rootBox.x,
+        y: rootBox.y,
+        width: rootBox.width,
+        height: rootBox.height,
+      },
+      viewport: { width: innerWidth, height: innerHeight },
+      region: {
+        x: left,
+        y: top,
+        width: right - left,
+        height: bottom - top,
+      },
+      // Sorted, like the digest's own nodes: the two sets have to be
+      // comparable without the caller re-ordering one of them.
+      attested: measured.map((element) => element.path).sort(),
+      offScreen,
+      occluded,
+    },
+  };
+}
+
+/**
+ * Measures the page once and returns both the digest and its scope.
+ *
+ * One `evaluate`, because two would measure two different moments — and a
+ * scope that disagrees with the digest it annotates is worse than no scope.
+ */
+export async function collectCapture(
+  page: DigestPage,
+  options: CollectOptions = {},
+): Promise<CaptureResult> {
+  const measured = await page.evaluate(measureInPage, {
+    ...(options.root ? { root: options.root } : {}),
+    ...(options.intrinsic ? { intrinsic: options.intrinsic } : {}),
+    styleKeys: STYLE_KEYS as readonly string[],
+  });
+  return {
+    digest: layoutDigest(measured.elements, options),
+    scope: measured.scope,
+  };
 }
 
 /** Measures the page and turns the measurements into a digest. */
@@ -529,10 +686,31 @@ export async function collectLayoutDigest(
   page: DigestPage,
   options: CollectOptions = {},
 ): Promise<LayoutDigest> {
-  const measured = await page.evaluate(measureInPage, {
-    ...(options.root ? { root: options.root } : {}),
-    ...(options.intrinsic ? { intrinsic: options.intrinsic } : {}),
-    styleKeys: STYLE_KEYS as readonly string[],
-  });
-  return layoutDigest(measured, options);
+  return (await collectCapture(page, options)).digest;
+}
+
+/** Rounded to whole pixels, which is what a screenshot clip takes. */
+export const clipOf = (region: Rect): Rect => ({
+  x: Math.floor(region.x),
+  y: Math.floor(region.y),
+  width: Math.ceil(region.width),
+  height: Math.ceil(region.height),
+});
+
+/**
+ * The part of a capture a person actually had on screen.
+ *
+ * Expressed in the captured image's own coordinates, so the review can draw it
+ * straight onto the picture without knowing anything about the page.
+ */
+export function visibleBandOf(scope: CaptureScope): Rect {
+  // `+ 0` turns a negated zero back into zero. `-0` survives every arithmetic
+  // comparison and then fails `Object.is`, which makes a band at the image's
+  // origin unequal to itself.
+  return {
+    x: -scope.region.x + 0,
+    y: -scope.region.y + 0,
+    width: scope.viewport.width,
+    height: scope.viewport.height,
+  };
 }

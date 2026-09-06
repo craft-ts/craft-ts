@@ -1,0 +1,9 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "isolatedModules": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts"]
+}

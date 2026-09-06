@@ -3,8 +3,10 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { expect, test, type TestInfo } from '@playwright/test';
 import {
   applyScenario,
-  collectLayoutDigest,
+  clipOf,
+  collectCapture,
   determinismScript,
+  metadataFromScope,
   visualMatrix,
   visualReport,
 } from '@craft-ts/style-testing';
@@ -29,6 +31,7 @@ const imagePathFor = (
     : testInfo.outputPath(imageName);
 
 test('writes CLI-ready visual evidence from a real demo route', async ({
+  browser,
   page,
 }, testInfo) => {
   await page.addInitScript(determinismScript());
@@ -51,7 +54,7 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
 
     const root = page.locator('.design-system-host');
     await expect(root).toBeVisible();
-    const digest = await collectLayoutDigest(page, {
+    const { digest, scope } = await collectCapture(page, {
       root: '.design-system-host',
       intrinsic: ['.design-system-host'],
     });
@@ -59,12 +62,29 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
 
     const imageName = `design-system-${scenario.id.replace(/[^a-z0-9]+/gi, '-')}.png`;
     const imagePath = imagePathFor(testInfo, reportPath, imageName);
-    await root.screenshot({ path: imagePath });
+
+    // The region, not the element. An element screenshot starts inside the
+    // shell's padding and slices whatever overlaps its edge — the fixed
+    // "Clear cache" button, here — so the reviewer compares a picture that
+    // never existed against a page that does.
+    const clip = clipOf(scope.region);
+    await page.screenshot({ path: imagePath, clip, fullPage: true });
+
     captures.push({
       component: DESIGN_SYSTEM_COMPONENT,
       scenario: scenario.id,
       digest,
       image: basename(imagePath),
+      metadata: {
+        ...metadataFromScope(scope),
+        screenshot: { width: clip.width, height: clip.height },
+        colorScheme: scenario.id.includes('scheme=dark') ? 'dark' : 'light',
+        browser: {
+          name: browser.browserType().name(),
+          version: browser.version(),
+        },
+        target: '.design-system-host',
+      },
     });
   }
 

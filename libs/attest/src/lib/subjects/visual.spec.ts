@@ -65,8 +65,20 @@ describe('visual subjects', () => {
           scenario: 'viewport=md',
           digest: { nodes: [] },
           image: 'card.png',
+          metadata: {
+            viewport: { width: 768, height: 900 },
+            screenshot: { width: 640, height: 1214 },
+            colorScheme: 'dark',
+            browser: { name: 'chromium', version: '147' },
+            target: '.card',
+          },
         },
       ],
+    });
+
+    expect(report.captures[0]?.metadata?.viewport).toEqual({
+      width: 768,
+      height: 900,
     });
 
     expect(observeVisualRun(report, () => 'current-code')).toMatchObject([
@@ -89,6 +101,23 @@ describe('visual subjects', () => {
         ],
       }),
     ).toThrow(/duplicate subject/);
+  });
+
+  it('rejects malformed capture metadata', () => {
+    expect(() =>
+      parseVisualRunReport({
+        format: VISUAL_REPORT_FORMAT,
+        version: 1,
+        captures: [
+          {
+            component: 'Card',
+            scenario: 'base',
+            digest: {},
+            metadata: { viewport: { width: 0, height: 900 } },
+          },
+        ],
+      }),
+    ).toThrow(/expected/);
   });
 });
 

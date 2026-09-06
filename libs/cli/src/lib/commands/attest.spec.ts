@@ -298,6 +298,66 @@ describe('craft-ts attest', () => {
     expect(text).toContain('nothing in the slice moved');
   });
 
+  it('requires and exposes the reason for a rejected verdict', async () => {
+    const { root, io, out, err } = await workspace();
+
+    expect(
+      await runAttestCommand(
+        ['renew', '--all', '--report', 'report.json', '--verdict', 'rejected'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(1);
+    expect(err.join('\n')).toContain('--note is required');
+
+    expect(
+      await runAttestCommand(
+        [
+          'renew',
+          '--all',
+          '--report',
+          'report.json',
+          '--verdict',
+          'rejected',
+          '--note',
+          'The result hides the primary action.',
+        ],
+        io,
+        dependencies(),
+      ),
+    ).toBe(0);
+
+    out.splice(0);
+    expect(
+      await runAttestCommand(
+        ['status', '--report', 'report.json'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(1);
+    expect(out.join('\n')).toContain(
+      'rejection reason: The result hides the primary action.',
+    );
+
+    out.splice(0);
+    expect(
+      await runAttestCommand(
+        [
+          'why',
+          'test:libs/core/src/lib/state.spec.ts#state > counts',
+          '--report',
+          'report.json',
+        ],
+        io,
+        dependencies(),
+      ),
+    ).toBe(0);
+    expect(out.join('\n')).toContain(
+      'decision reason: The result hides the primary action.',
+    );
+    expect(root).toBeTypeOf('string');
+  });
+
   it('refuses to guess what to look at', async () => {
     const { io, err } = await workspace();
     const code = await runAttestCommand(['status'], io, dependencies());

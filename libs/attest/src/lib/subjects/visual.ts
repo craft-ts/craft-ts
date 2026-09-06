@@ -37,6 +37,23 @@ export interface VisualCapture extends VisualScenarioRef {
 
 export const VISUAL_REPORT_FORMAT = 'craft-ts-visual-report';
 
+export interface VisualCaptureMetadata {
+  readonly viewport?: {
+    readonly width: number;
+    readonly height: number;
+  };
+  readonly screenshot?: {
+    readonly width: number;
+    readonly height: number;
+  };
+  readonly colorScheme?: 'light' | 'dark' | 'no-preference';
+  readonly browser?: {
+    readonly name: string;
+    readonly version: string;
+  };
+  readonly target?: string;
+}
+
 /**
  * Portable output of a browser run.
  *
@@ -48,8 +65,39 @@ export interface VisualRunCapture extends VisualScenarioRef {
   readonly digest: unknown;
   /** Screenshot path, relative to the report file unless absolute. */
   readonly image?: string;
+  readonly metadata?: VisualCaptureMetadata;
   readonly assumptions?: readonly Assumption[];
 }
+
+const isPositiveSize = (value: unknown): boolean =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { width?: unknown }).width === 'number' &&
+  (value as { width: number }).width > 0 &&
+  typeof (value as { height?: unknown }).height === 'number' &&
+  (value as { height: number }).height > 0;
+
+const isVisualCaptureMetadata = (
+  value: unknown,
+): value is VisualCaptureMetadata => {
+  if (typeof value !== 'object' || value === null) return false;
+  const metadata = value as VisualCaptureMetadata;
+  return (
+    (metadata.viewport === undefined || isPositiveSize(metadata.viewport)) &&
+    (metadata.screenshot === undefined ||
+      isPositiveSize(metadata.screenshot)) &&
+    (metadata.colorScheme === undefined ||
+      metadata.colorScheme === 'light' ||
+      metadata.colorScheme === 'dark' ||
+      metadata.colorScheme === 'no-preference') &&
+    (metadata.browser === undefined ||
+      (typeof metadata.browser === 'object' &&
+        metadata.browser !== null &&
+        typeof metadata.browser.name === 'string' &&
+        typeof metadata.browser.version === 'string')) &&
+    (metadata.target === undefined || typeof metadata.target === 'string')
+  );
+};
 
 export interface VisualRunReport {
   readonly format: typeof VISUAL_REPORT_FORMAT;
@@ -75,6 +123,8 @@ export function isVisualRunReport(value: unknown): value is VisualRunReport {
         'digest' in candidate &&
         (candidate.image === undefined ||
           typeof candidate.image === 'string') &&
+        (candidate.metadata === undefined ||
+          isVisualCaptureMetadata(candidate.metadata)) &&
         (candidate.assumptions === undefined ||
           Array.isArray(candidate.assumptions))
       );

@@ -274,11 +274,11 @@ npx tsx libs/dev-tools/src/bin/craft-slice-precision.ts \
   --tsconfig apps/demo/tsconfig.graph.json --commits 20
 ```
 
-| chiffre                    | tranche = nœuds seuls | tranche = nœuds **+ fichiers** | seuil       |
-| -------------------------- | --------------------- | ------------------------------ | ----------- |
-| taux d'invalidation médian | 0,0 %                 | **0,0 %**                      | ≤ 25 %      |
-| taux maximal               | 45,5 %                | 55,8 % (un commit de 88 fichiers) | —        |
-| faux négatifs              | 0                     | **0**                          | 0, bloquant |
+| chiffre                    | tranche = nœuds seuls | tranche = nœuds **+ fichiers**    | seuil       |
+| -------------------------- | --------------------- | --------------------------------- | ----------- |
+| taux d'invalidation médian | 0,0 %                 | **0,0 %**                         | ≤ 25 %      |
+| taux maximal               | 45,5 %                | 55,8 % (un commit de 88 fichiers) | —           |
+| faux négatifs              | 0                     | **0**                             | 0, bloquant |
 
 224 tranches (composants, routes, services). **Le point de décision est franchi**
 et la vague 2 est ouverte.
@@ -668,27 +668,27 @@ vérifier que la suite **échoue en nommant la géométrie qui a bougé** — pa
 
 Vagues 0, 1, 2 et 4 livrées ; vague 3 volontairement **fermée** (voir la tâche 15).
 
-| tâche                                | état                                              | où                                                                                |
-| ------------------------------------ | ------------------------------------------------- | --------------------------------------------------------------------------------- |
-| 1 · identifiants stables             | fait                                              | `dependency-graph.ts`, `code-slice.spec.ts`                                       |
-| 2 · hash par nœud, fermeture, merkle | fait                                              | `code-slice.ts`                                                                   |
-| 3 · mesure de précision              | fait — **0 % médian, 0 faux négatif**             | `slice-precision.ts`                                                              |
-| 4 · modèle et registre               | fait                                              | `libs/attest/src/lib/{attestation,ledger}.ts`                                     |
-| 5 · état et report automatique       | fait                                              | `state.ts`                                                                        |
-| 6 · sujet `test`                     | fait                                              | `subjects/test.ts`, `test-slice.ts`                                               |
-| 7 · CLI                              | fait                                              | `libs/cli/src/lib/commands/attest.ts`                                             |
-| 8 · rapport inverse                  | fait                                              | `attest unwatched`                                                                |
-| 9 · harnais déterministe             | fait — **100 rendus, 1 digest**                   | `determinism.ts`                                                                  |
-| 10 · digest v1 + migration           | fait                                              | `digest.ts`                                                                       |
-| 11 · assertions automatiques         | fait — témoin allemand vert                       | `assertions.ts`                                                                   |
-| 12 · sujet `visual` sur la matrice   | fait — **4 scénarios sur une route réelle**       | `subjects/visual.ts`, `lib/attest.ts`, `apps/demo/e2e/visual-attestation.spec.ts` |
-| 13 · surface de revue                | fait — rapport visuel raccordé à la CLI et au CAS | `lib/review/`, `libs/cli/src/lib/commands/attest.ts`                              |
-| 14 · bascules par dichotomie         | fait                                              | `transitions.ts`                                                                  |
-| 15 · marge avant rupture             | fait — **≈ 3 ms/rendu**                           | `margin.ts`                                                                       |
-| 16 – 23 · la page                    | **non ouvert** (conditionnel)                     | —                                                                                 |
-| 24 · locale la plus longue           | fait                                              | `i18n/src/lib/visual-testing.ts`                                                  |
-| 25 · pseudo-locale                   | fait                                              | idem                                                                              |
-| 26 · pluriels et bornes de tokens    | fait                                              | idem                                                                              |
+| tâche                                | état                                                                 | où                                                                                |
+| ------------------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1 · identifiants stables             | fait                                                                 | `dependency-graph.ts`, `code-slice.spec.ts`                                       |
+| 2 · hash par nœud, fermeture, merkle | fait                                                                 | `code-slice.ts`                                                                   |
+| 3 · mesure de précision              | fait — **0 % médian, 0 faux négatif**                                | `slice-precision.ts`                                                              |
+| 4 · modèle et registre               | fait                                                                 | `libs/attest/src/lib/{attestation,ledger}.ts`                                     |
+| 5 · état et report automatique       | fait                                                                 | `state.ts`                                                                        |
+| 6 · sujet `test`                     | fait                                                                 | `subjects/test.ts`, `test-slice.ts`                                               |
+| 7 · CLI                              | fait                                                                 | `libs/cli/src/lib/commands/attest.ts`                                             |
+| 8 · rapport inverse                  | fait                                                                 | `attest unwatched`                                                                |
+| 9 · harnais déterministe             | fait — **100 rendus, 1 digest**                                      | `determinism.ts`                                                                  |
+| 10 · digest v1 + migration           | fait                                                                 | `digest.ts`                                                                       |
+| 11 · assertions automatiques         | fait — témoin allemand vert                                          | `assertions.ts`                                                                   |
+| 12 · sujet `visual` sur la matrice   | fait — **4 scénarios sur une route réelle**                          | `subjects/visual.ts`, `lib/attest.ts`, `apps/demo/e2e/visual-attestation.spec.ts` |
+| 13 · surface de revue                | fait — application CraftTS, API locale, queue dynamique, métadonnées | `lib/review/`, `review-app/`, `libs/cli/src/lib/commands/attest.ts`               |
+| 14 · bascules par dichotomie         | fait                                                                 | `transitions.ts`                                                                  |
+| 15 · marge avant rupture             | fait — **≈ 3 ms/rendu**                                              | `margin.ts`                                                                       |
+| 16 – 23 · la page                    | **non ouvert** (conditionnel)                                        | —                                                                                 |
+| 24 · locale la plus longue           | fait                                                                 | `i18n/src/lib/visual-testing.ts`                                                  |
+| 25 · pseudo-locale                   | fait                                                                 | idem                                                                              |
+| 26 · pluriels et bornes de tokens    | fait                                                                 | idem                                                                              |
 
 ## Écarts assumés
 
@@ -717,12 +717,12 @@ Vagues 0, 1, 2 et 4 livrées ; vague 3 volontairement **fermée** (voir la tâch
 
 ```sh
 npx tsc -b tsconfig.json --pretty false
-node tools/run-lib-vitest.mjs libs/attest/vitest.config.ts          # 35
-node tools/run-lib-vitest.mjs libs/style-testing/vitest.config.mts  # 75
+node tools/run-lib-vitest.mjs libs/attest/vitest.config.ts          # 36
+node tools/run-lib-vitest.mjs libs/style-testing/vitest.config.mts  # 77
 node tools/run-lib-vitest.mjs libs/dev-tools/vitest.config.mts      # 748
 node tools/run-lib-vitest.mjs libs/i18n/vitest.config.ts            # 26
 node tools/run-lib-vitest.mjs libs/cli/vitest.config.ts             # 55
-npx playwright test --config libs/style-testing/playwright.config.ts  # 9, Chromium
+npx playwright test --config libs/style-testing/playwright.config.ts  # 10, Chromium
 CRAFT_VISUAL_REPORT=.craft/runs/design-system.json \
   npx playwright test apps/demo/e2e/visual-attestation.spec.ts \
   --config apps/demo/playwright.config.ts --project chromium          # 1, Chromium
@@ -745,11 +745,20 @@ l'identifiant portable
 `component:apps/demo/src/app/examples/design-system/design-system-demo.ts:designSystemDemo` ;
 la CLI l'a résolu contre `apps/demo/tsconfig.graph.json` et a calculé :
 
-- une empreinte de tranche commune aux quatre scénarios :
-  `39a2a638df0af359fa53af241d20f755` ;
+- une empreinte de tranche commune aux quatre scénarios ;
 - quatre digests distincts ;
-- `missing: 4` dans un ledger vide, puis une file locale de **4 éléments regroupés
-  en 1 décision** (même forme « jamais attesté »).
+- `missing: 4` dans un ledger vide, puis une file locale de **4 éléments et 4
+  décisions**. Une première capture ne possède aucun delta comparable et n'est
+  donc jamais regroupée avec une autre.
+
+La surface initiale en HTML statique a été remplacée par une application CraftTS.
+Elle consomme une API locale tenue par la CLI, actualise les compteurs après chaque
+écriture confirmée, garde une carte visible en cas d'échec, expose les actions par
+boutons et raccourcis, et centre la preuve dans un canvas avec zoom ajusté/réel.
+Chaque capture transporte aussi son viewport, la taille de l'élément capturé, le
+schéma de couleur, le navigateur et le sélecteur racine. Pour le témoin actuel,
+`base` vaut explicitement `375×900` et `viewport=md` vaut `768×900` ; ce sont des
+faits affichés, plus une convention implicite.
 
 Aucun verdict n'a été écrit pendant cette vérification : le premier jugement reste
 nécessairement humain. Les rapports et PNG vont dans `.craft/runs/`, hors git ; le
@@ -798,13 +807,13 @@ tenue ; ce qui est perdu, c'est seulement le calcul économisé.
 
 ### Boucle vérifiée de bout en bout, sur du vrai code
 
-| geste | attendu | obtenu |
-| --- | --- | --- |
-| attester 4 scénarios de `/design-system` | — | `current 4` |
-| déplacer `constant` de 20 lignes (cosmétique) | rien en file | **`renewed 4`**, `review 0` |
-| `progress: 40 → 55` (vrai changement) | re-rendu | **`renewed 4`** (empreinte bougée) |
-| recapturer après ce changement | un humain | **`review 4` — « the output changed »** |
-| `attest why <sujet>` | nommer ce qui a bougé | 3 nœuds `property:` nommés |
+| geste                                         | attendu               | obtenu                                  |
+| --------------------------------------------- | --------------------- | --------------------------------------- |
+| attester 4 scénarios de `/design-system`      | —                     | `current 4`                             |
+| déplacer `constant` de 20 lignes (cosmétique) | rien en file          | **`renewed 4`**, `review 0`             |
+| `progress: 40 → 55` (vrai changement)         | re-rendu              | **`renewed 4`** (empreinte bougée)      |
+| recapturer après ce changement                | un humain             | **`review 4` — « the output changed »** |
+| `attest why <sujet>`                          | nommer ce qui a bougé | 3 nœuds `property:` nommés              |
 
 ### Ce qui reste ouvert
 

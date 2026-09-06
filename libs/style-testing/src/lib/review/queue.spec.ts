@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildReviewQueue, expandDecision, type ReviewItem } from './queue.ts';
-import { renderReviewPage } from './server.ts';
+import { startReviewServer, type ReviewApiQueue } from './server.ts';
 import { layoutDigest, STYLE_KEYS, type MeasuredElement } from '../digest.ts';
 
 const blank = Object.fromEntries(STYLE_KEYS.map((key) => [key, '']));
@@ -59,11 +59,79 @@ describe('buildReviewQueue', () => {
     expect(queue.cards[0]?.changes).toEqual([]);
     expect(queue.cards[0]?.shape).toContain('never attested');
   });
+
+  it('keeps new subjects separate because there is no delta to cluster yet', () => {
+    const queue = buildReviewQueue([
+      {
+        subject: 'visual:New#base',
+        reason: 'never attested',
+        digest: digestWith('card', '4px'),
+      },
+      {
+        subject: 'visual:New#scheme=dark',
+        reason: 'never attested',
+        digest: digestWith('card', '4px'),
+      },
+    ]);
+
+    expect(queue.items).toBe(2);
+    expect(queue.cards).toHaveLength(2);
+    expect(queue.cards.map((card) => card.cluster)).toEqual([
+      ['visual:New#base'],
+      ['visual:New#scheme=dark'],
+    ]);
+  });
+
+  it('keeps each clustered scenario image and capture metadata', () => {
+    const queue = buildReviewQueue([
+      {
+        ...item('a', 'card', '8px'),
+        image: 'image-a',
+        metadata: { viewport: { width: 375, height: 900 } },
+      },
+      {
+        ...item('b', 'card', '8px'),
+        image: 'image-b',
+        metadata: { viewport: { width: 768, height: 900 } },
+      },
+    ]);
+
+    expect(queue.cards[0]?.members).toEqual([
+      {
+        subject: 'a',
+        image: 'image-a',
+        metadata: { viewport: { width: 375, height: 900 } },
+      },
+      {
+        subject: 'b',
+        image: 'image-b',
+        metadata: { viewport: { width: 768, height: 900 } },
+      },
+    ]);
+  });
+
+  it('keeps the previous rejection reason on the review card', () => {
+    const queue = buildReviewQueue([
+      {
+        subject: 'visual:Card#base',
+        reason: "last verdict was 'rejected'",
+        digest: digestWith('card', '8px'),
+        rejectionReason: 'The title wraps onto the button.',
+      },
+    ]);
+
+    expect(queue.cards[0]?.rejectionReason).toBe(
+      'The title wraps onto the button.',
+    );
+  });
 });
 
 describe('expandDecision', () => {
   it('writes the cluster into every attestation the decision covers', () => {
-    const queue = buildReviewQueue([item('a', 'card', '8px'), item('b', 'card', '8px')]);
+    const queue = buildReviewQueue([
+      item('a', 'card', '8px'),
+      item('b', 'card', '8px'),
+    ]);
     const [card] = queue.cards;
     if (!card) throw new Error('the queue should hold one card');
     const expanded = expandDecision({
@@ -87,25 +155,135 @@ describe('expandDecision', () => {
   });
 });
 
-describe('renderReviewPage', () => {
-  it('shows why a card is there and what changed', () => {
-    const queue = buildReviewQueue([item('visual:Card#base', 'card', '8px')]);
-    const html = renderReviewPage(queue.cards, queue.items);
-    expect(html).toContain('the output changed');
-    expect(html).toContain('border-radius 4px→8px');
-    expect(html).toContain('<kbd>a</kbd> accept');
+describe('review server', () => {
+  it('updates its queue only after a decision is persisted', async () => {
+    const decided: string[] = [];
+    const running = await startReviewServer({
+      port: 0,
+      items: [
+        {
+          subject: 'visual:Card#base',
+          reason: 'never attested',
+          digest: digestWith('card', '4px'),
+        },
+        {
+          subject: 'visual:Card#scheme=dark',
+          reason: 'never attested',
+          digest: digestWith('card', '4px'),
+        },
+      ],
+      onDecision: ({ shape }) => void decided.push(shape),
+    });
+
+    try {
+      const initial = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      expect(initial).toMatchObject({ items: 2, decisions: 2 });
+
+      const response = await fetch(`${running.url}/api/decisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: initial.cards[0]?.shape,
+          verdict: 'ok',
+        }),
+      });
+      expect(response.ok).toBe(true);
+      expect((await response.json()) as ReviewApiQueue).toMatchObject({
+        items: 1,
+        decisions: 1,
+      });
+      expect(decided).toEqual([initial.cards[0]?.shape]);
+
+      const html = await fetch(running.url).then((value) => value.text());
+      expect(html).toContain('src="/src/main.ts"');
+      expect(html).not.toContain('visual:Card#base');
+    } finally {
+      await running.close();
+    }
   });
 
-  it('escapes a subject rather than pasting it into the markup', () => {
-    const queue = buildReviewQueue([
-      {
-        subject: 'visual:<script>alert(1)</script>#base',
-        reason: 'never attested',
-        digest: digestWith('card', '4px'),
+  it('keeps a card in the queue when persistence fails', async () => {
+    const running = await startReviewServer({
+      port: 0,
+      items: [
+        {
+          subject: 'visual:Card#base',
+          reason: 'never attested',
+          digest: digestWith('card', '4px'),
+        },
+      ],
+      onDecision: () => {
+        throw new Error('ledger is read-only');
       },
-    ]);
-    const html = renderReviewPage(queue.cards, queue.items);
-    expect(html).not.toContain('<script>alert(1)</script>');
-    expect(html).toContain('&lt;script&gt;');
+    });
+
+    try {
+      const initial = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      const response = await fetch(`${running.url}/api/decisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: initial.cards[0]?.shape,
+          verdict: 'ok',
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: 'ledger is read-only' });
+      expect(
+        (await fetch(`${running.url}/api/review`).then((value) =>
+          value.json(),
+        )) as ReviewApiQueue,
+      ).toMatchObject({ items: 1, decisions: 1 });
+    } finally {
+      await running.close();
+    }
+  });
+
+  it('requires a reason before persisting a rejection', async () => {
+    const decided: string[] = [];
+    const running = await startReviewServer({
+      port: 0,
+      items: [
+        {
+          subject: 'visual:Card#base',
+          reason: 'never attested',
+          digest: digestWith('card', '4px'),
+        },
+      ],
+      onDecision: ({ note }) => void decided.push(note ?? ''),
+    });
+
+    try {
+      const initial = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      const response = await fetch(`${running.url}/api/decisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: initial.cards[0]?.shape,
+          verdict: 'rejected',
+          note: '   ',
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: 'review: rejected decisions require a reason.',
+      });
+      expect(decided).toEqual([]);
+      expect(
+        (await fetch(`${running.url}/api/review`).then((value) =>
+          value.json(),
+        )) as ReviewApiQueue,
+      ).toMatchObject({ items: 1, decisions: 1 });
+    } finally {
+      await running.close();
+    }
   });
 });

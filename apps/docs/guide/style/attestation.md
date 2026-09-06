@@ -178,7 +178,9 @@ screenshots are regenerable and ignored; the ledger is not.
 craft-ts attest status --report vitest-report.json
 craft-ts attest why 'visual:userCard#viewport=md'
 craft-ts attest renew --subject 'visual:userCard#viewport=md' --verdict ok
-craft-ts attest review
+craft-ts attest review \
+  --report .craft/runs/design-system.json \
+  --tsconfig apps/demo/tsconfig.graph.json
 craft-ts attest unwatched
 ```
 
@@ -204,6 +206,26 @@ entirely. And the queue **clusters by the shape of the diff**: one border-radius
 change produces two hundred scenarios with an identical delta, and one decision
 covers all of them — with the cluster written into every attestation it covered,
 so "judged" and "judged alongside 199 others" stay distinguishable.
+
+The review surface is itself a CraftTS application. A `query` owns the live
+queue, a `mutation` records each decision, and local `state` owns navigation,
+notes and evidence zoom. The Node server remains the authority for the ledger
+and the content-addressed evidence store. A card disappears only after that
+server confirms the write; failures remain visible and reviewable.
+`attest review` attempts to open the local URL in the default browser and always
+prints it so headless or remote environments can open it manually.
+
+First-time captures are deliberately **not clustered**. With no approved digest
+there is no delta proving that two new screenshots represent the same change.
+The UI shows one decision per scenario, its exact viewport, captured element
+size, colour scheme, browser version and target selector. Real identical deltas
+may still be clustered, with every covered scenario listed before the decision.
+
+The default shortcuts are `j`/`k` to move, `a` to accept, `n` to accept with a
+non-empty note and `r` to reject. A rejection requires a non-empty reason. That
+reason is stored in the ledger and shown prominently if the scenario returns to
+the review queue, so it can guide the corrective code change. The same actions
+are available as buttons.
 
 ## What this does not replace
 
