@@ -450,11 +450,44 @@ export interface DigestPage {
  * undefined — as a runtime error if you are lucky, and as a silently empty
  * measurement if you are not.
  */
-export function measureInPage(options: {
-  root?: string;
-  intrinsic?: readonly string[];
-  styleKeys: readonly string[];
-}): { elements: MeasuredElement[]; scope: CaptureScope } {
+export function measureInPage(
+  options: {
+    root?: string;
+    intrinsic?: readonly string[];
+    styleKeys: readonly string[];
+    /**
+     * Writes each node's address onto the element, under this attribute.
+     *
+     * Opt-in, and never used while capturing: it mutates the tree. It exists
+     * so a replayed document can be *asked* what a node is called instead of
+     * a second walk being zipped against this one by index — two walks that
+     * silently disagree would have a reviewer designate the wrong node.
+     */
+    markPathAttribute?: string;
+  },
+  /**
+   * The window to measure. Defaults to the one the function runs in.
+   *
+   * Explicit so the same collector can measure a replayed snapshot from the
+   * parent frame, where `document` would otherwise be the review application's
+   * own. A driver calls this with one argument, so the default applies there
+   * and the function stays serialisable by `toString()`.
+   */
+  view: Window & typeof globalThis = globalThis as Window & typeof globalThis,
+): { elements: MeasuredElement[]; scope: CaptureScope } {
+  const document = view.document;
+  const innerWidth = view.innerWidth;
+  const innerHeight = view.innerHeight;
+  const getComputedStyle = (element: Element, pseudo?: string | null) =>
+    view.getComputedStyle(element, pseudo);
+  // Duck-typed rather than `instanceof HTMLElement`: an element measured
+  // through another frame belongs to that frame's realm, and every
+  // `instanceof` against this one is false.
+  const isStyleable = (
+    element: Element,
+  ): element is Element & { style: CSSStyleDeclaration } =>
+    'style' in element;
+
   const root: Element =
     (options.root ? document.querySelector(options.root) : null) ??
     document.documentElement;
@@ -486,14 +519,20 @@ export function measureInPage(options: {
   };
 
   const linesOf = (element: Element): number => {
+    const hasText = element.textContent?.trim() ? 1 : 0;
     const range = document.createRange();
     range.selectNodeContents(element);
+    // A layout-less document — jsdom, say — has no client rects to hand out.
+    // Degrading to "one line if there is text" keeps the collector usable for
+    // addressing a replayed tree, which needs no geometry at all; measuring a
+    // real render is what a browser is for, and the browser suite covers it.
+    if (typeof range.getClientRects !== 'function') return hasText;
     const rects = [...range.getClientRects()].filter((rect) => rect.height > 0);
     const tops = new Set(rects.map((rect) => Math.round(rect.top * 2) / 2));
-    return tops.size || (element.textContent?.trim() ? 1 : 0);
+    return tops.size || hasText;
   };
 
-  const intrinsicOf = (element: HTMLElement) => {
+  const intrinsicOf = (element: Element & { style: CSSStyleDeclaration }) => {
     const previous = element.style.width;
     element.style.width = 'min-content';
     const minContent = element.getBoundingClientRect().width;
@@ -511,6 +550,9 @@ export function measureInPage(options: {
   const visit = (element: Element, parent: string | undefined): void => {
     const path = addressOf(element);
     seen.push({ element, path });
+    if (options.markPathAttribute) {
+      element.setAttribute(options.markPathAttribute, path);
+    }
     const computed = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
     const styles: Record<string, string> = {};
@@ -557,7 +599,7 @@ export function measureInPage(options: {
             },
           }
         : {}),
-      ...(wanted.has(path) && element instanceof HTMLElement
+      ...(wanted.has(path) && isStyleable(element)
         ? { intrinsic: intrinsicOf(element) }
         : {}),
       zOrder: Number.parseInt(computed.zIndex, 10) || 0,

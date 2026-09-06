@@ -856,6 +856,9 @@ async function review(
       ...(artifact.capture.snapshotRisks?.length
         ? { risks: artifact.capture.snapshotRisks }
         : {}),
+      ...(stored.get(status.subject)?.evidence
+        ? { evidence: stored.get(status.subject)?.evidence }
+        : {}),
       ...(artifact.capture.metadata
         ? { metadata: artifact.capture.metadata }
         : {}),
@@ -877,6 +880,7 @@ async function review(
     items,
     imageFor: async (hash) => await store.get(hash, '.png'),
     snapshotFor: async (hash) => await store.getText(hash, '.snapshot.html'),
+    digestFor: async (hash) => await store.getText(hash, '.digest.json'),
     onDecision: async (decision) => {
       const card = cards.get(decision.shape);
       if (!card) throw new Error('review: that diff cluster no longer exists.');

@@ -38,6 +38,14 @@ export interface ReviewItem {
   readonly approved?: LayoutDigest;
   /** Evidence hash of the screenshot, for the store. */
   readonly image?: string;
+  /**
+   * Hash of the attested digest.
+   *
+   * An address rather than the digest itself: the browser fetches the one card
+   * it is showing. Pushing every digest into the queue would put megabytes on
+   * the wire for a two-hundred-scenario cluster to answer a question about one.
+   */
+  readonly evidence?: string;
   /** Evidence hash of the frozen document, when one was captured. */
   readonly snapshot?: string;
   /**
@@ -57,6 +65,7 @@ export interface ReviewMember {
   readonly subject: string;
   readonly image?: string;
   readonly snapshot?: string;
+  readonly evidence?: string;
   readonly risks?: readonly SnapshotRiskNote[];
   readonly metadata?: VisualCaptureMetadata;
   /**
@@ -162,6 +171,7 @@ export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
             subject: item.subject,
             ...(item.image ? { image: item.image } : {}),
             ...(item.snapshot ? { snapshot: item.snapshot } : {}),
+            ...(item.evidence ? { evidence: item.evidence } : {}),
             ...(item.risks?.length ? { risks: item.risks } : {}),
             ...(item.metadata ? { metadata: item.metadata } : {}),
             attested: attestedByItem.get(item.subject) ?? [],

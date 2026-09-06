@@ -46,6 +46,25 @@ type DecisionVerdict =
   | 'known-issue'
   | 'blocked';
 type ZoomMode = 'fit' | 'actual';
+type EvidenceView = 'replay' | 'image';
+
+interface Finding {
+  readonly path: string;
+  readonly note: string;
+}
+
+/**
+ * The frozen document, once the browser has decided whether to trust it.
+ *
+ * `faithful` is measured here rather than taken from the capture machine: the
+ * only replay worth vouching for is the one on the screen the reviewer is
+ * looking at.
+ */
+interface ReplayState {
+  readonly loaded: boolean;
+  readonly faithful: boolean;
+  readonly report: readonly string[];
+}
 
 const scenarioOf = (subject: string): string =>
   subject.slice(subject.lastIndexOf('#') + 1);
@@ -71,6 +90,12 @@ const requestJson = async <Value>(
   }
   return value as Value;
 };
+
+const snapshotUrl = (hash: string): string =>
+  `/api/snapshot/${encodeURIComponent(hash)}`;
+
+const digestUrl = (hash: string): string =>
+  `/api/digest/${encodeURIComponent(hash)}`;
 
 const imageUrl = (hash: string): string =>
   `/api/evidence/${encodeURIComponent(hash)}`;

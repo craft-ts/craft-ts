@@ -5,4 +5,5 @@
  * no socket; `server.ts` is the thin shell that puts it on localhost.
  */
 export * from './queue.js';
+export * from './frame.js';
 export * from './server.js';

@@ -51,6 +51,8 @@ export interface ReviewServerOptions {
    * work back into the snapshot, where it would stop being inert.
    */
   readonly snapshotFor?: (hash: string) => Promise<string | undefined>;
+  /** Serves the attested digest by evidence hash, so the replay can be checked. */
+  readonly digestFor?: (hash: string) => Promise<string | undefined>;
   /** Override used by package tests and embedders. */
   readonly appRoot?: string;
 }
@@ -224,6 +226,28 @@ export async function startReviewServer(
             error: error instanceof Error ? error.message : 'bad request',
           });
         }
+      })();
+      return;
+    }
+
+    const digestPrefix = '/api/digest/';
+    if (request.method === 'GET' && url.pathname.startsWith(digestPrefix)) {
+      void (async () => {
+        const hash = decodeURIComponent(url.pathname.slice(digestPrefix.length));
+        if (!/^[a-f0-9]{32}$/.test(hash)) {
+          response.writeHead(400).end();
+          return;
+        }
+        const digest = await options.digestFor?.(hash);
+        if (digest === undefined) {
+          response.writeHead(404).end();
+          return;
+        }
+        response.writeHead(200, {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'public, max-age=31536000, immutable',
+        });
+        response.end(digest);
       })();
       return;
     }
