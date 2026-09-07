@@ -29,6 +29,7 @@ const ATTESTED = 'data-craft-attested';
 const PATH = 'data-craft-path';
 const DECOR = 'data-craft-decor';
 const CHROME = 'data-craft-chrome';
+const HIGHLIGHT = 'data-craft-highlight';
 const UNRENDERED = new Set([
   'HEAD',
   'SCRIPT',
@@ -217,6 +218,9 @@ export function markTiers(
     [data-craft-tier="attested"]:hover { outline: 2px dashed ${TIERS.subject.colour}; outline-offset: 1px; cursor: crosshair; }
     [data-craft-tier="occluded"] { outline: 2px ${TIERS.occluded.style} ${TIERS.occluded.colour}; outline-offset: 1px; }
     [data-craft-picked] { outline: 3px ${TIERS.picked.style} ${TIERS.picked.colour} !important; outline-offset: 2px; }
+    /* Pointing at a reference, not selecting: dashed, so it cannot be mistaken
+       for the selection it is showing the history of. */
+    [${HIGHLIGHT}] { outline: 3px dashed ${TIERS.picked.colour} !important; outline-offset: 4px; }
   `;
   const changed = new Set(options.changed);
   const occluded = new Set(options.occluded);
@@ -372,6 +376,25 @@ export function markSelection(view: FrameView, paths: readonly string[]): void {
   }
 }
 
+/**
+ * Shows which nodes a reference in the reason stands for.
+ *
+ * Separate from the selection: a reference is usually pointed at long after
+ * the selection that made it was cleared, and the two must not be confused —
+ * one is what a remark *will* name, the other what an existing one already
+ * does.
+ */
+export function markHighlight(view: FrameView, paths: readonly string[]): void {
+  const wanted = new Set(paths);
+  for (const element of view.document.querySelectorAll(`[${PATH}]`)) {
+    if (wanted.has(element.getAttribute(PATH) ?? '')) {
+      element.setAttribute(HIGHLIGHT, '');
+    } else {
+      element.removeAttribute(HIGHLIGHT);
+    }
+  }
+}
+
 /** The current selection, read back from the frame itself. */
 export function selectionOf(view: FrameView): readonly string[] {
   return [...view.document.querySelectorAll(`[${PICKED}]`)]
@@ -389,22 +412,17 @@ export function selectionOf(view: FrameView): readonly string[] {
  * - a click selects one node;
  * - ctrl (or cmd) click adds or removes one, keeping the rest;
  * - dragging a box selects everything the box touches, adding to the selection
- *   when ctrl or cmd is held;
- * - right-clicking asks for a menu on the selection, taking the node under the
- *   cursor first when it was not already in it.
+ *   when ctrl or cmd is held.
  *
- * The band and the menu are reported to the caller rather than drawn here.
- * Drawing them would mean inserting elements into the frozen document, and the
- * whole claim this page makes is that nothing was inserted into it.
+ * The band is reported to the caller rather than drawn here. Drawing it would
+ * mean inserting an element into the frozen document, and the whole claim this
+ * page makes is that nothing was inserted into it.
  */
 export function onPick(
   view: FrameView,
   handler: (paths: readonly string[]) => void,
   options: {
     readonly onBand?: (band: Rect | undefined) => void;
-    readonly onMenu?: (
-      at: { readonly x: number; readonly y: number } | undefined,
-    ) => void;
   } = {},
 ): () => void {
   const { document } = view;
@@ -455,21 +473,7 @@ export function onPick(
     );
   };
 
-  const onContext = (event: MouseEvent): void => {
-    const picked = (event.target as Element | null)?.closest?.(`[${PATH}]`);
-    // Outside the subject the page's own context menu is the right answer:
-    // there is nothing here to file a remark against.
-    if (!picked) return;
-    event.preventDefault();
-    const path = picked.getAttribute(PATH) ?? '';
-    // Right-clicking outside the current selection moves it rather than
-    // opening a menu about nodes the reviewer is no longer pointing at.
-    if (!selectionOf(view).includes(path)) commit([path]);
-    options.onMenu?.({ x: event.clientX, y: event.clientY });
-  };
-
   const onDown = (event: MouseEvent): void => {
-    options.onMenu?.(undefined);
     if (event.button !== 0) return;
     origin = { x: event.clientX, y: event.clientY };
     banding = false;
@@ -516,12 +520,10 @@ export function onPick(
   document.addEventListener('mousedown', onDown, true);
   document.addEventListener('mousemove', onMove, true);
   document.addEventListener('mouseup', onUp, true);
-  document.addEventListener('contextmenu', onContext, true);
   return () => {
     document.removeEventListener('click', onClick, true);
     document.removeEventListener('mousedown', onDown, true);
     document.removeEventListener('mousemove', onMove, true);
     document.removeEventListener('mouseup', onUp, true);
-    document.removeEventListener('contextmenu', onContext, true);
   };
 }

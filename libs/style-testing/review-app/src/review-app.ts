@@ -41,6 +41,7 @@ import type {
 import {
   checkReplay,
   markTiers,
+  markHighlight,
   markSelection,
   onPick,
   REVIEW_TOLERANCE,
@@ -225,6 +226,21 @@ const mentionToken = (id: number, count: number): string =>
  */
 const MENTION_ID = 'data-mention-id';
 
+const describePaths = (paths: readonly string[]): string =>
+  paths.length > 6
+    ? `${paths.slice(0, 6).join(' · ')} · +${paths.length - 6} more`
+    : paths.join(' · ');
+
+/** Re-labels a reference in place, so refining a selection edits it. */
+const relabelChip = (chip: HTMLElement, paths: readonly string[]): void => {
+  chip.setAttribute('data-count', String(paths.length));
+  chip.setAttribute('data-paths', describePaths(paths));
+  chip.textContent = mentionToken(
+    Number(chip.getAttribute(MENTION_ID) ?? 0),
+    paths.length,
+  );
+};
+
 const chipFor = (
   document: Document,
   id: number,
@@ -236,12 +252,7 @@ const chipFor = (
   chip.setAttribute('data-count', String(paths.length));
   // Not `title`: a native tooltip waits a second, cannot be styled, and would
   // sit on top of the one drawn here.
-  chip.setAttribute(
-    'data-paths',
-    paths.length > 6
-      ? `${paths.slice(0, 6).join(' · ')} · +${paths.length - 6} more`
-      : paths.join(' · '),
-  );
+  chip.setAttribute('data-paths', describePaths(paths));
   // Atomic: the caret steps over it and a backspace removes the whole
   // reference, which is what deleting a reference should mean.
   chip.contentEditable = 'false';
@@ -382,14 +393,7 @@ export const ReviewApp = craftComponent(
         clear: () => set([]),
       }),
     );
-    /** Where the reviewer right-clicked, in the frame's own coordinates. */
-    const menuAt = yield* state(
-      'menuAt',
-      undefined as { x: number; y: number } | undefined,
-      ({ set }) => ({
-        show: (at: { x: number; y: number } | undefined) => set(at),
-      }),
-    );
+
     const hideChrome = yield* state('hideChrome', false, ({ set }) => ({
       choose: (value: boolean) => set(value),
     }));
@@ -431,6 +435,7 @@ export const ReviewApp = craftComponent(
       'selectNodes',
       function* (paths: readonly string[]) {
         yield* selection.replace(paths);
+        trackSelection(paths);
       },
     );
     const showBand = craftMethod(
@@ -441,12 +446,6 @@ export const ReviewApp = craftComponent(
           | undefined,
       ) {
         yield* band.show(rect);
-      },
-    );
-    const showMenu = craftMethod(
-      'showMenu',
-      function* (at: { x: number; y: number } | undefined) {
-        yield* menuAt.show(at);
       },
     );
     // Replaced on every re-mark. Without it each toggle of the page chrome
@@ -462,6 +461,73 @@ export const ReviewApp = craftComponent(
      * live selection left to insert into.
      */
     let caret: Range | undefined;
+    /**
+     * The reference the current selection is still writing.
+     *
+     * Selecting drops the reference by itself, and refining the selection
+     * edits that same one rather than adding a second — otherwise a click
+     * followed by a ctrl-click would leave a stale "1 node" behind the "2
+     * nodes" that replaced it. Typing ends the session: the reference is part
+     * of a sentence now, and the next selection starts a new one.
+     */
+    let livePick: number | undefined;
+
+    /**
+     * Fits the frozen page to the window, by drawing it smaller.
+     *
+     * `transform`, never a width: the frame has to stay exactly the viewport
+     * the page laid itself out in, or the replay stops being the render that
+     * was measured and the fidelity check says so. A transform changes what is
+     * painted and nothing about what was measured — `getBoundingClientRect`
+     * inside the frame is in the frame's own coordinates either way.
+     *
+     * The band is inside the scaled box rather than beside it, so a rectangle
+     * dragged in frame coordinates lands where the pointer was.
+     */
+    let fitReplay = true;
+    const applyReplayScale = (): void => {
+      const frame = document.getElementById(FRAME_ID);
+      if (!(frame instanceof HTMLIFrameElement)) return;
+      const box = frame.closest('.replay-scale');
+      const holder = frame.closest('.replay-holder');
+      const canvas = frame.closest('.evidence-canvas');
+      if (
+        !(box instanceof HTMLElement) ||
+        !(holder instanceof HTMLElement) ||
+        !(canvas instanceof HTMLElement)
+      ) {
+        return;
+      }
+      const width = Number(frame.getAttribute('width')) || frame.offsetWidth;
+      const height = Number(frame.getAttribute('height')) || frame.offsetHeight;
+      if (!width || !height) return;
+      // The canvas' own padding, which the frame may not take.
+      const style = globalThis.getComputedStyle(canvas);
+      const room =
+        canvas.clientWidth -
+        Number.parseFloat(style.paddingLeft) -
+        Number.parseFloat(style.paddingRight);
+      const headroom =
+        canvas.clientHeight -
+        Number.parseFloat(style.paddingTop) -
+        Number.parseFloat(style.paddingBottom) -
+        // The caption sits under the frame in the same box.
+        56;
+      // Never above 1: a small capture blown up is a blurrier picture of the
+      // same thing, and every judgement about it would be about the blur.
+      const scale = fitReplay
+        ? Math.min(1, room / width, Math.max(headroom, 120) / height)
+        : 1;
+      box.style.transform = scale === 1 ? '' : `scale(${scale})`;
+      holder.style.width = `${Math.round(width * scale)}px`;
+      holder.style.height = `${Math.round(height * scale)}px`;
+    };
+    let watchingWindow = false;
+    const watchWindowSize = (): void => {
+      if (watchingWindow) return;
+      watchingWindow = true;
+      globalThis.addEventListener('resize', applyReplayScale);
+    };
     const reasonField = (): HTMLElement | undefined => {
       const field = document.getElementById(NOTE_ID);
       return field instanceof HTMLElement ? field : undefined;
@@ -474,10 +540,21 @@ export const ReviewApp = craftComponent(
         caret = range.cloneRange();
       }
     };
+    /**
+     * Ends the current pointing session.
+     *
+     * A function rather than the variable itself: the template is a separate
+     * top-level function, so it can only be handed values through the bindings
+     * — and a copied `undefined` would set nothing.
+     */
+    const freezePick = (): void => {
+      livePick = undefined;
+    };
     const clearReason = (): void => {
       const field = reasonField();
       if (field) field.replaceChildren();
       caret = undefined;
+      livePick = undefined;
     };
 
     /**
@@ -540,11 +617,10 @@ export const ReviewApp = craftComponent(
         // annotations: lifting the page's chrome must not silently drop the
         // nodes the reviewer had already pointed at.
         markSelection(view, params.selected);
+        applyReplayScale();
+        watchWindowSize();
         stopPicking?.();
-        stopPicking = onPick(view, selectNodes, {
-          onBand: showBand,
-          onMenu: showMenu,
-        });
+        stopPicking = onPick(view, selectNodes, { onBand: showBand });
 
         return {
           loaded: true,
@@ -594,6 +670,11 @@ export const ReviewApp = craftComponent(
     /** Every sentence, in the language on screen. */
     const t = craftComputed('t', function* (): Generator<never, Messages> {
       return MESSAGES[yield* locale()];
+    });
+    const chooseZoom = craftMethod('chooseZoom', function* (mode: ZoomMode) {
+      yield* zoom.choose(mode);
+      fitReplay = mode === 'fit';
+      applyReplayScale();
     });
     const chooseLocale = craftMethod('chooseLocale', function* (value: Locale) {
       yield* locale.choose(value);
@@ -822,17 +903,56 @@ export const ReviewApp = craftComponent(
      * sentence that explains it, so a second complaint further down the reason
      * can name a different group without either of them losing its text.
      */
-    const addSelectionToReason = craftMethod(
-      'addSelectionToReason',
-      function* () {
-        const paths = yield* selection();
-        if (paths.length === 0) return;
-        const known = yield* mentions();
-        const id =
-          known.reduce((highest, one) => Math.max(highest, one.id), 0) + 1;
-
+    /**
+     * Keeps the reason's live reference in step with what is selected.
+     *
+     * Selecting *is* referencing — there is no second gesture. Refining a
+     * selection edits the reference that is already there rather than adding
+     * another, so a click followed by a ctrl-click leaves one reference saying
+     * "2 nodes" instead of a stale "1 node" beside it. Emptying the selection
+     * takes the reference back out, because a reference to nothing is worse
+     * than none.
+     */
+    const trackSelection = craftMethod(
+      'trackSelection',
+      function* (paths: readonly string[]) {
         const field = reasonField();
         if (!field) return;
+        const known = yield* mentions();
+
+        const live =
+          livePick === undefined
+            ? undefined
+            : field.querySelector<HTMLElement>(`[${MENTION_ID}="${livePick}"]`);
+
+        if (paths.length === 0) {
+          if (!live || livePick === undefined) return;
+          // Take the surrounding space with it, or the sentence keeps a gap
+          // where a reference used to be.
+          const after = live.nextSibling;
+          if (after?.nodeType === Node.TEXT_NODE && after.textContent === ' ') {
+            after.remove();
+          }
+          const id = livePick;
+          live.remove();
+          livePick = undefined;
+          yield* mentions.replace(known.filter((one) => one.id !== id));
+          yield* note.write(textOf(field));
+          return;
+        }
+
+        if (live && livePick !== undefined) {
+          const id = livePick;
+          relabelChip(live, paths);
+          yield* mentions.replace(
+            known.map((one) => (one.id === id ? { id, paths } : one)),
+          );
+          yield* note.write(textOf(field));
+          return;
+        }
+
+        const id =
+          known.reduce((highest, one) => Math.max(highest, one.id), 0) + 1;
 
         // Placed where the reviewer was typing, so a second complaint further
         // down the reason names a different group without either losing its
@@ -863,27 +983,37 @@ export const ReviewApp = craftComponent(
         const after = document.createRange();
         after.setStartAfter(trail);
         after.collapse(true);
-        // Not `selection`: that name is the craft state this method clears a
-        // few lines down, and shadowing it turned `selection.clear()` into a
-        // call on the DOM's own Selection — which has no such method, so the
-        // whole insertion threw before the outlines were taken off.
+        // Not `selection`: that name is a craft state in this component, and
+        // shadowing it once turned `selection.clear()` into a call on the
+        // DOM's own Selection, which has no such method.
         const domSelection = document.getSelection();
         domSelection?.removeAllRanges();
         domSelection?.addRange(after);
         caret = after.cloneRange();
+        livePick = id;
 
         yield* mentions.replace([...known, { id, paths }]);
         yield* note.write(textOf(field));
-        yield* menuAt.show(undefined);
-        // The group is recorded; leaving it outlined would say it still is
-        // not. Cleared in the frame as well as in the state — the outlines are
-        // painted there and nothing else repaints them until the next pick.
-        yield* selection.clear();
+        // Focus follows the reference, once, when it appears: the next thing
+        // to do is say what is wrong with it. Not on every refinement — the
+        // caret would jump while the reviewer is still pointing.
+        field.focus();
+      },
+    );
+
+    /** Paints the nodes a reference stands for, while it is pointed at. */
+    const previewMention = craftMethod(
+      'previewMention',
+      function* (id: number | undefined) {
         const holder = document.getElementById(FRAME_ID);
         const view =
           holder instanceof HTMLIFrameElement ? viewOf(holder) : undefined;
-        if (view) markSelection(view, []);
-        field.focus();
+        if (!view) return;
+        const found =
+          id === undefined
+            ? undefined
+            : (yield* mentions()).find((one) => one.id === id);
+        markHighlight(view, found?.paths ?? []);
       },
     );
 
@@ -948,14 +1078,15 @@ export const ReviewApp = craftComponent(
       toggleChrome,
       mentions,
       activeMentions,
-      menuAt,
-      addSelectionToReason,
+      previewMention,
       rememberCaret,
       clearReason,
+      freezePick,
       locale,
       theme,
       chooseLocale,
       chooseTheme,
+      chooseZoom,
       t,
       fidelitySentence,
     };
@@ -977,13 +1108,15 @@ export const ReviewApp = craftComponent(
     decide,
     current,
     evidenceView,
-    menuAt,
     rememberCaret,
     clearReason,
+    freezePick,
+    previewMention,
     locale,
     theme,
     chooseLocale,
     chooseTheme,
+    chooseZoom,
     t,
     fidelitySentence,
     hideChrome,
@@ -1000,7 +1133,6 @@ export const ReviewApp = craftComponent(
     overlayLabel,
     inspectFrame,
     toggleChrome,
-    addSelectionToReason,
   }) =>
     div({ class: 'app-shell' }, [
       ifNode(reviewFailed, () =>
@@ -1051,7 +1183,7 @@ export const ReviewApp = craftComponent(
                   id: 'review-locale',
                   value: locale,
                   *change(event: Event) {
-                    yield* chooseLocale(eventValue(event) as Locale);
+                    chooseLocale(eventValue(event) as Locale);
                   },
                 },
                 [
@@ -1071,7 +1203,7 @@ export const ReviewApp = craftComponent(
                   id: 'review-theme',
                   value: theme,
                   *change(event: Event) {
-                    yield* chooseTheme(eventValue(event) as ThemeChoice);
+                    chooseTheme(eventValue(event) as ThemeChoice);
                   },
                 },
                 [
@@ -1392,17 +1524,14 @@ export const ReviewApp = craftComponent(
                         overlayLabel,
                       ),
                     ]),
-                    // Only the picture can be scaled. Scaling the frozen page
-                    // would relayout it, and it would stop being the render that
-                    // was measured — so the control is not offered there rather
-                    // than offered and inert.
+                    // Applies to both artefacts, by different means: the
+                    // picture is a picture, and the frozen page is drawn
+                    // smaller with a transform. Never a width — that would
+                    // relayout it and it would stop being what was measured.
                     label(
                       {
                         class: 'field-label',
                         htmlFor: 'evidence-zoom',
-                        hidden: function* () {
-                          return yield* showingReplay();
-                        },
                       },
                       function* () {
                         return (yield* t()).zoom;
@@ -1412,13 +1541,10 @@ export const ReviewApp = craftComponent(
                       'EvidenceZoom',
                       {
                         id: 'evidence-zoom',
-                        hidden: function* () {
-                          return yield* showingReplay();
-                        },
                         'aria-label': 'Evidence zoom',
                         value: zoom,
                         *change(event: Event) {
-                          yield* zoom.choose(eventValue(event) as ZoomMode);
+                          chooseZoom(eventValue(event) as ZoomMode);
                         },
                       },
                       [
@@ -1555,7 +1681,12 @@ export const ReviewApp = craftComponent(
                             return !(yield* showingReplay());
                           },
                         },
-                        [
+                        // The scaled box. The frame keeps its captured size —
+                        // a width change would relayout the page inside it —
+                        // and this is drawn smaller instead. The band rides
+                        // along, so a rectangle dragged in frame coordinates
+                        // lands where the pointer was.
+                        div({ class: 'replay-scale' }, [
                           iframe({
                             id: function* () {
                               const active = yield* current();
@@ -1629,38 +1760,7 @@ export const ReviewApp = craftComponent(
                                 : '';
                             },
                           }),
-                          // The right-click menu, in this document for the
-                          // same reason as the band. One action, because the
-                          // gesture exists to shorten one thing: naming the
-                          // group you are pointing at, inside the sentence you
-                          // are writing.
-                          div(
-                            {
-                              class: 'pick-menu',
-                              role: 'menu',
-                              hidden: function* () {
-                                return !(yield* menuAt());
-                              },
-                              style: function* () {
-                                const at = yield* menuAt();
-                                return at ? `left:${at.x}px;top:${at.y}px` : '';
-                              },
-                            },
-                            button(
-                              'AddSelectionFromMenu',
-                              {
-                                type: 'button',
-                                role: 'menuitem',
-                                click: addSelectionToReason,
-                              },
-                              function* () {
-                                return (yield* t()).menuAdd(
-                                  (yield* selection()).length,
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                        ]),
                       ),
                       div(
                         {
@@ -1826,7 +1926,24 @@ export const ReviewApp = craftComponent(
                       *input(event: Event) {
                         const field = event.currentTarget;
                         if (!(field instanceof HTMLElement)) return;
+                        // The live reference belongs to the sentence now, so
+                        // the next selection starts its own rather than
+                        // rewriting this one.
+                        freezePick();
                         yield* note.write(textOf(field));
+                      },
+                      // Delegated, because the references are built by hand
+                      // rather than rendered: a listener per chip would have
+                      // to be attached and removed on every edit.
+                      mouseover(event: Event) {
+                        const chip = (
+                          event.target as Element | null
+                        )?.closest?.('.mention-chip');
+                        const id = chip?.getAttribute(MENTION_ID);
+                        previewMention(id ? Number(id) : undefined);
+                      },
+                      mouseleave() {
+                        previewMention(undefined);
                       },
                       keyup: rememberCaret,
                       mouseup: rememberCaret,
@@ -1852,24 +1969,6 @@ export const ReviewApp = craftComponent(
                         }
                       },
                     }),
-                    button(
-                      'AddSelectionToReason',
-                      {
-                        type: 'button',
-                        class: 'link-button',
-                        disabled: function* () {
-                          return (yield* selection()).length === 0;
-                        },
-                        click: addSelectionToReason,
-                      },
-                      function* () {
-                        const count = (yield* selection()).length;
-                        const say = yield* t();
-                        return count === 0
-                          ? say.insertNothing
-                          : say.insert(count);
-                      },
-                    ),
                     small(
                       { id: 'review-note-help', class: 'decision-help' },
                       function* () {
@@ -1894,11 +1993,14 @@ export const ReviewApp = craftComponent(
                         'RejectReviewCard',
                         {
                           type: 'button',
+                          'data-hint': function* () {
+                            return (yield* t()).hintReject;
+                          },
                           class: 'danger',
                           'data-hotkey': 'r',
                           disabled: decision.isLoading,
                           *click() {
-                            yield* decide('rejected');
+                            decide('rejected');
                           },
                         },
                         [
@@ -1912,9 +2014,12 @@ export const ReviewApp = craftComponent(
                         'BlockReviewCard',
                         {
                           type: 'button',
+                          'data-hint': function* () {
+                            return (yield* t()).hintBlock;
+                          },
                           disabled: decision.isLoading,
                           *click() {
-                            yield* decide('blocked');
+                            decide('blocked');
                           },
                         },
                         function* () {
@@ -1925,9 +2030,12 @@ export const ReviewApp = craftComponent(
                         'KnownIssueReviewCard',
                         {
                           type: 'button',
+                          'data-hint': function* () {
+                            return (yield* t()).hintKnownIssue;
+                          },
                           disabled: decision.isLoading,
                           *click() {
-                            yield* decide('known-issue');
+                            decide('known-issue');
                           },
                         },
                         function* () {
@@ -1938,6 +2046,9 @@ export const ReviewApp = craftComponent(
                         'AcceptWithNoteReviewCard',
                         {
                           type: 'button',
+                          'data-hint': function* () {
+                            return (yield* t()).hintAcceptWithNote;
+                          },
                           'data-hotkey': 'n',
                           disabled: function* () {
                             return (
@@ -1946,7 +2057,7 @@ export const ReviewApp = craftComponent(
                             );
                           },
                           *click() {
-                            yield* decide('ok-with-note');
+                            decide('ok-with-note');
                           },
                         },
                         [
@@ -1960,11 +2071,14 @@ export const ReviewApp = craftComponent(
                         'AcceptReviewCard',
                         {
                           type: 'button',
+                          'data-hint': function* () {
+                            return (yield* t()).hintAccept;
+                          },
                           class: 'primary',
                           'data-hotkey': 'a',
                           disabled: decision.isLoading,
                           *click() {
-                            yield* decide('ok');
+                            decide('ok');
                           },
                         },
                         [

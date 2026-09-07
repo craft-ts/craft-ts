@@ -24,7 +24,8 @@ const en = {
   queueLabel: 'Review queue',
   reviewComplete: 'Review complete',
   reviewCompleteBody: 'Every decision in this session has been recorded.',
-  queueFailed: 'The review queue could not be loaded. Reload the page to retry.',
+  queueFailed:
+    'The review queue could not be loaded. Reload the page to retry.',
   decisionFailed:
     'The decision was not saved. The scenario remains in the queue.',
   previous: '↑ Previous ',
@@ -74,7 +75,8 @@ const en = {
 
   tierSubject: 'The component this evidence is about',
   tierChanged: 'Measured differently from the last accepted render',
-  tierOccludedUnknown: 'Hidden behind something else when the capture was taken',
+  tierOccludedUnknown:
+    'Hidden behind something else when the capture was taken',
   tierOccludedOne: (what: string) =>
     `Hidden behind ${what} when the capture was taken`,
   tierOccludedMany: (count: number) =>
@@ -131,6 +133,22 @@ const en = {
   knownIssue: 'Known issue',
   acceptWithNote: 'Accept with note ',
   accept: 'Accept ',
+
+  // What each verdict *does*, not what it is called. Three of the five are
+  // accepted by the ledger and two are not, and nothing in the words says
+  // which — a reviewer choosing between "Known issue" and "Block" is choosing
+  // between "stops asking" and "asks every run", which is the only difference
+  // that matters and the one they cannot see.
+  hintAccept:
+    'This render is right. It becomes the reference, and the scenario stays quiet until the render itself changes.',
+  hintAcceptWithNote:
+    'Same effect as Accept — the scenario stays quiet — but your reason is recorded alongside the verdict.',
+  hintKnownIssue:
+    'Accepted, so it stops asking, but recorded as a known defect rather than as correct. Same effect on the queue as Accept; a different claim in the ledger.',
+  hintReject:
+    'This render is wrong. The scenario comes back on every run, with your reason, until it is fixed and attested again. A reason is required.',
+  hintBlock:
+    'You cannot judge this one yet. Like Reject it keeps coming back, but it claims nothing about whether the render is right.',
 } as const;
 
 /** Typed against `en`, so a forgotten key does not compile. */
@@ -196,8 +214,7 @@ const fr: typeof en = {
 
   tierSubject: 'Le composant sur lequel porte cette preuve',
   tierChanged: 'Mesuré différemment du dernier rendu accepté',
-  tierOccludedUnknown:
-    "Masqué par autre chose au moment de la capture",
+  tierOccludedUnknown: 'Masqué par autre chose au moment de la capture',
   tierOccludedOne: (what) => `Masqué par ${what} au moment de la capture`,
   tierOccludedMany: (count) =>
     `Masqué par ${count} autres éléments au moment de la capture`,
@@ -213,11 +230,10 @@ const fr: typeof en = {
   noApprovedYet: "Nouveau sujet : rien n'a encore été approuvé.",
   previousRejection: 'Motif du refus précédent',
 
-  degraded:
-    'Cette décision sera enregistrée comme prise sans rejeu fidèle.',
+  degraded: 'Cette décision sera enregistrée comme prise sans rejeu fidèle.',
   fidelityFrameUnopened: "La page gelée n'a pas pu être ouverte.",
   fidelityNoDigest:
-    "Aucun digest attesté ne permet de vérifier cette page gelée : elle ne peut pas être garantie.",
+    'Aucun digest attesté ne permet de vérifier cette page gelée : elle ne peut pas être garantie.',
   fidelityEmpty:
     "La page gelée est vide — rien n'y a été chargé, il n'y a donc rien à comparer avec la preuve.",
   fidelityNoRoot: (root) =>
@@ -242,8 +258,7 @@ const fr: typeof en = {
   insertNothing: 'Sélectionnez une partie de la page pour la référencer ici',
   insert: (count) =>
     `Insérer une référence à ${count} nœud${count === 1 ? '' : 's'} sélectionné${count === 1 ? '' : 's'}`,
-  menuAdd: (count) =>
-    `Ajouter ${count} nœud${count === 1 ? '' : 's'} au motif`,
+  menuAdd: (count) => `Ajouter ${count} nœud${count === 1 ? '' : 's'} au motif`,
   reasonHelp:
     'Un motif est exigé pour Refuser, afin que le code puisse être corrigé. Clic droit sur une sélection dans la page gelée pour déposer une référence là où vous écrivez.',
   reasonMissing: 'Expliquez pourquoi ce rendu doit être refusé.',
@@ -253,6 +268,17 @@ const fr: typeof en = {
   knownIssue: 'Problème connu',
   acceptWithNote: 'Accepter avec motif ',
   accept: 'Accepter ',
+
+  hintAccept:
+    "Ce rendu est juste. Il devient la référence, et le scénario se tait jusqu'à ce que le rendu change.",
+  hintAcceptWithNote:
+    "Même effet qu'Accepter — le scénario se tait — mais votre motif est enregistré avec le verdict.",
+  hintKnownIssue:
+    "Accepté, donc il cesse de demander, mais consigné comme défaut connu plutôt que comme correct. Même effet sur la file qu'Accepter ; une affirmation différente dans le registre.",
+  hintReject:
+    "Ce rendu est faux. Le scénario revient à chaque exécution, avec votre motif, jusqu'à correction et nouvelle attestation. Un motif est exigé.",
+  hintBlock:
+    "Vous ne pouvez pas juger celui-ci pour l'instant. Comme Refuser, il continue de revenir, mais il n'affirme rien sur la justesse du rendu.",
 };
 
 export type Messages = typeof en;

@@ -428,6 +428,35 @@ test('fitting to the window fits the whole picture, not just its width', async (
   }
 });
 
+test('refining a selection edits its reference instead of adding one', async ({
+  page,
+}) => {
+  // A click then a ctrl-click is one act of pointing, not two. Inserting on
+  // each of them would leave a stale "1 node" sitting beside the "2 nodes"
+  // that replaced it, and both would be filed.
+  await page.goto(running.url);
+  const frame = page.frameLocator('#craft-replay-frame');
+
+  await frame.locator('.title').click();
+  await expect(page.locator('.mention-chip')).toHaveText(['[#1: 1 node]']);
+
+  await frame.locator('.body').click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.locator('.mention-chip')).toHaveText(['[#1: 2 nodes]']);
+
+  // Pointing at a reference paints the nodes it stands for, without touching
+  // the selection: the two are different claims.
+  await page.locator('.mention-chip').first().hover();
+  await expect(frame.locator('[data-craft-highlight]')).toHaveCount(2);
+  await page.getByLabel('Decision note').hover();
+  await expect(frame.locator('[data-craft-highlight]')).toHaveCount(0);
+
+  // Emptying the selection takes the reference back out: a reference to
+  // nothing is worse than none.
+  await frame.locator('.body').click({ modifiers: ['ControlOrMeta'] });
+  await frame.locator('.title').click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.locator('.mention-chip')).toHaveCount(0);
+});
+
 test('a drag selects every node the box touches', async ({ page }) => {
   await page.goto(running.url);
   const frame = page.frameLocator('#craft-replay-frame');
@@ -450,7 +479,9 @@ test('a drag selects every node the box touches', async ({ page }) => {
 
   await expect(page.locator('.selection-band')).toBeHidden();
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(3);
-  // The count is stated next to the field that is about to name the group.
+  // The count is stated next to the field, and the reference is already in it:
+  // selecting is referencing, with no second gesture to remember.
+  await expect(page.locator('.mention-chip')).toHaveText(['[#1: 3 nodes]']);
   await expect(page.locator('.selection-tag')).toHaveText(
     '3 elements selected',
   );
@@ -566,36 +597,23 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
   const frame = page.frameLocator('#craft-replay-frame');
 
   const reason = page.getByLabel('Decision note');
-  await reason.fill('The title is cut at 34px in German. ');
+  await reason.click();
+  await reason.pressSequentially('The title is cut at 34px in German. ');
 
+  // Selecting *is* referencing: there is no second gesture to remember.
   await frame.locator('.title').click();
-  await expect(frame.locator('[data-craft-picked]')).toHaveCount(1);
-  // Right-click on the selection, which is the gesture the menu exists for.
-  await page.locator('#craft-replay-frame').scrollIntoViewIfNeeded();
-  await frame.locator('.title').click({ button: 'right' });
-  await page
-    .getByRole('menuitem', { name: 'Add 1 node to the reason' })
-    .click();
+  await expect(page.locator('.mention-chip')).toHaveCount(1);
+  await expect(page.locator('.mention-chip').first()).toHaveText(
+    '[#1: 1 node]',
+  );
+  await expect(page.locator('.mention-chip').first()).toHaveAttribute(
+    'data-paths',
+    /div/,
+  );
 
-  // Referencing a group leaves the outline behind: it has been recorded.
-  await expect(frame.locator('[data-craft-picked]')).toHaveCount(0);
-
-  // The reference is an element in the reason, not the characters
-  // `[#1: 1 node]` with the answer in a list somewhere else on the page: it
-  // carries the addresses it stands for, and shows them on hover.
-  const chip = page.locator('.mention-chip').first();
-  await expect(chip).toHaveText('[#1: 1 node]');
-  await expect(chip).toHaveAttribute('data-paths', /div/);
-  await expect(chip).toHaveAttribute('contenteditable', 'false');
-
-  await reason.press('End');
+  // Typing ends that reference: the next selection starts its own.
   await reason.pressSequentially('And the body overflows its box. ');
-  await frame.locator('.body').click({ button: 'right' });
-  await page
-    .getByRole('menuitem', { name: 'Add 1 node to the reason' })
-    .click();
-
-  // Both references sit in the reason, each in its own sentence.
+  await frame.locator('.body').click();
   await expect(page.locator('.mention-chip')).toHaveCount(2);
 
   await page.getByRole('button', { name: /Reject R/ }).click();
@@ -610,7 +628,7 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
   // it, not part of what is attested.
   expect(decision.note).not.toContain('[#');
   expect(decision.note).toContain('The title is cut at 34px in German.');
-  // And each group carries the sentence it stands in, not the whole reason.
+  // And each group carries the text written since the one before it.
   expect(decision.findings).toHaveLength(2);
   expect(decision.findings[0]?.note).toBe(
     'The title is cut at 34px in German.',

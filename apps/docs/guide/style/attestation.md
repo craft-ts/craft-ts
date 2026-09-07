@@ -318,9 +318,18 @@ since the one before it — so the second complaint is filed against the second
 group and not, as a single note against every node would have it, against all
 seven.
 
+Selecting *is* referencing: there is no second gesture. Pointing at part of the
+page drops the reference straight into the reason, and refining the selection
+edits that same reference rather than adding another — a click followed by a
+ctrl-click leaves one saying "2 nodes", not a stale "1 node" beside it. Typing
+ends the session: the reference belongs to a sentence now, and the next
+selection starts its own. Emptying the selection takes the reference back out,
+because a reference to nothing is worse than none.
+
 The field is a `contenteditable`, not a `textarea`, so a reference is an element
 rather than the literal characters `[#1: 2 nodes]`: hovering it lists the
-addresses it stands for. That is the whole reason for the swap. As text, the
+addresses it stands for **and paints those nodes in the frozen page**, dashed
+rather than solid so it cannot be mistaken for the selection. That is the whole reason for the swap. As text, the
 answer to "which nodes is this one about" had to live in a list somewhere else
 on the page, and a reviewer reading a sentence had to leave it to find out. The
 plain text is still the model — everything downstream reads the serialised
@@ -360,6 +369,17 @@ nodes attested, 21 off screen, 1 covered** by the page's own fixed button. An
 attestation that stayed quiet about that would claim a coverage it does not
 have, so the card states it and the screenshot draws the line where the viewport
 ended.
+
+The verdict buttons carry what they *do*. Three of the five are accepted by the
+ledger and two are not, and nothing in the words says which — a reviewer
+choosing between "Known issue" and "Block" is choosing between "stops asking"
+and "asks every run", which is the only difference that matters and the one they
+could not see.
+
+"Fit to window" applies to the frozen page too, by `transform: scale()` and
+never by a width: the frame has to stay exactly the viewport the page laid
+itself out in, or the replay stops being the render that was measured. A
+transform changes what is painted and nothing about what was measured.
 
 "Fit to window" bounds both axes. Bounding the width alone — which is what it
 did — fits a picture wider than the canvas and does nothing whatsoever to a

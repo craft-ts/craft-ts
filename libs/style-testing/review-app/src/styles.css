@@ -746,6 +746,12 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+/* One chip, one line. The column narrowed when the verdict moved to its own
+   side, and "Viewport 375×900" broke across two lines mid-value. */
+.chip {
+  white-space: nowrap;
+}
+
 /* What the outlines in the frozen page mean. The swatch's colour and border
    style come from the same object that paints them, so this can only be read
    as a key — never as a second, drifting opinion. */
@@ -786,6 +792,14 @@ select {
 .replay-holder {
   border: 1px solid var(--line-strong);
   border-radius: 8px;
+  /* Sized in script to the scaled box, so the page around it does not keep a
+     hole the size of the unscaled capture. */
+  overflow: hidden;
+}
+
+.replay-scale {
+  position: relative;
+  transform-origin: top left;
 }
 
 .replay-holder iframe {
@@ -1005,6 +1019,38 @@ select {
 }
 .reason-input[aria-invalid='true'] {
   border-color: var(--danger-border);
+}
+
+/* An explanation attached to a control, shown where the control is. Same
+   mechanism as a reference's addresses: a native `title` waits a second,
+   cannot be styled, and stacks on top of anything drawn here. */
+[data-hint] {
+  position: relative;
+}
+[data-hint]::after {
+  content: attr(data-hint);
+  position: absolute;
+  z-index: 6;
+  bottom: calc(100% + 8px);
+  right: 0;
+  display: none;
+  width: max-content;
+  max-width: 300px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  box-shadow: 0 10px 30px var(--shadow-strong);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+}
+[data-hint]:hover::after,
+[data-hint]:focus-visible::after {
+  display: block;
 }
 
 .mention-chip {
