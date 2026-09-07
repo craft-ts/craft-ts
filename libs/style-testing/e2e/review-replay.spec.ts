@@ -617,7 +617,9 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
   await expect(page.locator('.mention-chip')).toHaveCount(2);
 
   await page.getByRole('button', { name: /Reject R/ }).click();
-  await expect(page.getByText('Review complete')).toBeVisible();
+  // A rejection is not a completed review: it remains visible until the
+  // underlying subject changes and receives an accepted verdict.
+  await expect(page.locator('.review-card')).toBeVisible();
 
   expect(decisions).toHaveLength(1);
   const decision = decisions[0] as {

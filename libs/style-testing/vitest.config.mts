@@ -14,6 +14,10 @@ export default defineConfig({
         root,
         'libs/style-testing/src/index.ts',
       ),
+      '@craft-ts/dev-tools/attestation-review': path.join(
+        root,
+        'libs/dev-tools/src/attestation-review.ts',
+      ),
       'test-type': path.join(root, 'libs/test-type/src/index.ts'),
     },
   },

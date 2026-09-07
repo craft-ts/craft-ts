@@ -32,6 +32,10 @@
       "types": "./src/template-migration.d.ts",
       "default": "./src/template-migration.js"
     },
+    "./attestation-review": {
+      "types": "./src/attestation-review.d.ts",
+      "default": "./src/attestation-review.js"
+    },
     "./package.json": "./package.json",
     "./testing": {
       "types": "./src/testing.d.ts",

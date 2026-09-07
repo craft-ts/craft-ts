@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -284,6 +284,54 @@ describe('craft-ts attest', () => {
     expect(out.join('\n')).toContain('the output changed');
   });
 
+  it('keeps the last accepted proof when a changed output is rejected', async () => {
+    const { root, io } = await workspace();
+    await writeFile(
+      join(root, 'report.json'),
+      JSON.stringify(visualRun()),
+      'utf8',
+    );
+    await writeFile(join(root, 'card.png'), new Uint8Array([137, 80, 78, 71]));
+    await runAttestCommand(
+      ['renew', '--all', '--report', 'report.json'],
+      io,
+      dependencies(),
+    );
+    const accepted = JSON.parse(
+      await readFile(join(root, '.craft/attestations.jsonl'), 'utf8'),
+    );
+
+    await writeFile(
+      join(root, 'report.json'),
+      JSON.stringify(visualRun('rgb(255, 0, 0)')),
+      'utf8',
+    );
+    await runAttestCommand(
+      [
+        'renew',
+        '--subject',
+        accepted.subject,
+        '--report',
+        'report.json',
+        '--verdict',
+        'rejected',
+        '--note',
+        'The new colour is wrong.',
+      ],
+      io,
+      dependencies({ 'component:apps/demo/card.ts:Card': 'visual-code-2' }),
+    );
+    const rejected = JSON.parse(
+      await readFile(join(root, '.craft/attestations.jsonl'), 'utf8'),
+    );
+
+    expect(rejected.evidence).not.toBe(accepted.evidence);
+    expect(rejected.acceptedReference).toEqual({
+      fingerprint: accepted.fingerprint,
+      evidence: accepted.evidence,
+    });
+  });
+
   it('names the nodes that moved when asked why', async () => {
     const { root, io } = await workspace();
     await runAttestCommand(
@@ -393,7 +441,7 @@ describe('craft-ts attest', () => {
   });
 
   it('derives template subjects without a report', async () => {
-    const { io, out } = await workspace();
+    const { root, io, out } = await workspace();
     const code = await runAttestCommand(
       ['status', '--kind', 'template'],
       io,
@@ -405,6 +453,36 @@ describe('craft-ts attest', () => {
     expect(out.join('\n')).toContain(
       'template:component:apps/demo/card.ts:Card',
     );
+    const shards = await readdir(join(root, '.craft/evidence'));
+    const evidenceFiles = (
+      await Promise.all(
+        shards.map(
+          async (shard) => await readdir(join(root, '.craft/evidence', shard)),
+        ),
+      )
+    ).flat();
+    expect(evidenceFiles.some((file) => file.endsWith('.template.json'))).toBe(
+      true,
+    );
+  });
+
+  it('combines visual and template subjects with --kind all', async () => {
+    const { root, io, out } = await workspace();
+    await writeFile(
+      join(root, 'report.json'),
+      JSON.stringify(visualRun()),
+      'utf8',
+    );
+    await writeFile(join(root, 'card.png'), new Uint8Array([137, 80, 78, 71]));
+
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'all', '--report', 'report.json'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(1);
+    expect(out[0]).toBe('current 0  renewed 0  review 0  missing 2');
   });
 
   it('blocks an unsigned template removal and accepts a signed retirement', async () => {

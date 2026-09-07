@@ -15,7 +15,8 @@
  * who attests gets a sentence telling them what to install rather than a
  * module-not-found stack.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import {
@@ -35,6 +36,9 @@ import {
   reportOn,
   serialiseLedger,
   storeVisual,
+  storeTemplateEvidence,
+  loadTemplateEvidence,
+  templateEvidenceValue,
   testSubjectId,
   withAttestations,
   type Attestation,
@@ -46,6 +50,16 @@ import {
   type VisualRunCapture,
   type Verdict,
 } from '@craft-ts/attest';
+import {
+  buildRemovalReviewCard,
+  buildTemplateReviewCard,
+  clusterTemplateReviewCards,
+  type PreviousDecision,
+  type ReviewCard as AttestationReviewCard,
+  type AttestationDevtoolModel,
+  type TemplateDiagnostic,
+  type TemplateReviewCard,
+} from '@craft-ts/dev-tools/attestation-review';
 import type { LayoutDigest } from '@craft-ts/style-testing';
 import { parseArguments } from '../args.js';
 import type { CraftCliIo } from '../io.js';
@@ -103,13 +117,14 @@ Verbs:
   renew                Record a verdict; --all marks the attestations as bulk
   retire               Sign the removal of a template obligation
   review               Open the local CraftTS review application
+  devtools             Explore and review visual and template attestations
   unwatched            Nodes that moved and belong to no attested subject
 
 Options:
   --ledger <path>      Ledger file (default: .craft/attestations.jsonl)
   --evidence <dir>     Evidence store (default: .craft/evidence)
   --report <path>      Vitest JSON or craft-ts visual report
-  --kind <kind>        test | visual | template; template needs no report
+  --kind <kind>        test | visual | template | all; template needs no report
   --before/--after     Two such reports, for \`diff\`
   --tsconfig <path>    Project the code graph is built from
   --root <dir>         Repository root (default: the working directory)
@@ -146,10 +161,15 @@ const VERDICTS: readonly Verdict[] = [
   'known-issue',
   'blocked',
 ];
-const SUBJECT_KINDS: readonly Extract<
-  SubjectKind,
-  'test' | 'visual' | 'template'
->[] = ['test', 'visual', 'template'];
+type RequestedKind =
+  | Extract<SubjectKind, 'test' | 'visual' | 'template'>
+  | 'all';
+const SUBJECT_KINDS: readonly RequestedKind[] = [
+  'test',
+  'visual',
+  'template',
+  'all',
+];
 const RETIREMENT_REASONS: readonly Retirement['reason'][] = [
   'derivation',
   'superseded',
@@ -159,9 +179,7 @@ const RETIREMENT_REASONS: readonly Retirement['reason'][] = [
 const isVerdict = (value: string): value is Verdict =>
   VERDICTS.some((verdict) => verdict === value);
 
-const isSubjectKind = (
-  value: string,
-): value is Extract<SubjectKind, 'test' | 'visual' | 'template'> =>
+const isSubjectKind = (value: string): value is RequestedKind =>
   SUBJECT_KINDS.some((kind) => kind === value);
 
 const isRetirementReason = (value: string): value is Retirement['reason'] =>
@@ -275,7 +293,9 @@ interface ObservedRun {
   readonly workspace: WorkspaceSlices;
   readonly leaves: ReadonlyMap<string, Readonly<Record<string, string>>>;
   readonly visuals: ReadonlyMap<string, VisualArtifact>;
-  readonly kind: 'test' | 'visual' | 'template';
+  readonly templates: ReadonlyMap<string, TemplateObligationInput>;
+  readonly diagnostics: readonly TemplateDiagnostic[];
+  readonly kind: 'test' | 'visual' | 'template' | 'all';
 }
 
 export async function runAttestCommand(
@@ -309,7 +329,7 @@ export async function runAttestCommand(
     io.writeError(`craft-ts attest: unknown subject kind '${kindValue}'.`);
     return 1;
   }
-  const requestedKind = kindValue;
+  const requestedKind = parsed.command === 'devtools' ? 'all' : kindValue;
   const loadSlices = dependencies.loadSlices ?? defaultLoadSlices;
   const now = dependencies.now ?? (() => new Date().toISOString());
   const user = dependencies.user ?? (() => process.env['USER'] ?? 'unknown');
@@ -321,8 +341,8 @@ export async function runAttestCommand(
     });
 
   const observations = async (): Promise<ObservedRun> => {
-    if (requestedKind === 'template') {
-      const workspace = await slices();
+    const workspace = await slices();
+    const templateRun = async (): Promise<ObservedRun> => {
       const obligations = workspace.templateObligations();
       const leaves = new Map<string, Readonly<Record<string, string>>>();
       const list = observeTemplateObligations(obligations, (obligation) => {
@@ -332,9 +352,30 @@ export async function runAttestCommand(
         );
         return workspace.fingerprintForTemplate(obligation.subject);
       });
-      for (const diagnostic of workspace.templateDiagnostics()) {
-        const location = diagnostic.proof
-          ? `${diagnostic.proof.filePath}${diagnostic.proof.line ? `:${diagnostic.proof.line}` : ''}: `
+      await Promise.all(
+        obligations.map(async (obligation) => {
+          const stored = await storeTemplateEvidence(store, obligation);
+          const observation = list.find(
+            (candidate) => candidate.subject === obligation.subject,
+          );
+          if (observation && stored !== observation.evidence) {
+            throw new Error(
+              `template evidence: '${obligation.subject}' was stored under an unexpected hash.`,
+            );
+          }
+        }),
+      );
+      const diagnostics = workspace.templateDiagnostics().map((diagnostic) => ({
+        code: diagnostic.code,
+        message: diagnostic.message,
+        ...(diagnostic.proof?.filePath
+          ? { filePath: diagnostic.proof.filePath }
+          : {}),
+        ...(diagnostic.proof?.line ? { line: diagnostic.proof.line } : {}),
+      }));
+      for (const diagnostic of diagnostics) {
+        const location = diagnostic.filePath
+          ? `${diagnostic.filePath}${diagnostic.line ? `:${diagnostic.line}` : ''}: `
           : '';
         io.writeError(`${location}${diagnostic.code}: ${diagnostic.message}`);
       }
@@ -343,8 +384,19 @@ export async function runAttestCommand(
         workspace,
         leaves,
         visuals: new Map(),
+        templates: new Map(
+          obligations.map((obligation) => [obligation.subject, obligation]),
+        ),
+        diagnostics,
         kind: 'template',
       };
+    };
+    if (requestedKind === 'template') {
+      return await templateRun();
+    }
+    if (requestedKind === 'all' && !parsed.values['report']) {
+      const templates = await templateRun();
+      return { ...templates, kind: 'all' };
     }
     const reportPath = parsed.values['report'];
     if (!reportPath) {
@@ -352,7 +404,6 @@ export async function runAttestCommand(
         'craft-ts attest: no run to look at. Point --report at Vitest JSON or a craft-ts visual report.',
       );
     }
-    const workspace = await slices();
     const absoluteReportPath = resolve(rootDir, reportPath);
     const raw = JSON.parse(await readFile(absoluteReportPath, 'utf8'));
     const leaves = new Map<string, Readonly<Record<string, string>>>();
@@ -375,7 +426,26 @@ export async function runAttestCommand(
           reportDirectory: dirname(absoluteReportPath),
         });
       }
-      return { list, workspace, leaves, visuals, kind: 'visual' };
+      const visual: ObservedRun = {
+        list,
+        workspace,
+        leaves,
+        visuals,
+        templates: new Map(),
+        diagnostics: [],
+        kind: 'visual',
+      };
+      if (requestedKind !== 'all') return visual;
+      const templates = await templateRun();
+      return {
+        list: [...visual.list, ...templates.list],
+        workspace,
+        leaves: new Map([...visual.leaves, ...templates.leaves]),
+        visuals,
+        templates: templates.templates,
+        diagnostics: templates.diagnostics,
+        kind: 'all',
+      };
     }
 
     if (requestedKind === 'visual') {
@@ -393,7 +463,20 @@ export async function runAttestCommand(
       );
       return workspace.fingerprintFor(testCase.file, testCase.fullName);
     });
-    return { list, workspace, leaves, visuals: new Map(), kind: 'test' };
+    if (requestedKind === 'all') {
+      throw new Error(
+        'craft-ts attest: --kind all requires a craft-ts visual report.',
+      );
+    }
+    return {
+      list,
+      workspace,
+      leaves,
+      visuals: new Map(),
+      templates: new Map(),
+      diagnostics: [],
+      kind: 'test',
+    };
   };
 
   try {
@@ -426,6 +509,7 @@ export async function runAttestCommand(
       case 'unwatched':
         return await unwatched(io, json, store, await slices());
       case 'review':
+      case 'devtools':
         return await review(
           io,
           ledger,
@@ -466,7 +550,9 @@ async function readLedger(io: CraftCliIo, path: string): Promise<Ledger> {
 
 async function writeLedgerFile(path: string, ledger: Ledger): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, serialiseLedger(ledger), 'utf8');
+  const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`;
+  await writeFile(temporary, serialiseLedger(ledger), 'utf8');
+  await rename(temporary, path);
 }
 
 const isLayoutDigest = (value: unknown): value is LayoutDigest => {
@@ -576,7 +662,7 @@ async function status(
   ledger: Ledger,
   observed: {
     readonly list: readonly SubjectObservation[];
-    readonly kind: 'test' | 'visual' | 'template';
+    readonly kind: 'test' | 'visual' | 'template' | 'all';
   },
 ): Promise<number> {
   const report = reportOn(ledger, observed.list, { toolVersion: TOOL_VERSION });
@@ -808,22 +894,41 @@ async function renew(
     );
     return 1;
   }
+  if (verdictValue === 'ok-with-note' && !note?.trim()) {
+    io.writeError(
+      'craft-ts attest renew: --note is required with an ok-with-note verdict.',
+    );
+    return 1;
+  }
   const verdict = verdictValue;
-  const attestations: Attestation[] = targets.map((entry) => ({
-    subject: entry.subject,
-    kind: entry.observation.kind,
-    fingerprint: entry.observation.fingerprint,
-    evidence: entry.observation.evidence,
-    verdict,
-    assumptions: entry.observation.assumptions ?? [],
-    by: parsed.values['by'] ?? clock.user(),
-    at: clock.now(),
-    toolVersion: TOOL_VERSION,
-    ...(note ? { note } : {}),
-    // The mark that keeps a bulk renewal honest. Without it a `renew --all`
-    // is indistinguishable in the ledger from somebody having looked.
-    ...(all ? { bulk: true as const } : {}),
-  }));
+  const attestations: Attestation[] = targets.map((entry) => {
+    const previous = ledger.get(entry.subject);
+    const acceptedReference = !isAccepted(verdict)
+      ? (previous?.acceptedReference ??
+        (previous && isAccepted(previous.verdict)
+          ? {
+              fingerprint: previous.fingerprint,
+              evidence: previous.evidence,
+            }
+          : undefined))
+      : undefined;
+    return {
+      subject: entry.subject,
+      kind: entry.observation.kind,
+      fingerprint: entry.observation.fingerprint,
+      evidence: entry.observation.evidence,
+      verdict,
+      assumptions: entry.observation.assumptions ?? [],
+      by: parsed.values['by'] ?? clock.user(),
+      at: clock.now(),
+      toolVersion: TOOL_VERSION,
+      ...(note ? { note } : {}),
+      ...(acceptedReference ? { acceptedReference } : {}),
+      // The mark that keeps a bulk renewal honest. Without it a `renew --all`
+      // is indistinguishable in the ledger from somebody having looked.
+      ...(all ? { bulk: true as const } : {}),
+    };
+  });
 
   const targetSubjects = new Set([
     ...attestations.map((entry) => entry.subject),
@@ -976,85 +1081,321 @@ async function review(
     );
     return 1;
   }
-  const report = reportOn(ledger, observed.list, { toolVersion: TOOL_VERSION });
-  const statuses = report.statuses.filter(
-    (status) =>
-      (status.state === 'review' || status.state === 'missing') &&
-      observed.visuals.has(status.subject),
+  const initialReport = reportOn(ledger, observed.list, {
+    toolVersion: TOOL_VERSION,
+  });
+  const reviewableSubjects = new Set(
+    initialReport.statuses
+      .filter(
+        (status) => status.state === 'review' || status.state === 'missing',
+      )
+      .map((status) => status.subject),
   );
-  if (statuses.length === 0) {
-    io.write('Nothing visual to review.');
-    return 0;
-  }
-
-  const subjects = new Set(statuses.map((status) => status.subject));
-  const stored = await persistVisuals(store, observed, subjects);
+  const visualSubjects = new Set(observed.visuals.keys());
+  const stored = await persistVisuals(store, observed, visualSubjects);
   await persistSliceManifests(
     store,
     observed,
     new Set([
-      ...subjects,
-      ...report.statuses
+      ...reviewableSubjects,
+      ...initialReport.statuses
         .filter((status) => status.state === 'renewed')
         .map((status) => status.subject),
     ]),
   );
-
-  const items: import('@craft-ts/style-testing/review').ReviewItem[] = [];
-  for (const status of statuses) {
-    const artifact = observed.visuals.get(status.subject);
-    if (!artifact || !isLayoutDigest(artifact.capture.digest)) {
-      throw new Error(
-        `visual report: '${status.subject}' does not contain a layout digest v1.`,
-      );
-    }
-    const approvedText =
-      status.attestation && isAccepted(status.attestation.verdict)
-        ? await store.getText(status.attestation.evidence, '.digest.json')
-        : undefined;
-    const approvedValue = approvedText ? JSON.parse(approvedText) : undefined;
-    items.push({
-      subject: status.subject,
-      reason: status.reason ?? 'the output changed',
-      digest: artifact.capture.digest,
-      ...(isLayoutDigest(approvedValue) ? { approved: approvedValue } : {}),
-      ...(stored.get(status.subject)?.image
-        ? { image: stored.get(status.subject)?.image }
-        : {}),
-      ...(stored.get(status.subject)?.snapshot
-        ? { snapshot: stored.get(status.subject)?.snapshot }
-        : {}),
-      ...(artifact.capture.snapshotRisks?.length
-        ? { risks: artifact.capture.snapshotRisks }
-        : {}),
-      ...(stored.get(status.subject)?.evidence
-        ? { evidence: stored.get(status.subject)?.evidence }
-        : {}),
-      ...(artifact.capture.metadata
-        ? { metadata: artifact.capture.metadata }
-        : {}),
-      ...(status.attestation?.verdict === 'rejected' && status.attestation.note
-        ? { rejectionReason: status.attestation.note }
-        : {}),
-    });
-  }
-
-  const queue = module.buildReviewQueue(items);
-  const cards = new Map(queue.cards.map((card) => [card.shape, card]));
   const observations = new Map(
     observed.list.map((observation) => [observation.subject, observation]),
   );
-  let currentLedger = applyRenewals(ledger, report);
+  const previousDecisionOf = (
+    attestation: Attestation | undefined,
+  ): PreviousDecision | undefined =>
+    attestation
+      ? {
+          verdict: attestation.verdict,
+          by: attestation.by,
+          at: attestation.at,
+          ...(attestation.note ? { note: attestation.note } : {}),
+        }
+      : undefined;
+  const acceptedReferenceOf = (
+    attestation: Attestation | undefined,
+  ): { readonly fingerprint: string; readonly evidence: string } | undefined =>
+    attestation?.acceptedReference ??
+    (attestation && isAccepted(attestation.verdict)
+      ? {
+          fingerprint: attestation.fingerprint,
+          evidence: attestation.evidence,
+        }
+      : undefined);
+  const componentOfTemplateSubject = (subject: string): string =>
+    subject.replace(/^template:/, '').split('#')[0] ?? subject;
+
+  const buildCards = async (
+    current: Ledger,
+  ): Promise<AttestationReviewCard[]> => {
+    const report = reportOn(current, observed.list, {
+      toolVersion: TOOL_VERSION,
+    });
+    const visualItems: import('@craft-ts/style-testing/review').ReviewItem[] =
+      [];
+    const templateCards: TemplateReviewCard[] = [];
+
+    for (const status of report.statuses) {
+      if (status.state !== 'review' && status.state !== 'missing') continue;
+      const artifact = observed.visuals.get(status.subject);
+      if (artifact) {
+        if (!isLayoutDigest(artifact.capture.digest)) {
+          throw new Error(
+            `visual report: '${status.subject}' does not contain a layout digest v1.`,
+          );
+        }
+        const acceptedReference = acceptedReferenceOf(status.attestation);
+        const approvedText = acceptedReference
+          ? await store.getText(acceptedReference.evidence, '.digest.json')
+          : undefined;
+        const approvedValue = approvedText
+          ? JSON.parse(approvedText)
+          : undefined;
+        const previousDecision = previousDecisionOf(status.attestation);
+        visualItems.push({
+          subject: status.subject,
+          state: status.state,
+          reason: status.reason ?? 'the output changed',
+          digest: artifact.capture.digest,
+          ...(isLayoutDigest(approvedValue) ? { approved: approvedValue } : {}),
+          ...(stored.get(status.subject)?.image
+            ? { image: stored.get(status.subject)?.image }
+            : {}),
+          ...(stored.get(status.subject)?.snapshot
+            ? { snapshot: stored.get(status.subject)?.snapshot }
+            : {}),
+          ...(artifact.capture.snapshotRisks?.length
+            ? { risks: artifact.capture.snapshotRisks }
+            : {}),
+          ...(stored.get(status.subject)?.evidence
+            ? { evidence: stored.get(status.subject)?.evidence }
+            : {}),
+          ...(artifact.capture.metadata
+            ? { metadata: artifact.capture.metadata }
+            : {}),
+          ...(status.attestation?.verdict === 'rejected' &&
+          status.attestation.note
+            ? { rejectionReason: status.attestation.note }
+            : {}),
+          ...(previousDecision ? { previousDecision } : {}),
+        });
+        continue;
+      }
+
+      const obligation = observed.templates.get(status.subject);
+      if (!obligation) continue;
+      const acceptedReference = acceptedReferenceOf(status.attestation);
+      const previousEvidence = acceptedReference
+        ? await loadTemplateEvidence(store, acceptedReference.evidence)
+        : undefined;
+      const previousLeavesText = acceptedReference
+        ? await store.getText(
+            sliceKey(status.subject, acceptedReference.fingerprint),
+            '.slice.json',
+          )
+        : undefined;
+      const previousDecision = previousDecisionOf(status.attestation);
+      templateCards.push(
+        buildTemplateReviewCard({
+          subject: status.subject,
+          state: status.state,
+          reason: status.reason ?? 'the template promise changed',
+          currentEvidenceHash: status.observation.evidence,
+          component: obligation.component,
+          statement: obligation.statement,
+          currentEvidence: templateEvidenceValue(obligation),
+          ...(previousEvidence ? { previousEvidence } : {}),
+          hadPreviousAttestation: acceptedReference !== undefined,
+          currentLeaves: observed.leaves.get(status.subject) ?? {},
+          ...(previousLeavesText
+            ? {
+                previousLeaves: JSON.parse(previousLeavesText) as Record<
+                  string,
+                  string
+                >,
+              }
+            : {}),
+          ...(previousDecision ? { previousDecision } : {}),
+        }),
+      );
+    }
+
+    const removals: AttestationReviewCard[] = [];
+    if (observed.kind === 'template' || observed.kind === 'all') {
+      for (const subject of report.unsignedRemovals) {
+        const attestation = current.get(subject);
+        const previousDecision = previousDecisionOf(attestation);
+        if (!attestation || !previousDecision) continue;
+        const previousEvidence = await loadTemplateEvidence(
+          store,
+          attestation.evidence,
+        );
+        removals.push(
+          buildRemovalReviewCard({
+            subject,
+            component: componentOfTemplateSubject(subject),
+            evidenceHash: attestation.evidence,
+            ...(previousEvidence ? { previousEvidence } : {}),
+            previousDecision,
+          }),
+        );
+      }
+    }
+
+    return [
+      ...module.buildReviewQueue(visualItems).cards,
+      ...clusterTemplateReviewCards(templateCards),
+      ...removals,
+    ];
+  };
+
+  let currentLedger = applyRenewals(ledger, initialReport);
+  let activeCards = await buildCards(currentLedger);
+  const buildModel = (
+    current: Ledger,
+    cards: readonly AttestationReviewCard[],
+  ): AttestationDevtoolModel => {
+    const report = reportOn(current, observed.list, {
+      toolVersion: TOOL_VERSION,
+    });
+    const statuses = new Map(
+      report.statuses.map((status) => [status.subject, status]),
+    );
+    const assets = new Map<
+      string,
+      {
+        evidence: string;
+        image?: string;
+        snapshot?: string;
+        scenarios: string[];
+      }
+    >();
+    for (const [subject] of observed.visuals) {
+      const observation = observations.get(subject);
+      if (!observation) continue;
+      const artifact = stored.get(subject);
+      const evidence = artifact?.evidence ?? observation.evidence;
+      const known = assets.get(evidence);
+      if (known) known.scenarios.push(subject);
+      else {
+        assets.set(evidence, {
+          evidence,
+          ...(artifact?.image ? { image: artifact.image } : {}),
+          ...(artifact?.snapshot ? { snapshot: artifact.snapshot } : {}),
+          scenarios: [subject],
+        });
+      }
+    }
+    return {
+      visualAssets: [...assets.values()]
+        .map((asset) => ({
+          ...asset,
+          scenarios: [...asset.scenarios].sort(),
+        }))
+        .sort((left, right) => left.evidence.localeCompare(right.evidence)),
+      visualTests: [...observed.visuals.entries()]
+        .map(([subject, artifact]) => {
+          const status = statuses.get(subject);
+          const observation = observations.get(subject);
+          return {
+            subject,
+            component: artifact.capture.component,
+            scenario: artifact.capture.scenario,
+            state: status?.state ?? 'missing',
+            evidence: observation?.evidence ?? '',
+            ...(status?.attestation?.evidence
+              ? { previousEvidence: status.attestation.evidence }
+              : {}),
+          };
+        })
+        .sort((left, right) => left.subject.localeCompare(right.subject)),
+      templateObligations: [...observed.templates.entries()]
+        .map(([subject, obligation]) => ({
+          subject,
+          component: obligation.component,
+          direction: obligation.direction,
+          statement: obligation.statement,
+          state: statuses.get(subject)?.state ?? 'missing',
+          evidence: templateEvidenceValue(obligation),
+        }))
+        .sort((left, right) => left.subject.localeCompare(right.subject)),
+      diagnostics: observed.diagnostics,
+      cards,
+    };
+  };
+  // Inventory keeps `renewed` visible as history even though automatic carries
+  // are deliberately absent from the human queue.
+  const model = buildModel(ledger, activeCards);
+  if (
+    activeCards.length === 0 &&
+    model.visualAssets.length === 0 &&
+    model.visualTests.length === 0 &&
+    model.templateObligations.length === 0 &&
+    model.diagnostics.length === 0
+  ) {
+    io.write('Nothing to review or explore.');
+    return 0;
+  }
 
   const running = await module.startReviewServer({
     port: Number(port ?? 4320),
-    items,
+    cards: activeCards,
+    model,
+    refreshCards: async () => {
+      const diskLedger = await readLedger(io, ledgerPath);
+      const diskReport = reportOn(diskLedger, observed.list, {
+        toolVersion: TOOL_VERSION,
+      });
+      currentLedger = applyRenewals(diskLedger, diskReport);
+      activeCards = await buildCards(currentLedger);
+      return activeCards;
+    },
     imageFor: async (hash) => await store.get(hash, '.png'),
     snapshotFor: async (hash) => await store.getText(hash, '.snapshot.html'),
     digestFor: async (hash) => await store.getText(hash, '.digest.json'),
     onDecision: async (decision) => {
-      const card = cards.get(decision.shape);
+      const card = activeCards.find(
+        (candidate) =>
+          candidate.shape === decision.shape &&
+          (decision.id === undefined || candidate.id === decision.id),
+      );
       if (!card) throw new Error('review: that diff cluster no longer exists.');
+      if (card.kind === 'removal') {
+        if (
+          decision.verdict !== 'retire' ||
+          !decision.retirementReason ||
+          !decision.note?.trim()
+        ) {
+          throw new Error(
+            'review: removed obligations require Retire, a reason, and a comment.',
+          );
+        }
+        const previous = currentLedger.get(card.subject);
+        if (!previous) {
+          throw new Error(
+            `review: '${card.subject}' disappeared from the ledger.`,
+          );
+        }
+        currentLedger = withAttestations(currentLedger, [
+          {
+            ...previous,
+            retired: {
+              reason: decision.retirementReason,
+              note: decision.note.trim(),
+              by: clock.user(),
+              at: clock.now(),
+            },
+          },
+        ]);
+        await writeLedgerFile(ledgerPath, currentLedger);
+        activeCards = await buildCards(currentLedger);
+        return activeCards;
+      }
       if (!isVerdict(decision.verdict)) {
         throw new Error(`review: unknown verdict '${decision.verdict}'.`);
       }
@@ -1064,6 +1405,16 @@ async function review(
         if (!observation) {
           throw new Error(`review: '${subject}' disappeared from the run.`);
         }
+        const previous = currentLedger.get(subject);
+        const acceptedReference = !isAccepted(verdict)
+          ? (previous?.acceptedReference ??
+            (previous && isAccepted(previous.verdict)
+              ? {
+                  fingerprint: previous.fingerprint,
+                  evidence: previous.evidence,
+                }
+              : undefined))
+          : undefined;
         return {
           subject,
           kind: observation.kind,
@@ -1075,6 +1426,7 @@ async function review(
           at: clock.now(),
           toolVersion: TOOL_VERSION,
           ...(decision.note ? { note: decision.note } : {}),
+          ...(acceptedReference ? { acceptedReference } : {}),
           // A finding names a node of *this* subject; the server refuses one
           // that does not, so what lands here is already checked.
           ...(decision.findings && decision.findings.length > 0
@@ -1086,6 +1438,8 @@ async function review(
       });
       currentLedger = withAttestations(currentLedger, attestations);
       await writeLedgerFile(ledgerPath, currentLedger);
+      activeCards = await buildCards(currentLedger);
+      return activeCards;
     },
   });
   io.write(`Review queue at ${running.url}`);

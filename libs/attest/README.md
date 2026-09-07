@@ -6,7 +6,7 @@ A human judgement, recorded so it survives a refactor.
 > surface can still change between minor versions. The ledger is regenerable —
 > re-attesting is the recovery — but pin the version in a pipeline.
 
-A snapshot suite records *what the output was*. This package records something
+A snapshot suite records _what the output was_. This package records something
 else: **a person looked at this output and judged it correct, and that
 judgement holds for as long as the code producing it has not moved.**
 
@@ -27,12 +27,12 @@ that is too fine is dangerous.
 
 ## States
 
-| state     | meaning                                        |
-| --------- | ---------------------------------------------- |
-| `current` | the fingerprint has not moved: nothing to do   |
-| `renewed` | code moved, output did not: carried, no human  |
-| `review`  | the output differs: a human has to look        |
-| `missing` | never attested                                 |
+| state     | meaning                                       |
+| --------- | --------------------------------------------- |
+| `current` | the fingerprint has not moved: nothing to do  |
+| `renewed` | code moved, output did not: carried, no human |
+| `review`  | the output differs: a human has to look       |
+| `missing` | never attested                                |
 
 ## Subject-agnostic on purpose
 
@@ -44,7 +44,9 @@ something visual, the abstraction is wrong.
 ```ts
 import { parseLedger, reportOn, observeTests } from '@craft-ts/attest';
 
-const { ledger } = parseLedger(await readFile('.craft/attestations.jsonl', 'utf8'));
+const { ledger } = parseLedger(
+  await readFile('.craft/attestations.jsonl', 'utf8'),
+);
 const report = reportOn(ledger, observeTests(run, fingerprintOf));
 
 report.counts; // { current: 812, renewed: 14, review: 2, missing: 0 }
@@ -61,3 +63,26 @@ neighbourhood composition — is written into the attestation as an assumption.
 An attestation never says "validated"; it says "validated, under this
 assumption", and a changed assumption sends the subject back to review instead
 of quietly becoming a lie.
+
+## Attestation DevTool
+
+The local DevTool combines visual scenarios and promises derived from component
+templates in one server-authoritative review queue:
+
+```sh
+craft-ts attest review --kind visual --report .craft/visual-report.json
+craft-ts attest review --kind template
+craft-ts attest review --kind all --report .craft/visual-report.json
+craft-ts attest devtools --report .craft/visual-report.json
+```
+
+It exposes four views: stored visual assets, visual tests, template obligations
+(including extraction diagnostics), and the human review queue. Accept, Accept
+with note, Known issue, Reject and Block apply to present subjects. A vanished
+template promise uses the separate Retire action with a required reason and
+comment.
+
+Template proof objects are canonical JSON in `.craft/evidence`; their hash is
+the only value kept in the ledger. An older ledger without a proof object stays
+valid—the DevTool reports the previous proof as unavailable instead of
+constructing a comparison it cannot substantiate.

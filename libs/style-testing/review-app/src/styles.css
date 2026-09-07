@@ -176,6 +176,99 @@ button,
 select {
   color: inherit;
 }
+
+.view-tabs {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.view-tabs button {
+  justify-content: flex-start;
+  width: 100%;
+}
+.view-tabs button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.shared-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.shared-filters label {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.shared-filters input,
+.shared-filters select {
+  min-width: 0;
+  width: 100%;
+}
+
+.inventory-panel {
+  min-width: 0;
+  padding: 28px;
+  overflow: auto;
+}
+.inventory-list {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+.inventory-list > li {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.inventory-list p {
+  margin: 0;
+}
+
+.nonvisual-evidence {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.nonvisual-evidence h3,
+.nonvisual-evidence p {
+  margin: 0;
+}
+.template-statement {
+  font-size: 16px;
+}
+.template-diff,
+.code-leaves {
+  margin: 0;
+  padding-left: 20px;
+}
+.review-card[data-kind='visual'] .nonvisual-evidence,
+.review-card:not([data-kind='visual']) .evidence-toolbar,
+.review-card:not([data-kind='visual']) .evidence-switch,
+.review-card:not([data-kind='visual']) .evidence-stage,
+.review-card:not([data-kind='visual']) .diff-panel,
+.review-card[data-kind='removal'] .decision-actions {
+  display: none;
+}
+.retirement-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+.retirement-actions label {
+  grid-column: 1 / -1;
+}
 button {
   cursor: pointer;
 }

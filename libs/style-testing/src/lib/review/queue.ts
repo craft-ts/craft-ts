@@ -22,6 +22,11 @@ import {
   type LayoutDigest,
 } from '../digest.js';
 import type { VisualCaptureMetadata } from '../attest.js';
+import {
+  reviewRevision,
+  type PreviousDecision,
+  type VisualReviewCard as ReviewCardContract,
+} from '@craft-ts/dev-tools/attestation-review';
 
 /** What the snapshot said it could not reproduce, recorded at capture time. */
 export interface SnapshotRiskNote {
@@ -59,6 +64,8 @@ export interface ReviewItem {
   readonly metadata?: VisualCaptureMetadata;
   /** Human feedback from the latest rejected review, when available. */
   readonly rejectionReason?: string;
+  readonly previousDecision?: PreviousDecision;
+  readonly state?: 'missing' | 'review';
 }
 
 export interface ReviewMember {
@@ -81,7 +88,7 @@ export interface ReviewMember {
   readonly changed: readonly string[];
 }
 
-export interface ReviewCard {
+export interface ReviewCard extends ReviewCardContract {
   readonly subject: string;
   readonly reason: string;
   /** `.card padding 8→12`, ready to read. */
@@ -165,14 +172,34 @@ export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
     )
     .map(([shape, group]) => {
       const first = group[0] as ReviewItem;
+      const cluster = group.map((item) => item.subject).sort();
+      const evidence = group
+        .map((item) => item.evidence ?? '')
+        .sort()
+        .join('|');
       return {
+        kind: 'visual' as const,
+        presenter: 'screenshot-replay' as const,
+        id: `visual:${shape}`,
+        revision: reviewRevision({
+          subject: cluster.join('|'),
+          evidence,
+          state: group
+            .map((item) => item.state ?? 'review')
+            .sort()
+            .join('|'),
+        }),
+        state: first.state ?? 'review',
         subject: first.subject,
         reason: first.reason,
         changes: changesByShape.get(shape) ?? [],
         ...(first.image ? { image: first.image } : {}),
         ...(first.snapshot ? { snapshot: first.snapshot } : {}),
         ...(first.risks?.length ? { risks: first.risks } : {}),
-        cluster: group.map((item) => item.subject).sort(),
+        cluster,
+        reviewMembers: group
+          .map((item) => ({ subject: item.subject, label: item.subject }))
+          .sort((left, right) => left.subject.localeCompare(right.subject)),
         members: [...group]
           .sort((left, right) => left.subject.localeCompare(right.subject))
           .map((item) => ({
@@ -187,6 +214,9 @@ export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
           })),
         ...(first.rejectionReason
           ? { rejectionReason: first.rejectionReason }
+          : {}),
+        ...(first.previousDecision
+          ? { previousDecision: first.previousDecision }
           : {}),
         shape,
       };

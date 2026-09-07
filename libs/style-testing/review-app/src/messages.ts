@@ -17,6 +17,40 @@ import type { Locale } from './preferences.js';
 const en = {
   brand: 'CRAFTTS / ATTEST',
   appTitle: 'Visual review',
+  attestationTitle: 'Attestations',
+  viewAssets: 'Visual assets',
+  viewVisual: 'Visual tests',
+  viewTemplate: 'Template obligations',
+  viewReview: 'Review queue',
+  noInventory: 'Nothing to show in this view.',
+  extractionDiagnostics: 'Extraction diagnostics',
+  currentPromise: 'Current promise',
+  previousPromise: 'Previous promise',
+  previousUnavailable: 'Previous readable evidence is unavailable.',
+  codeChange: 'Code slice change',
+  removedPromise: 'This promise is no longer produced by the template.',
+  previousDecisionLabel: 'Previous decision',
+  retirementReason: 'Retirement reason',
+  retire: 'Retire',
+  superseded: 'Superseded',
+  defect: 'Defect',
+  derivation: 'Derivation',
+  filters: 'Filters',
+  filterComponent: 'Component',
+  filterType: 'Type',
+  filterState: 'State',
+  filterDirection: 'Direction',
+  filterText: 'Text',
+  filterAll: 'All',
+  filterVisual: 'Visual',
+  filterTemplate: 'Template',
+  filterRemoved: 'Removed',
+  filterCurrent: 'Current',
+  filterRenewed: 'Renewed',
+  filterMissing: 'Missing',
+  filterReview: 'Review',
+  filterRender: 'Render',
+  filterCommand: 'Command',
   queueSummary: (scenarios: number, decisions: number) =>
     `${scenarios} scenario${scenarios === 1 ? '' : 's'} · ${decisions} decision${decisions === 1 ? '' : 's'}`,
   queue: 'Queue',
@@ -152,9 +186,51 @@ const en = {
 } as const;
 
 /** Typed against `en`, so a forgotten key does not compile. */
-const fr: typeof en = {
+export type Messages = {
+  [Key in keyof typeof en]: (typeof en)[Key] extends (
+    ...args: infer Arguments
+  ) => unknown
+    ? (...args: Arguments) => string
+    : string;
+};
+
+const fr: Messages = {
   brand: 'CRAFTTS / ATTEST',
   appTitle: 'Revue visuelle',
+  attestationTitle: 'Attestations',
+  viewAssets: 'Assets visuels',
+  viewVisual: 'Tests visuels',
+  viewTemplate: 'Obligations de template',
+  viewReview: 'File de revue',
+  noInventory: 'Aucun élément dans cette vue.',
+  extractionDiagnostics: "Diagnostics d'extraction",
+  currentPromise: 'Promesse courante',
+  previousPromise: 'Promesse précédente',
+  previousUnavailable: 'La preuve lisible précédente est indisponible.',
+  codeChange: 'Changement de tranche de code',
+  removedPromise: "Cette promesse n'est plus produite par le template.",
+  previousDecisionLabel: 'Décision précédente',
+  retirementReason: 'Motif du retrait',
+  retire: 'Retirer',
+  superseded: 'Remplacée',
+  defect: 'Défaut',
+  derivation: 'Dérivation',
+  filters: 'Filtres',
+  filterComponent: 'Composant',
+  filterType: 'Type',
+  filterState: 'État',
+  filterDirection: 'Direction',
+  filterText: 'Texte',
+  filterAll: 'Tous',
+  filterVisual: 'Visuel',
+  filterTemplate: 'Template',
+  filterRemoved: 'Retiré',
+  filterCurrent: 'Courant',
+  filterRenewed: 'Reporté',
+  filterMissing: 'Manquant',
+  filterReview: 'À revoir',
+  filterRender: 'Rendu',
+  filterCommand: 'Commande',
   queueSummary: (scenarios, decisions) =>
     `${scenarios} scénario${scenarios === 1 ? '' : 's'} · ${decisions} décision${decisions === 1 ? '' : 's'}`,
   queue: "File d'attente",
@@ -280,7 +356,5 @@ const fr: typeof en = {
   hintBlock:
     "Vous ne pouvez pas juger celui-ci pour l'instant. Comme Refuser, il continue de revenir, mais il n'affirme rien sur la justesse du rendu.",
 };
-
-export type Messages = typeof en;
 
 export const MESSAGES: Record<Locale, Messages> = { en, fr };

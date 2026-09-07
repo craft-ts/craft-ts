@@ -131,7 +131,12 @@ describe('buildReviewQueue', () => {
           path: 'card',
           rect: { x: 0, y: 0, width: 100, height: 40 },
           styles: { ...blank, 'border-radius': radius },
-          scroll: { width: 100, height: 40, clientWidth: 100, clientHeight: 40 },
+          scroll: {
+            width: 100,
+            height: 40,
+            clientWidth: 100,
+            clientHeight: 40,
+          },
           zOrder: 0,
         },
         {
@@ -139,7 +144,12 @@ describe('buildReviewQueue', () => {
           parent: 'card',
           rect: { x: 0, y: 0, width: 100, height: 20 },
           styles: blank,
-          scroll: { width: 100, height: 20, clientWidth: 100, clientHeight: 20 },
+          scroll: {
+            width: 100,
+            height: 20,
+            clientWidth: 100,
+            clientHeight: 20,
+          },
           zOrder: 0,
         },
       ] satisfies MeasuredElement[]);
@@ -312,7 +322,9 @@ describe('findings are checked against what the card attests', () => {
       expect(
         (await fetch(`${running.url}/api/snapshot/${'b'.repeat(32)}`)).status,
       ).toBe(404);
-      expect((await fetch(`${running.url}/api/snapshot/nope`)).status).toBe(400);
+      expect((await fetch(`${running.url}/api/snapshot/nope`)).status).toBe(
+        400,
+      );
     } finally {
       await running.close();
     }
@@ -320,6 +332,117 @@ describe('findings are checked against what the card attests', () => {
 });
 
 describe('review server', () => {
+  it('refreshes authoritative cards before checking a decision revision', async () => {
+    const [card] = buildReviewQueue([
+      item('visual:Card#base', 'card', '8px'),
+    ]).cards;
+    if (!card) throw new Error('the queue should hold one card');
+    let changedExternally = false;
+    const running = await startReviewServer({
+      port: 0,
+      cards: [card],
+      refreshCards: async () =>
+        changedExternally
+          ? [{ ...card, revision: 'externally-updated' }]
+          : [card],
+    });
+
+    try {
+      const initial = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      changedExternally = true;
+      const response = await fetch(`${running.url}/api/decisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: card.shape,
+          id: card.id,
+          revision: initial.cards[0]?.revision,
+          verdict: 'ok',
+        }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(
+        (await fetch(`${running.url}/api/review`).then((value) =>
+          value.json(),
+        )) as ReviewApiQueue,
+      ).toMatchObject({
+        decisions: 1,
+        cards: [{ revision: 'externally-updated' }],
+      });
+    } finally {
+      await running.close();
+    }
+  });
+
+  it('refuses a stale revision and keeps the card visible', async () => {
+    const running = await startReviewServer({
+      port: 0,
+      items: [item('visual:Card#base', 'card', '8px')],
+    });
+
+    try {
+      const initial = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      const card = initial.cards[0];
+      expect(card).toBeDefined();
+      const response = await fetch(`${running.url}/api/decisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: card?.shape,
+          id: card?.id,
+          revision: 'stale',
+          verdict: 'ok',
+        }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(
+        (await fetch(`${running.url}/api/review`).then((value) =>
+          value.json(),
+        )) as ReviewApiQueue,
+      ).toMatchObject({ decisions: 1 });
+    } finally {
+      await running.close();
+    }
+  });
+
+  it('keeps rejected and blocked cards in the human queue', async () => {
+    const running = await startReviewServer({
+      port: 0,
+      items: [item('visual:Card#base', 'card', '8px')],
+    });
+
+    try {
+      const initial = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      const card = initial.cards[0];
+      const response = await fetch(`${running.url}/api/decisions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          shape: card?.shape,
+          id: card?.id,
+          revision: card?.revision,
+          verdict: 'rejected',
+          note: 'still wrong',
+        }),
+      });
+
+      expect(response.ok).toBe(true);
+      expect((await response.json()) as ReviewApiQueue).toMatchObject({
+        decisions: 1,
+      });
+    } finally {
+      await running.close();
+    }
+  });
+
   it('updates its queue only after a decision is persisted', async () => {
     const decided: string[] = [];
     const running = await startReviewServer({

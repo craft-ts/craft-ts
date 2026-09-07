@@ -10,6 +10,16 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildReviewQueue, type ReviewCard, type ReviewItem } from './queue.js';
+import type {
+  AttestationDevtoolModel,
+  RemovalReviewCard,
+  TemplateReviewCard,
+} from '@craft-ts/dev-tools/attestation-review';
+
+export type AttestationReviewCard =
+  | ReviewCard
+  | TemplateReviewCard
+  | RemovalReviewCard;
 
 export interface ReviewFinding {
   readonly path: string;
@@ -18,8 +28,11 @@ export interface ReviewFinding {
 
 export interface ReviewDecisionRequest {
   readonly shape: string;
+  readonly id?: string;
+  readonly revision?: string;
   readonly verdict: string;
   readonly note?: string;
+  readonly retirementReason?: 'superseded' | 'defect' | 'derivation';
   /** Nodes the reviewer pointed at. Checked against the card's attested set. */
   readonly findings?: readonly ReviewFinding[];
   /** Set when the verdict was reached on the screenshot, not a faithful replay. */
@@ -29,16 +42,28 @@ export interface ReviewDecisionRequest {
 export interface ReviewApiQueue {
   readonly items: number;
   readonly decisions: number;
-  readonly cards: readonly ReviewCard[];
+  readonly cards: readonly AttestationReviewCard[];
+  readonly visualAssets: AttestationDevtoolModel['visualAssets'];
+  readonly visualTests: AttestationDevtoolModel['visualTests'];
+  readonly templateObligations: AttestationDevtoolModel['templateObligations'];
+  readonly diagnostics: AttestationDevtoolModel['diagnostics'];
 }
 
 export interface ReviewServerOptions {
   readonly port?: number;
   readonly items?: readonly ReviewItem[];
+  /** Pre-built mixed cards for the unified DevTool. */
+  readonly cards?: readonly AttestationReviewCard[];
+  readonly model?: Omit<AttestationDevtoolModel, 'cards'>;
+  /** Re-derives cards from the authoritative ledger before reads/decisions. */
+  readonly refreshCards?: () => Promise<readonly AttestationReviewCard[]>;
   /** Called once per decision, expanded over its cluster by the caller. */
   readonly onDecision?: (
     decision: ReviewDecisionRequest,
-  ) => void | Promise<void>;
+  ) =>
+    | void
+    | readonly AttestationReviewCard[]
+    | Promise<void | readonly AttestationReviewCard[]>;
   /** Serves a stored screenshot by hash. */
   readonly imageFor?: (hash: string) => Promise<Uint8Array | undefined>;
   /**
@@ -64,6 +89,14 @@ export interface RunningReviewServer {
 }
 
 const MAX_DECISION_BYTES = 64 * 1024;
+const REVIEW_VERDICTS = new Set([
+  'ok',
+  'ok-with-note',
+  'known-issue',
+  'rejected',
+  'blocked',
+  'retire',
+]);
 
 const reviewAppRoot = (): string => {
   const candidate = new URL('../../../review-app/', import.meta.url);
@@ -72,10 +105,17 @@ const reviewAppRoot = (): string => {
     : resolve(process.cwd(), 'libs/style-testing/review-app');
 };
 
-const queueValue = (cards: readonly ReviewCard[]): ReviewApiQueue => ({
+const queueValue = (
+  cards: readonly AttestationReviewCard[],
+  model: ReviewServerOptions['model'],
+): ReviewApiQueue => ({
   items: cards.reduce((total, card) => total + card.cluster.length, 0),
   decisions: cards.length,
   cards,
+  visualAssets: model?.visualAssets ?? [],
+  visualTests: model?.visualTests ?? [],
+  templateObligations: model?.templateObligations ?? [],
+  diagnostics: model?.diagnostics ?? [],
 });
 
 const writeJson = (
@@ -126,8 +166,15 @@ const isDecision = (value: unknown): value is ReviewDecisionRequest => {
   return (
     typeof decision.shape === 'string' &&
     decision.shape.length > 0 &&
+    (decision.id === undefined || typeof decision.id === 'string') &&
+    (decision.revision === undefined ||
+      typeof decision.revision === 'string') &&
     typeof decision.verdict === 'string' &&
     (decision.note === undefined || typeof decision.note === 'string') &&
+    (decision.retirementReason === undefined ||
+      ['superseded', 'defect', 'derivation'].includes(
+        decision.retirementReason,
+      )) &&
     (decision.degraded === undefined ||
       typeof decision.degraded === 'boolean') &&
     (decision.findings === undefined ||
@@ -143,9 +190,10 @@ const isDecision = (value: unknown): value is ReviewDecisionRequest => {
  * against the wrong subject is worse than no remark: it reads as coverage.
  */
 export function findingsOutsideCard(
-  card: ReviewCard,
+  card: AttestationReviewCard,
   findings: readonly ReviewFinding[],
 ): readonly string[] {
+  if (card.kind !== 'visual') return findings.map((finding) => finding.path);
   const attested = new Set(card.members.flatMap((member) => member.attested));
   return findings
     .filter((finding) => !attested.has(finding.path))
@@ -157,7 +205,7 @@ export async function startReviewServer(
   options: ReviewServerOptions = {},
 ): Promise<RunningReviewServer> {
   const initial = buildReviewQueue(options.items ?? []);
-  let cards = [...initial.cards];
+  let cards: AttestationReviewCard[] = [...(options.cards ?? initial.cards)];
   const port = options.port ?? 4320;
   const appRoot = options.appRoot ?? reviewAppRoot();
   const workspaceAliases = {
@@ -180,7 +228,17 @@ export async function startReviewServer(
     const url = new URL(request.url ?? '/', 'http://localhost');
 
     if (request.method === 'GET' && url.pathname === '/api/review') {
-      writeJson(response, 200, queueValue(cards));
+      void (async () => {
+        try {
+          if (options.refreshCards) cards = [...(await options.refreshCards())];
+          writeJson(response, 200, queueValue(cards, options.model));
+        } catch (error) {
+          writeJson(response, 500, {
+            error:
+              error instanceof Error ? error.message : 'review refresh failed',
+          });
+        }
+      })();
       return;
     }
 
@@ -198,17 +256,56 @@ export async function startReviewServer(
           if (!isDecision(decision)) {
             throw new Error('review: expected a shape and a verdict.');
           }
+          if (!REVIEW_VERDICTS.has(decision.verdict)) {
+            throw new Error(`review: unknown verdict '${decision.verdict}'.`);
+          }
           if (
             decision.verdict === 'rejected' &&
             (decision.note === undefined || decision.note.trim().length === 0)
           ) {
             throw new Error('review: rejected decisions require a reason.');
           }
+          if (
+            decision.verdict === 'retire' &&
+            (!decision.retirementReason || !decision.note?.trim())
+          ) {
+            throw new Error(
+              'review: retired obligations require a reason and a comment.',
+            );
+          }
+          if (decision.verdict === 'ok-with-note' && !decision.note?.trim()) {
+            throw new Error(
+              'review: Accept with note requires a non-empty comment.',
+            );
+          }
+          if (options.refreshCards) cards = [...(await options.refreshCards())];
           const card = cards.find(
-            (candidate) => candidate.shape === decision.shape,
+            (candidate) =>
+              candidate.shape === decision.shape &&
+              (decision.id === undefined || candidate.id === decision.id),
           );
           if (!card) {
             throw new Error('review: that diff cluster no longer exists.');
+          }
+          if (options.cards && decision.revision === undefined) {
+            throw new Error('review: a card revision is required.');
+          }
+          if (
+            decision.revision !== undefined &&
+            decision.revision !== card.revision
+          ) {
+            writeJson(response, 409, {
+              error: 'review: that card changed; reload it before deciding.',
+            });
+            return;
+          }
+          if (card.kind === 'removal' && decision.verdict !== 'retire') {
+            throw new Error('review: a removed obligation requires Retire.');
+          }
+          if (card.kind !== 'removal' && decision.verdict === 'retire') {
+            throw new Error(
+              'review: Retire only applies to removed obligations.',
+            );
           }
           const stray = findingsOutsideCard(card, decision.findings ?? []);
           if (stray.length > 0) {
@@ -216,11 +313,17 @@ export async function startReviewServer(
               `review: ${stray.join(', ')} ${stray.length === 1 ? 'is' : 'are'} not attested by this subject. File the remark on the card that covers it.`,
             );
           }
-          await options.onDecision?.(decision);
-          cards = cards.filter(
-            (candidate) => candidate.shape !== decision.shape,
-          );
-          writeJson(response, 200, queueValue(cards));
+          const refreshed = await options.onDecision?.(decision);
+          if (refreshed) cards = [...refreshed];
+          else if (
+            decision.verdict !== 'rejected' &&
+            decision.verdict !== 'blocked'
+          ) {
+            cards = cards.filter(
+              (candidate) => candidate.shape !== decision.shape,
+            );
+          }
+          writeJson(response, 200, queueValue(cards, options.model));
         } catch (error) {
           writeJson(response, 400, {
             error: error instanceof Error ? error.message : 'bad request',
@@ -240,14 +343,18 @@ export async function startReviewServer(
         'cache-control': 'public, max-age=31536000, immutable',
         'content-security-policy': "script-src 'none'; object-src 'none'",
       });
-      response.end('<!doctype html><meta charset="utf-8"><title>No frozen page</title>');
+      response.end(
+        '<!doctype html><meta charset="utf-8"><title>No frozen page</title>',
+      );
       return;
     }
 
     const digestPrefix = '/api/digest/';
     if (request.method === 'GET' && url.pathname.startsWith(digestPrefix)) {
       void (async () => {
-        const hash = decodeURIComponent(url.pathname.slice(digestPrefix.length));
+        const hash = decodeURIComponent(
+          url.pathname.slice(digestPrefix.length),
+        );
         if (!/^[a-f0-9]{32}$/.test(hash)) {
           response.writeHead(400).end();
           return;
