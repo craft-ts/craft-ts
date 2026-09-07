@@ -21,3 +21,4 @@ export * from './lib/state.js';
 export * from './lib/evidence-store.js';
 export * from './lib/subjects/test.js';
 export * from './lib/subjects/visual.js';
+export * from './lib/subjects/template.js';

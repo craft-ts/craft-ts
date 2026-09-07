@@ -184,6 +184,10 @@ const guideSidebar = [
       { text: 'Testing visual states', link: '/guide/style/testing' },
       { text: 'Visual attestation', link: '/guide/style/attestation' },
       {
+        text: 'Template obligations',
+        link: '/guide/style/template-obligations',
+      },
+      {
         text: 'Component CSS variables',
         link: '/guide/components/css-variables',
       },

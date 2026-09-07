@@ -52,6 +52,10 @@
     "./scripts/test-slice.js": {
       "types": "./src/scripts/test-slice.d.ts",
       "default": "./src/scripts/test-slice.js"
+    },
+    "./scripts/template-obligations.js": {
+      "types": "./src/scripts/template-obligations.d.ts",
+      "default": "./src/scripts/template-obligations.js"
     }
   },
   "generators": "./generators.json",

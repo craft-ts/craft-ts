@@ -63,6 +63,16 @@ export function statusOf(
     };
   }
 
+  if (attestation.retired) {
+    return {
+      subject: observation.subject,
+      state: 'review',
+      observation,
+      attestation,
+      reason: 'the retired obligation reappeared',
+    };
+  }
+
   if (!isAccepted(attestation.verdict)) {
     return {
       subject: observation.subject,
@@ -140,6 +150,8 @@ export interface LedgerReport {
   readonly statuses: readonly SubjectStatus[];
   /** Subjects in the ledger that nothing produces any more. */
   readonly orphaned: readonly string[];
+  /** Template obligations removed without a signed retirement. */
+  readonly unsignedRemovals: readonly string[];
   readonly counts: Readonly<Record<AttestationState, number>>;
   /** How many of the current attestations came from a bulk renewal. */
   readonly bulk: number;
@@ -161,9 +173,16 @@ export function reportOn(
     missing: 0,
   };
   for (const status of statuses) counts[status.state] += 1;
+  const orphaned = [...ledger.keys()]
+    .filter((subject) => !produced.has(subject))
+    .sort();
   return {
     statuses,
-    orphaned: [...ledger.keys()].filter((subject) => !produced.has(subject)).sort(),
+    orphaned,
+    unsignedRemovals: orphaned.filter((subject) => {
+      const attestation = ledger.get(subject);
+      return attestation?.kind === 'template' && !attestation.retired;
+    }),
     counts,
     bulk: statuses.filter((status) => status.attestation?.bulk === true).length,
   };

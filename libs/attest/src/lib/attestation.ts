@@ -22,7 +22,12 @@
  * or a style sheet, the abstraction is wrong.
  */
 
-export type SubjectKind = 'test' | 'visual' | 'doc-example' | 'api-surface';
+export type SubjectKind =
+  | 'test'
+  | 'visual'
+  | 'doc-example'
+  | 'api-surface'
+  | 'template';
 
 export type Verdict =
   | 'ok'
@@ -69,6 +74,16 @@ export interface Finding {
   readonly note: string;
 }
 
+/** Why a template obligation stopped being promised. */
+export interface Retirement {
+  /** `derivation` records an extractor limitation, not a product decision. */
+  readonly reason: 'derivation' | 'superseded' | 'defect';
+  /** Required. An empty note is refused at the CLI boundary. */
+  readonly note: string;
+  readonly by: string;
+  readonly at: string;
+}
+
 export interface Attestation {
   /** `visual:route(/users)#viewport=md+query=error` */
   readonly subject: string;
@@ -106,6 +121,8 @@ export interface Attestation {
    * a verified replay" and "judged on a photograph" stay different claims.
    */
   readonly degraded?: true;
+  /** Human-signed removal of a derived template obligation. */
+  readonly retired?: Retirement;
 }
 
 /**
@@ -196,6 +213,16 @@ export const isAccepted = (verdict: Verdict): boolean =>
 export function isAttestation(value: unknown): value is Attestation {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Partial<Attestation>;
+  const retirement = candidate.retired;
+  const validRetirement =
+    retirement === undefined ||
+    (typeof retirement === 'object' &&
+      retirement !== null &&
+      ['derivation', 'superseded', 'defect'].includes(retirement.reason) &&
+      typeof retirement.note === 'string' &&
+      retirement.note.length > 0 &&
+      typeof retirement.by === 'string' &&
+      typeof retirement.at === 'string');
   return (
     typeof candidate.subject === 'string' &&
     typeof candidate.kind === 'string' &&
@@ -205,6 +232,7 @@ export function isAttestation(value: unknown): value is Attestation {
     Array.isArray(candidate.assumptions) &&
     typeof candidate.by === 'string' &&
     typeof candidate.at === 'string' &&
-    typeof candidate.toolVersion === 'string'
+    typeof candidate.toolVersion === 'string' &&
+    validRetirement
   );
 }
