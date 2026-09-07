@@ -87,6 +87,25 @@ const slices = (
   leavesForNode: (nodeId) => ({
     [nodeId]: fingerprints[nodeId] ?? 'visual-code-1',
   }),
+  templateObligations: () => [
+    {
+      subject:
+        'template:component:apps/demo/card.ts:Card#command:property:apps/demo/card.ts:save',
+      direction: 'command',
+      component: 'component:apps/demo/card.ts:Card',
+      target: 'property:apps/demo/card.ts:save',
+      targetKind: 'property',
+      element: 'button',
+      elementName: 'save',
+      statement: "button 'save' in Card's template invokes save.",
+    },
+  ],
+  templateDiagnostics: () => [],
+  fingerprintForTemplate: (subject) =>
+    fingerprints[subject] ?? 'template-code-1',
+  leavesForTemplate: (subject) => ({
+    [`site:${subject}`]: fingerprints[subject] ?? 'template-code-1',
+  }),
   nodeHashes: () => ({ 'libs/core/src/lib/state.ts#state:count': 'node-1' }),
 });
 
@@ -94,6 +113,14 @@ const dependencies = (fingerprints: Readonly<Record<string, string>> = {}) => ({
   loadSlices: async () => slices(fingerprints),
   now: () => '2026-09-05T09:00:00.000Z',
   user: () => 'romain',
+});
+
+const withoutTemplateObligations = () => ({
+  ...dependencies(),
+  loadSlices: async () => ({
+    ...slices({}),
+    templateObligations: () => [],
+  }),
 });
 
 describe('craft-ts attest', () => {
@@ -363,6 +390,143 @@ describe('craft-ts attest', () => {
     const code = await runAttestCommand(['status'], io, dependencies());
     expect(code).toBe(1);
     expect(err.join('\n')).toContain('Point --report at Vitest JSON');
+  });
+
+  it('derives template subjects without a report', async () => {
+    const { io, out } = await workspace();
+    const code = await runAttestCommand(
+      ['status', '--kind', 'template'],
+      io,
+      dependencies(),
+    );
+
+    expect(code).toBe(1);
+    expect(out[0]).toBe('current 0  renewed 0  review 0  missing 1');
+    expect(out.join('\n')).toContain(
+      'template:component:apps/demo/card.ts:Card',
+    );
+  });
+
+  it('blocks an unsigned template removal and accepts a signed retirement', async () => {
+    const { root, io, out, err } = await workspace();
+    await runAttestCommand(
+      ['renew', '--all', '--kind', 'template'],
+      io,
+      dependencies(),
+    );
+    out.splice(0);
+
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'template'],
+        io,
+        withoutTemplateObligations(),
+      ),
+    ).toBe(1);
+    expect(out.join('\n')).toContain('sign the removal with `attest retire`');
+
+    const subject =
+      'template:component:apps/demo/card.ts:Card#command:property:apps/demo/card.ts:save';
+    expect(
+      await runAttestCommand(
+        [
+          'retire',
+          '--kind',
+          'template',
+          '--subject',
+          subject,
+          '--reason',
+          'superseded',
+        ],
+        io,
+        withoutTemplateObligations(),
+      ),
+    ).toBe(1);
+    expect(err.join('\n')).toContain('non-empty --note');
+
+    expect(
+      await runAttestCommand(
+        [
+          'retire',
+          '--kind',
+          'template',
+          '--subject',
+          subject,
+          '--reason',
+          'superseded',
+          '--note',
+          'Saving is automatic now.',
+        ],
+        io,
+        withoutTemplateObligations(),
+      ),
+    ).toBe(0);
+    const ledger = await readFile(
+      join(root, '.craft/attestations.jsonl'),
+      'utf8',
+    );
+    expect(JSON.parse(ledger).retired).toMatchObject({
+      reason: 'superseded',
+      note: 'Saving is automatic now.',
+      by: 'romain',
+    });
+
+    out.splice(0);
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'template'],
+        io,
+        withoutTemplateObligations(),
+      ),
+    ).toBe(0);
+  });
+
+  it('queues a retired obligation if it reappears', async () => {
+    const { root, io, out } = await workspace();
+    await runAttestCommand(
+      ['renew', '--all', '--kind', 'template'],
+      io,
+      dependencies(),
+    );
+    const subject =
+      'template:component:apps/demo/card.ts:Card#command:property:apps/demo/card.ts:save';
+    await runAttestCommand(
+      [
+        'retire',
+        '--kind',
+        'template',
+        '--subject',
+        subject,
+        '--reason',
+        'defect',
+        '--note',
+        'The action was exposed by mistake.',
+      ],
+      io,
+      withoutTemplateObligations(),
+    );
+    out.splice(0);
+
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'template'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(1);
+    expect(out.join('\n')).toContain('the retired obligation reappeared');
+
+    expect(
+      await runAttestCommand(
+        ['renew', '--kind', 'template', '--subject', subject],
+        io,
+        dependencies(),
+      ),
+    ).toBe(0);
+    const ledger = JSON.parse(
+      await readFile(join(root, '.craft/attestations.jsonl'), 'utf8'),
+    );
+    expect(ledger.retired).toBeUndefined();
   });
 
   it('rejects an unknown option instead of quietly checking something else', async () => {

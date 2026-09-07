@@ -2062,7 +2062,7 @@ const INTERACTIVE_ELEMENT_HANDLERS = new Set([
   'onSubmit',
 ]);
 
-type ParsedHyperscript = {
+export type ParsedHyperscript = {
   tag: string;
   name?: string;
   nameKind: 'literal' | 'non-static' | 'missing';
@@ -2103,12 +2103,15 @@ function collectInteractiveTemplateElements(builder: GraphBuilder): void {
   }
 }
 
-function walkTemplate(node: Node, visit: (node: Node) => 'skip' | void): void {
+export function walkTemplate(
+  node: Node,
+  visit: (node: Node) => 'skip' | void,
+): void {
   if (visit(node) === 'skip') return;
   node.forEachChild((child) => walkTemplate(child, visit));
 }
 
-function parseCraftHyperscript(
+export function parseCraftHyperscript(
   call: CallExpression,
 ): ParsedHyperscript | undefined {
   const callee = call.getExpression().getText();
@@ -2155,7 +2158,7 @@ function parseCraftHyperscript(
   return { tag: callee, nameKind: 'missing' };
 }
 
-function isInteractiveElement(parsed: ParsedHyperscript): boolean {
+export function isInteractiveElement(parsed: ParsedHyperscript): boolean {
   if (
     parsed.tag === 'input' &&
     getStringProperty(parsed.props, 'type') === 'hidden'
@@ -3341,7 +3344,7 @@ type PrimitiveMethodAlias = {
  * template. A wrapper such as `() => counter.increment()` is intentionally not
  * equivalent: it is a new call site with its own behavior.
  */
-function collectPrimitiveMethodAliases(
+export function collectPrimitiveMethodAliases(
   builder: GraphBuilder,
   component: ComponentInfo,
   template: Node,
@@ -3468,7 +3471,7 @@ function isFunctionNode(
   return Node.isArrowFunction(node) || Node.isFunctionExpression(node);
 }
 
-function collectReactiveExpressions(scope: Node): Node[] {
+export function collectReactiveExpressions(scope: Node): Node[] {
   const expressions: Node[] = [];
   const seen = new Set<Node>();
   const add = (node: Node | undefined): void => {
@@ -3508,7 +3511,7 @@ function collectReactiveExpressions(scope: Node): Node[] {
   return expressions;
 }
 
-function resolveReactiveTarget(
+export function resolveReactiveTarget(
   builder: GraphBuilder,
   expression: Node | undefined,
   bindings: Map<string, ReactiveBinding>,
@@ -3963,7 +3966,7 @@ function initializerProperty(
   return initializer === call ? property : undefined;
 }
 
-function templateParameterNames(template: Node): Set<string> {
+export function templateParameterNames(template: Node): Set<string> {
   if (
     !template.isKind(SyntaxKind.ArrowFunction) &&
     !template.isKind(SyntaxKind.FunctionExpression)
@@ -3974,7 +3977,9 @@ function templateParameterNames(template: Node): Set<string> {
   return new Set(parameter ? getBindingNames(parameter) : []);
 }
 
-function isBindingName(identifier: import('ts-morph').Identifier): boolean {
+export function isBindingName(
+  identifier: import('ts-morph').Identifier,
+): boolean {
   const parent = identifier.getParent();
   return (
     parent?.isKind(SyntaxKind.BindingElement) === true ||
@@ -5000,7 +5005,7 @@ function stableOrdinal(
 }
 
 /** `file#owner/name/ordinal`, with the kind kept in front for readability. */
-function stableNodeId(
+export function stableNodeId(
   kind: string,
   family: StableFamily,
   call: CallExpression,

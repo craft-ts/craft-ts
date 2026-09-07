@@ -1,7 +1,7 @@
 /**
  * `craft-ts attest` — the register, from a terminal.
  *
- * Six verbs, and the two that justify the rest:
+ * Seven verbs, and the two that justify the rest:
  *
  * - **`why`** names the graph nodes that moved inside a subject's slice. A
  *   review that cannot answer "why am I being asked this?" gets rubber-stamped
@@ -26,6 +26,7 @@ import {
   evidenceHash,
   isAccepted,
   isVisualRunReport,
+  observeTemplateObligations,
   observeVisualRun,
   observeTests,
   parseVisualRunReport,
@@ -38,7 +39,10 @@ import {
   withAttestations,
   type Attestation,
   type Ledger,
+  type Retirement,
+  type SubjectKind,
   type SubjectObservation,
+  type TemplateObligationInput,
   type VisualRunCapture,
   type Verdict,
 } from '@craft-ts/attest';
@@ -60,6 +64,8 @@ const SPEC = {
     'note',
     'by',
     'port',
+    'kind',
+    'reason',
   ],
   flags: ['all', 'json', 'help', 'apply'],
 } as const;
@@ -95,6 +101,7 @@ Verbs:
   why <subject>        Which nodes of the subject's slice moved, and when a
                        person last actually looked at it
   renew                Record a verdict; --all marks the attestations as bulk
+  retire               Sign the removal of a template obligation
   review               Open the local CraftTS review application
   unwatched            Nodes that moved and belong to no attested subject
 
@@ -102,12 +109,14 @@ Options:
   --ledger <path>      Ledger file (default: .craft/attestations.jsonl)
   --evidence <dir>     Evidence store (default: .craft/evidence)
   --report <path>      Vitest JSON or craft-ts visual report
+  --kind <kind>        test | visual | template; template needs no report
   --before/--after     Two such reports, for \`diff\`
   --tsconfig <path>    Project the code graph is built from
   --root <dir>         Repository root (default: the working directory)
   --subject <id>       Subject to act on
   --verdict <v>        ok | ok-with-note | rejected | known-issue | blocked
   --note <text>        Recorded with the verdict; required for rejected
+  --reason <reason>    derivation | superseded | defect (with \`retire\`)
   --by <name>          Who is judging (default: $USER)
   --all                Renew every reviewable subject, marked as bulk
   --json               Emit a machine-readable report
@@ -137,9 +146,26 @@ const VERDICTS: readonly Verdict[] = [
   'known-issue',
   'blocked',
 ];
+const SUBJECT_KINDS: readonly Extract<
+  SubjectKind,
+  'test' | 'visual' | 'template'
+>[] = ['test', 'visual', 'template'];
+const RETIREMENT_REASONS: readonly Retirement['reason'][] = [
+  'derivation',
+  'superseded',
+  'defect',
+];
 
 const isVerdict = (value: string): value is Verdict =>
   VERDICTS.some((verdict) => verdict === value);
+
+const isSubjectKind = (
+  value: string,
+): value is Extract<SubjectKind, 'test' | 'visual' | 'template'> =>
+  SUBJECT_KINDS.some((kind) => kind === value);
+
+const isRetirementReason = (value: string): value is Retirement['reason'] =>
+  RETIREMENT_REASONS.some((reason) => reason === value);
 
 export interface AttestDependencies {
   /**
@@ -161,6 +187,14 @@ export interface WorkspaceSlices {
   leavesFor(file: string, fullName: string): Readonly<Record<string, string>>;
   fingerprintForNode(nodeId: string): string;
   leavesForNode(nodeId: string): Readonly<Record<string, string>>;
+  templateObligations(): readonly TemplateObligationInput[];
+  templateDiagnostics(): readonly {
+    readonly code: string;
+    readonly message: string;
+    readonly proof?: { readonly filePath: string; readonly line?: number };
+  }[];
+  fingerprintForTemplate(subject: string): string;
+  leavesForTemplate(subject: string): Readonly<Record<string, string>>;
   /** `nodeId → hash` for every node in the graph. */
   nodeHashes(): Readonly<Record<string, string>>;
 }
@@ -185,6 +219,17 @@ const defaultLoadSlices = async (options: {
   const codeSliceModule = await import(
     '@craft-ts/dev-tools/scripts/code-slice.js'
   );
+  const templateModule = await import(
+    '@craft-ts/dev-tools/scripts/template-obligations.js'
+  );
+  let templateIndex:
+    | ReturnType<typeof templateModule.createTemplateObligationIndex>
+    | undefined;
+  const prepareTemplateIndex = () =>
+    (templateIndex ??= templateModule.createTemplateObligationIndex(
+      index.graph,
+      options,
+    ));
   const visualSlices = new Map<
     string,
     ReturnType<typeof codeSliceModule.sliceOfPortableNode>
@@ -205,6 +250,11 @@ const defaultLoadSlices = async (options: {
     leavesFor: (file, fullName) => index.leavesFor(file, fullName),
     fingerprintForNode: (nodeId) => prepareVisualSlice(nodeId).fingerprint,
     leavesForNode: (nodeId) => prepareVisualSlice(nodeId).leaves,
+    templateObligations: () => prepareTemplateIndex().obligations,
+    templateDiagnostics: () => prepareTemplateIndex().diagnostics,
+    fingerprintForTemplate: (subject) =>
+      prepareTemplateIndex().fingerprintFor(subject),
+    leavesForTemplate: (subject) => prepareTemplateIndex().leavesFor(subject),
     nodeHashes: () =>
       Object.fromEntries(
         [...index.slices.hashes].map(([id, hash]) => [
@@ -225,6 +275,7 @@ interface ObservedRun {
   readonly workspace: WorkspaceSlices;
   readonly leaves: ReadonlyMap<string, Readonly<Record<string, string>>>;
   readonly visuals: ReadonlyMap<string, VisualArtifact>;
+  readonly kind: 'test' | 'visual' | 'template';
 }
 
 export async function runAttestCommand(
@@ -253,6 +304,12 @@ export async function runAttestCommand(
   );
   const ledger = await readLedger(io, ledgerPath);
   const json = parsed.flags.has('json');
+  const kindValue = parsed.values['kind'];
+  if (kindValue && !isSubjectKind(kindValue)) {
+    io.writeError(`craft-ts attest: unknown subject kind '${kindValue}'.`);
+    return 1;
+  }
+  const requestedKind = kindValue;
   const loadSlices = dependencies.loadSlices ?? defaultLoadSlices;
   const now = dependencies.now ?? (() => new Date().toISOString());
   const user = dependencies.user ?? (() => process.env['USER'] ?? 'unknown');
@@ -264,6 +321,31 @@ export async function runAttestCommand(
     });
 
   const observations = async (): Promise<ObservedRun> => {
+    if (requestedKind === 'template') {
+      const workspace = await slices();
+      const obligations = workspace.templateObligations();
+      const leaves = new Map<string, Readonly<Record<string, string>>>();
+      const list = observeTemplateObligations(obligations, (obligation) => {
+        leaves.set(
+          obligation.subject,
+          workspace.leavesForTemplate(obligation.subject),
+        );
+        return workspace.fingerprintForTemplate(obligation.subject);
+      });
+      for (const diagnostic of workspace.templateDiagnostics()) {
+        const location = diagnostic.proof
+          ? `${diagnostic.proof.filePath}${diagnostic.proof.line ? `:${diagnostic.proof.line}` : ''}: `
+          : '';
+        io.writeError(`${location}${diagnostic.code}: ${diagnostic.message}`);
+      }
+      return {
+        list,
+        workspace,
+        leaves,
+        visuals: new Map(),
+        kind: 'template',
+      };
+    }
     const reportPath = parsed.values['report'];
     if (!reportPath) {
       throw new Error(
@@ -275,6 +357,11 @@ export async function runAttestCommand(
     const raw = JSON.parse(await readFile(absoluteReportPath, 'utf8'));
     const leaves = new Map<string, Readonly<Record<string, string>>>();
     if (isVisualRunReport(raw)) {
+      if (requestedKind === 'test') {
+        throw new Error(
+          'craft-ts attest: --kind test requires a Vitest JSON report.',
+        );
+      }
       const run = parseVisualRunReport(raw);
       const list = observeVisualRun(run, (component) =>
         workspace.fingerprintForNode(component),
@@ -288,7 +375,13 @@ export async function runAttestCommand(
           reportDirectory: dirname(absoluteReportPath),
         });
       }
-      return { list, workspace, leaves, visuals };
+      return { list, workspace, leaves, visuals, kind: 'visual' };
+    }
+
+    if (requestedKind === 'visual') {
+      throw new Error(
+        'craft-ts attest: --kind visual requires a craft-ts visual report.',
+      );
     }
 
     const run = parseVitestReport(raw, { rootDir });
@@ -300,7 +393,7 @@ export async function runAttestCommand(
       );
       return workspace.fingerprintFor(testCase.file, testCase.fullName);
     });
-    return { list, workspace, leaves, visuals: new Map() };
+    return { list, workspace, leaves, visuals: new Map(), kind: 'test' };
   };
 
   try {
@@ -316,6 +409,15 @@ export async function runAttestCommand(
           io,
           ledger,
           store,
+          ledgerPath,
+          parsed,
+          await observations(),
+          { now, user },
+        );
+      case 'retire':
+        return await retire(
+          io,
+          ledger,
           ledgerPath,
           parsed,
           await observations(),
@@ -472,12 +574,19 @@ async function status(
   io: CraftCliIo,
   json: boolean,
   ledger: Ledger,
-  observed: { readonly list: readonly SubjectObservation[] },
+  observed: {
+    readonly list: readonly SubjectObservation[];
+    readonly kind: 'test' | 'visual' | 'template';
+  },
 ): Promise<number> {
   const report = reportOn(ledger, observed.list, { toolVersion: TOOL_VERSION });
+  const failures =
+    report.counts.review +
+    report.counts.missing +
+    (observed.kind === 'template' ? report.unsignedRemovals.length : 0);
   if (json) {
     io.write(JSON.stringify(report, null, 2));
-    return report.counts.review + report.counts.missing === 0 ? 0 : 1;
+    return failures === 0 ? 0 : 1;
   }
 
   io.write(
@@ -499,7 +608,10 @@ async function status(
     }
   }
   for (const subject of report.orphaned) {
-    io.write(`  orphaned ${subject} — nothing produces this any more`);
+    const unsigned = report.unsignedRemovals.includes(subject);
+    io.write(
+      `  orphaned ${subject} — nothing produces this any more${unsigned ? '; sign the removal with `attest retire`' : ''}`,
+    );
   }
   if (report.bulk > 0) {
     // Visible on purpose. A bulk renewal that leaves no trace turns the
@@ -508,7 +620,7 @@ async function status(
       `  ${report.bulk} of these rest on a bulk renewal, not on somebody looking.`,
     );
   }
-  return report.counts.review + report.counts.missing === 0 ? 0 : 1;
+  return failures === 0 ? 0 : 1;
 }
 
 async function diff(
@@ -729,6 +841,65 @@ async function renew(
   io.write(
     `Recorded ${attestations.length} verdict(s) as '${verdict}'${all ? ', marked as a bulk renewal' : ''}.`,
   );
+  return 0;
+}
+
+async function retire(
+  io: CraftCliIo,
+  ledger: Ledger,
+  ledgerPath: string,
+  parsed: ReturnType<typeof parseArguments>,
+  observed: ObservedRun,
+  clock: { readonly now: () => string; readonly user: () => string },
+): Promise<number> {
+  if (observed.kind !== 'template') {
+    io.writeError('craft-ts attest retire: pass --kind template.');
+    return 1;
+  }
+  const subject = parsed.values['subject'] ?? argumentAfter(parsed, 'retire');
+  if (!subject) {
+    io.writeError('craft-ts attest retire: --subject is required.');
+    return 1;
+  }
+  const reasonValue = parsed.values['reason'];
+  if (!reasonValue || !isRetirementReason(reasonValue)) {
+    io.writeError(
+      'craft-ts attest retire: --reason must be derivation, superseded, or defect.',
+    );
+    return 1;
+  }
+  const note = parsed.values['note'];
+  if (!note?.trim()) {
+    io.writeError('craft-ts attest retire: a non-empty --note is required.');
+    return 1;
+  }
+
+  const attestation = ledger.get(subject);
+  if (!attestation || attestation.kind !== 'template') {
+    io.writeError(
+      `craft-ts attest retire: '${subject}' is not an attested template obligation.`,
+    );
+    return 1;
+  }
+  const report = reportOn(ledger, observed.list, { toolVersion: TOOL_VERSION });
+  if (!report.orphaned.includes(subject)) {
+    io.writeError(
+      `craft-ts attest retire: '${subject}' is still produced by the template.`,
+    );
+    return 1;
+  }
+
+  const retired: Attestation = {
+    ...attestation,
+    retired: {
+      reason: reasonValue,
+      note: note.trim(),
+      by: parsed.values['by'] ?? clock.user(),
+      at: clock.now(),
+    },
+  };
+  await writeLedgerFile(ledgerPath, withAttestations(ledger, [retired]));
+  io.write(`Recorded the retirement of '${subject}' as '${reasonValue}'.`);
   return 0;
 }
 

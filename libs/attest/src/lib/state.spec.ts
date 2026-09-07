@@ -32,7 +32,9 @@ const observation = (
 });
 
 const ledgerOf = (...attestations: Attestation[]): Ledger =>
-  new Map(attestations.map((attestation) => [attestation.subject, attestation]));
+  new Map(
+    attestations.map((attestation) => [attestation.subject, attestation]),
+  );
 
 describe('statusOf', () => {
   it('is missing when nothing was ever attested', () => {
@@ -117,6 +119,25 @@ describe('statusOf', () => {
     );
     expect(status.state).toBe('review');
   });
+
+  it('queues a retired template obligation when it reappears', () => {
+    const retired: Attestation = {
+      ...judged,
+      kind: 'template',
+      retired: {
+        reason: 'superseded',
+        note: 'The action moved to the toolbar.',
+        by: 'romain',
+        at: '2026-09-02T10:00:00.000Z',
+      },
+    };
+    const status = statusOf(
+      ledgerOf(retired),
+      observation({ kind: 'template' }),
+    );
+    expect(status.state).toBe('review');
+    expect(status.reason).toContain('reappeared');
+  });
 });
 
 describe('reportOn', () => {
@@ -134,6 +155,31 @@ describe('reportOn', () => {
       missing: 0,
     });
     expect(report.orphaned).toEqual(['visual:Gone#base']);
+    expect(report.unsignedRemovals).toEqual([]);
+  });
+
+  it('names only unsigned template removals', () => {
+    const unsigned: Attestation = {
+      ...judged,
+      subject: 'template:component:app.ts:Card#render:primitive:app.ts:title',
+      kind: 'template',
+    };
+    const signed: Attestation = {
+      ...unsigned,
+      subject: 'template:component:app.ts:Card#command:primitive:app.ts:save',
+      retired: {
+        reason: 'superseded',
+        note: 'Saving is automatic now.',
+        by: 'romain',
+        at: '2026-09-02T10:00:00.000Z',
+      },
+    };
+    const report = reportOn(ledgerOf(unsigned, signed, judged), []);
+
+    expect(report.orphaned).toEqual(
+      [signed.subject, unsigned.subject, judged.subject].sort(),
+    );
+    expect(report.unsignedRemovals).toEqual([unsigned.subject]);
   });
 
   it('leaves the ledger untouched until renewals are applied', () => {
@@ -161,8 +207,12 @@ describe('ledger format', () => {
       { ...judged, subject: 'visual:A#base' },
     );
     const text = serialiseLedger(ledger);
-    expect(text.split('\n').filter(Boolean).map((line) => JSON.parse(line).subject))
-      .toEqual(['visual:A#base', 'visual:Z#base']);
+    expect(
+      text
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line).subject),
+    ).toEqual(['visual:A#base', 'visual:Z#base']);
     expect(parseLedger(text).ledger.size).toBe(2);
   });
 
@@ -171,5 +221,22 @@ describe('ledger format', () => {
     const parsed = parseLedger(text);
     expect(parsed.ledger.size).toBe(1);
     expect(parsed.rejected).toEqual([{ line: 2, reason: 'not JSON' }]);
+  });
+
+  it('keeps a signed retirement across a ledger rewrite', () => {
+    const retired: Attestation = {
+      ...judged,
+      kind: 'template',
+      retired: {
+        reason: 'defect',
+        note: 'The former action was exposed by mistake.',
+        by: 'romain',
+        at: '2026-09-02T10:00:00.000Z',
+      },
+    };
+    const text = serialiseLedger(ledgerOf(retired));
+    expect(parseLedger(text).ledger.get(retired.subject)?.retired).toEqual(
+      retired.retired,
+    );
   });
 });

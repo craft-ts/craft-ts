@@ -34,6 +34,7 @@ const KEY_ORDER: readonly (keyof Attestation)[] = [
   'cluster',
   'bulk',
   'degraded',
+  'retired',
 ];
 
 /**
