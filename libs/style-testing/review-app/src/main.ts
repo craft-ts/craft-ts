@@ -25,7 +25,12 @@ addEventListener('keydown', (event) => {
     event.altKey ||
     event.target instanceof HTMLInputElement ||
     event.target instanceof HTMLTextAreaElement ||
-    event.target instanceof HTMLSelectElement
+    event.target instanceof HTMLSelectElement ||
+    // A `contenteditable` is a text field too, and it is not covered by any of
+    // the element types above. Without this line, writing "And the row is
+    // cut..." in the decision reason pressed `a` — Accept — and filed a verdict
+    // the reviewer never reached.
+    (event.target instanceof HTMLElement && event.target.isContentEditable)
   ) {
     return;
   }

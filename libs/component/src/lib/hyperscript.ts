@@ -64,6 +64,9 @@ interface CommonDomEventMethods<El extends EventTarget> {
     event: TypedDomEvent<El, 'keydown'>,
   ): unknown | Generator<any, any, any>;
   keyup?(event: TypedDomEvent<El, 'keyup'>): unknown | Generator<any, any, any>;
+  paste?(
+    event: TypedDomEvent<El, 'paste'>,
+  ): unknown | Generator<any, any, any>;
   keypress?(
     event: TypedDomEvent<El, 'keypress'>,
   ): unknown | Generator<any, any, any>;

@@ -41,15 +41,16 @@ button:disabled {
 .app-shell {
   min-height: 100vh;
 }
-.topbar {
-  min-height: 84px;
-  padding: 18px 24px;
-  border-bottom: 1px solid #2a2e37;
-  background: #171a20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
+/* The tool's name lives in the sidebar. A full-width banner across the top
+   spent a band of height on every card to repeat something the reviewer
+   already knows, and height is what a tall capture has none of. */
+.panel-heading.brand h1 {
+  font-size: 19px;
+}
+.panel-heading.brand .queue-summary {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
 }
 .eyebrow {
   color: #8b93a5;
@@ -90,7 +91,7 @@ h3 {
 }
 
 .workspace {
-  min-height: calc(100vh - 84px);
+  min-height: 100vh;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
 }
@@ -390,17 +391,7 @@ select {
   margin-bottom: 6px;
   font-weight: 700;
 }
-.decision-panel textarea {
-  width: 100%;
-  min-height: 66px;
-  resize: vertical;
-  border: 1px solid #373d49;
-  border-radius: 7px;
-  padding: 9px 10px;
-  color: #f3f4f7;
-  background: #111318;
-}
-.decision-panel textarea[aria-invalid='true'] {
+.decision-panel .reason-input[aria-invalid='true'] {
   border-color: #e06c75;
   box-shadow: 0 0 0 2px #e06c7533;
 }
@@ -459,6 +450,19 @@ select {
   .queue-panel {
     border-right: 0;
     border-bottom: 1px solid #2a2e37;
+  }
+  /* Narrow: the name goes on one line with the count beside it. */
+  .panel-heading.brand {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .panel-heading.brand .eyebrow {
+    display: none;
+  }
+  .panel-heading.brand .queue-summary {
+    margin-top: 0;
   }
   .queue-list {
     display: flex;
@@ -801,9 +805,42 @@ select {
   background: #2a2e37;
 }
 
-.mention-tag {
-  align-self: start;
-  padding: 2px 7px;
+/* The reason field. A `contenteditable`, so a reference can be an element that
+   says what it points at, rather than the literal characters `[#1: 2 nodes]`
+   with the answer in a list somewhere else on the page. */
+.reason-input {
+  min-height: 92px;
+  padding: 9px 11px;
+  border: 1px solid #3c424e;
+  border-radius: 7px;
+  background: #12151b;
+  color: #e7e9ee;
+  font: inherit;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* Deliberately not scrollable. A clipping context here cuts the tooltip off
+     any reference sitting on the first line, and the answer to "which nodes is
+     this about" must not depend on where in the sentence it was written. A
+     reason is a sentence or two; the column scrolls with the page. */
+}
+.reason-input:focus-visible {
+  outline: 2px solid #526fff;
+  outline-offset: 1px;
+}
+.reason-input:empty::before {
+  content: attr(data-placeholder);
+  color: #6b7488;
+}
+.reason-input[aria-invalid='true'] {
+  border-color: #8a4b52;
+}
+
+.mention-chip {
+  position: relative;
+  display: inline-block;
+  margin: 0 1px;
+  padding: 1px 7px;
   border: 1px solid #4a5570;
   border-radius: 5px;
   background: #202a51;
@@ -811,4 +848,35 @@ select {
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
+  vertical-align: baseline;
+  cursor: default;
+  user-select: none;
+}
+
+/* Which nodes, without leaving the sentence. */
+.mention-chip::after {
+  content: attr(data-paths);
+  position: absolute;
+  z-index: 5;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: none;
+  width: max-content;
+  max-width: 320px;
+  padding: 7px 9px;
+  border: 1px solid #3c424e;
+  border-radius: 6px;
+  background: #1b1f26;
+  box-shadow: 0 10px 30px #0009;
+  color: #aeb5c3;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.mention-chip:hover::after,
+.mention-chip:focus-visible::after {
+  display: block;
 }

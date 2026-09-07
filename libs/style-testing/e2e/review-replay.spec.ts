@@ -460,6 +460,20 @@ test('a drag selects every node the box touches', async ({ page }) => {
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(2);
 });
 
+test('writing a reason does not file a verdict', async ({ page }) => {
+  // The reason field is a `contenteditable`, and the hotkey guard only knew
+  // about input, textarea and select. Typing "And the row is cut" pressed `a`
+  // — Accept — and recorded a verdict the reviewer never reached.
+  await page.goto(running.url);
+  const reason = page.getByLabel('Decision note');
+  await reason.click();
+  await reason.pressSequentially('a card and a note, rejected nowhere');
+
+  await expect(page.getByText('Review complete')).toBeHidden();
+  expect(decisions).toHaveLength(0);
+  await expect(reason).toContainText('a card and a note, rejected nowhere');
+});
+
 test('two complaints in one reason keep their own groups', async ({ page }) => {
   // The shape of a real rejection: this row is wrong, and further down that
   // other thing is wrong too. Filing them as one remark against every node
@@ -473,6 +487,7 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
   await frame.locator('.title').click();
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(1);
   // Right-click on the selection, which is the gesture the menu exists for.
+  await page.locator('#craft-replay-frame').scrollIntoViewIfNeeded();
   await frame.locator('.title').click({ button: 'right' });
   await page
     .getByRole('menuitem', { name: 'Add 1 node to the reason' })
@@ -480,7 +495,14 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
 
   // Referencing a group leaves the outline behind: it has been recorded.
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(0);
-  await expect(reason).toHaveValue(/\[#1: 1 node\]/);
+
+  // The reference is an element in the reason, not the characters
+  // `[#1: 1 node]` with the answer in a list somewhere else on the page: it
+  // carries the addresses it stands for, and shows them on hover.
+  const chip = page.locator('.mention-chip').first();
+  await expect(chip).toHaveText('[#1: 1 node]');
+  await expect(chip).toHaveAttribute('data-paths', /div/);
+  await expect(chip).toHaveAttribute('contenteditable', 'false');
 
   await reason.press('End');
   await reason.pressSequentially('And the body overflows its box. ');
@@ -489,8 +511,8 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
     .getByRole('menuitem', { name: 'Add 1 node to the reason' })
     .click();
 
-  // Both groups are listed, and the reason carries both references.
-  await expect(page.locator('.findings-list li')).toHaveCount(2);
+  // Both references sit in the reason, each in its own sentence.
+  await expect(page.locator('.mention-chip')).toHaveCount(2);
 
   await page.getByRole('button', { name: /Reject R/ }).click();
   await expect(page.getByText('Review complete')).toBeVisible();

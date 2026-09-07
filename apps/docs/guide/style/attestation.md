@@ -303,6 +303,22 @@ since the one before it — so the second complaint is filed against the second
 group and not, as a single note against every node would have it, against all
 seven.
 
+The field is a `contenteditable`, not a `textarea`, so a reference is an element
+rather than the literal characters `[#1: 2 nodes]`: hovering it lists the
+addresses it stands for. That is the whole reason for the swap. As text, the
+answer to "which nodes is this one about" had to live in a list somewhere else
+on the page, and a reviewer reading a sentence had to leave it to find out. The
+plain text is still the model — everything downstream reads the serialised
+string — so the chips are a rendering of the reason and never a second version
+of it.
+
+Two things that swap broke, both worth stating because neither is obvious. The
+field is not scrollable: a clipping context cuts the tooltip off any reference
+on the first line, and which nodes a reference covers must not depend on where
+in the sentence it was written. And the keyboard shortcuts had to learn about
+it — the guard knew `input`, `textarea` and `select`, so typing "And the row is
+cut" pressed `a`, Accept, and filed a verdict the reviewer never reached.
+
 Position settles that, not punctuation. The first rule tried was "the sentence
 the token stands in", and it was wrong for the way people write: the complaint
 is typed, ended, and *then* the group is pointed at, so the caret is past the

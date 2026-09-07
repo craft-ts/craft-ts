@@ -1324,6 +1324,7 @@ const EVENT_NAMES = new Set([
   'mouseout',
   'mouseover',
   'mouseup',
+  'paste',
   'pointerdown',
   'pointerenter',
   'pointerleave',

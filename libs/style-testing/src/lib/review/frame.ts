@@ -153,7 +153,10 @@ export const TIERS = {
   occluded: {
     colour: '#dc6803',
     style: 'dotted',
-    label: "Covered by the page's own overlay when it was captured",
+    // Plain: something in the application was painted on top of this node, so
+    // part of it was not visible in the screenshot. The reviewer's next move
+    // is the lift control above, which names the thing in the way.
+    label: 'Hidden behind something else when the capture was taken',
   },
   picked: {
     colour: '#7f56d9',

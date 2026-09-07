@@ -24,7 +24,6 @@ import {
   small,
   span,
   strong,
-  textarea,
   ul,
 } from '@craft-ts/component';
 import {
@@ -155,12 +154,16 @@ const imageUrl = (hash: string): string =>
  */
 const legendEntry = (
   tier: (typeof TIERS)[keyof typeof TIERS],
-  hidden?: () => Generator<unknown, boolean>,
+  options: {
+    readonly hidden?: () => Generator<unknown, boolean>;
+    /** Overrides the tier's wording when the card knows something better. */
+    readonly label?: () => Generator<unknown, string>;
+  } = {},
 ) =>
   li(
     {
       class: 'tier-legend-entry',
-      ...(hidden ? { hidden } : {}),
+      ...(options.hidden ? { hidden: options.hidden } : {}),
     },
     [
       span({
@@ -168,7 +171,7 @@ const legendEntry = (
         'aria-hidden': 'true',
         style: `border-color:${tier.colour};border-style:${tier.style}`,
       }),
-      tier.label,
+      options.label ?? tier.label,
     ],
   );
 
@@ -189,6 +192,73 @@ interface Mention {
 
 const mentionToken = (id: number, count: number): string =>
   `[#${id}: ${count} node${count === 1 ? '' : 's'}]`;
+
+/**
+ * The reason field is a `contenteditable`, not a `textarea`.
+ *
+ * A textarea cannot hold anything but characters, so a reference in it could
+ * only ever be the literal `[#1: 2 nodes]` — legible, but no more than that: no
+ * way to see which nodes it means without leaving the sentence and reading a
+ * list beside it. As an element, the reference is a chip that says what it
+ * points at on hover, and the list beside the field stops being needed.
+ *
+ * The plain text is still the model. Everything downstream — the prose, which
+ * groups are live, which sentence each one carries — reads the serialised
+ * string, so the chips are a rendering of the reason and never a second
+ * version of it.
+ */
+const MENTION_ID = 'data-mention-id';
+
+const chipFor = (
+  document: Document,
+  id: number,
+  paths: readonly string[],
+): HTMLElement => {
+  const chip = document.createElement('span');
+  chip.className = 'mention-chip';
+  chip.setAttribute(MENTION_ID, String(id));
+  chip.setAttribute('data-count', String(paths.length));
+  // Not `title`: a native tooltip waits a second, cannot be styled, and would
+  // sit on top of the one drawn here.
+  chip.setAttribute(
+    'data-paths',
+    paths.length > 6
+      ? `${paths.slice(0, 6).join(' · ')} · +${paths.length - 6} more`
+      : paths.join(' · '),
+  );
+  // Atomic: the caret steps over it and a backspace removes the whole
+  // reference, which is what deleting a reference should mean.
+  chip.contentEditable = 'false';
+  chip.textContent = mentionToken(id, paths.length);
+  return chip;
+};
+
+/** The field, as the plain text every rule downstream is written against. */
+const textOf = (field: HTMLElement): string => {
+  let text = '';
+  const walk = (node: Node): void => {
+    for (const child of node.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        text += child.textContent ?? '';
+        continue;
+      }
+      if (!(child instanceof HTMLElement)) continue;
+      if (child.hasAttribute(MENTION_ID)) {
+        text += child.textContent ?? '';
+        continue;
+      }
+      if (child.tagName === 'BR') {
+        text += '\n';
+        continue;
+      }
+      // A browser wraps new lines in `div`s of its own making.
+      if (text && !text.endsWith('\n')) text += '\n';
+      walk(child);
+    }
+  };
+  walk(field);
+  return text;
+};
 
 const ANY_MENTION = /\[#\d+: \d+ nodes?\]/g;
 
@@ -358,6 +428,33 @@ export const ReviewApp = craftComponent(
     // Replaced on every re-mark. Without it each toggle of the page chrome
     // added another listener, and one click produced two selections.
     let stopPicking: (() => void) | undefined;
+
+    /**
+     * Where the caret was in the reason.
+     *
+     * Remembered because the gestures that insert a reference all take focus
+     * away first — the right-click happens inside the frozen frame, the button
+     * takes focus on mousedown — so by the time the insertion runs there is no
+     * live selection left to insert into.
+     */
+    let caret: Range | undefined;
+    const reasonField = (): HTMLElement | undefined => {
+      const field = document.getElementById(NOTE_ID);
+      return field instanceof HTMLElement ? field : undefined;
+    };
+    const rememberCaret = (): void => {
+      const field = reasonField();
+      const selection = document.getSelection();
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : undefined;
+      if (field && range && field.contains(range.commonAncestorContainer)) {
+        caret = range.cloneRange();
+      }
+    };
+    const clearReason = (): void => {
+      const field = reasonField();
+      if (field) field.replaceChildren();
+      caret = undefined;
+    };
 
     /**
      * Measures the replay the reviewer is actually looking at.
@@ -593,6 +690,8 @@ export const ReviewApp = craftComponent(
       const index = yield* selectedIndex();
       yield* evidenceView.release();
       yield* selection.clear();
+      clearReason();
+      yield* note.clear();
       yield* selectedIndex.select(Math.max(0, index - 1));
     });
     const moveNext = craftMethod('moveNext', function* () {
@@ -600,6 +699,8 @@ export const ReviewApp = craftComponent(
       const index = yield* selectedIndex();
       yield* evidenceView.release();
       yield* selection.clear();
+      clearReason();
+      yield* note.clear();
       yield* selectedIndex.select(
         Math.min(Math.max(0, list.length - 1), index + 1),
       );
@@ -654,25 +755,50 @@ export const ReviewApp = craftComponent(
         const known = yield* mentions();
         const id =
           known.reduce((highest, one) => Math.max(highest, one.id), 0) + 1;
-        const token = mentionToken(id, paths.length);
 
-        const field = document.getElementById(NOTE_ID);
-        const text = yield* note();
-        const caret =
-          field instanceof HTMLTextAreaElement
-            ? (field.selectionStart ?? text.length)
-            : text.length;
-        const before = text.slice(0, caret);
-        const after = text.slice(caret);
-        // A space on each side, including at the very end of the text: the
-        // reviewer keeps typing straight after inserting, and without it the
-        // next word ran into the token.
-        const lead = before && !/\s$/.test(before) ? ' ' : '';
-        const trail = /^\s/.test(after) ? '' : ' ';
-        const spaced = `${before}${lead}${token}${trail}${after}`;
+        const field = reasonField();
+        if (!field) return;
+
+        // Placed where the reviewer was typing, so a second complaint further
+        // down the reason names a different group without either losing its
+        // text. With no remembered caret — the very first thing they do is
+        // point — it goes at the end.
+        const at = document.createRange();
+        if (caret && field.contains(caret.commonAncestorContainer)) {
+          at.setStart(caret.startContainer, caret.startOffset);
+          at.setEnd(caret.endContainer, caret.endOffset);
+        } else {
+          at.selectNodeContents(field);
+          at.collapse(false);
+        }
+        at.deleteContents();
+
+        // A space on each side, including at the very end: the reviewer keeps
+        // typing straight after inserting, and without it the next word ran
+        // into the reference.
+        const trail = document.createTextNode(' ');
+        at.insertNode(trail);
+        const chip = chipFor(document, id, paths);
+        at.insertNode(chip);
+        const previous = chip.previousSibling?.textContent ?? '';
+        if (previous && !/\s$/.test(previous)) {
+          chip.parentNode?.insertBefore(document.createTextNode(' '), chip);
+        }
+
+        const after = document.createRange();
+        after.setStartAfter(trail);
+        after.collapse(true);
+        // Not `selection`: that name is the craft state this method clears a
+        // few lines down, and shadowing it turned `selection.clear()` into a
+        // call on the DOM's own Selection — which has no such method, so the
+        // whole insertion threw before the outlines were taken off.
+        const domSelection = document.getSelection();
+        domSelection?.removeAllRanges();
+        domSelection?.addRange(after);
+        caret = after.cloneRange();
 
         yield* mentions.replace([...known, { id, paths }]);
-        yield* note.write(spaced);
+        yield* note.write(textOf(field));
         yield* menuAt.show(undefined);
         // The group is recorded; leaving it outlined would say it still is
         // not. Cleared in the frame as well as in the state — the outlines are
@@ -682,12 +808,7 @@ export const ReviewApp = craftComponent(
         const view =
           holder instanceof HTMLIFrameElement ? viewOf(holder) : undefined;
         if (view) markSelection(view, []);
-
-        if (field instanceof HTMLTextAreaElement) {
-          const at = before.length + lead.length + token.length + trail.length;
-          field.focus();
-          field.setSelectionRange(at, at);
-        }
+        field.focus();
       },
     );
 
@@ -714,6 +835,8 @@ export const ReviewApp = craftComponent(
       yield* mentions.clear();
       yield* selection.clear();
       yield* rejectionAttempted.clear();
+      // The field owns its own content, so emptying the state is not enough.
+      clearReason();
     });
 
     return {
@@ -752,6 +875,8 @@ export const ReviewApp = craftComponent(
       activeMentions,
       menuAt,
       addSelectionToReason,
+      rememberCaret,
+      clearReason,
     };
   },
   ({
@@ -771,8 +896,9 @@ export const ReviewApp = craftComponent(
     decide,
     current,
     evidenceView,
-    activeMentions,
     menuAt,
+    rememberCaret,
+    clearReason,
     hideChrome,
     member,
     coveredCount,
@@ -790,22 +916,6 @@ export const ReviewApp = craftComponent(
     addSelectionToReason,
   }) =>
     div({ class: 'app-shell' }, [
-      header({ class: 'topbar' }, [
-        div([
-          small({ class: 'eyebrow' }, 'CRAFTTS / ATTEST'),
-          h1('Visual review'),
-        ]),
-        div({ class: 'queue-summary', 'aria-live': 'polite' }, [
-          strong(function* () {
-            return String((yield* review.value())?.items ?? 0);
-          }),
-          span(' scenarios · '),
-          strong(function* () {
-            return String((yield* review.value())?.decisions ?? 0);
-          }),
-          span(' decisions'),
-        ]),
-      ]),
       ifNode(reviewFailed, () =>
         p(
           { class: 'notice error', role: 'alert' },
@@ -820,6 +930,23 @@ export const ReviewApp = craftComponent(
       ),
       div({ class: 'workspace' }, [
         aside({ class: 'queue-panel', 'aria-label': 'Review queue' }, [
+          // In the sidebar rather than across the top. A full-width banner
+          // repeating the name of the tool cost a band of height on every
+          // card, and height is the thing a tall capture has none of.
+          header({ class: 'panel-heading brand' }, [
+            small({ class: 'eyebrow' }, 'CRAFTTS / ATTEST'),
+            h1('Visual review'),
+            div({ class: 'queue-summary', 'aria-live': 'polite' }, [
+              strong(function* () {
+                return String((yield* review.value())?.items ?? 0);
+              }),
+              span(' scenarios · '),
+              strong(function* () {
+                return String((yield* review.value())?.decisions ?? 0);
+              }),
+              span(' decisions'),
+            ]),
+          ]),
           div({ class: 'panel-heading' }, [
             h2('Queue'),
             small('One card per decision'),
@@ -855,6 +982,8 @@ export const ReviewApp = craftComponent(
                     *click() {
                       yield* evidenceView.release();
                       yield* selection.clear();
+                      clearReason();
+                      yield* note.clear();
                       yield* selectedIndex.select(index);
                     },
                   },
@@ -1129,11 +1258,28 @@ export const ReviewApp = craftComponent(
                     },
                     [
                       legendEntry(TIERS.subject),
-                      legendEntry(TIERS.changed, function* () {
-                        return ((yield* member())?.changed.length ?? 0) === 0;
+                      legendEntry(TIERS.changed, {
+                        hidden: function* () {
+                          return ((yield* member())?.changed.length ?? 0) === 0;
+                        },
                       }),
-                      legendEntry(TIERS.occluded, function* () {
-                        return (yield* coveredCount()) === 0;
+                      legendEntry(TIERS.occluded, {
+                        hidden: function* () {
+                          return (yield* coveredCount()) === 0;
+                        },
+                        // Named when the replay knows the name. "Covered by
+                        // the page's own overlay" asked the reviewer to work
+                        // out what an overlay is and which one; this points at
+                        // the same thing the lift control above removes.
+                        label: function* () {
+                          const covering = yield* chrome();
+                          if (covering.length === 1) {
+                            return `Hidden behind ${covering[0]} when the capture was taken`;
+                          }
+                          return covering.length > 1
+                            ? `Hidden behind ${covering.length} other elements when the capture was taken`
+                            : TIERS.occluded.label;
+                        },
                       }),
                       legendEntry(TIERS.picked),
                     ],
@@ -1394,38 +1540,6 @@ export const ReviewApp = craftComponent(
                       }),
                     ],
                   ),
-                  section(
-                    {
-                      class: 'findings-panel',
-                      hidden: function* () {
-                        return (yield* activeMentions()).length === 0;
-                      },
-                    },
-                    [
-                      h3('Groups this reason points at'),
-                      ul(
-                        { class: 'findings-list' },
-                        forNode(
-                          activeMentions,
-                          { track: (mention) => mention.id },
-                          (mention) =>
-                            li([
-                              span({ class: 'mention-tag' }, function* () {
-                                const one = yield* mention();
-                                return `#${one.id} · ${one.paths.length} node${one.paths.length === 1 ? '' : 's'}`;
-                              }),
-                              span({ class: 'code' }, function* () {
-                                return (yield* mention()).paths.join('  ');
-                              }),
-                            ]),
-                        ),
-                      ),
-                      small(
-                        { class: 'decision-help' },
-                        'Each reference carries what you wrote since the one before it, so two complaints in one reason stay apart. Delete a reference in the text to drop its group with it.',
-                      ),
-                    ],
-                  ),
                   section({ class: 'decision-panel' }, [
                     p(
                       {
@@ -1456,16 +1570,48 @@ export const ReviewApp = craftComponent(
                         },
                       ),
                     ]),
-                    textarea('ReviewNote', {
+                    // Uncontrolled on purpose. Re-rendering the field from
+                    // the state on every keystroke would rebuild its children
+                    // and throw the caret to the start; the state follows the
+                    // field instead, and only the insertion writes into it.
+                    div('ReviewNote', {
                       id: NOTE_ID,
+                      class: 'reason-input',
+                      contenteditable: 'true',
+                      role: 'textbox',
+                      'aria-multiline': 'true',
                       'aria-label': 'Decision note',
                       'aria-describedby': 'review-note-help review-note-error',
                       'aria-invalid': rejectionReasonMissing,
-                      placeholder:
+                      'data-placeholder':
                         'Explain what is wrong or why this decision is appropriate…',
-                      value: note,
                       *input(event: Event) {
-                        yield* note.write(eventValue(event));
+                        const field = event.currentTarget;
+                        if (!(field instanceof HTMLElement)) return;
+                        yield* note.write(textOf(field));
+                      },
+                      keyup: rememberCaret,
+                      mouseup: rememberCaret,
+                      blur: rememberCaret,
+                      // Pasted markup would arrive with its own styling and,
+                      // worse, its own elements — including things that look
+                      // like references and point at nothing.
+                      *paste(event: Event) {
+                        const clip = (event as ClipboardEvent).clipboardData;
+                        if (!clip) return;
+                        event.preventDefault();
+                        const text = clip.getData('text/plain');
+                        document
+                          .getSelection()
+                          ?.getRangeAt(0)
+                          .insertNode(document.createTextNode(text));
+                        document.getSelection()?.collapseToEnd();
+                        const field = event.currentTarget;
+                        if (field instanceof HTMLElement) {
+                          field.dispatchEvent(
+                            new Event('input', { bubbles: true }),
+                          );
+                        }
                       },
                     }),
                     button(
