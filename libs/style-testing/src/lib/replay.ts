@@ -33,9 +33,30 @@ export interface ReplayFidelity {
    * reviewer cannot act on a list of addresses.
    */
   readonly summary: string;
+  /**
+   * The same finding, as data rather than a sentence.
+   *
+   * `summary` is English, and it is thrown by `assertReplayFaithful` where
+   * English is right — a CI failure is read by whoever wrote the code. A
+   * reviewer's screen is not that place, so the surface that has to say this
+   * in the reviewer's language builds its own sentence from this instead of
+   * translating a string it did not write.
+   */
+  readonly reason: FidelityReason;
   /** The supporting detail, one line each. Empty when the summary suffices. */
   readonly report: readonly string[];
 }
+
+export type FidelityReason =
+  | { readonly kind: 'faithful' }
+  /** The subject's selector matches nothing in the replay. */
+  | { readonly kind: 'no-root'; readonly root: string }
+  /** Nothing was loaded into the replay at all. */
+  | { readonly kind: 'empty' }
+  /** Attested nodes are not there. */
+  | { readonly kind: 'absent'; readonly count: number }
+  /** The nodes are there and measure differently. */
+  | { readonly kind: 'moved'; readonly count: number };
 
 export interface FidelityOptions {
   /**
@@ -84,6 +105,12 @@ export function replayFidelity(
   // forty symptoms of a single cause.
   const total = inAttested.size > 0 && missing.length === inAttested.size;
 
+  const reason: FidelityReason = faithful
+    ? { kind: 'faithful' }
+    : missing.length > 0
+      ? { kind: 'absent', count: missing.length }
+      : { kind: 'moved', count: moved.length };
+
   const summary = faithful
     ? 'The frozen page measures exactly like the evidence.'
     : total
@@ -101,7 +128,7 @@ export function replayFidelity(
     );
   }
 
-  return { faithful, missing, unexpected, moved, summary, report };
+  return { faithful, missing, unexpected, moved, summary, reason, report };
 }
 
 /**

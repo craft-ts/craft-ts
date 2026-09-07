@@ -271,6 +271,21 @@ The screen is laid out in the order the work happens: the queue on the left,
 the evidence in the middle, the verdict on the right, where it stays in place
 while a long capture is scrolled.
 
+The surface speaks English and French, and follows the system's light or dark
+preference until the reviewer chooses otherwise — both controls sit in the
+sidebar, and both are applied before the first paint rather than corrected a
+frame later. The French dictionary is typed as the English one, so a message
+added on one side and forgotten on the other does not compile.
+
+Neither reaches the frozen page. It is a render that was captured, not an
+interface: translating it, or repainting its ground, would make it something
+other than what was measured. Enforcing that turned up a fidelity bug the tool
+had been hiding by being permanently dark — a page paints its own colours, but
+not the canvas underneath, and that comes from `color-scheme`, which was the
+*reviewer's* preference. A component captured on white came back on black for
+anyone whose machine asks for dark. The replay now declares the scheme its
+capture was taken in.
+
 | tier | source | shown as |
 | --- | --- | --- |
 | changed | the paths in the readable diff | outlined, and the reason the card is here |

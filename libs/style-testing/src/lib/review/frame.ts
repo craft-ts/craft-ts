@@ -109,6 +109,7 @@ export function checkReplay(
       summary: empty
         ? 'The frozen page is empty — nothing was loaded into it, so there is nothing here to compare with the evidence.'
         : `The frozen page has no '${root}' in it, so what it shows is not this component. That happens when the stored snapshot is older than the report it is paired with, or when the component's root selector changed after it was captured.`,
+      reason: empty ? { kind: 'empty' } : { kind: 'no-root', root },
       report: [],
     };
   }
@@ -181,6 +182,20 @@ export function markTiers(
     readonly occluded: readonly string[];
     readonly dimDecor: boolean;
     readonly hideChrome: boolean;
+    /**
+     * The scheme the capture was taken in.
+     *
+     * The snapshot flattens the page's own media queries, but not the user
+     * agent's canvas: an element that paints no background of its own takes
+     * its colour from `color-scheme`, which is the *reviewer's* preference
+     * unless it is said here. A page captured in light therefore came back
+     * dark for anyone whose machine asks for dark — invisible while this tool
+     * was itself always dark, and wrong the whole time.
+     *
+     * Set on the document rather than on the frame element: `color-scheme` on
+     * an embedder does not reach the embedded document.
+     */
+    readonly colorScheme?: 'light' | 'dark' | 'no-preference';
   },
 ): readonly string[] {
   const { document } = view;
@@ -192,6 +207,7 @@ export function markTiers(
   // supposed to annotate — the fidelity check caught it as an unfaithful
   // replay, which is what that check is for.
   style.textContent = `
+    :root { color-scheme: ${options.colorScheme === 'dark' ? 'dark' : 'light'}; }
     [${ATTESTED}] { outline: 2px ${TIERS.subject.style} ${TIERS.subject.colour}; outline-offset: 6px; }
     ${options.dimDecor ? `[${DECOR}] { opacity: .3; }` : ''}
     ${

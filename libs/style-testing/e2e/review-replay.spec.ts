@@ -460,6 +460,90 @@ test('a drag selects every node the box touches', async ({ page }) => {
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(2);
 });
 
+test('opens in the language and theme the machine asks for', async ({
+  browser,
+}) => {
+  // Neither is a question the reviewer should have to answer before they can
+  // start: the environment already knows, and the tool takes its answer until
+  // it is told otherwise.
+  const french = await browser.newContext({
+    locale: 'fr-FR',
+    colorScheme: 'light',
+  });
+  const page = await french.newPage();
+  await page.goto(running.url);
+
+  await expect(
+    page.getByRole('heading', { name: 'Revue visuelle' }),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: /Refuser/ })).toBeVisible();
+  // `system` is the absence of a choice, so no attribute is written: the media
+  // query stays in charge and a machine that turns dark at sunset takes the
+  // page with it.
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.*/);
+  expect(
+    await page.evaluate(() => getComputedStyle(document.body).backgroundColor),
+  ).toBe('rgb(245, 246, 248)');
+
+  await french.close();
+});
+
+test('a chosen language and theme survive a reload', async ({ browser }) => {
+  const context = await browser.newContext({
+    locale: 'fr-FR',
+    colorScheme: 'light',
+  });
+  const page = await context.newPage();
+  await page.goto(running.url);
+
+  await page.getByLabel('Langue').selectOption('en');
+  await expect(
+    page.getByRole('heading', { name: 'Visual review' }),
+  ).toBeVisible();
+  await page.getByLabel('Theme').selectOption('dark');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  await page.reload();
+  // Applied before the app renders, so there is no flash of the other one.
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(
+    page.getByRole('heading', { name: 'Visual review' }),
+  ).toBeVisible();
+
+  await context.close();
+});
+
+test('the theme moves the tool and never the render', async ({ browser }) => {
+  // The frozen page is a render that was captured, not an interface. Following
+  // the reviewer's theme would repaint the ground the component was measured
+  // against — and it did: the frame took a token whose light value is nearly
+  // black, and a page captured on white came back on it.
+  const context = await browser.newContext({ colorScheme: 'dark' });
+  const page = await context.newPage();
+  await page.goto(running.url);
+  await expect(
+    page.frameLocator('#craft-replay-frame').locator('.title'),
+  ).toBeVisible();
+
+  const frameGround = () =>
+    page.evaluate(() => {
+      const frame = document.querySelector('iframe');
+      return frame ? getComputedStyle(frame).backgroundColor : '';
+    });
+
+  await page.getByLabel('Theme').selectOption('dark');
+  const inDark = await frameGround();
+  await page.getByLabel('Theme').selectOption('light');
+  const inLight = await frameGround();
+
+  expect(inDark).toBe(inLight);
+  // The capture carries no scheme, so it is the light canvas it was taken on.
+  expect(inLight).toBe('rgb(255, 255, 255)');
+
+  await context.close();
+});
+
 test('writing a reason does not file a verdict', async ({ page }) => {
   // The reason field is a `contenteditable`, and the hotkey guard only knew
   // about input, textarea and select. Typing "And the row is cut" pressed `a`

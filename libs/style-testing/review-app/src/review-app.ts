@@ -49,6 +49,18 @@ import {
   whenReady,
 } from '../../src/lib/review/frame';
 import type { LayoutDigest } from '../../src/lib/digest';
+import type { FidelityReason } from '../../src/lib/replay';
+import { MESSAGES, type Messages } from './messages';
+import {
+  applyLocale,
+  applyTheme,
+  initialLocale,
+  initialTheme,
+  storeLocale,
+  storeTheme,
+  type Locale,
+  type ThemeChoice,
+} from './preferences';
 
 /**
  * The id of the frame holding the card being reviewed.
@@ -97,8 +109,12 @@ interface Finding {
 interface ReplayState {
   readonly loaded: boolean;
   readonly faithful: boolean;
-  /** One sentence a reviewer can act on. */
-  readonly summary: string;
+  /**
+   * Why, as data. The sentence is built where the language is known — the
+   * library's own wording is English, and it is thrown at whoever wrote the
+   * code rather than shown to whoever is reviewing the render.
+   */
+  readonly reason: FidelityReason | undefined;
   /** Supporting detail, one line each. */
   readonly report: readonly string[];
   /**
@@ -317,6 +333,14 @@ export const ReviewApp = craftComponent(
     const selectedIndex = yield* state('selectedIndex', 0, ({ set }) => ({
       select: (index: number) => set(index),
     }));
+    // Read from the environment before the first paint, so nothing renders in
+    // the wrong language or the wrong theme and then corrects itself.
+    const locale = yield* state('locale', initialLocale(), ({ set }) => ({
+      choose: (value: Locale) => set(value),
+    }));
+    const theme = yield* state('theme', initialTheme(), ({ set }) => ({
+      choose: (value: ThemeChoice) => set(value),
+    }));
     const zoom = yield* state('zoom', 'fit' as ZoomMode, ({ set }) => ({
       choose: (mode: ZoomMode) => set(mode),
     }));
@@ -473,6 +497,7 @@ export const ReviewApp = craftComponent(
         readonly occluded: readonly string[];
         readonly hideChrome: boolean;
         readonly selected: readonly string[];
+        readonly colorScheme?: 'light' | 'dark' | 'no-preference';
       }) => payload,
       loader: async ({ params }): Promise<ReplayState> => {
         const view = viewOf(params.frame);
@@ -480,7 +505,7 @@ export const ReviewApp = craftComponent(
           return {
             loaded: false,
             faithful: false,
-            summary: 'The frozen page could not be opened.',
+            reason: undefined,
             report: [],
             chrome: [],
           };
@@ -509,6 +534,7 @@ export const ReviewApp = craftComponent(
           occluded: params.occluded,
           dimDecor: true,
           hideChrome: params.hideChrome,
+          ...(params.colorScheme ? { colorScheme: params.colorScheme } : {}),
         });
         // Re-applied after the marking, which rebuilds the frame's
         // annotations: lifting the page's chrome must not silently drop the
@@ -523,9 +549,7 @@ export const ReviewApp = craftComponent(
         return {
           loaded: true,
           faithful: fidelity?.faithful ?? false,
-          summary:
-            fidelity?.summary ??
-            'There is no attested digest to check this frozen page against, so it cannot be vouched for.',
+          reason: fidelity?.reason,
           report: fidelity?.report ?? [],
           chrome,
         };
@@ -567,6 +591,23 @@ export const ReviewApp = craftComponent(
       const list = yield* cards();
       return list[yield* activeIndex()];
     });
+    /** Every sentence, in the language on screen. */
+    const t = craftComputed('t', function* (): Generator<never, Messages> {
+      return MESSAGES[yield* locale()];
+    });
+    const chooseLocale = craftMethod('chooseLocale', function* (value: Locale) {
+      yield* locale.choose(value);
+      storeLocale(value);
+      applyLocale(value, document.documentElement);
+    });
+    const chooseTheme = craftMethod(
+      'chooseTheme',
+      function* (value: ThemeChoice) {
+        yield* theme.choose(value);
+        storeTheme(value);
+        applyTheme(value, document.documentElement);
+      },
+    );
     const hasNote = craftComputed('hasNote', function* () {
       // The prose, not the raw field: a reason made only of group references
       // names what is wrong with nothing and explains nothing.
@@ -611,7 +652,7 @@ export const ReviewApp = craftComponent(
         ({
           loaded: false,
           faithful: false,
-          summary: '',
+          reason: undefined,
           report: [],
           chrome: [],
         } satisfies ReplayState)
@@ -654,19 +695,50 @@ export const ReviewApp = craftComponent(
     const coveredCount = craftComputed('coveredCount', function* () {
       return (yield* member())?.metadata?.coverage?.occluded ?? 0;
     });
+    /**
+     * The fidelity finding as a sentence, in the reviewer's language.
+     *
+     * `undefined` covers two different silences: the frame would not open, and
+     * there is no attested digest to check against. Both leave the decision
+     * degraded, and both have to say which.
+     */
+    const fidelitySentence = craftComputed('fidelitySentence', function* () {
+      const state = yield* replay();
+      const say = yield* t();
+      if (!state.reason) {
+        return state.loaded ? say.fidelityNoDigest : say.fidelityFrameUnopened;
+      }
+      switch (state.reason.kind) {
+        case 'faithful':
+          return say.fidelityFaithful;
+        case 'empty':
+          return say.fidelityEmpty;
+        case 'no-root':
+          return say.fidelityNoRoot(state.reason.root);
+        case 'absent':
+          return say.fidelityAbsent(state.reason.count);
+        case 'moved':
+          return say.fidelityMoved(state.reason.count);
+      }
+    });
     /** What this replay would lift, named from the replay itself. */
     const chrome = craftComputed('chrome', function* () {
       return (yield* replay()).chrome;
     });
     const overlayLabel = craftComputed('overlayLabel', function* () {
       const covering = yield* chrome();
-      const verb = (yield* hideChrome()) ? 'Show' : 'Hide';
+      const say = yield* t();
+      const lifted = yield* hideChrome();
       // Named, not counted, when there is one of them: "Hide 1 overlay" asks
       // the reviewer what an overlay is; `button.clear-cache-btn` tells them
       // exactly what is about to disappear.
-      return covering.length === 1
-        ? `${verb} ${covering[0]}`
-        : `${verb} the ${covering.length} elements covering this`;
+      if (covering.length === 1) {
+        const what = covering[0] ?? '';
+        return lifted ? say.showOne(what) : say.liftOne(what);
+      }
+      return lifted
+        ? say.showMany(covering.length)
+        : say.liftMany(covering.length);
     });
     const degraded = craftComputed('degraded', function* () {
       if (!(yield* canReplay())) return true;
@@ -720,6 +792,9 @@ export const ReviewApp = craftComponent(
         occluded: (active.metadata?.occluded ?? []).map((entry) => entry.path),
         hideChrome: chrome,
         selected: yield* selection(),
+        ...(active.metadata?.colorScheme
+          ? { colorScheme: active.metadata.colorScheme }
+          : {}),
       });
     }
 
@@ -877,6 +952,12 @@ export const ReviewApp = craftComponent(
       addSelectionToReason,
       rememberCaret,
       clearReason,
+      locale,
+      theme,
+      chooseLocale,
+      chooseTheme,
+      t,
+      fidelitySentence,
     };
   },
   ({
@@ -899,6 +980,12 @@ export const ReviewApp = craftComponent(
     menuAt,
     rememberCaret,
     clearReason,
+    locale,
+    theme,
+    chooseLocale,
+    chooseTheme,
+    t,
+    fidelitySentence,
     hideChrome,
     member,
     coveredCount,
@@ -917,16 +1004,14 @@ export const ReviewApp = craftComponent(
   }) =>
     div({ class: 'app-shell' }, [
       ifNode(reviewFailed, () =>
-        p(
-          { class: 'notice error', role: 'alert' },
-          'The review queue could not be loaded. Reload the page to retry.',
-        ),
+        p({ class: 'notice error', role: 'alert' }, function* () {
+          return (yield* t()).queueFailed;
+        }),
       ),
       ifNode(decisionFailed, () =>
-        p(
-          { class: 'notice error', role: 'alert' },
-          'The decision was not saved. The scenario remains in the queue.',
-        ),
+        p({ class: 'notice error', role: 'alert' }, function* () {
+          return (yield* t()).decisionFailed;
+        }),
       ),
       div({ class: 'workspace' }, [
         aside({ class: 'queue-panel', 'aria-label': 'Review queue' }, [
@@ -934,22 +1019,85 @@ export const ReviewApp = craftComponent(
           // repeating the name of the tool cost a band of height on every
           // card, and height is the thing a tall capture has none of.
           header({ class: 'panel-heading brand' }, [
-            small({ class: 'eyebrow' }, 'CRAFTTS / ATTEST'),
-            h1('Visual review'),
-            div({ class: 'queue-summary', 'aria-live': 'polite' }, [
-              strong(function* () {
-                return String((yield* review.value())?.items ?? 0);
-              }),
-              span(' scenarios · '),
-              strong(function* () {
-                return String((yield* review.value())?.decisions ?? 0);
-              }),
-              span(' decisions'),
+            small({ class: 'eyebrow' }, function* () {
+              return (yield* t()).brand;
+            }),
+            h1(function* () {
+              return (yield* t()).appTitle;
+            }),
+            div(
+              { class: 'queue-summary', 'aria-live': 'polite' },
+              function* () {
+                const queue = yield* review.value();
+                return (yield* t()).queueSummary(
+                  queue?.items ?? 0,
+                  queue?.decisions ?? 0,
+                );
+              },
+            ),
+            // The two choices about the tool rather than about a render. In
+            // the sidebar with the name, because neither belongs beside the
+            // evidence: a reviewer sets them once and then judges renders.
+            div({ class: 'preferences' }, [
+              label(
+                { class: 'field-label', htmlFor: 'review-locale' },
+                function* () {
+                  return (yield* t()).language;
+                },
+              ),
+              select(
+                'ReviewLocale',
+                {
+                  id: 'review-locale',
+                  value: locale,
+                  *change(event: Event) {
+                    yield* chooseLocale(eventValue(event) as Locale);
+                  },
+                },
+                [
+                  option({ value: 'en' }, 'English'),
+                  option({ value: 'fr' }, 'Français'),
+                ],
+              ),
+              label(
+                { class: 'field-label', htmlFor: 'review-theme' },
+                function* () {
+                  return (yield* t()).theme;
+                },
+              ),
+              select(
+                'ReviewTheme',
+                {
+                  id: 'review-theme',
+                  value: theme,
+                  *change(event: Event) {
+                    yield* chooseTheme(eventValue(event) as ThemeChoice);
+                  },
+                },
+                [
+                  // First, and the default: a reviewer who has never touched
+                  // this gets what their machine asks for, and keeps getting
+                  // it when the machine changes its mind at sunset.
+                  option({ value: 'system' }, function* () {
+                    return (yield* t()).themeSystem;
+                  }),
+                  option({ value: 'light' }, function* () {
+                    return (yield* t()).themeLight;
+                  }),
+                  option({ value: 'dark' }, function* () {
+                    return (yield* t()).themeDark;
+                  }),
+                ],
+              ),
             ]),
           ]),
           div({ class: 'panel-heading' }, [
-            h2('Queue'),
-            small('One card per decision'),
+            h2(function* () {
+              return (yield* t()).queue;
+            }),
+            small(function* () {
+              return (yield* t()).queueSubtitle;
+            }),
           ]),
           div(
             { class: 'queue-list' },
@@ -959,8 +1107,12 @@ export const ReviewApp = craftComponent(
                 track: (card) => card.shape,
                 empty: () =>
                   div({ class: 'empty-queue' }, [
-                    strong('Review complete'),
-                    p('Every decision in this session has been recorded.'),
+                    strong(function* () {
+                      return (yield* t()).reviewComplete;
+                    }),
+                    p(function* () {
+                      return (yield* t()).reviewCompleteBody;
+                    }),
                   ]),
               },
               (card, index) =>
@@ -1012,7 +1164,12 @@ export const ReviewApp = craftComponent(
                 },
                 click: movePrevious,
               },
-              ['↑ Previous ', span({ class: 'key' }, 'K')],
+              [
+                function* () {
+                  return (yield* t()).previous;
+                },
+                span({ class: 'key' }, 'K'),
+              ],
             ),
             button(
               'NextReviewCard',
@@ -1024,7 +1181,12 @@ export const ReviewApp = craftComponent(
                 },
                 click: moveNext,
               },
-              ['Next ↓ ', span({ class: 'key' }, 'J')],
+              [
+                function* () {
+                  return (yield* t()).next;
+                },
+                span({ class: 'key' }, 'J'),
+              ],
             ),
           ]),
         ]),
@@ -1041,7 +1203,9 @@ export const ReviewApp = craftComponent(
               [
                 header({ class: 'review-heading' }, [
                   div([
-                    small({ class: 'eyebrow' }, 'SCENARIO'),
+                    small({ class: 'eyebrow' }, function* () {
+                      return (yield* t()).scenario;
+                    }),
                     h2(function* () {
                       return scenarioOf((yield* card()).subject);
                     }),
@@ -1061,7 +1225,9 @@ export const ReviewApp = craftComponent(
                     },
                   },
                   function* () {
-                    return `${(yield* card()).cluster.length} scenarios have the same measured delta. This decision covers all of them.`;
+                    return (yield* t()).clusterNotice(
+                      (yield* card()).cluster.length,
+                    );
                   },
                 ),
                 section(
@@ -1072,7 +1238,9 @@ export const ReviewApp = craftComponent(
                     },
                   },
                   [
-                    h3('Scenarios covered by this decision'),
+                    h3(function* () {
+                      return (yield* t()).clusterMembers;
+                    }),
                     ul(
                       forNode(
                         function* () {
@@ -1093,21 +1261,23 @@ export const ReviewApp = craftComponent(
                       span({ class: 'chip' }, function* () {
                         const viewport = (yield* card()).members[0]?.metadata
                           ?.viewport;
+                        const say = yield* t();
                         return viewport
-                          ? `Viewport ${viewport.width}×${viewport.height}`
-                          : 'Viewport unknown';
+                          ? say.viewport(viewport.width, viewport.height)
+                          : say.viewportUnknown;
                       }),
                       span({ class: 'chip' }, function* () {
                         const screenshot = (yield* card()).members[0]?.metadata
                           ?.screenshot;
+                        const say = yield* t();
                         return screenshot
-                          ? `Capture ${screenshot.width}×${screenshot.height}`
-                          : 'Capture size unknown';
+                          ? say.capture(screenshot.width, screenshot.height)
+                          : say.captureUnknown;
                       }),
                       span({ class: 'chip' }, function* () {
                         return (
                           (yield* card()).members[0]?.metadata?.colorScheme ??
-                          'scheme unknown'
+                          (yield* t()).schemeUnknown
                         );
                       }),
                       span({ class: 'chip' }, function* () {
@@ -1115,7 +1285,7 @@ export const ReviewApp = craftComponent(
                           ?.browser;
                         return browser
                           ? `${browser.name} ${browser.version}`
-                          : 'browser unknown';
+                          : (yield* t()).browserUnknown;
                       }),
                       // What the verdict covers against what anybody could look
                       // at. Said out loud, on the same rule as `bulk`: an
@@ -1123,18 +1293,25 @@ export const ReviewApp = craftComponent(
                       span({ class: 'chip coverage' }, function* () {
                         const coverage = (yield* card()).members[0]?.metadata
                           ?.coverage;
-                        if (!coverage) return 'coverage unknown';
+                        const say = yield* t();
+                        if (!coverage) return say.coverageUnknown;
                         const seen =
                           coverage.attested -
                           coverage.offScreen -
                           coverage.occluded;
-                        return `${coverage.attested} attested · ${seen} on screen · ${coverage.occluded} covered`;
+                        return say.coverage(
+                          coverage.attested,
+                          seen,
+                          coverage.occluded,
+                        );
                       }),
                     ]),
                     div({ class: 'evidence-views' }, [
                       span(
                         { class: 'field-label', id: 'evidence-views-label' },
-                        'Evidence',
+                        function* () {
+                          return (yield* t()).evidence;
+                        },
                       ),
                       div(
                         {
@@ -1148,8 +1325,9 @@ export const ReviewApp = craftComponent(
                             {
                               type: 'button',
                               'data-view': 'replay',
-                              title:
-                                'The page itself, frozen at the moment it was measured. Click any part of the component to write a remark about that node.',
+                              title: function* () {
+                                return (yield* t()).viewPageHint;
+                              },
                               disabled: function* () {
                                 return !(yield* canReplay());
                               },
@@ -1160,15 +1338,18 @@ export const ReviewApp = craftComponent(
                                 yield* evidenceView.choose('replay');
                               },
                             },
-                            'Page',
+                            function* () {
+                              return (yield* t()).viewPage;
+                            },
                           ),
                           button(
                             'ShowImage',
                             {
                               type: 'button',
                               'data-view': 'image',
-                              title:
-                                'The screenshot. It shows what the measurements cannot — a wrong icon, a missing background — and marks where the viewport ended.',
+                              title: function* () {
+                                return (yield* t()).viewImageHint;
+                              },
                               'aria-pressed': function* () {
                                 return String(!(yield* showingReplay()));
                               },
@@ -1176,7 +1357,9 @@ export const ReviewApp = craftComponent(
                                 yield* evidenceView.choose('image');
                               },
                             },
-                            'Screenshot',
+                            function* () {
+                              return (yield* t()).viewImage;
+                            },
                           ),
                         ],
                       ),
@@ -1187,8 +1370,9 @@ export const ReviewApp = craftComponent(
                           class: 'overlay-toggle',
                           // Only the page can do this. In a screenshot those
                           // pixels have already been replaced.
-                          title:
-                            'Something in the application is painted over this component. Only the frozen page can lift it; in a screenshot those pixels have already been replaced.',
+                          title: function* () {
+                            return (yield* t()).liftHint;
+                          },
                           // Offered only when there is something to lift. A
                           // control that is always present and does nothing on
                           // most cards reads as broken — and on those cards it
@@ -1220,7 +1404,9 @@ export const ReviewApp = craftComponent(
                           return yield* showingReplay();
                         },
                       },
-                      'Zoom',
+                      function* () {
+                        return (yield* t()).zoom;
+                      },
                     ),
                     select(
                       'EvidenceZoom',
@@ -1236,15 +1422,20 @@ export const ReviewApp = craftComponent(
                         },
                       },
                       [
-                        option({ value: 'fit' }, 'Fit to window'),
-                        option({ value: 'actual' }, 'Actual size'),
+                        option({ value: 'fit' }, function* () {
+                          return (yield* t()).zoomFit;
+                        }),
+                        option({ value: 'actual' }, function* () {
+                          return (yield* t()).zoomActual;
+                        }),
                       ],
                     ),
                   ]),
                   p({ class: 'evidence-help' }, function* () {
+                    const say = yield* t();
                     return (yield* showingReplay())
-                      ? 'The render itself, frozen. Everything outside the subject is dimmed. Click a part of it to aim at that node, ctrl-click to add another, drag a box to take everything it touches — then right-click to drop a reference into the reason.'
-                      : 'A picture of the same render. The dashed box marks what was on screen when it was captured; the rest is attested but was never visible.';
+                      ? say.helpReplay
+                      : say.helpImage;
                   }),
                   // What the outlines drawn into the frame mean. Without it a
                   // reviewer meets a dotted orange box around a button they never
@@ -1257,10 +1448,17 @@ export const ReviewApp = craftComponent(
                       },
                     },
                     [
-                      legendEntry(TIERS.subject),
+                      legendEntry(TIERS.subject, {
+                        *label() {
+                          return (yield* t()).tierSubject;
+                        },
+                      }),
                       legendEntry(TIERS.changed, {
                         hidden: function* () {
                           return ((yield* member())?.changed.length ?? 0) === 0;
+                        },
+                        label: function* () {
+                          return (yield* t()).tierChanged;
                         },
                       }),
                       legendEntry(TIERS.occluded, {
@@ -1273,15 +1471,20 @@ export const ReviewApp = craftComponent(
                         // the same thing the lift control above removes.
                         label: function* () {
                           const covering = yield* chrome();
+                          const say = yield* t();
                           if (covering.length === 1) {
-                            return `Hidden behind ${covering[0]} when the capture was taken`;
+                            return say.tierOccludedOne(covering[0] ?? '');
                           }
                           return covering.length > 1
-                            ? `Hidden behind ${covering.length} other elements when the capture was taken`
-                            : TIERS.occluded.label;
+                            ? say.tierOccludedMany(covering.length)
+                            : say.tierOccludedUnknown;
                         },
                       }),
-                      legendEntry(TIERS.picked),
+                      legendEntry(TIERS.picked, {
+                        *label() {
+                          return (yield* t()).tierPicked;
+                        },
+                      }),
                     ],
                   ),
                   section(
@@ -1303,10 +1506,12 @@ export const ReviewApp = craftComponent(
                     },
                     [
                       strong(function* () {
-                        const summary = (yield* replay()).summary;
+                        const sentence = yield* fidelitySentence();
                         return (yield* fellBack())
-                          ? `Showing the screenshot: ${summary.charAt(0).toLowerCase()}${summary.slice(1)}`
-                          : summary;
+                          ? (yield* t()).fellBack(
+                              `${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}`,
+                            )
+                          : sentence;
                       }),
                       ul(
                         {
@@ -1329,9 +1534,10 @@ export const ReviewApp = craftComponent(
                         ),
                       ),
                       p(function* () {
+                        const say = yield* t();
                         return (yield* showingReplay())
-                          ? 'You asked for the page anyway. It is on screen, but it is not what was measured — the decision will be recorded as made without a faithful replay.'
-                          : 'Judge the picture. Switch to Page to look at the frozen copy anyway; either way the decision is recorded as made without a faithful replay.';
+                          ? say.fidelityOnPage
+                          : say.fidelityOnImage;
                       }),
                     ],
                   ),
@@ -1357,7 +1563,21 @@ export const ReviewApp = craftComponent(
                                 ? FRAME_ID
                                 : '';
                             },
-                            title: 'Frozen page, as captured',
+                            title: function* () {
+                              return (yield* t()).frameTitle;
+                            },
+                            // The ground the capture was taken on. A page that
+                            // paints no background of its own was composited
+                            // over the user agent's canvas when the screenshot
+                            // was taken; a transparent frame shows the review
+                            // tool's checkerboard instead, which is a different
+                            // picture from the one that was attested.
+                            'data-scheme': function* () {
+                              return (yield* card()).members[0]?.metadata
+                                ?.colorScheme === 'dark'
+                                ? 'dark'
+                                : 'light';
+                            },
                             // Sized to the captured viewport, never to the
                             // reviewer's window: the snapshot freezes the styles,
                             // not the box the page lays itself out in.
@@ -1434,8 +1654,9 @@ export const ReviewApp = craftComponent(
                                 click: addSelectionToReason,
                               },
                               function* () {
-                                const count = (yield* selection()).length;
-                                return `Add ${count} node${count === 1 ? '' : 's'} to the reason`;
+                                return (yield* t()).menuAdd(
+                                  (yield* selection()).length,
+                                );
                               },
                             ),
                           ),
@@ -1454,7 +1675,9 @@ export const ReviewApp = craftComponent(
                               return !(yield* card()).image;
                             },
                             alt: function* () {
-                              return `Current rendering for ${scenarioOf((yield* card()).subject)}`;
+                              return (yield* t()).imageAlt(
+                                scenarioOf((yield* card()).subject),
+                              );
                             },
                             src: function* () {
                               const hash = (yield* card()).image;
@@ -1497,19 +1720,24 @@ export const ReviewApp = craftComponent(
                             return Boolean((yield* card()).image);
                           },
                         },
-                        'No screenshot was captured.',
+                        function* () {
+                          return (yield* t()).noImage;
+                        },
                       ),
                       figcaption(function* () {
                         const target = (yield* card()).members[0]?.metadata
                           ?.target;
+                        const say = yield* t();
                         return target
-                          ? `Current evidence · captured element ${target}`
-                          : 'Current evidence';
+                          ? say.captionWithTarget(target)
+                          : say.caption;
                       }),
                     ],
                   ),
                   section({ class: 'diff-panel' }, [
-                    h3('Measured change'),
+                    h3(function* () {
+                      return (yield* t()).measuredChange;
+                    }),
                     ul(
                       forNode(
                         function* () {
@@ -1518,7 +1746,9 @@ export const ReviewApp = craftComponent(
                         {
                           track: (change) => change,
                           empty: () =>
-                            li('New subject: nothing has been approved yet.'),
+                            li(function* () {
+                              return (yield* t()).noApprovedYet;
+                            }),
                         },
                         (change) => li(span({ class: 'code' }, change)),
                       ),
@@ -1534,7 +1764,9 @@ export const ReviewApp = craftComponent(
                       },
                     },
                     [
-                      h3('Previous rejection reason'),
+                      h3(function* () {
+                        return (yield* t()).previousRejection;
+                      }),
                       p(function* () {
                         return (yield* card()).rejectionReason ?? '';
                       }),
@@ -1550,10 +1782,14 @@ export const ReviewApp = craftComponent(
                       },
                       // Written into the attestation, not just shown: judging a
                       // photograph and judging the document are different claims.
-                      'This decision will be recorded as made without a faithful replay.',
+                      function* () {
+                        return (yield* t()).degraded;
+                      },
                     ),
                     div({ class: 'field-row' }, [
-                      label({ htmlFor: NOTE_ID }, 'Decision reason'),
+                      label({ htmlFor: NOTE_ID }, function* () {
+                        return (yield* t()).reason;
+                      }),
                       // The count of what is outlined, next to the field that is
                       // about to name it. A reviewer who dragged a box needs to
                       // see what they caught without looking back at the page.
@@ -1565,8 +1801,9 @@ export const ReviewApp = craftComponent(
                           },
                         },
                         function* () {
-                          const count = (yield* selection()).length;
-                          return `${count} element${count === 1 ? '' : 's'} selected`;
+                          return (yield* t()).selected(
+                            (yield* selection()).length,
+                          );
                         },
                       ),
                     ]),
@@ -1583,8 +1820,9 @@ export const ReviewApp = craftComponent(
                       'aria-label': 'Decision note',
                       'aria-describedby': 'review-note-help review-note-error',
                       'aria-invalid': rejectionReasonMissing,
-                      'data-placeholder':
-                        'Explain what is wrong or why this decision is appropriate…',
+                      'data-placeholder': function* () {
+                        return (yield* t()).reasonPlaceholder;
+                      },
                       *input(event: Event) {
                         const field = event.currentTarget;
                         if (!(field instanceof HTMLElement)) return;
@@ -1626,14 +1864,17 @@ export const ReviewApp = craftComponent(
                       },
                       function* () {
                         const count = (yield* selection()).length;
+                        const say = yield* t();
                         return count === 0
-                          ? 'Select part of the page to reference it here'
-                          : `Insert a reference to ${count} selected node${count === 1 ? '' : 's'}`;
+                          ? say.insertNothing
+                          : say.insert(count);
                       },
                     ),
                     small(
                       { id: 'review-note-help', class: 'decision-help' },
-                      'A reason is required for Reject so the code can be corrected. Right-click a selection in the frozen page to drop a reference where you are typing.',
+                      function* () {
+                        return (yield* t()).reasonHelp;
+                      },
                     ),
                     small(
                       {
@@ -1644,7 +1885,9 @@ export const ReviewApp = craftComponent(
                           return !(yield* rejectionReasonMissing());
                         },
                       },
-                      'Explain why this rendering should be rejected.',
+                      function* () {
+                        return (yield* t()).reasonMissing;
+                      },
                     ),
                     div({ class: 'decision-actions' }, [
                       button(
@@ -1658,7 +1901,12 @@ export const ReviewApp = craftComponent(
                             yield* decide('rejected');
                           },
                         },
-                        ['Reject ', span({ class: 'key' }, 'R')],
+                        [
+                          function* () {
+                            return (yield* t()).reject;
+                          },
+                          span({ class: 'key' }, 'R'),
+                        ],
                       ),
                       button(
                         'BlockReviewCard',
@@ -1669,7 +1917,9 @@ export const ReviewApp = craftComponent(
                             yield* decide('blocked');
                           },
                         },
-                        'Block',
+                        function* () {
+                          return (yield* t()).block;
+                        },
                       ),
                       button(
                         'KnownIssueReviewCard',
@@ -1680,7 +1930,9 @@ export const ReviewApp = craftComponent(
                             yield* decide('known-issue');
                           },
                         },
-                        'Known issue',
+                        function* () {
+                          return (yield* t()).knownIssue;
+                        },
                       ),
                       button(
                         'AcceptWithNoteReviewCard',
@@ -1697,7 +1949,12 @@ export const ReviewApp = craftComponent(
                             yield* decide('ok-with-note');
                           },
                         },
-                        ['Accept with note ', span({ class: 'key' }, 'N')],
+                        [
+                          function* () {
+                            return (yield* t()).acceptWithNote;
+                          },
+                          span({ class: 'key' }, 'N'),
+                        ],
                       ),
                       button(
                         'AcceptReviewCard',
@@ -1710,7 +1967,12 @@ export const ReviewApp = craftComponent(
                             yield* decide('ok');
                           },
                         },
-                        ['Accept ', span({ class: 'key' }, 'A')],
+                        [
+                          function* () {
+                            return (yield* t()).accept;
+                          },
+                          span({ class: 'key' }, 'A'),
+                        ],
                       ),
                     ]),
                   ]),

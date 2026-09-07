@@ -76,7 +76,7 @@ test('reviews independent scenarios and updates after persistence', async ({
 
   await page.getByRole('button', { name: /Accept A/ }).click();
 
-  await expect(page.getByText('1 scenarios · 1 decisions')).toBeVisible();
+  await expect(page.getByText('1 scenario · 1 decision')).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'scheme=dark' }),
   ).toBeVisible();
@@ -95,7 +95,7 @@ test('reviews independent scenarios and updates after persistence', async ({
     page.getByText('Explain why this rendering should be rejected.'),
   ).toBeVisible();
   await expect(page.getByLabel('Decision note')).toBeFocused();
-  await expect(page.getByText('1 scenarios · 1 decisions')).toBeVisible();
+  await expect(page.getByText('1 scenario · 1 decision')).toBeVisible();
 
   await page
     .getByLabel('Decision note')

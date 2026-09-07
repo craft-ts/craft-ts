@@ -1,7 +1,19 @@
 import { bootstrapCraft, provideCraftRootComponent } from '@craft-ts/component';
 import { craftAppConfig, provideFnWrapper } from '@craft-ts/core';
 import { ReviewApp } from './review-app';
+import {
+  applyLocale,
+  applyTheme,
+  initialLocale,
+  initialTheme,
+} from './preferences';
 import './styles.css';
+
+// Before the app renders, not after. Reading the stored choice from inside the
+// component would paint one theme and correct it a frame later, which is the
+// flash every theme switcher is judged on.
+applyTheme(initialTheme(), document.documentElement);
+applyLocale(initialLocale(), document.documentElement);
 
 const config = craftAppConfig({
   providers: [
