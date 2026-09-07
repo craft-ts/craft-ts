@@ -98,6 +98,17 @@ export interface Attestation {
   readonly at: string;
   readonly toolVersion: string;
   readonly note?: string;
+  /**
+   * Last accepted proof when the latest decision is rejected or blocked.
+   *
+   * Without this pointer a rejection would accidentally make the rejected
+   * output the next comparison baseline, erasing the evidence a human had
+   * actually accepted.
+   */
+  readonly acceptedReference?: {
+    readonly fingerprint: string;
+    readonly evidence: string;
+  };
   /** Set when the attestation was carried forward without a human. */
   readonly carriedFrom?: string;
   /** Set when one verdict covered a cluster of identical diffs. */
@@ -189,8 +200,8 @@ export function assumptionKey(assumptions: readonly Assumption[]): string {
             .sort((left, right) => left - right)
             .join(',')}`;
         case 'seam':
-          return `seam:${assumption.node}:${SEAM_DIRECTIONS.filter((direction) =>
-            assumption.closes.includes(direction),
+          return `seam:${assumption.node}:${SEAM_DIRECTIONS.filter(
+            (direction) => assumption.closes.includes(direction),
           ).join(',')}`;
         case 'neighborhood':
           return `neighborhood:${[...assumption.members].sort().join(',')}`;
@@ -213,6 +224,13 @@ export const isAccepted = (verdict: Verdict): boolean =>
 export function isAttestation(value: unknown): value is Attestation {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Partial<Attestation>;
+  const acceptedReference = candidate.acceptedReference;
+  const validAcceptedReference =
+    acceptedReference === undefined ||
+    (typeof acceptedReference === 'object' &&
+      acceptedReference !== null &&
+      typeof acceptedReference.fingerprint === 'string' &&
+      typeof acceptedReference.evidence === 'string');
   const retirement = candidate.retired;
   const validRetirement =
     retirement === undefined ||
@@ -233,6 +251,7 @@ export function isAttestation(value: unknown): value is Attestation {
     typeof candidate.by === 'string' &&
     typeof candidate.at === 'string' &&
     typeof candidate.toolVersion === 'string' &&
+    validAcceptedReference &&
     validRetirement
   );
 }

@@ -101,8 +101,8 @@ test('reviews independent scenarios and updates after persistence', async ({
     .getByLabel('Decision note')
     .fill('Dark mode text does not have enough contrast.');
   await page.getByRole('button', { name: /Reject R/ }).click();
-  await expect(page.getByText('0 scenarios · 0 decisions')).toBeVisible();
-  await expect(page.getByText('Review complete')).toBeVisible();
+  await expect(page.getByText('1 scenario · 1 decision')).toBeVisible();
+  await expect(page.locator('.review-card')).toBeVisible();
   expect(decisions).toHaveLength(2);
   expect(decisions[1]?.note).toBe(
     'Dark mode text does not have enough contrast.',

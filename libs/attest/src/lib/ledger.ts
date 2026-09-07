@@ -29,6 +29,7 @@ const KEY_ORDER: readonly (keyof Attestation)[] = [
   'at',
   'toolVersion',
   'note',
+  'acceptedReference',
   'findings',
   'carriedFrom',
   'cluster',
@@ -63,7 +64,10 @@ export function serialiseLedger(ledger: Ledger): string {
 export interface ParsedLedger {
   readonly ledger: Ledger;
   /** Lines that were not attestations, with their 1-based number. */
-  readonly rejected: readonly { readonly line: number; readonly reason: string }[];
+  readonly rejected: readonly {
+    readonly line: number;
+    readonly reason: string;
+  }[];
 }
 
 /**
@@ -111,7 +115,8 @@ export function withAttestations(
   attestations: Iterable<Attestation>,
 ): Ledger {
   const next = new Map(ledger);
-  for (const attestation of attestations) next.set(attestation.subject, attestation);
+  for (const attestation of attestations)
+    next.set(attestation.subject, attestation);
   return next;
 }
 

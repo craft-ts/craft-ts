@@ -1,11 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { Attestation } from '../attestation.js';
+import { createEvidenceStore } from '../evidence-store.js';
 import { statusOf } from '../state.js';
 import {
+  loadTemplateEvidence,
   observeTemplateObligations,
+  serialiseTemplateEvidence,
+  storeTemplateEvidence,
   templateEvidence,
+  templateEvidenceValue,
   type TemplateObligationInput,
 } from './template.js';
+
+const directories: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    directories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true })),
+  );
+});
 
 const obligation = (
   overrides: Partial<TemplateObligationInput> = {},
@@ -35,6 +53,37 @@ describe('template subject', () => {
         }),
       ),
     );
+  });
+
+  it('stores canonical readable evidence under the ledger hash', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'craft-template-proof-'));
+    directories.push(directory);
+    const store = createEvidenceStore(directory);
+    const value = obligation({
+      direction: 'command',
+      element: 'button',
+      elementName: 'save',
+    });
+
+    const hash = await storeTemplateEvidence(store, value);
+
+    expect(hash).toBe(templateEvidence(value));
+    expect(await loadTemplateEvidence(store, hash)).toEqual(
+      templateEvidenceValue(value),
+    );
+    expect(serialiseTemplateEvidence(templateEvidenceValue(value))).toBe(
+      '{"direction":"command","element":"button","elementName":"save","target":"primitive:app.ts:count","targetKind":"primitive"}',
+    );
+  });
+
+  it('reports historical readable evidence as unavailable instead of inventing it', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'craft-template-proof-'));
+    directories.push(directory);
+    const store = createEvidenceStore(directory);
+
+    expect(
+      await loadTemplateEvidence(store, templateEvidence(obligation())),
+    ).toBeUndefined();
   });
 
   it('turns data into sorted template observations', () => {

@@ -16,6 +16,7 @@
     "@craft-ts/component": "^0.8.3",
     "@craft-ts/core": "^0.8.3",
     "@craft-ts/style": "^0.8.3",
+    "@craft-ts/dev-tools": "^0.8.3",
     "tslib": "^2.3.0",
     "vite": "^8.2.2"
   },

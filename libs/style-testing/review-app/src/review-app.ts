@@ -14,6 +14,7 @@ import {
   iframe,
   ifNode,
   img,
+  input,
   label,
   li,
   main,
@@ -51,7 +52,7 @@ import {
 } from '../../src/lib/review/frame';
 import type { LayoutDigest } from '../../src/lib/digest';
 import type { FidelityReason } from '../../src/lib/replay';
-import { MESSAGES, type Messages } from './messages';
+import { MESSAGES } from './messages';
 import {
   applyLocale,
   applyTheme,
@@ -83,6 +84,17 @@ type DecisionVerdict =
   | 'rejected'
   | 'known-issue'
   | 'blocked';
+type DevtoolView = 'assets' | 'visual' | 'template' | 'review';
+type RetirementReason = 'superseded' | 'defect' | 'derivation';
+type KindFilter = 'all' | 'visual' | 'template' | 'removal';
+type StateFilter =
+  | 'all'
+  | 'current'
+  | 'renewed'
+  | 'missing'
+  | 'review'
+  | 'removed';
+type DirectionFilter = 'all' | 'render' | 'command';
 type ZoomMode = 'fit' | 'actual';
 /**
  * Which artefact is on screen.
@@ -352,6 +364,39 @@ export const ReviewApp = craftComponent(
     const theme = yield* state('theme', initialTheme(), ({ set }) => ({
       choose: (value: ThemeChoice) => set(value),
     }));
+    const devtoolView = yield* state(
+      'devtoolView',
+      'review' as DevtoolView,
+      ({ set }) => ({ choose: (value: DevtoolView) => set(value) }),
+    );
+    const retirementReason = yield* state(
+      'retirementReason',
+      'superseded' as RetirementReason,
+      ({ set }) => ({ choose: (value: RetirementReason) => set(value) }),
+    );
+    const componentFilter = yield* state('componentFilter', '', ({ set }) => ({
+      write: (value: string) => set(value),
+    }));
+    const textFilter = yield* state('textFilter', '', ({ set }) => ({
+      write: (value: string) => set(value),
+    }));
+    const kindFilter = yield* state(
+      'kindFilter',
+      'all' as KindFilter,
+      ({ set }) => ({
+        choose: (value: KindFilter) => set(value),
+      }),
+    );
+    const stateFilter = yield* state(
+      'stateFilter',
+      'all' as StateFilter,
+      ({ set }) => ({ choose: (value: StateFilter) => set(value) }),
+    );
+    const directionFilter = yield* state(
+      'directionFilter',
+      'all' as DirectionFilter,
+      ({ set }) => ({ choose: (value: DirectionFilter) => set(value) }),
+    );
     const zoom = yield* state('zoom', 'fit' as ZoomMode, ({ set }) => ({
       choose: (mode: ZoomMode) => set(mode),
     }));
@@ -651,13 +696,117 @@ export const ReviewApp = craftComponent(
       insertReactOnMutation(decision, {
         update: ({ queryResource, mutationResource }) =>
           mutationResource.value() ??
-          queryResource.value() ?? { items: 0, decisions: 0, cards: [] },
+          queryResource.value() ?? {
+            items: 0,
+            decisions: 0,
+            cards: [],
+            visualAssets: [],
+            visualTests: [],
+            templateObligations: [],
+            diagnostics: [],
+          },
       }),
     );
 
     const cards = craftComputed('cards', function* () {
-      return (yield* review.value())?.cards ?? [];
+      const component = (yield* componentFilter()).trim().toLowerCase();
+      const text = (yield* textFilter()).trim().toLowerCase();
+      const kind = yield* kindFilter();
+      const state = yield* stateFilter();
+      const direction = yield* directionFilter();
+      return ((yield* review.value())?.cards ?? []).filter((card) => {
+        if (kind !== 'all' && card.kind !== kind) return false;
+        if (state !== 'all' && card.state !== state) return false;
+        if (direction !== 'all') {
+          const cardDirection =
+            card.kind === 'template'
+              ? card.direction
+              : card.kind === 'removal'
+                ? card.previousEvidence?.direction
+                : undefined;
+          if (cardDirection !== direction) return false;
+        }
+        if (
+          component &&
+          !card.reviewMembers.some((member) =>
+            member.label.toLowerCase().includes(component),
+          )
+        ) {
+          return false;
+        }
+        if (text) {
+          const searchable = [
+            card.subject,
+            card.reason,
+            ...card.changes,
+            ...(card.kind === 'template' ? [card.statement] : []),
+          ]
+            .join(' ')
+            .toLowerCase();
+          if (!searchable.includes(text)) return false;
+        }
+        return true;
+      });
     });
+    const visualAssets = craftComputed('visualAssets', function* () {
+      if ((yield* kindFilter()) !== 'all' && (yield* kindFilter()) !== 'visual')
+        return [];
+      if (
+        (yield* directionFilter()) !== 'all' ||
+        (yield* stateFilter()) !== 'all'
+      )
+        return [];
+      const component = (yield* componentFilter()).trim().toLowerCase();
+      const text = (yield* textFilter()).trim().toLowerCase();
+      return ((yield* review.value())?.visualAssets ?? []).filter((asset) => {
+        const scenarios = asset.scenarios.join(' ').toLowerCase();
+        return (
+          (!component || scenarios.includes(component)) &&
+          (!text ||
+            `${asset.evidence} ${scenarios}`.toLowerCase().includes(text))
+        );
+      });
+    });
+    const visualTests = craftComputed('visualTests', function* () {
+      if ((yield* kindFilter()) !== 'all' && (yield* kindFilter()) !== 'visual')
+        return [];
+      if ((yield* directionFilter()) !== 'all') return [];
+      const component = (yield* componentFilter()).trim().toLowerCase();
+      const text = (yield* textFilter()).trim().toLowerCase();
+      const state = yield* stateFilter();
+      return ((yield* review.value())?.visualTests ?? []).filter(
+        (test) =>
+          (state === 'all' || test.state === state) &&
+          (!component || test.component.toLowerCase().includes(component)) &&
+          (!text ||
+            `${test.subject} ${test.scenario}`.toLowerCase().includes(text)),
+      );
+    });
+    const templateObligations = craftComputed(
+      'templateObligations',
+      function* () {
+        if (
+          (yield* kindFilter()) !== 'all' &&
+          (yield* kindFilter()) !== 'template'
+        )
+          return [];
+        const component = (yield* componentFilter()).trim().toLowerCase();
+        const text = (yield* textFilter()).trim().toLowerCase();
+        const state = yield* stateFilter();
+        const direction = yield* directionFilter();
+        return ((yield* review.value())?.templateObligations ?? []).filter(
+          (obligation) =>
+            (state === 'all' || obligation.state === state) &&
+            (direction === 'all' || obligation.direction === direction) &&
+            (!component ||
+              obligation.component.toLowerCase().includes(component)) &&
+            (!text ||
+              `${obligation.subject} ${obligation.statement}`
+                .toLowerCase()
+                .includes(text)),
+        );
+      },
+    );
     const activeIndex = craftComputed('activeIndex', function* () {
       const list = yield* cards();
       if (list.length === 0) return 0;
@@ -668,7 +817,7 @@ export const ReviewApp = craftComponent(
       return list[yield* activeIndex()];
     });
     /** Every sentence, in the language on screen. */
-    const t = craftComputed('t', function* (): Generator<never, Messages> {
+    const t = craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
     const chooseZoom = craftMethod('chooseZoom', function* (mode: ZoomMode) {
@@ -687,6 +836,18 @@ export const ReviewApp = craftComponent(
         yield* theme.choose(value);
         storeTheme(value);
         applyTheme(value, document.documentElement);
+      },
+    );
+    const chooseDevtoolView = craftMethod(
+      'chooseDevtoolView',
+      function* (value: DevtoolView) {
+        yield* devtoolView.choose(value);
+      },
+    );
+    const chooseRetirementReason = craftMethod(
+      'chooseRetirementReason',
+      function* (value: RetirementReason) {
+        yield* retirementReason.choose(value);
       },
     );
     const hasNote = craftComputed('hasNote', function* () {
@@ -822,6 +983,7 @@ export const ReviewApp = craftComponent(
         : say.liftMany(covering.length);
     });
     const degraded = craftComputed('degraded', function* () {
+      if ((yield* current())?.kind !== 'visual') return false;
       if (!(yield* canReplay())) return true;
       if (!(yield* showingReplay())) return true;
       const state = yield* replay();
@@ -1031,6 +1193,8 @@ export const ReviewApp = craftComponent(
       const pointed = yield* findings();
       yield* decision.mutate({
         shape: card.shape,
+        id: card.id,
+        revision: card.revision,
         verdict,
         ...(writtenNote ? { note: writtenNote } : {}),
         ...(pointed.length > 0 ? { findings: pointed } : {}),
@@ -1044,10 +1208,40 @@ export const ReviewApp = craftComponent(
       clearReason();
     });
 
+    const retire = craftMethod('retire', function* () {
+      const card = yield* current();
+      if (!card || card.kind !== 'removal') return;
+      const writtenNote = proseOf(yield* note());
+      if (!writtenNote) {
+        yield* rejectionAttempted.show();
+        document.getElementById(NOTE_ID)?.focus();
+        return;
+      }
+      yield* decision.mutate({
+        shape: card.shape,
+        id: card.id,
+        revision: card.revision,
+        verdict: 'retire',
+        retirementReason: yield* retirementReason(),
+        note: writtenNote,
+      });
+      yield* note.clear();
+      yield* rejectionAttempted.clear();
+      clearReason();
+    });
+
     return {
       review,
       decision,
       cards,
+      visualAssets,
+      visualTests,
+      templateObligations,
+      componentFilter,
+      textFilter,
+      kindFilter,
+      stateFilter,
+      directionFilter,
       activeIndex,
       current,
       selectedIndex,
@@ -1060,6 +1254,11 @@ export const ReviewApp = craftComponent(
       movePrevious,
       moveNext,
       decide,
+      retire,
+      devtoolView,
+      chooseDevtoolView,
+      retirementReason,
+      chooseRetirementReason,
       evidenceView,
       findings,
       hideChrome,
@@ -1095,6 +1294,14 @@ export const ReviewApp = craftComponent(
     review,
     decision,
     cards,
+    visualAssets,
+    visualTests,
+    templateObligations,
+    componentFilter,
+    textFilter,
+    kindFilter,
+    stateFilter,
+    directionFilter,
     activeIndex,
     selectedIndex,
     zoom,
@@ -1106,6 +1313,11 @@ export const ReviewApp = craftComponent(
     movePrevious,
     moveNext,
     decide,
+    retire,
+    devtoolView,
+    chooseDevtoolView,
+    retirementReason,
+    chooseRetirementReason,
     current,
     evidenceView,
     rememberCaret,
@@ -1155,7 +1367,12 @@ export const ReviewApp = craftComponent(
               return (yield* t()).brand;
             }),
             h1(function* () {
-              return (yield* t()).appTitle;
+              const queue = yield* review.value();
+              const unified =
+                (queue?.templateObligations.length ?? 0) > 0 ||
+                queue?.cards.some((card) => card.kind !== 'visual');
+              const say = yield* t();
+              return unified ? say.attestationTitle : say.appTitle;
             }),
             div(
               { class: 'queue-summary', 'aria-live': 'polite' },
@@ -1223,16 +1440,211 @@ export const ReviewApp = craftComponent(
               ),
             ]),
           ]),
-          div({ class: 'panel-heading' }, [
-            h2(function* () {
-              return (yield* t()).queue;
-            }),
-            small(function* () {
-              return (yield* t()).queueSubtitle;
-            }),
+          div({ class: 'view-tabs', role: 'navigation' }, [
+            button(
+              'ShowVisualAssets',
+              {
+                type: 'button',
+                'aria-pressed': function* () {
+                  return (yield* devtoolView()) === 'assets' ? 'true' : 'false';
+                },
+                *click() {
+                  chooseDevtoolView('assets');
+                },
+              },
+              function* () {
+                return (yield* t()).viewAssets;
+              },
+            ),
+            button(
+              'ShowVisualTests',
+              {
+                type: 'button',
+                'aria-pressed': function* () {
+                  return (yield* devtoolView()) === 'visual' ? 'true' : 'false';
+                },
+                *click() {
+                  chooseDevtoolView('visual');
+                },
+              },
+              function* () {
+                return (yield* t()).viewVisual;
+              },
+            ),
+            button(
+              'ShowTemplateObligations',
+              {
+                type: 'button',
+                'aria-pressed': function* () {
+                  return (yield* devtoolView()) === 'template'
+                    ? 'true'
+                    : 'false';
+                },
+                *click() {
+                  chooseDevtoolView('template');
+                },
+              },
+              function* () {
+                return (yield* t()).viewTemplate;
+              },
+            ),
+            button(
+              'ShowReviewQueue',
+              {
+                type: 'button',
+                'aria-pressed': function* () {
+                  return (yield* devtoolView()) === 'review' ? 'true' : 'false';
+                },
+                *click() {
+                  chooseDevtoolView('review');
+                },
+              },
+              function* () {
+                return (yield* t()).viewReview;
+              },
+            ),
           ]),
+          section(
+            {
+              class: 'shared-filters',
+              'aria-label': function* () {
+                return (yield* t()).filters;
+              },
+            },
+            [
+              label({ htmlFor: 'component-filter' }, function* () {
+                return (yield* t()).filterComponent;
+              }),
+              input('ComponentFilter', {
+                id: 'component-filter',
+                value: componentFilter,
+                placeholder: 'UserCard',
+                *input(event: Event) {
+                  yield* componentFilter.write(eventValue(event));
+                },
+              }),
+              label({ htmlFor: 'kind-filter' }, function* () {
+                return (yield* t()).filterType;
+              }),
+              select(
+                'KindFilter',
+                {
+                  id: 'kind-filter',
+                  value: kindFilter,
+                  *change(event: Event) {
+                    yield* kindFilter.choose(eventValue(event) as KindFilter);
+                  },
+                },
+                [
+                  option({ value: 'all' }, function* () {
+                    return (yield* t()).filterAll;
+                  }),
+                  option({ value: 'visual' }, function* () {
+                    return (yield* t()).filterVisual;
+                  }),
+                  option({ value: 'template' }, function* () {
+                    return (yield* t()).filterTemplate;
+                  }),
+                  option({ value: 'removal' }, function* () {
+                    return (yield* t()).filterRemoved;
+                  }),
+                ],
+              ),
+              label({ htmlFor: 'state-filter' }, function* () {
+                return (yield* t()).filterState;
+              }),
+              select(
+                'StateFilter',
+                {
+                  id: 'state-filter',
+                  value: stateFilter,
+                  *change(event: Event) {
+                    yield* stateFilter.choose(eventValue(event) as StateFilter);
+                  },
+                },
+                [
+                  option({ value: 'all' }, function* () {
+                    return (yield* t()).filterAll;
+                  }),
+                  option({ value: 'current' }, function* () {
+                    return (yield* t()).filterCurrent;
+                  }),
+                  option({ value: 'renewed' }, function* () {
+                    return (yield* t()).filterRenewed;
+                  }),
+                  option({ value: 'missing' }, function* () {
+                    return (yield* t()).filterMissing;
+                  }),
+                  option({ value: 'review' }, function* () {
+                    return (yield* t()).filterReview;
+                  }),
+                  option({ value: 'removed' }, function* () {
+                    return (yield* t()).filterRemoved;
+                  }),
+                ],
+              ),
+              label({ htmlFor: 'direction-filter' }, function* () {
+                return (yield* t()).filterDirection;
+              }),
+              select(
+                'DirectionFilter',
+                {
+                  id: 'direction-filter',
+                  value: directionFilter,
+                  *change(event: Event) {
+                    yield* directionFilter.choose(
+                      eventValue(event) as DirectionFilter,
+                    );
+                  },
+                },
+                [
+                  option({ value: 'all' }, function* () {
+                    return (yield* t()).filterAll;
+                  }),
+                  option({ value: 'render' }, function* () {
+                    return (yield* t()).filterRender;
+                  }),
+                  option({ value: 'command' }, function* () {
+                    return (yield* t()).filterCommand;
+                  }),
+                ],
+              ),
+              label({ htmlFor: 'text-filter' }, function* () {
+                return (yield* t()).filterText;
+              }),
+              input('TextFilter', {
+                id: 'text-filter',
+                value: textFilter,
+                placeholder: 'save',
+                *input(event: Event) {
+                  yield* textFilter.write(eventValue(event));
+                },
+              }),
+            ],
+          ),
           div(
-            { class: 'queue-list' },
+            {
+              class: 'panel-heading review-navigation',
+              hidden: function* () {
+                return (yield* devtoolView()) !== 'review';
+              },
+            },
+            [
+              h2(function* () {
+                return (yield* t()).queue;
+              }),
+              small(function* () {
+                return (yield* t()).queueSubtitle;
+              }),
+            ],
+          ),
+          div(
+            {
+              class: 'queue-list',
+              hidden: function* () {
+                return (yield* devtoolView()) !== 'review';
+              },
+            },
             forNode(
               cards,
               {
@@ -1285,49 +1697,67 @@ export const ReviewApp = craftComponent(
                 ),
             ),
           ),
-          div({ class: 'queue-navigation' }, [
-            button(
-              'PreviousReviewCard',
-              {
-                type: 'button',
-                'data-hotkey': 'k',
-                disabled: function* () {
-                  return (yield* activeIndex()) === 0;
-                },
-                click: movePrevious,
+          div(
+            {
+              class: 'queue-navigation',
+              hidden: function* () {
+                return (yield* devtoolView()) !== 'review';
               },
-              [
-                function* () {
-                  return (yield* t()).previous;
+            },
+            [
+              button(
+                'PreviousReviewCard',
+                {
+                  type: 'button',
+                  'data-hotkey': 'k',
+                  disabled: function* () {
+                    return (yield* activeIndex()) === 0;
+                  },
+                  click: movePrevious,
                 },
-                span({ class: 'key' }, 'K'),
-              ],
-            ),
-            button(
-              'NextReviewCard',
-              {
-                type: 'button',
-                'data-hotkey': 'j',
-                disabled: function* () {
-                  return (yield* activeIndex()) >= (yield* cards()).length - 1;
+                [
+                  function* () {
+                    return (yield* t()).previous;
+                  },
+                  span({ class: 'key' }, 'K'),
+                ],
+              ),
+              button(
+                'NextReviewCard',
+                {
+                  type: 'button',
+                  'data-hotkey': 'j',
+                  disabled: function* () {
+                    return (
+                      (yield* activeIndex()) >= (yield* cards()).length - 1
+                    );
+                  },
+                  click: moveNext,
                 },
-                click: moveNext,
-              },
-              [
-                function* () {
-                  return (yield* t()).next;
-                },
-                span({ class: 'key' }, 'J'),
-              ],
-            ),
-          ]),
+                [
+                  function* () {
+                    return (yield* t()).next;
+                  },
+                  span({ class: 'key' }, 'J'),
+                ],
+              ),
+            ],
+          ),
         ]),
         main(
-          { class: 'review-panel' },
+          {
+            class: 'review-panel',
+            hidden: function* () {
+              return (yield* devtoolView()) !== 'review';
+            },
+          },
           forNode(cards, { track: (card) => card.shape }, (card, index) =>
             article(
               {
                 class: 'review-card',
+                'data-kind': function* () {
+                  return (yield* card()).kind;
+                },
                 hidden: function* () {
                   return index !== (yield* activeIndex());
                 },
@@ -1388,6 +1818,94 @@ export const ReviewApp = craftComponent(
                   ],
                 ),
                 div({ class: 'evidence-column' }, [
+                  section(
+                    {
+                      class: 'nonvisual-evidence',
+                      hidden: function* () {
+                        return (yield* card()).kind === 'visual';
+                      },
+                    },
+                    [
+                      h3(function* () {
+                        const value = yield* card();
+                        return value.kind === 'removal'
+                          ? (yield* t()).removedPromise
+                          : (yield* t()).currentPromise;
+                      }),
+                      p({ class: 'template-statement' }, function* () {
+                        const value = yield* card();
+                        if (value.kind === 'template') return value.statement;
+                        if (value.kind === 'removal') {
+                          const proof = value.previousEvidence;
+                          return proof
+                            ? `${proof.element ?? 'template'}${proof.elementName ? ` "${proof.elementName}"` : ''} → ${proof.target}`
+                            : (yield* t()).previousUnavailable;
+                        }
+                        return '';
+                      }),
+                      ul(
+                        { class: 'template-diff' },
+                        forNode(
+                          function* () {
+                            const value = yield* card();
+                            return value.kind === 'template'
+                              ? value.semanticDiff
+                              : [];
+                          },
+                          { track: (change) => change.field },
+                          (change) =>
+                            li({ class: 'code' }, function* () {
+                              const value = yield* change();
+                              return `${value.field}: ${value.before ?? '∅'} → ${value.after ?? '∅'}`;
+                            }),
+                        ),
+                      ),
+                      p({ class: 'template-warning' }, function* () {
+                        const value = yield* card();
+                        return value.kind !== 'visual' &&
+                          value.previousEvidenceUnavailable
+                          ? (yield* t()).previousUnavailable
+                          : '';
+                      }),
+                      h3(function* () {
+                        return (yield* t()).previousDecisionLabel;
+                      }),
+                      p(function* () {
+                        const previous = (yield* card()).previousDecision;
+                        return previous
+                          ? `${previous.verdict} · ${previous.by} · ${previous.at}${previous.note ? ` — ${previous.note}` : ''}`
+                          : '—';
+                      }),
+                      h3(function* () {
+                        return (yield* t()).codeChange;
+                      }),
+                      ul(
+                        { class: 'code-leaves' },
+                        forNode(
+                          function* () {
+                            const value = yield* card();
+                            if (value.kind !== 'template') return [];
+                            return [
+                              ...value.codeDiff.removed.map((change) => ({
+                                line: `− ${change.leaf}`,
+                              })),
+                              ...value.codeDiff.added.map((change) => ({
+                                line: `+ ${change.leaf}`,
+                              })),
+                              ...value.codeDiff.changed.map((change) => ({
+                                line: `~ ${change.leaf}`,
+                              })),
+                            ];
+                          },
+                          { track: (change) => change.line },
+                          (change) =>
+                            li({ class: 'code' }, function* () {
+                              return (yield* change()).line;
+                            }),
+                        ),
+                      ),
+                    ],
+                  ),
                   section({ class: 'evidence-toolbar' }, [
                     div({ class: 'metadata' }, [
                       span({ class: 'chip' }, function* () {
@@ -1860,15 +2378,23 @@ export const ReviewApp = craftComponent(
                     {
                       class: 'previous-rejection',
                       hidden: function* () {
-                        return !(yield* card()).rejectionReason;
+                        const value = yield* card();
+                        return (
+                          value.kind !== 'visual' ||
+                          (!value.previousDecision && !value.rejectionReason)
+                        );
                       },
                     },
                     [
                       h3(function* () {
-                        return (yield* t()).previousRejection;
+                        return (yield* t()).previousDecisionLabel;
                       }),
                       p(function* () {
-                        return (yield* card()).rejectionReason ?? '';
+                        const value = yield* card();
+                        const previous = value.previousDecision;
+                        return previous
+                          ? `${previous.verdict} · ${previous.by} · ${previous.at}${previous.note ? ` — ${previous.note}` : ''}`
+                          : (value.rejectionReason ?? '');
                       }),
                     ],
                   ),
@@ -1988,6 +2514,54 @@ export const ReviewApp = craftComponent(
                         return (yield* t()).reasonMissing;
                       },
                     ),
+                    section(
+                      {
+                        class: 'retirement-actions',
+                        hidden: function* () {
+                          return (yield* current())?.kind !== 'removal';
+                        },
+                      },
+                      [
+                        label({ htmlFor: 'retirement-reason' }, function* () {
+                          return (yield* t()).retirementReason;
+                        }),
+                        select(
+                          'RetirementReason',
+                          {
+                            id: 'retirement-reason',
+                            value: retirementReason,
+                            *change(event: Event) {
+                              chooseRetirementReason(
+                                eventValue(event) as RetirementReason,
+                              );
+                            },
+                          },
+                          [
+                            option({ value: 'superseded' }, function* () {
+                              return (yield* t()).superseded;
+                            }),
+                            option({ value: 'defect' }, function* () {
+                              return (yield* t()).defect;
+                            }),
+                            option({ value: 'derivation' }, function* () {
+                              return (yield* t()).derivation;
+                            }),
+                          ],
+                        ),
+                        button(
+                          'RetireObligation',
+                          {
+                            type: 'button',
+                            class: 'danger',
+                            disabled: decision.isLoading,
+                            click: retire,
+                          },
+                          function* () {
+                            return (yield* t()).retire;
+                          },
+                        ),
+                      ],
+                    ),
                     div({ class: 'decision-actions' }, [
                       button(
                         'RejectReviewCard',
@@ -2094,6 +2668,150 @@ export const ReviewApp = craftComponent(
               ],
             ),
           ),
+        ),
+        main(
+          {
+            class: 'inventory-panel',
+            hidden: function* () {
+              return (yield* devtoolView()) !== 'assets';
+            },
+          },
+          [
+            h2(function* () {
+              return (yield* t()).viewAssets;
+            }),
+            ul(
+              { class: 'inventory-list' },
+              forNode(
+                function* () {
+                  return yield* visualAssets();
+                },
+                {
+                  track: (asset) => asset.evidence,
+                  empty: () =>
+                    li(function* () {
+                      return (yield* t()).noInventory;
+                    }),
+                },
+                (asset) =>
+                  li([
+                    strong(function* () {
+                      return (yield* asset()).evidence;
+                    }),
+                    small(function* () {
+                      const value = yield* asset();
+                      return `${value.scenarios.length} scenario${value.scenarios.length === 1 ? '' : 's'}`;
+                    }),
+                  ]),
+              ),
+            ),
+          ],
+        ),
+        main(
+          {
+            class: 'inventory-panel',
+            hidden: function* () {
+              return (yield* devtoolView()) !== 'visual';
+            },
+          },
+          [
+            h2(function* () {
+              return (yield* t()).viewVisual;
+            }),
+            ul(
+              { class: 'inventory-list' },
+              forNode(
+                function* () {
+                  return yield* visualTests();
+                },
+                {
+                  track: (test) => test.subject,
+                  empty: () =>
+                    li(function* () {
+                      return (yield* t()).noInventory;
+                    }),
+                },
+                (test) =>
+                  li([
+                    strong(function* () {
+                      return (yield* test()).scenario;
+                    }),
+                    span({ class: 'subject code' }, function* () {
+                      return (yield* test()).component;
+                    }),
+                    small(function* () {
+                      return (yield* test()).state;
+                    }),
+                  ]),
+              ),
+            ),
+          ],
+        ),
+        main(
+          {
+            class: 'inventory-panel',
+            hidden: function* () {
+              return (yield* devtoolView()) !== 'template';
+            },
+          },
+          [
+            h2(function* () {
+              return (yield* t()).viewTemplate;
+            }),
+            ul(
+              { class: 'inventory-list' },
+              forNode(
+                function* () {
+                  return yield* templateObligations();
+                },
+                {
+                  track: (obligation) => obligation.subject,
+                  empty: () =>
+                    li(function* () {
+                      return (yield* t()).noInventory;
+                    }),
+                },
+                (obligation) =>
+                  li([
+                    strong(function* () {
+                      const value = yield* obligation();
+                      return `${value.component} · ${value.direction}`;
+                    }),
+                    p(function* () {
+                      return (yield* obligation()).statement;
+                    }),
+                    small(function* () {
+                      return (yield* obligation()).state;
+                    }),
+                  ]),
+              ),
+            ),
+            h3(function* () {
+              return (yield* t()).extractionDiagnostics;
+            }),
+            ul(
+              { class: 'inventory-list diagnostics' },
+              forNode(
+                function* () {
+                  return (yield* review.value())?.diagnostics ?? [];
+                },
+                {
+                  track: (diagnostic) =>
+                    `${diagnostic.code}:${diagnostic.filePath ?? ''}:${diagnostic.line ?? ''}`,
+                  empty: () => li('—'),
+                },
+                (diagnostic) =>
+                  li([
+                    strong(function* () {
+                      return (yield* diagnostic()).code;
+                    }),
+                    p(function* () {
+                      return (yield* diagnostic()).message;
+                    }),
+                  ]),
+              ),
+            ),
+          ],
         ),
       ]),
     ]),
