@@ -54,9 +54,7 @@ type TypedDomEvent<
 };
 
 interface CommonDomEventMethods<El extends EventTarget> {
-  input?(
-    event: TypedDomEvent<El, 'input'>,
-  ): unknown | Generator<any, any, any>;
+  input?(event: TypedDomEvent<El, 'input'>): unknown | Generator<any, any, any>;
   change?(
     event: TypedDomEvent<El, 'change'>,
   ): unknown | Generator<any, any, any>;
@@ -64,15 +62,11 @@ interface CommonDomEventMethods<El extends EventTarget> {
     event: TypedDomEvent<El, 'keydown'>,
   ): unknown | Generator<any, any, any>;
   keyup?(event: TypedDomEvent<El, 'keyup'>): unknown | Generator<any, any, any>;
-  paste?(
-    event: TypedDomEvent<El, 'paste'>,
-  ): unknown | Generator<any, any, any>;
+  paste?(event: TypedDomEvent<El, 'paste'>): unknown | Generator<any, any, any>;
   keypress?(
     event: TypedDomEvent<El, 'keypress'>,
   ): unknown | Generator<any, any, any>;
-  click?(
-    event: TypedDomEvent<El, 'click'>,
-  ): unknown | Generator<any, any, any>;
+  click?(event: TypedDomEvent<El, 'click'>): unknown | Generator<any, any, any>;
   submit?(
     event: TypedDomEvent<El, 'submit'>,
   ): unknown | Generator<any, any, any>;
@@ -442,10 +436,7 @@ type LoosePrimitiveProps<El> = {
     | object;
 };
 
-type InputTypeArg =
-  | string
-  | (() => string)
-  | YieldableRenderCallback<string>;
+type InputTypeArg = string | (() => string) | YieldableRenderCallback<string>;
 
 type InputCallProps<T extends InputTypeArg> = Omit<
   LoosePrimitiveProps<InputElementForType<T>>,
@@ -477,9 +468,7 @@ export interface InputTagHelper {
     const Name extends string | undefined = undefined,
   >(
     first?: InputCallProps<T> | Name | CraftNodeChildren | null,
-    second?: Name extends string
-      ? InputCallProps<T> | null
-      : CraftNodeChildren,
+    second?: Name extends string ? InputCallProps<T> | null : CraftNodeChildren,
     third?: CraftNodeChildren,
   ): InputNode<
     InputCallProps<T>,
@@ -488,10 +477,7 @@ export interface InputTagHelper {
   >;
 }
 
-type AltValue =
-  | string
-  | (() => string)
-  | YieldableRenderCallback<string>;
+type AltValue = string | (() => string) | YieldableRenderCallback<string>;
 
 type WithRequiredAlt<Tag extends 'img' | 'area', Props extends object> = Props &
   ElementPropsContext<Tag> & {
@@ -601,6 +587,9 @@ export const tr = tagHelper('tr');
 export const th = tagHelper('th');
 export const td = tagHelper('td');
 export const caption = tagHelper('caption');
+/** A disclosure, for detail that has to be there and does not have to be read. */
+export const details = tagHelper('details');
+export const summary = tagHelper('summary');
 export const figure = tagHelper('figure');
 export const figcaption = tagHelper('figcaption');
 export const iframe = tagHelper('iframe');

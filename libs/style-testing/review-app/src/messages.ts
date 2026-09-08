@@ -22,6 +22,13 @@ const en = {
   viewVisual: 'Visual tests',
   viewTemplate: 'Template obligations',
   viewReview: 'Review queue',
+  viewNavigation: 'Attestation views',
+  viewNavigationDescription:
+    'Browse evidence, checks, contracts, and decisions.',
+  viewAssetsDescription: 'Captured evidence and screenshots',
+  viewVisualDescription: 'Scenarios checked for visual changes',
+  viewTemplateDescription: 'Contracts emitted by templates',
+  viewReviewDescription: 'Decisions waiting for review',
   noInventory: 'Nothing to show in this view.',
   extractionDiagnostics: 'Extraction diagnostics',
   currentPromise: 'Current promise',
@@ -36,6 +43,10 @@ const en = {
   defect: 'Defect',
   derivation: 'Derivation',
   filters: 'Filters',
+  filtersDescription: 'Narrow every view with the same criteria.',
+  clearFilters: 'Clear filters',
+  activeFilters: (count: number) =>
+    `${count} active filter${count === 1 ? '' : 's'}`,
   filterComponent: 'Component',
   filterType: 'Type',
   filterState: 'State',
@@ -92,12 +103,12 @@ const en = {
     'The page itself, frozen at the moment it was measured. Click any part of the component to write a remark about that node.',
   viewImageHint:
     'The screenshot. It shows what the measurements cannot — a wrong icon, a missing background — and marks where the viewport ended.',
-  liftHint:
-    'Something in the application is painted over this component. Only the frozen page can lift it; in a screenshot those pixels have already been replaced.',
-  liftOne: (what: string) => `Hide ${what}`,
-  showOne: (what: string) => `Show ${what}`,
-  liftMany: (count: number) => `Hide the ${count} elements covering this`,
-  showMany: (count: number) => `Show the ${count} elements covering this`,
+  liftHint: (what: string) =>
+    `${what} is painted over this component. Only the frozen page can lift it; in a screenshot those pixels have already been replaced.`,
+  liftHintMany: (count: number) =>
+    `${count} elements of the application are painted over this component. Only the frozen page can lift them; in a screenshot those pixels have already been replaced.`,
+  lift: 'Lift what covers this',
+  drop: 'Put it back',
   zoom: 'Zoom',
   zoomLabel: 'Evidence zoom',
   zoomFit: 'Fit to window',
@@ -125,7 +136,7 @@ const en = {
   imageAlt: (scenario: string) => `Current rendering for ${scenario}`,
 
   measuredChange: 'Measured change',
-  noApprovedYet: 'New subject: nothing has been approved yet.',
+  neverApproved: 'Never attested',
   previousRejection: 'Previous rejection reason',
 
   degraded: 'This decision will be recorded as made without a faithful replay.',
@@ -142,10 +153,7 @@ const en = {
     `${count} attested node${count === 1 ? '' : 's'} are absent from this frozen page — a stylesheet or a script-built element did not survive.`,
   fidelityFaithful: 'The frozen page measures exactly like the evidence.',
   fellBack: (summary: string) => `Showing the screenshot: ${summary}`,
-  fidelityOnPage:
-    'You asked for the page anyway. It is on screen, but it is not what was measured — the decision will be recorded as made without a faithful replay.',
-  fidelityOnImage:
-    'Judge the picture. Switch to Page to look at the frozen copy anyway; either way the decision is recorded as made without a faithful replay.',
+  fidelityDetail: 'Which nodes',
 
   reason: 'Decision reason',
   reasonAria: 'Decision note',
@@ -183,7 +191,7 @@ const en = {
     'This render is wrong. The scenario comes back on every run, with your reason, until it is fixed and attested again. A reason is required.',
   hintBlock:
     'You cannot judge this one yet. Like Reject it keeps coming back, but it claims nothing about whether the render is right.',
-} as const;
+};
 
 /** Typed against `en`, so a forgotten key does not compile. */
 export type Messages = {
@@ -202,6 +210,13 @@ const fr: Messages = {
   viewVisual: 'Tests visuels',
   viewTemplate: 'Obligations de template',
   viewReview: 'File de revue',
+  viewNavigation: "Vues d'attestation",
+  viewNavigationDescription:
+    'Parcourez preuves, contrôles, contrats et décisions.',
+  viewAssetsDescription: 'Captures et preuves collectées',
+  viewVisualDescription: 'Scénarios contrôlés visuellement',
+  viewTemplateDescription: 'Contrats produits par les templates',
+  viewReviewDescription: 'Décisions qui attendent une revue',
   noInventory: 'Aucun élément dans cette vue.',
   extractionDiagnostics: "Diagnostics d'extraction",
   currentPromise: 'Promesse courante',
@@ -216,6 +231,10 @@ const fr: Messages = {
   defect: 'Défaut',
   derivation: 'Dérivation',
   filters: 'Filtres',
+  filtersDescription: 'Rétrécissez chaque vue avec les mêmes critères.',
+  clearFilters: 'Réinitialiser',
+  activeFilters: (count) =>
+    `${count} filtre${count === 1 ? '' : 's'} actif${count === 1 ? '' : 's'}`,
   filterComponent: 'Composant',
   filterType: 'Type',
   filterState: 'État',
@@ -273,12 +292,12 @@ const fr: Messages = {
     'La page elle-même, gelée au moment où elle a été mesurée. Cliquez sur une partie du composant pour écrire une remarque sur ce nœud.',
   viewImageHint:
     "La photo. Elle montre ce que les mesures ne peuvent pas dire — une icône erronée, un fond manquant — et marque où s'arrêtait la fenêtre.",
-  liftHint:
-    "Un élément de l'application est peint par-dessus ce composant. Seule la page gelée peut le soulever ; sur une photo, ces pixels ont déjà été remplacés.",
-  liftOne: (what) => `Masquer ${what}`,
-  showOne: (what) => `Afficher ${what}`,
-  liftMany: (count) => `Masquer les ${count} éléments qui recouvrent`,
-  showMany: (count) => `Afficher les ${count} éléments qui recouvrent`,
+  liftHint: (what) =>
+    `${what} est peint par-dessus ce composant. Seule la page gelée peut le soulever ; sur une photo, ces pixels ont déjà été remplacés.`,
+  liftHintMany: (count) =>
+    `${count} éléments de l'application sont peints par-dessus ce composant. Seule la page gelée peut les soulever ; sur une photo, ces pixels ont déjà été remplacés.`,
+  lift: 'Soulever ce qui recouvre',
+  drop: 'Le remettre',
   zoom: 'Zoom',
   zoomLabel: 'Zoom de la preuve',
   zoomFit: 'Ajuster à la fenêtre',
@@ -303,7 +322,7 @@ const fr: Messages = {
   imageAlt: (scenario) => `Rendu actuel pour ${scenario}`,
 
   measuredChange: 'Changement mesuré',
-  noApprovedYet: "Nouveau sujet : rien n'a encore été approuvé.",
+  neverApproved: 'Jamais attesté',
   previousRejection: 'Motif du refus précédent',
 
   degraded: 'Cette décision sera enregistrée comme prise sans rejeu fidèle.',
@@ -320,10 +339,7 @@ const fr: Messages = {
     `${count} nœud${count === 1 ? '' : 's'} attesté${count === 1 ? '' : 's'} sont absents de cette page gelée — une feuille de style ou un élément construit par script n'a pas survécu.`,
   fidelityFaithful: 'La page gelée se mesure exactement comme la preuve.',
   fellBack: (summary) => `Photo affichée : ${summary}`,
-  fidelityOnPage:
-    "Vous avez demandé la page malgré tout. Elle est à l'écran, mais ce n'est pas ce qui a été mesuré — la décision sera enregistrée comme prise sans rejeu fidèle.",
-  fidelityOnImage:
-    'Jugez la photo. Passez sur Page pour regarder la copie gelée quand même ; dans les deux cas la décision est enregistrée comme prise sans rejeu fidèle.',
+  fidelityDetail: 'Quels nœuds',
 
   reason: 'Motif de la décision',
   reasonAria: 'Motif de la décision',

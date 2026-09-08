@@ -35,6 +35,7 @@
   --accent-border: #3e4e8c;
   --accent-text: #d8deff;
   --accent-link: #9db2ff;
+  --on-accent: #ffffff;
 
   --danger: #e06c75;
   --danger-hover: #ff9ea4;
@@ -82,6 +83,7 @@
     --accent-border: #b3befa;
     --accent-text: #1e2a72;
     --accent-link: #2f45c4;
+    --on-accent: #ffffff;
 
     --danger: #b42318;
     --danger-hover: #971a12;
@@ -127,6 +129,7 @@
   --accent-border: #b3befa;
   --accent-text: #1e2a72;
   --accent-link: #2f45c4;
+  --on-accent: #ffffff;
 
   --danger: #b42318;
   --danger-hover: #971a12;
@@ -179,34 +182,202 @@ select {
 
 .view-tabs {
   display: grid;
-  gap: 6px;
-  padding: 12px;
+  gap: 5px;
+  padding: 16px 12px 14px;
   border-bottom: 1px solid var(--line);
 }
-.view-tabs button {
-  justify-content: flex-start;
-  width: 100%;
+.view-tabs-heading {
+  display: grid;
+  gap: 3px;
+  padding: 0 4px 8px;
 }
-.view-tabs button[aria-pressed='true'] {
+.view-tabs-heading h2 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.view-tabs-heading small {
+  display: block;
+  margin-top: 3px;
+  max-width: 220px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.view-tab {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+.view-tab:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+.view-tab:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.view-tab[aria-pressed='true'] {
   border-color: var(--accent);
   background: var(--accent-bg);
+  color: var(--accent-text);
+  box-shadow: inset 3px 0 var(--accent-hover);
+}
+.view-tab-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-dim);
+  background: var(--surface-raised);
+  font-size: 16px;
+  line-height: 1;
+}
+.view-tab[aria-pressed='true'] .view-tab-icon {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent-active);
+}
+.view-tab-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.view-tab-copy strong {
+  overflow: hidden;
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.view-tab-copy small {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.view-tab[aria-pressed='true'] .view-tab-copy small {
+  color: var(--accent-link);
+}
+.view-tab-count {
+  display: grid;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 6px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.view-tab[aria-pressed='true'] .view-tab-count {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent-active);
 }
 .shared-filters {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 6px 8px;
-  padding: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 16px 12px 18px;
   border-bottom: 1px solid var(--line);
 }
-.shared-filters label {
-  align-self: center;
+.filters-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px 2px;
+}
+.filters-heading h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.filters-heading small {
+  display: block;
+  max-width: 170px;
+  margin-top: 3px;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.filter-heading-actions {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+.filter-status {
+  color: var(--text-dim);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.clear-filters {
+  flex: none;
+  padding: 5px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: transparent;
   color: var(--text-muted);
   font-size: 11px;
 }
-.shared-filters input,
-.shared-filters select {
+.clear-filters:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+  background: var(--accent-bg);
+}
+.filter-field {
+  display: grid;
+  gap: 5px;
+}
+.filter-field label {
+  padding-left: 1px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+.filter-field input,
+.filter-field select {
   min-width: 0;
   width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface-sunken);
+  padding: 8px 10px;
+}
+.filter-field input::placeholder {
+  color: var(--text-dim);
+}
+.filter-field input:focus,
+.filter-field select:focus,
+.clear-filters:focus-visible,
+.view-tab:focus-visible {
+  outline: 2px solid var(--accent-link);
+  outline-offset: 2px;
+}
+.filter-field input:focus,
+.filter-field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
 .inventory-panel {
@@ -524,6 +695,7 @@ select {
 
 .evidence-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -771,6 +943,7 @@ select {
 
 .evidence-views {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -902,13 +1075,15 @@ select {
      evidence and the replay was reported unfaithful. The frame has to be
      exactly the captured viewport; decoration goes on the holder. */
   border: 0;
-  /* Not a themed token: the frame follows the capture, not the tool. These are
-     the user agent's own canvas colours, which is what a page painting no
-     background of its own was composited over when the screenshot was taken. */
+  /* Not a themed token: the frame follows the capture, not the tool. This is
+     the user agent's own canvas, which is what a page painting no background
+     of its own was composited over when the screenshot was taken.
+
+     Deliberately not switched on the capture's colour scheme. Chromium keeps
+     the light canvas for a document that never declares `color-scheme`,
+     whatever the machine asks for — so a "dark" scenario was captured on white
+     too, and painting it on black would be inventing a condition. */
   background: #ffffff;
-}
-.replay-holder iframe[data-scheme='dark'] {
-  background: #121212;
 }
 
 .image-holder {
@@ -1010,7 +1185,15 @@ select {
   opacity: 0.85;
 }
 .fidelity-detail {
-  margin: 0;
+  margin: 6px 0 0;
+}
+.fidelity-detail > summary {
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.85;
+}
+.fidelity-detail ul {
+  margin: 6px 0 0;
   padding-left: 18px;
 }
 .fidelity-detail li {

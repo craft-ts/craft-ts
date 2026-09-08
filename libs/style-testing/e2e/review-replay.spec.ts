@@ -133,25 +133,101 @@ test('replays the frozen page, checks it, and marks the three tiers', async ({
   ).toBeVisible();
 });
 
+test('a dark-scheme capture replays without a scheme being imposed', async ({
+  browser,
+}) => {
+  // The snapshot already carries whatever the page declared. Chromium keeps
+  // the light canvas for a document that never declares `color-scheme`, so a
+  // scenario captured under `prefers-color-scheme: dark` measured black text
+  // all the same — and forcing `dark` on the replay to "restore" that reported
+  // four nodes as `color rgb(0,0,0)→rgb(255,255,255)` and marked every
+  // decision degraded. Measured on the demo's own captures, both scenarios:
+  // faithful with no scheme imposed, four nodes moved with one.
+  const bare = `<!doctype html><html><head><style>
+    * { box-sizing: border-box; margin: 0; }
+    body { width: 375px; font: 14px/1 system-ui, sans-serif; }
+    .host { position: absolute; left: 0; top: 0; width: 375px; height: 80px; }
+    .title { position: absolute; left: 0; top: 0; width: 375px; height: 40px; }
+  </style></head><body>
+    <div class="host" data-craft-attested><div class="title">Uncoloured</div></div>
+  </body></html>`;
+
+  const source = await browser.newPage();
+  await source.setViewportSize({ width: 375, height: 200 });
+  await source.emulateMedia({ colorScheme: 'dark' });
+  await source.setContent(bare);
+  const digest = (await collectCapture(source, { root: '.host' })).digest;
+  await source.close();
+
+  const dark = await startReviewServer({
+    port: 0,
+    items: [
+      {
+        subject: 'visual:component:demo:Card#base',
+        reason: 'the output changed',
+        digest,
+        approved,
+        snapshot: 'a'.repeat(32),
+        evidence: 'b'.repeat(32),
+        metadata: {
+          viewport: { width: 375, height: 200 },
+          screenshot: { width: 375, height: 200 },
+          target: '.host',
+          colorScheme: 'dark',
+        },
+      },
+    ],
+    snapshotFor: async () => bare,
+    digestFor: async () => JSON.stringify(digest),
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.goto(dark.url);
+    await expect(
+      page.frameLocator('#craft-replay-frame').locator('.title'),
+    ).toBeVisible();
+
+    await expect(page.locator('.notice.warning:not([hidden])')).toHaveCount(0);
+    await expect(page.locator('.notice.degraded:not([hidden])')).toHaveCount(0);
+    await page.close();
+  } finally {
+    await dark.close();
+  }
+});
+
 test('lifting the page chrome reveals what it covered', async ({ page }) => {
   await page.goto(running.url);
   const frame = page.frameLocator('#craft-replay-frame');
   await expect(frame.locator('.pinned')).toBeVisible();
 
-  // The label names what will disappear, read back from the replay itself.
-  // "Hide 1 overlay" asked the reviewer what an overlay is, and counted
-  // covered nodes rather than the one thing sitting on them.
-  const lift = page.getByRole('button', { name: /div\.pinned/ });
-  await expect(lift).toHaveText('Hide div.pinned');
+  // The control says what it does; what it does it *to* is named in the
+  // explanation. `Hide div.pinned` put a class selector out of one application
+  // into a control every application generated with CraftTS gets — the name is
+  // still read from the replay, it just belongs in the sentence.
+  // Located by role, not by its label: the label is what changes.
+  const lift = page.locator('.overlay-toggle');
+  await expect(lift).toHaveText('Lift what covers this');
+  await expect(lift).toHaveAttribute(
+    'data-hint',
+    /div\.pinned is painted over/,
+  );
   await lift.click();
-  await expect(lift).toHaveText('Show div.pinned');
+  await expect(lift).toHaveText('Put it back');
   await expect(frame.locator('.pinned')).toBeHidden();
 
   // And it can be put back: lifting must not be a one-way trip, which it was
   // while the probe ran through its own `visibility: hidden`.
   await lift.click();
-  await expect(lift).toHaveText('Hide div.pinned');
+  await expect(lift).toHaveText('Lift what covers this');
   await expect(frame.locator('.pinned')).toBeVisible();
+
+  // Lifting re-runs the check, and the check must find the same page. It did
+  // not while the marking left a `color-scheme` behind it: the first pass
+  // measured a bare document and every pass after it measured one carrying a
+  // rule the capture never had, so four nodes "moved" on the second look.
+  await expect(page.locator('.notice.warning:not([hidden])')).toHaveCount(0);
+  await expect(page.locator('.notice.degraded:not([hidden])')).toHaveCount(0);
 });
 
 test('the lift is not offered when nothing is covering the subject', async ({
@@ -268,12 +344,13 @@ test('an unfaithful replay says what went wrong in one sentence', async ({
       page.getByRole('button', { name: 'Screenshot' }),
     ).toHaveAttribute('aria-pressed', 'true');
 
-    // Asking for the page anyway still works, and still says what it is.
+    // Asking for the page anyway still works, and the warning stays.
     await page.getByRole('button', { name: 'Page', exact: true }).click();
     await expect(page.locator('.replay-holder')).toBeVisible();
-    await expect(notice).toContainText('You asked for the page anyway');
+    await expect(notice).toBeVisible();
 
-    // And the verdict that follows is marked for what it is.
+    // What it costs the decision is said once, beside the buttons it applies
+    // to — not a second time inside the warning, where it was.
     await expect(page.locator('.notice.degraded')).toBeVisible();
     await page.close();
   } finally {
