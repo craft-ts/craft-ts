@@ -15,16 +15,6 @@ loading, cancellation and URL state.
 
 ## The boundary in one picture
 
-```mermaid
-flowchart LR
-  UI["Craft component and template"] --> R["Craft resource\nqueryEffect / mutationEffect"]
-  R --> P["Effect program\nEffect<A, E, R>"]
-  P --> L["Layer<R>"]
-  L --> I["Craft injector\napplication / route / component"]
-  R --> V["Reactive Craft readers\nvalue / loading / exceptions"]
-  V --> UI
-```
-
 The two sides have different responsibilities:
 
 | Concern | Effect | CraftTS |
