@@ -76,11 +76,11 @@ craft-ts attest review --kind all --report .craft/visual-report.json
 craft-ts attest devtools --report .craft/visual-report.json
 ```
 
-It exposes four views: stored visual assets, visual tests, template obligations
-(including extraction diagnostics), and the human review queue. Accept, Accept
-with note, Known issue, Reject and Block apply to present subjects. A vanished
-template promise uses the separate Retire action with a required reason and
-comment.
+It exposes three views: visual tests, template obligations (including extraction
+diagnostics), and the human review queue. Stored visual assets are internal
+evidence shared by visual tests, not review subjects. Accept, Accept with note,
+Known issue, Reject and Block apply to present subjects. A vanished template
+promise uses the separate Retire action with a required reason and comment.
 
 Template proof objects are canonical JSON in `.craft/evidence`; their hash is
 the only value kept in the ledger. An older ledger without a proof object stays

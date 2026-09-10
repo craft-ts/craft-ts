@@ -32,6 +32,9 @@
       "@craft-ts/style-testing/review": [
         "./libs/style-testing/src/lib/review/index.ts"
       ],
+      "@craft-ts/style-testing/review/frame": [
+        "./libs/style-testing/src/lib/review/frame.ts"
+      ],
       "@craft-ts/component/testing": ["./libs/component/testing/public-api.ts"],
       "test-type": ["./libs/test-type/src/index.ts"],
       "@craft-ts/dev-tools": ["./libs/dev-tools/src/index.ts"],

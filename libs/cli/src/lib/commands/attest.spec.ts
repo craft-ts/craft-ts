@@ -125,7 +125,7 @@ const withoutTemplateObligations = () => ({
 
 describe('craft-ts attest', () => {
   it('reports every subject as missing before anything is attested', async () => {
-    const { root, io, out } = await workspace();
+    const { root, io, out, err } = await workspace();
     const code = await runAttestCommand(
       ['status', '--report', 'report.json'],
       io,
@@ -140,7 +140,7 @@ describe('craft-ts attest', () => {
   });
 
   it('records a verdict and then reports the subjects as current', async () => {
-    const { root, io, out } = await workspace();
+    const { root, io, out, err } = await workspace();
     await runAttestCommand(
       ['renew', '--all', '--report', 'report.json'],
       io,
@@ -438,6 +438,57 @@ describe('craft-ts attest', () => {
     const code = await runAttestCommand(['status'], io, dependencies());
     expect(code).toBe(1);
     expect(err.join('\n')).toContain('Point --report at Vitest JSON');
+  });
+
+  it('treats an empty review config as a successful no-op', async () => {
+    const { root, io, out, err } = await workspace();
+    await writeFile(
+      join(root, 'review-attest.config.ts'),
+      `export const reviewAttestConfig = {};
+`,
+      'utf8',
+    );
+    const code = await runAttestCommand(
+      ['status', '--config', 'review-attest.config.ts', '--kind', 'all'],
+      io,
+      dependencies(),
+    );
+    expect(code, [...out, ...err].join('\n')).toBe(0);
+    expect(out[0]).toContain('missing 0');
+  });
+
+  it('excludes template obligations when template is false', async () => {
+    const { root, io, out, err } = await workspace();
+    await writeFile(
+      join(root, 'review-attest.config.ts'),
+      `export default { template: false };
+`,
+      'utf8',
+    );
+    const code = await runAttestCommand(
+      ['status', '--config', 'review-attest.config.ts', '--kind', 'template'],
+      io,
+      dependencies(),
+    );
+    expect(code, [...out, ...err].join('\n')).toBe(0);
+    expect(out[0]).toContain('missing 0');
+  });
+
+  it('fails clearly when the config cannot be loaded', async () => {
+    const { root, io, err } = await workspace();
+    await writeFile(
+      join(root, 'review-attest.config.ts'),
+      `export default { template: 'yes' };
+`,
+      'utf8',
+    );
+    const code = await runAttestCommand(
+      ['status', '--config', 'review-attest.config.ts', '--kind', 'all'],
+      io,
+      dependencies(),
+    );
+    expect(code).toBe(1);
+    expect(err.join('\n')).toContain('template must be a boolean');
   });
 
   it('derives template subjects without a report', async () => {

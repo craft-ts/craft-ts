@@ -127,6 +127,14 @@
         "staticFilePath": "dist/apps/demo",
         "spa": true
       }
+    },
+    "review": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run review:demo",
+        "cwd": "{workspaceRoot}"
+      }
     }
   }
 }

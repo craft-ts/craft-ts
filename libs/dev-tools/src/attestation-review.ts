@@ -21,6 +21,13 @@ export interface PreviousDecision {
   readonly by: string;
   readonly at: string;
   readonly note?: string;
+  /** Nodes the reviewer pointed at when recording the decision. */
+  readonly findings?: readonly {
+    readonly path: string;
+    readonly note: string;
+  }[];
+  /** The reviewer judged a screenshot rather than a faithful replay. */
+  readonly degraded?: true;
 }
 
 export interface ReviewMember {
@@ -102,6 +109,28 @@ export interface TemplateEvidence {
   readonly targetKind: string;
 }
 
+/** A structural condition under which a template promise is rendered. */
+export interface TemplateCondition {
+  readonly kind: 'if' | 'for';
+  readonly name: string;
+  readonly expectation: 'true' | 'false' | 'non-empty' | 'empty';
+}
+
+/**
+ * Language-neutral ingredients for presenting a template promise.
+ *
+ * `statement` remains the canonical English sentence for CLI, exports and
+ * agencies. These parts are presentation data only: changing their wording
+ * must never change the attested evidence or its fingerprint.
+ */
+export interface TemplateStatementParts {
+  readonly direction: 'render' | 'command';
+  readonly component: string;
+  readonly target: string;
+  readonly element?: string;
+  readonly elementName?: string;
+}
+
 export type TemplateEvidenceField = keyof TemplateEvidence;
 
 export interface SemanticChange {
@@ -128,6 +157,8 @@ export interface TemplateReviewCard extends ReviewCardBase {
   readonly component: string;
   readonly direction: 'render' | 'command';
   readonly statement: string;
+  readonly statementParts?: TemplateStatementParts;
+  readonly conditions?: readonly TemplateCondition[];
   readonly currentEvidence: TemplateEvidence;
   /** Absent for a new subject and for ledgers created before readable proofs. */
   readonly previousEvidence?: TemplateEvidence;
@@ -178,6 +209,8 @@ export interface TemplateInventoryItem {
   readonly component: string;
   readonly direction: 'render' | 'command';
   readonly statement: string;
+  readonly statementParts?: TemplateStatementParts;
+  readonly conditions?: readonly TemplateCondition[];
   readonly state: 'current' | 'renewed' | 'missing' | 'review';
   readonly evidence: TemplateEvidence;
 }
@@ -286,6 +319,8 @@ export interface TemplateReviewCardInput {
   readonly currentEvidenceHash: string;
   readonly component: string;
   readonly statement: string;
+  readonly statementParts?: TemplateStatementParts;
+  readonly conditions?: readonly TemplateCondition[];
   readonly currentEvidence: TemplateEvidence;
   readonly previousEvidence?: TemplateEvidence;
   readonly hadPreviousAttestation: boolean;
@@ -327,6 +362,10 @@ export function buildTemplateReviewCard(
     component: input.component,
     direction: input.currentEvidence.direction,
     statement: input.statement,
+    ...(input.statementParts ? { statementParts: input.statementParts } : {}),
+    ...(input.conditions && input.conditions.length > 0
+      ? { conditions: input.conditions }
+      : {}),
     currentEvidence: input.currentEvidence,
     ...(input.previousEvidence
       ? { previousEvidence: input.previousEvidence }

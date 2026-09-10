@@ -385,6 +385,25 @@ select {
   padding: 28px;
   overflow: auto;
 }
+.visual-inventory-panel {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.78fr) minmax(0, 1.22fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px 28px;
+  align-items: start;
+}
+.visual-inventory-panel > h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.visual-inventory-panel > .inventory-list {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  max-height: calc(100vh - 132px);
+  overflow: auto;
+  padding-right: 4px;
+}
 .inventory-list {
   display: grid;
   gap: 10px;
@@ -399,8 +418,75 @@ select {
   border-radius: 10px;
   background: var(--surface);
 }
+.inventory-list > li.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.inventory-item {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.inventory-item:hover,
+.inventory-item.active {
+  color: var(--accent-text);
+}
+.inventory-item:focus-visible {
+  outline: 2px solid var(--accent-link);
+  outline-offset: 4px;
+}
 .inventory-list p {
   margin: 0;
+}
+.visual-detail {
+  display: grid;
+  gap: 18px;
+  margin-top: 28px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.visual-inventory-panel > .visual-detail {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+  position: sticky;
+  top: 28px;
+}
+.visual-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.visual-detail-heading h3,
+.visual-detail-heading p {
+  margin: 0;
+}
+.visual-evidence {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 260px;
+  max-height: 70vh;
+}
+.visual-evidence img {
+  max-width: 100%;
+  max-height: calc(70vh - 64px);
+  object-fit: contain;
+}
+.visual-review-link {
+  justify-self: start;
 }
 
 .nonvisual-evidence {
@@ -464,6 +550,91 @@ button:disabled {
   display: inline-block;
   margin-top: 10px;
   font-size: 12px;
+}
+.regeneration-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 7px;
+  color: var(--accent-text);
+  background: var(--accent-bg);
+  font-weight: 650;
+}
+.regeneration-trigger:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-sunken);
+}
+.regeneration-trigger:focus-visible {
+  outline: 2px solid var(--accent-link);
+  outline-offset: 2px;
+}
+.iteration-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--text-muted);
+  background: transparent;
+  font-weight: 650;
+}
+.iteration-trigger:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+  background: var(--accent-bg);
+}
+.iteration-trigger:focus-visible,
+.copy-iteration-prompt:focus-visible {
+  outline: 2px solid var(--accent-link);
+  outline-offset: 2px;
+}
+.iteration-handoff {
+  display: grid;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--accent-bg);
+}
+.iteration-handoff h2 {
+  margin: 0;
+  color: var(--accent-text);
+  font-size: 14px;
+}
+.iteration-handoff p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.iteration-handoff textarea {
+  width: 100%;
+  min-height: 190px;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--surface-sunken);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.copy-iteration-prompt {
+  padding: 7px 9px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  color: var(--accent-text);
+  background: var(--surface);
+  font-weight: 650;
 }
 
 /* Language and theme. Two rows of label + control, so the pair reads as
@@ -570,6 +741,57 @@ h3 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.review-history {
+  margin: 18px 12px 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.review-history h3,
+.review-history > small {
+  display: block;
+  margin: 0;
+}
+.review-history > small {
+  margin-top: 4px;
+  color: var(--text-dim);
+}
+.review-history ul {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.history-item {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+.history-item:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+.history-item strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-item small {
+  color: var(--text-dim);
+}
+.history-action {
+  grid-column: 1 / -1;
+  color: var(--accent-text);
+  font-size: 12px;
+}
 .scenario-name {
   font-weight: 700;
   overflow-wrap: anywhere;
@@ -591,8 +813,12 @@ select {
 }
 .key {
   margin-left: 4px;
-  border: 1px solid var(--line-strong);
-  border-bottom-width: 2px;
+  /* Longhands survive CSSOM snapshot serialisation. A `border` shorthand
+     containing `var(...)` followed by one side override is expanded by the
+     browser with empty sibling values in the frozen document. */
+  border-color: var(--line-strong);
+  border-style: solid;
+  border-width: 1px 1px 2px;
   border-radius: 4px;
   padding: 0 5px;
   color: var(--text-muted);
@@ -792,8 +1018,10 @@ select {
 .previous-rejection {
   margin-top: 18px;
   padding: 16px 18px;
-  border: 1px solid var(--danger-border);
-  border-left: 4px solid var(--danger);
+  border-color: var(--danger-border) var(--danger-border) var(--danger-border)
+    var(--danger);
+  border-style: solid;
+  border-width: 1px 1px 1px 4px;
   border-radius: 9px;
   color: var(--danger-text-hover);
   background: var(--danger-bg);
@@ -804,6 +1032,152 @@ select {
 .previous-rejection p {
   margin-bottom: 0;
   white-space: pre-wrap;
+}
+
+.regeneration-modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(4px);
+}
+.regeneration-modal {
+  width: min(560px, 100%);
+  padding: 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--surface-raised);
+  box-shadow: 0 24px 70px var(--shadow-strong);
+}
+.regeneration-modal h2 {
+  margin: 5px 0 10px;
+  color: var(--text-bright);
+  font-size: 22px;
+}
+.regeneration-modal p {
+  color: var(--text-muted);
+}
+.regeneration-consequences {
+  display: grid;
+  gap: 9px;
+  margin: 18px 0 22px;
+  padding-left: 22px;
+  color: var(--text-muted);
+}
+.regeneration-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.regeneration-modal-actions button {
+  padding: 9px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface-sunken);
+}
+.regeneration-modal-actions button.primary {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent-active);
+}
+.regeneration-modal-actions button:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+}
+.regeneration-modal-actions button:focus-visible {
+  outline: 2px solid var(--accent-link);
+  outline-offset: 2px;
+}
+
+.iteration-modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(4px);
+}
+.iteration-modal {
+  display: grid;
+  gap: 12px;
+  width: min(760px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--surface-raised);
+  box-shadow: 0 24px 70px var(--shadow-strong);
+}
+.iteration-modal h2 {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: 22px;
+}
+.iteration-modal p {
+  margin: 0;
+  color: var(--text-muted);
+}
+.iteration-consequences {
+  display: grid;
+  gap: 9px;
+  margin: 6px 0 8px;
+  padding-left: 22px;
+  color: var(--text-muted);
+}
+.iteration-progress,
+.iteration-ready,
+.iteration-copied {
+  padding: 10px 12px;
+  border-radius: 7px;
+  color: var(--accent-text) !important;
+  background: var(--accent-bg);
+}
+.iteration-modal textarea {
+  width: 100%;
+  min-height: 250px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid var(--accent-border);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface-sunken);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.iteration-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.iteration-modal-actions button {
+  padding: 9px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--surface-sunken);
+}
+.iteration-modal-actions button.primary {
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent-active);
+}
+.iteration-modal-actions button:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+}
+.iteration-modal-actions button:focus-visible {
+  outline: 2px solid var(--accent-link);
+  outline-offset: 2px;
 }
 
 .decision-panel {
@@ -843,6 +1217,14 @@ select {
   flex-wrap: wrap;
   gap: 8px;
 }
+.decision-actions button:disabled {
+  /* Keep the hint pseudo-element opaque: opacity on the button also fades
+     its tooltip, making the explanation unreadable over the page behind it. */
+  opacity: 1;
+  border-color: var(--line);
+  color: var(--text-dim);
+  background: var(--surface-sunken);
+}
 .decision-actions .primary {
   border-color: var(--accent-hover);
   background: var(--accent-active);
@@ -865,6 +1247,23 @@ select {
   margin: 6px 0 0;
 }
 
+@media (max-width: 900px) {
+  .visual-inventory-panel {
+    display: block;
+  }
+  .visual-inventory-panel > .inventory-list {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+  .visual-inventory-panel > .visual-detail {
+    position: static;
+    margin-top: 28px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+  }
+}
+
 @media (max-width: 760px) {
   .topbar {
     align-items: flex-start;
@@ -881,18 +1280,42 @@ select {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
-  /* Narrow: the name goes on one line with the count beside it. */
+  /* A header built for a sidebar, held to a phone-width column, ran the
+     regenerate button, the iteration button, and two full-height rows of
+     preferences one under the other — a chunk of the viewport spent
+     before the queue itself was on screen. Narrow, it packs to one
+     compact bar: name and count on a line, the two action buttons and the
+     two preference fields each sharing a row instead of stacking. */
+  .panel-heading {
+    padding: 12px 16px;
+  }
   .panel-heading.brand {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 4px 12px;
   }
+  .panel-heading.brand h1 {
+    font-size: 17px;
+  }
   .panel-heading.brand .eyebrow {
     display: none;
   }
   .panel-heading.brand .queue-summary {
     margin-top: 0;
+  }
+  .panel-heading.brand .regeneration-trigger,
+  .panel-heading.brand .iteration-trigger {
+    width: auto;
+    flex: 1 1 150px;
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .panel-heading.brand .preferences {
+    flex-basis: 100%;
+    grid-template-columns: auto 1fr auto 1fr;
+    margin-top: 10px;
   }
   .queue-list {
     display: flex;

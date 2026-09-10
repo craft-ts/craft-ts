@@ -303,6 +303,7 @@ type CreateArgs = {
   i18n?: 'strict' | 'loose' | 'none';
   designSystem?: 'basic' | 'none';
   typedCss?: boolean;
+  attest?: boolean;
   workspace?: 'standalone' | 'nx';
   references?: 'none' | 'craft-ts' | 'all';
   craftTsRef?: string;
@@ -400,6 +401,7 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       argument === '--no-i18n' ||
       argument === '--no-design-system' ||
       argument === '--no-typed-css' ||
+      argument === '--no-attest' ||
       argument === '--no-clone-craft-ts' ||
       argument === '--no-clone-effect-ts' ||
       argument === '--no-demos'
@@ -409,6 +411,7 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       else if (argument === '--no-design-system')
         setValue('design-system', 'none');
       else if (argument === '--no-typed-css') result.typedCss = false;
+      else if (argument === '--no-attest') result.attest = false;
       else if (argument === '--no-clone-craft-ts') result.cloneCraftTs = false;
       else if (argument === '--no-clone-effect-ts')
         result.cloneEffectTs = false;
@@ -431,11 +434,13 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
     }
     if (
       argument === '--typed-css' ||
+      argument === '--attest' ||
       argument === '--clone-craft-ts' ||
       argument === '--clone-effect-ts' ||
       argument === '--demos'
     ) {
       if (argument === '--typed-css') result.typedCss = true;
+      else if (argument === '--attest') result.attest = true;
       else if (argument === '--clone-craft-ts') result.cloneCraftTs = true;
       else if (argument === '--clone-effect-ts') result.cloneEffectTs = true;
       else result.demoPages = true;
@@ -697,6 +702,7 @@ async function runCreate(argv: string[]): Promise<number> {
       i18n,
       designSystem,
       typedCss,
+      attest: parsed.attest,
       workspace,
       references,
       craftTsRef: parsed.craftTsRef,
@@ -806,6 +812,7 @@ Options:
   --design-system <basic|none>
   --no-design-system
   --typed-css / --no-typed-css
+  --attest / --no-attest      Generate the opt-in attestation workflow
   --workspace <standalone|nx>
   --references <none|craft-ts|all> (default: CraftTS, plus EffectTS when selected)
   --craft-ts-ref <git-ref>     CraftTS reference tag/commit

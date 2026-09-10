@@ -1,6 +1,11 @@
 import { bootstrapCraft, provideCraftRootComponent } from '@craft-ts/component';
-import { craftAppConfig, provideFnWrapper } from '@craft-ts/core';
+import {
+  craftAppConfig,
+  provideCraftRouter,
+  provideFnWrapper,
+} from '@craft-ts/core';
 import { ReviewApp } from './review-app';
+import { reviewDocument } from './browser-adapter';
 import {
   applyLocale,
   applyTheme,
@@ -12,12 +17,13 @@ import './styles.css';
 // Before the app renders, not after. Reading the stored choice from inside the
 // component would paint one theme and correct it a frame later, which is the
 // flash every theme switcher is judged on.
-applyTheme(initialTheme(), document.documentElement);
-applyLocale(initialLocale(), document.documentElement);
+applyTheme(initialTheme(), reviewDocument.documentElement);
+applyLocale(initialLocale(), reviewDocument.documentElement);
 
 const config = craftAppConfig({
   providers: [
     provideCraftRootComponent(ReviewApp),
+    ...provideCraftRouter([]),
     provideFnWrapper(
       'Review app function boundary',
       function* (factory, thisArg, args) {
@@ -46,7 +52,7 @@ addEventListener('keydown', (event) => {
   ) {
     return;
   }
-  const action = document.querySelector<HTMLButtonElement>(
+  const action = reviewDocument.querySelector<HTMLButtonElement>(
     `[data-hotkey="${CSS.escape(event.key.toLowerCase())}"]`,
   );
   if (action && !action.disabled) {

@@ -7,6 +7,7 @@
 export * from './queue.js';
 export * from './frame.js';
 export * from './server.js';
+export * from './handoff.js';
 // Migration bridge: the subject-agnostic workflow now lives in dev-tools,
 // while visual consumers can keep importing the established review entry.
 export {

@@ -1,5 +1,5 @@
 import { craftComponent, span, type Input } from '@craft-ts/component';
-import type { CraftResourceStatus } from '@craft-ts/core';
+import { craftComputed, type CraftResourceStatus } from '@craft-ts/core';
 import { status as styles, TONE_OF_STATUS } from './status.style';
 
 const STATUS_VIEW = {
@@ -29,22 +29,26 @@ const STATUS_VIEW = {
 export const StatusComponent = craftComponent(
   'StatusComponent',
   {},
-  (status: Input<CraftResourceStatus>) => ({ status }),
-  ({ status: resourceStatus }) =>
+  (status: Input<CraftResourceStatus>) => ({
+    statusEmoji: craftComputed('statusEmoji', function* () {
+      return STATUS_VIEW[yield* status()][0];
+    }),
+    statusTone: craftComputed('statusTone', function* () {
+      return TONE_OF_STATUS[yield* status()];
+    }),
+    statusLabel: craftComputed('statusLabel', function* () {
+      return STATUS_VIEW[yield* status()][1];
+    }),
+  }),
+  ({ statusEmoji, statusTone, statusLabel }) =>
     span({ class: styles.container }, [
-      span({ class: styles.emoji }, function* () {
-        return STATUS_VIEW[yield* resourceStatus()][0];
-      }),
+      span({ class: styles.emoji }, statusEmoji),
       span(
         {
           class: styles.badge,
-          'data-status': function* () {
-            return TONE_OF_STATUS[yield* resourceStatus()];
-          },
+          'data-status': statusTone,
         },
-        function* () {
-          return STATUS_VIEW[yield* resourceStatus()][1];
-        },
+        statusLabel,
       ),
     ]),
 );

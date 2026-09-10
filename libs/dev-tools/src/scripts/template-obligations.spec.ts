@@ -17,10 +17,13 @@ afterEach(async () => {
 
 const STUBS = `
 declare function craftComponent(...args: any[]): unknown;
+declare function craftTemplate(...args: any[]): unknown;
 declare function state(...args: any[]): any;
 declare function div(...args: any[]): unknown;
 declare function span(...args: any[]): unknown;
 declare function button(...args: any[]): unknown;
+declare function ifNode(...args: any[]): unknown;
+declare function forNode(...args: any[]): unknown;
 `;
 
 async function fixture(source: string): Promise<string> {
@@ -125,6 +128,33 @@ describe('template obligations', () => {
     ).toMatch(/^[a-f0-9]{32}$/);
   });
 
+  it('resolves a named craftTemplate passed to craftComponent', async () => {
+    const root = await fixture(`
+      const CounterTemplate = craftTemplate(
+        ({ count }: any) => span(function* () { return yield* count(); }),
+      );
+      const Counter = craftComponent(
+        'Counter',
+        {},
+        function* () {
+          const count = yield* state('count', 0);
+          return { count };
+        },
+        CounterTemplate,
+      );
+    `);
+
+    const index = indexFor(root);
+
+    expect(index.obligations).toEqual([
+      expect.objectContaining({
+        direction: 'render',
+        component: 'component:view.ts:Counter',
+        targetKind: 'primitive',
+      }),
+    ]);
+  });
+
   it('reports a dynamic template reference as a known derivation hole', async () => {
     const root = await fixture(`
       const Dynamic = craftComponent(
@@ -141,5 +171,41 @@ describe('template obligations', () => {
     expect(index.diagnostics).toEqual([
       expect.objectContaining({ code: 'template-obligation-unresolved' }),
     ]);
+  });
+
+  it('records the structural guards around an interactive promise', async () => {
+    const root = await fixture(`
+      const Review = craftComponent(
+        'Review', {},
+        function* () {
+          const dialogOpen = yield* state('dialogOpen', true);
+          const actions = yield* state('actions', [{ id: 'cancel' }]);
+          const dialog = yield* state('dialog', false, ({ update }: any) => ({
+            close: () => update(true),
+          }));
+          return { dialogOpen, actions, dialog };
+        },
+        ({ dialogOpen, actions, dialog }) => ifNode(
+          dialogOpen,
+          () => forNode(actions, { track: (action: any) => action.id }, (action: any) =>
+            button('Cancel', { click: dialog.close }, 'Cancel'),
+          ),
+        ),
+      );
+    `);
+
+    const index = indexFor(root);
+    const obligation = index.obligations.find(
+      (candidate) => candidate.direction === 'command',
+    );
+
+    expect(obligation).toMatchObject({
+      element: 'button',
+      elementName: 'Cancel',
+      conditions: [
+        { kind: 'if', name: 'dialogOpen', expectation: 'true' },
+        { kind: 'for', name: 'actions', expectation: 'non-empty' },
+      ],
+    });
   });
 });

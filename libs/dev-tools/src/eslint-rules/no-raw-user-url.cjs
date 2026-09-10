@@ -9,7 +9,7 @@ const URL_KEYS = /^(?:href|src|srcset|action|formaction|poster|xlink:href)$/i;
 /** Helpers de la lib : leur retour est déjà validé. */
 const SAFE_CALLS = new Set(['safeUrl', 'safeResourceUrl', 'safeUrlList']);
 
-function isSafeExpression(node) {
+function isSafeExpression(node, visitorKeys = {}) {
   if (!node) return true;
   switch (node.type) {
     case 'Literal':
@@ -25,19 +25,23 @@ function isSafeExpression(node) {
       );
     case 'ConditionalExpression':
       return (
-        isSafeExpression(node.consequent) && isSafeExpression(node.alternate)
+        isSafeExpression(node.consequent, visitorKeys) &&
+        isSafeExpression(node.alternate, visitorKeys)
       );
     case 'LogicalExpression':
-      return isSafeExpression(node.left) && isSafeExpression(node.right);
+      return (
+        isSafeExpression(node.left, visitorKeys) &&
+        isSafeExpression(node.right, visitorKeys)
+      );
     case 'TSAsExpression':
     case 'TSNonNullExpression':
-      return isSafeExpression(node.expression);
+      return isSafeExpression(node.expression, visitorKeys);
     case 'FunctionExpression':
     case 'ArrowFunctionExpression':
       // Une valeur de template Craft est un générateur ; une fonction
       // ordinaire est un accesseur (`href: () => location.href`), pas une
       // valeur posée dans le DOM.
-      return node.generator ? returnsSafely(node) : true;
+      return node.generator ? returnsSafely(node, visitorKeys) : true;
     default:
       return false;
   }
@@ -59,8 +63,10 @@ function isTemplateAttributeObject(property, sourceCode) {
 }
 
 /** Vrai quand chaque valeur retournée par le générateur est déjà validée. */
-function returnsSafely(node) {
-  if (node.body.type !== 'BlockStatement') return isSafeExpression(node.body);
+function returnsSafely(node, visitorKeys) {
+  if (node.body.type !== 'BlockStatement') {
+    return isSafeExpression(node.body, visitorKeys);
+  }
   const returns = [];
   const visit = (statement) => {
     if (!statement || typeof statement.type !== 'string') return;
@@ -76,14 +82,17 @@ function returnsSafely(node) {
     ) {
       return;
     }
-    for (const key of Object.keys(statement)) {
+    for (const key of visitorKeys[statement.type] ?? []) {
       const value = statement[key];
       if (Array.isArray(value)) value.forEach(visit);
       else if (value && typeof value.type === 'string') visit(value);
     }
   };
   node.body.body.forEach(visit);
-  return returns.length > 0 && returns.every(isSafeExpression);
+  return (
+    returns.length > 0 &&
+    returns.every((value) => isSafeExpression(value, visitorKeys))
+  );
 }
 
 module.exports = {
@@ -102,7 +111,7 @@ module.exports = {
         // d'un helper d'élément — `a('book', { href }, …)`. Un objet affecté
         // à une variable est une structure de données, pas du DOM.
         if (!isTemplateAttributeObject(node, sourceCode)) return;
-        if (isSafeExpression(node.value)) return;
+        if (isSafeExpression(node.value, sourceCode.visitorKeys)) return;
         report(
           context,
           node,

@@ -50,6 +50,14 @@
     "./review": {
       "types": "./src/lib/review/index.d.ts",
       "default": "./src/lib/review/index.js"
+    },
+    "./review/frame": {
+      "types": "./src/lib/review/frame.d.ts",
+      "default": "./src/lib/review/frame.js"
+    },
+    "./review-attest": {
+      "types": "./src/lib/review-attest.d.ts",
+      "default": "./src/lib/review-attest.js"
     }
   }
 }

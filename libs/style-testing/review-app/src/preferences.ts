@@ -1,3 +1,5 @@
+import { reviewLanguages, reviewStorage } from './browser-adapter';
+
 /**
  * The two choices the reviewer makes about the tool rather than about a render.
  *
@@ -17,18 +19,9 @@ export type ThemeChoice = 'system' | 'light' | 'dark';
 const THEME_KEY = 'craft-review-theme';
 const LOCALE_KEY = 'craft-review-locale';
 
-const store = (): Storage | undefined => {
-  try {
-    return globalThis.localStorage;
-  } catch {
-    // A browser told to block site data throws on the accessor itself.
-    return undefined;
-  }
-};
-
 const read = (key: string): string | undefined => {
   try {
-    return store()?.getItem(key) ?? undefined;
+    return reviewStorage()?.getItem(key) ?? undefined;
   } catch {
     return undefined;
   }
@@ -36,7 +29,7 @@ const read = (key: string): string | undefined => {
 
 const write = (key: string, value: string): void => {
   try {
-    store()?.setItem(key, value);
+    reviewStorage()?.setItem(key, value);
   } catch {
     // A preference that cannot be remembered is still a preference for this
     // session; losing it must not take the click with it.
@@ -53,9 +46,7 @@ export const isThemeChoice = (value: unknown): value is ThemeChoice =>
 export const initialLocale = (): Locale => {
   const stored = read(LOCALE_KEY);
   if (isLocale(stored)) return stored;
-  const languages = globalThis.navigator?.languages ?? [
-    globalThis.navigator?.language ?? 'en',
-  ];
+  const languages = reviewLanguages();
   return languages.some((tag) => tag?.toLowerCase().startsWith('fr'))
     ? 'fr'
     : 'en';
@@ -68,8 +59,7 @@ export const initialTheme = (): ThemeChoice => {
   return isThemeChoice(stored) ? stored : 'system';
 };
 
-export const storeTheme = (theme: ThemeChoice): void =>
-  write(THEME_KEY, theme);
+export const storeTheme = (theme: ThemeChoice): void => write(THEME_KEY, theme);
 
 /**
  * Writes the choice where CSS can see it.

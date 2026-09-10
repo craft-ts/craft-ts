@@ -38,6 +38,10 @@ import {
   type DependencyGraphNodeKind,
   type ParsedHyperscript,
 } from './dependency-graph.js';
+import type {
+  TemplateCondition,
+  TemplateStatementParts,
+} from '../attestation-review.js';
 
 export type ObligationDirection = 'render' | 'command';
 
@@ -54,8 +58,12 @@ export interface TemplateObligation {
   readonly element?: string;
   /** The literal name of the interactive element, when it has one. */
   readonly elementName?: string;
+  /** Structural conditions that must hold for the promise to be visible. */
+  readonly conditions: readonly TemplateCondition[];
   /** One sentence, for a human. Never part of the evidence. */
   readonly statement: string;
+  /** Ingredients for localized presentation. Never part of the evidence. */
+  readonly statementParts: TemplateStatementParts;
 }
 
 export interface TemplateObligationOptions {
@@ -78,6 +86,7 @@ type Site = {
   readonly text: string;
   readonly node: Node;
   readonly parsed?: ParsedHyperscript;
+  readonly conditions: readonly TemplateCondition[];
 };
 
 type Candidate = {
@@ -93,6 +102,7 @@ type Accumulated = {
   readonly sites: Set<string>;
   readonly elements: Set<string>;
   readonly elementNames: Set<string>;
+  readonly conditionPaths: Map<string, readonly TemplateCondition[]>;
 };
 
 const INTERACTIVE_HANDLERS = new Set([
@@ -204,17 +214,99 @@ const handlerScope = (property: Node): Node | undefined => {
 const handlerSites = (
   props: ObjectLiteralExpression | undefined,
   parsed: ParsedHyperscript,
+  conditions: readonly TemplateCondition[],
 ): readonly Site[] =>
   (props?.getProperties() ?? []).flatMap((property) => {
     const name = propertyName(property);
     const scope = handlerScope(property);
     return name && INTERACTIVE_HANDLERS.has(name) && scope
-      ? [{ text: property.getText(), node: scope, parsed }]
+      ? [{ text: property.getText(), node: scope, parsed, conditions }]
       : [];
   });
 
 const isWithin = (node: Node, parent: Node): boolean =>
   node === parent || node.getAncestors().includes(parent);
+
+const expressionLabel = (expression: Node): string | undefined => {
+  const direct = chainOf(expression);
+  if (direct) return direct;
+
+  // A generator wrapper is common when a list is derived from another
+  // reactive value: forNode(function* () { return yield* cards(); }, ...).
+  // Prefer the named reactive read over printing the whole function body.
+  const nested = collectReactiveExpressions(expression)
+    .map(chainOf)
+    .filter((value): value is string => value !== undefined);
+  return nested[0];
+};
+
+const conditionName = (expression: Node | undefined): string =>
+  expressionLabel(expression as Node) ??
+  normaliseSite(expression?.getText() ?? 'condition');
+
+const conditionFor = (
+  node: Node,
+  call: CallExpression,
+): TemplateCondition | undefined => {
+  const args = call.getArguments();
+  const callee = call.getExpression().getText();
+  if (callee === 'ifNode') {
+    const expectation = isWithin(node, args[1] as Node)
+      ? 'true'
+      : args[2] && isWithin(node, args[2])
+        ? 'false'
+        : undefined;
+    return expectation
+      ? { kind: 'if', name: conditionName(args[0]), expectation }
+      : undefined;
+  }
+
+  if (callee !== 'forNode') return undefined;
+  if (args[2] && isWithin(node, args[2])) {
+    return {
+      kind: 'for',
+      name: conditionName(args[0]),
+      expectation: 'non-empty',
+    };
+  }
+  const empty = args[1]
+    ?.asKind(SyntaxKind.ObjectLiteralExpression)
+    ?.getProperty('empty');
+  const emptyInitializer = empty
+    ?.asKind(SyntaxKind.PropertyAssignment)
+    ?.getInitializer();
+  return emptyInitializer && isWithin(node, emptyInitializer)
+    ? { kind: 'for', name: conditionName(args[0]), expectation: 'empty' }
+    : undefined;
+};
+
+const conditionsFor = (node: Node): readonly TemplateCondition[] => {
+  const controls = node
+    .getAncestors()
+    .filter((ancestor): ancestor is CallExpression => {
+      if (!Node.isCallExpression(ancestor)) return false;
+      const name = ancestor.getExpression().getText();
+      return name === 'ifNode' || name === 'forNode';
+    })
+    .sort((left, right) => left.getStart() - right.getStart());
+  return controls.flatMap((control) => {
+    const condition = conditionFor(node, control);
+    return condition ? [condition] : [];
+  });
+};
+
+const conditionKey = (conditions: readonly TemplateCondition[]): string =>
+  conditions
+    .map(
+      (condition) =>
+        `${condition.kind}:${condition.name}:${condition.expectation}`,
+    )
+    .join('|');
+
+const sameConditions = (
+  left: readonly TemplateCondition[],
+  right: readonly TemplateCondition[],
+): boolean => conditionKey(left) === conditionKey(right);
 
 const componentCall = (
   project: Project,
@@ -237,6 +329,38 @@ const componentCall = (
           ?.getLiteralValue() === component.label,
     )
   );
+};
+
+const templateImplementationParts = (part: Node | undefined): Node[] => {
+  const resolve = (node: Node, seen: Set<Node>): Node[] => {
+    if (seen.has(node)) return [];
+    seen.add(node);
+    if (Node.isArrowFunction(node) || Node.isFunctionExpression(node))
+      return [node];
+    if (Node.isVariableDeclaration(node)) {
+      const initializer = node.getInitializer();
+      return initializer ? resolve(initializer, seen) : [];
+    }
+    if (
+      Node.isCallExpression(node) &&
+      node.getExpression().getText() === 'craftTemplate'
+    ) {
+      const template = node.getArguments()[0];
+      return template ? resolve(template, seen) : [];
+    }
+    if (Node.isIdentifier(node)) {
+      const symbol = node.getSymbol();
+      const resolved = symbol?.getAliasedSymbol() ?? symbol;
+      return (resolved?.getDeclarations() ?? [])
+        .filter(
+          (declaration) => !declaration.getSourceFile().isDeclarationFile(),
+        )
+        .flatMap((declaration) => resolve(declaration, seen));
+    }
+    return [];
+  };
+
+  return part ? resolve(part, new Set()) : [];
 };
 
 const dynamicReference = (
@@ -314,11 +438,29 @@ const obligationOf = (
   const target = portableNodeId(value.target.id, rootDir);
   const element = [...value.elements].sort().at(0);
   const elementName = [...value.elementNames].sort().at(0);
+  const conditionPaths = [...value.conditionPaths.values()];
+  // An obligation can aggregate several sites. Only present a `when` clause
+  // when every site has the same structural guard; otherwise claiming one
+  // guard would be misleading for the other site(s).
+  const conditions =
+    conditionPaths.length > 0 &&
+    conditionPaths.every((path) =>
+      sameConditions(path, conditionPaths[0] ?? []),
+    )
+      ? (conditionPaths[0] as readonly TemplateCondition[])
+      : [];
   const subject = `template:${component}#${value.direction}:${target}`;
   const statement =
     value.direction === 'render'
       ? `${value.component.label}'s template renders ${value.target.label}.`
       : `${element ?? 'interactive element'}${elementName ? ` '${elementName}'` : ''} in ${value.component.label}'s template invokes ${value.target.label}.`;
+  const statementParts: TemplateStatementParts = {
+    direction: value.direction,
+    component: value.component.label,
+    target: value.target.label,
+    ...(element ? { element } : {}),
+    ...(elementName ? { elementName } : {}),
+  };
   return {
     subject,
     direction: value.direction,
@@ -327,7 +469,9 @@ const obligationOf = (
     targetKind: value.target.kind,
     ...(element ? { element } : {}),
     ...(elementName ? { elementName } : {}),
+    conditions,
     statement,
+    statementParts,
   };
 };
 
@@ -367,10 +511,16 @@ function derive(
         sites: new Set(),
         elements: new Set(),
         elementNames: new Set(),
+        conditionPaths: new Map(),
       };
       accumulated.set(key, known);
     }
-    known.sites.add(normaliseSite(site.text));
+    const siteText = normaliseSite(site.text);
+    const conditions = site.conditions;
+    known.sites.add(
+      `${siteText}${conditions.length > 0 ? ` [${conditionKey(conditions)}]` : ''}`,
+    );
+    known.conditionPaths.set(conditionKey(conditions), conditions);
     if (site.parsed) {
       known.elements.add(site.parsed.tag);
       if (site.parsed.name) known.elementNames.add(site.parsed.name);
@@ -381,8 +531,8 @@ function derive(
     (node) => node.kind === 'component',
   )) {
     const call = componentCall(project, component);
-    const template = call?.getArguments()[3];
-    if (!template) continue;
+    const templates = templateImplementationParts(call?.getArguments()[3]);
+    if (templates.length === 0) continue;
     const outgoing: Candidate[] = graph.edges
       .filter(
         (edge) =>
@@ -402,58 +552,64 @@ function derive(
       (candidate) => candidate.edge.kind === 'calls',
     );
 
-    const handlers: Site[] = [];
-    walkTemplate(template, (node) => {
-      if (!Node.isCallExpression(node)) return undefined;
-      if (
-        node !== template &&
-        node.getExpression().getText() === 'craftComponent'
-      ) {
-        return 'skip';
-      }
-      const parsed = parseCraftHyperscript(node);
-      if (!parsed || !isInteractiveElement(parsed)) return undefined;
-      handlers.push(...handlerSites(parsed.props, parsed));
-      return undefined;
-    });
+    for (const template of templates) {
+      const handlers: Site[] = [];
+      walkTemplate(template, (node) => {
+        if (!Node.isCallExpression(node)) return undefined;
+        if (
+          node !== template &&
+          node.getExpression().getText() === 'craftComponent'
+        ) {
+          return 'skip';
+        }
+        const parsed = parseCraftHyperscript(node);
+        if (!parsed || !isInteractiveElement(parsed)) return undefined;
+        handlers.push(
+          ...handlerSites(parsed.props, parsed, conditionsFor(node)),
+        );
+        return undefined;
+      });
 
-    for (const handler of handlers) {
-      for (const expression of reactiveExpressionsAt(handler.node)) {
-        const resolved = resolvedCandidates(expression, commandCandidates);
-        for (const candidate of resolved)
-          add('command', component, candidate, handler);
+      for (const handler of handlers) {
+        for (const expression of reactiveExpressionsAt(handler.node)) {
+          const resolved = resolvedCandidates(expression, commandCandidates);
+          for (const candidate of resolved)
+            add('command', component, candidate, handler);
+        }
+        for (const dynamic of dynamicReferencesIn(
+          handler.node,
+          templateParameterNames(template),
+        )) {
+          diagnostics.push(diagnosticFor(component, dynamic));
+        }
       }
-      for (const dynamic of dynamicReferencesIn(
-        handler.node,
-        templateParameterNames(template),
-      )) {
+
+      const handlerNodes = handlers.map((handler) => handler.node);
+      const parameters = templateParameterNames(template);
+      for (const expression of collectReactiveExpressions(template)) {
+        if (handlerNodes.some((handler) => isWithin(expression, handler)))
+          continue;
+        if (
+          Node.isIdentifier(expression) &&
+          parameters.has(expression.getText()) &&
+          isBindingName(expression)
+        ) {
+          continue;
+        }
+        const resolved = resolvedCandidates(expression, renderCandidates);
+        for (const candidate of resolved) {
+          add('render', component, candidate, {
+            text: expression.getText(),
+            node: expression,
+            conditions: conditionsFor(expression),
+          });
+        }
+      }
+      for (const dynamic of dynamicReferencesIn(template, parameters)) {
+        if (handlerNodes.some((handler) => isWithin(dynamic, handler)))
+          continue;
         diagnostics.push(diagnosticFor(component, dynamic));
       }
-    }
-
-    const handlerNodes = handlers.map((handler) => handler.node);
-    const parameters = templateParameterNames(template);
-    for (const expression of collectReactiveExpressions(template)) {
-      if (handlerNodes.some((handler) => isWithin(expression, handler)))
-        continue;
-      if (
-        Node.isIdentifier(expression) &&
-        parameters.has(expression.getText()) &&
-        isBindingName(expression)
-      ) {
-        continue;
-      }
-      const resolved = resolvedCandidates(expression, renderCandidates);
-      for (const candidate of resolved) {
-        add('render', component, candidate, {
-          text: expression.getText(),
-          node: expression,
-        });
-      }
-    }
-    for (const dynamic of dynamicReferencesIn(template, parameters)) {
-      if (handlerNodes.some((handler) => isWithin(dynamic, handler))) continue;
-      diagnostics.push(diagnosticFor(component, dynamic));
     }
   }
 

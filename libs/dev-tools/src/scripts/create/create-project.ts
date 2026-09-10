@@ -34,6 +34,7 @@ export type StarterConfig = {
   };
   readonly designSystem: 'none' | 'basic';
   readonly typedCss: boolean;
+  readonly attest: boolean;
   readonly references: {
     readonly craftTs: boolean;
     readonly effectTs: boolean;
@@ -61,6 +62,8 @@ export type CreateProjectOptions = {
   readonly i18nEnabled?: boolean;
   readonly designSystem?: 'none' | 'basic';
   readonly typedCss?: boolean;
+  /** Generate the opt-in attestation workflow (default: false). */
+  readonly attest?: boolean;
   readonly workspace?: WorkspaceKind;
   readonly references?: 'none' | 'craft-ts' | 'all';
   readonly referenceMode?: ReferenceMode;
@@ -351,6 +354,7 @@ function packageJson(context: TemplateContext): string {
   const hasEffect = effectFrontend || effectBackend;
   const hasI18n = context.config.i18n.enabled;
   const hasTypedCss = context.config.typedCss;
+  const hasAttest = context.config.attest;
   const hasServer = context.config.backendRuntime !== 'none';
   const packageVersion = context.packageVersion ?? CRAFT_TS_STARTER_VERSION;
   const craftPackage = (): string => packageVersion;
@@ -375,6 +379,20 @@ function packageJson(context: TemplateContext): string {
       'logs:server': 'craft-ts-log-server',
       'logs:mcp': 'craft-ts-log-mcp',
       'registry:mcp': 'craft-ts-registry-mcp',
+      ...(hasAttest
+        ? {
+            'attest:capture':
+              'CRAFT_ATTEST_REPORT=${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json} npx playwright test e2e/attestation.spec.ts --project chromium',
+            'attest:status':
+              'craft-ts attest status --config review-attest.config.ts --kind all --report ${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json} --tsconfig tsconfig.graph.json',
+            'attest:review':
+              'craft-ts attest review --config review-attest.config.ts --kind all --report ${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json} --tsconfig tsconfig.graph.json --regenerate-script attest:capture',
+            'attest:check':
+              'npm run architecture && npm run attest:capture && npm run attest:status',
+            review:
+              'npm run architecture && npm run attest:capture && (npm run attest:status || test $? -eq 1) && npm run attest:review',
+          }
+        : {}),
       ...(hasEffect
         ? {
             'effect-check':
@@ -420,8 +438,9 @@ function packageJson(context: TemplateContext): string {
       '@craft-ts/function-registry-mcp': craftPackage(),
       '@craft-ts/log-mcp': craftPackage(),
       '@craft-ts/log-server': craftPackage(),
+      ...(hasAttest ? { '@craft-ts/cli': craftPackage() } : {}),
       ...(hasEffect ? { effect: effectPackage } : {}),
-      ...(hasTypedCss ? { '@craft-ts/style-testing': craftPackage() } : {}),
+      ...(hasAttest ? { '@craft-ts/style-testing': craftPackage() } : {}),
       '@playwright/test': '^1.52.0',
       '@types/node': '^22.0.0',
       'aria-query': '^5.3.2',
@@ -482,12 +501,14 @@ const tsconfigApp = `{
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }\n`;
 
-const tsconfigSpec = `{
+function tsconfigSpec(context: TemplateContext): string {
+  return `{
   "extends": "./tsconfig.json",
   "compilerOptions": { "types": ["node", "vitest/globals", "vite/client"] },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "e2e/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "e2e/**/*.ts"${context.config.attest ? ', "review-attest.config.ts"' : ''}],
   "exclude": ["src/main.ts"]
 }\n`;
+}
 
 const tsconfigEffect = `{
   "extends": "./tsconfig.json",
@@ -1332,9 +1353,7 @@ function uiComponentsTs(context: TemplateContext): string {
     ? "import { surface } from './ui.style';"
     : "import { surface } from './ui';";
   const hasI18n = context.config.i18n.enabled;
-  const i18nImport = hasI18n
-    ? "\nimport { i18n } from '../../i18n';"
-    : '';
+  const i18nImport = hasI18n ? "\nimport { i18n } from '../../i18n';" : '';
   const continueLabel = hasI18n
     ? "i18n.t('ui.components.continue')"
     : "'Continue'";
@@ -2169,9 +2188,13 @@ function ensureReferenceSubtrees(root: string, config: StarterConfig): void {
       `${JSON.stringify(manifest, null, 2)}\n`,
       'utf8',
     );
-    execFileSync('git', ['add', '--', relative(gitRoot, realpathSync(manifestPath))], {
-      cwd: gitRoot,
-    });
+    execFileSync(
+      'git',
+      ['add', '--', relative(gitRoot, realpathSync(manifestPath))],
+      {
+        cwd: gitRoot,
+      },
+    );
     execFileSync('git', ['commit', '--amend', '--no-edit'], {
       cwd: gitRoot,
       stdio: 'inherit',
@@ -2223,7 +2246,9 @@ function aboutPageTs(context: TemplateContext): string {
     : '';
   const card = designSystem ? '{ class: surface.card }, ' : '';
   const sample = context.config.i18n.enabled
-    ? ["p(i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),"]
+    ? [
+        "p(i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),",
+      ]
     : [];
   const title = context.config.i18n.enabled
     ? "i18n.t('ui.about.title')"
@@ -2752,7 +2777,10 @@ function i18nE2eTestTs(context: TemplateContext): string {
   // fails if a locale stops translating the page, not if a string moves.
   const titles = Object.fromEntries(
     context.locales.map((locale) => {
-      const copy = starterUiCopy(context, locale.toLowerCase().startsWith('fr'));
+      const copy = starterUiCopy(
+        context,
+        locale.toLowerCase().startsWith('fr'),
+      );
       return [locale, effect ? copy.homeTitleEffect : copy.homeTitle];
     }),
   );
@@ -2815,6 +2843,7 @@ function githubWorkflow(context: TemplateContext): string {
     context.config.backendRuntime === 'effect';
   const i18n = context.config.i18n.enabled;
   const typedCss = context.config.typedCss;
+  const attest = context.config.attest;
   const server = context.config.backendRuntime !== 'none';
   return `name: CI
 
@@ -2839,7 +2868,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run typecheck-spec
-${i18n ? '      - run: npm run i18n:check\n      - run: npm run i18n:test\n' : ''}${typedCss ? '      - run: npm run style:check\n' : ''}${server ? '      - run: npm run server:test\n' : ''}
+${i18n ? '      - run: npm run i18n:check\n      - run: npm run i18n:test\n' : ''}${typedCss ? '      - run: npm run style:check\n' : ''}${attest ? '      - run: npm run attest:check\n' : ''}${server ? '      - run: npm run server:test\n' : ''}
 ${effect ? '      - run: npm run effect-check\n' : ''}      - run: npm test
       - run: npm run architecture
       - run: npm run typecheck-architecture
@@ -2853,6 +2882,7 @@ function readme(context: TemplateContext): string {
     context.config.backendRuntime === 'effect';
   const i18n = context.config.i18n.enabled;
   const typedCss = context.config.typedCss;
+  const attest = context.config.attest;
   const designSystem = context.config.designSystem !== 'none';
   const server = context.config.backendRuntime !== 'none';
   const demoPages = context.config.demoPages;
@@ -2927,6 +2957,15 @@ function readme(context: TemplateContext): string {
     'npm run typecheck-spec',
     ...(i18n ? ['npm run i18n:check', 'npm run i18n:test'] : []),
     ...(typedCss ? ['npm run style:check'] : []),
+    ...(attest
+      ? [
+          '',
+          '## Review attestations',
+          '',
+          'Run `npm run review` for architecture, capture, status and human review.',
+          'Use `npm run attest:check` in CI; it fails while a human decision remains.',
+        ]
+      : []),
     ...(server ? ['npm run server:test'] : []),
     ...(effect ? ['npm run effect-check'] : []),
     'npm test',
@@ -2986,7 +3025,107 @@ function starterManifest(context: TemplateContext): string {
     defaultLocale: context.defaultLocale,
     designSystem: context.config.designSystem,
     typedCss: context.config.typedCss,
+    attest: context.config.attest,
   });
+}
+
+function reviewAttestConfigTs(context: TemplateContext): string {
+  const pages = context.config.demoPages
+    ? [
+        ['home', '/', '/', 'component:src/app/home-page.ts:HomePage'],
+        [
+          'services',
+          '/services',
+          '/services',
+          'component:src/app/services-page.ts:ServicesPage',
+        ],
+        [
+          'about',
+          '/about',
+          '/about',
+          'component:src/app/about-page.ts:AboutPage',
+        ],
+      ]
+    : [
+        [
+          context.config.domain,
+          `/${context.config.domain}`,
+          `/${context.config.domain}`,
+          `component:src/app/features/${context.config.domain}/${context.config.domain}-page.ts:${typeNameForTemplate(context.config.domain)}Page`,
+        ],
+      ];
+  const pageSource = pages
+    .map(
+      ([id, route, url, component]) => `    {
+      id: ${JSON.stringify(id)},
+      route: ${JSON.stringify(route)},
+      url: ${JSON.stringify(url)},
+      component: ${JSON.stringify(component)},
+      mocks: defineHappyPathHttpMocks('e2e/attestation.spec.ts', {}),
+    }`,
+    )
+    .join(',\n');
+  return `import {
+  defineHappyPathHttpMocks,
+  defineReviewAttestConfig,
+  defineVisualAppConfig,
+} from '@craft-ts/style-testing';
+
+export const reviewAttestConfig = defineReviewAttestConfig({
+  visual: {
+    app: defineVisualAppConfig({
+      pages: [
+${pageSource}
+      ],
+    }),
+    matrices: [],
+  },
+  template: true,
+});
+
+export default reviewAttestConfig;
+`;
+}
+
+function attestationCaptureSpecTs(): string {
+  return `import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { expect, test, type TestInfo } from '@playwright/test';
+import {
+  collectCapture,
+  determinismScript,
+  visualAppHappyPaths,
+  visualReport,
+  type VisualReportCapture,
+} from '@craft-ts/style-testing';
+import { reviewAttestConfig } from '../review-attest.config';
+
+const reportPathFor = (testInfo: TestInfo): string =>
+  resolve(process.env.CRAFT_ATTEST_REPORT ?? testInfo.outputPath('attest.json'));
+
+test('captures configured attestation surfaces', async ({ page }, testInfo) => {
+  await page.addInitScript(determinismScript());
+  const reportPath = reportPathFor(testInfo);
+  await mkdir(dirname(reportPath), { recursive: true });
+  const captures: VisualReportCapture[] = [];
+  for (const scenario of visualAppHappyPaths(reviewAttestConfig.visual?.app ?? { viewports: {}, pages: [] })) {
+    await page.setViewportSize(scenario.viewport);
+    await page.goto(scenario.page.url);
+    await expect(page.locator('body')).toBeVisible();
+    const { digest } = await collectCapture(page, { root: 'body' });
+    const image = testInfo.outputPath(scenario.id + '.png');
+    await page.screenshot({ path: image, fullPage: true });
+    captures.push({
+      component: scenario.page.component,
+      scenario: scenario.id,
+      digest,
+      image,
+      metadata: { viewport: scenario.viewport, target: 'body' },
+    });
+  }
+  await writeFile(reportPath, JSON.stringify(visualReport(captures), null, 2) + '\\n', 'utf8');
+});
+`;
 }
 
 function agentFiles(
@@ -3068,7 +3207,7 @@ function templates(context: TemplateContext): Record<string, string> {
     '.gitignore': GENERATED_GITIGNORE,
     'tsconfig.json': tsconfig(context),
     'tsconfig.app.json': tsconfigApp,
-    'tsconfig.spec.json': tsconfigSpec,
+    'tsconfig.spec.json': tsconfigSpec(context),
     ...(hasEffect
       ? {
           'tsconfig.effect.json': tsconfigEffect,
@@ -3153,6 +3292,10 @@ function templates(context: TemplateContext): Record<string, string> {
       : uiPlainTs;
     files['src/app/ui/components.ts'] = uiComponentsTs(context);
   }
+  if (context.config.attest) {
+    files['review-attest.config.ts'] = reviewAttestConfigTs(context);
+    files['e2e/attestation.spec.ts'] = attestationCaptureSpecTs();
+  }
   Object.assign(files, serverFiles(context));
   return files;
 }
@@ -3178,6 +3321,7 @@ function nxProjectJson(context: TemplateContext): string {
       'typecheck-architecture': run('typecheck-architecture'),
       build: run('build'),
       e2e: run('e2e'),
+      ...(context.config.attest ? { review: run('review') } : {}),
       ...(context.config.references.craftTs ||
       context.config.references.effectTs
         ? { 'update-references': run('update:references') }
@@ -3342,6 +3486,7 @@ export function normalizeCreateOptions(
     },
     designSystem: options.designSystem ?? 'basic',
     typedCss: options.typedCss ?? true,
+    attest: options.attest ?? false,
     references: {
       craftTs,
       effectTs,

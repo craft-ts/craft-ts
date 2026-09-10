@@ -152,6 +152,11 @@ async function importModule(file: string): Promise<unknown> {
   }
 }
 
+/** Load a project TypeScript module while keeping Node/tsx compatibility. */
+export async function loadCraftTypeScriptModule(file: string): Promise<unknown> {
+  return await importModule(resolve(file));
+}
+
 function isTypeStrippingFailure(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const code = (error as { code?: string }).code;

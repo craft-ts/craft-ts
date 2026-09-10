@@ -27,11 +27,79 @@ const en = {
     'Browse evidence, checks, contracts, and decisions.',
   viewAssetsDescription: 'Captured evidence and screenshots',
   viewVisualDescription: 'Scenarios checked for visual changes',
+  visualDetail: 'Visual evidence',
+  openVisualReview: 'Open in review queue',
   viewTemplateDescription: 'Contracts emitted by templates',
   viewReviewDescription: 'Decisions waiting for review',
   noInventory: 'Nothing to show in this view.',
   extractionDiagnostics: 'Extraction diagnostics',
   currentPromise: 'Current promise',
+  templateWhen: (conditions: string) => `When ${conditions}, `,
+  templateConditionJoiner: ' and ',
+  templateCondition: (
+    name: string,
+    expectation: 'true' | 'false' | 'non-empty' | 'empty',
+  ) =>
+    expectation === 'true'
+      ? `${name} is true`
+      : expectation === 'false'
+        ? `${name} is false`
+        : expectation === 'non-empty'
+          ? `${name} is non-empty`
+          : `${name} is empty`,
+  templateStatementRender: (component: string, target: string) =>
+    `${component}'s template renders ${target}.`,
+  templateStatementCommand: (
+    element: string | undefined,
+    elementName: string | undefined,
+    component: string,
+    target: string,
+  ) =>
+    `${element ?? 'interactive element'}${elementName ? ` '${elementName}'` : ''} in ${component}'s template invokes ${target}.`,
+  directionRender: 'Render',
+  directionCommand: 'Command',
+  stateCurrent: 'Current',
+  stateRenewed: 'Renewed',
+  stateMissing: 'Missing',
+  stateReview: 'Review',
+  stateRemoved: 'Removed',
+  templateDiffField: (field: string) =>
+    field === 'direction'
+      ? 'Direction'
+      : field === 'element'
+        ? 'Element'
+        : field === 'elementName'
+          ? 'Element name'
+          : field === 'targetKind'
+            ? 'Target type'
+            : field === 'target'
+              ? 'Target'
+              : field,
+  templateValueMissing: '∅',
+  previousVerdict: (verdict: string) =>
+    verdict === 'ok'
+      ? 'Accepted'
+      : verdict === 'ok-with-note'
+        ? 'Accepted with note'
+        : verdict === 'known-issue'
+          ? 'Known issue'
+          : verdict === 'rejected'
+            ? 'Rejected'
+            : verdict === 'blocked'
+              ? 'Blocked'
+              : verdict,
+  reasonNeverAttested: 'This evidence has never been attested.',
+  reasonRetiredReappeared: 'A retired template promise reappeared.',
+  reasonOutputChanged: 'The output changed since the last accepted evidence.',
+  reasonTemplateChanged:
+    'The template promise changed since the last accepted evidence.',
+  reasonAssumptionsChanged:
+    'The reductions behind the decision changed.',
+  reasonTemplateRemoved: 'The template no longer produces this promise.',
+  reasonLastVerdict: (verdict: string) => `The last verdict was ${verdict}.`,
+  rawEnglish: 'English source text',
+  diagnosticRaw: 'English diagnostic',
+  diagnosticUnresolved: 'A dynamic template expression could not be resolved.',
   previousPromise: 'Previous promise',
   previousUnavailable: 'Previous readable evidence is unavailable.',
   codeChange: 'Code slice change',
@@ -66,6 +134,10 @@ const en = {
     `${scenarios} scenario${scenarios === 1 ? '' : 's'} · ${decisions} decision${decisions === 1 ? '' : 's'}`,
   queue: 'Queue',
   queueSubtitle: 'One card per decision',
+  sessionHistoryTitle: 'Accepted this session',
+  sessionHistoryDescription: 'Review an accepted decision again if needed.',
+  reopenDecision: 'Review again',
+  reopeningDecision: 'Reopening…',
   queueLabel: 'Review queue',
   reviewComplete: 'Review complete',
   reviewCompleteBody: 'Every decision in this session has been recorded.',
@@ -73,6 +145,59 @@ const en = {
     'The review queue could not be loaded. Reload the page to retry.',
   decisionFailed:
     'The decision was not saved. The scenario remains in the queue.',
+  reopenFailed:
+    'The accepted decision could not be reopened. The queue was not changed.',
+  regenerateEvidence: 'Regenerate all evidence',
+  regeneratingEvidence: 'Regenerating evidence…',
+  regenerationFailed:
+    'Evidence regeneration failed. The existing queue and decisions were preserved.',
+  iterationHandoff: 'Prepare Codex iteration',
+  iterationHandoffGenerating: 'Preparing Codex handoff…',
+  iterationHandoffFailed:
+    'The Codex handoff could not be generated. Review comments were not changed.',
+  closeReviewFailed:
+    'The review application could not be closed. The prompt is still available here.',
+  iterationModalEyebrow: 'Next code iteration',
+  iterationModalTitle: 'Prepare the Codex iteration?',
+  iterationModalDescription: (rejected: number) =>
+    `${rejected} rejected card${rejected === 1 ? '' : 's'} will be exported with its comments, source paths, and evidence paths.`,
+  iterationModalWritesFiles:
+    'A Markdown summary, a JSON file, and a copyable Codex prompt will be written under the project runs directory.',
+  iterationModalStaysOpen:
+    'The review application stays open while you inspect and copy the prompt.',
+  iterationModalStopsServer:
+    'Close review will stop this local server. The generated prompt will also be printed in the terminal that started it, so Codex can read it directly.',
+  iterationModalPreparing: 'Preparing the handoff…',
+  iterationModalReady: 'The prompt is ready for Codex.',
+  iterationModalClosing: 'Closing the review application…',
+  iterationConfirm: 'Prepare handoff',
+  closeReview: 'Close review',
+  iterationPromptCopied: 'Prompt copied to clipboard.',
+  iterationHandoffReady: 'Codex iteration handoff',
+  iterationHandoffFiles: (
+    rejected: number,
+    feedbackPath: string,
+    promptPath: string,
+  ) =>
+    `${rejected} rejected card${rejected === 1 ? '' : 's'} exported to ${feedbackPath}. Prompt: ${promptPath}`,
+  iterationPrompt: 'Codex iteration prompt',
+  copyIterationPrompt: 'Copy prompt',
+  regenerationEyebrow: 'Expensive operation',
+  regenerationTitle: 'Regenerate all evidence?',
+  regenerationScope: (visual: number, templates: number) =>
+    `The configured command will rerun the producers currently covering ${visual} visual test${visual === 1 ? '' : 's'} and ${templates} template obligation${templates === 1 ? '' : 's'}.`,
+  regenerationReplacesArtifacts:
+    'Generated reports, screenshots, and frozen documents are replaced.',
+  regenerationPreservesHistory: (count: number) =>
+    `${count} recorded decision${count === 1 ? '' : 's'} and the attestation ledger are preserved.`,
+  regenerationFirstGeneration:
+    'This is the first generation: every produced evidence item will require an initial decision.',
+  regenerationRebuildsQueue:
+    'Unchanged evidence stays current; new or changed evidence returns to the review queue.',
+  regenerationDropsDraft:
+    'The unsaved reason on the current card is discarded when regeneration starts.',
+  cancelRegeneration: 'Cancel',
+  confirmRegeneration: 'Regenerate everything',
   previous: '↑ Previous ',
   next: 'Next ↓ ',
 
@@ -85,6 +210,8 @@ const en = {
   scenario: 'SCENARIO',
   clusterNotice: (count: number) =>
     `${count} scenarios have the same measured delta. This decision covers all of them.`,
+  identicalChanges: (count: number) =>
+    `${count} identical change${count === 1 ? '' : 's'}`,
   clusterMembers: 'Scenarios covered by this decision',
   viewport: (width: number, height: number) => `Viewport ${width}×${height}`,
   viewportUnknown: 'Viewport unknown',
@@ -215,11 +342,74 @@ const fr: Messages = {
     'Parcourez preuves, contrôles, contrats et décisions.',
   viewAssetsDescription: 'Captures et preuves collectées',
   viewVisualDescription: 'Scénarios contrôlés visuellement',
+  visualDetail: 'Preuve visuelle',
+  openVisualReview: 'Ouvrir dans la file de revue',
   viewTemplateDescription: 'Contrats produits par les templates',
   viewReviewDescription: 'Décisions qui attendent une revue',
   noInventory: 'Aucun élément dans cette vue.',
   extractionDiagnostics: "Diagnostics d'extraction",
   currentPromise: 'Promesse courante',
+  templateWhen: (conditions) => `Lorsque ${conditions}, `,
+  templateConditionJoiner: ' et ',
+  templateCondition: (name, expectation) =>
+    expectation === 'true'
+      ? `${name} est vraie`
+      : expectation === 'false'
+        ? `${name} est fausse`
+        : expectation === 'non-empty'
+          ? `${name} n'est pas vide`
+          : `${name} est vide`,
+  templateStatementRender: (component, target) =>
+    `Le template de ${component} affiche ${target}.`,
+  templateStatementCommand: (element, elementName, component, target) =>
+    `${element ?? 'élément interactif'}${elementName ? ` « ${elementName} »` : ''} dans le template de ${component} appelle ${target}.`,
+  directionRender: 'Rendu',
+  directionCommand: 'Commande',
+  stateCurrent: 'Courant',
+  stateRenewed: 'Reporté',
+  stateMissing: 'Manquant',
+  stateReview: 'À revoir',
+  stateRemoved: 'Retiré',
+  templateDiffField: (field) =>
+    field === 'direction'
+      ? 'Direction'
+      : field === 'element'
+        ? 'Élément'
+        : field === 'elementName'
+          ? "Nom de l'élément"
+          : field === 'targetKind'
+            ? 'Type de cible'
+            : field === 'target'
+              ? 'Cible'
+              : field,
+  templateValueMissing: '∅',
+  previousVerdict: (verdict) =>
+    verdict === 'ok'
+      ? 'Acceptée'
+      : verdict === 'ok-with-note'
+        ? 'Acceptée avec motif'
+        : verdict === 'known-issue'
+          ? 'Problème connu'
+          : verdict === 'rejected'
+            ? 'Refusée'
+            : verdict === 'blocked'
+              ? 'Bloquée'
+              : verdict,
+  reasonNeverAttested: 'Cette preuve n’a jamais été attestée.',
+  reasonRetiredReappeared: 'Une promesse de template retirée a réapparu.',
+  reasonOutputChanged:
+    'La preuve a changé depuis la dernière attestation acceptée.',
+  reasonTemplateChanged:
+    'La promesse du template a changé depuis la dernière attestation acceptée.',
+  reasonAssumptionsChanged:
+    'Les réductions sur lesquelles reposait la décision ont changé.',
+  reasonTemplateRemoved:
+    'Le template ne produit plus cette promesse.',
+  reasonLastVerdict: (verdict) => `Le dernier verdict était ${verdict}.`,
+  rawEnglish: 'Texte anglais de référence',
+  diagnosticRaw: 'Diagnostic anglais',
+  diagnosticUnresolved:
+    "Une expression dynamique du template n'a pas pu être résolue.",
   previousPromise: 'Promesse précédente',
   previousUnavailable: 'La preuve lisible précédente est indisponible.',
   codeChange: 'Changement de tranche de code',
@@ -254,6 +444,11 @@ const fr: Messages = {
     `${scenarios} scénario${scenarios === 1 ? '' : 's'} · ${decisions} décision${decisions === 1 ? '' : 's'}`,
   queue: "File d'attente",
   queueSubtitle: 'Une carte par décision',
+  sessionHistoryTitle: 'Acceptées pendant cette session',
+  sessionHistoryDescription:
+    'Rouvrez une décision acceptée si vous souhaitez la vérifier.',
+  reopenDecision: 'Revoir',
+  reopeningDecision: 'Réouverture…',
   queueLabel: "File d'attente de revue",
   reviewComplete: 'Revue terminée',
   reviewCompleteBody:
@@ -262,6 +457,55 @@ const fr: Messages = {
     "La file d'attente n'a pas pu être chargée. Rechargez la page pour réessayer.",
   decisionFailed:
     "La décision n'a pas été enregistrée. Le scénario reste dans la file.",
+  reopenFailed:
+    "La décision acceptée n'a pas pu être rouverte. La file n'a pas changé.",
+  regenerateEvidence: 'Tout régénérer',
+  regeneratingEvidence: 'Régénération en cours…',
+  regenerationFailed:
+    'La régénération des preuves a échoué. La file existante et les décisions ont été conservées.',
+  iterationHandoff: "Préparer l'itération Codex",
+  iterationHandoffGenerating: 'Préparation du handoff Codex…',
+  iterationHandoffFailed:
+    "Le handoff Codex n'a pas pu être généré. Les commentaires de review n'ont pas été modifiés.",
+  closeReviewFailed:
+    "L'application de review n'a pas pu être fermée. Le prompt reste disponible ici.",
+  iterationModalEyebrow: 'Prochaine itération du code',
+  iterationModalTitle: "Préparer l'itération Codex ?",
+  iterationModalDescription: (rejected) =>
+    `${rejected} carte${rejected === 1 ? '' : 's'} refusée${rejected === 1 ? '' : 's'} sera${rejected === 1 ? '' : 'ont'} exportée${rejected === 1 ? '' : 's'} avec ses commentaires, chemins sources et chemins de preuves.`,
+  iterationModalWritesFiles:
+    'Un résumé Markdown, un fichier JSON et un prompt Codex copiable seront écrits dans le dossier des rapports du projet.',
+  iterationModalStaysOpen:
+    "L'application de review reste ouverte pendant que vous inspectez et copiez le prompt.",
+  iterationModalStopsServer:
+    "Fermer la review arrêtera ce serveur local. Le prompt généré sera aussi écrit dans le terminal qui a lancé l'application, afin que Codex puisse le lire directement.",
+  iterationModalPreparing: 'Préparation du handoff…',
+  iterationModalReady: 'Le prompt est prêt pour Codex.',
+  iterationModalClosing: "Fermeture de l'application de review…",
+  iterationConfirm: 'Préparer le handoff',
+  closeReview: 'Fermer la review',
+  iterationPromptCopied: 'Prompt copié dans le presse-papiers.',
+  iterationHandoffReady: 'Handoff pour l’itération Codex',
+  iterationHandoffFiles: (rejected, feedbackPath, promptPath) =>
+    `${rejected} carte${rejected === 1 ? '' : 's'} refusée${rejected === 1 ? '' : 's'} exportée${rejected === 1 ? '' : 's'} vers ${feedbackPath}. Prompt : ${promptPath}`,
+  iterationPrompt: "Prompt d'itération Codex",
+  copyIterationPrompt: 'Copier le prompt',
+  regenerationEyebrow: 'Opération coûteuse',
+  regenerationTitle: 'Régénérer toutes les preuves ?',
+  regenerationScope: (visual, templates) =>
+    `La commande configurée relancera les producteurs qui couvrent actuellement ${visual} test${visual === 1 ? '' : 's'} visuel${visual === 1 ? '' : 's'} et ${templates} obligation${templates === 1 ? '' : 's'} de template.`,
+  regenerationReplacesArtifacts:
+    'Les rapports, captures et documents figés générés seront remplacés.',
+  regenerationPreservesHistory: (count) =>
+    `${count} décision${count === 1 ? '' : 's'} enregistrée${count === 1 ? '' : 's'} et le registre d'attestation seront conservés.`,
+  regenerationFirstGeneration:
+    "Il s'agit de la première génération : chaque preuve produite demandera une décision initiale.",
+  regenerationRebuildsQueue:
+    'Les preuves inchangées restent courantes ; les preuves nouvelles ou modifiées reviennent dans la file.',
+  regenerationDropsDraft:
+    'Le motif non enregistré de la carte courante sera abandonné au démarrage.',
+  cancelRegeneration: 'Annuler',
+  confirmRegeneration: 'Tout régénérer',
   previous: '↑ Précédent ',
   next: 'Suivant ↓ ',
 
@@ -274,6 +518,8 @@ const fr: Messages = {
   scenario: 'SCÉNARIO',
   clusterNotice: (count) =>
     `${count} scénarios présentent le même écart mesuré. Cette décision les couvre tous.`,
+  identicalChanges: (count) =>
+    `${count} changement${count === 1 ? '' : 's'} identique${count === 1 ? '' : 's'}`,
   clusterMembers: 'Scénarios couverts par cette décision',
   viewport: (width, height) => `Fenêtre ${width}×${height}`,
   viewportUnknown: 'Fenêtre inconnue',

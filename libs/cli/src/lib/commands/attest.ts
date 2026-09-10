@@ -50,19 +50,18 @@ import {
   type VisualRunCapture,
   type Verdict,
 } from '@craft-ts/attest';
-import {
-  buildRemovalReviewCard,
-  buildTemplateReviewCard,
-  clusterTemplateReviewCards,
-  type PreviousDecision,
-  type ReviewCard as AttestationReviewCard,
-  type AttestationDevtoolModel,
-  type TemplateDiagnostic,
-  type TemplateReviewCard,
+import type {
+  PreviousDecision,
+  ReviewCard as AttestationReviewCard,
+  AttestationDevtoolModel,
+  TemplateDiagnostic,
+  TemplateReviewCard,
 } from '@craft-ts/dev-tools/attestation-review';
-import type { LayoutDigest } from '@craft-ts/style-testing';
+import type { LayoutDigest, ReviewAttestConfig } from '@craft-ts/style-testing';
+import type { ReviewIterationOptions } from '@craft-ts/style-testing/review';
 import { parseArguments } from '../args.js';
 import type { CraftCliIo } from '../io.js';
+import { loadReviewAttestConfig } from '../load-review-attest-config.js';
 
 const SPEC = {
   values: [
@@ -80,6 +79,8 @@ const SPEC = {
     'port',
     'kind',
     'reason',
+    'regenerate-script',
+    'config',
   ],
   flags: ['all', 'json', 'help', 'apply'],
 } as const;
@@ -105,6 +106,42 @@ const openReviewUrl = (url: string): void => {
   }
 };
 
+const NPM_SCRIPT_NAME = /^[a-zA-Z0-9:_-]+$/;
+
+const runNpmScript = async (options: {
+  readonly rootDir: string;
+  readonly script: string;
+}): Promise<void> => {
+  if (!NPM_SCRIPT_NAME.test(options.script)) {
+    throw new Error(
+      `craft-ts attest: invalid npm regeneration script '${options.script}'.`,
+    );
+  }
+  await new Promise<void>((resolvePromise, rejectPromise) => {
+    const child = spawn(
+      process.platform === 'win32' ? 'npm.cmd' : 'npm',
+      ['run', options.script],
+      {
+        cwd: options.rootDir,
+        env: { ...process.env, CRAFT_ATTEST_NO_OPEN: '1' },
+        stdio: 'inherit',
+      },
+    );
+    child.once('error', rejectPromise);
+    child.once('exit', (code, signal) => {
+      if (code === 0) {
+        resolvePromise();
+        return;
+      }
+      rejectPromise(
+        new Error(
+          `Regeneration script '${options.script}' failed${signal ? ` with signal ${signal}` : ` with exit code ${code ?? 'unknown'}`}.`,
+        ),
+      );
+    });
+  });
+};
+
 export const ATTEST_HELP = `craft-ts attest — a human judgement, recorded so it survives a refactor
 
 Usage: craft-ts attest <verb> [options]
@@ -125,6 +162,10 @@ Options:
   --evidence <dir>     Evidence store (default: .craft/evidence)
   --report <path>      Vitest JSON or craft-ts visual report
   --kind <kind>        test | visual | template | all; template needs no report
+  --port <number>      Local review application port (default: 4320)
+  --regenerate-script <name>
+                       npm script the review application may rerun on demand
+  --config <path>      typed review-attest config (default: review-attest.config.ts)
   --before/--after     Two such reports, for \`diff\`
   --tsconfig <path>    Project the code graph is built from
   --root <dir>         Repository root (default: the working directory)
@@ -137,7 +178,10 @@ Options:
   --json               Emit a machine-readable report
 
 An attestation never says "validated". It says "validated, under these
-assumptions" — and a changed assumption sends the subject back to review.`;
+assumptions" — and a changed assumption sends the subject back to review.
+
+The review sidebar can export rejected cards as a Markdown/JSON handoff and a
+copyable Codex iteration prompt next to the report.`;
 
 const DEFAULT_LEDGER = '.craft/attestations.jsonl';
 const DEFAULT_EVIDENCE = '.craft/evidence';
@@ -176,6 +220,36 @@ const RETIREMENT_REASONS: readonly Retirement['reason'][] = [
   'defect',
 ];
 
+const reviewAttestHasVisualTargets = (config: ReviewAttestConfig): boolean =>
+  (config.visual?.app?.pages.length ?? 0) > 0 ||
+  (config.visual?.matrices.length ?? 0) > 0;
+
+const reviewAttestVisualSubjects = (
+  config: ReviewAttestConfig,
+): ReadonlySet<string> => {
+  const subjects = new Set<string>();
+  for (const page of config.visual?.app?.pages ?? []) {
+    for (const viewportName of Object.keys(
+      config.visual?.app?.viewports ?? {},
+    )) {
+      subjects.add(
+        `visual:${page.component}#${page.id}--happy-path--${viewportName}`,
+      );
+    }
+  }
+  for (const matrix of config.visual?.matrices ?? []) {
+    if (Array.isArray(matrix)) continue;
+    const namedMatrix = matrix as {
+      readonly component: string;
+      readonly scenarios: readonly { readonly id: string }[];
+    };
+    for (const scenario of namedMatrix.scenarios) {
+      subjects.add(`visual:${namedMatrix.component}#${scenario.id}`);
+    }
+  }
+  return subjects;
+};
+
 const isVerdict = (value: string): value is Verdict =>
   VERDICTS.some((verdict) => verdict === value);
 
@@ -198,6 +272,10 @@ export interface AttestDependencies {
   }) => Promise<WorkspaceSlices>;
   readonly now?: () => string;
   readonly user?: () => string;
+  readonly runScript?: (options: {
+    readonly rootDir: string;
+    readonly script: string;
+  }) => Promise<void>;
 }
 
 export interface WorkspaceSlices {
@@ -333,6 +411,28 @@ export async function runAttestCommand(
   const loadSlices = dependencies.loadSlices ?? defaultLoadSlices;
   const now = dependencies.now ?? (() => new Date().toISOString());
   const user = dependencies.user ?? (() => process.env['USER'] ?? 'unknown');
+  const runScript = dependencies.runScript ?? runNpmScript;
+  const reportPath = parsed.values['report']
+    ? resolve(rootDir, parsed.values['report'])
+    : undefined;
+  const tsconfigPath = resolve(
+    rootDir,
+    parsed.values['tsconfig'] ?? 'tsconfig.json',
+  );
+  let reviewConfig: Awaited<
+    ReturnType<typeof loadReviewAttestConfig>
+  >['config'];
+  try {
+    const loadedConfig = await loadReviewAttestConfig({
+      rootDir,
+      ...(parsed.values['config'] ? { config: parsed.values['config'] } : {}),
+      explicit: parsed.values['config'] !== undefined,
+    });
+    reviewConfig = loadedConfig.config;
+  } catch (error) {
+    io.writeError(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
 
   const slices = async () =>
     await loadSlices({
@@ -343,7 +443,11 @@ export async function runAttestCommand(
   const observations = async (): Promise<ObservedRun> => {
     const workspace = await slices();
     const templateRun = async (): Promise<ObservedRun> => {
-      const obligations = workspace.templateObligations();
+      const templateEnabled =
+        reviewConfig?.template ?? reviewConfig === undefined;
+      const obligations = templateEnabled
+        ? workspace.templateObligations()
+        : [];
       const leaves = new Map<string, Readonly<Record<string, string>>>();
       const list = observeTemplateObligations(obligations, (obligation) => {
         leaves.set(
@@ -365,14 +469,16 @@ export async function runAttestCommand(
           }
         }),
       );
-      const diagnostics = workspace.templateDiagnostics().map((diagnostic) => ({
-        code: diagnostic.code,
-        message: diagnostic.message,
-        ...(diagnostic.proof?.filePath
-          ? { filePath: diagnostic.proof.filePath }
-          : {}),
-        ...(diagnostic.proof?.line ? { line: diagnostic.proof.line } : {}),
-      }));
+      const diagnostics = templateEnabled
+        ? workspace.templateDiagnostics().map((diagnostic) => ({
+            code: diagnostic.code,
+            message: diagnostic.message,
+            ...(diagnostic.proof?.filePath
+              ? { filePath: diagnostic.proof.filePath }
+              : {}),
+            ...(diagnostic.proof?.line ? { line: diagnostic.proof.line } : {}),
+          }))
+        : [];
       for (const diagnostic of diagnostics) {
         const location = diagnostic.filePath
           ? `${diagnostic.filePath}${diagnostic.line ? `:${diagnostic.line}` : ''}: `
@@ -394,18 +500,34 @@ export async function runAttestCommand(
     if (requestedKind === 'template') {
       return await templateRun();
     }
+    const visualDisabled =
+      requestedKind === 'visual' ||
+      (requestedKind === 'all' && reviewConfig?.template !== true);
+    if (
+      reviewConfig &&
+      visualDisabled &&
+      (!reviewConfig.visual || !reviewAttestHasVisualTargets(reviewConfig))
+    ) {
+      return {
+        list: [],
+        workspace,
+        leaves: new Map(),
+        visuals: new Map(),
+        templates: new Map(),
+        diagnostics: [],
+        kind: requestedKind === 'all' ? 'all' : 'visual',
+      };
+    }
     if (requestedKind === 'all' && !parsed.values['report']) {
       const templates = await templateRun();
       return { ...templates, kind: 'all' };
     }
-    const reportPath = parsed.values['report'];
     if (!reportPath) {
       throw new Error(
         'craft-ts attest: no run to look at. Point --report at Vitest JSON or a craft-ts visual report.',
       );
     }
-    const absoluteReportPath = resolve(rootDir, reportPath);
-    const raw = JSON.parse(await readFile(absoluteReportPath, 'utf8'));
+    const raw = JSON.parse(await readFile(reportPath, 'utf8'));
     const leaves = new Map<string, Readonly<Record<string, string>>>();
     if (isVisualRunReport(raw)) {
       if (requestedKind === 'test') {
@@ -414,16 +536,28 @@ export async function runAttestCommand(
         );
       }
       const run = parseVisualRunReport(raw);
-      const list = observeVisualRun(run, (component) =>
+      const declared = reviewConfig
+        ? new Set(reviewAttestVisualSubjects(reviewConfig))
+        : undefined;
+      const filteredRun =
+        declared && declared.size > 0
+          ? {
+              ...run,
+              captures: run.captures.filter((capture) =>
+                declared.has(`visual:${capture.component}#${capture.scenario}`),
+              ),
+            }
+          : run;
+      const list = observeVisualRun(filteredRun, (component) =>
         workspace.fingerprintForNode(component),
       );
       const visuals = new Map<string, VisualArtifact>();
-      for (const capture of run.captures) {
+      for (const capture of filteredRun.captures) {
         const subject = `visual:${capture.component}#${capture.scenario}`;
         leaves.set(subject, workspace.leavesForNode(capture.component));
         visuals.set(subject, {
           capture,
-          reportDirectory: dirname(absoluteReportPath),
+          reportDirectory: dirname(reportPath),
         });
       }
       const visual: ObservedRun = {
@@ -509,16 +643,37 @@ export async function runAttestCommand(
       case 'unwatched':
         return await unwatched(io, json, store, await slices());
       case 'review':
-      case 'devtools':
+      case 'devtools': {
+        io.write('Preparing the review queue…');
+        const observed = await observations();
+        const regenerateScript = parsed.values['regenerate-script'];
+        const iteration: ReviewIterationOptions = {
+          rootDir,
+          ...(reportPath ? { reportPath } : {}),
+          ledgerPath,
+          evidenceDirectory: store.directory,
+          tsconfigPath,
+          ...(regenerateScript ? { regenerationScript: regenerateScript } : {}),
+          now,
+        };
         return await review(
           io,
           ledger,
           store,
           ledgerPath,
           parsed.values['port'],
-          await observations(),
+          observed,
           { now, user },
+          iteration,
+          regenerateScript
+            ? {
+                reloadObserved: observations,
+                run: async () =>
+                  await runScript({ rootDir, script: regenerateScript }),
+              }
+            : undefined,
         );
+      }
       default:
         io.writeError(`Unknown verb: ${parsed.command}`);
         io.writeError(ATTEST_HELP);
@@ -1069,9 +1224,21 @@ async function review(
   store: ReturnType<typeof createEvidenceStore>,
   ledgerPath: string,
   port: string | undefined,
-  observed: ObservedRun,
+  initialObserved: ObservedRun,
   clock: { readonly now: () => string; readonly user: () => string },
+  iteration: ReviewIterationOptions,
+  regeneration:
+    | {
+        readonly run: () => Promise<void>;
+        readonly reloadObserved: () => Promise<ObservedRun>;
+      }
+    | undefined,
 ): Promise<number> {
+  const {
+    buildRemovalReviewCard,
+    buildTemplateReviewCard,
+    clusterTemplateReviewCards,
+  } = await import('@craft-ts/dev-tools/attestation-review');
   let module: typeof import('@craft-ts/style-testing/review');
   try {
     module = await import('@craft-ts/style-testing/review');
@@ -1081,6 +1248,7 @@ async function review(
     );
     return 1;
   }
+  let observed = initialObserved;
   const initialReport = reportOn(ledger, observed.list, {
     toolVersion: TOOL_VERSION,
   });
@@ -1092,7 +1260,7 @@ async function review(
       .map((status) => status.subject),
   );
   const visualSubjects = new Set(observed.visuals.keys());
-  const stored = await persistVisuals(store, observed, visualSubjects);
+  let stored = await persistVisuals(store, observed, visualSubjects);
   await persistSliceManifests(
     store,
     observed,
@@ -1103,7 +1271,7 @@ async function review(
         .map((status) => status.subject),
     ]),
   );
-  const observations = new Map(
+  let observations = new Map(
     observed.list.map((observation) => [observation.subject, observation]),
   );
   const previousDecisionOf = (
@@ -1115,6 +1283,10 @@ async function review(
           by: attestation.by,
           at: attestation.at,
           ...(attestation.note ? { note: attestation.note } : {}),
+          ...(attestation.findings?.length
+            ? { findings: attestation.findings }
+            : {}),
+          ...(attestation.degraded ? { degraded: true as const } : {}),
         }
       : undefined;
   const acceptedReferenceOf = (
@@ -1208,6 +1380,8 @@ async function review(
           currentEvidenceHash: status.observation.evidence,
           component: obligation.component,
           statement: obligation.statement,
+          statementParts: obligation.statementParts,
+          conditions: obligation.conditions,
           currentEvidence: templateEvidenceValue(obligation),
           ...(previousEvidence ? { previousEvidence } : {}),
           hadPreviousAttestation: acceptedReference !== undefined,
@@ -1320,6 +1494,10 @@ async function review(
           component: obligation.component,
           direction: obligation.direction,
           statement: obligation.statement,
+          statementParts: obligation.statementParts,
+          ...(obligation.conditions && obligation.conditions.length > 0
+            ? { conditions: obligation.conditions }
+            : {}),
           state: statuses.get(subject)?.state ?? 'missing',
           evidence: templateEvidenceValue(obligation),
         }))
@@ -1332,20 +1510,101 @@ async function review(
   // are deliberately absent from the human queue.
   const model = buildModel(ledger, activeCards);
   if (
+    !regeneration &&
     activeCards.length === 0 &&
     model.visualAssets.length === 0 &&
     model.visualTests.length === 0 &&
     model.templateObligations.length === 0 &&
     model.diagnostics.length === 0
   ) {
-    io.write('Nothing to review or explore.');
+    io.write('Aucune attestation à traiter. Nothing to review or explore.');
     return 0;
   }
 
+  const previousDecisionsFor = (
+    current: Ledger,
+    cards: readonly AttestationReviewCard[],
+  ): number => {
+    const subjects = new Set([
+      ...observed.list.map((observation) => observation.subject),
+      ...cards.flatMap((card) => card.cluster),
+    ]);
+    return [...subjects].filter((subject) => current.has(subject)).length;
+  };
+
+  let finishReview: () => void = () => undefined;
+  const reviewFinished = new Promise<void>((resolve) => {
+    finishReview = resolve;
+  });
+  const reviewLedgerSnapshots = new Map<
+    string,
+    readonly (readonly [string, Attestation | undefined])[]
+  >();
   const running = await module.startReviewServer({
     port: Number(port ?? 4320),
     cards: activeCards,
     model,
+    iteration,
+    onClose: async (handoff) => {
+      io.write('Review application closed.');
+      if (handoff) {
+        io.write(`Codex iteration prompt: ${handoff.promptPath}`);
+        io.write('----- BEGIN CODEX ITERATION PROMPT -----');
+        io.write(handoff.prompt);
+        io.write('----- END CODEX ITERATION PROMPT -----');
+      }
+      finishReview();
+    },
+    ...(regeneration
+      ? {
+          previousDecisions: previousDecisionsFor(ledger, activeCards),
+          regenerate: async () => {
+            await regeneration.run();
+            observed = await regeneration.reloadObserved();
+            observations = new Map(
+              observed.list.map((observation) => [
+                observation.subject,
+                observation,
+              ]),
+            );
+
+            const diskLedger = await readLedger(io, ledgerPath);
+            const regeneratedReport = reportOn(diskLedger, observed.list, {
+              toolVersion: TOOL_VERSION,
+            });
+            const regeneratedReviewable = new Set(
+              regeneratedReport.statuses
+                .filter(
+                  (status) =>
+                    status.state === 'review' || status.state === 'missing',
+                )
+                .map((status) => status.subject),
+            );
+            stored = await persistVisuals(
+              store,
+              observed,
+              new Set(observed.visuals.keys()),
+            );
+            await persistSliceManifests(
+              store,
+              observed,
+              new Set([
+                ...regeneratedReviewable,
+                ...regeneratedReport.statuses
+                  .filter((status) => status.state === 'renewed')
+                  .map((status) => status.subject),
+              ]),
+            );
+            currentLedger = applyRenewals(diskLedger, regeneratedReport);
+            activeCards = await buildCards(currentLedger);
+            return {
+              cards: activeCards,
+              model: buildModel(diskLedger, activeCards),
+              previousDecisions: previousDecisionsFor(diskLedger, activeCards),
+            };
+          },
+        }
+      : {}),
     refreshCards: async () => {
       const diskLedger = await readLedger(io, ledgerPath);
       const diskReport = reportOn(diskLedger, observed.list, {
@@ -1381,6 +1640,7 @@ async function review(
             `review: '${card.subject}' disappeared from the ledger.`,
           );
         }
+        reviewLedgerSnapshots.set(decision.shape, [[card.subject, previous]]);
         currentLedger = withAttestations(currentLedger, [
           {
             ...previous,
@@ -1400,6 +1660,12 @@ async function review(
         throw new Error(`review: unknown verdict '${decision.verdict}'.`);
       }
       const verdict = decision.verdict;
+      reviewLedgerSnapshots.set(
+        decision.shape,
+        card.cluster.map(
+          (subject) => [subject, currentLedger.get(subject)] as const,
+        ),
+      );
       const attestations = card.cluster.map((subject): Attestation => {
         const observation = observations.get(subject);
         if (!observation) {
@@ -1441,17 +1707,39 @@ async function review(
       activeCards = await buildCards(currentLedger);
       return activeCards;
     },
+    onReopen: async ({ decision }) => {
+      const snapshot = reviewLedgerSnapshots.get(decision.shape);
+      if (!snapshot) {
+        throw new Error(
+          'review: the accepted decision cannot be restored in this session.',
+        );
+      }
+      const restored = new Map(currentLedger);
+      for (const [subject, attestation] of snapshot) {
+        if (attestation) restored.set(subject, attestation);
+        else restored.delete(subject);
+      }
+      currentLedger = restored;
+      await writeLedgerFile(ledgerPath, currentLedger);
+      reviewLedgerSnapshots.delete(decision.shape);
+      activeCards = await buildCards(currentLedger);
+      return activeCards;
+    },
   });
   io.write(`Review queue at ${running.url}`);
+  io.write(
+    `If it did not open automatically, open ${running.url} in a browser.`,
+  );
   io.write(
     '  j/k move · a accept · n accept with a note · r reject · ^C to stop',
   );
   openReviewUrl(running.url);
   // The command owns the process until the reviewer is done. Returning here
   // would close the socket the moment the queue opened.
-  await new Promise<void>((resolve) => {
-    process.once('SIGINT', () => void running.close().then(resolve));
+  process.once('SIGINT', () => {
+    void running.close().then(finishReview);
   });
+  await reviewFinished;
   return 0;
 }
 

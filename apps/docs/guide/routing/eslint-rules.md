@@ -63,6 +63,7 @@ export default [
       'craft-ts/no-raw-craft-router-url': 'error',
       'craft-ts/no-type-assertions-in-template': 'error',
       'craft-ts/no-explicit-craft-template-return-type': 'error',
+      'craft-ts/no-extracted-craft-component-parts': 'error',
       'craft-ts/no-ephemeral-template-form-state': 'error',
       'craft-ts/template-element-name-unique': 'error',
       'craft-ts/no-craft-computed-side-effects': 'error',
@@ -74,6 +75,7 @@ export default [
       'craft-ts/require-yieldable-insertion-write': 'error',
       'craft-ts/no-craft-service-component-same-file': 'error',
       'craft-ts/max-craft-declarations-per-file': 'error',
+      'craft-ts/max-craft-component-lines': 'warn',
       'craft-ts/prefer-craft-http-transport': 'error',
       'craft-ts/no-injection-token': 'error',
       'craft-ts/require-primitive-derived-property': 'error',
@@ -108,6 +110,7 @@ export default [
 What each rule does:
 
 - `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifNode(...)`, `matchNode.exhaustive(...)`, `forNode(...)`, or `deferNode(...)`
+- `craft-ts/require-craft-computed-for-dynamic-template-lookup`: rejects dynamic object or array lookups in a Craft template when the lookup key comes from a template parameter; move the lookup to a named `craftComputed()` in the component logic factory and bind that value directly
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files; use a generator and delegate the reader with `yield*` instead
@@ -164,6 +167,54 @@ checks exported arrow functions.
   The rule is autofixable with `eslint --fix`. Return annotations on DOM event
   and output callbacks remain allowed because those callbacks do not produce
   rendered children.
+
+- `craft-ts/no-extracted-craft-component-parts`: requires the logic factory and
+  template passed to `craftComponent(...)` to stay inline. Keeping both parts at
+  the component boundary preserves contextual type inference and makes the
+  component's behaviour readable in one place. The rule reports both extracted
+  identifiers independently.
+
+  Before — extracted `ReviewLogic` and `ReviewTemplate` hide the component's
+  two halves behind names at the call site:
+
+  ```ts
+  // ❌ craft-ts/no-extracted-craft-component-parts
+  const ReviewLogic = craftGen(function* () {
+    return { review, decide };
+  });
+
+  const ReviewTemplate = craftTemplate(({ decide }) =>
+    div([button({ click: decide }, 'Review')]),
+  );
+
+  export const ReviewApp = craftComponent(
+    'ReviewApp',
+    {},
+    ReviewLogic,
+    ReviewTemplate,
+  );
+  ```
+
+  After — keep the logic and template callback in the component call:
+
+  ```ts
+  // ✅
+  export const ReviewApp = craftComponent(
+    'ReviewApp',
+    {},
+    craftGen(function* () {
+      return { review, decide };
+    }),
+    ({ decide }) => div([button({ click: decide }, 'Review')]),
+  );
+  ```
+
+  The rule only rejects identifiers in the logic and template argument
+  positions. Inline callbacks and inline `craftGen(...)` / `craftTemplate(...)`
+  expressions remain valid. A direct template callback is usually the simplest
+  form because `craftComponent(...)` can contextually type it from the inline
+  logic factory.
+
 - `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the fourth argument of `craftComponent(...)` and `craftDirective(...)` (inline or a same-file identifier). Declare that state in the logic factory with `state()` or `craftComputed()` instead
 - `craft-ts/template-element-name-unique`: requires named HTML helpers to use a static, unique local name within a component; use the object-first helper form for unnamed elements such as `p({ id: 'hint' }, ...)`
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
@@ -176,6 +227,68 @@ checks exported arrow functions.
 - `craft-ts/prefer-craft-service`: keeps services in the `craftService(...)` model
 - `craft-ts/no-craft-service-component-same-file`: forbids declaring `craftService(...)` and `craftComponent(...)` in the same file; a route-level service provider combined with a lazy-loaded component can break lazy loading, so keep them in separate files
 - `craft-ts/max-craft-declarations-per-file`: reports the third and subsequent `craftComponent(...)`, `craftService(...)`, or `craftDirective(...)` declaration of the same kind in a file; keep Craft entities split across focused files
+- `craft-ts/max-craft-component-lines`: reports a file that declares a `craftComponent(...)` once it exceeds **700 non-import lines** (`import` statements and blank lines are not counted, so a component with many dependencies is not penalized for its import block). A file this long usually mixes business logic, view logic, and markup that could live in separate, independently testable units:
+
+  ```ts
+  // ❌ craft-ts/max-craft-component-lines
+  // review-app.ts — 3894 lines: filtering, sorting, diff computation,
+  // pagination, and the full markup tree all inlined in one logic factory
+  // and one template.
+  export const ReviewApp = craftComponent(
+    'ReviewApp',
+    {},
+    (subjects: Input<Subject[]>) => {
+      const filtered = craftComputed(() => /* 80 lines of filtering */ []);
+      const diff = craftComputed(() => /* 150 lines of diffing */ null);
+      // …dozens more computeds and craftMethods…
+      return { subjects, filtered, diff /* … */ };
+    },
+    ({ filtered, diff /* … */ }) =>
+      div(
+        {},
+        /* a thousand-plus lines of markup for the filter bar, the diff
+           viewport, the review card list, and the pagination controls */
+      ),
+  );
+
+  // ✅ Business logic moves to a craftService; independent template
+  // regions become their own craftComponent, each testable and readable
+  // on its own.
+  export const ReviewFilters = craftService(
+    { name: 'ReviewFilters', scope: 'global' },
+    () => ({
+      filter: (subjects: Subject[], criteria: FilterCriteria) => /* … */ [],
+    }),
+  );
+
+  export const SubjectDiffViewport = craftComponent(
+    'SubjectDiffViewport',
+    {},
+    (subject: Input<Subject>) => ({ subject }),
+    ({ subject }) => div({} /* … */),
+  );
+
+  export const ReviewApp = craftComponent(
+    'ReviewApp',
+    {},
+    (subjects: Input<Subject[]>) => {
+      const filters = injectX(ReviewFilters);
+      const filtered = craftComputed(() =>
+        filters.filter(subjects(), criteria()),
+      );
+      return { filtered /* … */ };
+    },
+    ({ filtered }) =>
+      div(
+        {},
+        forNode(filtered, (subject) => SubjectDiffViewport({ subject })),
+      ),
+  );
+  ```
+
+  Set a project-specific threshold with `['warn', { max: 600 }]` if 700 lines is
+  still too generous for your team.
+
 - `craft-ts/no-injection-token`: forbids authored `InjectionToken` contracts; declare them with `craftService({ name, providedIn: 'abstract' }, abstract<Contract>())`
 - `craft-ts/prefer-craft-http-client`: forbids direct transport usage in favor of `CraftHttpClient`
 - `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest` because they bypass typed responses and exceptions, tracing, cancellation, and the architecture graph; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`, or `CraftBinaryHttpClient` for raw binary bodies

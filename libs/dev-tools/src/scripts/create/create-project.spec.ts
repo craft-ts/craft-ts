@@ -329,6 +329,8 @@ describe('createCraftProject', () => {
       'logs:mcp': 'craft-ts-log-mcp',
       'registry:mcp': 'craft-ts-registry-mcp',
     });
+    expect(packageJson.scripts['attest:check']).toBeUndefined();
+    expect(packageJson.devDependencies['@craft-ts/cli']).toBeUndefined();
     expect(packageJson.devDependencies['@craft-ts/log-server']).toBeDefined();
     expect(packageJson.devDependencies['@craft-ts/log-mcp']).toBeDefined();
     expect(
@@ -462,7 +464,7 @@ describe('createCraftProject', () => {
     expect(packageJson.dependencies['@craft-ts/style']).toBeDefined();
     expect(
       packageJson.devDependencies['@craft-ts/style-testing'],
-    ).toBeDefined();
+    ).toBeUndefined();
 
     // Without the plugin the sheet below typechecks and emits nothing at all,
     // which is the failure mode this assertion exists to catch.
@@ -540,6 +542,41 @@ describe('createCraftProject', () => {
       'Read `.claude/skills/craft-ts-project/SKILL.md`',
     );
     expect(skill).toContain('name: craft-ts-project');
+  });
+
+  it('adds a review target to an Nx project and its root package scripts', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-nx-'));
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'apps/starter',
+      rootDir: root,
+      workspace: 'nx',
+      agents: [],
+      i18n: 'none',
+      designSystem: 'basic',
+      typedCss: true,
+      attest: true,
+      force: true,
+    });
+    const packageJson = JSON.parse(
+      await readFile(join(root, 'package.json'), 'utf8'),
+    ) as {
+      scripts: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const projectJson = JSON.parse(
+      await readFile(join(result.directory, 'project.json'), 'utf8'),
+    ) as {
+      targets: Record<string, { options?: { command?: string } }>;
+    };
+
+    expect(packageJson.scripts['starter:review']).toBe(
+      'npm --prefix apps/starter run review',
+    );
+    expect(packageJson.devDependencies['@craft-ts/cli']).toBeDefined();
+    expect(projectJson.targets.review.options?.command).toBe(
+      'npm run starter:review',
+    );
   });
 
   it('creates an Effect v4 starter with a separate Effect skill and Layer boundary', async () => {
@@ -731,6 +768,43 @@ describe('createCraftProject', () => {
         'utf8',
       ),
     ).toContain('npm run i18n:check');
+  });
+
+  it('generates the typed opt-in attestation workflow only when requested', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-attest-'));
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: [],
+      i18n: 'none',
+      typedCss: false,
+      attest: true,
+    });
+    const packageJson = JSON.parse(
+      await readFile(join(result.directory, 'package.json'), 'utf8'),
+    ) as {
+      scripts: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(
+      await readFile(join(result.directory, 'review-attest.config.ts'), 'utf8'),
+    ).toContain('defineReviewAttestConfig');
+    expect(
+      await readFile(join(result.directory, 'e2e/attestation.spec.ts'), 'utf8'),
+    ).toContain('visualAppHappyPaths');
+    expect(packageJson.scripts['attest:capture']).toBeDefined();
+    expect(packageJson.scripts['attest:status']).toContain(
+      '--config review-attest.config.ts',
+    );
+    expect(packageJson.scripts['attest:check']).toContain(
+      'npm run architecture',
+    );
+    expect(packageJson.scripts.review).toContain('npm run attest:review');
+    expect(packageJson.devDependencies['@craft-ts/cli']).toBeDefined();
+    expect(
+      packageJson.devDependencies['@craft-ts/style-testing'],
+    ).toBeDefined();
   });
 
   it('can generate a domain-first starter without explanatory demo pages', async () => {

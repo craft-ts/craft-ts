@@ -276,17 +276,45 @@ fingerprint decides whether to **re-run** a capture, and an evidence hash decide
 whether to **ask a person**. Code that moves without changing the render carries
 its verdict forward; a render that changes goes back to a human.
 
-Capture the evidence from a real demo route:
+From the repository root, capture the evidence from the real demo route:
 
 ```bash
-CRAFT_VISUAL_REPORT=.craft/runs/design-system.json npx playwright test --config apps/demo/playwright.config.ts apps/demo/e2e/visual-attestation.spec.ts
+npm run attest:visual:capture
 ```
 
-That writes the report, the screenshots and the frozen page snapshots into
-`.craft/runs/`. Then open the review application:
+The capture starts the demo automatically when `BASE_URL` is not set. It writes
+all the artefacts needed for review into `.craft/runs/`:
+
+- `design-system.json`: the portable visual report;
+- `design-system-*.png`: screenshots;
+- `design-system-*.snapshot.html`: frozen documents used by the reviewer.
+
+To use another report path, set `CRAFT_VISUAL_REPORT` for all commands:
 
 ```bash
-npx tsx libs/cli/src/bin/craft-ts.ts attest review --report .craft/runs/design-system.json --tsconfig apps/demo/tsconfig.graph.json
+CRAFT_VISUAL_REPORT=.craft/runs/my-run.json npm run attest:visual:capture
+```
+
+Check the queue before opening it:
+
+```bash
+npm run attest:visual:status
+```
+
+Then open the visual review application:
+
+```bash
+npm run attest:visual:review
+```
+
+The equivalent source-checkout command, useful when the report is not at the
+default path, is:
+
+```bash
+npx tsx libs/cli/src/bin/craft-ts.ts attest review \
+  --kind visual \
+  --report .craft/runs/design-system.json \
+  --tsconfig apps/demo/tsconfig.graph.json
 ```
 
 It serves a queue on `http://127.0.0.1:4320`, one card per decision. Each card
@@ -309,6 +337,37 @@ subject came back, and what moved while belonging to no subject at all:
 
 ```bash
 npx tsx libs/cli/src/bin/craft-ts.ts attest --help
+```
+
+The unified Attestation DevTool combines visual captures with template
+obligations. It is the convenient entry point when both kinds of documents
+should be reviewed together:
+
+```bash
+npm run attest:devtools
+```
+
+The review application is itself attestable. Its capture and review run as two
+separate sessions so it never mutates the queue it is currently freezing:
+
+```bash
+npm run attest:review-app:capture
+npm run attest:review-app:status
+npm run attest:review-app:review
+```
+
+See [the review application workflow](libs/style-testing/review-app/README.md)
+for the captured states, artefacts, custom report path, and the confirmed
+**Regenerate all evidence** action available inside the DevTool.
+
+Template obligations can also be generated and inspected without a browser
+capture. Their proof objects are stored in `.craft/evidence/`:
+
+```bash
+npm run attest:templates:status
+npx tsx libs/cli/src/bin/craft-ts.ts attest review \
+  --kind template \
+  --tsconfig apps/demo/tsconfig.graph.json
 ```
 
 [apps/docs/guide/style/attestation.md](apps/docs/guide/style/attestation.md)

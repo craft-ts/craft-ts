@@ -9,10 +9,9 @@ import {
   metadataFromScope,
   replayFidelity,
   snapshotPage,
-  visualMatrix,
   visualReport,
 } from '@craft-ts/style-testing';
-import { dsTheme } from '../src/app/examples/design-system/foundation.style.ts';
+import { reviewAttestConfig } from '../review-attest.config.ts';
 
 const DESIGN_SYSTEM_COMPONENT =
   'component:apps/demo/src/app/examples/design-system/design-system-demo.ts:designSystemDemo';
@@ -42,7 +41,13 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
   await mkdir(dirname(reportPath), { recursive: true });
 
   const captures = [];
-  for (const scenario of visualMatrix(dsTheme)) {
+  const matrix = reviewAttestConfig.visual?.matrices[0];
+  if (!matrix || Array.isArray(matrix)) {
+    throw new Error(
+      'review-attest.config.ts must declare the design-system matrix.',
+    );
+  }
+  for (const scenario of matrix.scenarios) {
     // Reset the implicit base cell before every scenario. Desktop Chrome is
     // wider than `md`, so relying on its default would make `base` and
     // `viewport=md` two names for the same render — false coverage.
@@ -120,11 +125,7 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
     });
     await auditor.setContent(
       await readFile(
-        imagePathFor(
-          testInfo,
-          reportPath,
-          capture.snapshot as string,
-        ),
+        imagePathFor(testInfo, reportPath, capture.snapshot as string),
         'utf8',
       ),
     );
@@ -132,10 +133,9 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
       root: '.design-system-host',
     });
     const fidelity = replayFidelity(replayed.digest, capture.digest);
-    expect(
-      fidelity.report.join('\n'),
-      `replay of '${capture.scenario}'`,
-    ).toBe('');
+    expect(fidelity.report.join('\n'), `replay of '${capture.scenario}'`).toBe(
+      '',
+    );
   }
   await auditor.close();
 

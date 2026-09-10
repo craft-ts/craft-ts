@@ -160,28 +160,164 @@ Capture a real route into a portable report, then let the CLI derive every
 fingerprint from the current dependency graph:
 
 ```sh
-CRAFT_VISUAL_REPORT=.craft/runs/design-system.json \
-  npx playwright test apps/demo/e2e/visual-attestation.spec.ts \
-  --config apps/demo/playwright.config.ts --project chromium
+npm run attest:visual:capture
 
-craft-ts attest status \
-  --report .craft/runs/design-system.json \
-  --tsconfig apps/demo/tsconfig.graph.json
+npm run attest:visual:status
 ```
 
-The report contains repository-relative graph node ids, digests and screenshot
+The capture starts the demo server when needed and writes the report, PNG
+screenshots, and frozen `.snapshot.html` documents to `.craft/runs/`. The
+report contains repository-relative graph node ids, digests and screenshot
 paths. It deliberately contains no code fingerprint: accepting a fingerprint
-from an old browser run could keep a stale slice current forever. Reports and
-screenshots are regenerable and ignored; the ledger is not.
+from an old browser run could keep a stale slice current forever. Reports,
+screenshots and frozen documents are regenerable and ignored; the ledger is
+not.
+
+To choose another report path, set `CRAFT_VISUAL_REPORT` on both commands:
 
 ```sh
-craft-ts attest status --report vitest-report.json
-craft-ts attest why 'visual:userCard#viewport=md'
-craft-ts attest renew --subject 'visual:userCard#viewport=md' --verdict ok
-craft-ts attest review \
+CRAFT_VISUAL_REPORT=.craft/runs/my-run.json npm run attest:visual:capture
+CRAFT_VISUAL_REPORT=.craft/runs/my-run.json npm run attest:visual:status
+```
+
+```sh
+npm run attest:visual:review
+
+npx tsx libs/cli/src/bin/craft-ts.ts attest why 'visual:userCard#viewport=md'
+npx tsx libs/cli/src/bin/craft-ts.ts attest renew \
+  --subject 'visual:userCard#viewport=md' --verdict ok
+npx tsx libs/cli/src/bin/craft-ts.ts attest review \
+  --kind visual \
   --report .craft/runs/design-system.json \
   --tsconfig apps/demo/tsconfig.graph.json
-craft-ts attest unwatched
+npx tsx libs/cli/src/bin/craft-ts.ts attest unwatched
+```
+
+For the unified review surface, use the DevTool. It combines visual captures
+and template obligations in one queue:
+
+```sh
+npm run attest:devtools
+```
+
+### The reviewer reviews itself
+
+The review application can use the same mechanism on its own UI. It runs in two
+successive sessions so the queue cannot change while it is being captured: the
+first instance renders a deterministic fixture queue and freezes representative
+states; the second instance reviews that visual report together with template
+obligations derived from the review application's own CraftTS graph.
+
+```sh
+npm run attest:review-app:capture
+npm run attest:review-app:status
+npm run attest:review-app:review
+```
+
+The capture includes the review page's happy path at mobile and desktop sizes,
+the review queue in dark French, the regeneration confirmation, the visual-test
+inventory, and the template-obligation inventory. Every portable snapshot is
+replayed immediately and must reproduce the live layout digest.
+The first run reports missing decisions until a reviewer explicitly accepts or
+rejects them. Later unchanged evidence is carried forward by the usual ledger.
+
+The review sidebar also offers **Regenerate all evidence**. It opens a
+confirmation describing the current scope and whether previous decisions
+exist. Regeneration replaces the report, screenshots, and frozen documents,
+then re-reads the graph and rebuilds the queue. It never clears the ledger:
+unchanged evidence stays current and only new or changed evidence returns to a
+reviewer. Any unsaved reason on the open card is discarded.
+
+This control is shown only when the CLI session explicitly names an npm script:
+
+```sh
+craft-ts attest devtools \
+  --report .craft/runs/project.json \
+  --tsconfig apps/project/tsconfig.graph.json \
+  --regenerate-script attest:project:capture
+```
+
+Only an npm script name is accepted, not an arbitrary shell command. The script
+must recreate the report supplied to `--report`; a failed run preserves the
+existing queue.
+
+After rejecting views with comments, use **Prepare Codex iteration** in the
+review sidebar. It generates, next to the report, a readable
+`<report>.review-feedback.md`, a structured `<report>.review-feedback.json`,
+and a copyable `<report>.codex-prompt.md`. The prompt contains the project root,
+report, ledger, evidence store, graph `tsconfig`, capture script, source file
+paths, scenarios, measured changes, comments and any digest nodes pointed to by
+the reviewer. Only the latest `rejected` cards are included. Because these
+paths come from the CLI session, `apps/demo` and the review application's
+self-attestation resolve to different, correct project contexts.
+
+### One happy path for every page
+
+Application-level coverage is declared once and expanded into mobile and
+desktop captures by default:
+
+```ts
+import {
+  defineHappyPathHttpMocks,
+  defineVisualAppConfig,
+  visualAppHappyPaths,
+} from '@craft-ts/style-testing';
+
+export const homeHappyPath = defineHappyPathHttpMocks(
+  'home-page.happy-path.ts',
+  {
+    'GET /api/users': { response: [{ id: '42', name: 'Ada' }] },
+  },
+);
+
+export const visualTestConfig = defineVisualAppConfig({
+  pages: [
+    {
+      id: 'home',
+      route: '',
+      url: '/',
+      component: 'component:src/app/home-page.ts:HomePage',
+      mocks: homeHappyPath,
+    },
+  ],
+});
+
+for (const scenario of visualAppHappyPaths(visualTestConfig)) {
+  test(scenario.id, async ({ page }) => {
+    await page.setViewportSize(scenario.viewport);
+    await page.goto(scenario.page.url);
+    // Install scenario.page.mocks, wait for the happy UI, then collectCapture.
+  });
+}
+```
+
+Without an explicit `viewports` value, CraftTS uses `mobile: 390x844` and
+`desktop: 1440x1000`. Keep each response dataset in a sibling
+`*.happy-path.ts` file. `matchHappyPathHttpRequest` turns that dataset into a
+request match suitable for `page.route`; when a `craftRoutes` registry is
+available, wrap its exhaustive, response-typed `mockHttpRequestForRoute` result
+with `defineRouteHappyPathHttpMocks('page.happy-path.ts', routeMock)`.
+
+Add `assertVisualHappyPathArchitecture(graph.graph, visualTestConfig)` to the
+application architecture suite. It fails when a routed page, a required
+viewport, or a Craft HTTP endpoint has no successful happy-path fixture. The
+fixture feeds a deterministic test environment only; application code keeps
+all remote work inside its `query`, `mutation`, or `asyncProcess` loader.
+
+Set `CRAFT_REVIEW_APP_REPORT` to the same path on all three commands to relocate
+the default `.craft/runs/review-app.json` report. The implementation notes and
+the exact workflow live in `libs/style-testing/review-app/README.md` in the
+repository.
+
+Template obligations do not need a Playwright report. They are derived from the
+current graph and their canonical proof objects are written to
+`.craft/evidence/`:
+
+```sh
+npm run attest:templates:status
+npx tsx libs/cli/src/bin/craft-ts.ts attest review \
+  --kind template \
+  --tsconfig apps/demo/tsconfig.graph.json
 ```
 
 Two of these carry the rest.
@@ -210,7 +346,7 @@ element and name it instead of clicking a pixel and hoping.
 Freezing means more than serialising the DOM. Craft injects its styles through
 `adoptedStyleSheets`, which `outerHTML` cannot see at all. And keeping the
 stylesheets verbatim would leave every `@media` to be re-evaluated against the
-*reviewer's* window: on the demo's route the two conditions in play are
+_reviewer's_ window: on the demo's route the two conditions in play are
 `(min-width: 48rem)` and `(prefers-color-scheme: dark)` — exactly the two axes of
 the matrix — so four scenarios would collapse into whatever that laptop said.
 Media and supports are therefore evaluated at capture time and their winning
@@ -282,15 +418,15 @@ interface: translating it, or repainting its ground, would make it something
 other than what was measured. Enforcing that turned up a fidelity bug the tool
 had been hiding by being permanently dark — a page paints its own colours, but
 not the canvas underneath, and that comes from `color-scheme`, which was the
-*reviewer's* preference. A component captured on white came back on black for
+_reviewer's_ preference. A component captured on white came back on black for
 anyone whose machine asks for dark. The replay now declares the scheme its
 capture was taken in.
 
-| tier | source | shown as |
-| --- | --- | --- |
-| changed | the paths in the readable diff | outlined, and the reason the card is here |
-| attested | the digest's own paths | selectable, highlighted on hover |
-| decor | everything else | dimmed, never removed |
+| tier     | source                         | shown as                                  |
+| -------- | ------------------------------ | ----------------------------------------- |
+| changed  | the paths in the readable diff | outlined, and the reason the card is here |
+| attested | the digest's own paths         | selectable, highlighted on hover          |
+| decor    | everything else                | dimmed, never removed                     |
 
 The outlines carry a legend, drawn from the same object that paints them — a key
 that keeps its own copy of a colour is a key that will one day name the wrong
@@ -318,7 +454,7 @@ since the one before it — so the second complaint is filed against the second
 group and not, as a single note against every node would have it, against all
 seven.
 
-Selecting *is* referencing: there is no second gesture. Pointing at part of the
+Selecting _is_ referencing: there is no second gesture. Pointing at part of the
 page drops the reference straight into the reason, and refining the selection
 edits that same reference rather than adding another — a click followed by a
 ctrl-click leaves one saying "2 nodes", not a stale "1 node" beside it. Typing
@@ -345,7 +481,7 @@ cut" pressed `a`, Accept, and filed a verdict the reviewer never reached.
 
 Position settles that, not punctuation. The first rule tried was "the sentence
 the token stands in", and it was wrong for the way people write: the complaint
-is typed, ended, and *then* the group is pointed at, so the caret is past the
+is typed, ended, and _then_ the group is pointed at, so the caret is past the
 full stop and the token opens the next sentence rather than closing its own.
 Referencing first and explaining after reads the other way round, so a group
 with nothing before it takes what follows.
@@ -370,7 +506,7 @@ attestation that stayed quiet about that would claim a coverage it does not
 have, so the card states it and the screenshot draws the line where the viewport
 ended.
 
-The verdict buttons carry what they *do*. Three of the five are accepted by the
+The verdict buttons carry what they _do_. Three of the five are accepted by the
 ledger and two are not, and nothing in the words says which — a reviewer
 choosing between "Known issue" and "Block" is choosing between "stops asking"
 and "asks every run", which is the only difference that matters and the one they
@@ -396,7 +532,7 @@ already been replaced.
 The control names what it will lift — `Hide button.clear-cache-btn` — and is
 offered only when something is actually covering the component. It used to read
 "Hide 1 overlay", which asked the reviewer what an overlay is and counted the
-wrong thing: covered *nodes*, when one button sitting on five of them is one
+wrong thing: covered _nodes_, when one button sitting on five of them is one
 thing to lift. Worse, it marked every fixed element on the page whether or not
 it covered anything, and marked nothing that covered without being fixed — so on
 most cards it lifted something irrelevant, and on the cards that mattered it

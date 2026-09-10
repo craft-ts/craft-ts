@@ -2,7 +2,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { analyzeDependencyGraph, writeDependencyGraph } from './dependency-graph';
+import {
+  analyzeDependencyGraph,
+  writeDependencyGraph,
+} from './dependency-graph';
 import {
   assertCraftComputedPure,
   assertCraftEffectNoImperativeSync,
@@ -43,6 +46,8 @@ import {
   persistedPrimitiveUniqueViolations,
   routeDiProofViolations,
   serverFunctionArchitectureViolations,
+  assertVisualHappyPathArchitecture,
+  visualHappyPathArchitectureViolations,
 } from './architecture-graph';
 
 const temporaryDirectories: string[] = [];
@@ -128,6 +133,79 @@ declare const CraftHttpClient: {
 `;
 
 describe('createArchitectureGraph', () => {
+  it('checks routed-page, viewport and Craft HTTP happy-path coverage', async () => {
+    const graph = await graphOf({
+      'home-page.ts': `
+        ${STUBS}
+        function* setupHome() {
+          yield* CraftHttpClient.get(({ response }) => ({
+            url: '/api/users',
+            success: response(),
+          }));
+          return {};
+        }
+        const HomePage = craftComponent('HomePage', {}, setupHome, () => div([]));
+        craftRoutes('app', [{ path: '', component: HomePage }]);
+      `,
+    });
+    const valid = {
+      viewports: {
+        mobile: { width: 390, height: 844 },
+        desktop: { width: 1440, height: 1000 },
+      },
+      pages: [
+        {
+          id: 'home',
+          route: '/',
+          url: '/',
+          component: 'component:home-page.ts:HomePage',
+          mocks: {
+            source: 'home.happy-path.ts',
+            endpoints: [
+              {
+                method: 'GET',
+                url: '/api/users',
+                mode: 'mock',
+                response: { kind: 'success' },
+              },
+            ],
+          },
+        },
+      ],
+    } as const;
+
+    expect(
+      graph.graph.nodes.filter((node) => node.kind === 'http-endpoint'),
+    ).toHaveLength(1);
+    expect(visualHappyPathArchitectureViolations(graph.graph, valid)).toEqual(
+      [],
+    );
+    expect(() =>
+      assertVisualHappyPathArchitecture(graph.graph, valid),
+    ).not.toThrow();
+
+    const invalid = {
+      viewports: { mobile: { width: 390, height: 844 } },
+      pages: [
+        {
+          ...valid.pages[0],
+          mocks: { source: 'home.fixture.ts', endpoints: [] },
+        },
+      ],
+    } as const;
+    expect(
+      visualHappyPathArchitectureViolations(graph.graph, invalid).map(
+        ({ kind }) => kind,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'missing-viewport',
+        'fixture-file',
+        'missing-http-mock',
+      ]),
+    );
+  });
+
   it('detects app-config/routes import cycles before provider inference widens', async () => {
     const graph = await graphOf({
       'app.config.ts': `
@@ -219,9 +297,9 @@ describe('createArchitectureGraph', () => {
     expect(
       graph.services({ browserBoundary: true }).map((node) => node.label),
     ).toEqual(['UsersApi']);
-    expect(graph.dependingOnBrowserBoundary().map((node) => node.label)).toContain(
-      'User',
-    );
+    expect(
+      graph.dependingOnBrowserBoundary().map((node) => node.label),
+    ).toContain('User');
     expect(graph.catalog.browserBoundaryServices).toContain('UsersApi');
     expect(graph.catalog.httpEndpoints).toEqual(
       expect.arrayContaining([{ method: 'GET', url: 'users' }]),
@@ -348,7 +426,9 @@ describe('createArchitectureGraph', () => {
       }),
     );
 
-    expect(() => graph.service('ApiService')).toThrow(/Ambiguous service 'ApiService'/);
+    expect(() => graph.service('ApiService')).toThrow(
+      /Ambiguous service 'ApiService'/,
+    );
     expect(graph.service('ApiService', 'users-api.ts').filePath).toContain(
       'users-api.ts',
     );
@@ -620,7 +700,9 @@ describe('server function architecture', () => {
         (violation) => violation.code,
       ),
     ).toContain('CRAFT_SERVER_FUNCTION_CLIENT_ID_NOT_UNIQUE');
-    expect(() => assertCraftUnique(graph.graph)).toThrow(/Duplicate craftUnique/);
+    expect(() => assertCraftUnique(graph.graph)).toThrow(
+      /Duplicate craftUnique/,
+    );
   });
 
   it('reports missing families, server imports in clients, a client context on a server-only function, and duplicate ids', async () => {
@@ -688,7 +770,10 @@ describe('server function architecture', () => {
     });
 
     expect(
-      graph.serverFunctionMiddlewares().map((node) => node.label).sort(),
+      graph
+        .serverFunctionMiddlewares()
+        .map((node) => node.label)
+        .sort(),
     ).toEqual(['demo.admin-only', 'demo.matching-user']);
 
     const edges = graph.graph.edges.filter(
@@ -705,8 +790,9 @@ describe('server function architecture', () => {
     expect(
       edges.some(
         (edge) =>
-          edge.from.startsWith('server-function-part:server-function-server:') &&
-          edge.to.includes('#matchingUser'),
+          edge.from.startsWith(
+            'server-function-part:server-function-server:',
+          ) && edge.to.includes('#matchingUser'),
       ),
     ).toBe(true);
 
@@ -800,7 +886,10 @@ describe('server function architecture', () => {
     });
 
     expect(
-      graph.clientFunctionMiddlewares().map((node) => node.label).sort(),
+      graph
+        .clientFunctionMiddlewares()
+        .map((node) => node.label)
+        .sort(),
     ).toEqual(['demo.session', 'demo.workspace']);
     // Un middleware client n'est pas un middleware serveur : les deux familles
     // restent disjointes dans le graphe.
@@ -853,9 +942,9 @@ describe('server function architecture', () => {
 
     // Une façade est déjà un module navigateur : y déclarer un middleware d'un
     // seul usage ne franchit aucune frontière.
-    expect(
-      graph.clientFunctionMiddlewares().map((node) => node.label),
-    ).toEqual(['demo.session']);
+    expect(graph.clientFunctionMiddlewares().map((node) => node.label)).toEqual(
+      ['demo.session'],
+    );
     expect(
       graph.graph.edges.filter(
         (edge) => edge.details?.['boundary'] === 'client-middleware-attached',
@@ -985,10 +1074,12 @@ describe('server function architecture', () => {
       `,
     });
 
-    expect(graph.handshakes().map((node) => node.label).sort()).toEqual([
-      'users.list',
-      'users.session',
-    ]);
+    expect(
+      graph
+        .handshakes()
+        .map((node) => node.label)
+        .sort(),
+    ).toEqual(['users.list', 'users.session']);
     // L'identité de la famille vient du handshake, des deux côtés.
     expect(graph.serverFunctionFamilies().map((node) => node.label)).toEqual([
       'users.list',
@@ -1163,16 +1254,24 @@ describe('resource loader requirements', () => {
     });
 
     expect(
-      graph.graph.edges.filter((edge) => edge.details?.['resourceRole'] === 'loader'),
+      graph.graph.edges.filter(
+        (edge) => edge.details?.['resourceRole'] === 'loader',
+      ),
     ).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: 'calls', details: expect.objectContaining({ http: true }) }),
-        expect.objectContaining({ kind: 'calls', details: expect.objectContaining({ serverFunction: true }) }),
+        expect.objectContaining({
+          kind: 'calls',
+          details: expect.objectContaining({ http: true }),
+        }),
+        expect.objectContaining({
+          kind: 'calls',
+          details: expect.objectContaining({ serverFunction: true }),
+        }),
       ]),
     );
-    expect(queryMutationServerStateViolations(graph.graph).map((v) => v.label)).toEqual([
-      'localUsers',
-    ]);
+    expect(
+      queryMutationServerStateViolations(graph.graph).map((v) => v.label),
+    ).toEqual(['localUsers']);
     expect(() => assertQueryMutationHasServerState(graph.graph)).toThrow(
       /query localUsers loader must depend on CraftHttpClient or server function/,
     );
@@ -1214,15 +1313,20 @@ describe('resource loader requirements', () => {
         {
           label: 'an Effect service',
           matches: ({ target }: LoaderRequirementContext) =>
-            target.kind === 'service' && target.details?.['runtime'] === 'effect',
+            target.kind === 'service' &&
+            target.details?.['runtime'] === 'effect',
         },
       ],
     } as const;
 
-    expect(primitiveLoaderRequirementViolations(graph.graph, requirements).map((v) => v.label)).toEqual([
-      'localEffect',
-    ]);
-    expect(() => assertPrimitiveLoaderRequirements(graph.graph, requirements)).toThrow(
+    expect(
+      primitiveLoaderRequirementViolations(graph.graph, requirements).map(
+        (v) => v.label,
+      ),
+    ).toEqual(['localEffect']);
+    expect(() =>
+      assertPrimitiveLoaderRequirements(graph.graph, requirements),
+    ).toThrow(
       /queryEffect localEffect loader must depend on an Effect service/,
     );
   });
@@ -1272,7 +1376,12 @@ describe('declarative architecture rules', () => {
 
     // Source order: the report is sorted by where the resource is declared,
     // not by the order the graph happened to build its nodes in.
-    expect(resourceParamsStateViolations(graph.graph).map((v) => [v.resource, v.state])).toEqual([
+    expect(
+      resourceParamsStateViolations(graph.graph).map((v) => [
+        v.resource,
+        v.state,
+      ]),
+    ).toEqual([
       ['query:users', 'state:search'],
       ['query:users', 'state:page'],
       ['query:utilityUsers', 'state:search'],
@@ -1322,9 +1431,9 @@ describe('declarative architecture rules', () => {
       `,
     });
 
-    expect(resourceParamsStateViolations(graph.graph).map((v) => v.state)).toEqual([
-      'state:search',
-    ]);
+    expect(
+      resourceParamsStateViolations(graph.graph).map((v) => v.state),
+    ).toEqual(['state:search']);
   });
 
   it('rejects the same HTTP verb+url called from two services', async () => {
@@ -1481,7 +1590,9 @@ describe('declarative architecture rules', () => {
         (violation) => violation.kind === 'calls',
       ),
     ).toBe(true);
-    expect(() => assertCraftComputedPure(graph.graph)).toThrow(/increment|calls/i);
+    expect(() => assertCraftComputedPure(graph.graph)).toThrow(
+      /increment|calls/i,
+    );
   });
 
   it('allows a craftComputed that only reads reactive values', async () => {
@@ -1531,7 +1642,9 @@ describe('declarative architecture rules', () => {
 
     const cycles = dependencyCycleViolations(graph.graph);
     expect(cycles.length).toBeGreaterThan(0);
-    expect(cycles[0]?.labels).toEqual(expect.arrayContaining(['Left', 'Right']));
+    expect(cycles[0]?.labels).toEqual(
+      expect.arrayContaining(['Left', 'Right']),
+    );
     expect(() => assertNoDependencyCycles(graph.graph)).toThrow(
       /cycle|Left|Right/i,
     );
@@ -1592,9 +1705,9 @@ describe('declarative architecture rules', () => {
       `,
     });
 
-    expect(
-      dependencyCycleViolations(graph.graph)[0]?.labels.join(' '),
-    ).toMatch(/left|right/i);
+    expect(dependencyCycleViolations(graph.graph)[0]?.labels.join(' ')).toMatch(
+      /left|right/i,
+    );
     expect(() => assertNoDependencyCycles(graph.graph)).toThrow(/cycle/i);
   });
 
@@ -1710,9 +1823,9 @@ describe('assertPathBoundaries', () => {
     const violations = pathBoundaryViolations(graph.graph, {
       constraints: featureConstraints,
     });
-    expect(violations.some((violation) => violation.reason === 'allowlist')).toBe(
-      true,
-    );
+    expect(
+      violations.some((violation) => violation.reason === 'allowlist'),
+    ).toBe(true);
     expect(violations.map((violation) => violation.toLabel)).toContain('Cart');
     expect(() =>
       assertPathBoundaries(graph.graph, { constraints: featureConstraints }),
@@ -1766,9 +1879,9 @@ describe('assertPathBoundaries', () => {
         forbidTarget: ['src/app/data/**'],
       },
     ];
-    expect(() =>
-      assertPathBoundaries(graph.graph, { constraints }),
-    ).toThrow(/Path boundary:.*LeakyWidget.*UsersApi/s);
+    expect(() => assertPathBoundaries(graph.graph, { constraints })).toThrow(
+      /Path boundary:.*LeakyWidget.*UsersApi/s,
+    );
   });
 
   it('allows UI to depend on shared while still forbidding data', async () => {
@@ -1949,7 +2062,12 @@ describe('route DI proofs', () => {
     expect(
       users
         .incoming('checks')
-        .map((edge) => graph.graph.nodes.find((node) => node.id === edge.from)?.details?.['mechanism']),
+        .map(
+          (edge) =>
+            graph.graph.nodes.find((node) => node.id === edge.from)?.details?.[
+              'mechanism'
+            ],
+        ),
     ).toEqual(
       expect.arrayContaining([
         'ValidateCascadeRoutesFile',
@@ -1979,10 +2097,12 @@ describe('route DI proofs', () => {
       `,
     });
 
-    expect(routeDiProofViolations(graph.graph).map((violation) => violation.kind)).toContain(
-      'unarmed-mapper',
+    expect(
+      routeDiProofViolations(graph.graph).map((violation) => violation.kind),
+    ).toContain('unarmed-mapper');
+    expect(() => assertRouteDiProofs(graph.graph)).toThrow(
+      /not armed with CanRun/i,
     );
-    expect(() => assertRouteDiProofs(graph.graph)).toThrow(/not armed with CanRun/i);
   });
 
   it('follows a type alias wrapping RouteCheckedDI', async () => {
@@ -2056,7 +2176,9 @@ describe('route DI proofs', () => {
     expect(violations.map((violation) => violation.kind)).toEqual(
       expect.arrayContaining(['missing-di-proof', 'missing-exception-assert']),
     );
-    expect(violations.some((violation) => violation.label === 'users')).toBe(true);
+    expect(violations.some((violation) => violation.label === 'users')).toBe(
+      true,
+    );
   });
 
   it('accepts a lazy child collection that carries its own proofs', async () => {
@@ -2323,9 +2445,9 @@ describe('insertion architecture rules', () => {
       `,
     });
 
-    expect(mutationReactOnViolations(graph.graph).map((item) => item.label)).toEqual(
-      ['save'],
-    );
+    expect(
+      mutationReactOnViolations(graph.graph).map((item) => item.label),
+    ).toEqual(['save']);
     expect(() => assertMutationHasReactOn(graph.graph)).toThrow(
       /mutation save has no query reacting to it/i,
     );
@@ -2355,9 +2477,9 @@ describe('insertion architecture rules', () => {
       `,
     });
 
-    expect(mutationReactOnViolations(graph.graph, { allow: ['logout'] })).toEqual(
-      [],
-    );
+    expect(
+      mutationReactOnViolations(graph.graph, { allow: ['logout'] }),
+    ).toEqual([]);
     expect(() =>
       assertMutationHasReactOn(graph.graph, { allow: ['logout'] }),
     ).not.toThrow();

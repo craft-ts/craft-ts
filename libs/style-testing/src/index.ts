@@ -26,3 +26,5 @@ export * from './lib/margin.ts';
 export * from './lib/snapshot.ts';
 export * from './lib/replay.ts';
 export * from './lib/attest.ts';
+export * from './lib/visual-app.ts';
+export * from './lib/review-attest.ts';

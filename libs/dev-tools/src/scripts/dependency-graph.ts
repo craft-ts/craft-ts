@@ -1327,8 +1327,7 @@ function collectComponents(
       // it on every edit above it. The owner path plus an ordinal names the
       // same component for as long as its declaration keeps its name.
       const label =
-        explicitLabel ??
-        `AnonymousComponent@${anonymousComponentSuffix(call)}`;
+        explicitLabel ?? `AnonymousComponent@${anonymousComponentSuffix(call)}`;
       const component: ComponentInfo = {
         node: addNode(
           builder,
@@ -1919,7 +1918,9 @@ function analyzeComponents(builder: GraphBuilder): void {
     const call = component.call;
     const setup = call.getArguments()[2];
     const template = call.getArguments()[3];
-    for (const part of [setup, template]) {
+    for (const part of [setup, template].flatMap(
+      componentImplementationParts,
+    )) {
       if (!part) continue;
       collectServiceBindingsFromReturns(component, part, builder);
       for (const nested of part.getDescendantsOfKind(
@@ -1976,22 +1977,87 @@ function analyzeComponents(builder: GraphBuilder): void {
       }
       addSourceInteractions(builder, component.node.id, part);
     }
-    const setupBindings = setup
-      ? collectReactiveBindings(builder, setup, component.node.id, component)
-      : new Map<string, ReactiveBinding>();
-    if (setup) {
+    const setupParts = componentImplementationParts(setup);
+    const setupBindings = new Map<string, ReactiveBinding>();
+    for (const setupPart of setupParts) {
+      for (const [name, binding] of collectReactiveBindings(
+        builder,
+        setupPart,
+        component.node.id,
+        component,
+      )) {
+        setupBindings.set(name, binding);
+      }
       analyzeReactiveDependencies(
         builder,
-        setup,
+        setupPart,
         setupBindings,
         component.node.id,
       );
     }
-    if (template) {
-      analyzeTemplateDependencies(builder, component, template, setupBindings);
+    for (const templatePart of templateImplementationParts(template)) {
+      analyzeTemplateDependencies(
+        builder,
+        component,
+        templatePart,
+        setupBindings,
+      );
     }
     collectServicePropertyUses(builder, component);
   }
+}
+
+/**
+ * A craftComponent may keep its setup/template beside the declaration as a
+ * named function. Walking only the identifier makes the graph miss every
+ * primitive and HTTP call in that implementation, so resolve local symbols
+ * before collecting the component body.
+ */
+function componentImplementationParts(part: Node | undefined): Node[] {
+  if (!part) return [];
+  const identifier = part.asKind(SyntaxKind.Identifier);
+  if (!identifier) return [part];
+  const symbol = identifier.getSymbol();
+  const resolved = symbol?.getAliasedSymbol() ?? symbol;
+  const declarations = (resolved?.getDeclarations() ?? []).filter(
+    (declaration) => !declaration.getSourceFile().isDeclarationFile(),
+  );
+  return declarations.length > 0 ? declarations : [part];
+}
+
+/**
+ * Resolves the callable body of a component template. Templates are commonly
+ * kept in a named `craftTemplate` constant so they can be reused or tested;
+ * the graph still needs the function node to resolve its context bindings and
+ * its reactive expressions.
+ */
+function templateImplementationParts(part: Node | undefined): Node[] {
+  const resolve = (node: Node, seen: Set<Node>): Node[] => {
+    if (seen.has(node)) return [];
+    seen.add(node);
+    if (isFunctionNode(node)) return [node];
+    if (Node.isVariableDeclaration(node)) {
+      const initializer = node.getInitializer();
+      return initializer ? resolve(initializer, seen) : [];
+    }
+    if (
+      Node.isCallExpression(node) &&
+      node.getExpression().getText() === 'craftTemplate'
+    ) {
+      const template = node.getArguments()[0];
+      return template ? resolve(template, seen) : [];
+    }
+    if (Node.isIdentifier(node)) {
+      return componentImplementationParts(node).flatMap((declaration) =>
+        resolve(declaration, seen),
+      );
+    }
+    return [];
+  };
+
+  return (part ? componentImplementationParts(part) : []).flatMap((node) =>
+    resolve(node, new Set()),
+  );
 }
 
 const NAMED_HTML_HELPERS = new Set([
@@ -2072,8 +2138,8 @@ export type ParsedHyperscript = {
 function collectInteractiveTemplateElements(builder: GraphBuilder): void {
   for (const component of builder.components) {
     const template = component.call.getArguments()[3];
-    if (!template) continue;
-    walkTemplate(template, (node) => {
+    for (const templatePart of templateImplementationParts(template))
+      walkTemplate(templatePart, (node) => {
       if (!Node.isCallExpression(node)) return;
       if (node.getExpression().getText() === 'craftComponent') return 'skip';
       const parsed = parseCraftHyperscript(node);
@@ -2099,7 +2165,7 @@ function collectInteractiveTemplateElements(builder: GraphBuilder): void {
       );
       addEdge(builder, component.node.id, element.id, 'contains', 'ast');
       return undefined;
-    });
+      });
   }
 }
 
@@ -2186,7 +2252,9 @@ function analyzePrimitiveInsertionMetadata(builder: GraphBuilder): void {
   }
   for (const component of builder.components) {
     const setup = component.call.getArguments()[2];
-    if (setup) scopes.push({ node: setup, ownerId: component.node.id });
+    for (const node of componentImplementationParts(setup)) {
+      scopes.push({ node, ownerId: component.node.id });
+    }
   }
   for (const { node, ownerId } of scopes) {
     for (const call of node.getDescendantsOfKind(SyntaxKind.CallExpression)) {
@@ -2243,7 +2311,9 @@ function analyzeInsertions(builder: GraphBuilder): void {
   }
   for (const component of builder.components) {
     const setup = component.call.getArguments()[2];
-    if (setup) scopes.push({ node: setup, ownerId: component.node.id });
+    for (const node of componentImplementationParts(setup)) {
+      scopes.push({ node, ownerId: component.node.id });
+    }
   }
   for (const { node, ownerId } of scopes) {
     for (const call of node.getDescendantsOfKind(SyntaxKind.CallExpression)) {
@@ -2272,21 +2342,22 @@ function addExposedPrimitiveMethodUsageEdges(
     bindingNodes.map((node) => symbolKey(node.getSymbol())).filter(Boolean),
   );
   const bindingNames = new Set(
-    bindingNodes.map((node) => node.getText()).concat(
-      typeof primitive.details?.['name'] === 'string'
-        ? [primitive.details['name']]
-        : [],
-    ),
+    bindingNodes
+      .map((node) => node.getText())
+      .concat(
+        typeof primitive.details?.['name'] === 'string'
+          ? [primitive.details['name']]
+          : [],
+      ),
   );
   const primitiveName =
     typeof primitive.details?.['name'] === 'string'
       ? primitive.details['name']
       : undefined;
   const namedPrimitiveCount = primitiveName
-      ? [...builder.nodes.values()].filter(
+    ? [...builder.nodes.values()].filter(
         (node) =>
-          node.kind === 'primitive' &&
-          node.details?.['name'] === primitiveName,
+          node.kind === 'primitive' && node.details?.['name'] === primitiveName,
       ).length
     : 0;
   const ownerId =
@@ -2304,9 +2375,7 @@ function addExposedPrimitiveMethodUsageEdges(
       const nestedMethod = chain?.at(-1);
       const isNamedNestedMethod =
         Boolean(primitiveName) &&
-        (!root ||
-          chain?.length !== 2 ||
-          namedPrimitiveCount === 1) &&
+        (!root || chain?.length !== 2 || namedPrimitiveCount === 1) &&
         methods.has(method) &&
         access.getText().endsWith(`${primitiveName}.${method}`);
       if (
@@ -2373,11 +2442,13 @@ function primitiveVariableDeclaration(
 function bindingIdentifierNodes(node: Node): import('ts-morph').Identifier[] {
   if (Node.isIdentifier(node)) return [node];
   if (Node.isObjectBindingPattern(node) || Node.isArrayBindingPattern(node)) {
-    return node.getElements().flatMap((element) =>
-      Node.isBindingElement(element)
-        ? bindingIdentifierNodes(element.getNameNode())
-        : [],
-    );
+    return node
+      .getElements()
+      .flatMap((element) =>
+        Node.isBindingElement(element)
+          ? bindingIdentifierNodes(element.getNameNode())
+          : [],
+      );
   }
   return [];
 }
@@ -2427,19 +2498,26 @@ function collectInsertionMethods(node: Node, methods: Set<string>): void {
 }
 
 function isInsertionCallback(
-  node: import('ts-morph').ArrowFunction | import('ts-morph').FunctionExpression,
+  node:
+    | import('ts-morph').ArrowFunction
+    | import('ts-morph').FunctionExpression,
 ): boolean {
   const parameter = node.getParameters()[0]?.getNameNode();
   if (!parameter || !Node.isObjectBindingPattern(parameter)) return false;
-  return parameter.getElements().some((element) =>
-    INSERTION_CONTEXT_KEYS.has(
-      element.getPropertyNameNode()?.getText() ?? element.getNameNode().getText(),
-    ),
-  );
+  return parameter
+    .getElements()
+    .some((element) =>
+      INSERTION_CONTEXT_KEYS.has(
+        element.getPropertyNameNode()?.getText() ??
+          element.getNameNode().getText(),
+      ),
+    );
 }
 
 function returnedObject(
-  node: import('ts-morph').ArrowFunction | import('ts-morph').FunctionExpression,
+  node:
+    | import('ts-morph').ArrowFunction
+    | import('ts-morph').FunctionExpression,
 ): import('ts-morph').ObjectLiteralExpression | undefined {
   let body = node.getBody();
   if (Node.isParenthesizedExpression(body)) body = body.getExpression();
@@ -2560,7 +2638,13 @@ function analyzeRoutes(builder: GraphBuilder): void {
           )) {
             const component = findComponentForExpression(builder, identifier);
             if (component) {
-              addEdge(builder, route.node.id, component.node.id, 'loads', 'ast');
+              addEdge(
+                builder,
+                route.node.id,
+                component.node.id,
+                'loads',
+                'ast',
+              );
             }
           }
         }
@@ -2573,7 +2657,10 @@ function analyzeRoutes(builder: GraphBuilder): void {
           builder.project,
         );
         if (!target) continue;
-        const exportNames = findDynamicImportExportNames(route.object, specifier);
+        const exportNames = findDynamicImportExportNames(
+          route.object,
+          specifier,
+        );
         for (const component of builder.components.filter(
           (candidate) =>
             candidate.node.filePath === target.getFilePath() &&
@@ -3189,9 +3276,7 @@ function isResourcePrimitive(call: CallExpression): boolean {
   );
 }
 
-function resourceParamsInitializer(
-  call: CallExpression,
-): Node | undefined {
+function resourceParamsInitializer(call: CallExpression): Node | undefined {
   for (const argument of call.getArguments()) {
     const object = argument.asKind(SyntaxKind.ObjectLiteralExpression);
     const property = object?.getProperty('params');
@@ -3253,7 +3338,8 @@ function localFunctionDeclaration(
     const initializer = declaration.getInitializer();
     if (
       initializer &&
-      (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))
+      (Node.isArrowFunction(initializer) ||
+        Node.isFunctionExpression(initializer))
     ) {
       return declaration;
     }
@@ -3268,7 +3354,8 @@ function functionDeclarationBody(
     return declaration.getBody() ?? declaration;
   }
   const initializer = declaration.getInitializer();
-  return Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer)
+  return Node.isArrowFunction(initializer) ||
+    Node.isFunctionExpression(initializer)
     ? initializer.getBody()
     : declaration;
 }
@@ -3901,7 +3988,9 @@ function isLikelyMethod(
   if (primitiveId) {
     if (
       leaf &&
-      readStringArray(builder.nodes.get(primitiveId)?.details?.['exposedMethods']).includes(leaf)
+      readStringArray(
+        builder.nodes.get(primitiveId)?.details?.['exposedMethods'],
+      ).includes(leaf)
     ) {
       return true;
     }
@@ -4507,6 +4596,12 @@ function getStaticExpressionText(node: Node | undefined): string | undefined {
   if (!node) return undefined;
   if (Node.isStringLiteral(node)) return node.getLiteralValue();
   if (Node.isNoSubstitutionTemplateLiteral(node)) return node.getLiteralValue();
+  if (Node.isTemplateExpression(node)) {
+    return `${node.getHead().getLiteralText()}${node
+      .getTemplateSpans()
+      .map((span) => `*${span.getLiteral().getLiteralText()}`)
+      .join('')}`;
+  }
   const text = node.getText().trim();
   return text.length > 0 ? text : undefined;
 }
@@ -4799,9 +4894,14 @@ function findDynamicImportExportNames(
   return undefined;
 }
 
-function extractDynamicImportExportNames(call: CallExpression): string[] | undefined {
+function extractDynamicImportExportNames(
+  call: CallExpression,
+): string[] | undefined {
   const callback = call.getArguments()[0];
-  if (!callback || (!Node.isArrowFunction(callback) && !Node.isFunctionExpression(callback))) {
+  if (
+    !callback ||
+    (!Node.isArrowFunction(callback) && !Node.isFunctionExpression(callback))
+  ) {
     return undefined;
   }
   const parameter = callback.getParameters()[0];
@@ -4810,11 +4910,13 @@ function extractDynamicImportExportNames(call: CallExpression): string[] | undef
 
   const bindingPattern = parameter.getNameNode();
   if (Node.isObjectBindingPattern(bindingPattern) && Node.isIdentifier(body)) {
-    const binding = bindingPattern.getElements().find(
-      (element) =>
-        Node.isBindingElement(element) &&
-        element.getNameNode().getText() === body.getText(),
-    );
+    const binding = bindingPattern
+      .getElements()
+      .find(
+        (element) =>
+          Node.isBindingElement(element) &&
+          element.getNameNode().getText() === body.getText(),
+      );
     if (binding && Node.isBindingElement(binding)) {
       return [binding.getPropertyNameNode()?.getText() ?? body.getText()];
     }
@@ -4860,7 +4962,6 @@ function resolveImportedSource(
     .map((candidate) => project.getSourceFile(candidate))
     .find((candidate): candidate is SourceFile => candidate !== undefined);
 }
-
 
 /* -------------------------------------------------------------------------
  * Stable identity
@@ -4957,7 +5058,9 @@ function stableFamilyKey(
       return `${owner}/${callee}:${getStringArgument(call, 0) ?? callee}`;
     }
     case 'component':
-      return callee === 'craftComponent' ? `${owner}/craftComponent` : undefined;
+      return callee === 'craftComponent'
+        ? `${owner}/craftComponent`
+        : undefined;
     case 'template-element': {
       const parsed = parseCraftHyperscript(call);
       if (!parsed || !isInteractiveElement(parsed)) return undefined;
@@ -5740,9 +5843,7 @@ function collectServerFunctionMiddlewares(
     // dépendance — mais le graphe garde de laquelle il s'agit : c'est ce qui
     // permet de vérifier qu'un exemple migré ne passe plus par `.use(...)`.
     const composed: readonly (readonly [string, 'use' | 'pipe'])[] = [
-      ...(server?.middlewareUses ?? []).map(
-        (used) => [used, 'use'] as const,
-      ),
+      ...(server?.middlewareUses ?? []).map((used) => [used, 'use'] as const),
       ...(server?.layerPipes ?? []).map((used) => [used, 'pipe'] as const),
     ];
     for (const [used, composition] of composed) {
@@ -6748,9 +6849,7 @@ function readCallSite(value: unknown): GraphCallSite {
       ? { filePath: site['filePath'] }
       : {}),
     ...(typeof site['line'] === 'number' ? { line: site['line'] } : {}),
-    ...(typeof site['offset'] === 'number'
-      ? { offset: site['offset'] }
-      : {}),
+    ...(typeof site['offset'] === 'number' ? { offset: site['offset'] } : {}),
   };
 }
 

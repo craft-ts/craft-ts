@@ -1,0 +1,89 @@
+{
+  "name": "craft-ts-style-review-app",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/style-testing/review-app/src",
+  "projectType": "application",
+  "tags": ["type:app", "scope:style-testing"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/style-testing/review-app",
+        "command": "tsc -p tsconfig.app.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.app.json",
+        "{projectRoot}/src/**/*.ts"
+      ],
+      "cache": true
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/style-testing/review-app",
+        "command": "eslint ."
+      },
+      "inputs": [
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/libs/dev-tools/src/eslint-rules/**/*.cjs",
+        "{projectRoot}/eslint.config.mjs",
+        "{projectRoot}/src/**/*.ts"
+      ],
+      "cache": true
+    },
+    "architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/style-testing/review-app",
+        "command": "npx vitest run --config vitest.architecture.config.ts"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/architecture/**/*.ts",
+        "{projectRoot}/tsconfig.graph.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{workspaceRoot}/libs/dev-tools/src/**/*.ts"
+      ],
+      "cache": true
+    },
+    "typecheck-architecture": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/style-testing/review-app",
+        "command": "tsc -p tsconfig.architecture.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/tsconfig.architecture.json",
+        "{projectRoot}/architecture/**/*.ts",
+        "{workspaceRoot}/libs/dev-tools/src/**/*.ts"
+      ],
+      "cache": true
+    },
+    "e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/style-testing/review-app",
+        "command": "npx playwright test --config playwright.config.ts"
+      },
+      "inputs": [
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/e2e/**/*.ts",
+        "{projectRoot}/playwright.config.ts",
+        "{workspaceRoot}/libs/style-testing/src/**/*.ts"
+      ],
+      "cache": true
+    },
+    "review": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run review:review-app",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

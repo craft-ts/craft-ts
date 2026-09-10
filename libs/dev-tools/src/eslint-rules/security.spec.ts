@@ -81,6 +81,20 @@ describe('craft-ts security rules', () => {
         ),
       ).toEqual([]);
     });
+
+    it('walks generator statements without following cyclic AST parents', async () => {
+      expect(
+        await lint(
+          `iframe('preview', {
+             src: function* () {
+               const value = yield* selectedUrl();
+               return value ? safeResourceUrl(value) : '/blank';
+             },
+           });`,
+          'no-raw-user-url',
+        ),
+      ).toEqual([]);
+    });
   });
 
   describe('no-unsafe-html', () => {

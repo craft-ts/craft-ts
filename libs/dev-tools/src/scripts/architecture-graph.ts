@@ -75,7 +75,11 @@ export type ArchitectureGraphView<
   edges<K extends DependencyGraphEdgeKind>(
     kind: K,
   ): DependencyGraphEdgeFor<K>[];
-  pathsBetween(fromId: string, toId: string, maxDepth?: number): ArchitectureGraphPath[];
+  pathsBetween(
+    fromId: string,
+    toId: string,
+    maxDepth?: number,
+  ): ArchitectureGraphPath[];
   proofs(edge: DependencyGraphEdge): DependencyGraphProof[];
   route(path: CatalogRoutes<C>, file?: string): ArchitectureNodeView<C>;
   service(name: CatalogServices<C>, file?: string): ArchitectureNodeView<C>;
@@ -148,7 +152,9 @@ export function graphHash(graph: DependencyGraph): string {
     .update(
       JSON.stringify({
         nodes: graph.nodes.map((node) => node.id),
-        edges: graph.edges.map((edge) => `${edge.from}:${edge.kind}:${edge.to}`),
+        edges: graph.edges.map(
+          (edge) => `${edge.from}:${edge.kind}:${edge.to}`,
+        ),
       }),
     )
     .digest('hex')
@@ -189,7 +195,9 @@ export function buildArchitectureCatalog(
     graph.nodes.filter((node) => node.kind === 'route').map(routePath),
   );
   const services = uniqueSorted(
-    graph.nodes.filter((node) => node.kind === 'service').map((node) => node.label),
+    graph.nodes
+      .filter((node) => node.kind === 'service')
+      .map((node) => node.label),
   );
   const components = uniqueSorted(
     graph.nodes
@@ -202,7 +210,9 @@ export function buildArchitectureCatalog(
       .map((node) => String(node.details?.['name'] ?? node.label)),
   );
   const sources = uniqueSorted(
-    graph.nodes.filter((node) => node.kind === 'source').map((node) => node.label),
+    graph.nodes
+      .filter((node) => node.kind === 'source')
+      .map((node) => node.label),
   );
   const serverFunctionFamilies = uniqueSorted(
     graph.nodes
@@ -216,7 +226,9 @@ export function buildArchitectureCatalog(
       url: String(node.details?.['url'] ?? ''),
     }))
     .sort((left, right) =>
-      `${left.method}:${left.url}`.localeCompare(`${right.method}:${right.url}`),
+      `${left.method}:${left.url}`.localeCompare(
+        `${right.method}:${right.url}`,
+      ),
     );
   const uniques = uniqueSorted(
     graph.nodes
@@ -246,7 +258,8 @@ export function buildArchitectureCatalog(
     }
     const provided = providedLabels(graph, nodesById, node.id);
     if (provided.length === 0) continue;
-    if (node.kind === 'route') routeProviders[routePath(node)] = uniqueSorted(provided);
+    if (node.kind === 'route')
+      routeProviders[routePath(node)] = uniqueSorted(provided);
     if (node.kind === 'component') {
       componentProviders[node.label] = uniqueSorted(provided);
     }
@@ -376,9 +389,9 @@ export function createArchitectureGraph<
         .map(wrap) as ArchitectureNodeView<C, typeof kind>[];
     },
     edges(kind) {
-      return graph.edges.filter((edge) => edge.kind === kind) as DependencyGraphEdgeFor<
-        typeof kind
-      >[];
+      return graph.edges.filter(
+        (edge) => edge.kind === kind,
+      ) as DependencyGraphEdgeFor<typeof kind>[];
     },
     pathsBetween(fromId, toId, maxDepth) {
       return dependencyGraphPathsBetween(graph, fromId, toId, maxDepth);
@@ -534,8 +547,7 @@ export function createArchitectureGraph<
         'unique',
         value,
         undefined,
-        (node) =>
-          node.label === value || node.details?.['canonical'] === value,
+        (node) => node.label === value || node.details?.['canonical'] === value,
       ) as ArchitectureNodeView<C, 'unique'>;
     },
     uniques() {
@@ -614,8 +626,12 @@ export function sensitiveOutputProtectionViolations(
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const violations: SensitiveOutputProtectionViolation[] = [];
 
-  for (const exposure of graph.edges.filter((edge) => edge.kind === 'exposes-data')) {
-    const classification = String(exposure.details?.['classification'] ?? 'unknown');
+  for (const exposure of graph.edges.filter(
+    (edge) => edge.kind === 'exposes-data',
+  )) {
+    const classification = String(
+      exposure.details?.['classification'] ?? 'unknown',
+    );
     if (allowed && !allowed.has(classification)) continue;
     const output = nodesById.get(exposure.to);
     if (!output || output.kind !== 'external-output') continue;
@@ -678,7 +694,8 @@ export function exclusiveLinkViolations(
   const exclusiveRight = exclusiveIds(ownership, right.id);
   const violations: ExclusiveLinkViolation[] = [];
   for (const edge of graph.edges) {
-    const fromLeft = exclusiveLeft.has(edge.from) && exclusiveRight.has(edge.to);
+    const fromLeft =
+      exclusiveLeft.has(edge.from) && exclusiveRight.has(edge.to);
     const fromRight =
       exclusiveRight.has(edge.from) && exclusiveLeft.has(edge.to);
     if (fromLeft || fromRight) {
@@ -754,9 +771,7 @@ export function assertCraftUnique(graph: DependencyGraph): void {
     violations
       .map((violation) => {
         const sites = violation.callSites
-          .map((site) =>
-            [site.filePath, site.line].filter(Boolean).join(':'),
-          )
+          .map((site) => [site.filePath, site.line].filter(Boolean).join(':'))
           .filter(Boolean)
           .join(', ');
         if (violation.kind === 'non-static') {
@@ -818,7 +833,9 @@ export function craftHandshakeViolations(
     violations.push({
       code: 'CRAFT_HANDSHAKE_MISSING_COUNTERPART',
       message: `CRAFT_HANDSHAKE_MISSING_COUNTERPART: handshake "${node.label}" has no ${missing} counterpart${
-        reached.length ? ` (only ${reached.join(', ')})` : ' (nothing references it)'
+        reached.length
+          ? ` (only ${reached.join(', ')})`
+          : ' (nothing references it)'
       }. A handshake exists to be honoured on both sides; one side alone means the other silently sends, or expects, nothing.`,
       name: String(node.label),
       filePath: relativeGraphPath(graph, node.filePath),
@@ -841,7 +858,9 @@ export function craftHandshakeViolations(
       message: `CRAFT_HANDSHAKE_DUPLICATE_NAME: handshake "${name}" is declared ${nodes.length} times (${nodes
         .map((candidate) => relativeGraphPath(graph, candidate.filePath) ?? '?')
         .sort()
-        .join(', ')}). A handshake is declared once and referenced from both sides; two declarations mean the two sides can agree on a name while sharing nothing.`,
+        .join(
+          ', ',
+        )}). A handshake is declared once and referenced from both sides; two declarations mean the two sides can agree on a name while sharing nothing.`,
       name,
       filePath: relativeGraphPath(graph, node.filePath),
       line: node.line,
@@ -916,7 +935,9 @@ export function routeDiProofViolations(
       );
     });
     const componentChecks = diChecks.filter(
-      (edge) => edge.details?.['target'] !== 'pending' && edge.details?.['target'] !== 'error',
+      (edge) =>
+        edge.details?.['target'] !== 'pending' &&
+        edge.details?.['target'] !== 'error',
     );
     if (node.details?.['hasComponent']) {
       if (componentChecks.length === 0) {
@@ -986,7 +1007,9 @@ export function routeDiProofViolations(
     if (!hasAssert) {
       violations.push({
         kind: 'missing-exception-assert',
-        label: String(representative.details?.['routesName'] ?? representative.label),
+        label: String(
+          representative.details?.['routesName'] ?? representative.label,
+        ),
         ...location(representative),
       });
     }
@@ -1010,7 +1033,10 @@ export function routeDiProofViolations(
         ...location(node),
       });
     }
-    if (node.details?.['hasRouteLoadError'] && !armedTarget('route-load-error')) {
+    if (
+      node.details?.['hasRouteLoadError'] &&
+      !armedTarget('route-load-error')
+    ) {
       violations.push({
         kind: 'missing-route-load-error-proof',
         label: String(node.details['routeLoadErrorComponent'] ?? node.label),
@@ -1115,16 +1141,16 @@ export function routeComponentFileViolations(
   const sharedFileViolations: RouteComponentFileViolation[] = [];
   for (const candidates of componentsByFile.values()) {
     const uniqueComponents = [
-      ...new Map(candidates.map((candidate) => [candidate.componentId, candidate])).values(),
+      ...new Map(
+        candidates.map((candidate) => [candidate.componentId, candidate]),
+      ).values(),
     ];
     if (uniqueComponents.length < 2) continue;
     const first = uniqueComponents[0];
     if (!first) continue;
     sharedFileViolations.push({
       kind: 'components-share-file',
-      route: uniqueComponents
-        .map((candidate) => candidate.route)
-        .join(', '),
+      route: uniqueComponents.map((candidate) => candidate.route).join(', '),
       component: uniqueComponents
         .map((candidate) => candidate.component)
         .join(', '),
@@ -1144,11 +1170,10 @@ export function assertRouteComponentsInSeparateFiles(
   if (violations.length === 0) return;
   throw new Error(
     violations
-      .map(
-        (violation) =>
-          violation.kind === 'components-share-file'
-            ? `Routes ${JSON.stringify(violation.route)} load multiple page components (${JSON.stringify(violation.component)}) from the same component file ${violation.componentFile}. Each routed page component must have its own file.`
-            : `Route ${JSON.stringify(violation.route)} loads component ${JSON.stringify(violation.component)} from the same file ${violation.routeFile}. Route definitions and page components must be in separate files.`,
+      .map((violation) =>
+        violation.kind === 'components-share-file'
+          ? `Routes ${JSON.stringify(violation.route)} load multiple page components (${JSON.stringify(violation.component)}) from the same component file ${violation.componentFile}. Each routed page component must have its own file.`
+          : `Route ${JSON.stringify(violation.route)} loads component ${JSON.stringify(violation.component)} from the same file ${violation.routeFile}. Route definitions and page components must be in separate files.`,
       )
       .join('\n'),
   );
@@ -1169,7 +1194,9 @@ export function httpEndpointUniqueViolations(
     .filter((node) => node.kind === 'http-endpoint')
     .flatMap((node): HttpEndpointUniqueViolation[] => {
       const callSites = Array.isArray(node.details?.['callSites'])
-        ? (node.details['callSites'] as HttpEndpointUniqueViolation['callSites'])
+        ? (node.details[
+            'callSites'
+          ] as HttpEndpointUniqueViolation['callSites'])
         : [];
       if (callSites.length <= 1) return [];
       return [
@@ -1184,6 +1211,160 @@ export function httpEndpointUniqueViolations(
     });
 }
 
+export type VisualHappyPathArchitectureConfig = {
+  readonly viewports: Readonly<
+    Record<string, { readonly width: number; readonly height: number }>
+  >;
+  readonly pages: readonly {
+    readonly id: string;
+    readonly route: string;
+    readonly url: string;
+    readonly component: string;
+    readonly mocks: {
+      readonly source: string;
+      readonly endpoints: readonly {
+        readonly method: string;
+        readonly url: string;
+        readonly mode: string;
+        readonly response?: { readonly kind?: string };
+      }[];
+    };
+  }[];
+};
+
+export type VisualHappyPathArchitectureViolation = {
+  readonly kind:
+    | 'missing-viewport'
+    | 'invalid-viewport'
+    | 'duplicate-page'
+    | 'unknown-component'
+    | 'missing-page'
+    | 'fixture-file'
+    | 'missing-http-mock'
+    | 'non-happy-http-mock';
+  readonly message: string;
+};
+
+const normalizedRoutePath = (path: string): string =>
+  path === '/' ? '' : path.replace(/^\//, '').replace(/\/$/, '');
+
+const configuredComponentExists = (
+  graph: DependencyGraph,
+  component: string,
+): boolean =>
+  graph.nodes.some((node) => {
+    if (node.kind !== 'component') return false;
+    if (node.id === component) return true;
+    const relativeFile = relativeGraphPath(graph, node.filePath);
+    return (
+      relativeFile !== undefined &&
+      component === `component:${relativeFile}:${node.label}`
+    );
+  });
+
+/**
+ * Checks the application-level contract behind the visual review overview.
+ *
+ * This intentionally consumes a plain structural value: dev-tools must not
+ * depend on style-testing, because style-testing already uses dev-tools for
+ * its review model.
+ */
+export function visualHappyPathArchitectureViolations(
+  graph: DependencyGraph,
+  config: VisualHappyPathArchitectureConfig,
+): VisualHappyPathArchitectureViolation[] {
+  const violations: VisualHappyPathArchitectureViolation[] = [];
+
+  for (const required of ['mobile', 'desktop']) {
+    if (!(required in config.viewports)) {
+      violations.push({
+        kind: 'missing-viewport',
+        message: `Visual happy paths must include the '${required}' viewport.`,
+      });
+    }
+  }
+  for (const [name, viewport] of Object.entries(config.viewports)) {
+    if (viewport.width <= 0 || viewport.height <= 0) {
+      violations.push({
+        kind: 'invalid-viewport',
+        message: `Visual viewport '${name}' must have a positive width and height.`,
+      });
+    }
+  }
+
+  const pageIds = new Set<string>();
+  const coveredRoutes = new Set<string>();
+  const mockedEndpoints = new Set<string>();
+  for (const page of config.pages) {
+    if (pageIds.has(page.id)) {
+      violations.push({
+        kind: 'duplicate-page',
+        message: `Visual happy-path page id '${page.id}' is declared more than once.`,
+      });
+    }
+    pageIds.add(page.id);
+    coveredRoutes.add(normalizedRoutePath(page.route));
+
+    if (!configuredComponentExists(graph, page.component)) {
+      violations.push({
+        kind: 'unknown-component',
+        message: `Visual happy-path page '${page.id}' points at unknown component '${page.component}'.`,
+      });
+    }
+    if (!page.mocks.source.endsWith('.happy-path.ts')) {
+      violations.push({
+        kind: 'fixture-file',
+        message: `Visual happy-path page '${page.id}' must keep its API dataset in a dedicated *.happy-path.ts file; received '${page.mocks.source}'.`,
+      });
+    }
+    for (const endpoint of page.mocks.endpoints) {
+      const key = `${endpoint.method.toUpperCase()} ${endpoint.url}`;
+      mockedEndpoints.add(key);
+      if (endpoint.mode !== 'mock' || endpoint.response?.kind !== 'success') {
+        violations.push({
+          kind: 'non-happy-http-mock',
+          message: `Visual happy-path page '${page.id}' must provide a successful mock for '${key}'.`,
+        });
+      }
+    }
+  }
+
+  for (const route of graph.nodes.filter(
+    (node) => node.kind === 'route' && node.details?.['hasComponent'] === true,
+  )) {
+    const path = normalizedRoutePath(String(route.details?.['path'] ?? ''));
+    if (!coveredRoutes.has(path)) {
+      violations.push({
+        kind: 'missing-page',
+        message: `Routed page '${path || '/'}' has no configured visual happy path.`,
+      });
+    }
+  }
+
+  for (const endpoint of graph.nodes.filter(
+    (node) => node.kind === 'http-endpoint',
+  )) {
+    const key = `${String(endpoint.details?.['method'] ?? '').toUpperCase()} ${String(endpoint.details?.['url'] ?? '')}`;
+    if (!mockedEndpoints.has(key)) {
+      violations.push({
+        kind: 'missing-http-mock',
+        message: `Craft HTTP endpoint '${key}' has no visual happy-path dataset.`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+export function assertVisualHappyPathArchitecture(
+  graph: DependencyGraph,
+  config: VisualHappyPathArchitectureConfig,
+): void {
+  const violations = visualHappyPathArchitectureViolations(graph, config);
+  if (violations.length === 0) return;
+  throw new Error(violations.map((violation) => violation.message).join('\n'));
+}
+
 export function assertHttpEndpointUnique(graph: DependencyGraph): void {
   const violations = httpEndpointUniqueViolations(graph);
   if (violations.length === 0) return;
@@ -1191,9 +1372,7 @@ export function assertHttpEndpointUnique(graph: DependencyGraph): void {
     violations
       .map((violation) => {
         const sites = violation.callSites
-          .map((site) =>
-            [site.filePath, site.line].filter(Boolean).join(':'),
-          )
+          .map((site) => [site.filePath, site.line].filter(Boolean).join(':'))
           .filter(Boolean)
           .join(', ');
         return `Duplicate HTTP ${violation.label} used twice${sites ? ` (${sites})` : ''}.`;
@@ -1257,8 +1436,7 @@ export function assertCraftComputedPure(graph: DependencyGraph): void {
         const site = [violation.filePath, violation.line]
           .filter(Boolean)
           .join(':');
-        const action =
-          violation.kind === 'writes' ? 'writes' : 'calls';
+        const action = violation.kind === 'writes' ? 'writes' : 'calls';
         return `craftComputed ${violation.label} ${action} ${violation.targetLabel}${site ? ` (${site})` : ''}.`;
       })
       .join('\n'),
@@ -1289,7 +1467,10 @@ export function primitiveMethodUsageViolations(
   >();
 
   for (const property of graph.nodes) {
-    if (property.kind !== 'property' || property.details?.['exposedMethod'] !== true) {
+    if (
+      property.kind !== 'property' ||
+      property.details?.['exposedMethod'] !== true
+    ) {
       continue;
     }
     const ownerEdge = graph.edges.find(
@@ -1332,12 +1513,14 @@ export function primitiveMethodUsageViolations(
         });
       const uniqueSites = uniquePrimitiveMethodCallSites(callSites);
       return uniqueSites.length > 1
-        ? [{
-            primitiveId: primitive.id,
-            primitiveLabel: primitive.label,
-            method,
-            callSites: uniqueSites,
-          }]
+        ? [
+            {
+              primitiveId: primitive.id,
+              primitiveLabel: primitive.label,
+              method,
+              callSites: uniqueSites,
+            },
+          ]
         : [];
     },
   );
@@ -1433,8 +1616,7 @@ function readPrimitiveMethodCallSites(
       typeof site['line'] === 'number'
       ? [
           {
-            ownerId:
-              typeof site['ownerId'] === 'string' ? site['ownerId'] : '',
+            ownerId: typeof site['ownerId'] === 'string' ? site['ownerId'] : '',
             filePath: site['filePath'],
             line: site['line'],
             ...(typeof site['offset'] === 'number'
@@ -1564,7 +1746,9 @@ export function assertNoAppConfigRouteCycles(graph: DependencyGraph): void {
   );
 }
 
-function uniqueByFile(nodes: readonly DependencyGraphNode[]): DependencyGraphNode[] {
+function uniqueByFile(
+  nodes: readonly DependencyGraphNode[],
+): DependencyGraphNode[] {
   const seen = new Set<string>();
   return nodes.filter((node) => {
     if (!node.filePath || seen.has(node.filePath)) return false;
@@ -1576,7 +1760,9 @@ function uniqueByFile(nodes: readonly DependencyGraphNode[]): DependencyGraphNod
 function importsFile(fromFile: string, targetFile: string): boolean {
   if (!existsSync(fromFile)) return false;
   const source = readFileSync(fromFile, 'utf8');
-  const specifiers = source.matchAll(/(?:from\s*|import\s*\(\s*)['"]([^'"]+)['"]/g);
+  const specifiers = source.matchAll(
+    /(?:from\s*|import\s*\(\s*)['"]([^'"]+)['"]/g,
+  );
   for (const match of specifiers) {
     const specifier = match[1];
     if (!specifier?.startsWith('.')) continue;
@@ -1585,7 +1771,10 @@ function importsFile(fromFile: string, targetFile: string): boolean {
   return false;
 }
 
-function resolveImport(fromFile: string, specifier: string): string | undefined {
+function resolveImport(
+  fromFile: string,
+  specifier: string,
+): string | undefined {
   const base = resolve(dirname(fromFile), specifier);
   const candidates = [
     base,
@@ -1655,9 +1844,7 @@ export function pathBoundaryViolations(
       const allowHit =
         allowed === undefined
           ? true
-          : allowed.some((pattern) =>
-              matchPathGlob(pattern, toPath, captures),
-            );
+          : allowed.some((pattern) => matchPathGlob(pattern, toPath, captures));
       const forbidHit =
         forbidden !== undefined &&
         forbidden.some((pattern) => matchPathGlob(pattern, toPath, captures));
@@ -1714,7 +1901,10 @@ export function mutationReactOnViolations(
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const allowed = new Set(options.allow ?? []);
   return graph.nodes.flatMap((node) => {
-    if (node.kind !== 'primitive' || node.details?.['primitive'] !== 'mutation') {
+    if (
+      node.kind !== 'primitive' ||
+      node.details?.['primitive'] !== 'mutation'
+    ) {
       return [];
     }
     const name = primitiveDisplayName(node);
@@ -1818,7 +2008,10 @@ export function insertSelectUniqueViolations(
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   const grouped = new Map<string, DependencyGraphNode[]>();
   for (const node of graph.nodes) {
-    if (node.kind !== 'primitive' || node.details?.['primitive'] !== 'insertSelect') {
+    if (
+      node.kind !== 'primitive' ||
+      node.details?.['primitive'] !== 'insertSelect'
+    ) {
       continue;
     }
     const parent = graph.edges.find(
@@ -1946,7 +2139,9 @@ export function primitiveLoaderRequirementViolations(
       const target = nodesById.get(edge.to);
       if (!target) return false;
       const context = { graph, primitive, target, edge };
-      return rule.requirements.some((requirement) => requirement.matches(context));
+      return rule.requirements.some((requirement) =>
+        requirement.matches(context),
+      );
     });
     if (satisfied) return [];
 
@@ -1975,7 +2170,8 @@ export function assertPrimitiveLoaderRequirements(
         const at = [violation.filePath, violation.line]
           .filter(Boolean)
           .join(':');
-        const requirements = violation.missing.join(' or ') || 'a qualifying dependency';
+        const requirements =
+          violation.missing.join(' or ') || 'a qualifying dependency';
         return `${violation.primitive} ${violation.label} loader must depend on ${requirements}${at ? ` (${at})` : ''}.`;
       })
       .join('\n'),
@@ -2130,7 +2326,10 @@ export function resourceParamsStateViolations(
         }
 
         for (const dependency of graph.edges) {
-          if (dependency.from !== current.id || dependency.kind !== 'depends-on') {
+          if (
+            dependency.from !== current.id ||
+            dependency.kind !== 'depends-on'
+          ) {
             continue;
           }
           const target = nodesById.get(dependency.to);
@@ -2193,10 +2392,7 @@ function statePrimitiveForNode(
   if (visited.has(nodeId)) return undefined;
   visited.add(nodeId);
   const node = nodesById.get(nodeId);
-  if (
-    node?.kind === 'primitive' &&
-    node.details?.['primitive'] === 'state'
-  ) {
+  if (node?.kind === 'primitive' && node.details?.['primitive'] === 'state') {
     return node;
   }
   if (node?.kind === 'property') {
@@ -2233,7 +2429,12 @@ function containingServiceForNode(
     if (edge.kind !== 'contains' || edge.to !== nodeId) continue;
     const owner = nodesById.get(edge.from);
     if (owner?.kind === 'service') return owner;
-    const service = containingServiceForNode(graph, edge.from, nodesById, visited);
+    const service = containingServiceForNode(
+      graph,
+      edge.from,
+      nodesById,
+      visited,
+    );
     if (service) return service;
   }
   return undefined;
@@ -2252,8 +2453,12 @@ function isAllowedResourceParamsState(
       return selector === name || selector === label || selector === state.id;
     }
     return (
-      (selector.name === name || selector.name === label || selector.name === state.id) &&
-      (selector.file === undefined || selector.file === file || selector.file === state.filePath)
+      (selector.name === name ||
+        selector.name === label ||
+        selector.name === state.id) &&
+      (selector.file === undefined ||
+        selector.file === file ||
+        selector.file === state.filePath)
     );
   });
 }
@@ -2263,7 +2468,10 @@ export function craftEffectNetworkViolations(
 ): CraftEffectNetworkViolation[] {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   return graph.nodes.flatMap((node) => {
-    if (node.kind !== 'primitive' || node.details?.['primitive'] !== 'craftEffect') {
+    if (
+      node.kind !== 'primitive' ||
+      node.details?.['primitive'] !== 'craftEffect'
+    ) {
       return [];
     }
     const violations: CraftEffectNetworkViolation[] = [];
@@ -2363,7 +2571,10 @@ export function craftEffectImperativeSyncViolations(
 ): CraftEffectImperativeSyncViolation[] {
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
   return graph.nodes.flatMap((node) => {
-    if (node.kind !== 'primitive' || node.details?.['primitive'] !== 'craftEffect') {
+    if (
+      node.kind !== 'primitive' ||
+      node.details?.['primitive'] !== 'craftEffect'
+    ) {
       return [];
     }
     const location = {
@@ -2427,7 +2638,8 @@ function primitiveDisplayName(node: DependencyGraphNode): string {
 }
 
 function propertyMemberName(node: DependencyGraphNode): string | undefined {
-  if (typeof node.details?.['member'] === 'string') return node.details['member'];
+  if (typeof node.details?.['member'] === 'string')
+    return node.details['member'];
   if (typeof node.details?.['property'] === 'string') {
     return node.details['property'];
   }
@@ -2473,7 +2685,10 @@ function isMutationTarget(
   nodesById: Map<string, DependencyGraphNode>,
   target: DependencyGraphNode,
 ): boolean {
-  if (target.kind === 'primitive' && target.details?.['primitive'] === 'mutation') {
+  if (
+    target.kind === 'primitive' &&
+    target.details?.['primitive'] === 'mutation'
+  ) {
     return true;
   }
   if (target.kind !== 'property') return false;
@@ -2608,10 +2823,11 @@ export type ServerFunctionArchitectureViolation = {
 export function serverFunctionArchitectureViolations(
   graph: DependencyGraph,
 ): ServerFunctionArchitectureViolation[] {
-  const parts = graph.nodes.filter((node) =>
-    node.kind === 'server-function-contract' ||
-    node.kind === 'server-function-client' ||
-    node.kind === 'server-function-server',
+  const parts = graph.nodes.filter(
+    (node) =>
+      node.kind === 'server-function-contract' ||
+      node.kind === 'server-function-client' ||
+      node.kind === 'server-function-server',
   );
   const families = new Map<string, DependencyGraphNode[]>();
   for (const node of parts) {
@@ -2636,7 +2852,9 @@ export function serverFunctionArchitectureViolations(
     });
   };
 
-  for (const node of graph.nodes.filter((node) => node.kind === 'server-function-misnamed')) {
+  for (const node of graph.nodes.filter(
+    (node) => node.kind === 'server-function-misnamed',
+  )) {
     violations.push({
       code: 'CRAFT_SERVER_FUNCTION_NAMING_CONVENTION_MISSING',
       message:
@@ -2661,7 +2879,9 @@ export function serverFunctionArchitectureViolations(
   }
   for (const [id, familyNames] of idFamilies) {
     if (familyNames.size < 2) continue;
-    const node = parts.find((candidate) => candidate.details?.['serverFunctionId'] === id);
+    const node = parts.find(
+      (candidate) => candidate.details?.['serverFunctionId'] === id,
+    );
     if (node) {
       add(
         'CRAFT_SERVER_FUNCTION_DUPLICATE_ID',
@@ -2672,9 +2892,15 @@ export function serverFunctionArchitectureViolations(
   }
 
   for (const [, familyParts] of families) {
-    const contract = familyParts.find((node) => node.kind === 'server-function-contract');
-    const client = familyParts.find((node) => node.kind === 'server-function-client');
-    const server = familyParts.find((node) => node.kind === 'server-function-server');
+    const contract = familyParts.find(
+      (node) => node.kind === 'server-function-contract',
+    );
+    const client = familyParts.find(
+      (node) => node.kind === 'server-function-client',
+    );
+    const server = familyParts.find(
+      (node) => node.kind === 'server-function-server',
+    );
     const familyNode = graph.nodes.find(
       (node) =>
         node.kind === 'server-function-family' &&
@@ -2730,14 +2956,23 @@ export function serverFunctionArchitectureViolations(
         contract,
       );
     }
-    if (contract && server && id !== undefined && server.details?.['serverFunctionId'] !== id) {
+    if (
+      contract &&
+      server &&
+      id !== undefined &&
+      server.details?.['serverFunctionId'] !== id
+    ) {
       add(
         'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
         `server implementation id does not match contract id "${id}".`,
         server,
       );
     }
-    if (client && contract && client.details?.['contractFamily'] !== client.details?.['family']) {
+    if (
+      client &&
+      contract &&
+      client.details?.['contractFamily'] !== client.details?.['family']
+    ) {
       add(
         'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
         'client facade does not use the contract from its own family.',
@@ -2748,7 +2983,8 @@ export function serverFunctionArchitectureViolations(
       server &&
       contract &&
       (server.details?.['contractFamily'] !== server.details?.['family'] ||
-        (exposure === 'client' && server.details?.['contractFamily'] === undefined))
+        (exposure === 'client' &&
+          server.details?.['contractFamily'] === undefined))
     ) {
       add(
         'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
@@ -2763,7 +2999,11 @@ export function serverFunctionArchitectureViolations(
         contract,
       );
     }
-    if (client && contract && client.details?.['contractFamily'] === undefined) {
+    if (
+      client &&
+      contract &&
+      client.details?.['contractFamily'] === undefined
+    ) {
       add(
         'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
         'client facade must use the contract from its own family.',
@@ -2778,10 +3018,7 @@ export function serverFunctionArchitectureViolations(
           client,
         );
       }
-      if (
-        id !== undefined &&
-        server.details?.['serverFunctionId'] !== id
-      ) {
+      if (id !== undefined && server.details?.['serverFunctionId'] !== id) {
         add(
           'CRAFT_SERVER_FUNCTION_CONTRACT_MISMATCH',
           `client facade id does not match server implementation id "${server.details?.['serverFunctionId'] ?? ''}".`,
@@ -2886,7 +3123,11 @@ function familyHandshakeViolations(
     for (const node of graph.nodes) {
       if (node.kind !== 'client-function-middleware') continue;
       if (relativeGraphPath(graph, node.filePath) !== file) continue;
-      for (const reached of reachableFiles(graph, node, 'client-middleware-uses')) {
+      for (const reached of reachableFiles(
+        graph,
+        node,
+        'client-middleware-uses',
+      )) {
         clientFiles.add(reached);
       }
     }
@@ -2898,7 +3139,9 @@ function familyHandshakeViolations(
     node: DependencyGraphNode;
   }[] = [];
 
-  for (const handshake of graph.nodes.filter((node) => node.kind === 'handshake')) {
+  for (const handshake of graph.nodes.filter(
+    (node) => node.kind === 'handshake',
+  )) {
     const name = handshake.details?.['handshakeName'];
     if (typeof name !== 'string') continue;
     const declaredBy = sitesOf(handshake, 'serverSites');
@@ -2995,7 +3238,9 @@ function serverFunctionMiddlewareViolations(
       message: `CRAFT_SERVER_FUNCTION_MIDDLEWARE_DUPLICATE_ID: middleware id "${id}" is declared ${nodes.length} times (${nodes
         .map((candidate) => relativeGraphPath(graph, candidate.filePath) ?? '?')
         .sort()
-        .join(', ')}). The registry deduplicates by id, so two implementations sharing one id would type-check and run wrong.`,
+        .join(
+          ', ',
+        )}). The registry deduplicates by id, so two implementations sharing one id would type-check and run wrong.`,
       family: id,
       filePath: relativeGraphPath(graph, node.filePath),
       line: node.line,
@@ -3075,7 +3320,9 @@ function clientFunctionMiddlewareViolations(
       message: `CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_DUPLICATE_ID: client middleware id "${id}" is declared ${nodes.length} times (${nodes
         .map((candidate) => relativeGraphPath(graph, candidate.filePath) ?? '?')
         .sort()
-        .join(', ')}). The chain deduplicates by id, so two implementations sharing one id would type-check and run wrong.`,
+        .join(
+          ', ',
+        )}). The chain deduplicates by id, so two implementations sharing one id would type-check and run wrong.`,
       family: id,
       filePath: relativeGraphPath(graph, node.filePath),
       line: node.line,
@@ -3111,7 +3358,9 @@ function clientFunctionMiddlewareViolations(
       code: 'CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_IMPORTED_BY_SERVER',
       message: `CRAFT_SERVER_FUNCTION_CLIENT_MIDDLEWARE_IMPORTED_BY_SERVER: a server module imports client middleware at runtime (${imported.join(', ')}). A client middleware only declares what the browser sends; the server must revalidate it through its own schema, never run it.`,
       family: String(
-        node.details?.['middlewareId'] ?? node.details?.['family'] ?? node.label,
+        node.details?.['middlewareId'] ??
+          node.details?.['family'] ??
+          node.label,
       ),
       filePath: relativeGraphPath(graph, node.filePath),
       line: node.line,
@@ -3125,7 +3374,9 @@ function clientFunctionMiddlewareViolations(
       code: 'CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_UNUSED',
       message: `CRAFT_SERVER_FUNCTION_CLIENT_CONTEXT_UNUSED: client middleware "${node.details?.['middlewareId'] ?? node.label}" publishes ${unused
         .map((key) => `"${String(key)}"`)
-        .join(', ')}, and no server module reads any of them through context.clientContext. This is a heuristic — a read behind an alias is invisible to it — but a context nobody reads is usually a leftover.`,
+        .join(
+          ', ',
+        )}, and no server module reads any of them through context.clientContext. This is a heuristic — a read behind an alias is invisible to it — but a context nobody reads is usually a leftover.`,
       family: String(node.details?.['middlewareId'] ?? node.label),
       filePath: relativeGraphPath(graph, node.filePath),
       line: node.line,
@@ -3371,7 +3622,9 @@ function graphOf(
 ): DependencyGraph {
   const graph = graphByNode.get(node);
   if (!graph) {
-    throw new Error('Architecture nodes must come from createArchitectureGraph().');
+    throw new Error(
+      'Architecture nodes must come from createArchitectureGraph().',
+    );
   }
   return graph;
 }
@@ -3496,9 +3749,7 @@ function nodeMatches(
 ): boolean {
   if (kind === 'route') return routePath(node) === name;
   if (kind === 'unique') {
-    return (
-      node.label === name || node.details?.['canonical'] === name
-    );
+    return node.label === name || node.details?.['canonical'] === name;
   }
   if (kind === 'primitive') {
     return (

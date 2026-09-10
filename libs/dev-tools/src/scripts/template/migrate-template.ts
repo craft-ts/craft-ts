@@ -270,11 +270,13 @@ function decodeEntities(value: string): string {
 
 class HtmlSnippetParser {
   private index = 0;
+  private readonly source: string;
+  private readonly diagnostics: TemplateMigrationDiagnostic[];
 
-  constructor(
-    private readonly source: string,
-    private readonly diagnostics: TemplateMigrationDiagnostic[],
-  ) {}
+  constructor(source: string, diagnostics: TemplateMigrationDiagnostic[]) {
+    this.source = source;
+    this.diagnostics = diagnostics;
+  }
 
   parse(): HtmlNode[] {
     return this.parseNodes();

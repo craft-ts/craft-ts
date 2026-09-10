@@ -11,12 +11,12 @@ runtime behaviour.
 
 ## Choose the right kind of test
 
-| If you want to verify… | Use… | Example |
-| --- | --- | --- |
-| one unit computes the right result | [service tests](/guide/testing/services) | a service returns the expected value |
-| one component renders and reacts correctly | [component tests](/guide/testing/components) | a button disables after a click |
-| two parts of the app are allowed to depend on each other | architecture tests | `checkout` must not depend on `admin` |
-| a complete user journey works in a browser | `e2e/` tests | a user can create and then see a task |
+| If you want to verify…                                   | Use…                                         | Example                               |
+| -------------------------------------------------------- | -------------------------------------------- | ------------------------------------- |
+| one unit computes the right result                       | [service tests](/guide/testing/services)     | a service returns the expected value  |
+| one component renders and reacts correctly               | [component tests](/guide/testing/components) | a button disables after a click       |
+| two parts of the app are allowed to depend on each other | architecture tests                           | `checkout` must not depend on `admin` |
+| a complete user journey works in a browser               | `e2e/` tests                                 | a user can create and then see a task |
 
 Use an architecture rule when the requirement sounds like one of these:
 
@@ -99,6 +99,97 @@ the route proof blocks. Architecture tests catch **graph-wide** slips those
 rules cannot see: a feature leaking into another, an endpoint called from two
 APIs, a duplicate storage key, a route or `app.config` error screen whose DI
 proof was never armed. See [ESLint rules](/guide/routing/eslint-rules).
+
+## The graph vocabulary
+
+Think of the graph as a typed inventory of architectural facts, not as a
+second runtime. A **node** is a thing the architecture can name; an **edge** is
+an observed relationship between two nodes. The graph is intentionally more
+fine-grained than a project graph: one app can contain many services,
+components, primitives and HTTP endpoints.
+
+### Node families
+
+Not every application produces every kind of node. The built-in vocabulary is
+grouped below by the questions it helps answer:
+
+| Family | Node kinds | What they represent |
+| --- | --- | --- |
+| Application structure | `route`, `route-hook`, `route-check`, `app-config`, `component`, `service` | Navigation, route-level checks, application configuration, UI entry points and injectable units. |
+| Reactive structure | `primitive`, `property`, `source`, `template-element` | A `state`, `query`, `mutation`, `craftComputed`, `craftEffect`, `craftMethod`, `queryParams`, or an exposed member/source/template element. A primitive's `details.name` keeps its concrete primitive name. |
+| Boundaries and identities | `http-endpoint`, `unique` | A verb + URL boundary and a canonical `craftUnique` identity, such as a persisted query key. |
+| Server functions | `server-function-family`, `server-function-contract`, `server-function-client`, `server-function-server`, `server-function-misnamed`, `server-function-middleware`, `server-function-middleware-misnamed`, `client-function-middleware`, `client-function-middleware-misnamed` | The client/server contract, implementation, middleware and naming checks around server functions. |
+| Protocol and extensions | `handshake`, plus adapter/contributed kinds such as `effect-service`, `effect-operation`, `effect-layer`, `data-classification`, and `external-output` | Protocol facts or backend concepts. Effect and data-flow extensions are still queried through the same graph API. |
+
+For example, a page can be represented as these facts: a `route` **loads** a
+`component`; the component **contains** a `query`; a `service` **calls** the
+`GET users` `http-endpoint`; a consumer service **depends-on** a browser
+boundary; and a `mutation` **triggers** a query. These are independent,
+typed relations that a rule can inspect directly.
+
+The labels are deliberately semantic. A rule can ask “which service calls this
+endpoint?” or “which mutation triggers this query?” without matching file text
+or reconstructing the dependency tree itself.
+
+### Edge families
+
+The built-in edge kinds describe different types of fact; they should not all
+be treated as interchangeable dependency arrows:
+
+| Edge kinds | Meaning | Typical architecture question |
+| --- | --- | --- |
+| `loads`, `renders`, `contains`, `provides` | Structural ownership or composition | Which component does a route load? Which service is provided by a route or component? |
+| `depends-on`, `calls` | A unit reaches another unit or invokes a boundary/method | Can this feature depend on that feature? Who calls HTTP or a mutation? |
+| `reads`, `writes`, `subscribes`, `triggers` | Data-flow and reactive behaviour | Is a computed pure? Does a mutation refresh a query? |
+| `checks`, `uses-property` | Proof and member-level usage | Is a route DI proof armed? Which service member is actually selected? |
+| Extension relations | Backend-specific facts, for example `requires-service`, `provided-by-layer`, `composes-layer`, `exposes-data`, `flows-data` | Is an Effect service supplied by a Layer? Can a classified value reach an external output? |
+
+The direction matters: `from --kind--> to` is the fact asserted by the
+analyzer. A `depends-on` edge is therefore different from a `provides` edge,
+and a structural `contains` edge should not be mistaken for a runtime cycle.
+This is why `assertNoDependencyCycles` follows `depends-on` rather than every
+edge in the graph.
+
+### What the graph is based on
+
+The analyzer works from the TypeScript program selected by the analysis
+`tsconfig`:
+
+- **AST evidence** records syntax that is visible in the source: a route
+  loading a component, a component rendering an element, or a service calling
+  an HTTP client.
+- **Type evidence** records relationships resolved through TypeScript: an
+  injected/yielded service, a provider, or a route proof connected to its
+  target.
+- **Source proofs** keep the file, line, symbol and pattern that explain an
+  edge when the analyzer has one. `graph.proofs(edge)` exposes them, so a
+  failing rule can point back to the declaration that created the fact.
+
+The result is static and deterministic: architecture tests do not boot the
+application, instantiate services, make HTTP requests or observe user
+behaviour. They prove that the source still has an allowed shape. Runtime
+behaviour belongs in [service tests](/guide/testing/services), [component
+tests](/guide/testing/components) and e2e tests.
+
+### Choosing the granularity of a rule
+
+Start at the smallest graph level that expresses the invariant, then widen only
+when the invariant is genuinely architectural:
+
+| Granularity | Example assertion | Best for |
+| --- | --- | --- |
+| Node property | every `unique` is static; every interactive element has a name | Presence, identity and declaration rules |
+| Direct edge | a `mutation` has a `triggers` edge to a query | Required relationships and ownership |
+| Neighbourhood | a service calling HTTP is a `browserBoundary` | Local boundary policies |
+| Path or subgraph | no exclusive path links `admin` and `checkout`; no `depends-on` cycle | Feature isolation, reachability and cycles |
+| Whole graph | every endpoint is unique; every route has its DI proof | Global invariants and completeness |
+
+The public API mirrors those levels: use `graph.nodes(kind)` and
+`graph.edges(kind)` for typed collections, `node.incoming()` / `node.outgoing()`
+for neighbourhoods, and `graph.pathsBetween()` when the rule is about
+reachability. Built-in `assert*` helpers package recurring whole-graph checks;
+custom rules should state the product or team invariant before describing the
+traversal.
 
 ## Setting it up
 
@@ -279,18 +370,18 @@ graph.dependingOnBrowserBoundary();
 graph.craftMethods();
 ```
 
-| Lookup                         | Returns                                              |
-| ------------------------------ | ---------------------------------------------------- |
-| `route(path, file?)`           | one route node                                       |
-| `service(name, file?)`         | one service node                                     |
-| `component(name, file?)`       | one component node                                   |
-| `providedOn(name)`             | every node that `provides` that service              |
-| `httpEndpoint(method, url)`    | one HTTP endpoint                                    |
-| `unique(canonicalJson)`        | one `craftUnique` identity                           |
-| `services({ browserBoundary, scope })` | filtered services                          |
-| `usingHttp()`                  | nodes that call `CraftHttpClient`                    |
-| `dependingOnBrowserBoundary()` | nodes that depend on a `browserBoundary` service     |
-| `uniques()` / `httpEndpoints()` / `craftMethods()` | all nodes of that kind            |
+| Lookup                                             | Returns                                          |
+| -------------------------------------------------- | ------------------------------------------------ |
+| `route(path, file?)`                               | one route node                                   |
+| `service(name, file?)`                             | one service node                                 |
+| `component(name, file?)`                           | one component node                               |
+| `providedOn(name)`                                 | every node that `provides` that service          |
+| `httpEndpoint(method, url)`                        | one HTTP endpoint                                |
+| `unique(canonicalJson)`                            | one `craftUnique` identity                       |
+| `services({ browserBoundary, scope })`             | filtered services                                |
+| `usingHttp()`                                      | nodes that call `CraftHttpClient`                |
+| `dependingOnBrowserBoundary()`                     | nodes that depend on a `browserBoundary` service |
+| `uniques()` / `httpEndpoints()` / `craftMethods()` | all nodes of that kind                           |
 
 Each node exposes `providers()`, `provider(name)`, `outgoing(kind?)`,
 `incoming(kind?)` and `httpEndpoints()`. Edge kinds include `depends-on`,
@@ -317,28 +408,29 @@ prevents and the smallest useful test. Start with the [declarative
 baseline](/guide/testing/architecture/declarative-baseline), then add the
 rules that express your application's boundaries.
 
-| Helper | Fails when |
-| --- | --- |
-| [`assertCraftUnique`](/guide/testing/architecture/unique-identities) | the same `craftUnique` identity appears twice, or the argument is not a static literal |
-| [`assertHttpEndpointUnique`](/guide/testing/architecture/http-endpoint-ownership) | the same HTTP verb+URL is called from more than one site |
-| [`assertCraftComputedPure`](/guide/testing/architecture/computed-purity) | a `craftComputed` `calls` a method or `writes` a `source$` |
-| [`assertPrimitiveMethodsUsedOnce`](/guide/testing/architecture/primitive-method-usage) | an exposed primitive insertion method is used from more than one call site |
-| [`assertNoUnusedPrimitiveMethods`](/guide/testing/architecture/unused-primitive-method) | an exposed primitive insertion method has no call site anywhere in the project |
-| [`assertNoDependencyCycles`](/guide/testing/architecture/dependency-cycles) | a directed cycle exists on `depends-on` (services, components, computeds) |
-| [`assertMutationHasReactOn`](/guide/testing/architecture/mutation-reactions) | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations) |
-| [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline) | any of the baseline checks fail |
-| [`assertRouteDiProofs`](/guide/testing/architecture/route-di-proofs) | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
-| [`assertRouteComponentsInSeparateFiles`](/guide/testing/architecture/route-component-files) | a route loads its page component from the routing file, or multiple routed page components share one component file |
-| [`assertPathBoundaries`](/guide/testing/architecture/path-boundaries) | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist |
-| [`noExclusiveLink(a, b)`](/guide/testing/architecture/exclusive-links) | the only path between two branches is a leak, not a shared kernel |
-| [`assertPersistedPrimitiveHasUnique`](/guide/testing/architecture/persisted-identities) | `insertStoragePersister` is used without wrapping the identity in `craftUnique` |
-| [`assertInsertSelectUnique`](/guide/testing/architecture/insert-select-keys) | the same `insertSelect` key appears twice on one host primitive |
-| [`assertCraftEffectNoNetwork`](/guide/testing/architecture/craft-effect-network) | a `craftEffect` `calls` HTTP or a `mutation` |
-| [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture/craft-effect-imperative-sync) | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess` |
-| [`assertInteractiveElementNamed`](/guide/testing/architecture/interactive-element-names) | an interactive element lacks a literal name or duplicates a `data-craft-name` |
-| [`assertQueryMutationHasServerState`](/guide/testing/architecture/server-state-loader) | a `query` or `mutation` does not reach an allowed server-state boundary |
-| [`assertPrimitiveLoaderRequirements`](/guide/testing/architecture/primitive-loader-requirements) | an Effect-aware primitive does not declare an allowed dependency boundary |
-| [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state) | a `query` or `asyncProcess` params graph depends on a `state` instead of URL-backed `queryParams` |
+| Helper                                                                                             | Fails when                                                                                                                                                                                                                                             |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`assertCraftUnique`](/guide/testing/architecture/unique-identities)                               | the same `craftUnique` identity appears twice, or the argument is not a static literal                                                                                                                                                                 |
+| [`assertHttpEndpointUnique`](/guide/testing/architecture/http-endpoint-ownership)                  | the same HTTP verb+URL is called from more than one site                                                                                                                                                                                               |
+| `assertVisualHappyPathArchitecture`                                                                | a routed page, mobile/desktop viewport, or Craft HTTP endpoint has no successful visual happy-path fixture                                                                                                                                             |
+| [`assertCraftComputedPure`](/guide/testing/architecture/computed-purity)                           | a `craftComputed` `calls` a method or `writes` a `source$`                                                                                                                                                                                             |
+| [`assertPrimitiveMethodsUsedOnce`](/guide/testing/architecture/primitive-method-usage)             | an exposed primitive insertion method is used from more than one call site                                                                                                                                                                             |
+| [`assertNoUnusedPrimitiveMethods`](/guide/testing/architecture/unused-primitive-method)            | an exposed primitive insertion method has no call site anywhere in the project                                                                                                                                                                         |
+| [`assertNoDependencyCycles`](/guide/testing/architecture/dependency-cycles)                        | a directed cycle exists on `depends-on` (services, components, computeds)                                                                                                                                                                              |
+| [`assertMutationHasReactOn`](/guide/testing/architecture/mutation-reactions)                       | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations)                                                                                                                                                 |
+| [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline)                | any of the baseline checks fail                                                                                                                                                                                                                        |
+| [`assertRouteDiProofs`](/guide/testing/architecture/route-di-proofs)                               | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
+| [`assertRouteComponentsInSeparateFiles`](/guide/testing/architecture/route-component-files)        | a route loads its page component from the routing file, or multiple routed page components share one component file                                                                                                                                    |
+| [`assertPathBoundaries`](/guide/testing/architecture/path-boundaries)                              | a `depends-on` (or opted-in `calls`) crosses a folder allowlist / denylist                                                                                                                                                                             |
+| [`noExclusiveLink(a, b)`](/guide/testing/architecture/exclusive-links)                             | the only path between two branches is a leak, not a shared kernel                                                                                                                                                                                      |
+| [`assertPersistedPrimitiveHasUnique`](/guide/testing/architecture/persisted-identities)            | `insertStoragePersister` is used without wrapping the identity in `craftUnique`                                                                                                                                                                        |
+| [`assertInsertSelectUnique`](/guide/testing/architecture/insert-select-keys)                       | the same `insertSelect` key appears twice on one host primitive                                                                                                                                                                                        |
+| [`assertCraftEffectNoNetwork`](/guide/testing/architecture/craft-effect-network)                   | a `craftEffect` `calls` HTTP or a `mutation`                                                                                                                                                                                                           |
+| [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture/craft-effect-imperative-sync)    | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess`                                                                                                                                                       |
+| [`assertInteractiveElementNamed`](/guide/testing/architecture/interactive-element-names)           | an interactive element lacks a literal name or duplicates a `data-craft-name`                                                                                                                                                                          |
+| [`assertQueryMutationHasServerState`](/guide/testing/architecture/server-state-loader)             | a `query` or `mutation` does not reach an allowed server-state boundary                                                                                                                                                                                |
+| [`assertPrimitiveLoaderRequirements`](/guide/testing/architecture/primitive-loader-requirements)   | an Effect-aware primitive does not declare an allowed dependency boundary                                                                                                                                                                              |
+| [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state) | a `query` or `asyncProcess` params graph depends on a `state` instead of URL-backed `queryParams`                                                                                                                                                      |
 
 ### `noExclusiveLink`
 
@@ -433,6 +525,29 @@ it('owns each HTTP endpoint once', () => {
 
 This is the graph-wide counterpart of `craftUnique`. Wrapping `CraftHttpClient`
 in `craftUnique` is not required: the identity is the verb+URL.
+
+### `assertVisualHappyPathArchitecture`
+
+The visual overview contract connects routed pages, the default mobile and
+desktop viewports, and deterministic API datasets. It consumes the config
+created with `defineVisualAppConfig` and fails if a routed page is absent, a
+configured component is unknown, or any `CraftHttpClient` /
+`CraftBinaryHttpClient` endpoint lacks a successful mock in a dedicated
+`*.happy-path.ts` file.
+
+```typescript
+import { assertVisualHappyPathArchitecture } from '@craft-ts/dev-tools';
+import { visualTestConfig } from '../../e2e/visual-test.config';
+
+it('covers every page and HTTP endpoint in the visual happy path', () => {
+  assertVisualHappyPathArchitecture(graph.graph, visualTestConfig);
+});
+```
+
+The assertion is separate from `assertDeclarativeArchitecture` because it
+needs the application's visual config. Dynamic URL segments are represented by
+`*`, so a template URL such as `` `/api/users/${id}` `` is indexed as
+`/api/users/*` and uses the same key in its fixture.
 
 ### `assertCraftComputedPure`
 
@@ -538,7 +653,7 @@ it('requires a query to react to each mutation', () => {
 ### `assertPersistedPrimitiveHasUnique`
 
 `assertCraftUnique` says an identity appears once. This helper says a persisted
-primitive *has* an identity: `insertStoragePersister` / `insertLocalStoragePersister`
+primitive _has_ an identity: `insertStoragePersister` / `insertLocalStoragePersister`
 must take `craftUnique(...)`. A raw `{ key, storeName }` indexes the primitive
 as persisted and fails here.
 
@@ -656,9 +771,9 @@ it('only browser-boundary services call HTTP', () => {
 
 ```typescript
 it('looks up a persisted unique identity', () => {
-  expect(
-    graph.unique('{"key":"user-query","storeName":"demo-app"}').kind,
-  ).toBe('unique');
+  expect(graph.unique('{"key":"user-query","storeName":"demo-app"}').kind).toBe(
+    'unique',
+  );
 });
 ```
 
@@ -684,13 +799,13 @@ npx craft-graph \
   --format all
 ```
 
-| `--format` | Writes                                                              |
-| ---------- | ------------------------------------------------------------------- |
-| `json`     | the raw graph + a `.architecture.ts` catalog                        |
-| `mermaid`  | a `.mmd` diagram                                                    |
-| `html`     | a standalone explorer (no server, no runtime)                       |
-| `both`     | JSON + catalog + Mermaid                                            |
-| `all`      | JSON + catalog + Mermaid + HTML                                     |
+| `--format` | Writes                                        |
+| ---------- | --------------------------------------------- |
+| `json`     | the raw graph + a `.architecture.ts` catalog  |
+| `mermaid`  | a `.mmd` diagram                              |
+| `html`     | a standalone explorer (no server, no runtime) |
+| `both`     | JSON + catalog + Mermaid                      |
+| `all`      | JSON + catalog + Mermaid + HTML               |
 
 `--include <text>` restricts analysis to matching source paths. Use the HTML
 explorer to see a route expand into components and services before you write

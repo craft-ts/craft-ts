@@ -41,6 +41,13 @@ Computed or dynamic accesses that cannot be addressed are printed as
 `template-obligation-unresolved` diagnostics. They are known extraction gaps;
 they are never silently treated as if the template made no promise.
 
+The derived obligation keeps two presentation forms. Its `statement` is a
+canonical English sentence and remains available in the API, CLI and agency
+handoffs. The review application uses the accompanying structured statement
+parts to render that same promise in the selected language. Neither form is
+part of the attested evidence hash, so wording changes do not invalidate a
+decision.
+
 ## What `renewed` means
 
 Every obligation has two independent keys:

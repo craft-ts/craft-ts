@@ -8,6 +8,12 @@ import {
 
 export type TemplateObligationDirection = 'render' | 'command';
 
+export interface TemplateObligationCondition {
+  readonly kind: 'if' | 'for';
+  readonly name: string;
+  readonly expectation: 'true' | 'false' | 'non-empty' | 'empty';
+}
+
 /** Data-only boundary: this package deliberately knows nothing about ts-morph. */
 export interface TemplateObligationInput {
   readonly subject: string;
@@ -17,7 +23,16 @@ export interface TemplateObligationInput {
   readonly targetKind: string;
   readonly element?: string;
   readonly elementName?: string;
+  readonly conditions?: readonly TemplateObligationCondition[];
   readonly statement: string;
+  /** Presentation-only ingredients for localized review rendering. */
+  readonly statementParts?: {
+    readonly direction: TemplateObligationDirection;
+    readonly component: string;
+    readonly target: string;
+    readonly element?: string;
+    readonly elementName?: string;
+  };
 }
 
 /** Stable proof behind a template attestation; presentation prose is excluded. */

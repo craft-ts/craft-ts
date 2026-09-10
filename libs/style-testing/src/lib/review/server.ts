@@ -15,6 +15,12 @@ import type {
   RemovalReviewCard,
   TemplateReviewCard,
 } from '@craft-ts/dev-tools/attestation-review';
+import {
+  reviewIterationPaths,
+  writeReviewIterationHandoff,
+  type ReviewIterationOptions,
+  type ReviewIterationResult,
+} from './handoff.js';
 
 export type AttestationReviewCard =
   | ReviewCard
@@ -39,6 +45,16 @@ export interface ReviewDecisionRequest {
   readonly degraded?: boolean;
 }
 
+export interface ReviewSessionDecision {
+  readonly card: AttestationReviewCard;
+  readonly decision: ReviewDecisionRequest;
+}
+
+export interface ReviewDecisionReopenRequest {
+  readonly shape: string;
+  readonly id?: string;
+}
+
 export interface ReviewApiQueue {
   readonly items: number;
   readonly decisions: number;
@@ -47,6 +63,32 @@ export interface ReviewApiQueue {
   readonly visualTests: AttestationDevtoolModel['visualTests'];
   readonly templateObligations: AttestationDevtoolModel['templateObligations'];
   readonly diagnostics: AttestationDevtoolModel['diagnostics'];
+  /** Decisions accepted during this review session, in acceptance order. */
+  readonly history: readonly ReviewSessionDecision[];
+  /** Present only when this server knows how to rebuild its source reports. */
+  readonly regeneration?: {
+    readonly previousDecisions: number;
+  };
+  /** Present when this session can export rejected cards for a code iteration. */
+  readonly iteration?: {
+    readonly feedbackPath: string;
+    readonly feedbackJsonPath: string;
+    readonly promptPath: string;
+  };
+}
+
+export type ReviewIterationHandoffResponse = ReviewIterationResult;
+
+export interface ReviewCloseResponse {
+  readonly closed: true;
+  readonly rejectedCards: number;
+  readonly promptPath: string;
+}
+
+export interface ReviewRegenerationResult {
+  readonly cards: readonly AttestationReviewCard[];
+  readonly model: Omit<AttestationDevtoolModel, 'cards'>;
+  readonly previousDecisions: number;
 }
 
 export interface ReviewServerOptions {
@@ -57,9 +99,20 @@ export interface ReviewServerOptions {
   readonly model?: Omit<AttestationDevtoolModel, 'cards'>;
   /** Re-derives cards from the authoritative ledger before reads/decisions. */
   readonly refreshCards?: () => Promise<readonly AttestationReviewCard[]>;
+  /** Re-runs configured producers, then re-derives the complete review model. */
+  readonly regenerate?: () => Promise<ReviewRegenerationResult>;
+  /** Number shown in the confirmation before the first regeneration. */
+  readonly previousDecisions?: number;
   /** Called once per decision, expanded over its cluster by the caller. */
   readonly onDecision?: (
     decision: ReviewDecisionRequest,
+  ) =>
+    | void
+    | readonly AttestationReviewCard[]
+    | Promise<void | readonly AttestationReviewCard[]>;
+  /** Reverses a session decision in the authoritative store. */
+  readonly onReopen?: (
+    entry: ReviewSessionDecision,
   ) =>
     | void
     | readonly AttestationReviewCard[]
@@ -80,6 +133,10 @@ export interface ReviewServerOptions {
   readonly digestFor?: (hash: string) => Promise<string | undefined>;
   /** Override used by package tests and embedders. */
   readonly appRoot?: string;
+  /** Project paths used to generate the human-to-Codex iteration handoff. */
+  readonly iteration?: ReviewIterationOptions;
+  /** Called when the browser explicitly ends the review session. */
+  readonly onClose?: (handoff?: ReviewIterationResult) => void | Promise<void>;
 }
 
 export interface RunningReviewServer {
@@ -97,6 +154,12 @@ const REVIEW_VERDICTS = new Set([
   'blocked',
   'retire',
 ]);
+const SESSION_ACCEPTED_VERDICTS = new Set([
+  'ok',
+  'ok-with-note',
+  'known-issue',
+  'retire',
+]);
 
 const reviewAppRoot = (): string => {
   const candidate = new URL('../../../review-app/', import.meta.url);
@@ -108,6 +171,9 @@ const reviewAppRoot = (): string => {
 const queueValue = (
   cards: readonly AttestationReviewCard[],
   model: ReviewServerOptions['model'],
+  regeneration: { readonly previousDecisions: number } | undefined,
+  iteration: ReviewServerOptions['iteration'],
+  history: readonly ReviewSessionDecision[] = [],
 ): ReviewApiQueue => ({
   items: cards.reduce((total, card) => total + card.cluster.length, 0),
   decisions: cards.length,
@@ -116,6 +182,13 @@ const queueValue = (
   visualTests: model?.visualTests ?? [],
   templateObligations: model?.templateObligations ?? [],
   diagnostics: model?.diagnostics ?? [],
+  history,
+  ...(regeneration ? { regeneration } : {}),
+  ...(iteration
+    ? {
+        iteration: reviewIterationPaths(iteration),
+      }
+    : {}),
 });
 
 const writeJson = (
@@ -182,6 +255,18 @@ const isDecision = (value: unknown): value is ReviewDecisionRequest => {
   );
 };
 
+const isReopenRequest = (
+  value: unknown,
+): value is ReviewDecisionReopenRequest => {
+  if (typeof value !== 'object' || value === null) return false;
+  const request = value as Partial<ReviewDecisionReopenRequest>;
+  return (
+    typeof request.shape === 'string' &&
+    request.shape.length > 0 &&
+    (request.id === undefined || typeof request.id === 'string')
+  );
+};
+
 /**
  * Findings that name a node the card does not attest.
  *
@@ -206,6 +291,12 @@ export async function startReviewServer(
 ): Promise<RunningReviewServer> {
   const initial = buildReviewQueue(options.items ?? []);
   let cards: AttestationReviewCard[] = [...(options.cards ?? initial.cards)];
+  let history: ReviewSessionDecision[] = [];
+  let model = options.model;
+  let previousDecisions = options.previousDecisions ?? 0;
+  let regenerationRunning = false;
+  let closing = false;
+  const stopServer: { current?: () => Promise<void> } = {};
   const port = options.port ?? 4320;
   const appRoot = options.appRoot ?? reviewAppRoot();
   const workspaceAliases = {
@@ -231,12 +322,79 @@ export async function startReviewServer(
       void (async () => {
         try {
           if (options.refreshCards) cards = [...(await options.refreshCards())];
-          writeJson(response, 200, queueValue(cards, options.model));
+          writeJson(
+            response,
+            200,
+            queueValue(
+              cards,
+              model,
+              options.regenerate ? { previousDecisions } : undefined,
+              options.iteration,
+              history,
+            ),
+          );
         } catch (error) {
           writeJson(response, 500, {
             error:
               error instanceof Error ? error.message : 'review refresh failed',
           });
+        }
+      })();
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/regenerate') {
+      void (async () => {
+        if (!options.regenerate) {
+          writeJson(response, 404, {
+            error: 'review: regeneration is not configured for this session.',
+          });
+          return;
+        }
+        if (
+          !request.headers['content-type']
+            ?.toLowerCase()
+            .startsWith('application/json')
+        ) {
+          writeJson(response, 400, {
+            error: 'review: regeneration requires application/json.',
+          });
+          return;
+        }
+        if (regenerationRunning) {
+          writeJson(response, 409, {
+            error: 'review: regeneration is already running.',
+          });
+          return;
+        }
+
+        regenerationRunning = true;
+        try {
+          const regenerated = await options.regenerate();
+          cards = [...regenerated.cards];
+          model = regenerated.model;
+          previousDecisions = regenerated.previousDecisions;
+          history = [];
+          writeJson(
+            response,
+            200,
+            queueValue(
+              cards,
+              model,
+              { previousDecisions },
+              options.iteration,
+              history,
+            ),
+          );
+        } catch (error) {
+          writeJson(response, 500, {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'review regeneration failed',
+          });
+        } finally {
+          regenerationRunning = false;
         }
       })();
       return;
@@ -323,11 +481,150 @@ export async function startReviewServer(
               (candidate) => candidate.shape !== decision.shape,
             );
           }
-          writeJson(response, 200, queueValue(cards, options.model));
+          if (SESSION_ACCEPTED_VERDICTS.has(decision.verdict)) {
+            history = [...history, { card, decision }];
+          }
+          writeJson(
+            response,
+            200,
+            queueValue(
+              cards,
+              model,
+              options.regenerate ? { previousDecisions } : undefined,
+              options.iteration,
+              history,
+            ),
+          );
         } catch (error) {
           writeJson(response, 400, {
             error: error instanceof Error ? error.message : 'bad request',
           });
+        }
+      })();
+      return;
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/decisions/reopen'
+    ) {
+      void (async () => {
+        try {
+          if (
+            !request.headers['content-type']
+              ?.toLowerCase()
+              .startsWith('application/json')
+          ) {
+            throw new Error('review: reopening requires application/json.');
+          }
+          const requestBody = await readJson(request);
+          if (!isReopenRequest(requestBody)) {
+            throw new Error('review: expected a decision to reopen.');
+          }
+          const historyIndex = history.findIndex(
+            ({ decision }) =>
+              decision.shape === requestBody.shape &&
+              (requestBody.id === undefined || decision.id === requestBody.id),
+          );
+          if (historyIndex < 0) {
+            throw new Error('review: that session decision no longer exists.');
+          }
+          const entry = history[historyIndex];
+          if (!entry) throw new Error('review: that session decision is invalid.');
+          const reopened = await options.onReopen?.(entry);
+          if (reopened !== undefined) cards = [...reopened];
+          else cards = [entry.card, ...cards];
+          history = history.filter((_, index) => index !== historyIndex);
+          writeJson(
+            response,
+            200,
+            queueValue(
+              cards,
+              model,
+              options.regenerate ? { previousDecisions } : undefined,
+              options.iteration,
+              history,
+            ),
+          );
+        } catch (error) {
+          writeJson(response, 400, {
+            error: error instanceof Error ? error.message : 'bad request',
+          });
+        }
+      })();
+      return;
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/iteration-handoff'
+    ) {
+      void (async () => {
+        if (!options.iteration) {
+          writeJson(response, 404, {
+            error:
+              'review: iteration handoff is not configured for this session.',
+          });
+          return;
+        }
+        try {
+          if (options.refreshCards) cards = [...(await options.refreshCards())];
+          const handoff = await writeReviewIterationHandoff(
+            cards,
+            options.iteration,
+          );
+          writeJson(response, 200, handoff);
+        } catch (error) {
+          writeJson(response, 500, {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'review iteration handoff failed',
+          });
+        }
+      })();
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/close-review') {
+      void (async () => {
+        if (!options.iteration) {
+          writeJson(response, 404, {
+            error:
+              'review: iteration handoff is not configured for this session.',
+          });
+          return;
+        }
+        if (closing) {
+          writeJson(response, 409, {
+            error: 'review: the review application is already closing.',
+          });
+          return;
+        }
+        closing = true;
+        try {
+          if (options.refreshCards) cards = [...(await options.refreshCards())];
+          const handoff = await writeReviewIterationHandoff(
+            cards,
+            options.iteration,
+          );
+          writeJson(response, 200, {
+            closed: true,
+            rejectedCards: handoff.rejectedCards,
+            promptPath: handoff.promptPath,
+          } satisfies ReviewCloseResponse);
+          // Let the response reach the browser before tearing down the server.
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          await options.onClose?.(handoff);
+          await stopServer.current?.();
+        } catch (error) {
+          closing = false;
+          if (!response.headersSent) {
+            writeJson(response, 500, {
+              error:
+                error instanceof Error ? error.message : 'review close failed',
+            });
+          }
         }
       })();
       return;
@@ -453,14 +750,19 @@ export async function startReviewServer(
   const address = server.address();
   const listeningPort =
     typeof address === 'object' && address !== null ? address.port : port;
+  let stopped = false;
+  const close = async () => {
+    if (stopped) return;
+    stopped = true;
+    await vite.close();
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  };
+  stopServer.current = close;
   return {
     url: `http://127.0.0.1:${listeningPort}`,
     server,
-    close: async () => {
-      await vite.close();
-      await new Promise<void>((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
-      );
-    },
+    close,
   };
 }

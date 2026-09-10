@@ -332,6 +332,61 @@ describe('findings are checked against what the card attests', () => {
 });
 
 describe('review server', () => {
+  it('regenerates the authoritative queue without touching recorded history', async () => {
+    const [before] = buildReviewQueue([
+      item('visual:Card#before', 'card', '8px'),
+    ]).cards;
+    const [after] = buildReviewQueue([
+      item('visual:Card#after', 'card', '12px'),
+    ]).cards;
+    if (!before || !after) throw new Error('the fixtures should build cards');
+    let regenerations = 0;
+    const running = await startReviewServer({
+      port: 0,
+      cards: [before],
+      previousDecisions: 2,
+      regenerate: async () => {
+        regenerations += 1;
+        return {
+          cards: [after],
+          model: {
+            visualAssets: [],
+            visualTests: [],
+            templateObligations: [],
+            diagnostics: [],
+          },
+          previousDecisions: 2,
+        };
+      },
+    });
+
+    try {
+      expect(
+        (await fetch(`${running.url}/api/review`).then((response) =>
+          response.json(),
+        )) as ReviewApiQueue,
+      ).toMatchObject({
+        cards: [{ subject: 'visual:Card#before' }],
+        regeneration: { previousDecisions: 2 },
+      });
+
+      const response = await fetch(`${running.url}/api/regenerate`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      });
+
+      expect(response.ok).toBe(true);
+      expect((await response.json()) as ReviewApiQueue).toMatchObject({
+        cards: [{ subject: 'visual:Card#after' }],
+        regeneration: { previousDecisions: 2 },
+      });
+      expect(regenerations).toBe(1);
+    } finally {
+      await running.close();
+    }
+  });
+
   it('refreshes authoritative cards before checking a decision revision', async () => {
     const [card] = buildReviewQueue([
       item('visual:Card#base', 'card', '8px'),
@@ -486,6 +541,69 @@ describe('review server', () => {
       const html = await fetch(running.url).then((value) => value.text());
       expect(html).toContain('src="/src/main.ts"');
       expect(html).not.toContain('visual:Card#base');
+    } finally {
+      await running.close();
+    }
+  });
+
+  it('keeps accepted decisions in order and reopens one for review', async () => {
+    const running = await startReviewServer({
+      port: 0,
+      items: [
+        {
+          subject: 'visual:Card#base',
+          reason: 'never attested',
+          digest: digestWith('card', '4px'),
+        },
+        {
+          subject: 'visual:Card#scheme=dark',
+          reason: 'never attested',
+          digest: digestWith('card', '4px'),
+        },
+      ],
+    });
+
+    try {
+      const initial = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      const decide = (shape: string) =>
+        fetch(`${running.url}/api/decisions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ shape, verdict: 'ok' }),
+        });
+
+      expect((await decide(initial.cards[0]?.shape ?? '')).ok).toBe(true);
+      const afterFirst = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      expect(afterFirst.history.map((entry) => entry.card.shape)).toEqual([
+        initial.cards[0]?.shape,
+      ]);
+
+      expect((await decide(afterFirst.cards[0]?.shape ?? '')).ok).toBe(true);
+      const afterSecond = (await fetch(`${running.url}/api/review`).then(
+        (response) => response.json(),
+      )) as ReviewApiQueue;
+      expect(afterSecond.history.map((entry) => entry.card.shape)).toEqual([
+        initial.cards[0]?.shape,
+        initial.cards[1]?.shape,
+      ]);
+
+      const reopened = await fetch(`${running.url}/api/decisions/reopen`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ shape: initial.cards[0]?.shape }),
+      });
+      expect(reopened.ok).toBe(true);
+      const afterReopen = (await reopened.json()) as ReviewApiQueue;
+      expect(afterReopen.cards.map((card) => card.shape)).toEqual([
+        initial.cards[0]?.shape,
+      ]);
+      expect(afterReopen.history.map((entry) => entry.card.shape)).toEqual([
+        initial.cards[1]?.shape,
+      ]);
     } finally {
       await running.close();
     }
