@@ -306,7 +306,7 @@ all remote work inside its `query`, `mutation`, or `asyncProcess` loader.
 
 Set `CRAFT_REVIEW_APP_REPORT` to the same path on all three commands to relocate
 the default `.craft/runs/review-app.json` report. The implementation notes and
-the exact workflow live in `libs/style-testing/review-app/README.md` in the
+the exact workflow live in `libs/style-testing/attestation-app/README.md` in the
 repository.
 
 Template obligations do not need a Playwright report. They are derived from the

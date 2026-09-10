@@ -1,6 +1,7 @@
-# Review application
+# Attestation application
 
-The attestation review application follows the same CraftTS constraints as the
+The attestation application is the unified review surface for visual captures
+and template obligations. It follows the same CraftTS constraints as the
 applications it reviews: the recommended ESLint rules, a dedicated graph
 configuration, and executable architecture checks.
 

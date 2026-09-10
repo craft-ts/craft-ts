@@ -682,7 +682,7 @@ Vagues 0, 1, 2 et 4 livrées ; vague 3 volontairement **fermée** (voir la tâch
 | 10 · digest v1 + migration           | fait                                                                 | `digest.ts`                                                                       |
 | 11 · assertions automatiques         | fait — témoin allemand vert                                          | `assertions.ts`                                                                   |
 | 12 · sujet `visual` sur la matrice   | fait — **4 scénarios sur une route réelle**                          | `subjects/visual.ts`, `lib/attest.ts`, `apps/demo/e2e/visual-attestation.spec.ts` |
-| 13 · surface de revue                | fait — application CraftTS, API locale, queue dynamique, métadonnées | `lib/review/`, `review-app/`, `libs/cli/src/lib/commands/attest.ts`               |
+| 13 · surface de revue                | fait — application CraftTS, API locale, queue dynamique, métadonnées | `lib/review/`, `attestation-app/`, `libs/cli/src/lib/commands/attest.ts`               |
 | 14 · bascules par dichotomie         | fait                                                                 | `transitions.ts`                                                                  |
 | 15 · marge avant rupture             | fait — **≈ 3 ms/rendu**                                              | `margin.ts`                                                                       |
 | 16 – 23 · la page                    | **non ouvert** (conditionnel)                                        | —                                                                                 |

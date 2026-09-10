@@ -17,7 +17,7 @@ export function loadArchitectureGraph() {
   if (cached) return cached;
   const graph = analyzeDependencyGraph({
     rootDir: workspaceRoot,
-    tsConfigFilePath: 'libs/style-testing/review-app/tsconfig.graph.json',
+    tsConfigFilePath: 'libs/style-testing/attestation-app/tsconfig.graph.json',
   });
   writeFileSync(
     catalogPath,

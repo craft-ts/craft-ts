@@ -12,7 +12,7 @@ import {
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
 
 export const REVIEW_APP_COMPONENT =
-  'component:libs/style-testing/review-app/src/review-app.ts:ReviewApp';
+  'component:libs/style-testing/attestation-app/src/review-app.ts:ReviewApp';
 
 const previousEvidence: TemplateEvidence = {
   direction: 'command',

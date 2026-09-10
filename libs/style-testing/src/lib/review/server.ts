@@ -162,10 +162,10 @@ const SESSION_ACCEPTED_VERDICTS = new Set([
 ]);
 
 const reviewAppRoot = (): string => {
-  const candidate = new URL('../../../review-app/', import.meta.url);
+  const candidate = new URL('../../../attestation-app/', import.meta.url);
   return candidate.protocol === 'file:'
     ? fileURLToPath(candidate)
-    : resolve(process.cwd(), 'libs/style-testing/review-app');
+    : resolve(process.cwd(), 'libs/style-testing/attestation-app');
 };
 
 const queueValue = (

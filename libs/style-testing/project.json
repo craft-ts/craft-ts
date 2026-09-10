@@ -15,14 +15,14 @@
         "tsConfig": "libs/style-testing/tsconfig.lib.json",
         "assets": [
           {
-            "input": "libs/style-testing/review-app",
+            "input": "libs/style-testing/attestation-app",
             "glob": "index.html",
-            "output": "review-app"
+            "output": "attestation-app"
           },
           {
-            "input": "libs/style-testing/review-app/src",
+            "input": "libs/style-testing/attestation-app/src",
             "glob": "**/*",
-            "output": "review-app/src"
+            "output": "attestation-app/src"
           }
         ]
       }

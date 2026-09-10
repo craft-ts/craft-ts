@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "044fc0cc63e3b25e",
+  "graphHash": "bf6d5cf4ac1df166",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -215,8 +215,8 @@ export const architectureCatalog = {
   "collisions": {
     "services": {
       "CloseReview": [
-        "libs/style-testing/review-app/src/close-review.service.ts",
-        "libs/style-testing/review-app/src/review-app.ts"
+        "libs/style-testing/attestation-app/src/close-review.service.ts",
+        "libs/style-testing/attestation-app/src/review-app.ts"
       ],
       "MiddlewareExecutionScope": [
         "libs/core/src/lib/server-function-middleware.ts",
