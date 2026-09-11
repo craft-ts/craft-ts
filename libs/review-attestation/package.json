@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/style-testing",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Visual scenario matrix and drivers for @craft-ts/style",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -13,10 +13,10 @@
     "url": "https://github.com/craft-ts/craft-ts.git"
   },
   "peerDependencies": {
-    "@craft-ts/component": "^0.8.3",
-    "@craft-ts/core": "^0.8.3",
-    "@craft-ts/style": "^0.8.3",
-    "@craft-ts/dev-tools": "^0.8.3",
+    "@craft-ts/component": "^0.8.4",
+    "@craft-ts/core": "^0.8.4",
+    "@craft-ts/style": "^0.8.4",
+    "@craft-ts/dev-tools": "^0.8.4",
     "tslib": "^2.3.0",
     "vite": "^8.2.2"
   },

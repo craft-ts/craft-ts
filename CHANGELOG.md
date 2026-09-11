@@ -1,3 +1,40 @@
+## 0.8.4 (2026-09-11)
+
+### 🚀 Features
+
+- add unified attestation devtool ([e06849b65](https://github.com/craft-ts/craft-ts/commit/e06849b65))
+- **attest:** stable graph identity, code slices, and the attestation ledger ([f1622a10d](https://github.com/craft-ts/craft-ts/commit/f1622a10d))
+- **attest:** the CLI, the layout digest, and the first human loop ([f9abecf8e](https://github.com/craft-ts/craft-ts/commit/f9abecf8e))
+- **attest:** i18n axes, the browser suite, docs and the recorded measurements ([21e335ce4](https://github.com/craft-ts/craft-ts/commit/21e335ce4))
+- **attest:** close the loop from a real route to a written verdict ([c4a986a96](https://github.com/craft-ts/craft-ts/commit/c4a986a96))
+- **attest:** derive obligations from component templates ([f52452879](https://github.com/craft-ts/craft-ts/commit/f52452879))
+- **review:** type the rejection, and refuse one filed on the wrong subject ([512e9fb94](https://github.com/craft-ts/craft-ts/commit/512e9fb94))
+- **review:** drive the frozen document from outside it ([df7b58071](https://github.com/craft-ts/craft-ts/commit/df7b58071))
+- **review:** show the page as it is, and say which part is being judged ([57b865db1](https://github.com/craft-ts/craft-ts/commit/57b865db1))
+- **review:** three columns, and one reason that can point at several groups ([c39e93b78](https://github.com/craft-ts/craft-ts/commit/c39e93b78))
+- **review:** references are chips in the reason, and say what they point at ([e83a8ef1e](https://github.com/craft-ts/craft-ts/commit/e83a8ef1e))
+- **review:** English and French, light and dark, both taken from the machine first ([4d5fc3cc4](https://github.com/craft-ts/craft-ts/commit/4d5fc3cc4))
+- **review:** selecting is referencing, and every control says what it does ([e4b77d3ae](https://github.com/craft-ts/craft-ts/commit/e4b77d3ae))
+- **style:** add contrast analysis tooling ([70bfdcebc](https://github.com/craft-ts/craft-ts/commit/70bfdcebc))
+- **style-testing:** capture the region, and say what nobody could see ([42d45c120](https://github.com/craft-ts/craft-ts/commit/42d45c120))
+- **style-testing:** freeze the page at the moment it was measured ([119f84e29](https://github.com/craft-ts/craft-ts/commit/119f84e29))
+
+### 🩹 Fixes
+
+- unblock release validation ([39f908397](https://github.com/craft-ts/craft-ts/commit/39f908397))
+- handle long press events consistently ([17e7d50e3](https://github.com/craft-ts/craft-ts/commit/17e7d50e3))
+- **attest:** close a false negative found by running the plan's own check ([c1aae2d4d](https://github.com/craft-ts/craft-ts/commit/c1aae2d4d))
+- **review:** name the controls, match the palette, say what went wrong ([7f1fa2fb2](https://github.com/craft-ts/craft-ts/commit/7f1fa2fb2))
+- **review:** judge the card on screen, and say what the outlines mean ([3a70ee004](https://github.com/craft-ts/craft-ts/commit/3a70ee004))
+- **review:** make "fit to window" fit the window ([a13684166](https://github.com/craft-ts/craft-ts/commit/a13684166))
+- **review:** lift what is covering the component, and say what that is ([05af23d60](https://github.com/craft-ts/craft-ts/commit/05af23d60))
+- **review:** stop imposing a colour scheme on the replay, and thin the card ([44fbaa7be](https://github.com/craft-ts/craft-ts/commit/44fbaa7be))
+
+### ❤️ Thank You
+
+- Claude Opus 5
+- Romain
+
 ## 0.8.3 (2026-09-04)
 
 ### 🚀 Features
