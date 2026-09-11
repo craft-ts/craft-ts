@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "eddd01703019f82d",
+  "graphHash": "b8d1f0996ce78cd2",
   "routes": [
     "",
     "access-denied",
@@ -44,8 +44,8 @@ export const architectureCatalog = {
   "components": [
     "AiContextMenu",
     "AiSendDialog",
-    "AnonymousComponent@31",
-    "AnonymousComponent@800",
+    "AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic",
+    "AnonymousComponent@statusPage",
     "AppShell",
     "CraftRouterOutlet",
     "EffectServerMiddlewareDemo",
