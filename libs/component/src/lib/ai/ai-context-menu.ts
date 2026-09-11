@@ -1,4 +1,4 @@
-import { fromEventToSource$ } from '@craft-ts/core';
+import { craftUse, fromEventToSource$ } from '@craft-ts/core';
 import { craftComponent } from '../component';
 import { button, div, span } from '../hyperscript';
 import type { Input, Output } from '../types';
@@ -11,7 +11,7 @@ export const AiContextMenu = craftComponent(
   'AiContextMenu',
   {
     styles: `
-      .craft-ai-menu {
+      :scope {
         position: fixed;
         min-width: 180px;
         background: #ffffff;
@@ -27,7 +27,7 @@ export const AiContextMenu = craftComponent(
         font-size: 13px;
         color: #111827;
       }
-      .craft-ai-menu-item {
+      :scope .craft-ai-menu-item {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -39,7 +39,7 @@ export const AiContextMenu = craftComponent(
         cursor: pointer;
         border-radius: 4px;
       }
-      .craft-ai-menu-item:hover {
+      :scope .craft-ai-menu-item:hover {
         background: #f3f4f6;
       }
     `,
@@ -73,7 +73,10 @@ export const AiContextMenu = craftComponent(
         role: 'menu',
         tabIndex: -1,
         'aria-label': 'Component actions',
-        style: () => ({ left: `${x()}px`, top: `${y()}px` }),
+        style: () => ({
+          left: `${craftUse(x())}px`,
+          top: `${craftUse(y())}px`,
+        }),
         click: (event: MouseEvent) => event.stopPropagation(),
         contextmenu: (event: MouseEvent) => event.preventDefault(),
       },

@@ -15,15 +15,19 @@ import {
   button,
   dialog,
   div,
+  fieldset,
   footer,
   header,
+  input,
   label,
+  legend,
   section,
   span,
   strong,
   textarea,
 } from '../hyperscript';
-import type { Input, Output } from '../types';
+import type { CraftComponent, Input, Output } from '../types';
+import { captureAiDomStyles } from './ai-dom-capture';
 
 const { CraftTemporalRuntime } = toCraftService({
   name: 'CraftTemporalRuntime',
@@ -37,51 +41,151 @@ const { CraftTemporalRuntime } = toCraftService({
   >;
 };
 
+type AiDialogPayload = SendContextPayload & {
+  readonly captureElement?: Element;
+};
+
+type PromptOptions = {
+  readonly includeClickedElement: boolean;
+  readonly includeComponent: boolean;
+  readonly includeAppSnapshot: boolean;
+  readonly includeDomStyles: boolean;
+  readonly includePageDomStyles: boolean;
+};
+
+const DEFAULT_PROMPT_OPTIONS: PromptOptions = {
+  includeClickedElement: true,
+  includeComponent: true,
+  includeAppSnapshot: true,
+  includeDomStyles: false,
+  includePageDomStyles: false,
+};
+
+type AiDialogContext = {
+  payload: Input<AiDialogPayload>;
+  onClose: () => void;
+  instruction: () => string;
+  writeInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+  copied: () => boolean;
+  options: () => PromptOptions;
+  writeOptions: (value: PromptOptions) => Generator<unknown, unknown, unknown>;
+  captureInProgress: () => boolean;
+  captureError: () => string;
+  copy: () => void;
+};
+
+type AiDialogFactoryContext = Omit<AiDialogContext, 'onClose'> & {
+  onClose: Output<() => void>;
+};
+
 function formatPrompt(
-  payload: SendContextPayload & { instruction: string },
+  payload: AiDialogPayload & { instruction: string },
+  options: PromptOptions,
+  captures: {
+    readonly component?: unknown;
+    readonly page?: unknown;
+  },
 ): string {
-  const snapshotJson = (() => {
-    try {
-      return JSON.stringify(payload.snapshot, null, 2);
-    } catch {
-      return '[unserializable snapshot]';
-    }
-  })();
-  return [
-    `# Instruction`,
-    payload.instruction,
-    ``,
-    `# Component clicked`,
-    `- hostName: ${payload.hostName}`,
-    `- tagList: ${JSON.stringify(payload.tagList)}`,
-    `- coords: (${payload.coords.x}, ${payload.coords.y})`,
-    ``,
-    `# Element outerHTML (truncated)`,
-    '```html',
-    payload.outerHTML,
-    '```',
-    ``,
-    `# App snapshot (${payload.snapshot.length} reports)`,
-    '```json',
-    snapshotJson,
-    '```',
-  ].join('\n');
+  const clickedElement = payload.clickedElement ?? {
+    tagName: 'unknown',
+    textContent: '',
+    outerHTML: payload.outerHTML,
+  };
+  const sections = [`# Instruction`, payload.instruction, ``];
+
+  if (options.includeComponent) {
+    sections.push(
+      `# Component information`,
+      `- hostName: ${payload.hostName}`,
+      `- tagList: ${JSON.stringify(payload.tagList)}`,
+      `- coords: (${payload.coords.x}, ${payload.coords.y})`,
+      ``,
+      `# Component host outerHTML (truncated)`,
+      '```html',
+      payload.outerHTML,
+      '```',
+      ``,
+    );
+  }
+
+  if (options.includeClickedElement) {
+    sections.push(
+      `# Clicked element`,
+      `- tagName: ${clickedElement.tagName}`,
+      `- textContent: ${JSON.stringify(clickedElement.textContent)}`,
+      `# Clicked element outerHTML (truncated)`,
+      '```html',
+      clickedElement.outerHTML,
+      '```',
+      ``,
+    );
+  }
+
+  if (options.includeDomStyles && captures.component !== undefined) {
+    sections.push(
+      `# Component DOM + computed CSS styles`,
+      '```json',
+      JSON.stringify(captures.component, null, 2),
+      '```',
+      ``,
+    );
+  }
+
+  if (options.includePageDomStyles && captures.page !== undefined) {
+    sections.push(
+      `# Full page DOM + computed CSS styles`,
+      '```json',
+      JSON.stringify(captures.page, null, 2),
+      '```',
+      ``,
+    );
+  }
+
+  if (options.includeAppSnapshot) {
+    const snapshotJson = (() => {
+      try {
+        return JSON.stringify(payload.snapshot, null, 2);
+      } catch {
+        return '[unserializable snapshot]';
+      }
+    })();
+    sections.push(
+      `# App snapshot (${payload.snapshot.length} reports)`,
+      '```json',
+      snapshotJson,
+      '```',
+    );
+  }
+
+  return sections.join('\n');
 }
 
 /**
  * Modal that collects an instruction and copies the formatted prompt, with the
  * captured component context and app snapshot, to the clipboard.
  */
-export const AiSendDialog = craftComponent(
+export const AiSendDialog: CraftComponent<{
+  payload: Input<AiDialogPayload>;
+  onClose: Output<() => void>;
+}> = craftComponent(
   'AiSendDialog',
   {
     styles: `
-      .craft-ai-overlay {
+      :scope {
         position: fixed;
-        inset: unset;
+        inset: 0;
+        width: 100%;
+        max-width: none;
+        height: 100%;
+        max-height: none;
+        box-sizing: border-box;
+        margin: 0;
         border: none;
         background: transparent;
         padding: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-family:
           system-ui,
           -apple-system,
@@ -89,10 +193,10 @@ export const AiSendDialog = craftComponent(
         font-size: 13px;
         color: #111827;
       }
-      .craft-ai-overlay::backdrop {
+      :scope::backdrop {
         background: rgba(15, 23, 42, 0.5);
       }
-      .craft-ai-card {
+      :scope .craft-ai-card {
         background: #ffffff;
         border-radius: 8px;
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
@@ -104,13 +208,13 @@ export const AiSendDialog = craftComponent(
         flex-direction: column;
         gap: 12px;
       }
-      .craft-ai-header {
+      :scope .craft-ai-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         font-size: 14px;
       }
-      .craft-ai-close {
+      :scope .craft-ai-close {
         background: transparent;
         border: none;
         font-size: 20px;
@@ -118,7 +222,7 @@ export const AiSendDialog = craftComponent(
         cursor: pointer;
         color: #6b7280;
       }
-      .craft-ai-context {
+      :scope .craft-ai-context {
         background: #f9fafb;
         border: 1px solid #e5e7eb;
         border-radius: 6px;
@@ -128,14 +232,44 @@ export const AiSendDialog = craftComponent(
         display: grid;
         gap: 4px;
       }
-      .craft-ai-context .label {
+      :scope .craft-ai-context .label {
         color: #6b7280;
         margin-right: 4px;
       }
-      .craft-ai-label {
+      :scope .craft-ai-label {
         font-weight: 600;
       }
-      .craft-ai-textarea {
+      :scope .craft-ai-options {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+      }
+      :scope .craft-ai-options legend {
+        padding: 0 4px;
+        font-weight: 600;
+      }
+      :scope .craft-ai-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        line-height: 1.35;
+        cursor: pointer;
+      }
+      :scope .craft-ai-option input {
+        margin: 2px 0 0;
+      }
+      :scope .craft-ai-warning {
+        color: #92400e;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 5px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+      :scope .craft-ai-textarea {
         width: 100%;
         box-sizing: border-box;
         font-family: inherit;
@@ -146,30 +280,30 @@ export const AiSendDialog = craftComponent(
         resize: vertical;
         min-height: 96px;
       }
-      .craft-ai-textarea:focus {
+      :scope .craft-ai-textarea:focus {
         outline: 2px solid #3b82f6;
         outline-offset: -1px;
       }
-      .craft-ai-success {
+      :scope .craft-ai-success {
         background: #ecfdf5;
         border: 1px solid #a7f3d0;
         color: #065f46;
         padding: 8px 10px;
         border-radius: 6px;
       }
-      .craft-ai-footer {
+      :scope .craft-ai-footer {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
       }
-      .craft-ai-cancel {
+      :scope .craft-ai-cancel {
         background: #ffffff;
         border: 1px solid #d1d5db;
         padding: 6px 12px;
         border-radius: 6px;
         cursor: pointer;
       }
-      .craft-ai-copy {
+      :scope .craft-ai-copy {
         display: flex;
         align-items: center;
         gap: 6px;
@@ -187,22 +321,38 @@ export const AiSendDialog = craftComponent(
           transition: none;
         }
       }
-      .craft-ai-copy--done {
+      :scope .craft-ai-copy--done {
         background: #059669;
       }
-      .craft-ai-copy:disabled {
+      :scope .craft-ai-copy:disabled {
         opacity: 0.6;
         cursor: not-allowed;
       }
     `,
   },
-  function* (payload: Input<SendContextPayload>, onClose: Output<() => void>) {
+  function* (
+    payload: Input<AiDialogPayload>,
+    onClose: Output<() => void>,
+  ): Generator<unknown, AiDialogFactoryContext, unknown> {
     const temporalRuntime = yield* CraftTemporalRuntime();
     type InstructionState = (() => string) & {
       setInstruction: (value: string) => Generator<unknown, unknown, unknown>;
     };
     type CopiedState = (() => boolean) & {
       setCopied: (value: boolean) => Generator<unknown, unknown, unknown>;
+    };
+    type PromptOptionsState = (() => PromptOptions) & {
+      setPromptOptions: (
+        value: PromptOptions,
+      ) => Generator<unknown, unknown, unknown>;
+    };
+    type CaptureState = (() => boolean) & {
+      setCaptureInProgress: (
+        value: boolean,
+      ) => Generator<unknown, unknown, unknown>;
+    };
+    type ErrorState = (() => string) & {
+      setCaptureError: (value: string) => Generator<unknown, unknown, unknown>;
     };
 
     // This component ships in a published package, so its inferred type goes
@@ -215,21 +365,51 @@ export const AiSendDialog = craftComponent(
     const copied = yield* state('copied', false, ({ set }) => ({
       setCopied: (value: boolean) => set(value),
     })) as unknown as Generator<never, CopiedState, unknown>;
+    const promptOptions = yield* state(
+      'promptOptions',
+      DEFAULT_PROMPT_OPTIONS,
+      ({ set }) => ({
+        setPromptOptions: (value: PromptOptions) => set(value),
+      }),
+    ) as unknown as Generator<never, PromptOptionsState, unknown>;
+    const captureInProgress = yield* state(
+      'captureInProgress',
+      false,
+      ({ set }) => ({
+        setCaptureInProgress: (value: boolean) => set(value),
+      }),
+    ) as unknown as Generator<never, CaptureState, unknown>;
+    const captureError = yield* state('captureError', '', ({ set }) => ({
+      setCaptureError: (value: string) => set(value),
+    })) as unknown as Generator<never, ErrorState, unknown>;
 
-    const setInstruction: (value: string) => void = craftMethod(
-      'setInstruction',
-      function* (value: string) {
-        yield* instruction.setInstruction(value);
-      },
-    );
     const setCopied: (value: boolean) => void = craftMethod(
       'setCopied',
       function* (value: boolean) {
         yield* copied.setCopied(value);
       },
     );
+    const setCaptureInProgress: (value: boolean) => void = craftMethod(
+      'setCaptureInProgress',
+      function* (value: boolean) {
+        yield* captureInProgress.setCaptureInProgress(value);
+      },
+    );
+    const setCaptureError: (value: string) => void = craftMethod(
+      'setCaptureError',
+      function* (value: string) {
+        yield* captureError.setCaptureError(value);
+      },
+    );
 
     let copiedTimer: TemporalTaskHandle | null = null;
+
+    const readInstruction = (): string => craftUse(instruction());
+    const readCopied = (): boolean => craftUse(copied());
+    const readPromptOptions = (): PromptOptions => craftUse(promptOptions());
+    const readCaptureInProgress = (): boolean =>
+      craftUse(captureInProgress());
+    const readCaptureError = (): string => craftUse(captureError());
 
     fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
       (event) => {
@@ -240,41 +420,90 @@ export const AiSendDialog = craftComponent(
     );
 
     const copy = () => {
-      const text = instruction().trim();
-      if (!text) return;
+      const text = readInstruction().trim();
+      if (!text || readCaptureInProgress()) return;
 
-      const content = formatPrompt({
-        ...craftUse(payload()),
-        instruction: text,
-      });
-      void navigator.clipboard.writeText(content).then(() => {
-        setCopied(true);
-        copiedTimer?.cancel();
-        copiedTimer = temporalRuntime.schedule(
-          () => {
-            setCopied(false);
-          },
-          2500,
-          {
-            kind: 'ai-copy-feedback',
-            owner: 'ai-send-dialog',
-          },
-        );
-      });
+      const options = readPromptOptions();
+      setCopied(false);
+      setCaptureError('');
+      setCaptureInProgress(true);
+      setTimeout(() => {
+        try {
+          const currentPayload = craftUse(payload());
+          const componentCapture = options.includeDomStyles
+            ? currentPayload.captureElement === undefined
+              ? undefined
+              : captureAiDomStyles(currentPayload.captureElement)
+            : undefined;
+          const pageCapture = options.includePageDomStyles
+            ? captureAiDomStyles(document.documentElement, {
+                maxBytes: 1024 * 1024,
+                maxNodes: 10000,
+              })
+            : undefined;
+          const content = formatPrompt(
+            { ...currentPayload, instruction: text },
+            options,
+            { component: componentCapture, page: pageCapture },
+          );
+          void navigator.clipboard
+            .writeText(content)
+            .then(() => {
+              setCopied(true);
+              copiedTimer?.cancel();
+              copiedTimer = temporalRuntime.schedule(
+                () => {
+                  setCopied(false);
+                },
+                2500,
+                {
+                  kind: 'ai-copy-feedback',
+                  owner: 'ai-send-dialog',
+                },
+              );
+            })
+            .catch(() => {
+              setCaptureError('Impossible de copier le prompt.');
+            })
+            .finally(() => {
+              setCaptureInProgress(false);
+            });
+        } catch (error) {
+          setCaptureError(
+            error instanceof Error
+              ? error.message
+              : 'Impossible de préparer le prompt.',
+          );
+          setCaptureInProgress(false);
+        }
+      }, 0);
     };
 
     return {
       payload,
       onClose,
-      instruction: (): string => instruction(),
-      writeInstruction: (value: string): void => {
-        setInstruction(value);
-      },
-      copied: (): boolean => copied(),
+      instruction: readInstruction,
+      writeInstruction: instruction.setInstruction,
+      copied: readCopied,
+      options: readPromptOptions,
+      writeOptions: promptOptions.setPromptOptions,
+      captureInProgress: readCaptureInProgress,
+      captureError: readCaptureError,
       copy,
     };
   },
-  ({ payload, onClose, instruction, writeInstruction, copied, copy }) =>
+  ({
+    payload,
+    onClose,
+    instruction,
+    writeInstruction,
+    copied,
+    options,
+    writeOptions,
+    captureInProgress,
+    captureError,
+    copy,
+  }: AiDialogContext) =>
     dialog(
       {
         class: 'craft-ai-overlay',
@@ -323,6 +552,91 @@ export const AiSendDialog = craftComponent(
             ]),
           ]),
 
+          fieldset({ class: 'craft-ai-options' }, [
+            legend('Contenu à copier'),
+            label({ class: 'craft-ai-option' }, [
+              input('aiIncludeClickedElement', {
+                type: 'checkbox',
+                checked: () => options().includeClickedElement,
+                *change(event) {
+                  yield* writeOptions({
+                    ...options(),
+                    includeClickedElement: (
+                      event.target as HTMLInputElement
+                    ).checked,
+                  });
+                },
+              }),
+              span('Élément ciblé'),
+            ]),
+            label({ class: 'craft-ai-option' }, [
+              input('aiIncludeComponent', {
+                type: 'checkbox',
+                checked: () => options().includeComponent,
+                *change(event) {
+                  yield* writeOptions({
+                    ...options(),
+                    includeComponent: (event.target as HTMLInputElement)
+                      .checked,
+                  });
+                },
+              }),
+              span('Informations du composant'),
+            ]),
+            label({ class: 'craft-ai-option' }, [
+              input('aiIncludeAppSnapshot', {
+                type: 'checkbox',
+                checked: () => options().includeAppSnapshot,
+                *change(event) {
+                  yield* writeOptions({
+                    ...options(),
+                    includeAppSnapshot: (event.target as HTMLInputElement)
+                      .checked,
+                  });
+                },
+              }),
+              span('État de l’application'),
+            ]),
+            label({ class: 'craft-ai-option' }, [
+              input('aiIncludeDomStyles', {
+                type: 'checkbox',
+                checked: () => options().includeDomStyles,
+                *change(event) {
+                  yield* writeOptions({
+                    ...options(),
+                    includeDomStyles: (event.target as HTMLInputElement)
+                      .checked,
+                  });
+                },
+              }),
+              span('DOM du composant et styles CSS calculés'),
+            ]),
+            label({ class: 'craft-ai-option' }, [
+              input('aiIncludePageDomStyles', {
+                type: 'checkbox',
+                checked: () => options().includePageDomStyles,
+                *change(event) {
+                  yield* writeOptions({
+                    ...options(),
+                    includePageDomStyles: (event.target as HTMLInputElement)
+                      .checked,
+                  });
+                },
+              }),
+              span('DOM complet de la page et styles CSS calculés'),
+            ]),
+            div(
+              {
+                class: 'craft-ai-warning',
+                style: () =>
+                  options().includeDomStyles || options().includePageDomStyles
+                    ? null
+                    : { display: 'none' },
+              },
+              'La capture DOM peut prendre quelques instants, bloquer l’interface et produire une payload volumineuse.',
+            ),
+          ]),
+
           label(
             { class: 'craft-ai-label', htmlFor: 'craft-ai-instruction' },
             'Instruction',
@@ -333,8 +647,11 @@ export const AiSendDialog = craftComponent(
             rows: 6,
             value: instruction,
             placeholder: 'Describe what you want the AI to do…',
-            input: (event: Event) =>
-              writeInstruction((event.target as HTMLTextAreaElement).value),
+            *input(event) {
+              yield* writeInstruction(
+                (event.target as HTMLTextAreaElement).value,
+              );
+            },
           }),
 
           // Toggled by style rather than `ifNode`, which needs a *named* craft
@@ -347,6 +664,16 @@ export const AiSendDialog = craftComponent(
                 style: () => (copied() ? null : { display: 'none' }),
               },
               'Copié dans le presse-papier ✓',
+            ),
+          ),
+          liveRegion(
+            { politeness: 'assertive' },
+            div(
+              {
+                class: 'craft-ai-warning',
+                style: () => (captureError() ? null : { display: 'none' }),
+              },
+              captureError,
             ),
           ),
 
@@ -368,13 +695,20 @@ export const AiSendDialog = craftComponent(
                   'craft-ai-copy',
                   copied() && 'craft-ai-copy--done',
                 ],
-                disabled: () => !instruction().trim(),
+                disabled: () =>
+                  !instruction().trim() || captureInProgress(),
                 click: copy,
               },
-              () => (copied() ? '✓ Copié' : '⧉ Copier'),
+              () =>
+                captureInProgress()
+                  ? 'Préparation…'
+                  : copied()
+                    ? '✓ Copié'
+                    : '⧉ Copier',
             ),
           ]),
         ],
       ),
     ),
+
 );

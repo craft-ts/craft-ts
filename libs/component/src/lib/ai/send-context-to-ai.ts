@@ -26,6 +26,7 @@ import {
   type TemporalTaskHandle,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
+import type { Output } from '../types';
 import { AiContextMenu } from './ai-context-menu';
 import { AiSendDialog } from './ai-send-dialog';
 
@@ -71,11 +72,20 @@ function installAiContextMenuListener({
     event.preventDefault();
     event.stopPropagation();
 
+    const clickedElement =
+      event.target instanceof Element ? event.target : element;
+
     runInInjectionContext(injector, () => {
       controller.open({
         hostName,
         tagList,
         coords: { x: event.clientX, y: event.clientY },
+        clickedElement: {
+          tagName: clickedElement.tagName.toLowerCase(),
+          textContent: (clickedElement.textContent ?? '').trim().slice(0, 500),
+          outerHTML: (clickedElement.outerHTML ?? '').slice(0, 2000),
+        },
+        captureElement: element,
         outerHTML: (element.outerHTML ?? '').slice(0, 2000),
       });
     });
@@ -123,7 +133,11 @@ function closeOverlay(overlay: Overlay | null): null {
 }
 
 export type AiContextMenuController = {
-  open(ctx: Omit<SendContextPayload, 'snapshot'>): void;
+  open(
+    ctx: Omit<SendContextPayload, 'snapshot'> & {
+      readonly captureElement?: Element;
+    },
+  ): void;
 };
 
 export const AI_CONTEXT_MENU_CONTROLLER = craftToken<AiContextMenuController>(
@@ -165,18 +179,24 @@ export function createAiContextMenuController({
     dialog = closeOverlay(dialog);
   }
 
-  function openDialog(payload: SendContextPayload): void {
+  function openDialog(
+    payload: SendContextPayload & { readonly captureElement?: Element },
+  ): void {
     dialog = openOverlay(99999, 'auto', (host) =>
       mountCraftComponent(AiSendDialog, host, injector, {
         payload: function* () {
           return payload;
         },
-        onClose: closeDialog,
+        onClose: closeDialog as unknown as Output<() => void>,
       }),
     );
   }
 
-  function onSelect(ctx: Omit<SendContextPayload, 'snapshot'>): void {
+  function onSelect(
+    ctx: Omit<SendContextPayload, 'snapshot'> & {
+      readonly captureElement?: Element;
+    },
+  ): void {
     closeMenu();
     // Wait for the snapshot buffer's debounceTime(500ms) to settle.
     dialogTimer = temporalRuntime.schedule(
@@ -194,7 +214,11 @@ export function createAiContextMenuController({
   }
 
   return {
-    open(ctx: Omit<SendContextPayload, 'snapshot'>): void {
+    open(
+      ctx: Omit<SendContextPayload, 'snapshot'> & {
+        readonly captureElement?: Element;
+      },
+    ): void {
       dialogTimer?.cancel();
       dialogTimer = null;
       closeMenu();

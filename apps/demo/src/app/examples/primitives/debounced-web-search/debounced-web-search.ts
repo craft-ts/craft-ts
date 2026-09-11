@@ -2,6 +2,7 @@
 import {
   a,
   article,
+  catchTag,
   craftComponent,
   div,
   forNode,
@@ -351,6 +352,21 @@ const DebouncedWebSearch = craftComponent(
       ),
     ]);
   },
+).pipe(
+  catchTag.exhaustive({
+    TransientHttpError: function* () {
+      return;
+    },
+    HttpError: function* () {
+      return;
+    },
+    HttpResponseDecodeError: function* () {
+      return;
+    },
+    SearchHttpError: function* () {
+      return;
+    },
+  }),
 );
 
 export default DebouncedWebSearch;

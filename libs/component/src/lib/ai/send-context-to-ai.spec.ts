@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftComponent } from '../component';
-import { div } from '../hyperscript';
+import { div, span } from '../hyperscript';
 import { renderCraftComponent } from '../testing';
+import { AiContextMenu } from './ai-context-menu';
 import {
   AI_CONTEXT_MENU_CONTROLLER,
   provideSendContextToAi,
@@ -23,7 +24,10 @@ describe('provideSendContextToAi', () => {
       'ContextHost',
       {},
       () => ({}),
-      () => div({ class: 'context-target' }, 'Target'),
+      () =>
+        div({ class: 'context-target' }, [
+          span({ class: 'nested-target' }, 'Target'),
+        ]),
     );
     const rendered = await renderCraftComponent(component, {
       providers: [
@@ -36,7 +40,7 @@ describe('provideSendContextToAi', () => {
     });
 
     const target = rendered.nativeElement.querySelector<HTMLElement>(
-      '.context-target',
+      '.nested-target',
     );
     target?.dispatchEvent(
       new MouseEvent('contextmenu', {
@@ -51,9 +55,43 @@ describe('provideSendContextToAi', () => {
       hostName: 'ContextHost',
       tagList: [expect.stringContaining('component:ContextHost#')],
       coords: { x: 120, y: 80 },
+      clickedElement: {
+        tagName: 'span',
+        textContent: 'Target',
+        outerHTML: expect.stringContaining('nested-target'),
+      },
     });
     rendered.destroy();
     target?.dispatchEvent(new MouseEvent('contextmenu'));
     expect(controller.open).toHaveBeenCalledOnce();
+  });
+
+  it('scopes overlay styles to the component root', async () => {
+    const rendered = await renderCraftComponent(AiContextMenu, {
+      props: {
+        x: function* () {
+          return 120;
+        },
+        y: function* () {
+          return 80;
+        },
+        onSelect: () => undefined,
+        onDismiss: () => undefined,
+      } as never,
+    });
+
+    const sheet = Array.from(
+      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
+    ).find((style) => style.textContent?.includes('AiContextMenu'));
+    const menu = rendered.nativeElement.querySelector(
+      '.craft-ai-menu',
+    ) as HTMLElement;
+
+    expect(sheet?.textContent).toContain(':scope {');
+    expect(sheet?.textContent).toContain(':scope .craft-ai-menu-item');
+    expect(menu.style.left).toBe('120px');
+    expect(menu.style.top).toBe('80px');
+
+    rendered.destroy();
   });
 });
