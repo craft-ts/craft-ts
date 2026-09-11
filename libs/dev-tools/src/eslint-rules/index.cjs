@@ -13,6 +13,8 @@ const maxCraftComponentLines = require('./max-craft-component-lines.cjs');
 const noRawCssValue = require('./no-raw-css-value.cjs');
 const noRawClass = require('./no-raw-class.cjs');
 const noFreeHas = require('./no-free-has.cjs');
+const preferHoverAxis = require('./prefer-hover-axis.cjs');
+const noUnmodelledTextColor = require('./no-unmodelled-text-color.cjs');
 const styleFileBoundary = require('./style-file-boundary.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
@@ -138,6 +140,8 @@ const plugin = {
     'no-raw-css-value': noRawCssValue,
     'no-raw-class': noRawClass,
     'no-free-has': noFreeHas,
+    'prefer-hover-axis': preferHoverAxis,
+    'no-unmodelled-text-color': noUnmodelledTextColor,
     'style-file-boundary': styleFileBoundary,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
@@ -309,6 +313,28 @@ plugin.configs = {
     rules: {
       'craft-ts/require-i18n-text': 'error',
       'craft-ts/no-i18n-composition': 'error',
+    },
+  },
+  /**
+   * What the static contrast analysis needs to be able to see.
+   *
+   * Deliberately **not** in `recommended`. `meta.styles` is a supported way
+   * to write a component's CSS, not an escape hatch, and a project that uses
+   * it has made a legitimate choice; failing its build over `color:` would be
+   * this preset telling people their own framework is wrong.
+   *
+   * What the two rules protect is a *claim*. Once a project runs
+   * `style:check`, a `:hover` typed into a string and a `color` set in raw
+   * CSS are invisible to it — so the run comes back clean on styles nobody
+   * proved, which is worse than not running the check at all. Both are
+   * therefore `error` here and absent everywhere else: the preset comes on
+   * with typed CSS, and typed CSS is what makes the claim.
+   */
+  typedCss: {
+    plugins: { 'craft-ts': plugin },
+    rules: {
+      'craft-ts/prefer-hover-axis': 'error',
+      'craft-ts/no-unmodelled-text-color': 'error',
     },
   },
 };

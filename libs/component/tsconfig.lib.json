@@ -16,9 +16,6 @@
     },
     {
       "path": "../core/tsconfig.lib.json"
-    },
-    {
-      "path": "../dev-tools/tsconfig.lib.json"
     }
   ]
 }

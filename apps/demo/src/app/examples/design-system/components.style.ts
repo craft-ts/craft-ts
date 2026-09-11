@@ -33,6 +33,7 @@ import {
   fontWeight,
   gap,
   inlineSize,
+  interaction,
   justifyContent,
   kind,
   lineWidth,
@@ -100,11 +101,33 @@ export const button = craftStyles(
 
       // One rule per tone, and the rule writes a variable rather than a colour on
       // a property: the base rule that reads it never has to be repeated.
-      when(tone.neutral, [set(buttonVars.bg, theme.accent)]),
-      when(tone.info, [set(buttonVars.bg, ui.accent.info)]),
-      when(tone.success, [set(buttonVars.bg, ui.accent.success)]),
-      when(tone.warning, [set(buttonVars.bg, ui.accent.warning)]),
-      when(tone.danger, [set(buttonVars.bg, ui.accent.danger)]),
+      //
+      // The hovered fill nests **inside** the tone, because conjunction is
+      // nesting and nothing else. Written through `interaction.hover` rather
+      // than as a `&:hover` string, the point lands in the class contract:
+      // the visual matrix captures the hovered state and the static contrast
+      // check crosses these five colours with the ink that sits on them.
+      // A hand-written selector emits the same CSS and is invisible to both.
+      when(tone.neutral, [
+        set(buttonVars.bg, theme.accent),
+        when(interaction.hover, [set(buttonVars.bg, ui.accent.neutralHover)]),
+      ]),
+      when(tone.info, [
+        set(buttonVars.bg, ui.accent.info),
+        when(interaction.hover, [set(buttonVars.bg, ui.accent.infoHover)]),
+      ]),
+      when(tone.success, [
+        set(buttonVars.bg, ui.accent.success),
+        when(interaction.hover, [set(buttonVars.bg, ui.accent.successHover)]),
+      ]),
+      when(tone.warning, [
+        set(buttonVars.bg, ui.accent.warning),
+        when(interaction.hover, [set(buttonVars.bg, ui.accent.warningHover)]),
+      ]),
+      when(tone.danger, [
+        set(buttonVars.bg, ui.accent.danger),
+        when(interaction.hover, [set(buttonVars.bg, ui.accent.dangerHover)]),
+      ]),
 
       when(size.sm, [
         set(buttonVars.padInline, space(3)),
@@ -137,10 +160,12 @@ export const button = craftStyles(
       cursor.pointer,
     ],
   },
-  // The budget: this sheet may vary on tone and size, and on nothing else.
-  // An axis added here would multiply the matrix of every page that renders a
-  // button — the cost has to be a decision, not a side effect.
-  { axes: [tone, size] },
+  // The budget: this sheet may vary on tone, size and hover, and on nothing
+  // else. An axis added here multiplies the matrix of every page that renders
+  // a button — hover took it from 18 scenarios to 36, and that is the price
+  // of the hovered state being provable at all rather than a state nobody
+  // captures. The cost is a decision, recorded in `design-system.matrix.spec`.
+  { axes: [tone, size, interaction] },
 );
 
 // ─── card ───────────────────────────────────────────────────────────────────

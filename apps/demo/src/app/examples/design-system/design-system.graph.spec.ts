@@ -55,9 +55,12 @@ const graph = () =>
 
 describe('the two producers agree', () => {
   it('gives the button the same cardinal from either side', () => {
-    // 18 from the matrix, 18 from the graph. Same app, two ways of counting.
-    expect(visualMatrix(button).length).toBe(18);
-    expect(matrixSize(graph())['dsButton-root']).toBe(18);
+    // 36 from the matrix, 36 from the graph. Same app, two ways of counting.
+    // The number doubled when the button gained `interaction.hover`; what
+    // this case measures is that both producers moved together, which is the
+    // only way to notice one of them losing an axis.
+    expect(visualMatrix(button).length).toBe(36);
+    expect(matrixSize(graph())['dsButton-root']).toBe(36);
   });
 
   it('costs a component the product of the sheets it renders', () => {

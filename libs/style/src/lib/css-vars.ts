@@ -7,6 +7,7 @@
  * what keeps the visual matrix finite — a variable is not an axis.
  */
 import type { AnyKind, CssVarRole, CssVarSpec, ValueOf } from './kinds.ts';
+import type { ColorProvenance } from './tokens/units.ts';
 
 export interface CssVarDeclaration {
   readonly name: `--${string}`;
@@ -14,6 +15,15 @@ export interface CssVarDeclaration {
   readonly inherits: boolean;
   readonly initialValue: string;
   readonly role: CssVarRole;
+  /**
+   * Where the initial value came from, when it came from a palette token.
+   *
+   * The static solver reads a variable nobody wrote as its registered initial
+   * value; without this, that branch of a report loses the token name exactly
+   * where it is most useful — a variable falling back to its initial is
+   * usually the case somebody did not think about.
+   */
+  readonly initialProvenance?: ColorProvenance;
 }
 
 declare const VAR_VALUE: unique symbol;
@@ -31,6 +41,7 @@ export type VarWrite<Syntax extends string = string> = {
   readonly property: string;
   readonly value: string;
   readonly unproven: string;
+  readonly provenance?: ColorProvenance;
   /**
    * **Required**, not optional. An optional marker brands nothing: a plain
    * declaration would satisfy `VarWrite<'<color>'>` structurally, and an axis
@@ -123,21 +134,34 @@ export function cssVars<const Specs extends Readonly<Record<string, AnySpec>>>(
         `cssVars: '${name}' registers a <length> with the initial value '${initialValue}', which is not computationally independent. @property refuses relative units there, and the browser drops the whole registration without a word — the variable then resolves to nothing wherever it is read. Give the initial value an absolute unit (unit.px(...)) and keep the relative one for what writes the variable.`,
       );
     }
+    const initialProvenance = (
+      spec.initial as { readonly provenance?: ColorProvenance }
+    ).provenance;
     const declaration: CssVarDeclaration = {
       name,
       syntax: spec.syntax,
       inherits: spec.inherits,
       initialValue,
       role: spec.role,
+      ...(initialProvenance ? { initialProvenance } : {}),
     };
     declared.set(name, declaration);
 
+    // The token inherits the initial value's shape — its brand, its role —
+    // but **not** its provenance. `bg(theme.raised)` emits `var(--ds-raised)`,
+    // and what that resolves to depends on which theme rule won; reporting the
+    // initial token's name there would name a colour the element may not be
+    // painted in. The declaration keeps `initialProvenance` for the one case
+    // where the initial value really is what applies, and the static solver
+    // decides which case it is.
+    const { provenance: _initialProvenance, ...shape } =
+      spec.initial as object as { provenance?: unknown };
     const token = {
-      ...(spec.initial as object),
+      ...shape,
       css: `var(${name})`,
       declaration,
       or: (fallback: { readonly css: string }) => ({
-        ...(spec.initial as object),
+        ...shape,
         css: `var(${name}, ${fallback.css})`,
       }),
     };
@@ -165,7 +189,11 @@ export function set<Value, Syntax extends string>(
     readonly [VAR_SYNTAX]?: Syntax;
     readonly declaration: CssVarDeclaration;
   },
-  value: Value & { readonly css: string; readonly unproven?: string },
+  value: Value & {
+    readonly css: string;
+    readonly unproven?: string;
+    readonly provenance?: ColorProvenance;
+  },
 ): VarWrite<Syntax> {
   // The marker is a declared symbol: nothing is written at runtime, and the
   // object stays an ordinary declaration the sheet walker already understands.
@@ -173,6 +201,7 @@ export function set<Value, Syntax extends string>(
     property: token.declaration.name,
     value: value.css,
     unproven: value.unproven ?? '',
+    ...(value.provenance ? { provenance: value.provenance } : {}),
   } as unknown as VarWrite<Syntax>;
 }
 

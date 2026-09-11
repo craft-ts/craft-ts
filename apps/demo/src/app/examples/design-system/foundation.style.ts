@@ -1,6 +1,12 @@
 /**
  * The foundation of the mini design system: palette, axes, and the theme.
  *
+ * The palette is **named** — `definePalette('ui', …)`. The name is not
+ * decoration: every colour token carries it, and a contrast failure then
+ * reads `ui.text.onAccent on ui.accent.warningHover` instead of `#ffffff on
+ * #f5b544`. The first names the decision to change and the file to change it
+ * in; the second names two strings that appear in a dozen places.
+ *
  * Everything a component sheet is allowed to depend on lives here. A component
  * never reaches for a palette token directly — it reads a **theme variable**,
  * and the theme is the single place that decides what a variable holds in light
@@ -30,7 +36,7 @@ import {
 // Every token carries both of its values and gets its role from the group it
 // sits in. `darkOf(...)` is how the theme reaches the other side.
 
-export const ui = definePalette({
+export const ui = definePalette('ui', {
   surface: {
     page: { light: '#fbfbfd', dark: '#0b0d11' },
     raised: { light: '#ffffff', dark: '#151922' },
@@ -51,6 +57,18 @@ export const ui = definePalette({
     success: { light: '#0f7b4f', dark: '#3ddc97' },
     warning: { light: '#8a5a00', dark: '#f5b544' },
     danger: { light: '#a11b1b', dark: '#ff6b6b' },
+
+    // The hovered fills, as **tokens** and not as a `darken()` at the use
+    // site. A function would hide the resulting colour from the palette, and
+    // the palette is where the contrast question is decided: `white on
+    // #684400` is 8.69:1 and `white on #b8860b` is 3.25:1, and nothing about
+    // "10% darker" tells you which one you wrote. Each of these is measured
+    // in `design-system.contrast.spec.ts`.
+    neutralHover: { light: '#394152', dark: '#c3ccd8' },
+    infoHover: { light: '#154b80', dark: '#9acbf5' },
+    successHover: { light: '#0b5c3b', dark: '#74e8b6' },
+    warningHover: { light: '#684400', dark: '#f8cd7e' },
+    dangerHover: { light: '#7d1515', dark: '#ff9797' },
   },
 });
 

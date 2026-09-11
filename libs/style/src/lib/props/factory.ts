@@ -11,6 +11,7 @@
  */
 import type {
   AngleValue,
+  ColorProvenance,
   ColorValue,
   CssStringValue,
   IdentValue,
@@ -28,6 +29,15 @@ export interface Declaration {
   readonly value: string;
   /** Carried over from `unsafeLength`: the debt travels with the declaration. */
   readonly unproven: string;
+  /**
+   * Set when the value came from a palette token.
+   *
+   * It rides on the declaration rather than being looked up later from the CSS
+   * text, because by then the only thing left is `#8a5a00` — and two tokens
+   * are allowed to hold the same hexadecimal string. A reverse lookup would
+   * have to pick one of them, and would be right half the time.
+   */
+  readonly provenance?: ColorProvenance;
 }
 
 export type TerminalName =
@@ -105,10 +115,15 @@ export function valueProp<
   _terminals: Terminals,
   keywords: Keywords,
 ): ValueProp<Terminals[number], Keywords[number]> {
-  const set = (value: { readonly css: string; readonly unproven: string }) => ({
+  const set = (value: {
+    readonly css: string;
+    readonly unproven: string;
+    readonly provenance?: ColorProvenance;
+  }) => ({
     property,
     value: value.css,
     unproven: value.unproven,
+    ...(value.provenance ? { provenance: value.provenance } : {}),
   });
   return Object.assign(
     set,

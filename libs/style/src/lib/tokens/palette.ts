@@ -1,23 +1,41 @@
 /**
  * The palette.
  *
- * A token carries **both** of its values and its role. `palette.surface.raised`
- * is a value, not a string, and dark mode is not a second file to keep in sync
- * by hand — the emitter reads the `dark` side off the same token.
+ * A token carries **both** of its values, its role, and — since the contrast
+ * analysis — where it came from. `palette.surface.raised` is a value, not a
+ * string, and dark mode is not a second file to keep in sync by hand: the
+ * emitter reads the `dark` side off the same token.
  *
  * The role is what later makes `defineAxis(..., { writes: onlyVarsOfKind(color) })`
  * meaningful, and what lets the graph answer "which surfaces does this token
- * paint?" without parsing CSS.
+ * paint?" without parsing CSS. The provenance is what lets a contrast failure
+ * say `ui.text.onAccent on ui.accent.warning` instead of `#0b0d11 on #735000`
+ * — the first names a decision, the second names two strings.
  */
-import type { ColorRole, ColorValue } from './units.ts';
+import type { ColorProvenance, ColorRole, ColorValue } from './units.ts';
 
 export interface PaletteEntry {
   readonly light: string;
   readonly dark: string;
 }
 
-const swatch = (light: string, dark: string, role: ColorRole): ColorValue =>
-  ({ css: light, dark, role, unproven: '' }) as ColorValue;
+/**
+ * The name an unnamed palette reports.
+ *
+ * Deliberately not a plausible identifier: a report saying
+ * `(unnamed).accent.warning` is a prompt to name the palette, whereas
+ * `palette.accent.warning` would read as a real path and send someone looking
+ * for a `palette` export that may not be the one in play.
+ */
+export const ANONYMOUS_PALETTE = '(unnamed)';
+
+const swatch = (
+  light: string,
+  dark: string,
+  role: ColorRole,
+  provenance: ColorProvenance,
+): ColorValue =>
+  ({ css: light, dark, role, unproven: '', provenance }) as ColorValue;
 
 export type PaletteSpec = Readonly<
   Record<string, Readonly<Record<string, PaletteEntry>>>
@@ -41,20 +59,58 @@ const ROLE_OF_GROUP: Readonly<Record<string, ColorRole>> = {
   accent: 'accent',
 };
 
-export function definePalette<const Spec extends PaletteSpec>(
+function build<Spec extends PaletteSpec>(
+  name: string,
   spec: Spec,
 ): Palette<Spec> {
   return Object.fromEntries(
     Object.entries(spec).map(([group, tokens]) => [
       group,
       Object.fromEntries(
-        Object.entries(tokens).map(([name, pair]) => [
-          name,
-          swatch(pair.light, pair.dark, ROLE_OF_GROUP[group] ?? 'none'),
-        ]),
+        Object.entries(tokens).map(([token, pair]) => {
+          const role = ROLE_OF_GROUP[group] ?? 'none';
+          return [
+            token,
+            swatch(pair.light, pair.dark, role, {
+              palette: name,
+              group,
+              token,
+              role,
+              light: pair.light,
+              dark: pair.dark,
+              side: 'light',
+            }),
+          ];
+        }),
       ),
     ]),
   ) as Palette<Spec>;
+}
+
+/**
+ * `definePalette('ui', spec)` — named, and `definePalette(spec)` — not.
+ *
+ * The overload is additive rather than a breaking change of the signature:
+ * every existing call keeps compiling and keeps working. What it loses is
+ * precision in the report, and only there — an unnamed palette still carries
+ * its group, its token and both of its sides, so a diagnostic can still say
+ * `(unnamed).accent.warning` and point at the right entry. The name is what
+ * turns that into a path someone can search for.
+ */
+export function definePalette<const Spec extends PaletteSpec>(
+  name: string,
+  spec: Spec,
+): Palette<Spec>;
+export function definePalette<const Spec extends PaletteSpec>(
+  spec: Spec,
+): Palette<Spec>;
+export function definePalette<const Spec extends PaletteSpec>(
+  nameOrSpec: string | Spec,
+  maybeSpec?: Spec,
+): Palette<Spec> {
+  return typeof nameOrSpec === 'string'
+    ? build(nameOrSpec, maybeSpec as Spec)
+    : build(ANONYMOUS_PALETTE, nameOrSpec);
 }
 
 /**
@@ -65,7 +121,9 @@ export function definePalette<const Spec extends PaletteSpec>(
  * darkOf(palette.text.strong))])` — rather than at every use site, which is
  * what keeps dark mode from becoming a second design system to maintain.
  *
- * The role travels with it: the dark side of a surface is still a surface.
+ * The role travels with it: the dark side of a surface is still a surface. So
+ * does the provenance, with its `side` flipped — a dark-mode contrast failure
+ * must still name the token, and must not name the light value as the culprit.
  */
 export const darkOf = (token: ColorValue): ColorValue =>
   ({
@@ -73,9 +131,12 @@ export const darkOf = (token: ColorValue): ColorValue =>
     dark: token.dark,
     role: token.role,
     unproven: token.unproven,
+    ...(token.provenance
+      ? { provenance: { ...token.provenance, side: 'dark' as const } }
+      : {}),
   }) as ColorValue;
 
-export const palette = definePalette({
+export const palette = definePalette('palette', {
   surface: {
     page: { light: '#ffffff', dark: '#0b0d11' },
     raised: { light: '#f6f7f9', dark: '#151922' },

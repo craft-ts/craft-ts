@@ -16,7 +16,14 @@ import { p, display } from '../props/index.ts';
 import { palette } from '../tokens/palette.ts';
 import { space } from '../tokens/scales.ts';
 import { unit } from '../tokens/units.ts';
-import { craftStyles, resetStyleRegistry, when } from '../styles.ts';
+import {
+  craftStyles,
+  registeredAtoms,
+  registeredClasses,
+  resetStyleRegistry,
+  when,
+} from '../styles.ts';
+import { renderCss } from '../../plugin/emit.ts';
 import {
   above,
   at,
@@ -32,6 +39,7 @@ import {
   contrast,
   descendant,
   forcedColors,
+  interaction,
   motion,
   scheme,
   scrollState,
@@ -95,6 +103,56 @@ describe('the standard axes are closed sets', () => {
     // Each entry is its own axis: "a descendant is invalid" and "a descendant
     // has focus" are independent, not alternatives.
     expect(descendant.userInvalid.axis).not.toBe(descendant.checked.axis);
+  });
+});
+
+describe('hover is an axis, not a selector', () => {
+  it('opens on the pseudo-class and carries a self-state driver', () => {
+    expect(interaction.hover.axis).toBe('interaction.hover');
+    expect(interaction.hover.point).toBe('active');
+    expect(interaction.hover.open).toBe('&:hover');
+    expect(interaction.hover.driver).toEqual({
+      kind: 'selfState',
+      state: 'hover',
+    });
+  });
+
+  it('reaches the class contract, so the matrix can see it', () => {
+    // The whole point: a `&:hover` written by hand is in no contract, so no
+    // capture and no contrast check ever crosses the colours it writes.
+    const v = cssVars('hoverable', { bg: kind.color(palette.surface.raised) });
+    craftStyles('hoverable', {
+      root: [
+        p(space(4)),
+        when(interaction.hover, [set(v.bg, palette.accent.info)]),
+      ],
+    });
+
+    const registered = registeredClasses().find(
+      (entry) => entry.key === 'hoverable-root',
+    );
+    expect(registered?.axes).toEqual({ 'interaction.hover': ['active'] });
+  });
+
+  it('leaves a class that never hovers alone', () => {
+    // `base` and `hover` are added to the sheets that use the axis and to no
+    // others — otherwise every class in the app would double its matrix.
+    craftStyles('quiet', { root: [p(space(4))] });
+    const registered = registeredClasses().find(
+      (entry) => entry.key === 'quiet-root',
+    );
+    expect(registered?.axes).toEqual({});
+  });
+
+  it('emits the pseudo-class as a selector, not as an at-rule', () => {
+    const v = cssVars('hoverable', { bg: kind.color(palette.surface.raised) });
+    craftStyles('hoverable', {
+      root: [when(interaction.hover, [set(v.bg, palette.accent.info)])],
+    });
+    const rule = registeredAtoms().find((atom) =>
+      atom.conditions.some((point) => point.axis === 'interaction.hover'),
+    );
+    expect(renderCss(rule ? [rule] : [], [])).toContain(':hover{');
   });
 });
 

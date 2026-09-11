@@ -12,6 +12,12 @@
  * item that will be stamped rather than read, and the ones that needed a person
  * get stamped alongside them.
  */
+import {
+  AA_NORMAL_TEXT,
+  contrastRatio,
+  parseColorChannels,
+  relativeLuminance as luminanceOf,
+} from '@craft-ts/dev-tools/contrast';
 import type { LayoutDigest, LayoutNode } from './digest.js';
 
 export interface LayoutViolation {
@@ -37,66 +43,35 @@ export interface AssertionOptions {
   readonly ignore?: Readonly<Partial<Record<LayoutViolation['rule'], readonly string[]>>>;
 }
 
-export const AA_CONTRAST = 4.5;
+/**
+ * The thresholds, re-exported from the vocabulary.
+ *
+ * `AA_CONTRAST` stays spelled here because it is the name every existing
+ * caller passes to `AssertionOptions`; the number itself comes from
+ * `@craft-ts/dev-tools/contrast`, where the shared WCAG arithmetic lives — so
+ * the digest and the static solver cannot disagree about what AA means. That
+ * module's header explains why the root of the project graph is the only
+ * place both of them can reach; the **subpath** is why importing it here does
+ * not drag ts-morph and `node:fs` into a jsdom suite.
+ */
+export const AA_CONTRAST = AA_NORMAL_TEXT;
 export const MIN_TOUCH_TARGET = 24;
 
 /* ------------------------------------------------------------------------ *
  * Colour
  * ------------------------------------------------------------------------ */
 
-/** `rgb(1, 2, 3)` / `#123` / `#112233` → channels, or nothing. */
-export function parseColor(
-  value: string,
-): readonly [number, number, number, number] | undefined {
-  const text = value.trim().toLowerCase();
-  if (text === 'transparent') return [0, 0, 0, 0];
-  const rgb = /^rgba?\(([^)]+)\)$/.exec(text);
-  if (rgb) {
-    const parts = (rgb[1] as string)
-      .split(/[\s,/]+/)
-      .filter(Boolean)
-      .map((part) => Number.parseFloat(part));
-    const [r, g, b, a] = parts;
-    if (r === undefined || g === undefined || b === undefined) return undefined;
-    return [r, g, b, a ?? 1];
-  }
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(text);
-  if (!hex) return undefined;
-  const digits = hex[1] as string;
-  const expanded =
-    digits.length === 3
-      ? [...digits].map((digit) => digit + digit).join('')
-      : digits;
-  return [
-    Number.parseInt(expanded.slice(0, 2), 16),
-    Number.parseInt(expanded.slice(2, 4), 16),
-    Number.parseInt(expanded.slice(4, 6), 16),
-    1,
-  ];
-}
-
-const channel = (value: number): number => {
-  const scaled = value / 255;
-  return scaled <= 0.03928
-    ? scaled / 12.92
-    : ((scaled + 0.055) / 1.055) ** 2.4;
-};
-
-export const relativeLuminance = (
-  color: readonly [number, number, number, number],
-): number =>
-  0.2126 * channel(color[0]) +
-  0.7152 * channel(color[1]) +
-  0.0722 * channel(color[2]);
-
-export function contrastRatio(foreground: string, background: string): number | undefined {
-  const one = parseColor(foreground);
-  const other = parseColor(background);
-  if (!one || !other) return undefined;
-  const light = Math.max(relativeLuminance(one), relativeLuminance(other));
-  const dark = Math.min(relativeLuminance(one), relativeLuminance(other));
-  return (light + 0.05) / (dark + 0.05);
-}
+/**
+ * The colour helpers are the vocabulary's, aliased rather than reimplemented.
+ *
+ * There were two copies of the WCAG arithmetic in this repository, and two
+ * copies of a formula are two answers waiting to disagree — the one that
+ * matters here being the digest calling a pair readable that the static
+ * solver fails. The names stay for the callers that already import them.
+ */
+export const parseColor = parseColorChannels;
+export const relativeLuminance = luminanceOf;
+export { contrastRatio };
 
 /* ------------------------------------------------------------------------ *
  * The rules

@@ -63,12 +63,44 @@ export interface TimeValue extends StyleValue {
 
 export type ColorRole = 'surface' | 'text' | 'border' | 'accent' | 'none';
 
+/**
+ * Where a colour came from, carried by the value itself.
+ *
+ * The contrast report can compute a ratio from `#0b0d11` and `#735000` alone.
+ * It cannot tell anyone what to change: two hexadecimal strings name no
+ * decision and point at no file. `ui.text.onAccent on ui.accent.warning` does
+ * — it names the two tokens whose relationship is wrong, which is the thing a
+ * design system fixes once instead of at every call site.
+ *
+ * Optional, because a colour built by `rawColor` or handed in from outside a
+ * palette genuinely has no provenance. Absent is honest; a fabricated name
+ * would send the reader to a token that does not exist.
+ */
+export interface ColorProvenance {
+  /** The palette's own name — `'ui'`. Anonymous palettes report `'(unnamed)'`. */
+  readonly palette: string;
+  readonly group: string;
+  readonly token: string;
+  readonly role: ColorRole;
+  readonly light: string;
+  readonly dark: string;
+  /** Which of the two sides this particular value is. See `darkOf`. */
+  readonly side: 'light' | 'dark';
+}
+
 export interface ColorValue extends StyleValue {
   readonly [COLOR]: true;
   /** The dark counterpart. A palette token carries both of its values. */
   readonly dark: string;
   readonly role: ColorRole;
+  readonly provenance?: ColorProvenance;
 }
+
+/** `ui.text.onAccent`, or `ui.text.onAccent.dark` for the other side. */
+export const colorProvenanceName = (provenance: ColorProvenance): string =>
+  `${provenance.palette}.${provenance.group}.${provenance.token}${
+    provenance.side === 'dark' ? '.dark' : ''
+  }`;
 
 /** `<custom-ident>` — a name, never a free string. */
 export interface IdentValue extends StyleValue {

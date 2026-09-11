@@ -755,10 +755,45 @@ function valueAfter(args, flag) {
 }
 `;
 
+/**
+ * `npm run style:check` — a real proof, not a file-existence test.
+ *
+ * What it replaced checked that `vite.config.ts` was on disk and printed
+ * "Typed CSS configuration present." That is a check nobody can fail and
+ * therefore a check that says nothing; worse, it occupied the name, so a
+ * project could have a green `style:check` and no contrast guarantee at all.
+ *
+ * Two steps, in order, because the second needs the first: build once so the
+ * style plugin evaluates every sheet and writes the dump, then run the
+ * contrast analysis over the dump and the TypeScript program together. The
+ * build is where a dead rule or an invalid `@property` initial value already
+ * fails, so it is not wasted work.
+ */
 const styleCheckScript = `import { existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+
 const root = import.meta.dirname + '/..';
-if (!existsSync(root + '/vite.config.ts')) throw new Error('Missing Vite configuration');
-console.log('Typed CSS configuration present.');
+const dump = root + '/.craft/style-graph.json';
+
+function run(command, args) {
+  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit', shell: process.platform === 'win32' });
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
+
+// The dump is written by the style plugin during a build; there is no way to
+// produce it without evaluating the sheets, and evaluating them is the point.
+run('npx', ['vite', 'build', '--mode', 'development']);
+if (!existsSync(dump)) {
+  console.error(
+    'style:check: the build did not write ' + dump + '. Give craftStyle({ dumpPath }) that path in vite.config.ts.',
+  );
+  process.exit(1);
+}
+
+// Indeterminate results fail by default. A contrast check whose default lets
+// "I could not tell" through reports a clean bill on the half of the
+// application it understood, which is the one shape this check must not have.
+run('npx', ['craft-graph', '--style-contrast', '--style-dump', dump, '--project', 'tsconfig.app.json']);
 `;
 
 const vitestConfig = `import { defineConfig } from 'vitest/config';
@@ -777,6 +812,7 @@ const eslintConfig = (
   effect: boolean,
   backendEffect = false,
   i18n = false,
+  typedCss = false,
 ) => `import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import playwright from 'eslint-plugin-playwright';
@@ -815,7 +851,7 @@ export default tseslint.config(
       // This preset enforces remote placement, loader inference, route-level
       // filter params and source-driven template actions.
       ...craftRules.configs.${effect ? 'effect' : 'recommended'}.rules,
-${i18n ? '      // Visible text belongs to src/i18n, not to a template literal.\n      ...craftRules.configs.i18n.rules,\n' : ''}      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
+${i18n ? '      // Visible text belongs to src/i18n, not to a template literal.\n      ...craftRules.configs.i18n.rules,\n' : ''}${typedCss ? '      // Keeps npm run style:check honest: a :hover or a colour written\n      // outside the DSL is invisible to it, so the run would come back clean\n      // on styles nobody proved.\n      ...craftRules.configs.typedCss.rules,\n' : ''}      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
 ${effect ? '' : "      'craft-ts/no-effect-import-in-frontend': 'error',"}
     },
   },
@@ -1238,6 +1274,7 @@ const uiStyleTs = `import {
   defineStateAxis,
   definePalette,
   display,
+  interaction,
   kind,
   lineWidth,
   p,
@@ -1251,8 +1288,14 @@ const uiStyleTs = `import {
 
 // ─── palette ────────────────────────────────────────────────────────────────
 // Every token carries both of its values; the group it sits in gives it a role.
+//
+// The palette is **named**. The name travels with every colour, so a contrast
+// failure reads \`ui.text.strong on ui.accent.danger\` instead of
+// \`#172033 on #b42318\` — the first names the decision to change, the second
+// names two strings that appear in several places. \`npm run style:check\`
+// prints those names.
 
-export const ui = definePalette({
+export const ui = definePalette('ui', {
   surface: {
     page: { light: '#f7f8fb', dark: '#0b0d11' },
     raised: { light: '#ffffff', dark: '#151922' },
@@ -1267,6 +1310,12 @@ export const ui = definePalette({
   accent: {
     info: { light: '#2457d6', dark: '#7aa2ff' },
     danger: { light: '#b42318', dark: '#ff6b6b' },
+
+    // The hovered fills, as tokens rather than as a \`darken()\` at the use
+    // site. A function hides the resulting colour from the palette, and the
+    // palette is where the contrast question is settled.
+    infoHover: { light: '#1a419f', dark: '#a8c4ff' },
+    dangerHover: { light: '#8f1c13', dark: '#ffa0a0' },
   },
 });
 
@@ -1338,6 +1387,33 @@ export const surface = craftStyles('appSurface', {
     when(tone.danger, [set(theme.accent, ui.accent.danger)]),
   ],
 });
+
+/**
+ * A hovered link, written as an **axis** and not as a hand-written selector.
+ *
+ * The difference is not cosmetic. \`interaction.hover\` puts the point in the
+ * class's variant contract, so the visual matrix captures the hovered state
+ * and \`npm run style:check\` measures the colours it writes. A pseudo-class
+ * typed into a string emits the same CSS and is invisible to both — which is
+ * how a link ends up readable at rest and unreadable under the pointer, in
+ * the one state nobody screenshots. \`prefer-hover-axis\` enforces it.
+ */
+export const link = craftStyles(
+  'appLink',
+  {
+    root: [
+      color(theme.accent),
+      when(interaction.hover, [set(theme.accent, ui.accent.infoHover)]),
+      when(tone.danger, [
+        set(theme.accent, ui.accent.danger),
+        when(interaction.hover, [set(theme.accent, ui.accent.dangerHover)]),
+      ]),
+    ],
+  },
+  // Every axis a sheet uses multiplies the matrix of every page that renders
+  // it, so the cost is declared rather than inherited.
+  { axes: [tone, interaction] },
+);
 `;
 
 const uiPlainTs = `export const appTheme = { root: 'starter-theme' } as const;
@@ -1346,25 +1422,29 @@ export const surface = {
   note: 'starter-note',
   message: 'starter-message',
 } as const;
+export const link = { root: 'starter-link' } as const;
 `;
 
 function uiComponentsTs(context: TemplateContext): string {
   const styleImport = context.config.typedCss
-    ? "import { surface } from './ui.style';"
-    : "import { surface } from './ui';";
+    ? "import { link, surface } from './ui.style';"
+    : "import { link, surface } from './ui';";
   const hasI18n = context.config.i18n.enabled;
   const i18nImport = hasI18n ? "\nimport { i18n } from '../../i18n';" : '';
   const continueLabel = hasI18n
     ? "i18n.t('ui.components.continue')"
     : "'Continue'";
   const alertLabel = hasI18n ? "i18n.t('ui.components.alert')" : "'Alert'";
-  return `import { button, craftComponent, div, p } from '@craft-ts/component';
+  return `import { a, button, craftComponent, div, p } from '@craft-ts/component';
 ${styleImport}${i18nImport}
 
 export const Stack = craftComponent('Stack', {}, () => ({}), () => div({ class: surface.card }, []));
 export const Card = craftComponent('Card', {}, () => ({}), () => div({ class: surface.card }, []));
 export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card, type: 'button' }, ${continueLabel}));
 export const Alert = craftComponent('Alert', {}, () => ({}), () => p({ class: surface.message, 'data-tone': 'danger' }, ${alertLabel}));
+// The hovered state is a variant of one class, not a second component. Its
+// colours are checked by \`npm run style:check\` without a browser.
+export const Link = craftComponent('Link', {}, () => ({}), () => a('more', { class: link.root, href: '#' }, ${continueLabel}));
 `;
 }
 
@@ -3225,6 +3305,7 @@ function templates(context: TemplateContext): Record<string, string> {
       effect,
       context.config.backendRuntime === 'effect',
       context.config.i18n.enabled,
+      context.config.typedCss,
     ),
     'playwright.config.ts': playwrightConfig,
     'index.html': indexHtml(context.defaultLocale),

@@ -38,7 +38,18 @@ export type Driver =
   | {
       readonly kind: 'descendantState';
       readonly state: 'user-invalid' | 'focus-visible' | 'checked';
-    };
+    }
+  /**
+   * A pseudo-class on the element **itself**, not on a descendant.
+   *
+   * Kept apart from `descendantState` because the two are reached by different
+   * gestures — one moves the pointer onto the element under test, the other
+   * puts a child into a state — and because a self state is the only driver
+   * whose selector stays entirely inside the component's own subtree. That is
+   * what makes `interaction.hover` an axis the matrix can enumerate rather
+   * than a `:hover` written by hand, which nothing can find.
+   */
+  | { readonly kind: 'selfState'; readonly state: 'hover' };
 
 export interface AxisPoint<Axis extends string, Point extends string> {
   readonly axis: Axis;

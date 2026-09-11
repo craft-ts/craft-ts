@@ -2,6 +2,7 @@ import {
   provideCraftGlobalErrorComponent,
   provideCraftRootComponent,
   provideCraftRouteLoadErrorComponent,
+  provideSendContextToAi,
 } from '@craft-ts/component';
 import {
   Console,
@@ -50,6 +51,7 @@ const developmentProviders = import.meta.env.DEV
       provideDemoTracing(),
       // eslint-disable-next-line craft-ts/prefer-browser-boundaries
       provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
+      provideSendContextToAi(),
       provideMcpExperimentation(),
     ]
   : [];
@@ -115,7 +117,6 @@ export const appConfig = craftAppConfig({
       },
     ),
     provideCorrelationIdTracking(),
-    //provideSendContextToAi(),
   ],
 });
 

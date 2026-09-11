@@ -44,6 +44,17 @@ export interface DependencyGraphNodeRegistry {
   'http-endpoint': Record<string, unknown>;
   unique: Record<string, unknown>;
   'template-element': Record<string, unknown>;
+  /**
+   * One hyperscript call, whatever it renders.
+   *
+   * Distinct from `template-element`, which is the *interactive* subset and
+   * whose identity a11y rules and the attestation tooling already depend on.
+   * Widening that kind to every `div` would change what those consumers see;
+   * a second kind alongside it changes nothing for them, and gives the
+   * contrast solver the element-by-element hierarchy it needs — a text node's
+   * colour and the background it sits on are almost never on the same element.
+   */
+  'styled-element': Record<string, unknown>;
   'server-function-family': Record<string, unknown>;
   'server-function-contract': Record<string, unknown>;
   'server-function-client': Record<string, unknown>;
@@ -89,6 +100,14 @@ export interface DependencyGraphEdgeRegistry {
   writes: Record<string, unknown>;
   subscribes: Record<string, unknown>;
   triggers: Record<string, unknown>;
+  /**
+   * Element → the sheet class it carries.
+   *
+   * Declared here rather than in `style-graph.ts` because the AST producer is
+   * what discovers it, and a module augmentation written in the style module
+   * is not visible to this one.
+   */
+  'styled-by': Record<string, unknown>;
 }
 
 export type DependencyGraphEdgeKind = keyof DependencyGraphEdgeRegistry;
@@ -462,6 +481,7 @@ export function analyzeDependencyGraph(
   analyzeServiceBodies(builder);
   analyzeComponents(builder);
   collectInteractiveTemplateElements(builder);
+  collectStyledElements(builder);
   analyzeRoutes(builder);
   analyzeInsertions(builder);
   collectCraftUniques(builder, sourceFiles);
@@ -2133,6 +2153,15 @@ export type ParsedHyperscript = {
   name?: string;
   nameKind: 'literal' | 'non-static' | 'missing';
   props?: ObjectLiteralExpression;
+  /**
+   * Index of the first child argument.
+   *
+   * The helpers have four call shapes and the children start at a different
+   * place in each. Computing it once, here, is what lets the contrast pass ask
+   * "can this element hold text?" without re-deriving the shape and getting it
+   * wrong for one of the four.
+   */
+  childrenStart: number;
 };
 
 function collectInteractiveTemplateElements(builder: GraphBuilder): void {
@@ -2189,6 +2218,7 @@ export function parseCraftHyperscript(
       tag,
       nameKind: 'missing',
       props: args[1]?.asKind(SyntaxKind.ObjectLiteralExpression),
+      childrenStart: 2,
     };
   }
   if (!NAMED_HTML_HELPERS.has(callee)) return undefined;
@@ -2204,10 +2234,11 @@ export function parseCraftHyperscript(
       name: first.asKind(SyntaxKind.StringLiteral)?.getLiteralValue(),
       nameKind: 'literal',
       props: second.asKind(SyntaxKind.ObjectLiteralExpression),
+      childrenStart: 2,
     };
   }
   if (first && Node.isObjectLiteralExpression(first)) {
-    return { tag: callee, nameKind: 'missing', props: first };
+    return { tag: callee, nameKind: 'missing', props: first, childrenStart: 1 };
   }
   if (
     first &&
@@ -2219,9 +2250,10 @@ export function parseCraftHyperscript(
       tag: callee,
       nameKind: 'non-static',
       props: second?.asKind(SyntaxKind.ObjectLiteralExpression),
+      childrenStart: 2,
     };
   }
-  return { tag: callee, nameKind: 'missing' };
+  return { tag: callee, nameKind: 'missing', childrenStart: 0 };
 }
 
 export function isInteractiveElement(parsed: ParsedHyperscript): boolean {
@@ -2243,6 +2275,350 @@ function hasInteractiveHandler(
     (name) => props.getProperty(name) !== undefined,
   );
 }
+
+
+// ─── styled elements ────────────────────────────────────────────────────────
+//
+// The contrast proof needs a finer grain than "this component uses these
+// sheets". Text takes its colour from the element that carries it or from an
+// ancestor that set `color`; the background behind it is almost always painted
+// two or three levels up. A component-to-class relation cannot express either,
+// so this pass records one node per hyperscript call, the parent link between
+// them, and the class each one carries.
+//
+// It is deliberately separate from `collectInteractiveTemplateElements`: that
+// pass records the *interactive* subset under the `template-element` kind, and
+// a11y rules, the attestation tooling and the existing graph snapshots all key
+// on those ids. Widening it would move ids that other things depend on.
+
+/** Helpers whose call is a template block rather than an element. */
+const TEMPLATE_BLOCK_HELPERS = new Set([
+  'ifNode',
+  'forNode',
+  'matchNode',
+  'deferNode',
+  'content',
+  'craftTemplate',
+  'renderTemplate',
+  'renderContent',
+]);
+
+/**
+ * What the graph knows about the text an element can hold.
+ *
+ * `none` is a real answer and not a missing one: an element with only element
+ * children has no text of its own, and checking its `color` against its
+ * background would report a failure nobody can see.
+ */
+export type ElementTextKind = 'none' | 'static' | 'dynamic';
+
+type BranchSegment = {
+  /** `if:isOpen` — the decision. Two segments with the same key exclude. */
+  readonly key: string;
+  readonly side: string;
+};
+
+type StyleClassResolution =
+  | { readonly kind: 'resolved'; readonly keys: readonly string[] }
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'unresolved'; readonly detail: string };
+
+/**
+ * `button.root` → `dsButton-root`.
+ *
+ * Follows the identifier back to its `craftStyles(prefix, …)` declaration and
+ * joins the prefix with the property name, which is exactly the key the sheet
+ * registered. The alternative — matching the emitted class string against the
+ * dump — cannot work here: the AST sees `button.root`, never the atoms.
+ */
+function craftStylesPrefix(identifier: Node): string | undefined {
+  if (!Node.isIdentifier(identifier)) return undefined;
+  const symbol = identifier.getSymbol();
+  const resolved = symbol?.getAliasedSymbol() ?? symbol;
+  for (const declaration of resolved?.getDeclarations() ?? []) {
+    const initializer = Node.isVariableDeclaration(declaration)
+      ? declaration.getInitializer()
+      : undefined;
+    if (!initializer || !Node.isCallExpression(initializer)) continue;
+    if (initializer.getExpression().getText() !== 'craftStyles') continue;
+    const prefix = initializer
+      .getArguments()[0]
+      ?.asKind(SyntaxKind.StringLiteral)
+      ?.getLiteralValue();
+    if (prefix) return prefix;
+  }
+  return undefined;
+}
+
+function resolveStyleClasses(expression: Node | undefined): StyleClassResolution {
+  if (!expression) return { kind: 'absent' };
+  if (Node.isArrayLiteralExpression(expression)) {
+    const parts = expression.getElements().map(resolveStyleClasses);
+    const unresolved = parts.find((part) => part.kind === 'unresolved');
+    if (unresolved) return unresolved;
+    return {
+      kind: 'resolved',
+      keys: parts.flatMap((part) => (part.kind === 'resolved' ? part.keys : [])),
+    };
+  }
+  if (Node.isPropertyAccessExpression(expression)) {
+    const prefix = craftStylesPrefix(expression.getExpression());
+    if (!prefix) {
+      return {
+        kind: 'unresolved',
+        detail: `${quoted(expression)} does not resolve to a craftStyles(...) sheet, so the class it sets cannot be joined to the style dump.`,
+      };
+    }
+    return { kind: 'resolved', keys: [`${prefix}-${expression.getName()}`] };
+  }
+  return {
+    kind: 'unresolved',
+    detail: `${quoted(expression)} is not a constant sheet class. The contrast solver reads the styles of a class it can name; a computed class names none.`,
+  };
+}
+
+/**
+ * Source text for a message: one line, and quoted at most once.
+ *
+ * A class expression can be a multi-line arrow, and a string literal already
+ * carries its own quotes — `''craft-ai-cancel''` in a diagnostic reads as a
+ * bug in the tool rather than as a quotation.
+ */
+function quoted(expression: Node): string {
+  const text = expression.getText().replace(/\s+/g, ' ').trim();
+  const clipped = text.length > 120 ? `${text.slice(0, 117)}...` : text;
+  return /^['"`]/.test(clipped) ? clipped : `'${clipped}'`;
+}
+
+/** The `class` prop's initializer, whatever spelling it uses. */
+function classExpression(
+  props: ObjectLiteralExpression | undefined,
+): Node | undefined {
+  return props
+    ?.getProperty('class')
+    ?.asKind(SyntaxKind.PropertyAssignment)
+    ?.getInitializer();
+}
+
+const isTextLiteral = (node: Node): boolean =>
+  Node.isStringLiteral(node) ||
+  Node.isNoSubstitutionTemplateLiteral(node) ||
+  Node.isTemplateExpression(node) ||
+  Node.isNumericLiteral(node);
+
+/**
+ * Whether this element can end up with text in it, and of which kind.
+ *
+ * A child that is another hyperscript call is structure, not text. Anything
+ * else in child position — an identifier bound to a signal, a call, a
+ * conditional — can render as a string, so it counts as `dynamic`. Erring
+ * towards "can hold text" is the safe direction: the cost is a contrast check
+ * on an element that turns out to be empty, and the cost of the other
+ * direction is silence about text that fails.
+ */
+function textKindOf(call: CallExpression, childrenStart: number): ElementTextKind {
+  let kind: ElementTextKind = 'none';
+  for (const child of call.getArguments().slice(childrenStart)) {
+    if (isTextLiteral(child)) return 'static';
+    if (Node.isCallExpression(child)) {
+      const callee = child.getExpression().getText();
+      if (parseCraftHyperscript(child) || TEMPLATE_BLOCK_HELPERS.has(callee)) {
+        continue;
+      }
+    }
+    if (Node.isArrayLiteralExpression(child)) continue;
+    kind = 'dynamic';
+  }
+  return kind;
+}
+
+/**
+ * The branch an element sits in, as a path of exclusive decisions.
+ *
+ * Only `ifNode` contributes: its two arms are mutually exclusive by
+ * construction, which is the one exclusivity the graph can prove rather than
+ * assume. `forNode` and `matchNode` bodies are walked, and contribute nothing
+ * — a repeated element is co-present with itself, and a match arm's
+ * exclusivity depends on the discriminant, which is not read here.
+ */
+function branchSegmentFor(
+  call: CallExpression,
+  argument: Node,
+): BranchSegment | undefined {
+  if (call.getExpression().getText() !== 'ifNode') return undefined;
+  const args = call.getArguments();
+  const condition = args[0]?.getText() ?? '?';
+  if (args[1] === argument) return { key: `if:${condition}`, side: 'true' };
+  if (args[2] === argument) return { key: `if:${condition}`, side: 'false' };
+  return undefined;
+}
+
+const branchPathText = (path: readonly BranchSegment[]): string =>
+  path.map((segment) => `${segment.key}=${segment.side}`).join('+');
+
+/**
+ * One node per hyperscript call, plus the tree between them.
+ *
+ * The walk is explicit rather than a `walkTemplate` visit because the parent
+ * of an element is the enclosing *element*, not the enclosing AST node: a
+ * `div` inside `ifNode(c, () => span(...))` is a child of nothing in the AST
+ * sense and a child of the `div` above the `ifNode` in the render sense.
+ */
+function collectStyledElements(builder: GraphBuilder): void {
+  for (const component of builder.components) {
+    const template = component.call.getArguments()[3];
+    for (const part of templateImplementationParts(template)) {
+      walkStyledElements(builder, component, part, undefined, [], 0);
+    }
+  }
+}
+
+function walkStyledElements(
+  builder: GraphBuilder,
+  component: ComponentInfo,
+  node: Node,
+  parentId: string | undefined,
+  branch: readonly BranchSegment[],
+  depth: number,
+): void {
+  const descend = (
+    child: Node,
+    nextParent: string | undefined,
+    nextBranch: readonly BranchSegment[],
+    nextDepth: number,
+  ) => walkStyledElements(builder, component, child, nextParent, nextBranch, nextDepth);
+
+  if (Node.isCallExpression(node)) {
+    const callee = node.getExpression().getText();
+    if (callee === 'craftComponent') return;
+
+    const child = findComponentForCall(builder, node);
+    if (child && child !== component) {
+      // Where a child component is rendered, so a component whose text
+      // inherits its colour can be judged once per surface it appears on
+      // rather than once in the abstract.
+      if (parentId) {
+        addEdge(builder, parentId, child.node.id, 'renders', 'ast');
+      }
+      for (const argument of node.getArguments()) {
+        descend(argument, parentId, branch, depth);
+      }
+      return;
+    }
+
+    const parsed = parseCraftHyperscript(node);
+    if (parsed) {
+      const element = addStyledElementNode(
+        builder,
+        component,
+        node,
+        parsed,
+        branch,
+        depth,
+      );
+      if (parentId) {
+        addEdge(builder, parentId, element.id, 'contains', 'ast');
+      } else {
+        addEdge(builder, component.node.id, element.id, 'contains', 'ast');
+      }
+      for (const argument of node.getArguments()) {
+        descend(argument, element.id, branch, depth + 1);
+      }
+      return;
+    }
+
+    if (TEMPLATE_BLOCK_HELPERS.has(callee)) {
+      for (const argument of node.getArguments()) {
+        const segment = branchSegmentFor(node, argument);
+        descend(
+          argument,
+          parentId,
+          segment ? [...branch, segment] : branch,
+          depth,
+        );
+      }
+      return;
+    }
+  }
+
+  node.forEachChild((child) => descend(child, parentId, branch, depth));
+}
+
+function addStyledElementNode(
+  builder: GraphBuilder,
+  component: ComponentInfo,
+  call: CallExpression,
+  parsed: ParsedHyperscript,
+  branch: readonly BranchSegment[],
+  depth: number,
+): DependencyGraphNode {
+  const classes = resolveStyleClasses(classExpression(parsed.props));
+  const textKind = textKindOf(call, parsed.childrenStart);
+  const filePath = call.getSourceFile().getFilePath();
+  const label = parsed.name
+    ? `${parsed.tag}.${parsed.name}`
+    : `${parsed.tag}`;
+
+  const element = addNode(
+    builder,
+    {
+      id: stableNodeId('styled-element', 'styled-element', call),
+      kind: 'styled-element',
+      label,
+      filePath,
+      line: call.getStartLineNumber(),
+      details: {
+        tag: parsed.tag,
+        localName: parsed.name,
+        component: component.node.label,
+        componentId: component.node.id,
+        depth,
+        branch: branchPathText(branch),
+        branchSegments: branch.map((segment) => ({ ...segment })),
+        mayContainText: textKind !== 'none',
+        textKind,
+        classKeys: classes.kind === 'resolved' ? classes.keys : [],
+      },
+    },
+    call,
+  );
+
+  if (classes.kind === 'resolved') {
+    for (const key of classes.keys) {
+      addEdge(builder, element.id, styleClassNodeId(key), 'styled-by', 'ast', {
+        classKey: key,
+      });
+    }
+  } else if (classes.kind === 'unresolved') {
+    // Not silence: an element the pass cannot attach to a class is an element
+    // the contrast report has to declare indeterminate, and it can only do
+    // that if the gap is recorded rather than skipped.
+    builder.diagnostics.push({
+      code: 'styled-element-class-unresolved',
+      message: `${component.node.label}: ${classes.detail}`,
+      proof: {
+        filePath,
+        line: call.getStartLineNumber(),
+        symbol: component.node.label,
+      },
+    });
+    element.details = {
+      ...(element.details ?? {}),
+      unresolvedClass: classes.detail,
+    };
+  }
+
+  return element;
+}
+
+/**
+ * The style-class node id, spelled here rather than imported.
+ *
+ * `style-graph.ts` imports this module; importing it back would close a cycle
+ * for one template literal. The two are pinned together by
+ * `style-graph.spec.ts`, which asserts they agree.
+ */
+export const styleClassNodeId = (key: string): string => `style-class:${key}`;
 
 function analyzePrimitiveInsertionMetadata(builder: GraphBuilder): void {
   const scopes: { node: Node; ownerId: string }[] = [];
@@ -4982,6 +5358,7 @@ type StableFamily =
   | 'source'
   | 'component'
   | 'template-element'
+  | 'styled-element'
   | 'unique'
   | 'route-check';
 
@@ -5064,6 +5441,14 @@ function stableFamilyKey(
     case 'template-element': {
       const parsed = parseCraftHyperscript(call);
       if (!parsed || !isInteractiveElement(parsed)) return undefined;
+      return `${owner}/${parsed.tag}:${parsed.name ?? '(unnamed)'}`;
+    }
+    // Its own family, and not a widening of the one above: the interactive
+    // family must keep indexing only interactive calls, or every existing
+    // `template-element` id would shift the moment a `div` is added beside it.
+    case 'styled-element': {
+      const parsed = parseCraftHyperscript(call);
+      if (!parsed) return undefined;
       return `${owner}/${parsed.tag}:${parsed.name ?? '(unnamed)'}`;
     }
     case 'unique':

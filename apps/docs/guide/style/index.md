@@ -65,6 +65,8 @@ plugin is wired. Then [Define your design system](./define.md), which is where
 - [Axes and the visual matrix](./variants.md) — level 2.
 - [Context obligations](./obligations.md) — level 3.
 - [Testing what you built](./testing.md) — drivers, baselines, exhaustiveness.
+- [Text contrast](./contrast.md) — WCAG AA proven from the sheets and the
+  templates, with no browser, and an explicit list of what it does not cover.
 
 A working example lives in the demo, at
 `apps/demo/src/app/examples/design-system/`, with a README that walks through

@@ -11,11 +11,12 @@ import {
   APP_SNAPSHOT_REGISTRY,
   craftToken,
   createSendContextToAiBuffer,
-  fromEventToSource$,
-  HOST_TAG_LIST,
   CRAFT_TEMPORAL_RUNTIME,
+  HostTag,
+  HOST_TAG_LIST,
   injectHostName,
   provideComponentMonitoring,
+  provideFnWrapper,
   SEND_CONTEXT_TO_AI_BUFFER,
   SendContextToAiBuffer,
   TAKE_APP_SNAPSHOT,
@@ -30,6 +31,64 @@ import { AiSendDialog } from './ai-send-dialog';
 
 const HANDLED_FLAG = Symbol('craft-ai-contextmenu-handled');
 type HandledEvent = MouseEvent & { [HANDLED_FLAG]?: true };
+
+const aiContextMenuCleanups = new WeakMap<HTMLElement, () => void>();
+
+function componentHostNameFromTags(tags: readonly string[]): string {
+  const componentTag = [...tags]
+    .reverse()
+    .find((tag) => tag.startsWith('component:'));
+  if (!componentTag) return 'application';
+
+  const name = componentTag.slice('component:'.length);
+  const idSeparator = name.lastIndexOf('#');
+  return idSeparator === -1 ? name : name.slice(0, idSeparator);
+}
+
+function installAiContextMenuListener({
+  element,
+  hostName,
+  tagList,
+  injector,
+  controller,
+  destroyRef,
+}: {
+  element: HTMLElement;
+  hostName: string;
+  tagList: readonly string[];
+  injector: Injector;
+  controller: AiContextMenuController;
+  destroyRef: DestroyRef;
+}): void {
+  if (element.closest('[data-craft-ai-overlay]')) return;
+  if (aiContextMenuCleanups.has(element)) return;
+
+  const onContextMenu = (event: MouseEvent): void => {
+    const handled = event as HandledEvent;
+    if (handled[HANDLED_FLAG]) return;
+    handled[HANDLED_FLAG] = true;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    runInInjectionContext(injector, () => {
+      controller.open({
+        hostName,
+        tagList,
+        coords: { x: event.clientX, y: event.clientY },
+        outerHTML: (element.outerHTML ?? '').slice(0, 2000),
+      });
+    });
+  };
+
+  element.addEventListener('contextmenu', onContextMenu);
+  const cleanup = () => {
+    element.removeEventListener('contextmenu', onContextMenu);
+    aiContextMenuCleanups.delete(element);
+  };
+  aiContextMenuCleanups.set(element, cleanup);
+  destroyRef.onDestroy(cleanup);
+}
 
 type Overlay = {
   readonly host: HTMLElement;
@@ -50,6 +109,7 @@ function openOverlay(
   host.style.inset = '0';
   host.style.zIndex = String(zIndex);
   host.style.pointerEvents = pointerEvents;
+  host.dataset['craftAiOverlay'] = 'true';
   document.body.appendChild(host);
   return { host, mount: mount(host) };
 }
@@ -181,32 +241,44 @@ export function provideSendContextToAi(): Provider[] {
           destroyRef: inject(DestroyRef),
         }),
     },
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
+        const hostTags = yield* HostTag();
+        if (!hostTags.some((tag) => tag.startsWith('component:'))) {
+          return yield* factory.apply(thisArg, args);
+        }
+
+        const elementRef = inject(ElementRef);
+        const element = elementRef.nativeElement as HTMLElement;
+        installAiContextMenuListener({
+          element,
+          hostName: componentHostNameFromTags(hostTags),
+          tagList: hostTags,
+          injector: inject(Injector),
+          controller: inject(asAngularToken(AI_CONTEXT_MENU_CONTROLLER)),
+          destroyRef: inject(DestroyRef),
+        });
+
+        return yield* factory.apply(thisArg, args);
+      },
+    ),
     provideComponentMonitoring(() => {
       const el = inject(ElementRef).nativeElement as HTMLElement;
-      const tagList = inject(HOST_TAG_LIST, { optional: true }) as unknown;
+      const tagList = inject(HOST_TAG_LIST);
       const injector = inject(Injector);
       const controller = inject(asAngularToken(AI_CONTEXT_MENU_CONTROLLER));
+      const destroyRef = inject(DestroyRef);
       // Eagerly instantiate the buffer so snapshot reports start being collected.
       inject(asAngularToken(SEND_CONTEXT_TO_AI_BUFFER));
 
-      fromEventToSource$<MouseEvent>(el, 'contextmenu').subscribe((event) => {
-        const handled = event as HandledEvent;
-        if (handled[HANDLED_FLAG]) return;
-        handled[HANDLED_FLAG] = true;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        runInInjectionContext(injector, () => {
-          const hostName = injectHostName();
-          const outerHTML = (el.outerHTML ?? '').slice(0, 2000);
-          controller.open({
-            hostName,
-            tagList,
-            coords: { x: event.clientX, y: event.clientY },
-            outerHTML,
-          });
-        });
+      installAiContextMenuListener({
+        element: el,
+        hostName: injectHostName(),
+        tagList,
+        injector,
+        controller,
+        destroyRef,
       });
     }),
   ];

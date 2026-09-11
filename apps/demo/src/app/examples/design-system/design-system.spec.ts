@@ -111,10 +111,19 @@ describe('a variant costs one rule, not one copy of the component', () => {
       rule.conditions.some((point) => point.axis === 'tone'),
     );
 
-    expect(toned).toHaveLength(5);
+    // Ten rules for five tones: each tone writes the variable once at rest
+    // and once hovered. Still one variable and still one base rule reading
+    // it — the shape the sheet is built on does not change when a state is
+    // added, which is the whole claim of writing variants as variables.
+    expect(toned).toHaveLength(10);
     expect(new Set(toned?.map((rule) => rule.property))).toEqual(
       new Set(['--dsButton-bg']),
     );
+    expect(
+      toned?.filter((rule) =>
+        rule.conditions.some((point) => point.axis === 'interaction.hover'),
+      ),
+    ).toHaveLength(5);
     // And the base rule that reads it exists exactly once.
     expect(
       root?.rules.filter((rule) => rule.property === 'background-color'),

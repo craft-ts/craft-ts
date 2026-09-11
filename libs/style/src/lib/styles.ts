@@ -24,6 +24,7 @@ import type {
 } from '@craft-ts/core';
 import type { AnyAxisPoint, AxisPoint, WritesSyntaxOf } from './axes/index.ts';
 import type { VarWrite } from './css-vars.ts';
+import type { ColorProvenance } from './tokens/units.ts';
 import type { Declaration } from './props/factory.ts';
 import type {
   Obligation,
@@ -194,6 +195,8 @@ export interface AtomicRule {
   readonly property: string;
   readonly value: string;
   readonly unproven: string;
+  /** The palette token this value came from, when it came from one. */
+  readonly provenance?: ColorProvenance;
 }
 
 export interface RegisteredClass {
@@ -320,6 +323,7 @@ function addRule(
     property: declaration.property,
     value: declaration.value,
     unproven: declaration.unproven,
+    ...(declaration.provenance ? { provenance: declaration.provenance } : {}),
   };
   // Deduplication happens here, not in the emitter: two sheets writing
   // `padding: 1rem` under the same condition converge on the same atom.

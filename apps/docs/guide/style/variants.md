@@ -50,12 +50,32 @@ An interval nothing can satisfy — `above(bp.lg)` containing `below(bp.sm)` —
 throws when the sheet is registered, which under the build plugin is a build
 failure.
 
+## Hover, and every pseudo-class after it
+
+```ts
+when(interaction.hover, [set(buttonVars.bg, ui.accent.warningHover)]);
+```
+
+`interaction.hover` emits the same `&:hover` rule you would write by hand.
+What it adds is that the point enters the class's contract — so the matrix
+enumerates the hovered state, and the
+[static contrast check](./contrast.md) crosses the colours it writes with the
+text on top of them. A `:hover` typed into a string emits identical CSS and is
+invisible to both, which is how a button ends up readable at rest and
+unreadable under the pointer. `prefer-hover-axis` refuses it.
+
+It is a real axis with a real price: it doubles the sheet's matrix, so it has
+to be in the budget below. Its driver is `{ kind: 'selfState', state: 'hover' }`,
+and `applyScenario` honours it by asking the page to move a pointer — a
+dispatched `mouseover` sets no pseudo-class and would capture the base state
+while looking correct.
+
 ## The budget
 
 ```ts
 import { craftStyles } from '@craft-ts/style';
 
-craftStyles('button', { root: [...] }, { axes: [tone, size] })
+craftStyles('button', { root: [...] }, { axes: [tone, size, interaction] })
 ```
 
 An axis outside the budget is a compile error naming it. Without this, an axis

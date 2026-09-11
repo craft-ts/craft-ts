@@ -62,6 +62,10 @@ export default defineConfig(() => ({
         workspaceRoot,
         'libs/dev-tools/src/scripts/dependency-graph.ts',
       ),
+      '@craft-ts/dev-tools/contrast': path.join(
+        workspaceRoot,
+        'libs/dev-tools/src/scripts/contrast.ts',
+      ),
       '@craft-ts/dev-tools': path.join(
         workspaceRoot,
         'libs/dev-tools/src/index.ts',

@@ -14,6 +14,7 @@
 import type { AnyAxisPoint } from '../lib/axes/index.ts';
 import type { AtomicRule, RegisteredClass } from '../lib/styles.ts';
 import type { CssVarDeclaration } from '../lib/css-vars.ts';
+import type { ColorProvenance } from '../lib/tokens/units.ts';
 import { propertyRule } from '../lib/css-vars.ts';
 import { prop } from '../lib/props/generated.ts';
 import {
@@ -145,7 +146,22 @@ export function renderCss(
   return sections.filter(Boolean).join('\n') + '\n';
 }
 
+/**
+ * The dump format's own version.
+ *
+ * Bumped to 2 when colour provenance was added. The field is **optional** on
+ * the way in: a dump written before the bump has no version and no
+ * provenance, and every reader must still work on it — the alternative is a
+ * tool that crashes on a file a colleague generated last week. What version 2
+ * buys is the ability to tell "this dump has no provenance because it is old"
+ * from "this dump has no provenance because nothing is named", which is the
+ * difference between a coverage gap and a stale artefact.
+ */
+export const STYLE_DUMP_VERSION = 2;
+
 export interface StyleDump {
+  /** Absent on a version-1 dump. See `STYLE_DUMP_VERSION`. */
+  readonly version?: number;
   readonly classes: readonly {
     readonly key: string;
     readonly className: string;
@@ -162,6 +178,17 @@ export interface StyleDump {
     readonly value: string;
     readonly conditions: readonly string[];
     readonly unproven: string;
+    readonly provenance?: ColorProvenance;
+    /**
+     * How many of the conditions are selector fragments rather than at-rules.
+     *
+     * It is the atom's specificity contribution, and it is emitted rather
+     * than re-derived because the dump's conditions are `axis:point` strings
+     * — from which nobody downstream can tell `@media (…)`, which adds
+     * nothing, from `&[data-tone='warning']`, which adds a class's worth. A
+     * reader that guessed would resolve a tone-plus-hover button backwards.
+     */
+    readonly selectorConditions: number;
   }[];
   readonly vars: readonly CssVarDeclaration[];
 }
@@ -179,6 +206,7 @@ export function styleDump(
   vars: readonly CssVarDeclaration[],
 ): StyleDump {
   return {
+    version: STYLE_DUMP_VERSION,
     classes: [...classes]
       .sort((left, right) => left.key.localeCompare(right.key))
       .map((registered) => ({
@@ -199,6 +227,9 @@ export function styleDump(
         (point) => `${point.axis}:${point.point}`,
       ),
       unproven: atom.unproven,
+      selectorConditions: atom.conditions.filter((point) => !isAtRule(point))
+        .length,
+      ...(atom.provenance ? { provenance: atom.provenance } : {}),
     })),
     vars: [...vars].sort((left, right) => left.name.localeCompare(right.name)),
   };

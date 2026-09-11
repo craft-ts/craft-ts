@@ -31,11 +31,16 @@ describe('what each component can look like', () => {
     };
 
     // Read them as the plan's trigger for wave 5: median per component > 24.
-    // The median here is 3, the maximum 18 — the reduction wave stays shut.
+    // The median is 3 and the reduction wave stays shut on that number — but
+    // the **maximum is now 36**, past the 24 the plan named, and it got there
+    // in one step: `interaction.hover` doubled the button. That is the price
+    // of the hovered state being provable rather than unobserved, and it is
+    // recorded here rather than absorbed, because the next axis added to this
+    // sheet costs 36 more and someone should have to look at this line first.
     expect(cardinals).toEqual({
       theme: 4, // viewport md × scheme dark
       stack: 1, // no axis at all
-      button: 18, // 5 tones + base, × 2 sizes + base
+      button: 36, // (5 tones + base) × (2 sizes + base) × (hover + base)
       card: 2, // the single breakpoint it crosses
       alert: 6, // 5 tones + base
       meter: 1,
@@ -77,10 +82,15 @@ describe('a sheet declares the axes it is allowed to spend', () => {
       (registered) => registered.key === 'dsButton-root',
     );
 
-    // The sheet declared tone and size; it uses both, so nothing is idle.
-    // An axis added to this sheet without widening the budget stops the build.
+    // The sheet declared tone, size and hover; it uses all three, so nothing
+    // is idle. An axis added to this sheet without widening the budget stops
+    // the build — which is how hover became a decision rather than a diff.
     expect(root?.unusedAxes).toEqual([]);
-    expect(Object.keys(root?.axes ?? {}).sort()).toEqual(['size', 'tone']);
+    expect(Object.keys(root?.axes ?? {}).sort()).toEqual([
+      'interaction.hover',
+      'size',
+      'tone',
+    ]);
   });
 });
 
@@ -112,11 +122,12 @@ describe('a branch adds instead of multiplying', () => {
 describe('the whole page, and what it would cost to capture', () => {
   it('multiplies across the sheets it composes', () => {
     // The page puts a theme, cards, buttons and an alert on screen at once.
-    // 4 theme cells × 5+1 tones × 2+1 sizes = 72 — which is what a naive
-    // "capture the page in every state" would cost, and why the matrix is per
-    // component rather than per page.
+    // 4 theme cells × 5+1 tones × 2+1 sizes × 1+1 hover = 144 — which is what
+    // a naive "capture the page in every state" would cost, and why the
+    // matrix is per component rather than per page. One axis on one component
+    // added 72 page captures; per component it added 18.
     const page = visualMatrix([dsTheme, card, button, alert, stack, meter]);
-    expect(page).toHaveLength(72);
+    expect(page).toHaveLength(144);
   });
 
   it('crosses content cases only where the space changes', () => {

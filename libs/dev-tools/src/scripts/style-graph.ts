@@ -26,7 +26,9 @@ declare module './dependency-graph.ts' {
     obligation: Record<string, unknown>;
   }
   interface DependencyGraphEdgeRegistry {
-    'styled-by': Record<string, unknown>;
+    // `styled-by` is declared by the graph core: the AST producer discovers it
+    // while walking templates, and an augmentation written here would not be
+    // visible from there.
     'varies-on': Record<string, unknown>;
     'declares-var': Record<string, unknown>;
     'reads-var': Record<string, unknown>;
@@ -48,12 +50,39 @@ export interface StyleDumpClass {
   readonly unusedAxes?: readonly string[];
 }
 
+/**
+ * Where a colour came from, as the dump carries it.
+ *
+ * Structurally the same shape `@craft-ts/style` builds, declared again rather
+ * than imported: this module reads a JSON file that may have been written by
+ * another version of the toolchain, so its types describe a **file format**,
+ * not the in-memory objects of the current build. Importing the live type
+ * would silently tie the reader to the writer.
+ */
+export interface StyleDumpProvenance {
+  readonly palette: string;
+  readonly group: string;
+  readonly token: string;
+  readonly role: string;
+  readonly light: string;
+  readonly dark: string;
+  readonly side: 'light' | 'dark';
+}
+
 export interface StyleDumpAtom {
   readonly className: string;
   readonly property: string;
   readonly value: string;
   readonly conditions: readonly string[];
   readonly unproven: string;
+  /** Absent on a version-1 dump, and on any value not from a palette. */
+  readonly provenance?: StyleDumpProvenance;
+  /**
+   * How many conditions are selector fragments rather than at-rules — the
+   * atom's specificity contribution. Absent on a version-1 dump, where the
+   * conservative reading is zero for every atom.
+   */
+  readonly selectorConditions?: number;
 }
 
 export interface StyleDumpVar {
@@ -62,13 +91,22 @@ export interface StyleDumpVar {
   readonly inherits: boolean;
   readonly initialValue: string;
   readonly role: string;
+  readonly initialProvenance?: StyleDumpProvenance;
 }
 
 export interface StyleDump {
+  /** Absent on a dump written before provenance existed. */
+  readonly version?: number;
   readonly classes: readonly StyleDumpClass[];
   readonly atoms: readonly StyleDumpAtom[];
   readonly vars: readonly StyleDumpVar[];
 }
+
+/** `ui.text.onAccent`, or `ui.text.onAccent.dark` for the other side. */
+export const provenanceName = (provenance: StyleDumpProvenance): string =>
+  `${provenance.palette}.${provenance.group}.${provenance.token}${
+    provenance.side === 'dark' ? '.dark' : ''
+  }`;
 
 export const styleClassId = (key: string): string => `style-class:${key}`;
 export const cssVarId = (name: string): string => `css-var:${name}`;
@@ -135,6 +173,12 @@ export function mergeStyleDump(
         inherits: declaration.inherits,
         initialValue: declaration.initialValue,
         role: declaration.role,
+        ...(declaration.initialProvenance
+          ? {
+              initialProvenance: declaration.initialProvenance,
+              initialToken: provenanceName(declaration.initialProvenance),
+            }
+          : {}),
       },
     });
   }
@@ -150,6 +194,12 @@ export function mergeStyleDump(
         value: atom.value,
         conditions: atom.conditions,
         unproven: atom.unproven,
+        ...(atom.provenance
+          ? {
+              provenance: atom.provenance,
+              token: provenanceName(atom.provenance),
+            }
+          : {}),
       },
     });
     for (const condition of atom.conditions) {
@@ -238,7 +288,9 @@ export function mergeStyleDump(
 
   const known = new Set(dump.classes.map((registered) => registered.key));
   const uncovered = new Set(options.uncovered ?? []);
-  for (const [componentId, keys] of Object.entries(options.usedBy ?? {})) {
+  for (const [componentId, keys] of Object.entries(
+    componentUsage(graph, options.usedBy),
+  )) {
     for (const key of keys) {
       if (!known.has(key)) {
         // One producer saw a sheet the other did not. Swallowing it would make
@@ -259,10 +311,11 @@ export function mergeStyleDump(
     }
   }
 
+  const usage = componentUsage(graph, options.usedBy);
   for (const node of graph.nodes) {
     if (node.kind !== 'component') continue;
     if (uncovered.has(node.id)) continue;
-    if (options.usedBy?.[node.id]?.length) continue;
+    if (usage[node.id]?.length) continue;
     diagnostics.push({
       code: 'component-without-style-class',
       message: `'${node.label}' is not styled by any sheet the graph knows about. Either it uses CSS from outside the model — list it as uncovered so the gap is visible — or the extraction missed it.`,
@@ -275,6 +328,51 @@ export function mergeStyleDump(
     edges: [...edges.values()],
     diagnostics,
   };
+}
+
+/**
+ * Which sheets each component renders, from both producers.
+ *
+ * The AST pass now records `styled-by` on the **element**, which is finer than
+ * anything a caller could hand in — but the option stays: a graph built
+ * without the TypeScript producer (a dump merged into an empty graph, as the
+ * reports do) has no elements at all, and callers that already pass `usedBy`
+ * must keep working. The two are unioned rather than one overriding the
+ * other, because either can be the only source of truth depending on how the
+ * graph was built.
+ */
+function componentUsage(
+  graph: DependencyGraph,
+  declared: ComponentStyleUsage | undefined,
+): Record<string, readonly string[]> {
+  const usage = new Map<string, Set<string>>();
+  const add = (componentId: string, key: string) => {
+    const keys = usage.get(componentId) ?? new Set<string>();
+    keys.add(key);
+    usage.set(componentId, keys);
+  };
+  for (const [componentId, keys] of Object.entries(declared ?? {})) {
+    for (const key of keys) add(componentId, key);
+  }
+
+  const elements = new Map(
+    graph.nodes
+      .filter((node) => node.kind === 'styled-element')
+      .map((node) => [node.id, node]),
+  );
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'styled-by') continue;
+    const element = elements.get(edge.from);
+    const componentId = element?.details?.['componentId'];
+    const key = edge.details?.['classKey'];
+    if (typeof componentId === 'string' && typeof key === 'string') {
+      add(componentId, key);
+    }
+  }
+
+  return Object.fromEntries(
+    [...usage].map(([componentId, keys]) => [componentId, [...keys].sort()]),
+  );
 }
 
 /**

@@ -13,9 +13,15 @@
  * green, and every guarantee written in the docs is false.
  */
 import { describe, expect, it } from 'vitest';
-import { darkOf, definePalette, palette } from './palette.ts';
+import {
+  ANONYMOUS_PALETTE,
+  darkOf,
+  definePalette,
+  palette,
+} from './palette.ts';
 import { lineWidth, radii, space, text, type SpaceStep } from './scales.ts';
 import {
+  colorProvenanceName,
   ident,
   int,
   num,
@@ -87,6 +93,56 @@ describe('a palette token carries both values and its role', () => {
 
     expect(custom.brand.primary.role).toBe('none');
     expect(custom.brand.primary.css).toBe('#123456');
+  });
+});
+
+describe('a colour knows where it came from', () => {
+  it('names the palette, the group and the token', () => {
+    const ui = definePalette('ui', {
+      accent: { warning: { light: '#8a5a00', dark: '#f5b544' } },
+    });
+
+    expect(ui.accent.warning.provenance).toEqual({
+      palette: 'ui',
+      group: 'accent',
+      token: 'warning',
+      role: 'accent',
+      light: '#8a5a00',
+      dark: '#f5b544',
+      side: 'light',
+    });
+    expect(colorProvenanceName(ui.accent.warning.provenance!)).toBe(
+      'ui.accent.warning',
+    );
+  });
+
+  it('keeps the old call shape working, and says the palette is unnamed', () => {
+    // The overload is additive: every existing definePalette(spec) call still
+    // compiles and still works. What it loses is only the palette's name.
+    const anonymous = definePalette({
+      accent: { warning: { light: '#8a5a00', dark: '#f5b544' } },
+    });
+
+    expect(anonymous.accent.warning.css).toBe('#8a5a00');
+    expect(anonymous.accent.warning.provenance?.palette).toBe(
+      ANONYMOUS_PALETTE,
+    );
+    expect(anonymous.accent.warning.provenance?.token).toBe('warning');
+  });
+
+  it('flips the side with darkOf, and keeps naming the same token', () => {
+    // A dark-mode failure has to name the token, not the light value that is
+    // not on screen — and it has to be distinguishable from the light one.
+    const ui = definePalette('ui', {
+      text: { onAccent: { light: '#ffffff', dark: '#0b0d11' } },
+    });
+    const inverted = darkOf(ui.text.onAccent);
+
+    expect(inverted.css).toBe('#0b0d11');
+    expect(inverted.provenance?.side).toBe('dark');
+    expect(colorProvenanceName(inverted.provenance!)).toBe(
+      'ui.text.onAccent.dark',
+    );
   });
 });
 

@@ -14,6 +14,10 @@ export default defineConfig({
         root,
         'libs/review-attestation/src/index.ts',
       ),
+      '@craft-ts/dev-tools/contrast': path.join(
+        root,
+        'libs/dev-tools/src/scripts/contrast.ts',
+      ),
       '@craft-ts/dev-tools/attestation-review': path.join(
         root,
         'libs/dev-tools/src/attestation-review.ts',

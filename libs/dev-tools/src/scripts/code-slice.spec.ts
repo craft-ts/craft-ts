@@ -316,10 +316,15 @@ describe('code slices', () => {
 
     expect(portable).toContain('app.ts');
     expect(portable).not.toContain(root);
-    expect(sliceOfPortableNode(index, portable, root)).toMatchObject({
-      root: portable,
-      nodes: [portable],
-    });
+    const slice = sliceOfPortableNode(index, portable, root);
+    expect(slice).toMatchObject({ root: portable });
+    expect(slice.nodes).toContain(portable);
+    // The `div()` this component renders is an ingredient of it since the
+    // style graph records one node per element — so the slice is the
+    // component plus its element, not the component alone. What this case
+    // measures is that a portable id resolves to the same slice in another
+    // worktree, which is about the id and not about the slice's size.
+    expect(slice.nodes.every((id) => id.includes('app.ts'))).toBe(true);
   });
 });
 

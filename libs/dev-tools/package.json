@@ -28,6 +28,10 @@
       "types": "./src/scripts/style-report.d.ts",
       "default": "./src/scripts/style-report.js"
     },
+    "./contrast": {
+      "types": "./src/scripts/contrast.d.ts",
+      "default": "./src/scripts/contrast.js"
+    },
     "./template-migration": {
       "types": "./src/template-migration.d.ts",
       "default": "./src/template-migration.js"

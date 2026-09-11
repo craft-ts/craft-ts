@@ -224,6 +224,37 @@ npm run architecture
 npm run build
 ```
 
+### `npm run style:check`
+
+With typed CSS enabled, the project gets one more, and it is the only one that
+needs explaining:
+
+```bash
+npm run style:check
+```
+
+It builds once — which is how the style plugin writes
+`.craft/style-graph.json` — then proves WCAG 2.2 AA **text contrast** for
+every element the graph can show holds text, in every state your axes can
+produce, with no browser involved. It is in the generated CI workflow.
+
+The starter is set up to pass it out of the box: the palette is named, so a
+failure can say `ui.accent.dangerHover` rather than a hexadecimal string, and
+the generated link writes its hovered colour through `interaction.hover`
+rather than a hand-written selector, so the hovered state is a state the check
+can actually measure.
+
+Two things to know before your first failure:
+
+- **A result the analysis cannot prove fails the run.** `--allow-indeterminate`
+  turns those into warnings and you have to type it. A check whose default
+  treats "I could not tell" as "fine" reports a clean bill on the part of the
+  application it did not understand.
+- **A clean run is a contrast proof, not an accessibility audit.**
+
+[Text contrast](./style/contrast.md) has the full coverage contract: what is
+proven, what comes back as `indeterminate`, and how to close a gap honestly.
+
 ### Generated architecture rules
 
 The generated `eslint.config.mjs` imports `@craft-ts/dev-tools/eslint-rules`

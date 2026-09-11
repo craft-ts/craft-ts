@@ -182,6 +182,7 @@ const guideSidebar = [
       { text: 'Axes and the matrix', link: '/guide/style/variants' },
       { text: 'Context obligations', link: '/guide/style/obligations' },
       { text: 'Testing visual states', link: '/guide/style/testing' },
+      { text: 'Text contrast', link: '/guide/style/contrast' },
       { text: 'Visual attestation', link: '/guide/style/attestation' },
       {
         text: 'Template obligations',

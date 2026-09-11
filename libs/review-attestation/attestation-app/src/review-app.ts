@@ -642,7 +642,9 @@ export const ReviewApp = craftComponent(
     const { closeReview, closeReviewSession, closeReviewFailed } =
       yield* CloseReview();
 
-    const review = yield* query(
+    // Infer the query before delegating to it: combining both expressions can
+    // exceed TypeScript's union complexity limit when this file is checked first.
+    const reviewQueue = query(
       'reviewQueue',
       {
         params: () => true,
@@ -714,6 +716,8 @@ export const ReviewApp = craftComponent(
         }),
       ),
     );
+
+    const review = yield* reviewQueue;
 
     const sessionHistory = craftComputed('sessionHistory', function* () {
       return (yield* review.value())?.history ?? [];

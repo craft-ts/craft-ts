@@ -20,6 +20,16 @@ export interface ScenarioPage {
     body: (argument: Argument) => unknown,
     argument: Argument,
   ): Promise<unknown>;
+  /**
+   * Optional because `:hover` is the one state a page script cannot fake.
+   *
+   * `element.dispatchEvent(new MouseEvent('mouseover'))` fires listeners and
+   * leaves the pseudo-class untouched: the capture then looks exactly like the
+   * base state and passes forever. So the driver asks the harness to move a
+   * real pointer, and a harness that has no pointer is told plainly instead of
+   * being handed a screenshot of the wrong state.
+   */
+  hover?(selector: string): Promise<unknown>;
 }
 
 export interface ApplyOptions {
@@ -49,7 +59,11 @@ const RANK: Readonly<Record<ScenarioDriver['driver']['kind'], number>> = {
   resizeContainer: 2,
   setAttribute: 3,
   descendantState: 4,
-  scroll: 5,
+  // Hovering last of the DOM-state drivers, and before scrolling: moving the
+  // pointer onto an element whose box is about to move by an attribute or a
+  // resize would hover whatever happens to be under the cursor afterwards.
+  selfState: 5,
+  scroll: 6,
 };
 
 /**
@@ -113,6 +127,14 @@ export async function applyScenario(
           target,
           state: driver.state,
         });
+        break;
+      case 'selfState':
+        if (!page.hover) {
+          throw new Error(
+            `applyScenario: the scenario needs ':${driver.state}' on '${target}', and this page cannot move a pointer. Dispatching a mouse event would not set the pseudo-class — the capture would silently be the base state. Pass a harness with a hover(selector) method, such as a Playwright Page.`,
+          );
+        }
+        await page.hover(target);
         break;
       case 'scroll':
         await page.evaluate(applyScroll, { target, to: driver.to });

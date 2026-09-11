@@ -169,6 +169,34 @@ export const descendant = {
   checked: descendantPoint('checked', ':checked', 'checked'),
 } as const;
 
+// ─── interaction ────────────────────────────────────────────────────────────
+
+/**
+ * `:hover`, as an axis rather than as a selector.
+ *
+ * A `&:hover` written by hand is invisible to everything downstream: it is not
+ * in a class's variant contract, so the matrix never captures it, and the
+ * static contrast solver never crosses the colours it writes with the text
+ * that sits on them. Which is how a warning button ends up readable at rest
+ * and not readable under the pointer — the one state nobody screenshots.
+ *
+ * `active` and not `hovered`: the point names the state of the axis, the way
+ * `descendant.checked` is `present`. There is no `interaction.hover.none`, for
+ * the same reason there is no `scheme.light` — the absence of a condition is
+ * `base`, and it is implicit on every axis.
+ *
+ * The axis stops here on purpose. `:focus-visible` on the element itself and
+ * `:active` are real states too, but each one added multiplies the matrix of
+ * every sheet that uses it; hover is the one whose colour changes are routinely
+ * written and never verified, so it is the one that pays for itself first.
+ */
+export const interaction = {
+  hover: axisPoint('interaction.hover', 'active', '&:hover', {
+    kind: 'selfState',
+    state: 'hover',
+  }) as AxisPoint<'interaction.hover', 'active'>,
+} as const;
+
 /** Every standard point, for the specs that assert each one has a driver. */
 export const STANDARD_AXES = [
   ...Object.values(scheme),
@@ -179,4 +207,5 @@ export const STANDARD_AXES = [
   ...Object.values(scrollState.snapped),
   ...Object.values(scrollState.scrollable),
   ...Object.values(descendant),
+  ...Object.values(interaction),
 ] as const;
