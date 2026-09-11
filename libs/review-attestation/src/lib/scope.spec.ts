@@ -4,6 +4,7 @@ import { metadataFromScope } from './attest.ts';
 
 const scope = (overrides: Partial<CaptureScope> = {}): CaptureScope => ({
   root: { x: 64, y: 288, width: 247, height: 1582 },
+  rootMatched: true,
   viewport: { width: 375, height: 900 },
   region: { x: 0, y: 0, width: 375, height: 916 },
   attested: ['host', 'host/a', 'host/b'],

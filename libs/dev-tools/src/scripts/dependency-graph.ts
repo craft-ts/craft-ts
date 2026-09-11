@@ -2920,17 +2920,49 @@ function addReactOnMutation(
   const host = nearestHostPrimitive(builder, call, ownerId, new Set(['query']));
   const mutationName = identifierText(call.getArguments()[0]);
   if (!host || !mutationName) return;
-  const mutationNode = findOwnedPrimitive(
-    builder,
-    ownerId,
-    mutationName,
-    'mutation',
-  );
+  const mutationNode =
+    findOwnedPrimitive(builder, ownerId, mutationName, 'mutation') ??
+    findServiceMutation(builder, call.getArguments()[0], mutationName);
   if (!mutationNode) return;
   addEdge(builder, mutationNode.id, host.id, 'triggers', 'ast', {
     insertion: 'react-on-mutation',
     line: call.getStartLineNumber(),
   });
+}
+
+function findServiceMutation(
+  builder: GraphBuilder,
+  reference: Node | undefined,
+  mutationName: string,
+): DependencyGraphNode | undefined {
+  const identifier = unwrapExpression(reference);
+  if (!identifier || !Node.isIdentifier(identifier)) return undefined;
+
+  const key = symbolKey(identifier.getSymbol());
+  const service =
+    (key && builder.serviceByHelperKey.get(key)) ??
+    serviceForBindingReference(builder, identifier);
+  return service
+    ? findOwnedPrimitive(builder, service.node.id, mutationName, 'mutation')
+    : undefined;
+}
+
+function serviceForBindingReference(
+  builder: GraphBuilder,
+  identifier: import('ts-morph').Identifier,
+): ServiceInfo | undefined {
+  for (const declaration of identifier.getSymbol()?.getDeclarations() ?? []) {
+    const variable = declaration.getFirstAncestorByKind(
+      SyntaxKind.VariableDeclaration,
+    );
+    const serviceCall = variable
+      ?.getInitializer()
+      ?.getDescendantsOfKind(SyntaxKind.CallExpression)
+      .find((call) => findServiceForCall(builder, call));
+    const service = serviceCall && findServiceForCall(builder, serviceCall);
+    if (service) return service;
+  }
+  return undefined;
 }
 
 function addStoragePersister(
@@ -3966,9 +3998,14 @@ export function collectReactiveExpressions(scope: Node): Node[] {
   }
   for (const identifier of scope.getDescendantsOfKind(SyntaxKind.Identifier)) {
     if (isBindingName(identifier)) continue;
-    if (identifier.getParent()?.isKind(SyntaxKind.PropertyAccessExpression))
+    const parent = identifier.getParent();
+    if (parent?.isKind(SyntaxKind.PropertyAssignment)) {
+      const property = parent.asKind(SyntaxKind.PropertyAssignment);
+      if (property?.getNameNode() === identifier) continue;
+    }
+    if (parent?.isKind(SyntaxKind.PropertyAccessExpression))
       continue;
-    if (identifier.getParent()?.isKind(SyntaxKind.CallExpression)) continue;
+    if (parent?.isKind(SyntaxKind.CallExpression)) continue;
     add(identifier);
   }
   return expressions;

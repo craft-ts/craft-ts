@@ -4,7 +4,7 @@ import {
   buildTemplateReviewCard,
   type ReviewDecisionRequest,
   type TemplateEvidence,
-} from '../../dev-tools/src/attestation-review.ts';
+} from '@craft-ts/dev-tools/attestation-review';
 import { startReviewServer } from '../src/lib/review/server.ts';
 
 const oldEvidence: TemplateEvidence = {

@@ -9,7 +9,7 @@
     "build-local-types": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/effect/tsconfig.lib.json libs/component/tsconfig.lib.json libs/dev-tools/tsconfig.lib.json --pretty false"
+        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/effect/tsconfig.lib.json libs/component/tsconfig.lib.json libs/dev-tools/tsconfig.lib.json --force --pretty false"
       },
       "cache": false
     },

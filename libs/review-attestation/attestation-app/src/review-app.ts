@@ -714,6 +714,22 @@ export const ReviewApp = craftComponent(
               history: [],
             },
         }),
+        insertReactOnMutation(closeReview, {
+          // Closing writes the iteration handoff, so keep the queue resource
+          // in the same declarative mutation graph even though the response
+          // itself is not a queue payload.
+          update: ({ queryResource }) =>
+            queryResource.value() ?? {
+              items: 0,
+              decisions: 0,
+              cards: [],
+              visualAssets: [],
+              visualTests: [],
+              templateObligations: [],
+              diagnostics: [],
+              history: [],
+            },
+        }),
       ),
     );
 
@@ -2208,9 +2224,7 @@ export const ReviewApp = craftComponent(
                                 'aria-pressed': function* () {
                                   return String(yield* showingReplay());
                                 },
-                                *click() {
-                                  yield* evidenceView.chooseReplay();
-                                },
+                                click: evidenceView.chooseReplay,
                               },
                               function* () {
                                 return (yield* t()).viewPage;
@@ -2227,9 +2241,7 @@ export const ReviewApp = craftComponent(
                                 'aria-pressed': function* () {
                                   return String(!(yield* showingReplay()));
                                 },
-                                *click() {
-                                  yield* evidenceView.chooseImage();
-                                },
+                                click: evidenceView.chooseImage,
                               },
                               function* () {
                                 return (yield* t()).viewImage;
@@ -3020,10 +3032,7 @@ export const ReviewApp = craftComponent(
                             return (yield* visualReviewCard())?.changes ?? [];
                           },
                           { track: (change) => change },
-                          (change) =>
-                            li({ class: 'code' }, function* () {
-                              return yield* change();
-                            }),
+                          (change) => li({ class: 'code' }, change),
                         ),
                       ),
                     ],

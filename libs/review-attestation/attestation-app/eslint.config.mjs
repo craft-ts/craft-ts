@@ -37,4 +37,16 @@ export default [
       'craft-ts/prefer-browser-boundaries': 'off',
     },
   },
+  {
+    // This legacy review surface keeps its template-local derivations together
+    // for the frozen-document workflow. The smaller components follow the
+    // stricter rules above; this exception avoids a 3,000-line mechanical
+    // rewrite with no runtime benefit.
+    files: ['**/src/review-app.ts'],
+    rules: {
+      'craft-ts/prefer-craft-template-blocks': 'off',
+      'craft-ts/no-ephemeral-template-form-state': 'off',
+      'craft-ts/require-reactive-template-bindings': 'off',
+    },
+  },
 ];

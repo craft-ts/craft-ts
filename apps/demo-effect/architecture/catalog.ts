@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "d63efc009fdd5408",
+  "graphHash": "1a365295cd4cda5c",
   "routes": [
     "",
     "access",
@@ -44,7 +44,7 @@ export const architectureCatalog = {
   "components": [
     "AiContextMenu",
     "AiSendDialog",
-    "AnonymousComponent@800",
+    "AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic",
     "App",
     "CraftRouterOutlet",
     "EffectFunctionComponent",
@@ -62,6 +62,8 @@ export const architectureCatalog = {
     "accessReason",
     "add",
     "addTodo",
+    "captureError",
+    "captureInProgress",
     "copied",
     "effectFunctionQuery",
     "englishPressed",
@@ -79,12 +81,14 @@ export const architectureCatalog = {
     "placed",
     "profileName",
     "profileQuery",
+    "promptOptions",
     "qty",
     "quoteLabel",
     "receiptQuery",
     "removeTodo",
+    "setCaptureError",
+    "setCaptureInProgress",
     "setCopied",
-    "setInstruction",
     "shippingQuery",
     "showUnknown",
     "summary",

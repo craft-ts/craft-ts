@@ -125,7 +125,7 @@ const withoutTemplateObligations = () => ({
 
 describe('craft-ts attest', () => {
   it('reports every subject as missing before anything is attested', async () => {
-    const { root, io, out, err } = await workspace();
+    const { root, io, out } = await workspace();
     const code = await runAttestCommand(
       ['status', '--report', 'report.json'],
       io,
@@ -140,7 +140,7 @@ describe('craft-ts attest', () => {
   });
 
   it('records a verdict and then reports the subjects as current', async () => {
-    const { root, io, out, err } = await workspace();
+    const { root, io, out } = await workspace();
     await runAttestCommand(
       ['renew', '--all', '--report', 'report.json'],
       io,

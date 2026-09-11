@@ -320,18 +320,6 @@ import {
  * // -> mutation receives the exact same object
  * ```
  */
-export function afterRecomputation<State, SourceType>(
-  _source: SignalSource<SourceType>,
-  callback: (source: SourceType) => State,
-): ReadonlySource<State>;
-export function afterRecomputation<State, SourceType>(
-  _source: ReadonlySource<SourceType>,
-  callback: (source: SourceType) => State,
-): ReadonlySource<State>;
-export function afterRecomputation<State, SourceType>(
-  _source: Signal<SourceType>,
-  callback: (source: SourceType) => State,
-): ReadonlySource<State>;
 /**
  * Inside a `transitionStep(...)`, `afterRecomputation` is a machine
  * registration: every time the watched value recomputes, the callback runs
@@ -339,10 +327,21 @@ export function afterRecomputation<State, SourceType>(
  * yields target that step. Consume it with `yield*` so the callback's
  * dependencies join the machine's dependency graph.
  */
-export function afterRecomputation<Value, Yielded>(
-  source: Signal<Value>,
-  callback: (value: Value) => Generator<Yielded, unknown, unknown>,
-): Generator<Yielded, void, unknown>;
+type AfterRecomputationResult<Result> = Result extends Generator<
+  infer Yielded,
+  unknown,
+  unknown
+>
+  ? Generator<Yielded, void, unknown>
+  : ReadonlySource<Result>;
+
+export function afterRecomputation<SourceType, Result>(
+  source:
+    | SignalSource<SourceType>
+    | ReadonlySource<SourceType>
+    | Signal<SourceType>,
+  callback: (value: SourceType) => Result,
+): AfterRecomputationResult<Result>;
 export function afterRecomputation<State, SourceType>(
   _source:
     | SignalSource<SourceType>

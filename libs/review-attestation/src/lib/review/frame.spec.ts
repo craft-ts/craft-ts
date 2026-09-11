@@ -187,8 +187,8 @@ describe('onPick', () => {
     // rather than a path this subject does not cover.
     const { view } = replay();
     markPaths(view, '.host');
-    const picked: string[] = [];
-    onPick(view, (path) => picked.push(path));
+    let picked: readonly string[] = [];
+    onPick(view, (paths) => (picked = paths));
 
     (view.document.querySelector('.pinned') as HTMLElement).click();
     expect(picked).toEqual([]);

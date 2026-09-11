@@ -42,12 +42,6 @@
             "glob": "**/*.json",
             "output": "src/generators"
           },
-          {
-            "input": "libs/dev-tools/src/scripts",
-            "glob": "**/*.ts",
-            "ignore": ["**/*.spec.ts", "**/*.test.ts", "**/tests/**"],
-            "output": "src/scripts"
-          }
         ]
       }
     },

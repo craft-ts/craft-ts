@@ -278,7 +278,7 @@ describe('primitive mutation logic', () => {
         args: [
           (function* () {
             return user.id;
-          }) as Input<string | undefined>,
+          }) as Input<string>,
         ],
         register: {
           ApiService: { getItemById, updateItem },

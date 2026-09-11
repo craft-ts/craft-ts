@@ -296,7 +296,7 @@ describe('craft mutation logic', () => {
         args: [
           (function* () {
             return user.id;
-          }) as Input<string | undefined>,
+          }) as Input<string>,
         ],
         register: {
           UserMutation: provideUserMutation(),

@@ -574,7 +574,7 @@ describe('createCraftProject', () => {
       'npm --prefix apps/starter run review',
     );
     expect(packageJson.devDependencies['@craft-ts/cli']).toBeDefined();
-    expect(projectJson.targets.review.options?.command).toBe(
+    expect(projectJson.targets['review'].options?.command).toBe(
       'npm run starter:review',
     );
   });
@@ -800,7 +800,7 @@ describe('createCraftProject', () => {
     expect(packageJson.scripts['attest:check']).toContain(
       'npm run architecture',
     );
-    expect(packageJson.scripts.review).toContain('npm run attest:review');
+    expect(packageJson.scripts['review']).toContain('npm run attest:review');
     expect(packageJson.devDependencies['@craft-ts/cli']).toBeDefined();
     expect(
       packageJson.devDependencies['@craft-ts/style-testing'],

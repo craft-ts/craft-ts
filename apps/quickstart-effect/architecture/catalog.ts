@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "636dbfd4ec90a801",
+  "graphHash": "4b5dda1ddab68255",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -30,20 +30,24 @@ export const architectureCatalog = {
   "components": [
     "AiContextMenu",
     "AiSendDialog",
-    "AnonymousComponent@800",
+    "AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic",
     "CraftRouterOutlet",
     "QuickstartTaskPage",
     "craftPending"
   ],
   "primitives": [
+    "captureError",
+    "captureInProgress",
     "copied",
     "exception",
     "exceptionTag",
     "hasTask",
     "hasTaskException",
     "instruction",
+    "promptOptions",
+    "setCaptureError",
+    "setCaptureInProgress",
     "setCopied",
-    "setInstruction",
     "taskQuery",
     "title"
   ],

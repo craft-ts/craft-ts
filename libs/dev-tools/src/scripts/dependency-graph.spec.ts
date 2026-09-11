@@ -96,6 +96,34 @@ function edgeLabels(
 }
 
 describe('analyzeDependencyGraph reactive granularity', () => {
+  it('does not treat object property names as reactive dependencies', async () => {
+    const root = await fixture({
+      'replay.ts': `
+        ${CRAFT_STUBS}
+
+        const { Review } = craftService(
+          { name: 'Review', providedIn: 'function' },
+          function* () {
+            const chrome = craftComputed('chrome', () => []);
+            const replay = craftComputed('replay', function* () {
+              return { chrome: [] };
+            });
+            return { chrome, replay };
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(edgeLabels(graph, 'craftComputed:replay', 'depends-on')).not.toContain(
+      'depends-on->craftComputed:chrome',
+    );
+  });
+
   it('resolves yield* state() to the enclosing state when several states exist', async () => {
     const root = await fixture({
       'pixels.ts': `
@@ -605,6 +633,46 @@ describe('analyzeDependencyGraph architecture facts', () => {
 });
 
 describe('analyzeDependencyGraph insertions', () => {
+  it('links a mutation returned by another service to the consuming query', async () => {
+    const root = await fixture({
+      'reviews.ts': `
+        ${CRAFT_STUBS}
+
+        const { Review } = craftService(
+          { name: 'Review', providedIn: 'function' },
+          function* () {
+            const close = yield* mutation('closeReview', {});
+            return { close };
+          },
+        );
+
+        const ReviewApp = craftComponent(
+          'ReviewApp',
+          {},
+          function* () {
+            const { close } = yield* Review();
+            const queue = yield* query(
+              'reviewQueue',
+              {},
+              insertReactOnMutation(close, {}),
+            );
+            return { close, queue };
+          },
+          () => div([]),
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(edgeLabels(graph, 'mutation:closeReview', 'triggers')).toContain(
+      'triggers->query:reviewQueue',
+    );
+  });
+
   it('links insertReactOnMutation from the mutation to the query', async () => {
     const root = await fixture({
       'users.ts': `

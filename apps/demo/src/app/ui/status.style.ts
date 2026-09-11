@@ -124,7 +124,7 @@ export const TONE_OF_STATUS = {
   exception: 'red',
 } satisfies Record<string, string>;
 
-export type StatusTone = (typeof TONE_OF_STATUS)[keyof typeof TONE_OF_STATUS];
+export type StatusTone = keyof typeof statusTone;
 
 /** Kept so the sheet uses the unit namespace at least once in the demo. */
 export const badgeMinInlineSize = unit.rem(3);

@@ -9,7 +9,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { registeredAtoms, registeredClasses } from '@craft-ts/style';
-import { status, statusTone, TONE_OF_STATUS, v } from './status.style';
+import {
+  status,
+  statusTone,
+  TONE_OF_STATUS,
+  v,
+  type StatusTone,
+} from './status.style';
 
 describe('the badge no longer builds a class at runtime', () => {
   it('renders one static class plus a data attribute', () => {
@@ -26,7 +32,9 @@ describe('the badge no longer builds a class at runtime', () => {
   });
 
   it('has a class for every status the component can be given', () => {
-    const tones = new Set(Object.values(TONE_OF_STATUS));
+    const tones = new Set<StatusTone>(
+      Object.values(TONE_OF_STATUS) as StatusTone[],
+    );
 
     for (const tone of tones) {
       expect(statusTone[tone].point).toBe(tone);

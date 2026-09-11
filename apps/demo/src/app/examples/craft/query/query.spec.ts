@@ -156,7 +156,7 @@ describe('Craft query logic', () => {
       args: [
         (function* () {
           return currentUserId;
-        }) as Input<string | undefined>,
+        }) as Input<string>,
       ],
       register: {
         UserQuery: { $self: userQuery },

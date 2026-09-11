@@ -26,7 +26,7 @@
       "path": "../dev-tools/tsconfig.lib.json"
     },
     {
-      "path": "../style-testing/tsconfig.lib.json"
+      "path": "../review-attestation/tsconfig.lib.json"
     }
   ]
 }

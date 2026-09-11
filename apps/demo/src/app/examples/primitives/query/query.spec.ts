@@ -170,7 +170,7 @@ describe('Query logic', () => {
       args: [
         (function* () {
           return currentUserId;
-        }) as Input<string | undefined>,
+        }) as Input<string>,
       ],
       register: {
         ApiService: { getItemById },

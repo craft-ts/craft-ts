@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "bf6d5cf4ac1df166",
+  "graphHash": "a13b485b2f3b0fab",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -51,6 +51,8 @@ export const architectureCatalog = {
     "activeMentions",
     "band",
     "canReplay",
+    "captureError",
+    "captureInProgress",
     "cards",
     "changedHidden",
     "changedLabel",
@@ -114,6 +116,7 @@ export const architectureCatalog = {
     "pickedLabel",
     "previewMention",
     "previousRegenerationDecisions",
+    "promptOptions",
     "regenerateEvidence",
     "regenerationAvailable",
     "regenerationDialogOpen",
@@ -139,8 +142,9 @@ export const architectureCatalog = {
     "selectedVisualTest",
     "selection",
     "sessionHistory",
+    "setCaptureError",
+    "setCaptureInProgress",
     "setCopied",
-    "setInstruction",
     "showBand",
     "showingReplay",
     "stateFilter",

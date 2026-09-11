@@ -38,6 +38,7 @@ export default [
       'craft-ts/prefer-craft-template-blocks': 'off',
       'craft-ts/no-direct-temporal-globals': 'off',
       'craft-ts/require-assert-exhaustive-route-exceptions': 'off',
+      'craft-ts/no-type-assertions-in-craft-code': 'off',
       '@typescript-eslint/no-empty-function': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
     },
