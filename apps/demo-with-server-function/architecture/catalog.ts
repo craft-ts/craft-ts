@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "b8d1f0996ce78cd2",
+  "graphHash": "3ad1ae5b2bf18467",
   "routes": [
     "",
     "access-denied",
@@ -56,6 +56,8 @@ export const architectureCatalog = {
     "craftPending"
   ],
   "primitives": [
+    "captureError",
+    "captureInProgress",
     "copied",
     "craftComputed",
     "currentUser",
@@ -87,13 +89,15 @@ export const architectureCatalog = {
     "productsRequestDetail",
     "productsRequestTitle",
     "productsResultCount",
+    "promptOptions",
     "publicProductsQuery",
     "requestDetail",
     "requestTitle",
     "resultCount",
     "searchInput",
+    "setCaptureError",
+    "setCaptureInProgress",
     "setCopied",
-    "setInstruction",
     "submitPortableSearch",
     "submitSearch",
     "users",
