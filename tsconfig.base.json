@@ -28,12 +28,12 @@
       "@craft-ts/component": ["./libs/component/src/index.ts"],
       "@craft-ts/style": ["./libs/style/src/index.ts"],
       "@craft-ts/style/vite": ["./libs/style/src/plugin/vite.ts"],
-      "@craft-ts/style-testing": ["./libs/style-testing/src/index.ts"],
+      "@craft-ts/style-testing": ["./libs/review-attestation/src/index.ts"],
       "@craft-ts/style-testing/review": [
-        "./libs/style-testing/src/lib/review/index.ts"
+        "./libs/review-attestation/src/lib/review/index.ts"
       ],
       "@craft-ts/style-testing/review/frame": [
-        "./libs/style-testing/src/lib/review/frame.ts"
+        "./libs/review-attestation/src/lib/review/frame.ts"
       ],
       "@craft-ts/component/testing": ["./libs/component/testing/public-api.ts"],
       "test-type": ["./libs/test-type/src/index.ts"],

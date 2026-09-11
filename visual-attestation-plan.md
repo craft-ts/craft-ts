@@ -89,15 +89,15 @@ ne demande plus d'œil. Le PNG est conservé, mais uniquement pour l'humain.
 | Create `libs/attest/src/lib/subjects/visual.ts`         | Adaptateur sujet `visual` : scénario, digest, PNG                     |
 | Create `libs/cli/src/lib/commands/attest.ts`            | `status`, `diff`, `why`, `renew`, `review`, `unwatched`               |
 | Modify `libs/cli/src/lib/run.ts`                        | Enregistrement de la commande                                         |
-| Create `libs/style-testing/src/lib/determinism.ts`      | Horloge, aléatoire, polices, animations, réseau, navigateur épinglé   |
-| Create `libs/style-testing/src/lib/digest.ts`           | Digest de layout v1 + signature discrète                              |
-| Create `libs/style-testing/src/lib/assertions.ts`       | Débordement, troncature, chevauchement, contraste, cible tactile      |
-| Create `libs/style-testing/src/lib/transitions.ts`      | Recherche de bascules par dichotomie sur un paramètre continu         |
-| Create `libs/style-testing/src/lib/margin.ts`           | Marge entre le contenu réel et la bascule la plus proche              |
-| Create `libs/style-testing/src/lib/review/`             | Serveur local de revue : file, diff, « pourquoi », regroupement       |
-| Create `libs/style-testing/src/lib/page.ts`             | `visualPage` : découverte par point fixe, budget (vague 3)            |
-| Create `libs/style-testing/src/lib/neighborhood.ts`     | Voisinages mesurés, diamètre, `visualNeighborhood` (vague 3)          |
-| Create `libs/style-testing/src/lib/seam.ts`             | `visualSeam` déclaré **et vérifié expérimentalement** (vague 3)       |
+| Create `libs/review-attestation/src/lib/determinism.ts` | Horloge, aléatoire, polices, animations, réseau, navigateur épinglé   |
+| Create `libs/review-attestation/src/lib/digest.ts`      | Digest de layout v1 + signature discrète                              |
+| Create `libs/review-attestation/src/lib/assertions.ts`  | Débordement, troncature, chevauchement, contraste, cible tactile      |
+| Create `libs/review-attestation/src/lib/transitions.ts` | Recherche de bascules par dichotomie sur un paramètre continu         |
+| Create `libs/review-attestation/src/lib/margin.ts`      | Marge entre le contenu réel et la bascule la plus proche              |
+| Create `libs/review-attestation/src/lib/review/`        | Serveur local de revue : file, diff, « pourquoi », regroupement       |
+| Create `libs/review-attestation/src/lib/page.ts`        | `visualPage` : découverte par point fixe, budget (vague 3)            |
+| Create `libs/review-attestation/src/lib/neighborhood.ts`| Voisinages mesurés, diamètre, `visualNeighborhood` (vague 3)          |
+| Create `libs/review-attestation/src/lib/seam.ts`        | `visualSeam` déclaré **et vérifié expérimentalement** (vague 3)       |
 | Modify `libs/style/src/plugin/vite.ts`                  | Découverte des fichiers `*.visual.ts`                                 |
 | Modify `libs/i18n/src/testing.ts`                       | Pseudo-locale, locale la plus longue mesurée, bornes de tokens        |
 | Create `apps/docs/guide/style/attestation.md`           | Documentation                                                         |
@@ -156,7 +156,7 @@ export type AttestationState =
 ```
 
 ```ts
-// libs/style-testing/src/lib/digest.ts — LE CHOIX IRRÉVERSIBLE
+// libs/review-attestation/src/lib/digest.ts — LE CHOIX IRRÉVERSIBLE
 export interface LayoutDigest {
   readonly digestVersion: 1;
   readonly nodes: readonly LayoutNode[];
@@ -360,7 +360,7 @@ Test décisif : cent rendus consécutifs du même scénario produisent **cent di
 identiques**. Tant que ce test n'est pas vert, la vague n'avance pas — le report
 automatique et la dichotomie en dépendent tous les deux.
 
-**Vert** — `libs/style-testing/e2e/digest.spec.ts`, Chromium :
+**Vert** — `libs/review-attestation/e2e/digest.spec.ts`, Chromium :
 `measureDeterminism(…, 100)` → `distinct: 1`. Le test tourne dans un vrai moteur et
 pas sous jsdom, qui renvoie zéro pour toutes les boîtes et ferait passer n'importe
 quoi.
@@ -424,7 +424,7 @@ mur) sur trois composants de la demo. **La vague 3 ne s'ouvre que si ce coût es
 supportable**, parce qu'elle multiplie ce balayage par le nombre de points d'arrêt du
 viewport et par le nombre de voisinages. Consigner les chiffres dans ce fichier.
 
-#### Mesure — 2026-09-05, Chromium, `libs/style-testing/e2e/transitions.spec.ts`
+#### Mesure — 2026-09-05, Chromium, `libs/review-attestation/e2e/transitions.spec.ts`
 
 | axe                                | plage          | rendus | temps mur |
 | ---------------------------------- | -------------- | ------ | --------- |
@@ -604,7 +604,7 @@ pas le `min-content`.
 
 ```sh
 npx vitest run libs/attest
-npx vitest run libs/style-testing
+npx vitest run libs/review-attestation
 npx nx test dev-tools
 npx vitest run libs/dev-tools/tests/architecture
 npx nx build demo && npx nx lint demo
@@ -700,7 +700,7 @@ Vagues 0, 1, 2 et 4 livrées ; vague 3 volontairement **fermée** (voir la tâch
   ne sont jamais rafraîchis par un report.
 - **Faux négatifs mesurés au nœud, pas au fichier** (tâche 3, détaillé ci-dessus).
 - **Un fichier de plus que la carte** : `libs/dev-tools/src/scripts/test-slice.ts`
-  (tranche d'un test) et `libs/style-testing/src/lib/attest.ts` (branchement de la
+  (tranche d'un test) et `libs/review-attestation/src/lib/attest.ts` (branchement de la
   matrice sur le registre). Les mettre ailleurs aurait fait entrer ts-morph dans
   `@craft-ts/cli` et `@craft-ts/attest` dans `@craft-ts/style-testing`, c'est-à-dire
   cassé les deux frontières que le plan pose comme contraintes.
@@ -718,11 +718,11 @@ Vagues 0, 1, 2 et 4 livrées ; vague 3 volontairement **fermée** (voir la tâch
 ```sh
 npx tsc -b tsconfig.json --pretty false
 node tools/run-lib-vitest.mjs libs/attest/vitest.config.ts          # 36
-node tools/run-lib-vitest.mjs libs/style-testing/vitest.config.mts  # 77
+node tools/run-lib-vitest.mjs libs/review-attestation/vitest.config.mts  # 77
 node tools/run-lib-vitest.mjs libs/dev-tools/vitest.config.mts      # 748
 node tools/run-lib-vitest.mjs libs/i18n/vitest.config.ts            # 26
 node tools/run-lib-vitest.mjs libs/cli/vitest.config.ts             # 55
-npx playwright test --config libs/style-testing/playwright.config.ts  # 10, Chromium
+npx playwright test --config libs/review-attestation/playwright.config.ts  # 10, Chromium
 CRAFT_VISUAL_REPORT=.craft/runs/design-system.json \
   npx playwright test apps/demo/e2e/visual-attestation.spec.ts \
   --config apps/demo/playwright.config.ts --project chromium          # 1, Chromium

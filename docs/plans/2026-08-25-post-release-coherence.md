@@ -77,7 +77,7 @@ les deux sont légitimes. On rend la distinction explicite dans les deux pages.
 | key              | name                       | project                  | sourceManifest                    | distRoot                     |
 | ---------------- | -------------------------- | ------------------------ | --------------------------------- | ---------------------------- |
 | `style`          | `@craft-ts/style`          | `craft-ts-style`         | `libs/style/package.json`         | `dist/libs/style`            |
-| `style_testing`  | `@craft-ts/style-testing`  | `craft-ts-style-testing` | `libs/style-testing/package.json` | `dist/libs/style-testing`    |
+| `style_testing`  | `@craft-ts/style-testing`  | `craft-ts-style-testing` | `libs/review-attestation/package.json` | `dist/libs/review-attestation` |
 | `i18n`           | `@craft-ts/i18n`           | `craft-ts-i18n`          | `libs/i18n/package.json`          | `dist/libs/i18n`             |
 | `i18n_effect`    | `@craft-ts/i18n-effect`    | `craft-ts-i18n-effect`   | `libs/i18n-effect/package.json`   | `dist/libs/i18n-effect`      |
 
@@ -102,7 +102,7 @@ sur les 15 de `release.mjs`.
 
 ### Tâche 4 — donner `nx-release-publish` aux projets i18n
 
-`libs/style/project.json` et `libs/style-testing/project.json` ont déjà la cible
+`libs/style/project.json` et `libs/review-attestation/project.json` ont déjà la cible
 (configurée pour rien tant que la tâche 3 n'est pas faite). `libs/i18n` et
 `libs/i18n-effect` ne l'ont pas. Copier le bloc :
 
@@ -113,7 +113,7 @@ sur les 15 de `release.mjs`.
 ### Tâche 5 — uniformiser le tsconfig de build
 
 `libs/i18n` et `libs/i18n-effect` buildent sur `tsconfig.lib.prod.json` ;
-`libs/style` et `libs/style-testing` sur `tsconfig.lib.json`. Choisir la convention
+`libs/style` et `libs/review-attestation` sur `tsconfig.lib.json`. Choisir la convention
 majoritaire du dépôt et aligner les quatre, sinon le prochain package neuf tirera à
 pile ou face.
 

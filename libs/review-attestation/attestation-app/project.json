@@ -1,14 +1,14 @@
 {
   "name": "craft-ts-style-attestation-app",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/style-testing/attestation-app/src",
+  "sourceRoot": "libs/review-attestation/attestation-app/src",
   "projectType": "application",
   "tags": ["type:app", "scope:style-testing"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "libs/style-testing/attestation-app",
+        "cwd": "libs/review-attestation/attestation-app",
         "command": "tsc -p tsconfig.app.json --noEmit --pretty false"
       },
       "inputs": [
@@ -22,7 +22,7 @@
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "libs/style-testing/attestation-app",
+        "cwd": "libs/review-attestation/attestation-app",
         "command": "eslint ."
       },
       "inputs": [
@@ -36,7 +36,7 @@
     "architecture": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "libs/style-testing/attestation-app",
+        "cwd": "libs/review-attestation/attestation-app",
         "command": "npx vitest run --config vitest.architecture.config.ts"
       },
       "inputs": [
@@ -51,7 +51,7 @@
     "typecheck-architecture": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "libs/style-testing/attestation-app",
+        "cwd": "libs/review-attestation/attestation-app",
         "command": "tsc -p tsconfig.architecture.json --noEmit --pretty false"
       },
       "inputs": [
@@ -66,14 +66,14 @@
     "e2e": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "libs/style-testing/attestation-app",
+        "cwd": "libs/review-attestation/attestation-app",
         "command": "npx playwright test --config playwright.config.ts"
       },
       "inputs": [
         "{projectRoot}/src/**/*.ts",
         "{projectRoot}/e2e/**/*.ts",
         "{projectRoot}/playwright.config.ts",
-        "{workspaceRoot}/libs/style-testing/src/**/*.ts"
+        "{workspaceRoot}/libs/review-attestation/src/**/*.ts"
       ],
       "cache": true
     },

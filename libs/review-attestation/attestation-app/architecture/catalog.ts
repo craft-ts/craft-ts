@@ -215,8 +215,8 @@ export const architectureCatalog = {
   "collisions": {
     "services": {
       "CloseReview": [
-        "libs/style-testing/attestation-app/src/close-review.service.ts",
-        "libs/style-testing/attestation-app/src/review-app.ts"
+        "libs/review-attestation/attestation-app/src/close-review.service.ts",
+        "libs/review-attestation/attestation-app/src/review-app.ts"
       ],
       "MiddlewareExecutionScope": [
         "libs/core/src/lib/server-function-middleware.ts",

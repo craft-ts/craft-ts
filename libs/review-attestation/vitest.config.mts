@@ -12,7 +12,7 @@ export default defineConfig({
       '@craft-ts/style': path.join(root, 'libs/style/src/index.ts'),
       '@craft-ts/style-testing': path.join(
         root,
-        'libs/style-testing/src/index.ts',
+        'libs/review-attestation/src/index.ts',
       ),
       '@craft-ts/dev-tools/attestation-review': path.join(
         root,
@@ -24,10 +24,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    include: ['libs/style-testing/src/**/*.spec.ts'],
+    include: ['libs/review-attestation/src/**/*.spec.ts'],
     // The browser suite is Playwright's, not vitest's: jsdom returns zeroes for
     // every box, so running those files here would pass while proving nothing.
-    exclude: ['libs/style-testing/e2e/**'],
+    exclude: ['libs/review-attestation/e2e/**'],
     reporters: ['default'],
   },
 });

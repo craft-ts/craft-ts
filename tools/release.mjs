@@ -73,8 +73,8 @@ export const releasePackages = [
     key: 'style_testing',
     name: '@craft-ts/style-testing',
     project: 'craft-ts-style-testing',
-    sourceManifest: 'libs/style-testing/package.json',
-    distRoot: 'dist/libs/style-testing',
+    sourceManifest: 'libs/review-attestation/package.json',
+    distRoot: 'dist/libs/review-attestation',
   },
   {
     key: 'i18n',

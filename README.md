@@ -356,7 +356,7 @@ npm run attest:review-app:status
 npm run attest:review-app:review
 ```
 
-See [the attestation application workflow](libs/style-testing/attestation-app/README.md)
+See [the attestation application workflow](libs/review-attestation/attestation-app/README.md)
 for the captured states, artefacts, custom report path, and the confirmed
 **Regenerate all evidence** action available inside the DevTool.
 

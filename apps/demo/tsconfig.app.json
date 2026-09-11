@@ -18,7 +18,7 @@
       "path": "../../libs/component/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/style-testing/tsconfig.lib.json"
+      "path": "../../libs/review-attestation/tsconfig.lib.json"
     },
     {
       "path": "../../libs/core/tsconfig.lib.json"

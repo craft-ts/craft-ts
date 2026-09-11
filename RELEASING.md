@@ -15,7 +15,7 @@ from it rather than from a hand-kept enumeration.
 | `@craft-ts/cli`                   | `craft-ts-cli`            | `libs/cli`                       |
 | `@craft-ts/deploy-alchemy`        | `craft-ts-deploy-alchemy` | `libs/deploy-alchemy`            |
 | `@craft-ts/style`                 | `craft-ts-style`          | `libs/style`                     |
-| `@craft-ts/style-testing`         | `craft-ts-style-testing`  | `libs/style-testing`             |
+| `@craft-ts/style-testing`         | `craft-ts-style-testing`  | `libs/review-attestation`        |
 | `@craft-ts/i18n`                  | `craft-ts-i18n`           | `libs/i18n`                      |
 | `@craft-ts/i18n-effect`           | `craft-ts-i18n-effect`    | `libs/i18n-effect`               |
 | `@craft-ts/mcp`                   | `mcp`                     | `packages/mcp`                   |

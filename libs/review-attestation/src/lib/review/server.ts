@@ -165,7 +165,7 @@ const reviewAppRoot = (): string => {
   const candidate = new URL('../../../attestation-app/', import.meta.url);
   return candidate.protocol === 'file:'
     ? fileURLToPath(candidate)
-    : resolve(process.cwd(), 'libs/style-testing/attestation-app');
+    : resolve(process.cwd(), 'libs/review-attestation/attestation-app');
 };
 
 const queueValue = (

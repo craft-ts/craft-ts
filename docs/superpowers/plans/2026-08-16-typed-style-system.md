@@ -45,9 +45,9 @@
 | Create `libs/style/src/lib/errors.ts` | `ContextError<Message>` + rendu des messages situés |
 | Create `libs/style/src/plugin/vite.ts` | Évaluation en Node, dédup atomique, `@layer`, émission du dump graphe |
 | Create `libs/style/src/eslint/` | `no-raw-class`, `no-raw-css-value`, `no-free-has`, `style-file-boundary` |
-| Create `libs/style-testing/src/lib/matrix.ts` | `visualMatrix()`, cellules, identifiants stables |
-| Create `libs/style-testing/src/lib/drivers.ts` | `applyScenario()` : resize, colorScheme, scroll, état DOM |
-| Create `libs/style-testing/src/lib/exhaustive.ts` | `assertExhaustiveVisualMatrix()` post-inférence + `contentCases()` |
+| Create `libs/review-attestation/src/lib/matrix.ts` | `visualMatrix()`, cellules, identifiants stables |
+| Create `libs/review-attestation/src/lib/drivers.ts` | `applyScenario()` : resize, colorScheme, scroll, état DOM |
+| Create `libs/review-attestation/src/lib/exhaustive.ts` | `assertExhaustiveVisualMatrix()` post-inférence + `contentCases()` |
 | Modify `libs/dev-tools/src/scripts/dependency-graph.ts` | Fusion du dump style, nouveaux `kind` de nœuds et d'arêtes |
 | Modify `libs/dev-tools/src/scripts/architecture-graph.ts` | Prédicats `matrixSize`, `undischargedObligations`, `varsWrittenBy`, `impactedScenarios`, `unproven` |
 | Create `libs/dev-tools/tests/architecture/style-architecture.spec.ts` | Règles d'architecture de style |
@@ -124,7 +124,7 @@ export interface VariantContract {
 ```
 
 ```ts
-// libs/style-testing/src/lib/matrix.ts
+// libs/review-attestation/src/lib/matrix.ts
 export interface VisualScenario {
   /** 'md|dark|selected|footer:true' — stable, sert de nom de baseline. */
   readonly id: string;
@@ -470,8 +470,8 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 ### Task 17: Matrice et identifiants stables
 
 **Files:**
-- Create: `libs/style-testing/src/lib/matrix.ts` + spec
-- Create: `libs/style-testing/project.json`, `package.json`, `tsconfig*.json`
+- Create: `libs/review-attestation/src/lib/matrix.ts` + spec
+- Create: `libs/review-attestation/project.json`, `package.json`, `tsconfig*.json`
 
 **Interfaces:**
 - Produces: `visualMatrix(Component): readonly VisualScenario[]`.
@@ -486,7 +486,7 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 ### Task 18: Drivers de scénario
 
 **Files:**
-- Create: `libs/style-testing/src/lib/drivers.ts` + spec
+- Create: `libs/review-attestation/src/lib/drivers.ts` + spec
 
 **Interfaces:**
 - Produces: `applyScenario(page, scenario)`.
@@ -501,7 +501,7 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 ### Task 19: Assertion d'exhaustivité post-inférence
 
 **Files:**
-- Create: `libs/style-testing/src/lib/exhaustive.ts` + spec
+- Create: `libs/review-attestation/src/lib/exhaustive.ts` + spec
 
 **Interfaces:**
 - Produces: `assertExhaustiveVisualMatrix(Component, baselines)`, `baselinesIn(dir)`.
@@ -517,8 +517,8 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 ### Task 20: Cas de contenu
 
 **Files:**
-- Modify: `libs/style-testing/src/lib/exhaustive.ts`
-- Create: `libs/style-testing/src/lib/content-cases.spec.ts`
+- Modify: `libs/review-attestation/src/lib/exhaustive.ts`
+- Create: `libs/review-attestation/src/lib/content-cases.spec.ts`
 
 **Interfaces:**
 - Produces: `contentCases(Component, cases)` et son croisement avec la matrice.
@@ -596,8 +596,8 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 ### Task 25: Axes de conteneur et élagage prouvé
 
 **Files:**
-- Modify: `libs/style-testing/src/lib/matrix.ts`
-- Create: `libs/style-testing/src/lib/container-axis.spec.ts`
+- Modify: `libs/review-attestation/src/lib/matrix.ts`
+- Create: `libs/review-attestation/src/lib/container-axis.spec.ts`
 
 **Interfaces:**
 - Produces: fermeture de l'axe container au composant qui le déclare ; élagage des branches inatteignables.
@@ -702,7 +702,7 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 ### Task 31: Orthogonalité par construction
 
 **Files:**
-- Modify: `libs/style/src/lib/axes/define.ts`, `libs/style-testing/src/lib/matrix.ts`
+- Modify: `libs/style/src/lib/axes/define.ts`, `libs/review-attestation/src/lib/matrix.ts`
 
 **Notes:** la seule réduction inter-axes autorisée, parce qu'elle est vraie **par typage de l'axe** et non par analyse : un axe déclaré `writes: onlyVarsOfKind(color)` ne peut pas modifier le layout, donc il se croise additivement avec les axes d'espace. Zéro faux négatif possible. À faire avant toute autre réduction, et éventuellement à la place de toutes les autres.
 
@@ -727,7 +727,7 @@ Le gate `style-contract` dans `craft check` est **obligatoire**, pas optionnel :
 
 ```sh
 npx vitest run libs/core/src/lib/render
-npx vitest run libs/style libs/style-testing
+npx vitest run libs/style libs/review-attestation
 npx nx test component && npx nx test dev-tools
 npx nx build demo && npx nx lint demo
 npx vitest run libs/dev-tools/tests/architecture

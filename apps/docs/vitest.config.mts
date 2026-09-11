@@ -29,7 +29,7 @@ export default defineConfig(() => ({
       ),
       '@craft-ts/style-testing': path.join(
         workspaceRoot,
-        'libs/style-testing/src/index.ts',
+        'libs/review-attestation/src/index.ts',
       ),
       '@craft-ts/style': path.join(workspaceRoot, 'libs/style/src/index.ts'),
       '@craft-ts/i18n-effect': path.join(

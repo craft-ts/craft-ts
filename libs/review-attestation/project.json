@@ -1,7 +1,7 @@
 {
   "name": "craft-ts-style-testing",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/style-testing/src",
+  "sourceRoot": "libs/review-attestation/src",
   "prefix": "craft",
   "projectType": "library",
   "tags": [],
@@ -10,17 +10,17 @@
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/libs/style-testing",
-        "main": "libs/style-testing/src/index.ts",
-        "tsConfig": "libs/style-testing/tsconfig.lib.json",
+        "outputPath": "dist/libs/review-attestation",
+        "main": "libs/review-attestation/src/index.ts",
+        "tsConfig": "libs/review-attestation/tsconfig.lib.json",
         "assets": [
           {
-            "input": "libs/style-testing/attestation-app",
+            "input": "libs/review-attestation/attestation-app",
             "glob": "index.html",
             "output": "attestation-app"
           },
           {
-            "input": "libs/style-testing/attestation-app/src",
+            "input": "libs/review-attestation/attestation-app/src",
             "glob": "**/*",
             "output": "attestation-app/src"
           }
@@ -35,14 +35,14 @@
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node tools/run-lib-vitest.mjs libs/style-testing/vitest.config.mts",
+        "command": "node tools/run-lib-vitest.mjs libs/review-attestation/vitest.config.mts",
         "forwardAllArgs": true
       }
     },
     "typecheck-spec": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc -p libs/style-testing/tsconfig.spec.json --noEmit --pretty false"
+        "command": "tsc -p libs/review-attestation/tsconfig.spec.json --noEmit --pretty false"
       },
       "inputs": [
         "{workspaceRoot}/tsconfig.base.json",
@@ -60,7 +60,7 @@
     "e2e": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx playwright test --config libs/style-testing/playwright.config.ts",
+        "command": "npx playwright test --config libs/review-attestation/playwright.config.ts",
         "forwardAllArgs": true
       }
     }

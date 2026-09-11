@@ -22,7 +22,7 @@ export default defineConfig({
 
       '@craft-ts/style-testing': path.join(
         workspaceRoot,
-        'libs/style-testing/src/index.ts',
+        'libs/review-attestation/src/index.ts',
       ),
       // More specific first: a bare '@craft-ts/style' alias matches this
       // specifier as a prefix and would swallow it.

@@ -148,7 +148,7 @@ test('release PRs are limited to manifests and changelog', () => {
     'libs/effect/package.json',
     'libs/i18n-effect/package.json',
     'libs/i18n/package.json',
-    'libs/style-testing/package.json',
+    'libs/review-attestation/package.json',
     'libs/style/package.json',
     'package-lock.json',
     'packages/function-registry-mcp/package.json',

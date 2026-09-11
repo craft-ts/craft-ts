@@ -63,4 +63,4 @@ vitest.config.*.timestamp*
 # Attestation evidence: content-addressed, regenerable, never in git.
 .craft/evidence/
 .craft/runs/
-libs/style-testing/test-results/
+libs/review-attestation/test-results/
