@@ -1,7 +1,10 @@
 import {
   CRAFT_TEMPORAL_RUNTIME,
+  CraftHttpClient,
   craftMethod,
   craftUse,
+  isCraftException,
+  mutation,
   state,
   type CraftTemporalRuntime as CraftTemporalRuntimeApi,
   type SendContextEvent,
@@ -31,12 +34,14 @@ import {
 } from '../hyperscript';
 import type { CraftComponent, Input, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
+import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 import {
-  buildSendContextPrompt,
+  buildSendContextWebhookPayload,
   DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
   describeTarget,
   formatEventLine,
   safeJson,
+  type SendContextWebhookPayload,
   type SendContextPromptOptions,
 } from './send-context-prompt';
 import type { SendContextUiContext } from './send-context-ui.tokens';
@@ -77,6 +82,26 @@ function isAiOverlayEvent(event: SendContextEvent): boolean {
   return AI_OVERLAY_COMPONENTS.some((component) =>
     name.startsWith(`${component}:`),
   );
+}
+
+const SEND_CONTEXT_WEBHOOK_TIMEOUT_MS = 10_000;
+
+function formatWebhookError(error: unknown): string {
+  if (isCraftException(error) && error._tag === 'HttpError') {
+    const response = (
+      error.payload as { error?: { status?: unknown; error?: unknown } }
+    ).error;
+    const status = response?.status;
+    if (typeof status === 'number' && status > 0) {
+      return `Could not send context (HTTP ${status}).`;
+    }
+    const cause = response?.error;
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      return 'Could not send context: the webhook timed out.';
+    }
+    return 'Could not send context: the webhook is unreachable.';
+  }
+  return 'Could not send context to the webhook.';
 }
 
 /** How far the panel has been dragged from its default bottom-right anchor. */
@@ -127,6 +152,10 @@ type ChatContext = {
   clearTimeline: () => void;
   copyPrompt: () => void;
   exportJson: () => void;
+  endpoint?: string;
+  sendPayload?: () => void;
+  retrySend?: () => void;
+  copyPayload?: () => void;
 };
 
 type ChatFactoryContext = Omit<ChatContext, 'onClose'> & {
@@ -144,7 +173,7 @@ export const AiSendContextChat: CraftComponent<{
 }> = craftComponent(
   'AiSendContextChat',
   {
-    styles: `
+    styles: `${AI_OVERLAY_THEME}
       :scope {
         position: fixed;
         inset: 0;
@@ -155,7 +184,7 @@ export const AiSendContextChat: CraftComponent<{
         pointer-events: none;
         font-family: system-ui, -apple-system, sans-serif;
         font-size: 13px;
-        color: #111827;
+        color: var(--craft-ai-text);
       }
       :scope .craft-ai-chat {
         pointer-events: auto;
@@ -165,10 +194,10 @@ export const AiSendContextChat: CraftComponent<{
         width: min(460px, 100%);
         max-height: min(760px, 88vh);
         overflow: auto;
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
+        background: var(--craft-ai-bg);
+        border: 1px solid var(--craft-ai-border-subtle);
         border-radius: 12px;
-        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+        box-shadow: 0 20px 60px var(--craft-ai-shadow);
         padding: 16px;
       }
       :scope .craft-ai-chat-header {
@@ -194,7 +223,7 @@ export const AiSendContextChat: CraftComponent<{
         font-size: 20px;
         line-height: 1;
         padding: 0 4px;
-        color: #6b7280;
+        color: var(--craft-ai-text-muted);
         cursor: pointer;
       }
       :scope .craft-ai-section {
@@ -211,7 +240,7 @@ export const AiSendContextChat: CraftComponent<{
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: #6b7280;
+        color: var(--craft-ai-text-muted);
       }
       :scope .craft-ai-targets {
         display: flex;
@@ -226,8 +255,8 @@ export const AiSendContextChat: CraftComponent<{
         align-items: center;
         gap: 6px;
         max-width: 100%;
-        background: #eff6ff;
-        color: #1d4ed8;
+        background: var(--craft-ai-surface-accent);
+        color: var(--craft-ai-accent-text);
         border-radius: 999px;
         padding: 3px 4px 3px 10px;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -249,11 +278,11 @@ export const AiSendContextChat: CraftComponent<{
         border-radius: 999px;
       }
       :scope .craft-ai-target-remove:hover {
-        background: rgba(29, 78, 216, 0.15);
+        background: var(--craft-ai-accent-soft);
       }
       :scope .craft-ai-empty {
         margin: 0;
-        color: #9ca3af;
+        color: var(--craft-ai-text-muted);
         font-size: 12px;
       }
       :scope .craft-ai-timeline {
@@ -262,8 +291,8 @@ export const AiSendContextChat: CraftComponent<{
         list-style: none;
         max-height: 190px;
         overflow: auto;
-        background: #f9fafb;
-        border: 1px solid #f3f4f6;
+        background: var(--craft-ai-surface);
+        border: 1px solid var(--craft-ai-border-subtle);
         border-radius: 6px;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 11px;
@@ -275,7 +304,7 @@ export const AiSendContextChat: CraftComponent<{
         white-space: nowrap;
       }
       :scope .craft-ai-event-time {
-        color: #9ca3af;
+        color: var(--craft-ai-text-muted);
       }
       :scope .craft-ai-event-name {
         overflow: hidden;
@@ -286,21 +315,31 @@ export const AiSendContextChat: CraftComponent<{
         font-size: 10px;
         letter-spacing: 0.03em;
       }
-      :scope .craft-ai-phase--failed { color: #b91c1c; }
-      :scope .craft-ai-phase--succeeded { color: #047857; }
-      :scope .craft-ai-phase--started { color: #b45309; }
-      :scope .craft-ai-phase--emitted { color: #4338ca; }
+      :scope .craft-ai-phase--failed { color: var(--craft-ai-phase-failed); }
+      :scope .craft-ai-phase--succeeded { color: var(--craft-ai-phase-succeeded); }
+      :scope .craft-ai-phase--started { color: var(--craft-ai-phase-started); }
+      :scope .craft-ai-phase--emitted { color: var(--craft-ai-phase-emitted); }
       :scope .craft-ai-textarea {
         width: 100%;
         box-sizing: border-box;
         resize: vertical;
         font: inherit;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--craft-ai-border);
         border-radius: 6px;
         padding: 8px 10px;
+        color: var(--craft-ai-text);
+        background: var(--craft-ai-control-bg);
+        caret-color: var(--craft-ai-text);
+      }
+      :scope .craft-ai-textarea::placeholder {
+        color: var(--craft-ai-text-muted);
+        opacity: 1;
+      }
+      :scope .craft-ai-option input[type='checkbox'] {
+        accent-color: var(--craft-ai-accent);
       }
       :scope .craft-ai-textarea:focus-visible {
-        outline: 2px solid #2563eb;
+        outline: 2px solid var(--craft-ai-focus);
         outline-offset: -1px;
       }
       :scope .craft-ai-options {
@@ -309,7 +348,7 @@ export const AiSendContextChat: CraftComponent<{
         gap: 6px 12px;
         margin: 0;
         padding: 10px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--craft-ai-border-subtle);
         border-radius: 6px;
       }
       :scope .craft-ai-options legend {
@@ -317,7 +356,7 @@ export const AiSendContextChat: CraftComponent<{
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: #6b7280;
+        color: var(--craft-ai-text-muted);
         padding: 0 4px;
       }
       :scope .craft-ai-option {
@@ -338,40 +377,41 @@ export const AiSendContextChat: CraftComponent<{
       :scope button {
         font: inherit;
         font-size: 12px;
-        border: 1px solid #d1d5db;
-        background: #ffffff;
+        border: 1px solid var(--craft-ai-border);
+        background: var(--craft-ai-control-bg);
+        color: var(--craft-ai-text);
         border-radius: 6px;
         padding: 7px 11px;
         cursor: pointer;
       }
       :scope button:hover:not(:disabled) {
-        background: #f9fafb;
+        background: var(--craft-ai-surface);
       }
       :scope button:disabled {
         opacity: 0.55;
         cursor: not-allowed;
       }
       :scope button.primary {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: var(--craft-ai-accent);
+        border-color: var(--craft-ai-accent);
         color: #ffffff;
       }
       :scope button.primary:hover:not(:disabled) {
-        background: #1d4ed8;
+        background: var(--craft-ai-accent-hover);
       }
       :scope button.recording {
-        background: #b91c1c;
-        border-color: #b91c1c;
+        background: var(--craft-ai-danger);
+        border-color: var(--craft-ai-danger);
         color: #ffffff;
       }
       :scope .craft-ai-success {
         margin: 0;
-        color: #047857;
+        color: var(--craft-ai-success);
         font-size: 12px;
       }
       :scope .craft-ai-warning {
         margin: 0;
-        color: #b45309;
+        color: var(--craft-ai-warning);
         font-size: 12px;
       }
     `,
@@ -471,9 +511,67 @@ export const AiSendContextChat: CraftComponent<{
     };
 
     const readContext = (): SendContextUiContext => craftUse(context());
+    const configuredEndpoint = readContext().endpoint;
+
+    const sendMutation = configuredEndpoint
+      ? yield* mutation('sendContextToAi', {
+          method: (payload: SendContextWebhookPayload) => payload,
+          loader: function* ({ params }) {
+            const request = yield* CraftHttpClient.post(({ response }) => ({
+              url: configuredEndpoint,
+              payload: params,
+              timeout: SEND_CONTEXT_WEBHOOK_TIMEOUT_MS,
+              success: response<unknown>(),
+            }));
+            return request.then(
+              (result) => {
+                if (isCraftException(result)) {
+                  setBusy(false);
+                  setError(formatWebhookError(result));
+                  return result;
+                }
+                setBusy(false);
+                flashStatus('Context sent to the webhook ✓');
+                return result;
+              },
+              (caught) => {
+                setBusy(false);
+                setError(formatWebhookError(caught));
+                throw caught;
+              },
+            );
+          },
+        })
+      : undefined;
+
     /** The session timeline, minus the noise this panel makes itself. */
-    const appEvents = (): readonly SendContextEvent[] =>
-      readContext().events.filter((event) => !isAiOverlayEvent(event));
+    const appEvents = (): readonly SendContextEvent[] => {
+      const events = readContext().events.filter(
+        (event) => !isAiOverlayEvent(event),
+      );
+      if (!configuredEndpoint) return events;
+
+      const webhookOperationIds = new Set(
+        events.flatMap((event) => {
+          if (
+            event.kind !== 'http' ||
+            event.phase !== 'started' ||
+            !event.operationId ||
+            !event.payload ||
+            typeof event.payload !== 'object'
+          ) {
+            return [];
+          }
+          const url = (event.payload as { url?: unknown }).url;
+          return url === configuredEndpoint ? [event.operationId] : [];
+        }),
+      );
+      return events.filter(
+        (event) =>
+          event.operationId === undefined ||
+          !webhookOperationIds.has(event.operationId),
+      );
+    };
     const readOptions = (): SendContextPromptOptions =>
       craftUse(promptOptions());
     const readInstruction = (): string => craftUse(instruction());
@@ -609,12 +707,40 @@ export const AiSendContextChat: CraftComponent<{
         .catch(() => setError('Could not write to the clipboard.'));
     };
 
-    const copyPrompt = (): void => {
-      const text = readInstruction().trim();
-      if (craftUse(busy())) return;
+    let pendingWebhookPayload: SendContextWebhookPayload | undefined;
 
+    const preparePayload = (): SendContextWebhookPayload => {
+      const text = readInstruction().trim();
       const options = readOptions();
       const ui = readContext();
+      const componentCapture =
+        options.includeDomStyles && ui.captureElement
+          ? captureAiDomStyles(ui.captureElement)
+          : undefined;
+      const pageCapture = options.includePageDomStyles
+        ? captureAiDomStyles(document.documentElement, {
+            maxBytes: 1024 * 1024,
+            maxNodes: 10000,
+          })
+        : undefined;
+      return buildSendContextWebhookPayload(
+        {
+          instruction: text,
+          targets: ui.targets,
+          events: appEvents(),
+          payload: ui.payload,
+          timelineJson: options.includeTimelineJson
+            ? timelineJson()
+            : undefined,
+          captures: { component: componentCapture, page: pageCapture },
+        },
+        options,
+      );
+    };
+
+    const copyPrompt = (): void => {
+      if (craftUse(busy())) return;
+
       setError('');
       setStatus('');
       setBusy(true);
@@ -622,30 +748,10 @@ export const AiSendContextChat: CraftComponent<{
       // browser first so the disabled state actually paints.
       setTimeout(() => {
         try {
-          const componentCapture =
-            options.includeDomStyles && ui.captureElement
-              ? captureAiDomStyles(ui.captureElement)
-              : undefined;
-          const pageCapture = options.includePageDomStyles
-            ? captureAiDomStyles(document.documentElement, {
-                maxBytes: 1024 * 1024,
-                maxNodes: 10000,
-              })
-            : undefined;
-          const prompt = buildSendContextPrompt(
-            {
-              instruction: text,
-              targets: ui.targets,
-              events: appEvents(),
-              payload: ui.payload,
-              timelineJson: options.includeTimelineJson
-                ? timelineJson()
-                : undefined,
-              captures: { component: componentCapture, page: pageCapture },
-            },
-            options,
+          copyToClipboard(
+            preparePayload().prompt,
+            'Prompt copied to the clipboard ✓',
           );
-          copyToClipboard(prompt, 'Prompt copied to the clipboard ✓');
         } catch (caught) {
           setError(
             caught instanceof Error
@@ -656,6 +762,42 @@ export const AiSendContextChat: CraftComponent<{
           setBusy(false);
         }
       }, 0);
+    };
+
+    const sendPayload = (): void => {
+      if (!sendMutation || craftUse(busy())) return;
+      setError('');
+      setStatus('');
+      setBusy(true);
+      setTimeout(() => {
+        try {
+          pendingWebhookPayload = preparePayload();
+          sendMutation.mutate(pendingWebhookPayload);
+        } catch (caught) {
+          setBusy(false);
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : 'Could not build the webhook payload.',
+          );
+        }
+      }, 0);
+    };
+
+    const retrySend = (): void => {
+      if (!sendMutation || !pendingWebhookPayload || craftUse(busy())) return;
+      setError('');
+      setStatus('');
+      setBusy(true);
+      sendMutation.mutate(pendingWebhookPayload);
+    };
+
+    const copyPayload = (): void => {
+      if (!pendingWebhookPayload || craftUse(busy())) return;
+      copyToClipboard(
+        safeJson(pendingWebhookPayload, '[unserializable payload]'),
+        'Payload copied to the clipboard ✓',
+      );
     };
 
     /** The same view the timeline shows, as JSON — not the raw session dump. */
@@ -735,6 +877,10 @@ export const AiSendContextChat: CraftComponent<{
       clearTimeline,
       copyPrompt,
       exportJson,
+      endpoint: configuredEndpoint,
+      sendPayload,
+      retrySend,
+      copyPayload,
     };
   },
   ({
@@ -758,6 +904,10 @@ export const AiSendContextChat: CraftComponent<{
     clearTimeline,
     copyPrompt,
     exportJson,
+    endpoint,
+    sendPayload,
+    retrySend,
+    copyPayload,
   }: ChatContext) =>
     div({ class: 'craft-ai-chat-overlay' }, [
       div(
@@ -1024,17 +1174,61 @@ export const AiSendContextChat: CraftComponent<{
               { type: 'button', click: exportJson },
               'Copy JSON',
             ),
-            button(
-              'aiCopyPrompt',
-              {
-                type: 'button',
-                class: 'primary',
-                disabled: busy,
-                click: copyPrompt,
-              },
-              () => (busy() ? 'Preparing…' : '⧉ Copy prompt'),
-            ),
-          ]),
+            ...(endpoint
+              ? [
+                  button(
+                    'aiCopyPrompt',
+                    {
+                      type: 'button',
+                      disabled: busy,
+                      click: copyPrompt,
+                    },
+                    'Copy prompt',
+                  ),
+                  button(
+                    'aiRetrySend',
+                    {
+                      type: 'button',
+                      style: () => (error() ? null : { display: 'none' }),
+                      disabled: busy,
+                      click: retrySend,
+                    },
+                    'Retry',
+                  ),
+                  button(
+                    'aiCopyPayload',
+                    {
+                      type: 'button',
+                      style: () => (error() ? null : { display: 'none' }),
+                      disabled: busy,
+                      click: copyPayload,
+                    },
+                    'Copy payload',
+                  ),
+                  button(
+                    'aiSendContext',
+                    {
+                      type: 'button',
+                      class: 'primary',
+                      disabled: busy,
+                      click: sendPayload,
+                    },
+                    () => (busy() ? 'Sending…' : 'Send'),
+                  ),
+                ]
+              : [
+                  button(
+                    'aiCopyPrompt',
+                    {
+                      type: 'button',
+                      class: 'primary',
+                      disabled: busy,
+                      click: copyPrompt,
+                    },
+                    () => (busy() ? 'Preparing…' : '⧉ Copy prompt'),
+                  ),
+                ]),
+          ] as never),
         ],
       ),
     ]),

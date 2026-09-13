@@ -185,6 +185,7 @@ export function createAiContextMenuController({
   chatSections,
   chatActions,
   exportSections,
+  endpoint,
 }: {
   injector: Injector;
   buffer: SendContextToAiBuffer;
@@ -209,6 +210,7 @@ export function createAiContextMenuController({
   chatSections?: readonly SendContextChatSection[];
   chatActions?: readonly SendContextChatAction[];
   exportSections?: readonly SendContextExportSection[];
+  endpoint?: string;
 }): AiContextMenuController {
   let menu: Overlay | null = null;
   let dialog: Overlay | null = null;
@@ -293,6 +295,7 @@ export function createAiContextMenuController({
       // at copy time than they were when the chat opened.
       return { ...rest, snapshot: buffer.latestReports };
     },
+    endpoint,
     get captureElement() {
       return capturedSignal()?.captureElement;
     },
@@ -436,7 +439,14 @@ function asAngularToken<T>(token: CraftToken<T>): ProviderToken<T> {
   return token as unknown as ProviderToken<T>;
 }
 
-export function provideSendContextToAi(): Provider[] {
+export interface SendContextToAiOptions {
+  /** Browser-accessible webhook URL. Omit it to keep the copy-only behavior. */
+  readonly endpoint?: string;
+}
+
+export function provideSendContextToAi(
+  options: SendContextToAiOptions = {},
+): Provider[] {
   return [
     ...provideSendContextSession(),
     provideSendContextChatComponent(() => AiSendContextChat),
@@ -474,6 +484,7 @@ export function provideSendContextToAi(): Provider[] {
             inject(SEND_CONTEXT_CHAT_ACTION, { optional: true }) ?? [],
           exportSections:
             inject(SEND_CONTEXT_EXPORT_SECTION, { optional: true }) ?? [],
+          endpoint: options.endpoint,
         }),
     },
     provideFnWrapper(

@@ -14,6 +14,7 @@ import type { SendContextUiContext } from './send-context-ui.tokens';
 function createUiContext(
   session: SendContextSession,
   targets: SendContextTarget[],
+  endpoint?: string,
 ): SendContextUiContext {
   return {
     session,
@@ -36,6 +37,7 @@ function createUiContext(
       outerHTML: '<section id="host"></section>',
       snapshot: [],
     },
+    endpoint,
     captureElement: undefined,
     chatSections: [],
     chatActions: [],
@@ -79,6 +81,30 @@ describe('AiSendContextChat', () => {
 
   afterEach(() => {
     document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps the panel controls readable when the host app styles native controls', async () => {
+    const rendered = await renderChat(
+      createUiContext(createSendContextSession(), []),
+    );
+    const sheet = Array.from(
+      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
+    ).find((style) => style.textContent?.includes('AiSendContextChat'));
+    const textareaRule =
+      sheet?.textContent?.match(
+        /:scope \.craft-ai-textarea\s*\{[^}]*\}/,
+      )?.[0] ?? '';
+    const buttonRule =
+      sheet?.textContent?.match(/:scope button\s*\{[^}]*\}/)?.[0] ?? '';
+
+    expect(sheet?.textContent).toContain('color-scheme: light dark');
+    expect(sheet?.textContent).toContain('@media (prefers-color-scheme: dark)');
+    expect(textareaRule).toContain('color: var(--craft-ai-text)');
+    expect(textareaRule).toContain('background: var(--craft-ai-control-bg)');
+    expect(buttonRule).toContain('color: var(--craft-ai-text)');
+
+    rendered.destroy();
   });
 
   it('renders captured elements and events as text, never [object Object]', async () => {
@@ -144,6 +170,226 @@ describe('AiSendContextChat', () => {
     expect(prompt).toContain('# Selected elements (1)');
     expect(prompt).toContain('- hostName: DemoComponent');
     expect(prompt).toContain('dom emitted · click');
+
+    rendered.destroy();
+    session.destroy();
+  });
+
+  it('keeps Copy prompt when no webhook endpoint is configured', async () => {
+    const rendered = await renderChat(
+      createUiContext(createSendContextSession(), []),
+    );
+
+    expect(
+      rendered.nativeElement.querySelector('[data-craft-name="aiCopyPrompt"]'),
+    ).not.toBeNull();
+    expect(
+      rendered.nativeElement.querySelector('[data-craft-name="aiSendContext"]'),
+    ).toBeNull();
+
+    rendered.destroy();
+  });
+
+  it.each([200, 202, 204])(
+    'sends the same versioned payload for HTTP %s',
+    async (status) => {
+      const session = createSendContextSession();
+      session.capture('http', 'succeeded', { name: 'getUser' });
+      const fetchMock = vi.fn(
+        (_input: RequestInfo | URL, _init?: RequestInit) =>
+          Promise.resolve(
+            new Response(status === 204 ? null : JSON.stringify({ ok: true }), {
+              status,
+            }),
+          ),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+      const rendered = await renderChat(
+        createUiContext(
+          session,
+          [{ tagName: 'button', textContent: 'Demo' }],
+          'https://agent.example.test/hooks/context',
+        ),
+      );
+
+      rendered.nativeElement
+        .querySelector<HTMLButtonElement>('[data-craft-name="aiSendContext"]')
+        ?.click();
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+      await rendered.flush();
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://agent.example.test/hooks/context',
+        expect.objectContaining({ method: 'POST' }),
+      );
+      const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+      const body = JSON.parse(String(request.body)) as Record<string, unknown>;
+      expect(body).toMatchObject({
+        version: 1,
+        instruction: '',
+        selectedElements: [{ tagName: 'button', textContent: 'Demo' }],
+        events: [expect.objectContaining({ name: 'getUser' })],
+        snapshot: [],
+        captures: {},
+      });
+      expect(body.prompt).toContain('# Selected elements (1)');
+      expect(body.prompt).toContain('http succeeded · getUser');
+      expect(body.component).toMatchObject({ hostName: 'DemoComponent' });
+      expect(rendered.nativeElement.textContent).toContain(
+        'Context sent to the webhook',
+      );
+      expect(writeText).not.toHaveBeenCalled();
+
+      rendered.nativeElement
+        .querySelector<HTMLButtonElement>('[data-craft-name="aiCopyPrompt"]')
+        ?.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+      expect(writeText.mock.calls[0]?.[0]).toBe(body.prompt);
+
+      rendered.destroy();
+      session.destroy();
+    },
+  );
+
+  it.each([400, 503])(
+    'offers Retry and Copy payload after HTTP %s without copying automatically',
+    async (status) => {
+      const session = createSendContextSession();
+      const fetchMock =
+        vi.fn<
+          (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+        >();
+      fetchMock.mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: 'unavailable' }), { status }),
+      );
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+      vi.stubGlobal('fetch', fetchMock);
+      const rendered = await renderChat(
+        createUiContext(
+          session,
+          [{ tagName: 'button', textContent: 'Demo' }],
+          'https://agent.example.test/hooks/context',
+        ),
+      );
+
+      rendered.nativeElement
+        .querySelector<HTMLButtonElement>('[data-craft-name="aiSendContext"]')
+        ?.click();
+      await vi.waitFor(() =>
+        expect(rendered.nativeElement.textContent).toContain(`HTTP ${status}`),
+      );
+      expect(writeText).not.toHaveBeenCalled();
+
+      const firstBody = JSON.parse(
+        String((fetchMock.mock.calls[0]?.[1] as RequestInit).body),
+      );
+      rendered.nativeElement
+        .querySelector<HTMLButtonElement>('[data-craft-name="aiCopyPayload"]')
+        ?.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+      expect(JSON.parse(writeText.mock.calls[0]?.[0] as string)).toEqual(
+        firstBody,
+      );
+
+      rendered.nativeElement
+        .querySelector<HTMLButtonElement>('[data-craft-name="aiRetrySend"]')
+        ?.click();
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      const retryBody = JSON.parse(
+        String((fetchMock.mock.calls[1]?.[1] as RequestInit).body),
+      );
+      expect(retryBody).toEqual(firstBody);
+
+      rendered.destroy();
+      session.destroy();
+    },
+  );
+
+  it('reports a network failure and never copies without an explicit action', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+    const rendered = await renderChat(
+      createUiContext(
+        createSendContextSession(),
+        [],
+        'https://agent.example.test/hooks/context',
+      ),
+    );
+
+    rendered.nativeElement
+      .querySelector<HTMLButtonElement>('[data-craft-name="aiSendContext"]')
+      ?.click();
+    await vi.waitFor(() =>
+      expect(rendered.nativeElement.textContent).toContain('unreachable'),
+    );
+    expect(writeText).not.toHaveBeenCalled();
+
+    rendered.destroy();
+  });
+
+  it('reports a webhook timeout', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      (_input: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const rendered = await renderChat(
+      createUiContext(
+        createSendContextSession(),
+        [],
+        'https://agent.example.test/hooks/context',
+      ),
+    );
+
+    rendered.nativeElement
+      .querySelector<HTMLButtonElement>('[data-craft-name="aiSendContext"]')
+      ?.click();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await rendered.flush();
+
+    expect(rendered.nativeElement.textContent).toContain('timed out');
+    expect(writeText).not.toHaveBeenCalled();
+    rendered.destroy();
+    vi.useRealTimers();
+  });
+
+  it('excludes previous webhook calls from the next payload timeline', async () => {
+    const endpoint = 'https://agent.example.test/hooks/context';
+    const session = createSendContextSession();
+    session.capture('http', 'started', {
+      name: 'POST',
+      operationId: 'webhook-1',
+      payload: { method: 'POST', url: endpoint },
+    });
+    session.capture('http', 'succeeded', {
+      name: 'POST',
+      operationId: 'webhook-1',
+    });
+    session.capture('http', 'succeeded', {
+      name: 'POST',
+      operationId: 'application-1',
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const rendered = await renderChat(createUiContext(session, [], endpoint));
+
+    rendered.nativeElement
+      .querySelector<HTMLButtonElement>('[data-craft-name="aiSendContext"]')
+      ?.click();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as RequestInit).body),
+    ) as { events: Array<{ operationId?: string }> };
+    expect(body.events.map((event) => event.operationId)).toEqual([
+      'application-1',
+    ]);
 
     rendered.destroy();
     session.destroy();

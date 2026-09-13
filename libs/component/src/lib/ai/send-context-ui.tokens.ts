@@ -31,6 +31,8 @@ export interface SendContextUiContext {
    * the launcher without ever targeting a component.
    */
   readonly payload: SendContextPayload | undefined;
+  /** Optional browser-side destination configured by `provideSendContextToAi`. */
+  readonly endpoint?: string;
   /** The element the payload was captured on, for the DOM + CSS capture. */
   readonly captureElement: Element | undefined;
   readonly chatSections: readonly SendContextChatSection[];

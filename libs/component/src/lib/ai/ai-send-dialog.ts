@@ -28,6 +28,7 @@ import {
 } from '../hyperscript';
 import type { CraftComponent, Input, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
+import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 
 const { CraftTemporalRuntime } = toCraftService({
   name: 'CraftTemporalRuntime',
@@ -170,7 +171,7 @@ export const AiSendDialog: CraftComponent<{
 }> = craftComponent(
   'AiSendDialog',
   {
-    styles: `
+    styles: `${AI_OVERLAY_THEME}
       :scope {
         position: fixed;
         inset: 0;
@@ -191,15 +192,15 @@ export const AiSendDialog: CraftComponent<{
           -apple-system,
           sans-serif;
         font-size: 13px;
-        color: #111827;
+        color: var(--craft-ai-text);
       }
       :scope::backdrop {
-        background: rgba(15, 23, 42, 0.5);
+        background: var(--craft-ai-overlay-backdrop);
       }
       :scope .craft-ai-card {
-        background: #ffffff;
+        background: var(--craft-ai-bg);
         border-radius: 8px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 20px 50px var(--craft-ai-shadow);
         width: min(560px, 100%);
         max-height: 90vh;
         overflow: auto;
@@ -220,11 +221,11 @@ export const AiSendDialog: CraftComponent<{
         font-size: 20px;
         line-height: 1;
         cursor: pointer;
-        color: #6b7280;
+        color: var(--craft-ai-text-muted);
       }
       :scope .craft-ai-context {
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
+        background: var(--craft-ai-surface);
+        border: 1px solid var(--craft-ai-border-subtle);
         border-radius: 6px;
         padding: 8px 10px;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -233,7 +234,7 @@ export const AiSendDialog: CraftComponent<{
         gap: 4px;
       }
       :scope .craft-ai-context .label {
-        color: #6b7280;
+        color: var(--craft-ai-text-muted);
         margin-right: 4px;
       }
       :scope .craft-ai-label {
@@ -244,7 +245,7 @@ export const AiSendDialog: CraftComponent<{
         gap: 7px;
         margin: 0;
         padding: 10px;
-        border: 1px solid #e5e7eb;
+        border: 1px solid var(--craft-ai-border-subtle);
         border-radius: 6px;
       }
       :scope .craft-ai-options legend {
@@ -261,10 +262,13 @@ export const AiSendDialog: CraftComponent<{
       :scope .craft-ai-option input {
         margin: 2px 0 0;
       }
+      :scope .craft-ai-option input[type='checkbox'] {
+        accent-color: var(--craft-ai-accent);
+      }
       :scope .craft-ai-warning {
-        color: #92400e;
-        background: #fffbeb;
-        border: 1px solid #fde68a;
+        color: var(--craft-ai-warning);
+        background: var(--craft-ai-warning-bg);
+        border: 1px solid var(--craft-ai-warning-border);
         border-radius: 5px;
         padding: 6px 8px;
         font-size: 12px;
@@ -275,19 +279,26 @@ export const AiSendDialog: CraftComponent<{
         font-family: inherit;
         font-size: 13px;
         padding: 8px 10px;
-        border: 1px solid #d1d5db;
+        border: 1px solid var(--craft-ai-border);
         border-radius: 6px;
         resize: vertical;
         min-height: 96px;
+        color: var(--craft-ai-text);
+        background: var(--craft-ai-control-bg);
+        caret-color: var(--craft-ai-text);
+      }
+      :scope .craft-ai-textarea::placeholder {
+        color: var(--craft-ai-text-muted);
+        opacity: 1;
       }
       :scope .craft-ai-textarea:focus {
-        outline: 2px solid #3b82f6;
+        outline: 2px solid var(--craft-ai-focus);
         outline-offset: -1px;
       }
       :scope .craft-ai-success {
-        background: #ecfdf5;
-        border: 1px solid #a7f3d0;
-        color: #065f46;
+        background: var(--craft-ai-success-bg);
+        border: 1px solid var(--craft-ai-success-border);
+        color: var(--craft-ai-success-text);
         padding: 8px 10px;
         border-radius: 6px;
       }
@@ -297,17 +308,18 @@ export const AiSendDialog: CraftComponent<{
         gap: 8px;
       }
       :scope .craft-ai-cancel {
-        background: #ffffff;
-        border: 1px solid #d1d5db;
+        background: var(--craft-ai-control-bg);
+        border: 1px solid var(--craft-ai-border);
         padding: 6px 12px;
         border-radius: 6px;
+        color: var(--craft-ai-text);
         cursor: pointer;
       }
       :scope .craft-ai-copy {
         display: flex;
         align-items: center;
         gap: 6px;
-        background: #2563eb;
+        background: var(--craft-ai-accent);
         color: #ffffff;
         border: none;
         padding: 6px 14px;
@@ -322,7 +334,7 @@ export const AiSendDialog: CraftComponent<{
         }
       }
       :scope .craft-ai-copy--done {
-        background: #059669;
+        background: var(--craft-ai-success);
       }
       :scope .craft-ai-copy:disabled {
         opacity: 0.6;

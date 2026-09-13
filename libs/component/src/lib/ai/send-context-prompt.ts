@@ -63,6 +63,51 @@ export interface SendContextPromptInput {
 }
 
 /**
+ * Versioned body sent to a configured context webhook. The structured fields
+ * are the source data used to render `prompt`, so an agent can either consume
+ * the markdown directly or rebuild a richer experience from the context.
+ */
+export interface SendContextWebhookPayload {
+  readonly version: 1;
+  readonly prompt: string;
+  readonly instruction: string;
+  readonly selectedElements: readonly SendContextTarget[];
+  readonly events: readonly SendContextEvent[];
+  readonly snapshot: SendContextPayload['snapshot'];
+  readonly captures: {
+    readonly component?: unknown;
+    readonly page?: unknown;
+  };
+  readonly component?: Omit<SendContextPayload, 'snapshot' | 'targets'>;
+}
+
+/** Builds the exact payload shared by webhook sending and the copy fallback. */
+export function buildSendContextWebhookPayload(
+  input: SendContextPromptInput,
+  options: SendContextPromptOptions,
+): SendContextWebhookPayload {
+  const prompt = buildSendContextPrompt(input, options);
+  const payload = input.payload;
+  const component = payload
+    ? (() => {
+        const { snapshot: _snapshot, targets: _targets, ...rest } = payload;
+        return rest;
+      })()
+    : undefined;
+
+  return {
+    version: 1,
+    prompt,
+    instruction: input.instruction,
+    selectedElements: input.targets,
+    events: input.events,
+    snapshot: payload?.snapshot ?? [],
+    captures: input.captures ?? {},
+    ...(component ? { component } : {}),
+  };
+}
+
+/**
  * Renders the markdown prompt the user pastes into their AI assistant. Every
  * section is opt-in so a prompt stays small enough to be useful.
  */

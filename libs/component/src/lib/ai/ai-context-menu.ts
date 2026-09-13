@@ -2,6 +2,7 @@ import { craftUse, fromEventToSource$ } from '@craft-ts/core';
 import { craftComponent } from '../component';
 import { button, div, span } from '../hyperscript';
 import type { Input, Output } from '../types';
+import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 
 /**
  * Context menu shown at the pointer position when a component is
@@ -10,14 +11,14 @@ import type { Input, Output } from '../types';
 export const AiContextMenu = craftComponent(
   'AiContextMenu',
   {
-    styles: `
+    styles: `${AI_OVERLAY_THEME}
       :scope {
         position: fixed;
         min-width: 180px;
-        background: #ffffff;
-        border: 1px solid #d1d5db;
+        background: var(--craft-ai-bg);
+        border: 1px solid var(--craft-ai-border);
         border-radius: 6px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 8px 24px var(--craft-ai-shadow);
         padding: 4px;
         pointer-events: auto;
         font-family:
@@ -25,7 +26,7 @@ export const AiContextMenu = craftComponent(
           -apple-system,
           sans-serif;
         font-size: 13px;
-        color: #111827;
+        color: var(--craft-ai-text);
       }
       :scope .craft-ai-menu-item {
         display: flex;
@@ -36,11 +37,12 @@ export const AiContextMenu = craftComponent(
         background: transparent;
         border: none;
         text-align: left;
+        color: var(--craft-ai-text);
         cursor: pointer;
         border-radius: 4px;
       }
       :scope .craft-ai-menu-item:hover {
-        background: #f3f4f6;
+        background: var(--craft-ai-surface-muted);
       }
     `,
   },

@@ -177,6 +177,14 @@ describe('provideSendContextToAi', () => {
 
     expect(sheet?.textContent).toContain(':scope {');
     expect(sheet?.textContent).toContain(':scope .craft-ai-menu-item');
+    const menuItemRule =
+      sheet?.textContent?.match(
+        /:scope \.craft-ai-menu-item\s*\{[^}]*\}/,
+      )?.[0] ?? '';
+    expect(menuItemRule).toContain('color: var(--craft-ai-text)');
+    expect(sheet?.textContent).toContain(
+      '@media (prefers-color-scheme: dark)',
+    );
     expect(menu.style.left).toBe('120px');
     expect(menu.style.top).toBe('80px');
 

@@ -741,7 +741,7 @@ function createCraftHttpRequest<
           );
           const responseBody = response.body;
 
-          if (response.status >= 400) {
+          if (response.status < 200 || response.status >= 300) {
             return resolveCraftHttpClientError(
               normalizedMethod,
               config,

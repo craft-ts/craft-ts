@@ -375,6 +375,7 @@ const guideSidebar = [
       { text: 'Pattern matching', link: '/guide/advanced/pattern-matching' },
       { text: 'Observability', link: '/guide/advanced/observability' },
       { text: 'Live page MCP', link: '/guide/ai/dev-page' },
+      { text: 'AI context webhook', link: '/guide/ai/send-context-webhook' },
       { text: 'Temporal runtime', link: '/guide/advanced/temporal-runtime' },
     ],
   },

@@ -575,6 +575,29 @@ describe('CraftHttpClient', () => {
     httpTesting.verify();
   });
 
+  it('should treat non-2xx responses as HTTP errors', async () => {
+    const { ThreeOhFourApi } = craftService(
+      { name: 'ThreeOhFourApi', providedIn: 'global' },
+      function* () {
+        const load = yield* CraftHttpClient.get(({ response }) => ({
+          url: '/api/cache',
+          success: response<null>(),
+        }));
+        return { load };
+      },
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(null, { status: 304, statusText: 'Not Modified' }),
+      );
+      const result = await craftUse(ThreeOhFourApi()).load();
+
+      expect(isCraftException(result)).toBe(true);
+      expect((result as CraftHttpClientError).payload.error.status).toBe(304);
+    });
+  });
+
   it('should support composed status, code and content matchers', async () => {
     type LoginResult = { token: string };
     const passwordRequired = () =>

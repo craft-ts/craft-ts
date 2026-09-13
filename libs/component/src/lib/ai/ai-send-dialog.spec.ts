@@ -34,6 +34,36 @@ describe('AiSendDialog', () => {
     document.body.replaceChildren();
   });
 
+  it('keeps the instruction control readable in a host app with global control styles', async () => {
+    const rendered = await renderCraftComponent(AiSendDialog, {
+      providers: [
+        provideCraftTemporalRuntime(new VirtualCraftTemporalRuntime()),
+      ] as never,
+      props: {
+        payload: function* () {
+          return payload;
+        },
+        onClose: vi.fn(),
+      } as never,
+    });
+    const sheet = Array.from(
+      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
+    ).find((style) => style.textContent?.includes('AiSendDialog'));
+    const textareaRule =
+      sheet?.textContent?.match(
+        /:scope \.craft-ai-textarea\s*\{[^}]*\}/,
+      )?.[0] ?? '';
+
+    expect(sheet?.textContent).toContain('color-scheme: light dark');
+    expect(sheet?.textContent).toContain(
+      '@media (prefers-color-scheme: dark)',
+    );
+    expect(textareaRule).toContain('color: var(--craft-ai-text)');
+    expect(textareaRule).toContain('background: var(--craft-ai-control-bg)');
+
+    rendered.destroy();
+  });
+
   it('keeps the prompt editable and enables copy after typing', async () => {
     const rendered = await renderCraftComponent(AiSendDialog, {
       providers: [
