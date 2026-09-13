@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
-import { provideCraftRouter } from '@craft-ts/core';
+import { CRAFT_ROUTER, provideCraftRouter } from '@craft-ts/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './app';
 import { demoRoutes } from './app.routes';
@@ -66,6 +66,37 @@ describe('App navbar', () => {
       expect(element.querySelector('.demo-nav__panel')).not.toBeNull(),
     );
 
+    mounted.destroy();
+  });
+
+  it('intercepts an example link before closing the navigation panel', () => {
+    TestBed.configureTestingModule({
+      providers: [provideCraftRouter(demoRoutes.toRoutes())],
+    });
+
+    const router = TestBed.inject(CRAFT_ROUTER);
+    const navigateByUrl = vi.spyOn(router, 'navigateByUrl');
+    const element = document.createElement('div');
+    document.body.append(element);
+    const mounted = mountCraftComponent(
+      App,
+      element,
+      TestBed.inject(Injector),
+    );
+    TestBed.tick();
+
+    element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+    TestBed.tick();
+    const link = Array.from(element.querySelectorAll<HTMLAnchorElement>('a'))
+      .find((anchor) => anchor.textContent?.trim() === 'Reactive Composition');
+
+    expect(link).toBeDefined();
+    if (link === undefined) {
+      throw new Error('Reactive Composition link was not rendered');
+    }
+    link.click();
+
+    expect(navigateByUrl).toHaveBeenCalledTimes(1);
     mounted.destroy();
   });
 

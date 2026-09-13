@@ -14,6 +14,7 @@ export interface CraftDomAdapter {
     target: EventTarget,
     event: string,
     handler: EventListener,
+    options?: boolean | AddEventListenerOptions,
   ): () => void;
 }
 
@@ -34,9 +35,9 @@ export function createBrowserDomAdapter(document: Document): CraftDomAdapter {
     setValue: (node, value) => {
       node.nodeValue = value;
     },
-    listen: (target, event, handler) => {
-      target.addEventListener(event, handler);
-      return () => target.removeEventListener(event, handler);
+    listen: (target, event, handler, options) => {
+      target.addEventListener(event, handler, options);
+      return () => target.removeEventListener(event, handler, options);
     },
   };
 }

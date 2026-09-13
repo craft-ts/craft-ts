@@ -88,7 +88,7 @@ export const AiContextMenu = craftComponent(
           class: 'craft-ai-menu-item',
           click: () => onSelect(),
         },
-        [span({ 'aria-hidden': 'true' }, '✨'), span('Send to IA')],
+        [span({ 'aria-hidden': 'true' }, '✨'), span('Add to AI context')],
       ),
     ),
 );

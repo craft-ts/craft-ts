@@ -606,6 +606,9 @@ export function CraftRouterLink(
             getNavigationBehaviorOptions(currentInput),
           );
         },
+        // Intercept before a user click handler can synchronously destroy the
+        // anchor (for example, a menu item that closes its containing panel).
+        { capture: true },
       );
       return () => {
         removeClickListener();

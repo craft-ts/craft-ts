@@ -6,6 +6,13 @@
   font-family: 'Chivo', Arial, Helvetica, sans-serif !important;
 }
 
+/* The AI context launcher is a fixed overlay on <body>; these offsets keep it
+   under the demo's own floating Clear Cache button instead of behind it. */
+:root {
+  --craft-ai-launcher-right: 2rem;
+  --craft-ai-launcher-bottom: 2rem;
+}
+
 .demo-typecheck-indicator {
   position: fixed;
   top: 0.75rem;

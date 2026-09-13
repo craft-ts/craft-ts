@@ -7,7 +7,7 @@ import {
   type SnapshotReport,
 } from './take-app-snapshot';
 
-export { type SendContextPayload };
+export * from './send-context-to-ai.tokens';
 
 /**
  * Collects app snapshot reports so the AI overlay has something to send.

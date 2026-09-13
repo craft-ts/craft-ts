@@ -1,4 +1,26 @@
 import type { SnapshotReport } from './take-app-snapshot';
+import {
+  inject,
+  InjectionToken,
+  type Provider,
+  type Signal,
+} from './host/craft-compat';
+import { BehaviorSubject, type Observable } from 'rxjs';
+import { provideCraftDomEventHook } from './dom-event-hook';
+import {
+  provideCraftHttpTrace,
+  type CraftHttpTraceContext,
+} from './craft-http-trace';
+import {
+  provideCraftRouterTrace,
+  type CraftRouterTraceContext,
+} from './craft-router-trace';
+import {
+  providePrimitiveResourceRuntimeObserver,
+  type PrimitiveResourceRuntimeContext,
+} from './primitive-resource-runtime-context';
+import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { CORRELATION_ID_SERVICE } from './correlation-id';
 
 export interface SendContextPayload {
   hostName: string;
@@ -9,6 +31,673 @@ export interface SendContextPayload {
     textContent: string;
     outerHTML: string;
   };
+  readonly targets?: readonly SendContextTarget[];
   outerHTML: string;
   snapshot: SnapshotReport[];
+}
+
+export type SendContextEventPhase =
+  | 'started'
+  | 'emitted'
+  | 'succeeded'
+  | 'failed';
+
+export type SendContextEventKind =
+  | 'dom'
+  | 'http'
+  | 'navigation'
+  | 'primitive'
+  | 'snapshot'
+  | 'custom'
+  | (string & {});
+
+export interface SendContextTarget {
+  readonly tagName: string;
+  readonly textContent?: string;
+  readonly outerHTML?: string;
+  readonly selector?: string;
+}
+
+export interface SendContextEvent {
+  readonly id: string;
+  readonly sequence: number;
+  readonly timestamp: number;
+  readonly kind: SendContextEventKind;
+  readonly phase: SendContextEventPhase;
+  readonly name?: string;
+  readonly operationId?: string;
+  readonly correlationId?: string;
+  readonly payload?: unknown;
+  readonly response?: unknown;
+  readonly state?: unknown;
+  readonly targets?: readonly SendContextTarget[];
+  readonly source?: string;
+}
+
+export interface SendContextClip {
+  readonly id: string;
+  readonly label: string;
+  readonly startedAt: number;
+  readonly stoppedAt?: number;
+  readonly eventIds: readonly string[];
+  readonly truncated: boolean;
+}
+
+export interface SendContextRetentionPolicy {
+  readonly maxEvents: number;
+  readonly maxBytes?: number;
+}
+
+export interface SendContextValueContext {
+  readonly kind: SendContextEventKind;
+  readonly phase: SendContextEventPhase;
+  readonly field: 'payload' | 'response' | 'state';
+}
+
+export type SendContextRedactor = (
+  value: unknown,
+  context: SendContextValueContext,
+) => unknown;
+export type SendContextValueSerializer = (
+  value: unknown,
+  context: SendContextValueContext,
+) => unknown;
+
+export interface SendContextEventSourceDefinition {
+  readonly name?: string;
+  readonly connect: (session: SendContextSession) => void | (() => void);
+}
+export type SendContextEventSource =
+  | SendContextEventSourceDefinition
+  | ((session: SendContextSession) => void | (() => void));
+
+export type SendContextEventEnricher = (
+  event: Omit<SendContextEvent, 'id' | 'sequence' | 'timestamp'>,
+) => Omit<SendContextEvent, 'id' | 'sequence' | 'timestamp'>;
+export type SendContextEventFilter = (
+  event: Omit<SendContextEvent, 'id' | 'sequence' | 'timestamp'>,
+) => boolean;
+
+export interface SendContextSessionSnapshot {
+  readonly events: readonly SendContextEvent[];
+  readonly clips: readonly SendContextClip[];
+  readonly activeClipId?: string;
+}
+
+export interface SendContextSession {
+  readonly events$: Observable<readonly SendContextEvent[]>;
+  readonly snapshot$: Observable<SendContextSessionSnapshot>;
+  readonly eventSignal?: Signal<readonly SendContextEvent[]>;
+  readonly clipsSignal?: Signal<readonly SendContextClip[]>;
+  readonly events: readonly SendContextEvent[];
+  readonly clips: readonly SendContextClip[];
+  readonly activeClip: SendContextClip | undefined;
+  emit(
+    event: Omit<SendContextEvent, 'id' | 'sequence' | 'timestamp'>,
+  ): SendContextEvent | undefined;
+  capture(
+    kind: SendContextEventKind,
+    phase: SendContextEventPhase,
+    details?: Omit<
+      SendContextEvent,
+      'id' | 'sequence' | 'timestamp' | 'kind' | 'phase'
+    >,
+  ): SendContextEvent | undefined;
+  startRecord(label?: string): SendContextClip;
+  stopRecord(): SendContextClip | undefined;
+  selectClip(id: string | undefined): SendContextClip | undefined;
+  clear(): void;
+  exportJson(clipId?: string): string;
+  exportSummary(clipId?: string): string;
+  destroy(): void;
+}
+
+export interface SendContextRecordController {
+  readonly clips$: Observable<readonly SendContextClip[]>;
+  readonly clips: readonly SendContextClip[];
+  startRecord(label?: string): SendContextClip;
+  stopRecord(): SendContextClip | undefined;
+  selectClip(id: string | undefined): SendContextClip | undefined;
+  exportSummary(clipId?: string): string;
+  exportJson(clipId?: string): string;
+}
+
+export const SEND_CONTEXT_SESSION = new InjectionToken<SendContextSession>(
+  'SEND_CONTEXT_SESSION',
+  { providedIn: 'root', factory: () => createSendContextSession() },
+);
+export const SEND_CONTEXT_RECORD_CONTROLLER =
+  new InjectionToken<SendContextRecordController>(
+    'SEND_CONTEXT_RECORD_CONTROLLER',
+    {
+      providedIn: 'root',
+      factory: () =>
+        createSendContextRecordController(inject(SEND_CONTEXT_SESSION)),
+    },
+  );
+
+export const SEND_CONTEXT_RETENTION_POLICY =
+  new InjectionToken<SendContextRetentionPolicy>(
+    'SEND_CONTEXT_RETENTION_POLICY',
+    {
+      providedIn: 'root',
+      factory: () => ({ maxEvents: 500, maxBytes: 2 * 1024 * 1024 }),
+    },
+  );
+
+export const SEND_CONTEXT_REDACTOR = new InjectionToken<SendContextRedactor>(
+  'SEND_CONTEXT_REDACTOR',
+  { providedIn: 'root', factory: () => defaultSendContextRedactor },
+);
+
+export const SEND_CONTEXT_VALUE_SERIALIZER =
+  new InjectionToken<SendContextValueSerializer>(
+    'SEND_CONTEXT_VALUE_SERIALIZER',
+    { providedIn: 'root', factory: () => defaultSendContextValueSerializer },
+  );
+
+export const SEND_CONTEXT_EVENT_SOURCE = new InjectionToken<
+  readonly SendContextEventSource[]
+>('SEND_CONTEXT_EVENT_SOURCE', {
+  providedIn: 'root',
+  factory: () => [],
+  multi: true,
+});
+export const SEND_CONTEXT_EVENT_ENRICHER = new InjectionToken<
+  readonly SendContextEventEnricher[]
+>('SEND_CONTEXT_EVENT_ENRICHER', {
+  providedIn: 'root',
+  factory: () => [],
+  multi: true,
+});
+export const SEND_CONTEXT_EVENT_FILTER = new InjectionToken<
+  readonly SendContextEventFilter[]
+>('SEND_CONTEXT_EVENT_FILTER', {
+  providedIn: 'root',
+  factory: () => [],
+  multi: true,
+});
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+export function defaultSendContextRedactor(value: unknown): unknown {
+  const seen = new WeakSet<object>();
+  const visit = (current: unknown): unknown => {
+    if (current instanceof Error || current instanceof Date) return current;
+    if (Array.isArray(current)) {
+      if (seen.has(current)) return '[Circular]';
+      seen.add(current);
+      return current.map(visit);
+    }
+    if (!isRecord(current)) return current;
+    if (seen.has(current)) return '[Circular]';
+    seen.add(current);
+    return Object.fromEntries(
+      Object.entries(current).map(([key, entry]) =>
+        /password|passwd|secret|token|authorization|cookie/i.test(key)
+          ? [key, '[REDACTED]']
+          : [key, visit(entry)],
+      ),
+    );
+  };
+  return visit(value);
+}
+
+export function defaultSendContextValueSerializer(value: unknown): unknown {
+  const seen = new WeakSet<object>();
+  const visit = (current: unknown): unknown => {
+    if (typeof current === 'bigint') return `${current}n`;
+    if (current instanceof Date) return current.toISOString();
+    if (current instanceof Error) {
+      return {
+        name: current.name,
+        message: current.message,
+        stack: current.stack,
+      };
+    }
+    if (typeof current === 'function')
+      return `[Function ${current.name || 'anonymous'}]`;
+    if (!isRecord(current) && !Array.isArray(current)) return current;
+    if (seen.has(current)) return '[Circular]';
+    seen.add(current);
+    if (Array.isArray(current)) return current.map(visit);
+    return Object.fromEntries(
+      Object.entries(current).map(([key, entry]) => [key, visit(entry)]),
+    );
+  };
+  return visit(value);
+}
+
+function safeJson(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? 'null';
+  } catch {
+    return '"[unserializable]"';
+  }
+}
+
+function randomId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function createSendContextSession(
+  options: {
+    readonly retentionPolicy?: SendContextRetentionPolicy;
+    readonly redactor?: SendContextRedactor;
+    readonly serializer?: SendContextValueSerializer;
+    readonly enrichers?: readonly SendContextEventEnricher[];
+    readonly filters?: readonly SendContextEventFilter[];
+  } = {},
+): SendContextSession {
+  const retention = options.retentionPolicy ?? { maxEvents: 500 };
+  const redactor = options.redactor ?? defaultSendContextRedactor;
+  const serializer = options.serializer ?? defaultSendContextValueSerializer;
+  const enrichers = options.enrichers ?? [];
+  const filters = options.filters ?? [];
+  let eventList: SendContextEvent[] = [];
+  let clipList: SendContextClip[] = [];
+  let sequence = 0;
+  let activeClipId: string | undefined;
+  const eventsSubject = new BehaviorSubject<readonly SendContextEvent[]>([]);
+  const snapshotSubject = new BehaviorSubject<SendContextSessionSnapshot>({
+    events: [],
+    clips: [],
+  });
+  const cleanups: Array<() => void> = [];
+
+  const publish = (): void => {
+    eventsSubject.next(eventList);
+    snapshotSubject.next({
+      events: eventList,
+      clips: clipList,
+      ...(activeClipId ? { activeClipId } : {}),
+    });
+  };
+  const serializeField = (
+    value: unknown,
+    context: SendContextValueContext,
+  ): unknown => {
+    try {
+      return serializer(redactor(value, context), context);
+    } catch (error) {
+      return {
+        '[capture-error]':
+          error instanceof Error ? error.message : String(error),
+      };
+    }
+  };
+  const trim = (): void => {
+    const maxEvents = Math.max(0, retention.maxEvents);
+    const maxBytes = retention.maxBytes;
+    while (
+      eventList.length > maxEvents ||
+      (maxBytes !== undefined && safeJson(eventList).length > maxBytes)
+    ) {
+      const removed = eventList.shift();
+      if (!removed) break;
+      clipList = clipList.map((clip) =>
+        clip.eventIds.includes(removed.id)
+          ? {
+              ...clip,
+              eventIds: clip.eventIds.filter((id) => id !== removed.id),
+              truncated: true,
+            }
+          : clip,
+      );
+    }
+  };
+
+  const session: SendContextSession = {
+    events$: eventsSubject.asObservable(),
+    snapshot$: snapshotSubject.asObservable(),
+    get events() {
+      return eventList;
+    },
+    get clips() {
+      return clipList;
+    },
+    get activeClip() {
+      return clipList.find((clip) => clip.id === activeClipId);
+    },
+    emit(event) {
+      let enriched = event;
+      for (const enrich of enrichers) {
+        try {
+          enriched = enrich(enriched);
+        } catch {
+          // Instrumentation must never break the application flow.
+        }
+      }
+      if (
+        filters.some((filter) => {
+          try {
+            return !filter(enriched);
+          } catch {
+            return false;
+          }
+        })
+      )
+        return undefined;
+      const full: SendContextEvent = {
+        ...enriched,
+        id: randomId('event'),
+        sequence: ++sequence,
+        timestamp: Date.now(),
+      };
+      const serialized: SendContextEvent = {
+        ...full,
+        ...(full.payload !== undefined
+          ? {
+              payload: serializeField(full.payload, {
+                kind: full.kind,
+                phase: full.phase,
+                field: 'payload',
+              }),
+            }
+          : {}),
+        ...(full.response !== undefined
+          ? {
+              response: serializeField(full.response, {
+                kind: full.kind,
+                phase: full.phase,
+                field: 'response',
+              }),
+            }
+          : {}),
+        ...(full.state !== undefined
+          ? {
+              state: serializeField(full.state, {
+                kind: full.kind,
+                phase: full.phase,
+                field: 'state',
+              }),
+            }
+          : {}),
+      };
+      eventList = [...eventList, serialized];
+      if (activeClipId) {
+        clipList = clipList.map((clip) =>
+          clip.id === activeClipId
+            ? { ...clip, eventIds: [...clip.eventIds, serialized.id] }
+            : clip,
+        );
+      }
+      trim();
+      publish();
+      return serialized;
+    },
+    capture(kind, phase, details = {}) {
+      return session.emit({ ...details, kind, phase });
+    },
+    startRecord(label = `Record ${clipList.length + 1}`) {
+      if (activeClipId) session.stopRecord();
+      const clip: SendContextClip = {
+        id: randomId('clip'),
+        label,
+        startedAt: Date.now(),
+        eventIds: [],
+        truncated: false,
+      };
+      clipList = [...clipList, clip];
+      activeClipId = clip.id;
+      publish();
+      return clip;
+    },
+    stopRecord() {
+      const active = clipList.find((clip) => clip.id === activeClipId);
+      if (!active) return undefined;
+      const stopped = { ...active, stoppedAt: Date.now() };
+      clipList = clipList.map((clip) =>
+        clip.id === stopped.id ? stopped : clip,
+      );
+      activeClipId = undefined;
+      publish();
+      return stopped;
+    },
+    selectClip(id) {
+      return id === undefined
+        ? undefined
+        : clipList.find((clip) => clip.id === id);
+    },
+    clear() {
+      eventList = [];
+      clipList = [];
+      activeClipId = undefined;
+      publish();
+    },
+    exportJson(clipId) {
+      const clip = clipId
+        ? clipList.find((entry) => entry.id === clipId)
+        : undefined;
+      const events = clip
+        ? eventList.filter((event) => clip.eventIds.includes(event.id))
+        : eventList;
+      return safeJson({ events, ...(clip ? { clip } : { clips: clipList }) });
+    },
+    exportSummary(clipId) {
+      const clip = clipId
+        ? clipList.find((entry) => entry.id === clipId)
+        : undefined;
+      const events = clip
+        ? eventList.filter((event) => clip.eventIds.includes(event.id))
+        : eventList;
+      return events
+        .map((event) => {
+          const operation = event.operationId ? ` ${event.operationId}` : '';
+          return `${new Date(event.timestamp).toISOString()} [${event.phase}] ${event.kind}${operation}${event.name ? ` ${event.name}` : ''}`;
+        })
+        .join('\n');
+    },
+    destroy() {
+      for (const cleanup of cleanups.splice(0)) cleanup();
+      eventsSubject.complete();
+      snapshotSubject.complete();
+    },
+  };
+  (session as SendContextSessionWithInternals).addCleanup = (cleanup) => {
+    cleanups.push(cleanup);
+  };
+  return session;
+}
+
+export function createSendContextRecordController(
+  session: SendContextSession,
+): SendContextRecordController {
+  const clipsSubject = new BehaviorSubject<readonly SendContextClip[]>(
+    session.clips,
+  );
+  const subscription = session.snapshot$.subscribe(({ clips }) =>
+    clipsSubject.next(clips),
+  );
+  return {
+    clips$: clipsSubject.asObservable(),
+    get clips() {
+      return session.clips;
+    },
+    startRecord: (label) => session.startRecord(label),
+    stopRecord: () => session.stopRecord(),
+    selectClip: (id) => session.selectClip(id),
+    exportSummary: (id) => session.exportSummary(id),
+    exportJson: (id) => session.exportJson(id),
+  };
+}
+
+export function provideSendContextEventSource(
+  source: SendContextEventSource,
+): Provider {
+  return { provide: SEND_CONTEXT_EVENT_SOURCE, useValue: source, multi: true };
+}
+export function provideSendContextEventEnricher(
+  enricher: SendContextEventEnricher,
+): Provider {
+  return {
+    provide: SEND_CONTEXT_EVENT_ENRICHER,
+    useValue: enricher,
+    multi: true,
+  };
+}
+export function provideSendContextEventFilter(
+  filter: SendContextEventFilter,
+): Provider {
+  return { provide: SEND_CONTEXT_EVENT_FILTER, useValue: filter, multi: true };
+}
+
+export function provideSendContextSession(): Provider[] {
+  const correlationId = (): string | undefined =>
+    inject(CORRELATION_ID_SERVICE, { optional: true })?.lastCorrelationId() ??
+    undefined;
+  return [
+    {
+      provide: SEND_CONTEXT_SESSION,
+      useFactory: () => {
+        const session = createSendContextSession({
+          retentionPolicy: inject(SEND_CONTEXT_RETENTION_POLICY),
+          redactor: inject(SEND_CONTEXT_REDACTOR),
+          serializer: inject(SEND_CONTEXT_VALUE_SERIALIZER),
+          enrichers:
+            inject(SEND_CONTEXT_EVENT_ENRICHER, { optional: true }) ?? [],
+          filters: inject(SEND_CONTEXT_EVENT_FILTER, { optional: true }) ?? [],
+        });
+        const snapshots = inject(APP_SNAPSHOT_REGISTRY);
+        const snapshotSubscription = snapshots.allSnapShot$.subscribe(
+          (report) => {
+            session.capture('snapshot', 'emitted', {
+              name: report.source,
+              state: report,
+            });
+          },
+        );
+        (session as SendContextSessionWithInternals).addCleanup(() =>
+          snapshotSubscription.unsubscribe(),
+        );
+        for (const source of inject(SEND_CONTEXT_EVENT_SOURCE, {
+          optional: true,
+        }) ?? []) {
+          const cleanup =
+            typeof source === 'function'
+              ? source(session)
+              : source.connect(session);
+          if (cleanup)
+            (session as SendContextSessionWithInternals).addCleanup(cleanup);
+        }
+        return session;
+      },
+    },
+    {
+      provide: SEND_CONTEXT_RECORD_CONTROLLER,
+      useFactory: () =>
+        createSendContextRecordController(inject(SEND_CONTEXT_SESSION)),
+    },
+    provideCraftDomEventHook((interaction, next) => {
+      const session = inject(SEND_CONTEXT_SESSION);
+      session.capture('dom', 'emitted', {
+        name: interaction.interactionName,
+        correlationId: correlationId(),
+        payload: interaction,
+        targets: [{ tagName: interaction.elementTag }],
+      });
+      return next();
+    }),
+    provideCraftHttpTrace((context, next) => {
+      const session = inject(SEND_CONTEXT_SESSION);
+      const operationId = randomId('http');
+      session.capture('http', 'started', {
+        name: context.method,
+        operationId,
+        correlationId: correlationId(),
+        payload: context,
+      });
+      return next().then(
+        (response) => {
+          session.capture('http', 'succeeded', {
+            name: context.method,
+            operationId,
+            correlationId: correlationId(),
+            response,
+          });
+          return response;
+        },
+        (error) => {
+          session.capture('http', 'failed', {
+            name: context.method,
+            operationId,
+            correlationId: correlationId(),
+            response: error,
+          });
+          throw error;
+        },
+      );
+    }),
+    ...provideCraftRouterTrace((context, next) => {
+      const session = inject(SEND_CONTEXT_SESSION);
+      const operationId = randomId('navigation');
+      session.capture('navigation', 'started', {
+        name: context.eventName ?? context.stage,
+        operationId,
+        correlationId: correlationId(),
+        payload: context,
+      });
+      try {
+        const result = next();
+        if (result && typeof (result as Promise<unknown>).then === 'function') {
+          return (result as Promise<unknown>).then(
+            (response) => {
+              session.capture('navigation', 'succeeded', {
+                name: context.eventName ?? context.stage,
+                operationId,
+                correlationId: correlationId(),
+                response,
+              });
+              return response;
+            },
+            (error) => {
+              session.capture('navigation', 'failed', {
+                name: context.eventName ?? context.stage,
+                operationId,
+                correlationId: correlationId(),
+                response: error,
+              });
+              throw error;
+            },
+          );
+        }
+        session.capture('navigation', 'succeeded', {
+          name: context.eventName ?? context.stage,
+          operationId,
+          correlationId: correlationId(),
+          response: result,
+        });
+        return result;
+      } catch (error) {
+        session.capture('navigation', 'failed', {
+          name: context.eventName ?? context.stage,
+          operationId,
+          correlationId: correlationId(),
+          response: error,
+        });
+        throw error;
+      }
+    }),
+    providePrimitiveResourceRuntimeObserver((context) => {
+      inject(SEND_CONTEXT_SESSION).capture('primitive', 'emitted', {
+        name: context.kind,
+        correlationId: correlationId(),
+        state: readPrimitiveState(context),
+      });
+    }),
+  ];
+}
+
+type SendContextSessionWithInternals = SendContextSession & {
+  addCleanup(cleanup: () => void): void;
+};
+
+function readPrimitiveState(context: PrimitiveResourceRuntimeContext): unknown {
+  try {
+    return context.get();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
 }

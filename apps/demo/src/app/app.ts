@@ -148,7 +148,7 @@ export const App = craftComponent(
       .demo-nav__toggle{padding:.55rem .8rem;border:1px solid #d1d5db;border-radius:.45rem;background:#fff;color:#374151;font:inherit;font-weight:600;cursor:pointer}.demo-nav__toggle:hover{background:#f3f4f6}
       .demo-nav__panel{position:absolute;top:calc(100% + .5rem);left:1.25rem;right:1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1.25rem;padding:1rem;background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;box-shadow:0 12px 30px #1118271c}
       .demo-nav__group{display:grid;align-content:start;gap:.45rem}.demo-nav__group strong{color:#111827;font-size:.85rem}.demo-nav__links{display:grid;gap:.15rem}.demo-nav__links a{padding:.35rem .45rem;border-radius:.3rem;text-decoration:none;color:#4b5563;font-size:.9rem}.demo-nav__links a:hover{color:#111827;background:#f3f4f6}
-      .content{flex:1;overflow:auto;padding:2rem;background:#fff;margin:1.5rem;border-radius:8px}.clear-cache-btn{position:fixed;bottom:2rem;right:2rem;padding:1rem 1.5rem;background:#374151;color:#fff;border:0;border-radius:50px;cursor:pointer}
+      .content{flex:1;overflow:auto;padding:2rem;background:#fff;margin:1.5rem;border-radius:8px}.clear-cache-btn{position:fixed;bottom:5.5rem;right:2rem;padding:1rem 1.5rem;background:#374151;color:#fff;border:0;border-radius:50px;cursor:pointer}
     `,
   },
   function* () {

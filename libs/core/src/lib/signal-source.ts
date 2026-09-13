@@ -11,6 +11,7 @@ import {
 } from './host/craft-compat';
 import { takeUntilDestroyed } from './host/craft-compat';
 import { SourceBranded } from './util/util';
+import { SEND_CONTEXT_SESSION } from './send-context-to-ai.tokens';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
 import { injectFnWrapper } from './fn-wrapper';
@@ -431,6 +432,7 @@ export function signalSource<T>(
     `signal-source:${name}`,
   );
   const destroyRef = inject(DestroyRef);
+  const sendContextSession = inject(SEND_CONTEXT_SESSION, { optional: true });
 
   const sourceState = signal<T | undefined>(undefined, {
     ...(options?.equal && { equal: options?.equal }), // add the equal function here, it may helps to detect changes when using scalar values
@@ -440,8 +442,14 @@ export function signalSource<T>(
   const wrappedSet = runInInjectionContext(sourceInjector, () =>
     injectFnWrapper()((value: T) => sourceState.set(value)),
   );
-  const set = (value: T) =>
-    runInInjectionContext(sourceInjector, () => wrappedSet(value));
+  const set = (value: T) => {
+    sendContextSession?.capture('custom', 'emitted', {
+      name,
+      payload: value,
+      source: 'signalSource',
+    });
+    return runInInjectionContext(sourceInjector, () => wrappedSet(value));
+  };
 
   const listener = (listenerOptions: { nullishFirstValue?: boolean }) =>
     linkedSignal<T, T | undefined>({

@@ -2422,6 +2422,50 @@ describe('functional component interpreter', () => {
     });
   });
 
+  it('runs DOM event hooks for an interaction defer trigger', async () => {
+    const interactions: CraftDomEvent[] = [];
+    const interaction = craftComponent(
+      'trackedInteraction',
+      {},
+      () => ({}),
+      () =>
+        deferNode(() => Promise.resolve('Interacted'), {
+          trigger: 'interaction',
+          resolve: (value) => p({ class: 'interaction-loaded' }, value),
+          placeholder: () =>
+            button('loadDeferred', { type: 'button' }, 'Start'),
+        }),
+    );
+    const { nativeElement: element, destroy } = await renderCraftComponent(
+      interaction,
+      {
+        providers: [
+          provideCraftDomEventHook((event, next) => {
+            interactions.push(event);
+            return next();
+          }),
+        ],
+      },
+    );
+
+    element.querySelector<HTMLButtonElement>('button')?.click();
+
+    await vi.waitFor(() => {
+      expect(element.querySelector('.interaction-loaded')?.textContent).toBe(
+        'Interacted',
+      );
+    });
+    expect(interactions).toHaveLength(1);
+    expect(interactions[0]).toMatchObject({
+      eventName: 'click',
+      elementName: 'loadDeferred',
+      componentName: 'trackedInteraction',
+      interactionName: 'trackedInteraction:button:loadDeferred:click',
+    });
+
+    destroy();
+  });
+
   it('keeps interaction defer idle on a DocumentFragment parent', async () => {
     const loader = vi.fn(async () => 'Interacted');
     const interaction = craftComponent(

@@ -20,6 +20,7 @@ import {
 } from './craft-primitive-gen';
 import { yieldableInvocation } from './yieldable';
 import { SourceBranded } from './util/util';
+import { SEND_CONTEXT_SESSION } from './send-context-to-ai.tokens';
 
 export type SourceDependency<Name extends string> = {
   [K in Name]: ServiceDependencies<'function', {}>;
@@ -170,6 +171,7 @@ export function source$<T, Name extends string = string>(
   const destroyRef = inject(DestroyRef);
 
   const sourceAsSignal = signal<T | undefined>(undefined);
+  const sendContextSession = inject(SEND_CONTEXT_SESSION, { optional: true });
 
   const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
   if (registry) {
@@ -196,6 +198,11 @@ export function source$<T, Name extends string = string>(
   const source = {
     ...SourceBranded,
     emit: (value: T) => {
+      sendContextSession?.capture('custom', 'emitted', {
+        name,
+        payload: value,
+        source: 'source$',
+      });
       sourceRef$.emit(value);
       sourceAsSignal.set(value);
       return yieldableInvocation<never, void>(undefined);

@@ -5021,6 +5021,29 @@ class DeferRenderedNode implements RenderedNode {
           if (key !== 'Enter' && key !== ' ') return;
           event.preventDefault();
         }
+        if (event && isElementNode(target)) {
+          const tag = target.tagName.toLowerCase();
+          const localName = target.getAttribute('data-craft-name') ?? undefined;
+          const hooks = this.context.injector.get(CRAFT_DOM_EVENT_HOOK);
+          const interaction: CraftDomEvent = {
+            event,
+            eventName: event.type,
+            element: target,
+            elementTag: tag,
+            elementName: localName,
+            componentName: this.context.componentName,
+            interactionName: interactionName(
+              event.type,
+              tag,
+              localName,
+              this.context.componentName,
+            ),
+          };
+          runInInjectionContext(this.context.injector, () =>
+            executeDomEventHooks(hooks, interaction, () => this.startLoad()),
+          );
+          return;
+        }
         this.startLoad();
       };
       if (isElementNode(target)) {
