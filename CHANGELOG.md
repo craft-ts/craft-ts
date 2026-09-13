@@ -1,3 +1,13 @@
+## 0.8.6 (2026-09-13)
+
+### 🩹 Fixes
+
+- make webhook context release-safe ([17c4e27a3](https://github.com/craft-ts/craft-ts/commit/17c4e27a3))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.8.5 (2026-09-13)
 
 ### 🩹 Fixes
