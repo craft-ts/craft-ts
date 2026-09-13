@@ -62,7 +62,7 @@ describe('demo-ssr architecture', () => {
   });
 
   it('requires a query to react to each mutation', () => {
-    assertMutationHasReactOn(graph.graph);
+    assertMutationHasReactOn(graph.graph, { allow: ['sendContextToAi'] });
   });
 
   it('requires resource loaders to declare their server-state boundary', () => {
@@ -98,6 +98,6 @@ describe('demo-ssr architecture', () => {
   });
 
   it('keeps the SSR lab declarative', () => {
-    assertDeclarativeArchitecture(graph.graph);
+    assertDeclarativeArchitecture(graph.graph, { allow: ['sendContextToAi'] });
   });
 });

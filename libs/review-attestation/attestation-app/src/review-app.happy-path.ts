@@ -149,6 +149,7 @@ export const reviewAppHappyPathMocks = defineHappyPathHttpMocks(
     'POST /api/iteration-handoff': { response: iterationHandoffResponse },
     'POST /api/regenerate': { response: reviewAppHappyPathQueue },
     'GET /api/digest/*': { response: emptyDigest },
+    'POST configuredEndpoint': { response: {} },
   },
 );
 

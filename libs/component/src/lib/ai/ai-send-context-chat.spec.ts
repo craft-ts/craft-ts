@@ -241,7 +241,9 @@ describe('AiSendContextChat', () => {
       expect(writeText).not.toHaveBeenCalled();
 
       rendered.nativeElement
-        .querySelector<HTMLButtonElement>('[data-craft-name="aiCopyPrompt"]')
+        .querySelector<HTMLButtonElement>(
+          '[data-craft-name="aiCopyWebhookPrompt"]',
+        )
         ?.click();
       await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
       expect(writeText.mock.calls[0]?.[0]).toBe(body.prompt);

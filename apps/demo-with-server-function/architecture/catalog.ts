@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "3ad1ae5b2bf18467",
+  "graphHash": "7c99a8e4387b6b21",
   "routes": [
     "",
     "access-denied",
@@ -43,6 +43,8 @@ export const architectureCatalog = {
   ],
   "components": [
     "AiContextMenu",
+    "AiSendContextChat",
+    "AiSendContextLauncher",
     "AiSendDialog",
     "AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic",
     "AnonymousComponent@statusPage",
@@ -56,6 +58,7 @@ export const architectureCatalog = {
     "craftPending"
   ],
   "primitives": [
+    "busy",
     "captureError",
     "captureInProgress",
     "copied",
@@ -69,6 +72,7 @@ export const architectureCatalog = {
     "effectMiddlewareServerError",
     "effectMiddlewareServerErrorText",
     "effectMiddlewareUsersQuery",
+    "error",
     "hasProducts",
     "hasUsers",
     "instruction",
@@ -76,6 +80,7 @@ export const architectureCatalog = {
     "isEmpty",
     "notFound",
     "notFoundMessage",
+    "panelOffset",
     "portableAuditId",
     "portableHasUsers",
     "portableIsEmpty",
@@ -95,9 +100,15 @@ export const architectureCatalog = {
     "requestTitle",
     "resultCount",
     "searchInput",
+    "sendContextToAi",
+    "setBusy",
     "setCaptureError",
     "setCaptureInProgress",
     "setCopied",
+    "setError",
+    "setPanelOffset",
+    "setStatus",
+    "status",
     "submitPortableSearch",
     "submitSearch",
     "users",
@@ -115,7 +126,12 @@ export const architectureCatalog = {
     "demo.users.list",
     "demo.users.portable-list"
   ],
-  "httpEndpoints": [],
+  "httpEndpoints": [
+    {
+      "method": "POST",
+      "url": "configuredEndpoint"
+    }
+  ],
   "uniques": [
     "\"demo.products.list\"",
     "\"demo.users.effect-middleware-list\"",

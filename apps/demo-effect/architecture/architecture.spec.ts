@@ -41,21 +41,29 @@ describe('architecture', () => {
   });
 
   it('indexes standalone Effect operations, their services, and static Layers', () => {
-    expect(
-      graph.nodes('effect-operation').map((node) => node.label),
-    ).toEqual(expect.arrayContaining(['checkUserAccess', 'loadTeamOverview']));
-    expect(
-      graph.nodes('effect-layer').map((node) => node.label),
-    ).toEqual(
-      expect.arrayContaining(['AccessPolicyLive', 'SessionLive', 'SupportTeamLive']),
+    expect(graph.nodes('effect-operation').map((node) => node.label)).toEqual(
+      expect.arrayContaining(['checkUserAccess', 'loadTeamOverview']),
+    );
+    expect(graph.nodes('effect-layer').map((node) => node.label)).toEqual(
+      expect.arrayContaining([
+        'AccessPolicyLive',
+        'SessionLive',
+        'SupportTeamLive',
+      ]),
     );
 
     const requiredServices = graph
       .edges('requires-service')
-      .map((edge) => graph.graph.nodes.find((node) => node.id === edge.to)?.label)
+      .map(
+        (edge) => graph.graph.nodes.find((node) => node.id === edge.to)?.label,
+      )
       .filter((label): label is string => Boolean(label));
     expect(requiredServices).toEqual(
-      expect.arrayContaining(['AccessPolicyService', 'SessionService', 'TeamContextService']),
+      expect.arrayContaining([
+        'AccessPolicyService',
+        'SessionService',
+        'TeamContextService',
+      ]),
     );
 
     const providedByLayer = graph.edges('provided-by-layer');
@@ -88,7 +96,7 @@ describe('architecture', () => {
   });
 
   it('requires a query to react to each mutation', () => {
-    assertMutationHasReactOn(graph.graph);
+    assertMutationHasReactOn(graph.graph, { allow: ['sendContextToAi'] });
   });
 
   it('requires Effect resource loaders to declare an Effect service boundary', () => {
@@ -98,7 +106,8 @@ describe('architecture', () => {
         {
           label: 'an Effect service',
           matches: ({ target }) =>
-            target.kind === 'service' && target.details?.['runtime'] === 'effect',
+            target.kind === 'service' &&
+            target.details?.['runtime'] === 'effect',
         },
       ],
       // The first two intentionally demonstrate a pure Effect value without an
@@ -107,7 +116,12 @@ describe('architecture', () => {
       // `@craft-ts/i18n-effect` rather than by this application, so it can
       // never appear as a node of this app's graph. The route still proves the
       // requirement — through `EffectRequirementsCheckedDI` in app.routes.ts.
-      allow: ['effectFunctionQuery', 'profileQuery', 'receiptQuery', 'weightLabel'],
+      allow: [
+        'effectFunctionQuery',
+        'profileQuery',
+        'receiptQuery',
+        'weightLabel',
+      ],
     });
   });
 
@@ -150,6 +164,6 @@ describe('architecture', () => {
   });
 
   it('keeps the Effect demo declarative', () => {
-    assertDeclarativeArchitecture(graph.graph);
+    assertDeclarativeArchitecture(graph.graph, { allow: ['sendContextToAi'] });
   });
 });

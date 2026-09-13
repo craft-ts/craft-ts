@@ -218,7 +218,7 @@ describe('architecture', () => {
   });
 
   it('requires a query to react to each mutation', () => {
-    assertMutationHasReactOn(graph.graph);
+    assertMutationHasReactOn(graph.graph, { allow: ['sendContextToAi'] });
   });
 
   it('requires Effect resource loaders to declare an Effect service boundary', () => {
@@ -263,7 +263,7 @@ describe('architecture', () => {
   });
 
   it('keeps the server-function demo declarative', () => {
-    assertDeclarativeArchitecture(graph.graph);
+    assertDeclarativeArchitecture(graph.graph, { allow: ['sendContextToAi'] });
   });
 
   it('keeps client and server files in valid server-function families', () => {

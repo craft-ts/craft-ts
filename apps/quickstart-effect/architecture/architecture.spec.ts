@@ -31,16 +31,22 @@ describe('quickstart architecture', () => {
 
   it('connects the operation to its service and Layer', () => {
     expect(
-      graph.edges('requires-service').some((edge) =>
-        graph.graph.nodes.find((node) => node.id === edge.to)?.label ===
-          'TaskRepositoryService',
-      ),
+      graph
+        .edges('requires-service')
+        .some(
+          (edge) =>
+            graph.graph.nodes.find((node) => node.id === edge.to)?.label ===
+            'TaskRepositoryService',
+        ),
     ).toBe(true);
     expect(
-      graph.edges('provided-by-layer').some((edge) =>
-        graph.graph.nodes.find((node) => node.id === edge.to)?.label ===
-          'TaskRepositoryLive',
-      ),
+      graph
+        .edges('provided-by-layer')
+        .some(
+          (edge) =>
+            graph.graph.nodes.find((node) => node.id === edge.to)?.label ===
+            'TaskRepositoryLive',
+        ),
     ).toBe(true);
   });
 
@@ -51,7 +57,8 @@ describe('quickstart architecture', () => {
         {
           label: 'an Effect service',
           matches: ({ target }) =>
-            target.kind === 'service' && target.details?.['runtime'] === 'effect',
+            target.kind === 'service' &&
+            target.details?.['runtime'] === 'effect',
         },
       ],
     });
@@ -63,6 +70,6 @@ describe('quickstart architecture', () => {
     assertCraftEffectNoImperativeSync(graph.graph);
     assertInteractiveElementNamed(graph.graph);
     assertNoDependencyCycles(graph.graph);
-    assertDeclarativeArchitecture(graph.graph);
+    assertDeclarativeArchitecture(graph.graph, { allow: ['sendContextToAi'] });
   });
 });

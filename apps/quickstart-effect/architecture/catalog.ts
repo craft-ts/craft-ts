@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "4b5dda1ddab68255",
+  "graphHash": "3cd6cee39814f538",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -29,6 +29,8 @@ export const architectureCatalog = {
   ],
   "components": [
     "AiContextMenu",
+    "AiSendContextChat",
+    "AiSendContextLauncher",
     "AiSendDialog",
     "AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic",
     "CraftRouterOutlet",
@@ -36,18 +38,27 @@ export const architectureCatalog = {
     "craftPending"
   ],
   "primitives": [
+    "busy",
     "captureError",
     "captureInProgress",
     "copied",
+    "error",
     "exception",
     "exceptionTag",
     "hasTask",
     "hasTaskException",
     "instruction",
+    "panelOffset",
     "promptOptions",
+    "sendContextToAi",
+    "setBusy",
     "setCaptureError",
     "setCaptureInProgress",
     "setCopied",
+    "setError",
+    "setPanelOffset",
+    "setStatus",
+    "status",
     "taskQuery",
     "title"
   ],
@@ -56,7 +67,12 @@ export const architectureCatalog = {
     "source$ (source$)"
   ],
   "serverFunctionFamilies": [],
-  "httpEndpoints": [],
+  "httpEndpoints": [
+    {
+      "method": "POST",
+      "url": "configuredEndpoint"
+    }
+  ],
   "uniques": [],
   "providers": [],
   "routeProviders": {},

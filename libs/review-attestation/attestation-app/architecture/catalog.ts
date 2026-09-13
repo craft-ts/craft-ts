@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "0f34c796ba376488",
+  "graphHash": "34889a53ed0a3cc4",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -146,6 +146,7 @@ export const architectureCatalog = {
     "selectedVisualAsset",
     "selectedVisualTest",
     "selection",
+    "sendContextToAi",
     "sessionHistory",
     "setBusy",
     "setCaptureError",
@@ -219,6 +220,10 @@ export const architectureCatalog = {
     {
       "method": "POST",
       "url": "/api/regenerate"
+    },
+    {
+      "method": "POST",
+      "url": "configuredEndpoint"
     }
   ],
   "uniques": [],

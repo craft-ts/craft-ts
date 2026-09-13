@@ -1177,7 +1177,7 @@ export const AiSendContextChat: CraftComponent<{
             ...(endpoint
               ? [
                   button(
-                    'aiCopyPrompt',
+                    'aiCopyWebhookPrompt',
                     {
                       type: 'button',
                       disabled: busy,

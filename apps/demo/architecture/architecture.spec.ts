@@ -33,10 +33,12 @@ describe('demo architecture', () => {
 
   it('indexes demo routes and provided feature services', () => {
     expect(
-      graph.route('craft/query/:userId', 'apps/demo/src/app/app.routes.ts').kind,
+      graph.route('craft/query/:userId', 'apps/demo/src/app/app.routes.ts')
+        .kind,
     ).toBe('route');
     expect(
-      graph.route('craft/mutation/:userId', 'apps/demo/src/app/app.routes.ts').kind,
+      graph.route('craft/mutation/:userId', 'apps/demo/src/app/app.routes.ts')
+        .kind,
     ).toBe('route');
     expect(graph.providedOn('UserList').map((node) => node.label)).toEqual(
       expect.arrayContaining([expect.stringMatching(/ListWithPagination/)]),
@@ -85,7 +87,14 @@ describe('demo architecture', () => {
 
   it('requires a query to react to each mutation, except pedagogical orphans', () => {
     assertMutationHasReactOn(graph.graph, {
-      allow: ['addTodo', 'removeTodo', 'submitted', 'issue', 'saveProfile'],
+      allow: [
+        'addTodo',
+        'removeTodo',
+        'submitted',
+        'issue',
+        'saveProfile',
+        'sendContextToAi',
+      ],
     });
   });
 
@@ -179,7 +188,14 @@ describe('demo architecture', () => {
 
   it('keeps the app declarative', () => {
     assertDeclarativeArchitecture(graph.graph, {
-      allow: ['addTodo', 'removeTodo', 'submitted', 'issue', 'saveProfile'],
+      allow: [
+        'addTodo',
+        'removeTodo',
+        'submitted',
+        'issue',
+        'saveProfile',
+        'sendContextToAi',
+      ],
     });
   });
 

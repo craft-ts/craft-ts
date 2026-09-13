@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "1a365295cd4cda5c",
+  "graphHash": "6154f59655a7c43d",
   "routes": [
     "",
     "access",
@@ -43,6 +43,8 @@ export const architectureCatalog = {
   ],
   "components": [
     "AiContextMenu",
+    "AiSendContextChat",
+    "AiSendContextLauncher",
     "AiSendDialog",
     "AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic",
     "App",
@@ -62,11 +64,13 @@ export const architectureCatalog = {
     "accessReason",
     "add",
     "addTodo",
+    "busy",
     "captureError",
     "captureInProgress",
     "copied",
     "effectFunctionQuery",
     "englishPressed",
+    "error",
     "formattedPreview",
     "frenchPressed",
     "hasData",
@@ -78,6 +82,7 @@ export const architectureCatalog = {
     "lines",
     "locale",
     "memberNames",
+    "panelOffset",
     "placed",
     "profileName",
     "profileQuery",
@@ -86,11 +91,17 @@ export const architectureCatalog = {
     "quoteLabel",
     "receiptQuery",
     "removeTodo",
+    "sendContextToAi",
+    "setBusy",
     "setCaptureError",
     "setCaptureInProgress",
     "setCopied",
+    "setError",
+    "setPanelOffset",
+    "setStatus",
     "shippingQuery",
     "showUnknown",
+    "status",
     "summary",
     "teamName",
     "teamOverviewQuery",
@@ -109,7 +120,12 @@ export const architectureCatalog = {
     "source$ (source$)"
   ],
   "serverFunctionFamilies": [],
-  "httpEndpoints": [],
+  "httpEndpoints": [
+    {
+      "method": "POST",
+      "url": "configuredEndpoint"
+    }
+  ],
   "uniques": [],
   "providers": [],
   "routeProviders": {},
