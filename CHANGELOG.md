@@ -1,3 +1,13 @@
+## 0.8.5 (2026-09-13)
+
+### 🩹 Fixes
+
+- **security:** ignore HTML comparisons in release check ([dc0f4f50f](https://github.com/craft-ts/craft-ts/commit/dc0f4f50f))
+
+### ❤️ Thank You
+
+- Romain
+
 ## 0.8.4 (2026-09-11)
 
 ### 🚀 Features
