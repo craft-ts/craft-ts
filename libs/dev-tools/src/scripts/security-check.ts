@@ -59,7 +59,7 @@ export function runSecurityCheck(
     const text = stripComments(raw);
     hasPolicy ||= /(?:provideCraftSecurityPolicy|CRAFT_SECURITY_POLICY|securityPolicy)/.test(text);
     checkPattern(diagnostics, rootDir, file, text, /\b(?:localStorage|sessionStorage)\.setItem\s*\(\s*['"][^'"]*(?:token|jwt|password|auth|session)/gi, 'CRAFT_SECURITY_AUTH_STORAGE', 'Authentication material must not be stored in browser storage.', 'error', raw);
-    checkPattern(diagnostics, rootDir, file, text, /\.(?:innerHTML|outerHTML|srcdoc)\s*=/g, 'CRAFT_SECURITY_RAW_HTML', 'Raw HTML assignment requires sanitizedHtml or an audited exception.', 'error', raw);
+    checkPattern(diagnostics, rootDir, file, text, /\.(?:innerHTML|outerHTML|srcdoc)\s*=\s*(?!=)/g, 'CRAFT_SECURITY_RAW_HTML', 'Raw HTML assignment requires sanitizedHtml or an audited exception.', 'error', raw);
     checkPattern(diagnostics, rootDir, file, text, /\b(?:eval\s*\(|new\s+Function\s*\(|document\.write(?:ln)?\s*\()/g, 'CRAFT_SECURITY_DYNAMIC_CODE', 'Dynamic code evaluation and document.write are forbidden.', 'error', raw);
     checkPattern(diagnostics, rootDir, file, text, /\b(?:x-forwarded-for|x-forwarded-host|x-forwarded-proto)\b/gi, 'CRAFT_SECURITY_FORWARDED_HEADER', 'Forwarded headers must be validated at a trusted proxy boundary.', 'error', raw);
     checkPattern(diagnostics, rootDir, file, text, /\bunsafe-inline\b/g, 'CRAFT_SECURITY_CSP_UNSAFE_INLINE', "A production CSP must not rely on 'unsafe-inline'; use the request nonce.", 'error', raw);

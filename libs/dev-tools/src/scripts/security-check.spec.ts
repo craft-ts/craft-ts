@@ -51,4 +51,28 @@ describe('runSecurityCheck', () => {
     expect(diagnostics).toEqual([]);
     expect(passed).toBe(true);
   });
+
+  it('does not treat an outerHTML comparison as an HTML assignment', async () => {
+    const rootDir = await fixture({
+      'src/app.ts':
+        'export const same = (a: Element, b: Element) => a.outerHTML === b.outerHTML;\n',
+    });
+
+    const { passed, diagnostics } = runSecurityCheck({ rootDir });
+
+    expect(diagnostics).toEqual([]);
+    expect(passed).toBe(true);
+  });
+
+  it('reports raw HTML assignments', async () => {
+    const rootDir = await fixture({
+      'src/app.ts': 'export function render(element: Element, value: string) { element.innerHTML = value; }\n',
+    });
+
+    const { diagnostics } = runSecurityCheck({ rootDir });
+
+    expect(diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+      'CRAFT_SECURITY_RAW_HTML',
+    );
+  });
 });
