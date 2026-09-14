@@ -33,7 +33,7 @@ const draft = yield* state(
   ),
 );
 
-const form = draft.form();
+const form = draft.form;
 ```
 
 The exact field insertions depend on the shape of your component, but the

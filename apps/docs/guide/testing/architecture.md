@@ -23,6 +23,7 @@ Use an architecture rule when the requirement sounds like one of these:
 - **must not depend on** — a feature must not reach into another feature;
 - **must be owned once** — an HTTP endpoint or persisted identity has one owner;
 - **must declare a relationship** — a mutation must refresh a query;
+- **must model input-driven work as a form** — a button must not send input state directly into a mutation or async process;
 - **must remain pure** — reading a computed value must not perform work.
 
 A green architecture suite does not prove that a button works. It proves that
@@ -62,6 +63,7 @@ import {
   assertCraftUnique,
   assertDeclarativeArchitecture,
   assertHttpEndpointUnique,
+  assertInputActionForms,
   assertInsertSelectUnique,
   assertInteractiveElementNamed,
   assertMutationHasReactOn,
@@ -418,6 +420,7 @@ rules that express your application's boundaries.
 | [`assertNoUnusedPrimitiveMethods`](/guide/testing/architecture/unused-primitive-method)            | an exposed primitive insertion method has no call site anywhere in the project                                                                                                                                                                         |
 | [`assertNoDependencyCycles`](/guide/testing/architecture/dependency-cycles)                        | a directed cycle exists on `depends-on` (services, components, computeds)                                                                                                                                                                              |
 | [`assertMutationHasReactOn`](/guide/testing/architecture/mutation-reactions)                       | a `mutation` has no query `insertReactOnMutation` edge (`allow` skips named fire-and-forget mutations)                                                                                                                                                 |
+| [`assertInputActionForms`](/guide/testing/architecture/declarative-baseline)                       | a button directly triggers an input-dependent mutation or async process instead of using the form submission boundary, including when the primitive is declared in a service                                                                                 |
 | [`assertDeclarativeArchitecture`](/guide/testing/architecture/declarative-baseline)                | any of the baseline checks fail                                                                                                                                                                                                                        |
 | [`assertRouteDiProofs`](/guide/testing/architecture/route-di-proofs)                               | a routed component, pending UI or error screen has no armed `CanRun` mapper, a collection is missing `assertExhaustiveRouteExceptions`, or `app.config.ts` registers a global / route-load error screen without its `RouteExceptionComponentCheckedDI` |
 | [`assertRouteComponentsInSeparateFiles`](/guide/testing/architecture/route-component-files)        | a route loads its page component from the routing file, or multiple routed page components share one component file                                                                                                                                    |

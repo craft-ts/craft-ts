@@ -2,12 +2,12 @@
 
 `assertDeclarativeArchitecture` is the first architecture test to add to a
 Craft app. It is not a style check and it does not test the DOM. It reads the
-static Craft graph and verifies seven relationships that are easy to lose during
+static Craft graph and verifies eight relationships that are easy to lose during
 a refactor:
 
 <<< @/tests/snippets/guide/testing/architecture/declarative-baseline.spec.ts#example
 
-The same test protects seven different failure modes:
+The same test protects eight different failure modes:
 
 | Rule | If it is missing, this can happen |
 | --- | --- |
@@ -18,6 +18,7 @@ The same test protects seven different failure modes:
 | `assertMutationHasReactOn` | a successful write leaves the visible list stale |
 | `assertPrimitiveMethodsUsedOnce` | one exposed method silently serves several call sites and loses their context |
 | `assertNoUnusedPrimitiveMethods` | an exposed method is never called and adds noise to the primitive interface |
+| `assertInputActionForms` | a button directly triggers an input-dependent mutation or async process instead of using the form submission boundary |
 
 The following examples show the actual code shape that each rule rejects.
 
@@ -202,6 +203,81 @@ important part is that it is declared where the query is defined.
 
 See [Mutation reactions](./mutation-reactions).
 
+## 6. An input-driven action bypasses a form
+
+This relationship can cross files. The component may own the input and button,
+while a service owns the mutation. The graph follows both sides:
+
+```typescript
+// todo-store.ts — avant
+const title = yield* state('title', '');
+const addTodo = yield* mutation('addTodo', {
+  method: function* () {
+    return { title: yield* title() };
+  },
+  loader: saveTodo,
+});
+```
+
+```typescript
+// todo-page.ts — avant
+input('TodoTitleInput', { value: store.title });
+button('AddTodoButton', { click: function* () {
+  yield* store.addTodo.mutate();
+} }, 'Add');
+```
+
+The mutation receives no argument at the click site, but it still depends on
+the input because its `method` reads the same state. `assertInputActionForms`
+rejects this shape. A file-local ESLint rule can catch the direct version in one
+file, but only the architecture graph can follow the input, button, service and
+resource method across files.
+
+The accepted shape makes the boundary explicit:
+
+```typescript
+// todo-store.ts — après
+import type { ValidatedFormValue } from '@craft-ts/core';
+
+const addTodo = yield* mutation('addTodo', {
+  method: (title: NonNullable<ValidatedFormValue<string>>) => ({
+    title: title.trim(),
+  }),
+  loader: saveTodo,
+});
+
+// todo-page.ts — après
+const titleForm = yield* state(
+  'titleForm',
+  '',
+  insertForm(
+    insertFormAttributes(() => ({ validators: [cRequired()] })),
+    insertFormSubmit(addTodo),
+  ),
+);
+
+form('AddTodoForm', {
+  *submit(event) {
+    event.preventDefault();
+    yield* titleForm.form.submit();
+  },
+}, [
+  input('TodoTitleInput', { type: 'text' }).pipe(
+    CraftFieldDirective(titleForm.form),
+  ),
+  button('AddTodoButton', { type: 'submit' }, 'Add'),
+]);
+```
+
+For an object-valued form, add `insertSelectFormTree` and bind the native input
+to `titleForm.form.selectTitle()` instead. The `insertFormAttributes` insertion
+is where validators and field attributes belong; `insertFormSubmit(addTodo)`
+connects the validated value to the mutation. The architecture assertion
+rejects a direct button call even when a `form` and `insertFormSubmit` are also
+present, so there is only one submit boundary. `insertForm()` alone is valid,
+but it is insufficient for this mutation-backed example: the submit insertion
+is what passes the validated form value to `addTodo`.
+
 ## What the aggregate test does — and does not do
 
 The aggregate test is now understandable as a compact CI gate:
@@ -220,6 +296,7 @@ It does **not** cover every architecture policy. Add focused assertions for:
 - Effect loader boundaries: [`assertPrimitiveLoaderRequirements`](./primitive-loader-requirements);
 - interactive control names: [`assertInteractiveElementNamed`](./interactive-element-names);
 - `craftEffect` network and imperative-sync constraints: [Effect rules](./craft-effect-network).
+- input-driven mutations and async processes: `assertInputActionForms` (this page).
 
 Keep the aggregate assertion for the common baseline, and keep focused rules for
 policies whose failure message should explain a product or team boundary.

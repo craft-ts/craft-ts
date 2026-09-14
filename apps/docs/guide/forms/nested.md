@@ -35,7 +35,7 @@ const { productFormState } = state(
 );
 
 // Access sub-forms
-const form = productFormState.form();
+const form = productFormState.form;
 const variant0 = form.selectVariant(0);
 const allVariants = form.items();
 ```
@@ -88,7 +88,7 @@ const { appointmentFormState } = state(
   ),
 );
 
-const form = appointmentFormState.form();
+const form = appointmentFormState.form;
 const dateField = form.selectDate();
 const timeField = form.selectTime();
 

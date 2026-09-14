@@ -1946,6 +1946,153 @@ export function assertMutationHasReactOn(
   );
 }
 
+export type InputActionFormViolation = {
+  componentId: string;
+  componentLabel: string;
+  filePath?: string;
+  line?: number;
+  inputBindings: readonly string[];
+  actions: readonly string[];
+};
+
+/**
+ * A form is required when a template input feeds a button-triggered mutation
+ * or async process through the primitive's method dependency graph. This is a
+ * graph-wide invariant because the primitive may be declared in a service and
+ * consumed by a component in another file.
+ */
+export function inputActionFormViolations(
+  graph: DependencyGraph,
+): InputActionFormViolation[] {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const containsParents = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'contains') continue;
+    containsParents.set(edge.to, [
+      ...(containsParents.get(edge.to) ?? []),
+      edge.from,
+    ]);
+  }
+
+  const primitiveRoot = (id: string): string => {
+    const seen = new Set<string>();
+    const visit = (current: string): string => {
+      if (seen.has(current)) return current;
+      seen.add(current);
+      const node = nodesById.get(current);
+      if (node?.kind === 'primitive') return current;
+
+      if (node?.kind === 'property') {
+        const member = String(
+          node.details?.['member'] ?? node.details?.['path'] ?? '',
+        ).split('.')[0];
+        const service = findServiceAncestor(current, new Set());
+        if (member && service) {
+          const primitive = graph.nodes.find(
+            (candidate) =>
+              candidate.kind === 'primitive' &&
+              candidate.details?.['ownerId'] === service &&
+              candidate.details?.['name'] === member,
+          );
+          if (primitive) return primitive.id;
+        }
+      }
+
+      for (const parent of containsParents.get(current) ?? []) {
+        const root = visit(parent);
+        if (nodesById.get(root)?.kind === 'primitive') return root;
+      }
+      return current;
+    };
+    const findServiceAncestor = (
+      current: string,
+      visited: Set<string>,
+    ): string | undefined => {
+      if (visited.has(current)) return undefined;
+      visited.add(current);
+      if (nodesById.get(current)?.kind === 'service') return current;
+      for (const parent of containsParents.get(current) ?? []) {
+        const service = findServiceAncestor(parent, visited);
+        if (service) return service;
+      }
+      return undefined;
+    };
+    return visit(id);
+  };
+
+  const violations: InputActionFormViolation[] = [];
+  for (const component of graph.nodes) {
+    if (component.kind !== 'component') continue;
+
+    const inputEdges = graph.edges.filter(
+      (edge) =>
+        edge.from === component.id &&
+        edge.details?.['usage'] === 'template' &&
+        edge.details?.['templateRole'] === 'input-value',
+    );
+    if (inputEdges.length === 0) continue;
+
+    const actionEdges = graph.edges.filter(
+      (edge) =>
+        edge.from === component.id &&
+        edge.details?.['usage'] === 'template' &&
+        edge.details?.['templateRole'] === 'button-action' &&
+        (edge.kind === 'calls' ||
+          ['method', 'mutate'].includes(
+            String(edge.details?.['path'] ?? '').split('.').at(-1) ?? '',
+          )),
+    );
+    if (actionEdges.length === 0) continue;
+
+    const inputRoots = new Set(inputEdges.map((edge) => primitiveRoot(edge.to)));
+    const matchingActions = actionEdges.filter((edge) => {
+      const actionRoot = primitiveRoot(edge.to);
+      const action = nodesById.get(actionRoot);
+      if (
+        action?.kind !== 'primitive' ||
+        !['mutation', 'mutationEffect', 'asyncProcess', 'asyncProcessEffect'].includes(
+          String(action.details?.['primitive']),
+        )
+      ) {
+        return false;
+      }
+
+      return graph.edges.some(
+        (dependency) =>
+          dependency.from === actionRoot &&
+          dependency.details?.['resourceRole'] === 'method' &&
+          inputRoots.has(primitiveRoot(dependency.to)),
+      );
+    });
+    if (matchingActions.length === 0) continue;
+
+    violations.push({
+      componentId: component.id,
+      componentLabel: component.label,
+      filePath: component.filePath,
+      line: component.line,
+      inputBindings: inputEdges.map((edge) => edge.to),
+      actions: matchingActions.map((edge) => edge.to),
+    });
+  }
+  return violations;
+}
+
+export function assertInputActionForms(graph: DependencyGraph): void {
+  const violations = inputActionFormViolations(graph);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((violation) => {
+        const at = [violation.filePath, violation.line]
+          .filter(Boolean)
+          .join(':');
+        return `Component ${violation.componentLabel} has a button that directly triggers an input-dependent mutation or async process${at ? ` (${at})` : ''}. Use state(..., insertForm(...)) with insertFormSubmit(mutation) for mutations, render form('id', { *submit(event) { ... } }, [ ... ]), and submit with a type="submit" button instead of calling mutate(...) or method(...) from the button.`;
+      })
+      .join('\n'),
+  );
+}
+
 export type PersistedUniqueViolation = {
   id: string;
   label: string;
@@ -3465,6 +3612,7 @@ export function assertDeclarativeArchitecture(
     assertNoUnusedPrimitiveMethods,
     assertNoDependencyCycles,
     assertServerFunctionArchitecture,
+    assertInputActionForms,
   ]) {
     try {
       assert(graph);

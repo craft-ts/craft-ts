@@ -70,10 +70,10 @@ const { userFormState } = state(
 );
 
 // Submit the form
-userFormState.form().submit(); // Automatically triggers the mutation
+userFormState.form.submit(); // Automatically triggers the mutation
 
 // Submit exceptions are inferred from the mutation and the `exceptions` rules.
-const submitErrors = userFormState.form().submitExceptions();
+const submitErrors = userFormState.form.submitExceptions();
 const firstSubmitError = submitErrors[0]?.code; // 'EMAIL_NOT_AVAILABLE'
 ```
 
@@ -118,8 +118,8 @@ Returning a single `craftException(...)` adds it. The final inferred union is
 available through:
 
 ```ts
-const submitExceptions = userFormState.form().submitExceptions();
-const aggregatedSubmitExceptions = userFormState.form().exceptions().submit;
+const submitExceptions = userFormState.form.submitExceptions();
+const aggregatedSubmitExceptions = userFormState.form.exceptions().submit;
 ```
 
 ## See Also

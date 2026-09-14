@@ -4,7 +4,9 @@ import {
   button,
   craftComponent,
   div,
+  fieldErrorNode,
   forNode,
+  form,
   input,
   li,
   p,
@@ -13,12 +15,17 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  cRequired,
+  CraftFieldDirective,
+  insertForm,
+  insertFormAttributes,
+  insertFormSubmit,
   mutation,
   query,
   state,
+  type ValidatedFormValue,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
-import { eventValue } from '../../../event-value';
 
 type Todo = { readonly id: number; readonly title: string };
 
@@ -57,7 +64,7 @@ const FullDemo = craftComponent(
     });
     yield* todos.call(undefined); // trigger first call
     const addTodo = yield* mutation('addTodo', {
-      method: (title: string) => title,
+      method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
         const todo = { id: yield* nextId.take(), title };
         yield* records.add(todo);
@@ -73,46 +80,48 @@ const FullDemo = craftComponent(
         return id;
       },
     });
-    const titleInput = yield* state('titleInput', '', ({ set }) => ({
-      setTitle: (value: string) => set(value),
-    }));
+    const titleForm = yield* state(
+      'titleForm',
+      '',
+      insertForm(
+        insertFormAttributes(() => ({ validators: [cRequired()] })),
+        insertFormSubmit(addTodo),
+      ),
+    );
     return {
       todos,
       addTodo,
       removeTodo,
-      titleInput,
-      setTitle: titleInput.setTitle,
+      titleForm,
     };
   },
-  ({ todos, addTodo, removeTodo, titleInput, setTitle }) => {
+  ({ todos, removeTodo, titleForm }) => {
     return div([
       heading([
         'Full primitives demo ',
         StatusComponent({ status: todos.status }),
       ]),
       p('Query, mutations, optimistic interaction and functional rendering.'),
-      div([
-        input('TodoNameToAddInput', {
-          type: 'text',
-          placeholder: 'New todo',
-          value: titleInput,
-          *input(event: Event) {
-            yield* setTitle(eventValue(event));
+      form(
+        'AddTodoForm',
+        {
+          *submit(event) {
+            event.preventDefault();
+            yield* titleForm.form.submit();
           },
+        },
+        [
+          input('TodoNameToAddInput', {
+            type: 'text',
+            placeholder: 'New todo',
+          }).pipe(CraftFieldDirective(titleForm.form)),
+          button('AddTodoButton', { type: 'submit' }, 'Add'),
+        ],
+      ).pipe(
+        fieldErrorNode.exhaustive({
+          required: () => p('A todo title is required.'),
         }),
-        button(
-          'AddTodoButton',
-          { type: 'button',
-            disabled: addTodo.isLoading,
-            *click() {
-              if ((yield* titleInput()).trim()) {
-                yield* addTodo.mutate((yield* titleInput()).trim());
-              }
-            },
-          },
-          'Add',
-        ),
-      ]),
+      ),
       ul(
         forNode(
           todos.value,

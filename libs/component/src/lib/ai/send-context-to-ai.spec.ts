@@ -154,6 +154,79 @@ describe('provideSendContextToAi', () => {
     parent.destroy();
   });
 
+  it('preserves the instruction when another element is added to the open chat', async () => {
+    const component = craftComponent(
+      'ContextHostWithMultipleTargets',
+      {},
+      () => ({}),
+      () =>
+        div({}, [
+          span({ class: 'first-target' }, 'First target'),
+          span({ class: 'second-target' }, 'Second target'),
+        ]),
+    );
+
+    const parent = createEnvironmentInjector(
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi()],
+      Injector.NULL,
+      'SendContextAiPersistenceRoot',
+    );
+    const host = document.createElement('div');
+    document.body.append(host);
+    const mounted = mountCraftComponent(component, host, parent);
+
+    const firstTarget = host.querySelector<HTMLElement>('.first-target');
+    const secondTarget = host.querySelector<HTMLElement>('.second-target');
+    firstTarget?.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        clientX: 120,
+        clientY: 80,
+      }),
+    );
+    document
+      .querySelector<HTMLButtonElement>('[data-craft-name="aiSendToIa"]')
+      ?.click();
+
+    const instruction = document.querySelector<HTMLTextAreaElement>(
+      '#craft-ai-chat-instruction',
+    );
+    expect(instruction).not.toBeNull();
+    instruction!.value = 'Keep this instruction';
+    instruction!.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+
+    secondTarget?.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 2,
+        pointerId: 2,
+        clientX: 180,
+        clientY: 120,
+      }),
+    );
+    secondTarget?.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        clientX: 180,
+        clientY: 120,
+      }),
+    );
+    document
+      .querySelector<HTMLButtonElement>('[data-craft-name="aiSendToIa"]')
+      ?.click();
+    await Promise.resolve();
+
+    expect(
+      document.querySelector<HTMLTextAreaElement>('#craft-ai-chat-instruction')
+        ?.value,
+    ).toBe('Keep this instruction');
+
+    mounted.destroy();
+    host.remove();
+    parent.destroy();
+  });
+
   it('scopes overlay styles to the component root', async () => {
     const rendered = await renderCraftComponent(AiContextMenu, {
       props: {
@@ -182,9 +255,7 @@ describe('provideSendContextToAi', () => {
         /:scope \.craft-ai-menu-item\s*\{[^}]*\}/,
       )?.[0] ?? '';
     expect(menuItemRule).toContain('color: var(--craft-ai-text)');
-    expect(sheet?.textContent).toContain(
-      '@media (prefers-color-scheme: dark)',
-    );
+    expect(sheet?.textContent).toContain('@media (prefers-color-scheme: dark)');
     expect(menu.style.left).toBe('120px');
     expect(menu.style.top).toBe('80px');
 

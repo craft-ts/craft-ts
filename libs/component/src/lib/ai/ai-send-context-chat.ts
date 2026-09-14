@@ -587,6 +587,10 @@ export const AiSendContextChat: CraftComponent<{
     // between two listeners of the same dispatch.) The press that opened the
     // chat is already over by then, so the next `pointerdown` is a real one.
     const onOutsidePress = (event: PointerEvent): void => {
+      // A secondary press is the start of the context-menu flow used to add
+      // another element. Do not close the chat before the subsequent
+      // `contextmenu` event can update its live context.
+      if (event.button !== 0) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest('.craft-ai-chat')) return;

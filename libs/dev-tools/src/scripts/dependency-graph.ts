@@ -1938,6 +1938,17 @@ function analyzeComponents(builder: GraphBuilder): void {
     const call = component.call;
     const setup = call.getArguments()[2];
     const template = call.getArguments()[3];
+    const setupPartsForMetadata = componentImplementationParts(setup);
+    const templatePartsForMetadata = templateImplementationParts(template);
+    component.node.details = {
+      ...(component.node.details ?? {}),
+      hasInsertForm: setupPartsForMetadata.some((part) =>
+        containsCallNamed(part, 'insertForm'),
+      ),
+      hasFormNode: templatePartsForMetadata.some((part) =>
+        containsCallNamed(part, 'form'),
+      ),
+    };
     for (const part of [setup, template].flatMap(
       componentImplementationParts,
     )) {
@@ -3623,6 +3634,18 @@ function analyzeReactiveDependencies(
           'params',
         );
       }
+      const method = resourceMethodInitializer(call);
+      if (host && method) {
+        addReactiveDependencyEdges(
+          builder,
+          host,
+          collectResourceParamExpressions(method),
+          bindings,
+          component,
+          aggregateOwnerId,
+          'method',
+        );
+      }
     }
     if (!isTrackedReactiveHost(call)) continue;
     const host = addOwnedPrimitive(builder, call, aggregateOwnerId);
@@ -3647,7 +3670,7 @@ function addReactiveDependencyEdges(
   bindings: Map<string, ReactiveBinding>,
   component: ComponentInfo | undefined,
   aggregateOwnerId: string,
-  resourceRole?: 'params',
+  resourceRole?: 'params' | 'method',
 ): void {
   for (const expression of expressions) {
     const target = resolveReactiveTarget(
@@ -3679,9 +3702,23 @@ function isResourcePrimitive(call: CallExpression): boolean {
   return (
     primitive === 'query' ||
     primitive === 'queryEffect' ||
+    primitive === 'mutation' ||
+    primitive === 'mutationEffect' ||
     primitive === 'asyncProcess' ||
     primitive === 'asyncProcessEffect'
   );
+}
+
+function resourceMethodInitializer(call: CallExpression): Node | undefined {
+  const config = call
+    .getArguments()[1]
+    ?.asKind(SyntaxKind.ObjectLiteralExpression);
+  const property = config?.getProperty('method');
+  return property?.isKind(SyntaxKind.PropertyAssignment)
+    ? property.getInitializer()
+    : property?.isKind(SyntaxKind.ShorthandPropertyAssignment)
+      ? property.getNameNode()
+      : undefined;
 }
 
 function resourceParamsInitializer(call: CallExpression): Node | undefined {
@@ -3792,9 +3829,11 @@ function analyzeTemplateDependencies(
     if (Node.isIdentifier(expression)) {
       const alias = methodAliases.get(symbolKey(expression.getSymbol()));
       if (alias) {
+        const templateRole = templateRoleOf(expression);
         addEdge(builder, component.node.id, alias.propertyId, 'calls', 'ast', {
           path: alias.method,
           usage: 'template',
+          ...(templateRole ? { templateRole } : {}),
           callSite: {
             filePath: expression.getSourceFile().getFilePath(),
             line: expression.getStartLineNumber(),
@@ -3813,9 +3852,11 @@ function analyzeTemplateDependencies(
     );
     if (!target) continue;
     const kind = target.kind === 'calls' ? 'calls' : 'uses-property';
+    const templateRole = templateRoleOf(expression);
     addEdge(builder, component.node.id, target.id, kind, 'ast', {
       ...target.details,
       usage: 'template',
+      ...(templateRole ? { templateRole } : {}),
       ...(kind === 'calls'
         ? {
             callSite: {
@@ -3827,6 +3868,40 @@ function analyzeTemplateDependencies(
         : {}),
     });
   }
+}
+
+function containsCallNamed(node: Node, name: string): boolean {
+  return node
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .some((call) => call.getExpression().getText() === name);
+}
+
+function templateRoleOf(node: Node): 'input-value' | 'button-action' | undefined {
+  let current: Node | undefined = node;
+  while (current) {
+    if (Node.isPropertyAssignment(current)) {
+      const propertyName = current.getNameNode().getText().replace(/["']/g, '');
+      const options = current.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
+      const owner = options?.getParentIfKind(SyntaxKind.CallExpression);
+
+      if (
+        propertyName === 'value' &&
+        owner &&
+        ['input', 'textarea'].includes(owner.getExpression().getText())
+      ) {
+        return 'input-value';
+      }
+
+      if (
+        (propertyName === 'click' || propertyName === 'onClick') &&
+        owner?.getExpression().getText() === 'button'
+      ) {
+        return 'button-action';
+      }
+    }
+    current = current.getParent();
+  }
+  return undefined;
 }
 
 type PrimitiveMethodAlias = {
@@ -4205,6 +4280,12 @@ function resolveReactiveChain(
           details: { path: rest.join('.') },
         };
       }
+      const outputMethod = isLikelyMethod(
+        rest.slice(1),
+        node,
+        builder,
+        outputPrimitive.id,
+      );
       const nestedOutputProperty = addPrimitiveMemberProperty(
         builder,
         outputPrimitive.id,
@@ -4213,7 +4294,7 @@ function resolveReactiveChain(
       );
       return {
         id: nestedOutputProperty.id,
-        kind: method ? 'calls' : 'depends-on',
+        kind: outputMethod ? 'calls' : 'depends-on',
         details: { path: rest.join('.') },
       };
     }
@@ -4396,6 +4477,18 @@ function isLikelyMethod(
   primitiveId?: string,
 ): boolean {
   const leaf = path[path.length - 1];
+  if (
+    leaf === 'method' &&
+    primitiveId &&
+    [
+      'mutation',
+      'mutationEffect',
+      'asyncProcess',
+      'asyncProcessEffect',
+    ].includes(String(builder.nodes.get(primitiveId)?.details?.['primitive']))
+  ) {
+    return true;
+  }
   if (leaf && REACTIVE_METHOD_NAMES.has(leaf)) return true;
   if (leaf && REACTIVE_READER_NAMES.has(leaf)) return false;
   if (primitiveId) {

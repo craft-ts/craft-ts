@@ -14,7 +14,7 @@ field tree, the validity, and the exception types are all derived from the state
 type — you never restate them.
 
 ```typescript
-const form = taskForm.form();
+const form = taskForm.form;
 const title = form.selectTitle();
 
 title()().exceptions.list; // typed list of this field's exceptions
@@ -71,17 +71,22 @@ insertFormSubmit(createTask);
 ```
 
 ```typescript
-form({ submit: () => taskForm.form().submit() }, [
+form('TaskForm', {
+  *submit(event) {
+    event.preventDefault();
+    yield* taskForm.form.submit();
+  },
+}, [
   /* fields */
 ]);
 ```
 
-The form now knows when it is submitting (`form().submitting()`), whether a
-submit was attempted (`form().hasAttemptedSubmit()`), and — the point — **which
+The form now knows when it is submitting (`form.submitting()`), whether a
+submit was attempted (`form.hasAttemptedSubmit()`), and — the point — **which
 exceptions submission can produce**, inferred from the mutation:
 
 ```typescript
-taskForm.form().submitExceptions();
+taskForm.form.submitExceptions();
 ```
 
 If your mutation declares a `TITLE_ALREADY_EXISTS` exception, that code is in the

@@ -5,7 +5,9 @@ import {
   catchNode,
   craftComponent,
   div,
+  fieldErrorNode,
   forNode,
+  form,
   input,
   li,
   p,
@@ -14,16 +16,21 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  cRequired,
   craftException,
   craftGen,
   craftService,
+  CraftFieldDirective,
+  insertForm,
+  insertFormAttributes,
+  insertFormSubmit,
   insertQueryPipe,
   insertReactOnMutation,
   mutation,
   query,
   state,
+  type ValidatedFormValue,
 } from '@craft-ts/core';
-import { eventValue } from '../../../event-value';
 import { StatusComponent } from '../../../ui/status.component';
 
 export type Todo = { readonly id: number; readonly title: string };
@@ -54,7 +61,7 @@ export const { provideTodoStore, TodoStore } = craftService(
       }),
     );
     const add = yield* mutation('add', {
-      method: (title: string) => title,
+      method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
         const todo = { id: yield* nextId.take(), title };
         yield* records.add(todo);
@@ -118,37 +125,42 @@ const FullDemoCraft = craftComponent(
   },
   function* () {
     const store = yield* TodoStore();
-    const titleInput = yield* state('titleInput', '', ({ set }) => ({
-      setTitle: (value: string) => set(value),
-    }));
-    return { store, titleInput, setTitle: titleInput.setTitle };
+    const titleForm = yield* state(
+      'titleForm',
+      '',
+      insertForm(
+        insertFormAttributes(() => ({ validators: [cRequired()] })),
+        insertFormSubmit(store.add),
+      ),
+    );
+    return { store, titleForm };
   },
-  ({ store, titleInput, setTitle }) => {
+  ({ store, titleForm }) => {
     return div([
       heading([
         'Full craftService demo ',
         StatusComponent({ status: store.todos.status }),
       ]),
       p('A toProvide service composed from a query and two mutations.'),
-      div([
-        input('TodoNameToAddInput', {
-          placeholder: 'New todo',
-          value: titleInput,
-          *input(event: Event) {
-            yield* setTitle(eventValue(event));
+      form(
+        'AddTodoForm',
+        {
+          *submit(event) {
+            event.preventDefault();
+            yield* titleForm.form.submit();
           },
+        },
+        [
+          input('TodoNameToAddInput', { placeholder: 'New todo' }).pipe(
+            CraftFieldDirective(titleForm.form),
+          ),
+          button('AddTodoButton', { type: 'submit' }, 'Add'),
+        ],
+      ).pipe(
+        fieldErrorNode.exhaustive({
+          required: () => p('A todo title is required.'),
         }),
-        button(
-          'AddTodoButton',
-          { type: 'button',
-            disabled: store.add.isLoading,
-            *click() {
-              yield* store.add.mutate(((yield* titleInput()) ?? '').trim());
-            },
-          },
-          'Add',
-        ),
-      ]),
+      ),
       ul(
         forNode(
           store.todos.value,

@@ -374,8 +374,7 @@ const guideSidebar = [
       { text: 'Program operators', link: '/guide/advanced/program-operators' },
       { text: 'Pattern matching', link: '/guide/advanced/pattern-matching' },
       { text: 'Observability', link: '/guide/advanced/observability' },
-      { text: 'Live page MCP', link: '/guide/ai/dev-page' },
-      { text: 'AI context webhook', link: '/guide/ai/send-context-webhook' },
+      { text: 'AI agents', link: '/guide/ai/' },
       { text: 'Temporal runtime', link: '/guide/advanced/temporal-runtime' },
     ],
   },
@@ -403,6 +402,22 @@ const resourcesSidebar = [
       { text: 'Press kit', link: '/resources/press-kit' },
       { text: 'Roadmap', link: '/resources/roadmap' },
       { text: 'Backlog', link: '/resources/backlog' },
+    ],
+  },
+];
+
+const aiAgentsSidebar = [
+  {
+    text: 'AI agents',
+    items: [
+      { text: 'Overview', link: '/guide/ai/' },
+      { text: 'Coding agents', link: '/resources/ai-agents' },
+      { text: 'MCP tools', link: '/guide/ai/mcp-tools' },
+      { text: 'Live page MCP', link: '/guide/ai/dev-page' },
+      {
+        text: 'Send context to AI',
+        link: '/guide/ai/send-context-webhook',
+      },
     ],
   },
 ];
@@ -446,6 +461,11 @@ export default defineConfig({
         text: 'Learn with Effect',
         link: '/learn-effect/',
         activeMatch: '^/learn-effect/',
+      },
+      {
+        text: 'AI agents',
+        link: '/guide/ai/',
+        activeMatch: '^/guide/ai/|^/resources/ai-agents$',
       },
       { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
       { text: 'Reference', link: '/reference/', activeMatch: '^/reference/' },
@@ -495,7 +515,6 @@ export default defineConfig({
         activeMatch: '^/resources/',
         items: [
           { text: 'Examples', link: '/resources/examples' },
-          { text: 'Coding agents', link: '/resources/ai-agents' },
           { text: 'Migration', link: '/resources/migration' },
           {
             text: 'Effect compatibility & maturity',
@@ -515,6 +534,7 @@ export default defineConfig({
     sidebar: {
       '/learn/': learnSidebar,
       '/learn-effect/': learnEffectSidebar,
+      '/guide/ai/': aiAgentsSidebar,
       '/guide/': guideSidebar,
       '/reference/': [
         {

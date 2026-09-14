@@ -33,6 +33,8 @@ import {
   dependencyCycleViolations,
   appConfigRouteCycleViolations,
   httpEndpointUniqueViolations,
+  assertInputActionForms,
+  inputActionFormViolations,
   insertSelectUniqueViolations,
   interactiveElementNamedViolations,
   type LoaderRequirementContext,
@@ -105,6 +107,9 @@ declare function state(...args: unknown[]): unknown;
 declare function query(...args: unknown[]): unknown;
 declare function mutation(...args: unknown[]): unknown;
 declare function asyncProcess(...args: unknown[]): unknown;
+declare function insertForm(...args: unknown[]): unknown;
+declare function insertFormAttributes(...args: unknown[]): unknown;
+declare function insertFormSubmit(...args: unknown[]): unknown;
 declare function queryParams(...args: unknown[]): unknown;
 declare function craftUnique<T>(value: T): T;
 declare function insertStoragePersister(...args: unknown[]): unknown;
@@ -133,6 +138,149 @@ declare const CraftHttpClient: {
 `;
 
 describe('createArchitectureGraph', () => {
+  it('finds input-dependent mutations declared in a service', async () => {
+    const graph = await graphOf({
+      'todo-store.ts': `
+        ${STUBS}
+        export const { TodoStore } = craftService(
+          { name: 'TodoStore' },
+          function* () {
+            const titleInput = yield* state('titleInput', '');
+            const addTodo = yield* mutation('addTodo', {
+              method: function* () {
+                return { title: yield* titleInput() };
+              },
+              loader: function* () { return {}; },
+            });
+            return { titleInput, addTodo };
+          },
+        );
+      `,
+      'todo-page.ts': `
+        ${STUBS}
+        import { TodoStore } from './todo-store';
+        const TodoPage = craftComponent(
+          'TodoPage',
+          {},
+          function* () {
+            const store = yield* TodoStore();
+            const todoForm = yield* state(
+              'todoForm',
+              '',
+              insertForm(insertFormSubmit(store.addTodo)),
+            );
+            return { store, todoForm };
+          },
+          ({ store, todoForm }) => form('TodoForm', {
+            *submit(event) {
+              event.preventDefault();
+              yield* todoForm.form.submit();
+            },
+          }, [
+            input('TitleInput', { value: store.titleInput }),
+            button('SubmitButton', {
+              click: function* () { yield* store.addTodo.mutate(); },
+            }, 'Submit'),
+          ]),
+        );
+      `,
+    });
+
+    const violations = inputActionFormViolations(graph.graph);
+    expect(violations).toHaveLength(1);
+    expect(() => assertInputActionForms(graph.graph)).toThrow(
+      /TodoPage.*insertFormSubmit/,
+    );
+  });
+
+  it('finds input-dependent async processes declared in a service', async () => {
+    const graph = await graphOf({
+      'todo-store.ts': `
+        ${STUBS}
+        export const { TodoStore } = craftService(
+          { name: 'TodoStore' },
+          function* () {
+            const titleInput = yield* state('titleInput', '');
+            const saveTodo = yield* asyncProcess('saveTodo', {
+              method: function* () {
+                return { title: yield* titleInput() };
+              },
+              loader: function* () { return {}; },
+            });
+            return { titleInput, saveTodo };
+          },
+        );
+      `,
+      'todo-page.ts': `
+        ${STUBS}
+        import { TodoStore } from './todo-store';
+        const TodoPage = craftComponent(
+          'TodoPage',
+          {},
+          function* () {
+            const store = yield* TodoStore();
+            return { store };
+          },
+          ({ store }) => div([
+            input({ value: store.titleInput }),
+            button({ click: function* () { yield* store.saveTodo.method(); } }),
+          ]),
+        );
+      `,
+    });
+
+    expect(inputActionFormViolations(graph.graph)).toHaveLength(1);
+  });
+
+  it('accepts the same service flow when the component declares a Craft form', async () => {
+    const graph = await graphOf({
+      'todo-store.ts': `
+        ${STUBS}
+        export const { TodoStore } = craftService(
+          { name: 'TodoStore' },
+          function* () {
+            const addTodo = yield* mutation('addTodo', {
+              method: (title: string) => ({ title }),
+              loader: function* () { return {}; },
+            });
+            return { addTodo };
+          },
+        );
+      `,
+      'todo-page.ts': `
+        ${STUBS}
+        import { TodoStore } from './todo-store';
+        const TodoPage = craftComponent(
+          'TodoPage',
+          {},
+          function* () {
+            const store = yield* TodoStore();
+            const todoForm = yield* state(
+              'todoForm',
+              '',
+              insertForm(
+                insertFormAttributes(() => ({ validators: [] })),
+                insertFormSubmit(store.addTodo),
+              ),
+            );
+            return { store, todoForm };
+          },
+          ({ todoForm }) => form('TodoForm', {
+            *submit(event) {
+              event.preventDefault();
+              yield* todoForm.form.submit();
+            },
+          }, [
+            input('TitleInput', { value: todoForm }),
+            button('SubmitButton', { type: 'submit' }, 'Submit'),
+          ]),
+        );
+      `,
+    });
+
+    expect(inputActionFormViolations(graph.graph)).toEqual([]);
+  });
+
   it('checks routed-page, viewport and Craft HTTP happy-path coverage', async () => {
     const graph = await graphOf({
       'home-page.ts': `

@@ -35,6 +35,7 @@ const noExplicitCraftTemplateReturnType = require('./no-explicit-craft-template-
 const noExtractedCraftComponentParts = require('./no-extracted-craft-component-parts.cjs');
 const noTypeAssertionsInCraftCode = require('./no-type-assertions-in-craft-code.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
+const requireFormForInputAction = require('./require-form-for-input-action.cjs');
 const requireAssertExhaustiveRouteExceptions = require('./require-assert-exhaustive-route-exceptions.cjs');
 const requirePendingComponentDiCheck = require('./require-pending-component-di-check.cjs');
 const requireCraftExceptionHandler = require('./require-craft-exception-handler.cjs');
@@ -164,6 +165,7 @@ const plugin = {
     'no-extracted-craft-component-parts': noExtractedCraftComponentParts,
     'no-type-assertions-in-craft-code': noTypeAssertionsInCraftCode,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
+    'require-form-for-input-action': requireFormForInputAction,
     'require-assert-exhaustive-route-exceptions':
       requireAssertExhaustiveRouteExceptions,
     'require-pending-component-di-check': requirePendingComponentDiCheck,

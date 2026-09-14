@@ -107,9 +107,15 @@ non-interactive starters, configuration options, and first checks
 [SSR and hydration](/guide/advanced/ssr-hydration) ·
 [Program operators](/guide/advanced/program-operators) ·
 [Pattern matching](/guide/advanced/pattern-matching) ·
-[Observability](/guide/advanced/observability) ·
+[Observability](/guide/advanced/observability)
+
+### AI agents
+
+[AI agents overview](/guide/ai/) ·
+[Coding agents](/resources/ai-agents) ·
+[MCP tools](/guide/ai/mcp-tools) ·
 [Live page MCP](/guide/ai/dev-page) ·
-[Coding agents](/resources/ai-agents)
+[Send context to AI](/guide/ai/send-context-webhook)
 
 ## Looking for one symbol?
 

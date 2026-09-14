@@ -39,6 +39,65 @@ insertSelectFormTree(
 );
 ```
 
+## When an input drives an action
+
+The recommended ESLint preset enables
+`craft-ts/require-form-for-input-action`. It catches the common interaction
+where an input writes a local value and a button later reads that value to call
+an action such as `mutation.mutate(...)` or `asyncProcess.method(...)`. The
+dependency may be nested in a record or pass through a local variable; it does
+not have to be the only argument.
+That interaction is a form workflow, even when it currently has only one
+field:
+
+```ts
+// ❌ input state is assembled by hand and consumed by a button action
+const title = yield* state('title', '');
+
+input({ value: title, input: (event) => setTitle(eventValue(event)) });
+button({ click: () => addTodo.mutate(title()) }, 'Add');
+```
+
+Model the value and the submit boundary together instead:
+
+```ts
+// ✅ state + insertForm + form submit
+const titleForm = yield* state(
+  'titleForm',
+  '',
+  insertForm(
+    insertFormAttributes(() => ({ validators: [cRequired()] })),
+    insertFormSubmit(addTodo),
+  ),
+);
+
+form('AddTodoForm', {
+  *submit(event) {
+    event.preventDefault();
+    yield* titleForm.form.submit();
+  },
+}, [
+  input('TodoTitleInput', { type: 'text' }).pipe(
+    CraftFieldDirective(titleForm.form),
+  ),
+  button('AddTodoButton', { type: 'submit' }, 'Add'),
+]);
+```
+
+The rule is intentionally conservative: it does not report an input unless an
+action in the same Craft template consumes the input's bound value. It also
+does not replace type checking: validation, `insertFormAttributes`,
+`CraftFieldDirective`, field errors, and the exact `insertFormSubmit` wiring
+remain the form author's responsibility. The architecture check adds the
+cross-file constraint: a mutation-backed form must use `insertFormSubmit` and a
+native `type: 'submit'` button; the button must not call `mutate(...)` directly.
+
+`insertForm()` by itself is a valid form insertion, but it is only the base
+derivation. Add `insertFormAttributes` when the form has validators or field
+rules, and add `insertFormSubmit(mutation)` when the form owns a mutation
+submission. `insertSelectFormTree` is needed for fields inside an object-valued
+form; it is not needed for a scalar string form.
+
 ## Native controls, one binding rule
 
 `CraftFieldDirective` supports text inputs, checkboxes, selects and textareas.

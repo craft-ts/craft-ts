@@ -15,6 +15,12 @@ describe('coding agents docs', () => {
   const learnNext = readDoc('../learn/next.md');
   const guide = readDoc('../guide/index.md');
   const reference = readDoc('../reference/index.md');
+  const aiOverview = readDoc('../guide/ai/index.md');
+  const mcpTools = readDoc('../guide/ai/mcp-tools.md');
+  const docsConfig = readFileSync(
+    join(repoRoot, 'apps/docs/.vitepress/config.mts'),
+    'utf8',
+  );
 
   it('documents llms.txt, the MCP server, and Agent Skills', () => {
     expect(page).toContain('# Coding agents');
@@ -43,5 +49,18 @@ describe('coding agents docs', () => {
     expect(homePrompt).toContain('claude-code');
     expect(homePrompt).toContain('CraftTS skills');
     expect(homePrompt).not.toContain('Cloud Code');
+  });
+
+  it('groups agent surfaces and keeps the MCP inventory in one section', () => {
+    expect(aiOverview).toContain('# AI agents');
+    expect(aiOverview).toContain('@craft-ts/mcp');
+    expect(aiOverview).toContain('@craft-ts/function-registry-mcp');
+    expect(aiOverview).toContain('@craft-ts/log-mcp');
+    expect(aiOverview).toContain('Lucene');
+    expect(aiOverview).toContain('Context Workbook');
+    expect(mcpTools).toContain('registry.query.get');
+    expect(mcpTools).toContain('logs.search');
+    expect(docsConfig).toContain("'/guide/ai/': aiAgentsSidebar");
+    expect(docsConfig).toContain("link: '/guide/ai/mcp-tools'");
   });
 });

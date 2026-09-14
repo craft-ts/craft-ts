@@ -60,6 +60,7 @@ module.exports = {
   'craft-ts/no-explicit-craft-template-return-type': 'error',
   'craft-ts/no-extracted-craft-component-parts': 'error',
   'craft-ts/no-ephemeral-template-form-state': 'error',
+  'craft-ts/require-form-for-input-action': 'error',
   'craft-ts/template-element-name-unique': 'error',
   'craft-ts/require-primitive-context': 'error',
   'craft-ts/require-primitive-derived-property': 'error',
