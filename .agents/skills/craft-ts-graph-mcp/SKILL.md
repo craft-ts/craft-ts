@@ -33,6 +33,7 @@ Every list reports `total` and `truncated`. When `truncated` is true, say so, an
 - `graph.impact` follows the code-slice relations plus Effect service requirements and layers: what can change a node's output. It is not "every node that mentions X".
 - Ids contain absolute paths. The tools also accept the portable form (project root removed) used by `graph.report`.
 - `graph.node` with a shared `label` answers `ambiguous: true` with candidates: pick by `kind` or `location`, do not guess.
+- `graph.node` returns `doc` when the declaration has a JSDoc or `WHY:` / `NOTE:` / `HACK:` comments: quote the rationale before proposing to change the code it justifies. Incoming `documents` relations come from Markdown pages, only when `CRAFT_GRAPH_DOCS` is set.
 
 ## When nothing works
 

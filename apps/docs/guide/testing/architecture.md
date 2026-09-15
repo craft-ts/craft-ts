@@ -751,6 +751,40 @@ version. `metricThresholdViolations` returns the same findings as data.
 See [Graph insights](/guide/testing/graph-insights) for how the metrics are
 computed, the hotspot ranking and the report.
 
+## Documentation rules
+
+The graph reads the JSDoc of each declaration and, with the opt-in Markdown
+collector, the pages that cite a node. `assertNodesDocumented` turns that into
+a rule:
+
+```typescript
+import { assertNodesDocumented } from '@craft-ts/dev-tools/architecture-graph';
+import {
+  analyzeDependencyGraph,
+  createMarkdownDocsCollector,
+} from '@craft-ts/dev-tools/dependency-graph';
+
+const documented = analyzeDependencyGraph({
+  rootDir: workspaceRoot,
+  tsConfigFilePath: 'apps/shop/tsconfig.graph.json',
+  collectors: [createMarkdownDocsCollector({ include: ['docs/**/*.md'] })],
+});
+
+it('documents every service', () => {
+  assertNodesDocumented(documented, {
+    kinds: ['service'],
+    requireDocPage: true,
+    allow: ['src/legacy/**'],
+  });
+});
+```
+
+A node fails without a JSDoc summary, and with `requireDocPage` when no page
+cites it in inline code. A node without a source range is skipped: its
+documentation is unknown, not missing. `requireDocPage` refuses a graph built
+without the collector. `undocumentedNodeViolations` returns the findings as
+data.
+
 ## Writing your own rules
 
 Start from a node you care about and assert what should be true of its

@@ -82,7 +82,8 @@ graph and the HTML explorer. The report contains:
 - relations between features, when `--feature-glob` names the feature with a
   `:name` capture;
 - the violations of the rules `assertArchitecture` enforces, grouped by rule;
-- coverage per route, when a coverage report is applied with `--coverage`.
+- coverage per route, when a coverage report is applied with `--coverage`;
+- documentation per kind, when JSDoc or Markdown pages were collected.
 
 Every section is sorted and every id is relative to the root, so two reports of
 the same code are identical whatever the checkout path. Commit the Markdown file
@@ -129,10 +130,58 @@ const covered = applyCoverage(graph, JSON.parse(readFileSync(reportPath, 'utf8')
 routeCoverage(covered); // [{ label, statements, covered, unknownNodes, … }]
 ```
 
+## Documentation
+
+Each node carries a `doc` field when its declaration has something to say:
+
+```typescript
+/**
+ * Loads and caches the signed-in user.
+ * @remarks Shared by every page.
+ */
+export const { injectUserService } = craftService(/* … */, function* () {
+  // WHY: the session expires silently, so reload on focus.
+  const user = yield* query(/* … */);
+});
+```
+
+- `summary` and `tags` come from the JSDoc of the declaration, or of the
+  statement around it (`export const x = craftQuery(…)`).
+- `rationale` collects the `// WHY:`, `// NOTE:` and `// HACK:` comments, each
+  credited to the innermost node that contains it: the comment above `user`
+  belongs to the query, not to the service.
+
+Markdown pages join the graph through an opt-in collector, from the CLI with
+`--docs 'docs/**/*.md'` (repeatable) or in code with
+`createMarkdownDocsCollector({ include })`. Each page becomes a `doc-page` node
+labelled by its first heading. A page `documents` a node when it cites the
+node's label in inline code — `` `UserService` `` — and that label names exactly
+one route, component, service or primitive. A label shared by several nodes
+produces a `markdown-docs/CRAFT_GRAPH_DOC_AMBIGUOUS` diagnostic and no relation.
+Fenced code blocks are ignored.
+
+See [Documentation rules](/guide/testing/architecture#documentation-rules) to
+require them.
+
 ## Thresholds
 
 Metrics become rules with `assertMetricThresholds`, opt-in and scoped by kind.
 See [Metric thresholds](/guide/testing/architecture#metric-thresholds).
+
+## Explorer
+
+`craft graph --format html` (or `all`) writes a self-contained explorer. On top
+of the route view it shows:
+
+- in the details panel, the node's metrics, coverage, JSDoc, justification
+  comments and the pages that document it — unknown values read "inconnu",
+  never `0`;
+- a heat map selector (complexity, fan-in, coverage) that colours the node
+  cards, with a striped pattern for unknown values;
+- "path from" and "path to" buttons that highlight the shortest chain of
+  relations between two nodes, following their direction;
+- the ten hotspots in the sidebar, and their count next to the uncovered nodes
+  in the header.
 
 ## Agents
 

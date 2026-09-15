@@ -157,6 +157,7 @@ was built, `unknown` when no tsconfig is available to check. An agent calls
 | `CRAFT_GRAPH_TSCONFIG` | First of `tsconfig.graph.json`, `tsconfig.app.json`, `tsconfig.json` |
 | `CRAFT_GRAPH_FILE`     | `craft-dependency-graph.json`                                         |
 | `CRAFT_GRAPH_COVERAGE` | Unset; a `coverage-final.json` to attach coverage per node and route  |
+| `CRAFT_GRAPH_DOCS`     | Unset; comma-separated Markdown globs linked to the nodes they cite   |
 | `CRAFT_GRAPH_READONLY` | Unset; `1` removes `graph.rebuild`, for CI or shared environments     |
 
 All tools except `graph.rebuild` are read-only, and `graph.rebuild` only writes

@@ -37,6 +37,7 @@ claude mcp add craft-ts-graph -- npx craft-ts-graph-mcp
 | `CRAFT_GRAPH_TSCONFIG` | First of `tsconfig.graph.json`, `tsconfig.app.json`, `tsconfig.json`. |
 | `CRAFT_GRAPH_FILE`     | `craft-dependency-graph.json`, relative to the root.            |
 | `CRAFT_GRAPH_COVERAGE` | Unset. An Istanbul `coverage-final.json`: coverage per node, and per route in `graph.report`. |
+| `CRAFT_GRAPH_DOCS`     | Unset. Comma-separated Markdown globs, e.g. `docs/**/*.md`: pages become `doc-page` nodes linked to what they cite. |
 | `CRAFT_GRAPH_READONLY` | Unset. `1` hides `graph.rebuild`: the server only reads.        |
 
 Write the graph file with `craft graph --format all` (it also writes the

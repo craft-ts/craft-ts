@@ -225,6 +225,11 @@ fan-out count the nodes of your collector too, so a typed relation shows up in
 the [hotspots](/guide/testing/graph-insights#hotspots). `graphHash` still reads
 only node ids and relations, so the metrics never move it.
 
+Nodes may also carry `doc` (`summary`, `tags`, `rationale`) read from their
+declaration. The opt-in Markdown collector adds `doc-page` nodes and `documents`
+relations; both are part of the built-in vocabulary, so a renderer or a rule can
+rely on them without augmenting the registries.
+
 When the vocabulary changes, regenerate the committed architecture catalog and
 run the architecture suite:
 

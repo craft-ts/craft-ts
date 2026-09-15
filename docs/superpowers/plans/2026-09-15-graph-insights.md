@@ -1,7 +1,8 @@
 # Graphe CraftTS enrichi : métriques, rapport, couverture, documentation, explorateur et MCP — plan d'implémentation
 
 > **État au 15 septembre 2026 : en cours** sur la branche `feat/graph-insights`.
-> Lot A livré. Questions ouvertes tranchées : formule des points chauds
+> Lots A à G livrés (A → B → F → C → D → E, documentation au fil de l'eau).
+> Questions ouvertes tranchées : formule des points chauds
 > inchangée ; `graph.rebuild` désactivable par `CRAFT_GRAPH_READONLY=1`.
 
 ## Contexte
@@ -343,6 +344,24 @@ partiellement inconnue.
 **Tests** : projet temporaire avec JSDoc, commentaire `WHY`, pages Markdown dont
 une ambiguë.
 
+**Fait (15 septembre 2026).** Précisions :
+
+- Module `graph-docs.ts`. La JSDoc se lit en remontant les seuls « emballages »
+  de déclaration (`VariableStatement`, `yield*`, `as`, `PropertyAssignment`…) :
+  un élément de gabarit n'hérite jamais de la JSDoc de son composant. Les tags
+  se lisent sur leur texte (`@see X` porte `X` comme nom, pas comme commentaire).
+- Les commentaires `WHY:` / `NOTE:` / `HACK:` viennent des plages de commentaires
+  du scanner TypeScript (pas de regex sur le texte) et sont attribués au nœud le
+  plus interne dont la déclaration, commentaires du dessus compris, les contient
+  — même `createInnermostLocator` que les métriques.
+- Le contrat `collectors` préfixe les codes : le diagnostic effectif est
+  `markdown-docs/CRAFT_GRAPH_DOC_AMBIGUOUS`.
+- `doc-page` est exclu des diagnostics « inconnu » des métriques et de la
+  couverture (`NON_CODE_KINDS`) : ce n'est pas du code.
+- `undocumentedNodeViolations` ignore les nœuds sans étendue (documentation
+  inconnue) ; `assertNodesDocumented` refuse `requireDocPage` sans collecteur.
+- Le rapport gagne une section « Documentation » par kind.
+
 ## Lot E — Explorateur HTML (10)
 
 Dans `dependencyGraphToHtml`
@@ -364,6 +383,20 @@ en gardant un fichier autonome, sans ressource externe :
 **Tests** : assertions sur le HTML généré dans `dependency-graph.spec.ts`
 (données sérialisées, présence des contrôles) ; vérification visuelle dans le
 navigateur sur le graphe de `apps/demo`.
+
+**Fait (15 septembre 2026).** Précisions :
+
+- Spec séparée `dependency-graph-html.spec.ts`, qui vérifie aussi que le script
+  embarqué se parse (`new Function`) : le JS vit dans un gabarit TypeScript, où
+  un backtick ou un `${` casserait la page sans erreur de compilation.
+- Points chauds calculés côté Node (`graphHotspots`, 10 premiers, éléments de
+  gabarit exclus) et embarqués (`HOTSPOTS`) ; carte de chaleur en échelle
+  logarithmique pour la complexité, linéaire pour le fan-in, `1 − couverture`
+  pour la couverture ; motif rayé pour l'inconnu ; option « Couverture »
+  désactivée sans rapport de couverture.
+- Recherche de chemin : parcours en largeur dans le sens des relations (même
+  sémantique que `dependencyGraphPathsBetween`), plus court chemin surligné sur
+  les cartes et les arêtes, étapes cliquables dans le panneau.
 
 ## Lot F — MCP graphe pour les projets externes (7)
 
