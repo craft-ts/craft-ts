@@ -25,6 +25,12 @@ import {
   collectEffectServiceUsage,
 } from './effect-dependency-graph.js';
 import { collectDataFlowGraph } from './data-flow-graph.js';
+import {
+  attachNodeMetrics,
+  cyclomaticDecisionPoints,
+  type DependencyGraphNodeMetrics,
+  type NodeSourceSpan,
+} from './graph-metrics.js';
 
 /**
  * The graph's built-in vocabulary.  Values are deliberately detail records
@@ -79,6 +85,7 @@ export type DependencyGraphNodeFor<
   line?: number;
   endLine?: number;
   sourceHash?: string;
+  metrics?: DependencyGraphNodeMetrics;
   details?: DependencyGraphNodeRegistry[K];
 };
 
@@ -160,6 +167,11 @@ export type DependencyGraphNode = {
    * a line number alone.
    */
   sourceHash?: string;
+  /**
+   * Complexity, size and coupling, computed after every collector has run.
+   * Metadata, never hashed: `graphHash` only reads ids and relations.
+   */
+  metrics?: DependencyGraphNodeMetrics;
   details?: Record<string, unknown>;
 };
 
@@ -415,6 +427,8 @@ type GraphBuilder = {
   componentsByVariableName: Map<string, ComponentInfo[]>;
   diagnostics: DependencyGraphDiagnostic[];
   middlewareCapabilities: Readonly<Record<string, readonly string[]>>;
+  /** Source offsets of the nodes that have one. Kept out of the JSON. */
+  spans: Map<string, NodeSourceSpan>;
 };
 
 export function analyzeDependencyGraph(
@@ -451,6 +465,7 @@ export function analyzeDependencyGraph(
     componentsByVariableName: new Map(),
     diagnostics: [],
     middlewareCapabilities: options.middlewareCapabilities ?? {},
+    spans: new Map(),
   };
 
   const sourceFiles = project
@@ -510,6 +525,12 @@ export function analyzeDependencyGraph(
     `${left.from}:${left.kind}:${left.to}`.localeCompare(
       `${right.from}:${right.kind}:${right.to}`,
     ),
+  );
+  builder.diagnostics.push(
+    ...attachNodeMetrics(builder.graph, builder.spans, (filePath) => {
+      const sourceFile = project.getSourceFile(filePath);
+      return sourceFile ? cyclomaticDecisionPoints(sourceFile) : [];
+    }),
   );
   if (builder.diagnostics.length > 0) {
     builder.graph.diagnostics = [...builder.diagnostics];
@@ -1504,7 +1525,7 @@ function collectAppConfigs(
             globalErrorComponent: appConfigComponentName(globalErrorCall),
             routeLoadErrorComponent: appConfigComponentName(routeLoadErrorCall),
           },
-        }),
+        }, object),
         sourceFile,
         object,
       });
@@ -1644,6 +1665,7 @@ function collectRouteChecks(builder: GraphBuilder): void {
           alias.getName(),
           'CanRun',
           alias.getStartLineNumber(),
+          alias,
         );
         const innerNode = typeNode.getTypeArguments()[0];
         if (!innerNode) continue;
@@ -1665,6 +1687,9 @@ function collectRouteChecks(builder: GraphBuilder): void {
           mapperName,
           inner.mechanism,
           alias.getStartLineNumber(),
+          // A synthesised mapper shares the CanRun alias: only a named alias
+          // has a range of its own.
+          aliases.get(mapperName),
         );
         addEdge(builder, canRun.id, mapper.id, 'contains', 'ast');
         linkMapperToRoutes(builder, mapper.id, inner, routes);
@@ -1680,6 +1705,7 @@ function collectRouteChecks(builder: GraphBuilder): void {
         alias.getName(),
         resolved.mechanism,
         alias.getStartLineNumber(),
+        alias,
       );
       linkMapperToRoutes(builder, mapper.id, resolved, routes);
       linkMapperToAppConfig(builder, mapper.id, resolved, appConfig);
@@ -3116,7 +3142,7 @@ function analyzeRoutes(builder: GraphBuilder): void {
           label: `${route.node.label}.${name}`,
           filePath: route.sourceFile.getFilePath(),
           line: property.getStartLineNumber(),
-        });
+        }, property);
         addEdge(builder, route.node.id, hook.id, 'contains', 'ast');
         collectRouteHookServiceDependencies(builder, hook.id, property);
       }
@@ -5699,14 +5725,30 @@ function addNode(
         `Dependency graph node identity collision for "${node.id}": ${existing.kind}/${existing.label} versus ${node.kind}/${node.label}.`,
       );
     }
-    if (existing.sourceHash === undefined && span.sourceHash !== undefined) {
+    if (existing.sourceHash === undefined && source) {
       Object.assign(existing, span);
+      recordSourceSpan(builder, existing.id, source);
     }
     return existing;
   }
   const created = { ...node, ...span };
   builder.nodes.set(created.id, created);
+  if (source) recordSourceSpan(builder, created.id, source);
   return created;
+}
+
+function recordSourceSpan(
+  builder: GraphBuilder,
+  id: string,
+  source: Node,
+): void {
+  builder.spans.set(id, {
+    filePath: source.getSourceFile().getFilePath(),
+    start: source.getStart(),
+    end: source.getEnd(),
+    startLine: source.getStartLineNumber(),
+    endLine: source.getEndLineNumber(),
+  });
 }
 
 function mergeCollectorContribution(
@@ -6062,7 +6104,7 @@ function collectServerFunctions(
             ? { middlewareUses: [...part.middlewareUses] }
             : {}),
         },
-      });
+      }, part.sourceFile);
       addEdge(builder, familyNode.id, node.id, 'contains', 'ast');
 
       for (const imported of part.runtimeServerImports ?? []) {
@@ -6240,6 +6282,7 @@ function chainedCallObjectKeys(call: CallExpression, method: string): string[] {
 type ServerFunctionMiddlewarePart = {
   readonly sourceFile: SourceFile;
   readonly variableName: string;
+  readonly declaration: VariableDeclaration;
   readonly id?: string;
   readonly uses: readonly string[];
   readonly line: number;
@@ -6289,7 +6332,7 @@ function collectServerFunctionMiddlewares(
             ...(part.id === undefined ? {} : { middlewareId: part.id }),
             middlewareName: part.variableName,
           },
-        });
+        }, part.declaration);
         continue;
       }
       registry.set(
@@ -6328,7 +6371,7 @@ function collectServerFunctionMiddlewares(
             }
           : {}),
       },
-    });
+    }, part.declaration);
   }
 
   for (const part of registry.values()) {
@@ -6418,7 +6461,7 @@ function collectClientFunctionMiddlewares(
             ...(part.id === undefined ? {} : { middlewareId: part.id }),
             middlewareName: part.variableName,
           },
-        });
+        }, part.declaration);
         continue;
       }
       registry.set(
@@ -6459,7 +6502,7 @@ function collectClientFunctionMiddlewares(
           ? { unusedClientContextKeys: unused }
           : {}),
       },
-    });
+    }, part.declaration);
   }
 
   for (const part of registry.values()) {
@@ -6516,6 +6559,7 @@ function collectClientFunctionMiddlewares(
 type HandshakePart = {
   readonly sourceFile: SourceFile;
   readonly variableName: string;
+  readonly declaration: VariableDeclaration;
   readonly name?: string;
   readonly line: number;
 };
@@ -6557,6 +6601,7 @@ function collectHandshakes(
         {
           sourceFile,
           variableName: declaration.getName(),
+          declaration,
           ...(name === undefined ? {} : { name }),
           line: declaration.getStartLineNumber(),
         },
@@ -6597,7 +6642,7 @@ function collectHandshakes(
         ...(reached.server.length ? { serverSites: reached.server } : {}),
         ...(reached.client.length ? { clientSites: reached.client } : {}),
       },
-    });
+    }, part.declaration);
   }
 }
 
@@ -6820,6 +6865,7 @@ function findCraftMiddlewares(
       parts.push({
         sourceFile,
         variableName: declaration.getName(),
+        declaration,
         ...(name === undefined ? {} : { id: name }),
         uses: [],
         line: declaration.getStartLineNumber(),
@@ -6851,6 +6897,7 @@ function findCraftMiddlewares(
       parts.push({
         sourceFile,
         variableName: declaration.getName(),
+        declaration,
         ...(layerId === undefined ? {} : { id: layerId }),
         uses: [],
         line: declaration.getStartLineNumber(),
@@ -6887,6 +6934,7 @@ function findCraftMiddlewares(
     parts.push({
       sourceFile,
       variableName: declaration.getName(),
+      declaration,
       ...(id === undefined ? {} : { id }),
       uses: [
         ...chainedCallArguments(call, 'use'),

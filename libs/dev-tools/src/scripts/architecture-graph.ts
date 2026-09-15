@@ -1883,6 +1883,114 @@ export function assertPathBoundaries(
   );
 }
 
+export type NodeMetricName =
+  | 'cyclomaticOwn'
+  | 'cyclomaticTotal'
+  | 'lines'
+  | 'fanIn'
+  | 'fanOut';
+
+const NODE_METRIC_NAMES: readonly NodeMetricName[] = [
+  'cyclomaticOwn',
+  'cyclomaticTotal',
+  'lines',
+  'fanIn',
+  'fanOut',
+];
+
+export type MetricThresholdOptions = {
+  /** Inclusive maximum per metric. A metric left out is not checked. */
+  max: Partial<Record<NodeMetricName, number>>;
+  /** Restricts the check to these node kinds. Defaults to every kind. */
+  kinds?: readonly DependencyGraphNodeKind[];
+  /**
+   * Exempted nodes: a node id, a node label, or a glob matched against the
+   * repository-relative file path (`src/legacy/**`).
+   */
+  allow?: readonly string[];
+};
+
+export type MetricThresholdViolation = {
+  nodeId: string;
+  kind: DependencyGraphNodeKind;
+  label: string;
+  filePath: string;
+  line: number;
+  metric: NodeMetricName;
+  value: number;
+  max: number;
+};
+
+/**
+ * Nodes above a metric threshold.
+ *
+ * A metric the graph could not compute is skipped: an unknown complexity can
+ * neither pass nor fail a threshold, and reporting it as `0` would let it pass
+ * in silence. `graph.diagnostics` lists the unmeasured kinds.
+ */
+export function metricThresholdViolations(
+  graph: DependencyGraph,
+  options: MetricThresholdOptions,
+): MetricThresholdViolation[] {
+  const kinds = options.kinds && new Set(options.kinds);
+  const allow = options.allow ?? [];
+  const violations: MetricThresholdViolation[] = [];
+  for (const node of graph.nodes) {
+    if (kinds && !kinds.has(node.kind)) continue;
+    const path = relativeGraphPath(graph, node.filePath);
+    if (
+      allow.some(
+        (entry) =>
+          entry === node.id ||
+          entry === node.label ||
+          (path !== undefined && matchPathGlob(entry, path) !== null),
+      )
+    ) {
+      continue;
+    }
+    for (const metric of NODE_METRIC_NAMES) {
+      const max = options.max[metric];
+      const value = node.metrics?.[metric];
+      if (max === undefined || value === undefined || value <= max) continue;
+      violations.push({
+        nodeId: node.id,
+        kind: node.kind,
+        label: node.label,
+        filePath: path ?? node.filePath ?? '',
+        line: node.line ?? 0,
+        metric,
+        value,
+        max,
+      });
+    }
+  }
+  return violations;
+}
+
+export function assertMetricThresholds(
+  graph: DependencyGraph,
+  options: MetricThresholdOptions,
+): void {
+  if (
+    graph.nodes.length > 0 &&
+    graph.nodes.every((node) => node.metrics === undefined)
+  ) {
+    throw new Error(
+      'Metric thresholds: this graph carries no metrics. Rebuild it with a @craft-ts/dev-tools version that computes them.',
+    );
+  }
+  const violations = metricThresholdViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          `Metric threshold: ${violation.kind} ${violation.label} has ${violation.metric} ${violation.value} > ${violation.max} (${violation.filePath}:${violation.line}).`,
+      )
+      .join('\n'),
+  );
+}
+
 export type MutationReactOnOptions = {
   allow?: readonly string[];
 };
@@ -3678,7 +3786,15 @@ function globToRegExp(
   return new RegExp(source);
 }
 
-function matchPathGlob(
+/**
+ * Matches a repository-relative path against a boundary glob.
+ *
+ * `**` crosses directories, `*` does not, and `:name` captures one segment.
+ * Returns the captures on a match — `{}` when the pattern has none — and
+ * `null` otherwise. Pass `captures` to require a segment to equal a value
+ * captured earlier (`src/features/:feature/**`).
+ */
+export function matchPathGlob(
   pattern: string,
   path: string,
   captures: Readonly<Record<string, string>> = {},

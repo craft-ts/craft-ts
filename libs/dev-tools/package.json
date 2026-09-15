@@ -53,6 +53,10 @@
       "types": "./src/scripts/architecture-graph.d.ts",
       "default": "./src/scripts/architecture-graph.js"
     },
+    "./graph-metrics": {
+      "types": "./src/scripts/graph-metrics.d.ts",
+      "default": "./src/scripts/graph-metrics.js"
+    },
     "./scripts/code-slice.js": {
       "types": "./src/scripts/code-slice.d.ts",
       "default": "./src/scripts/code-slice.js"
