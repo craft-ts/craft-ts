@@ -724,6 +724,33 @@ it('requires a unique literal data-craft-name on every interactive element', () 
 });
 ```
 
+## Metric thresholds
+
+Every node of the graph carries `metrics`: cyclomatic complexity (its own and
+with everything it contains), line count, fan-in and fan-out. No threshold
+applies by default; put the ones your team agrees on in the suite:
+
+```typescript
+import { assertMetricThresholds } from '@craft-ts/dev-tools/architecture-graph';
+
+it('keeps services and primitives small', () => {
+  assertMetricThresholds(graph.graph, {
+    kinds: ['service', 'primitive'],
+    max: { cyclomaticOwn: 15, fanOut: 12 },
+    allow: ['src/legacy/**', 'ReportingService'],
+  });
+});
+```
+
+`allow` takes node ids, labels, or path globs. A metric the graph could not
+compute — a node without a source range — is skipped, never treated as `0`;
+`graph.diagnostics` lists the unmeasured kinds. The assertion refuses a graph
+that carries no metrics at all, such as a JSON file written by an older
+version. `metricThresholdViolations` returns the same findings as data.
+
+See [Graph insights](/guide/testing/graph-insights) for how the metrics are
+computed, the hotspot ranking and the report.
+
 ## Writing your own rules
 
 Start from a node you care about and assert what should be true of its
@@ -808,9 +835,12 @@ npx craft-graph \
 | `mermaid`  | a `.mmd` diagram                              |
 | `html`     | a standalone explorer (no server, no runtime) |
 | `both`     | JSON + catalog + Mermaid                      |
-| `all`      | JSON + catalog + Mermaid + HTML               |
+| `all`      | JSON + catalog + Mermaid + HTML + report      |
+| `report`   | `.report.md` and `.report.json`               |
 
-`--include <text>` restricts analysis to matching source paths. Use the HTML
+`--include <text>` restricts analysis to matching source paths.
+`--feature-glob` and `--churn-since` shape the
+[report](/guide/testing/graph-insights#report). Use the HTML
 explorer to see a route expand into components and services before you write
 the assertion.
 

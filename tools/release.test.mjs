@@ -146,6 +146,7 @@ test('release PRs are limited to manifests and changelog', () => {
     'libs/deploy/package.json',
     'libs/dev-tools/package.json',
     'libs/effect/package.json',
+    'libs/graph-mcp/package.json',
     'libs/i18n-effect/package.json',
     'libs/i18n/package.json',
     'libs/review-attestation/package.json',
@@ -276,6 +277,7 @@ test('releases all public CraftTS packages as one fixed group', () => {
       '@craft-ts/log-server',
       '@craft-ts/log-mcp',
       '@craft-ts/function-registry-mcp',
+      '@craft-ts/graph-mcp',
     ],
   );
 });

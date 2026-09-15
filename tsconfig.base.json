@@ -44,6 +44,18 @@
       "@craft-ts/dev-tools/style-report": [
         "./libs/dev-tools/src/scripts/style-report.ts"
       ],
+      "@craft-ts/dev-tools/dependency-graph": [
+        "./libs/dev-tools/src/scripts/dependency-graph.ts"
+      ],
+      "@craft-ts/dev-tools/architecture-graph": [
+        "./libs/dev-tools/src/scripts/architecture-graph.ts"
+      ],
+      "@craft-ts/dev-tools/graph-metrics": [
+        "./libs/dev-tools/src/scripts/graph-metrics.ts"
+      ],
+      "@craft-ts/dev-tools/graph-report": [
+        "./libs/dev-tools/src/scripts/graph-report.ts"
+      ],
       "@craft-ts/dev-tools/*": ["./libs/dev-tools/src/*"],
       "@craft-ts/dev-tools/testing": ["./libs/dev-tools/src/testing.ts"],
       "@craft-ts/dev-tools/template-migration": [

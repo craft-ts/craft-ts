@@ -26,6 +26,7 @@
     "registry:mcp": "npm run start --workspace @craft-ts/function-registry-mcp",
     "logs:server": "npm run start --workspace @craft-ts/log-server",
     "logs:mcp": "npm run start --workspace @craft-ts/log-mcp",
+    "graph:mcp": "npx tsx libs/graph-mcp/src/main.ts",
     "craft:mcp": "npm run start --workspace @craft-ts/mcp",
     "update:effect-ts": "node tools/update-references.mjs",
     "update:references": "node tools/update-references.mjs",

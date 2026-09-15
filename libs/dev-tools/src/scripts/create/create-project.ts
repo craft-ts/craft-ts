@@ -156,7 +156,9 @@ bootstrapCraft.
    those checks pass and only when the browser flow changed.
 9. Keep the generated development surface enabled: 'npm run logs:server'
    stores Craft 'Console.*' entries locally, 'npm run logs:mcp' exposes them
-   to an MCP client, and 'npm run registry:mcp' exposes the named page surface.
+   to an MCP client, 'npm run graph:mcp' answers architecture questions from
+   the static dependency graph (nodes, paths, impact, hotspots, violations),
+   and 'npm run registry:mcp' exposes the named page surface.
    Do not replace 'Console.*' with raw 'console.*' when an entry must be
    searchable through the log MCP server.
 
@@ -378,6 +380,7 @@ function packageJson(context: TemplateContext): string {
       e2e: 'playwright test',
       'logs:server': 'craft-ts-log-server',
       'logs:mcp': 'craft-ts-log-mcp',
+      'graph:mcp': 'craft-ts-graph-mcp',
       'registry:mcp': 'craft-ts-registry-mcp',
       ...(hasAttest
         ? {
@@ -437,6 +440,7 @@ function packageJson(context: TemplateContext): string {
       '@craft-ts/mcp': craftPackage(),
       '@craft-ts/function-registry-mcp': craftPackage(),
       '@craft-ts/log-mcp': craftPackage(),
+      '@craft-ts/graph-mcp': craftPackage(),
       '@craft-ts/log-server': craftPackage(),
       ...(hasAttest ? { '@craft-ts/cli': craftPackage() } : {}),
       ...(hasEffect ? { effect: effectPackage } : {}),
@@ -2912,6 +2916,7 @@ const mcpConfig = `{
   "mcpServers": {
     "craft-ts": { "command": "npx", "args": ["craft-ts-mcp"] },
     "craft-ts-logs": { "command": "npx", "args": ["craft-ts-log-mcp"] },
+    "craft-ts-graph": { "command": "npx", "args": ["craft-ts-graph-mcp"] },
     "craft-ts-registry": { "command": "npx", "args": ["craft-ts-registry-mcp"] }
   }
 }
@@ -3027,8 +3032,10 @@ function readme(context: TemplateContext): string {
     '## MCP',
     '',
     'The generated .mcp.json registers the Craft documentation server, the local',
-    'log reader and the browser registry/page server. Start logs:server and',
-    'registry:mcp when using the corresponding MCP tools.',
+    'log reader, the dependency graph server and the browser registry/page server.',
+    'Start logs:server and registry:mcp when using the corresponding MCP tools.',
+    'The graph server needs nothing running: it reads craft-dependency-graph.json',
+    'or analyses the TypeScript program, and tells the agent when it is stale.',
     '',
     '## Verify',
     '',

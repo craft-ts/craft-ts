@@ -420,6 +420,31 @@ Dans [create-project.ts](../../../libs/dev-tools/src/scripts/create/create-proje
 
 Pour un projet existant : extrait `.mcp.json` à copier, documenté au lot G.
 
+**Fait (15 septembre 2026).** Écarts :
+
+- **Emplacement `libs/graph-mcp`, pas `packages/graph-mcp`.** `@craft-ts/dev-tools`
+  n'est pas un workspace npm : un paquet sous `packages/*` (glob des workspaces)
+  ne pouvait l'importer qu'en tirant la version publiée, sans les nouvelles API.
+  Le modèle suivi est celui de `libs/cli` : projet nx `@nx/js:tsc`, référence
+  `tsconfig` vers `dev-tools`, sortie `dist/libs/graph-mcp` (`distRoot` de la
+  release). Script racine `graph:mcp` : `npx tsx libs/graph-mcp/src/main.ts`,
+  comme les autres binaires de `libs/`.
+- Chemins explicites ajoutés à `tsconfig.base.json` pour
+  `@craft-ts/dev-tools/{dependency-graph,architecture-graph,graph-metrics,graph-report}` :
+  le joker `@craft-ts/dev-tools/*` pointe vers `src/*`, pas `src/scripts/*`.
+- `CRAFT_GRAPH_READONLY=1` **masque** `graph.rebuild` (et `GraphStore.rebuild`
+  lève) : un agent ne voit pas un outil qu'il ne peut pas utiliser.
+- `stale` vaut `true`, `false` ou `'unknown'` (pas de tsconfig pour lister le
+  programme) : inconnu n'est pas « frais ». Liste des fichiers via
+  `ts.parseJsonConfigFileContent`, sans parser le programme.
+- `graph.path` calcule d'abord la distance la plus courte (parcours en largeur),
+  puis appelle `dependencyGraphPathsBetween` avec cette profondeur : l'énumération
+  de tous les chemins simples jusqu'à 32 explose sur `apps/demo`.
+- `graph.hotspots` et `graph.report` passent par `graphReport` (mêmes kinds par
+  défaut) ; `churnSince` lance `git` dans le store.
+- Les outils acceptent l'id complet ou sa forme portable (celle du rapport).
+- `CRAFT_GRAPH_COVERAGE` et `CRAFT_GRAPH_DOCS` arriveront avec les lots C et D.
+
 ### F6. Skill agent
 
 `.agents/skills/craft-ts-graph-mcp/SKILL.md`, sur le modèle de

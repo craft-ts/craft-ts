@@ -217,6 +217,14 @@ renderers display the kind and label as a fallback; they do not discard the
 node. A backend-specific renderer or architecture rule can consume the typed
 details through declaration merging.
 
+The format stays `version: 1` and every addition is an optional field. Nodes
+carry `metrics` (`cyclomaticOwn`, `cyclomaticTotal`, `lines`, `fanIn`,
+`fanOut`), computed after every collector has run. A node without `endLine` has
+no complexity or line count: those fields are absent, not `0`. Fan-in and
+fan-out count the nodes of your collector too, so a typed relation shows up in
+the [hotspots](/guide/testing/graph-insights#hotspots). `graphHash` still reads
+only node ids and relations, so the metrics never move it.
+
 When the vocabulary changes, regenerate the committed architecture catalog and
 run the architecture suite:
 

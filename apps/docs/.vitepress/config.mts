@@ -320,6 +320,7 @@ const guideSidebar = [
         text: 'Extensible architecture graph',
         link: '/guide/testing/extensible-architecture-graph',
       },
+      { text: 'Graph insights', link: '/guide/testing/graph-insights' },
       { text: 'Craft graph vs Nx', link: '/guide/testing/craft-graph-vs-nx' },
     ],
   },

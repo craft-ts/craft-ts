@@ -6,6 +6,7 @@ import { analyzeDependencyGraph } from './dependency-graph';
 import {
   createSliceIndex,
   fingerprintOf,
+  impactOf,
   merkleRoot,
   portableNodeId,
   sliceChange,
@@ -58,6 +59,42 @@ async function fixture(files: Record<string, string>): Promise<string> {
 
 const analyze = (rootDir: string) =>
   analyzeDependencyGraph({ rootDir, tsConfigFilePath: 'tsconfig.json' });
+
+describe('impactOf', () => {
+  it('returns every node whose slice contains the node, following the same relations', () => {
+    const index = createSliceIndex(
+      {
+        version: 1,
+        rootDir: '/',
+        tsConfigFilePath: '/tsconfig.json',
+        nodes: ['route', 'page', 'service', 'store', 'writer', 'unrelated'].map(
+          (id) => ({ id, kind: 'component', label: id }),
+        ),
+        edges: [
+          { from: 'route', to: 'page', kind: 'loads', evidence: 'ast' },
+          { from: 'page', to: 'service', kind: 'depends-on', evidence: 'type' },
+          { from: 'service', to: 'store', kind: 'contains', evidence: 'ast' },
+          // `writer writes store`: store's slice reaches back to writer.
+          { from: 'writer', to: 'store', kind: 'writes', evidence: 'ast' },
+          { from: 'unrelated', to: 'page', kind: 'checks', evidence: 'ast' },
+        ],
+      },
+      { readFile: () => '' },
+    );
+
+    expect(impactOf(index, 'store')).toEqual(['page', 'route', 'service', 'store']);
+    expect(impactOf(index, 'writer')).toEqual([
+      'page',
+      'route',
+      'service',
+      'store',
+      'writer',
+    ]);
+    for (const id of impactOf(index, 'service')) {
+      expect(sliceOf(index, id).nodes).toContain('service');
+    }
+  });
+});
 
 const idsOf = (rootDir: string) =>
   analyze(rootDir)

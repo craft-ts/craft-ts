@@ -118,6 +118,13 @@ export const releasePackages = [
     sourceManifest: 'packages/function-registry-mcp/package.json',
     distRoot: 'packages/function-registry-mcp',
   },
+  {
+    key: 'graph_mcp',
+    name: '@craft-ts/graph-mcp',
+    project: 'graph-mcp',
+    sourceManifest: 'libs/graph-mcp/package.json',
+    distRoot: 'dist/libs/graph-mcp',
+  },
 ];
 
 export const releaseTrackedFiles = [

@@ -327,12 +327,14 @@ describe('createCraftProject', () => {
       typecheck: 'node scripts/typecheck.mjs',
       'logs:server': 'craft-ts-log-server',
       'logs:mcp': 'craft-ts-log-mcp',
+      'graph:mcp': 'craft-ts-graph-mcp',
       'registry:mcp': 'craft-ts-registry-mcp',
     });
     expect(packageJson.scripts['attest:check']).toBeUndefined();
     expect(packageJson.devDependencies['@craft-ts/cli']).toBeUndefined();
     expect(packageJson.devDependencies['@craft-ts/log-server']).toBeDefined();
     expect(packageJson.devDependencies['@craft-ts/log-mcp']).toBeDefined();
+    expect(packageJson.devDependencies['@craft-ts/graph-mcp']).toBeDefined();
     expect(
       packageJson.devDependencies['@craft-ts/function-registry-mcp'],
     ).toBeDefined();
@@ -345,6 +347,9 @@ describe('createCraftProject', () => {
     expect(
       await readFile(join(result.directory, '.mcp.json'), 'utf8'),
     ).toContain('craft-ts-logs');
+    expect(
+      await readFile(join(result.directory, '.mcp.json'), 'utf8'),
+    ).toContain('"craft-ts-graph": { "command": "npx", "args": ["craft-ts-graph-mcp"] }');
     expect(
       await readFile(
         join(result.directory, '.github/workflows/ci.yml'),
