@@ -9,6 +9,7 @@ import {
 import { dirname, resolve } from 'node:path';
 import {
   analyzeDependencyGraph,
+  createMarkdownDocsCollector,
   type AnalyzeDependencyGraphOptions,
   type DependencyGraph,
 } from '@craft-ts/dev-tools/dependency-graph';
@@ -45,6 +46,8 @@ export type GraphStoreOptions = {
   readonly readonly: boolean;
   /** Absolute path of an Istanbul `coverage-final.json`, applied on every load. */
   readonly coverageFile?: string;
+  /** Markdown globs linked to nodes when the graph is analysed. */
+  readonly docs?: readonly string[];
   /** Replaces the analysis, for tests. */
   readonly analyze?: (options: AnalyzeDependencyGraphOptions) => DependencyGraph;
 };
@@ -71,6 +74,14 @@ export function graphStoreOptionsFromEnv(
     readonly: truthy(env['CRAFT_GRAPH_READONLY']),
     ...(env['CRAFT_GRAPH_COVERAGE']
       ? { coverageFile: resolve(rootDir, env['CRAFT_GRAPH_COVERAGE']) }
+      : {}),
+    ...(env['CRAFT_GRAPH_DOCS']
+      ? {
+          docs: env['CRAFT_GRAPH_DOCS']
+            .split(',')
+            .map((glob) => glob.trim())
+            .filter(Boolean),
+        }
       : {}),
   };
 }
@@ -226,7 +237,19 @@ export class GraphStore {
     const builtAt = Date.now();
     const analyze = this.options.analyze ?? analyzeDependencyGraph;
     return {
-      graph: this.#withCoverage(analyze({ rootDir, tsConfigFilePath })),
+      graph: this.#withCoverage(
+        analyze({
+          rootDir,
+          tsConfigFilePath,
+          ...(this.options.docs?.length
+            ? {
+                collectors: [
+                  createMarkdownDocsCollector({ include: this.options.docs }),
+                ],
+              }
+            : {}),
+        }),
+      ),
       source: 'analysis',
       builtAt,
     };

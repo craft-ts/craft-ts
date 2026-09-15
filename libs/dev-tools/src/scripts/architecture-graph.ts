@@ -1938,16 +1938,7 @@ export function metricThresholdViolations(
   for (const node of graph.nodes) {
     if (kinds && !kinds.has(node.kind)) continue;
     const path = relativeGraphPath(graph, node.filePath);
-    if (
-      allow.some(
-        (entry) =>
-          entry === node.id ||
-          entry === node.label ||
-          (path !== undefined && matchPathGlob(entry, path) !== null),
-      )
-    ) {
-      continue;
-    }
+    if (isAllowedNode(node, path, allow)) continue;
     for (const metric of NODE_METRIC_NAMES) {
       const max = options.max[metric];
       const value = node.metrics?.[metric];
@@ -1986,6 +1977,99 @@ export function assertMetricThresholds(
       .map(
         (violation) =>
           `Metric threshold: ${violation.kind} ${violation.label} has ${violation.metric} ${violation.value} > ${violation.max} (${violation.filePath}:${violation.line}).`,
+      )
+      .join('\n'),
+  );
+}
+
+/** An allow entry is a node id, a node label, or a glob on the relative path. */
+function isAllowedNode(
+  node: DependencyGraphNode,
+  relativePath: string | undefined,
+  allow: readonly string[],
+): boolean {
+  return allow.some(
+    (entry) =>
+      entry === node.id ||
+      entry === node.label ||
+      (relativePath !== undefined && matchPathGlob(entry, relativePath) !== null),
+  );
+}
+
+export type UndocumentedNodeOptions = {
+  kinds: readonly DependencyGraphNodeKind[];
+  /** Also require a Markdown page citing the node (`createMarkdownDocsCollector`). */
+  requireDocPage?: boolean;
+  /** Node ids, labels, or globs on the repository-relative path. */
+  allow?: readonly string[];
+};
+
+export type UndocumentedNodeViolation = {
+  nodeId: string;
+  kind: DependencyGraphNodeKind;
+  label: string;
+  filePath: string;
+  line: number;
+  missing: 'jsdoc' | 'doc-page';
+};
+
+/**
+ * Nodes without a JSDoc summary, or without a page citing them.
+ *
+ * A node without a source range is skipped: its declaration could not be read,
+ * so nothing is known about its documentation either way.
+ */
+export function undocumentedNodeViolations(
+  graph: DependencyGraph,
+  options: UndocumentedNodeOptions,
+): UndocumentedNodeViolation[] {
+  const kinds = new Set(options.kinds);
+  const cited = new Set(
+    graph.edges.filter((edge) => edge.kind === 'documents').map((edge) => edge.to),
+  );
+  const violations: UndocumentedNodeViolation[] = [];
+  for (const node of graph.nodes) {
+    if (!kinds.has(node.kind) || node.endLine === undefined) continue;
+    const path = relativeGraphPath(graph, node.filePath);
+    if (isAllowedNode(node, path, options.allow ?? [])) continue;
+    const base = {
+      nodeId: node.id,
+      kind: node.kind,
+      label: node.label,
+      filePath: path ?? node.filePath ?? '',
+      line: node.line ?? 0,
+    };
+    if (!node.doc?.summary) violations.push({ ...base, missing: 'jsdoc' });
+    if (options.requireDocPage && !cited.has(node.id)) {
+      violations.push({ ...base, missing: 'doc-page' });
+    }
+  }
+  return violations;
+}
+
+export function assertNodesDocumented(
+  graph: DependencyGraph,
+  options: UndocumentedNodeOptions,
+): void {
+  if (
+    options.requireDocPage &&
+    !graph.nodes.some((node) => node.kind === 'doc-page')
+  ) {
+    throw new Error(
+      'Documentation: requireDocPage is set but the graph holds no doc-page node. Enable createMarkdownDocsCollector({ include }) or craft graph --docs.',
+    );
+  }
+  const violations = undocumentedNodeViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          `Undocumented ${violation.kind} ${violation.label}: ${
+            violation.missing === 'jsdoc'
+              ? 'no JSDoc summary'
+              : 'no Markdown page cites it'
+          } (${violation.filePath}:${violation.line}).`,
       )
       .join('\n'),
   );

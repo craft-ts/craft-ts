@@ -10,6 +10,7 @@ import {
 } from '../scripts/dependency-graph.js';
 import { churnFromGitLog } from '../scripts/graph-metrics.js';
 import type { IstanbulCoverageMap } from '../scripts/graph-coverage.js';
+import { createMarkdownDocsCollector } from '../scripts/graph-docs.js';
 import { mergeStyleDump, type StyleDump } from '../scripts/style-graph.js';
 import {
   paletteContrastMatrix,
@@ -237,6 +238,7 @@ function parseArgs(argv: string[]): GraphRun {
   };
   let churnSince: string | undefined;
   let coveragePath: string | undefined;
+  const docs: string[] = [];
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     switch (argument) {
@@ -279,6 +281,9 @@ function parseArgs(argv: string[]): GraphRun {
       case '--coverage':
         coveragePath = argv[++index];
         break;
+      case '--docs':
+        docs.push(argv[++index]);
+        break;
       case '--style-dump':
         index += 1;
         break;
@@ -290,6 +295,12 @@ function parseArgs(argv: string[]): GraphRun {
       default:
         throw new Error(`Unknown argument: ${argument}`);
     }
+  }
+  if (docs.length > 0) {
+    options.collectors = [
+      ...(options.collectors ?? []),
+      createMarkdownDocsCollector({ include: docs }),
+    ];
   }
   return {
     options,
@@ -323,6 +334,9 @@ Options:
   --coverage <file>            Attach statement coverage from an Istanbul
                                coverage-final.json to the nodes, the report
                                (coverage per route) and the explorer.
+  --docs <glob>                Link Markdown pages matching the glob to the
+                               routes, components, services and primitives they
+                               name in inline code. Repeatable.
 
 Style queries, answered from the emitted dump without building the program:
   --impacted <--x>             Sheet classes a change to that custom property

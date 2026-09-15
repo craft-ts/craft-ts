@@ -29,6 +29,7 @@ import {
   couplingDegrees,
   createInnermostLocator,
   DEPENDENCY_FORWARD,
+  NON_CODE_KINDS,
   type DependencyGraphNodeCoverage,
   type OwnedRange,
 } from './graph-metrics.js';
@@ -86,6 +87,7 @@ export function applyCoverage(
 
   const rangesByFile = new Map<string, OwnedRange[]>();
   for (const node of graph.nodes) {
+    if (NON_CODE_KINDS.has(node.kind)) continue;
     if (!node.filePath || node.line === undefined || node.endLine === undefined) {
       increment(noRange, node.kind);
       continue;

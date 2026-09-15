@@ -28,6 +28,7 @@ import { collectDataFlowGraph } from './data-flow-graph.js';
 import {
   attachNodeMetrics,
   cyclomaticDecisionPoints,
+  graphHotspots,
   type DependencyGraphNodeMetrics,
   type NodeSourceSpan,
 } from './graph-metrics.js';
@@ -37,6 +38,18 @@ import {
   type GraphReportOptions,
 } from './graph-report.js';
 import { applyCoverage, type IstanbulCoverageMap } from './graph-coverage.js';
+import {
+  attachNodeDocs,
+  declarationDocOf,
+  rationaleComments,
+  type DependencyGraphNodeDoc,
+  type NodeDocSource,
+} from './graph-docs.js';
+
+export {
+  createMarkdownDocsCollector,
+  type DependencyGraphNodeDoc,
+} from './graph-docs.js';
 
 /**
  * The graph's built-in vocabulary.  Values are deliberately detail records
@@ -77,6 +90,8 @@ export interface DependencyGraphNodeRegistry {
   'client-function-middleware': Record<string, unknown>;
   'client-function-middleware-misnamed': Record<string, unknown>;
   handshake: Record<string, unknown>;
+  /** A Markdown page, added by the opt-in `createMarkdownDocsCollector`. */
+  'doc-page': Record<string, unknown>;
 }
 
 export type DependencyGraphNodeKind = keyof DependencyGraphNodeRegistry;
@@ -92,6 +107,7 @@ export type DependencyGraphNodeFor<
   endLine?: number;
   sourceHash?: string;
   metrics?: DependencyGraphNodeMetrics;
+  doc?: DependencyGraphNodeDoc;
   details?: DependencyGraphNodeRegistry[K];
 };
 
@@ -121,6 +137,8 @@ export interface DependencyGraphEdgeRegistry {
    * is not visible to this one.
    */
   'styled-by': Record<string, unknown>;
+  /** Page → the single node it names in inline code. */
+  documents: Record<string, unknown>;
 }
 
 export type DependencyGraphEdgeKind = keyof DependencyGraphEdgeRegistry;
@@ -178,6 +196,8 @@ export type DependencyGraphNode = {
    * Metadata, never hashed: `graphHash` only reads ids and relations.
    */
   metrics?: DependencyGraphNodeMetrics;
+  /** JSDoc summary and tags, and the `WHY:` / `NOTE:` / `HACK:` comments of the node. */
+  doc?: DependencyGraphNodeDoc;
   details?: Record<string, unknown>;
 };
 
@@ -439,6 +459,8 @@ type GraphBuilder = {
   middlewareCapabilities: Readonly<Record<string, readonly string[]>>;
   /** Source offsets of the nodes that have one. Kept out of the JSON. */
   spans: Map<string, NodeSourceSpan>;
+  /** Declaration ranges and JSDoc of the same nodes. Kept out of the JSON. */
+  docSources: Map<string, NodeDocSource>;
 };
 
 export function analyzeDependencyGraph(
@@ -476,6 +498,7 @@ export function analyzeDependencyGraph(
     diagnostics: [],
     middlewareCapabilities: options.middlewareCapabilities ?? {},
     spans: new Map(),
+    docSources: new Map(),
   };
 
   const sourceFiles = project
@@ -542,6 +565,10 @@ export function analyzeDependencyGraph(
       return sourceFile ? cyclomaticDecisionPoints(sourceFile) : [];
     }),
   );
+  attachNodeDocs(builder.graph, builder.docSources, (filePath) => {
+    const sourceFile = project.getSourceFile(filePath);
+    return sourceFile ? rationaleComments(sourceFile) : [];
+  });
   if (builder.diagnostics.length > 0) {
     builder.graph.diagnostics = [...builder.diagnostics];
   }
@@ -653,6 +680,20 @@ export function dependencyGraphToMermaid(graph: DependencyGraph): string {
  */
 export function dependencyGraphToHtml(graph: DependencyGraph): string {
   const serializedGraph = JSON.stringify(graph)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+  // Template elements are left out, as in the report: an element's total
+  // counts every element nested in it.
+  const hotspotKinds = [...new Set(graph.nodes.map((node) => node.kind))].filter(
+    (kind) => kind !== 'styled-element' && kind !== 'template-element',
+  );
+  const serializedHotspots = JSON.stringify(
+    graphHotspots(graph, { limit: 10, kinds: hotspotKinds }).map((hotspot) => ({
+      id: hotspot.id,
+      score: hotspot.score,
+    })),
+  )
     .replace(/</g, '\\u003c')
     .replace(/>/g, '\\u003e')
     .replace(/&/g, '\\u0026');
@@ -818,6 +859,26 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
     .meta-table th, .meta-table td { padding: 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
     .meta-table th { width: 40%; color: var(--muted); font-weight: 500; }
     .meta-table td { overflow-wrap: anywhere; }
+    .heat { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .heat select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-soft); color: var(--text); font: inherit; }
+    .graph-card.heat-0 { background: #eaf8f0; }
+    .graph-card.heat-1 { background: #fbf6dc; }
+    .graph-card.heat-2 { background: #fce8c8; }
+    .graph-card.heat-3 { background: #fad2bd; }
+    .graph-card.heat-4 { background: #f5b7ae; }
+    .graph-card.heat-unknown { background: repeating-linear-gradient(135deg, #ffffff 0 6px, #e9edf3 6px 12px); }
+    .graph-card.on-path { outline: 3px solid #f59e0b; outline-offset: 1px; }
+    .graph-edges path.edge-on-path { stroke: #f59e0b; stroke-width: 4; stroke-dasharray: none; opacity: 1; }
+    .legend-swatch { display: inline-block; width: 22px; height: 11px; border: 1px solid #d5dce7; border-radius: 3px; background: linear-gradient(90deg, #eaf8f0, #fce8c8, #f5b7ae); }
+    .legend-swatch.unknown { background: repeating-linear-gradient(135deg, #ffffff 0 3px, #e9edf3 3px 6px); }
+    .unknown { color: var(--muted); font-style: italic; }
+    .hotspot-title { margin-top: 22px; }
+    .hotspot-score { color: var(--warning); font-variant-numeric: tabular-nums; }
+    .path-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .path-ends { margin: 10px 0 6px; color: var(--muted); }
+    .path-steps { display: grid; gap: 4px; margin: 0; padding-left: 20px; }
+    .path-steps button { padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; text-align: left; }
+    .path-steps .relation-kind { margin-right: 6px; }
     @media (max-width: 1100px) { .app { grid-template-columns: 230px minmax(360px, 1fr); } .details { grid-column: 1 / -1; border: 0; border-top: 1px solid var(--line); max-height: 420px; } }
     @media (max-width: 720px) { .app { display: block; } .topbar { flex-wrap: wrap; } .brand { min-width: 0; } .stats { margin-left: 0; } .sidebar, .details { max-height: none; border: 0; border-bottom: 1px solid var(--line); } .workspace { padding: 18px 14px 30px; } .node-file { display: none; } }
   </style>
@@ -827,22 +888,31 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
     <header class="topbar">
       <div class="brand"><h1>CraftTS · Dependency Explorer</h1><p>Analyse statique AST + typage TypeScript</p></div>
       <label class="search"><span>⌕</span><input id="search" type="search" placeholder="Rechercher une route, un composant, un service…" aria-label="Rechercher"></label>
+      <label class="heat"><span>Carte de chaleur</span><select id="heatmap" aria-label="Carte de chaleur"><option value="none">Aucune</option><option value="complexity">Complexité</option><option value="fan-in">Fan-in</option><option value="coverage">Couverture</option></select></label>
       <div class="stats" id="stats"></div>
     </header>
     <aside class="sidebar">
       <div class="side-title"><h2>Routes</h2><span class="badge" id="route-count"></span></div>
       <div class="route-list" id="routes"></div>
+      <div class="side-title hotspot-title"><h2>Points chauds</h2><span class="badge" id="hotspot-count"></span></div>
+      <div class="route-list" id="hotspots"></div>
     </aside>
     <main class="workspace">
       <div class="workspace-head"><div><h2 id="route-title">Routes</h2><p id="route-subtitle">Sélectionnez une route pour explorer ses dépendances.</p></div></div>
       <div class="filter-bar" id="filters"></div>
-      <div class="legend"><span class="legend-item"><span class="legend-line template"></span>Template</span><span class="legend-item"><span class="legend-line setup"></span>Setup</span><span class="legend-item"><span class="legend-line both"></span>Template + setup</span><span class="legend-item"><span class="legend-line depends"></span>Dépendance computed / state</span><span class="legend-item"><span class="legend-line calls"></span>Appel de méthode</span></div>
+      <div class="legend"><span class="legend-item"><span class="legend-line template"></span>Template</span><span class="legend-item"><span class="legend-line setup"></span>Setup</span><span class="legend-item"><span class="legend-line both"></span>Template + setup</span><span class="legend-item"><span class="legend-line depends"></span>Dépendance computed / state</span><span class="legend-item"><span class="legend-line calls"></span>Appel de méthode</span><span class="legend-item" id="heat-legend" hidden><span class="legend-swatch"></span>faible → élevé<span class="legend-swatch unknown"></span>inconnu</span></div>
       <div class="tree" id="tree"></div>
     </main>
     <aside class="details" id="details"></aside>
   </div>
   <script>
     const GRAPH = ${serializedGraph};
+    const HOTSPOTS = ${serializedHotspots};
+    const hasCoverage = GRAPH.nodes.some(function (node) { return Boolean(node.metrics && node.metrics.coverage); });
+    const heatMax = {
+      complexity: Math.max(2, ...GRAPH.nodes.map(function (node) { return (node.metrics && node.metrics.cyclomaticTotal) || 0; })),
+      fanIn: Math.max(1, ...GRAPH.nodes.map(function (node) { return (node.metrics && node.metrics.fanIn) || 0; })),
+    };
     const nodes = new Map(GRAPH.nodes.map(function (node) { return [node.id, node]; }));
     const outgoing = new Map();
     const incoming = new Map();
@@ -856,7 +926,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
     const services = GRAPH.nodes.filter(function (node) { return node.kind === 'service'; });
     const routeReachability = new Map();
     const serviceRoutes = new Map();
-    const state = { routeId: routes[0] && routes[0].id, selectedId: routes[0] && routes[0].id, filter: 'all', search: '', expanded: new Set() };
+    const state = { routeId: routes[0] && routes[0].id, selectedId: routes[0] && routes[0].id, filter: 'all', search: '', expanded: new Set(), heatmap: 'none', pathFrom: null, pathTo: null, path: null, pathNodes: new Set(), pathEdges: new Set() };
     const filters = [['all', 'Tout'], ['component', 'Composants'], ['service', 'Services'], ['primitive', 'Primitives'], ['source', 'Sources'], ['unique', 'Uniques'], ['route-check', 'Preuves']];
 
     function esc(value) {
@@ -1024,7 +1094,8 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
       const file = relativePath(node.filePath) + (node.line ? ':' + node.line : '');
       const selected = state.selectedId === node.id ? ' selected' : '';
       const badges = node.kind === 'service' ? serviceBadge(node) : '';
-      return '<button class="graph-card kind-' + esc(node.kind) + selected + '" data-graph-node="' + esc(node.id) + '" title="' + esc(file) + '"><span class="card-topline"><span class="node-kind">' + esc(kindLabel(node.kind)) + '</span>' + badges + '</span><span class="node-label">' + esc(displayLabel(node)) + '</span><span class="node-file">' + esc(file) + '</span></button>';
+      const decoration = heatClass(node) + (state.pathNodes.has(node.id) ? ' on-path' : '');
+      return '<button class="graph-card kind-' + esc(node.kind) + selected + decoration + '" data-graph-node="' + esc(node.id) + '" title="' + esc(file) + '"><span class="card-topline"><span class="node-kind">' + esc(kindLabel(node.kind)) + '</span>' + badges + '</span><span class="node-label">' + esc(displayLabel(node)) + '</span><span class="node-file">' + esc(file) + '</span></button>';
     }
     function internalChildren(ownerId, ids) {
       return (outgoing.get(ownerId) || []).filter(function (edge) {
@@ -1187,7 +1258,8 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
           'class',
           'graph-edge edge-' + edge.kind +
             (primitiveMemberEdge ? ' edge-primitive-member' : '') +
-            propertyUsageClass,
+            propertyUsageClass +
+            (state.pathEdges.has(edgeKey(edge)) ? ' edge-on-path' : ''),
         );
         path.setAttribute('d', pathData);
         path.setAttribute(
@@ -1235,6 +1307,7 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
       } else if (node.kind === 'service') {
         html += '<div class="detail-section"><div class="badge">spécifique à la route affichée</div></div>';
       }
+      html += renderMetrics(node) + renderDoc(node) + renderPathControls(node);
       const details = Object.entries(node.details || {});
       if (details.length) html += '<div class="detail-section"><h3>Métadonnées</h3><table class="meta-table">' + details.map(function (entry) { return '<tr><th>' + esc(entry[0]) + '</th><td>' + esc(Array.isArray(entry[1]) ? entry[1].join(', ') : typeof entry[1] === 'object' ? JSON.stringify(entry[1]) : entry[1]) + '</td></tr>'; }).join('') + '</table></div>';
       html += relationList('Dépend de / contient', outgoingEdges, 'to');
@@ -1243,13 +1316,138 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
       container.innerHTML = html;
       container.querySelectorAll('[data-detail-node]').forEach(function (button) { button.addEventListener('click', function () { selectNode(button.getAttribute('data-detail-node')); }); });
       container.querySelectorAll('[data-route-detail]').forEach(function (button) { button.addEventListener('click', function () { selectRoute(button.getAttribute('data-route-detail')); }); });
+      container.querySelectorAll('[data-path-from]').forEach(function (button) { button.addEventListener('click', function () { state.pathFrom = button.getAttribute('data-path-from'); updatePath(); }); });
+      container.querySelectorAll('[data-path-to]').forEach(function (button) { button.addEventListener('click', function () { state.pathTo = button.getAttribute('data-path-to'); updatePath(); }); });
+      container.querySelectorAll('[data-path-clear]').forEach(function (button) { button.addEventListener('click', function () { state.pathFrom = null; state.pathTo = null; updatePath(); }); });
+    }
+    function edgeKey(edge) {
+      return edge.from + '|' + edge.kind + '|' + edge.to;
+    }
+    function heatRatio(node) {
+      const metrics = node.metrics || {};
+      if (state.heatmap === 'complexity') return metrics.cyclomaticTotal == null ? null : Math.log(metrics.cyclomaticTotal) / Math.log(heatMax.complexity);
+      if (state.heatmap === 'fan-in') return metrics.fanIn == null ? null : metrics.fanIn / heatMax.fanIn;
+      if (state.heatmap === 'coverage') {
+        if (!metrics.coverage) return null;
+        return metrics.coverage.statements === 0 ? 0 : 1 - metrics.coverage.covered / metrics.coverage.statements;
+      }
+      return undefined;
+    }
+    function heatClass(node) {
+      const ratio = heatRatio(node);
+      if (ratio === undefined) return '';
+      if (ratio === null) return ' heat-unknown';
+      return ' heat-' + Math.min(4, Math.floor(ratio * 5));
+    }
+    function unknownValue() {
+      return '<span class="unknown">inconnu</span>';
+    }
+    function metricValue(value) {
+      return value == null ? unknownValue() : esc(value);
+    }
+    function renderMetrics(node) {
+      const metrics = node.metrics;
+      if (!metrics) return '<div class="detail-section"><h3>Métriques</h3><p class="unknown">Ce graphe ne porte pas de métriques.</p></div>';
+      const coverage = metrics.coverage
+        ? esc(metrics.coverage.covered + ' / ' + metrics.coverage.statements + (metrics.coverage.statements ? ' (' + Math.round((100 * metrics.coverage.covered) / metrics.coverage.statements) + ' %)' : ''))
+        : unknownValue();
+      const rows = [
+        ['Complexité propre', metricValue(metrics.cyclomaticOwn)],
+        ['Complexité totale', metricValue(metrics.cyclomaticTotal)],
+        ['Lignes', metricValue(metrics.lines)],
+        ['Fan-in', metricValue(metrics.fanIn)],
+        ['Fan-out', metricValue(metrics.fanOut)],
+        ['Couverture', coverage],
+      ];
+      return '<div class="detail-section"><h3>Métriques</h3><table class="meta-table">' + rows.map(function (row) { return '<tr><th>' + row[0] + '</th><td>' + row[1] + '</td></tr>'; }).join('') + '</table></div>';
+    }
+    function renderDoc(node) {
+      const doc = node.doc || {};
+      let html = '';
+      if (doc.summary || doc.tags) {
+        html += '<div class="detail-section"><h3>Documentation</h3>' + (doc.summary ? '<p>' + esc(doc.summary) + '</p>' : '') + Object.entries(doc.tags || {}).map(function (entry) { return '<p><span class="badge">@' + esc(entry[0]) + '</span> ' + esc(entry[1].filter(Boolean).join(' · ')) + '</p>'; }).join('') + '</div>';
+      }
+      if (doc.rationale && doc.rationale.length) {
+        html += '<div class="detail-section"><h3>Justifications</h3><ul class="detail-list">' + doc.rationale.map(function (note) { return '<li>' + esc(note) + '</li>'; }).join('') + '</ul></div>';
+      }
+      const pages = (incoming.get(node.id) || []).filter(function (edge) { return edge.kind === 'documents'; }).map(function (edge) { return nodes.get(edge.from); }).filter(Boolean);
+      if (pages.length) {
+        html += '<div class="detail-section"><h3>Pages de documentation</h3><ul class="detail-list">' + pages.map(function (page) { return '<li><span class="relation-kind">page</span>' + esc(page.label) + ' · ' + esc(relativePath(page.filePath)) + '</li>'; }).join('') + '</ul></div>';
+      }
+      return html;
+    }
+    function findPath(fromId, toId) {
+      const previous = new Map([[fromId, null]]);
+      const queue = [fromId];
+      while (queue.length && !previous.has(toId)) {
+        const current = queue.shift();
+        (outgoing.get(current) || []).forEach(function (edge) {
+          if (previous.has(edge.to)) return;
+          previous.set(edge.to, edge);
+          queue.push(edge.to);
+        });
+      }
+      if (!previous.has(toId)) return { nodes: [], edges: [] };
+      const edges = [];
+      let cursor = toId;
+      while (cursor !== fromId) {
+        const edge = previous.get(cursor);
+        edges.unshift(edge);
+        cursor = edge.from;
+      }
+      return { nodes: [fromId].concat(edges.map(function (edge) { return edge.to; })), edges: edges };
+    }
+    function updatePath() {
+      state.path = state.pathFrom && state.pathTo ? findPath(state.pathFrom, state.pathTo) : null;
+      state.pathNodes = new Set(state.path ? state.path.nodes : []);
+      state.pathEdges = new Set(state.path ? state.path.edges.map(edgeKey) : []);
+      renderTree();
+      renderDetails();
+    }
+    function renderPathControls(node) {
+      let html = '<div class="detail-section"><h3>Recherche de chemin</h3><div class="path-actions"><button class="filter" data-path-from="' + esc(node.id) + '">Chemin depuis</button><button class="filter" data-path-to="' + esc(node.id) + '">Chemin vers</button>' + (state.pathFrom || state.pathTo ? '<button class="filter" data-path-clear="true">Effacer</button>' : '') + '</div>';
+      if (state.pathFrom || state.pathTo) {
+        const from = nodes.get(state.pathFrom);
+        const to = nodes.get(state.pathTo);
+        html += '<p class="path-ends">Depuis <strong>' + (from ? esc(from.label) : '…') + '</strong> vers <strong>' + (to ? esc(to.label) : '…') + '</strong></p>';
+        if (state.path && state.path.nodes.length) {
+          html += '<ol class="path-steps">' + state.path.nodes.map(function (id, index) {
+            const step = nodes.get(id);
+            const edge = index > 0 ? state.path.edges[index - 1] : null;
+            return '<li>' + (edge ? '<span class="relation-kind">' + esc(edge.kind) + '</span>' : '') + '<button data-detail-node="' + esc(id) + '">' + esc(step ? step.label : id) + '</button></li>';
+          }).join('') + '</ol>';
+        } else if (state.path) {
+          html += '<p class="callout">Aucun chemin dans ce sens : les relations se suivent dans leur direction.</p>';
+        }
+      }
+      return html + '</div>';
+    }
+    function renderHotspots() {
+      const container = document.getElementById('hotspots');
+      document.getElementById('hotspot-count').textContent = String(HOTSPOTS.length);
+      if (!HOTSPOTS.length) { container.innerHTML = '<div class="empty">Aucune complexité mesurée.</div>'; return; }
+      container.innerHTML = HOTSPOTS.map(function (hotspot) {
+        const node = nodes.get(hotspot.id);
+        if (!node) return '';
+        return '<button class="route-button" data-hotspot="' + esc(node.id) + '" title="' + esc(relativePath(node.filePath)) + '"><span class="route-label">' + esc(node.label) + '</span><span class="route-meta"><span class="badge">' + esc(kindLabel(node.kind)) + '</span><span class="hotspot-score">' + esc(hotspot.score) + '</span></span></button>';
+      }).join('');
+      container.querySelectorAll('[data-hotspot]').forEach(function (button) { button.addEventListener('click', function () { selectNode(button.getAttribute('data-hotspot')); }); });
     }
     function renderStats() {
       const sharedCount = services.filter(function (service) { return (serviceRoutes.get(service.id) || []).length > 1; }).length;
-      document.getElementById('stats').innerHTML = '<span><strong>' + routes.length + '</strong>routes</span><span><strong>' + GRAPH.nodes.length + '</strong>nœuds</span><span><strong>' + sharedCount + '</strong>services partagés</span>';
+      const uncovered = GRAPH.nodes.filter(function (node) { return node.metrics && node.metrics.coverage && node.metrics.coverage.statements > 0 && node.metrics.coverage.covered === 0; }).length;
+      document.getElementById('stats').innerHTML = '<span><strong>' + routes.length + '</strong>routes</span><span><strong>' + GRAPH.nodes.length + '</strong>nœuds</span><span><strong>' + sharedCount + '</strong>services partagés</span><span><strong>' + HOTSPOTS.length + '</strong>points chauds</span>' + (hasCoverage ? '<span><strong>' + uncovered + '</strong>nœuds non couverts</span>' : '');
     }
     document.getElementById('search').addEventListener('input', function (event) { state.search = event.target.value.trim(); renderRoutes(); renderTree(); });
     renderStats();
+    renderHotspots();
+    const heatSelect = document.getElementById('heatmap');
+    heatSelect.querySelector('option[value=coverage]').disabled = !hasCoverage;
+    heatSelect.addEventListener('change', function (event) {
+      state.heatmap = event.target.value;
+      document.getElementById('heat-legend').hidden = state.heatmap === 'none';
+      renderTree();
+    });
     renderFilters();
     if (state.routeId) selectRoute(state.routeId); else { renderRoutes(); renderTree(); renderDetails(); }
   </script>
@@ -5775,6 +5973,11 @@ function recordSourceSpan(
     end: source.getEnd(),
     startLine: source.getStartLineNumber(),
     endLine: source.getEndLineNumber(),
+  });
+  builder.docSources.set(id, {
+    ...declarationDocOf(source),
+    filePath: source.getSourceFile().getFilePath(),
+    end: source.getEnd(),
   });
 }
 

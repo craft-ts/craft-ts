@@ -169,6 +169,7 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
           node: {
             ...summary(graph, node),
             ...(node.endLine === undefined ? {} : { endLine: node.endLine }),
+            ...(node.doc ? { doc: node.doc } : {}),
             ...(node.details ? { details: node.details } : {}),
           },
           incoming: limited(

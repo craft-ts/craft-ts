@@ -47,6 +47,9 @@ export type DependencyGraphNodeMetrics = {
 
 export const METRICS_UNKNOWN_DIAGNOSTIC = 'CRAFT_GRAPH_METRICS_UNKNOWN';
 
+/** Nodes that are not TypeScript code: never measured, never reported unknown. */
+export const NON_CODE_KINDS: ReadonlySet<string> = new Set(['doc-page']);
+
 /**
  * Effect relations, all read forwards: `owner requires-service service`,
  * `service provided-by-layer layer`, `layer composes-layer layer` — a service
@@ -281,7 +284,9 @@ export function attachNodeMetrics(
     const span = spans.get(node.id);
     const { fanIn, fanOut } = degrees.get(node.id) ?? { fanIn: 0, fanOut: 0 };
     if (!span) {
-      unknownByKind.set(node.kind, (unknownByKind.get(node.kind) ?? 0) + 1);
+      if (!NON_CODE_KINDS.has(node.kind)) {
+        unknownByKind.set(node.kind, (unknownByKind.get(node.kind) ?? 0) + 1);
+      }
       node.metrics = { fanIn, fanOut };
       continue;
     }
