@@ -56,6 +56,9 @@
       "@craft-ts/dev-tools/graph-report": [
         "./libs/dev-tools/src/scripts/graph-report.ts"
       ],
+      "@craft-ts/dev-tools/graph-coverage": [
+        "./libs/dev-tools/src/scripts/graph-coverage.ts"
+      ],
       "@craft-ts/dev-tools/*": ["./libs/dev-tools/src/*"],
       "@craft-ts/dev-tools/testing": ["./libs/dev-tools/src/testing.ts"],
       "@craft-ts/dev-tools/template-migration": [

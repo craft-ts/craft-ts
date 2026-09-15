@@ -13,6 +13,10 @@ import {
   type DependencyGraph,
 } from '@craft-ts/dev-tools/dependency-graph';
 import { churnFromGitLog } from '@craft-ts/dev-tools/graph-metrics';
+import {
+  applyCoverage,
+  type IstanbulCoverageMap,
+} from '@craft-ts/dev-tools/graph-coverage';
 import { ts } from 'ts-morph';
 
 export const DEFAULT_GRAPH_FILE = 'craft-dependency-graph.json';
@@ -39,6 +43,8 @@ export type GraphStoreOptions = {
   readonly graphFile: string;
   /** Refuse to rebuild: for CI and shared environments that must only read. */
   readonly readonly: boolean;
+  /** Absolute path of an Istanbul `coverage-final.json`, applied on every load. */
+  readonly coverageFile?: string;
   /** Replaces the analysis, for tests. */
   readonly analyze?: (options: AnalyzeDependencyGraphOptions) => DependencyGraph;
 };
@@ -63,6 +69,9 @@ export function graphStoreOptionsFromEnv(
       : { tsConfigFilePath: resolve(rootDir, tsConfig) }),
     graphFile: resolve(rootDir, env['CRAFT_GRAPH_FILE'] ?? DEFAULT_GRAPH_FILE),
     readonly: truthy(env['CRAFT_GRAPH_READONLY']),
+    ...(env['CRAFT_GRAPH_COVERAGE']
+      ? { coverageFile: resolve(rootDir, env['CRAFT_GRAPH_COVERAGE']) }
+      : {}),
   };
 }
 
@@ -185,7 +194,26 @@ export class GraphStore {
         `craft-ts-graph-mcp: ${file} is not a CraftTS dependency graph (version 1).`,
       );
     }
-    return { graph, source: 'file', builtAt: statSync(file).mtimeMs };
+    return {
+      graph: this.#withCoverage(graph),
+      source: 'file',
+      builtAt: statSync(file).mtimeMs,
+    };
+  }
+
+  /** Coverage is re-applied on every load, so a new report needs no rebuild. */
+  #withCoverage(graph: DependencyGraph): DependencyGraph {
+    const file = this.options.coverageFile;
+    if (!file) return graph;
+    if (!existsSync(file)) {
+      throw new Error(
+        `craft-ts-graph-mcp: CRAFT_GRAPH_COVERAGE points to ${file}, which does not exist. Write it with 'vitest run --coverage --coverage.reporter=json'.`,
+      );
+    }
+    return applyCoverage(
+      graph,
+      JSON.parse(readFileSync(file, 'utf8')) as IstanbulCoverageMap,
+    );
   }
 
   #analyze(): LoadedGraph {
@@ -198,7 +226,7 @@ export class GraphStore {
     const builtAt = Date.now();
     const analyze = this.options.analyze ?? analyzeDependencyGraph;
     return {
-      graph: analyze({ rootDir, tsConfigFilePath }),
+      graph: this.#withCoverage(analyze({ rootDir, tsConfigFilePath })),
       source: 'analysis',
       builtAt,
     };

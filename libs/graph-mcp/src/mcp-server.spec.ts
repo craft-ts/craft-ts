@@ -189,15 +189,23 @@ describe('graph MCP server', () => {
       location: 'src/home.ts:1',
       metrics: { cyclomaticTotal: 2 },
     });
-    expect(result['incoming']).toEqual([
-      expect.objectContaining({ kind: 'loads', node: expect.objectContaining({ label: 'home' }) }),
-    ]);
-    expect(result['outgoing']).toEqual([
-      expect.objectContaining({
-        kind: 'depends-on',
-        proof: { location: 'src/home.ts:2', symbol: 'injectUserService' },
-      }),
-    ]);
+    expect(result['incoming']).toEqual({
+      edges: [
+        expect.objectContaining({ kind: 'loads', node: expect.objectContaining({ label: 'home' }) }),
+      ],
+      total: 1,
+      truncated: false,
+    });
+    expect(result['outgoing']).toEqual({
+      edges: [
+        expect.objectContaining({
+          kind: 'depends-on',
+          proof: { location: 'src/home.ts:2', symbol: 'injectUserService' },
+        }),
+      ],
+      total: 1,
+      truncated: false,
+    });
     expect(result['source']).toMatchObject({
       location: 'src/home.ts:1-3',
       code: 'export const Home = craftComponent(\n  injectUserService,\n);',

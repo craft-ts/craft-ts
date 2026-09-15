@@ -839,7 +839,7 @@ npx craft-graph \
 | `report`   | `.report.md` and `.report.json`               |
 
 `--include <text>` restricts analysis to matching source paths.
-`--feature-glob` and `--churn-since` shape the
+`--feature-glob`, `--churn-since` and `--coverage` shape the
 [report](/guide/testing/graph-insights#report). Use the HTML
 explorer to see a route expand into components and services before you write
 the assertion.

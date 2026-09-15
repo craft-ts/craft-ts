@@ -36,6 +36,7 @@ import {
   graphReport,
   type GraphReportOptions,
 } from './graph-report.js';
+import { applyCoverage, type IstanbulCoverageMap } from './graph-coverage.js';
 
 /**
  * The graph's built-in vocabulary.  Values are deliberately detail records
@@ -245,6 +246,8 @@ export type WriteDependencyGraphOptions = AnalyzeDependencyGraphOptions & {
   format?: 'json' | 'mermaid' | 'html' | 'both' | 'all' | 'report';
   /** Options of the `report` format, also written by `all`. */
   report?: GraphReportOptions;
+  /** A parsed `coverage-final.json`, applied to every written format. */
+  coverage?: IstanbulCoverageMap;
 };
 
 const PRIMITIVES = new Set([
@@ -548,7 +551,10 @@ export function analyzeDependencyGraph(
 export async function writeDependencyGraph(
   options: WriteDependencyGraphOptions,
 ): Promise<DependencyGraph> {
-  const graph = analyzeDependencyGraph(options);
+  const analysed = analyzeDependencyGraph(options);
+  const graph = options.coverage
+    ? applyCoverage(analysed, options.coverage)
+    : analysed;
   const format = options.format ?? 'both';
   const outputPath = resolve(
     options.rootDir ?? process.cwd(),

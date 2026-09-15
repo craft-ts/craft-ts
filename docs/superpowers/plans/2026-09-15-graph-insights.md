@@ -295,6 +295,22 @@ l'explorateur.
 main ; cas des nœuds imbriqués, d'un fichier absent et d'une route à slice
 partiellement inconnue.
 
+**Fait (15 septembre 2026).** Précisions :
+
+- Attribution **par ligne** : le JSON du graphe ne garde que `line` / `endLine`.
+  Deux nœuds sur les mêmes lignes sont départagés par l'arbre `contains`, comme
+  pour les métriques (`createInnermostLocator` partagé).
+- `applyCoverage` est pure et renvoie une copie ; un second rapport remplace le
+  premier (couverture et diagnostics précédents retirés). Deux diagnostics
+  `CRAFT_GRAPH_COVERAGE_UNKNOWN` par kind : « sans plage de lignes » et « fichier
+  absent du rapport ».
+- `routeCoverage` somme la fermeture (`closureOf`, pas `sliceOf` : les
+  empreintes ne servent pas ici) et renvoie `measuredNodes` / `unknownNodes`.
+- CLI : `--coverage <fichier>` lu par `craft-graph.ts`, appliqué dans
+  `writeDependencyGraph` (option `coverage`), donc visible dans le JSON, le
+  rapport et l'explorateur. MCP : `CRAFT_GRAPH_COVERAGE`, réappliqué à chaque
+  chargement.
+
 ## Lot D — Justifications et documentation (11)
 
 ### D1. JSDoc et commentaires de justification

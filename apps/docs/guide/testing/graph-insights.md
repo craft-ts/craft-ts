@@ -81,7 +81,8 @@ graph and the HTML explorer. The report contains:
 - dependency cycles and unused primitive methods;
 - relations between features, when `--feature-glob` names the feature with a
   `:name` capture;
-- the violations of the rules `assertArchitecture` enforces, grouped by rule.
+- the violations of the rules `assertArchitecture` enforces, grouped by rule;
+- coverage per route, when a coverage report is applied with `--coverage`.
 
 Every section is sorted and every id is relative to the root, so two reports of
 the same code are identical whatever the checkout path. Commit the Markdown file
@@ -95,6 +96,37 @@ import { architectureViolations } from '@craft-ts/dev-tools/architecture-graph';
 
 const report = graphReport(graph, { featureGlob: 'src/features/:feature/**' });
 const violations = architectureViolations(graph); // [{ rule, messages }]
+```
+
+## Coverage per node and per route
+
+The graph reads test coverage; it does not produce it. Write an Istanbul report
+with Vitest, then hand it to the graph:
+
+```shell
+npx vitest run --coverage --coverage.reporter=json
+npx craft graph --project apps/shop/tsconfig.graph.json --root . \
+  --format all --coverage coverage/coverage-final.json
+```
+
+Each statement is credited to the innermost node whose lines contain it, and
+the node gets `metrics.coverage = { statements, covered }` for its own
+statements. A route's coverage sums the nodes of its code slice — everything
+that can change what it renders — without counting a statement twice.
+
+Coverage is never guessed:
+
+- a node without a line range, or in a file the report does not mention, has
+  no `coverage` field. `CRAFT_GRAPH_COVERAGE_UNKNOWN` diagnostics count them per
+  kind;
+- a route lists how many nodes of its slice are unknown next to its percentage,
+  which only describes the measured part.
+
+```typescript
+import { applyCoverage, routeCoverage } from '@craft-ts/dev-tools/graph-coverage';
+
+const covered = applyCoverage(graph, JSON.parse(readFileSync(reportPath, 'utf8')));
+routeCoverage(covered); // [{ label, statements, covered, unknownNodes, … }]
 ```
 
 ## Thresholds

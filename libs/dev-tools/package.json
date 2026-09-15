@@ -61,6 +61,10 @@
       "types": "./src/scripts/graph-report.d.ts",
       "default": "./src/scripts/graph-report.js"
     },
+    "./graph-coverage": {
+      "types": "./src/scripts/graph-coverage.d.ts",
+      "default": "./src/scripts/graph-coverage.js"
+    },
     "./scripts/code-slice.js": {
       "types": "./src/scripts/code-slice.d.ts",
       "default": "./src/scripts/code-slice.js"

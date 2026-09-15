@@ -11,6 +11,7 @@ import type {
   DependencyGraphNodeKind,
   DependencyGraphProof,
 } from '@craft-ts/dev-tools/dependency-graph';
+import { DEPENDENCY_FORWARD } from '@craft-ts/dev-tools/graph-metrics';
 import { graphReport } from '@craft-ts/dev-tools/graph-report';
 import {
   createSliceIndex,
@@ -170,15 +171,15 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
             ...(node.endLine === undefined ? {} : { endLine: node.endLine }),
             ...(node.details ? { details: node.details } : {}),
           },
-          ...limited(
-            'incoming',
+          incoming: limited(
+            'edges',
             graph.edges
               .filter((edge) => edge.to === node.id)
               .map((edge) => relation(edge, edge.from)),
             max,
           ),
-          ...limited(
-            'outgoing',
+          outgoing: limited(
+            'edges',
             graph.edges
               .filter((edge) => edge.from === node.id)
               .map((edge) => relation(edge, edge.to)),
@@ -295,7 +296,7 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
     'graph.impact',
     {
       description:
-        'Every node whose output may change when this node changes: the nodes whose code slice contains it (same relations as visual attestation slices).',
+        'Every node whose output may change when this node changes: the nodes whose code slice contains it, following the visual attestation slice relations plus Effect service requirements and layers.',
       inputSchema: {
         id: z.string().min(1),
         kind: z.string().min(1).optional().describe('Keep only this node kind'),
@@ -306,7 +307,10 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
     async ({ id, kind, limit }) =>
       respond(store, (graph) => {
         const nodeId = resolveNodeId(graph, id);
-        const index = createSliceIndex(graph, { readFile: () => undefined });
+        const index = createSliceIndex(graph, {
+          readFile: () => undefined,
+          forward: DEPENDENCY_FORWARD,
+        });
         const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
         const impacted = impactOf(index, nodeId)
           .filter((candidate) => candidate !== nodeId)

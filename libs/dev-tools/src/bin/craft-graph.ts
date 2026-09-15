@@ -9,6 +9,7 @@ import {
   type WriteDependencyGraphOptions,
 } from '../scripts/dependency-graph.js';
 import { churnFromGitLog } from '../scripts/graph-metrics.js';
+import type { IstanbulCoverageMap } from '../scripts/graph-coverage.js';
 import { mergeStyleDump, type StyleDump } from '../scripts/style-graph.js';
 import {
   paletteContrastMatrix,
@@ -182,6 +183,19 @@ interface GraphRun {
   readonly options: WriteDependencyGraphOptions;
   /** `git log --since` value; churn is only read when it is given. */
   readonly churnSince?: string;
+  /** Path of an Istanbul `coverage-final.json`, relative to the root. */
+  readonly coveragePath?: string;
+}
+
+function readCoverage(rootDir: string, path: string): IstanbulCoverageMap {
+  const absolute = resolve(rootDir, path);
+  try {
+    return JSON.parse(readFileSync(absolute, 'utf8')) as IstanbulCoverageMap;
+  } catch {
+    throw new Error(
+      `craft-graph --coverage: cannot read ${absolute}. Write it with 'vitest run --coverage --coverage.reporter=json'.`,
+    );
+  }
 }
 
 /**
@@ -222,6 +236,7 @@ function parseArgs(argv: string[]): GraphRun {
     format: 'both',
   };
   let churnSince: string | undefined;
+  let coveragePath: string | undefined;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     switch (argument) {
@@ -261,6 +276,9 @@ function parseArgs(argv: string[]): GraphRun {
       case '--churn-since':
         churnSince = argv[++index];
         break;
+      case '--coverage':
+        coveragePath = argv[++index];
+        break;
       case '--style-dump':
         index += 1;
         break;
@@ -273,7 +291,11 @@ function parseArgs(argv: string[]): GraphRun {
         throw new Error(`Unknown argument: ${argument}`);
     }
   }
-  return { options, ...(churnSince === undefined ? {} : { churnSince }) };
+  return {
+    options,
+    ...(churnSince === undefined ? {} : { churnSince }),
+    ...(coveragePath === undefined ? {} : { coveragePath }),
+  };
 }
 
 function printHelp(): void {
@@ -298,6 +320,9 @@ Options:
                                'src/features/:feature/**'.
   --churn-since <date>         Weigh hotspots by the commits touching each file
                                since that date (any git --since value).
+  --coverage <file>            Attach statement coverage from an Istanbul
+                               coverage-final.json to the nodes, the report
+                               (coverage per route) and the explorer.
 
 Style queries, answered from the emitted dump without building the program:
   --impacted <--x>             Sheet classes a change to that custom property
@@ -338,15 +363,21 @@ if (contrast) {
 } else if (!runStyleQuery(argv)) {
   Promise.resolve()
     .then(() => {
-      const { options, churnSince } = parseArgs(argv);
-      if (churnSince === undefined) return writeDependencyGraph(options);
-      const churn = readGitChurn(
-        resolve(options.rootDir ?? process.cwd()),
-        churnSince,
-      );
+      const { options, churnSince, coveragePath } = parseArgs(argv);
+      const rootDir = resolve(options.rootDir ?? process.cwd());
       return writeDependencyGraph({
         ...options,
-        report: { ...options.report, churn },
+        ...(coveragePath === undefined
+          ? {}
+          : { coverage: readCoverage(rootDir, coveragePath) }),
+        ...(churnSince === undefined
+          ? {}
+          : {
+              report: {
+                ...options.report,
+                churn: readGitChurn(rootDir, churnSince),
+              },
+            }),
       });
     })
     .then((graph) => {

@@ -48,13 +48,34 @@ export type DependencyGraphNodeMetrics = {
 export const METRICS_UNKNOWN_DIAGNOSTIC = 'CRAFT_GRAPH_METRICS_UNKNOWN';
 
 /**
+ * Effect relations, all read forwards: `owner requires-service service`,
+ * `service provided-by-layer layer`, `layer composes-layer layer` — a service
+ * depends on the layer that implements it.
+ *
+ * They stay out of the code slice on purpose, so attestation fingerprints do
+ * not move with this module, but they are dependencies for every other
+ * question: an Effect service nobody "depends on" would rank as unused.
+ */
+export const EFFECT_DEPENDENCY_EDGES: readonly DependencyGraphEdgeKind[] = [
+  'requires-service',
+  'provided-by-layer',
+  'composes-layer',
+];
+
+/** The slice relations plus the Effect ones: what a node's output depends on. */
+export const DEPENDENCY_FORWARD: readonly DependencyGraphEdgeKind[] = [
+  ...PRODUCES_FORWARD,
+  ...EFFECT_DEPENDENCY_EDGES,
+];
+
+/**
  * Relations that couple two nodes.
  *
- * The production relations of the code slice, minus `contains`: owning a
- * primitive is structure, not a dependency on it.
+ * The dependency relations, minus `contains`: owning a primitive is structure,
+ * not a dependency on it.
  */
 export const COUPLING_EDGES: readonly DependencyGraphEdgeKind[] = [
-  ...new Set([...PRODUCES_FORWARD, ...PRODUCES_BACKWARD]),
+  ...new Set([...DEPENDENCY_FORWARD, ...PRODUCES_BACKWARD]),
 ].filter((kind) => kind !== 'contains');
 
 /** The source range a node stands for, as offsets in its file. */

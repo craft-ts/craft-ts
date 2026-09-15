@@ -100,4 +100,36 @@ export const Panel = craftComponent('Panel', {}, function* () {
 
     expect(() => new GraphStore(options()).get()).toThrow('CRAFT_GRAPH_TSCONFIG');
   });
+
+  it('applies a coverage report on load', () => {
+    writeFileSync(
+      join(root, 'coverage-final.json'),
+      JSON.stringify({
+        [join(root, 'src', 'panel.ts')]: {
+          statementMap: {
+            0: { start: { line: 4, column: 2 }, end: { line: 4, column: 40 } },
+          },
+          s: { 0: 1 },
+        },
+      }),
+    );
+    const store = new GraphStore(
+      options({ CRAFT_GRAPH_COVERAGE: 'coverage-final.json' }),
+    );
+
+    const covered = store
+      .get()
+      .graph.nodes.filter((node) => node.metrics?.coverage);
+
+    expect(covered.length).toBeGreaterThan(0);
+    expect(
+      covered.reduce((sum, node) => sum + (node.metrics?.coverage?.covered ?? 0), 0),
+    ).toBe(1);
+  });
+
+  it('explains a missing coverage report', () => {
+    const store = new GraphStore(options({ CRAFT_GRAPH_COVERAGE: 'nope.json' }));
+
+    expect(() => store.get()).toThrow('vitest run --coverage');
+  });
 });

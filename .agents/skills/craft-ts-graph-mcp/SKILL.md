@@ -30,7 +30,7 @@ Every list reports `total` and `truncated`. When `truncated` is true, say so, an
 
 - A relation carries `evidence` (`ast` or `type`) and often a `proof` with a `location`. Quote the location when you state a dependency.
 - A metric that is absent is **unknown, not zero**. A node without `cyclomaticTotal` has no source range the graph could measure; never describe it as simple. The `CRAFT_GRAPH_METRICS_UNKNOWN` diagnostics list which kinds are unmeasured.
-- `graph.impact` follows the code-slice relations: what can change a node's output. It is not "every node that mentions X".
+- `graph.impact` follows the code-slice relations plus Effect service requirements and layers: what can change a node's output. It is not "every node that mentions X".
 - Ids contain absolute paths. The tools also accept the portable form (project root removed) used by `graph.report`.
 - `graph.node` with a shared `label` answers `ambiguous: true` with candidates: pick by `kind` or `location`, do not guess.
 

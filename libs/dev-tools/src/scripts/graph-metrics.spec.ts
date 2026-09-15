@@ -156,6 +156,20 @@ describe('couplingDegrees', () => {
     expect(degrees.get('b')).toEqual({ fanIn: 2, fanOut: 0 });
     expect(degrees.get('c')).toEqual({ fanIn: 0, fanOut: 1 });
   });
+
+  it('counts Effect service requirements and layers as coupling', () => {
+    const degrees = couplingDegrees(
+      graphOf(
+        [node('query'), node('Store'), node('StoreLive')],
+        [
+          edge('query', 'requires-service', 'Store'),
+          edge('Store', 'provided-by-layer', 'StoreLive'),
+        ],
+      ),
+    );
+
+    expect(degrees.get('Store')).toEqual({ fanIn: 1, fanOut: 1 });
+  });
 });
 
 describe('attachNodeMetrics', () => {

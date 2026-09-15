@@ -36,6 +36,7 @@ claude mcp add craft-ts-graph -- npx craft-ts-graph-mcp
 | `CRAFT_GRAPH_ROOT`     | The current directory.                                          |
 | `CRAFT_GRAPH_TSCONFIG` | First of `tsconfig.graph.json`, `tsconfig.app.json`, `tsconfig.json`. |
 | `CRAFT_GRAPH_FILE`     | `craft-dependency-graph.json`, relative to the root.            |
+| `CRAFT_GRAPH_COVERAGE` | Unset. An Istanbul `coverage-final.json`: coverage per node, and per route in `graph.report`. |
 | `CRAFT_GRAPH_READONLY` | Unset. `1` hides `graph.rebuild`: the server only reads.        |
 
 Write the graph file with `craft graph --format all` (it also writes the
@@ -56,7 +57,7 @@ is available to check. Every list accepts `limit` and reports `total` and
 | `graph.node`       | One node by `id`, or `label` (+ `kind`): metrics, details, relations with proofs, source.    |
 | `graph.neighbors`  | The subgraph up to `depth` ≤ 3, filtered by `edgeKinds` and `direction`.                     |
 | `graph.path`       | The shortest relation chains from `from` to `to`, with the proof of each step.               |
-| `graph.impact`     | Every node whose code slice contains `id`: what may change when it changes.                  |
+| `graph.impact`     | Every node whose output depends on `id`, Effect services and layers included.                |
 | `graph.hotspots`   | God nodes and hotspots, optionally weighted by git churn (`churnSince`).                     |
 | `graph.report`     | The full report: summary, rankings, cycles, unused methods, cross-feature relations, violations. |
 | `graph.violations` | The rules `assertArchitecture` enforces, by name, with their messages.                       |
