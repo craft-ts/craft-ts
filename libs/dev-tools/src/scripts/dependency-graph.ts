@@ -31,6 +31,11 @@ import {
   type DependencyGraphNodeMetrics,
   type NodeSourceSpan,
 } from './graph-metrics.js';
+import {
+  formatGraphReportMarkdown,
+  graphReport,
+  type GraphReportOptions,
+} from './graph-report.js';
 
 /**
  * The graph's built-in vocabulary.  Values are deliberately detail records
@@ -237,7 +242,9 @@ export type DependencyGraphCollector = {
 
 export type WriteDependencyGraphOptions = AnalyzeDependencyGraphOptions & {
   outputPath: string;
-  format?: 'json' | 'mermaid' | 'html' | 'both' | 'all';
+  format?: 'json' | 'mermaid' | 'html' | 'both' | 'all' | 'report';
+  /** Options of the `report` format, also written by `all`. */
+  report?: GraphReportOptions;
 };
 
 const PRIMITIVES = new Set([
@@ -570,6 +577,20 @@ export async function writeDependencyGraph(
   if (format === 'html' || format === 'all') {
     const htmlPath = format === 'html' ? outputPath : `${outputPath}.html`;
     await writeFile(htmlPath, dependencyGraphToHtml(graph), 'utf8');
+  }
+  if (format === 'report' || format === 'all') {
+    const basePath = outputPath.replace(/\.(json|html|mmd|md)$/i, '');
+    const report = graphReport(graph, options.report);
+    await writeFile(
+      `${basePath}.report.json`,
+      `${JSON.stringify(report, null, 2)}\n`,
+      'utf8',
+    );
+    await writeFile(
+      `${basePath}.report.md`,
+      formatGraphReportMarkdown(report),
+      'utf8',
+    );
   }
   return graph;
 }

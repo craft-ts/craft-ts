@@ -321,6 +321,27 @@ export type HotspotOptions = RankingOptions & {
 
 const DEFAULT_RANKING_LIMIT = 10;
 
+/**
+ * Commits per file, from `git log --name-only --pretty=format:` output.
+ *
+ * Git prints paths relative to the repository root, once per commit; they are
+ * resolved against `repositoryRoot` so the keys match `node.filePath`.
+ */
+export function churnFromGitLog(
+  log: string,
+  repositoryRoot: string,
+): ReadonlyMap<string, number> {
+  const root = repositoryRoot.split('\\').join('/').replace(/\/+$/, '');
+  const churn = new Map<string, number>();
+  for (const line of log.split(/\r?\n/)) {
+    const path = line.trim();
+    if (!path) continue;
+    const absolute = `${root}/${path}`;
+    churn.set(absolute, (churn.get(absolute) ?? 0) + 1);
+  }
+  return churn;
+}
+
 function ranked(node: DependencyGraphNode): RankedNode {
   return {
     id: node.id,

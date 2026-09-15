@@ -245,6 +245,27 @@ Dans [craft-graph.ts](../../../libs/dev-tools/src/bin/craft-graph.ts) et
 **Tests** : `graph-report.spec.ts` sur des graphes construits à la main (sans
 ts-morph) ; instantané du Markdown.
 
+**Fait (15 septembre 2026).** Écarts et précisions :
+
+- `architectureViolations(graph, { target, mutationReactOn })` nomme chaque
+  règle (`craft-unique`, `no-dependency-cycles`, `mutation-react-on`…) ;
+  `assertDeclarativeArchitecture` concatène les mêmes messages dans le même
+  ordre.
+- `graphReport` trie le graphe (nœuds par id, arêtes par clé) **avant** toute
+  lecture : les messages des règles dépendent de l'ordre de parcours (un cycle
+  commence là où le parcours y est entré). Ids rendus portables
+  (`portableNodeId`), emplacements relatifs, cycles tournés sur leur plus petit
+  id.
+- God nodes et points chauds excluent par défaut `styled-element` et
+  `template-element` (option `kinds`) : sur `apps/demo-effect`, le balisage d'un
+  seul composant remplissait le classement, chaque élément comptant ses enfants.
+- Section « relations entre features » : première capture `:name` du glob, sur
+  les arêtes `COUPLING_EDGES`.
+- `churnFromGitLog` (pur) dans `graph-metrics.ts` ; `git` n'est lancé que par
+  `craft-graph.ts` (`rev-parse --show-toplevel` puis `log --name-only`).
+- Vérifié sur `apps/demo-effect` : `--format report --feature-glob
+  'apps/demo-effect/src/app/:feature/**' --churn-since '6 months ago'`.
+
 ## Lot C — Couverture par nœud et par route (8)
 
 ### C1. Application du rapport Istanbul

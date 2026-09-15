@@ -3711,30 +3711,66 @@ export function assertDeclarativeArchitecture(
   graph: DependencyGraph,
   options: MutationReactOnOptions = {},
 ): void {
-  const messages: string[] = [];
-  for (const assert of [
-    assertCraftUnique,
-    assertHttpEndpointUnique,
-    assertCraftComputedPure,
-    assertPrimitiveMethodsUsedOnce,
-    assertNoUnusedPrimitiveMethods,
-    assertNoDependencyCycles,
-    assertServerFunctionArchitecture,
-    assertInputActionForms,
-  ]) {
-    try {
-      assert(graph);
-    } catch (error) {
-      messages.push(error instanceof Error ? error.message : String(error));
-    }
-  }
-  try {
-    assertMutationHasReactOn(graph, options);
-  } catch (error) {
-    messages.push(error instanceof Error ? error.message : String(error));
-  }
+  const messages = architectureViolations(graph, {
+    mutationReactOn: options,
+  }).flatMap((violation) => violation.messages);
   if (messages.length === 0) return;
   throw new Error(messages.join('\n'));
+}
+
+export type ArchitectureRuleViolations = {
+  rule: string;
+  messages: string[];
+};
+
+export type ArchitectureViolationsOptions = {
+  target?: ArchitectureCheckTarget;
+  mutationReactOn?: MutationReactOnOptions;
+};
+
+/**
+ * The rules `assertArchitecture` enforces, as data instead of an exception.
+ *
+ * Reports and agents need every failing rule at once, named, without parsing
+ * one concatenated error message.
+ */
+export function architectureViolations(
+  graph: DependencyGraph,
+  options: ArchitectureViolationsOptions = {},
+): ArchitectureRuleViolations[] {
+  const target = options.target ?? 'development';
+  if (target !== 'development' && target !== 'production') {
+    throw new Error(`Unknown architecture check target "${target}".`);
+  }
+  const rules: readonly (readonly [string, (graph: DependencyGraph) => void])[] =
+    [
+      ['craft-unique', assertCraftUnique],
+      ['http-endpoint-unique', assertHttpEndpointUnique],
+      ['craft-computed-pure', assertCraftComputedPure],
+      ['primitive-methods-used-once', assertPrimitiveMethodsUsedOnce],
+      ['no-unused-primitive-methods', assertNoUnusedPrimitiveMethods],
+      ['no-dependency-cycles', assertNoDependencyCycles],
+      ['server-function-architecture', assertServerFunctionArchitecture],
+      ['input-action-forms', assertInputActionForms],
+      [
+        'mutation-react-on',
+        (checked) =>
+          assertMutationHasReactOn(checked, options.mutationReactOn ?? {}),
+      ],
+    ];
+  return rules.flatMap(([rule, assert]) => {
+    try {
+      assert(graph);
+      return [];
+    } catch (error) {
+      return [
+        {
+          rule,
+          messages: [error instanceof Error ? error.message : String(error)],
+        },
+      ];
+    }
+  });
 }
 
 function escapeRegex(value: string): string {

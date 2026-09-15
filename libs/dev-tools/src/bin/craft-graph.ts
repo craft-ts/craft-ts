@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   analyzeDependencyGraph,
   writeDependencyGraph,
   type WriteDependencyGraphOptions,
 } from '../scripts/dependency-graph.js';
+import { churnFromGitLog } from '../scripts/graph-metrics.js';
 import { mergeStyleDump, type StyleDump } from '../scripts/style-graph.js';
 import {
   paletteContrastMatrix,
@@ -175,12 +178,50 @@ function runContrast(run: ContrastRun): number {
  * The graph itself
  * ------------------------------------------------------------------------ */
 
-function parseArgs(argv: string[]): WriteDependencyGraphOptions {
+interface GraphRun {
+  readonly options: WriteDependencyGraphOptions;
+  /** `git log --since` value; churn is only read when it is given. */
+  readonly churnSince?: string;
+}
+
+/**
+ * Commits per file since a date, read from git.
+ *
+ * Lives in the binary on purpose: the report builder receives the numbers and
+ * never touches git, so it stays a pure function a test can call.
+ */
+function readGitChurn(
+  rootDir: string,
+  since: string,
+): ReadonlyMap<string, number> {
+  const git = (args: readonly string[], cwd: string): string => {
+    const result = spawnSync('git', args, {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (result.error) throw result.error;
+    if (result.status !== 0) {
+      throw new Error(
+        `craft-graph --churn-since: git ${args[0]} failed: ${result.stderr.trim()}`,
+      );
+    }
+    return result.stdout;
+  };
+  const repositoryRoot = git(['rev-parse', '--show-toplevel'], rootDir).trim();
+  return churnFromGitLog(
+    git(['log', `--since=${since}`, '--name-only', '--pretty=format:'], repositoryRoot),
+    repositoryRoot,
+  );
+}
+
+function parseArgs(argv: string[]): GraphRun {
   const options: WriteDependencyGraphOptions = {
     rootDir: process.cwd(),
     outputPath: 'craft-dependency-graph',
     format: 'both',
   };
+  let churnSince: string | undefined;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     switch (argument) {
@@ -201,10 +242,11 @@ function parseArgs(argv: string[]): WriteDependencyGraphOptions {
           format !== 'mermaid' &&
           format !== 'html' &&
           format !== 'both' &&
-          format !== 'all'
+          format !== 'all' &&
+          format !== 'report'
         ) {
           throw new Error(
-            '--format must be json, mermaid, html, both, or all.',
+            '--format must be json, mermaid, html, both, all, or report.',
           );
         }
         options.format = format;
@@ -212,6 +254,12 @@ function parseArgs(argv: string[]): WriteDependencyGraphOptions {
       }
       case '--include':
         options.include = [...(options.include ?? []), argv[++index]];
+        break;
+      case '--feature-glob':
+        options.report = { ...options.report, featureGlob: argv[++index] };
+        break;
+      case '--churn-since':
+        churnSince = argv[++index];
         break;
       case '--style-dump':
         index += 1;
@@ -225,7 +273,7 @@ function parseArgs(argv: string[]): WriteDependencyGraphOptions {
         throw new Error(`Unknown argument: ${argument}`);
     }
   }
-  return options;
+  return { options, ...(churnSince === undefined ? {} : { churnSince }) };
 }
 
 function printHelp(): void {
@@ -238,10 +286,18 @@ Options:
   --project, --tsconfig <path> TypeScript application config.
   --root <dir>                 Workspace root. Defaults to cwd.
   --out <path>                 Output basename. Defaults to craft-dependency-graph.
-  --format <format>            json, mermaid, html, both, or all. Defaults to both.
+  --format <format>            json, mermaid, html, both, all, or report.
+                               Defaults to both.
                                json/both/all also write a .architecture.ts catalog.
                                html creates one self-contained visualizer file.
+                               report/all write <out>.report.md and .report.json:
+                               god nodes, hotspots, cycles, unused methods and
+                               architecture violations.
   --include <text>             Restrict analysis to source paths containing text.
+  --feature-glob <glob>        Report relations between features, e.g.
+                               'src/features/:feature/**'.
+  --churn-since <date>         Weigh hotspots by the commits touching each file
+                               since that date (any git --since value).
 
 Style queries, answered from the emitted dump without building the program:
   --impacted <--x>             Sheet classes a change to that custom property
@@ -280,7 +336,19 @@ if (contrast) {
     process.exitCode = 1;
   }
 } else if (!runStyleQuery(argv)) {
-  writeDependencyGraph(parseArgs(argv))
+  Promise.resolve()
+    .then(() => {
+      const { options, churnSince } = parseArgs(argv);
+      if (churnSince === undefined) return writeDependencyGraph(options);
+      const churn = readGitChurn(
+        resolve(options.rootDir ?? process.cwd()),
+        churnSince,
+      );
+      return writeDependencyGraph({
+        ...options,
+        report: { ...options.report, churn },
+      });
+    })
     .then((graph) => {
       console.log(
         `Craft graph written: ${graph.nodes.length} nodes, ${graph.edges.length} edges.`,

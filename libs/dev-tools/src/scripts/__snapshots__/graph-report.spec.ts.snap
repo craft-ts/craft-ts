@@ -1,0 +1,74 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`graphReport > renders Markdown 1`] = `
+"# Craft graph report
+
+Graph \`e7f7b8f2a53db86c\`: 5 nodes, 5 relations.
+
+## Summary
+
+| Node kind | Count |
+| --- | --- |
+| component | 1 |
+| primitive | 1 |
+| property | 1 |
+| service | 2 |
+
+| Relation kind | Count |
+| --- | --- |
+| contains | 2 |
+| depends-on | 3 |
+
+### Diagnostics
+
+| Code | Count |
+| --- | --- |
+| CRAFT_GRAPH_METRICS_UNKNOWN | 1 |
+| OTHER | 2 |
+
+## God nodes
+
+The nodes most depended upon (distinct incoming coupling relations).
+
+| Node | Kind | Fan-in | Fan-out | Location |
+| --- | --- | --- | --- | --- |
+| CartService | service | 2 | 1 | src/features/cart/cart.service.ts:3 |
+| UserService | service | 1 | 1 | src/features/user/user.service.ts:1 |
+
+## Hotspots
+
+Score = total complexity × (1 + fan-in) × (1 + churn). Churn counts the commits touching the file. Nodes of unknown complexity are left out.
+
+| Node | Kind | Score | Complexity | Fan-in | Churn | Location |
+| --- | --- | --- | --- | --- | --- | --- |
+| Panel | component | 18 | 6 | 0 | 2 | src/features/cart/panel.ts:1 |
+| CartService | service | 9 | 3 | 2 | 0 | src/features/cart/cart.service.ts:3 |
+| UserService | service | 4 | 2 | 1 | 0 | src/features/user/user.service.ts:1 |
+| state:items | primitive | 1 | 1 | 0 | 0 | src/features/cart/cart.service.ts:5 |
+
+## Dependency cycles
+
+- CartService → UserService → CartService
+
+## Unused primitive methods
+
+- \`state:items.reset\` (src/features/cart/cart.service.ts:6)
+
+## Cross-feature relations
+
+| From | To | Relations | Kinds |
+| --- | --- | --- | --- |
+| cart | user | 1 | depends-on |
+| user | cart | 1 | depends-on |
+
+## Architecture violations
+
+### no-unused-primitive-methods
+
+- Primitive method state:items.reset is never used in this project (src/features/cart/cart.service.ts:6). Remove it.
+
+### no-dependency-cycles
+
+- Dependency cycle: UserService -> CartService -> UserService.
+"
+`;
