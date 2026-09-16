@@ -2647,6 +2647,7 @@ export const styleClassNodeId = (key: string): string => `style-class:${key}`;
 
 function analyzePrimitiveInsertionMetadata(builder: GraphBuilder): void {
   const scopes: { node: Node; ownerId: string }[] = [];
+  let accessesByName: PropertyAccessIndex | undefined;
   for (const service of builder.services) {
     const factory = service.call.getArguments()[1];
     if (factory) scopes.push({ node: factory, ownerId: service.node.id });
@@ -2692,11 +2693,13 @@ function analyzePrimitiveInsertionMetadata(builder: GraphBuilder): void {
               exposedMethod: true,
             };
           }
+          accessesByName ??= indexPropertyAccessesByName(builder.project);
           addExposedPrimitiveMethodUsageEdges(
             builder,
             primitiveNode,
             call,
             methods,
+            accessesByName,
           );
         }
       }
@@ -2729,11 +2732,40 @@ function analyzeInsertions(builder: GraphBuilder): void {
   }
 }
 
+type PropertyAccessIndex = Map<
+  string,
+  { order: number; access: PropertyAccessExpression }[]
+>;
+
+/**
+ * Every property access of the project, bucketed by accessed name.
+ *
+ * Built once and shared by all primitives: scanning the whole project per
+ * primitive made this pass the most expensive part of the analysis.
+ */
+function indexPropertyAccessesByName(project: Project): PropertyAccessIndex {
+  const index: PropertyAccessIndex = new Map();
+  let order = 0;
+  for (const sourceFile of project.getSourceFiles()) {
+    for (const access of sourceFile.getDescendantsOfKind(
+      SyntaxKind.PropertyAccessExpression,
+    )) {
+      const name = access.getName();
+      const bucket = index.get(name);
+      const entry = { order: order++, access };
+      if (bucket) bucket.push(entry);
+      else index.set(name, [entry]);
+    }
+  }
+  return index;
+}
+
 function addExposedPrimitiveMethodUsageEdges(
   builder: GraphBuilder,
   primitive: DependencyGraphNode,
   declaration: CallExpression,
   methods: ReadonlySet<string>,
+  accessesByName: PropertyAccessIndex,
 ): void {
   const variableDeclaration = primitiveVariableDeclaration(declaration);
   const bindingNodes = variableDeclaration
@@ -2766,59 +2798,61 @@ function addExposedPrimitiveMethodUsageEdges(
       ? primitive.details['ownerId']
       : primitive.id;
 
-  for (const sourceFile of builder.project.getSourceFiles()) {
-    for (const access of sourceFile.getDescendantsOfKind(
-      SyntaxKind.PropertyAccessExpression,
-    )) {
-      const chain = propertyAccessChain(access);
-      const root = rootIdentifier(access);
-      const method = chain?.at(-1) ?? access.getName();
-      const nestedMethod = chain?.at(-1);
-      const isNamedNestedMethod =
-        Boolean(primitiveName) &&
-        (!root || chain?.length !== 2 || namedPrimitiveCount === 1) &&
-        methods.has(method) &&
-        access.getText().endsWith(`${primitiveName}.${method}`);
-      if (
-        (!root && !isNamedNestedMethod) ||
-        (!isNamedNestedMethod && chain?.length !== 2) ||
-        !method ||
-        (!methods.has(method) && !isNamedNestedMethod) ||
-        (!isNamedNestedMethod && !bindingNames.has(chain?.[0] ?? ''))
-      ) {
-        continue;
-      }
-      const key = root ? symbolKey(root.getSymbol()) : undefined;
-      if (
-        !isNamedNestedMethod &&
-        variableDeclaration &&
-        bindingKeys.size > 0 &&
-        (!key || !bindingKeys.has(key))
-      ) {
-        continue;
-      }
-      if (
-        !variableDeclaration &&
-        access.getSourceFile().getFilePath() !== primitive.filePath
-      ) {
-        continue;
-      }
-      addEdge(
-        builder,
-        ownerId,
-        `property:${primitive.id}:${method}`,
-        'uses-property',
-        'ast',
-        {
-          path: nestedMethod ?? method,
-          callSite: {
-            filePath: access.getSourceFile().getFilePath(),
-            line: access.getStartLineNumber(),
-            offset: access.getStart(),
-          },
-        },
-      );
+  // Every matching access ends with one of `methods`, so only those buckets
+  // can match. Sorting by `order` keeps the project-wide visit order, which
+  // matters because addEdge lets the last call site win.
+  const candidates = [...methods]
+    .flatMap((method) => accessesByName.get(method) ?? [])
+    .sort((left, right) => left.order - right.order);
+  for (const { access } of candidates) {
+    const chain = propertyAccessChain(access);
+    const root = rootIdentifier(access);
+    const method = chain?.at(-1) ?? access.getName();
+    const nestedMethod = chain?.at(-1);
+    const isNamedNestedMethod =
+      Boolean(primitiveName) &&
+      (!root || chain?.length !== 2 || namedPrimitiveCount === 1) &&
+      methods.has(method) &&
+      access.getText().endsWith(`${primitiveName}.${method}`);
+    if (
+      (!root && !isNamedNestedMethod) ||
+      (!isNamedNestedMethod && chain?.length !== 2) ||
+      !method ||
+      (!methods.has(method) && !isNamedNestedMethod) ||
+      (!isNamedNestedMethod && !bindingNames.has(chain?.[0] ?? ''))
+    ) {
+      continue;
     }
+    const key = root ? symbolKey(root.getSymbol()) : undefined;
+    if (
+      !isNamedNestedMethod &&
+      variableDeclaration &&
+      bindingKeys.size > 0 &&
+      (!key || !bindingKeys.has(key))
+    ) {
+      continue;
+    }
+    if (
+      !variableDeclaration &&
+      access.getSourceFile().getFilePath() !== primitive.filePath
+    ) {
+      continue;
+    }
+    addEdge(
+      builder,
+      ownerId,
+      `property:${primitive.id}:${method}`,
+      'uses-property',
+      'ast',
+      {
+        path: nestedMethod ?? method,
+        callSite: {
+          filePath: access.getSourceFile().getFilePath(),
+          line: access.getStartLineNumber(),
+          offset: access.getStart(),
+        },
+      },
+    );
   }
 }
 
