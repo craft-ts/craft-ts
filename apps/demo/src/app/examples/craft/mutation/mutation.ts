@@ -156,6 +156,9 @@ const MutationCraft = craftComponent(
           class: 'update-user-name',
           disabled: store.updateUserName.isLoading,
           *click() {
+            // This example intentionally demonstrates direct mutation wiring;
+            // the form-based variant is covered by the full-demo example.
+            // eslint-disable-next-line craft-ts/require-form-for-input-action
             yield* updateUserNameFn((yield* nameInput()) ?? '');
           },
         },

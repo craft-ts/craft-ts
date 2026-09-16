@@ -164,6 +164,7 @@ describe('demo architecture', () => {
       'reset',
       'TodoNameToAddInput',
       'AddTodoButton',
+      'AddTodoForm',
       'RemoveTodoButton',
       'UpdateUserName',
       'PageSize',

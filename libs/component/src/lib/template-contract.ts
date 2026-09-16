@@ -163,7 +163,9 @@ type VisitChildren<
           | ComponentPropsMatch<ActualProps, ComponentOfNode<Children>>
           | InvalidOutputCallbacks<ActualProps, ComponentOfNode<Children>>
           | VisitComponent<ComponentOfNode<Children>, Registry, Seen>
-      : Children extends CraftDirectiveNode<any>
+      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+        ? VisitChildren<Source, Registry, Seen>
+        : Children extends CraftDirectiveNode<any>
         ? VisitChildren<Children['node'], Registry, Seen>
         : Children extends ForNode<
               infer _Item,
@@ -262,7 +264,9 @@ type FindElement<
     ? ActualTag extends Tag
       ? ElementMatching<Children, Tag, Props>
       : FindElement<Children['children'], Tag, Props>
-    : Children extends CraftDirectiveNode<any>
+    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      ? FindElement<Source, Tag, Props>
+      : Children extends CraftDirectiveNode<any>
       ? FindElement<Children['node'], Tag, Props>
       : Children extends ComponentNode<any, any, infer Component>
         ? FindElement<ReturnType<ComponentTemplateOf<Component>>, Tag, Props>
@@ -324,7 +328,9 @@ type VisitProperty<
           : false
         : false
       : VisitProperty<Nested, Tag, Property, Value>
-    : Children extends CraftDirectiveNode<any>
+    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      ? VisitProperty<Source, Tag, Property, Value>
+      : Children extends CraftDirectiveNode<any>
       ? VisitProperty<Children['node'], Tag, Property, Value>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitProperty<
@@ -393,7 +399,9 @@ type VisitYieldableProperty<
           : false
         : false
       : VisitYieldableProperty<Nested, Tag, Property, Result>
-    : Children extends CraftDirectiveNode<any>
+    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      ? VisitYieldableProperty<Source, Tag, Property, Result>
+      : Children extends CraftDirectiveNode<any>
       ? VisitYieldableProperty<Children['node'], Tag, Property, Result>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitYieldableProperty<
@@ -468,7 +476,9 @@ type VisitContextUse<
           : false
         : false
       : VisitContextUse<Nested, Tag, Property, ContextMethod>
-    : Children extends CraftDirectiveNode<any>
+    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      ? VisitContextUse<Source, Tag, Property, ContextMethod>
+      : Children extends CraftDirectiveNode<any>
       ? VisitContextUse<Children['node'], Tag, Property, ContextMethod>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitContextUse<
@@ -533,7 +543,9 @@ type VisitEvent<
           : false
         : false
       : VisitEvent<Children['children'], Tag, EventName, Handler>
-    : Children extends CraftDirectiveNode<any>
+    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      ? VisitEvent<Source, Tag, EventName, Handler>
+      : Children extends CraftDirectiveNode<any>
       ? VisitEvent<Children['node'], Tag, EventName, Handler>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitEvent<
@@ -553,7 +565,9 @@ type VisitOutput<
   ? VisitOutput<Child, Target, Name, Handler>
   : Children extends ElementNodeBase<any, any, any, infer Nested>
     ? VisitOutput<Nested, Target, Name, Handler>
-    : Children extends CraftDirectiveNode<any>
+    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      ? VisitOutput<Source, Target, Name, Handler>
+      : Children extends CraftDirectiveNode<any>
       ? VisitOutput<Children['node'], Target, Name, Handler>
       : Children extends ComponentNode<infer Props, any, infer Actual>
         ? [Actual] extends [Target]
@@ -634,7 +648,9 @@ type VisitYieldableEvent<
           : false
         : false
       : VisitYieldableEvent<Children['children'], Tag, EventName, Args>
-    : Children extends CraftDirectiveNode<any>
+    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      ? VisitYieldableEvent<Source, Tag, EventName, Args>
+      : Children extends CraftDirectiveNode<any>
       ? VisitYieldableEvent<Children['node'], Tag, EventName, Args>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitYieldableEvent<
@@ -667,6 +683,8 @@ export type TemplateUsesComponent<
         >
     : Children extends ElementNodeBase<any, any, any, infer Nested>
       ? TemplateUsesComponent<Nested, Component>
+      : Children extends { readonly kind: 'field-error'; readonly source: infer Source extends CraftNodeChildren }
+      ? TemplateUsesComponent<Source, Component>
       : Children extends CraftDirectiveNode<any>
         ? TemplateUsesComponent<Children['node'], Component>
         : Children extends ForNode<any, any>
@@ -799,7 +817,16 @@ type VisitRenderedState<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends CraftDirectiveNode<any>
+      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+        ? VisitRenderedState<
+            Source,
+            StateName,
+            Expected,
+            Current,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends CraftDirectiveNode<any>
         ? VisitRenderedState<
             Children['node'],
             StateName,
@@ -972,7 +999,17 @@ type VisitAvailableAction<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends CraftDirectiveNode<any>
+      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+        ? VisitAvailableAction<
+            Source,
+            EventName,
+            LocalName,
+            Expected,
+            Current,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends CraftDirectiveNode<any>
         ? VisitAvailableAction<
             Children['node'],
             EventName,
@@ -1170,6 +1207,13 @@ type VisitNamedElementIdentities<
               Seen,
               [...Depth, unknown]
             >
+        : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+        ? VisitNamedElementIdentities<
+            Source,
+            Owner,
+            Seen,
+            [...Depth, unknown]
+          >
         : Children extends CraftDirectiveNode<any>
           ? VisitNamedElementIdentities<
               Children['node'],
@@ -1313,7 +1357,15 @@ type NamedElementPropsOf<
               Seen,
               [...Depth, unknown]
             >
-        : Children extends CraftDirectiveNode<any>
+        : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+          ? NamedElementPropsOf<
+              Source,
+              Identity,
+              Owner,
+              Seen,
+              [...Depth, unknown]
+            >
+          : Children extends CraftDirectiveNode<any>
           ? NamedElementPropsOf<
               Children['node'],
               Identity,
@@ -1440,7 +1492,17 @@ type NamedElementDelegatesToContextOf<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends CraftDirectiveNode<any>
+      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+        ? NamedElementDelegatesToContextOf<
+            Source,
+            Identity,
+            Property,
+            ContextMethod,
+            Owner,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends CraftDirectiveNode<any>
         ? NamedElementDelegatesToContextOf<
             Children['node'],
             Identity,
@@ -1574,7 +1636,19 @@ type NamedElementRendersStateWhenOf<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends CraftDirectiveNode<any>
+      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+        ? NamedElementRendersStateWhenOf<
+            Source,
+            Identity,
+            Property,
+            StateName,
+            Expected,
+            Owner,
+            Current,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends CraftDirectiveNode<any>
         ? NamedElementRendersStateWhenOf<
             Children['node'],
             Identity,
@@ -1753,7 +1827,17 @@ type VisitNamedElement<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends CraftDirectiveNode<any>
+      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+        ? VisitNamedElement<
+            Source,
+            Identity,
+            Expected,
+            Owner,
+            Current,
+            Seen,
+            [...Depth, unknown]
+          >
+        : Children extends CraftDirectiveNode<any>
         ? VisitNamedElement<
             Children['node'],
             Identity,

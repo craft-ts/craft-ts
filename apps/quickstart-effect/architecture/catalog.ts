@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "3cd6cee39814f538",
+  "graphHash": "6749760e2d8a789d",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -70,7 +70,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "configuredEndpoint"
+      "url": "<unresolved:ai-send-context-chat.ts:520>"
     }
   ],
   "uniques": [],

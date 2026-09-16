@@ -1,8 +1,16 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import {
-  setupCraftServiceTestingByRegister, craftUse } from '@craft-ts/core';
+  craftUse,
+  setupCraftServiceTestingByRegister,
+  type ValidatedFormValue,
+} from '@craft-ts/core';
 import { TodoStore, provideTodoStore } from './full-demo';
+
+const validatedTitle = (
+  title: string,
+): NonNullable<ValidatedFormValue<string>> =>
+  title as NonNullable<ValidatedFormValue<string>>;
 
 describe('TodoStore logic', () => {
   async function createStore() {
@@ -33,7 +41,7 @@ describe('TodoStore logic', () => {
   it('adds todos through the mutation projection with a new id', async () => {
     const store = await createStore();
 
-    store.add.mutate('Write logic tests');
+    store.add.mutate(validatedTitle('Write logic tests'));
 
     await vi.waitFor(() =>
       expect(craftUse(store.todos.value())).toContainEqual({
@@ -54,7 +62,7 @@ describe('TodoStore logic', () => {
   it('allocates unique monotonic ids for successive additions', async () => {
     const store = await createStore();
 
-    store.add.mutate('Third todo');
+    store.add.mutate(validatedTitle('Third todo'));
     await vi.waitFor(() =>
       expect(craftUse(store.todos.value())).toHaveLength(3),
     );
@@ -62,7 +70,7 @@ describe('TodoStore logic', () => {
       expect(craftUse(store.add.status())).toBe('resolved'),
     );
 
-    store.add.mutate('Fourth todo');
+    store.add.mutate(validatedTitle('Fourth todo'));
     await vi.waitFor(() =>
       expect(craftUse(store.todos.value())).toHaveLength(4),
     );

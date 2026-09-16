@@ -11,7 +11,6 @@ import {
   metadataFromScope,
   replayFidelity,
   snapshotPage,
-  visualReport,
 } from '@craft-ts/style-testing';
 import { reviewAttestConfig } from '../review-attest.config.ts';
 

@@ -90,13 +90,13 @@ describe('Full demo template', () => {
     >
   >;
 
-  type _ClickDelegatesToAddMutation = Expect<
+  type _SubmitDelegatesToAddMutation = Expect<
     Equal<
       TemplateNamedElementDelegatesToContext<
         FullDemoTemplate,
-        'FullDemoCraft:button:AddTodoButton',
-        'click',
-        'store.add.mutate'
+        'FullDemoCraft:form:AddTodoForm',
+        'submit',
+        'titleForm.form.submit'
       >,
       true
     >

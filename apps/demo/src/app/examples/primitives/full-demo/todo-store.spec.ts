@@ -2,7 +2,12 @@
 import { setupCraftComponentLogicTest } from '@craft-ts/component';
 import { describe, expect, it, vi } from 'vitest';
 import FullDemo from './full-demo';
-import { TestBed, craftUse } from '@craft-ts/core';
+import { TestBed, craftUse, type ValidatedFormValue } from '@craft-ts/core';
+
+const validatedTitle = (
+  title: string,
+): NonNullable<ValidatedFormValue<string>> =>
+  title as NonNullable<ValidatedFormValue<string>>;
 
 describe('Full primitives demo logic', () => {
   async function createLogic() {
@@ -39,7 +44,7 @@ describe('Full primitives demo logic', () => {
     const { context, destroy } = await createLogic();
 
     try {
-      context.addTodo.mutate('Write primitive tests');
+      context.addTodo.mutate(validatedTitle('Write primitive tests'));
 
       await vi.waitFor(() =>
         expect(craftUse(context.todos.value())).toContainEqual({
@@ -61,12 +66,12 @@ describe('Full primitives demo logic', () => {
     const { context, destroy } = await createLogic();
 
     try {
-      context.addTodo.mutate('Third todo');
+      context.addTodo.mutate(validatedTitle('Third todo'));
       await vi.waitFor(() =>
         expect(craftUse(context.todos.value())).toHaveLength(3),
       );
 
-      context.addTodo.mutate('Fourth todo');
+      context.addTodo.mutate(validatedTitle('Fourth todo'));
       await vi.waitFor(() =>
         expect(craftUse(context.todos.value())).toHaveLength(4),
       );

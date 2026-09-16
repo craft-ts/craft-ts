@@ -45,21 +45,17 @@ export const { provideTodoStore, TodoStore } = craftService(
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
       take: function* () {
-            const _state = yield* state();
-                const id = _state;
-                yield* update((value) => value + 1);
-                return id;
-              },
+        const _state = yield* state();
+        const id = _state;
+        yield* update((value) => value + 1);
+        return id;
+      },
     }));
-    const records = yield* state(
-      'records',
-      INITIAL_TODOS,
-      ({ update }) => ({
-        add: (todo: Todo) => update((current) => [...current, todo]),
-        remove: (id: number) =>
-          update((current) => current.filter((todo) => todo.id !== id)),
-      }),
-    );
+    const records = yield* state('records', INITIAL_TODOS, ({ update }) => ({
+      add: (todo: Todo) => update((current) => [...current, todo]),
+      remove: (id: number) =>
+        update((current) => current.filter((todo) => todo.id !== id)),
+    }));
     const add = yield* mutation('add', {
       method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
@@ -154,7 +150,11 @@ const FullDemoCraft = craftComponent(
           input('TodoNameToAddInput', { placeholder: 'New todo' }).pipe(
             CraftFieldDirective(titleForm.form),
           ),
-          button('AddTodoButton', { type: 'submit' }, 'Add'),
+          button(
+            'AddTodoButton',
+            { type: 'submit', disabled: store.add.isLoading },
+            'Add',
+          ),
         ],
       ).pipe(
         fieldErrorNode.exhaustive({
@@ -172,7 +172,8 @@ const FullDemoCraft = craftComponent(
               }),
               button(
                 'RemoveTodoButton',
-                { type: 'button',
+                {
+                  type: 'button',
                   disabled: store.remove.isLoading,
                   *click() {
                     yield* store.remove.mutate((yield* todo()).id);

@@ -479,7 +479,24 @@ export interface ElementNode<
     FieldExceptions | CraftNodeChildrenRawFieldExceptions<Children>,
     ElementNodePendingSources<Props, Children, PendingSources>,
     ElementNodeSettledExceptions<Props, Children, SettledExceptions>,
-    ElementNodeChannels<Props, Children>
+    ElementNodeChannels<Props, Children>,
+    ElementNode<
+      Dependencies,
+      Tag,
+      Props,
+      Children,
+      LocalName,
+      Exceptions,
+      HandledExceptions,
+      FieldExceptions,
+      CssVars,
+      PendingSources,
+      SettledExceptions
+    >,
+    Children,
+    Tag,
+    Props,
+    LocalName
   >;
 }
 
@@ -491,6 +508,7 @@ type PipedNode<
   PendingSources extends string = never,
   SettledExceptions extends string = never,
   Channels extends CraftChannels = EmptyChannels,
+  Source extends CraftNodeChildren = CraftNodeChildren,
 > =
   Directive extends PendingDirective<
     infer Handlers extends PendingHandlers | undefined,
@@ -518,7 +536,8 @@ type PipedNode<
         Directive,
         PendingSources,
         SettledExceptions,
-        Channels
+        Channels,
+        Source
       >;
 
 type PipedNodeWithoutPending<
@@ -529,6 +548,7 @@ type PipedNodeWithoutPending<
   PendingSources extends string,
   SettledExceptions extends string,
   Channels extends CraftChannels,
+  Source extends CraftNodeChildren,
 > =
   Directive extends FieldErrorDirective<
     infer FieldHandlers extends FieldExceptionHandlers,
@@ -563,11 +583,10 @@ type PipedNodeWithoutPending<
           | CraftNodeRawChannelsOf<
               FieldExceptionHandlerChildren<FieldHandlers[keyof FieldHandlers]>
             >
-        >
+        >,
+        Source
       >
-    : Directive extends CatchDirective<
-          infer Handlers extends CatchHandlers
-        >
+    : Directive extends CatchDirective<infer Handlers extends CatchHandlers>
       ? CatchNode<
           Dependencies | CraftDirectiveTemplateDependencies<Directive>,
           | Exclude<Exceptions, Extract<keyof Handlers, string>>
@@ -614,12 +633,16 @@ type PipedCraftNodeDirective<
   PendingSources extends string = never,
   SettledExceptions extends string = never,
   Channels extends CraftChannels = EmptyChannels,
+  Tag extends string = string,
+  Props extends object = Readonly<Record<string, unknown>>,
+  Children extends CraftNodeChildren = CraftNodeChildren,
+  LocalName extends string | undefined = string | undefined,
 > = ElementNode<
   Dependencies,
-  string,
-  ChannelCarryingProps<Channels>,
-  CraftNodeChildren,
-  string | undefined,
+  Tag,
+  Props,
+  Children,
+  LocalName,
   Exceptions,
   string,
   FieldExceptions | FieldValidationCasesOf<Directive>,
@@ -635,6 +658,11 @@ export type CraftNodePipe<
   PendingSources extends string = never,
   SettledExceptions extends string = never,
   Channels extends CraftChannels = EmptyChannels,
+  Source extends CraftNodeChildren = CraftNodeChildren,
+  NodeChildren extends CraftNodeChildren = CraftNodeChildren,
+  Tag extends string = string,
+  Props extends object = Readonly<Record<string, unknown>>,
+  LocalName extends string | undefined = string | undefined,
 > = {
   <Directive extends CraftDirective>(
     directive: (Directive extends ScheduleForDirective ? never : Directive) &
@@ -645,9 +673,7 @@ export type CraftNodePipe<
         ? Handlers extends PendingHandlers
           ? PendingExhaustiveCheck<PendingSources, Handlers>
           : unknown
-        : Directive extends CatchDirective<
-              infer Handlers extends CatchHandlers
-            >
+        : Directive extends CatchDirective<infer Handlers extends CatchHandlers>
           ? CatchTagExhaustiveCodesCheck<
               Exceptions | SettledExceptions,
               Record<Extract<keyof Handlers, string>, unknown>
@@ -677,7 +703,8 @@ export type CraftNodePipe<
     Directive,
     PendingSources,
     SettledExceptions,
-    Channels
+    Channels,
+    Source
   >;
   <Directive extends CraftNodeDirective<any>>(
     directive: Directive,
@@ -688,7 +715,11 @@ export type CraftNodePipe<
     Directive,
     PendingSources,
     SettledExceptions,
-    Channels
+    Channels,
+    Tag,
+    Props,
+    NodeChildren,
+    LocalName
   >;
   (directive: CraftHostType<unknown>): CraftNode;
 };
@@ -869,6 +900,7 @@ export interface FieldErrorNode<
   PendingSources extends string = never,
   SettledExceptions extends string = never,
   Channels extends CraftChannels = EmptyChannels,
+  Source extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
     CraftNodeExceptionsCarrier<Exceptions>,
     CraftChannelsCarrier<Channels>,
@@ -877,11 +909,9 @@ export interface FieldErrorNode<
     CraftNodeFieldExceptionsCarrier<FieldExceptions> {
   readonly kind: 'field-error';
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]: FieldExceptions;
-  readonly source: CraftNodeChildren;
+  readonly source: Source;
   readonly handlers: Handlers;
-  readonly options: Required<
-    Pick<FieldErrorOptions, 'mode' | 'position'>
-  > &
+  readonly options: Required<Pick<FieldErrorOptions, 'mode' | 'position'>> &
     Pick<FieldErrorOptions, 'visibility'>;
   readonly pipe: CraftNodePipe<
     Dependencies,
@@ -889,7 +919,8 @@ export interface FieldErrorNode<
     FieldExceptions,
     PendingSources,
     SettledExceptions,
-    Channels
+    Channels,
+    Source
   >;
 }
 
@@ -1558,9 +1589,7 @@ export function pipeCraftNode(
   }
 
   const fieldErrorNodeDefinition = (
-    directive as Partial<
-      Record<typeof FIELD_ERROR_NODE_DIRECTIVE, unknown>
-    >
+    directive as Partial<Record<typeof FIELD_ERROR_NODE_DIRECTIVE, unknown>>
   )[FIELD_ERROR_NODE_DIRECTIVE];
   if (fieldErrorNodeDefinition) {
     const definition = fieldErrorNodeDefinition as {

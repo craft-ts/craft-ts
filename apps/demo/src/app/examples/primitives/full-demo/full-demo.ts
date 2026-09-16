@@ -37,11 +37,11 @@ const FullDemo = craftComponent(
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
       take: function* () {
-            const _state = yield* state();
-                const id = _state;
-              yield* update((value) => value + 1);
-                return id;
-              },
+        const _state = yield* state();
+        const id = _state;
+        yield* update((value) => value + 1);
+        return id;
+      },
     }));
     const records = yield* state(
       'records',
@@ -58,7 +58,7 @@ const FullDemo = craftComponent(
     const todos = yield* query('todos', {
       method: (_: undefined) => undefined,
       loader: function* () {
-          const _records = yield* records();
+        const _records = yield* records();
         return [..._records];
       },
     });
@@ -95,7 +95,7 @@ const FullDemo = craftComponent(
       titleForm,
     };
   },
-  ({ todos, removeTodo, titleForm }) => {
+  ({ todos, addTodo, removeTodo, titleForm }) => {
     return div([
       heading([
         'Full primitives demo ',
@@ -115,7 +115,11 @@ const FullDemo = craftComponent(
             type: 'text',
             placeholder: 'New todo',
           }).pipe(CraftFieldDirective(titleForm.form)),
-          button('AddTodoButton', { type: 'submit' }, 'Add'),
+          button(
+            'AddTodoButton',
+            { type: 'submit', disabled: addTodo.isLoading },
+            'Add',
+          ),
         ],
       ).pipe(
         fieldErrorNode.exhaustive({
@@ -133,7 +137,8 @@ const FullDemo = craftComponent(
               }),
               button(
                 'RemoveTodoButton',
-                { type: 'button',
+                {
+                  type: 'button',
                   disabled: removeTodo.isLoading,
                   *click() {
                     yield* removeTodo.mutate((yield* todo()).id);
