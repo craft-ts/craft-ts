@@ -317,6 +317,94 @@ and per route), \`CRAFT_GRAPH_DOCS\` (Markdown globs) and \`CRAFT_GRAPH_READONLY
 (hides \`graph.rebuild\`) are set in the \`.mcp.json\` entry when needed.
 `;
 
+export const GRAPH_MCP_PACKAGE = '@craft-ts/graph-mcp';
+export const GRAPH_MCP_SERVER_NAME = 'craft-ts-graph';
+export const GRAPH_MCP_SERVER_ENTRY = {
+  command: 'npx',
+  args: ['craft-ts-graph-mcp'],
+};
+export const GRAPH_SCRIPTS: Readonly<Record<string, string>> = {
+  graph:
+    'craft-graph --project tsconfig.app.json --root . --out craft-dependency-graph --format all',
+  'graph:mcp': 'craft-ts-graph-mcp',
+};
+export const GRAPH_GITIGNORE_ENTRY = 'craft-dependency-graph.*';
+
+/** The directory each agent owns, used to recognise the agents a project uses. */
+export const AGENT_MARKER_DIRECTORIES: Readonly<Record<CreateAgent, string>> = {
+  codex: '.agents',
+  cursor: '.cursor',
+  'claude-code': '.claude',
+  'cloud-code': '.gemini',
+};
+
+export type GraphAgentFiles = {
+  /** Files this tooling owns and may overwrite. */
+  readonly documents: Readonly<Record<string, string>>;
+  /** The agent's hook configuration, merged rather than overwritten. */
+  readonly hookConfig?: {
+    readonly file: string;
+    readonly value: Record<string, unknown>;
+  };
+};
+
+/**
+ * The graph skill and hook for one agent.
+ *
+ * Shared with `craft agents sync`, so an existing project can receive exactly
+ * what `craft create` writes today without regenerating anything else.
+ */
+export function graphAgentFiles(agent: CreateAgent): GraphAgentFiles {
+  if (agent === 'codex') {
+    return {
+      documents: {
+        '.agents/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+        '.codex/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      },
+      hookConfig: { file: '.codex/hooks.json', value: CODEX_GRAPH_HOOK_SETTINGS },
+    };
+  }
+  if (agent === 'cursor') {
+    return {
+      documents: {
+        '.cursor/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+        '.cursor/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      },
+      hookConfig: { file: '.cursor/hooks.json', value: CURSOR_GRAPH_HOOKS },
+    };
+  }
+  if (agent === 'claude-code') {
+    return {
+      documents: {
+        '.claude/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+        '.claude/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      },
+      hookConfig: {
+        file: '.claude/settings.json',
+        value: CLAUDE_GRAPH_HOOK_SETTINGS,
+      },
+    };
+  }
+  return {
+    documents: {
+      '.gemini/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+      '.gemini/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+    },
+    hookConfig: {
+      file: '.gemini/settings.json',
+      value: GEMINI_GRAPH_HOOK_SETTINGS,
+    },
+  };
+}
+
+function graphAgentTemplates(agent: CreateAgent): Record<string, string> {
+  const { documents, hookConfig } = graphAgentFiles(agent);
+  return {
+    ...documents,
+    ...(hookConfig ? { [hookConfig.file]: json(hookConfig.value) } : {}),
+  };
+}
+
 const BASE_AGENT_SKILL = `---
 name: craft-ts-project
 description: Build and evolve a framework-independent CraftTS application with typed reactivity, routing, API boundaries, lint and architecture contracts. Use when adding or reviewing CraftTS state, queries, mutations, components, routes, tests, or project structure.
@@ -3471,9 +3559,7 @@ function agentFiles(
   if (agent === 'codex') {
     return {
       '.agents/skills/craft-ts-project/SKILL.md': skill,
-      '.agents/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
-      '.codex/hooks.json': json(CODEX_GRAPH_HOOK_SETTINGS),
-      '.codex/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      ...graphAgentTemplates(agent),
       ...(effectEnabled
         ? { '.agents/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
         : {}),
@@ -3482,9 +3568,7 @@ function agentFiles(
   if (agent === 'cursor') {
     return {
       '.cursor/skills/craft-ts-project/SKILL.md': skill,
-      '.cursor/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
-      '.cursor/hooks.json': json(CURSOR_GRAPH_HOOKS),
-      '.cursor/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      ...graphAgentTemplates(agent),
       '.cursor/rules/craft-ts.mdc': `---\ndescription: CraftTS project rules\nglobs: **/*.ts\nalwaysApply: true\n---\n\nRead .cursor/skills/craft-ts-project/SKILL.md before editing CraftTS code.\n`,
     };
   }
@@ -3496,9 +3580,7 @@ function agentFiles(
         '.claude/skills/craft-ts-project/SKILL.md',
       ),
       '.claude/skills/craft-ts-project/SKILL.md': skill,
-      '.claude/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
-      '.claude/settings.json': json(CLAUDE_GRAPH_HOOK_SETTINGS),
-      '.claude/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      ...graphAgentTemplates(agent),
       ...(effectEnabled
         ? { '.claude/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
         : {}),
@@ -3511,9 +3593,7 @@ function agentFiles(
       '.gemini/skills/craft-ts-project/SKILL.md',
     ),
     '.gemini/skills/craft-ts-project/SKILL.md': skill,
-    '.gemini/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
-    '.gemini/settings.json': json(GEMINI_GRAPH_HOOK_SETTINGS),
-    '.gemini/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+    ...graphAgentTemplates(agent),
     ...(effectEnabled
       ? { '.gemini/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
       : {}),

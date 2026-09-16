@@ -28,6 +28,7 @@ import {
   type InteractiveOption,
   type AgentSelectorInput,
 } from './agent-selector.js';
+import { runAgentSync } from '../scripts/create/sync-agents.js';
 import { runSecurityCheck } from '../scripts/security-check.js';
 import { runFormAdd } from '../scripts/forms/form-command.js';
 import { spawnSync } from 'node:child_process';
@@ -86,6 +87,9 @@ async function main(argv: string[]): Promise<number> {
       console.error(`Craft security check failed with ${errors} error(s).`);
     }
     return result.passed ? 0 : 1;
+  }
+  if (argv[0] === 'agents' && argv[1] === 'sync') {
+    return runAgentsSync(argv.slice(2));
   }
   if (argv[0] === 'i18n' && ['check', 'test'].includes(argv[1] ?? '')) {
     return runI18nCommand(argv[1] as 'check' | 'test');
@@ -787,12 +791,70 @@ function printVerificationResult(
   }
 }
 
+/**
+ * Adds today's agent wiring to a project created earlier.
+ *
+ * Deliberately narrow: skills, hooks, the graph MCP server, its scripts and its
+ * ignored output. `craft create --force` would rewrite the whole starter,
+ * source included, which is a regeneration rather than an upgrade.
+ */
+function runAgentsSync(argv: string[]): number {
+  let rootDir = process.cwd();
+  let agents: readonly CreateAgent[] | undefined;
+  let dryRun = false;
+  let asJson = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--root') rootDir = argv[++index] ?? rootDir;
+    else if (argument === '--agents') agents = parseCreateAgents(argv[++index]);
+    else if (argument === '--dry-run') dryRun = true;
+    else if (argument === '--json') asJson = true;
+    else {
+      console.error(`Unknown argument: ${argument}`);
+      return 1;
+    }
+  }
+
+  const result = runAgentSync({
+    rootDir,
+    ...(agents ? { agents } : {}),
+    dryRun,
+  });
+  if (asJson) {
+    console.log(JSON.stringify(result, null, 2));
+    return result.agents.length > 0 ? 0 : 1;
+  }
+  if (result.agents.length === 0) {
+    console.error(
+      'craft agents sync: no agent directory found (.agents, .claude, .cursor, .gemini). Pass --agents codex,cursor,claude-code,cloud-code.',
+    );
+    return 1;
+  }
+  for (const change of result.changes) {
+    if (change.action === 'unchanged') continue;
+    console.log(
+      `${dryRun ? 'would ' : ''}${change.action} ${change.file} — ${change.detail}`,
+    );
+  }
+  if (!result.changed) {
+    console.log(`Already up to date for ${result.agents.join(', ')}.`);
+    return 0;
+  }
+  console.log(
+    dryRun
+      ? `Would update ${result.agents.join(', ')}. Run without --dry-run to apply.`
+      : `Updated ${result.agents.join(', ')}. Run npm install, then npm run graph.`,
+  );
+  return 0;
+}
+
 function printHelp(): void {
   console.log(`Usage:
   craft create [directory] [options]
   craft add form <name> [--advanced] [--force]
   craft i18n check|test
   craft graph [options]
+  craft agents sync [--agents <list>] [--root <dir>] [--dry-run] [--json]
   craft security check [--strict] [--root <dir>]
   craft route add [path] [options]
   craft route split --parent <file#collection> --prefix <path> --target <file>
