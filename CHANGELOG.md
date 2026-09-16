@@ -1,3 +1,32 @@
+## 0.8.7 (2026-09-16)
+
+### 🚀 Features
+
+- expand generated project attestation configuration ([071cdc195](https://github.com/craft-ts/craft-ts/commit/071cdc195))
+- **cli:** craft agents sync for projects created earlier ([8fa6e0cf4](https://github.com/craft-ts/craft-ts/commit/8fa6e0cf4))
+- **create:** ship the graph MCP skill and a graph script in generated projects ([be0a3402e](https://github.com/craft-ts/craft-ts/commit/be0a3402e))
+- **create:** point Claude Code at the graph before a Grep ([8274b58ac](https://github.com/craft-ts/craft-ts/commit/8274b58ac))
+- **create:** name the graph tools for Codex, Cursor and Gemini too ([bd307ea26](https://github.com/craft-ts/craft-ts/commit/bd307ea26))
+- **dev-tools:** per-node graph metrics, hotspots and metric thresholds ([647063381](https://github.com/craft-ts/craft-ts/commit/647063381))
+- **dev-tools:** graph report and architectureViolations ([a418e59d2](https://github.com/craft-ts/craft-ts/commit/a418e59d2))
+- **dev-tools:** coverage per node and per route ([edea533f8](https://github.com/craft-ts/craft-ts/commit/edea533f8))
+- **dev-tools:** node documentation and an enriched graph explorer ([770f60802](https://github.com/craft-ts/craft-ts/commit/770f60802))
+- **graph-mcp:** query the dependency graph from external projects ([3d8bda266](https://github.com/craft-ts/craft-ts/commit/3d8bda266))
+
+### 🩹 Fixes
+
+- preserve named elements through field directives ([f4719ac37](https://github.com/craft-ts/craft-ts/commit/f4719ac37))
+- **cli:** read 'would create' in the agents sync dry run ([dc77303c6](https://github.com/craft-ts/craft-ts/commit/dc77303c6))
+
+### 🔥 Performance
+
+- **dev-tools:** index property accesses once for primitive method usage edges ([79a1fc804](https://github.com/craft-ts/craft-ts/commit/79a1fc804))
+
+### ❤️ Thank You
+
+- Claude Opus 5
+- Romain
+
 ## 0.8.6 (2026-09-13)
 
 ### 🩹 Fixes

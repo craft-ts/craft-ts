@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/graph-mcp",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "MCP server to query the CraftTS dependency graph of a project: nodes, neighbours, paths, impact, hotspots and architecture violations",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -39,7 +39,7 @@
     "craft-ts-graph-mcp": "./src/main.js"
   },
   "dependencies": {
-    "@craft-ts/dev-tools": "^0.8.6",
+    "@craft-ts/dev-tools": "^0.8.7",
     "@modelcontextprotocol/sdk": "1.26.0",
     "ts-morph": "^24.0.0",
     "zod": "4.3.6"
