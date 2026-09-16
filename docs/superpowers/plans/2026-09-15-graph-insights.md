@@ -467,7 +467,26 @@ Dans [create-project.ts](../../../libs/dev-tools/src/scripts/create/create-proje
 - textes du README généré (lignes 167 et 3038) ;
 - `create-project.spec.ts`.
 
-Pour un projet existant : extrait `.mcp.json` à copier, documenté au lot G.
+Pour un projet existant : `craft agents sync`, ajouté le 16 septembre 2026
+(`libs/dev-tools/src/scripts/create/sync-agents.ts`).
+
+`craft create --force` ne pouvait pas servir : malgré son message « Use --force
+to merge », la boucle d'écriture réécrit **tous** les fichiers générés — `src/`,
+`package.json`, les tsconfig — et ne préserve que `.gitignore` et
+`.vscode/settings.json`. C'est une regénération, pas une mise à jour.
+
+La commande n'ajoute que le câblage agent et MCP, par fusion :
+
+- skills et hooks des agents détectés (`.agents/`, `.claude/`, `.cursor/`,
+  `.gemini/`) ou nommés par `--agents` ;
+- serveur `craft-ts-graph` dans `.mcp.json`, sans toucher aux autres serveurs ;
+- scripts `graph` et `graph:mcp`, et la devDependency, à la version déjà épinglée
+  pour les autres paquets `@craft-ts/*` du projet ;
+- ligne `craft-dependency-graph.*` dans `.gitignore` ;
+- `--dry-run` et `--json` ; un second passage ne change rien.
+
+`graphAgentFiles()` est exportée de `create-project.ts` : `create` et `sync`
+écrivent exactement la même chose.
 
 **Fait (15 septembre 2026).** Écarts :
 
