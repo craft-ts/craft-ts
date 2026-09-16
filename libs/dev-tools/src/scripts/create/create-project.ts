@@ -117,48 +117,76 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+// Each agent spells context injection differently, so the caller passes the
+// flavour and the message stays written once.
+const FORMAT = process.argv[2] === undefined ? 'claude' : process.argv[2];
+
+function envelope(eventName, message) {
+  if (FORMAT === 'cursor') return { additional_context: message };
+  if (FORMAT === 'codex' || FORMAT === 'gemini') {
+    return {
+      hookSpecificOutput: { hookEventName: eventName, additionalContext: message },
+    };
+  }
+  return {
+    hookSpecificOutput: { hookEventName: eventName },
+    additionalContext: message,
+  };
+}
+
 const chunks = [];
 process.stdin.on('data', (chunk) => chunks.push(chunk));
 process.stdin.on('end', () => {
   let sessionId = 'unknown';
+  let eventName = FORMAT === 'claude' ? 'PreToolUse' : 'SessionStart';
   try {
     const event = JSON.parse(chunks.join(''));
     if (typeof event.session_id === 'string') sessionId = event.session_id;
+    if (typeof event.hook_event_name === 'string') eventName = event.hook_event_name;
   } catch {
     sessionId = 'unknown';
   }
 
-  const marker = join(
-    tmpdir(),
-    'craft-graph-hint-' + sessionId.replace(/[^A-Za-z0-9_-]/g, '') + '.marker',
-  );
-  if (existsSync(marker)) process.exit(0);
-  try {
-    writeFileSync(marker, '');
-  } catch {
-    // A read-only temp directory only costs a repeated reminder.
+  // Claude Code fires this before every Grep and Glob; the other agents fire it
+  // once, when the session starts. Only the repeated one needs a marker.
+  if (FORMAT === 'claude') {
+    const marker = join(
+      tmpdir(),
+      'craft-graph-hint-' + sessionId.replace(/[^A-Za-z0-9_-]/g, '') + '.marker',
+    );
+    if (existsSync(marker)) process.exit(0);
+    try {
+      writeFileSync(marker, '');
+    } catch {
+      // A read-only temp directory only costs a repeated reminder.
+    }
   }
 
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: { hookEventName: 'PreToolUse' },
-      additionalContext: [
+  const message = [
         'This project exposes its CraftTS dependency graph through the',
         'craft-ts-graph MCP server. To find where a route, component, service or',
         'primitive lives, what it depends on, what a change can break, or how two',
         'of them are connected, graph.search, graph.node and graph.impact answer',
         'with relations proven by the type checker, each with its file and line.',
         'Run npm run graph once to make those answers instant.',
-        'Grep and Glob remain the right tools for text, configuration and code',
-        'the graph does not model.',
-      ].join(' '),
-    }),
-  );
+    'Text search remains the right tool for configuration and for code the',
+    'graph does not model.',
+  ].join(' ');
+
+  process.stdout.write(JSON.stringify(envelope(eventName, message)));
   process.exit(0);
 });
 `;
 
-const GRAPH_FIRST_HOOK_SETTINGS = {
+/**
+ * Where each agent accepts context without blocking.
+ *
+ * Claude Code is the only one that can speak before a search, so it hooks
+ * Grep and Glob. Codex, Gemini and Cursor only accept context at the start of
+ * a session — their before-tool events can deny a call but not annotate it —
+ * so they say it once, up front, which is also what keeps it quiet.
+ */
+const CLAUDE_GRAPH_HOOK_SETTINGS = {
   hooks: {
     PreToolUse: [
       {
@@ -166,10 +194,62 @@ const GRAPH_FIRST_HOOK_SETTINGS = {
         hooks: [
           {
             type: 'command',
-            command: 'node "${CLAUDE_PROJECT_DIR}/.claude/hooks/graph-first.mjs"',
+            command:
+              'node "${CLAUDE_PROJECT_DIR}/.claude/hooks/graph-first.mjs" claude',
             timeout: 10,
           },
         ],
+      },
+    ],
+  },
+};
+
+const CODEX_GRAPH_HOOK_SETTINGS = {
+  hooks: {
+    SessionStart: [
+      {
+        matcher: 'startup',
+        hooks: [
+          {
+            type: 'command',
+            command:
+              'node "$(git rev-parse --show-toplevel)/.codex/hooks/graph-first.mjs" codex',
+            timeout: 10,
+            statusMessage: 'Reading the CraftTS graph tools',
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const GEMINI_GRAPH_HOOK_SETTINGS = {
+  hooks: {
+    SessionStart: [
+      {
+        matcher: 'startup',
+        hooks: [
+          {
+            name: 'craft-ts-graph',
+            type: 'command',
+            command:
+              'node "$GEMINI_PROJECT_DIR/.gemini/hooks/graph-first.mjs" gemini',
+            // Gemini counts this timeout in milliseconds.
+            timeout: 10000,
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const CURSOR_GRAPH_HOOKS = {
+  version: 1,
+  hooks: {
+    sessionStart: [
+      {
+        command: 'node ./.cursor/hooks/graph-first.mjs cursor',
+        timeout: 10,
       },
     ],
   },
@@ -3187,10 +3267,11 @@ function readme(context: TemplateContext): string {
     'for coverage per node and per route), CRAFT_GRAPH_DOCS (Markdown globs) and',
     'CRAFT_GRAPH_READONLY=1, which hides graph.rebuild.',
     '',
-    'For Claude Code, .claude/settings.json adds a PreToolUse hook that points at',
-    'the graph server once per session, before a Grep or a Glob. It never blocks',
-    'the search. Delete .claude/hooks/graph-first.mjs and its settings entry to',
-    'remove it.',
+    'Each selected agent also gets a hook that names the graph tools: Claude Code',
+    'before a Grep or a Glob (once per session), Codex, Gemini and Cursor when a',
+    'session starts, because their before-tool events can deny a call but not',
+    'annotate it. No hook ever blocks a search. Delete the hooks file and its',
+    'graph-first.mjs script to remove it.',
     '',
     '## Verify',
     '',
@@ -3391,6 +3472,8 @@ function agentFiles(
     return {
       '.agents/skills/craft-ts-project/SKILL.md': skill,
       '.agents/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+      '.codex/hooks.json': json(CODEX_GRAPH_HOOK_SETTINGS),
+      '.codex/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
       ...(effectEnabled
         ? { '.agents/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
         : {}),
@@ -3400,6 +3483,8 @@ function agentFiles(
     return {
       '.cursor/skills/craft-ts-project/SKILL.md': skill,
       '.cursor/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+      '.cursor/hooks.json': json(CURSOR_GRAPH_HOOKS),
+      '.cursor/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
       '.cursor/rules/craft-ts.mdc': `---\ndescription: CraftTS project rules\nglobs: **/*.ts\nalwaysApply: true\n---\n\nRead .cursor/skills/craft-ts-project/SKILL.md before editing CraftTS code.\n`,
     };
   }
@@ -3412,7 +3497,7 @@ function agentFiles(
       ),
       '.claude/skills/craft-ts-project/SKILL.md': skill,
       '.claude/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
-      '.claude/settings.json': json(GRAPH_FIRST_HOOK_SETTINGS),
+      '.claude/settings.json': json(CLAUDE_GRAPH_HOOK_SETTINGS),
       '.claude/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
       ...(effectEnabled
         ? { '.claude/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
@@ -3427,6 +3512,8 @@ function agentFiles(
     ),
     '.gemini/skills/craft-ts-project/SKILL.md': skill,
     '.gemini/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+    '.gemini/settings.json': json(GEMINI_GRAPH_HOOK_SETTINGS),
+    '.gemini/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
     ...(effectEnabled
       ? { '.gemini/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
       : {}),
