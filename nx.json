@@ -90,7 +90,8 @@
       "mcp",
       "log-server",
       "log-mcp",
-      "function-registry-mcp"
+      "function-registry-mcp",
+      "graph-mcp"
     ],
     "projectsRelationship": "fixed",
     "releaseTag": {

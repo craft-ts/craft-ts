@@ -53,6 +53,18 @@
       "types": "./src/scripts/architecture-graph.d.ts",
       "default": "./src/scripts/architecture-graph.js"
     },
+    "./graph-metrics": {
+      "types": "./src/scripts/graph-metrics.d.ts",
+      "default": "./src/scripts/graph-metrics.js"
+    },
+    "./graph-report": {
+      "types": "./src/scripts/graph-report.d.ts",
+      "default": "./src/scripts/graph-report.js"
+    },
+    "./graph-coverage": {
+      "types": "./src/scripts/graph-coverage.d.ts",
+      "default": "./src/scripts/graph-coverage.js"
+    },
     "./scripts/code-slice.js": {
       "types": "./src/scripts/code-slice.d.ts",
       "default": "./src/scripts/code-slice.js"

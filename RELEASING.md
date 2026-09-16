@@ -22,6 +22,7 @@ from it rather than from a hand-kept enumeration.
 | `@craft-ts/log-server`            | `log-server`              | `apps/log-server`                |
 | `@craft-ts/log-mcp`               | `log-mcp`                 | `packages/log-mcp`               |
 | `@craft-ts/function-registry-mcp` | `function-registry-mcp`   | `packages/function-registry-mcp` |
+| `@craft-ts/graph-mcp`             | `graph-mcp`               | `libs/graph-mcp`                 |
 
 For now, releases are run locally from the four Git workspaces: this repository,
 the documentation repository, the main demo repository, and the frontend Effect

@@ -327,12 +327,18 @@ describe('createCraftProject', () => {
       typecheck: 'node scripts/typecheck.mjs',
       'logs:server': 'craft-ts-log-server',
       'logs:mcp': 'craft-ts-log-mcp',
+      graph: expect.stringContaining('craft-graph --project tsconfig.app.json'),
+      'graph:mcp': 'craft-ts-graph-mcp',
       'registry:mcp': 'craft-ts-registry-mcp',
     });
+    expect(
+      await readFile(join(result.directory, '.gitignore'), 'utf8'),
+    ).toContain('craft-dependency-graph.*');
     expect(packageJson.scripts['attest:check']).toBeUndefined();
     expect(packageJson.devDependencies['@craft-ts/cli']).toBeUndefined();
     expect(packageJson.devDependencies['@craft-ts/log-server']).toBeDefined();
     expect(packageJson.devDependencies['@craft-ts/log-mcp']).toBeDefined();
+    expect(packageJson.devDependencies['@craft-ts/graph-mcp']).toBeDefined();
     expect(
       packageJson.devDependencies['@craft-ts/function-registry-mcp'],
     ).toBeDefined();
@@ -345,6 +351,9 @@ describe('createCraftProject', () => {
     expect(
       await readFile(join(result.directory, '.mcp.json'), 'utf8'),
     ).toContain('craft-ts-logs');
+    expect(
+      await readFile(join(result.directory, '.mcp.json'), 'utf8'),
+    ).toContain('"craft-ts-graph": { "command": "npx", "args": ["craft-ts-graph-mcp"] }');
     expect(
       await readFile(
         join(result.directory, '.github/workflows/ci.yml'),
@@ -447,6 +456,12 @@ describe('createCraftProject', () => {
       ),
     ).toContain('architecture/');
     expect(
+      await readFile(
+        join(result.directory, '.cursor/skills/craft-ts-graph-mcp/SKILL.md'),
+        'utf8',
+      ),
+    ).toContain('graph.impact');
+    expect(
       await readFile(join(result.directory, 'GEMINI.md'), 'utf8'),
     ).toContain('CraftTS project');
   });
@@ -544,11 +559,129 @@ describe('createCraftProject', () => {
       join(result.directory, '.claude/skills/craft-ts-project/SKILL.md'),
       'utf8',
     );
+    const graphSkill = await readFile(
+      join(result.directory, '.claude/skills/craft-ts-graph-mcp/SKILL.md'),
+      'utf8',
+    );
 
     expect(instructions).toContain(
       'Read `.claude/skills/craft-ts-project/SKILL.md`',
     );
     expect(skill).toContain('name: craft-ts-project');
+    expect(graphSkill).toContain('name: craft-ts-graph-mcp');
+    expect(graphSkill).toContain('graph.status');
+    expect(graphSkill).toContain('npm run graph');
+  });
+
+  it('points Claude Code at the graph before a Grep, without blocking it', async () => {
+    const result = await createFixture('plain', ['claude-code']);
+    const settings = JSON.parse(
+      await readFile(join(result.directory, '.claude/settings.json'), 'utf8'),
+    ) as {
+      hooks: {
+        PreToolUse: {
+          matcher: string;
+          hooks: { type: string; command: string }[];
+        }[];
+      };
+    };
+    const hook = await readFile(
+      join(result.directory, '.claude/hooks/graph-first.mjs'),
+      'utf8',
+    );
+
+    expect(settings.hooks.PreToolUse[0]?.matcher).toBe('Grep|Glob');
+    expect(settings.hooks.PreToolUse[0]?.hooks[0]).toMatchObject({
+      type: 'command',
+      command: expect.stringContaining('.claude/hooks/graph-first.mjs" claude'),
+    });
+    // Advisory: it adds context and exits 0, so the search still runs.
+    expect(hook).toContain('additionalContext');
+    expect(hook).toContain('graph.search');
+    expect(hook).not.toContain('permissionDecision');
+    // Once per session, so a reminder on every Grep never becomes noise.
+    expect(hook).toContain('craft-graph-hint-');
+  });
+
+  it('names the graph tools at session start for Codex, Cursor and Gemini', async () => {
+    const codex = await createFixture('plain', ['codex']);
+    const cursor = await createFixture('plain', ['cursor']);
+    // Gemini files are written for the cloud-code agent.
+    const gemini = await createFixture('plain', ['cloud-code']);
+
+    const codexHooks = JSON.parse(
+      await readFile(join(codex.directory, '.codex/hooks.json'), 'utf8'),
+    ) as { hooks: { SessionStart: { hooks: { command: string }[] }[] } };
+    const cursorHooks = JSON.parse(
+      await readFile(join(cursor.directory, '.cursor/hooks.json'), 'utf8'),
+    ) as { version: number; hooks: { sessionStart: { command: string }[] } };
+    const geminiSettings = JSON.parse(
+      await readFile(join(gemini.directory, '.gemini/settings.json'), 'utf8'),
+    ) as { hooks: { SessionStart: { hooks: { command: string }[] }[] } };
+
+    expect(codexHooks.hooks.SessionStart[0]?.hooks[0]?.command).toContain(
+      '.codex/hooks/graph-first.mjs" codex',
+    );
+    expect(cursorHooks.version).toBe(1);
+    expect(cursorHooks.hooks.sessionStart[0]?.command).toContain(
+      '.cursor/hooks/graph-first.mjs cursor',
+    );
+    expect(geminiSettings.hooks.SessionStart[0]?.hooks[0]?.command).toContain(
+      '.gemini/hooks/graph-first.mjs" gemini',
+    );
+    await Promise.all(
+      [
+        join(codex.directory, '.codex/hooks/graph-first.mjs'),
+        join(cursor.directory, '.cursor/hooks/graph-first.mjs'),
+        join(gemini.directory, '.gemini/hooks/graph-first.mjs'),
+      ].map(async (path) =>
+        expect(await readFile(path, 'utf8')).toContain('graph.search'),
+      ),
+    );
+  });
+
+  it('runs the hook script in every agent flavour', async () => {
+    const result = await createFixture('plain', ['claude-code']);
+    const script = join(result.directory, '.claude/hooks/graph-first.mjs');
+    // execFileSync throws on a non-zero exit, so a hook that crashes — or that
+    // no longer parses — fails the suite instead of failing silently in a
+    // generated project.
+    const run = (format: string, event: Record<string, unknown>): string =>
+      execFileSync(process.execPath, [script, format], {
+        input: JSON.stringify(event),
+        encoding: 'utf8',
+      });
+    // The once-per-session marker lives in the temp directory, so the session
+    // has to be new on every run of this suite.
+    const session = `spec-${Date.now()}`;
+
+    const claude = JSON.parse(
+      run('claude', {
+        session_id: session,
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Grep',
+      }),
+    ) as { additionalContext: string };
+    const repeated = run('claude', {
+      session_id: session,
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Glob',
+    });
+    const codex = JSON.parse(
+      run('codex', { session_id: session, hook_event_name: 'SessionStart' }),
+    ) as { hookSpecificOutput: Record<string, unknown> };
+    const cursor = JSON.parse(
+      run('cursor', { session_id: session, hook_event_name: 'sessionStart' }),
+    ) as { additional_context: string };
+
+    expect(claude.additionalContext).toContain('graph.search');
+    expect(codex.hookSpecificOutput).toMatchObject({
+      hookEventName: 'SessionStart',
+      additionalContext: expect.stringContaining('graph.impact'),
+    });
+    expect(cursor.additional_context).toContain('npm run graph');
+    // Claude Code fires before every search, so it speaks once per session.
+    expect(repeated).toBe('');
   });
 
   it('adds a review target to an Nx project and its root package scripts', async () => {

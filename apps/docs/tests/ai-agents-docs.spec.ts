@@ -56,6 +56,9 @@ describe('coding agents docs', () => {
     expect(aiOverview).toContain('@craft-ts/mcp');
     expect(aiOverview).toContain('@craft-ts/function-registry-mcp');
     expect(aiOverview).toContain('@craft-ts/log-mcp');
+    expect(aiOverview).toContain('@craft-ts/graph-mcp');
+    expect(mcpTools).toContain('graph.impact');
+    expect(mcpTools).toContain('CRAFT_GRAPH_READONLY');
     expect(aiOverview).toContain('Lucene');
     expect(aiOverview).toContain('Context Workbook');
     expect(mcpTools).toContain('registry.query.get');

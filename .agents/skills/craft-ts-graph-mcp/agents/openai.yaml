@@ -1,0 +1,4 @@
+interface:
+  display_name: "CraftTS Graph MCP"
+  short_description: "Query routes, services, impact and hotspots from the static dependency graph"
+  default_prompt: "Use $craft-ts-graph-mcp to answer architecture questions from the CraftTS dependency graph of this project."

@@ -1,0 +1,47 @@
+{
+  "name": "@craft-ts/graph-mcp",
+  "version": "0.8.6",
+  "description": "MCP server to query the CraftTS dependency graph of a project: nodes, neighbours, paths, impact, hotspots and architecture violations",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "homepage": "https://craft-ts.github.io/craft/",
+  "bugs": {
+    "url": "https://github.com/craft-ts/craft-ts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/craft-ts/craft-ts.git"
+  },
+  "keywords": [
+    "craft-ts",
+    "mcp",
+    "architecture",
+    "dependency-graph",
+    "ai-agents"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "bin": {
+    "craft-ts-graph-mcp": "./src/main.js"
+  },
+  "dependencies": {
+    "@craft-ts/dev-tools": "^0.8.6",
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "ts-morph": "^24.0.0",
+    "zod": "4.3.6"
+  }
+}

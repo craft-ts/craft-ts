@@ -2205,6 +2205,198 @@ export function assertPathBoundaries(
   );
 }
 
+export type NodeMetricName =
+  | 'cyclomaticOwn'
+  | 'cyclomaticTotal'
+  | 'lines'
+  | 'fanIn'
+  | 'fanOut';
+
+const NODE_METRIC_NAMES: readonly NodeMetricName[] = [
+  'cyclomaticOwn',
+  'cyclomaticTotal',
+  'lines',
+  'fanIn',
+  'fanOut',
+];
+
+export type MetricThresholdOptions = {
+  /** Inclusive maximum per metric. A metric left out is not checked. */
+  max: Partial<Record<NodeMetricName, number>>;
+  /** Restricts the check to these node kinds. Defaults to every kind. */
+  kinds?: readonly DependencyGraphNodeKind[];
+  /**
+   * Exempted nodes: a node id, a node label, or a glob matched against the
+   * repository-relative file path (`src/legacy/**`).
+   */
+  allow?: readonly string[];
+};
+
+export type MetricThresholdViolation = {
+  nodeId: string;
+  kind: DependencyGraphNodeKind;
+  label: string;
+  filePath: string;
+  line: number;
+  metric: NodeMetricName;
+  value: number;
+  max: number;
+};
+
+/**
+ * Nodes above a metric threshold.
+ *
+ * A metric the graph could not compute is skipped: an unknown complexity can
+ * neither pass nor fail a threshold, and reporting it as `0` would let it pass
+ * in silence. `graph.diagnostics` lists the unmeasured kinds.
+ */
+export function metricThresholdViolations(
+  graph: DependencyGraph,
+  options: MetricThresholdOptions,
+): MetricThresholdViolation[] {
+  const kinds = options.kinds && new Set(options.kinds);
+  const allow = options.allow ?? [];
+  const violations: MetricThresholdViolation[] = [];
+  for (const node of graph.nodes) {
+    if (kinds && !kinds.has(node.kind)) continue;
+    const path = relativeGraphPath(graph, node.filePath);
+    if (isAllowedNode(node, path, allow)) continue;
+    for (const metric of NODE_METRIC_NAMES) {
+      const max = options.max[metric];
+      const value = node.metrics?.[metric];
+      if (max === undefined || value === undefined || value <= max) continue;
+      violations.push({
+        nodeId: node.id,
+        kind: node.kind,
+        label: node.label,
+        filePath: path ?? node.filePath ?? '',
+        line: node.line ?? 0,
+        metric,
+        value,
+        max,
+      });
+    }
+  }
+  return violations;
+}
+
+export function assertMetricThresholds(
+  graph: DependencyGraph,
+  options: MetricThresholdOptions,
+): void {
+  if (
+    graph.nodes.length > 0 &&
+    graph.nodes.every((node) => node.metrics === undefined)
+  ) {
+    throw new Error(
+      'Metric thresholds: this graph carries no metrics. Rebuild it with a @craft-ts/dev-tools version that computes them.',
+    );
+  }
+  const violations = metricThresholdViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          `Metric threshold: ${violation.kind} ${violation.label} has ${violation.metric} ${violation.value} > ${violation.max} (${violation.filePath}:${violation.line}).`,
+      )
+      .join('\n'),
+  );
+}
+
+/** An allow entry is a node id, a node label, or a glob on the relative path. */
+function isAllowedNode(
+  node: DependencyGraphNode,
+  relativePath: string | undefined,
+  allow: readonly string[],
+): boolean {
+  return allow.some(
+    (entry) =>
+      entry === node.id ||
+      entry === node.label ||
+      (relativePath !== undefined && matchPathGlob(entry, relativePath) !== null),
+  );
+}
+
+export type UndocumentedNodeOptions = {
+  kinds: readonly DependencyGraphNodeKind[];
+  /** Also require a Markdown page citing the node (`createMarkdownDocsCollector`). */
+  requireDocPage?: boolean;
+  /** Node ids, labels, or globs on the repository-relative path. */
+  allow?: readonly string[];
+};
+
+export type UndocumentedNodeViolation = {
+  nodeId: string;
+  kind: DependencyGraphNodeKind;
+  label: string;
+  filePath: string;
+  line: number;
+  missing: 'jsdoc' | 'doc-page';
+};
+
+/**
+ * Nodes without a JSDoc summary, or without a page citing them.
+ *
+ * A node without a source range is skipped: its declaration could not be read,
+ * so nothing is known about its documentation either way.
+ */
+export function undocumentedNodeViolations(
+  graph: DependencyGraph,
+  options: UndocumentedNodeOptions,
+): UndocumentedNodeViolation[] {
+  const kinds = new Set(options.kinds);
+  const cited = new Set(
+    graph.edges.filter((edge) => edge.kind === 'documents').map((edge) => edge.to),
+  );
+  const violations: UndocumentedNodeViolation[] = [];
+  for (const node of graph.nodes) {
+    if (!kinds.has(node.kind) || node.endLine === undefined) continue;
+    const path = relativeGraphPath(graph, node.filePath);
+    if (isAllowedNode(node, path, options.allow ?? [])) continue;
+    const base = {
+      nodeId: node.id,
+      kind: node.kind,
+      label: node.label,
+      filePath: path ?? node.filePath ?? '',
+      line: node.line ?? 0,
+    };
+    if (!node.doc?.summary) violations.push({ ...base, missing: 'jsdoc' });
+    if (options.requireDocPage && !cited.has(node.id)) {
+      violations.push({ ...base, missing: 'doc-page' });
+    }
+  }
+  return violations;
+}
+
+export function assertNodesDocumented(
+  graph: DependencyGraph,
+  options: UndocumentedNodeOptions,
+): void {
+  if (
+    options.requireDocPage &&
+    !graph.nodes.some((node) => node.kind === 'doc-page')
+  ) {
+    throw new Error(
+      'Documentation: requireDocPage is set but the graph holds no doc-page node. Enable createMarkdownDocsCollector({ include }) or craft graph --docs.',
+    );
+  }
+  const violations = undocumentedNodeViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        (violation) =>
+          `Undocumented ${violation.kind} ${violation.label}: ${
+            violation.missing === 'jsdoc'
+              ? 'no JSDoc summary'
+              : 'no Markdown page cites it'
+          } (${violation.filePath}:${violation.line}).`,
+      )
+      .join('\n'),
+  );
+}
+
 export type MutationReactOnOptions = {
   allow?: readonly string[];
 };
@@ -3932,30 +4124,66 @@ export function assertDeclarativeArchitecture(
   graph: DependencyGraph,
   options: MutationReactOnOptions = {},
 ): void {
-  const messages: string[] = [];
-  for (const assert of [
-    assertCraftUnique,
-    assertHttpEndpointUnique,
-    assertCraftComputedPure,
-    assertPrimitiveMethodsUsedOnce,
-    assertNoUnusedPrimitiveMethods,
-    assertNoDependencyCycles,
-    assertServerFunctionArchitecture,
-    assertInputActionForms,
-  ]) {
-    try {
-      assert(graph);
-    } catch (error) {
-      messages.push(error instanceof Error ? error.message : String(error));
-    }
-  }
-  try {
-    assertMutationHasReactOn(graph, options);
-  } catch (error) {
-    messages.push(error instanceof Error ? error.message : String(error));
-  }
+  const messages = architectureViolations(graph, {
+    mutationReactOn: options,
+  }).flatMap((violation) => violation.messages);
   if (messages.length === 0) return;
   throw new Error(messages.join('\n'));
+}
+
+export type ArchitectureRuleViolations = {
+  rule: string;
+  messages: string[];
+};
+
+export type ArchitectureViolationsOptions = {
+  target?: ArchitectureCheckTarget;
+  mutationReactOn?: MutationReactOnOptions;
+};
+
+/**
+ * The rules `assertArchitecture` enforces, as data instead of an exception.
+ *
+ * Reports and agents need every failing rule at once, named, without parsing
+ * one concatenated error message.
+ */
+export function architectureViolations(
+  graph: DependencyGraph,
+  options: ArchitectureViolationsOptions = {},
+): ArchitectureRuleViolations[] {
+  const target = options.target ?? 'development';
+  if (target !== 'development' && target !== 'production') {
+    throw new Error(`Unknown architecture check target "${target}".`);
+  }
+  const rules: readonly (readonly [string, (graph: DependencyGraph) => void])[] =
+    [
+      ['craft-unique', assertCraftUnique],
+      ['http-endpoint-unique', assertHttpEndpointUnique],
+      ['craft-computed-pure', assertCraftComputedPure],
+      ['primitive-methods-used-once', assertPrimitiveMethodsUsedOnce],
+      ['no-unused-primitive-methods', assertNoUnusedPrimitiveMethods],
+      ['no-dependency-cycles', assertNoDependencyCycles],
+      ['server-function-architecture', assertServerFunctionArchitecture],
+      ['input-action-forms', assertInputActionForms],
+      [
+        'mutation-react-on',
+        (checked) =>
+          assertMutationHasReactOn(checked, options.mutationReactOn ?? {}),
+      ],
+    ];
+  return rules.flatMap(([rule, assert]) => {
+    try {
+      assert(graph);
+      return [];
+    } catch (error) {
+      return [
+        {
+          rule,
+          messages: [error instanceof Error ? error.message : String(error)],
+        },
+      ];
+    }
+  });
 }
 
 function escapeRegex(value: string): string {
@@ -4007,7 +4235,15 @@ function globToRegExp(
   return new RegExp(source);
 }
 
-function matchPathGlob(
+/**
+ * Matches a repository-relative path against a boundary glob.
+ *
+ * `**` crosses directories, `*` does not, and `:name` captures one segment.
+ * Returns the captures on a match — `{}` when the pattern has none — and
+ * `null` otherwise. Pass `captures` to require a segment to equal a value
+ * captured earlier (`src/features/:feature/**`).
+ */
+export function matchPathGlob(
   pattern: string,
   path: string,
   captures: Readonly<Record<string, string>> = {},

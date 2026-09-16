@@ -97,8 +97,313 @@ coverage/
 .vite/
 playwright-report/
 test-results/
+craft-dependency-graph.*
 .DS_Store
 `;
+
+/**
+ * Reminds an agent that the dependency graph answers structural questions.
+ *
+ * The failure it addresses is not a missing tool but an old habit: an agent
+ * greps for a name instead of asking the graph, and never sees the relations
+ * the type checker already proved.
+ *
+ * Advisory by construction — it prints `additionalContext` and exits 0, so the
+ * search always runs — and it speaks once per session: a reminder attached to
+ * every Grep becomes noise, and noise gets switched off.
+ */
+const GRAPH_FIRST_HOOK_SCRIPT = `#!/usr/bin/env node
+import { existsSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+// Each agent spells context injection differently, so the caller passes the
+// flavour and the message stays written once.
+const FORMAT = process.argv[2] === undefined ? 'claude' : process.argv[2];
+
+function envelope(eventName, message) {
+  if (FORMAT === 'cursor') return { additional_context: message };
+  if (FORMAT === 'codex' || FORMAT === 'gemini') {
+    return {
+      hookSpecificOutput: { hookEventName: eventName, additionalContext: message },
+    };
+  }
+  return {
+    hookSpecificOutput: { hookEventName: eventName },
+    additionalContext: message,
+  };
+}
+
+const chunks = [];
+process.stdin.on('data', (chunk) => chunks.push(chunk));
+process.stdin.on('end', () => {
+  let sessionId = 'unknown';
+  let eventName = FORMAT === 'claude' ? 'PreToolUse' : 'SessionStart';
+  try {
+    const event = JSON.parse(chunks.join(''));
+    if (typeof event.session_id === 'string') sessionId = event.session_id;
+    if (typeof event.hook_event_name === 'string') eventName = event.hook_event_name;
+  } catch {
+    sessionId = 'unknown';
+  }
+
+  // Claude Code fires this before every Grep and Glob; the other agents fire it
+  // once, when the session starts. Only the repeated one needs a marker.
+  if (FORMAT === 'claude') {
+    const marker = join(
+      tmpdir(),
+      'craft-graph-hint-' + sessionId.replace(/[^A-Za-z0-9_-]/g, '') + '.marker',
+    );
+    if (existsSync(marker)) process.exit(0);
+    try {
+      writeFileSync(marker, '');
+    } catch {
+      // A read-only temp directory only costs a repeated reminder.
+    }
+  }
+
+  const message = [
+        'This project exposes its CraftTS dependency graph through the',
+        'craft-ts-graph MCP server. To find where a route, component, service or',
+        'primitive lives, what it depends on, what a change can break, or how two',
+        'of them are connected, graph.search, graph.node and graph.impact answer',
+        'with relations proven by the type checker, each with its file and line.',
+        'Run npm run graph once to make those answers instant.',
+    'Text search remains the right tool for configuration and for code the',
+    'graph does not model.',
+  ].join(' ');
+
+  process.stdout.write(JSON.stringify(envelope(eventName, message)));
+  process.exit(0);
+});
+`;
+
+/**
+ * Where each agent accepts context without blocking.
+ *
+ * Claude Code is the only one that can speak before a search, so it hooks
+ * Grep and Glob. Codex, Gemini and Cursor only accept context at the start of
+ * a session — their before-tool events can deny a call but not annotate it —
+ * so they say it once, up front, which is also what keeps it quiet.
+ */
+const CLAUDE_GRAPH_HOOK_SETTINGS = {
+  hooks: {
+    PreToolUse: [
+      {
+        matcher: 'Grep|Glob',
+        hooks: [
+          {
+            type: 'command',
+            command:
+              'node "${CLAUDE_PROJECT_DIR}/.claude/hooks/graph-first.mjs" claude',
+            timeout: 10,
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const CODEX_GRAPH_HOOK_SETTINGS = {
+  hooks: {
+    SessionStart: [
+      {
+        matcher: 'startup',
+        hooks: [
+          {
+            type: 'command',
+            command:
+              'node "$(git rev-parse --show-toplevel)/.codex/hooks/graph-first.mjs" codex',
+            timeout: 10,
+            statusMessage: 'Reading the CraftTS graph tools',
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const GEMINI_GRAPH_HOOK_SETTINGS = {
+  hooks: {
+    SessionStart: [
+      {
+        matcher: 'startup',
+        hooks: [
+          {
+            name: 'craft-ts-graph',
+            type: 'command',
+            command:
+              'node "$GEMINI_PROJECT_DIR/.gemini/hooks/graph-first.mjs" gemini',
+            // Gemini counts this timeout in milliseconds.
+            timeout: 10000,
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const CURSOR_GRAPH_HOOKS = {
+  version: 1,
+  hooks: {
+    sessionStart: [
+      {
+        command: 'node ./.cursor/hooks/graph-first.mjs cursor',
+        timeout: 10,
+      },
+    ],
+  },
+};
+
+const GRAPH_AGENT_SKILL = `---
+name: craft-ts-graph-mcp
+description: Answer architecture questions about this project from its static CraftTS dependency graph, through the graph MCP server (graph.* tools). Use when asked where a route, component, service or primitive lives and what it depends on; what a change can break; how two nodes are connected; which code is complex, central or uncovered; or why an architecture rule fails.
+---
+
+# CraftTS graph MCP
+
+\`.mcp.json\` registers \`craft-ts-graph\`. The server answers from the same static
+analysis as the architecture suite: routes, components, services, primitives and
+the proven relations between them. No application has to be running.
+
+Run \`npm run graph\` once: it writes \`craft-dependency-graph.json\` (plus the
+Markdown report and the HTML explorer). Without it the server analyses the
+TypeScript program on its first call, which takes seconds on a real project.
+
+Prefer these tools over grepping the sources: a relation here is proven by the
+type checker or the AST, and carries the file and line that established it.
+
+## Start with graph.status
+
+It reports where the graph came from, when it was built, the node counts per
+kind and the diagnostics. Then read \`stale\` in **every** answer:
+
+- \`false\`: the graph matches the sources.
+- \`true\`: a source file changed after the graph was built. Call
+  \`graph.rebuild\` before answering about recent code, and say that you did.
+- \`unknown\`: no tsconfig was found to compare with. Say the freshness could not
+  be checked.
+
+## Chain the tools
+
+- "Where is X, what does it use?" — \`graph.search\`, then \`graph.node\` with the
+  id it returned. Ask for \`includeSource\` only when the relations are not enough.
+- "What breaks if I change X?" — \`graph.impact\`, narrowed with \`kind\` to answer
+  "which pages?".
+- "How is A connected to B?" — \`graph.path\`. \`reachable: false\` means no chain
+  in that direction; try the other one before concluding.
+- "What surrounds X?" — \`graph.neighbors\`, \`depth\` 1 first.
+- "Where is the risk?" — \`graph.hotspots\`, with \`churnSince\` for recent activity.
+- "Is the architecture sound?" — \`graph.violations\`, or \`graph.report\` for the
+  whole picture.
+
+## Read the answers faithfully
+
+- Quote the \`proof\` location when you state a dependency.
+- A metric that is absent is **unknown, not zero**: a node without a source
+  range was never measured. Never call it simple or uncovered.
+- \`graph.impact\` follows what can change a node's output, not every file that
+  mentions its name.
+- \`graph.node\` on a shared label answers \`ambiguous: true\` with candidates:
+  pick by \`kind\` or \`location\` instead of guessing.
+- Every list reports \`total\` and \`truncated\`: say so rather than presenting a
+  truncated list as complete.
+
+## Environment
+
+\`CRAFT_GRAPH_FILE\`, \`CRAFT_GRAPH_TSCONFIG\` (defaults to \`tsconfig.app.json\`),
+\`CRAFT_GRAPH_COVERAGE\` (an Istanbul \`coverage-final.json\`, for coverage per node
+and per route), \`CRAFT_GRAPH_DOCS\` (Markdown globs) and \`CRAFT_GRAPH_READONLY\`
+(hides \`graph.rebuild\`) are set in the \`.mcp.json\` entry when needed.
+`;
+
+export const GRAPH_MCP_PACKAGE = '@craft-ts/graph-mcp';
+export const GRAPH_MCP_SERVER_NAME = 'craft-ts-graph';
+export const GRAPH_MCP_SERVER_ENTRY = {
+  command: 'npx',
+  args: ['craft-ts-graph-mcp'],
+};
+export const GRAPH_SCRIPTS: Readonly<Record<string, string>> = {
+  graph:
+    'craft-graph --project tsconfig.app.json --root . --out craft-dependency-graph --format all',
+  'graph:mcp': 'craft-ts-graph-mcp',
+};
+export const GRAPH_GITIGNORE_ENTRY = 'craft-dependency-graph.*';
+
+/** The directory each agent owns, used to recognise the agents a project uses. */
+export const AGENT_MARKER_DIRECTORIES: Readonly<Record<CreateAgent, string>> = {
+  codex: '.agents',
+  cursor: '.cursor',
+  'claude-code': '.claude',
+  'cloud-code': '.gemini',
+};
+
+export type GraphAgentFiles = {
+  /** Files this tooling owns and may overwrite. */
+  readonly documents: Readonly<Record<string, string>>;
+  /** The agent's hook configuration, merged rather than overwritten. */
+  readonly hookConfig?: {
+    readonly file: string;
+    readonly value: Record<string, unknown>;
+  };
+};
+
+/**
+ * The graph skill and hook for one agent.
+ *
+ * Shared with `craft agents sync`, so an existing project can receive exactly
+ * what `craft create` writes today without regenerating anything else.
+ */
+export function graphAgentFiles(agent: CreateAgent): GraphAgentFiles {
+  if (agent === 'codex') {
+    return {
+      documents: {
+        '.agents/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+        '.codex/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      },
+      hookConfig: { file: '.codex/hooks.json', value: CODEX_GRAPH_HOOK_SETTINGS },
+    };
+  }
+  if (agent === 'cursor') {
+    return {
+      documents: {
+        '.cursor/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+        '.cursor/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      },
+      hookConfig: { file: '.cursor/hooks.json', value: CURSOR_GRAPH_HOOKS },
+    };
+  }
+  if (agent === 'claude-code') {
+    return {
+      documents: {
+        '.claude/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+        '.claude/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+      },
+      hookConfig: {
+        file: '.claude/settings.json',
+        value: CLAUDE_GRAPH_HOOK_SETTINGS,
+      },
+    };
+  }
+  return {
+    documents: {
+      '.gemini/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+      '.gemini/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
+    },
+    hookConfig: {
+      file: '.gemini/settings.json',
+      value: GEMINI_GRAPH_HOOK_SETTINGS,
+    },
+  };
+}
+
+function graphAgentTemplates(agent: CreateAgent): Record<string, string> {
+  const { documents, hookConfig } = graphAgentFiles(agent);
+  return {
+    ...documents,
+    ...(hookConfig ? { [hookConfig.file]: json(hookConfig.value) } : {}),
+  };
+}
 
 const BASE_AGENT_SKILL = `---
 name: craft-ts-project
@@ -165,7 +470,9 @@ bootstrapCraft.
    those checks pass and only when the browser flow changed.
 9. Keep the generated development surface enabled: 'npm run logs:server'
    stores Craft 'Console.*' entries locally, 'npm run logs:mcp' exposes them
-   to an MCP client, and 'npm run registry:mcp' exposes the named page surface.
+   to an MCP client, 'npm run graph:mcp' answers architecture questions from
+   the static dependency graph (nodes, paths, impact, hotspots, violations),
+   and 'npm run registry:mcp' exposes the named page surface.
    Do not replace 'Console.*' with raw 'console.*' when an entry must be
    searchable through the log MCP server.
 
@@ -387,6 +694,9 @@ function packageJson(context: TemplateContext): string {
       e2e: 'playwright test',
       'logs:server': 'craft-ts-log-server',
       'logs:mcp': 'craft-ts-log-mcp',
+      graph:
+        'craft-graph --project tsconfig.app.json --root . --out craft-dependency-graph --format all',
+      'graph:mcp': 'craft-ts-graph-mcp',
       'registry:mcp': 'craft-ts-registry-mcp',
       ...(hasAttest
         ? {
@@ -446,6 +756,7 @@ function packageJson(context: TemplateContext): string {
       '@craft-ts/mcp': craftPackage(),
       '@craft-ts/function-registry-mcp': craftPackage(),
       '@craft-ts/log-mcp': craftPackage(),
+      '@craft-ts/graph-mcp': craftPackage(),
       '@craft-ts/log-server': craftPackage(),
       ...(hasAttest ? { '@craft-ts/cli': craftPackage() } : {}),
       ...(hasEffect ? { effect: effectPackage } : {}),
@@ -2921,6 +3232,7 @@ const mcpConfig = `{
   "mcpServers": {
     "craft-ts": { "command": "npx", "args": ["craft-ts-mcp"] },
     "craft-ts-logs": { "command": "npx", "args": ["craft-ts-log-mcp"] },
+    "craft-ts-graph": { "command": "npx", "args": ["craft-ts-graph-mcp"] },
     "craft-ts-registry": { "command": "npx", "args": ["craft-ts-registry-mcp"] }
   }
 }
@@ -3036,8 +3348,27 @@ function readme(context: TemplateContext): string {
     '## MCP',
     '',
     'The generated .mcp.json registers the Craft documentation server, the local',
-    'log reader and the browser registry/page server. Start logs:server and',
-    'registry:mcp when using the corresponding MCP tools.',
+    'log reader, the dependency graph server and the browser registry/page server.',
+    'Start logs:server and registry:mcp when using the corresponding MCP tools.',
+    'The graph server needs nothing running: it reads craft-dependency-graph.json',
+    'or analyses the TypeScript program, and tells the agent when it is stale.',
+    '',
+    'Run `npm run graph` once so the graph server answers instantly: it writes',
+    'craft-dependency-graph.json, the Markdown report (god nodes, hotspots,',
+    'cycles, architecture violations) and a standalone HTML explorer. The files',
+    'are gitignored; rerun it, or let the agent call graph.rebuild, after',
+    'structural changes.',
+    '',
+    'The graph entry accepts CRAFT_GRAPH_FILE, CRAFT_GRAPH_TSCONFIG (defaults to',
+    'tsconfig.app.json), CRAFT_GRAPH_COVERAGE (an Istanbul coverage-final.json,',
+    'for coverage per node and per route), CRAFT_GRAPH_DOCS (Markdown globs) and',
+    'CRAFT_GRAPH_READONLY=1, which hides graph.rebuild.',
+    '',
+    'Each selected agent also gets a hook that names the graph tools: Claude Code',
+    'before a Grep or a Glob (once per session), Codex, Gemini and Cursor when a',
+    'session starts, because their before-tool events can deny a call but not',
+    'annotate it. No hook ever blocks a search. Delete the hooks file and its',
+    'graph-first.mjs script to remove it.',
     '',
     '## Verify',
     '',
@@ -3237,6 +3568,7 @@ function agentFiles(
   if (agent === 'codex') {
     return {
       '.agents/skills/craft-ts-project/SKILL.md': skill,
+      ...graphAgentTemplates(agent),
       ...(effectEnabled
         ? { '.agents/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
         : {}),
@@ -3245,6 +3577,7 @@ function agentFiles(
   if (agent === 'cursor') {
     return {
       '.cursor/skills/craft-ts-project/SKILL.md': skill,
+      ...graphAgentTemplates(agent),
       '.cursor/rules/craft-ts.mdc': `---\ndescription: CraftTS project rules\nglobs: **/*.ts\nalwaysApply: true\n---\n\nRead .cursor/skills/craft-ts-project/SKILL.md before editing CraftTS code.\n`,
     };
   }
@@ -3256,6 +3589,7 @@ function agentFiles(
         '.claude/skills/craft-ts-project/SKILL.md',
       ),
       '.claude/skills/craft-ts-project/SKILL.md': skill,
+      ...graphAgentTemplates(agent),
       ...(effectEnabled
         ? { '.claude/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
         : {}),
@@ -3268,6 +3602,7 @@ function agentFiles(
       '.gemini/skills/craft-ts-project/SKILL.md',
     ),
     '.gemini/skills/craft-ts-project/SKILL.md': skill,
+    ...graphAgentTemplates(agent),
     ...(effectEnabled
       ? { '.gemini/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
       : {}),

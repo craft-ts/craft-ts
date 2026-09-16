@@ -1,6 +1,9 @@
 # Graphe CraftTS enrichi : métriques, rapport, couverture, documentation, explorateur et MCP — plan d'implémentation
 
-> **État au 15 septembre 2026 : à faire.** Rien n'est implémenté.
+> **État au 15 septembre 2026 : en cours** sur la branche `feat/graph-insights`.
+> Lots A à G livrés (A → B → F → C → D → E, documentation au fil de l'eau).
+> Questions ouvertes tranchées : formule des points chauds
+> inchangée ; `graph.rebuild` désactivable par `CRAFT_GRAPH_READONLY=1`.
 
 ## Contexte
 
@@ -107,6 +110,52 @@ puisse :
   transmettent pas.
 - Consigner dans ce plan les types de nœuds qui resteront sans étendue.
 
+**Fait (15 septembre 2026).** `source` passé à `app-config` (objet de
+configuration), `route-hook` (propriété), `route-check` nommés (alias de type),
+parties de server function (fichier entier), middlewares serveur et client et
+handshakes (déclaration de variable). `graphHash` inchangé sur les trois apps.
+
+| Kind | demo avant → après | demo-effect | demo-with-server-function |
+|---|---|---|---|
+| `app-config` | 0 → 1 / 1 | 0 → 1 / 1 | 0 → 1 / 1 |
+| `route-hook` | 0 → 7 / 7 | 0 → 4 / 4 | — |
+| `route-check` | 5 → 103 / 183 | 1 → 21 / 21 | 1 → 19 / 19 |
+| `server-function-*` (parties), middlewares, `handshake` | — | — | 0 → 22 / 22 |
+
+Restent sans étendue, par nature :
+
+- `route-check` synthétisés `_CanRunX:RouteCheckedDI` : ils partagent l'alias
+  `CanRun` et n'ont pas de texte propre ;
+- `property` d'usage (créés au site d'accès, pas à la déclaration),
+  `http-endpoint` et `unique` (agrégats de plusieurs sites d'appel),
+  `server-function-family` (plusieurs fichiers) ;
+- nœuds produits hors du builder par `effect-dependency-graph.ts` et
+  `data-flow-graph.ts` (`effect-*`, `service` Effect, `data-classification`,
+  `external-output`) et nœuds de collecteurs.
+
+Conséquence assumée : ces nœuds reçoivent désormais un `sourceHash` propre, donc
+les empreintes de slices qui les contiennent bougent une fois (re-rendu, pas de
+nouvelle revue si l'évidence est identique).
+
+**Écarts de mise en œuvre (A2).**
+
+- Les points de décision sont calculés une fois par fichier dans la passe finale,
+  pas dans `addNode` : `addNode` n'enregistre que les offsets (`builder.spans`,
+  hors JSON). Même résultat, sans parcours quadratique des gabarits imbriqués.
+- Les opérateurs logiques sont positionnés sur leur jeton : `a && b && c` compte
+  deux positions distinctes.
+- `cyclomaticOwn = 1 + points propres`, `cyclomaticTotal = 1 + points de la
+  fermeture contains`. Égalité de plages : le nœud le plus profond dans l'arbre
+  `contains` l'emporte, puis l'id.
+- `fanIn` / `fanOut` sont connus pour tous les nœuds (voisins distincts) ; seuls
+  `cyclomatic*` et `lines` sont absents sans étendue.
+- `CRAFT_GRAPH_METRICS_UNKNOWN` est émis **une fois par kind** (avec le compte),
+  pas par nœud : 280 diagnostics identiques sur `apps/demo` n'apprendraient rien.
+- `assertMetricThresholds` refuse un graphe sans aucune métrique (JSON ancien)
+  plutôt que de passer en silence ; `metricThresholdViolations` ignore une
+  métrique inconnue. `allow` accepte un id, un label ou un glob de chemin.
+- Sous-chemin `@craft-ts/dev-tools/graph-metrics` ajouté (utilisé par le MCP).
+
 ### A2. Calcul des métriques
 
 - Nouveau module `libs/dev-tools/src/scripts/graph-metrics.ts` :
@@ -197,6 +246,27 @@ Dans [craft-graph.ts](../../../libs/dev-tools/src/bin/craft-graph.ts) et
 **Tests** : `graph-report.spec.ts` sur des graphes construits à la main (sans
 ts-morph) ; instantané du Markdown.
 
+**Fait (15 septembre 2026).** Écarts et précisions :
+
+- `architectureViolations(graph, { target, mutationReactOn })` nomme chaque
+  règle (`craft-unique`, `no-dependency-cycles`, `mutation-react-on`…) ;
+  `assertDeclarativeArchitecture` concatène les mêmes messages dans le même
+  ordre.
+- `graphReport` trie le graphe (nœuds par id, arêtes par clé) **avant** toute
+  lecture : les messages des règles dépendent de l'ordre de parcours (un cycle
+  commence là où le parcours y est entré). Ids rendus portables
+  (`portableNodeId`), emplacements relatifs, cycles tournés sur leur plus petit
+  id.
+- God nodes et points chauds excluent par défaut `styled-element` et
+  `template-element` (option `kinds`) : sur `apps/demo-effect`, le balisage d'un
+  seul composant remplissait le classement, chaque élément comptant ses enfants.
+- Section « relations entre features » : première capture `:name` du glob, sur
+  les arêtes `COUPLING_EDGES`.
+- `churnFromGitLog` (pur) dans `graph-metrics.ts` ; `git` n'est lancé que par
+  `craft-graph.ts` (`rev-parse --show-toplevel` puis `log --name-only`).
+- Vérifié sur `apps/demo-effect` : `--format report --feature-glob
+  'apps/demo-effect/src/app/:feature/**' --churn-since '6 months ago'`.
+
 ## Lot C — Couverture par nœud et par route (8)
 
 ### C1. Application du rapport Istanbul
@@ -225,6 +295,22 @@ l'explorateur.
 **Tests** : `graph-coverage.spec.ts` avec un `coverage-final.json` écrit à la
 main ; cas des nœuds imbriqués, d'un fichier absent et d'une route à slice
 partiellement inconnue.
+
+**Fait (15 septembre 2026).** Précisions :
+
+- Attribution **par ligne** : le JSON du graphe ne garde que `line` / `endLine`.
+  Deux nœuds sur les mêmes lignes sont départagés par l'arbre `contains`, comme
+  pour les métriques (`createInnermostLocator` partagé).
+- `applyCoverage` est pure et renvoie une copie ; un second rapport remplace le
+  premier (couverture et diagnostics précédents retirés). Deux diagnostics
+  `CRAFT_GRAPH_COVERAGE_UNKNOWN` par kind : « sans plage de lignes » et « fichier
+  absent du rapport ».
+- `routeCoverage` somme la fermeture (`closureOf`, pas `sliceOf` : les
+  empreintes ne servent pas ici) et renvoie `measuredNodes` / `unknownNodes`.
+- CLI : `--coverage <fichier>` lu par `craft-graph.ts`, appliqué dans
+  `writeDependencyGraph` (option `coverage`), donc visible dans le JSON, le
+  rapport et l'explorateur. MCP : `CRAFT_GRAPH_COVERAGE`, réappliqué à chaque
+  chargement.
 
 ## Lot D — Justifications et documentation (11)
 
@@ -258,6 +344,24 @@ partiellement inconnue.
 **Tests** : projet temporaire avec JSDoc, commentaire `WHY`, pages Markdown dont
 une ambiguë.
 
+**Fait (15 septembre 2026).** Précisions :
+
+- Module `graph-docs.ts`. La JSDoc se lit en remontant les seuls « emballages »
+  de déclaration (`VariableStatement`, `yield*`, `as`, `PropertyAssignment`…) :
+  un élément de gabarit n'hérite jamais de la JSDoc de son composant. Les tags
+  se lisent sur leur texte (`@see X` porte `X` comme nom, pas comme commentaire).
+- Les commentaires `WHY:` / `NOTE:` / `HACK:` viennent des plages de commentaires
+  du scanner TypeScript (pas de regex sur le texte) et sont attribués au nœud le
+  plus interne dont la déclaration, commentaires du dessus compris, les contient
+  — même `createInnermostLocator` que les métriques.
+- Le contrat `collectors` préfixe les codes : le diagnostic effectif est
+  `markdown-docs/CRAFT_GRAPH_DOC_AMBIGUOUS`.
+- `doc-page` est exclu des diagnostics « inconnu » des métriques et de la
+  couverture (`NON_CODE_KINDS`) : ce n'est pas du code.
+- `undocumentedNodeViolations` ignore les nœuds sans étendue (documentation
+  inconnue) ; `assertNodesDocumented` refuse `requireDocPage` sans collecteur.
+- Le rapport gagne une section « Documentation » par kind.
+
 ## Lot E — Explorateur HTML (10)
 
 Dans `dependencyGraphToHtml`
@@ -279,6 +383,20 @@ en gardant un fichier autonome, sans ressource externe :
 **Tests** : assertions sur le HTML généré dans `dependency-graph.spec.ts`
 (données sérialisées, présence des contrôles) ; vérification visuelle dans le
 navigateur sur le graphe de `apps/demo`.
+
+**Fait (15 septembre 2026).** Précisions :
+
+- Spec séparée `dependency-graph-html.spec.ts`, qui vérifie aussi que le script
+  embarqué se parse (`new Function`) : le JS vit dans un gabarit TypeScript, où
+  un backtick ou un `${` casserait la page sans erreur de compilation.
+- Points chauds calculés côté Node (`graphHotspots`, 10 premiers, éléments de
+  gabarit exclus) et embarqués (`HOTSPOTS`) ; carte de chaleur en échelle
+  logarithmique pour la complexité, linéaire pour le fan-in, `1 − couverture`
+  pour la couverture ; motif rayé pour l'inconnu ; option « Couverture »
+  désactivée sans rapport de couverture.
+- Recherche de chemin : parcours en largeur dans le sens des relations (même
+  sémantique que `dependencyGraphPathsBetween`), plus court chemin surligné sur
+  les cartes et les arêtes, étapes cliquables dans le panneau.
 
 ## Lot F — MCP graphe pour les projets externes (7)
 
@@ -349,7 +467,51 @@ Dans [create-project.ts](../../../libs/dev-tools/src/scripts/create/create-proje
 - textes du README généré (lignes 167 et 3038) ;
 - `create-project.spec.ts`.
 
-Pour un projet existant : extrait `.mcp.json` à copier, documenté au lot G.
+Pour un projet existant : `craft agents sync`, ajouté le 16 septembre 2026
+(`libs/dev-tools/src/scripts/create/sync-agents.ts`).
+
+`craft create --force` ne pouvait pas servir : malgré son message « Use --force
+to merge », la boucle d'écriture réécrit **tous** les fichiers générés — `src/`,
+`package.json`, les tsconfig — et ne préserve que `.gitignore` et
+`.vscode/settings.json`. C'est une regénération, pas une mise à jour.
+
+La commande n'ajoute que le câblage agent et MCP, par fusion :
+
+- skills et hooks des agents détectés (`.agents/`, `.claude/`, `.cursor/`,
+  `.gemini/`) ou nommés par `--agents` ;
+- serveur `craft-ts-graph` dans `.mcp.json`, sans toucher aux autres serveurs ;
+- scripts `graph` et `graph:mcp`, et la devDependency, à la version déjà épinglée
+  pour les autres paquets `@craft-ts/*` du projet ;
+- ligne `craft-dependency-graph.*` dans `.gitignore` ;
+- `--dry-run` et `--json` ; un second passage ne change rien.
+
+`graphAgentFiles()` est exportée de `create-project.ts` : `create` et `sync`
+écrivent exactement la même chose.
+
+**Fait (15 septembre 2026).** Écarts :
+
+- **Emplacement `libs/graph-mcp`, pas `packages/graph-mcp`.** `@craft-ts/dev-tools`
+  n'est pas un workspace npm : un paquet sous `packages/*` (glob des workspaces)
+  ne pouvait l'importer qu'en tirant la version publiée, sans les nouvelles API.
+  Le modèle suivi est celui de `libs/cli` : projet nx `@nx/js:tsc`, référence
+  `tsconfig` vers `dev-tools`, sortie `dist/libs/graph-mcp` (`distRoot` de la
+  release). Script racine `graph:mcp` : `npx tsx libs/graph-mcp/src/main.ts`,
+  comme les autres binaires de `libs/`.
+- Chemins explicites ajoutés à `tsconfig.base.json` pour
+  `@craft-ts/dev-tools/{dependency-graph,architecture-graph,graph-metrics,graph-report}` :
+  le joker `@craft-ts/dev-tools/*` pointe vers `src/*`, pas `src/scripts/*`.
+- `CRAFT_GRAPH_READONLY=1` **masque** `graph.rebuild` (et `GraphStore.rebuild`
+  lève) : un agent ne voit pas un outil qu'il ne peut pas utiliser.
+- `stale` vaut `true`, `false` ou `'unknown'` (pas de tsconfig pour lister le
+  programme) : inconnu n'est pas « frais ». Liste des fichiers via
+  `ts.parseJsonConfigFileContent`, sans parser le programme.
+- `graph.path` calcule d'abord la distance la plus courte (parcours en largeur),
+  puis appelle `dependencyGraphPathsBetween` avec cette profondeur : l'énumération
+  de tous les chemins simples jusqu'à 32 explose sur `apps/demo`.
+- `graph.hotspots` et `graph.report` passent par `graphReport` (mêmes kinds par
+  défaut) ; `churnSince` lance `git` dans le store.
+- Les outils acceptent l'id complet ou sa forme portable (celle du rapport).
+- `CRAFT_GRAPH_COVERAGE` et `CRAFT_GRAPH_DOCS` arriveront avec les lots C et D.
 
 ### F6. Skill agent
 

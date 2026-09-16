@@ -20,17 +20,20 @@ There are three complementary layers:
 | Fill, click, navigate, or inspect the running app           | [Live page MCP](/guide/ai/dev-page)                  | `@craft-ts/function-registry-mcp` → `page` |
 | Read or change a published primitive during development     | [MCP tools](/guide/ai/mcp-tools)                     | `registry.*` tools                         |
 | Search logs from a reproducible flow                        | [MCP tools](/guide/ai/mcp-tools)                     | `@craft-ts/log-mcp` → `logs.*`             |
+| Ask what a node depends on, or what a change can break      | [MCP tools](/guide/ai/mcp-tools)                     | `@craft-ts/graph-mcp` → `graph.*`          |
 | Give an AI a human-selected debugging context               | [Send context to AI](/guide/ai/send-context-webhook) | `provideSendContextToAi`                   |
 | Understand the tracing and snapshot data behind the context | [Observability](/guide/advanced/observability)       | Craft providers and runtime hooks          |
 
 The tools are deliberately separated by boundary. The documentation MCP is
 read-only and works offline. The registry MCP can mutate development state and
 must only be connected to a local development app. The logs MCP reads local
-JSONL files; its `logs.clear` operation is destructive.
+JSONL files; its `logs.clear` operation is destructive. The graph MCP reads the
+static dependency graph of the project and only writes the graph file it
+rebuilds.
 
 ## MCP servers
 
-CraftTS has three MCP servers, each with a different responsibility:
+CraftTS has four MCP servers, each with a different responsibility:
 
 - [`@craft-ts/mcp`](https://www.npmjs.com/package/@craft-ts/mcp) gives an agent
   the published documentation, examples, skills, and LLM entry points.
@@ -38,6 +41,8 @@ CraftTS has three MCP servers, each with a different responsibility:
   browser tab to `page` and `registry.*` tools.
 - [`@craft-ts/log-mcp`](/guide/ai/mcp-tools) exposes the local log store through
   `logs.*` tools.
+- [`@craft-ts/graph-mcp`](/guide/ai/mcp-tools) answers architecture questions
+  from the static dependency graph through `graph.*` tools.
 
 See [MCP tools](/guide/ai/mcp-tools) for the complete tool inventory and the
 boundary between read-only and mutating operations.
