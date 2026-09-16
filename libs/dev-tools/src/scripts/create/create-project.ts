@@ -13,6 +13,18 @@ export type CreateMode = 'effect' | 'plain';
 export type FrontendRuntime = 'plain' | 'effect';
 export type BackendRuntime = 'none' | 'promise' | 'effect';
 export type WorkspaceKind = 'standalone' | 'nx';
+export type CreateAttestationMode = 'manual' | 'ai';
+export type CreateViewport = {
+  readonly width: number;
+  readonly height: number;
+};
+export type CreateAttestationConfig = {
+  readonly mode: CreateAttestationMode;
+  readonly viewports: Readonly<Record<string, CreateViewport>>;
+  readonly template: boolean;
+  /** Component-level visual tests, also called visual hotspots. */
+  readonly visualTests: boolean;
+};
 /** Vendored repositories provide agent context; application dependencies stay on npm. */
 export type ReferenceMode = 'context';
 
@@ -35,6 +47,7 @@ export type StarterConfig = {
   readonly designSystem: 'none' | 'basic';
   readonly typedCss: boolean;
   readonly attest: boolean;
+  readonly attestation: CreateAttestationConfig;
   readonly references: {
     readonly craftTs: boolean;
     readonly effectTs: boolean;
@@ -64,6 +77,14 @@ export type CreateProjectOptions = {
   readonly typedCss?: boolean;
   /** Generate the opt-in attestation workflow (default: false). */
   readonly attest?: boolean;
+  /** Configure the generated visual/template attestation workflow. */
+  readonly attestation?: {
+    readonly mode?: CreateAttestationMode;
+    /** Empty means that application happy paths are not captured. */
+    readonly viewports?: Readonly<Record<string, CreateViewport>>;
+    readonly template?: boolean;
+    readonly visualTests?: boolean;
+  };
   readonly workspace?: WorkspaceKind;
   readonly references?: 'none' | 'craft-ts' | 'all';
   readonly referenceMode?: ReferenceMode;
@@ -90,6 +111,13 @@ export type CreateProjectResult = {
 };
 
 const DEFAULT_AGENTS: readonly CreateAgent[] = ['codex'];
+
+/** The creation flow starts with the three screen families most projects need. */
+export const DEFAULT_CREATE_VIEWPORTS = {
+  mobile: { width: 390, height: 844 },
+  tablet: { width: 834, height: 1112 },
+  desktop: { width: 1440, height: 1000 },
+} as const;
 
 const GENERATED_GITIGNORE = `node_modules/
 dist/
@@ -560,6 +588,7 @@ function agentsMd(
   const i18n = config?.i18n.enabled ?? true;
   const designSystem = config?.designSystem !== 'none';
   const typedCss = config?.typedCss ?? true;
+  const attestation = config?.attestation;
   const effectFrontend = frontend === 'effect';
   const effectBackend = backend === 'effect';
   const effect = effectFrontend || effectBackend;
@@ -615,12 +644,29 @@ guide for coding agents: it records the selected runtime and feature surfaces.
 - Design system: **${designSystem ? 'enabled' : 'disabled'}**
 - Typed CSS: **${typedCss ? 'enabled' : 'disabled'}**
 - Starter surface: **${config?.demoPages === false ? 'domain-first' : 'demo pages'}**
+${
+  config?.attest
+    ? `- Attestation: **${attestation?.mode ?? 'manual'}**, ${Object.keys(attestation?.viewports ?? {}).length} application viewport(s), template obligations **${attestation?.template ? 'enabled' : 'disabled'}**, visual hotspot tests **${attestation?.visualTests ? 'enabled' : 'disabled'}**`
+    : '- Attestation: **disabled**'
+}
 
 ${config?.demoPages === false ? 'The starter is already domain-first.' : 'Before starting product development, run `npm run reset:starter` to remove the explanatory demo pages and keep only the first domain feature.'}
 
 Read \`${projectSkillPath}\` before changing application
 code. ${i18n ? 'Translation keys live in `src/i18n/`; run `npm run i18n:check` and `npm run i18n:test` after changes.' : 'This starter has no i18n surface; do not add translation files unless the project configuration changes.'}
 ${effectGuidance}
+
+${
+  config?.attest
+    ? `## Attestation
+
+The attestation choices are recorded in \`.craft/starter.json\` and the typed
+\`review-attest.config.ts\`. Add project-specific viewport entries there when a
+new screen family matters. In **ai** mode, a coding agent may run the capture,
+inspect the review application and prepare the evidence; verdicts should still
+be recorded explicitly with \`craft-ts attest renew\` so the ledger remains auditable.`
+    : ''
+}
 
 ## Workflow
 
@@ -664,6 +710,35 @@ function json(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
+function normaliseCreateViewports(
+  viewports: Readonly<Record<string, CreateViewport>> | undefined,
+): Readonly<Record<string, CreateViewport>> {
+  const selected = viewports ?? DEFAULT_CREATE_VIEWPORTS;
+  if (
+    typeof selected !== 'object' ||
+    Array.isArray(selected) ||
+    selected === null
+  ) {
+    throw new Error('Attestation viewports must be an object.');
+  }
+  for (const [name, viewport] of Object.entries(selected)) {
+    if (
+      !name.trim() ||
+      !Number.isInteger(viewport?.width) ||
+      viewport.width < 1 ||
+      !Number.isInteger(viewport?.height) ||
+      viewport.height < 1
+    ) {
+      throw new Error(
+        `Invalid attestation viewport '${name}': expected a name and positive integer dimensions.`,
+      );
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(selected).map(([name, viewport]) => [name.trim(), viewport]),
+  );
+}
+
 function packageJson(context: TemplateContext): string {
   const effectFrontend = context.config.frontendRuntime === 'effect';
   const effectBackend = context.config.backendRuntime === 'effect';
@@ -671,6 +746,12 @@ function packageJson(context: TemplateContext): string {
   const hasI18n = context.config.i18n.enabled;
   const hasTypedCss = context.config.typedCss;
   const hasAttest = context.config.attest;
+  const hasVisualCapture =
+    hasAttest && Object.keys(context.config.attestation.viewports).length > 0;
+  const regenerateOption = hasVisualCapture
+    ? ' --regenerate-script attest:capture'
+    : '';
+  const attestReport = '${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json}';
   const hasServer = context.config.backendRuntime !== 'none';
   const packageVersion = context.packageVersion ?? CRAFT_TS_STARTER_VERSION;
   const craftPackage = (): string => packageVersion;
@@ -700,16 +781,17 @@ function packageJson(context: TemplateContext): string {
       'registry:mcp': 'craft-ts-registry-mcp',
       ...(hasAttest
         ? {
-            'attest:capture':
-              'CRAFT_ATTEST_REPORT=${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json} npx playwright test e2e/attestation.spec.ts --project chromium',
+            ...(hasVisualCapture
+              ? {
+                  'attest:capture':
+                    'CRAFT_ATTEST_REPORT=${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json} npx playwright test e2e/attestation.spec.ts --project chromium',
+                }
+              : {}),
             'attest:status':
               'craft-ts attest status --config review-attest.config.ts --kind all --report ${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json} --tsconfig tsconfig.graph.json',
-            'attest:review':
-              'craft-ts attest review --config review-attest.config.ts --kind all --report ${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json} --tsconfig tsconfig.graph.json --regenerate-script attest:capture',
-            'attest:check':
-              'npm run architecture && npm run attest:capture && npm run attest:status',
-            review:
-              'npm run architecture && npm run attest:capture && (npm run attest:status || test $? -eq 1) && npm run attest:review',
+            'attest:review': `craft-ts attest review --config review-attest.config.ts --kind all --report ${attestReport} --tsconfig tsconfig.graph.json${regenerateOption}`,
+            'attest:check': `npm run architecture && ${hasVisualCapture ? 'npm run attest:capture && ' : ''}npm run attest:status`,
+            review: `npm run architecture && ${hasVisualCapture ? 'npm run attest:capture && ' : ''}(npm run attest:status || test $? -eq 1) && npm run attest:review`,
           }
         : {}),
       ...(hasEffect
@@ -3284,6 +3366,7 @@ function readme(context: TemplateContext): string {
   const i18n = context.config.i18n.enabled;
   const typedCss = context.config.typedCss;
   const attest = context.config.attest;
+  const attestation = context.config.attestation;
   const designSystem = context.config.designSystem !== 'none';
   const server = context.config.backendRuntime !== 'none';
   const demoPages = context.config.demoPages;
@@ -3382,8 +3465,22 @@ function readme(context: TemplateContext): string {
           '',
           '## Review attestations',
           '',
-          'Run `npm run review` for architecture, capture, status and human review.',
-          'Use `npm run attest:check` in CI; it fails while a human decision remains.',
+          `This starter uses **${attestation.mode}** attestation with ${Object.keys(attestation.viewports).length} application viewport(s).`,
+          ...(Object.keys(attestation.viewports).length > 0
+            ? [
+                'Run `npm run review` for architecture, capture, status and review.',
+                'Add or remove viewport entries in `review-attest.config.ts` as the product grows.',
+              ]
+            : []),
+          ...(attestation.visualTests
+            ? [
+                'Visual hotspot tests are enabled; add `visualMatrix(...)` scenarios to the `matrices` section.',
+              ]
+            : ['Visual hotspot tests are disabled for this starter.']),
+          ...(attestation.template
+            ? ['Template obligations are included in the review.']
+            : ['Template obligations are not generated.']),
+          'Use `npm run attest:check` in CI; it fails while a decision remains.',
         ]
       : []),
     ...(server ? ['npm run server:test'] : []),
@@ -3446,10 +3543,12 @@ function starterManifest(context: TemplateContext): string {
     designSystem: context.config.designSystem,
     typedCss: context.config.typedCss,
     attest: context.config.attest,
+    attestation: context.config.attestation,
   });
 }
 
 function reviewAttestConfigTs(context: TemplateContext): string {
+  const { attestation } = context.config;
   const pages = context.config.demoPages
     ? [
         ['home', '/', '/', 'component:src/app/home-page.ts:HomePage'],
@@ -3485,22 +3584,37 @@ function reviewAttestConfigTs(context: TemplateContext): string {
     }`,
     )
     .join(',\n');
+  const viewports = json(attestation.viewports)
+    .trimEnd()
+    .split('\n')
+    .map((line, index) => (index === 0 ? line : `      ${line}`))
+    .join('\n');
+  const visualSections = [
+    Object.keys(attestation.viewports).length > 0
+      ? `    app: defineVisualAppConfig({\n      // Add another named viewport here when the project needs one.\n      viewports: ${viewports},\n      pages: [\n${pageSource}\n      ],\n    })`
+      : '',
+    attestation.visualTests
+      ? `    matrices: [\n      // Add visualMatrix(...) entries for component-level visual hotspots.\n    ]`
+      : '',
+  ].filter(Boolean);
+  const visual =
+    visualSections.length > 0
+      ? `  visual: {\n${visualSections.join(',\n')}\n  },\n`
+      : '';
+  const imports = [
+    attestation.viewports && Object.keys(attestation.viewports).length > 0
+      ? '  defineHappyPathHttpMocks,\n  defineVisualAppConfig,'
+      : '',
+    '  defineReviewAttestConfig,',
+  ]
+    .filter(Boolean)
+    .join('\n');
   return `import {
-  defineHappyPathHttpMocks,
-  defineReviewAttestConfig,
-  defineVisualAppConfig,
+${imports}
 } from '@craft-ts/style-testing';
 
 export const reviewAttestConfig = defineReviewAttestConfig({
-  visual: {
-    app: defineVisualAppConfig({
-      pages: [
-${pageSource}
-      ],
-    }),
-    matrices: [],
-  },
-  template: true,
+${visual}  template: ${attestation.template},
 });
 
 export default reviewAttestConfig;
@@ -3719,7 +3833,9 @@ function templates(context: TemplateContext): Record<string, string> {
   }
   if (context.config.attest) {
     files['review-attest.config.ts'] = reviewAttestConfigTs(context);
-    files['e2e/attestation.spec.ts'] = attestationCaptureSpecTs();
+    if (Object.keys(context.config.attestation.viewports).length > 0) {
+      files['e2e/attestation.spec.ts'] = attestationCaptureSpecTs();
+    }
   }
   Object.assign(files, serverFiles(context));
   return files;
@@ -3853,6 +3969,25 @@ export function normalizeCreateOptions(
   ) {
     throw new Error(`Unknown workspace "${options.workspace}".`);
   }
+  const attestationInput = options.attestation;
+  if (
+    attestationInput?.mode !== undefined &&
+    !['manual', 'ai'].includes(attestationInput.mode)
+  ) {
+    throw new Error(`Unknown attestation mode "${attestationInput.mode}".`);
+  }
+  if (options.attest === false && attestationInput !== undefined) {
+    throw new Error('--no-attest conflicts with --attestation.');
+  }
+  const attest = options.attest ?? attestationInput !== undefined;
+  const attestation: CreateAttestationConfig = {
+    mode: attestationInput?.mode ?? 'manual',
+    viewports: attest
+      ? normaliseCreateViewports(attestationInput?.viewports)
+      : {},
+    template: attest ? (attestationInput?.template ?? true) : false,
+    visualTests: attest ? (attestationInput?.visualTests ?? false) : false,
+  };
 
   const i18nEnabled = options.i18nEnabled ?? options.i18n !== 'none';
   const hasExplicitLocaleOptions =
@@ -3911,7 +4046,8 @@ export function normalizeCreateOptions(
     },
     designSystem: options.designSystem ?? 'basic',
     typedCss: options.typedCss ?? true,
-    attest: options.attest ?? false,
+    attest,
+    attestation,
     references: {
       craftTs,
       effectTs,

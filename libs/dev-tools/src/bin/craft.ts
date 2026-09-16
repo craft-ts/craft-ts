@@ -18,8 +18,11 @@ import {
 import {
   createCraftProject,
   createModeFromFlag,
+  DEFAULT_CREATE_VIEWPORTS,
   parseCreateAgents,
   type CreateAgent,
+  type CreateAttestationMode,
+  type CreateViewport,
 } from '../scripts/create/create-project.js';
 import {
   selectOptionInteractively,
@@ -308,6 +311,11 @@ type CreateArgs = {
   designSystem?: 'basic' | 'none';
   typedCss?: boolean;
   attest?: boolean;
+  attestationMode?: CreateAttestationMode | 'none';
+  viewports?: string;
+  viewportSpecs?: readonly string[];
+  templateObligations?: boolean;
+  visualTests?: boolean;
   workspace?: 'standalone' | 'nx';
   references?: 'none' | 'craft-ts' | 'all';
   craftTsRef?: string;
@@ -355,6 +363,16 @@ const CREATE_BOOLEAN_OPTIONS: readonly InteractiveOption<'yes' | 'no'>[] = [
   { value: 'yes', label: 'Yes' },
   { value: 'no', label: 'No' },
 ];
+const CREATE_ATTESTATION_MODE_OPTIONS: readonly InteractiveOption<CreateAttestationMode>[] =
+  [
+    { value: 'manual', label: 'Manual review in the attestation app' },
+    { value: 'ai', label: 'AI-assisted review' },
+  ];
+const CREATE_VIEWPORT_OPTIONS: readonly InteractiveOption<string>[] =
+  Object.entries(DEFAULT_CREATE_VIEWPORTS).map(([value, size]) => ({
+    value,
+    label: `${value} (${size.width}×${size.height})`,
+  }));
 const CREATE_WORKSPACE_OPTIONS: readonly InteractiveOption<
   'standalone' | 'nx'
 >[] = [
@@ -385,10 +403,12 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
     'default-locale',
     'i18n',
     'design-system',
+    'attestation',
     'workspace',
     'references',
     'craft-ts-ref',
     'effect-ts-ref',
+    'viewports',
     'domain',
   ]);
   const setValue = (name: string, value: string): void => {
@@ -406,6 +426,8 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       argument === '--no-design-system' ||
       argument === '--no-typed-css' ||
       argument === '--no-attest' ||
+      argument === '--no-template-obligations' ||
+      argument === '--no-visual-tests' ||
       argument === '--no-clone-craft-ts' ||
       argument === '--no-clone-effect-ts' ||
       argument === '--no-demos'
@@ -416,6 +438,9 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
         setValue('design-system', 'none');
       else if (argument === '--no-typed-css') result.typedCss = false;
       else if (argument === '--no-attest') result.attest = false;
+      else if (argument === '--no-template-obligations')
+        result.templateObligations = false;
+      else if (argument === '--no-visual-tests') result.visualTests = false;
       else if (argument === '--no-clone-craft-ts') result.cloneCraftTs = false;
       else if (argument === '--no-clone-effect-ts')
         result.cloneEffectTs = false;
@@ -430,6 +455,14 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       setValue(argument.slice(2), value);
       continue;
     }
+    if (argument === '--viewport') {
+      const value = argv[++index];
+      if (!value || value.startsWith('--')) {
+        throw new Error('Missing value for --viewport.');
+      }
+      result.viewportSpecs = [...(result.viewportSpecs ?? []), value];
+      continue;
+    }
     if (argument.startsWith('--') && argument.includes('=')) {
       const [name, ...parts] = argument.slice(2).split('=');
       if (!valueNames.has(name)) throw new Error(`Unknown option --${name}.`);
@@ -439,12 +472,17 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
     if (
       argument === '--typed-css' ||
       argument === '--attest' ||
+      argument === '--template-obligations' ||
+      argument === '--visual-tests' ||
       argument === '--clone-craft-ts' ||
       argument === '--clone-effect-ts' ||
       argument === '--demos'
     ) {
       if (argument === '--typed-css') result.typedCss = true;
       else if (argument === '--attest') result.attest = true;
+      else if (argument === '--template-obligations')
+        result.templateObligations = true;
+      else if (argument === '--visual-tests') result.visualTests = true;
       else if (argument === '--clone-craft-ts') result.cloneCraftTs = true;
       else if (argument === '--clone-effect-ts') result.cloneEffectTs = true;
       else result.demoPages = true;
@@ -480,10 +518,14 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
   result.designSystem = values.get(
     'design-system',
   ) as CreateArgs['designSystem'];
+  result.attestationMode = values.get(
+    'attestation',
+  ) as CreateArgs['attestationMode'];
   result.workspace = values.get('workspace') as CreateArgs['workspace'];
   result.references = values.get('references') as CreateArgs['references'];
   result.craftTsRef = values.get('craft-ts-ref');
   result.effectTsRef = values.get('effect-ts-ref');
+  result.viewports = values.get('viewports');
   result.domain = values.get('domain');
   return result;
 }
@@ -494,6 +536,88 @@ function parseLocales(value: string): string[] {
     .map((locale) => locale.trim())
     .filter(Boolean);
   return locales.length > 0 ? locales : ['en-US', 'fr-FR'];
+}
+
+function parseCreateViewports(
+  selection: string | undefined,
+  customSpecs: readonly string[] = [],
+): Readonly<Record<string, CreateViewport>> | undefined {
+  if (selection === undefined && customSpecs.length === 0) return undefined;
+  if (selection?.trim().toLowerCase() === 'none') return {};
+  const viewports: Record<string, CreateViewport> = {};
+  for (const name of (selection ?? '')
+    .split(',')
+    .map((value) => value.trim())) {
+    if (!name) continue;
+    const viewport =
+      DEFAULT_CREATE_VIEWPORTS[name as keyof typeof DEFAULT_CREATE_VIEWPORTS];
+    if (!viewport) {
+      throw new Error(
+        `Unknown viewport "${name}". Use mobile, tablet, desktop, or --viewport name=widthxheight.`,
+      );
+    }
+    viewports[name] = viewport;
+  }
+  for (const spec of customSpecs) {
+    const match =
+      /^(?<name>[a-zA-Z][a-zA-Z0-9_-]*)=(?<width>\d+)x(?<height>\d+)$/.exec(
+        spec.trim(),
+      );
+    if (!match?.groups) {
+      throw new Error(
+        `Invalid --viewport "${spec}". Expected name=widthxheight.`,
+      );
+    }
+    const name = match.groups['name'];
+    const width = Number(match.groups['width']);
+    const height = Number(match.groups['height']);
+    if (!name || !Number.isInteger(width) || !Number.isInteger(height)) {
+      throw new Error(
+        `Invalid --viewport "${spec}". Expected name=widthxheight.`,
+      );
+    }
+    viewports[name] = { width, height };
+  }
+  return viewports;
+}
+
+async function selectCreateViewports(
+  readline: ReturnType<typeof createInterface>,
+): Promise<Readonly<Record<string, CreateViewport>>> {
+  const selectedNames = await selectCreateOptions(
+    readline,
+    CREATE_VIEWPORT_OPTIONS,
+    'Application happy paths (↑/↓ move, Space toggle, Enter confirm):',
+    ['mobile', 'tablet', 'desktop'],
+  );
+  const viewports: Record<string, CreateViewport> = Object.fromEntries(
+    selectedNames.map((name) => [
+      name,
+      DEFAULT_CREATE_VIEWPORTS[name as keyof typeof DEFAULT_CREATE_VIEWPORTS],
+    ]),
+  );
+  while (
+    /^y(?:es)?$/i.test(
+      (await readline.question('Add a custom viewport? [y/N] ')).trim(),
+    )
+  ) {
+    const name = (await readline.question('Viewport name: ')).trim();
+    const width = Number(await readline.question('Viewport width (px): '));
+    const height = Number(await readline.question('Viewport height (px): '));
+    if (
+      !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name) ||
+      !Number.isInteger(width) ||
+      width < 1 ||
+      !Number.isInteger(height) ||
+      height < 1
+    ) {
+      throw new Error(
+        'A custom viewport needs a name and positive integer width/height.',
+      );
+    }
+    viewports[name] = { width, height };
+  }
+  return viewports;
 }
 
 async function selectCreateOption<Value extends string>(
@@ -665,6 +789,82 @@ async function runCreate(argv: string[]): Promise<number> {
             'standalone',
           )
         : undefined);
+    const explicitAttestationConfig =
+      parsed.attestationMode !== undefined ||
+      parsed.viewports !== undefined ||
+      (parsed.viewportSpecs?.length ?? 0) > 0 ||
+      parsed.templateObligations !== undefined ||
+      parsed.visualTests !== undefined;
+    if (
+      parsed.attestationMode === 'none' &&
+      (parsed.attest === true ||
+        parsed.viewports !== undefined ||
+        (parsed.viewportSpecs?.length ?? 0) > 0 ||
+        parsed.templateObligations !== undefined ||
+        parsed.visualTests !== undefined)
+    ) {
+      throw new Error(
+        '--attestation none cannot be combined with attestation options.',
+      );
+    }
+    const attest =
+      parsed.attestationMode === 'none'
+        ? false
+        : (parsed.attest ??
+          (explicitAttestationConfig
+            ? true
+            : interactive
+              ? (await selectCreateOption(
+                  readline,
+                  CREATE_BOOLEAN_OPTIONS,
+                  'Generate an attestation workflow? (↑/↓ move, Enter confirm):',
+                  'yes',
+                )) === 'yes'
+              : false));
+    if (parsed.attest === false && explicitAttestationConfig) {
+      throw new Error(
+        '--no-attest cannot be combined with attestation options.',
+      );
+    }
+    const attestation = attest
+      ? {
+          mode:
+            (parsed.attestationMode === 'none'
+              ? 'manual'
+              : parsed.attestationMode) ??
+            (interactive
+              ? await selectCreateOption(
+                  readline,
+                  CREATE_ATTESTATION_MODE_OPTIONS,
+                  'Attestation reviewer (↑/↓ move, Enter confirm):',
+                  'manual',
+                )
+              : 'manual'),
+          viewports:
+            parseCreateViewports(parsed.viewports, parsed.viewportSpecs) ??
+            (interactive ? await selectCreateViewports(readline) : undefined),
+          template:
+            parsed.templateObligations ??
+            (interactive && parsed.attest === undefined
+              ? (await selectCreateOption(
+                  readline,
+                  CREATE_BOOLEAN_OPTIONS,
+                  'Generate template obligations? (↑/↓ move, Enter confirm):',
+                  'yes',
+                )) === 'yes'
+              : true),
+          visualTests:
+            parsed.visualTests ??
+            (interactive && parsed.attest === undefined
+              ? (await selectCreateOption(
+                  readline,
+                  CREATE_BOOLEAN_OPTIONS,
+                  'Include visual hotspot tests? (↑/↓ move, Enter confirm):',
+                  'yes',
+                )) === 'yes'
+              : false),
+        }
+      : undefined;
     let references = parsed.references;
     let cloneCraftTs = parsed.cloneCraftTs;
     let cloneEffectTs = parsed.cloneEffectTs;
@@ -706,7 +906,8 @@ async function runCreate(argv: string[]): Promise<number> {
       i18n,
       designSystem,
       typedCss,
-      attest: parsed.attest,
+      attest,
+      attestation,
       workspace,
       references,
       craftTsRef: parsed.craftTsRef,
@@ -876,6 +1077,15 @@ Options:
   --no-design-system
   --typed-css / --no-typed-css
   --attest / --no-attest      Generate the opt-in attestation workflow
+  --attestation <manual|ai|none>
+                              Choose manual or AI-assisted review
+  --viewports <list>           mobile,tablet,desktop (or none)
+  --viewport <name=widthxheight>
+                              Add a custom attestation viewport; repeatable
+  --template-obligations / --no-template-obligations
+                              Include or omit template obligations
+  --visual-tests / --no-visual-tests
+                              Include or omit visual hotspot tests
   --workspace <standalone|nx>
   --references <none|craft-ts|all> (default: CraftTS, plus EffectTS when selected)
   --craft-ts-ref <git-ref>     CraftTS reference tag/commit

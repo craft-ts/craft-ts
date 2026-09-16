@@ -166,7 +166,8 @@ require them.
 ## Thresholds
 
 Metrics become rules with `assertMetricThresholds`, opt-in and scoped by kind.
-See [Metric thresholds](/guide/testing/architecture#metric-thresholds).
+See [Metric thresholds](/guide/testing/architecture/metric-thresholds) for
+before-and-after examples.
 
 ## Explorer
 

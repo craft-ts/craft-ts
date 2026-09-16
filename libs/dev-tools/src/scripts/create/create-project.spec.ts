@@ -353,7 +353,9 @@ describe('createCraftProject', () => {
     ).toContain('craft-ts-logs');
     expect(
       await readFile(join(result.directory, '.mcp.json'), 'utf8'),
-    ).toContain('"craft-ts-graph": { "command": "npx", "args": ["craft-ts-graph-mcp"] }');
+    ).toContain(
+      '"craft-ts-graph": { "command": "npx", "args": ["craft-ts-graph-mcp"] }',
+    );
     expect(
       await readFile(
         join(result.directory, '.github/workflows/ci.yml'),
@@ -945,6 +947,81 @@ describe('createCraftProject', () => {
     expect(
       packageJson.devDependencies['@craft-ts/style-testing'],
     ).toBeDefined();
+    expect(result.config.attestation.viewports).toEqual({
+      mobile: { width: 390, height: 844 },
+      tablet: { width: 834, height: 1112 },
+      desktop: { width: 1440, height: 1000 },
+    });
+  });
+
+  it('keeps attestation surfaces independently configurable', async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'craft-ts-create-attest-config-'),
+    );
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: [],
+      i18n: 'none',
+      typedCss: false,
+      attest: true,
+      attestation: {
+        mode: 'ai',
+        viewports: {
+          mobile: { width: 360, height: 800 },
+          wide: { width: 1920, height: 1080 },
+        },
+        template: false,
+        visualTests: true,
+      },
+    });
+
+    expect(result.config.attestation).toEqual({
+      mode: 'ai',
+      viewports: {
+        mobile: { width: 360, height: 800 },
+        wide: { width: 1920, height: 1080 },
+      },
+      template: false,
+      visualTests: true,
+    });
+    const config = await readFile(
+      join(result.directory, 'review-attest.config.ts'),
+      'utf8',
+    );
+    expect(config).toContain('"width": 360');
+    expect(config).toContain('"width": 1920');
+    expect(config).toContain('matrices: [');
+    expect(config).toContain('template: false');
+    expect(config).not.toContain('template: true');
+  });
+
+  it('does not generate a browser capture when no viewport is selected', async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'craft-ts-create-attest-template-'),
+    );
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: [],
+      i18n: 'none',
+      typedCss: false,
+      attest: true,
+      attestation: { viewports: {}, template: true },
+    });
+
+    await expect(
+      readFile(join(result.directory, 'e2e/attestation.spec.ts'), 'utf8'),
+    ).rejects.toThrow();
+    const packageJson = JSON.parse(
+      await readFile(join(result.directory, 'package.json'), 'utf8'),
+    ) as { scripts: Record<string, string> };
+    expect(packageJson.scripts['attest:capture']).toBeUndefined();
+    expect(
+      await readFile(join(result.directory, 'review-attest.config.ts'), 'utf8'),
+    ).not.toContain('visual:');
   });
 
   it('can generate a domain-first starter without explanatory demo pages', async () => {
@@ -1055,7 +1132,10 @@ describe('createCraftProject', () => {
  * contrast guarantee at all.
  */
 describe('the contrast guarantee in a generated project', () => {
-  const typedCssStarter = async (workspace: 'standalone' | 'nx', mode: 'plain' | 'effect') => {
+  const typedCssStarter = async (
+    workspace: 'standalone' | 'nx',
+    mode: 'plain' | 'effect',
+  ) => {
     const root = await mkdtemp(join(tmpdir(), 'craft-ts-contrast-'));
     temporaryDirectories.push(root);
     return createCraftProject({
@@ -1076,25 +1156,25 @@ describe('the contrast guarantee in a generated project', () => {
     ['standalone', 'effect'],
     ['nx', 'plain'],
     ['nx', 'effect'],
-  ] as const)('generates a named palette and a hovered axis (%s / %s)', async (
-    workspace,
-    mode,
-  ) => {
-    const result = await typedCssStarter(workspace, mode);
-    const sheet = await readFile(
-      join(result.directory, 'src/app/ui/ui.style.ts'),
-      'utf8',
-    );
+  ] as const)(
+    'generates a named palette and a hovered axis (%s / %s)',
+    async (workspace, mode) => {
+      const result = await typedCssStarter(workspace, mode);
+      const sheet = await readFile(
+        join(result.directory, 'src/app/ui/ui.style.ts'),
+        'utf8',
+      );
 
-    // Named, so a failure can say `ui.accent.dangerHover` rather than a hex.
-    expect(sheet).toContain("definePalette('ui', {");
-    // Hover as an axis, not a selector: the point lands in the class contract
-    // and the analysis measures the colours it writes.
-    expect(sheet).toContain('when(interaction.hover');
-    expect(sheet).not.toContain(':hover');
-    // And the axis is inside a declared budget, so its cost was a decision.
-    expect(sheet).toContain('{ axes: [tone, interaction] }');
-  });
+      // Named, so a failure can say `ui.accent.dangerHover` rather than a hex.
+      expect(sheet).toContain("definePalette('ui', {");
+      // Hover as an axis, not a selector: the point lands in the class contract
+      // and the analysis measures the colours it writes.
+      expect(sheet).toContain('when(interaction.hover');
+      expect(sheet).not.toContain(':hover');
+      // And the axis is inside a declared budget, so its cost was a decision.
+      expect(sheet).toContain('{ axes: [tone, interaction] }');
+    },
+  );
 
   it('runs a real analysis under style:check, not a file-existence test', async () => {
     const result = await typedCssStarter('standalone', 'plain');

@@ -307,6 +307,10 @@ const guideSidebar = [
             link: '/guide/testing/architecture/interactive-element-names',
           },
           {
+            text: 'Metric thresholds',
+            link: '/guide/testing/architecture/metric-thresholds',
+          },
+          {
             text: 'Server-state loaders',
             link: '/guide/testing/architecture/server-state-loader',
           },

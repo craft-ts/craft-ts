@@ -431,6 +431,7 @@ rules that express your application's boundaries.
 | [`assertCraftEffectNoNetwork`](/guide/testing/architecture/craft-effect-network)                   | a `craftEffect` `calls` HTTP or a `mutation`                                                                                                                                                                                                           |
 | [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture/craft-effect-imperative-sync)    | a `craftEffect` writes a `state` / `source$` or triggers a `query` / `mutation` / `asyncProcess`                                                                                                                                                       |
 | [`assertInteractiveElementNamed`](/guide/testing/architecture/interactive-element-names)           | an interactive element lacks a literal name or duplicates a `data-craft-name`                                                                                                                                                                          |
+| [`assertMetricThresholds`](/guide/testing/architecture/metric-thresholds)                          | **opt-in:** a selected node exceeds a team-defined complexity, size or coupling threshold                                                                                                                                                                                                                            |
 | [`assertQueryMutationHasServerState`](/guide/testing/architecture/server-state-loader)             | a `query` or `mutation` does not reach an allowed server-state boundary                                                                                                                                                                                |
 | [`assertPrimitiveLoaderRequirements`](/guide/testing/architecture/primitive-loader-requirements)   | an Effect-aware primitive does not declare an allowed dependency boundary                                                                                                                                                                              |
 | [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state) | a `query` or `asyncProcess` params graph depends on a `state` instead of URL-backed `queryParams`                                                                                                                                                      |
@@ -728,7 +729,9 @@ it('requires a unique literal data-craft-name on every interactive element', () 
 
 Every node of the graph carries `metrics`: cyclomatic complexity (its own and
 with everything it contains), line count, fan-in and fan-out. No threshold
-applies by default; put the ones your team agrees on in the suite:
+applies by default; put the ones your team agrees on in the suite. See the
+[focused rule guide](/guide/testing/architecture/metric-thresholds) for
+before-and-after examples:
 
 ```typescript
 import { assertMetricThresholds } from '@craft-ts/dev-tools/architecture-graph';
