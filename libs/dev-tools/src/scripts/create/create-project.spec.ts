@@ -327,9 +327,13 @@ describe('createCraftProject', () => {
       typecheck: 'node scripts/typecheck.mjs',
       'logs:server': 'craft-ts-log-server',
       'logs:mcp': 'craft-ts-log-mcp',
+      graph: expect.stringContaining('craft-graph --project tsconfig.app.json'),
       'graph:mcp': 'craft-ts-graph-mcp',
       'registry:mcp': 'craft-ts-registry-mcp',
     });
+    expect(
+      await readFile(join(result.directory, '.gitignore'), 'utf8'),
+    ).toContain('craft-dependency-graph.*');
     expect(packageJson.scripts['attest:check']).toBeUndefined();
     expect(packageJson.devDependencies['@craft-ts/cli']).toBeUndefined();
     expect(packageJson.devDependencies['@craft-ts/log-server']).toBeDefined();
@@ -452,6 +456,12 @@ describe('createCraftProject', () => {
       ),
     ).toContain('architecture/');
     expect(
+      await readFile(
+        join(result.directory, '.cursor/skills/craft-ts-graph-mcp/SKILL.md'),
+        'utf8',
+      ),
+    ).toContain('graph.impact');
+    expect(
       await readFile(join(result.directory, 'GEMINI.md'), 'utf8'),
     ).toContain('CraftTS project');
   });
@@ -542,11 +552,18 @@ describe('createCraftProject', () => {
       join(result.directory, '.claude/skills/craft-ts-project/SKILL.md'),
       'utf8',
     );
+    const graphSkill = await readFile(
+      join(result.directory, '.claude/skills/craft-ts-graph-mcp/SKILL.md'),
+      'utf8',
+    );
 
     expect(instructions).toContain(
       'Read `.claude/skills/craft-ts-project/SKILL.md`',
     );
     expect(skill).toContain('name: craft-ts-project');
+    expect(graphSkill).toContain('name: craft-ts-graph-mcp');
+    expect(graphSkill).toContain('graph.status');
+    expect(graphSkill).toContain('npm run graph');
   });
 
   it('adds a review target to an Nx project and its root package scripts', async () => {

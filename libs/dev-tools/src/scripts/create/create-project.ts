@@ -97,7 +97,70 @@ coverage/
 .vite/
 playwright-report/
 test-results/
+craft-dependency-graph.*
 .DS_Store
+`;
+
+const GRAPH_AGENT_SKILL = `---
+name: craft-ts-graph-mcp
+description: Answer architecture questions about this project from its static CraftTS dependency graph, through the graph MCP server (graph.* tools). Use when asked where a route, component, service or primitive lives and what it depends on; what a change can break; how two nodes are connected; which code is complex, central or uncovered; or why an architecture rule fails.
+---
+
+# CraftTS graph MCP
+
+\`.mcp.json\` registers \`craft-ts-graph\`. The server answers from the same static
+analysis as the architecture suite: routes, components, services, primitives and
+the proven relations between them. No application has to be running.
+
+Run \`npm run graph\` once: it writes \`craft-dependency-graph.json\` (plus the
+Markdown report and the HTML explorer). Without it the server analyses the
+TypeScript program on its first call, which takes seconds on a real project.
+
+Prefer these tools over grepping the sources: a relation here is proven by the
+type checker or the AST, and carries the file and line that established it.
+
+## Start with graph.status
+
+It reports where the graph came from, when it was built, the node counts per
+kind and the diagnostics. Then read \`stale\` in **every** answer:
+
+- \`false\`: the graph matches the sources.
+- \`true\`: a source file changed after the graph was built. Call
+  \`graph.rebuild\` before answering about recent code, and say that you did.
+- \`unknown\`: no tsconfig was found to compare with. Say the freshness could not
+  be checked.
+
+## Chain the tools
+
+- "Where is X, what does it use?" — \`graph.search\`, then \`graph.node\` with the
+  id it returned. Ask for \`includeSource\` only when the relations are not enough.
+- "What breaks if I change X?" — \`graph.impact\`, narrowed with \`kind\` to answer
+  "which pages?".
+- "How is A connected to B?" — \`graph.path\`. \`reachable: false\` means no chain
+  in that direction; try the other one before concluding.
+- "What surrounds X?" — \`graph.neighbors\`, \`depth\` 1 first.
+- "Where is the risk?" — \`graph.hotspots\`, with \`churnSince\` for recent activity.
+- "Is the architecture sound?" — \`graph.violations\`, or \`graph.report\` for the
+  whole picture.
+
+## Read the answers faithfully
+
+- Quote the \`proof\` location when you state a dependency.
+- A metric that is absent is **unknown, not zero**: a node without a source
+  range was never measured. Never call it simple or uncovered.
+- \`graph.impact\` follows what can change a node's output, not every file that
+  mentions its name.
+- \`graph.node\` on a shared label answers \`ambiguous: true\` with candidates:
+  pick by \`kind\` or \`location\` instead of guessing.
+- Every list reports \`total\` and \`truncated\`: say so rather than presenting a
+  truncated list as complete.
+
+## Environment
+
+\`CRAFT_GRAPH_FILE\`, \`CRAFT_GRAPH_TSCONFIG\` (defaults to \`tsconfig.app.json\`),
+\`CRAFT_GRAPH_COVERAGE\` (an Istanbul \`coverage-final.json\`, for coverage per node
+and per route), \`CRAFT_GRAPH_DOCS\` (Markdown globs) and \`CRAFT_GRAPH_READONLY\`
+(hides \`graph.rebuild\`) are set in the \`.mcp.json\` entry when needed.
 `;
 
 const BASE_AGENT_SKILL = `---
@@ -380,6 +443,8 @@ function packageJson(context: TemplateContext): string {
       e2e: 'playwright test',
       'logs:server': 'craft-ts-log-server',
       'logs:mcp': 'craft-ts-log-mcp',
+      graph:
+        'craft-graph --project tsconfig.app.json --root . --out craft-dependency-graph --format all',
       'graph:mcp': 'craft-ts-graph-mcp',
       'registry:mcp': 'craft-ts-registry-mcp',
       ...(hasAttest
@@ -3037,6 +3102,17 @@ function readme(context: TemplateContext): string {
     'The graph server needs nothing running: it reads craft-dependency-graph.json',
     'or analyses the TypeScript program, and tells the agent when it is stale.',
     '',
+    'Run `npm run graph` once so the graph server answers instantly: it writes',
+    'craft-dependency-graph.json, the Markdown report (god nodes, hotspots,',
+    'cycles, architecture violations) and a standalone HTML explorer. The files',
+    'are gitignored; rerun it, or let the agent call graph.rebuild, after',
+    'structural changes.',
+    '',
+    'The graph entry accepts CRAFT_GRAPH_FILE, CRAFT_GRAPH_TSCONFIG (defaults to',
+    'tsconfig.app.json), CRAFT_GRAPH_COVERAGE (an Istanbul coverage-final.json,',
+    'for coverage per node and per route), CRAFT_GRAPH_DOCS (Markdown globs) and',
+    'CRAFT_GRAPH_READONLY=1, which hides graph.rebuild.',
+    '',
     '## Verify',
     '',
     'npm run lint',
@@ -3235,6 +3311,7 @@ function agentFiles(
   if (agent === 'codex') {
     return {
       '.agents/skills/craft-ts-project/SKILL.md': skill,
+      '.agents/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
       ...(effectEnabled
         ? { '.agents/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
         : {}),
@@ -3243,6 +3320,7 @@ function agentFiles(
   if (agent === 'cursor') {
     return {
       '.cursor/skills/craft-ts-project/SKILL.md': skill,
+      '.cursor/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
       '.cursor/rules/craft-ts.mdc': `---\ndescription: CraftTS project rules\nglobs: **/*.ts\nalwaysApply: true\n---\n\nRead .cursor/skills/craft-ts-project/SKILL.md before editing CraftTS code.\n`,
     };
   }
@@ -3254,6 +3332,7 @@ function agentFiles(
         '.claude/skills/craft-ts-project/SKILL.md',
       ),
       '.claude/skills/craft-ts-project/SKILL.md': skill,
+      '.claude/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
       ...(effectEnabled
         ? { '.claude/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
         : {}),
@@ -3266,6 +3345,7 @@ function agentFiles(
       '.gemini/skills/craft-ts-project/SKILL.md',
     ),
     '.gemini/skills/craft-ts-project/SKILL.md': skill,
+    '.gemini/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
     ...(effectEnabled
       ? { '.gemini/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
       : {}),
