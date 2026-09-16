@@ -832,9 +832,10 @@ function runAgentsSync(argv: string[]): number {
   }
   for (const change of result.changes) {
     if (change.action === 'unchanged') continue;
-    console.log(
-      `${dryRun ? 'would ' : ''}${change.action} ${change.file} — ${change.detail}`,
-    );
+    const label = dryRun
+      ? `would ${change.action === 'created' ? 'create' : change.action === 'updated' ? 'update' : change.action}`
+      : change.action;
+    console.log(`${label} ${change.file} — ${change.detail}`);
   }
   if (!result.changed) {
     console.log(`Already up to date for ${result.agents.join(', ')}.`);
