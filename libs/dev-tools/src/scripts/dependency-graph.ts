@@ -202,6 +202,8 @@ export type DependencyGraphNode = {
 };
 
 export type DependencyGraphHttpEndpoint = {
+  exceptions?: readonly string[];
+  unresolved?: string;
   method: string;
   url: string;
   line: number;
@@ -2431,31 +2433,31 @@ function collectInteractiveTemplateElements(builder: GraphBuilder): void {
     const template = component.call.getArguments()[3];
     for (const templatePart of templateImplementationParts(template))
       walkTemplate(templatePart, (node) => {
-      if (!Node.isCallExpression(node)) return;
-      if (node.getExpression().getText() === 'craftComponent') return 'skip';
-      const parsed = parseCraftHyperscript(node);
-      if (!parsed || !isInteractiveElement(parsed)) return undefined;
-      const filePath = node.getSourceFile().getFilePath();
-      const element = addNode(
-        builder,
-        {
-          id: stableNodeId('template-element', 'template-element', node),
-          kind: 'template-element',
-          label: parsed.name ?? '(unnamed)',
-          filePath,
-          line: node.getStartLineNumber(),
-          details: {
-            tag: parsed.tag,
-            localName: parsed.name,
-            static: parsed.nameKind !== 'non-static',
-            missing: parsed.nameKind === 'missing',
-            component: component.node.label,
+        if (!Node.isCallExpression(node)) return;
+        if (node.getExpression().getText() === 'craftComponent') return 'skip';
+        const parsed = parseCraftHyperscript(node);
+        if (!parsed || !isInteractiveElement(parsed)) return undefined;
+        const filePath = node.getSourceFile().getFilePath();
+        const element = addNode(
+          builder,
+          {
+            id: stableNodeId('template-element', 'template-element', node),
+            kind: 'template-element',
+            label: parsed.name ?? '(unnamed)',
+            filePath,
+            line: node.getStartLineNumber(),
+            details: {
+              tag: parsed.tag,
+              localName: parsed.name,
+              static: parsed.nameKind !== 'non-static',
+              missing: parsed.nameKind === 'missing',
+              component: component.node.label,
+            },
           },
-        },
-        node,
-      );
-      addEdge(builder, component.node.id, element.id, 'contains', 'ast');
-      return undefined;
+          node,
+        );
+        addEdge(builder, component.node.id, element.id, 'contains', 'ast');
+        return undefined;
       });
   }
 }
@@ -2538,7 +2540,6 @@ function hasInteractiveHandler(
   );
 }
 
-
 // ─── styled elements ────────────────────────────────────────────────────────
 //
 // The contrast proof needs a finer grain than "this component uses these
@@ -2612,7 +2613,9 @@ function craftStylesPrefix(identifier: Node): string | undefined {
   return undefined;
 }
 
-function resolveStyleClasses(expression: Node | undefined): StyleClassResolution {
+function resolveStyleClasses(
+  expression: Node | undefined,
+): StyleClassResolution {
   if (!expression) return { kind: 'absent' };
   if (Node.isArrayLiteralExpression(expression)) {
     const parts = expression.getElements().map(resolveStyleClasses);
@@ -2620,7 +2623,9 @@ function resolveStyleClasses(expression: Node | undefined): StyleClassResolution
     if (unresolved) return unresolved;
     return {
       kind: 'resolved',
-      keys: parts.flatMap((part) => (part.kind === 'resolved' ? part.keys : [])),
+      keys: parts.flatMap((part) =>
+        part.kind === 'resolved' ? part.keys : [],
+      ),
     };
   }
   if (Node.isPropertyAccessExpression(expression)) {
@@ -2678,7 +2683,10 @@ const isTextLiteral = (node: Node): boolean =>
  * on an element that turns out to be empty, and the cost of the other
  * direction is silence about text that fails.
  */
-function textKindOf(call: CallExpression, childrenStart: number): ElementTextKind {
+function textKindOf(
+  call: CallExpression,
+  childrenStart: number,
+): ElementTextKind {
   let kind: ElementTextKind = 'none';
   for (const child of call.getArguments().slice(childrenStart)) {
     if (isTextLiteral(child)) return 'static';
@@ -2748,7 +2756,15 @@ function walkStyledElements(
     nextParent: string | undefined,
     nextBranch: readonly BranchSegment[],
     nextDepth: number,
-  ) => walkStyledElements(builder, component, child, nextParent, nextBranch, nextDepth);
+  ) =>
+    walkStyledElements(
+      builder,
+      component,
+      child,
+      nextParent,
+      nextBranch,
+      nextDepth,
+    );
 
   if (Node.isCallExpression(node)) {
     const callee = node.getExpression().getText();
@@ -2817,9 +2833,7 @@ function addStyledElementNode(
   const classes = resolveStyleClasses(classExpression(parsed.props));
   const textKind = textKindOf(call, parsed.childrenStart);
   const filePath = call.getSourceFile().getFilePath();
-  const label = parsed.name
-    ? `${parsed.tag}.${parsed.name}`
-    : `${parsed.tag}`;
+  const label = parsed.name ? `${parsed.tag}.${parsed.name}` : `${parsed.tag}`;
 
   const element = addNode(
     builder,
@@ -4127,12 +4141,16 @@ function containsCallNamed(node: Node, name: string): boolean {
     .some((call) => call.getExpression().getText() === name);
 }
 
-function templateRoleOf(node: Node): 'input-value' | 'button-action' | undefined {
+function templateRoleOf(
+  node: Node,
+): 'input-value' | 'button-action' | undefined {
   let current: Node | undefined = node;
   while (current) {
     if (Node.isPropertyAssignment(current)) {
       const propertyName = current.getNameNode().getText().replace(/["']/g, '');
-      const options = current.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
+      const options = current.getParentIfKind(
+        SyntaxKind.ObjectLiteralExpression,
+      );
       const owner = options?.getParentIfKind(SyntaxKind.CallExpression);
 
       if (
@@ -4329,8 +4347,7 @@ export function collectReactiveExpressions(scope: Node): Node[] {
       const property = parent.asKind(SyntaxKind.PropertyAssignment);
       if (property?.getNameNode() === identifier) continue;
     }
-    if (parent?.isKind(SyntaxKind.PropertyAccessExpression))
-      continue;
+    if (parent?.isKind(SyntaxKind.PropertyAccessExpression)) continue;
     if (parent?.isKind(SyntaxKind.CallExpression)) continue;
     add(identifier);
   }
@@ -4895,6 +4912,8 @@ function addHttpClientUsage(
     details: {
       method: usage.method,
       url: usage.url,
+      ...(usage.exceptions ? { exceptions: usage.exceptions } : {}),
+      ...(usage.unresolved ? { unresolved: usage.unresolved } : {}),
       callSites: [],
     },
   });
@@ -4917,6 +4936,17 @@ function addHttpClientUsage(
     method: usage.method,
     url: usage.url,
     callSites,
+    ...(usage.exceptions
+      ? {
+          exceptions: [
+            ...new Set([
+              ...((endpoint.details?.['exceptions'] as string[]) ?? []),
+              ...usage.exceptions,
+            ]),
+          ],
+        }
+      : {}),
+    ...(usage.unresolved ? { unresolved: usage.unresolved } : {}),
   };
   addEdge(builder, nodeId, endpoint.id, 'calls', 'ast', {
     http: true,
@@ -5294,21 +5324,79 @@ function findCraftHttpClientUsage(
 ): CraftHttpClientUsage | undefined {
   const expression = call.getExpression();
   if (!Node.isPropertyAccessExpression(expression)) return undefined;
-  const root = rootIdentifier(expression)?.getText();
-  if (!CRAFT_HTTP_CLIENT_ROOTS.has(root ?? '')) return undefined;
+  const identifier = rootIdentifier(expression);
+  const root = identifier?.getText();
+  const symbol = identifier?.getSymbol();
+  const resolvedName =
+    symbol?.getAliasedSymbol()?.getName() ?? symbol?.getName();
+  if (
+    !CRAFT_HTTP_CLIENT_ROOTS.has(root ?? '') &&
+    !CRAFT_HTTP_CLIENT_ROOTS.has(resolvedName ?? '')
+  )
+    return undefined;
 
   const methodName = expression.getName();
   if (!CRAFT_HTTP_CLIENT_METHODS.has(methodName)) return undefined;
 
   const config = getHttpClientConfig(call);
+  const urlExpression = config
+    ?.getProperty('url')
+    ?.asKind(SyntaxKind.PropertyAssignment)
+    ?.getInitializer();
+  const urlType = urlExpression?.getType();
   const url =
-    getStaticExpressionText(
-      config
-        ?.getProperty('url')
-        ?.asKind(SyntaxKind.PropertyAssignment)
-        ?.getInitializer(),
-    ) ?? getStringArgument(call, 0);
-  if (!url) return undefined;
+    urlExpression &&
+    (Node.isStringLiteral(urlExpression) ||
+      Node.isNoSubstitutionTemplateLiteral(urlExpression) ||
+      Node.isTemplateExpression(urlExpression))
+      ? getStaticExpressionText(urlExpression)
+      : urlType?.isStringLiteral()
+        ? (urlType.getLiteralValue() as string)
+        : getStringArgument(call, 0);
+  const exceptionConfig = config?.getProperty('exceptions');
+  const exceptions = new Set<string>();
+  if (exceptionConfig) {
+    for (const returned of exceptionConfig.getDescendantsOfKind(
+      SyntaxKind.ReturnStatement,
+    )) {
+      const value = returned.getExpression();
+      if (!value) continue;
+      const type = value.getType();
+      for (const candidate of type.isUnion() ? type.getUnionTypes() : [type]) {
+        const tag = candidate.getProperty('_tag')?.getTypeAtLocation(value);
+        const discriminant = tag?.getLiteralValue();
+        if (typeof discriminant === 'string') exceptions.add(discriminant);
+      }
+    }
+    // Imported rule arrays and aliases: inspect Generator<Yield, Return> types.
+    const inspect = (type: import('ts-morph').Type, depth = 0): void => {
+      if (depth > 8) return;
+      const tag = type.getProperty('_tag')?.getTypeAtLocation(exceptionConfig);
+      const discriminant = tag?.getLiteralValue();
+      if (typeof discriminant === 'string') exceptions.add(discriminant);
+      for (const part of [
+        ...type.getUnionTypes(),
+        ...type.getTypeArguments(),
+        ...type.getAliasTypeArguments(),
+      ])
+        inspect(part, depth + 1);
+      const element = type.getArrayElementType();
+      if (element) inspect(element, depth + 1);
+      for (const signature of type.getCallSignatures())
+        inspect(signature.getReturnType(), depth + 1);
+    };
+    const initializer = exceptionConfig
+      .asKind(SyntaxKind.PropertyAssignment)
+      ?.getInitializer();
+    if (initializer) inspect(initializer.getType());
+  }
+  const unresolved = !url
+    ? 'dynamic URL requires an explicit HTTP contract'
+    : exceptionConfig &&
+        !exceptions.size &&
+        exceptionConfig.getText() !== 'exceptions: []'
+      ? 'exception discriminants could not be resolved'
+      : undefined;
 
   const configuredMethod = getStaticExpressionText(
     config
@@ -5318,7 +5406,11 @@ function findCraftHttpClientUsage(
   );
   return {
     method: (configuredMethod ?? methodName).toUpperCase(),
-    url,
+    url:
+      url ??
+      `<unresolved:${call.getSourceFile().getBaseName()}:${call.getStartLineNumber()}>`,
+    ...(exceptions.size ? { exceptions: [...exceptions] } : {}),
+    ...(unresolved ? { unresolved } : {}),
     line: call.getStartLineNumber(),
   };
 }

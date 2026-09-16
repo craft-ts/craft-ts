@@ -452,7 +452,16 @@ bootstrapCraft.
    data-* attribute, and the variant is an axis. A class assembled in the
    browser is a visual state nothing recorded, which is what no-raw-class,
    no-free-has, no-raw-css-value and style-file-boundary exist to prevent.
-   Components read theme variables, never palette tokens directly.
+   Components read theme variables, never palette tokens directly. Name
+   palettes with definePalette('name', spec), and model hover with
+   when(interaction.hover, [...]) while declaring interaction in the sheet's
+   axes budget; a hand-written :hover is invisible to static scenarios.
+   When package.json exposes npm run style:check, run it after changing a
+   colour, background, font metric, template class, theme or visual axis. It
+   proves WCAG AA text contrast from the style dump and template graph without
+   a browser. Do not leave --allow-indeterminate in CI, do not treat an
+   uncovered ESLint path as analysed, and do not describe this text-contrast
+   proof as a complete accessibility audit.
 8. Run the focused test, then npm run lint and fix every lint error before
    continuing. Keep derived values on their owning Craft primitive, read
    reactive values through the documented bindings, give every button an

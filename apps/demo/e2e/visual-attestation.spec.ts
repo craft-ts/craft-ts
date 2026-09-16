@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto';
+import { captureVisualApp } from '@craft-ts/style-testing/visual-app/playwright';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, relative } from 'node:path';
 import { expect, test, type TestInfo } from '@playwright/test';
 import {
   applyScenario,
@@ -23,21 +25,24 @@ const reportPathFor = (testInfo: TestInfo): string =>
     : testInfo.outputPath('visual-report.json');
 
 const imagePathFor = (
-  testInfo: TestInfo,
+  _testInfo: TestInfo,
   reportPath: string,
   imageName: string,
-): string =>
-  REQUESTED_REPORT
-    ? join(dirname(reportPath), imageName)
-    : testInfo.outputPath(imageName);
+): string => join(dirname(reportPath), imageName);
 
 test('writes CLI-ready visual evidence from a real demo route', async ({
   browser,
   page,
 }, testInfo) => {
+  test.setTimeout(180_000);
   await page.addInitScript(determinismScript());
 
-  const reportPath = reportPathFor(testInfo);
+  const publishedReportPath = reportPathFor(testInfo);
+  const reportPath = join(
+    dirname(publishedReportPath),
+    `matrices-${randomUUID()}`,
+    basename(publishedReportPath),
+  );
   await mkdir(dirname(reportPath), { recursive: true });
 
   const captures = [];
@@ -139,17 +144,40 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
   }
   await auditor.close();
 
-  const report = visualReport(captures);
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  const appConfig = reviewAttestConfig.visual?.app;
+  if (!appConfig) throw new Error('Missing application capture config.');
+  const report = await captureVisualApp({
+    browser,
+    config: appConfig,
+    baseURL: new URL(page.url()).origin,
+    rootDir: resolve('.'),
+    tsconfigPath: 'apps/demo/tsconfig.graph.json',
+    reportPath: publishedReportPath,
+    additionalCaptures: captures.map((capture) => ({
+      ...capture,
+      image: relative(
+        dirname(publishedReportPath),
+        join(dirname(reportPath), capture.image),
+      ),
+      snapshot: relative(
+        dirname(publishedReportPath),
+        join(dirname(reportPath), capture.snapshot),
+      ),
+    })),
+  });
+
   await testInfo.attach('visual-report', {
-    path: reportPath,
+    path: publishedReportPath,
     contentType: 'application/json',
   });
 
-  expect(report.captures.map((capture) => capture.scenario)).toEqual([
-    'base',
-    'scheme=dark',
-    'scheme=dark+viewport=md',
-    'viewport=md',
-  ]);
+  expect(
+    report.captures
+      .filter((capture) => !capture.application)
+      .map((capture) => capture.scenario)
+      .sort(),
+  ).toEqual(['base', 'scheme=dark', 'scheme=dark+viewport=md', 'viewport=md']);
+  expect(report.captures.filter((capture) => capture.application)).toHaveLength(
+    4,
+  );
 });

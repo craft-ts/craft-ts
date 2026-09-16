@@ -15,6 +15,14 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
     alias: {
+      '@craft-ts/style-testing/review-attest': path.join(
+        workspaceRoot,
+        'libs/review-attestation/src/lib/review-attest.ts',
+      ),
+      '@craft-ts/style-testing/visual-app/server': path.join(
+        workspaceRoot,
+        'libs/review-attestation/src/lib/visual-app/server.ts',
+      ),
       '@craft-ts/deploy': path.join(workspaceRoot, 'libs/deploy/src/index.ts'),
     },
   },

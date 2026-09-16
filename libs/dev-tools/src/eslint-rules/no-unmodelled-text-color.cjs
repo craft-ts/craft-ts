@@ -11,13 +11,14 @@ const { componentInfo } = require('./css-rule-utils.cjs');
  *
  * So the rule is not "raw CSS is bad". It is "a surface cannot be half
  * covered". Either the four properties go through the typed helpers, where
- * the graph can see them, or the surface says out loud that it is not covered
- * — and then the report can count it as a gap instead of a pass.
+ * the graph can see them, or the surface is explicitly excluded from this
+ * lint contract. That exclusion is documentation, not a contrast diagnostic:
+ * the style analyser cannot report declarations it never receives.
  *
  * **Declaring a surface uncovered** is the `uncovered` option: a list of path
  * fragments. A global stylesheet, a third-party widget's theme, a legacy
- * screen mid-migration are all legitimate; what is not legitimate is for them
- * to be indistinguishable from a screen the tool actually proved.
+ * screen mid-migration are all legitimate. Keep those exclusions visible in
+ * review and do not describe a strict `style:check` as covering them.
  */
 const PROPERTIES = [
   'color',
@@ -65,7 +66,7 @@ module.exports = {
     ],
     messages: {
       escaped:
-        "'{{property}}' is set in raw CSS here, so the static contrast analysis cannot see it — and a property it cannot see is a check that silently passes. Set it through the typed helpers instead: color(theme.ink), bg(theme.raised), font(text.sm), fontWeight(num(600)). If this surface genuinely lives outside CraftTS, add its path to the rule's `uncovered` option so the report counts it as a gap rather than as proven.",
+        "'{{property}}' is set in raw CSS here, so the static contrast analysis cannot see it — and a property it cannot see is a check that silently passes. Set it through the typed helpers instead: color(theme.ink), bg(theme.raised), font(text.sm), fontWeight(num(600)). If this surface genuinely lives outside CraftTS, add its path to the rule's `uncovered` option as an explicit lint exemption; this does not add an indeterminate row to the contrast report.",
     },
   },
   create(context) {

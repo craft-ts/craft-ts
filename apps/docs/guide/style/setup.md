@@ -12,17 +12,22 @@ This page is the one to follow before the other four.
 
 ```bash
 npm install @craft-ts/style
+npm install --save-dev @craft-ts/dev-tools
+# Optional, for visual scenario matrices and attestation:
 npm install --save-dev @craft-ts/style-testing
 ```
 
 `@craft-ts/style` carries the vocabulary — tokens, kinds, typed custom
-properties, axes, sheets, obligations. `@craft-ts/style-testing` carries the
-scenario matrix and the drivers that reach each of its points; it never ships to
-the browser, so it belongs in `devDependencies`.
+properties, axes, sheets, obligations. `@craft-ts/dev-tools` carries the
+`craft-graph` contrast command and the ESLint guard rails.
+`@craft-ts/style-testing` carries the optional scenario matrix and the drivers
+that reach each of its points; it never ships to the browser, so it belongs in
+`devDependencies` when visual scenarios or attestation are enabled.
 
 `@craft-ts/style` declares `@craft-ts/core` as a peer dependency, and
-`@craft-ts/style-testing` declares `@craft-ts/style`. Both are `sideEffects:
-false`.
+`@craft-ts/style-testing` declares `@craft-ts/style`. Keep all installed
+`@craft-ts/*` packages on the same release line. The runtime style package and
+the optional testing package are both `sideEffects: false`.
 
 ## Wire the plugin
 

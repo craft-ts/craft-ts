@@ -345,13 +345,7 @@ describe('createArchitectureGraph', () => {
       visualHappyPathArchitectureViolations(graph.graph, invalid).map(
         ({ kind }) => kind,
       ),
-    ).toEqual(
-      expect.arrayContaining([
-        'missing-viewport',
-        'fixture-file',
-        'missing-http-mock',
-      ]),
-    );
+    ).toEqual(expect.arrayContaining(['fixture-file', 'missing-http-mock']));
   });
 
   it('detects app-config/routes import cycles before provider inference widens', async () => {

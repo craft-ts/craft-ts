@@ -41,7 +41,13 @@ import {
   type Tone,
 } from './ds-components';
 
-const TONES = ['neutral', 'info', 'success', 'warning', 'danger'] satisfies Tone[];
+const TONES = [
+  'neutral',
+  'info',
+  'success',
+  'warning',
+  'danger',
+] satisfies Tone[];
 const SIZES = ['sm', 'md', 'lg'] satisfies Size[];
 const initialShowcase = (): { tone: Tone; size: Size; progress: number } => ({
   tone: 'info',
@@ -65,33 +71,29 @@ export const designSystemDemo = craftComponent(
   'designSystemDemo',
   { host: { class: 'design-system-host' } },
   () =>
-    state(
-      'showcase',
-      initialShowcase(),
-      ({ state: showcase, update }) => ({
-        tone: craftComputed('tone', function* () {
-          return (yield* showcase()).tone;
-        }),
-        size: craftComputed('size', function* () {
-          return (yield* showcase()).size;
-        }),
-        progress: craftComputed('progress', function* () {
-          return (yield* showcase()).progress;
-        }),
-        pickTone: (tone: Tone) => update((current) => ({ ...current, tone })),
-        pickSize: (size: Size) => update((current) => ({ ...current, size })),
-        nudge: () =>
-          update((current) => ({
-            ...current,
-            progress: current.progress >= 100 ? 0 : current.progress + 10,
-          })),
+    state('showcase', initialShowcase(), ({ state: showcase, update }) => ({
+      tone: craftComputed('tone', function* () {
+        return (yield* showcase()).tone;
       }),
-    ),
+      size: craftComputed('size', function* () {
+        return (yield* showcase()).size;
+      }),
+      progress: craftComputed('progress', function* () {
+        return (yield* showcase()).progress;
+      }),
+      pickTone: (tone: Tone) => update((current) => ({ ...current, tone })),
+      pickSize: (size: Size) => update((current) => ({ ...current, size })),
+      nudge: () =>
+        update((current) => ({
+          ...current,
+          progress: current.progress >= 100 ? 0 : current.progress + 10,
+        })),
+    })),
   (showcase) =>
     // One class on the wrapper, and the whole subtree is themed. Remove it and
     // every colour below falls back to the `@property` initial value — which
     // is a defined behaviour, not an unstyled page.
-    div({ class: dsTheme.root }, [
+    div('DesignSystemOverview', { class: dsTheme.root }, [
       section({ class: stack.column }, [
         heading('A mini design system'),
         p(
@@ -114,7 +116,9 @@ export const designSystemDemo = craftComponent(
                 label: constant(tone),
                 tone: constant(tone),
                 size: showcase.size,
-                press: function* () { yield* showcase.pickTone(tone); },
+                press: function* () {
+                  yield* showcase.pickTone(tone);
+                },
               }),
             ),
           ),
@@ -139,7 +143,9 @@ export const designSystemDemo = craftComponent(
                 label: constant(size),
                 tone: showcase.tone,
                 size: constant(size),
-                press: function* () { yield* showcase.pickSize(size); },
+                press: function* () {
+                  yield* showcase.pickSize(size);
+                },
               }),
             ),
           ),

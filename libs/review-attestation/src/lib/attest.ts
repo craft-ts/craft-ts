@@ -104,9 +104,7 @@ export interface VisualCaptureMetadata {
 }
 
 /** Turns a capture scope into the metadata a review card reads. */
-export function metadataFromScope(
-  scope: CaptureScope,
-): VisualCaptureMetadata {
+export function metadataFromScope(scope: CaptureScope): VisualCaptureMetadata {
   const band = visibleBandOf(scope);
   return {
     viewport: scope.viewport,
@@ -122,7 +120,32 @@ export function metadataFromScope(
   };
 }
 
+export interface VisualApplicationCapture {
+  readonly page: string;
+  readonly scenario: string;
+  readonly label: string;
+  readonly category: 'happy-path' | 'exception';
+  readonly capture: string;
+  readonly viewport: string;
+  readonly imageHash: string;
+  readonly provenance: {
+    readonly contract: string;
+    readonly sources: Readonly<Record<string, string>>;
+  };
+  readonly execution: {
+    readonly status: 'passed';
+    readonly mocks: readonly unknown[];
+  };
+  readonly comparison: {
+    readonly threshold: number;
+    readonly maxDiffPixels: number;
+  };
+  readonly environment: string;
+}
+
 export interface VisualReportCapture {
+  readonly evidenceMode?: 'screenshot';
+  readonly application?: VisualApplicationCapture;
   /** Repository-relative graph node id. */
   readonly component: string;
   readonly scenario: string;
@@ -148,7 +171,7 @@ export interface VisualReportCapture {
 
 export interface VisualReport {
   readonly format: typeof VISUAL_REPORT_FORMAT;
-  readonly version: 1;
+  readonly version: 1 | 2;
   readonly captures: readonly VisualReportCapture[];
 }
 

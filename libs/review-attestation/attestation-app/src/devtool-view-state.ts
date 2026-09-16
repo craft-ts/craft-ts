@@ -1,6 +1,11 @@
 import type { Mention } from './annotation-text';
 
-export type DevtoolView = 'assets' | 'visual' | 'template' | 'review';
+export type DevtoolView =
+  | 'application'
+  | 'assets'
+  | 'visual'
+  | 'template'
+  | 'review';
 export type UrlDevtoolView = DevtoolView | '';
 export type RetirementReason = 'superseded' | 'defect' | 'derivation';
 export type KindFilter = 'all' | 'visual' | 'template' | 'removal';
@@ -35,6 +40,7 @@ export const initialMentions = (): readonly Mention[] => [];
 export const initialSelection = (): readonly string[] => [];
 
 export const isDevtoolView = (value: string): value is DevtoolView =>
+  value === 'application' ||
   value === 'assets' ||
   value === 'visual' ||
   value === 'template' ||

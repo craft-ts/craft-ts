@@ -1,5 +1,5 @@
+import { designSystemScenarios } from './e2e/design-system.mocks.ts';
 import {
-  defineHappyPathHttpMocks,
   defineReviewAttestConfig,
   defineVisualAppConfig,
   visualMatrix,
@@ -9,6 +9,12 @@ import { dsTheme } from './src/app/examples/design-system/foundation.style.ts';
 export const reviewAttestConfig = defineReviewAttestConfig({
   visual: {
     app: defineVisualAppConfig({
+      sourceFiles: [
+        'apps/demo/src/styles.css',
+        'apps/demo/src/index.html',
+        'apps/demo/e2e/fixtures/Chivo.ttf',
+        'apps/demo/e2e/fixtures/Chivo-Italic.ttf',
+      ],
       pages: [
         {
           id: 'design-system',
@@ -16,7 +22,7 @@ export const reviewAttestConfig = defineReviewAttestConfig({
           url: '/design-system',
           component:
             'component:apps/demo/src/app/examples/design-system/design-system-demo.ts:designSystemDemo',
-          mocks: defineHappyPathHttpMocks('e2e/visual-attestation.spec.ts', {}),
+          scenarios: designSystemScenarios,
         },
       ],
     }),

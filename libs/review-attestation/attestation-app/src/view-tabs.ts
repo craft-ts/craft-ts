@@ -11,7 +11,7 @@ import { craftComputed } from '@craft-ts/core';
 import type { DevtoolView } from './devtool-view-state';
 import type { Messages } from './messages';
 
-/** The three tabs that switch which devtool view is on screen. */
+/** The tabs that switch which devtool view is on screen. */
 export const ViewTabs = craftComponent(
   'ViewTabs',
   {},
@@ -23,6 +23,12 @@ export const ViewTabs = craftComponent(
     cardsCount: Input<number>,
     t: Input<Messages>,
   ) => {
+    const applicationPressed = craftComputed(
+      'applicationPressed',
+      function* () {
+        return (yield* devtoolView()) === 'application' ? 'true' : 'false';
+      },
+    );
     const visualPressed = craftComputed('visualPressed', function* () {
       return (yield* devtoolView()) === 'visual' ? 'true' : 'false';
     });
@@ -39,6 +45,7 @@ export const ViewTabs = craftComponent(
       templateObligationsCount,
       cardsCount,
       t,
+      applicationPressed,
       visualPressed,
       templatePressed,
       reviewPressed,
@@ -50,10 +57,29 @@ export const ViewTabs = craftComponent(
     templateObligationsCount,
     cardsCount,
     t,
+    applicationPressed,
     visualPressed,
     templatePressed,
     reviewPressed,
   }) => [
+    button(
+      'ShowApplicationOverview',
+      {
+        type: 'button',
+        class: 'view-tab',
+        'aria-pressed': applicationPressed,
+        *click() {
+          yield* chooseDevtoolView('application');
+        },
+      },
+      [
+        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '▧'),
+        span({ class: 'view-tab-copy' }, [
+          strong('Aperçu de l’application'),
+          small('Pages, scénarios et formats'),
+        ]),
+      ],
+    ),
     button(
       'ShowVisualTests',
       {

@@ -97,6 +97,7 @@ export interface ReviewCardBase {
 }
 
 export interface VisualReviewCard extends ReviewCardBase {
+  readonly evidenceMode?: 'screenshot';
   readonly kind: 'visual';
   readonly presenter: 'screenshot-replay';
 }
@@ -215,7 +216,30 @@ export interface TemplateInventoryItem {
   readonly evidence: TemplateEvidence;
 }
 
+export interface ApplicationCaptureInventoryItem {
+  readonly subject: string;
+  readonly page: string;
+  readonly scenario: string;
+  readonly label: string;
+  readonly category: 'happy-path' | 'exception';
+  readonly capture: string;
+  readonly viewport: string;
+  readonly dimensions: { readonly width: number; readonly height: number };
+  readonly state: 'current' | 'renewed' | 'missing' | 'review';
+  readonly error?: string;
+  readonly image?: string;
+  readonly reference?: string;
+  readonly diff?: string;
+  readonly comparison?: {
+    readonly matches: boolean;
+    readonly diffPixels: number | null;
+    readonly threshold: number;
+    readonly maxDiffPixels: number;
+  };
+}
+
 export interface AttestationDevtoolModel {
+  readonly applicationCaptures?: readonly ApplicationCaptureInventoryItem[];
   readonly visualAssets: readonly VisualAssetInventoryItem[];
   readonly visualTests: readonly VisualTestInventoryItem[];
   readonly templateObligations: readonly TemplateInventoryItem[];

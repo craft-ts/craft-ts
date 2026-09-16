@@ -449,27 +449,26 @@ type AnyCraftHttpRequest = CraftHttpRequest<
 type CraftHttpTrackedRequest<
   Request extends AnyCraftHttpRequest,
   ClientName extends string = 'CraftHttpClient',
-> =
-  ServiceYieldRequest<
+> = ServiceYieldRequest<
+  'global',
+  Request,
+  ServiceTrackingMetadata<
+    ClientName,
     'global',
     Request,
-    ServiceTrackingMetadata<
-      ClientName,
-      'global',
-      Request,
-      never,
-      {
-        derivedPropertiesUsed: {
-          $self: Request;
-        };
-        derivedPropertiesExposed: {
-          $self: Request;
-        };
-      },
-      never,
-      true
-    >
-  >;
+    never,
+    {
+      derivedPropertiesUsed: {
+        $self: Request;
+      };
+      derivedPropertiesExposed: {
+        $self: Request;
+      };
+    },
+    never,
+    true
+  >
+>;
 
 type CraftHttpRequestFromConfig<
   Method extends string,
@@ -643,8 +642,7 @@ export const CraftBinaryHttpClient: CraftBinaryHttpClientDsl = {
     const config = build(craftHttpClientBuilderHelpers);
 
     return (yield createCraftHttpClientYieldRequest(
-      (injector) =>
-        createCraftHttpRequest(injector, 'PUT', config, 'raw'),
+      (injector) => createCraftHttpRequest(injector, 'PUT', config, 'raw'),
       'CraftBinaryHttpClient',
     )) as CraftHttpRequestFromConfig<'PUT', Config>;
   },
@@ -688,9 +686,7 @@ function createCraftHttpClientYieldRequest<
     name: clientName,
     providedIn: 'global',
     resolve: (injector) => {
-      const override = injector
-        .get(SERVICE_RUNTIME_OVERRIDES)
-        .get(clientName);
+      const override = injector.get(SERVICE_RUNTIME_OVERRIDES).get(clientName);
 
       if (override?.kind === 'useValue') {
         return override.value as Request;
@@ -946,6 +942,28 @@ function resolveCraftHttpClientError<Config extends CraftHttpClientBaseConfig>(
     error,
   ) as ExtractCraftHttpClientExceptions<Config> | undefined;
 
+  // Installed only by the isolated visual-capture adapter. Observe the actual
+  // resolved business exception, never infer it from a mocked HTTP status.
+  const captureObserver = (
+    globalThis as unknown as {
+      __craftVisualException?: (detail: {
+        endpoint: string;
+        discriminant: string;
+      }) => Promise<void> | void;
+    }
+  ).__craftVisualException;
+  if (customException && captureObserver) {
+    try {
+      void Promise.resolve(
+        captureObserver({
+          endpoint: `${method} ${config.url}`,
+          discriminant: (customException as AnyCraftException)._tag,
+        }),
+      ).catch(() => undefined);
+    } catch {
+      /* Observation must not alter HTTP behavior. */
+    }
+  }
   return customException ?? toCraftHttpClientError(method, config.url, error);
 }
 

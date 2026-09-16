@@ -27,42 +27,24 @@ npm run attest:review-app:status
 npm run attest:review-app:review
 ```
 
-The capture covers the review page's happy path at the default mobile
-(`390x844`) and desktop (`1440x1000`) viewports, then the review queue in dark
-French, the regeneration confirmation, and the visual-test and
-template-obligation inventories. It also replays every frozen document and
-checks that its layout digest is identical to the live capture.
+The capture replays three steps on all four default viewports: the review
+queue, the regeneration dialog opened automatically, and the application
+overview. It records full-page PNG evidence in isolated browser contexts.
+Capture and human review remain separate sessions.
 
-## Happy-path configuration and API fixtures
+## Application scenarios and API fixtures
 
-[`src/review-app.happy-path.ts`](./src/review-app.happy-path.ts) is the single
-declarative source for the application overview. It names the page, its graph
-component, its URL, and successful datasets for every `CraftHttpClient`
-endpoint. `defineVisualAppConfig` supplies the mobile and desktop profiles by
-default; pass an explicit `viewports` record to add or change project-specific
-profiles.
+[`src/review-app.happy-path.ts`](./src/review-app.happy-path.ts) imports and
+exports the fixture data, page and explicit scenario recipe. The four defaults
+are mobile (390×844), tablet (834×1112), desktop (1440×1000) and wide (2560×1440).
+A custom viewport record replaces all defaults. API mocks execute before
+navigation and unexpected application requests fail the generation.
 
-The self-attestation producer iterates `visualAppHappyPaths(config)`. Adding a
-page therefore adds both captures automatically instead of requiring two
-copied Playwright tests. The architecture rule
-`assertVisualHappyPathArchitecture` checks that:
-
-- `mobile` and `desktop` remain configured with valid sizes;
-- every routed page has a declared happy path;
-- every configured component exists in the dependency graph;
-- every Craft HTTP endpoint has a successful response dataset;
-- datasets live in a dedicated `*.happy-path.ts` file.
-
-The HTTP dataset is also executable. A Playwright interceptor can pass the
-request to `matchHappyPathHttpRequest`, then fulfill it with the returned
-status, headers, content type, and body. Dynamic path segments use `*`, as in
-`GET /api/digest/*`. For routed applications,
-`mockHttpRequestForRoute(...)` remains the strongest authoring helper because
-it derives the response types and exhaustive endpoint set from
-`craftRoutes(...).META_DATA`; wrap its result with
-`defineRouteHappyPathHttpMocks('page.happy-path.ts', routeMock)`. The
-application-level architecture assertion is the CI backstop that no page or
-endpoint was omitted.
+See [Application capture contract](../APPLICATION-CAPTURES.md) for actions,
+modal coverage, exceptions, typed mock composition, provenance and comparison.
+The last human-accepted PNG is the fixed reference; tolerance never replaces
+that reference automatically. Component matrices and template attestations
+retain their historical behavior.
 
 By default it writes the report and its PNG and `.snapshot.html` artefacts under
 `.craft/runs/`, starting with `.craft/runs/review-app.json`. Use the same custom

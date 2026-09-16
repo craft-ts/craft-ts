@@ -1,6 +1,7 @@
 import type { VisualScenario } from './matrix.js';
 import {
   defineVisualAppConfig,
+  visualAppCaptureTargets,
   type VisualAppConfig,
   type VisualAppConfigInput,
 } from './visual-app.js';
@@ -50,61 +51,10 @@ const invalid = (message: string): never => {
   throw new TypeError(`review-attest.config: ${message}`);
 };
 
-const validateViewport = (value: unknown, path: string): void => {
-  const record = isRecord(value)
-    ? value
-    : invalid(`${path} must be an object.`);
-  if (
-    typeof record['width'] !== 'number' ||
-    !Number.isFinite(record['width']) ||
-    record['width'] <= 0 ||
-    typeof record['height'] !== 'number' ||
-    !Number.isFinite(record['height']) ||
-    record['height'] <= 0
-  ) {
-    invalid(`${path} must contain positive numeric width and height.`);
-  }
-};
-
 const validateApp = (value: unknown): VisualAppConfig => {
-  const record = isRecord(value)
-    ? value
-    : invalid('visual.app must be an object.');
-  if (!Array.isArray(record['pages'])) {
+  if (!isRecord(value) || !Array.isArray(value['pages']))
     invalid('visual.app.pages must be an array.');
-  }
-  const pages = record['pages'] as readonly unknown[];
-  const viewports = record['viewports'];
-  if (viewports !== undefined) {
-    const viewportRecord = isRecord(viewports)
-      ? viewports
-      : invalid('visual.app.viewports must be an object.');
-    for (const [name, viewport] of Object.entries(viewportRecord)) {
-      validateViewport(viewport, `visual.app.viewports.${name}`);
-    }
-  }
-  for (const [index, page] of pages.entries()) {
-    const pageRecord = isRecord(page)
-      ? page
-      : invalid(`visual.app.pages[${index}] must be an object.`);
-    for (const field of ['id', 'route', 'url', 'component']) {
-      if (
-        typeof pageRecord[field] !== 'string' ||
-        pageRecord[field].length === 0
-      ) {
-        invalid(
-          `visual.app.pages[${index}].${field} must be a non-empty string.`,
-        );
-      }
-    }
-    const mocks = pageRecord['mocks'];
-    if (!isRecord(mocks) || typeof mocks['source'] !== 'string') {
-      invalid(
-        `visual.app.pages[${index}].mocks must be defined with a source.`,
-      );
-    }
-  }
-  return defineVisualAppConfig(record as VisualAppConfigInput);
+  return defineVisualAppConfig(value as VisualAppConfigInput);
 };
 
 const validateMatrix = (
@@ -153,6 +103,8 @@ export function defineReviewAttestConfig<
   const Input extends ReviewAttestConfigInput,
 >(input: Input): ReviewAttestConfig {
   if (!isRecord(input)) invalid('the root value must be an object.');
+  if (input.template !== undefined && typeof input.template !== 'boolean')
+    invalid('template must be a boolean.');
   const visual = input.visual;
   if (visual !== undefined) {
     if (!isRecord(visual)) invalid('visual must be an object.');
@@ -192,15 +144,9 @@ export function reviewAttestVisualSubjects(
   config: ReviewAttestConfig,
 ): ReadonlySet<string> {
   const subjects = new Set<string>();
-  for (const page of config.visual?.app?.pages ?? []) {
-    for (const viewportName of Object.keys(
-      config.visual?.app?.viewports ?? {},
-    )) {
-      subjects.add(
-        `visual:${page.component}#${page.id}--happy-path--${viewportName}`,
-      );
-    }
-  }
+  if (config.visual?.app)
+    for (const target of visualAppCaptureTargets(config.visual.app))
+      subjects.add(target.subject);
   for (const matrix of config.visual?.matrices ?? []) {
     if (Array.isArray(matrix)) continue;
     const namedMatrix = matrix as ReviewAttestMatrix;
@@ -219,3 +165,5 @@ export function reviewAttestHasVisualTargets(
     (config.visual?.matrices.length ?? 0) > 0
   );
 }
+
+export * from './visual-app.js';

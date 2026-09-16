@@ -31,7 +31,7 @@ export async function loadReviewAttestConfig(options: {
   }
   try {
     const { defineReviewAttestConfig } = await import(
-      '@craft-ts/style-testing'
+      '@craft-ts/style-testing/review-attest'
     );
     const module = (await loadCraftTypeScriptModule(file)) as {
       readonly default?: unknown;

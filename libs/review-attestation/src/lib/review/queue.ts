@@ -35,6 +35,7 @@ export interface SnapshotRiskNote {
 }
 
 export interface ReviewItem {
+  readonly evidenceMode?: 'screenshot';
   readonly subject: string;
   /** Why this is in the queue, in one line. */
   readonly reason: string;
@@ -154,9 +155,12 @@ export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
     // An empty delta is reachable — the evidence can differ in text content or
     // in the discrete signature, neither of which the readable diff reports —
     // so the case is named rather than left to produce an unusable card.
-    const shape = item.approved
-      ? deltaShape(deltas) || `${OPAQUE_CHANGE}:${item.subject}`
-      : `${NEW_SUBJECT}:${item.subject}`;
+    const shape =
+      item.evidenceMode === 'screenshot'
+        ? `screenshot:${item.subject}`
+        : item.approved
+          ? deltaShape(deltas) || `${OPAQUE_CHANGE}:${item.subject}`
+          : `${NEW_SUBJECT}:${item.subject}`;
     const known = byShape.get(shape);
     if (known) known.push(item);
     else {
@@ -179,6 +183,7 @@ export function buildReviewQueue(items: readonly ReviewItem[]): ReviewQueue {
         .join('|');
       return {
         kind: 'visual' as const,
+        ...(first.evidenceMode ? { evidenceMode: first.evidenceMode } : {}),
         presenter: 'screenshot-replay' as const,
         id: `visual:${shape}`,
         revision: reviewRevision({

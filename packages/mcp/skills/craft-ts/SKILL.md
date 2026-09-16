@@ -21,8 +21,8 @@ required and must not be introduced just to solve a Craft problem.
    - `migrate-to-craft-ts` — run `craft-migrate`, then finish diagnostics
    - `craft-ts-effect-v4` — use Effect v4 services, Layers, `queryEffect`, and
      the synchronous-member declaration (`SyncOp` / `computedEffect`)
-   - `craft-ts-style` — the typed design system: sheets, axes, the visual
-     matrix, context obligations
+   - `craft-ts-style` — the typed design system: sheets, axes, static text
+     contrast, the visual matrix, context obligations
    - `craft-ts-i18n` — typed catalogues, locale parity, semantic tokens
 
 For a project created by `craft create`, keep the generated development
@@ -57,7 +57,9 @@ If MCP is not configured, read https://ng-angular-stack.github.io/craft/llms.txt
   Never assemble a class string at render time — the template sets one constant
   class and a `data-*` attribute. `@craft-ts/style` is a **build step**: without
   `craftStyle()` from `@craft-ts/style/vite` in the Vite config, the sheets
-  typecheck and emit nothing. Load `craft-ts-style` before touching one.
+  typecheck and emit nothing. Load `craft-ts-style` before touching one. When
+  the project exposes `npm run style:check`, run it after changing colours,
+  typography, template classes, themes, hover or another visual axis.
 - Translations live in a `@craft-ts/i18n` catalogue: `defineCatalog` + `msg` for
   the reference locale, `defineLocaleLike` for every other one, so a missing key
   is a compile error. A token may validate or parse its parameter with a

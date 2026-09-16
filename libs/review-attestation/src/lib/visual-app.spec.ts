@@ -12,7 +12,7 @@ describe('visual application happy paths', () => {
     'GET /api/users': { response: [{ id: '42' }] },
   });
 
-  it('creates mobile and desktop captures by default', () => {
+  it('creates the four default captures', () => {
     const config = defineVisualAppConfig({
       pages: [
         {
@@ -28,7 +28,9 @@ describe('visual application happy paths', () => {
     expect(config.viewports).toEqual(DEFAULT_VISUAL_APP_VIEWPORTS);
     expect(visualAppHappyPaths(config).map((scenario) => scenario.id)).toEqual([
       'home--happy-path--mobile',
+      'home--happy-path--tablet',
       'home--happy-path--desktop',
+      'home--happy-path--wide',
     ]);
   });
 

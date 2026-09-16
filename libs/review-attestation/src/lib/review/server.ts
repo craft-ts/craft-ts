@@ -56,6 +56,7 @@ export interface ReviewDecisionReopenRequest {
 }
 
 export interface ReviewApiQueue {
+  readonly applicationCaptures?: AttestationDevtoolModel['applicationCaptures'];
   readonly items: number;
   readonly decisions: number;
   readonly cards: readonly AttestationReviewCard[];
@@ -161,6 +162,30 @@ const SESSION_ACCEPTED_VERDICTS = new Set([
   'retire',
 ]);
 
+/** Vite still injects its client in middleware mode, even with HMR disabled. */
+const REVIEW_VITE_CLIENT = `
+export function createHotContext() {
+  return { data: {}, accept(){}, acceptExports(){}, dispose(){}, prune(){}, decline(){}, invalidate(){}, on(){}, off(){}, send(){} };
+}
+const sheets = new Map();
+export function updateStyle(id, content) {
+  let style = sheets.get(id);
+  if (!style) {
+    style = document.createElement('style');
+    document.head.append(style);
+    sheets.set(id, style);
+  }
+  style.textContent = content;
+}
+export function removeStyle(id) {
+  sheets.get(id)?.remove();
+  sheets.delete(id);
+}
+export function injectQuery(url, query) {
+  return url + (url.includes('?') ? '&' : '?') + query;
+}
+`;
+
 const reviewAppRoot = (): string => {
   const candidate = new URL('../../../attestation-app/', import.meta.url);
   return candidate.protocol === 'file:'
@@ -178,6 +203,14 @@ const queueValue = (
   items: cards.reduce((total, card) => total + card.cluster.length, 0),
   decisions: cards.length,
   cards,
+  applicationCaptures: (model?.applicationCaptures ?? []).map((capture) => {
+    const accepted = [...history]
+      .reverse()
+      .find((entry) => entry.card.cluster.includes(capture.subject));
+    return accepted
+      ? { ...capture, state: 'current' as const, reference: capture.image }
+      : capture;
+  }),
   visualAssets: model?.visualAssets ?? [],
   visualTests: model?.visualTests ?? [],
   templateObligations: model?.templateObligations ?? [],
@@ -311,12 +344,25 @@ export async function startReviewServer(
   const vite = await createViteServer({
     root: appRoot,
     appType: 'spa',
-    server: { middlewareMode: true, hmr: false },
+    // The review server is a standalone, deterministic HTTP boundary. Vite's
+    // middleware-mode default creates a second HMR WebSocket listener on
+    // port 24678, which can collide with a developer's running app and leak
+    // a spurious browser error into review-server tests.
+    server: { middlewareMode: true, hmr: false, ws: false },
     resolve: { alias: aliases, tsconfigPaths: true },
   });
 
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost');
+
+    if (request.method === 'GET' && url.pathname === '/@vite/client') {
+      response.writeHead(200, {
+        'content-type': 'text/javascript; charset=utf-8',
+        'cache-control': 'no-store',
+      });
+      response.end(REVIEW_VITE_CLIENT);
+      return;
+    }
 
     if (request.method === 'GET' && url.pathname === '/api/review') {
       void (async () => {
@@ -504,10 +550,7 @@ export async function startReviewServer(
       return;
     }
 
-    if (
-      request.method === 'POST' &&
-      url.pathname === '/api/decisions/reopen'
-    ) {
+    if (request.method === 'POST' && url.pathname === '/api/decisions/reopen') {
       void (async () => {
         try {
           if (
@@ -530,7 +573,8 @@ export async function startReviewServer(
             throw new Error('review: that session decision no longer exists.');
           }
           const entry = history[historyIndex];
-          if (!entry) throw new Error('review: that session decision is invalid.');
+          if (!entry)
+            throw new Error('review: that session decision is invalid.');
           const reopened = await options.onReopen?.(entry);
           if (reopened !== undefined) cards = [...reopened];
           else cards = [entry.card, ...cards];

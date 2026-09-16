@@ -1,11 +1,12 @@
+import { createReviewAppMocks } from './review-app.mocks';
 import type { LayoutDigest } from '@craft-ts/style-testing';
 import {
-  defineHappyPathHttpMocks,
   defineReviewAttestConfig,
   defineVisualAppConfig,
 } from '@craft-ts/style-testing';
 import {
   buildTemplateReviewCard,
+  type ApplicationCaptureInventoryItem,
   type AttestationDevtoolModel,
   type TemplateEvidence,
 } from '@craft-ts/dev-tools/attestation-review';
@@ -55,7 +56,40 @@ export const reviewAppTemplateCard = buildTemplateReviewCard({
   },
 });
 
+const reviewAppViewports: readonly {
+  readonly name: string;
+  readonly width: number;
+  readonly height: number;
+}[] = [
+  { name: 'mobile', width: 390, height: 844 },
+  { name: 'tablet', width: 834, height: 1112 },
+  { name: 'desktop', width: 1440, height: 1000 },
+  { name: 'wide', width: 2560, height: 1440 },
+];
+
+const reviewAppApplicationCaptures: readonly ApplicationCaptureInventoryItem[] =
+  reviewAppViewports.map(({ name: viewport, width, height }) => ({
+    subject: `visual:component:fixture.ts:ProfileCard#app--profile--list--${viewport}`,
+    page: 'Profil',
+    scenario: 'profile',
+    label: 'Profil enregistré',
+    capture: 'page',
+    category: 'happy-path',
+    viewport,
+    dimensions: { width, height },
+    state: 'current',
+    image: 'review-app-self-visual-image',
+    reference: 'review-app-self-visual-image',
+    comparison: {
+      matches: true,
+      diffPixels: 0,
+      threshold: 0.1,
+      maxDiffPixels: 10,
+    },
+  }));
+
 export const reviewAppHappyPathModel: Omit<AttestationDevtoolModel, 'cards'> = {
+  applicationCaptures: reviewAppApplicationCaptures,
   visualAssets: [
     {
       evidence: 'review-app-self-visual-evidence',
@@ -139,28 +173,68 @@ const emptyDigest: LayoutDigest = {
   },
 };
 
-export const reviewAppHappyPathMocks = defineHappyPathHttpMocks(
-  'review-app.happy-path.ts',
-  {
-    'GET /api/review': { response: reviewAppHappyPathQueue },
-    'POST /api/decisions': { response: reviewAppHappyPathQueue },
-    'POST /api/decisions/reopen': { response: reviewAppHappyPathQueue },
-    'POST /api/close-review': { response: reviewCloseResponse },
-    'POST /api/iteration-handoff': { response: iterationHandoffResponse },
-    'POST /api/regenerate': { response: reviewAppHappyPathQueue },
-    'GET /api/digest/*': { response: emptyDigest },
-    'POST configuredEndpoint': { response: {} },
-  },
+export const reviewAppHappyPathMocks = createReviewAppMocks(
+  reviewAppHappyPathQueue,
+  reviewCloseResponse,
+  iterationHandoffResponse,
+  emptyDigest,
 );
 
 export const reviewAppVisualTestConfig = defineVisualAppConfig({
+  sourceFiles: ['libs/review-attestation/attestation-app/src/styles.css'],
   pages: [
     {
       id: 'review-app',
       route: '/',
       url: '/',
       component: REVIEW_APP_COMPONENT,
-      mocks: reviewAppHappyPathMocks,
+      scenarios: [
+        {
+          id: 'review',
+          label: 'Review and regeneration',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          modals: [
+            {
+              id: 'regeneration',
+              component: REVIEW_APP_COMPONENT,
+              target: { name: 'RegenerationDialog' },
+            },
+          ],
+          steps: [
+            {
+              action: 'capture',
+              id: 'review',
+              expect: [
+                { kind: 'visible', target: { name: 'AcceptReviewCard' } },
+              ],
+            },
+            { action: 'click', target: { name: 'OpenRegenerationDialog' } },
+            {
+              action: 'capture',
+              id: 'regeneration',
+              modal: 'regeneration',
+              expect: [
+                { kind: 'visible', target: { name: 'RegenerationDialog' } },
+              ],
+            },
+            { action: 'click', target: { name: 'CancelRegeneration' } },
+            { action: 'click', target: { name: 'ShowApplicationOverview' } },
+            {
+              action: 'capture',
+              id: 'application',
+              expect: [
+                { kind: 'visible', target: { name: 'ApplicationCategory' } },
+                {
+                  kind: 'count',
+                  target: { name: 'SelectApplicationCapture' },
+                  count: 4,
+                },
+              ],
+            },
+          ],
+        },
+      ],
     },
   ],
 });
