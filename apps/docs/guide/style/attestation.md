@@ -579,3 +579,18 @@ are available as buttons.
 popovers, tooltips — which have no neighbourhood, and for purely pictorial axes,
 which have no layout consequence. Both are enumerable from the sheets alone,
 with no page in sight.
+
+
+## Application overview
+
+For full-page scenarios (including automatically opened dialogs), configure
+`visual.app.pages[].scenarios` in `defineReviewAttestConfig`. The default formats
+are mobile 390×844, tablet 834×1112, desktop 1440×1000 and wide 2560×1440; an
+explicit viewport record replaces them. Use `captureVisualApp` from
+`@craft-ts/style-testing/visual-app/playwright` to execute the recipes and mocks.
+
+The **Aperçu de l’application** view compares each page/scenario/capture/viewport
+independently. PNG comparisons use threshold 0.1 and maxDiffPixels 10, configured
+in the project. Tolerated changes retain the last human-accepted image as their
+reference. Missing captures, changed sources or failed generation require a new
+run. Template and matrix attestations stay separate.

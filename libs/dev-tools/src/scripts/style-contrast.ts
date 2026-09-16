@@ -5,8 +5,10 @@
  * code: for every element the graph can prove holds text, in every scenario
  * the sheets can produce, it resolves the foreground and the background the
  * way the emitted CSS would, computes the WCAG ratio, and compares it against
- * the threshold the text's size earns. Everything it cannot resolve comes back
- * as `indeterminate` with a reason — never as a pass.
+ * the threshold the text's size earns. Everything that reaches the graph but
+ * cannot be resolved comes back as `indeterminate` with a reason — never as a
+ * pass. CSS outside the typed graph is outside this module's observation
+ * boundary and must not be claimed as covered.
  *
  * Three design decisions carry the file.
  *
@@ -95,7 +97,6 @@ export type IndeterminateReason =
   | 'unknown-font-size'
   | 'unsupported-background'
   | 'dynamic-style'
-  | 'external-style'
   | 'incomplete-render-context';
 
 export type IndeterminateTextContrast = Readonly<{
@@ -1095,6 +1096,11 @@ export const textContrastReport = (
 
 /** 0 when the run may pass, 1 when it must not. */
 export function textContrastExitCode(report: TextContrastReport): number {
+  // No result is not a proof. It usually means the TypeScript program and the
+  // style dump describe different applications, or that extraction found no
+  // text-bearing element. `--allow-indeterminate` cannot waive this because
+  // there is no diagnostic for the caller to review.
+  if (report.summary.total === 0) return 1;
   if (report.summary.fail > 0) return 1;
   return report.summary.indeterminate > 0 &&
     report.policy.indeterminate === 'error'

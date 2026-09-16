@@ -673,3 +673,133 @@ describe('craft-ts attest', () => {
     expect(err.join('\n')).toContain('no baseline yet');
   });
 });
+
+it('requires all configured application captures and observes changed image bytes against a fixed human reference', async () => {
+  const { defineVisualAppConfig, visualAppCaptureTargets } = await import(
+    '@craft-ts/style-testing/review-attest'
+  );
+  const { visualAppProvenance, hashBytes } = await import(
+    '@craft-ts/style-testing/visual-app/server'
+  );
+  const { PNG } = await import('pngjs');
+  const w = await workspace();
+  await writeFile(join(w.root, 'home.ts'), 'export const Home = {};');
+  await writeFile(join(w.root, 'home.mocks.ts'), 'export const fixtures = [];');
+  await writeFile(
+    join(w.root, 'tsconfig.json'),
+    JSON.stringify({
+      compilerOptions: { moduleResolution: 'bundler' },
+      files: ['home.ts', 'home.mocks.ts'],
+    }),
+  );
+  const config = defineVisualAppConfig({
+    viewports: {
+      small: { width: 30, height: 30 },
+      big: { width: 60, height: 60 },
+    },
+    pages: [
+      {
+        id: 'home',
+        url: '/',
+        route: '/',
+        component: 'component:home.ts:Home',
+        scenarios: [
+          {
+            id: 'list',
+            label: 'List',
+            category: 'happy-path',
+            mocks: { sources: ['home.mocks.ts'], endpoints: [] },
+            steps: [
+              {
+                action: 'capture',
+                id: 'page',
+                expect: [{ kind: 'url', url: '/' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  await writeFile(
+    join(w.root, 'review-attest.config.ts'),
+    `export default ${JSON.stringify({ visual: { app: config }, template: false })};`,
+  );
+  const targets = visualAppCaptureTargets(config);
+  const image = new PNG({ width: 30, height: 30 });
+  image.data.fill(255);
+  const bytes = PNG.sync.write(image);
+  await writeFile(join(w.root, 'image.png'), bytes);
+  const captures = await Promise.all(
+    targets.map(async (target) => ({
+      component: target.page.component,
+      scenario: target.id,
+      evidenceMode: 'screenshot',
+      digest: visualRun().captures[0]!.digest,
+      image: 'image.png',
+      metadata: { viewport: target.viewport },
+      application: {
+        page: 'home',
+        scenario: 'list',
+        label: 'List',
+        category: 'happy-path',
+        capture: 'page',
+        viewport: target.viewportName,
+        imageHash: hashBytes(bytes),
+        provenance: await visualAppProvenance(config, target, w.root),
+        comparison: config.comparison,
+        environment: 'chromium-v1|browser|test',
+        execution: { status: 'passed', mocks: [] },
+      },
+    })),
+  );
+  const report = { format: 'craft-ts-visual-report', version: 2, captures };
+  const args = ['--report', 'report.json', '--kind', 'visual', '--json'];
+  await writeFile(
+    join(w.root, 'report.json'),
+    JSON.stringify({ ...report, captures: captures.slice(0, 1) }),
+  );
+  expect(
+    await runAttestCommand(['status', ...args], w.io, dependencies()),
+  ).toBe(1);
+  let status = JSON.parse(w.out.at(-1)!);
+  expect(status.counts.missing).toBe(2);
+  expect(
+    status.statuses.some((s: { reason: string }) =>
+      s.reason.includes('absent'),
+    ),
+  ).toBe(true);
+  await writeFile(join(w.root, 'report.json'), JSON.stringify(report));
+  expect(
+    await runAttestCommand(['renew', ...args, '--all'], w.io, dependencies()),
+  ).toBe(0);
+  expect(
+    await runAttestCommand(['status', ...args], w.io, dependencies()),
+  ).toBe(0);
+  for (let i = 0; i < 8; i++) image.data.fill(0, i * 4, i * 4 + 3);
+  await writeFile(join(w.root, 'image.png'), PNG.sync.write(image));
+  expect(
+    await runAttestCommand(['status', ...args], w.io, dependencies()),
+  ).toBe(0);
+  status = JSON.parse(w.out.at(-1)!);
+  expect(status.counts.renewed).toBe(2);
+  for (let i = 8; i < 16; i++) image.data.fill(0, i * 4, i * 4 + 3);
+  await writeFile(join(w.root, 'image.png'), PNG.sync.write(image));
+  expect(
+    await runAttestCommand(['status', ...args], w.io, dependencies()),
+  ).toBe(1);
+  expect(JSON.parse(w.out.at(-1)!).counts.review).toBe(2);
+  await writeFile(
+    join(w.root, 'home.mocks.ts'),
+    'export const fixtures = [42];',
+  );
+  expect(
+    await runAttestCommand(['status', ...args], w.io, dependencies()),
+  ).toBe(1);
+  expect(
+    JSON.parse(w.out.at(-1)!).statuses.every(
+      (s: { observation: { unavailable?: string } }) =>
+        !!s.observation.unavailable,
+    ),
+  ).toBe(true);
+});

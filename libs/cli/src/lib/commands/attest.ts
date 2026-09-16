@@ -57,7 +57,7 @@ import type {
   TemplateDiagnostic,
   TemplateReviewCard,
 } from '@craft-ts/dev-tools/attestation-review';
-import type { LayoutDigest, ReviewAttestConfig } from '@craft-ts/style-testing';
+import type { LayoutDigest } from '@craft-ts/style-testing';
 import type { ReviewIterationOptions } from '@craft-ts/style-testing/review';
 import { parseArguments } from '../args.js';
 import type { CraftCliIo } from '../io.js';
@@ -220,36 +220,6 @@ const RETIREMENT_REASONS: readonly Retirement['reason'][] = [
   'defect',
 ];
 
-const reviewAttestHasVisualTargets = (config: ReviewAttestConfig): boolean =>
-  (config.visual?.app?.pages.length ?? 0) > 0 ||
-  (config.visual?.matrices.length ?? 0) > 0;
-
-const reviewAttestVisualSubjects = (
-  config: ReviewAttestConfig,
-): ReadonlySet<string> => {
-  const subjects = new Set<string>();
-  for (const page of config.visual?.app?.pages ?? []) {
-    for (const viewportName of Object.keys(
-      config.visual?.app?.viewports ?? {},
-    )) {
-      subjects.add(
-        `visual:${page.component}#${page.id}--happy-path--${viewportName}`,
-      );
-    }
-  }
-  for (const matrix of config.visual?.matrices ?? []) {
-    if (Array.isArray(matrix)) continue;
-    const namedMatrix = matrix as {
-      readonly component: string;
-      readonly scenarios: readonly { readonly id: string }[];
-    };
-    for (const scenario of namedMatrix.scenarios) {
-      subjects.add(`visual:${namedMatrix.component}#${scenario.id}`);
-    }
-  }
-  return subjects;
-};
-
 const isVerdict = (value: string): value is Verdict =>
   VERDICTS.some((verdict) => verdict === value);
 
@@ -367,6 +337,7 @@ interface VisualArtifact {
 }
 
 interface ObservedRun {
+  readonly applicationTargets?: readonly import('@craft-ts/style-testing/review-attest').VisualAppCaptureTarget[];
   readonly list: readonly SubjectObservation[];
   readonly workspace: WorkspaceSlices;
   readonly leaves: ReadonlyMap<string, Readonly<Record<string, string>>>;
@@ -442,6 +413,8 @@ export async function runAttestCommand(
 
   const observations = async (): Promise<ObservedRun> => {
     const workspace = await slices();
+    const { reviewAttestHasVisualTargets, reviewAttestVisualSubjects } =
+      await import('@craft-ts/style-testing/review-attest');
     const templateRun = async (): Promise<ObservedRun> => {
       const templateEnabled =
         reviewConfig?.template ?? reviewConfig === undefined;
@@ -520,7 +493,30 @@ export async function runAttestCommand(
     }
     if (requestedKind === 'all' && !parsed.values['report']) {
       const templates = await templateRun();
-      return { ...templates, kind: 'all' };
+      const { visualAppCaptureTargets } = await import(
+        '@craft-ts/style-testing/review-attest'
+      );
+      const applicationTargets = reviewConfig?.visual?.app
+        ? visualAppCaptureTargets(reviewConfig.visual.app).filter(
+            (t) => t.page.scenarios,
+          )
+        : [];
+      return {
+        ...templates,
+        applicationTargets,
+        list: [
+          ...templates.list,
+          ...applicationTargets.map((target) => ({
+            subject: target.subject,
+            kind: 'visual' as const,
+            evidenceMode: 'screenshot' as const,
+            fingerprint: '',
+            evidence: '',
+            unavailable: 'No application capture report supplied.',
+          })),
+        ],
+        kind: 'all',
+      };
     }
     if (!reportPath) {
       throw new Error(
@@ -548,25 +544,174 @@ export async function runAttestCommand(
               ),
             }
           : run;
-      const list = observeVisualRun(filteredRun, (component) =>
-        workspace.fingerprintForNode(component),
-      );
+      const list: SubjectObservation[] = [
+        ...observeVisualRun(
+          {
+            ...filteredRun,
+            captures: filteredRun.captures.filter(
+              (c) => c.evidenceMode !== 'screenshot',
+            ),
+          },
+          (component) => workspace.fingerprintForNode(component),
+        ),
+      ];
       const visuals = new Map<string, VisualArtifact>();
+      const diagnostics: TemplateDiagnostic[] = [];
+      const appConfig = reviewConfig?.visual?.app;
+      const { visualAppCaptureTargets } = await import(
+        '@craft-ts/style-testing/review-attest'
+      );
+      const expected = appConfig
+        ? visualAppCaptureTargets(appConfig).filter((t) => t.page.scenarios)
+        : [];
+      const expectedBySubject = new Map(expected.map((t) => [t.subject, t]));
+      const appServer =
+        expected.length ||
+        filteredRun.captures.some((c) => c.evidenceMode === 'screenshot')
+          ? await import('@craft-ts/style-testing/visual-app/server')
+          : undefined;
+      const missing = (subject: string, message: string) => {
+        diagnostics.push({
+          code: 'visual-app-incomplete',
+          message: `${subject}: ${message}`,
+        });
+        list.push({
+          subject,
+          kind: 'visual',
+          fingerprint: '',
+          evidence: '',
+          unavailable: message,
+          evidenceMode: 'screenshot',
+        });
+      };
+      // A failed generation is kept beside the last successfully published report.
+      const failureText = await readFile(
+        `${reportPath}.failure.json`,
+        'utf8',
+      ).catch(() => undefined);
+      const failure = failureText
+        ? (JSON.parse(failureText) as {
+            failures: { subject: string; message: string }[];
+          })
+        : undefined;
       for (const capture of filteredRun.captures) {
         const subject = `visual:${capture.component}#${capture.scenario}`;
+        if (capture.evidenceMode === 'screenshot') {
+          const target = expectedBySubject.get(subject);
+          if (!target || !appConfig || !appServer || !capture.application) {
+            missing(subject, 'Capture has no current application contract.');
+            continue;
+          }
+          const failed = failure?.failures.find((f) => f.subject === subject);
+          if (failed) {
+            missing(subject, `Generation failed: ${failed.message}`);
+            visuals.set(subject, {
+              capture,
+              reportDirectory: dirname(reportPath),
+            });
+            continue;
+          }
+          try {
+            const provenance = await appServer.visualAppProvenance(
+              appConfig,
+              target,
+              rootDir,
+              tsconfigPath,
+            );
+            if (
+              appServer.canonicalCaptureValue(provenance) !==
+                appServer.canonicalCaptureValue(
+                  capture.application.provenance,
+                ) ||
+              appServer.canonicalCaptureValue(capture.metadata?.viewport) !==
+                appServer.canonicalCaptureValue(target.viewport) ||
+              appServer.canonicalCaptureValue(
+                capture.application.comparison,
+              ) !== appServer.canonicalCaptureValue(appConfig.comparison) ||
+              !capture.application.environment.startsWith(
+                `${appConfig.environment ?? 'chromium-v1'}|`,
+              )
+            ) {
+              missing(
+                subject,
+                'Sources, mocks, recipe or viewport changed; regenerate.',
+              );
+              continue;
+            }
+            const image = await readFile(
+              resolve(dirname(reportPath), capture.image!),
+            );
+            const evidence = evidenceHash(image);
+            // Image bytes are always observed, even when dimensions and source code are unchanged.
+            const previous = (await readLedger(io, ledgerPath)).get(subject);
+            const reference =
+              previous?.acceptedReference?.evidence ??
+              (previous && isAccepted(previous.verdict)
+                ? previous.evidence
+                : undefined);
+            const referenceBytes = reference
+              ? await store.get(reference, '.png')
+              : undefined;
+            const comparison = referenceBytes
+              ? appServer.compareVisualScreenshots(
+                  image,
+                  referenceBytes,
+                  capture.application.comparison,
+                )
+              : undefined;
+            const diff =
+              comparison && 'diff' in comparison && comparison.diff
+                ? await store.put(comparison.diff, '.png')
+                : undefined;
+            const policyHash = evidenceHash(
+              canonicalJson({
+                comparison: capture.application.comparison,
+                environment: capture.application.environment,
+              }),
+            );
+            list.push({
+              subject,
+              kind: 'visual',
+              fingerprint: evidenceHash(canonicalJson(provenance)),
+              evidence,
+              evidenceMode: 'screenshot',
+              assumptions: capture.assumptions ?? [],
+              screenshotComparison: {
+                reference: reference ?? '',
+                matches: comparison?.matches ?? false,
+                diffPixels: comparison?.diffPixels ?? null,
+                ...capture.application.comparison,
+                environment: capture.application.environment,
+                policyHash,
+                ...(diff ? { diff } : {}),
+              },
+            });
+          } catch (error) {
+            missing(
+              subject,
+              error instanceof Error ? error.message : String(error),
+            );
+            continue;
+          }
+        }
         leaves.set(subject, workspace.leavesForNode(capture.component));
-        visuals.set(subject, {
-          capture,
-          reportDirectory: dirname(reportPath),
-        });
+        visuals.set(subject, { capture, reportDirectory: dirname(reportPath) });
       }
+      const produced = new Set(list.map((o) => o.subject));
+      for (const target of expected)
+        if (!produced.has(target.subject))
+          missing(
+            target.subject,
+            'Expected application capture is absent from report.',
+          );
       const visual: ObservedRun = {
         list,
         workspace,
         leaves,
         visuals,
         templates: new Map(),
-        diagnostics: [],
+        diagnostics,
+        applicationTargets: expected,
         kind: 'visual',
       };
       if (requestedKind !== 'all') return visual;
@@ -577,7 +722,8 @@ export async function runAttestCommand(
         leaves: new Map([...visual.leaves, ...templates.leaves]),
         visuals,
         templates: templates.templates,
-        diagnostics: templates.diagnostics,
+        diagnostics: [...visual.diagnostics, ...templates.diagnostics],
+        applicationTargets: expected,
         kind: 'all',
       };
     }
@@ -772,6 +918,9 @@ async function persistVisuals(
       component: artifact.capture.component,
       scenario: artifact.capture.scenario,
       digest: artifact.capture.digest,
+      ...(artifact.capture.evidenceMode
+        ? { evidenceMode: artifact.capture.evidenceMode }
+        : {}),
       fingerprint: observation.fingerprint,
       ...(image ? { image } : {}),
       ...(snapshot ? { snapshot } : {}),
@@ -1030,9 +1179,16 @@ async function renew(
   const targets = report.statuses.filter(
     (entry) =>
       (only ? entry.subject === only : true) &&
+      !entry.observation.unavailable &&
       (entry.state === 'review' || entry.state === 'missing'),
   );
   if (targets.length === 0) {
+    if (report.statuses.some((entry) => entry.observation.unavailable)) {
+      io.writeError(
+        'Application captures are missing or stale; regenerate before accepting.',
+      );
+      return 1;
+    }
     io.write('Nothing to renew.');
     return 0;
   }
@@ -1079,6 +1235,12 @@ async function renew(
       toolVersion: TOOL_VERSION,
       ...(note ? { note } : {}),
       ...(acceptedReference ? { acceptedReference } : {}),
+      ...(entry.observation.screenshotComparison
+        ? {
+            screenshotPolicy: entry.observation.screenshotComparison.policyHash,
+            screenshotComparison: entry.observation.screenshotComparison,
+          }
+        : {}),
       // The mark that keeps a bulk renewal honest. Without it a `renew --all`
       // is indistinguishable in the ledger from somebody having looked.
       ...(all ? { bulk: true as const } : {}),
@@ -1255,7 +1417,9 @@ async function review(
   const reviewableSubjects = new Set(
     initialReport.statuses
       .filter(
-        (status) => status.state === 'review' || status.state === 'missing',
+        (status) =>
+          !status.observation.unavailable &&
+          (status.state === 'review' || status.state === 'missing'),
       )
       .map((status) => status.subject),
   );
@@ -1313,7 +1477,11 @@ async function review(
     const templateCards: TemplateReviewCard[] = [];
 
     for (const status of report.statuses) {
-      if (status.state !== 'review' && status.state !== 'missing') continue;
+      if (
+        status.observation.unavailable ||
+        (status.state !== 'review' && status.state !== 'missing')
+      )
+        continue;
       const artifact = observed.visuals.get(status.subject);
       if (artifact) {
         if (!isLayoutDigest(artifact.capture.digest)) {
@@ -1331,6 +1499,9 @@ async function review(
         const previousDecision = previousDecisionOf(status.attestation);
         visualItems.push({
           subject: status.subject,
+          ...(artifact.capture.evidenceMode
+            ? { evidenceMode: artifact.capture.evidenceMode }
+            : {}),
           state: status.state,
           reason: status.reason ?? 'the output changed',
           digest: artifact.capture.digest,
@@ -1503,6 +1674,29 @@ async function review(
         }))
         .sort((left, right) => left.subject.localeCompare(right.subject)),
       diagnostics: observed.diagnostics,
+      applicationCaptures: (observed.applicationTargets ?? []).map((target) => {
+        const status = statuses.get(target.subject);
+        const artifact = stored.get(target.subject);
+        const comparison = status?.observation.screenshotComparison;
+        return {
+          subject: target.subject,
+          page: target.page.id,
+          scenario: target.scenario.id,
+          label: target.scenario.label,
+          category: target.scenario.category,
+          capture: target.capture.id,
+          viewport: target.viewportName,
+          dimensions: target.viewport,
+          state: status?.state ?? 'missing',
+          ...(status?.observation.unavailable
+            ? { error: status.observation.unavailable }
+            : {}),
+          ...(artifact?.image ? { image: artifact.image } : {}),
+          ...(comparison ? { comparison } : {}),
+          ...(comparison?.reference ? { reference: comparison.reference } : {}),
+          ...(comparison?.diff ? { diff: comparison.diff } : {}),
+        };
+      }),
       cards,
     };
   };
@@ -1693,12 +1887,20 @@ async function review(
           toolVersion: TOOL_VERSION,
           ...(decision.note ? { note: decision.note } : {}),
           ...(acceptedReference ? { acceptedReference } : {}),
+          ...(observation.screenshotComparison
+            ? {
+                screenshotPolicy: observation.screenshotComparison.policyHash,
+                screenshotComparison: observation.screenshotComparison,
+              }
+            : {}),
           // A finding names a node of *this* subject; the server refuses one
           // that does not, so what lands here is already checked.
           ...(decision.findings && decision.findings.length > 0
             ? { findings: decision.findings }
             : {}),
-          ...(decision.degraded ? { degraded: true as const } : {}),
+          ...(decision.degraded && observation.evidenceMode !== 'screenshot'
+            ? { degraded: true as const }
+            : {}),
           ...(card.cluster.length > 1 ? { cluster: card.cluster } : {}),
         };
       });

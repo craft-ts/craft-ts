@@ -31,6 +31,9 @@
       ],
       "@craft-ts/style": ["./libs/style/src/index.ts"],
       "@craft-ts/style/vite": ["./libs/style/src/plugin/vite.ts"],
+      "@craft-ts/style-testing/visual-app/server": ["./libs/review-attestation/src/lib/visual-app/server.ts"],
+      "@craft-ts/style-testing/visual-app/playwright": ["./libs/review-attestation/src/lib/visual-app/playwright.ts"],
+      "@craft-ts/style-testing/review-attest": ["./libs/review-attestation/src/lib/review-attest.ts"],
       "@craft-ts/style-testing": ["./libs/review-attestation/src/index.ts"],
       "@craft-ts/style-testing/review": [
         "./libs/review-attestation/src/lib/review/index.ts"

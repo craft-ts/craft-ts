@@ -54,6 +54,14 @@ export function statusOf(
   const attestation = ledger.get(observation.subject);
   const assumptions = observation.assumptions ?? [];
 
+  if (observation.unavailable)
+    return {
+      subject: observation.subject,
+      state: 'missing',
+      observation,
+      ...(attestation ? { attestation } : {}),
+      reason: observation.unavailable,
+    };
   if (!attestation) {
     return {
       subject: observation.subject,
@@ -80,6 +88,44 @@ export function statusOf(
       observation,
       attestation,
       reason: `last verdict was '${attestation.verdict}'`,
+    };
+  }
+
+  if (observation.evidenceMode === 'screenshot') {
+    const comparison = observation.screenshotComparison;
+    const reference =
+      attestation.acceptedReference?.evidence ?? attestation.evidence;
+    if (
+      !comparison ||
+      comparison.reference !== reference ||
+      !comparison.matches ||
+      attestation.screenshotPolicy !== comparison.policyHash ||
+      !sameAssumptions(attestation.assumptions, assumptions)
+    ) {
+      return {
+        subject: observation.subject,
+        state: 'review',
+        observation,
+        attestation,
+        reason: 'the screenshot or comparison environment changed',
+      };
+    }
+    if (
+      attestation.evidence === observation.evidence &&
+      attestation.fingerprint === observation.fingerprint
+    )
+      return {
+        subject: observation.subject,
+        state: 'current',
+        observation,
+        attestation,
+      };
+    return {
+      subject: observation.subject,
+      state: 'renewed',
+      observation,
+      attestation,
+      carried: carryForward(attestation, observation, options.toolVersion),
     };
   }
 
@@ -139,6 +185,15 @@ export function carryForward(
 ): Attestation {
   return {
     ...attestation,
+    ...(observation.evidenceMode === 'screenshot'
+      ? {
+          acceptedReference: attestation.acceptedReference ?? {
+            fingerprint: attestation.fingerprint,
+            evidence: attestation.evidence,
+          },
+          screenshotComparison: observation.screenshotComparison,
+        }
+      : {}),
     fingerprint: observation.fingerprint,
     evidence: observation.evidence,
     carriedFrom: attestation.carriedFrom ?? attestation.fingerprint,
@@ -165,7 +220,9 @@ export function reportOn(
   const statuses = observations
     .map((observation) => statusOf(ledger, observation, options))
     .sort((left, right) => left.subject.localeCompare(right.subject));
-  const produced = new Set(observations.map((observation) => observation.subject));
+  const produced = new Set(
+    observations.map((observation) => observation.subject),
+  );
   const counts: Record<AttestationState, number> = {
     current: 0,
     renewed: 0,
@@ -198,6 +255,8 @@ export function reportOn(
 export function applyRenewals(ledger: Ledger, report: LedgerReport): Ledger {
   return withAttestations(
     ledger,
-    report.statuses.flatMap((status) => (status.carried ? [status.carried] : [])),
+    report.statuses.flatMap((status) =>
+      status.carried ? [status.carried] : [],
+    ),
   );
 }

@@ -92,12 +92,15 @@ describe('no-unmodelled-text-color', () => {
     );
     expect(result.messages[0]?.message).toContain('color(theme.ink)');
     expect(result.messages[0]?.message).toContain('uncovered');
+    expect(result.messages[0]?.message).toContain(
+      'does not add an indeterminate row',
+    );
   });
 
   it('stays quiet on a surface declared as not covered', async () => {
-    // The point of the option: a global stylesheet or a legacy screen is a
-    // legitimate gap. What is not legitimate is for it to be
-    // indistinguishable from a screen the analysis actually proved.
+    // The option documents and suppresses this lint boundary. It cannot add a
+    // contrast result for CSS the graph never receives, so callers must not
+    // present the strict report as covering this file.
     const result = await lint(
       textColorRule,
       component('.a { color: #333; }'),

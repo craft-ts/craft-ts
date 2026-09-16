@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createEvidenceStore } from '../evidence-store.js';
+import { createEvidenceStore, evidenceHash } from '../evidence-store.js';
 import {
   clusterByDiffShape,
   observeVisualRun,
@@ -52,6 +52,24 @@ describe('visual subjects', () => {
       subject: 'visual:Card#base',
       kind: 'visual',
       fingerprint: 'code-1',
+    });
+  });
+
+  it('preserves screenshot semantics when observing actual image bytes', () => {
+    const image = new Uint8Array([1, 2, 3]);
+    const [observation] = observeVisuals([
+      {
+        component: 'Card',
+        scenario: 'app--base',
+        digest: {},
+        fingerprint: 'same-code',
+        evidenceMode: 'screenshot',
+        image,
+      },
+    ]);
+    expect(observation).toMatchObject({
+      evidenceMode: 'screenshot',
+      evidence: evidenceHash(image),
     });
   });
 

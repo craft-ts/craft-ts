@@ -1,5 +1,13 @@
 # Analyse statique du contraste texte/fond — plan d’implémentation
 
+> **État au 15 septembre 2026 : livré depuis `v0.8.4`.** Les tâches ci-dessous
+> conservent le plan d'origine et ne constituent plus une liste de travaux
+> restants. Le contrat utilisateur maintenu se trouve dans
+> `apps/docs/guide/style/contrast.md`. Le suivi post-livraison a aussi aligné
+> les instructions agents, rendu un rapport vide bloquant et précisé la limite
+> d'observation des styles externes, des exemptions ESLint et des métriques de
+> fontes.
+
 ## Objectif
 
 Garantir, sans ouvrir de navigateur, que les couples couleur de texte/fond

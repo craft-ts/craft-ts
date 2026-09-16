@@ -281,9 +281,10 @@ export interface TextContrastRequirement {
  *
  * The convention is stated in the plan and repeated here because it is a
  * *convention*, not a derivation: 24px, or 18.5px when the weight reaches
- * bold. It holds for latin faces. A CJK face, or a font whose cap height is
- * far from the norm, is outside v1 — the size in CSS pixels is not the size on
- * screen, and pretending otherwise would put a stamp on text that fails.
+ * bold. The analyser applies it from CSS pixels and weight only; it cannot
+ * detect a CJK face or an unusual cap height. Those surfaces need a separately
+ * validated typography convention and must not be presented as part of the
+ * v1 proof.
  */
 export function textContrastRequirement(
   metrics: TextMetrics,

@@ -193,6 +193,31 @@ test('release checks execute the documentation test suite', () => {
   assert.match(packageJson.scripts['release:preflight'], /\bnx test docs\b/);
 });
 
+test('release preflight locks the static contrast guarantee', () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+
+  assert.match(packageJson.scripts['release:preflight'], /npm run contrast:test/);
+  assert.match(
+    packageJson.scripts['contrast:test'],
+    /src\/scripts\/contrast\.spec\.ts/,
+  );
+  assert.match(
+    packageJson.scripts['contrast:test'],
+    /src\/scripts\/style-contrast\.spec\.ts/,
+  );
+  assert.match(
+    packageJson.scripts['contrast:test'],
+    /style-contrast-report\.spec\.ts/,
+  );
+  assert.match(packageJson.scripts['contrast:test'], /contrast-rules\.spec\.ts/);
+  assert.match(
+    packageJson.scripts['contrast:test'],
+    /design-system\.contrast\.spec\.ts/,
+  );
+});
+
 test('release preflight runs the generated starter gate', () => {
   const packageJson = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),

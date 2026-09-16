@@ -92,6 +92,18 @@ describe('the exit-code policy', () => {
       ),
     ).toBe(1);
   });
+
+  it('fails when the analysis did not check any text', () => {
+    // An empty result is normally a wiring or extraction failure. It must not
+    // become green merely because there is neither a violation nor an
+    // indeterminate row to count.
+    expect(textContrastExitCode(textContrastReport([]))).toBe(1);
+    expect(
+      textContrastExitCode(
+        textContrastReport([], { allowIndeterminate: true }),
+      ),
+    ).toBe(1);
+  });
 });
 
 describe('what the report says', () => {

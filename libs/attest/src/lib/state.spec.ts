@@ -240,3 +240,41 @@ describe('ledger format', () => {
     );
   });
 });
+
+it('keeps screenshot reference fixed across tolerated renewals and checks pixels even on unchanged code', () => {
+  const comparison = {
+    reference: 'human-image',
+    matches: true,
+    diffPixels: 8,
+    threshold: 0.1,
+    maxDiffPixels: 10,
+    environment: 'chromium',
+    policyHash: 'policy',
+  };
+  const human = {
+    ...judged,
+    evidence: 'human-image',
+    screenshotPolicy: 'policy',
+  };
+  const current = {
+    ...observation(),
+    evidenceMode: 'screenshot' as const,
+    evidence: 'image-2',
+    screenshotComparison: comparison,
+  };
+  const first = statusOf(new Map([[human.subject, human]]), current);
+  expect(first.state).toBe('renewed');
+  expect(first.carried?.acceptedReference?.evidence).toBe('human-image');
+  const second = statusOf(new Map([[human.subject, first.carried!]]), {
+    ...current,
+    evidence: 'image-3',
+    screenshotComparison: { ...comparison, matches: false, diffPixels: 16 },
+  });
+  expect(second.state).toBe('review');
+  expect(
+    statusOf(new Map([[human.subject, human]]), {
+      ...current,
+      screenshotComparison: { ...comparison, policyHash: 'changed' },
+    }).state,
+  ).toBe('review');
+});

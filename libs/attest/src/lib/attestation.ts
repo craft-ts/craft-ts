@@ -86,6 +86,8 @@ export interface Retirement {
 
 export interface Attestation {
   /** `visual:route(/users)#viewport=md+query=error` */
+  readonly screenshotComparison?: SubjectObservation['screenshotComparison'];
+  readonly screenshotPolicy?: string;
   readonly subject: string;
   readonly kind: SubjectKind;
   /** Merkle of the code slice. Decides re-running. */
@@ -165,6 +167,18 @@ export type AttestationState =
 
 /** Everything an ordering needs, and nothing a subject adapter cannot give. */
 export interface SubjectObservation {
+  readonly evidenceMode?: 'screenshot';
+  readonly unavailable?: string;
+  readonly screenshotComparison?: {
+    readonly reference: string;
+    readonly matches: boolean;
+    readonly diffPixels: number | null;
+    readonly threshold: number;
+    readonly maxDiffPixels: number;
+    readonly environment: string;
+    readonly policyHash: string;
+    readonly diff?: string;
+  };
   readonly subject: string;
   readonly kind: SubjectKind;
   readonly fingerprint: string;

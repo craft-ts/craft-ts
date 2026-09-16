@@ -525,6 +525,13 @@ describe('createCraftProject', () => {
         'utf8',
       ),
     ).toContain('no-raw-class');
+    const agentSkill = await readFile(
+      join(result.directory, '.agents/skills/craft-ts-project/SKILL.md'),
+      'utf8',
+    );
+    expect(agentSkill).toContain('npm run style:check');
+    expect(agentSkill).toContain('when(interaction.hover');
+    expect(agentSkill).toContain('Do not leave --allow-indeterminate in CI');
   });
 
   it('generates Claude Code instructions and skills', async () => {

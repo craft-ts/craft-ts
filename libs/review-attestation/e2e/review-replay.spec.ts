@@ -484,7 +484,7 @@ test('fitting to the window fits the whole picture, not just its width', async (
     const page = await browser.newPage();
     await page.goto(tall.url);
 
-    const canvas = page.locator('.evidence-canvas');
+    const canvas = page.locator('.evidence-canvas:visible');
     const picture = page.locator('.image-holder img');
     await expect(picture).toBeVisible();
 

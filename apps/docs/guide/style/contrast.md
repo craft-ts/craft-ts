@@ -218,19 +218,31 @@ is where the contrast question gets settled once instead of per component.
 - static and dynamic text, wherever the element can be proven to hold text;
 - a component evaluated once per surface it is rendered on.
 
-### Not covered in v1
+### Seen but not solvable in v1
 
-Each of these produces `indeterminate` with its reason — never a pass.
+When one of these constructs reaches the graph, it produces `indeterminate`
+with its reason — never a pass:
 
-- images and gradients behind text;
-- `canvas`, text inside SVG, generated pseudo-element content;
-- `filter`, `backdrop-filter`, `mix-blend-mode`, and any `opacity` below 1;
+- images and gradients recorded as `background-image`;
+- an `opacity` below 1 on the text or an element behind it;
 - semi-transparent colours, which would need compositing;
-- CSS expressions the DSL does not model;
-- colours computed from runtime data that is not a finite set;
-- external stylesheets and inline styles outside CraftTS;
-- CJK metrics and unusual font geometry — the size in CSS pixels is not the
-  size on screen, and the large-text convention assumes latin faces.
+- a dynamic class the template graph cannot resolve;
+- an unknown foreground, background or font size;
+- a scenario or render context that exceeds the configured analysis limit.
+
+### Outside the observable boundary
+
+External stylesheets, inline styles outside CraftTS, `canvas`, text inside SVG,
+generated pseudo-element content, filters and blend modes do not necessarily
+enter the typed style dump. The analyser cannot emit an `indeterminate` for a
+declaration it never receives. The `typedCss` ESLint preset guards the raw
+component styles it can see, but this is not a general CSS crawler.
+
+The large-text threshold is calculated from CSS pixels and weight. The analyser
+does not inspect the script, font face or cap height, so it does not detect CJK
+or unusual font geometry and does not emit a CJK-specific diagnostic. Treat
+those surfaces as outside the v1 proof unless their typography convention has
+been validated separately.
 
 ### What `indeterminate` means, and why it fails by default
 
@@ -241,7 +253,6 @@ Each of these produces `indeterminate` with its reason — never a pass.
 | `unknown-font-size` | the size is not a length this can turn into pixels |
 | `unsupported-background` | an image, a gradient, a blend, or an alpha |
 | `dynamic-style` | the class is assembled at runtime |
-| `external-style` | the styles come from outside CraftTS |
 | `incomplete-render-context` | the component is rendered somewhere unanalysed |
 
 **Indeterminate results fail the run.** `--allow-indeterminate` downgrades them
@@ -257,8 +268,9 @@ summary prints all three counts for that reason:
 Text contrast: 41 pass, 0 fail, 3 indeterminate (44 checked).
 ```
 
-Zero checked is not a pass either, and the tool says so: it nearly always means
-the dump and the program describe different applications.
+Zero checked fails even with `--allow-indeterminate`: it nearly always means
+the dump and the program describe different applications, and there is no
+result to review or waive.
 
 ## Fixing a violation
 
@@ -275,26 +287,41 @@ the dump and the program describe different applications.
 
 ## Clearing an indeterminate
 
-You have three honest moves, and inventing a colour is not one of them.
+You have two honest moves, and inventing a colour is not one of them.
 
 - **Bring the surface into the model.** A `background-color` set in raw CSS is
   the common case; `no-unmodelled-text-color` points at it.
 - **Give the text a surface it can be measured against.** Text over a hero
   image has no ratio because it has no single background — put it on a panel,
   or accept that it cannot be proven.
-- **Declare the surface uncovered.** Add its path to the
-  `no-unmodelled-text-color` rule's `uncovered` option. The gap is then
-  counted as a gap rather than mistaken for a proof, which is the whole point.
+
+If a surface lives entirely outside the observable graph, it will not create an
+indeterminate to clear. You may add its path to the
+`no-unmodelled-text-color` rule's `uncovered` option as an explicit lint
+exemption. This does **not** add a row to the contrast report. Keep the
+exclusion visible in review and do not describe the strict check as covering
+it.
 
 ## Migrating an existing project
 
-1. Name your palette: `definePalette('ui', spec)`. Nothing else changes.
+You do not need to recreate the application or add Playwright. Align the
+installed `@craft-ts/*` packages on the same current version; the contrast CLI
+is provided by `@craft-ts/dev-tools`, while `@craft-ts/style-testing` is only
+needed for visual scenarios and attestation.
+
+1. Name each palette: `definePalette('ui', spec)`. Nothing else changes.
 2. Turn hand-written `:hover` rules into `when(interaction.hover, …)` and add
    `interaction` to those sheets' budgets. `prefer-hover-axis` finds them.
-3. Add `dumpPath: '.craft/style-graph.json'` to `craftStyle()` in
-   `vite.config.ts`.
-4. Replace `style:check` with a build followed by
-   `craft-graph --style-contrast`.
-5. Run it with `--allow-indeterminate` **once**, to see the size of the gap.
-6. Close the gaps, or declare them uncovered, and drop the flag. Leaving it on
-   permanently is the same as not having the check.
+3. Enable `craftRules.configs.typedCss.rules` in ESLint. It finds raw hover and
+   contrast properties in component styles that would otherwise be invisible.
+4. Add `dumpPath: '.craft/style-graph.json'` to `craftStyle()` in
+   `vite.config.ts` and keep `virtual:craft-style.css` imported at app entry.
+5. Make `style:check` build the app, then run the strict analysis:
+
+   ```bash
+   craft-graph --style-contrast --style-dump .craft/style-graph.json --project tsconfig.app.json
+   ```
+
+6. Run that command with `--allow-indeterminate` **once**, to inventory the
+   visible gaps. Close them and remove the flag before making the check a CI
+   gate. A lint `uncovered` exemption remains outside the proof.

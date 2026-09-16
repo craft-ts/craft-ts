@@ -1,3 +1,4 @@
+import ts from 'typescript';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -1211,7 +1212,32 @@ export function httpEndpointUniqueViolations(
     });
 }
 
+type ArchitectureMockEndpoint = {
+  readonly method: string;
+  readonly url: string;
+  readonly mode: string;
+  readonly response?: { readonly kind?: string; readonly exception?: string };
+  readonly sequence?: readonly {
+    readonly kind?: string;
+    readonly exception?: string;
+  }[];
+};
+type ArchitectureMocks = {
+  readonly source?: string;
+  readonly sources?: readonly string[];
+  readonly endpoints: readonly ArchitectureMockEndpoint[];
+};
 export type VisualHappyPathArchitectureConfig = {
+  readonly httpContracts?: Readonly<
+    Record<
+      string,
+      {
+        readonly method: string;
+        readonly url: string;
+        readonly exceptions: readonly string[];
+      }
+    >
+  >;
   readonly viewports: Readonly<
     Record<string, { readonly width: number; readonly height: number }>
   >;
@@ -1220,20 +1246,37 @@ export type VisualHappyPathArchitectureConfig = {
     readonly route: string;
     readonly url: string;
     readonly component: string;
-    readonly mocks: {
-      readonly source: string;
-      readonly endpoints: readonly {
-        readonly method: string;
-        readonly url: string;
-        readonly mode: string;
-        readonly response?: { readonly kind?: string };
+    readonly dependencies?: readonly string[];
+    readonly mocks?: ArchitectureMocks;
+    readonly scenarios?: readonly {
+      readonly id: string;
+      readonly category: string;
+      readonly mocks: ArchitectureMocks;
+      readonly steps: readonly {
+        readonly action: string;
+        readonly id?: string;
+        readonly modal?: string;
       }[];
-    };
+      readonly modals?: readonly {
+        readonly id: string;
+        readonly component: string;
+      }[];
+      readonly exception?: {
+        readonly endpoint: string;
+        readonly discriminant: string;
+      };
+    }[];
   }[];
 };
 
 export type VisualHappyPathArchitectureViolation = {
   readonly kind:
+    | 'missing-scenario'
+    | 'missing-capture'
+    | 'missing-exception'
+    | 'unresolved-http'
+    | 'duplicate-scenario'
+    | 'duplicate-capture'
     | 'missing-viewport'
     | 'invalid-viewport'
     | 'duplicate-page'
@@ -1262,6 +1305,114 @@ const configuredComponentExists = (
     );
   });
 
+const fixtureUsageCache = new WeakMap<DependencyGraph, Map<string, boolean>>();
+function fixtureExportIsUsed(
+  graph: DependencyGraph,
+  source: string,
+  scenarioId: string,
+): boolean {
+  const cache = fixtureUsageCache.get(graph) ?? new Map<string, boolean>();
+  fixtureUsageCache.set(graph, cache);
+  const cacheKey = `${source}#${scenarioId}`;
+  if (cache.has(cacheKey)) return cache.get(cacheKey)!;
+  const configPath = resolve(graph.rootDir, graph.tsConfigFilePath);
+  const raw = ts.readConfigFile(configPath, ts.sys.readFile);
+  if (raw.error) return false;
+  const parsed = ts.parseJsonConfigFileContent(
+    raw.config,
+    ts.sys,
+    dirname(configPath),
+  );
+  const file = resolve(graph.rootDir, source);
+  const configCandidates = [
+    resolve(dirname(configPath), 'review-attest.config.ts'),
+    resolve(graph.rootDir, 'review-attest.config.ts'),
+  ].filter((path) => existsSync(path));
+  const program = ts.createProgram(
+    [...parsed.fileNames, ...configCandidates, file],
+    parsed.options,
+  );
+  const checker = program.getTypeChecker();
+  const fixture = program.getSourceFile(file);
+  const module = fixture && checker.getSymbolAtLocation(fixture);
+  if (!module) return false;
+  const exports = new Set(
+    checker
+      .getExportsOfModule(module)
+      .map((s) =>
+        s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s,
+      ),
+  );
+  let used = false;
+  const resolvesToFixture = (
+    node: ts.Node,
+    seen = new Set<ts.Node>(),
+  ): boolean => {
+    if (seen.has(node) || seen.size > 2000 || ts.isTypeNode(node)) return false;
+    seen.add(node);
+    if (ts.isIdentifier(node)) {
+      let symbol = checker.getSymbolAtLocation(node);
+      if (symbol?.flags && symbol.flags & ts.SymbolFlags.Alias)
+        symbol = checker.getAliasedSymbol(symbol);
+      if (symbol && exports.has(symbol)) return true;
+      for (const declaration of symbol?.declarations ?? []) {
+        if (
+          ts.isVariableDeclaration(declaration) &&
+          declaration.initializer &&
+          resolvesToFixture(declaration.initializer, seen)
+        )
+          return true;
+        if (
+          ts.isFunctionDeclaration(declaration) &&
+          declaration.body &&
+          resolvesToFixture(declaration.body, seen)
+        )
+          return true;
+      }
+    }
+    let found = false;
+    ts.forEachChild(node, (child) => {
+      if (!found && resolvesToFixture(child, seen)) found = true;
+    });
+    return found;
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isObjectLiteralExpression(node)) {
+      const property = (name: string) =>
+        node.properties.find(
+          (p) =>
+            ts.isPropertyAssignment(p) &&
+            p.name.getText().replace(/['"]/g, '') === name,
+        ) as ts.PropertyAssignment | undefined;
+      const id = property('id')?.initializer;
+      const category = property('category');
+      const mocks =
+        property('mocks')?.initializer ??
+        node.properties.find(
+          (p) => ts.isShorthandPropertyAssignment(p) && p.name.text === 'mocks',
+        );
+      if (
+        id &&
+        category &&
+        mocks &&
+        checker.getTypeAtLocation(id).isStringLiteral() &&
+        (checker.getTypeAtLocation(id) as ts.StringLiteralType).value ===
+          scenarioId
+      )
+        used ||= resolvesToFixture(mocks);
+    }
+    if (!ts.isTypeNode(node)) ts.forEachChild(node, visit);
+  };
+  for (const candidate of program.getSourceFiles())
+    if (
+      !candidate.isDeclarationFile &&
+      !candidate.fileName.includes('/node_modules/')
+    )
+      visit(candidate);
+  cache.set(cacheKey, used);
+  return used;
+}
+
 /**
  * Checks the application-level contract behind the visual review overview.
  *
@@ -1274,27 +1425,45 @@ export function visualHappyPathArchitectureViolations(
   config: VisualHappyPathArchitectureConfig,
 ): VisualHappyPathArchitectureViolation[] {
   const violations: VisualHappyPathArchitectureViolation[] = [];
+  const endpointContract = (endpoint: DependencyGraphNode) => {
+    const explicit =
+      config.httpContracts?.[
+        `${relativeGraphPath(graph, endpoint.filePath)}:${endpoint.line}`
+      ];
+    return (
+      explicit ?? {
+        method: String(endpoint.details?.['method'] ?? ''),
+        url: String(endpoint.details?.['url'] ?? ''),
+        exceptions:
+          (endpoint.details?.['exceptions'] as readonly string[] | undefined) ??
+          [],
+      }
+    );
+  };
 
-  for (const required of ['mobile', 'desktop']) {
-    if (!(required in config.viewports)) {
-      violations.push({
-        kind: 'missing-viewport',
-        message: `Visual happy paths must include the '${required}' viewport.`,
-      });
-    }
-  }
+  if (!Object.keys(config.viewports).length)
+    violations.push({
+      kind: 'missing-viewport',
+      message: 'Application viewports must not be empty.',
+    });
   for (const [name, viewport] of Object.entries(config.viewports)) {
-    if (viewport.width <= 0 || viewport.height <= 0) {
+    if (
+      !name.trim() ||
+      !Number.isInteger(viewport.width) ||
+      viewport.width < 1 ||
+      !Number.isInteger(viewport.height) ||
+      viewport.height < 1
+    ) {
       violations.push({
         kind: 'invalid-viewport',
-        message: `Visual viewport '${name}' must have a positive width and height.`,
+        message: `Visual viewport '${name}' needs positive integer dimensions.`,
       });
     }
   }
-
   const pageIds = new Set<string>();
   const coveredRoutes = new Set<string>();
   const mockedEndpoints = new Set<string>();
+  const requiredEndpointIds = new Set<string>();
   for (const page of config.pages) {
     if (pageIds.has(page.id)) {
       violations.push({
@@ -1304,6 +1473,144 @@ export function visualHappyPathArchitectureViolations(
     }
     pageIds.add(page.id);
     coveredRoutes.add(normalizedRoutePath(page.route));
+    if (page.scenarios) {
+      if (!page.scenarios.some((s) => s.category === 'happy-path'))
+        violations.push({
+          kind: 'missing-scenario',
+          message: `Page '${page.id}' needs a happy path.`,
+        });
+      const ids = new Set<string>();
+      for (const scenario of page.scenarios) {
+        const where = `${page.id}/${scenario.id}`;
+        if (!scenario.id.trim() || ids.has(scenario.id))
+          violations.push({
+            kind: 'duplicate-scenario',
+            message: `Ambiguous scenario '${where}'.`,
+          });
+        ids.add(scenario.id);
+        const captures = scenario.steps.filter((s) => s.action === 'capture');
+        if (!captures.length)
+          violations.push({
+            kind: 'missing-capture',
+            message: `Scenario '${where}' needs a capture.`,
+          });
+        const captureIds = new Set<string>();
+        for (const capture of captures) {
+          if (!capture.id?.trim() || captureIds.has(capture.id))
+            violations.push({
+              kind: 'duplicate-capture',
+              message: `Ambiguous capture in '${where}'.`,
+            });
+          captureIds.add(capture.id ?? '');
+        }
+        const roots = [
+          page.component,
+          ...(page.dependencies ?? []),
+          ...(scenario.modals ?? []).map((m) => m.component),
+        ];
+        for (const modal of scenario.modals ?? [])
+          if (!captures.some((c) => c.modal === modal.id))
+            violations.push({
+              kind: 'missing-capture',
+              message: `Modal '${modal.id}' in '${where}' needs a capture.`,
+            });
+        const reachable = new Set<string>();
+        const visit = (id: string): void => {
+          if (reachable.has(id)) return;
+          reachable.add(id);
+          for (const edge of graph.edges)
+            if (edge.from === id && edge.kind !== 'provides') visit(edge.to);
+        };
+        for (const root of roots) {
+          const node = graph.nodes.find(
+            (n) =>
+              n.id === root ||
+              root ===
+                `component:${relativeGraphPath(graph, n.filePath)}:${n.label}`,
+          );
+          if (node) visit(node.id);
+          else
+            violations.push({
+              kind: 'unknown-component',
+              message: `Unknown component '${root}' in '${where}'.`,
+            });
+        }
+        const sources =
+          scenario.mocks.sources ??
+          (scenario.mocks.source ? [scenario.mocks.source] : []);
+        if (!sources.length)
+          violations.push({
+            kind: 'fixture-file',
+            message: `Scenario '${where}' needs imported fixtures.`,
+          });
+        for (const source of sources) {
+          if (
+            !/\.(mocks|happy-path)\.ts$/.test(source) ||
+            !existsSync(resolve(graph.rootDir, source)) ||
+            !fixtureExportIsUsed(graph, source, scenario.id)
+          ) {
+            violations.push({
+              kind: 'fixture-file',
+              message: `Fixture '${source}' for '${where}' must exist and its exports must be used through imports.`,
+            });
+          }
+        }
+        for (const endpoint of scenario.mocks.endpoints) {
+          const responses =
+            endpoint.sequence ?? (endpoint.response ? [endpoint.response] : []);
+          if (responses.some((r) => r.kind === 'success'))
+            mockedEndpoints.add(
+              `${endpoint.method.toUpperCase()} ${endpoint.url}`,
+            );
+        }
+        for (const endpoint of graph.nodes.filter(
+          (n) => n.kind === 'http-endpoint' && reachable.has(n.id),
+        )) {
+          requiredEndpointIds.add(endpoint.id);
+          const contract = endpointContract(endpoint);
+          const key = `${contract.method.toUpperCase()} ${contract.url}`;
+          const treatments = scenario.mocks.endpoints.filter(
+            (e) => `${e.method.toUpperCase()} ${e.url}` === key,
+          );
+          if (!treatments.length)
+            violations.push({
+              kind: 'missing-http-mock',
+              message: `Scenario '${where}' must mock or explicitly mark unused '${key}'.`,
+            });
+          if (
+            endpoint.details?.['unresolved'] &&
+            !config.httpContracts?.[
+              `${relativeGraphPath(graph, endpoint.filePath)}:${endpoint.line}`
+            ]
+          )
+            violations.push({
+              kind: 'unresolved-http',
+              message: `Cannot analyze '${key}' in '${where}'; declare an explicit HTTP contract.`,
+            });
+          for (const exception of contract.exceptions) {
+            const covered = page.scenarios.some(
+              (s) =>
+                s.category === 'exception' &&
+                s.exception?.endpoint === key &&
+                s.exception.discriminant === exception &&
+                s.mocks.endpoints.some(
+                  (e) =>
+                    `${e.method.toUpperCase()} ${e.url}` === key &&
+                    (e.sequence ?? (e.response ? [e.response] : [])).some(
+                      (r) =>
+                        r.kind === 'exception' && r.exception === exception,
+                    ),
+                ),
+            );
+            if (!covered)
+              violations.push({
+                kind: 'missing-exception',
+                message: `Page '${page.id}' needs mock and scenario coverage for '${key}' exception '${exception}'.`,
+              });
+          }
+        }
+      }
+    }
 
     if (!configuredComponentExists(graph, page.component)) {
       violations.push({
@@ -1311,13 +1618,13 @@ export function visualHappyPathArchitectureViolations(
         message: `Visual happy-path page '${page.id}' points at unknown component '${page.component}'.`,
       });
     }
-    if (!page.mocks.source.endsWith('.happy-path.ts')) {
+    if (page.mocks && !page.mocks.source?.endsWith('.happy-path.ts')) {
       violations.push({
         kind: 'fixture-file',
         message: `Visual happy-path page '${page.id}' must keep its API dataset in a dedicated *.happy-path.ts file; received '${page.mocks.source}'.`,
       });
     }
-    for (const endpoint of page.mocks.endpoints) {
+    for (const endpoint of page.mocks?.endpoints ?? []) {
       const key = `${endpoint.method.toUpperCase()} ${endpoint.url}`;
       mockedEndpoints.add(key);
       if (endpoint.mode !== 'mock' || endpoint.response?.kind !== 'success') {
@@ -1342,9 +1649,24 @@ export function visualHappyPathArchitectureViolations(
   }
 
   for (const endpoint of graph.nodes.filter(
-    (node) => node.kind === 'http-endpoint',
+    (node) =>
+      node.kind === 'http-endpoint' &&
+      (config.pages.some((p) => !p.scenarios) ||
+        requiredEndpointIds.has(node.id)),
   )) {
-    const key = `${String(endpoint.details?.['method'] ?? '').toUpperCase()} ${String(endpoint.details?.['url'] ?? '')}`;
+    const contract = endpointContract(endpoint);
+    const key = `${contract.method.toUpperCase()} ${contract.url}`;
+    if (
+      endpoint.details?.['unresolved'] &&
+      config.pages.some((p) => p.scenarios) &&
+      !config.httpContracts?.[
+        `${relativeGraphPath(graph, endpoint.filePath)}:${endpoint.line}`
+      ]
+    )
+      violations.push({
+        kind: 'unresolved-http',
+        message: `HTTP call at ${relativeGraphPath(graph, endpoint.filePath)}:${endpoint.line} needs an explicit visual.app.httpContracts entry.`,
+      });
     if (!mockedEndpoints.has(key)) {
       violations.push({
         kind: 'missing-http-mock',
@@ -2039,20 +2361,27 @@ export function inputActionFormViolations(
         edge.details?.['templateRole'] === 'button-action' &&
         (edge.kind === 'calls' ||
           ['method', 'mutate'].includes(
-            String(edge.details?.['path'] ?? '').split('.').at(-1) ?? '',
+            String(edge.details?.['path'] ?? '')
+              .split('.')
+              .at(-1) ?? '',
           )),
     );
     if (actionEdges.length === 0) continue;
 
-    const inputRoots = new Set(inputEdges.map((edge) => primitiveRoot(edge.to)));
+    const inputRoots = new Set(
+      inputEdges.map((edge) => primitiveRoot(edge.to)),
+    );
     const matchingActions = actionEdges.filter((edge) => {
       const actionRoot = primitiveRoot(edge.to);
       const action = nodesById.get(actionRoot);
       if (
         action?.kind !== 'primitive' ||
-        !['mutation', 'mutationEffect', 'asyncProcess', 'asyncProcessEffect'].includes(
-          String(action.details?.['primitive']),
-        )
+        ![
+          'mutation',
+          'mutationEffect',
+          'asyncProcess',
+          'asyncProcessEffect',
+        ].includes(String(action.details?.['primitive']))
       ) {
         return false;
       }

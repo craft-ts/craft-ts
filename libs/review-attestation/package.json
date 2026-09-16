@@ -18,7 +18,9 @@
     "@craft-ts/style": "^0.8.6",
     "@craft-ts/dev-tools": "^0.8.6",
     "tslib": "^2.3.0",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "@playwright/test": ">=1.48.0",
+    "typescript": ">=5.4.0"
   },
   "peerDependenciesMeta": {
     "@craft-ts/component": {
@@ -28,6 +30,12 @@
       "optional": true
     },
     "vite": {
+      "optional": true
+    },
+    "@playwright/test": {
+      "optional": true
+    },
+    "typescript": {
       "optional": true
     }
   },
@@ -58,6 +66,18 @@
     "./review-attest": {
       "types": "./src/lib/review-attest.d.ts",
       "default": "./src/lib/review-attest.js"
+    },
+    "./visual-app/playwright": {
+      "types": "./src/lib/visual-app/playwright.d.ts",
+      "default": "./src/lib/visual-app/playwright.js"
+    },
+    "./visual-app/server": {
+      "types": "./src/lib/visual-app/server.d.ts",
+      "default": "./src/lib/visual-app/server.js"
     }
+  },
+  "dependencies": {
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0"
   }
 }

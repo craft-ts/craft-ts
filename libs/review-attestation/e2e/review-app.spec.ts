@@ -88,7 +88,7 @@ test('reviews independent scenarios and updates after persistence', async ({
   await page
     .getByRole('combobox', { name: 'Evidence zoom' })
     .selectOption('actual');
-  await expect(page.locator('.evidence-canvas')).toHaveClass(/zoom-actual/);
+  await expect(page.locator('.evidence-canvas:visible')).toHaveClass(/zoom-actual/);
 
   await page.keyboard.press('r');
   await expect(

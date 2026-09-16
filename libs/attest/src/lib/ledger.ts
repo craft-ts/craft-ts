@@ -30,6 +30,8 @@ const KEY_ORDER: readonly (keyof Attestation)[] = [
   'toolVersion',
   'note',
   'acceptedReference',
+  'screenshotComparison',
+  'screenshotPolicy',
   'findings',
   'carriedFrom',
   'cluster',

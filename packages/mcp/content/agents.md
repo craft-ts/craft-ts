@@ -12,7 +12,9 @@ For SSR, use `renderCraft` to render one isolated request. On the browser,
 
 1. Read https://craft-ts.github.io/craft/llms.txt and follow the linked markdown pages.
 2. If the CraftTS MCP server is configured, call `get_best_practices`, then `search_documentation` / `get_skill` instead of guessing APIs.
-3. Skills live in `node_modules/@craft-ts/mcp/skills/` (architecture tests, routes, spec translation, service migration, full-app migration).
+3. Skills live in `node_modules/@craft-ts/mcp/skills/` (architecture tests,
+   routes, typed styles and contrast, spec translation, service migration,
+   full-app migration). Read `craft-ts-style` before changing visual rules.
 
 ## Non-negotiable rules
 
@@ -21,6 +23,13 @@ For SSR, use `renderCraft` to render one isolated request. On the browser,
 - `craftService` + generated `X()` helpers for explicit dependency composition.
 - `craftRoutes` + `componentDeps` + a per-file DI check. Split with `loadChildren` on `TS2589`.
 - Enable `@craft-ts/dev-tools` ESLint rules and run `eslint --fix` after DI or route edits.
+- In a typed-style project, name palettes, represent hover with
+  `when(interaction.hover, ...)`, and run `npm run style:check` after changing
+  colours, backgrounds, typography, template classes, themes or visual axes.
+  The command proves WCAG AA text contrast from the style and template graphs;
+  it needs no browser. Indeterminate and empty reports are failures. Use
+  `--allow-indeterminate` only to inventory an old project, never as the CI
+  policy, and do not present this check as a full accessibility audit.
 - The `architecture/` suite is the graph contract. `craft create` scaffolds it
   at bootstrap and adds `npm run architecture`. Run it during a feature. Do not
   add an architecture rule for the feature; encode a smell only when it is a

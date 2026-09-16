@@ -13,6 +13,7 @@
  */
 import {
   canonicalJson,
+  evidenceHash,
   evidenceHashOf,
   type EvidenceStore,
 } from '../evidence-store.js';
@@ -28,6 +29,7 @@ export interface VisualScenarioRef {
 export interface VisualCapture extends VisualScenarioRef {
   /** The layout digest. Opaque here; hashed canonically. */
   readonly digest: unknown;
+  readonly evidenceMode?: 'screenshot';
   /** Merkle of the component's code slice. */
   readonly fingerprint: string;
   /** Optional screenshot, kept for the reviewer only. */
@@ -69,7 +71,32 @@ export interface VisualCaptureMetadata {
  * current dependency graph. A report that could supply its own fingerprint
  * could accidentally keep a stale slice current forever.
  */
+export interface VisualApplicationCapture {
+  readonly page: string;
+  readonly scenario: string;
+  readonly label: string;
+  readonly category: 'happy-path' | 'exception';
+  readonly capture: string;
+  readonly viewport: string;
+  readonly imageHash: string;
+  readonly provenance: {
+    readonly contract: string;
+    readonly sources: Readonly<Record<string, string>>;
+  };
+  readonly execution: {
+    readonly status: 'passed';
+    readonly mocks: readonly unknown[];
+  };
+  readonly comparison: {
+    readonly threshold: number;
+    readonly maxDiffPixels: number;
+  };
+  readonly environment: string;
+}
+
 export interface VisualRunCapture extends VisualScenarioRef {
+  readonly evidenceMode?: 'screenshot';
+  readonly application?: VisualApplicationCapture;
   readonly digest: unknown;
   /** Screenshot path, relative to the report file unless absolute. */
   readonly image?: string;
@@ -83,6 +110,37 @@ export interface VisualRunCapture extends VisualScenarioRef {
   readonly metadata?: VisualCaptureMetadata;
   readonly assumptions?: readonly Assumption[];
 }
+
+const isApplicationCapture = (
+  value: unknown,
+): value is VisualApplicationCapture => {
+  if (!value || typeof value !== 'object') return false;
+  const a = value as VisualApplicationCapture;
+  return (
+    [
+      'page',
+      'scenario',
+      'label',
+      'capture',
+      'viewport',
+      'imageHash',
+      'environment',
+    ].every(
+      (k) => typeof (a as unknown as Record<string, unknown>)[k] === 'string',
+    ) &&
+    ['happy-path', 'exception'].includes(a.category) &&
+    a.execution?.status === 'passed' &&
+    Array.isArray(a.execution.mocks) &&
+    typeof a.provenance?.contract === 'string' &&
+    !!a.provenance.sources &&
+    Object.values(a.provenance.sources).every((v) => typeof v === 'string') &&
+    Number.isFinite(a.comparison?.threshold) &&
+    a.comparison.threshold >= 0 &&
+    a.comparison.threshold <= 1 &&
+    Number.isInteger(a.comparison.maxDiffPixels) &&
+    a.comparison.maxDiffPixels >= 0
+  );
+};
 
 const isPositiveSize = (value: unknown): boolean =>
   typeof value === 'object' &&
@@ -116,7 +174,7 @@ const isVisualCaptureMetadata = (
 
 export interface VisualRunReport {
   readonly format: typeof VISUAL_REPORT_FORMAT;
-  readonly version: 1;
+  readonly version: 1 | 2;
   readonly captures: readonly VisualRunCapture[];
 }
 
@@ -125,7 +183,7 @@ export function isVisualRunReport(value: unknown): value is VisualRunReport {
   const report = value as Partial<VisualRunReport>;
   return (
     report.format === VISUAL_REPORT_FORMAT &&
-    report.version === 1 &&
+    (report.version === 1 || report.version === 2) &&
     Array.isArray(report.captures) &&
     report.captures.every((capture) => {
       if (typeof capture !== 'object' || capture === null) return false;
@@ -136,6 +194,11 @@ export function isVisualRunReport(value: unknown): value is VisualRunReport {
         typeof candidate.scenario === 'string' &&
         candidate.scenario.length > 0 &&
         'digest' in candidate &&
+        (candidate.evidenceMode === undefined ||
+          (report.version === 2 &&
+            candidate.evidenceMode === 'screenshot' &&
+            isApplicationCapture(candidate.application) &&
+            typeof candidate.image === 'string')) &&
         (candidate.image === undefined ||
           typeof candidate.image === 'string') &&
         (candidate.snapshot === undefined ||
@@ -173,6 +236,10 @@ export function observeVisualRun(
   report: VisualRunReport,
   fingerprintFor: (component: string) => string,
 ): readonly SubjectObservation[] {
+  if (report.captures.some((capture) => capture.evidenceMode === 'screenshot'))
+    throw new Error(
+      'Screenshot observations require verified current source provenance and actual image bytes. Use the application capture CLI adapter.',
+    );
   return observeVisuals(
     report.captures.map((capture) => ({
       component: capture.component,
@@ -193,12 +260,22 @@ export const visualEvidence = (digest: unknown): string =>
 export function observeVisuals(
   captures: readonly VisualCapture[],
 ): readonly SubjectObservation[] {
+  if (
+    captures.some(
+      (capture) => capture.evidenceMode === 'screenshot' && !capture.image,
+    )
+  )
+    throw new Error('Screenshot evidence requires PNG bytes.');
   return captures
     .map((capture) => ({
       subject: visualSubjectId(capture),
       kind: 'visual' as const,
+      ...(capture.evidenceMode ? { evidenceMode: capture.evidenceMode } : {}),
       fingerprint: capture.fingerprint,
-      evidence: visualEvidence(capture.digest),
+      evidence:
+        capture.evidenceMode === 'screenshot' && capture.image
+          ? evidenceHash(capture.image)
+          : visualEvidence(capture.digest),
       assumptions: capture.assumptions ?? [],
     }))
     .sort((left, right) => left.subject.localeCompare(right.subject));
@@ -225,6 +302,8 @@ export async function storeVisual(
   store: EvidenceStore,
   capture: VisualCapture,
 ): Promise<StoredVisual> {
+  if (capture.evidenceMode === 'screenshot' && !capture.image)
+    throw new Error('Screenshot evidence requires PNG bytes.');
   // The bytes are the same canonical bytes `visualEvidence` hashes. If the
   // store used pretty JSON here, the ledger's evidence address would point at
   // an object that does not exist and the next review could not load it.
@@ -242,7 +321,7 @@ export async function storeVisual(
     : undefined;
   return {
     subject: visualSubjectId(capture),
-    evidence,
+    evidence: capture.evidenceMode === 'screenshot' && image ? image : evidence,
     ...(image ? { image } : {}),
     ...(snapshot ? { snapshot } : {}),
   };

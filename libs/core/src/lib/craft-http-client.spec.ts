@@ -113,14 +113,17 @@ describe('CraftHttpClient', () => {
     if (false) {
       type User = { id: string };
 
-      craftService({ name: 'InvalidHttpApi', providedIn: 'global' }, function* () {
-        // @ts-expect-error CraftHttpClient now requires a declarative builder callback
-        const invalidGet = yield* CraftHttpClient.get<User[]>();
+      craftService(
+        { name: 'InvalidHttpApi', providedIn: 'global' },
+        function* () {
+          // @ts-expect-error CraftHttpClient now requires a declarative builder callback
+          const invalidGet = yield* CraftHttpClient.get<User[]>();
 
-        return {
-          invalidGet,
-        };
-      });
+          return {
+            invalidGet,
+          };
+        },
+      );
     }
   });
 
@@ -484,25 +487,39 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
-      const usersApi = craftUse(UsersApiOnCustomError());
-      const resultPromise = usersApi.getUsers();
+    const observedExceptions: unknown[] = [];
+    const captureGlobal = globalThis as unknown as {
+      __craftVisualException?: (detail: unknown) => void;
+    };
+    captureGlobal.__craftVisualException = (detail) => {
+      observedExceptions.push(detail);
+    };
+    try {
+      await TestBed.runInInjectionContext(async () => {
+        const usersApi = craftUse(UsersApiOnCustomError());
+        const resultPromise = usersApi.getUsers();
 
-      const request = httpTesting.expectOne('/api/users');
-      expect(request.request.method).toBe('GET');
-      request.flush(
-        {
-          message: 'missing',
-        },
-        {
-          status: 404,
-          statusText: 'Not Found',
-        },
-      );
+        const request = httpTesting.expectOne('/api/users');
+        expect(request.request.method).toBe('GET');
+        request.flush(
+          {
+            message: 'missing',
+          },
+          {
+            status: 404,
+            statusText: 'Not Found',
+          },
+        );
 
-      await expect(resultPromise).resolves.toEqual(usersNotFound());
-    });
+        await expect(resultPromise).resolves.toEqual(usersNotFound());
+      });
 
+      expect(observedExceptions).toEqual([
+        { endpoint: 'GET /api/users', discriminant: 'USERS_NOT_FOUND' },
+      ]);
+    } finally {
+      delete captureGlobal.__craftVisualException;
+    }
     httpTesting.verify();
   });
 

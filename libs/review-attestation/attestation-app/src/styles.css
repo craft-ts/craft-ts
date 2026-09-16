@@ -1796,3 +1796,78 @@ select {
 .mention-chip:focus-visible::after {
   display: block;
 }
+
+.application-filters,
+.application-actions,
+.application-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0;
+  align-items: end;
+}
+.application-filters label,
+.application-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.application-captures {
+  display: flex;
+  gap: 1.25rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+  align-items: start;
+}
+.application-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 0 0 min(440px, 85vw);
+  border: 1px solid currentColor;
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+.application-image-scroll {
+  overflow: auto;
+  max-height: 75vh;
+}
+.application-progress {
+  font-weight: 600;
+}
+
+.application-overview button {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.application-overview button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.application-overview textarea {
+  min-width: min(320px, 80vw);
+  min-height: 70px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+}
+.application-capture {
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+}
+.application-capture > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.application-capture input[type='checkbox'] {
+  width: auto;
+}

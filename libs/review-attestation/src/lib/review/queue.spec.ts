@@ -692,3 +692,19 @@ describe('review server', () => {
     }
   });
 });
+
+it('never clusters screenshot subjects, even with identical layout deltas', () => {
+  const queue = buildReviewQueue([
+    {
+      ...item('visual:Page#mobile', 'page', '8px'),
+      evidenceMode: 'screenshot',
+    },
+    { ...item('visual:Page#wide', 'page', '8px'), evidenceMode: 'screenshot' },
+  ]);
+  expect(queue.cards).toHaveLength(2);
+  expect(
+    queue.cards.every(
+      (card) => card.cluster.length === 1 && card.evidenceMode === 'screenshot',
+    ),
+  ).toBe(true);
+});

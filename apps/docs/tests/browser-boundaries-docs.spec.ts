@@ -26,6 +26,7 @@ describe('docs sidebar', () => {
     expect(Array.isArray(sidebar)).toBe(false);
     expect(Object.keys(sidebar).sort()).toEqual([
       '/guide/',
+      '/guide/ai/',
       '/learn-effect/',
       '/learn/',
       '/reference/',
@@ -75,15 +76,16 @@ describe('docs sidebar', () => {
     expect(guideLinks).toContain('/guide/reactivity/craft-computed');
     expect(guideLinks).toContain('/guide/reactivity/craft-effect');
     expect(guideLinks).toContain('/guide/advanced/observability');
-    expect(guideLinks).toContain('/guide/ai/dev-page');
+    expect(linksOf('/guide/ai/')).toContain('/guide/ai/dev-page');
   });
 
-  it('exposes the five top-level nav entries', () => {
+  it('exposes every top-level nav entry', () => {
     const nav = docsConfig.themeConfig?.nav as Array<{ text?: string }>;
 
     expect(nav.map((entry) => entry.text)).toEqual([
       'Learn',
       'Learn with Effect',
+      'AI agents',
       'Guide',
       'Reference',
       'Packages',
