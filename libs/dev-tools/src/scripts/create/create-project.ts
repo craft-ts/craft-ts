@@ -101,6 +101,80 @@ craft-dependency-graph.*
 .DS_Store
 `;
 
+/**
+ * Reminds an agent that the dependency graph answers structural questions.
+ *
+ * The failure it addresses is not a missing tool but an old habit: an agent
+ * greps for a name instead of asking the graph, and never sees the relations
+ * the type checker already proved.
+ *
+ * Advisory by construction — it prints `additionalContext` and exits 0, so the
+ * search always runs — and it speaks once per session: a reminder attached to
+ * every Grep becomes noise, and noise gets switched off.
+ */
+const GRAPH_FIRST_HOOK_SCRIPT = `#!/usr/bin/env node
+import { existsSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const chunks = [];
+process.stdin.on('data', (chunk) => chunks.push(chunk));
+process.stdin.on('end', () => {
+  let sessionId = 'unknown';
+  try {
+    const event = JSON.parse(chunks.join(''));
+    if (typeof event.session_id === 'string') sessionId = event.session_id;
+  } catch {
+    sessionId = 'unknown';
+  }
+
+  const marker = join(
+    tmpdir(),
+    'craft-graph-hint-' + sessionId.replace(/[^A-Za-z0-9_-]/g, '') + '.marker',
+  );
+  if (existsSync(marker)) process.exit(0);
+  try {
+    writeFileSync(marker, '');
+  } catch {
+    // A read-only temp directory only costs a repeated reminder.
+  }
+
+  process.stdout.write(
+    JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'PreToolUse' },
+      additionalContext: [
+        'This project exposes its CraftTS dependency graph through the',
+        'craft-ts-graph MCP server. To find where a route, component, service or',
+        'primitive lives, what it depends on, what a change can break, or how two',
+        'of them are connected, graph.search, graph.node and graph.impact answer',
+        'with relations proven by the type checker, each with its file and line.',
+        'Run npm run graph once to make those answers instant.',
+        'Grep and Glob remain the right tools for text, configuration and code',
+        'the graph does not model.',
+      ].join(' '),
+    }),
+  );
+  process.exit(0);
+});
+`;
+
+const GRAPH_FIRST_HOOK_SETTINGS = {
+  hooks: {
+    PreToolUse: [
+      {
+        matcher: 'Grep|Glob',
+        hooks: [
+          {
+            type: 'command',
+            command: 'node "${CLAUDE_PROJECT_DIR}/.claude/hooks/graph-first.mjs"',
+            timeout: 10,
+          },
+        ],
+      },
+    ],
+  },
+};
+
 const GRAPH_AGENT_SKILL = `---
 name: craft-ts-graph-mcp
 description: Answer architecture questions about this project from its static CraftTS dependency graph, through the graph MCP server (graph.* tools). Use when asked where a route, component, service or primitive lives and what it depends on; what a change can break; how two nodes are connected; which code is complex, central or uncovered; or why an architecture rule fails.
@@ -3113,6 +3187,11 @@ function readme(context: TemplateContext): string {
     'for coverage per node and per route), CRAFT_GRAPH_DOCS (Markdown globs) and',
     'CRAFT_GRAPH_READONLY=1, which hides graph.rebuild.',
     '',
+    'For Claude Code, .claude/settings.json adds a PreToolUse hook that points at',
+    'the graph server once per session, before a Grep or a Glob. It never blocks',
+    'the search. Delete .claude/hooks/graph-first.mjs and its settings entry to',
+    'remove it.',
+    '',
     '## Verify',
     '',
     'npm run lint',
@@ -3333,6 +3412,8 @@ function agentFiles(
       ),
       '.claude/skills/craft-ts-project/SKILL.md': skill,
       '.claude/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
+      '.claude/settings.json': json(GRAPH_FIRST_HOOK_SETTINGS),
+      '.claude/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
       ...(effectEnabled
         ? { '.claude/skills/craft-ts-effect-v4/SKILL.md': EFFECT_AGENT_SKILL }
         : {}),

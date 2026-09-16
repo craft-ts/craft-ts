@@ -566,6 +566,36 @@ describe('createCraftProject', () => {
     expect(graphSkill).toContain('npm run graph');
   });
 
+  it('points Claude Code at the graph before a Grep, without blocking it', async () => {
+    const result = await createFixture('plain', ['claude-code']);
+    const settings = JSON.parse(
+      await readFile(join(result.directory, '.claude/settings.json'), 'utf8'),
+    ) as {
+      hooks: {
+        PreToolUse: {
+          matcher: string;
+          hooks: { type: string; command: string }[];
+        }[];
+      };
+    };
+    const hook = await readFile(
+      join(result.directory, '.claude/hooks/graph-first.mjs'),
+      'utf8',
+    );
+
+    expect(settings.hooks.PreToolUse[0]?.matcher).toBe('Grep|Glob');
+    expect(settings.hooks.PreToolUse[0]?.hooks[0]).toMatchObject({
+      type: 'command',
+      command: expect.stringContaining('.claude/hooks/graph-first.mjs'),
+    });
+    // Advisory: it adds context and exits 0, so the search still runs.
+    expect(hook).toContain('additionalContext');
+    expect(hook).toContain('graph.search');
+    expect(hook).not.toContain('permissionDecision');
+    // Once per session, so a reminder on every Grep never becomes noise.
+    expect(hook).toContain('craft-graph-hint-');
+  });
+
   it('adds a review target to an Nx project and its root package scripts', async () => {
     const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-nx-'));
     temporaryDirectories.push(root);
