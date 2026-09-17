@@ -40,7 +40,7 @@ export const RetirementReasonPicker = craftComponent(
           id: 'retirement-reason',
           value: retirementReason,
           *change(event: Event) {
-            yield* chooseRetirementReason(eventValue(event));
+chooseRetirementReason(eventValue(event));
           },
         },
         [

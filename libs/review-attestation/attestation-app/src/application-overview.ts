@@ -420,7 +420,7 @@ export const ApplicationOverview = craftComponent(
               return (yield* actions()).disableAccept;
             },
             *click() {
-              yield* submit('ok');
+submit('ok');
             },
           },
           'Accepter la sélection affichée',
@@ -433,7 +433,7 @@ export const ApplicationOverview = craftComponent(
               return (yield* actions()).disableReject;
             },
             *click() {
-              yield* submit('rejected');
+submit('rejected');
             },
           },
           'Rejeter la sélection',
@@ -498,7 +498,7 @@ export const ApplicationOverview = craftComponent(
                   return (yield* row()).disabled;
                 },
                 *click() {
-                  yield* inspect((yield* row()).subject);
+inspect((yield* row()).subject);
                 },
               },
               'Examiner et donner un verdict',

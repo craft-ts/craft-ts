@@ -91,7 +91,7 @@ export const ViewTabs = craftComponent(
           class: 'view-tab',
           'aria-pressed': applicationPressed,
           *click() {
-            yield* chooseDevtoolView('application');
+chooseDevtoolView('application');
           },
         },
         [
@@ -109,7 +109,7 @@ export const ViewTabs = craftComponent(
           class: 'view-tab',
           'aria-pressed': visualPressed,
           *click() {
-            yield* chooseDevtoolView('visual');
+chooseDevtoolView('visual');
           },
         },
         [
@@ -134,7 +134,7 @@ export const ViewTabs = craftComponent(
           class: 'view-tab',
           'aria-pressed': templatePressed,
           *click() {
-            yield* chooseDevtoolView('template');
+chooseDevtoolView('template');
           },
         },
         [
@@ -159,7 +159,7 @@ export const ViewTabs = craftComponent(
           class: 'view-tab',
           'aria-pressed': reviewPressed,
           *click() {
-            yield* chooseDevtoolView('review');
+chooseDevtoolView('review');
           },
         },
         [

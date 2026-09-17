@@ -43,7 +43,7 @@ export const ThemeLocalePicker = craftComponent(
           id: 'review-locale',
           value: locale,
           *change(event: Event) {
-            yield* chooseLocale(eventValue(event));
+chooseLocale(eventValue(event));
           },
         },
         [
@@ -60,7 +60,7 @@ export const ThemeLocalePicker = craftComponent(
           id: 'review-theme',
           value: theme,
           *change(event: Event) {
-            yield* chooseTheme(eventValue(event));
+chooseTheme(eventValue(event));
           },
         },
         [

@@ -29,6 +29,7 @@ import {
   safeResourceUrl,
 } from '@craft-ts/component';
 import {
+  craftService,
   CraftHttpClient,
   asyncProcess,
   craftComputed,
@@ -166,9 +167,8 @@ interface ReplayState {
   readonly chrome: readonly string[];
 }
 
-export const ReviewApp = craftComponent(
-  'ReviewApp',
-  {},
+const { ReviewAppView, provideReviewAppView } = craftService(
+  { name: 'reviewAppView', providedIn: 'toProvide' },
   craftGen(function* () {
     const navigation$ = source$<number>('navigation$');
     const decisionSubmitted$ = source$<
@@ -1583,88 +1583,94 @@ export const ReviewApp = craftComponent(
       fidelitySentence,
     };
   }),
-  ({
-    review,
-    decision,
-    reopen,
-    regenerate,
-    iterationHandoff,
-    closeReview,
-    cards,
-    visualAssets,
-    visualTests,
-    selectedVisualTest,
-    selectedVisualAsset,
-    visualReviewCard,
-    templateObligations,
-    activeIndex,
-    sessionHistory,
-    zoom,
-    note,
-    hasNote,
-    rejectionReasonMissing,
-    reviewFailed,
-    decisionFailed,
-    reopenFailed,
-    regenerationAvailable,
-    iterationHandoffAvailable,
-    iterationHandoffFailed,
-    iterationPreparationNotStarted,
-    iterationHandoffReady,
-    closeReviewFailed,
-    regenerationDialogOpen,
-    iterationDialogOpen,
-    iterationPromptCopied,
-    previousRegenerationDecisions,
-    regenerationFailed,
-    openRegenerationDialog,
-    closeRegenerationDialog,
-    confirmRegeneration,
-    openIterationDialog,
-    closeIterationDialog,
-    confirmIterationHandoff,
-    closeReviewSession,
-    copyIterationPrompt,
-    movePrevious,
-    moveNext,
-    selectCard,
-    reopenDecision,
-    decide,
-    retire,
-    devtoolView,
-    chooseDevtoolView,
-    inspectApplicationCapture,
-    decideApplicationCaptures,
-    applicationCaptures,
-    selectVisualTest,
-    openVisualReview,
-    current,
-    visualEvidence,
-    evidenceView,
-    rememberCaret,
-    freezePick,
-    previewMention,
-    chooseZoom,
-    locale,
-    t,
-    fidelitySentence,
-    hideChrome,
-    member,
-    coveredCount,
-    canReplay,
-    replay,
-    showingReplay,
-    fellBack,
-    chrome,
-    selection,
-    band,
-    degraded,
-    overlayLabel,
-    overlayHint,
-    inspectFrame,
-    toggleChrome,
-  }) =>
-    div({ class: 'app-shell' }, [
+);
+
+export const ReviewApp = craftComponent(
+  'ReviewApp',
+  { providers: [provideReviewAppView()] },
+  function* () {
+    const {
+      review,
+      decision,
+      reopen,
+      regenerate,
+      iterationHandoff,
+      closeReview,
+      cards,
+      visualAssets,
+      visualTests,
+      selectedVisualTest,
+      selectedVisualAsset,
+      visualReviewCard,
+      templateObligations,
+      activeIndex,
+      sessionHistory,
+      zoom,
+      note,
+      hasNote,
+      rejectionReasonMissing,
+      reviewFailed,
+      decisionFailed,
+      reopenFailed,
+      regenerationAvailable,
+      iterationHandoffAvailable,
+      iterationHandoffFailed,
+      iterationPreparationNotStarted,
+      iterationHandoffReady,
+      closeReviewFailed,
+      regenerationDialogOpen,
+      iterationDialogOpen,
+      iterationPromptCopied,
+      previousRegenerationDecisions,
+      regenerationFailed,
+      openRegenerationDialog,
+      closeRegenerationDialog,
+      confirmRegeneration,
+      openIterationDialog,
+      closeIterationDialog,
+      confirmIterationHandoff,
+      closeReviewSession,
+      copyIterationPrompt,
+      movePrevious,
+      moveNext,
+      selectCard,
+      reopenDecision,
+      decide,
+      retire,
+      devtoolView,
+      chooseDevtoolView,
+      inspectApplicationCapture,
+      decideApplicationCaptures,
+      applicationCaptures,
+      selectVisualTest,
+      openVisualReview,
+      current,
+      visualEvidence,
+      evidenceView,
+      rememberCaret,
+      freezePick,
+      previewMention,
+      chooseZoom,
+      locale,
+      t,
+      fidelitySentence,
+      hideChrome,
+      member,
+      coveredCount,
+      canReplay,
+      replay,
+      showingReplay,
+      fellBack,
+      chrome,
+      selection,
+      band,
+      degraded,
+      overlayLabel,
+      overlayHint,
+      inspectFrame,
+      toggleChrome,
+    } = yield* ReviewAppView();
+    return div({ class: 'app-shell' }, [
       ifNode(reviewFailed, () =>
         p({ class: 'notice error', role: 'alert' }, function* () {
           return (yield* t()).queueFailed;
@@ -1885,7 +1891,7 @@ export const ReviewApp = craftComponent(
                           : 'false';
                       },
                       *click() {
-                        yield* selectCard(index);
+selectCard(index);
                       },
                     },
                     [
@@ -1935,7 +1941,7 @@ export const ReviewApp = craftComponent(
                             disabled: reopen.isLoading,
                             class: 'history-item',
                             *click() {
-                              yield* reopenDecision(yield* entry());
+reopenDecision(yield* entry());
                             },
                           },
                           [
@@ -2372,7 +2378,7 @@ export const ReviewApp = craftComponent(
                             value: zoom,
                             *change(event: Event) {
                               const value = eventValue(event);
-                              if (isZoomMode(value)) yield* chooseZoom(value);
+                              if (isZoomMode(value)) chooseZoom(value);
                             },
                           },
                           [
@@ -2766,10 +2772,10 @@ export const ReviewApp = craftComponent(
                                 ? target.closest('.mention-chip')
                                 : null;
                             const id = chip?.getAttribute(MENTION_ID);
-                            yield* previewMention(id ? Number(id) : undefined);
+previewMention(id ? Number(id) : undefined);
                           },
                           *mouseleave() {
-                            yield* previewMention(undefined);
+previewMention(undefined);
                           },
                           keyup: rememberCaret,
                           mouseup: rememberCaret,
@@ -2852,7 +2858,7 @@ export const ReviewApp = craftComponent(
                               'data-hotkey': 'r',
                               disabled: decision.isLoading,
                               *click() {
-                                yield* decide('rejected');
+decide('rejected');
                               },
                             },
                             [
@@ -2871,7 +2877,7 @@ export const ReviewApp = craftComponent(
                               },
                               disabled: decision.isLoading,
                               *click() {
-                                yield* decide('blocked');
+decide('blocked');
                               },
                             },
                             function* () {
@@ -2887,7 +2893,7 @@ export const ReviewApp = craftComponent(
                               },
                               disabled: decision.isLoading,
                               *click() {
-                                yield* decide('known-issue');
+decide('known-issue');
                               },
                             },
                             function* () {
@@ -2909,7 +2915,7 @@ export const ReviewApp = craftComponent(
                                 );
                               },
                               *click() {
-                                yield* decide('ok-with-note');
+decide('ok-with-note');
                               },
                             },
                             [
@@ -2930,7 +2936,7 @@ export const ReviewApp = craftComponent(
                               'data-hotkey': 'a',
                               disabled: decision.isLoading,
                               *click() {
-                                yield* decide('ok');
+decide('ok');
                               },
                             },
                             [
@@ -3030,7 +3036,7 @@ export const ReviewApp = craftComponent(
                               );
                             },
                             *click() {
-                              yield* selectVisualTest(index);
+selectVisualTest(index);
                             },
                           },
                           [
@@ -3473,5 +3479,6 @@ export const ReviewApp = craftComponent(
           ),
         ]),
       ),
-    ]),
+    ]);
+  },
 );
