@@ -1,6 +1,6 @@
 import {
-  CRAFT_ROUTE_TARGET,
   craftRouteTarget,
+  provideCraftRouteTarget,
   type ComponentDepsCarrier,
   type ComponentDepsOf,
   type ComponentExceptionsCarrier,
@@ -8,11 +8,11 @@ import {
   type CraftRouteLazyLoadHelpers,
 } from '@craft-ts/core';
 import {
-  CRAFT_GLOBAL_ERROR_COMPONENT,
-  CRAFT_PENDING_COMPONENT,
-  CRAFT_ROOT_COMPONENT,
-  CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
-  CRAFT_ROUTED_COMPONENT,
+  provideCraftGlobalErrorComponent as provideGlobalErrorComponentService,
+  provideCraftPendingComponent as providePendingComponentService,
+  provideCraftRootComponent as provideRootComponentService,
+  provideCraftRouteLoadErrorComponent as provideRouteLoadErrorComponentService,
+  provideCraftRoutedComponent as provideRoutedComponentService,
 } from './craft-host-tokens';
 import {
   mountInterpretedComponent,
@@ -52,33 +52,16 @@ export function mountCraftComponent<Component extends CraftComponent<any>>(
   return mountInterpretedComponent(component, hostElement, injector, props);
 }
 
-type ValueProvider = {
-  provide: object;
-  useValue: unknown;
-  multi?: boolean;
-};
-
 type Route = {
   providers?: readonly unknown[];
 };
 
 type Type<T> = new (...args: never[]) => T;
 
-export {
-  CRAFT_GLOBAL_ERROR_COMPONENT,
-  CRAFT_PENDING_COMPONENT,
-  CRAFT_ROOT_COMPONENT,
-  CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
-  CRAFT_ROUTED_COMPONENT,
-} from './craft-host-tokens';
-
 export function provideCraftComponent(
   component: CraftComponent<any>,
-): ValueProvider {
-  return {
-    provide: CRAFT_ROUTED_COMPONENT,
-    useValue: component,
-  };
+): unknown {
+  return provideRoutedComponentService(component);
 }
 
 type RequireHandledRouteFieldExceptions<Component> =
@@ -160,31 +143,27 @@ export function loadCraftComponent<
     loadComponent: async (helpers: CraftRouteLazyLoadHelpers) => {
       loadedComponent = (await loader(helpers)) as Component;
       // The Angular host used to stand in here and read the component back out
-      // of CRAFT_ROUTE_TARGET. The outlet mounts Craft components directly.
+      // of the route-target service. The outlet mounts Craft components directly.
       return loadedComponent as unknown as Type<unknown>;
     },
     providers: [
-      {
-        provide: CRAFT_ROUTE_TARGET,
-        useFactory: () => {
+      provideCraftRouteTarget(() => {
           if (!loadedComponent) {
             throw new Error(
               'loadCraftComponent() must finish loading before its route target is resolved.',
             );
           }
           return craftRouteTarget(loadedComponent);
-        },
-      },
+        }),
       {
-        provide: CRAFT_ROUTED_COMPONENT,
-        useFactory: () => {
+        ...provideRoutedComponentService(() => {
           if (!loadedComponent) {
             throw new Error(
               'loadCraftComponent() must finish loading before the route host is created.',
             );
           }
           return loadedComponent;
-        },
+        }),
       },
       ...additionalProviders,
     ],
@@ -209,38 +188,26 @@ export function craftComponentRouteData(
 
 export function provideCraftRootComponent(
   component: CraftComponent<any>,
-): ValueProvider {
-  return {
-    provide: CRAFT_ROOT_COMPONENT,
-    useValue: component,
-  };
+): unknown {
+  return provideRootComponentService(component);
 }
 
 export function provideCraftGlobalErrorComponent(
   component: CraftComponent<any>,
-): ValueProvider {
-  return {
-    provide: CRAFT_GLOBAL_ERROR_COMPONENT,
-    useValue: component,
-  };
+): unknown {
+  return provideGlobalErrorComponentService(component);
 }
 
 export function provideCraftRouteLoadErrorComponent(
   component: CraftComponent<any>,
-): ValueProvider {
-  return {
-    provide: CRAFT_ROUTE_LOAD_ERROR_COMPONENT,
-    useValue: component,
-  };
+): unknown {
+  return provideRouteLoadErrorComponentService(component);
 }
 
 export function provideCraftPendingComponent(
   component: CraftComponent<any>,
-): ValueProvider {
-  return {
-    provide: CRAFT_PENDING_COMPONENT,
-    useValue: component,
-  };
+): unknown {
+  return providePendingComponentService(component);
 }
 
 export function craftPendingComponentRouteData(

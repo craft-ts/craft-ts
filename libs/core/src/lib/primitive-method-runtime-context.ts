@@ -1,9 +1,7 @@
 import {
-  inject,
-  InjectionToken,
-  type Provider,
   type Signal,
 } from './host/craft-compat';
+import { craftService, type CraftServiceProvider } from './craft-service';
 import { rawReactiveFacade } from './reactive-read';
 
 export type PrimitiveMethodRuntimeKind =
@@ -39,17 +37,31 @@ type PrimitiveInsertionContext = Readonly<{
   patch(updater: (current: unknown) => object): unknown;
 }>;
 
-const PRIMITIVE_METHOD_RUNTIME_CONTEXT =
-  new InjectionToken<PrimitiveMethodRuntimeContext>(
-    'PRIMITIVE_METHOD_RUNTIME_CONTEXT',
-  );
+const primitiveMethodRuntimeContextService = craftService(
+  { name: 'PrimitiveMethodRuntimeContext', providedIn: 'toProvide' },
+  (inputs: { $provided?: PrimitiveMethodRuntimeContext }) => inputs.$provided,
+) as unknown as {
+  PrimitiveMethodRuntimeContext: () => Generator<
+    unknown,
+    PrimitiveMethodRuntimeContext | undefined,
+    unknown
+  >;
+  providePrimitiveMethodRuntimeContext: (
+    value: PrimitiveMethodRuntimeContext,
+  ) => CraftServiceProvider;
+  PRIMITIVE_METHOD_RUNTIME_CONTEXT_META_DATA: {
+    inject(): PrimitiveMethodRuntimeContext | undefined;
+  };
+};
 
 export function injectPrimitiveMethodRuntimeContext():
   | PrimitiveMethodRuntimeContext
   | undefined {
-  return (
-    inject(PRIMITIVE_METHOD_RUNTIME_CONTEXT, { optional: true }) ?? undefined
-  );
+  try {
+    return primitiveMethodRuntimeContextService.PRIMITIVE_METHOD_RUNTIME_CONTEXT_META_DATA.inject();
+  } catch {
+    return undefined;
+  }
 }
 
 export function injectQueryMethodRuntimeContext():
@@ -80,10 +92,8 @@ export function ɵprovidePrimitiveMethodRuntimeContext(
   kind: PrimitiveMethodRuntimeKind,
   context: PrimitiveInsertionContext,
   originalFactory: (...args: never[]) => unknown,
-): Provider {
-  return {
-    provide: PRIMITIVE_METHOD_RUNTIME_CONTEXT,
-    useValue: {
+): CraftServiceProvider {
+  return primitiveMethodRuntimeContextService.providePrimitiveMethodRuntimeContext({
       kind,
       get: () => rawReactiveFacade(context.state)(),
       set: (value: unknown) => context.set(value),
@@ -91,8 +101,7 @@ export function ɵprovidePrimitiveMethodRuntimeContext(
         context.update(updater),
       patch: (updater: (current: unknown) => object) => context.patch(updater),
       originalSource: originalFactory.toString(),
-    } satisfies PrimitiveMethodRuntimeContext,
-  };
+    } satisfies PrimitiveMethodRuntimeContext);
 }
 
 function injectRuntimeContextFor<Kind extends PrimitiveMethodRuntimeKind>(

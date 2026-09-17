@@ -1,9 +1,10 @@
 import {
   DestroyRef,
   inject,
-  InjectionToken,
+  runInInjectionContext,
   type Injector,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import { ɵHOST_TAG_LIST } from './craft-service';
 
 /**
@@ -51,7 +52,7 @@ export type CraftPrimitiveEntry = Readonly<{
 /** A value snapshot of part of the registry, keyed by address. */
 export type CraftPrimitiveSnapshot = Readonly<Record<string, unknown>>;
 
-export class CraftPrimitiveRegistry {
+class CraftPrimitiveRegistryState {
   private readonly entries = new Map<string, CraftPrimitiveEntry>();
   private readonly occurrences = new Map<string, number>();
   private readonly primedValues = new Map<string, unknown>();
@@ -178,11 +179,18 @@ export class CraftPrimitiveRegistry {
   }
 }
 
-export const CRAFT_PRIMITIVE_REGISTRY =
-  new InjectionToken<CraftPrimitiveRegistry>('CRAFT_PRIMITIVE_REGISTRY', {
-    providedIn: 'root',
-    factory: () => new CraftPrimitiveRegistry(),
-  });
+const craftPrimitiveRegistryService = craftService(
+  { name: 'CraftPrimitiveRegistry', providedIn: 'global' },
+  () => new CraftPrimitiveRegistryState(),
+) as unknown as {
+  CraftPrimitiveRegistry: () => Generator<unknown, CraftPrimitiveRegistryState, unknown>;
+  CRAFT_PRIMITIVE_REGISTRY_META_DATA: { inject(): CraftPrimitiveRegistryState };
+};
+
+export type CraftPrimitiveRegistry = CraftPrimitiveRegistryState;
+export const CraftPrimitiveRegistry = craftPrimitiveRegistryService.CraftPrimitiveRegistry;
+export const ɵinjectCraftPrimitiveRegistry = (): CraftPrimitiveRegistry =>
+  craftPrimitiveRegistryService.CRAFT_PRIMITIVE_REGISTRY_META_DATA.inject();
 
 /** Builds the address of a primitive from its host chain and its own name. */
 export function ɵcraftPrimitiveAddress(
@@ -220,26 +228,28 @@ export type CraftPrimitiveRegistration = Readonly<{
 export function ɵregisterCraftPrimitive(
   options: RegisterOptions,
 ): CraftPrimitiveRegistration {
-  const resolve = <T>(token: InjectionToken<T>, fallback: T): T => {
+  const registry = (() => {
     try {
       return options.injector
-        ? (options.injector.get(token, fallback) ?? fallback)
-        : (inject(token, { optional: true }) ?? fallback);
+        ? runInInjectionContext(options.injector, () =>
+            ɵinjectCraftPrimitiveRegistry(),
+          )
+        : ɵinjectCraftPrimitiveRegistry();
     } catch {
-      return fallback;
+      return null;
     }
-  };
-
-  const registry = resolve(
-    CRAFT_PRIMITIVE_REGISTRY,
-    null as never,
-  ) as CraftPrimitiveRegistry | null;
+  })();
   if (!registry) return { link: () => undefined };
 
-  const hostTags = resolve(
-    ɵHOST_TAG_LIST as unknown as InjectionToken<readonly string[]>,
-    [] as readonly string[],
-  );
+  const hostTags = (() => {
+    try {
+      return options.injector
+        ? options.injector.get(ɵHOST_TAG_LIST, [] as readonly string[])
+        : inject(ɵHOST_TAG_LIST, { optional: true }) ?? [];
+    } catch {
+      return [] as readonly string[];
+    }
+  })();
 
   const { address, release } = registry.register(
     ɵcraftPrimitiveAddress(hostTags, options.kind, options.name),

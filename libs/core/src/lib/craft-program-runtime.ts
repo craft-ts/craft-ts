@@ -21,9 +21,9 @@ import {
 import { injectFnWrapper } from './fn-wrapper';
 import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import {
-  CRAFT_TEMPORAL_RUNTIME,
   isTemporalAwaitRequest,
   RealCraftTemporalRuntime,
+  ɵinjectCraftTemporalRuntime,
   TemporalCancelledError,
 } from './temporal-runtime';
 
@@ -239,9 +239,9 @@ export function awaitCraftProgramRequest(
   abortSignal?: AbortSignal,
 ): Promise<unknown> {
   if (isTemporalAwaitRequest(request)) {
-    const temporalRuntime =
-      injector.get(CRAFT_TEMPORAL_RUNTIME, null) ??
-      new RealCraftTemporalRuntime();
+    const temporalRuntime = runInInjectionContext(injector, () =>
+      ɵinjectCraftTemporalRuntime(),
+    );
     return temporalRuntime.sleep(request.delayMs, {
       kind: 'sleep',
       owner: request.owner,

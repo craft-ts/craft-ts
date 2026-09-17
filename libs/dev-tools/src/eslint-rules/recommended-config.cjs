@@ -69,6 +69,7 @@ module.exports = {
   'craft-ts/no-reused-primitive-method': 'error',
   'craft-ts/prefer-query-method-over-state-trigger': 'error',
   'craft-ts/no-injection-token': 'error',
+  'craft-ts/no-authored-craft-token': 'error',
   'craft-ts/no-manual-route-provider-list': 'error',
   'craft-ts/no-widened-route-provider-context': 'error',
   'craft-ts/prefer-inline-route-providers': 'error',

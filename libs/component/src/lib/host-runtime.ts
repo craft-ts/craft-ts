@@ -8,19 +8,16 @@ import {
   ɵEnvironmentInjector,
   ɵINJECTOR_SCOPE as CraftInjectorScope,
   ɵinject,
-  ɵInjectionToken as CraftInjectionToken,
   ɵrunInInjectionContext,
   ɵsignal,
   ɵuntracked,
   type CraftInjector,
   type ɵEffectRef,
   type ɵProvider,
-  type ɵProviderToken,
 } from '@craft-ts/core';
 
 export type EffectRef = ɵEffectRef;
 export type Provider = ɵProvider;
-export type ProviderToken<T> = ɵProviderToken<T>;
 export type DestroyRef = InstanceType<typeof CraftDestroyRef>;
 export type Injector = CraftInjector;
 export type EnvironmentInjector = CraftInjector;
@@ -68,7 +65,6 @@ export const DestroyRef = CraftDestroyRef;
 export const ElementRef = ɵElementRef;
 export const EnvironmentInjector = ɵEnvironmentInjector;
 export const Injector = CraftInjectorToken;
-export const InjectionToken = CraftInjectionToken;
 export const inject = ɵinject;
 export const reflectComponentType: HostRuntimeApi['reflectComponentType'] = () =>
   null;
@@ -77,4 +73,3 @@ export const signal = ɵsignal;
 export const untracked = ɵuntracked;
 export const ɵEffectScheduler = CraftEffectScheduler;
 export const ɵINJECTOR_SCOPE = CraftInjectorScope;
-

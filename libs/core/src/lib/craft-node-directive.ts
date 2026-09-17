@@ -1,8 +1,5 @@
-import {
-  InjectionToken,
-  type EffectRef,
-  type Injector,
-} from './host/craft-compat';
+import { runInInjectionContext, type EffectRef, type Injector } from './host/craft-compat';
+import { craftService, type CraftServiceProvider } from './craft-service';
 import {
   CRAFT_REGISTRATION_TARGET,
   type CraftRegistrationTarget,
@@ -20,8 +17,25 @@ export type CraftNodeEffectFactory = (
   effectFn: () => void,
 ) => EffectRef;
 
-export const CRAFT_NODE_EFFECT_FACTORY =
-  new InjectionToken<CraftNodeEffectFactory>('CRAFT_NODE_EFFECT_FACTORY');
+const craftNodeEffectFactoryService = craftService(
+  { name: 'CraftNodeEffectFactory', providedIn: 'toProvide' },
+  (inputs: { $provided: CraftNodeEffectFactory }) => inputs.$provided,
+) as unknown as {
+  CraftNodeEffectFactory: () => Generator<unknown, CraftNodeEffectFactory, unknown>;
+  provideCraftNodeEffectFactory: (value: CraftNodeEffectFactory) => CraftServiceProvider;
+  CRAFT_NODE_EFFECT_FACTORY_META_DATA: { inject(): CraftNodeEffectFactory };
+};
+
+export const CraftNodeEffectFactory = craftNodeEffectFactoryService.CraftNodeEffectFactory;
+export const provideCraftNodeEffectFactory = (
+  value: CraftNodeEffectFactory,
+): CraftServiceProvider => craftNodeEffectFactoryService.provideCraftNodeEffectFactory(value);
+export const ɵinjectCraftNodeEffectFactoryIn = (
+  injector: Injector,
+): CraftNodeEffectFactory =>
+  runInInjectionContext(injector, () =>
+    craftNodeEffectFactoryService.CRAFT_NODE_EFFECT_FACTORY_META_DATA.inject(),
+  );
 
 /** The element-scoped services and reactive inputs available to a DOM directive. */
 export interface CraftNodeDirectiveContext<

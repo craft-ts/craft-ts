@@ -1,10 +1,11 @@
 import {
   DestroyRef,
-  InjectionToken,
   signal,
+  runInInjectionContext,
   type Injector,
   type Signal,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { ɵrunCraftTargetWrappers } from './craft-target-runtime';
 
@@ -56,13 +57,24 @@ export type RegisterForRegistry = Readonly<{
 
 const EMPTY_CLEANUP = () => undefined;
 
-export const REGISTER_FOR_REGISTRY = new InjectionToken<
-  readonly RegisterForRegistry[]
->('REGISTER_FOR_REGISTRY', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+const registerForRegistriesService = craftService(
+  { name: 'RegisterForRegistries', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: RegisterForRegistry }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  provideRegisterForRegistries: (value: RegisterForRegistry) => unknown;
+  REGISTER_FOR_REGISTRIES_META_DATA: { inject(): readonly RegisterForRegistry[] };
+};
+export function provideRegisterForRegistry(value: RegisterForRegistry): unknown {
+  return registerForRegistriesService.provideRegisterForRegistries(value);
+}
+export function ɵinjectRegisterForRegistries(
+  injector: Injector,
+): readonly RegisterForRegistry[] {
+  return runInInjectionContext(injector, () =>
+    registerForRegistriesService.REGISTER_FOR_REGISTRIES_META_DATA.inject(),
+  );
+}
 
 export function createRegisterForRegistry(
   descriptors: readonly RegisterForTargetDescriptor[],
@@ -158,7 +170,7 @@ export function registerResolvedService(
   hostName: string,
   scope: ConcreteServiceScope,
 ): void {
-  const registries = injector.get(REGISTER_FOR_REGISTRY, []);
+  const registries = ɵinjectRegisterForRegistries(injector);
   for (const registry of registries) {
     attachCleanup(
       injector,

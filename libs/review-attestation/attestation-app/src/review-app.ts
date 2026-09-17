@@ -68,6 +68,7 @@ import { ReviewFilters } from './review-filters.service';
 import { CloseReview } from './close-review.service';
 import { RetirementReasonChoice } from './retirement-reason.service';
 import { ThemeLocalePicker } from './theme-locale-picker';
+import { decision as decisionStyles, reviewTheme } from './review-app.style';
 import { RetirementReasonPicker } from './retirement-reason-picker';
 import { TierLegend } from './tier-legend';
 import { FilterBarActions, FilterBarFields } from './filter-bar';
@@ -1195,6 +1196,9 @@ export const ReviewApp = craftComponent(
     const reviewFailed = craftComputed('reviewFailed', function* () {
       return (yield* review.status()) === 'exception';
     });
+    const inspectFailed = craftComputed('inspectFailed', function* () {
+      return (yield* inspect.status()) === 'exception';
+    });
     const decisionFailed = craftComputed('decisionFailed', function* () {
       return (yield* decision.status()) === 'exception';
     });
@@ -1520,6 +1524,7 @@ export const ReviewApp = craftComponent(
       hasNote,
       rejectionReasonMissing,
       reviewFailed,
+      inspectFailed,
       decisionFailed,
       reopenFailed,
       regenerationAvailable,
@@ -1604,6 +1609,7 @@ export const ReviewApp = craftComponent(
     hasNote,
     rejectionReasonMissing,
     reviewFailed,
+    inspectFailed,
     decisionFailed,
     reopenFailed,
     regenerationAvailable,
@@ -1664,36 +1670,96 @@ export const ReviewApp = craftComponent(
     inspectFrame,
     toggleChrome,
   }) =>
-    div({ class: 'app-shell' }, [
+    div({ class: ['app-shell', reviewTheme.root] }, [
       ifNode(reviewFailed, () =>
-        p({ class: 'notice error', role: 'alert' }, function* () {
-          return (yield* t()).queueFailed;
-        }),
+        section('ReviewQueueError', { class: 'notice error', role: 'alert' }, [
+          span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
+          div({ class: 'error-copy' }, [
+            strong(function* () {
+              return (yield* t()).queueErrorTitle;
+            }),
+            p(function* () {
+              return (yield* t()).queueFailed;
+            }),
+          ]),
+        ]),
       ),
       ifNode(decisionFailed, () =>
-        p({ class: 'notice error', role: 'alert' }, function* () {
-          return (yield* t()).decisionFailed;
-        }),
+        section(
+          'ReviewDecisionError',
+          { class: 'notice error', role: 'alert' },
+          [
+            span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
+            div({ class: 'error-copy' }, [
+              strong(function* () {
+                return (yield* t()).decisionErrorTitle;
+              }),
+              p(function* () {
+                return (yield* t()).decisionFailed;
+              }),
+            ]),
+          ],
+        ),
       ),
       ifNode(reopenFailed, () =>
-        p({ class: 'notice error', role: 'alert' }, function* () {
-          return (yield* t()).reopenFailed;
-        }),
+        section('ReviewReopenError', { class: 'notice error', role: 'alert' }, [
+          span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
+          div({ class: 'error-copy' }, [
+            strong(function* () {
+              return (yield* t()).reopenErrorTitle;
+            }),
+            p(function* () {
+              return (yield* t()).reopenFailed;
+            }),
+          ]),
+        ]),
       ),
       ifNode(regenerationFailed, () =>
-        p({ class: 'notice error', role: 'alert' }, function* () {
-          return (yield* t()).regenerationFailed;
-        }),
+        section(
+          'ReviewRegenerationError',
+          { class: 'notice error', role: 'alert' },
+          [
+            span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
+            div({ class: 'error-copy' }, [
+              strong(function* () {
+                return (yield* t()).regenerationErrorTitle;
+              }),
+              p(function* () {
+                return (yield* t()).regenerationFailed;
+              }),
+            ]),
+          ],
+        ),
       ),
       ifNode(iterationHandoffFailed, () =>
-        p({ class: 'notice error', role: 'alert' }, function* () {
-          return (yield* t()).iterationHandoffFailed;
-        }),
+        section(
+          'ReviewIterationHandoffError',
+          { class: 'notice error', role: 'alert' },
+          [
+            span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
+            div({ class: 'error-copy' }, [
+              strong(function* () {
+                return (yield* t()).iterationHandoffErrorTitle;
+              }),
+              p(function* () {
+                return (yield* t()).iterationHandoffFailed;
+              }),
+            ]),
+          ],
+        ),
       ),
       ifNode(closeReviewFailed, () =>
-        p({ class: 'notice error', role: 'alert' }, function* () {
-          return (yield* t()).closeReviewFailed;
-        }),
+        section('ReviewCloseError', { class: 'notice error', role: 'alert' }, [
+          span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
+          div({ class: 'error-copy' }, [
+            strong(function* () {
+              return (yield* t()).closeReviewErrorTitle;
+            }),
+            p(function* () {
+              return (yield* t()).closeReviewFailed;
+            }),
+          ]),
+        ]),
       ),
       div(
         {
@@ -1859,14 +1925,22 @@ export const ReviewApp = craftComponent(
                 {
                   track: (card) => card.shape,
                   empty: () =>
-                    div({ class: 'empty-queue' }, [
-                      strong(function* () {
-                        return (yield* t()).reviewComplete;
-                      }),
-                      p(function* () {
-                        return (yield* t()).reviewCompleteBody;
-                      }),
-                    ]),
+                    div(
+                      {
+                        class: 'empty-queue',
+                        // A failed request is not an empty review. Keep the
+                        // completion message from masking the error banner.
+                        hidden: reviewFailed,
+                      },
+                      [
+                        strong(function* () {
+                          return (yield* t()).reviewComplete;
+                        }),
+                        p(function* () {
+                          return (yield* t()).reviewCompleteBody;
+                        }),
+                      ],
+                    ),
                 },
                 (card, index) =>
                   button(
@@ -2404,6 +2478,32 @@ export const ReviewApp = craftComponent(
                         t,
                       }),
                       section(
+                        'ReviewEvidenceError',
+                        {
+                          class: 'notice error review-error',
+                          role: 'alert',
+                          hidden: function* () {
+                            return (
+                              !(yield* inspectFailed()) || !(yield* canReplay())
+                            );
+                          },
+                        },
+                        [
+                          span(
+                            { class: 'error-icon', 'aria-hidden': 'true' },
+                            '!',
+                          ),
+                          div({ class: 'error-copy' }, [
+                            strong(function* () {
+                              return (yield* t()).evidenceErrorTitle;
+                            }),
+                            p(function* () {
+                              return (yield* t()).evidenceError;
+                            }),
+                          ]),
+                        ],
+                      ),
+                      section(
                         {
                           class: 'notice warning',
                           role: 'status',
@@ -2926,7 +3026,7 @@ export const ReviewApp = craftComponent(
                               'data-hint': function* () {
                                 return (yield* t()).hintAccept;
                               },
-                              class: 'primary',
+                              class: ['primary', decisionStyles.primary],
                               'data-hotkey': 'a',
                               disabled: decision.isLoading,
                               *click() {
@@ -2937,7 +3037,7 @@ export const ReviewApp = craftComponent(
                               function* () {
                                 return (yield* t()).accept;
                               },
-                              span({ class: 'key' }, 'A'),
+                              span({ class: ['key', decisionStyles.key] }, 'A'),
                             ],
                           ),
                         ]),

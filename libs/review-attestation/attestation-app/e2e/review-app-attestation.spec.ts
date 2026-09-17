@@ -1,4 +1,5 @@
 import { captureVisualApp } from '@craft-ts/style-testing/visual-app/playwright';
+import { contrastRatio } from '@craft-ts/dev-tools/contrast';
 import { resolve } from 'node:path';
 import { expect, test, type TestInfo } from '@playwright/test';
 import {
@@ -92,6 +93,56 @@ test('keeps decision hints readable when their action is disabled', async ({
       expect(styles.hintColor, `${theme} hint color`).not.toBe(
         'rgba(0, 0, 0, 0)',
       );
+    }
+  } finally {
+    await running.close();
+  }
+});
+
+test('keeps primary decision labels and shortcut keys at WCAG AA contrast', async ({
+  page,
+}) => {
+  const running = await startReviewServer({
+    port: 0,
+    cards: [reviewAppTemplateCard],
+    model: reviewAppHappyPathModel,
+  });
+
+  try {
+    await page.goto(running.url);
+    const accept = page.locator('[data-craft-name="AcceptReviewCard"]');
+    await expect(accept).toBeVisible();
+
+    for (const theme of ['light', 'dark'] as const) {
+      await page.locator('#review-theme').selectOption(theme);
+      const contrast = await accept.evaluate((element) => {
+        const button = element as HTMLElement;
+        const key = button.querySelector('.key');
+        if (!(key instanceof HTMLElement))
+          throw new Error('Shortcut key missing');
+
+        const buttonStyles = getComputedStyle(button);
+        const keyStyles = getComputedStyle(key);
+        return {
+          label: {
+            foreground: buttonStyles.color,
+            background: buttonStyles.backgroundColor,
+          },
+          key: {
+            foreground: keyStyles.color,
+            background: buttonStyles.backgroundColor,
+          },
+        };
+      });
+
+      expect(
+        contrastRatio(contrast.label.foreground, contrast.label.background),
+        `${theme} primary label`,
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrastRatio(contrast.key.foreground, contrast.key.background),
+        `${theme} primary shortcut key`,
+      ).toBeGreaterThanOrEqual(4.5);
     }
   } finally {
     await running.close();
@@ -247,6 +298,56 @@ test('keeps accepted decisions in order and can reopen one', async ({
     await expect(history.nth(0)).toContainText('settings.commit');
   } finally {
     await running.close();
+  }
+});
+
+test('explains queue and decision failures in the interface', async ({
+  page,
+}) => {
+  const queueFailure = await startReviewServer({
+    port: 0,
+    cards: [reviewAppTemplateCard],
+    model: reviewAppHappyPathModel,
+    refreshCards: async () => {
+      throw new Error('ledger is unavailable');
+    },
+  });
+
+  try {
+    await page.goto(queueFailure.url);
+    const queueError = page.locator('[data-craft-name="ReviewQueueError"]');
+    await expect(queueError).toBeVisible();
+    await expect(queueError).toContainText('Review queue unavailable');
+    await expect(queueError).toContainText('Reload the page to retry');
+  } finally {
+    await queueFailure.close();
+  }
+
+  const decisionFailure = await startReviewServer({
+    port: 0,
+    cards: [reviewAppTemplateCard],
+    model: reviewAppHappyPathModel,
+    onDecision: async () => {
+      throw new Error('ledger is read-only');
+    },
+  });
+
+  try {
+    await page.goto(decisionFailure.url);
+    await page.locator('[data-craft-name="AcceptReviewCard"]').click();
+    const decisionError = page.locator(
+      '[data-craft-name="ReviewDecisionError"]',
+    );
+    await expect(decisionError).toBeVisible();
+    await expect(decisionError).toContainText('Decision not saved');
+    await expect(decisionError).toContainText(
+      'The scenario remains in the queue',
+    );
+    await expect(
+      page.locator('[data-craft-name="AcceptReviewCard"]'),
+    ).toBeVisible();
+  } finally {
+    await decisionFailure.close();
   }
 });
 

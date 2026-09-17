@@ -1,11 +1,12 @@
 import {
-  inject,
-  InjectionToken,
+  runInInjectionContext,
+  type Injector,
   signal,
   type Signal,
   type Type,
   type WritableSignal,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import {
   CraftRouter,
   type CraftRouterUrlTreeInput,
@@ -20,19 +21,6 @@ import type {
   CraftRouteTarget,
   CraftRouteTargetInput,
 } from './craft-route-target';
-import {
-  ɵtoCraftService as toCraftService,
-  // These marker symbols are imported type-only so the generated
-  // `CraftGlobalError` helper's inferred type is nameable in this
-  // module's `.d.ts` (otherwise TS4023 — same recipe as `craft-router.ts`).
-  type SERVICE_DEPENDENCY_ACCESS_MARKER,
-  type SERVICE_EXPOSURE_TOKEN_MARKER,
-  type SERVICE_HELPER_DEPENDENCIES,
-  type SERVICE_META_DATA_TYPE,
-  type SERVICE_RUNTIME_META,
-  type SERVICE_YIELD_METADATA,
-  type SERVICE_YIELD_REQUEST_MARKER,
-} from './craft-service';
 
 /**
  * Centralised, typed exception handling for craft routes.
@@ -460,12 +448,23 @@ export type CraftGlobalHandledException = {
  * renders the global error component. Runtime-typed loosely; the typed view is
  * exposed by {@link injectCraftGlobalError}.
  */
-export const CRAFT_GLOBAL_ERROR = new InjectionToken<
-  WritableSignal<AnyCraftException | null>
->('CRAFT_GLOBAL_ERROR', {
-  providedIn: 'root',
-  factory: () => signal<AnyCraftException | null>(null),
-});
+const craftGlobalErrorService = craftService(
+  { name: 'CraftGlobalError', providedIn: 'global' },
+  () => signal<AnyCraftException | null>(null),
+) as unknown as {
+  CraftGlobalError: () => Generator<unknown, Signal<AnyCraftException | null>, unknown>;
+  CRAFT_GLOBAL_ERROR_META_DATA: {
+    inject(): WritableSignal<AnyCraftException | null>;
+  };
+};
+
+export const CraftGlobalError = craftGlobalErrorService.CraftGlobalError;
+export const ɵinjectCraftGlobalError = (): WritableSignal<AnyCraftException | null> =>
+  craftGlobalErrorService.CRAFT_GLOBAL_ERROR_META_DATA.inject();
+export const ɵinjectCraftGlobalErrorIn = (
+  injector: Injector,
+): WritableSignal<AnyCraftException | null> =>
+  runInInjectionContext(injector, () => ɵinjectCraftGlobalError());
 
 /**
  * Reads the exception that routed to the global error component, typed as the
@@ -478,9 +477,7 @@ export const CRAFT_GLOBAL_ERROR = new InjectionToken<
  * ```
  */
 export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
-  return inject(
-    CRAFT_GLOBAL_ERROR,
-  ) as unknown as Signal<CraftGlobalHandledException>;
+  return ɵinjectCraftGlobalError() as unknown as Signal<CraftGlobalHandledException>;
 }
 
 /**
@@ -490,15 +487,6 @@ export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
  * Typed as the exhaustive {@link CraftGlobalHandledException} view, matching
  * {@link injectCraftGlobalError}.
  */
-const craftGlobalErrorService = toCraftService({
-  name: 'CraftGlobalError',
-  providedIn: 'global',
-  inject: (): Signal<CraftGlobalHandledException> =>
-    inject(
-      CRAFT_GLOBAL_ERROR,
-    ) as unknown as Signal<CraftGlobalHandledException>,
-});
-
 /**
  * Generator counterpart to {@link injectCraftGlobalError}. Reads the exception
  * routed to the global error component from inside a `function*` body:
@@ -512,4 +500,3 @@ const craftGlobalErrorService = toCraftService({
  * recorded in {@link CraftGlobalExceptionRegistry} — and it tracks as a
  * `CraftGlobalError` dependency, exactly like the property form.
  */
-export const CraftGlobalError = craftGlobalErrorService.CraftGlobalError;

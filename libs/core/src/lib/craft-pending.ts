@@ -1,11 +1,11 @@
 import {
   inject,
-  InjectionToken,
   LOCALE_ID,
   signal,
   type Provider,
   type Signal,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import {
   craftRouteTarget,
@@ -18,12 +18,12 @@ import {
  * immediately, then runs the route's guard/resolve chain through three phases
  * while it is in flight:
  *
- * 1. **stay** ({@link CRAFT_STAY_MS}) — the PREVIOUS page is kept on screen, so a
+ * 1. **stay** ({@link CraftStayMs}) — the PREVIOUS page is kept on screen, so a
  *    chain that settles quickly transitions straight to the target with no flash;
- * 2. **blank** ({@link CRAFT_BLANK_MS}) — a blank surface, signalling the page is
+ * 2. **blank** ({@link CraftBlankMs}) — a blank surface, signalling the page is
  *    changing;
  * 3. **pending** — the configured pending component (loader), held for at least
- *    {@link CRAFT_PENDING_MIN_MS} to avoid flicker.
+ *    {@link CraftPendingMinMs} to avoid flicker.
  *
  * The target component is mounted only once the chain succeeds.
  *
@@ -56,14 +56,6 @@ function resolveLoadingTextForLocale(locale: string): string {
  * The default reads {@link LOCALE_ID} and picks a built-in translation (English
  * and French shipped; unknown locales fall back to English).
  */
-export const CRAFT_LOADING_TEXT = new InjectionToken<Signal<string>>(
-  'CRAFT_LOADING_TEXT',
-  {
-    providedIn: 'root',
-    factory: () => signal(resolveLoadingTextForLocale(inject(LOCALE_ID))),
-  },
-);
-
 let defaultCraftPendingComponent: CraftRouteTargetInput | undefined;
 
 /**
@@ -87,15 +79,106 @@ function getDefaultCraftPendingComponent(): CraftRouteTargetInput {
 
 /**
  * The component (loader) shown in the **pending** phase — once both
- * {@link CRAFT_STAY_MS} and {@link CRAFT_BLANK_MS} have elapsed and the route's
+ * {@link CraftStayMs} and {@link CraftBlankMs} have elapsed and the route's
  * guard/resolve chain is still in flight. Defaults to
  * {@link DefaultCraftPendingComponent}.
  */
-export const CRAFT_PENDING_COMPONENT =
-  new InjectionToken<CraftRouteTargetInput>('CRAFT_PENDING_COMPONENT', {
-    providedIn: 'root',
-    factory: () => getDefaultCraftPendingComponent(),
-  });
+type PendingService<T> = {
+  provide(value?: T | (() => T)): unknown;
+  inject(): T;
+};
+function pendingService<T>(
+  service: unknown,
+  provideName: string,
+  metadataName: string,
+): PendingService<T> {
+  const api = service as Record<string, unknown>;
+  return {
+    provide: api[provideName] as PendingService<T>['provide'],
+    inject: (api[metadataName] as { inject(): T }).inject,
+  };
+}
+function pendingHelper<T>(service: unknown, name: string): () => Generator<unknown, T, unknown> {
+  return (service as Record<string, unknown>)[name] as () => Generator<unknown, T, unknown>;
+}
+
+const craftLoadingTextService = craftService(
+  { name: 'CraftLoadingText', providedIn: 'toProvide' },
+  (inputs: { $provided?: Signal<string> | (() => Signal<string>) }) => {
+    if (inputs.$provided) {
+      return typeof inputs.$provided === 'function'
+        ? inputs.$provided()
+        : inputs.$provided;
+    }
+    return signal(resolveLoadingTextForLocale(inject(LOCALE_ID)));
+  },
+);
+const craftPendingComponentService = craftService(
+  { name: 'CraftPendingComponent', providedIn: 'toProvide' },
+  (inputs: { $provided?: CraftRouteTargetInput }) =>
+    inputs.$provided ?? getDefaultCraftPendingComponent(),
+);
+const craftStayMsService = craftService(
+  { name: 'CraftStayMs', providedIn: 'toProvide' },
+  (inputs: { $provided?: number }) => inputs.$provided ?? 300,
+);
+const craftBlankMsService = craftService(
+  { name: 'CraftBlankMs', providedIn: 'toProvide' },
+  (inputs: { $provided?: number }) => inputs.$provided ?? 300,
+);
+const craftPendingMinMsService = craftService(
+  { name: 'CraftPendingMinMs', providedIn: 'toProvide' },
+  (inputs: { $provided?: number }) => inputs.$provided ?? 0,
+);
+const craftErrorComponentService = craftService(
+  { name: 'CraftErrorComponent', providedIn: 'toProvide' },
+  (inputs: { $provided?: CraftExceptionComponentDescriptor | null }) =>
+    inputs.$provided ?? null,
+);
+
+const loadingText = pendingService<Signal<string>>(
+  craftLoadingTextService,
+  'provideCraftLoadingText',
+  'CRAFT_LOADING_TEXT_META_DATA',
+);
+const pendingComponent = pendingService<CraftRouteTargetInput>(
+  craftPendingComponentService,
+  'provideCraftPendingComponent',
+  'CRAFT_PENDING_COMPONENT_META_DATA',
+);
+const stayMs = pendingService<number>(craftStayMsService, 'provideCraftStayMs', 'CRAFT_STAY_MS_META_DATA');
+const blankMs = pendingService<number>(craftBlankMsService, 'provideCraftBlankMs', 'CRAFT_BLANK_MS_META_DATA');
+const pendingMinMs = pendingService<number>(craftPendingMinMsService, 'provideCraftPendingMinMs', 'CRAFT_PENDING_MIN_MS_META_DATA');
+const errorComponent = pendingService<CraftExceptionComponentDescriptor | null>(
+  craftErrorComponentService,
+  'provideCraftErrorComponent',
+  'CRAFT_ERROR_COMPONENT_META_DATA',
+);
+
+export const CraftLoadingText = pendingHelper<Signal<string>>(
+  craftLoadingTextService,
+  'CraftLoadingText',
+);
+export const CraftPendingComponent = pendingHelper<CraftRouteTargetInput>(
+  craftPendingComponentService,
+  'CraftPendingComponent',
+);
+export const CraftStayMs = pendingHelper<number>(craftStayMsService, 'CraftStayMs');
+export const CraftBlankMs = pendingHelper<number>(craftBlankMsService, 'CraftBlankMs');
+export const CraftPendingMinMs = pendingHelper<number>(
+  craftPendingMinMsService,
+  'CraftPendingMinMs',
+);
+export const CraftErrorComponent = pendingHelper<CraftExceptionComponentDescriptor | null>(
+  craftErrorComponentService,
+  'CraftErrorComponent',
+);
+export const ɵinjectCraftLoadingText = (): Signal<string> => loadingText.inject();
+export const ɵinjectCraftPendingComponent = (): CraftRouteTargetInput => pendingComponent.inject();
+export const ɵinjectCraftStayMs = (): number => stayMs.inject();
+export const ɵinjectCraftBlankMs = (): number => blankMs.inject();
+export const ɵinjectCraftPendingMinMs = (): number => pendingMinMs.inject();
+export const ɵinjectCraftErrorComponent = (): CraftExceptionComponentDescriptor | null => errorComponent.inject();
 
 /**
  * Phase 1 duration (ms): how long the outlet keeps the **previous page** on
@@ -103,31 +186,19 @@ export const CRAFT_PENDING_COMPONENT =
  * this window transitions straight to the target — no blank, no loader.
  * Defaults to `300`.
  */
-export const CRAFT_STAY_MS = new InjectionToken<number>('CRAFT_STAY_MS', {
-  providedIn: 'root',
-  factory: () => 300,
-});
 
 /**
  * Phase 2 duration (ms): how long the outlet shows a **blank** surface (after
- * {@link CRAFT_STAY_MS}) before showing the pending component (loader). A chain
+ * {@link CraftStayMs}) before showing the pending component (loader). A chain
  * that settles within this window transitions straight to the target without
  * ever flashing the loader. Defaults to `300`.
  */
-export const CRAFT_BLANK_MS = new InjectionToken<number>('CRAFT_BLANK_MS', {
-  providedIn: 'root',
-  factory: () => 300,
-});
 
 /**
  * Phase 3 anti-flicker (ms): once the pending component (loader) is shown, keep
  * it visible for at least this long so a chain that settles right after the
  * loader appears does not blink it in and out. Defaults to `0` (no minimum).
  */
-export const CRAFT_PENDING_MIN_MS = new InjectionToken<number>(
-  'CRAFT_PENDING_MIN_MS',
-  { providedIn: 'root', factory: () => 0 },
-);
 
 /**
  * The application-wide global error component, rendered by the outlet when a
@@ -135,11 +206,6 @@ export const CRAFT_PENDING_MIN_MS = new InjectionToken<number>(
  * via {@link withErrorComponent}; the global error component reads its (typed)
  * exception with `injectCraftGlobalError()`.
  */
-export const CRAFT_ERROR_COMPONENT =
-  new InjectionToken<CraftExceptionComponentDescriptor | null>(
-    'CRAFT_ERROR_COMPONENT',
-    { providedIn: 'root', factory: () => null },
-  );
 
 const CRAFT_LOADING_FEATURE = Symbol('craft-loading-feature');
 
@@ -188,7 +254,7 @@ export function withPendingComponent(
   component: CraftRouteTargetInput,
 ): CraftLoadingFeature {
   return craftLoadingFeature([
-    { provide: CRAFT_PENDING_COMPONENT, useValue: component },
+    pendingComponent.provide(component) as Provider,
   ]);
 }
 
@@ -201,7 +267,7 @@ export function withLoadingText(
   factory: () => Signal<string>,
 ): CraftLoadingFeature {
   return craftLoadingFeature([
-    { provide: CRAFT_LOADING_TEXT, useFactory: factory },
+    loadingText.provide(factory) as Provider,
   ]);
 }
 
@@ -222,18 +288,15 @@ export function withTransitionTimings(thresholds: {
   const providers: Provider[] = [];
 
   if (thresholds.stayMs !== undefined) {
-    providers.push({ provide: CRAFT_STAY_MS, useValue: thresholds.stayMs });
+    providers.push(stayMs.provide(thresholds.stayMs) as Provider);
   }
 
   if (thresholds.blankMs !== undefined) {
-    providers.push({ provide: CRAFT_BLANK_MS, useValue: thresholds.blankMs });
+    providers.push(blankMs.provide(thresholds.blankMs) as Provider);
   }
 
   if (thresholds.pendingMinMs !== undefined) {
-    providers.push({
-      provide: CRAFT_PENDING_MIN_MS,
-      useValue: thresholds.pendingMinMs,
-    });
+    providers.push(pendingMinMs.provide(thresholds.pendingMinMs) as Provider);
   }
 
   return craftLoadingFeature(providers);
@@ -244,7 +307,7 @@ export function withErrorComponent(
   component: CraftExceptionComponentDescriptor,
 ): CraftLoadingFeature {
   return craftLoadingFeature([
-    { provide: CRAFT_ERROR_COMPONENT, useValue: component },
+    errorComponent.provide(component) as Provider,
   ]);
 }
 

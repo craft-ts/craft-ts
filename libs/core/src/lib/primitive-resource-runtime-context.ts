@@ -1,9 +1,9 @@
 import {
   inject,
-  InjectionToken,
   type Provider,
   type Signal,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
 
 export type PrimitiveResourceRuntimeKind =
@@ -57,29 +57,40 @@ type ResourceByIdTarget = Readonly<{
 }> &
   (() => Record<string, WritableResourceTarget | undefined>);
 
-const PRIMITIVE_RESOURCE_RUNTIME_OBSERVER = new InjectionToken<
-  readonly PrimitiveResourceRuntimeObserver[]
->('PRIMITIVE_RESOURCE_RUNTIME_OBSERVER', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+const primitiveResourceObserverService = craftService(
+  { name: 'PrimitiveResourceRuntimeObservers', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: PrimitiveResourceRuntimeObserver }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  providePrimitiveResourceRuntimeObservers: (
+    value?: PrimitiveResourceRuntimeObserver,
+  ) => unknown;
+  PRIMITIVE_RESOURCE_RUNTIME_OBSERVERS_META_DATA: {
+    inject(): readonly PrimitiveResourceRuntimeObserver[];
+  };
+};
+
+const injectPrimitiveResourceObservers = (): readonly PrimitiveResourceRuntimeObserver[] => {
+  try {
+    return primitiveResourceObserverService.PRIMITIVE_RESOURCE_RUNTIME_OBSERVERS_META_DATA.inject();
+  } catch {
+    return [];
+  }
+};
 
 export function providePrimitiveResourceRuntimeObserver(
   observer: PrimitiveResourceRuntimeObserver,
 ): Provider {
-  return {
-    provide: PRIMITIVE_RESOURCE_RUNTIME_OBSERVER,
-    useValue: observer,
-    multi: true,
-  };
+  return primitiveResourceObserverService.providePrimitiveResourceRuntimeObservers(
+    observer,
+  ) as Provider;
 }
 
 export function ɵobservePrimitiveResourceRuntimeContext(
   context: PrimitiveResourceRuntimeContext,
   name?: string,
 ): void {
-  for (const observer of inject(PRIMITIVE_RESOURCE_RUNTIME_OBSERVER)) {
+  for (const observer of injectPrimitiveResourceObservers()) {
     observer(context);
   }
 

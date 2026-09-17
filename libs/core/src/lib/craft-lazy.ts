@@ -1,4 +1,3 @@
-import { inject } from './host/craft-compat';
 import { craftException } from './craft-exception';
 import { craftGen, type CraftGenInvocation } from './craft-gen';
 import {
@@ -7,8 +6,8 @@ import {
 } from './craft-generator-runtime';
 import {
   createRetryLazyLoadHelpers,
-  CRAFT_DYNAMIC_IMPORT,
-  CRAFT_LAZY_LOAD_RETRY,
+  ɵinjectCraftDynamicImport,
+  ɵinjectCraftLazyLoadRetry,
   INITIAL_LAZY_LOAD_HELPERS,
   type CraftLazyLoadHelpers,
   type CraftLoadRetry,
@@ -52,8 +51,8 @@ function injectLazyLoad(): <T>(
     | undefined;
   try {
     deps = {
-      retry: inject(CRAFT_LAZY_LOAD_RETRY),
-      dynamicImport: inject(CRAFT_DYNAMIC_IMPORT),
+      retry: ɵinjectCraftLazyLoadRetry(),
+      dynamicImport: ɵinjectCraftDynamicImport(),
     };
   } catch {
     // No injection context — keep the loader's original single-attempt semantics.

@@ -103,16 +103,20 @@ export {
 } from './lib/craft-state-machine-runtime';
 export * from './lib/craft-effect';
 export * from './lib/craft-service';
+export {
+  ComponentRegister,
+  createComponentRegister,
+  provideComponentRegister,
+  ɵfallbackComponentRegister,
+  ɵinjectComponentRegister,
+} from './lib/component-register';
 export * from './lib/dev-tools';
 export {
-  craftToken,
   createCraftInjector,
   getCurrentCraftInjector,
   ɵcreateCraftInjectorFromHost,
-  ɵregisterCraftTokenHostToken,
   type CraftInjector,
   type CraftProvider,
-  type CraftToken,
 } from './lib/host/craft-injector';
 export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
 // The DI and reactivity surface an application authors against. These are
@@ -120,7 +124,6 @@ export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
 // teardown hook and a way to run something at startup, whatever renders it.
 export {
   DestroyRef,
-  InjectionToken,
   provideAppInitializer,
   signal as craftSignal,
   untracked as craftUntracked,
@@ -141,7 +144,6 @@ export {
   getCraftRootDefaultProviders as ɵgetCraftRootDefaultProviders,
   DestroyRef as ɵDestroyRef,
   Injector as ɵInjector,
-  InjectionToken as ɵInjectionToken,
   ɵsetCraftDevMode,
   ɵsetCraftHostInjectorRunner,
   ɵsetCraftInjectFallback,
@@ -160,7 +162,6 @@ export {
 export type {
   EffectRef as ɵEffectRef,
   Provider as ɵProvider,
-  ProviderToken as ɵProviderToken,
 } from './lib/host/craft-compat';
 export {
   CRAFT_SIGNAL as ɵCRAFT_SIGNAL,
@@ -182,16 +183,24 @@ export {
   parseUrl,
   serializeLocation,
   type CraftCompiledRoute,
-  type CraftHistory,
-  type CraftLocation,
-  type CraftMatch,
 } from './lib/host/craft-router-runtime';
 export {
-  CRAFT_COMPILED_ROUTES,
-  CRAFT_HISTORY,
-  CRAFT_LOCATION,
-  CRAFT_MATCH,
-  CRAFT_ROUTER,
+  CraftCompiledRoutes,
+  provideCraftCompiledRoutes,
+  CraftHistory,
+  provideCraftHistory,
+  CraftLocation,
+  provideCraftLocation,
+  CraftMatch,
+  provideCraftMatch,
+  CraftRouterRuntime,
+  provideCraftRouterRuntimeValue,
+  ɵinjectCraftHistory,
+  ɵinjectCraftLocation,
+  ɵinjectCraftMatch,
+  ɵinjectCraftChildMatch,
+  ɵinjectCraftCompiledRoutes,
+  ɵinjectCraftRouterRuntime,
 } from './lib/craft-router-tokens';
 export * from './lib/craft-primitive-gen';
 export * from './lib/craft-use';
@@ -202,7 +211,7 @@ export {
   DEEP_YIELDABLE_PROPERTY_INSERTION,
   DEEP_YIELDABLE_VALUE_INSERTION,
   REACTIVE_DEPENDENCIES,
-  REACTIVE_READ_OBSERVERS,
+  ReactiveReadObservers,
   REACTIVE_READ_REQUEST,
   REACTIVE_VALUE_TYPE,
   RAW_REACTIVE_VALUE as ɵRAW_REACTIVE_VALUE,
@@ -274,7 +283,6 @@ export {
 } from './lib/craft-generator-runtime';
 export {
   provideServiceYieldWrapper,
-  SERVICE_YIELD_WRAPPER,
   // Synchronous counterpart of the foreign-yield bridge below: a claimed yield
   // is answered in place, which is the only thing a synchronous host can use.
   setForeignSyncYieldBridge,
@@ -319,7 +327,7 @@ export * from './lib/branded-component/branded-component';
 export * from './lib/craft-app-config';
 export * from './lib/craft-router';
 export * from './lib/craft-activated-route';
-export { ActivatedRoute } from './lib/host/craft-router-types';
+export type { ActivatedRoute } from './lib/host/craft-router-types';
 export * from './lib/craft-routes';
 export * from './lib/craft-resolve';
 export * from './lib/craft-route-exceptions';

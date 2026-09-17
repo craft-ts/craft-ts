@@ -23,7 +23,7 @@ import type {
   CraftSettledBrand,
   ExtractCraftPendingSources,
 } from './craft-settled';
-import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
 import {
   createYieldableReactiveValue,
   REACTIVE_DEPENDENCIES,
@@ -171,7 +171,7 @@ export function craftComputed<T>(
   // there is nothing to capture, mirror or re-publish.
   const result = createComputedWithOptions(evaluate, options) as Signal<T>;
 
-  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+  const registry = ɵinjectAppSnapshotRegistry();
   if (registry) {
     const sig = result;
     const from = computedInjector.get(ɵHOST_TAG_LIST, null) ?? [];

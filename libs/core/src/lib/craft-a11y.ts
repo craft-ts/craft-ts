@@ -1,17 +1,33 @@
-import { InjectionToken } from './host/craft-compat';
+import { craftService } from './craft-service';
+import type { Provider } from './host/craft-compat';
 import { TitleStrategy, type RouterStateSnapshot } from './host/craft-router-types';
 import { ɵapplyBrowserDocumentTitle } from './browser-boundaries';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
-import { craftToken } from './host/craft-injector';
 
 /**
  * When true, {@link CraftRouterOutletController} moves keyboard focus to
  * `#main` / `<main>` after a completed navigation (not the initial load).
  */
-export const CRAFT_A11Y_NAVIGATION_FOCUS = new InjectionToken<boolean>(
-  'CRAFT_A11Y_NAVIGATION_FOCUS',
-  { providedIn: 'root', factory: () => false },
-);
+const craftA11yNavigationFocusService = craftService(
+  { name: 'CraftA11yNavigationFocus', providedIn: 'manuallyProvidedAtRoot' },
+  (inputs: { $provided?: boolean }) => inputs.$provided ?? false,
+) as unknown as {
+  CraftA11yNavigationFocus: () => Generator<unknown, boolean, unknown>;
+  provideCraftA11yNavigationFocus: (value: boolean) => Provider;
+  CRAFT_A11Y_NAVIGATION_FOCUS_META_DATA: { inject(): boolean };
+};
+
+export const CraftA11yNavigationFocus =
+  craftA11yNavigationFocusService.CraftA11yNavigationFocus;
+export const provideCraftA11yNavigationFocus = (value: boolean): Provider =>
+  craftA11yNavigationFocusService.provideCraftA11yNavigationFocus(value);
+export const ɵinjectCraftA11yNavigationFocus = (): boolean => {
+  try {
+    return craftA11yNavigationFocusService.CRAFT_A11Y_NAVIGATION_FOCUS_META_DATA.inject();
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Opt-in: after each in-app navigation, focus the page `<main>` so keyboard
@@ -20,7 +36,7 @@ export const CRAFT_A11Y_NAVIGATION_FOCUS = new InjectionToken<boolean>(
  */
 export function withA11yNavigationFocus(): CraftLoadingFeature {
   return craftLoadingFeature([
-    { provide: CRAFT_A11Y_NAVIGATION_FOCUS, useValue: true },
+    provideCraftA11yNavigationFocus(true),
   ]);
 }
 
@@ -30,8 +46,17 @@ export function withA11yNavigationFocus(): CraftLoadingFeature {
  */
 export type CraftTitleStrategy = TitleStrategy;
 
-export const CRAFT_TITLE_STRATEGY =
-  craftToken<CraftTitleStrategy>('CraftTitleStrategy');
+const craftTitleStrategyService = craftService(
+  { name: 'CraftTitleStrategy', providedIn: 'global' },
+  () => createCraftTitleStrategy(),
+) as unknown as {
+  CraftTitleStrategy: () => Generator<unknown, CraftTitleStrategy, unknown>;
+  CRAFT_TITLE_STRATEGY_META_DATA: { inject(): CraftTitleStrategy };
+};
+
+export const CraftTitleStrategy = craftTitleStrategyService.CraftTitleStrategy;
+export const ɵinjectCraftTitleStrategy = (): CraftTitleStrategy =>
+  craftTitleStrategyService.CRAFT_TITLE_STRATEGY_META_DATA.inject();
 
 export function createCraftTitleStrategy(): CraftTitleStrategy {
   return new (class extends TitleStrategy {

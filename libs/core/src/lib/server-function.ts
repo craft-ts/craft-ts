@@ -6,7 +6,7 @@ import {
 } from './server-function-contract';
 import type {
   ServerFunctionPipe,
-  ServerFunctionToken,
+  ServerFunctionDependency,
 } from './client-di-requirement';
 import {
   collectMiddlewareClientContextSchemas,
@@ -34,7 +34,7 @@ import { provideCraftRequestContexts } from './craft-request-context';
 
 /** Résout un token dans le DI **du serveur**, via le `runtime` du registre. */
 export type ServerFunctionRequired = <Value>(
-  token: ServerFunctionToken<Value>,
+  token: ServerFunctionDependency<Value>,
 ) => Value;
 
 type ContractClientContextSchemas<
@@ -244,7 +244,7 @@ export function requiresClientContext(
 }
 
 export type ServerFunctionRuntime = {
-  readonly resolve?: <Value>(token: ServerFunctionToken<Value>) => Value;
+  readonly resolve?: <Value>(dependency: ServerFunctionDependency<Value>) => Value;
   readonly signal?: AbortSignal;
   readonly requestId?: string;
 };

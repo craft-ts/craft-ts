@@ -17,6 +17,7 @@ import {
   initialTheme,
 } from './preferences';
 import './styles.css';
+import 'virtual:craft-style.css';
 
 const developmentProviders = import.meta.env.DEV
   ? [provideSendContextToAi()]

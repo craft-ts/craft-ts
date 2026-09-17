@@ -1,44 +1,17 @@
-import { ActivatedRoute } from './host/craft-router-types';
-import {
-  ɵtoCraftService as toCraftService,
-  type SERVICE_HELPER_DEPENDENCIES,
-  type ServiceYieldRequest,
-  type ServiceTrackingMetadata,
-} from './craft-service';
+import type { ActivatedRoute } from './host/craft-router-types';
+import { craftService, type CraftServiceProvider } from './craft-service';
 
-type CraftActivatedRouteTrackingMetadata = ServiceTrackingMetadata<
-  'CraftActivatedRoute',
-  'global',
-  ActivatedRoute,
-  never,
-  undefined,
-  never,
-  false
->;
-
-type CraftActivatedRouteTrackedHelper = {
-  readonly [SERVICE_HELPER_DEPENDENCIES]?: CraftActivatedRouteTrackingMetadata;
-};
-
-type CraftActivatedRouteYieldRequest = ServiceYieldRequest<
-  'global',
-  ActivatedRoute,
-  CraftActivatedRouteTrackingMetadata
->;
-
-type CraftActivatedRouteHelper = CraftActivatedRouteTrackedHelper & {
-  (): Generator<CraftActivatedRouteYieldRequest, ActivatedRoute, unknown>;
-};
-
-// Keep the internal `toCraftService` type out of the public declaration. Its
-// runtime helper contains private symbol markers that TypeScript cannot emit
-// from this package boundary.
-const craftActivatedRouteService = toCraftService({
-  name: 'CraftActivatedRoute',
-  providedIn: 'global',
-  token: ActivatedRoute,
-}) as unknown as {
-  CraftActivatedRoute: CraftActivatedRouteHelper;
+const craftActivatedRouteService = craftService(
+  { name: 'CraftActivatedRoute', providedIn: 'toProvide' },
+  (inputs: { $provided?: ActivatedRoute | (() => ActivatedRoute) }) =>
+    typeof inputs.$provided === 'function'
+      ? inputs.$provided()
+      : inputs.$provided,
+) as unknown as {
+  CraftActivatedRoute: () => Generator<unknown, ActivatedRoute, unknown>;
+  provideCraftActivatedRoute: (
+    value: ActivatedRoute | (() => ActivatedRoute),
+  ) => CraftServiceProvider;
 };
 
 /**
@@ -51,3 +24,6 @@ const craftActivatedRouteService = toCraftService({
  */
 export const CraftActivatedRoute =
   craftActivatedRouteService.CraftActivatedRoute;
+export const provideCraftActivatedRoute = (
+  value: ActivatedRoute | (() => ActivatedRoute),
+): CraftServiceProvider => craftActivatedRouteService.provideCraftActivatedRoute(value);

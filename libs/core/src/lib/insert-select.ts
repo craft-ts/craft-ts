@@ -14,7 +14,8 @@ import { MergeObject } from './util/types/util.type';
 import { FilterSource, IsEmptyObject } from './util/util.type';
 import { capitalize, isSource } from './util/util';
 import {
-  INSERTION_SNAPSHOT_REGISTRY,
+  provideInsertionSnapshotRegistry,
+  ɵinjectInsertionSnapshotRegistry,
   snapshotSelectProxy,
 } from './take-app-snapshot';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
@@ -211,13 +212,11 @@ function createInsertSelectItemRuntime(
       insertions: previousInsertions,
       __primitiveKind: primitiveKind = 'state',
     } = context;
-    const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, {
-      optional: true,
-    });
+    const insertionSnapshotRegistry = ɵinjectInsertionSnapshotRegistry();
     const injector = ɵcreateHostTaggedInjector(
       inject(Injector),
       `selectEntity:${entityName}`,
-      [{ provide: INSERTION_SNAPSHOT_REGISTRY, useValue: null }],
+      [provideInsertionSnapshotRegistry(null)],
     );
     const selectItemMethodName = `select${capitalize(entityName)}`;
     const selectedStateById = new Map<number, unknown>();
@@ -565,13 +564,11 @@ function createInsertSelectPropertyRuntime(
       insertions: previousInsertions,
       __primitiveKind: primitiveKind = 'state',
     } = context;
-    const insertionSnapshotRegistry = inject(INSERTION_SNAPSHOT_REGISTRY, {
-      optional: true,
-    });
+    const insertionSnapshotRegistry = ɵinjectInsertionSnapshotRegistry();
     const injector = ɵcreateHostTaggedInjector(
       inject(Injector),
       `selectProperty:${propertyKey}`,
-      [{ provide: INSERTION_SNAPSHOT_REGISTRY, useValue: null }],
+      [provideInsertionSnapshotRegistry(null)],
     );
     let selectedPropertyProxy: unknown;
     const crossLayerSourcesByKey = new Map<string, SourceDollarType<unknown>>();

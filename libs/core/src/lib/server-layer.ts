@@ -3,7 +3,7 @@ import {
   type MiddlewareContext,
   type OverwriteContext,
 } from './middleware-schema-shared';
-import type { ServerFunctionToken } from './client-di-requirement';
+import type { ServerFunctionDependency } from './client-di-requirement';
 
 /**
  * Composition des server functions portables — la contrepartie générique de
@@ -108,7 +108,7 @@ export type ServerLayerRunContext<
    */
   readonly next: ServerLayerNext;
   /** Résout une dépendance dans le runtime serveur de la server function. */
-  readonly resolve: <Value>(token: ServerFunctionToken<Value>) => Value;
+  readonly resolve: <Value>(dependency: ServerFunctionDependency<Value>) => Value;
 };
 
 export type ServerLayerRun = (
@@ -316,7 +316,7 @@ export function runServerChain(
     readonly clientContext: MiddlewareContext;
   },
   handler: (context: MiddlewareContext) => unknown,
-  resolve: <Value>(token: ServerFunctionToken<Value>) => Value,
+  resolve: <Value>(dependency: ServerFunctionDependency<Value>) => Value,
 ): unknown {
   const step = (index: number, context: MiddlewareContext): unknown => {
     const current = steps[index];

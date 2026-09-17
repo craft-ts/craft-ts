@@ -5,39 +5,6 @@ export * from './lib/ai/ai-send-context-launcher';
 export * from './lib/ai/send-context-prompt';
 export * from './lib/ai/send-context-ui.tokens';
 export * from './lib/ai/send-context-to-ai';
-export {
-  SEND_CONTEXT_EVENT_ENRICHER,
-  SEND_CONTEXT_EVENT_FILTER,
-  SEND_CONTEXT_EVENT_SOURCE,
-  SEND_CONTEXT_RECORD_CONTROLLER,
-  SEND_CONTEXT_REDACTOR,
-  SEND_CONTEXT_RETENTION_POLICY,
-  SEND_CONTEXT_SESSION,
-  SEND_CONTEXT_VALUE_SERIALIZER,
-  createSendContextRecordController,
-  createSendContextSession,
-  provideSendContextEventEnricher,
-  provideSendContextEventFilter,
-  provideSendContextEventSource,
-  provideSendContextSession,
-} from '@craft-ts/core';
-export type {
-  SendContextClip,
-  SendContextEvent,
-  SendContextEventEnricher,
-  SendContextEventFilter,
-  SendContextEventKind,
-  SendContextEventPhase,
-  SendContextEventSource,
-  SendContextRecordController,
-  SendContextRedactor,
-  SendContextRetentionPolicy,
-  SendContextSession,
-  SendContextSessionSnapshot,
-  SendContextTarget,
-  SendContextValueContext,
-  SendContextValueSerializer,
-} from '@craft-ts/core';
 export * from './lib/assert-defined-input';
 export * from './lib/bridge';
 export { bootstrapCraft, type CraftAppRef } from './lib/bootstrap';
@@ -47,8 +14,7 @@ export * from './lib/start';
 export * from './lib/render/hydration';
 export { createStringDomAdapter } from './lib/render/string-dom';
 // Registers Craft's default pending loader and lazy-route recovery host.
-// Side-effect only: nothing needs to name them, the router resolves them
-// through CRAFT_PENDING_COMPONENT / CRAFT_ROUTE_LOAD_ERROR_COMPONENT.
+// Side-effect only: the router resolves them through the generated services.
 import './lib/craft-defaults';
 export * from './lib/component';
 export * from './lib/css-vars';

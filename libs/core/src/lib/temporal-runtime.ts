@@ -1,9 +1,8 @@
 import {
   DestroyRef,
-  InjectionToken,
   inject,
-  type Provider,
 } from './host/craft-compat';
+import { craftService, type CraftServiceProvider } from './craft-service';
 
 export const TEMPORAL_AWAIT_REQUEST_MARKER = Symbol(
   'temporal-await-request-marker',
@@ -193,19 +192,30 @@ function normalizeMaxAttempts(value: number | undefined): number {
   return maxAttempts;
 }
 
-export const CRAFT_TEMPORAL_RUNTIME = new InjectionToken<CraftTemporalRuntime>(
-  'CRAFT_TEMPORAL_RUNTIME',
-  {
-    providedIn: 'root',
-    factory: () => new RealCraftTemporalRuntime(),
-  },
-);
-
 export function provideCraftTemporalRuntime(
   runtime: CraftTemporalRuntime,
-): Provider {
-  return { provide: CRAFT_TEMPORAL_RUNTIME, useValue: runtime };
+): CraftServiceProvider {
+  return craftTemporalRuntimeService.provideCraftTemporalRuntime(runtime);
 }
+
+const craftTemporalRuntimeService = craftService(
+  { name: 'CraftTemporalRuntime', providedIn: 'toProvide' },
+  (inputs: { $provided?: CraftTemporalRuntime }) =>
+    inputs.$provided ?? new RealCraftTemporalRuntime(),
+) as unknown as {
+  CraftTemporalRuntime: () => Generator<unknown, CraftTemporalRuntime, unknown>;
+  provideCraftTemporalRuntime: (value: CraftTemporalRuntime) => CraftServiceProvider;
+  CRAFT_TEMPORAL_RUNTIME_META_DATA: { inject(): CraftTemporalRuntime };
+};
+
+export const CraftTemporalRuntime = craftTemporalRuntimeService.CraftTemporalRuntime;
+export const ɵinjectCraftTemporalRuntime = (): CraftTemporalRuntime => {
+  try {
+    return craftTemporalRuntimeService.CRAFT_TEMPORAL_RUNTIME_META_DATA.inject();
+  } catch {
+    return new RealCraftTemporalRuntime();
+  }
+};
 
 export class CraftTimeoutError extends Error {
   readonly timeoutMs: number;
@@ -258,11 +268,7 @@ export function withCraftTimeout<T>(
 }
 
 function tryInjectTemporalRuntime(): CraftTemporalRuntime | undefined {
-  try {
-    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? undefined;
-  } catch {
-    return undefined;
-  }
+  return ɵinjectCraftTemporalRuntime();
 }
 
 class TemporalTask implements TemporalTaskHandle {

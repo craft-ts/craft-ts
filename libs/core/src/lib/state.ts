@@ -43,9 +43,10 @@ import type {
   ServiceDependencyMapFromYielded,
 } from './craft-service';
 import {
-  APP_SNAPSHOT_REGISTRY,
-  INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
+  provideInsertionSnapshotRegistry,
+  ɵinjectAppSnapshotRegistry,
+  ɵinjectAppSnapshotRegistryIn,
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import { Source$ as SourceDollarType } from './source$';
@@ -551,10 +552,7 @@ function createStateRef<StateType>(
   let injector: Injector | undefined;
   const getInjector = () => {
     injector ??= ɵcreateHostTaggedInjector(getBaseInjector(), `state:${name}`, [
-      {
-        provide: INSERTION_SNAPSHOT_REGISTRY,
-        useValue: insertionSnapshotRegistry,
-      },
+      provideInsertionSnapshotRegistry(insertionSnapshotRegistry),
       ...extraProviders,
     ]);
     return injector;
@@ -871,10 +869,10 @@ function createStateRef<StateType>(
   }
 
   const snapshotRegistry = injector
-    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    ? ɵinjectAppSnapshotRegistryIn(injector)
     : (() => {
         try {
-          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+          return ɵinjectAppSnapshotRegistry();
         } catch {
           return null;
         }

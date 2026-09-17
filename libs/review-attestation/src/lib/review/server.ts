@@ -21,6 +21,7 @@ import {
   type ReviewIterationOptions,
   type ReviewIterationResult,
 } from './handoff.js';
+import { craftStyle } from '@craft-ts/style/vite';
 
 export type AttestationReviewCard =
   | ReviewCard
@@ -344,6 +345,7 @@ export async function startReviewServer(
   const vite = await createViteServer({
     root: appRoot,
     appType: 'spa',
+    plugins: [craftStyle({ alias: workspaceAliases })],
     // The review server is a standalone, deterministic HTTP boundary. Vite's
     // middleware-mode default creates a second HMR WebSocket listener on
     // port 24678, which can collide with a developer's running app and leak

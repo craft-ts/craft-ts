@@ -33,6 +33,22 @@
       ],
       "cache": true
     },
+    "style-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/review-attestation/attestation-app",
+        "command": "npx vite build --config vite.config.ts --mode development && npx vitest run --config vitest.contrast.config.ts"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/vite.config.ts",
+        "{projectRoot}/src/**/*.ts",
+        "{projectRoot}/src/**/*.css",
+        "{workspaceRoot}/libs/style/src/**/*.ts",
+        "{workspaceRoot}/libs/dev-tools/src/scripts/**/*.ts"
+      ],
+      "cache": false
+    },
     "architecture": {
       "executor": "nx:run-commands",
       "options": {

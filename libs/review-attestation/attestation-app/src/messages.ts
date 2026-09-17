@@ -141,22 +141,31 @@ const en = {
   queueLabel: 'Review queue',
   reviewComplete: 'Review complete',
   reviewCompleteBody: 'Every decision in this session has been recorded.',
+  queueErrorTitle: 'Review queue unavailable',
   queueFailed:
     'The review queue could not be loaded. Reload the page to retry.',
+  decisionErrorTitle: 'Decision not saved',
   decisionFailed:
     'The decision was not saved. The scenario remains in the queue.',
+  reopenErrorTitle: 'Decision could not be reopened',
   reopenFailed:
     'The accepted decision could not be reopened. The queue was not changed.',
   regenerateEvidence: 'Regenerate all evidence',
   regeneratingEvidence: 'Regenerating evidence…',
+  regenerationErrorTitle: 'Evidence regeneration failed',
   regenerationFailed:
     'Evidence regeneration failed. The existing queue and decisions were preserved.',
   iterationHandoff: 'Prepare Codex iteration',
   iterationHandoffGenerating: 'Preparing Codex handoff…',
+  iterationHandoffErrorTitle: 'Codex handoff unavailable',
   iterationHandoffFailed:
     'The Codex handoff could not be generated. Review comments were not changed.',
+  closeReviewErrorTitle: 'Review could not be closed',
   closeReviewFailed:
     'The review application could not be closed. The prompt is still available here.',
+  evidenceErrorTitle: 'Evidence verification unavailable',
+  evidenceError:
+    'The captured page could not be checked against its digest. Review the screenshot and decide only if you can verify it manually.',
   iterationModalEyebrow: 'Next code iteration',
   iterationModalTitle: 'Prepare the Codex iteration?',
   iterationModalDescription: (rejected: number) =>
@@ -453,22 +462,31 @@ const fr: Messages = {
   reviewComplete: 'Revue terminée',
   reviewCompleteBody:
     'Toutes les décisions de cette session ont été enregistrées.',
+  queueErrorTitle: "File d'attente indisponible",
   queueFailed:
     "La file d'attente n'a pas pu être chargée. Rechargez la page pour réessayer.",
+  decisionErrorTitle: 'Décision non enregistrée',
   decisionFailed:
     "La décision n'a pas été enregistrée. Le scénario reste dans la file.",
+  reopenErrorTitle: 'Réouverture impossible',
   reopenFailed:
     "La décision acceptée n'a pas pu être rouverte. La file n'a pas changé.",
   regenerateEvidence: 'Tout régénérer',
   regeneratingEvidence: 'Régénération en cours…',
+  regenerationErrorTitle: 'Échec de la régénération des preuves',
   regenerationFailed:
     'La régénération des preuves a échoué. La file existante et les décisions ont été conservées.',
   iterationHandoff: "Préparer l'itération Codex",
   iterationHandoffGenerating: 'Préparation du handoff Codex…',
+  iterationHandoffErrorTitle: 'Handoff Codex indisponible',
   iterationHandoffFailed:
     "Le handoff Codex n'a pas pu être généré. Les commentaires de review n'ont pas été modifiés.",
+  closeReviewErrorTitle: 'Fermeture de la review impossible',
   closeReviewFailed:
     "L'application de review n'a pas pu être fermée. Le prompt reste disponible ici.",
+  evidenceErrorTitle: 'Vérification de la preuve indisponible',
+  evidenceError:
+    "La page capturée n'a pas pu être comparée à son digest. Vérifiez la capture et ne décidez que si vous pouvez la contrôler manuellement.",
   iterationModalEyebrow: 'Prochaine itération du code',
   iterationModalTitle: "Préparer l'itération Codex ?",
   iterationModalDescription: (rejected) =>

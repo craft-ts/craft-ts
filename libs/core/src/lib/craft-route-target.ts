@@ -1,4 +1,8 @@
-import { InjectionToken } from './host/craft-compat';
+import {
+  runInInjectionContext,
+  type Injector,
+} from './host/craft-compat';
+import { craftService, type CraftServiceProvider } from './craft-service';
 
 /**
  * What a route mounts. Everything Craft renders is a Craft component, so the
@@ -18,10 +22,42 @@ export type CraftRouteTarget = {
 export type CraftRouteTargetInput = object | CraftRouteTarget;
 
 /** Route-scoped target consumed by `CraftRouterOutletController`. */
-export const CRAFT_ROUTE_TARGET = new InjectionToken<CraftRouteTarget | null>(
-  'CRAFT_ROUTE_TARGET',
-  { providedIn: 'root', factory: () => null },
-);
+const craftRouteTargetService = craftService(
+  { name: 'CraftRouteTarget', providedIn: 'toProvide' },
+  (inputs: {
+    $provided?: CraftRouteTarget | null | (() => CraftRouteTarget | null);
+  }) => {
+    if (typeof inputs.$provided === 'function') {
+      return inputs.$provided();
+    }
+    return inputs.$provided ?? null;
+  },
+) as unknown as {
+  CraftRouteTarget: () => Generator<unknown, CraftRouteTarget | null, unknown>;
+  provideCraftRouteTarget: (
+    value: CraftRouteTarget | null | (() => CraftRouteTarget | null),
+  ) => CraftServiceProvider;
+  CRAFT_ROUTE_TARGET_META_DATA: { inject(): CraftRouteTarget | null };
+};
+
+export const CraftRouteTarget = craftRouteTargetService.CraftRouteTarget;
+export const provideCraftRouteTarget = (
+  value: CraftRouteTarget | null | (() => CraftRouteTarget | null),
+): CraftServiceProvider => craftRouteTargetService.provideCraftRouteTarget(value);
+
+export function ɵinjectCraftRouteTarget(): CraftRouteTarget | null {
+  try {
+    return craftRouteTargetService.CRAFT_ROUTE_TARGET_META_DATA.inject();
+  } catch {
+    return null;
+  }
+}
+
+export function ɵinjectCraftRouteTargetIn(
+  injector: Injector,
+): CraftRouteTarget | null {
+  return runInInjectionContext(injector, () => ɵinjectCraftRouteTarget());
+}
 
 export function craftRouteTarget(component: unknown): CraftRouteTarget {
   return { kind: 'craft', component };

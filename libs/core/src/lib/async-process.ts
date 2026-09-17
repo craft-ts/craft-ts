@@ -55,7 +55,7 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
-import { CORRELATION_ID_SERVICE } from './correlation-id';
+import { ɵinjectCorrelationIdServiceIn } from './correlation-id';
 import {
   createNamedPrimitiveGen,
   type CraftPrimitiveGen,
@@ -72,10 +72,11 @@ import {
   useSchemaValidationPolicy,
 } from './schema-validation';
 import {
-  APP_SNAPSHOT_REGISTRY,
-  INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
-  TAKE_APP_SNAPSHOT,
+  provideInsertionSnapshotRegistry,
+  ɵinjectAppSnapshotRegistry,
+  ɵinjectAppSnapshotRegistryIn,
+  ɵinjectTakeAppSnapshotIn,
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import {
@@ -1045,10 +1046,7 @@ function createAsyncProcessRef<
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const asyncExtraProviders = [
-    {
-      provide: INSERTION_SNAPSHOT_REGISTRY,
-      useValue: insertionSnapshotRegistry,
-    },
+    provideInsertionSnapshotRegistry(insertionSnapshotRegistry),
     ...(AsyncProcessConfig.providers ?? []),
   ];
   let injector: Injector | undefined;
@@ -1292,7 +1290,7 @@ function createAsyncProcessRef<
     'loader' in AsyncProcessConfig && AsyncProcessConfig.loader
       ? ((async (param: ResourceLoaderParams<any>) => {
           const injector = getInjector();
-          const correlationSvc = injector.get(CORRELATION_ID_SERVICE, null);
+          const correlationSvc = ɵinjectCorrelationIdServiceIn(injector);
           const operationId = correlationSvc?.lastCorrelationId() ?? null;
           if (operationId) correlationSvc?.startOperation(operationId);
 
@@ -1368,7 +1366,7 @@ function createAsyncProcessRef<
             return validatedResult;
           } catch (error) {
             if (!isCraftException(error)) {
-              injector.get(TAKE_APP_SNAPSHOT, null)?.();
+              ɵinjectTakeAppSnapshotIn(injector)?.();
             }
             throw error;
           } finally {
@@ -1920,10 +1918,10 @@ function createAsyncProcessRef<
   Object.assign(asyncOutput, insertionsResult);
 
   const snapshotRegistry = injector
-    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    ? ɵinjectAppSnapshotRegistryIn(injector)
     : (() => {
         try {
-          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+          return ɵinjectAppSnapshotRegistry();
         } catch {
           return null;
         }

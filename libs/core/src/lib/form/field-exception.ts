@@ -1,4 +1,5 @@
-import { InjectionToken, type Signal } from '../host/craft-compat';
+import { runInInjectionContext, type Injector, type Signal } from '../host/craft-compat';
+import { craftService, type CraftServiceProvider } from '../craft-service';
 import type { AnyCraftException } from '../craft-exception';
 import type { CraftField } from './craft-field';
 import type { ValidatorOutput } from './validator';
@@ -81,10 +82,32 @@ export type FieldExceptionBoundaryRegistration = {
 };
 
 /** Nearest runtime boundary used by `CraftFieldDirective`. */
-export const CRAFT_FIELD_EXCEPTION_BOUNDARY =
-  new InjectionToken<FieldExceptionBoundaryRegistration>(
-    'CRAFT_FIELD_EXCEPTION_BOUNDARY',
-  );
+const craftFieldExceptionBoundaryService = craftService(
+  { name: 'CraftFieldExceptionBoundary', providedIn: 'toProvide' },
+  (inputs: { $provided: FieldExceptionBoundaryRegistration }) => inputs.$provided,
+) as unknown as {
+  provideCraftFieldExceptionBoundary: (
+    value: FieldExceptionBoundaryRegistration,
+  ) => CraftServiceProvider;
+  CRAFT_FIELD_EXCEPTION_BOUNDARY_META_DATA: {
+    inject(): FieldExceptionBoundaryRegistration;
+  };
+};
+export const provideCraftFieldExceptionBoundary = (
+  value: FieldExceptionBoundaryRegistration,
+): CraftServiceProvider =>
+  craftFieldExceptionBoundaryService.provideCraftFieldExceptionBoundary(value);
+export const ɵinjectCraftFieldExceptionBoundaryIn = (
+  injector: Injector,
+): FieldExceptionBoundaryRegistration | null => {
+  try {
+    return runInInjectionContext(injector, () =>
+      craftFieldExceptionBoundaryService.CRAFT_FIELD_EXCEPTION_BOUNDARY_META_DATA.inject(),
+    );
+  } catch {
+    return null;
+  }
+};
 
 export const DEFAULT_FIELD_EXCEPTION_VISIBILITY = {
   anyOf: ['touched', 'submitted'],

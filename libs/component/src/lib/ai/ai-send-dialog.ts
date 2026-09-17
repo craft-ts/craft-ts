@@ -1,5 +1,5 @@
 import {
-  CRAFT_TEMPORAL_RUNTIME,
+  CraftTemporalRuntime,
   craftMethod,
   craftUse,
   fromEventToSource$,
@@ -8,7 +8,6 @@ import {
   type TemporalTaskHandle,
   type SendContextPayload,
 } from '@craft-ts/core';
-import { ɵtoCraftService as toCraftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import {
@@ -29,18 +28,6 @@ import {
 import type { CraftComponent, Input, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
 import { AI_OVERLAY_THEME } from './ai-overlay-theme';
-
-const { CraftTemporalRuntime } = toCraftService({
-  name: 'CraftTemporalRuntime',
-  providedIn: 'global',
-  token: CRAFT_TEMPORAL_RUNTIME,
-}) as unknown as {
-  CraftTemporalRuntime: () => Generator<
-    never,
-    CraftTemporalRuntimeApi,
-    unknown
-  >;
-};
 
 type AiDialogPayload = SendContextPayload & {
   readonly captureElement?: Element;

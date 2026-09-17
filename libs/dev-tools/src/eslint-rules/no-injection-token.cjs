@@ -15,6 +15,14 @@ module.exports = {
   },
 
   create(context) {
+    const filename = context.getFilename();
+    if (
+      isAllowedInternalFile(filename) ||
+      filename.endsWith('.spec.ts') ||
+      filename.endsWith('.test.ts')
+    ) {
+      return {};
+    }
     const sourceCode = context.sourceCode ?? context.getSourceCode();
     const importedNames = new Set();
     const namespaceNames = new Set();
@@ -89,6 +97,14 @@ module.exports = {
     };
   },
 };
+
+function isAllowedInternalFile(filename) {
+  const normalized = filename.replaceAll('\\', '/');
+  return (
+    normalized.includes('/libs/core/src/lib/host/') ||
+    normalized.endsWith('/libs/core/src/lib/craft-service.ts')
+  );
+}
 
 function getInjectionTokenNode(
   node,

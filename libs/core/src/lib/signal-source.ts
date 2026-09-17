@@ -11,9 +11,9 @@ import {
 } from './host/craft-compat';
 import { takeUntilDestroyed } from './host/craft-compat';
 import { SourceBranded } from './util/util';
-import { SEND_CONTEXT_SESSION } from './send-context-to-ai.tokens';
+import { ɵinjectSendContextSession } from './send-context-to-ai.tokens';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
-import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
 import { injectFnWrapper } from './fn-wrapper';
 import {
   RAW_REACTIVE_VALUE,
@@ -432,7 +432,7 @@ export function signalSource<T>(
     `signal-source:${name}`,
   );
   const destroyRef = inject(DestroyRef);
-  const sendContextSession = inject(SEND_CONTEXT_SESSION, { optional: true });
+  const sendContextSession = ɵinjectSendContextSession();
 
   const sourceState = signal<T | undefined>(undefined, {
     ...(options?.equal && { equal: options?.equal }), // add the equal function here, it may helps to detect changes when using scalar values
@@ -469,7 +469,7 @@ export function signalSource<T>(
     nullishFirstValue: true,
   });
 
-  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+  const registry = ɵinjectAppSnapshotRegistry();
   if (registry) {
     const from = sourceInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     registry.triggerSnapshot$

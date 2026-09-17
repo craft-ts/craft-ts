@@ -2,25 +2,35 @@ import {
   assertInInjectionContext,
   inject,
   Injector,
-  InjectionToken,
   runInInjectionContext,
   type Provider,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 
 type ComponentMonitoringFactory =
   | (() => void)
   | (() => Generator<unknown, void, unknown>);
 
-export const COMPONENT_MONITORING =
-  new InjectionToken<ComponentMonitoringFactory>('COMPONENT_MONITORING', {
-    providedIn: 'root',
-    factory: () => () => undefined,
-  });
+const componentMonitoringService = craftService(
+  { name: 'ComponentMonitoring', providedIn: 'toProvide' },
+  (inputs: { $provided: ComponentMonitoringFactory }) => inputs.$provided,
+) as unknown as {
+  provideComponentMonitoring: (value: ComponentMonitoringFactory) => unknown;
+  COMPONENT_MONITORING_META_DATA: { inject(): ComponentMonitoringFactory };
+};
+
+export const ɵinjectComponentMonitoring = (): ComponentMonitoringFactory => {
+  try {
+    return componentMonitoringService.COMPONENT_MONITORING_META_DATA.inject();
+  } catch {
+    return () => undefined;
+  }
+};
 
 export function componentMonitoring(): void {
   assertInInjectionContext(componentMonitoring);
-  const monitor = inject(COMPONENT_MONITORING);
+  const monitor = ɵinjectComponentMonitoring();
   const injector = inject(Injector);
 
   runInInjectionContext(injector, () => {
@@ -44,5 +54,5 @@ export function componentMonitoring(): void {
 export function provideComponentMonitoring(
   fn: ComponentMonitoringFactory,
 ): Provider {
-  return { provide: COMPONENT_MONITORING, useValue: fn };
+  return componentMonitoringService.provideComponentMonitoring(fn) as Provider;
 }

@@ -4,7 +4,7 @@ import type { CraftRouter, CraftUrlTree } from './craft-router';
 /**
  * The router surface the route chain actually uses — the three navigation
  * methods it binds onto the exception handler context. Exported so callers and
- * tests can supply a router without reaching for the `CRAFT_ROUTER` token.
+ * tests can supply a router without reaching for an authored Angular token.
  */
 export type CraftRouteRouterLike = {
   readonly url?: string;

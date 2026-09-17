@@ -5,26 +5,25 @@ import {
   Injector,
   runInInjectionContext,
   type Provider,
-  type ProviderToken,
 } from '../host-runtime';
 import {
-  APP_SNAPSHOT_REGISTRY,
   craftSignal,
-  craftToken,
+  craftService,
   createSendContextToAiBuffer,
-  CRAFT_TEMPORAL_RUNTIME,
+  type SendContextToAiBuffer,
   HostTag,
   HOST_TAG_LIST,
   injectHostName,
   provideComponentMonitoring,
   provideFnWrapper,
-  SEND_CONTEXT_TO_AI_BUFFER,
-  SendContextToAiBuffer,
-  SEND_CONTEXT_SESSION,
+  provideSendContextToAiBuffer,
   provideSendContextSession,
+  ɵinjectAppSnapshotRegistry,
+  ɵinjectCraftTemporalRuntime,
+  ɵinjectSendContextSession,
+  ɵinjectTakeAppSnapshot,
+  ɵinjectSendContextToAiBuffer,
   type SendContextTarget,
-  TAKE_APP_SNAPSHOT,
-  type CraftToken,
   type GetDeps,
   type SendContextPayload,
   type SendContextSession,
@@ -38,13 +37,11 @@ import { AiSendDialog } from './ai-send-dialog';
 import { AiSendContextChat } from './ai-send-context-chat';
 import { AiSendContextLauncher } from './ai-send-context-launcher';
 import {
-  SEND_CONTEXT_CHAT_COMPONENT,
-  SEND_CONTEXT_CHAT_ACTION,
-  SEND_CONTEXT_CHAT_SECTION,
-  SEND_CONTEXT_CONTEXT_MENU_COMPONENT,
-  SEND_CONTEXT_EXPORT_SECTION,
-  SEND_CONTEXT_LAUNCHER_COMPONENT,
-  SEND_CONTEXT_UI_RENDERER,
+  provideSendContextChatActionsDefault,
+  provideSendContextChatSectionsDefault,
+  provideSendContextContextMenuComponent,
+  provideSendContextExportSectionsDefault,
+  provideSendContextLauncherComponent,
   type SendContextChatComponent,
   type SendContextContextMenuComponent,
   type SendContextLauncherComponent,
@@ -54,6 +51,13 @@ import {
   type SendContextChatAction,
   type SendContextExportSection,
   provideSendContextChatComponent,
+  ɵinjectSendContextChatActions,
+  ɵinjectSendContextChatComponent,
+  ɵinjectSendContextChatSections,
+  ɵinjectSendContextContextMenuComponent,
+  ɵinjectSendContextExportSections,
+  ɵinjectSendContextLauncherComponent,
+  ɵinjectSendContextUiRenderer,
 } from './send-context-ui.tokens';
 
 const HANDLED_FLAG = Symbol('craft-ai-contextmenu-handled');
@@ -167,9 +171,41 @@ export type AiContextMenuController = {
   open(ctx: CapturedContext): void;
 };
 
-export const AI_CONTEXT_MENU_CONTROLLER = craftToken<AiContextMenuController>(
-  'AiContextMenuController',
-);
+const aiContextMenuControllerService = craftService(
+  { name: 'AiContextMenuController', providedIn: 'toProvide' },
+  (inputs: {
+    $provided: AiContextMenuController | (() => AiContextMenuController);
+  }) =>
+    typeof inputs.$provided === 'function'
+      ? inputs.$provided()
+      : inputs.$provided,
+) as unknown as {
+  AiContextMenuController: () => Generator<
+    unknown,
+    AiContextMenuController,
+    unknown
+  >;
+  provideAiContextMenuController: (
+    value: AiContextMenuController | (() => AiContextMenuController),
+  ) => Provider;
+  AI_CONTEXT_MENU_CONTROLLER_META_DATA: {
+    inject(): AiContextMenuController;
+  };
+};
+
+export const AiContextMenuController =
+  aiContextMenuControllerService.AiContextMenuController;
+export const provideAiContextMenuController = (
+  value: AiContextMenuController | (() => AiContextMenuController),
+): Provider => aiContextMenuControllerService.provideAiContextMenuController(value);
+export const ɵinjectAiContextMenuController =
+  (): AiContextMenuController | null => {
+    try {
+      return aiContextMenuControllerService.AI_CONTEXT_MENU_CONTROLLER_META_DATA.inject();
+    } catch {
+      return null;
+    }
+  };
 
 export function createAiContextMenuController({
   injector,
@@ -435,10 +471,6 @@ export function createAiContextMenuController({
   };
 }
 
-function asAngularToken<T>(token: CraftToken<T>): ProviderToken<T> {
-  return token as unknown as ProviderToken<T>;
-}
-
 export interface SendContextToAiOptions {
   /** Browser-accessible webhook URL. Omit it to keep the copy-only behavior. */
   readonly endpoint?: string;
@@ -450,43 +482,33 @@ export function provideSendContextToAi(
   return [
     ...provideSendContextSession(),
     provideSendContextChatComponent(() => AiSendContextChat),
-    {
-      provide: SEND_CONTEXT_CONTEXT_MENU_COMPONENT,
-      useValue: AiContextMenu,
-    },
-    {
-      provide: SEND_CONTEXT_LAUNCHER_COMPONENT,
-      useValue: AiSendContextLauncher,
-    },
-    {
-      provide: asAngularToken(SEND_CONTEXT_TO_AI_BUFFER),
-      useFactory: () =>
-        createSendContextToAiBuffer(inject(APP_SNAPSHOT_REGISTRY)),
-    },
-    {
-      provide: asAngularToken(AI_CONTEXT_MENU_CONTROLLER),
-      useFactory: () =>
+    provideSendContextContextMenuComponent(() => AiContextMenu),
+    provideSendContextLauncherComponent(() => AiSendContextLauncher),
+    provideSendContextChatSectionsDefault(),
+    provideSendContextChatActionsDefault(),
+    provideSendContextExportSectionsDefault(),
+    provideSendContextToAiBuffer(
+      () => createSendContextToAiBuffer(ɵinjectAppSnapshotRegistry()),
+    ) as Provider,
+    provideAiContextMenuController(() =>
         createAiContextMenuController({
           injector: inject(Injector),
-          buffer: inject(asAngularToken(SEND_CONTEXT_TO_AI_BUFFER)),
-          takeSnapshot: inject(TAKE_APP_SNAPSHOT),
-          temporalRuntime: inject(CRAFT_TEMPORAL_RUNTIME),
+          buffer: ɵinjectSendContextToAiBuffer()!,
+          takeSnapshot: ɵinjectTakeAppSnapshot() ?? (() => undefined),
+          temporalRuntime: ɵinjectCraftTemporalRuntime(),
           destroyRef: inject(DestroyRef),
-          session: inject(SEND_CONTEXT_SESSION),
-          renderer:
-            inject(SEND_CONTEXT_UI_RENDERER, { optional: true }) ?? undefined,
-          chatComponent: inject(SEND_CONTEXT_CHAT_COMPONENT),
-          contextMenuComponent: inject(SEND_CONTEXT_CONTEXT_MENU_COMPONENT),
-          launcherComponent: inject(SEND_CONTEXT_LAUNCHER_COMPONENT),
-          chatSections:
-            inject(SEND_CONTEXT_CHAT_SECTION, { optional: true }) ?? [],
-          chatActions:
-            inject(SEND_CONTEXT_CHAT_ACTION, { optional: true }) ?? [],
-          exportSections:
-            inject(SEND_CONTEXT_EXPORT_SECTION, { optional: true }) ?? [],
+          session: ɵinjectSendContextSession() ?? undefined,
+          renderer: ɵinjectSendContextUiRenderer() ?? undefined,
+          chatComponent: ɵinjectSendContextChatComponent() ?? undefined,
+          contextMenuComponent:
+            ɵinjectSendContextContextMenuComponent() ?? undefined,
+          launcherComponent: ɵinjectSendContextLauncherComponent() ?? undefined,
+          chatSections: ɵinjectSendContextChatSections(),
+          chatActions: ɵinjectSendContextChatActions(),
+          exportSections: ɵinjectSendContextExportSections(),
           endpoint: options.endpoint,
         }),
-    },
+    ),
     provideFnWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (factory, thisArg, args) {
@@ -508,7 +530,7 @@ export function provideSendContextToAi(
           hostName: componentHostNameFromTags(hostTags),
           tagList: hostTags,
           injector: inject(Injector),
-          controller: inject(asAngularToken(AI_CONTEXT_MENU_CONTROLLER)),
+          controller: ɵinjectAiContextMenuController()!,
           destroyRef: inject(DestroyRef),
         });
 
@@ -519,10 +541,10 @@ export function provideSendContextToAi(
       const el = inject(ElementRef).nativeElement as HTMLElement;
       const tagList = inject(HOST_TAG_LIST);
       const injector = inject(Injector);
-      const controller = inject(asAngularToken(AI_CONTEXT_MENU_CONTROLLER));
+      const controller = ɵinjectAiContextMenuController()!;
       const destroyRef = inject(DestroyRef);
       // Eagerly instantiate the buffer so snapshot reports start being collected.
-      inject(asAngularToken(SEND_CONTEXT_TO_AI_BUFFER));
+      ɵinjectSendContextToAiBuffer();
 
       installAiContextMenuListener({
         element: el,
@@ -541,6 +563,6 @@ export type GenDeps_AiContextMenuController = GetDeps<{
   provided: {};
   missingProvider: {
     Injector: Injector;
-    TAKE_APP_SNAPSHOT: typeof TAKE_APP_SNAPSHOT;
+    TakeAppSnapshot: typeof ɵinjectTakeAppSnapshot;
   };
 }>;

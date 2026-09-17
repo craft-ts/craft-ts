@@ -1,13 +1,10 @@
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
-  CRAFT_DOM_EVENT_HOOK,
+  ɵinjectCraftDomEventHooks,
   CRAFT_NODE_DIRECTIVE,
-  CRAFT_NODE_EFFECT_FACTORY,
-  CRAFT_FIELD_EXCEPTION_BOUNDARY,
+  provideCraftNodeEffectFactory,
+  provideCraftFieldExceptionBoundary,
   CRAFT_FIELD_EXCEPTION_SOURCE,
-  CRAFT_TEMPORAL_RUNTIME,
-  COMPONENT_REGISTER,
-  ComponentRegister,
   craftEffect,
   craftLazy,
   createBrowserDomAdapter,
@@ -37,6 +34,7 @@ import {
   toYieldable,
   yieldableInvocation,
   ɵfallbackComponentRegister,
+  ɵinjectComponentRegister,
   ɵregisterCraftTarget,
   ɵcraftInjectorFromHost,
   type CraftServiceProvider,
@@ -51,16 +49,15 @@ import {
   YIELDABLE_VALUE,
   type TemporalTaskHandle,
   type TemplateTraceContext,
-  RealCraftTemporalRuntime,
-  CRAFT_HYDRATION_ID,
+  ɵinjectCraftTemporalRuntime,
+  provideCraftRenderIdentity,
   childCraftRenderIdentity,
   createCraftRenderIdentity,
   type CraftRenderIdentity,
-  CRAFT_SSR_POLICY,
-  CRAFT_SECURITY_POLICY,
-  CraftCspNonce,
-  CRAFT_MATCH,
-  type CraftSsrPolicy,
+  ɵinjectCraftSsrPolicy,
+  ɵinjectCraftSecurityPolicy,
+  ɵinjectCraftCspNonce,
+  ɵinjectCraftMatch,
 } from '@craft-ts/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import {
@@ -75,7 +72,6 @@ import {
   untracked,
   type EffectRef,
   type Provider,
-  type ProviderToken,
 } from '../host-runtime';
 import type { HostProps } from '../hyperscript';
 import {
@@ -124,7 +120,7 @@ import type {
   FieldExceptionHandlers,
 } from '../field-error-node';
 import {
-  FOR_SCHEDULER,
+  ɵinjectForSchedulerIn,
   createForScheduler,
   type CancelHandle,
   type ForSchedulePolicy,
@@ -132,9 +128,9 @@ import {
 } from '../for-scheduling';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 import {
-  CRAFT_STYLE_REGISTRY,
   CraftStyleRegistry,
   createCraftStyleRegistry,
+  ɵinjectCraftStyleRegistry,
 } from './style-registry';
 import {
   isCraftMultiUrlAttribute,
@@ -570,9 +566,7 @@ interface RenderedNode {
 }
 
 function activeSsrRoute(context: RenderContext): string | undefined {
-  const match = context.injector.get(CRAFT_MATCH, null) as
-    | (() => { readonly route?: { readonly path?: string } } | null)
-    | null;
+  const match = ɵinjectCraftMatch();
   try {
     return match?.()?.route?.path;
   } catch {
@@ -603,10 +597,7 @@ function createRenderEffect(
       if (isCraftNotSettled(error)) {
         if (!context.pendingBoundary) {
           if (context.ssr) {
-            const routePolicy = context.injector.get(
-              CRAFT_SSR_POLICY,
-              null,
-            ) as CraftSsrPolicy | null;
+            const routePolicy = ɵinjectCraftSsrPolicy();
             if (routePolicy) {
               context.ssr.suspend(token, error.source, routePolicy.mode, {
                 route: activeSsrRoute(context),
@@ -832,23 +823,18 @@ class CraftNodeDirectiveMount {
     this.environmentInjector = createEnvironmentInjector(
       [
         { provide: ElementRef, useValue: new ElementRef(element) },
-        {
-          provide: CRAFT_NODE_EFFECT_FACTORY,
-          deps: [Injector],
-          useFactory:
-            (injector: Injector) => (name: string, effectFn: () => void) =>
-              createEffectInInjector(
-                injector,
-                `node-directive-${name}`,
-                effectFn,
-              ),
-        },
+        provideCraftNodeEffectFactory((name: string, effectFn: () => void) =>
+          createEffectInInjector(
+            context.injector,
+            `node-directive-${name}`,
+            effectFn,
+          ),
+        ),
         ...(context.fieldExceptionBoundary
           ? [
-              {
-                provide: CRAFT_FIELD_EXCEPTION_BOUNDARY,
-                useValue: context.fieldExceptionBoundary,
-              },
+              provideCraftFieldExceptionBoundary(
+                context.fieldExceptionBoundary,
+              ),
             ]
           : []),
       ],
@@ -1514,8 +1500,7 @@ function setStyleValue(
   value = resolveTemplateValue(value, context);
   ɵassertSafeStyleValue(
     value,
-    context.injector.get(CRAFT_SECURITY_POLICY, null)?.dom
-      .allowedResourceOrigins ?? [],
+    ɵinjectCraftSecurityPolicy().dom.allowedResourceOrigins,
   );
   const style = (element as Element & { readonly style: CSSStyleDeclaration })
     .style;
@@ -1554,8 +1539,7 @@ function applyStyles(
   if (typeof next === 'string') {
     ɵassertSafeStyleValue(
       next,
-      context.injector.get(CRAFT_SECURITY_POLICY, null)?.dom
-        .allowedResourceOrigins ?? [],
+      ɵinjectCraftSecurityPolicy().dom.allowedResourceOrigins,
     );
     renderer.setAttribute(element, 'style', next);
   } else if (typeof next === 'object' && next !== null) {
@@ -1622,7 +1606,7 @@ function applyAttribute(
     );
   }
   if (isCraftUrlAttribute(normalizedKey) && value !== null && value !== undefined) {
-    const policy = context.injector.get(CRAFT_SECURITY_POLICY, null);
+    const policy = ɵinjectCraftSecurityPolicy();
     const urlOptions = {
       allowedOrigins: policy?.dom.allowedResourceOrigins ?? [],
       allowedSchemes: policy?.dom.allowedUrlSchemes ?? undefined,
@@ -1650,7 +1634,7 @@ function applyAttribute(
     return;
   }
   if (key === 'innerHTML') {
-    const security = context.injector.get(CRAFT_SECURITY_POLICY, null);
+    const security = ɵinjectCraftSecurityPolicy();
     if (isCraftSafeHtml(value)) {
       renderer.setProperty(element, key, value.value);
     } else if (isCraftUnsafeHtml(value) && security?.dom.allowUnsafeHtml) {
@@ -1966,7 +1950,7 @@ class ElementRenderedNode implements RenderedNode {
                 this.context.componentName,
               ),
             };
-            const hooks = this.context.injector.get(CRAFT_DOM_EVENT_HOOK);
+            const hooks = ɵinjectCraftDomEventHooks(this.context.injector);
             runInInjectionContext(this.context.injector, () =>
               executeDomEventHooks(hooks, interaction, () =>
                 executeTemplateCallback(listener, [event], this.context),
@@ -2604,7 +2588,7 @@ class ForRenderedNode implements RenderedNode {
     this.schedulerConfigured = true;
     this.cancelPendingTasks();
 
-    const injected = this.context.injector.get(FOR_SCHEDULER, null);
+    const injected = ɵinjectForSchedulerIn(this.context.injector);
     if (injected) {
       this.scheduler = injected;
       this.ownsScheduler = false;
@@ -3454,10 +3438,7 @@ class PendingRenderedNode implements RenderedNode {
 
   private suspend(token: object, source: string): void {
     if (this.handles(source)) {
-      const routePolicy = this.context.injector.get(
-        CRAFT_SSR_POLICY,
-        null,
-      ) as CraftSsrPolicy | null;
+      const routePolicy = ɵinjectCraftSsrPolicy();
       this.context.ssr?.suspend(
         token,
         source,
@@ -3914,11 +3895,7 @@ function allocateCraftHostName(
   kind: 'component' | 'directive',
   name: string,
 ): string {
-  const register =
-    injector.get(
-      COMPONENT_REGISTER as unknown as ProviderToken<ComponentRegister>,
-      null,
-    ) ?? ɵfallbackComponentRegister;
+  const register = ɵinjectComponentRegister() ?? ɵfallbackComponentRegister;
   return `${kind}:${name}#${register.next()}`;
 }
 
@@ -4000,10 +3977,7 @@ class ComponentRenderedNode implements RenderedNode {
       this.environmentInjector = createEnvironmentInjector(
         [
           ...provideHostName(`component:${definition.name}`),
-          {
-            provide: CRAFT_HYDRATION_ID,
-            useValue: componentRenderContext.identity,
-          },
+          provideCraftRenderIdentity(componentRenderContext.identity),
           ...(definition.meta.providers ?? []),
           {
             provide: ElementRef,
@@ -4303,10 +4277,7 @@ class ComponentRenderedNode implements RenderedNode {
     this.environmentInjector = createEnvironmentInjector(
       [
         ...provideHostName(`component:${definition.name}`),
-        {
-          provide: CRAFT_HYDRATION_ID,
-          useValue: componentRenderContext.identity,
-        },
+        provideCraftRenderIdentity(componentRenderContext.identity),
         ...(definition.meta.providers ?? []),
         ...(composition.providers ?? []),
         {
@@ -4984,12 +4955,14 @@ class DeferRenderedNode implements RenderedNode {
         const handle = idleWindow.requestIdleCallback(() => this.startLoad());
         this.triggerCleanup = () => idleWindow.cancelIdleCallback?.(handle);
       } else {
-        this.triggerTimer = this.context.injector
-          .get(CRAFT_TEMPORAL_RUNTIME, new RealCraftTemporalRuntime())
-          .schedule(() => this.startLoad(), 0, {
+        this.triggerTimer = ɵinjectCraftTemporalRuntime().schedule(
+          () => this.startLoad(),
+          0,
+          {
             kind: 'defer-trigger',
             owner: this.context.componentName,
-          });
+          },
+        );
         this.triggerCleanup = () => this.triggerTimer?.cancel();
       }
       return;
@@ -5024,7 +4997,7 @@ class DeferRenderedNode implements RenderedNode {
         if (event && isElementNode(target)) {
           const tag = target.tagName.toLowerCase();
           const localName = target.getAttribute('data-craft-name') ?? undefined;
-          const hooks = this.context.injector.get(CRAFT_DOM_EVENT_HOOK);
+          const hooks = ɵinjectCraftDomEventHooks(this.context.injector);
           const interaction: CraftDomEvent = {
             event,
             eventName: event.type,
@@ -5072,12 +5045,14 @@ class DeferRenderedNode implements RenderedNode {
       return;
     }
 
-    this.triggerTimer = this.context.injector
-      .get(CRAFT_TEMPORAL_RUNTIME, new RealCraftTemporalRuntime())
-      .schedule(() => this.startLoad(), 0, {
+    this.triggerTimer = ɵinjectCraftTemporalRuntime().schedule(
+      () => this.startLoad(),
+      0,
+      {
         kind: 'defer-trigger',
         owner: this.context.componentName,
-      });
+      },
+    );
     this.triggerCleanup = () => this.triggerTimer?.cancel();
   }
 
@@ -5557,12 +5532,9 @@ export function mountInterpretedComponent<Props extends object>(
     (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
       ? (rootNode as Document | ShadowRoot)
       : (host.ownerDocument ?? document);
-  const styles = craftInjector.get(
-    CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
-    createCraftStyleRegistry({
-      nonce: craftInjector.get(CraftCspNonce, null) ?? undefined,
-    }),
-  );
+  const styles =
+    ɵinjectCraftStyleRegistry() ??
+    createCraftStyleRegistry({ nonce: ɵinjectCraftCspNonce() ?? undefined });
   return mountInterpretedComponentWithOptions(
     component,
     host,
@@ -5636,12 +5608,9 @@ export function mountInterpretedComponentTemplate<Context>(
     (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
       ? (rootNode as Document | ShadowRoot)
       : (host.ownerDocument ?? document);
-  const styles = craftInjector.get(
-    CRAFT_STYLE_REGISTRY as unknown as ProviderToken<CraftStyleRegistry>,
-    createCraftStyleRegistry({
-      nonce: craftInjector.get(CraftCspNonce, null) ?? undefined,
-    }),
-  );
+  const styles =
+    ɵinjectCraftStyleRegistry() ??
+    createCraftStyleRegistry({ nonce: ɵinjectCraftCspNonce() ?? undefined });
   let instance: ComponentRenderedNode;
   try {
     instance = new ComponentRenderedNode(

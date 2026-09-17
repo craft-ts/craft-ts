@@ -1,4 +1,4 @@
-import { craftToken, type CraftProvider } from './host/craft-injector';
+import { craftService, type CraftServiceProvider } from './craft-service';
 
 export type CraftTransferPolicy = Readonly<{
   /**
@@ -134,20 +134,56 @@ export function validateCraftSecurityPolicy(
   }
 }
 
-export const CRAFT_SECURITY_POLICY = craftToken<CraftSecurityPolicy>(
-  'CraftSecurityPolicy',
-);
+type SecurityPolicyHelper = () =>
+  Generator<unknown, CraftSecurityPolicy, unknown>;
+const craftSecurityPolicyService = craftService(
+  { name: 'CraftSecurityPolicy', providedIn: 'manuallyProvidedAtRoot' },
+  (inputs: { $provided: CraftSecurityPolicy }) => inputs.$provided,
+) as unknown as {
+  CraftSecurityPolicy: SecurityPolicyHelper;
+  provideCraftSecurityPolicy: (value: CraftSecurityPolicy) => unknown;
+  CRAFT_SECURITY_POLICY_META_DATA: { inject(): CraftSecurityPolicy };
+};
+
+export const CraftSecurityPolicy = craftSecurityPolicyService.CraftSecurityPolicy;
+export const provideCraftSecurityPolicyService =
+  (value: CraftSecurityPolicy): unknown =>
+    craftSecurityPolicyService.provideCraftSecurityPolicy(value);
+export const ɵinjectCraftSecurityPolicy = () => {
+  try {
+    return craftSecurityPolicyService.CRAFT_SECURITY_POLICY_META_DATA.inject() as CraftSecurityPolicy;
+  } catch {
+    return DEFAULT_CRAFT_SECURITY_POLICY;
+  }
+};
 
 export function provideCraftSecurityPolicy(
   input: CraftSecurityPolicyInput,
-): CraftProvider<CraftSecurityPolicy> {
-  return {
-    token: CRAFT_SECURITY_POLICY,
-    useValue: createCraftSecurityPolicy(input),
-  };
+): CraftServiceProvider {
+  return provideCraftSecurityPolicyService(
+    createCraftSecurityPolicy(input),
+  ) as CraftServiceProvider;
 }
 
-export const CraftCspNonce = craftToken<string>('CraftCspNonce');
+type CspNonceHelper = () => Generator<unknown, string, unknown>;
+const craftCspNonceService = craftService(
+  { name: 'CraftCspNonce', providedIn: 'manuallyProvidedAtRoot' },
+  (inputs: { $provided: string }) => inputs.$provided,
+) as unknown as {
+  CraftCspNonce: CspNonceHelper;
+  provideCraftCspNonce: (value: string) => unknown;
+  CRAFT_CSP_NONCE_META_DATA: { inject(): string };
+};
+
+export const CraftCspNonce = craftCspNonceService.CraftCspNonce;
+export const provideCraftCspNonceService = craftCspNonceService.provideCraftCspNonce;
+export const ɵinjectCraftCspNonce = () => {
+  try {
+    return craftCspNonceService.CRAFT_CSP_NONCE_META_DATA.inject() as string;
+  } catch {
+    return null;
+  }
+};
 
 export function assertCraftCspNonce(nonce: string): string {
   if (!/^[A-Za-z0-9+/_=-]+$/.test(nonce)) {
@@ -159,8 +195,10 @@ export function assertCraftCspNonce(nonce: string): string {
   return nonce;
 }
 
-export function provideCraftCspNonce(nonce: string): CraftProvider<string> {
-  return { token: CraftCspNonce, useValue: assertCraftCspNonce(nonce) };
+export function provideCraftCspNonce(nonce: string): CraftServiceProvider {
+  return provideCraftCspNonceService(
+    assertCraftCspNonce(nonce),
+  ) as CraftServiceProvider;
 }
 
 export type CraftSecurityException = Readonly<{

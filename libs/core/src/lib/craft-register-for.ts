@@ -1,5 +1,7 @@
 import { HOST_TAG_LIST } from './host-tag';
 import {
+  craftService,
+  type CraftServiceProvider,
   getServiceMetaData,
   type GetServiceReferenceMeta,
   type GetServiceReferenceOutput,
@@ -8,7 +10,7 @@ import {
 import {
   CRAFT_REGISTRATION_TARGET,
   createRegisterForRegistry,
-  REGISTER_FOR_REGISTRY,
+  provideRegisterForRegistry,
   registerResolvedService,
   type CraftRegistrationTarget,
   type RegisterForEntry,
@@ -24,14 +26,12 @@ import { provideCraftTargetWrapper } from './craft-target-runtime';
 import {
   assertInInjectionContext,
   inject,
-  InjectionToken,
   Injector,
   type Provider,
 } from './host/craft-compat';
 
 export {
   CRAFT_REGISTRATION_TARGET,
-  REGISTER_FOR_REGISTRY,
   type CraftRegistrationTarget,
   type RegisterForEntry,
   type RegisterForRegistry,
@@ -240,9 +240,6 @@ function createCraftRegisterFor(
     typeof optionsOrDerive === 'function' ? optionsOrDerive : undefined;
   const options = typeof optionsOrDerive === 'function' ? {} : optionsOrDerive;
   const includeGlobal = options.includeGlobal ?? true;
-  const registryToken = new InjectionToken<RegisterForRegistry>(
-    `REGISTER_FOR_REGISTRY_${registryName}`,
-  );
   const registerForName = `RegisterFor${capitalize(registryName)}`;
   const provideRegisterForName = `provideRegisterFor${capitalize(
     registryName,
@@ -324,23 +321,13 @@ function createCraftRegisterFor(
   }
 
   const provideRegisterFor = (): Provider[] => {
-    const registryProvider: Provider = {
-      provide: registryToken,
-      useFactory: () =>
-        createRegisterForRegistry(descriptors, { includeGlobal }),
-    };
-    const registryCollectionProvider: Provider = {
-      provide: REGISTER_FOR_REGISTRY,
-      useExisting: registryToken,
-      multi: true,
-    };
+    const registry = createRegisterForRegistry(descriptors, { includeGlobal });
+    const registryProvider = registryService.provide(registry) as Provider;
+    const registryCollectionProvider = provideRegisterForRegistry(registry) as Provider;
     const targetWrapper = provideCraftTargetWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (context, next) {
-        const registry = context.injector.get(registryToken, null);
-        if (registry === null) {
-          return yield* next();
-        }
+        const registry = registryService.meta.inject();
 
         const release = registry.registerTarget(
           context.target,
@@ -421,7 +408,12 @@ function createCraftRegisterFor(
 
   function requireRegistry(): RegisterForRegistry {
     throwIfNoInjectionContext();
-    const registry = currentInjector().get(registryToken, null);
+    let registry: RegisterForRegistry | null = null;
+    try {
+      registry = registryService.meta.inject();
+    } catch {
+      registry = null;
+    }
     if (registry === null) {
       throw new Error(
         `${registerForName} requires ${provideRegisterForName}() in the current Craft injector.`,
@@ -429,6 +421,22 @@ function createCraftRegisterFor(
     }
     return registry;
   }
+
+  const registryServiceName = `RegisterFor${capitalize(registryName)}Registry`;
+  const registryService = (() => {
+    const api = craftService(
+      { name: registryServiceName, providedIn: 'toProvide' },
+      (inputs: { $provided: RegisterForRegistry }) => inputs.$provided,
+    ) as unknown as Record<string, unknown>;
+    return {
+      provide: api[`provide${registryServiceName}`] as (value: RegisterForRegistry) => CraftServiceProvider,
+      meta: api[
+        `${registryServiceName
+          .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+          .toUpperCase()}_META_DATA`
+      ] as { inject(): RegisterForRegistry },
+    };
+  })();
 }
 
 function toDescriptor(target: AnyRegisterTarget): RegisterForTargetDescriptor {

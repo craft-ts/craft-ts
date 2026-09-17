@@ -1,20 +1,14 @@
-declare const CraftTokenBrand: unique symbol;
-
-export type CraftToken<T> = {
-  readonly debugName: string;
-  readonly [CraftTokenBrand]: T;
-};
-
 export type CraftProvider<T = unknown> =
-  | { token: CraftToken<T> | object; useValue: T; multi?: boolean }
+  | { token: object; useValue: T; multi?: boolean; collection?: boolean }
   | {
-      token: CraftToken<T> | object;
+      token: object;
       useFactory: (injector: CraftInjector) => T;
       multi?: boolean;
+      collection?: boolean;
     };
 
 export type CraftInjectToken<T> =
-  | CraftToken<T>
+  | object
   | (abstract new (...args: never[]) => T)
   | {
       readonly debugName?: string;
@@ -40,7 +34,7 @@ export interface CraftInjector {
 
 type ProviderRecord = {
   resolve(): unknown;
-  readonly multi: boolean;
+  readonly collection: boolean;
 };
 
 type TokenWithFactory = {
@@ -76,12 +70,7 @@ const injectorStorage = AsyncLocalStorage
   : null;
 const browserInjectorStack: CraftInjector[] = [];
 const hostInjectors = new WeakMap<object, CraftInjector>();
-const hostTokens = new WeakMap<object, object>();
 export const ɵNOT_FOUND = Symbol('CraftInjector.notFound');
-
-export function craftToken<T>(debugName: string): CraftToken<T> {
-  return { debugName } as CraftToken<T>;
-}
 
 export function createCraftInjector(
   providers: readonly CraftProvider[],
@@ -128,21 +117,11 @@ function lookupRecord(
   records: Map<object, ProviderRecord>,
   token: object,
 ): ProviderRecord | undefined {
-  const direct = records.get(token);
-  if (direct) {
-    return direct;
-  }
-  const aliased = hostTokens.get(token);
-  return aliased ? records.get(aliased) : undefined;
+  return records.get(token);
 }
 
 function lookupDefaultFactory(token: object): unknown | typeof ɵNOT_FOUND {
-  const direct = readDefaultFactory(token);
-  if (direct !== ɵNOT_FOUND) {
-    return direct;
-  }
-  const aliased = hostTokens.get(token);
-  return aliased ? readDefaultFactory(aliased) : ɵNOT_FOUND;
+  return readDefaultFactory(token);
 }
 
 function createNativeCraftInjector(
@@ -161,14 +140,14 @@ function createNativeCraftInjector(
   };
   const destroyCallbacks: Array<() => void> = [];
   const craftInjector: CraftInjector = {
-    get<T>(token: CraftToken<T> | object, notFoundValue?: T): T {
+    get<T>(token: object, notFoundValue?: T): T {
       if (token === craftInjector) {
         return craftInjector as T;
       }
       const local = lookupRecord(records, token);
       if (local) {
         const value = local.resolve();
-        if (local.multi) {
+        if (local.collection) {
           const parentValues = parent
             ? ((parent.getOptional(token) as unknown[] | null) ?? [])
             : [];
@@ -202,14 +181,14 @@ function createNativeCraftInjector(
       }
       throw missingProviderError(token);
     },
-    getOptional<T>(token: CraftToken<T> | object): T | null {
+    getOptional<T>(token: object): T | null {
       if (token === craftInjector) {
         return craftInjector as T;
       }
       const local = lookupRecord(records, token);
       if (local) {
         const value = local.resolve();
-        if (local.multi) {
+        if (local.collection) {
           const parentValues = parent
             ? ((parent.getOptional(token) as unknown[] | null) ?? [])
             : [];
@@ -223,7 +202,7 @@ function createNativeCraftInjector(
       if (parent) {
         const inherited = parent.getOptional(token);
         if (inherited !== null) {
-          return inherited;
+          return inherited as T;
         }
       }
       const fallback = resolveDefault(token);
@@ -302,9 +281,8 @@ export function ɵcreateCraftInjectorFromHost(
     return value;
   };
   const craftInjector: CraftInjector = {
-    get<T>(token: CraftToken<T> | object, notFoundValue?: T): T {
-      const hostToken = hostTokens.get(token) ?? token;
-      const value = host.get(hostToken, ɵNOT_FOUND);
+    get<T>(token: object, notFoundValue?: T): T {
+      const value = host.get(token, ɵNOT_FOUND);
       if (value !== ɵNOT_FOUND) {
         return value as T;
       }
@@ -317,9 +295,8 @@ export function ɵcreateCraftInjectorFromHost(
       }
       throw missingProviderError(token);
     },
-    getOptional<T>(token: CraftToken<T> | object): T | null {
-      const hostToken = hostTokens.get(token) ?? token;
-      const value = host.get(hostToken, ɵNOT_FOUND);
+    getOptional<T>(token: object): T | null {
+      const value = host.get(token, ɵNOT_FOUND);
       if (value !== ɵNOT_FOUND) {
         return value as T;
       }
@@ -365,33 +342,30 @@ export function ɵcreateCraftInjectorFromHost(
   return craftInjector;
 }
 
-export function ɵregisterCraftTokenHostToken(
-  token: object,
-  hostToken: object,
-): void {
-  hostTokens.set(token, hostToken);
-}
-
 function addProviderRecord(
   records: Map<object, ProviderRecord>,
   provider: CraftProvider,
   injector: CraftInjector,
 ): void {
   const token = provider.token;
-  if (provider.multi) {
+  if (provider.multi || provider.collection) {
     const existing = records.get(token);
     const nextValue = createProviderRecord(provider, injector).resolve;
-    if (existing?.multi) {
+    const readNext = () =>
+      provider.collection
+        ? ((nextValue() as unknown[]) ?? [])
+        : [nextValue()];
+    if (existing?.collection) {
       const previous = existing.resolve as () => unknown[];
       records.set(token, {
-        multi: true,
-        resolve: () => [...previous(), nextValue()],
+        collection: true,
+        resolve: () => [...previous(), ...readNext()],
       });
       return;
     }
     records.set(token, {
-      multi: true,
-      resolve: () => [nextValue()],
+      collection: true,
+      resolve: readNext,
     });
     return;
   }
@@ -404,7 +378,7 @@ function createProviderRecord(
 ): ProviderRecord {
   if ('useValue' in provider) {
     return {
-      multi: provider.multi === true,
+      collection: provider.multi === true || provider.collection === true,
       resolve: () => provider.useValue,
     };
   }
@@ -412,7 +386,7 @@ function createProviderRecord(
   let resolved = false;
   let value: unknown;
   return {
-    multi: provider.multi === true,
+    collection: provider.multi === true || provider.collection === true,
     resolve() {
       if (!resolved) {
         value = provider.useFactory(injector);

@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "c13d33d39f593b2b",
+  "graphHash": "6c4e79759d7c3331",
   "routes": [],
   "services": [
     "BrowserCryptoService",
@@ -106,6 +106,7 @@ export const architectureCatalog = {
     "hiddenLegend",
     "hideChrome",
     "inspectApplicationCapture",
+    "inspectFailed",
     "inspectFrame",
     "inspectReplay",
     "instruction",

@@ -1,4 +1,5 @@
-import { Injector, InjectionToken, type Provider } from './host/craft-compat';
+import { Injector, runInInjectionContext, type Provider } from './host/craft-compat';
+import { craftService } from './craft-service';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
@@ -8,7 +9,7 @@ import {
 } from './temporal-runtime';
 import {
   isReactiveReadRequest,
-  REACTIVE_READ_OBSERVERS,
+  ɵinjectReactiveReadObservers,
   ɵwithActiveReactiveReader,
   type ReactiveReadIdentity,
 } from './reactive-read';
@@ -113,20 +114,23 @@ export type ServiceYieldWrapper = (
   next: () => Generator<unknown, unknown, unknown>,
 ) => Generator<unknown, unknown, unknown>;
 
-export const SERVICE_YIELD_WRAPPER = new InjectionToken<
-  readonly ServiceYieldWrapper[]
->('SERVICE_YIELD_WRAPPER', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+const serviceYieldWrapperService = craftService(
+  { name: 'ServiceYieldWrappers', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: ServiceYieldWrapper }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  provideServiceYieldWrappers: (value?: ServiceYieldWrapper) => unknown;
+  SERVICE_YIELD_WRAPPERS_META_DATA: {
+    inject(): readonly ServiceYieldWrapper[];
+  };
+};
 
 /** Registers a wrapper around every Craft service yield below the provider. */
 export function provideServiceYieldWrapper(
   _warning: string,
   wrapper: ServiceYieldWrapper,
 ): Provider {
-  return { provide: SERVICE_YIELD_WRAPPER, useValue: wrapper, multi: true };
+  return serviceYieldWrapperService.provideServiceYieldWrappers(wrapper) as Provider;
 }
 
 type AppStartResult = Observable<unknown> | Promise<unknown> | void;
@@ -277,7 +281,7 @@ export function runCraftGenerator({
     const yielded = current.value;
 
     if (isReactiveReadRequest(yielded)) {
-      for (const observer of injector.get(REACTIVE_READ_OBSERVERS, [])) {
+      for (const observer of ɵinjectReactiveReadObservers()) {
         observer({ reader: reactiveReader, dependency: yielded.identity });
       }
       current = iterator.next(
@@ -431,7 +435,7 @@ export function resolveCraftGeneratorYield(
   hostScope: ConcreteServiceScope,
 ): { handled: true; value: unknown } | { handled: false } {
   if (isReactiveReadRequest(yielded)) {
-    for (const observer of injector.get(REACTIVE_READ_OBSERVERS, [])) {
+    for (const observer of ɵinjectReactiveReadObservers()) {
       observer({ dependency: yielded.identity });
     }
     return {
@@ -468,7 +472,14 @@ function resolveServiceYield(
   injector: Injector,
   hostScope: ConcreteServiceScope,
 ): unknown {
-  const wrappers = injector.get(SERVICE_YIELD_WRAPPER, []);
+  let wrappers: readonly ServiceYieldWrapper[];
+  try {
+    wrappers = runInInjectionContext(injector, () =>
+      serviceYieldWrapperService.SERVICE_YIELD_WRAPPERS_META_DATA.inject(),
+    );
+  } catch {
+    wrappers = [];
+  }
   const context: ServiceYieldContext = {
     name: request.name,
     providedIn: request.providedIn,

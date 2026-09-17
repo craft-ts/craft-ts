@@ -1,10 +1,10 @@
 import type { SnapshotReport } from './take-app-snapshot';
 import {
   inject,
-  InjectionToken,
   type Provider,
   type Signal,
 } from './host/craft-compat';
+import { craftService, type CraftServiceProvider } from './craft-service';
 import { BehaviorSubject, type Observable } from 'rxjs';
 import { provideCraftDomEventHook } from './dom-event-hook';
 import {
@@ -19,8 +19,8 @@ import {
   providePrimitiveResourceRuntimeObserver,
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
-import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
-import { CORRELATION_ID_SERVICE } from './correlation-id';
+import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
+import { ɵinjectCorrelationIdService } from './correlation-id';
 
 export interface SendContextPayload {
   hostName: string;
@@ -162,61 +162,176 @@ export interface SendContextRecordController {
   exportJson(clipId?: string): string;
 }
 
-export const SEND_CONTEXT_SESSION = new InjectionToken<SendContextSession>(
-  'SEND_CONTEXT_SESSION',
-  { providedIn: 'root', factory: () => createSendContextSession() },
+type SendContextHelper<T> = () => Generator<unknown, T, unknown>;
+type SendContextService<T> = {
+  helper: SendContextHelper<T>;
+  provide?: (value?: T | (() => T)) => unknown;
+  metadata: { inject(): T };
+};
+
+function asSendContextService<T>(
+  service: unknown,
+  helperName: string,
+  provideName: string,
+  metadataName: string,
+): SendContextService<T> {
+  const api = service as Record<string, unknown>;
+  return {
+    helper: api[helperName] as SendContextHelper<T>,
+    provide: api[provideName] as SendContextService<T>['provide'],
+    metadata: api[metadataName] as SendContextService<T>['metadata'],
+  };
+}
+
+const sendContextRetentionPolicyService = craftService(
+  { name: 'SendContextRetentionPolicy', providedIn: 'toProvide' },
+  () => ({ maxEvents: 500, maxBytes: 2 * 1024 * 1024 }),
 );
-export const SEND_CONTEXT_RECORD_CONTROLLER =
-  new InjectionToken<SendContextRecordController>(
-    'SEND_CONTEXT_RECORD_CONTROLLER',
-    {
-      providedIn: 'root',
-      factory: () =>
-        createSendContextRecordController(inject(SEND_CONTEXT_SESSION)),
-    },
-  );
-
-export const SEND_CONTEXT_RETENTION_POLICY =
-  new InjectionToken<SendContextRetentionPolicy>(
-    'SEND_CONTEXT_RETENTION_POLICY',
-    {
-      providedIn: 'root',
-      factory: () => ({ maxEvents: 500, maxBytes: 2 * 1024 * 1024 }),
-    },
-  );
-
-export const SEND_CONTEXT_REDACTOR = new InjectionToken<SendContextRedactor>(
-  'SEND_CONTEXT_REDACTOR',
-  { providedIn: 'root', factory: () => defaultSendContextRedactor },
+const sendContextRedactorService = craftService(
+  { name: 'SendContextRedactor', providedIn: 'toProvide' },
+  () => defaultSendContextRedactor,
+);
+const sendContextValueSerializerService = craftService(
+  { name: 'SendContextValueSerializer', providedIn: 'toProvide' },
+  () => defaultSendContextValueSerializer,
+);
+const sendContextEventSourceService = craftService(
+  { name: 'SendContextEventSources', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: SendContextEventSource }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+);
+const sendContextEventEnricherService = craftService(
+  { name: 'SendContextEventEnrichers', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: SendContextEventEnricher }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+);
+const sendContextEventFilterService = craftService(
+  { name: 'SendContextEventFilters', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: SendContextEventFilter }) =>
+    inputs.$provided ? [inputs.$provided] : [],
 );
 
-export const SEND_CONTEXT_VALUE_SERIALIZER =
-  new InjectionToken<SendContextValueSerializer>(
-    'SEND_CONTEXT_VALUE_SERIALIZER',
-    { providedIn: 'root', factory: () => defaultSendContextValueSerializer },
-  );
+const sendContextSessionService = craftService(
+  { name: 'SendContextSession', providedIn: 'toProvide' },
+  function* () {
+    const session = createSendContextSession({
+      retentionPolicy: yield* SendContextRetentionPolicy(),
+      redactor: yield* SendContextRedactor(),
+      serializer: yield* SendContextValueSerializer(),
+      enrichers: yield* SendContextEventEnrichers(),
+      filters: yield* SendContextEventFilters(),
+    });
+    const snapshots = ɵinjectAppSnapshotRegistry();
+    const snapshotSubscription = snapshots.allSnapShot$.subscribe((report) => {
+      session.capture('snapshot', 'emitted', {
+        name: report.source,
+        state: report,
+      });
+    });
+    (session as SendContextSessionWithInternals).addCleanup(() =>
+      snapshotSubscription.unsubscribe(),
+    );
+    for (const source of yield* SendContextEventSources()) {
+      const cleanup =
+        typeof source === 'function' ? source(session) : source.connect(session);
+      if (cleanup) (session as SendContextSessionWithInternals).addCleanup(cleanup);
+    }
+    return session;
+  },
+);
+const sendContextRecordControllerService = craftService(
+  { name: 'SendContextRecordController', providedIn: 'toProvide' },
+  function* () {
+    return createSendContextRecordController(yield* SendContextSession());
+  },
+);
 
-export const SEND_CONTEXT_EVENT_SOURCE = new InjectionToken<
-  readonly SendContextEventSource[]
->('SEND_CONTEXT_EVENT_SOURCE', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
-export const SEND_CONTEXT_EVENT_ENRICHER = new InjectionToken<
-  readonly SendContextEventEnricher[]
->('SEND_CONTEXT_EVENT_ENRICHER', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
-export const SEND_CONTEXT_EVENT_FILTER = new InjectionToken<
-  readonly SendContextEventFilter[]
->('SEND_CONTEXT_EVENT_FILTER', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+const retention = asSendContextService<SendContextRetentionPolicy>(
+  sendContextRetentionPolicyService,
+  'SendContextRetentionPolicy',
+  'provideSendContextRetentionPolicy',
+  'SEND_CONTEXT_RETENTION_POLICY_META_DATA',
+);
+const redactor = asSendContextService<SendContextRedactor>(
+  sendContextRedactorService,
+  'SendContextRedactor',
+  'provideSendContextRedactor',
+  'SEND_CONTEXT_REDACTOR_META_DATA',
+);
+const serializer = asSendContextService<SendContextValueSerializer>(
+  sendContextValueSerializerService,
+  'SendContextValueSerializer',
+  'provideSendContextValueSerializer',
+  'SEND_CONTEXT_VALUE_SERIALIZER_META_DATA',
+);
+const sources = asSendContextService<readonly SendContextEventSource[]>(
+  sendContextEventSourceService,
+  'SendContextEventSources',
+  'provideSendContextEventSources',
+  'SEND_CONTEXT_EVENT_SOURCES_META_DATA',
+);
+const enrichers = asSendContextService<readonly SendContextEventEnricher[]>(
+  sendContextEventEnricherService,
+  'SendContextEventEnrichers',
+  'provideSendContextEventEnrichers',
+  'SEND_CONTEXT_EVENT_ENRICHERS_META_DATA',
+);
+const filters = asSendContextService<readonly SendContextEventFilter[]>(
+  sendContextEventFilterService,
+  'SendContextEventFilters',
+  'provideSendContextEventFilters',
+  'SEND_CONTEXT_EVENT_FILTERS_META_DATA',
+);
+const session = asSendContextService<SendContextSession>(
+  sendContextSessionService,
+  'SendContextSession',
+  'provideSendContextSession',
+  'SEND_CONTEXT_SESSION_META_DATA',
+);
+const recordController = asSendContextService<SendContextRecordController>(
+  sendContextRecordControllerService,
+  'SendContextRecordController',
+  'provideSendContextRecordController',
+  'SEND_CONTEXT_RECORD_CONTROLLER_META_DATA',
+);
+
+export const SendContextRetentionPolicy = retention.helper;
+export const provideSendContextRetentionPolicy = (
+  value: SendContextRetentionPolicy,
+): CraftServiceProvider => retention.provide!(value) as CraftServiceProvider;
+export const ɵinjectSendContextRetentionPolicy = (): SendContextRetentionPolicy =>
+  retention.metadata.inject();
+export const SendContextRedactor = redactor.helper;
+export const provideSendContextRedactor = (
+  value: SendContextRedactor,
+): CraftServiceProvider => redactor.provide!(value) as CraftServiceProvider;
+export const ɵinjectSendContextRedactor = (): SendContextRedactor => redactor.metadata.inject();
+export const SendContextValueSerializer = serializer.helper;
+export const provideSendContextValueSerializer = (
+  value: SendContextValueSerializer,
+): CraftServiceProvider =>
+  serializer.provide!(value) as CraftServiceProvider;
+export const ɵinjectSendContextValueSerializer = (): SendContextValueSerializer => serializer.metadata.inject();
+export const SendContextEventSources = sources.helper;
+export const ɵinjectSendContextEventSources = (): readonly SendContextEventSource[] => {
+  try { return sources.metadata.inject(); } catch { return []; }
+};
+export const SendContextEventEnrichers = enrichers.helper;
+export const ɵinjectSendContextEventEnrichers = (): readonly SendContextEventEnricher[] => {
+  try { return enrichers.metadata.inject(); } catch { return []; }
+};
+export const SendContextEventFilters = filters.helper;
+export const ɵinjectSendContextEventFilters = (): readonly SendContextEventFilter[] => {
+  try { return filters.metadata.inject(); } catch { return []; }
+};
+export const SendContextSession = session.helper;
+export const ɵinjectSendContextSession = (): SendContextSession | null => {
+  try { return session.metadata.inject(); } catch { return null; }
+};
+export const SendContextRecordController = recordController.helper;
+export const ɵinjectSendContextRecordController = (): SendContextRecordController | null => {
+  try { return recordController.metadata.inject(); } catch { return null; }
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -526,87 +641,65 @@ export function createSendContextRecordController(
 
 export function provideSendContextEventSource(
   source: SendContextEventSource,
-): Provider {
-  return { provide: SEND_CONTEXT_EVENT_SOURCE, useValue: source, multi: true };
+): CraftServiceProvider {
+  return (sources.provide as unknown as (
+    value: SendContextEventSource,
+  ) => unknown)!(source) as CraftServiceProvider;
 }
 export function provideSendContextEventEnricher(
   enricher: SendContextEventEnricher,
-): Provider {
-  return {
-    provide: SEND_CONTEXT_EVENT_ENRICHER,
-    useValue: enricher,
-    multi: true,
-  };
+): CraftServiceProvider {
+  return (enrichers.provide as unknown as (
+    value: SendContextEventEnricher,
+  ) => unknown)!(enricher) as CraftServiceProvider;
 }
 export function provideSendContextEventFilter(
   filter: SendContextEventFilter,
-): Provider {
-  return { provide: SEND_CONTEXT_EVENT_FILTER, useValue: filter, multi: true };
+): CraftServiceProvider {
+  return (filters.provide as unknown as (
+    value: SendContextEventFilter,
+  ) => unknown)!(filter) as CraftServiceProvider;
 }
 
-export function provideSendContextSession(): Provider[] {
-  const correlationId = (): string | undefined =>
-    inject(CORRELATION_ID_SERVICE, { optional: true })?.lastCorrelationId() ??
-    undefined;
+export function provideSendContextSession(): CraftServiceProvider[] {
+  const requireSession = (): SendContextSession => {
+    const value = ɵinjectSendContextSession();
+    if (!value) throw new Error('SendContextSession is not provided.');
+    return value;
+  };
   return [
-    {
-      provide: SEND_CONTEXT_SESSION,
-      useFactory: () => {
-        const session = createSendContextSession({
-          retentionPolicy: inject(SEND_CONTEXT_RETENTION_POLICY),
-          redactor: inject(SEND_CONTEXT_REDACTOR),
-          serializer: inject(SEND_CONTEXT_VALUE_SERIALIZER),
-          enrichers:
-            inject(SEND_CONTEXT_EVENT_ENRICHER, { optional: true }) ?? [],
-          filters: inject(SEND_CONTEXT_EVENT_FILTER, { optional: true }) ?? [],
-        });
-        const snapshots = inject(APP_SNAPSHOT_REGISTRY);
-        const snapshotSubscription = snapshots.allSnapShot$.subscribe(
-          (report) => {
-            session.capture('snapshot', 'emitted', {
-              name: report.source,
-              state: report,
-            });
-          },
-        );
-        (session as SendContextSessionWithInternals).addCleanup(() =>
-          snapshotSubscription.unsubscribe(),
-        );
-        for (const source of inject(SEND_CONTEXT_EVENT_SOURCE, {
-          optional: true,
-        }) ?? []) {
-          const cleanup =
-            typeof source === 'function'
-              ? source(session)
-              : source.connect(session);
-          if (cleanup)
-            (session as SendContextSessionWithInternals).addCleanup(cleanup);
-        }
-        return session;
-      },
-    },
-    {
-      provide: SEND_CONTEXT_RECORD_CONTROLLER,
-      useFactory: () =>
-        createSendContextRecordController(inject(SEND_CONTEXT_SESSION)),
-    },
+    provideSendContextRetentionPolicy({
+      maxEvents: 500,
+      maxBytes: 2 * 1024 * 1024,
+    }),
+    provideSendContextRedactor(defaultSendContextRedactor),
+    provideSendContextValueSerializer(defaultSendContextValueSerializer),
+    sources.provide!() as CraftServiceProvider,
+    enrichers.provide!() as CraftServiceProvider,
+    filters.provide!() as CraftServiceProvider,
+    session.provide!() as CraftServiceProvider,
+    recordController.provide!() as CraftServiceProvider,
     provideCraftDomEventHook((interaction, next) => {
-      const session = inject(SEND_CONTEXT_SESSION);
+      const session = requireSession();
+      const correlationId =
+        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
       session.capture('dom', 'emitted', {
         name: interaction.interactionName,
-        correlationId: correlationId(),
+        correlationId,
         payload: interaction,
         targets: [{ tagName: interaction.elementTag }],
       });
       return next();
     }),
     provideCraftHttpTrace((context, next) => {
-      const session = inject(SEND_CONTEXT_SESSION);
+      const session = requireSession();
+      const correlationId =
+        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
       const operationId = randomId('http');
       session.capture('http', 'started', {
         name: context.method,
         operationId,
-        correlationId: correlationId(),
+        correlationId,
         payload: context,
       });
       return next().then(
@@ -614,7 +707,7 @@ export function provideSendContextSession(): Provider[] {
           session.capture('http', 'succeeded', {
             name: context.method,
             operationId,
-            correlationId: correlationId(),
+            correlationId,
             response,
           });
           return response;
@@ -623,7 +716,7 @@ export function provideSendContextSession(): Provider[] {
           session.capture('http', 'failed', {
             name: context.method,
             operationId,
-            correlationId: correlationId(),
+            correlationId,
             response: error,
           });
           throw error;
@@ -631,12 +724,14 @@ export function provideSendContextSession(): Provider[] {
       );
     }),
     ...provideCraftRouterTrace((context, next) => {
-      const session = inject(SEND_CONTEXT_SESSION);
+      const session = requireSession();
+      const correlationId =
+        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
       const operationId = randomId('navigation');
       session.capture('navigation', 'started', {
         name: context.eventName ?? context.stage,
         operationId,
-        correlationId: correlationId(),
+        correlationId,
         payload: context,
       });
       try {
@@ -647,7 +742,7 @@ export function provideSendContextSession(): Provider[] {
               session.capture('navigation', 'succeeded', {
                 name: context.eventName ?? context.stage,
                 operationId,
-                correlationId: correlationId(),
+                correlationId,
                 response,
               });
               return response;
@@ -656,7 +751,7 @@ export function provideSendContextSession(): Provider[] {
               session.capture('navigation', 'failed', {
                 name: context.eventName ?? context.stage,
                 operationId,
-                correlationId: correlationId(),
+                correlationId,
                 response: error,
               });
               throw error;
@@ -666,7 +761,7 @@ export function provideSendContextSession(): Provider[] {
         session.capture('navigation', 'succeeded', {
           name: context.eventName ?? context.stage,
           operationId,
-          correlationId: correlationId(),
+          correlationId,
           response: result,
         });
         return result;
@@ -674,20 +769,23 @@ export function provideSendContextSession(): Provider[] {
         session.capture('navigation', 'failed', {
           name: context.eventName ?? context.stage,
           operationId,
-          correlationId: correlationId(),
+          correlationId,
           response: error,
         });
         throw error;
       }
     }),
     providePrimitiveResourceRuntimeObserver((context) => {
-      inject(SEND_CONTEXT_SESSION).capture('primitive', 'emitted', {
+      const session = requireSession();
+      const correlationId =
+        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+      session.capture('primitive', 'emitted', {
         name: context.kind,
-        correlationId: correlationId(),
+        correlationId,
         state: readPrimitiveState(context),
       });
     }),
-  ];
+  ] as CraftServiceProvider[];
 }
 
 type SendContextSessionWithInternals = SendContextSession & {

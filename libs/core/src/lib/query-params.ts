@@ -37,9 +37,9 @@ import type {
   ServiceDependencyMapFromYieldedAndValues,
 } from './craft-service';
 import {
-  APP_SNAPSHOT_REGISTRY,
-  INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
+  provideInsertionSnapshotRegistry,
+  ɵinjectAppSnapshotRegistryIn,
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import { ɵprovidePrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
@@ -52,7 +52,7 @@ import {
   isNonYieldableInsertionMethod,
   yieldableInvocation,
 } from './yieldable';
-import { CRAFT_HISTORY, CRAFT_LOCATION } from './craft-router-tokens';
+import { ɵinjectCraftHistory, ɵinjectCraftLocation } from './craft-router-tokens';
 import {
   parseSearchParams,
   serializeSearchParams,
@@ -468,14 +468,11 @@ function createQueryParamsRef<
     inject(Injector),
     `queryParams:${name}`,
     [
-      {
-        provide: INSERTION_SNAPSHOT_REGISTRY,
-        useValue: insertionSnapshotRegistry,
-      },
+      provideInsertionSnapshotRegistry(insertionSnapshotRegistry),
     ],
   );
-  const history = inject(CRAFT_HISTORY);
-  const location = inject(CRAFT_LOCATION);
+  const history = ɵinjectCraftHistory()!;
+  const location = ɵinjectCraftLocation()!;
 
   const { state: queryParamsConfig, ...options } = config;
 
@@ -833,7 +830,7 @@ function createQueryParamsRef<
     { hasException, exceptions, _config: config },
   ) as unknown as QueryParamsOutput<QueryParamsType, {}, QueryParamsState>;
 
-  const snapshotRegistry = injector.get(APP_SNAPSHOT_REGISTRY, null);
+  const snapshotRegistry = ɵinjectAppSnapshotRegistryIn(injector);
   const hostTagList: readonly string[] =
     injector.get(ɵHOST_TAG_LIST, null) ?? [];
 

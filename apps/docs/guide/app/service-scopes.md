@@ -25,7 +25,7 @@ same instance. Use `global` only for genuinely app-wide state.
 ### `manuallyProvidedAtRoot`
 
 - explicit provider helper, but designed to be mounted at root
-- also exposes `XToProvide` for public provider composition
+- exposes the generated `provideX()` helper for explicit root composition
 - allows this scope to be yielded by global services, which is not possible with `toProvide` (it still requires explicit setup when testing with `setupCraftServiceTestingByRegister`).
 
 ### `function`

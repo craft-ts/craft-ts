@@ -1,9 +1,9 @@
 import {
-  InjectionToken,
   runInInjectionContext,
   type Injector,
   type Provider,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import { isCraftDevelopment } from './craft-runtime-mode';
 
 /** Metadata attached to one effective Craft template render. */
@@ -35,21 +35,34 @@ export type TemplateTraceWrapper<Children = unknown> = (
 ) => Children;
 
 /** All template trace wrappers active in the current injector. */
-export const CRAFT_TEMPLATE_TRACE = new InjectionToken<
-  readonly TemplateTraceWrapper<unknown>[]
->('CRAFT_TEMPLATE_TRACE', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+const templateTraceService = craftService(
+  { name: 'TemplateTraces', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: TemplateTraceWrapper }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  provideTemplateTraces: (value?: TemplateTraceWrapper) => unknown;
+  TEMPLATE_TRACES_META_DATA: {
+    inject(): readonly TemplateTraceWrapper<unknown>[];
+  };
+};
+
+export const ɵinjectTemplateTraces = (
+  injector?: Injector,
+): readonly TemplateTraceWrapper<unknown>[] => {
+  try {
+    return injector
+      ? runInInjectionContext(injector, () =>
+          templateTraceService.TEMPLATE_TRACES_META_DATA.inject(),
+        )
+      : templateTraceService.TEMPLATE_TRACES_META_DATA.inject();
+  } catch {
+    return [];
+  }
+};
 
 /** Register one composable synchronous template trace wrapper. */
 export function provideTemplateTrace(wrapper: TemplateTraceWrapper): Provider {
-  return {
-    provide: CRAFT_TEMPLATE_TRACE,
-    useValue: wrapper,
-    multi: true,
-  };
+  return templateTraceService.provideTemplateTraces(wrapper) as Provider;
 }
 
 /**
@@ -67,7 +80,7 @@ export function executeTemplateTrace<Children>(
   if (!isCraftDevelopment(injector)) {
     return next();
   }
-  const wrappers = injector.get(CRAFT_TEMPLATE_TRACE, []);
+  const wrappers = ɵinjectTemplateTraces(injector);
   if (wrappers.length === 0) {
     return next();
   }

@@ -19,7 +19,7 @@ import {
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { isCraftReplaying } from './craft-replay';
 import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
-import { CRAFT_PLATFORM, type CraftPlatform } from './craft-platform';
+import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
 
 type CraftResourceOptions<Value, Params> = Omit<
   ResourceOptions<Value, Params>,
@@ -191,7 +191,7 @@ export function craftResource<Value, Params>(
         })
       : undefined;
   let paramsWatch: ReturnType<typeof craftWatch> | undefined;
-  const platform = injector.get(CRAFT_PLATFORM, null) as CraftPlatform | null;
+  const platform = ɵinjectCraftPlatform();
   const abortForRequest = () => abortController?.abort(platform?.requestSignal?.reason);
   if (platform?.requestSignal) {
     platform.requestSignal.addEventListener('abort', abortForRequest, {

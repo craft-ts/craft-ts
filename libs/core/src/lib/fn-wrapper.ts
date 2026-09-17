@@ -1,4 +1,5 @@
-import { inject, InjectionToken, type Provider } from './host/craft-compat';
+import { type Provider } from './host/craft-compat';
+import { craftService } from './craft-service';
 import { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
 
 export { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
@@ -20,23 +21,28 @@ export type FnWrapObserver = (factory: AnyFactory) => void;
 const IDENTITY_ADAPTER: FnFactoryAdapter = ((factory) =>
   factory) as FnFactoryAdapter;
 
-export const FN_WRAPPER = new InjectionToken<readonly FnWrapper[]>(
-  'FN_WRAPPER',
-  {
-    providedIn: 'root',
-    factory: () => [],
-    multi: true,
-  },
-);
+const fnWrapperService = craftService(
+  { name: 'FnWrappers', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: FnWrapper }) => inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  provideFnWrappers: (value?: FnWrapper) => unknown;
+  FN_WRAPPERS_META_DATA: { inject(): readonly FnWrapper[] };
+};
+const fnWrapObserverService = craftService(
+  { name: 'FnWrapObservers', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: FnWrapObserver }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  provideFnWrapObservers: (value?: FnWrapObserver) => unknown;
+  FN_WRAP_OBSERVERS_META_DATA: { inject(): readonly FnWrapObserver[] };
+};
 
-export const FN_WRAP_OBSERVER = new InjectionToken<readonly FnWrapObserver[]>(
-  'FN_WRAP_OBSERVER',
-  {
-    providedIn: 'root',
-    factory: () => [],
-    multi: true,
-  },
-);
+export const ɵinjectFnWrappers = (): readonly FnWrapper[] => {
+  try { return fnWrapperService.FN_WRAPPERS_META_DATA.inject(); } catch { return []; }
+};
+export const ɵinjectFnWrapObservers = (): readonly FnWrapObserver[] => {
+  try { return fnWrapObserverService.FN_WRAP_OBSERVERS_META_DATA.inject(); } catch { return []; }
+};
 
 // The warning literal is part of the public API to make the runtime DI risk
 // explicit at every call site.
@@ -44,16 +50,16 @@ export function provideFnWrapper(
   _warning: string,
   wrapper: FnWrapper,
 ): Provider {
-  return { provide: FN_WRAPPER, useValue: wrapper, multi: true };
+  return fnWrapperService.provideFnWrappers(wrapper) as Provider;
 }
 
 export function provideFnWrapObserver(observer: FnWrapObserver): Provider {
-  return { provide: FN_WRAP_OBSERVER, useValue: observer, multi: true };
+  return fnWrapObserverService.provideFnWrapObservers(observer) as Provider;
 }
 
 export function injectFnWrapper(): FnFactoryAdapter {
-  const wrappers = inject(FN_WRAPPER);
-  const observers = inject(FN_WRAP_OBSERVER);
+  const wrappers = ɵinjectFnWrappers();
+  const observers = ɵinjectFnWrapObservers();
   if (wrappers.length === 0 && observers.length === 0) {
     return IDENTITY_ADAPTER;
   }

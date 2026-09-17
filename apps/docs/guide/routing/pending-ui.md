@@ -98,17 +98,17 @@ provideCraftLoading(
 ),
 ```
 
-| Feature                    | Token                                                                 | Default                           |
+| Feature                    | Service helper(s)                                                     | Default                           |
 | -------------------------- | --------------------------------------------------------------------- | --------------------------------- |
-| `withPendingComponent`     | `CRAFT_PENDING_COMPONENT`                                             | `DefaultCraftPendingComponent`    |
-| `withLoadingText`          | `CRAFT_LOADING_TEXT`                                                  | locale-aware (en/fr, fallback en) |
-| `withTransitionTimings`    | `CRAFT_STAY_MS` / `CRAFT_BLANK_MS` / `CRAFT_PENDING_MIN_MS`           | `300` / `300` / `0`               |
-| `withErrorComponent`       | `CRAFT_ERROR_COMPONENT`                                               | `null`                            |
-| `withRouteLoadError`       | `CRAFT_ROUTE_LOAD_ERROR_COMPONENT` / `CRAFT_ROUTE_LOAD_RETRY`         | `null` / one retry after 250 ms   |
-| `withCraftViewTransitions` | `CRAFT_VIEW_TRANSITIONS_ENABLED` / `CRAFT_VIEW_TRANSITION_SKIP_BLANK` | `false` / `false`                 |
-| `withA11yNavigationFocus`  | `CRAFT_A11Y_NAVIGATION_FOCUS`                                         | `false`                           |
+| `withPendingComponent`     | `CraftPendingComponent`                                               | `DefaultCraftPendingComponent`    |
+| `withLoadingText`          | `CraftLoadingText`                                                     | locale-aware (en/fr, fallback en) |
+| `withTransitionTimings`    | `CraftStayMs` / `CraftBlankMs` / `CraftPendingMinMs`                  | `300` / `300` / `0`               |
+| `withErrorComponent`       | `CraftErrorComponent`                                                 | `null`                            |
+| `withRouteLoadError`       | `CraftRouteLoadErrorConfig` / `CraftRouteLoadRetry`                   | `null` / one retry after 250 ms   |
+| `withCraftViewTransitions` | `CraftViewTransitionsEnabled` / `CraftViewTransitionSkipBlank`       | `false` / `false`                 |
+| `withA11yNavigationFocus`  | `CraftA11yNavigationFocus`                                            | `false`                           |
 
-The default pending component renders `CRAFT_LOADING_TEXT`, which reads `LOCALE_ID` and picks a
+The default pending component renders `CraftLoadingText`, which reads `LOCALE_ID` and picks a
 built-in translation (`Loading…` / `Chargement…`).
 
 ## Per-route overrides

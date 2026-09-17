@@ -1,11 +1,11 @@
 import {
-  inject,
-  InjectionToken,
   isDevMode,
-  type Provider,
+  runInInjectionContext,
+  type Injector,
   type Signal,
   signal,
 } from './host/craft-compat';
+import { craftService, type CraftServiceProvider } from './craft-service';
 import { craftException, type AnyCraftException } from './craft-exception';
 import type {
   StandardSchemaV1,
@@ -57,21 +57,32 @@ export type SchemaValidationPolicy = (
   context: SchemaValidationContext,
 ) => SchemaValidationDecision;
 
-export const CRAFT_SCHEMA_VALIDATION_POLICY =
-  new InjectionToken<SchemaValidationPolicy>('CRAFT_SCHEMA_VALIDATION_POLICY', {
-    providedIn: 'root',
-    factory: () => (context) => {
+const craftSchemaValidationPolicyService = craftService(
+  { name: 'CraftSchemaValidationPolicy', providedIn: 'toProvide' },
+  (inputs: { $provided?: SchemaValidationPolicy }) =>
+    inputs.$provided ?? ((context: SchemaValidationContext) => {
       // Invalid data is useful feedback during development. In production the
       // application can keep running while the policy callback reports it.
       void context;
       return { action: isDevMode() ? 'reject' : 'accept' };
-    },
-  });
+    }),
+) as unknown as {
+  CraftSchemaValidationPolicy: () => Generator<unknown, SchemaValidationPolicy, unknown>;
+  provideCraftSchemaValidationPolicy: (value: SchemaValidationPolicy) => CraftServiceProvider;
+  CRAFT_SCHEMA_VALIDATION_POLICY_META_DATA: { inject(): SchemaValidationPolicy };
+};
+export const CraftSchemaValidationPolicy = craftSchemaValidationPolicyService.CraftSchemaValidationPolicy;
+export const ɵinjectCraftSchemaValidationPolicyIn = (
+  injector: Injector,
+): SchemaValidationPolicy =>
+  runInInjectionContext(injector, () =>
+    craftSchemaValidationPolicyService.CRAFT_SCHEMA_VALIDATION_POLICY_META_DATA.inject(),
+  );
 
 export function provideCraftSchemaValidationPolicy(
   policy: SchemaValidationPolicy,
-): Provider {
-  return { provide: CRAFT_SCHEMA_VALIDATION_POLICY, useValue: policy };
+): CraftServiceProvider {
+  return craftSchemaValidationPolicyService.provideCraftSchemaValidationPolicy(policy);
 }
 
 export type SchemaValidationExceptionPayload = {
@@ -173,10 +184,10 @@ export function parseSchema<Output>(
 }
 
 export function useSchemaValidationPolicy(
-  injector: { get<T>(token: InjectionToken<T>): T },
+  injector: Injector,
   localPolicy?: SchemaValidationPolicy,
 ): SchemaValidationPolicy {
-  return localPolicy ?? injector.get(CRAFT_SCHEMA_VALIDATION_POLICY);
+  return localPolicy ?? ɵinjectCraftSchemaValidationPolicyIn(injector);
 }
 
 export function decideSchemaValidation(

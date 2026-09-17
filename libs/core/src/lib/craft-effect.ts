@@ -23,7 +23,7 @@ import {
   isGeneratorFunction,
   runCraftGenerator,
 } from './craft-generator-runtime';
-import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { ɵinjectAppSnapshotRegistryIn } from './take-app-snapshot';
 
 type CraftEffectFn = (onCleanup: EffectCleanupRegisterFn) => void;
 
@@ -162,7 +162,7 @@ export function craftEffect(
     ownerDestroyRef.onDestroy(() => ref.destroy());
   }
 
-  const registry = ownerInjector.get(APP_SNAPSHOT_REGISTRY, null);
+  const registry = ɵinjectAppSnapshotRegistryIn(ownerInjector);
   if (registry) {
     const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     registry.triggerSnapshot$

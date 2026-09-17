@@ -8,10 +8,14 @@ import {
   type Provider,
 } from './host/craft-compat';
 import {
-  CORRELATION_ID_SERVICE,
   createCorrelationIdService,
   getCurrentStartCorrelationId,
   setCurrentStartCorrelationId,
+} from './correlation-id';
+import {
+  ɵinjectCorrelationIdService,
+  ɵinjectCorrelationIdServiceIn,
+  provideCorrelationIdService,
 } from './correlation-id';
 import {
   provideCraftDomEventHook,
@@ -19,10 +23,10 @@ import {
 } from './dom-event-hook';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
-import { CRAFT_TEMPORAL_RUNTIME } from './temporal-runtime';
+import { ɵinjectCraftTemporalRuntime } from './temporal-runtime';
 
 const correlationIdDomEventHook: CraftDomEventHook = (interaction, next) => {
-  const service = inject(CORRELATION_ID_SERVICE);
+  const service = ɵinjectCorrelationIdService();
   service?.generateAndSet(interaction.interactionName);
   return next();
 };
@@ -49,7 +53,7 @@ function initPopstateTracking(injector: Injector): void {
     const newCounter = (state[POPSTATE_COUNTER_KEY] as number) ?? 0;
 
     runInInjectionContext(injector, () => {
-      const service = inject(CORRELATION_ID_SERVICE);
+      const service = ɵinjectCorrelationIdService();
       if (service) {
         const prefix = newCounter > lastCounter ? 'nav-forward' : 'nav-back';
         service.generateAndSet(prefix);
@@ -65,7 +69,7 @@ const correlationIdFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   const service = (yield {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
     providedIn: 'function' as const,
-    resolve: (injector: Injector) => injector.get(CORRELATION_ID_SERVICE, null),
+    resolve: (injector: Injector) => ɵinjectCorrelationIdServiceIn(injector),
   }) as ReturnType<typeof createCorrelationIdService> | null;
 
   // Untracked, and this is load-bearing: this wrapper runs inside EVERY craft
@@ -94,11 +98,9 @@ export function provideCorrelationIdTracking(): (
   | EnvironmentProviders
 )[] {
   return [
-    {
-      provide: CORRELATION_ID_SERVICE,
-      useFactory: () =>
-        createCorrelationIdService(inject(CRAFT_TEMPORAL_RUNTIME)),
-    },
+    provideCorrelationIdService(
+      createCorrelationIdService(ɵinjectCraftTemporalRuntime()),
+    ),
     provideCraftDomEventHook(correlationIdDomEventHook),
     provideAppInitializer(() => {
       initPopstateTracking(inject(Injector));

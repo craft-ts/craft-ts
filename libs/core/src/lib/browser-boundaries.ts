@@ -9,13 +9,13 @@ import {
 } from './craft-service';
 import { type TrackTag } from './host-tag';
 import {
-  CORRELATION_ID_SERVICE,
+  ɵinjectCorrelationIdServiceIn,
   getCurrentStartCorrelationId,
   type CorrelationIdMetadata,
 } from './correlation-id';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 import type { Injector } from './host/craft-compat';
-import { CRAFT_PLATFORM, type CraftPlatform } from './craft-platform';
+import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
 import { getCurrentCraftInjector } from './host/craft-injector';
 
 type AnyBrowserBoundaryMethod = (...args: any[]) => any;
@@ -321,10 +321,10 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
         tags: injector.get(ɵTRACK_TAGS_LIST),
         correlation: {
           lastCorrelationId:
-            injector.get(CORRELATION_ID_SERVICE, null)?.lastCorrelationId() ??
+            ɵinjectCorrelationIdServiceIn(injector)?.lastCorrelationId() ??
             null,
           mayCorrelatedIds:
-            injector.get(CORRELATION_ID_SERVICE, null)?.mayCorrelatedIds() ??
+            ɵinjectCorrelationIdServiceIn(injector)?.mayCorrelatedIds() ??
             [],
           startCorrelationId: getCurrentStartCorrelationId(),
         },
@@ -388,7 +388,7 @@ function getBrowserDocument() {
 
 function getActivePlatform(): CraftPlatform | undefined {
   try {
-    return getCurrentCraftInjector().get(CRAFT_PLATFORM, null) ?? undefined;
+    return ɵinjectCraftPlatform() ?? undefined;
   } catch {
     return undefined;
   }

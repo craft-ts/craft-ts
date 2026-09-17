@@ -180,7 +180,9 @@ export function forNode<
 
 export type { ScheduleForDirective } from './for-scheduling';
 export {
-  FOR_SCHEDULER,
+  ForScheduler,
+  provideForScheduler,
+  ɵinjectForSchedulerIn,
   FrameForScheduler,
   SyncForScheduler,
   createForScheduler,

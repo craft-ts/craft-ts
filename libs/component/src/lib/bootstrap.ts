@@ -1,10 +1,8 @@
 import {
   APP_INITIALIZER,
-  COMPONENT_REGISTER,
-  CRAFT_PLATFORM,
-  CRAFT_PRIMITIVE_REGISTRY,
-  CRAFT_RUNTIME_MODE,
-  CraftPrimitiveRegistry,
+  provideComponentRegister,
+  provideCraftPlatform,
+  provideCraftRuntimeMode,
   createBrowserPlatform,
   createComponentRegister,
   createCraftInjector,
@@ -16,7 +14,7 @@ import {
   type CraftRuntimeMode,
 } from '@craft-ts/core';
 import { mountCraftComponent } from './bridge';
-import { CRAFT_ROOT_COMPONENT } from './craft-host-tokens';
+import { ɵinjectCraftRootComponent } from './craft-host-tokens';
 import type { CraftComponent } from './types';
 
 export type BootstrapCraftOptions = {
@@ -52,15 +50,8 @@ export function ɵcreateCraftApplicationInjector(
   return createEnvironmentInjector(
     [
       ...getCraftRootDefaultProviders(),
-      { provide: CRAFT_RUNTIME_MODE, useValue: mode },
-      {
-        provide: COMPONENT_REGISTER,
-        useValue: createComponentRegister(),
-      },
-      {
-        provide: CRAFT_PRIMITIVE_REGISTRY,
-        useValue: new CraftPrimitiveRegistry(),
-      },
+      provideCraftRuntimeMode(mode),
+      provideComponentRegister(createComponentRegister()),
       ...config.providers,
       ...additionalProviders,
     ],
@@ -90,7 +81,7 @@ export function bootstrapCraft(options: BootstrapCraftOptions): CraftAppRef {
   const platform = createBrowserPlatform(window);
   const injector = ɵcreateCraftApplicationInjector(
     options.config,
-    [{ provide: CRAFT_PLATFORM, useValue: platform }],
+    [provideCraftPlatform(platform)],
     options.mode,
   );
 
@@ -98,7 +89,7 @@ export function bootstrapCraft(options: BootstrapCraftOptions): CraftAppRef {
   // has done so by the time the root component reads it.
   ɵrunCraftAppInitializers(injector);
 
-  const root = injector.get(CRAFT_ROOT_COMPONENT) as CraftComponent<any>;
+  const root = ɵinjectCraftRootComponent() as CraftComponent<any>;
   if (!root) {
     throw new Error(
       'bootstrapCraft found no root component. Add provideCraftRootComponent(App) to your app config.',

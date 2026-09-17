@@ -109,6 +109,7 @@ const preferInlineEffectInsertion = require('./prefer-inline-effect-insertion.cj
 const preferInlineRouteProviders = require('./prefer-inline-route-providers.cjs');
 const preferQueryMethodOverStateTrigger = require('./prefer-query-method-over-state-trigger.cjs');
 const noInjectionToken = require('./no-injection-token.cjs');
+const noAuthoredCraftToken = require('./no-authored-craft-token.cjs');
 const noManualRouteProviderList = require('./no-manual-route-provider-list.cjs');
 const noWidenedRouteProviderContext = require('./no-widened-route-provider-context.cjs');
 const requireRouteSecurityPolicy = require('./require-route-security-policy.cjs');
@@ -245,6 +246,7 @@ const plugin = {
     'no-effect-in-params': noEffectOutsideLoaders,
     'prefer-query-method-over-state-trigger': preferQueryMethodOverStateTrigger,
     'no-injection-token': noInjectionToken,
+    'no-authored-craft-token': noAuthoredCraftToken,
     'no-manual-route-provider-list': noManualRouteProviderList,
     'no-widened-route-provider-context': noWidenedRouteProviderContext,
     'require-route-security-policy': requireRouteSecurityPolicy,

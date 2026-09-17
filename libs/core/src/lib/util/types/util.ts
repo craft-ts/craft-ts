@@ -2,14 +2,19 @@ import {
   effect,
   EffectCleanupRegisterFn,
   EffectRef,
-  InjectionToken,
   Injector,
+  runInInjectionContext,
 } from '../../host/craft-compat';
+import { craftService, type CraftServiceProvider } from '../../craft-service';
 import { explicitEffect, ExplicitEffectValues } from '../explicit-effect';
 
-export const DYNAMIC_EFFECT_REF_INSTANCE_TOKEN = new InjectionToken<EffectRef>(
-  'Injection token used to provide a dynamically created effectRef instance.',
-);
+const dynamicEffectRefInstanceService = craftService(
+  { name: 'DynamicEffectRefInstance', providedIn: 'toProvide' },
+  (inputs: { $provided?: () => EffectRef }) => inputs.$provided?.(),
+) as unknown as {
+  provideDynamicEffectRefInstance: (value: () => EffectRef) => CraftServiceProvider;
+  DYNAMIC_EFFECT_REF_INSTANCE_META_DATA: { inject(): EffectRef };
+};
 
 export function nestedEffect<T, R, GroupIdentifier extends string>(
   parentInjector: Injector,
@@ -17,18 +22,15 @@ export function nestedEffect<T, R, GroupIdentifier extends string>(
 ) {
   const injector = Injector.create({
     providers: [
-      {
-        provide: DYNAMIC_EFFECT_REF_INSTANCE_TOKEN,
-        useFactory: () => {
-          return effect(effectFn, {
-            injector: parentInjector,
-          });
-        },
-      },
+      dynamicEffectRefInstanceService.provideDynamicEffectRefInstance(() =>
+        effect(effectFn, { injector: parentInjector }),
+      ),
     ],
     parent: parentInjector,
   });
-  const effectRef = injector.get(DYNAMIC_EFFECT_REF_INSTANCE_TOKEN);
+  const effectRef = runInInjectionContext(injector, () =>
+    dynamicEffectRefInstanceService.DYNAMIC_EFFECT_REF_INSTANCE_META_DATA.inject(),
+  );
   return effectRef;
 }
 
@@ -72,17 +74,14 @@ export function explicitNestedEffect<
 ) {
   const injector = Injector.create({
     providers: [
-      {
-        provide: DYNAMIC_EFFECT_REF_INSTANCE_TOKEN,
-        useFactory: () => {
-          return explicitEffect(deps, fn, {
-            injector: parentInjector,
-          });
-        },
-      },
+      dynamicEffectRefInstanceService.provideDynamicEffectRefInstance(() =>
+        explicitEffect(deps, fn, { injector: parentInjector }),
+      ),
     ],
     parent: parentInjector,
   });
-  const effectRef = injector.get(DYNAMIC_EFFECT_REF_INSTANCE_TOKEN);
+  const effectRef = runInInjectionContext(injector, () =>
+    dynamicEffectRefInstanceService.DYNAMIC_EFFECT_REF_INSTANCE_META_DATA.inject(),
+  );
   return effectRef;
 }

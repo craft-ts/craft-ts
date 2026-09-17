@@ -1,4 +1,5 @@
-import { InjectionToken } from './host-runtime';
+import { runInInjectionContext, type Injector } from './host-runtime';
+import { craftService, type CraftServiceProvider } from '@craft-ts/core';
 import { craftDirective } from './directive';
 import type { CraftDirective } from './types';
 
@@ -77,9 +78,27 @@ export interface ForScheduler {
 }
 
 /** Injectable override used by deterministic tests and host integrations. */
-export const FOR_SCHEDULER = new InjectionToken<ForScheduler>(
-  'FOR_SCHEDULER',
-);
+const forSchedulerService = craftService(
+  { name: 'ForScheduler', providedIn: 'toProvide' },
+  (inputs: { $provided?: ForScheduler }) =>
+    inputs.$provided ?? new SyncForScheduler(),
+) as unknown as {
+  ForScheduler: () => Generator<unknown, ForScheduler, unknown>;
+  provideForScheduler: (value: ForScheduler) => CraftServiceProvider;
+  FOR_SCHEDULER_META_DATA: { inject(): ForScheduler };
+};
+export const ForScheduler = forSchedulerService.ForScheduler;
+export const provideForScheduler = (value: ForScheduler): CraftServiceProvider =>
+  forSchedulerService.provideForScheduler(value);
+export const ɵinjectForSchedulerIn = (injector: Injector): ForScheduler | null => {
+  try {
+    return runInInjectionContext(injector, () =>
+      forSchedulerService.FOR_SCHEDULER_META_DATA.inject(),
+    );
+  } catch {
+    return null;
+  }
+};
 
 const NOOP_CANCEL: CancelHandle = { cancel: () => undefined };
 

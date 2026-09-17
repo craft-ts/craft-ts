@@ -1,5 +1,5 @@
 import {
-  CRAFT_TEMPORAL_RUNTIME,
+  CraftTemporalRuntime,
   CraftHttpClient,
   craftMethod,
   craftUse,
@@ -10,7 +10,6 @@ import {
   type SendContextEvent,
   type TemporalTaskHandle,
 } from '@craft-ts/core';
-import { ɵtoCraftService as toCraftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import { DestroyRef, inject } from '../host-runtime';
@@ -45,18 +44,6 @@ import {
   type SendContextPromptOptions,
 } from './send-context-prompt';
 import type { SendContextUiContext } from './send-context-ui.tokens';
-
-const { CraftTemporalRuntime } = toCraftService({
-  name: 'CraftTemporalRuntime',
-  providedIn: 'global',
-  token: CRAFT_TEMPORAL_RUNTIME,
-}) as unknown as {
-  CraftTemporalRuntime: () => Generator<
-    never,
-    CraftTemporalRuntimeApi,
-    unknown
-  >;
-};
 
 /** The timeline is a debugging view, not a log: only the tail is readable. */
 const VISIBLE_EVENTS = 100;

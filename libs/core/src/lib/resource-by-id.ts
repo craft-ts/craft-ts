@@ -5,13 +5,14 @@ import {
   effect,
   untracked,
   Injector,
-  InjectionToken,
+  runInInjectionContext,
   WritableSignal,
   computed,
   Signal,
   type ResourceLoaderParams,
   type ResourceStreamingLoader,
 } from './host/craft-compat';
+import { craftService, type CraftServiceProvider } from './craft-service';
 import { craftLinkedSignal as linkedSignal } from './host/craft-linked-signal';
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';
@@ -511,11 +512,24 @@ export function resourceById<
   return Object.assign(resourceByGroup.asReadonly(), resourcesHandler);
 }
 
-const RESOURCE_INSTANCE_TOKEN = new InjectionToken<
-  CraftResourceRef<unknown, unknown>
->(
-  'Injection token used to provide a dynamically created CraftResourceRef instance.',
-);
+const dynamicResourceInstanceService = craftService(
+  { name: 'DynamicResourceInstance', providedIn: 'toProvide' },
+  (inputs: {
+    $provided?:
+      | CraftResourceRef<unknown, unknown>
+      | (() => CraftResourceRef<unknown, unknown>);
+  }) =>
+    typeof inputs.$provided === 'function'
+      ? inputs.$provided()
+      : inputs.$provided,
+) as unknown as {
+  provideDynamicResourceInstance: (
+    value: () => CraftResourceRef<unknown, unknown>,
+  ) => CraftServiceProvider;
+  DYNAMIC_RESOURCE_INSTANCE_META_DATA: {
+    inject(): CraftResourceRef<unknown, unknown>;
+  };
+};
 
 interface DynamicResourceConfig<T, R, GroupIdentifier extends string> {
   resourceOptions: ResourceOptions<T, R> & { ssrSourceName?: string };
@@ -537,14 +551,15 @@ function createDynamicResource<T, R, GroupIdentifier extends string>(
 ) {
   const injector = Injector.create({
     providers: [
-      {
-        provide: RESOURCE_INSTANCE_TOKEN,
-        useFactory: () => preservedResource(resourceConfig.resourceOptions),
-      },
+      dynamicResourceInstanceService.provideDynamicResourceInstance(() =>
+        preservedResource(resourceConfig.resourceOptions),
+      ),
     ],
     parent: parentInjector,
   });
 
-  const CraftResourceRef = injector.get(RESOURCE_INSTANCE_TOKEN);
+  const CraftResourceRef = runInInjectionContext(injector, () =>
+    dynamicResourceInstanceService.DYNAMIC_RESOURCE_INSTANCE_META_DATA.inject(),
+  );
   return CraftResourceRef as CraftResourceRef<T, R>;
 }
