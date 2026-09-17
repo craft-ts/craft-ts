@@ -11,7 +11,13 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  craftSleep,
+  query,
+  settled,
+} from '@craft-ts/core';
 
 interface DemoUser {
   readonly id: number;
@@ -33,32 +39,8 @@ const USERS: readonly DemoUser[] = [
  * boundary below is a **compile error**, not an `undefined` leaking into the
  * render.
  */
-export const pendingNodeDemo = craftComponent(
-  'pendingNodeDemo',
-  {
-    host: { class: 'pending-demo-host' },
-    styles: `
-      :scope { display: grid; gap: 1rem; padding: 1rem; justify-items: start; }
-      .pending-demo__skeleton {
-        padding: .75rem 1rem;
-        border-radius: .75rem;
-        background: #eef2ff;
-        color: #4338ca;
-        font-weight: 650;
-      }
-      .pending-demo__reload {
-        width: fit-content;
-        padding: .45rem .9rem;
-        border: 1px solid #c7d2fe;
-        border-radius: .6rem;
-        background: #fff;
-        font-weight: 650;
-        cursor: pointer;
-      }
-      .pending-demo__list { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
-      .pending-demo__count { opacity: .72; font-size: .9rem; }
-    `,
-  },
+const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
+  { name: 'pendingNodeDemoView', providedIn: 'toProvide' },
   function* () {
     const users = yield* query(
       'users',
@@ -91,8 +73,38 @@ export const pendingNodeDemo = craftComponent(
 
     return { users };
   },
-  ({ users }) =>
-    section({ class: 'pending-demo' }, [
+);
+
+export const pendingNodeDemo = craftComponent(
+  'pendingNodeDemo',
+  {
+    providers: [providePendingNodeDemoView()],
+    host: { class: 'pending-demo-host' },
+    styles: `
+      :scope { display: grid; gap: 1rem; padding: 1rem; justify-items: start; }
+      .pending-demo__skeleton {
+        padding: .75rem 1rem;
+        border-radius: .75rem;
+        background: #eef2ff;
+        color: #4338ca;
+        font-weight: 650;
+      }
+      .pending-demo__reload {
+        width: fit-content;
+        padding: .45rem .9rem;
+        border: 1px solid #c7d2fe;
+        border-radius: .6rem;
+        background: #fff;
+        font-weight: 650;
+        cursor: pointer;
+      }
+      .pending-demo__list { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
+      .pending-demo__count { opacity: .72; font-size: .9rem; }
+    `,
+  },
+  function* () {
+    const { users } = yield* PendingNodeDemoView();
+    return section({ class: 'pending-demo' }, [
       heading('settledValue + pendingNode'),
       p(
         'The template reads an always-resolved value; the pendingNode owns the loading state.',
@@ -117,10 +129,12 @@ export const pendingNodeDemo = craftComponent(
         // One boundary covers both computeds. Remove this line and
         // `craftComponent(...)` refuses to compile, naming the "users" source.
         pendingNode({
-          fallback: () => p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
+          fallback: () =>
+            p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
         }),
       ),
-    ]),
+    ]);
+  },
 );
 
 export default pendingNodeDemo;

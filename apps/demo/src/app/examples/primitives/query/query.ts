@@ -11,6 +11,7 @@ import {
   type Input,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftMethod,
   CraftRouter,
   insertStoragePersister,
@@ -22,19 +23,11 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
-const GlobalQuery = craftComponent(
-  'GlobalQuery',
-  {
-    stylesUrl: styles,
-    cssVars: {
-      '--query-ink': '#172033',
-      '--query-muted': '#64748b',
-      '--query-border': '#dce4ef',
-      '--query-accent': '#2563eb',
-      '--query-accent-dark': '#1d4ed8',
-    },
-  },
-  function* (userId: Input<string>) {
+const { GlobalQueryView, provideGlobalQueryView } = craftService(
+  { name: 'globalQueryView', providedIn: 'toProvide' },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { userId } = inputs;
+
     const userQuery = yield* query(
       'userQuery',
       {
@@ -80,8 +73,25 @@ const GlobalQuery = craftComponent(
     });
     return { userQuery, navigateNext, navigatePrevious };
   },
-  ({ userQuery, navigateNext, navigatePrevious }) =>
-    div({ class: 'query-shell' }, [
+);
+
+const GlobalQuery = craftComponent(
+  'GlobalQuery',
+  {
+    providers: [provideGlobalQueryView()],
+    stylesUrl: styles,
+    cssVars: {
+      '--query-ink': '#172033',
+      '--query-muted': '#64748b',
+      '--query-border': '#dce4ef',
+      '--query-accent': '#2563eb',
+      '--query-accent-dark': '#1d4ed8',
+    },
+  },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { userQuery, navigateNext, navigatePrevious } =
+      yield* GlobalQueryView(inputs);
+    return div({ class: 'query-shell' }, [
       heading('User query'),
       div({ class: 'query-result' }, [
         'User ',
@@ -106,7 +116,8 @@ const GlobalQuery = craftComponent(
           'Next user',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default GlobalQuery;

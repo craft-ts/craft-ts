@@ -13,6 +13,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   insertStoragePersister,
   craftUnique,
   insertSelect,
@@ -40,11 +41,8 @@ const INDEXES = Array.from({ length: CELL_COUNT }, (_, index) => index);
 const cellColor = (cell: { color: string } | undefined) =>
   cell?.color ?? EMPTY_COLOR;
 
-const PixelArt = craftComponent(
-  'PixelArt',
-  {
-    stylesUrl: styles,
-  },
+const { PixelArtView, providePixelArtView } = craftService(
+  { name: 'pixelArtView', providedIn: 'toProvide' },
   function* () {
     const ui = yield* state(
       'ui',
@@ -145,7 +143,16 @@ const PixelArt = craftComponent(
 
     return { ui, cells, paintCell, renderedPixelGrid };
   },
-  ({ ui, cells, renderedPixelGrid }) => {
+);
+
+const PixelArt = craftComponent(
+  'PixelArt',
+  {
+    providers: [providePixelArtView()],
+    stylesUrl: styles,
+  },
+  function* () {
+    const { ui, cells, renderedPixelGrid } = yield* PixelArtView();
 
     return section([
       header([

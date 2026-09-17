@@ -17,6 +17,7 @@ import {
   tbody,
 } from '@craft-ts/component';
 import {
+  craftService,
   insertStoragePersister,
   craftUnique,
   insertPaginationPlaceholderData,
@@ -31,11 +32,8 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 
-const ListWithPagination = craftComponent(
-  'ListWithPagination',
-  {
-    stylesUrl: styles,
-  },
+const { ListWithPaginationView, provideListWithPaginationView } = craftService(
+  { name: 'listWithPaginationView', providedIn: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
       'pagination',
@@ -64,10 +62,12 @@ const ListWithPagination = craftComponent(
         },
       },
       insertQueryPipe(
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app',
-          key: 'list-with-pagination',
-        })),
+        insertStoragePersister(
+          craftUnique({
+            storeName: 'demo-app',
+            key: 'list-with-pagination',
+          }),
+        ),
         insertPaginationPlaceholderData(
           { initialValue: Array<User>() },
           ({ currentPageStatus }) => ({
@@ -85,14 +85,23 @@ const ListWithPagination = craftComponent(
     const updatePageSize = craftMethod(
       'updatePageSize',
       function* (event: Event) {
-        yield* pagination.updatePageSize(
-          Number(eventValue(event)),
-        );
+        yield* pagination.updatePageSize(Number(eventValue(event)));
       },
     );
     return { pagination, usersQuery, updatePageSize };
   },
-  ({ pagination, usersQuery, updatePageSize }) => {
+);
+
+const ListWithPagination = craftComponent(
+  'ListWithPagination',
+  {
+    providers: [provideListWithPaginationView()],
+    stylesUrl: styles,
+  },
+  function* () {
+    const { pagination, usersQuery, updatePageSize } =
+      yield* ListWithPaginationView();
+
     // `currentPageStatus` is a settled read: it suspends whenever the page on
     // screen has no value of its own — on the first load, and again on every
     // page change. The badge and the table each get their OWN boundary, so a
@@ -127,19 +136,19 @@ const ListWithPagination = craftComponent(
                 ),
             },
             (user) =>
-              tr( [
-                td( function* () {
+              tr([
+                td(function* () {
                   return (yield* user()).id;
                 }),
-                td( function* () {
+                td(function* () {
                   return (yield* user()).name;
                 }),
               ]),
           ),
         ),
-      // Only reached on the very first load: once a page has been shown, the
-      // placeholder keeps `currentPageData` non-empty, so the empty slot (and
-      // the settled read inside it) never runs again.
+        // Only reached on the very first load: once a page has been shown, the
+        // placeholder keeps `currentPageData` non-empty, so the empty slot (and
+        // the settled read inside it) never runs again.
       ).pipe(pendingNode({ fallback: () => div('⏳ Loading users…') })),
       div({ class: 'pagination' }, [
         select(
@@ -168,13 +177,9 @@ const ListWithPagination = craftComponent(
           { type: 'button', class: 'btn', click: pagination.previousPage },
           'Previous',
         ),
-        span(
-          'CurrentPage',
-          { class: 'current-page' },
-          function* () {
-            return (yield* pagination()).page;
-          },
-        ),
+        span('CurrentPage', { class: 'current-page' }, function* () {
+          return (yield* pagination()).page;
+        }),
         button(
           'NextPage',
           { type: 'button', class: 'btn', click: pagination.nextPage },

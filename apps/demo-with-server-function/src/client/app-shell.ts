@@ -7,11 +7,19 @@ import {
   main,
   nav,
 } from '@craft-ts/component';
-import { CraftRouterLink } from '@craft-ts/core';
+import { craftService, CraftRouterLink } from '@craft-ts/core';
+
+const { AppShellView, provideAppShellView } = craftService(
+  { name: 'appShellView', providedIn: 'toProvide' },
+  function* () {
+    return {};
+  },
+);
 
 const AppShell = craftComponent(
   'AppShell',
   {
+    providers: [provideAppShellView()],
     styles: `
       :scope { display: block; min-height: 100vh; background: #f6f7fb; }
       .demo-nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 12px max(20px, calc((100% - 1120px) / 2)); border-bottom: 1px solid #e5e8f0; background: #fff; }
@@ -23,10 +31,8 @@ const AppShell = craftComponent(
     `,
   },
   function* () {
-    return {};
-  },
-  () =>
-    div([
+    yield* AppShellView();
+    return div([
       nav({ class: 'demo-nav' }, [
         a('navLinkPublicProducts', {}, 'Public products').pipe(
           CraftRouterLink({ to: '' }),
@@ -45,7 +51,8 @@ const AppShell = craftComponent(
         ),
       ]),
       main(CraftRouterOutlet()),
-    ]),
+    ]);
+  },
 );
 
 export { AppShell };

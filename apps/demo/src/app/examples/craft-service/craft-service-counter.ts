@@ -1,11 +1,5 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import {
-  button,
-  craftComponent,
-  div,
-  p,
-  heading,
-} from '@craft-ts/component';
+import { button, craftComponent, div, p, heading } from '@craft-ts/component';
 import { craftService, state } from '@craft-ts/core';
 
 const { Counter, provideCounter } = craftService(
@@ -20,10 +14,18 @@ const { Counter, provideCounter } = craftService(
   },
 );
 
+const { CraftServiceCounterView, provideCraftServiceCounterView } =
+  craftService(
+    { name: 'craftServiceCounterView', providedIn: 'toProvide' },
+    function* () {
+      return { counter: yield* Counter() };
+    },
+  );
+
 const CraftServiceCounterComponent = craftComponent(
   'CraftServiceCounterComponent',
   {
-    providers: [provideCounter()],
+    providers: [provideCraftServiceCounterView(), provideCounter()],
     styles: `
       :scope{display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;font-family:sans-serif}
       .value{font-size:3rem;font-weight:bold;margin:0}
@@ -34,10 +36,8 @@ const CraftServiceCounterComponent = craftComponent(
     `,
   },
   function* () {
-    return { counter: yield* Counter() };
-  },
-  ({ counter }) =>
-    div([
+    const { counter } = yield* CraftServiceCounterView();
+    return div([
       heading('craftService Counter (toProvide scope)'),
       p({ class: 'value' }, counter),
       div({ class: 'actions' }, [
@@ -45,7 +45,8 @@ const CraftServiceCounterComponent = craftComponent(
         button('reset', { type: 'button', click: counter.reset }, 'Reset'),
         button('increment', { type: 'button', click: counter.increment }, '+'),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default CraftServiceCounterComponent;

@@ -11,7 +11,7 @@ import {
   strong,
   CraftRouterOutlet,
 } from '@craft-ts/component';
-import { CraftRouterLink } from '@craft-ts/core';
+import { craftService, CraftRouterLink } from '@craft-ts/core';
 
 const SCENARIOS = [
   ['Overview', { to: '' }],
@@ -22,9 +22,15 @@ const SCENARIOS = [
   ['05 · client-only', { to: 'client-only' }],
 ] satisfies readonly (readonly [string, { readonly to: string }])[];
 
+const { SsrLabAppView, provideSsrLabAppView } = craftService(
+  { name: 'ssrLabAppView', providedIn: 'toProvide' },
+  () => ({}),
+);
+
 export const App = craftComponent(
   'SsrLabApp',
   {
+    providers: [provideSsrLabAppView()],
     styles: `
       :scope { display: block; min-height: 100vh; background: #f5f7fb; color: #172033; }
       .shell { min-height: 100vh; }
@@ -85,9 +91,9 @@ export const App = craftComponent(
       @media (max-width: 720px) { .masthead { align-items: flex-start; flex-direction: column; } .server-indicator { justify-items: start; text-align: left; } .grid { grid-template-columns: 1fr; } .inline-form { grid-template-columns: 1fr; } }
     `,
   },
-  () => ({}),
-  () =>
-    div({ class: 'shell' }, [
+  function* () {
+    yield* SsrLabAppView();
+    return div({ class: 'shell' }, [
       header({ class: 'masthead' }, [
         a('brand', {}, [
           span({ class: 'brand__mark' }, 'S'),
@@ -112,5 +118,6 @@ export const App = craftComponent(
         span('SSR lab'),
         span('Chaque route documente sa stratégie de rendu.'),
       ]),
-    ]),
+    ]);
+  },
 );

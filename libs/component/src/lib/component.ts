@@ -139,19 +139,23 @@ type ValidHeadingNeed<Template> =
             readonly ERROR_child_heading_rendered_outside_a_headingSection: 'heading-from-child';
           };
 
-type ValidInheritedCssVars<Meta extends ComponentMeta, Template> =
-  IsAny<TemplateCssVars<Template>['inherited']> extends true
+type ValidInheritedCssVars<Meta extends ComponentMeta, Template> = Exclude<
+  TemplateCssVars<Template>['inherited'],
+  CssVarsContractOfMeta<Meta>['declared']
+> extends infer Missing
+  ? [Missing] extends [never]
     ? unknown
-    : Exclude<
-          TemplateCssVars<Template>['inherited'],
-          CssVarsContractOfMeta<Meta>['declared']
-        > extends infer Missing
-      ? [Missing] extends [never]
+    : // A template whose children were never narrowed (or a variable still
+      // being inferred) leaves nothing to name: only a concrete set of variable
+      // names is worth an error.
+      IsAny<Missing> extends true
+      ? unknown
+      : string extends Missing
         ? unknown
         : {
             readonly ERROR_css_var_marked_inherit_is_not_declared_here: Missing;
           }
-      : never;
+  : never;
 
 type ComponentOf<
   Name extends string,

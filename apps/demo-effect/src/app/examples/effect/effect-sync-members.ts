@@ -9,7 +9,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, settled, state } from '@craft-ts/core';
+import { craftService, craftComputed, settled, state } from '@craft-ts/core';
 import {
   computedEffect,
   methodEffect,
@@ -41,30 +41,8 @@ const CATALOG: readonly Omit<CartLine, 'qty'>[] = [
  * `params` still uses a synchronous member to compute the cart weight — that is
  * the position where an undeclared Effect used to be banned outright.
  */
-const EffectSyncMembersComponent = craftComponent(
-  'EffectSyncMembersComponent',
-  {
-    styles: `
-      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #ccfbf1; border-radius: 12px; color: #134e4a; background: #f0fdfa; }
-      :scope h1 { margin: 0 0 0.5rem; color: #042f2e; }
-      .intro { margin: 0 0 1.25rem; color: #115e59; line-height: 1.55; }
-      .actions { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; }
-      .actions button { width: 2.25rem; height: 2.25rem; border: 1px solid #5eead4; border-radius: 6px; color: #0f766e; background: #fff; font-size: 1.1rem; cursor: pointer; }
-      .qty { min-width: 6rem; color: #0f766e; font-size: 0.9rem; }
-      .panels { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-      .panel { padding: 1rem 1.1rem; border: 1px solid #99f6e4; border-radius: 8px; background: #fff; }
-      .panel-title { margin: 0 0 0.65rem; color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-      .result { margin: 0; color: #042f2e; font-size: 1.35rem; font-weight: 600; }
-      .shipping-loading { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; margin: 0; color: #0f766e; font-size: 0.95rem; }
-      .shipping-spinner { width: 0.8rem; height: 0.8rem; flex: 0 0 auto; border: 2px solid #99f6e4; border-top-color: #0f766e; border-radius: 50%; animation: EffectSyncMembersComponent-shipping-spin 0.7s linear infinite; }
-      @keyframes EffectSyncMembersComponent-shipping-spin { to { transform: rotate(360deg); } }
-      @media (prefers-reduced-motion: reduce) { .shipping-spinner { animation: none; } }
-      .hint { margin: 0.5rem 0 0; color: #475569; font-size: 0.8rem; line-height: 1.5; }
-      .note { margin-top: 1.25rem; color: #115e59; font-size: 0.85rem; line-height: 1.6; }
-      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ccfbf1; font-family: ui-monospace, monospace; font-size: 0.8rem; }
-      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-    `,
-  },
+const { EffectSyncMembersView, provideEffectSyncMembersView } = craftService(
+  { name: 'effectSyncMembersView', providedIn: 'toProvide' },
   function* () {
     // Everything derived from the quantity alone lives in its insertion.
     const qty = yield* state('qty', 2, ({ state: read, update }) => {
@@ -129,8 +107,37 @@ const EffectSyncMembersComponent = craftComponent(
 
     return { formattedPreview, formatCurrentCart, qty, shippingQuery };
   },
-  ({ formattedPreview, formatCurrentCart, qty, shippingQuery }) =>
-    div([
+);
+
+const EffectSyncMembersComponent = craftComponent(
+  'EffectSyncMembersComponent',
+  {
+    providers: [provideEffectSyncMembersView()],
+    styles: `
+      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #ccfbf1; border-radius: 12px; color: #134e4a; background: #f0fdfa; }
+      :scope h1 { margin: 0 0 0.5rem; color: #042f2e; }
+      .intro { margin: 0 0 1.25rem; color: #115e59; line-height: 1.55; }
+      .actions { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; }
+      .actions button { width: 2.25rem; height: 2.25rem; border: 1px solid #5eead4; border-radius: 6px; color: #0f766e; background: #fff; font-size: 1.1rem; cursor: pointer; }
+      .qty { min-width: 6rem; color: #0f766e; font-size: 0.9rem; }
+      .panels { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+      .panel { padding: 1rem 1.1rem; border: 1px solid #99f6e4; border-radius: 8px; background: #fff; }
+      .panel-title { margin: 0 0 0.65rem; color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+      .result { margin: 0; color: #042f2e; font-size: 1.35rem; font-weight: 600; }
+      .shipping-loading { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; margin: 0; color: #0f766e; font-size: 0.95rem; }
+      .shipping-spinner { width: 0.8rem; height: 0.8rem; flex: 0 0 auto; border: 2px solid #99f6e4; border-top-color: #0f766e; border-radius: 50%; animation: EffectSyncMembersComponent-shipping-spin 0.7s linear infinite; }
+      @keyframes EffectSyncMembersComponent-shipping-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .shipping-spinner { animation: none; } }
+      .hint { margin: 0.5rem 0 0; color: #475569; font-size: 0.8rem; line-height: 1.5; }
+      .note { margin-top: 1.25rem; color: #115e59; font-size: 0.85rem; line-height: 1.6; }
+      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ccfbf1; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+    `,
+  },
+  function* () {
+    const { formattedPreview, formatCurrentCart, qty, shippingQuery } =
+      yield* EffectSyncMembersView();
+    return div([
       heading('Synchronous and asynchronous members of one Effect service'),
       p(
         { class: 'intro' },
@@ -157,9 +164,10 @@ const EffectSyncMembersComponent = craftComponent(
             'formatCurrentCart',
             {
               type: 'button',
-              click: function* () {
-                yield* formattedPreview.setPreview(yield* formatCurrentCart());
-              },
+              // A service method hands back a yieldable invocation: `craftUse`
+              // is what runs it here, outside a generator.
+              click: () =>
+                formattedPreview.setPreview(craftUse(formatCurrentCart())),
             },
             'Format current cart',
           ),
@@ -218,7 +226,8 @@ const EffectSyncMembersComponent = craftComponent(
         span({ class: 'mono' }, 'CraftEffectNotSynchronous'),
         ' instead of freezing the page.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectSyncMembersComponent;

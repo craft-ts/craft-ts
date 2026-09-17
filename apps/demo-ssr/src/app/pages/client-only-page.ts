@@ -9,6 +9,7 @@ import {
 } from '@craft-ts/component';
 import { pendingNode } from '@craft-ts/component';
 import {
+  craftService,
   BrowserWindow,
   LocalStorage,
   craftComputed,
@@ -17,9 +18,8 @@ import {
 } from '@craft-ts/core';
 import { page } from './page-layout';
 
-export const ClientOnlyPage = craftComponent(
-  'SsrClientOnlyPage',
-  {},
+const { SsrClientOnlyPageView, provideSsrClientOnlyPageView } = craftService(
+  { name: 'ssrClientOnlyPageView', providedIn: 'toProvide' },
   function* () {
     const data = yield* query('clientOnlyData', {
       params: () => true,
@@ -38,8 +38,14 @@ export const ClientOnlyPage = craftComponent(
     });
     return { resolved };
   },
-  ({ resolved }) =>
-    page(
+);
+
+export const ClientOnlyPage = craftComponent(
+  'SsrClientOnlyPage',
+  { providers: [provideSsrClientOnlyPageView()] },
+  function* () {
+    const { resolved } = yield* SsrClientOnlyPageView();
+    return page(
       'Route SSR : `client`',
       'Contenu réservé au navigateur',
       'La source ne démarre pas pendant renderCraft. Le navigateur la lance après hydrateCraft, ce qui permet d’utiliser viewport et localStorage sans bloquer le SSR.',
@@ -68,5 +74,6 @@ export const ClientOnlyPage = craftComponent(
             ]),
         }),
       ),
-    ),
+    );
+  },
 );

@@ -1,5 +1,9 @@
 import { craftComponent, span, type Input } from '@craft-ts/component';
-import { craftComputed, type CraftResourceStatus } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  type CraftResourceStatus,
+} from '@craft-ts/core';
 import { status as styles, TONE_OF_STATUS } from './status.style';
 
 const STATUS_VIEW = {
@@ -26,22 +30,30 @@ const STATUS_VIEW = {
  *   attribute, and the five tones are five rules the emitter already knows
  *   about — which is what will let the matrix count them in wave 2.
  */
+const { StatusView, provideStatusView } = craftService(
+  { name: 'statusView', providedIn: 'toProvide' },
+  (inputs: { readonly status: Input<CraftResourceStatus> }) => {
+    const { status } = inputs;
+    return {
+      statusEmoji: craftComputed('statusEmoji', function* () {
+        return STATUS_VIEW[yield* status()][0];
+      }),
+      statusTone: craftComputed('statusTone', function* () {
+        return TONE_OF_STATUS[yield* status()];
+      }),
+      statusLabel: craftComputed('statusLabel', function* () {
+        return STATUS_VIEW[yield* status()][1];
+      }),
+    };
+  },
+);
+
 export const StatusComponent = craftComponent(
   'StatusComponent',
-  {},
-  (status: Input<CraftResourceStatus>) => ({
-    statusEmoji: craftComputed('statusEmoji', function* () {
-      return STATUS_VIEW[yield* status()][0];
-    }),
-    statusTone: craftComputed('statusTone', function* () {
-      return TONE_OF_STATUS[yield* status()];
-    }),
-    statusLabel: craftComputed('statusLabel', function* () {
-      return STATUS_VIEW[yield* status()][1];
-    }),
-  }),
-  ({ statusEmoji, statusTone, statusLabel }) =>
-    span({ class: styles.container }, [
+  { providers: [provideStatusView()] },
+  function* (inputs: { readonly status: Input<CraftResourceStatus> }) {
+    const { statusEmoji, statusTone, statusLabel } = yield* StatusView(inputs);
+    return span({ class: styles.container }, [
       span({ class: styles.emoji }, statusEmoji),
       span(
         {
@@ -50,7 +62,8 @@ export const StatusComponent = craftComponent(
         },
         statusLabel,
       ),
-    ]),
+    ]);
+  },
 );
 
 export type StatusComponent = typeof StatusComponent;

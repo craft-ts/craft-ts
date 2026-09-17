@@ -16,7 +16,12 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, state } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  craftMethod,
+  state,
+} from '@craft-ts/core';
 import type { ApplicationCaptureInventoryItem } from '@craft-ts/dev-tools/attestation-review';
 import { eventValue } from './annotation-text';
 
@@ -25,171 +30,213 @@ export type ApplicationVerdict = {
   readonly verdict: 'ok' | 'rejected';
   readonly note: string;
 };
+const { ApplicationOverviewView, provideApplicationOverviewView } =
+  craftService(
+    { name: 'applicationOverviewView', providedIn: 'toProvide' },
+    function* (inputs: {
+      readonly captures: Input<readonly ApplicationCaptureInventoryItem[]>;
+      readonly decide: Output<(value: ApplicationVerdict) => void>;
+      readonly inspect: Output<(subject: string) => void>;
+    }) {
+      const { captures, decide, inspect } = inputs;
+
+      const category = yield* state(
+        'applicationCategory',
+        'happy-path',
+        ({ set }) => ({ choose: set }),
+      );
+      const pageFilter = yield* state('applicationPage', '', ({ set }) => ({
+        choose: set,
+      }));
+      const scenarioFilter = yield* state(
+        'applicationScenario',
+        '',
+        ({ set }) => ({ choose: set }),
+      );
+      const viewportFilter = yield* state(
+        'applicationViewport',
+        '',
+        ({ set }) => ({ choose: set }),
+      );
+      const statusFilter = yield* state('applicationStatus', '', ({ set }) => ({
+        choose: set,
+      }));
+      const zoom = yield* state('applicationZoom', 'fit', ({ set }) => ({
+        choose: set,
+      }));
+      const imageKind = yield* state(
+        'applicationImage',
+        'image',
+        ({ set }) => ({
+          choose: set,
+        }),
+      );
+      const note = yield* state('applicationNote', '', ({ set }) => ({
+        write: set,
+      }));
+      const pages = craftComputed('pages', function* () {
+        return [...new Set((yield* captures()).map((c) => c.page))];
+      });
+      const scenarios = craftComputed('scenarios', function* () {
+        return [...new Set((yield* captures()).map((c) => c.scenario))];
+      });
+      const viewports = craftComputed('viewports', function* () {
+        return [...new Set((yield* captures()).map((c) => c.viewport))];
+      });
+      const visible = craftComputed('visible', function* () {
+        const kind = yield* category();
+        const page = yield* pageFilter();
+        const scenario = yield* scenarioFilter();
+        const viewport = yield* viewportFilter();
+        const status = yield* statusFilter();
+        return (yield* captures()).filter(
+          (c) =>
+            (!kind || c.category === kind) &&
+            (!page || c.page === page) &&
+            (!scenario || c.scenario === scenario) &&
+            (!viewport || c.viewport === viewport) &&
+            (!status || c.state === status),
+        );
+      });
+      const progress = craftComputed('progress', function* () {
+        const all = yield* captures();
+        return `${all.filter((c) => c.state === 'current' || c.state === 'renewed').length} / ${all.length} acceptées · ${all.filter((c) => !c.image).length} manquantes · ${all.filter((c) => c.category === 'exception').length} captures d’exception`;
+      });
+      const selected = yield* state(
+        'applicationSelection',
+        initialSelection(),
+        ({ set, state }) => ({
+          toggle: function* (subject: string) {
+            const values = yield* state();
+            return yield* set(
+              values.includes(subject)
+                ? values.filter((s) => s !== subject)
+                : [...values, subject],
+            );
+          },
+          clear: () => set([]),
+          visibleSelection: craftComputed('visibleSelection', function* () {
+            const selection = yield* state();
+            return (yield* visible())
+              .filter(
+                (c) =>
+                  selection.includes(c.subject) &&
+                  !!c.image &&
+                  !c.error &&
+                  ['missing', 'review'].includes(c.state),
+              )
+              .map((c) => c.subject);
+          }),
+        }),
+      );
+      const actions = craftComputed('actions', function* () {
+        const empty = !(yield* selected.visibleSelection()).length;
+        const written = yield* note();
+        return {
+          disableAccept: empty,
+          disableReject: empty || !written.trim(),
+        };
+      });
+      const pageProgress = craftComputed('pageProgress', function* () {
+        const all = yield* captures();
+        return (yield* pages()).map((name) => {
+          const entries = all.filter((c) => c.page === name);
+          return {
+            name,
+            label: `${name} · ${entries.filter((c) => ['current', 'renewed'].includes(c.state)).length}/${entries.length}`,
+          };
+        });
+      });
+      const rows = craftComputed('rows', function* () {
+        const selection = yield* selected();
+        const kind = yield* imageKind();
+        const scale = yield* zoom();
+        return (yield* visible()).map((c) => {
+          const hash =
+            kind === 'reference'
+              ? c.reference
+              : kind === 'diff'
+                ? c.diff
+                : c.image;
+          const diff = c.comparison;
+          return {
+            subject: c.subject,
+            title: `${c.page} / ${c.label} / ${c.capture}`,
+            caption: `${c.viewport} · ${c.dimensions.width} × ${c.dimensions.height} · ${c.state}`,
+            selected: selection.includes(c.subject),
+            disabled:
+              !c.image || !!c.error || !['missing', 'review'].includes(c.state),
+            comparison:
+              c.error ??
+              (diff
+                ? `Seuil ${diff.threshold} · maximum ${diff.maxDiffPixels} pixels · ${diff.diffPixels ?? '—'} différents · ${diff.matches ? 'dans la tolérance' : 'à valider'}`
+                : c.reference
+                  ? 'Référence humaine disponible'
+                  : 'Sans référence humaine'),
+            image: hash ? `/api/evidence/${encodeURIComponent(hash)}` : '',
+            imageHidden: !hash,
+            alt: `${c.page}, ${c.scenario}, ${c.capture}, ${c.viewport}`,
+            imageStyle:
+              scale === 'actual'
+                ? 'max-width:none;width:auto'
+                : 'max-width:100%;height:auto',
+          };
+        });
+      });
+      const submit = craftMethod(
+        'submit',
+        function* (verdict: 'ok' | 'rejected') {
+          const subjects = yield* selected.visibleSelection();
+          const written = yield* note();
+          if (!subjects.length || (verdict === 'rejected' && !written.trim()))
+            return;
+          decide({ subjects, verdict, note: written });
+          yield* selected.clear();
+        },
+      );
+      const next = craftMethod('next', function* () {
+        const capture = (yield* visible()).find(
+          (c) => c.image && !c.error && ['review', 'missing'].includes(c.state),
+        );
+        if (capture) inspect(capture.subject);
+      });
+      return {
+        captures,
+        decide,
+        inspect,
+        category,
+        pageFilter,
+        scenarioFilter,
+        viewportFilter,
+        statusFilter,
+        zoom,
+        imageKind,
+        note,
+        selected,
+        pages,
+        scenarios,
+        viewports,
+        visible,
+        progress,
+        actions,
+        pageProgress,
+        rows,
+        submit,
+        next,
+      };
+    },
+  );
+
 const initialSelection = (): readonly string[] => [];
 export const ApplicationOverview = craftComponent(
   'ApplicationOverview',
-  {},
-  function* (
-    captures: Input<readonly ApplicationCaptureInventoryItem[]>,
-    decide: Output<(value: ApplicationVerdict) => void>,
-    inspect: Output<(subject: string) => void>,
-  ) {
-    const category = yield* state(
-      'applicationCategory',
-      'happy-path',
-      ({ set }) => ({ choose: set }),
-    );
-    const pageFilter = yield* state('applicationPage', '', ({ set }) => ({
-      choose: set,
-    }));
-    const scenarioFilter = yield* state(
-      'applicationScenario',
-      '',
-      ({ set }) => ({ choose: set }),
-    );
-    const viewportFilter = yield* state(
-      'applicationViewport',
-      '',
-      ({ set }) => ({ choose: set }),
-    );
-    const statusFilter = yield* state('applicationStatus', '', ({ set }) => ({
-      choose: set,
-    }));
-    const zoom = yield* state('applicationZoom', 'fit', ({ set }) => ({
-      choose: set,
-    }));
-    const imageKind = yield* state('applicationImage', 'image', ({ set }) => ({
-      choose: set,
-    }));
-    const note = yield* state('applicationNote', '', ({ set }) => ({
-      write: set,
-    }));
-    const pages = craftComputed('pages', function* () {
-      return [...new Set((yield* captures()).map((c) => c.page))];
-    });
-    const scenarios = craftComputed('scenarios', function* () {
-      return [...new Set((yield* captures()).map((c) => c.scenario))];
-    });
-    const viewports = craftComputed('viewports', function* () {
-      return [...new Set((yield* captures()).map((c) => c.viewport))];
-    });
-    const visible = craftComputed('visible', function* () {
-      const kind = yield* category();
-      const page = yield* pageFilter();
-      const scenario = yield* scenarioFilter();
-      const viewport = yield* viewportFilter();
-      const status = yield* statusFilter();
-      return (yield* captures()).filter(
-        (c) =>
-          (!kind || c.category === kind) &&
-          (!page || c.page === page) &&
-          (!scenario || c.scenario === scenario) &&
-          (!viewport || c.viewport === viewport) &&
-          (!status || c.state === status),
-      );
-    });
-    const progress = craftComputed('progress', function* () {
-      const all = yield* captures();
-      return `${all.filter((c) => c.state === 'current' || c.state === 'renewed').length} / ${all.length} acceptées · ${all.filter((c) => !c.image).length} manquantes · ${all.filter((c) => c.category === 'exception').length} captures d’exception`;
-    });
-    const selected = yield* state(
-      'applicationSelection',
-      initialSelection(),
-      ({ set, state }) => ({
-        toggle: function* (subject: string) {
-          const values = yield* state();
-          return yield* set(
-            values.includes(subject)
-              ? values.filter((s) => s !== subject)
-              : [...values, subject],
-          );
-        },
-        clear: () => set([]),
-        visibleSelection: craftComputed('visibleSelection', function* () {
-          const selection = yield* state();
-          return (yield* visible())
-            .filter(
-              (c) =>
-                selection.includes(c.subject) &&
-                !!c.image &&
-                !c.error &&
-                ['missing', 'review'].includes(c.state),
-            )
-            .map((c) => c.subject);
-        }),
-      }),
-    );
-    const actions = craftComputed('actions', function* () {
-      const empty = !(yield* selected.visibleSelection()).length;
-      const written = yield* note();
-      return { disableAccept: empty, disableReject: empty || !written.trim() };
-    });
-    const pageProgress = craftComputed('pageProgress', function* () {
-      const all = yield* captures();
-      return (yield* pages()).map((name) => {
-        const entries = all.filter((c) => c.page === name);
-        return {
-          name,
-          label: `${name} · ${entries.filter((c) => ['current', 'renewed'].includes(c.state)).length}/${entries.length}`,
-        };
-      });
-    });
-    const rows = craftComputed('rows', function* () {
-      const selection = yield* selected();
-      const kind = yield* imageKind();
-      const scale = yield* zoom();
-      return (yield* visible()).map((c) => {
-        const hash =
-          kind === 'reference'
-            ? c.reference
-            : kind === 'diff'
-              ? c.diff
-              : c.image;
-        const diff = c.comparison;
-        return {
-          subject: c.subject,
-          title: `${c.page} / ${c.label} / ${c.capture}`,
-          caption: `${c.viewport} · ${c.dimensions.width} × ${c.dimensions.height} · ${c.state}`,
-          selected: selection.includes(c.subject),
-          disabled:
-            !c.image || !!c.error || !['missing', 'review'].includes(c.state),
-          comparison:
-            c.error ??
-            (diff
-              ? `Seuil ${diff.threshold} · maximum ${diff.maxDiffPixels} pixels · ${diff.diffPixels ?? '—'} différents · ${diff.matches ? 'dans la tolérance' : 'à valider'}`
-              : c.reference
-                ? 'Référence humaine disponible'
-                : 'Sans référence humaine'),
-          image: hash ? `/api/evidence/${encodeURIComponent(hash)}` : '',
-          imageHidden: !hash,
-          alt: `${c.page}, ${c.scenario}, ${c.capture}, ${c.viewport}`,
-          imageStyle:
-            scale === 'actual'
-              ? 'max-width:none;width:auto'
-              : 'max-width:100%;height:auto',
-        };
-      });
-    });
-    const submit = craftMethod(
-      'submit',
-      function* (verdict: 'ok' | 'rejected') {
-        const subjects = yield* selected.visibleSelection();
-        const written = yield* note();
-        if (!subjects.length || (verdict === 'rejected' && !written.trim()))
-          return;
-        decide({ subjects, verdict, note: written });
-        yield* selected.clear();
-      },
-    );
-    const next = craftMethod('next', function* () {
-      const capture = (yield* visible()).find(
-        (c) => c.image && !c.error && ['review', 'missing'].includes(c.state),
-      );
-      if (capture) inspect(capture.subject);
-    });
-    return {
-      captures,
-      decide,
+  { providers: [provideApplicationOverviewView()] },
+  function* (inputs: {
+    readonly captures: Input<readonly ApplicationCaptureInventoryItem[]>;
+    readonly decide: Output<(value: ApplicationVerdict) => void>;
+    readonly inspect: Output<(subject: string) => void>;
+  }) {
+    const {
       inspect,
       category,
       pageFilter,
@@ -203,37 +250,14 @@ export const ApplicationOverview = craftComponent(
       pages,
       scenarios,
       viewports,
-      visible,
       progress,
       actions,
       pageProgress,
       rows,
       submit,
       next,
-    };
-  },
-  ({
-    inspect,
-    category,
-    pageFilter,
-    scenarioFilter,
-    viewportFilter,
-    statusFilter,
-    zoom,
-    imageKind,
-    note,
-    selected,
-    pages,
-    scenarios,
-    viewports,
-    progress,
-    actions,
-    pageProgress,
-    rows,
-    submit,
-    next,
-  }) =>
-    div({ class: 'application-overview' }, [
+    } = yield* ApplicationOverviewView(inputs);
+    return div({ class: 'application-overview' }, [
       p({ class: 'application-progress', 'aria-live': 'polite' }, progress),
       div(
         { class: 'application-pages' },
@@ -482,5 +506,6 @@ export const ApplicationOverview = craftComponent(
           ]),
         ),
       ),
-    ]),
+    ]);
+  },
 );

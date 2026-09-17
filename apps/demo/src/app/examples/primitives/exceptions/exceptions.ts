@@ -12,6 +12,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftException,
   craftGen,
   craftSleep,
@@ -20,9 +21,74 @@ import {
 } from '@craft-ts/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
+const { ExceptionsView, provideExceptionsView } = craftService(
+  { name: 'exceptionsView', providedIn: 'toProvide' },
+  function* () {
+    const userQuery = yield* query(
+      'userQuery',
+      {
+        method: (scenario: Scenario) => scenario,
+        loader: craftGen(function* ({ params }) {
+          yield* craftSleep(600);
+          if (params === 'not-found') {
+            return craftException(
+              { _tag: 'UserNotFoundException' },
+              { message: 'User does not exist' },
+            );
+          }
+          if (params === 'consent-missing') {
+            return craftException(
+              { _tag: 'UserConsentMissingException' },
+              { message: 'User consent is required' },
+            );
+          }
+          if (params === 'forbidden') {
+            return craftException(
+              { _tag: 'UserAccessForbiddenException' },
+              { message: 'Access forbidden' },
+            );
+          }
+          return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
+        }),
+      },
+      ({ resource, exceptions }) => ({
+        hasUser: craftComputed('hasUser', () => resource.hasValue()),
+        userExceptionLoader: craftComputed('userExceptionLoader', function* () {
+          return (yield* exceptions()).loader;
+        }),
+        userIsLoading: craftComputed('userIsLoading', function* () {
+          const status = yield* resource.status();
+          return status === 'loading' || status === 'reloading';
+        }),
+        userStatusLabel: craftComputed('userStatusLabel', function* () {
+          return yield* resource.status();
+        }),
+        userId: craftComputed('userId', function* () {
+          return (yield* resource.value())?.id ?? '';
+        }),
+        userName: craftComputed('userName', function* () {
+          return (yield* resource.value())?.name ?? '';
+        }),
+        userEmail: craftComputed('userEmail', function* () {
+          return (yield* resource.value())?.email ?? '';
+        }),
+        typedUserExceptionLoader: craftComputed(
+          'typedUserExceptionLoader',
+          function* () {
+            return (yield* exceptions()).loader;
+          },
+        ),
+      }),
+    );
+    yield* userQuery.call('success'); // trigger first call
+    return { userQuery };
+  },
+);
+
 const ExceptionsComponent = craftComponent(
   'ExceptionsComponent',
   {
+    providers: [provideExceptionsView()],
     styles: `
       :scope {
         display: block;
@@ -77,69 +143,8 @@ const ExceptionsComponent = craftComponent(
     `,
   },
   function* () {
-    const userQuery = yield* query(
-      'userQuery',
-      {
-        method: (scenario: Scenario) => scenario,
-        loader: craftGen(function* ({ params }) {
-          yield* craftSleep(600);
-          if (params === 'not-found') {
-            return craftException(
-              { _tag: 'UserNotFoundException' },
-              { message: 'User does not exist' },
-            );
-          }
-          if (params === 'consent-missing') {
-            return craftException(
-              { _tag: 'UserConsentMissingException' },
-              { message: 'User consent is required' },
-            );
-          }
-          if (params === 'forbidden') {
-            return craftException(
-              { _tag: 'UserAccessForbiddenException' },
-              { message: 'Access forbidden' },
-            );
-          }
-          return { id: 'user-1', name: 'John Doe', email: 'john@doe.dev' };
-        }),
-      },
-      ({ resource, exceptions }) => ({
-        hasUser: craftComputed('hasUser', () => resource.hasValue()),
-        userExceptionLoader: craftComputed(
-          'userExceptionLoader',
-          function* () {
-            return (yield* exceptions()).loader;
-          },
-        ),
-        userIsLoading: craftComputed('userIsLoading', function* () {
-          const status = yield* resource.status();
-          return status === 'loading' || status === 'reloading';
-        }),
-        userStatusLabel: craftComputed('userStatusLabel', function* () {
-          return yield* resource.status();
-        }),
-        userId: craftComputed('userId', function* () {
-          return (yield* resource.value())?.id ?? '';
-        }),
-        userName: craftComputed('userName', function* () {
-          return (yield* resource.value())?.name ?? '';
-        }),
-        userEmail: craftComputed('userEmail', function* () {
-          return (yield* resource.value())?.email ?? '';
-        }),
-        typedUserExceptionLoader: craftComputed(
-          'typedUserExceptionLoader',
-          function* () {
-            return (yield* exceptions()).loader;
-          },
-        ),
-      }),
-    );
-    yield* userQuery.call('success'); // trigger first call
-    return { userQuery };
-  },
-  ({ userQuery }) => {
+    const { userQuery } = yield* ExceptionsView();
+
     return div([
       heading([
         'Query user with business exceptions (',
@@ -147,32 +152,40 @@ const ExceptionsComponent = craftComponent(
         ')',
       ]),
       div({ class: 'exception-actions' }, [
-        button('success',
-          { type: 'button',
+        button(
+          'success',
+          {
+            type: 'button',
             *click() {
               yield* userQuery.call('success');
             },
           },
           'Success',
         ),
-        button('notFound',
-          { type: 'button',
+        button(
+          'notFound',
+          {
+            type: 'button',
             *click() {
               yield* userQuery.call('not-found');
             },
           },
           'User not found',
         ),
-        button('consentMissing',
-          { type: 'button',
+        button(
+          'consentMissing',
+          {
+            type: 'button',
             *click() {
               yield* userQuery.call('consent-missing');
             },
           },
           'Consent missing',
         ),
-        button('forbidden',
-          { type: 'button',
+        button(
+          'forbidden',
+          {
+            type: 'button',
             *click() {
               yield* userQuery.call('forbidden');
             },
@@ -180,53 +193,38 @@ const ExceptionsComponent = craftComponent(
           'Access forbidden',
         ),
       ]),
-      ifNode(
-        userQuery.userIsLoading,
-        () =>
-          div(
-            {
-              class: 'exception-loading',
-              role: 'status',
-              'aria-live': 'polite',
-            },
-            [
-              span({ class: 'exception-spinner', 'aria-hidden': 'true' }),
-              span('Loading user…'),
-            ],
-          ),
+      ifNode(userQuery.userIsLoading, () =>
+        div(
+          {
+            class: 'exception-loading',
+            role: 'status',
+            'aria-live': 'polite',
+          },
+          [
+            span({ class: 'exception-spinner', 'aria-hidden': 'true' }),
+            span('Loading user…'),
+          ],
+        ),
       ),
       ifNode(
         userQuery.hasUser,
         () =>
           div([
-            p([
-              strong('ID: '),
-              userQuery.userId,
-            ]),
-            p([
-              strong('Name: '),
-              userQuery.userName,
-            ]),
-            p([
-              strong('Email: '),
-              userQuery.userEmail,
-            ]),
+            p([strong('ID: '), userQuery.userId]),
+            p([strong('Name: '), userQuery.userName]),
+            p([strong('Email: '), userQuery.userEmail]),
           ]),
         () => [
-          matchNode.exhaustive(
-            userQuery.typedUserExceptionLoader,
-            '_tag',
-            {
-              UserNotFoundException: () =>
-                p('⚠️ User not found (rendered by matchNode.exhaustive)'),
-              UserConsentMissingException: () =>
-                p(
-                  '⚠️ User consent is required (rendered by matchNode.exhaustive)',
-                ),
-              UserAccessForbiddenException: () =>
-                p('⚠️ Access forbidden (rendered by matchNode.exhaustive)'),
-            },
-          ),
+          matchNode.exhaustive(userQuery.typedUserExceptionLoader, '_tag', {
+            UserNotFoundException: () =>
+              p('⚠️ User not found (rendered by matchNode.exhaustive)'),
+            UserConsentMissingException: () =>
+              p(
+                '⚠️ User consent is required (rendered by matchNode.exhaustive)',
+              ),
+            UserAccessForbiddenException: () =>
+              p('⚠️ Access forbidden (rendered by matchNode.exhaustive)'),
+          }),
         ],
       ),
     ]);

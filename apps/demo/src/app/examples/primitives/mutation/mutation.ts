@@ -12,6 +12,7 @@ import {
   type Input,
 } from '@craft-ts/component';
 import {
+  craftService,
   CraftRouter,
   insertStoragePersister,
   craftUnique,
@@ -27,12 +28,11 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 
-const MutationDemoComponent = craftComponent(
-  'MutationDemoComponent',
-  {
-    stylesUrl: styles,
-  },
-  function* (userId: Input<string>) {
+const { MutationDemoView, provideMutationDemoView } = craftService(
+  { name: 'mutationDemoView', providedIn: 'toProvide' },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { userId } = inputs;
+
     const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
         ...payload.user,
@@ -108,7 +108,18 @@ const MutationDemoComponent = craftComponent(
       setName: nameInput.setName,
     };
   },
-  ({ userQuery, updateUserName, update, goTo, nameInput, setName }) => {
+);
+
+const MutationDemoComponent = craftComponent(
+  'MutationDemoComponent',
+  {
+    providers: [provideMutationDemoView()],
+    stylesUrl: styles,
+  },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { userQuery, updateUserName, update, goTo, nameInput, setName } =
+      yield* MutationDemoView(inputs);
+
     return div([
       heading('Update user'),
       div([
@@ -137,7 +148,7 @@ const MutationDemoComponent = craftComponent(
             // This example intentionally demonstrates direct mutation wiring;
             // the form-based variant is covered by the full-demo example.
             // eslint-disable-next-line craft-ts/require-form-for-input-action
-            yield* update(yield* nameInput());
+update(yield* nameInput());
           },
         },
         [
@@ -152,7 +163,7 @@ const MutationDemoComponent = craftComponent(
         {
           type: 'button',
           click: function* () {
-            yield* goTo(-1);
+goTo(-1);
           },
         },
         'Previous user',
@@ -162,7 +173,7 @@ const MutationDemoComponent = craftComponent(
         {
           type: 'button',
           click: function* () {
-            yield* goTo(1);
+goTo(1);
           },
         },
         'Next user',

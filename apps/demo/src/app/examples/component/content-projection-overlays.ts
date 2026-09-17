@@ -1,3 +1,4 @@
+import { craftService } from '@craft-ts/core';
 import {
   content,
   craftComponent,
@@ -16,28 +17,39 @@ import type { ToolbarActionSlot } from './content-projection-actions';
 export const toolbar = craftComponent(
   'toolbar',
   {},
-  (input: { readonly actions: ToolbarActionSlot }) => input,
-  ({ actions }) =>
-    div(
+  function* (input: { readonly actions: ToolbarActionSlot }) {
+    const { actions } = input;
+    return div(
       { class: 'projection-demo__toolbar', role: 'toolbar' },
       forNode(actions, { track: (action) => action.key }, (action) =>
         renderContent(action),
       ),
-    ),
+    );
+  },
+);
+
+const { DialogView, provideDialogView } = craftService(
+  { name: 'dialogView', providedIn: 'toProvide' },
+  (input: {
+    readonly body?: ContentSlot;
+    readonly actions: readonly ProjectionOf<typeof toolbarAction>[];
+  }) => {
+    return {
+      body: input.body ?? content(() => p('No dialog content provided.')),
+      actions: input.actions,
+    };
+  },
 );
 
 export const dialog = craftComponent(
   'dialog',
-  {},
-  (input: {
+  { providers: [provideDialogView()] },
+  function* (input: {
     readonly body?: ContentSlot;
     readonly actions: readonly ProjectionOf<typeof toolbarAction>[];
-  }) => ({
-    body: input.body ?? content(() => p('No dialog content provided.')),
-    actions: input.actions,
-  }),
-  ({ body, actions }) =>
-    section({ class: 'projection-demo__dialog', role: 'dialog' }, [
+  }) {
+    const { body, actions } = yield* DialogView(input);
+    return section({ class: 'projection-demo__dialog', role: 'dialog' }, [
       renderContent(body),
       footer(
         { class: 'projection-demo__dialog-actions' },
@@ -45,5 +57,6 @@ export const dialog = craftComponent(
           renderContent(action),
         ),
       ),
-    ]),
+    ]);
+  },
 );

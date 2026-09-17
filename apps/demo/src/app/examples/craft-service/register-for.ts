@@ -28,10 +28,18 @@ const { Counter, provideCounter } = craftService(
   },
 );
 
+const { CounterChildView, provideCounterChildView } = craftService(
+  { name: 'counterChildView', providedIn: 'toProvide' },
+  function* () {
+    const counter = yield* Counter();
+    return { counter };
+  },
+);
+
 const CounterChild = craftComponent(
   'CounterChild',
   {
-    providers: [provideCounter()],
+    providers: [provideCounterChildView(), provideCounter()],
     styles: `
       :scope{display:grid;gap:.35rem;padding:.8rem;border:1px solid #cbd5e1;border-radius:.6rem;background:#f8fafc}
       .value{font-size:1.6rem;font-weight:700}
@@ -42,26 +50,39 @@ const CounterChild = craftComponent(
     `,
   },
   function* () {
-    const counter = yield* Counter();
-    return { counter };
-  },
-  ({ counter }) =>
-    div([
+    const { counter } = yield* CounterChildView();
+    return div([
       span({ class: 'value' }, counter),
       div({ class: 'actions' }, [
-        button('decrement', { type: 'button', 'aria-label': 'Decrement', click: counter.decrement }, '-'),
-        button('increment', { type: 'button', 'aria-label': 'Increment', click: counter.increment }, '+'),
+        button(
+          'decrement',
+          {
+            type: 'button',
+            'aria-label': 'Decrement',
+            click: counter.decrement,
+          },
+          '-',
+        ),
+        button(
+          'increment',
+          {
+            type: 'button',
+            'aria-label': 'Increment',
+            click: counter.increment,
+          },
+          '+',
+        ),
       ]),
-    ]),
+    ]);
+  },
 );
 
+// The component itself exposes no instance any more: what the parent wants to
+// reach is the counter each child provides, so the registration is on the
+// service.
 const { RegisterForCounterChild, provideRegisterForCounterChild } =
   craftRegisterFor('CounterChild', CounterChild, ({ CounterChild }) => ({
     total: craftComputed('total', () => CounterChild()?.length ?? 0),
-    incrementAllChildCounter: () =>
-      CounterChild()?.forEach(({ ref }) => ref.counter.increment()),
-    decrementAllChildCounter: () =>
-      CounterChild()?.forEach(({ ref }) => ref.counter.decrement()),
   }));
 
 const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
@@ -69,23 +90,15 @@ const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   Counter,
   ({ Counter }) => ({
     total: craftComputed('total', () => Counter()?.length ?? 0),
+    incrementAllChildCounter: () =>
+      Counter()?.forEach(({ ref }) => ref.increment()),
+    decrementAllChildCounter: () =>
+      Counter()?.forEach(({ ref }) => ref.decrement()),
   }),
 );
 
-const RegisterForDemo = craftComponent(
-  'RegisterForDemo',
-  {
-    providers: [provideRegisterForCounterChild(), provideRegisterForCounter()],
-    styles: `
-      :scope{display:grid;gap:1rem;padding:1.5rem;font-family:sans-serif}
-      .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
-      .toolbar button{padding:.55rem .8rem;border:1px solid #94a3b8;border-radius:.4rem;background:#fff;cursor:pointer}
-      .children{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.75rem}
-      .meta{color:#475569}
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
-  },
+const { RegisterForDemoView, provideRegisterForDemoView } = craftService(
+  { name: 'registerForDemoView', providedIn: 'toProvide' },
   function* () {
     const counterChildIds = yield* state(
       'counterChildIds',
@@ -101,50 +114,89 @@ const RegisterForDemo = craftComponent(
     );
 
     const childComponents = yield* RegisterForCounterChild();
-    const counterTotal = yield* RegisterForCounter.total();
+    const counters = yield* RegisterForCounter();
+    const counterTotal = counters.total;
     const childTotal = craftComputed('childTotal', function* () {
-        const _childComponentstotal = yield* childComponents.total(); return _childComponentstotal; },
-    );
+      const _childComponentstotal = yield* childComponents.total();
+      return _childComponentstotal;
+    });
     const serviceTotal = craftComputed('serviceTotal', function* () {
-        const _counterTotal = yield* counterTotal(); return _counterTotal; },
-    );
+      const _counterTotal = yield* counterTotal();
+      return _counterTotal;
+    });
 
     return {
       counterChildIds,
       childComponents,
+      counters,
       childTotal,
       serviceTotal,
     };
   },
-  ({ counterChildIds, childComponents, childTotal, serviceTotal }) =>
-    section([
+);
+
+const RegisterForDemo = craftComponent(
+  'RegisterForDemo',
+  {
+    providers: [
+      provideRegisterForDemoView(),
+      provideRegisterForCounterChild(),
+      provideRegisterForCounter(),
+    ],
+    styles: `
+      :scope{display:grid;gap:1rem;padding:1.5rem;font-family:sans-serif}
+      .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+      .toolbar button{padding:.55rem .8rem;border:1px solid #94a3b8;border-radius:.4rem;background:#fff;cursor:pointer}
+      .children{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.75rem}
+      .meta{color:#475569}
+    
+      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+    `,
+  },
+  function* () {
+    const {
+      counterChildIds,
+      counters,
+      childTotal,
+      serviceTotal,
+    } =
+      yield* RegisterForDemoView();
+    return section([
       heading('craftRegisterFor: control child counters'),
       p(
         'The parent observes the Counter instances created in its children. Removing a child also removes its registration.',
       ),
       div({ class: 'toolbar' }, [
-        button('incrementAll',
-          { type: 'button', click: childComponents.incrementAllChildCounter },
+        button(
+          'incrementAll',
+          { type: 'button', click: counters.incrementAllChildCounter },
           'Increment all',
         ),
-        button('decrementAll',
-          { type: 'button', click: childComponents.decrementAllChildCounter },
+        button(
+          'decrementAll',
+          { type: 'button', click: counters.decrementAllChildCounter },
           'Decrement all',
         ),
-        button('addChild', { type: 'button', click: counterChildIds.addChild }, 'Add a child'),
-        button('removeChild', { type: 'button', click: counterChildIds.removeChild }, 'Remove a child'),
-        span(
-          { class: 'meta' },
-          function* () {
-            return `services: ${yield* serviceTotal()} · components: ${yield* childTotal()}`;
-          },
+        button(
+          'addChild',
+          { type: 'button', click: counterChildIds.addChild },
+          'Add a child',
         ),
+        button(
+          'removeChild',
+          { type: 'button', click: counterChildIds.removeChild },
+          'Remove a child',
+        ),
+        span({ class: 'meta' }, function* () {
+          return `services: ${yield* serviceTotal()} · components: ${yield* childTotal()}`;
+        }),
       ]),
       div(
         { class: 'children' },
         forNode(counterChildIds, { track: (id) => id }, () => CounterChild({})),
       ),
-    ]),
+    ]);
+  },
 );
 
 export default RegisterForDemo;

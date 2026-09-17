@@ -1,3 +1,4 @@
+import { craftService } from '@craft-ts/core';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- The demo intentionally exposes its visual contract. */
 import {
   craftComponent,
@@ -28,6 +29,16 @@ function eventClientId(event: Event): DemoClientId {
 const ORDER_DATE = new Date('2026-08-25T14:30:00Z');
 const LAST_SYNC_DAYS = -2;
 
+const { TypeSafeI18nDemoView, provideTypeSafeI18nDemoView } = craftService(
+  { name: 'typeSafeI18nDemoView', providedIn: 'toProvide' },
+  function* () {
+    return {
+      ...(yield* I18n()),
+      clientCurrency: yield* ClientCurrency(),
+    };
+  },
+);
+
 export const TypeSafeI18nDemo = craftComponent(
   'TypeSafeI18nDemo',
   {
@@ -45,16 +56,16 @@ export const TypeSafeI18nDemo = craftComponent(
       @media (max-width:520px){.grid{grid-template-columns:1fr}.toolbar{align-items:stretch;flex-direction:column}}
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
-    providers: [provideClientCurrency(), provideClientUnits()],
+    providers: [
+      provideTypeSafeI18nDemoView(),
+      provideClientCurrency(),
+      provideClientUnits(),
+    ],
   },
   function* () {
-    return {
-      ...(yield* I18n()),
-      clientCurrency: yield* ClientCurrency(),
-    };
-  },
-  ({ language, translate, clientCurrency }) =>
-    section({ 'aria-labelledby': 'i18n-title' }, [
+    const { language, translate, clientCurrency } =
+      yield* TypeSafeI18nDemoView();
+    return section({ 'aria-labelledby': 'i18n-title' }, [
       div({ class: 'intro' }, [
         heading({ id: 'i18n-title' }, translate('page.title')),
         p(translate('page.intro')),
@@ -139,7 +150,8 @@ export const TypeSafeI18nDemo = craftComponent(
         ]),
       ]),
       div({ class: 'note' }, [span(translate('page.custom'))]),
-    ]),
+    ]);
+  },
 );
 
 export default TypeSafeI18nDemo;

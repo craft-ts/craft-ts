@@ -1,6 +1,10 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { a, craftComponent, nav } from '@craft-ts/component';
-import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ts/core';
+import {
+  craftService,
+  CraftRouterLink,
+  type CraftRouterLinkInput,
+} from '@craft-ts/core';
 
 const CSS_VARS_LINKS = [
   ['Overview', { to: 'css-vars' }],
@@ -10,9 +14,15 @@ const CSS_VARS_LINKS = [
   ['@property', { to: 'css-vars/property' }],
 ] satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
+const { CssVarsPageNavView, provideCssVarsPageNavView } = craftService(
+  { name: 'cssVarsPageNavView', providedIn: 'toProvide' },
+  () => ({}),
+);
+
 export const CssVarsPageNav = craftComponent(
   'CssVarsPageNav',
   {
+    providers: [provideCssVarsPageNavView()],
     styles: `
       :scope { display: flex; flex-wrap: wrap; gap: .5rem; }
       a {
@@ -30,12 +40,13 @@ export const CssVarsPageNav = craftComponent(
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
-  () => ({}),
-  () =>
-    nav(
+  function* () {
+    yield* CssVarsPageNavView();
+    return nav(
       { 'aria-label': 'CSS variable examples' },
       CSS_VARS_LINKS.map(([label, link]) =>
         a('link', {}, label).pipe(CraftRouterLink(link)),
       ),
-    ),
+    );
+  },
 );

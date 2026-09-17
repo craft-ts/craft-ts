@@ -99,26 +99,35 @@ export const { provideGranularMutation, GranularMutation } = craftService(
   },
 );
 
+const { GranularMutationCraftView, provideGranularMutationCraftView } =
+  craftService(
+    { name: 'granularMutationCraftView', providedIn: 'toProvide' },
+    function* () {
+      const store = yield* GranularMutation();
+      const updatePageSize = craftMethod(
+        'updatePageSize',
+        function* (event: Event) {
+          (yield* GranularMutation()).pagination.updatePageSize(
+            Number(eventValue(event)),
+          );
+        },
+      );
+      return { store, updatePageSize };
+    },
+  );
+
 const GranularMutationCraft = craftComponent(
   'GranularMutationCraft',
   {
     stylesUrl: styles,
-    providers: [provideGranularMutation()],
+    providers: [provideGranularMutationCraftView(), provideGranularMutation()],
   },
   function* () {
-    const store = yield* GranularMutation();
-    const updatePageSize = craftMethod(
-      'updatePageSize',
-      function* (event: Event) {
-        (yield* GranularMutation()).pagination.updatePageSize(
-          Number(eventValue(event)),
-        );
-      },
-    );
-    return { store, updatePageSize };
-  },
-  ({ store: { users, updateUserName, pagination }, updatePageSize }) =>
-    div({ class: 'container' }, [
+    const {
+      store: { users, updateUserName, pagination },
+      updatePageSize,
+    } = yield* GranularMutationCraftView();
+    return div({ class: 'container' }, [
       main({ class: 'content' }, [
         div({ class: 'content-wrapper' }, [
           div({ class: 'card' }, [
@@ -191,7 +200,7 @@ const GranularMutationCraft = craftComponent(
                   },
                   style: { marginRight: '8px' },
                   *change(event) {
-                    yield* updatePageSize(event);
+updatePageSize(event);
                   },
                 },
                 [2, 4, 8, 16].map((size) =>
@@ -227,7 +236,8 @@ const GranularMutationCraft = craftComponent(
           ]),
         ]),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default GranularMutationCraft;

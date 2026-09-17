@@ -1,5 +1,5 @@
 import { craftComponent, li, span, ul, type Input } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftService, craftComputed } from '@craft-ts/core';
 import { TIERS } from '@craft-ts/style-testing/review/frame';
 import type { Messages } from './messages';
 
@@ -40,16 +40,17 @@ const legendEntry = (
  * meets a dotted orange box around a button they never touched and has no
  * way to find out what it is telling them.
  */
-export const TierLegend = craftComponent(
-  'TierLegend',
-  {},
-  (
-    showing: Input<boolean>,
-    changedCount: Input<number>,
-    coveredCount: Input<number>,
-    chromeNames: Input<readonly string[]>,
-    t: Input<Messages>,
-  ) => {
+const { TierLegendView, provideTierLegendView } = craftService(
+  { name: 'tierLegendView', providedIn: 'toProvide' },
+  (inputs: {
+    readonly showing: Input<boolean>;
+    readonly changedCount: Input<number>;
+    readonly coveredCount: Input<number>;
+    readonly chromeNames: Input<readonly string[]>;
+    readonly t: Input<Messages>;
+  }) => {
+    const { showing, changedCount, coveredCount, chromeNames, t } = inputs;
+
     const hiddenLegend = craftComputed('hiddenLegend', function* () {
       return !(yield* showing());
     });
@@ -92,16 +93,28 @@ export const TierLegend = craftComponent(
       pickedLabel,
     };
   },
-  ({
-    hiddenLegend,
-    subjectLabel,
-    changedHidden,
-    changedLabel,
-    occludedHidden,
-    occludedLabel,
-    pickedLabel,
-  }) =>
-    ul({ class: 'tier-legend', hidden: hiddenLegend }, [
+);
+
+export const TierLegend = craftComponent(
+  'TierLegend',
+  { providers: [provideTierLegendView()] },
+  function* (inputs: {
+    readonly showing: Input<boolean>;
+    readonly changedCount: Input<number>;
+    readonly coveredCount: Input<number>;
+    readonly chromeNames: Input<readonly string[]>;
+    readonly t: Input<Messages>;
+  }) {
+    const {
+      hiddenLegend,
+      subjectLabel,
+      changedHidden,
+      changedLabel,
+      occludedHidden,
+      occludedLabel,
+      pickedLabel,
+    } = yield* TierLegendView(inputs);
+    return ul({ class: 'tier-legend', hidden: hiddenLegend }, [
       legendEntry(TIERS.subject, { label: subjectLabel }),
       legendEntry(TIERS.changed, {
         hidden: changedHidden,
@@ -112,5 +125,6 @@ export const TierLegend = craftComponent(
         label: occludedLabel,
       }),
       legendEntry(TIERS.picked, { label: pickedLabel }),
-    ]),
+    ]);
+  },
 );

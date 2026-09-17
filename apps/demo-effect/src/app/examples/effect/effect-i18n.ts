@@ -8,7 +8,7 @@ import {
   pendingNode,
   span,
 } from '@craft-ts/component';
-import { craftComputed, settled, state } from '@craft-ts/core';
+import { craftService, craftComputed, settled, state } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   i18nRuntime,
@@ -34,50 +34,29 @@ const ORDER = {
  * calls `setLocale` on the shared runtime and re-runs the program, so every
  * string on screen changes together.
  */
-const EffectI18nComponent = craftComponent(
-  'EffectI18nComponent',
-  {
-    styles: `
-      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #e0e7ff; border-radius: 12px; color: #1e1b4b; background: #f5f3ff; }
-      :scope h1 { margin: 0 0 0.5rem; color: #2e1065; }
-      .intro { margin: 0 0 1.25rem; color: #4c1d95; line-height: 1.55; }
-      .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
-      .actions button { padding: 0.45rem 0.85rem; border: 1px solid #c4b5fd; border-radius: 999px; color: #4c1d95; background: #fff; font-size: 0.85rem; cursor: pointer; }
-      .actions button[aria-pressed='true'] { color: #fff; background: #6d28d9; border-color: #6d28d9; }
-      .receipt { display: grid; gap: 0.5rem; padding: 1.1rem; border: 1px solid #ddd6fe; border-radius: 8px; background: #fff; }
-      .receipt h2 { margin: 0; color: #2e1065; font-size: 1.15rem; }
-      .receipt p { margin: 0; color: #4338ca; }
-      .loading { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; margin: 0; color: #6d28d9; font-size: 0.95rem; }
-      .note { margin-top: 1.25rem; color: #4c1d95; font-size: 0.85rem; line-height: 1.6; }
-      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ede9fe; font-family: ui-monospace, monospace; font-size: 0.8rem; }
-      button:focus-visible, a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-    `,
-  },
+const { EffectI18nView, provideEffectI18nView } = craftService(
+  { name: 'effectI18nView', providedIn: 'toProvide' },
   function* () {
-    const locale = yield* state(
-      'locale',
-      'en-US',
-      ({ set, state: read }) => {
-        // One active locale for the process: the Effect side reads the same
-        // runtime, so nothing here has to tell it twice.
-        const choose = (next: ReceiptLocale) =>
-          function* () {
-            i18nRuntime.setLocale(next);
-            yield* set(next);
-          };
-
-        return {
-          chooseEnglish: choose('en-US'),
-          chooseFrench: choose('fr-FR'),
-          englishPressed: craftComputed('englishPressed', function* () {
-            return (yield* read()) === 'en-US' ? 'true' : 'false';
-          }),
-          frenchPressed: craftComputed('frenchPressed', function* () {
-            return (yield* read()) === 'fr-FR' ? 'true' : 'false';
-          }),
+    const locale = yield* state('locale', 'en-US', ({ set, state: read }) => {
+      // One active locale for the process: the Effect side reads the same
+      // runtime, so nothing here has to tell it twice.
+      const choose = (next: ReceiptLocale) =>
+        function* () {
+          i18nRuntime.setLocale(next);
+          yield* set(next);
         };
-      },
-    );
+
+      return {
+        chooseEnglish: choose('en-US'),
+        chooseFrench: choose('fr-FR'),
+        englishPressed: craftComputed('englishPressed', function* () {
+          return (yield* read()) === 'en-US' ? 'true' : 'false';
+        }),
+        frenchPressed: craftComputed('frenchPressed', function* () {
+          return (yield* read()) === 'fr-FR' ? 'true' : 'false';
+        }),
+      };
+    });
 
     const receiptQuery = yield* queryEffect(
       'receiptQuery',
@@ -105,8 +84,31 @@ const EffectI18nComponent = craftComponent(
 
     return { locale, receiptQuery };
   },
-  ({ locale, receiptQuery }) =>
-    div([
+);
+
+const EffectI18nComponent = craftComponent(
+  'EffectI18nComponent',
+  {
+    providers: [provideEffectI18nView()],
+    styles: `
+      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #e0e7ff; border-radius: 12px; color: #1e1b4b; background: #f5f3ff; }
+      :scope h1 { margin: 0 0 0.5rem; color: #2e1065; }
+      .intro { margin: 0 0 1.25rem; color: #4c1d95; line-height: 1.55; }
+      .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+      .actions button { padding: 0.45rem 0.85rem; border: 1px solid #c4b5fd; border-radius: 999px; color: #4c1d95; background: #fff; font-size: 0.85rem; cursor: pointer; }
+      .actions button[aria-pressed='true'] { color: #fff; background: #6d28d9; border-color: #6d28d9; }
+      .receipt { display: grid; gap: 0.5rem; padding: 1.1rem; border: 1px solid #ddd6fe; border-radius: 8px; background: #fff; }
+      .receipt h2 { margin: 0; color: #2e1065; font-size: 1.15rem; }
+      .receipt p { margin: 0; color: #4338ca; }
+      .loading { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; margin: 0; color: #6d28d9; font-size: 0.95rem; }
+      .note { margin-top: 1.25rem; color: #4c1d95; font-size: 0.85rem; line-height: 1.6; }
+      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ede9fe; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+      button:focus-visible, a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+    `,
+  },
+  function* () {
+    const { locale, receiptQuery } = yield* EffectI18nView();
+    return div([
       heading('Translating inside an Effect program'),
       p(
         { class: 'intro' },
@@ -151,7 +153,8 @@ const EffectI18nComponent = craftComponent(
         span({ class: 'mono' }, 'defineLocaleLike'),
         ' accepts the French catalogue. Drop a key from it and the build fails on the catalogue, before any French speaker sees an English string.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectI18nComponent;

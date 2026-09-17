@@ -17,74 +17,14 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, query, state } from '@craft-ts/core';
+import { craftService, craftComputed, query, state } from '@craft-ts/core';
 import { getEffectMiddlewareUsers } from '../users/effect-middleware-list.fn-client';
 
-const EffectServerMiddlewareDemo = craftComponent(
-  'EffectServerMiddlewareDemo',
-  {
-    styles: `
-      :scope { display: block; min-height: 100vh; color: #e8edf8; background: radial-gradient(circle at 85% 5%, #5b321e 0, #0b1020 36rem); }
-      .shell { width: min(1080px, calc(100% - 40px)); margin: 0 auto; padding: 70px 0 34px; }
-      .eyebrow { color: #ffbd82; font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-      h1 { max-width: 780px; margin: 16px 0 15px; color: #fff; font-size: clamp(2.5rem, 6vw, 4.8rem); letter-spacing: -.065em; line-height: .98; }
-      .hero-copy { max-width: 720px; color: #aab6cf; font-size: 1.08rem; }
-      .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 48px 0 24px; border: 1px solid #493b34; border-radius: 18px; overflow: hidden; background: #493b34; }
-      .flow-step { padding: 18px; background: #171722; }
-      .flow-step strong, .flow-step span { display: block; }
-      .flow-step strong { color: #fff; font-size: .86rem; }
-      .flow-step span { margin-top: 7px; color: #8d8aa2; font: .7rem ui-monospace, SFMono-Regular, Menlo, monospace; }
-      .workspace { display: grid; grid-template-columns: .85fr 1.15fr; gap: 18px; }
-      .panel { min-height: 330px; padding: 28px; border: 1px solid #493b34; border-radius: 22px; background: linear-gradient(145deg, #2c2430, #161724); }
-      .panel-kicker { color: #ffbd82; font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-      h2 { margin: 7px 0 0; color: #fff; font-size: 1.2rem; }
-      .copy { color: #9994a9; font-size: .88rem; line-height: 1.55; }
-      label { display: block; margin: 28px 0 8px; color: #c8c2d2; font-size: .78rem; font-weight: 700; }
-      .search-row { display: flex; gap: 9px; }
-      input { width: 100%; min-width: 0; padding: 13px 14px; border: 1px solid #66505a; border-radius: 10px; outline: none; color: #fff; background: #11131f; font: inherit; }
-      input:focus { border-color: #ffbd82; box-shadow: 0 0 0 3px #ffbd8222; }
-      button { padding: 0 15px; border: 0; border-radius: 10px; color: #21151a; background: #ffbd82; cursor: pointer; font: inherit; font-weight: 800; }
-      button:disabled { cursor: wait; opacity: .6; }
-      .status { margin-top: 28px; padding: 13px; border: 1px solid #594957; border-radius: 11px; color: #c9c0d2; background: #171522; font-size: .78rem; }
-      .scenario-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-      .scenario-actions button { min-height: 38px; }
-      .scenario-actions .danger { color: #fff; background: #a94f55; }
-      .error { margin-top: 18px; padding: 14px; border: 1px solid #a94f55; border-radius: 11px; color: #ffd7d0; background: #42252e; font: .76rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
-      .results { display: grid; gap: 9px; margin: 25px 0 0; padding: 0; list-style: none; }
-      .user-row { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #493b4d; border-radius: 12px; background: #171722; }
-      .avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; color: #2c2430; background: #ffbd82; font-weight: 900; }
-      .user-info { flex: 1; min-width: 0; }
-      .user-info strong, .user-info span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .user-info span { margin-top: 2px; color: #9994a9; font-size: .75rem; }
-      .user-id { color: #777087; font: .7rem ui-monospace, SFMono-Regular, Menlo, monospace; }
-      .empty { display: grid; place-items: center; min-height: 190px; color: #9994a9; text-align: center; }
-      .empty strong, .empty span { display: block; }
-      .empty span { margin-top: 5px; font-size: .76rem; }
-      @media (max-width: 780px) { .shell { width: min(100% - 28px, 600px); padding-top: 40px; } .flow, .workspace { grid-template-columns: 1fr; } }
-      @media (max-width: 470px) { .panel { padding: 21px; } .search-row { display: grid; grid-template-columns: 1fr; } button { min-height: 44px; } }
-      :scope { color: #172033; background: #f6f7fb; }
-      .shell { width: min(1060px, calc(100% - 40px)); padding: 52px 0 30px; }
-      .eyebrow, .panel-kicker { color: #5570c7; }
-      h1, h2 { color: #172033; }
-      h1 { margin: 12px 0; font-size: clamp(2.1rem, 5vw, 3.7rem); line-height: 1.02; }
-      .hero-copy, .copy { color: #68738a; line-height: 1.55; }
-      .flow { display: none; }
-      .workspace { margin-top: 38px; }
-      .panel { min-height: 320px; padding: 25px; border: 1px solid #e2e6ef; border-radius: 16px; background: #fff; box-shadow: 0 10px 28px #25345a0a; }
-      input { border-color: #d7dce7; color: #172033; background: #fff; }
-      input:focus { border-color: #7991df; box-shadow: 0 0 0 3px #5570c71c; }
-      button { color: #fff; background: #4665c4; }
-      button:hover { background: #3855ad; }
-      .status { border-color: #e3e7ef; color: #68738a; background: #fafbfc; }
-      .scenario-actions .danger { color: #fff; background: #c65d66; }
-      .error { border-color: #edc5c8; color: #9e414b; background: #fff5f5; }
-      .user-row { border-color: #e5e8ef; background: #fff; }
-      .avatar { color: #3159c8; background: #edf2ff; }
-      .user-info span, .user-id { color: #7a8498; }
-      .empty { color: #7a8498; }
-      @media (max-width: 780px) { .shell { width: min(100% - 28px, 600px); padding-top: 38px; } }
-    `,
-  },
+const {
+  EffectServerMiddlewareDemoView,
+  provideEffectServerMiddlewareDemoView,
+} = craftService(
+  { name: 'effectServerMiddlewareDemoView', providedIn: 'toProvide' },
   function* () {
     const filter = yield* state('effectMiddlewareFilter', '', ({ set }) => ({
       setEffectMiddlewareFilter: (value: string) => set(value),
@@ -153,18 +93,87 @@ const EffectServerMiddlewareDemo = craftComponent(
       submit,
     };
   },
-  ({
-    filter,
-    setFilter,
-    usersQuery,
-    hasUsers,
-    hasServerError,
-    serverErrorText,
-    isEmpty,
-    runScenario,
-    submit,
-  }) =>
-    main({ class: 'shell' }, [
+);
+
+const EffectServerMiddlewareDemo = craftComponent(
+  'EffectServerMiddlewareDemo',
+  {
+    providers: [provideEffectServerMiddlewareDemoView()],
+    styles: `
+      :scope { display: block; min-height: 100vh; color: #e8edf8; background: radial-gradient(circle at 85% 5%, #5b321e 0, #0b1020 36rem); }
+      .shell { width: min(1080px, calc(100% - 40px)); margin: 0 auto; padding: 70px 0 34px; }
+      .eyebrow { color: #ffbd82; font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { max-width: 780px; margin: 16px 0 15px; color: #fff; font-size: clamp(2.5rem, 6vw, 4.8rem); letter-spacing: -.065em; line-height: .98; }
+      .hero-copy { max-width: 720px; color: #aab6cf; font-size: 1.08rem; }
+      .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 48px 0 24px; border: 1px solid #493b34; border-radius: 18px; overflow: hidden; background: #493b34; }
+      .flow-step { padding: 18px; background: #171722; }
+      .flow-step strong, .flow-step span { display: block; }
+      .flow-step strong { color: #fff; font-size: .86rem; }
+      .flow-step span { margin-top: 7px; color: #8d8aa2; font: .7rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .workspace { display: grid; grid-template-columns: .85fr 1.15fr; gap: 18px; }
+      .panel { min-height: 330px; padding: 28px; border: 1px solid #493b34; border-radius: 22px; background: linear-gradient(145deg, #2c2430, #161724); }
+      .panel-kicker { color: #ffbd82; font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+      h2 { margin: 7px 0 0; color: #fff; font-size: 1.2rem; }
+      .copy { color: #9994a9; font-size: .88rem; line-height: 1.55; }
+      label { display: block; margin: 28px 0 8px; color: #c8c2d2; font-size: .78rem; font-weight: 700; }
+      .search-row { display: flex; gap: 9px; }
+      input { width: 100%; min-width: 0; padding: 13px 14px; border: 1px solid #66505a; border-radius: 10px; outline: none; color: #fff; background: #11131f; font: inherit; }
+      input:focus { border-color: #ffbd82; box-shadow: 0 0 0 3px #ffbd8222; }
+      button { padding: 0 15px; border: 0; border-radius: 10px; color: #21151a; background: #ffbd82; cursor: pointer; font: inherit; font-weight: 800; }
+      button:disabled { cursor: wait; opacity: .6; }
+      .status { margin-top: 28px; padding: 13px; border: 1px solid #594957; border-radius: 11px; color: #c9c0d2; background: #171522; font-size: .78rem; }
+      .scenario-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+      .scenario-actions button { min-height: 38px; }
+      .scenario-actions .danger { color: #fff; background: #a94f55; }
+      .error { margin-top: 18px; padding: 14px; border: 1px solid #a94f55; border-radius: 11px; color: #ffd7d0; background: #42252e; font: .76rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+      .results { display: grid; gap: 9px; margin: 25px 0 0; padding: 0; list-style: none; }
+      .user-row { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #493b4d; border-radius: 12px; background: #171722; }
+      .avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; color: #2c2430; background: #ffbd82; font-weight: 900; }
+      .user-info { flex: 1; min-width: 0; }
+      .user-info strong, .user-info span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .user-info span { margin-top: 2px; color: #9994a9; font-size: .75rem; }
+      .user-id { color: #777087; font: .7rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .empty { display: grid; place-items: center; min-height: 190px; color: #9994a9; text-align: center; }
+      .empty strong, .empty span { display: block; }
+      .empty span { margin-top: 5px; font-size: .76rem; }
+      @media (max-width: 780px) { .shell { width: min(100% - 28px, 600px); padding-top: 40px; } .flow, .workspace { grid-template-columns: 1fr; } }
+      @media (max-width: 470px) { .panel { padding: 21px; } .search-row { display: grid; grid-template-columns: 1fr; } button { min-height: 44px; } }
+      :scope { color: #172033; background: #f6f7fb; }
+      .shell { width: min(1060px, calc(100% - 40px)); padding: 52px 0 30px; }
+      .eyebrow, .panel-kicker { color: #5570c7; }
+      h1, h2 { color: #172033; }
+      h1 { margin: 12px 0; font-size: clamp(2.1rem, 5vw, 3.7rem); line-height: 1.02; }
+      .hero-copy, .copy { color: #68738a; line-height: 1.55; }
+      .flow { display: none; }
+      .workspace { margin-top: 38px; }
+      .panel { min-height: 320px; padding: 25px; border: 1px solid #e2e6ef; border-radius: 16px; background: #fff; box-shadow: 0 10px 28px #25345a0a; }
+      input { border-color: #d7dce7; color: #172033; background: #fff; }
+      input:focus { border-color: #7991df; box-shadow: 0 0 0 3px #5570c71c; }
+      button { color: #fff; background: #4665c4; }
+      button:hover { background: #3855ad; }
+      .status { border-color: #e3e7ef; color: #68738a; background: #fafbfc; }
+      .scenario-actions .danger { color: #fff; background: #c65d66; }
+      .error { border-color: #edc5c8; color: #9e414b; background: #fff5f5; }
+      .user-row { border-color: #e5e8ef; background: #fff; }
+      .avatar { color: #3159c8; background: #edf2ff; }
+      .user-info span, .user-id { color: #7a8498; }
+      .empty { color: #7a8498; }
+      @media (max-width: 780px) { .shell { width: min(100% - 28px, 600px); padding-top: 38px; } }
+    `,
+  },
+  function* () {
+    const {
+      filter,
+      setFilter,
+      usersQuery,
+      hasUsers,
+      hasServerError,
+      serverErrorText,
+      isEmpty,
+      runScenario,
+      submit,
+    } = yield* EffectServerMiddlewareDemoView();
+    return main({ class: 'shell' }, [
       div({ class: 'eyebrow' }, 'runnable playground · Effect adapter'),
       heading('Frontend → effectServerMiddleware → Effect → DB'),
       p(
@@ -286,7 +295,8 @@ const EffectServerMiddlewareDemo = craftComponent(
           ),
         ]),
       ]),
-    ]),
+    ]);
+  },
 );
 
 function flowStep(number: string, title: string, description: string) {

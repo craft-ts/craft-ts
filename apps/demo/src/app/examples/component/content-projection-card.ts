@@ -1,3 +1,4 @@
+import { craftService } from '@craft-ts/core';
 import {
   content,
   craftComponent,
@@ -18,25 +19,34 @@ type CardInput = {
   }>;
 };
 
+const { CardView, provideCardView } = craftService(
+  { name: 'cardView', providedIn: 'toProvide' },
+  (input: CardInput) => {
+    return {
+      header:
+        input.header ??
+        content(() =>
+          heading({ class: 'projection-demo__fallback' }, 'Default title'),
+        ),
+      body: input.body,
+    };
+  },
+);
+
 export const card = craftComponent(
   'card',
   {
+    providers: [provideCardView()],
     contentStyles: {
       header: ':scope { display: block; margin-block-end: 0.5rem; }',
       body: ':scope { display: block; color: #334155; }',
     },
   },
-  (input: CardInput) => ({
-    header:
-      input.header ??
-      content(() =>
-        heading({ class: 'projection-demo__fallback' }, 'Default title'),
-      ),
-    body: input.body,
-  }),
-  ({ header, body }) =>
-    section({ class: 'projection-demo__card' }, [
+  function* (input: CardInput) {
+    const { header, body } = yield* CardView(input);
+    return section({ class: 'projection-demo__card' }, [
       renderContent('header', header),
       section({ class: 'projection-demo__body' }, renderContent('body', body)),
-    ]),
+    ]);
+  },
 );

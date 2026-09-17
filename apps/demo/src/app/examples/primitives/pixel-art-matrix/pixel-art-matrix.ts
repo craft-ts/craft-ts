@@ -10,11 +10,8 @@ import {
   section,
   heading,
 } from '@craft-ts/component';
-import { state } from '@craft-ts/core';
-import {
-  LONG_PRESS_DURATION_MS,
-  longPress,
-} from './long-press.directive';
+import { craftService, state } from '@craft-ts/core';
+import { LONG_PRESS_DURATION_MS, longPress } from './long-press.directive';
 
 type Cell = {
   readonly id: number;
@@ -37,11 +34,8 @@ const makeGrid = (): Cell[][] =>
     })),
   );
 
-const PixelArtMatrix = craftComponent(
-  'PixelArtMatrix',
-  {
-    stylesUrl: styles,
-  },
+const { PixelArtMatrixView, providePixelArtMatrixView } = craftService(
+  { name: 'pixelArtMatrixView', providedIn: 'toProvide' },
   function* () {
     const activeColor = yield* state('activeColor', COLORS[0], ({ set }) => ({
       setColor: (color: string) => set(color),
@@ -115,8 +109,17 @@ const PixelArtMatrix = craftComponent(
     }));
     return { activeColor, grid };
   },
-  ({ activeColor, grid }) =>
-    section([
+);
+
+const PixelArtMatrix = craftComponent(
+  'PixelArtMatrix',
+  {
+    providers: [providePixelArtMatrixView()],
+    stylesUrl: styles,
+  },
+  function* () {
+    const { activeColor, grid } = yield* PixelArtMatrixView();
+    return section([
       header([
         heading('Pixel Art Workshop (Matrix)'),
         p(
@@ -126,7 +129,8 @@ const PixelArtMatrix = craftComponent(
       div(
         { class: 'matrix-palette' },
         forNode(COLORS, { track: (color) => color }, (color) =>
-          button('color', { type: 'button',
+          button('color', {
+            type: 'button',
             class: 'matrix-color',
             style: function* () {
               return { backgroundColor: yield* color() };
@@ -146,7 +150,8 @@ const PixelArtMatrix = craftComponent(
         forNode(grid, { track: trackGridRow }, (row, rowIndex) =>
           div({ class: 'matrix-row' }, [
             forNode(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
-              button('cell', { type: 'button',
+              button('cell', {
+                type: 'button',
                 class: 'matrix-cell',
                 style: function* () {
                   return { backgroundColor: (yield* cell()).color };
@@ -167,8 +172,10 @@ const PixelArtMatrix = craftComponent(
                 },
               }).pipe(longPress),
             ),
-            button('addCell',
-              { type: 'button',
+            button(
+              'addCell',
+              {
+                type: 'button',
                 *click() {
                   yield* grid.addCell(rowIndex);
                 },
@@ -179,7 +186,8 @@ const PixelArtMatrix = craftComponent(
         ),
       ),
       button('addRow', { type: 'button', click: grid.addRow }, 'Add row'),
-    ]),
+    ]);
+  },
 );
 
 export default PixelArtMatrix;

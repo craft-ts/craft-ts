@@ -10,36 +10,41 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import { CraftRouterLink } from '@craft-ts/core';
+import { craftService, CraftRouterLink } from '@craft-ts/core';
 import { PHOTOS } from './photos';
+
+const { ViewTransitionsGalleryView, provideViewTransitionsGalleryView } =
+  craftService(
+    { name: 'viewTransitionsGalleryView', providedIn: 'toProvide' },
+    () => ({}),
+  );
 
 const ViewTransitionsGalleryComponent = craftComponent(
   'ViewTransitionsGalleryComponent',
   {
+    providers: [provideViewTransitionsGalleryView()],
     styles: `
       .vt-intro{margin-bottom:1.75rem}.vt-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.25rem}
       .vt-tile{display:grid;gap:.75rem;text-decoration:none;color:inherit}.vt-art{display:grid;place-items:center;aspect-ratio:4/3;border-radius:16px;box-shadow:0 12px 30px #0f172a2e}
       .vt-emoji{font-size:3rem}.vt-meta{display:grid;gap:.15rem}.vt-title{font-weight:700}.vt-subtitle{font-size:.85rem;color:#64748b}
     `,
   },
-  () => ({}),
-  () => [
-    header({ class: 'vt-intro' }, [
-      heading('View Transitions'),
-      p('Click a tile to morph it into the detail hero.'),
-    ]),
-    ul(
-      { class: 'vt-grid' },
-      forNode(PHOTOS, { track: (photo) => photo.id }, (photo) =>
-        li(
-          a(
-            'photo',
-            { class: 'vt-tile' },
-            [
+  function* () {
+    yield* ViewTransitionsGalleryView();
+    return [
+      header({ class: 'vt-intro' }, [
+        heading('View Transitions'),
+        p('Click a tile to morph it into the detail hero.'),
+      ]),
+      ul(
+        { class: 'vt-grid' },
+        forNode(PHOTOS, { track: (photo) => photo.id }, (photo) =>
+          li(
+            a('photo', { class: 'vt-tile' }, [
               span(
                 {
                   class: 'vt-art',
-                    style: function* () {
+                  style: function* () {
                     return {
                       background: (yield* photo()).gradient,
                       viewTransitionName: `photo-${(yield* photo()).id}`,
@@ -58,23 +63,23 @@ const ViewTransitionsGalleryComponent = craftComponent(
                   return (yield* photo()).subtitle;
                 }),
               ]),
-            ],
-          ).pipe(
-            CraftRouterLink(function* () {
-              return {
-                to: 'view-transitions/:photoId',
-                params: { photoId: (yield* photo()).id },
-                viewTransition: {
-                  name: `photo-${(yield* photo()).id}`,
-                  image: null,
-                },
-              };
-            }),
+            ]).pipe(
+              CraftRouterLink(function* () {
+                return {
+                  to: 'view-transitions/:photoId',
+                  params: { photoId: (yield* photo()).id },
+                  viewTransition: {
+                    name: `photo-${(yield* photo()).id}`,
+                    image: null,
+                  },
+                };
+              }),
+            ),
           ),
         ),
       ),
-    ),
-  ],
+    ];
+  },
 );
 
 export default ViewTransitionsGalleryComponent;

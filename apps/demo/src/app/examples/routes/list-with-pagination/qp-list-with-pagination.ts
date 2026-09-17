@@ -15,6 +15,7 @@ import {
   tbody,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftMethod,
   insertPaginationPlaceholderData,
   insertQueryPipe,
@@ -29,59 +30,67 @@ import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import styles from './list-with-pagination.css' with { loader: 'text' };
 
+const { QpListWithPaginationView, provideQpListWithPaginationView } =
+  craftService(
+    { name: 'qpListWithPaginationView', providedIn: 'toProvide' },
+    function* () {
+      const pagination = yield* queryParams(
+        'pagination',
+        paginationQueryParams(),
+        ({ patch, state }) => ({
+          nextPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: _state.page + 1 });
+          },
+          previousPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: Math.max(1, _state.page - 1) });
+          },
+          updatePageSize: function* (pageSize: number) {
+            return yield* patch({ pageSize, page: 1 });
+          },
+        }),
+      );
+      const api = yield* ApiService();
+      const usersQuery = yield* query(
+        'usersQuery',
+        {
+          params: pagination,
+          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+          loader: function* ({ params }) {
+            return yield* api.getDataList(params);
+          },
+        },
+        insertQueryPipe(
+          insertStoragePersister(
+            craftUnique({
+              storeName: 'demo-app',
+              key: 'route-list-with-pagination',
+            }),
+          ),
+          insertPaginationPlaceholderData({ initialValue: Array<User>() }),
+        ),
+      );
+      const updatePageSize = craftMethod(
+        'updatePageSize',
+        function* (event: Event) {
+          yield* pagination.updatePageSize(Number(eventValue(event)));
+        },
+      );
+      return { pagination, usersQuery, updatePageSize };
+    },
+  );
+
 const QpListWithPagination = craftComponent(
   'QpListWithPagination',
   {
+    providers: [provideQpListWithPaginationView()],
     stylesUrl: styles,
   },
   function* () {
-    const pagination = yield* queryParams(
-      'pagination',
-      paginationQueryParams(),
-      ({ patch, state }) => ({
-        nextPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: _state.page + 1 });
-        },
-        previousPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: Math.max(1, _state.page - 1) });
-        },
-        updatePageSize: function* (pageSize: number) {
-          return yield* patch({ pageSize, page: 1 });
-        },
-      }),
-    );
-    const api = yield* ApiService();
-    const usersQuery = yield* query(
-      'usersQuery',
-      {
-        params: pagination,
-        identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-        loader: function* ({ params }) {
-          return yield* api.getDataList(params);
-        },
-      },
-      insertQueryPipe(
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app',
-          key: 'route-list-with-pagination',
-        })),
-        insertPaginationPlaceholderData({ initialValue: Array<User>() }),
-      ),
-    );
-    const updatePageSize = craftMethod(
-      'updatePageSize',
-      function* (event: Event) {
-        yield* pagination.updatePageSize(
-          Number(eventValue(event)),
-        );
-      },
-    );
-    return { pagination, usersQuery, updatePageSize };
-  },
-  ({ pagination, updatePageSize, usersQuery }) =>
-    div([
+    const { pagination, updatePageSize, usersQuery } =
+      yield* QpListWithPaginationView();
+    return div([
       heading([
         'Route QueryParams pagination: ',
         StatusComponent({
@@ -98,20 +107,21 @@ const QpListWithPagination = craftComponent(
           forNode(
             usersQuery.currentPageData,
             { track: (user) => user.id },
-                    (user) =>
-                      tr( [
-                        td( function* () {
-                          return (yield* user()).id;
-                        }),
-                        td( function* () {
-                          return (yield* user()).name;
-                        }),
-                      ]),
+            (user) =>
+              tr([
+                td(function* () {
+                  return (yield* user()).id;
+                }),
+                td(function* () {
+                  return (yield* user()).name;
+                }),
+              ]),
           ),
         ),
       ),
       div({ class: 'pagination' }, [
-        select('pageSize',
+        select(
+          'pageSize',
           {
             'aria-label': 'Page size',
             value: pagination.pageSize,
@@ -119,11 +129,20 @@ const QpListWithPagination = craftComponent(
           },
           [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
-        button('previousPage', { type: 'button', click: pagination.previousPage }, 'Previous'),
+        button(
+          'previousPage',
+          { type: 'button', click: pagination.previousPage },
+          'Previous',
+        ),
         span({ class: 'current-page' }, pagination.page),
-        button('nextPage', { type: 'button', click: pagination.nextPage }, 'Next'),
+        button(
+          'nextPage',
+          { type: 'button', click: pagination.nextPage },
+          'Next',
+        ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default QpListWithPagination;

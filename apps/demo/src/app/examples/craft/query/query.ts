@@ -46,19 +46,11 @@ const { UserQuery } = craftService(
   },
 );
 
-const CraftGlobalQuery = craftComponent(
-  'CraftGlobalQuery',
-  {
-    stylesUrl: styles,
-    cssVars: {
-      '--query-ink': '#172033',
-      '--query-muted': '#64748b',
-      '--query-border': '#dce4ef',
-      '--query-accent': '#2563eb',
-      '--query-accent-dark': '#1d4ed8',
-    },
-  },
-  function* (userId: Input<string>) {
+const { CraftGlobalQueryView, provideCraftGlobalQueryView } = craftService(
+  { name: 'craftGlobalQueryView', providedIn: 'toProvide' },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { userId } = inputs;
+
     const user = yield* UserQuery({
       userId,
     });
@@ -81,8 +73,25 @@ const CraftGlobalQuery = craftComponent(
     });
     return { user, hasUser, userValueJson, navigate };
   },
-  ({ user, hasUser, userValueJson, navigate }) =>
-    div({ class: 'query-shell' }, [
+);
+
+const CraftGlobalQuery = craftComponent(
+  'CraftGlobalQuery',
+  {
+    providers: [provideCraftGlobalQueryView()],
+    stylesUrl: styles,
+    cssVars: {
+      '--query-ink': '#172033',
+      '--query-muted': '#64748b',
+      '--query-border': '#dce4ef',
+      '--query-accent': '#2563eb',
+      '--query-accent-dark': '#1d4ed8',
+    },
+  },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { user, hasUser, userValueJson, navigate } =
+      yield* CraftGlobalQueryView(inputs);
+    return div({ class: 'query-shell' }, [
       heading('User query'),
       div({ class: 'query-result' }, [
         'User ',
@@ -99,7 +108,7 @@ const CraftGlobalQuery = craftComponent(
           {
             type: 'button',
             *click() {
-              yield* navigate(-1);
+navigate(-1);
             },
           },
           'Previous user',
@@ -109,13 +118,14 @@ const CraftGlobalQuery = craftComponent(
           {
             type: 'button',
             *click() {
-              yield* navigate(1);
+navigate(1);
             },
           },
           'Next user',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default CraftGlobalQuery;

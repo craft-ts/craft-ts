@@ -19,6 +19,7 @@ import {
   tbody,
 } from '@craft-ts/component';
 import {
+  craftService,
   insertQueryPipe,
   insertStoragePersister,
   craftUnique,
@@ -34,11 +35,8 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 
-const GranularMutation = craftComponent(
-  'GranularMutation',
-  {
-    stylesUrl: styles,
-  },
+const { GranularMutationView, provideGranularMutationView } = craftService(
+  { name: 'granularMutationView', providedIn: 'toProvide' },
   function* () {
     const pagination = yield* queryParams(
       'pagination',
@@ -75,10 +73,12 @@ const GranularMutation = craftComponent(
         },
       },
       insertQueryPipe(
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app',
-          key: 'granular',
-        })),
+        insertStoragePersister(
+          craftUnique({
+            storeName: 'demo-app',
+            key: 'granular',
+          }),
+        ),
         insertPaginationPlaceholderData({ initialValue: Array<User>() }),
         insertReactOnMutation(updateUserName, {
           filter: ({ mutationIdentifier, queryResource }) =>
@@ -106,14 +106,27 @@ const GranularMutation = craftComponent(
       usersQuery,
       isUpdatePending,
       updatePageSize: craftMethod('updatePageSize', function* (event: Event) {
-        yield* pagination.updatePageSize(
-          Number(eventValue(event)),
-        );
+        yield* pagination.updatePageSize(Number(eventValue(event)));
       }),
     };
   },
-  ({ pagination, updatePageSize, updateUserName, usersQuery, isUpdatePending }) =>
-    div({ class: 'container' }, [
+);
+
+const GranularMutation = craftComponent(
+  'GranularMutation',
+  {
+    providers: [provideGranularMutationView()],
+    stylesUrl: styles,
+  },
+  function* () {
+    const {
+      pagination,
+      updatePageSize,
+      updateUserName,
+      usersQuery,
+      isUpdatePending,
+    } = yield* GranularMutationView();
+    return div({ class: 'container' }, [
       main({ class: 'content' }, [
         div({ class: 'content-wrapper' }, [
           div({ class: 'card' }, [
@@ -130,26 +143,25 @@ const GranularMutation = craftComponent(
               ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
             ]),
             div({ class: 'table-container' }, [
-              table( { class: 'table' }, [
-                thead( [
-                  tr( [th( 'ID'), th( 'Name'), th( 'Action')]),
-                ]),
+              table({ class: 'table' }, [
+                thead([tr([th('ID'), th('Name'), th('Action')])]),
                 tbody(
                   forNode(
                     usersQuery.currentPageData,
                     { track: (user) => user.id },
                     (user) =>
-                      tr( [
-                        td( function* () {
+                      tr([
+                        td(function* () {
                           return (yield* user()).id;
                         }),
-                        td( function* () {
+                        td(function* () {
                           return (yield* user()).name;
                         }),
                         td(
                           button(
                             'UpdateUserName',
-                            { type: 'button',
+                            {
+                              type: 'button',
                               class: 'action-btn',
                               disabled: function* () {
                                 // `isLoading()` is a reactive read: without
@@ -203,16 +215,16 @@ const GranularMutation = craftComponent(
               ),
               button(
                 'PreviousPage',
-                { type: 'button', class: 'btn', click: pagination.previousPage },
+                {
+                  type: 'button',
+                  class: 'btn',
+                  click: pagination.previousPage,
+                },
                 'Previous',
               ),
-              span(
-                'CurrentPage',
-                { class: 'current-page' },
-                function* () {
-                  return (yield* pagination()).page;
-                },
-              ),
+              span('CurrentPage', { class: 'current-page' }, function* () {
+                return (yield* pagination()).page;
+              }),
               button(
                 'NextPage',
                 { type: 'button', class: 'btn', click: pagination.nextPage },
@@ -222,7 +234,8 @@ const GranularMutation = craftComponent(
           ]),
         ]),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default GranularMutation;

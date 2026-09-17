@@ -32,10 +32,7 @@ function statusPage(
     name,
     { styles: statusPageStyles },
     function* () {
-      return {};
-    },
-    () =>
-      main([
+      return main([
         section({ class: 'card' }, [
           p({ class: 'eyebrow' }, eyebrow),
           heading(title),
@@ -43,7 +40,8 @@ function statusPage(
           p({ class: 'detail' }, detail),
           divActions(),
         ]),
-      ]),
+      ]);
+    },
   );
 }
 

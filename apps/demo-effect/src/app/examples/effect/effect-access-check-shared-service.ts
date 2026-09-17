@@ -9,7 +9,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftService, craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { checkUserAccess } from '../../shared/access-domain';
 
@@ -17,9 +17,43 @@ import { checkUserAccess } from '../../shared/access-domain';
  * Demonstrates a shared business operation whose service dependency is
  * provided by the application Layer, not resolved by the component.
  */
+const { EffectSharedServiceView, provideEffectSharedServiceView } =
+  craftService(
+    { name: 'effectSharedServiceView', providedIn: 'toProvide' },
+    function* () {
+      const accessQuery = yield* queryEffect(
+        'accessQuery',
+        {
+          method: (userId: string) => userId,
+          loader: ({ params }) => checkUserAccess(params),
+        },
+        ({ resource }) => ({
+          hasDecision: craftComputed('hasDecision', () => resource.hasValue()),
+          showUnknown: craftComputed('showUnknown', function* () {
+            return !(yield* resource.isLoading()) && !resource.hasValue();
+          }),
+          userName: craftComputed('userName', function* () {
+            return (yield* resource.value())?.user.name ?? '…';
+          }),
+          accessLabel: craftComputed('accessLabel', function* () {
+            return (yield* resource.value())?.label ?? '…';
+          }),
+          accessReason: craftComputed('accessReason', function* () {
+            return (yield* resource.value())?.reason ?? '…';
+          }),
+        }),
+      );
+
+      yield* accessQuery.call('user-ada'); // trigger first call
+
+      return { accessQuery };
+    },
+  );
+
 const EffectSharedServiceComponent = craftComponent(
   'EffectSharedServiceComponent',
   {
+    providers: [provideEffectSharedServiceView()],
     styles: `
       :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #dbeafe; border-radius: 12px; color: #1e293b; background: #eff6ff; }
       :scope h1 { margin: 0 0 0.5rem; color: #172554; }
@@ -35,35 +69,8 @@ const EffectSharedServiceComponent = craftComponent(
     `,
   },
   function* () {
-    const accessQuery = yield* queryEffect(
-      'accessQuery',
-      {
-        method: (userId: string) => userId,
-        loader: ({ params }) => checkUserAccess(params),
-      },
-      ({ resource }) => ({
-        hasDecision: craftComputed('hasDecision', () => resource.hasValue()),
-        showUnknown: craftComputed('showUnknown', function* () {
-          return !(yield* resource.isLoading()) && !resource.hasValue();
-        }),
-        userName: craftComputed('userName', function* () {
-          return (yield* resource.value())?.user.name ?? '…';
-        }),
-        accessLabel: craftComputed('accessLabel', function* () {
-          return (yield* resource.value())?.label ?? '…';
-        }),
-        accessReason: craftComputed('accessReason', function* () {
-          return (yield* resource.value())?.reason ?? '…';
-        }),
-      }),
-    );
-
-    yield* accessQuery.call('user-ada'); // trigger first call
-
-    return { accessQuery };
-  },
-  ({ accessQuery }) =>
-    div([
+    const { accessQuery } = yield* EffectSharedServiceView();
+    return div([
       heading('Check access rights'),
       p(
         { class: 'intro' },
@@ -120,7 +127,8 @@ const EffectSharedServiceComponent = craftComponent(
         span({ class: 'mono' }, 'AccessPolicyService'),
         ': the application Layer supplies this dependency to the Effect operation.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectSharedServiceComponent;

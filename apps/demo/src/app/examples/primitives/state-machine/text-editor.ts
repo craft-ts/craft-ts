@@ -11,6 +11,7 @@ import {
   span,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftComputed,
   craftStateMachine,
   initStateMachine,
@@ -22,95 +23,106 @@ import {
   transitionStep,
 } from '@craft-ts/core';
 
+const { TextEditorStateMachineView, provideTextEditorStateMachineView } =
+  craftService(
+    { name: 'textEditorStateMachineView', providedIn: 'toProvide' },
+    function* () {
+      const machine = yield* craftStateMachine(
+        'textEditor',
+
+        // The context reacts declaratively to sources. There are no state
+        // mutations in the transition declarations below.
+        function* () {
+          const edit$ = yield* source$<void>('text.edit');
+          const commit$ = yield* source$<void>('text.commit');
+          const cancel$ = yield* source$<void>('text.cancel');
+
+          const text = yield* state(
+            'text',
+            {
+              committedValue: '',
+              value: '',
+            },
+            insertStatePipe(insertDeepYieldable(), ({ patch }) => ({
+              change: (value: string) =>
+                patch(() => ({
+                  value,
+                })),
+              commit: on$(commit$, () =>
+                patch((current) => ({
+                  committedValue: current.value,
+                })),
+              ),
+              cancel: on$(cancel$, () =>
+                patch((current) => ({
+                  value: current.committedValue,
+                })),
+              ),
+            })),
+          );
+
+          return { edit$, commit$, cancel$, text };
+        },
+
+        // A transition only declares which source enters which step.
+        function* (context, transit) {
+          return {
+            reading: transitionStep(function* () {
+              yield* initStateMachine(() => transit());
+              yield* on$(context.commit$, () => transit());
+              yield* on$(context.cancel$, () => transit());
+            }),
+            editing: transitionStep(function* () {
+              yield* on$(context.edit$, () => transit());
+            }),
+          };
+        },
+
+        function* ({ text, cancel$, commit$, edit$ }) {
+          const { committedValue, value } = text;
+          return {
+            reading: {
+              text: {
+                committedValue,
+                value,
+              },
+              edit$,
+            },
+            editing: { text, commit$, cancel$ },
+          };
+        },
+
+        ({ currentStep }) => {
+          return {
+            readingClass: craftComputed('readingClass', function* () {
+              return (yield* currentStep()) === 'reading'
+                ? 'step step--active'
+                : 'step';
+            }),
+            editingClass: craftComputed('editingClass', function* () {
+              return (yield* currentStep()) === 'editing'
+                ? 'step step--active'
+                : 'step';
+            }),
+          };
+        },
+      );
+
+      return { machine };
+    },
+  );
+
 const TextEditorStateMachine = craftComponent(
   'TextEditorStateMachine',
-  { stylesUrl: styles },
-  function* () {
-    const machine = yield* craftStateMachine(
-      'textEditor',
-
-      // The context reacts declaratively to sources. There are no state
-      // mutations in the transition declarations below.
-      function* () {
-        const edit$ = yield* source$<void>('text.edit');
-        const commit$ = yield* source$<void>('text.commit');
-        const cancel$ = yield* source$<void>('text.cancel');
-
-        const text = yield* state(
-          'text',
-          {
-            committedValue: '',
-            value: '',
-          },
-          insertStatePipe(insertDeepYieldable(), ({ patch }) => ({
-            change: (value: string) =>
-              patch(() => ({
-                value,
-              })),
-            commit: on$(commit$, () =>
-              patch((current) => ({
-                committedValue: current.value,
-              })),
-            ),
-            cancel: on$(cancel$, () =>
-              patch((current) => ({
-                value: current.committedValue,
-              })),
-            ),
-          })),
-        );
-
-        return { edit$, commit$, cancel$, text };
-      },
-
-      // A transition only declares which source enters which step.
-      function* (context, transit) {
-        return {
-          reading: transitionStep(function* () {
-            yield* initStateMachine(() => transit());
-            yield* on$(context.commit$, () => transit());
-            yield* on$(context.cancel$, () => transit());
-          }),
-          editing: transitionStep(function* () {
-            yield* on$(context.edit$, () => transit());
-          }),
-        };
-      },
-
-      function* ({ text, cancel$, commit$, edit$ }) {
-        const { committedValue, value } = text;
-        return {
-          reading: {
-            text: {
-              committedValue,
-              value,
-            },
-            edit$,
-          },
-          editing: { text, commit$, cancel$ },
-        };
-      },
-
-      ({ currentStep }) => {
-        return {
-          readingClass: craftComputed('readingClass', function* () {
-            return (yield* currentStep()) === 'reading'
-              ? 'step step--active'
-              : 'step';
-          }),
-          editingClass: craftComputed('editingClass', function* () {
-            return (yield* currentStep()) === 'editing'
-              ? 'step step--active'
-              : 'step';
-          }),
-        };
-      },
-    );
-
-    return { machine };
+  {
+    providers: [provideTextEditorStateMachineView()],
+    stylesUrl: styles,
   },
-  ({ machine: { currentStepWithContext, editingClass, readingClass } }) =>
-    section([
+  function* () {
+    const {
+      machine: { currentStepWithContext, editingClass, readingClass },
+    } = yield* TextEditorStateMachineView();
+    return section([
       heading('State machine — declarative text editor'),
       p(
         { class: 'intro' },
@@ -167,7 +179,8 @@ const TextEditorStateMachine = craftComponent(
             ]),
           ]),
       }),
-    ]),
+    ]);
+  },
 );
 
 function labelText(text: string) {

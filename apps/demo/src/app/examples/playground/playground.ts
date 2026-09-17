@@ -52,11 +52,11 @@ const { ApiService } = craftService(
   function* () {
     const nextId = yield* state('nextId', 4, ({ state, update }) => ({
       take: function* () {
-            const _state = yield* state();
-                const id = _state;
-                yield* update((value) => value + 1);
-                return id;
-              },
+        const _state = yield* state();
+        const id = _state;
+        yield* update((value) => value + 1);
+        return id;
+      },
     }));
 
     return {
@@ -164,9 +164,44 @@ const { Playground } = craftService(
 
 // -- Component --
 
+const { PlaygroundView, providePlaygroundView } = craftService(
+  { name: 'playgroundView', providedIn: 'toProvide' },
+  function* () {
+    const pg = yield* Playground();
+    const titleInput = yield* state('titleInput', '', ({ set }) => ({
+      setTitle: (value: string) => set(value),
+      clearTitle: () => set(''),
+    }));
+    const add = craftMethod('add', function* () {
+      const title = (yield* titleInput()).trim();
+      if (!title) return;
+      yield* pg.addTodo.mutate(title);
+      yield* titleInput.clearTitle();
+      return {};
+    });
+    const isAdding = craftComputed('isAdding', function* () {
+      const _pgaddTodoisLoading = yield* pg.addTodo.isLoading();
+      return _pgaddTodoisLoading;
+    });
+    const todos = craftComputed('todos', function* () {
+      const _pgtodosvalue = yield* pg.todos.value();
+      return _pgtodosvalue ?? [];
+    });
+    return {
+      pg,
+      add,
+      isAdding,
+      todos,
+      titleInput,
+      setTitle: titleInput.setTitle,
+    };
+  },
+);
+
 const PlaygroundComponent = craftComponent(
   'PlaygroundComponent',
   {
+    providers: [providePlaygroundView()],
     styles: `
     .playground {
       display: flex;
@@ -252,36 +287,9 @@ const PlaygroundComponent = craftComponent(
     `,
   },
   function* () {
-    const pg = yield* Playground();
-    const titleInput = yield* state('titleInput', '', ({ set }) => ({
-      setTitle: (value: string) => set(value),
-      clearTitle: () => set(''),
-    }));
-    const add = craftMethod('add', function* () {
-      const title = (yield* titleInput()).trim();
-      if (!title) return;
-      yield* pg.addTodo.mutate(title);
-      yield* titleInput.clearTitle();
-      return {};
-    });
-    const isAdding = craftComputed('isAdding', function* () {
-        const _pgaddTodoisLoading = yield* pg.addTodo.isLoading(); return _pgaddTodoisLoading; },
-    );
-    const todos = craftComputed(
-      'todos',
-      function* () {
-          const _pgtodosvalue = yield* pg.todos.value(); return _pgtodosvalue ?? []; },
-    );
-    return {
-      pg,
-      add,
-      isAdding,
-      todos,
-      titleInput,
-      setTitle: titleInput.setTitle,
-    };
-  },
-  ({ pg, add, isAdding, todos, titleInput, setTitle }) => {
+    const { pg, add, isAdding, todos, titleInput, setTitle } =
+      yield* PlaygroundView();
+
     return div({ class: 'playground' }, [
       heading('Playground'),
       p('Sandbox for testing @craft-ts — ready to share on StackBlitz'),
@@ -294,14 +302,12 @@ const PlaygroundComponent = craftComponent(
             yield* setTitle(event.target.value);
           },
           *keydown(event) {
-            if (event.key === 'Enter') yield* add();
+            if (event.key === 'Enter') add();
           },
         }),
-        button('add',
-          { type: 'button',
-            disabled: pg.addTodo.isLoading,
-            click: add,
-          },
+        button(
+          'add',
+          { type: 'button', disabled: pg.addTodo.isLoading, click: add },
           ifNode(
             isAdding,
             () => 'Adding…',
@@ -315,39 +321,46 @@ const PlaygroundComponent = craftComponent(
           todos,
           { track: (todo) => todo.id, empty: () => p('No todos yet.') },
           (todo) =>
-            div({
-              class: function* () {
-                return {
-                  'todo-item': true,
-                  completed: (yield* todo()).completed,
-                };
+            div(
+              {
+                class: function* () {
+                  return {
+                    'todo-item': true,
+                    completed: (yield* todo()).completed,
+                  };
+                },
               },
-            }, [
-              button('toggle',
-                { type: 'button',
-                  *click() {
-                    yield* pg.toggleTodo.mutate((yield* todo()).id);
+              [
+                button(
+                  'toggle',
+                  {
+                    type: 'button',
+                    *click() {
+                      yield* pg.toggleTodo.mutate((yield* todo()).id);
+                    },
                   },
-                },
-                function* () {
-                  return TODO_ICONS[String((yield* todo()).completed)];
-                },
-              ),
-              span({ class: 'title' }, function* () {
-                return (yield* todo()).title;
-              }),
-              button('delete',
-                { type: 'button',
-                  'aria-label': function* () {
-                    return `Delete ${(yield* todo()).title}`;
+                  function* () {
+                    return TODO_ICONS[String((yield* todo()).completed)];
                   },
-                  *click() {
-                    yield* pg.deleteTodo.mutate((yield* todo()).id);
+                ),
+                span({ class: 'title' }, function* () {
+                  return (yield* todo()).title;
+                }),
+                button(
+                  'delete',
+                  {
+                    type: 'button',
+                    'aria-label': function* () {
+                      return `Delete ${(yield* todo()).title}`;
+                    },
+                    *click() {
+                      yield* pg.deleteTodo.mutate((yield* todo()).id);
+                    },
                   },
-                },
-                '🗑️',
-              ),
-            ]),
+                  '🗑️',
+                ),
+              ],
+            ),
         ),
       ),
     ]);

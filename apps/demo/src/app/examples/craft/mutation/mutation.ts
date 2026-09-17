@@ -71,13 +71,11 @@ export const { provideUserMutation, UserMutation } = craftService(
   },
 );
 
-const MutationCraft = craftComponent(
-  'MutationCraft',
-  {
-    stylesUrl: styles,
-    providers: [provideUserMutation()],
-  },
-  function* (userId: Input<string>) {
+const { MutationCraftView, provideMutationCraftView } = craftService(
+  { name: 'mutationCraftView', providedIn: 'toProvide' },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { userId } = inputs;
+
     const store = yield* UserMutation({
       userId,
     });
@@ -124,15 +122,25 @@ const MutationCraft = craftComponent(
       navigate,
     };
   },
-  ({
-    store,
-    nameInput,
-    setName,
-    hasUser,
-    userValueJson,
-    updateUserNameFn,
-    navigate,
-  }) => {
+);
+
+const MutationCraft = craftComponent(
+  'MutationCraft',
+  {
+    stylesUrl: styles,
+    providers: [provideMutationCraftView(), provideUserMutation()],
+  },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const {
+      store,
+      nameInput,
+      setName,
+      hasUser,
+      userValueJson,
+      updateUserNameFn,
+      navigate,
+    } = yield* MutationCraftView(inputs);
+
     return div([
       heading('Update user'),
       div([
@@ -159,7 +167,7 @@ const MutationCraft = craftComponent(
             // This example intentionally demonstrates direct mutation wiring;
             // the form-based variant is covered by the full-demo example.
             // eslint-disable-next-line craft-ts/require-form-for-input-action
-            yield* updateUserNameFn((yield* nameInput()) ?? '');
+updateUserNameFn((yield* nameInput()) ?? '');
           },
         },
         [
@@ -174,7 +182,7 @@ const MutationCraft = craftComponent(
         {
           type: 'button',
           *click() {
-            yield* navigate(-1);
+navigate(-1);
           },
         },
         'Previous user',
@@ -184,7 +192,7 @@ const MutationCraft = craftComponent(
         {
           type: 'button',
           *click() {
-            yield* navigate(1);
+navigate(1);
           },
         },
         'Next user',

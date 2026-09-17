@@ -10,20 +10,25 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { state } from '@craft-ts/core';
+import { craftService, state } from '@craft-ts/core';
 import { page } from './page-layout';
 
-export const StaticPage = craftComponent(
-  'SsrStaticPage',
-  {},
+const { SsrStaticPageView, provideSsrStaticPageView } = craftService(
+  { name: 'ssrStaticPageView', providedIn: 'toProvide' },
   function* () {
     const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
     }));
     return { counter };
   },
-  ({ counter }) =>
-    page(
+);
+
+export const StaticPage = craftComponent(
+  'SsrStaticPage',
+  { providers: [provideSsrStaticPageView()] },
+  function* () {
+    const { counter } = yield* SsrStaticPageView();
+    return page(
       'Mode `block` sans donnée asynchrone',
       'HTML statique rendu par le serveur',
       'Le contenu principal existe entièrement dans la réponse initiale. Le bouton ci-dessous prouve que l’hydratation a ensuite attaché le comportement.',
@@ -53,5 +58,6 @@ export const StaticPage = craftComponent(
           ]),
         ]),
       ]),
-    ),
+    );
+  },
 );

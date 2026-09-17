@@ -68,10 +68,32 @@ const { provideUser, User } = craftService(
   },
 );
 
+const { CraftServiceUserDetailView, provideCraftServiceUserDetailView } =
+  craftService(
+    { name: 'craftServiceUserDetailView', providedIn: 'toProvide' },
+    function* () {
+      const userId = yield* state('userId', '1', ({ set }) => ({
+        selectUser: (value: string) => set(value),
+      }));
+      const user = yield* User({ userId });
+      const hasValue = craftComputed('hasValue', () => user.hasValue());
+      const userIdValue = craftComputed('userIdValue', function* () {
+        return (yield* user.value())?.id ?? '';
+      });
+      const userName = craftComputed('userName', function* () {
+        return (yield* user.value())?.name ?? '';
+      });
+      const userEmail = craftComputed('userEmail', function* () {
+        return (yield* user.value())?.email ?? '';
+      });
+      return { userId, user, hasValue, userIdValue, userName, userEmail };
+    },
+  );
+
 const CraftServiceUserDetailComponent = craftComponent(
   'CraftServiceUserDetailComponent',
   {
-    providers: [provideUser()],
+    providers: [provideCraftServiceUserDetailView(), provideUser()],
     styles: `
       :scope{display:flex;flex-direction:column;align-items:center;gap:20px;padding:32px;font-family:sans-serif}
       .controls{display:flex;gap:12px;align-items:center}
@@ -87,34 +109,19 @@ const CraftServiceUserDetailComponent = craftComponent(
     `,
   },
   function* () {
-    const userId = yield* state('userId', '1', ({ set }) => ({
-      selectUser: (value: string) => set(value),
-    }));
-    const user = yield* User({ userId });
-    const hasValue = craftComputed('hasValue', () => user.hasValue());
-    const userIdValue = craftComputed('userIdValue', function* () {
-      return (yield* user.value())?.id ?? '';
-    });
-    const userName = craftComputed('userName', function* () {
-      return (yield* user.value())?.name ?? '';
-    });
-    const userEmail = craftComputed('userEmail', function* () {
-      return (yield* user.value())?.email ?? '';
-    });
-    return { userId, user, hasValue, userIdValue, userName, userEmail };
-  },
-  ({ userId, user, hasValue, userIdValue, userName, userEmail }) => {
+    const { userId, user, hasValue, userIdValue, userName, userEmail } =
+      yield* CraftServiceUserDetailView();
+
     return div([
       heading('craftService User Detail (query)'),
       div({ class: 'controls' }, [
-        select('user',
+        select(
+          'user',
           {
             'aria-label': 'User',
             value: userId,
             *change(event: Event) {
-              yield* userId.selectUser(
-                eventValue(event),
-              );
+              yield* userId.selectUser(eventValue(event));
             },
           },
           user.userIds.map((id) => option({ value: id }, `User ${id}`)),

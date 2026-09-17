@@ -13,6 +13,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftComputed,
   craftException,
   craftGen,
@@ -37,9 +38,49 @@ const pendingStatusMessage = (className: string, message: string) =>
  * `craftComponent(...)` refuses to compile — naming the "issue" source for the
  * first, the `INVOICE_REJECTED` code for the second.
  */
+const { PendingNodeExceptionDemoView, providePendingNodeExceptionDemoView } =
+  craftService(
+    { name: 'pendingNodeExceptionDemoView', providedIn: 'toProvide' },
+    function* () {
+      const issue = yield* mutation(
+        'issue',
+        {
+          // The outcome is an argument of the call, not ambient state.
+          method: (input: { reference: string; reject: boolean }) => input,
+          // Keep the previous invoice on screen while a new one is issued: the
+          // settled read then serves the stale value instead of suspending, which
+          // is what the boundary's `reloading` slot reports.
+          preservePreviousValue: () => true,
+          loader: craftGen(function* ({ params }) {
+            yield* craftSleep(900);
+
+            // A business failure is a value the loader returns, not a throw.
+            if (params.reject) {
+              return craftException(
+                { _tag: 'INVOICE_REJECTED' },
+                { reference: params.reference },
+              );
+            }
+
+            return { reference: params.reference, amount: 4200 };
+          }),
+        },
+        ({ resource }) => ({
+          summary: craftComputed('summary', function* () {
+            const invoice = yield* settled(resource);
+            return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
+          }),
+        }),
+      );
+
+      return { issue };
+    },
+  );
+
 export const pendingNodeExceptionDemo = craftComponent(
   'pendingNodeExceptionDemo',
   {
+    providers: [providePendingNodeExceptionDemoView()],
     host: { class: 'pending-exception-host' },
     styles: `
       :scope { display: grid; gap: 1rem; padding: 1rem; justify-items: start; }
@@ -79,46 +120,17 @@ export const pendingNodeExceptionDemo = craftComponent(
     `,
   },
   function* () {
-    const issue = yield* mutation('issue', {
-      // The outcome is an argument of the call, not ambient state.
-      method: (input: { reference: string; reject: boolean }) => input,
-      // Keep the previous invoice on screen while a new one is issued: the
-      // settled read then serves the stale value instead of suspending, which
-      // is what the boundary's `reloading` slot reports.
-      preservePreviousValue: () => true,
-      loader: craftGen(function* ({ params }) {
-        yield* craftSleep(900);
-
-        // A business failure is a value the loader returns, not a throw.
-        if (params.reject) {
-          return craftException(
-            { _tag: 'INVOICE_REJECTED' },
-            { reference: params.reference },
-          );
-        }
-
-        return { reference: params.reference, amount: 4200 };
-      }),
-    },
-      ({ resource }) => ({
-        summary: craftComputed('summary', function* () {
-          const invoice = yield* settled(resource);
-          return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
-        }),
-      }),
-    );
-
-    return { issue };
-  },
-  ({ issue }) =>
-    section({ class: 'pending-exception' }, [
+    const { issue } = yield* PendingNodeExceptionDemoView();
+    return section({ class: 'pending-exception' }, [
       heading('settledValue — the failing path'),
       p(
         'The same read suspends to the pendingNode, then fails to the catchNode.',
       ),
       div({ class: 'pending-exception__actions' }, [
-        button('issueSuccess',
-          { type: 'button',
+        button(
+          'issueSuccess',
+          {
+            type: 'button',
             class: 'pending-exception__action',
             *click() {
               yield* issue.mutate({
@@ -129,8 +141,10 @@ export const pendingNodeExceptionDemo = craftComponent(
           },
           'Issue (success)',
         ),
-        button('issueRejected',
-          { type: 'button',
+        button(
+          'issueRejected',
+          {
+            type: 'button',
             class: 'pending-exception__action',
             *click() {
               yield* issue.mutate({
@@ -170,14 +184,15 @@ export const pendingNodeExceptionDemo = craftComponent(
             // when the fallback needs the payload itself.
             // `showSource: false` replaces the row instead of appending to it —
             // the summary line has nothing to show once the source failed.
-          INVOICE_REJECTED: () =>
+            INVOICE_REJECTED: () =>
               p(
                 { class: 'pending-exception__error' },
                 'Invoice rejected (INVOICE_REJECTED)',
               ),
           }),
-        )
-    ]),
+        ),
+    ]);
+  },
 );
 
 export default pendingNodeExceptionDemo;

@@ -15,6 +15,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   cRequired,
   CraftFieldDirective,
   insertForm,
@@ -29,11 +30,8 @@ import { StatusComponent } from '../../../ui/status.component';
 
 type Todo = { readonly id: number; readonly title: string };
 
-const FullDemo = craftComponent(
-  'FullDemo',
-  {
-    stylesUrl: styles,
-  },
+const { FullDemoView, provideFullDemoView } = craftService(
+  { name: 'fullDemoView', providedIn: 'toProvide' },
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
       take: function* () {
@@ -95,7 +93,17 @@ const FullDemo = craftComponent(
       titleForm,
     };
   },
-  ({ todos, addTodo, removeTodo, titleForm }) => {
+);
+
+const FullDemo = craftComponent(
+  'FullDemo',
+  {
+    providers: [provideFullDemoView()],
+    stylesUrl: styles,
+  },
+  function* () {
+    const { todos, addTodo, removeTodo, titleForm } = yield* FullDemoView();
+
     return div([
       heading([
         'Full primitives demo ',

@@ -430,11 +430,19 @@ export type ContentDependencies<Slots extends object> =
  */
 export type ComponentFactory = (...args: any[]) => any;
 
-/** The children a template renders, whether it is a generator or not. */
+/**
+ * The children a template renders, whether it is a generator or not.
+ *
+ * Read from the generator's own return type rather than through `Awaited` and
+ * `ResolveGeneratorResult`: a node tree is a deep recursive type, and walking it
+ * twice more is what tips the checker into giving up on it.
+ */
 export type TemplateChildren<Template> = Template extends (
   ...args: any[]
 ) => infer Output
-  ? Awaited<ResolveGeneratorResult<Output>>
+  ? Output extends Generator<any, infer Children, any>
+    ? Children
+    : Output
   : never;
 
 /**
@@ -1412,7 +1420,9 @@ export interface CraftComponent<
   ContentRequirements extends object = {},
   FieldExceptions = any,
 > extends ComponentDepsCarrier<ComponentDeps>,
-    CraftRegistrationTarget<Name, 'component', TemplateChildren<Factory>> {
+    // A registered component hands out no instance of its own any more: what a
+    // test or a parent wants to reach is the service the component provides.
+    CraftRegistrationTarget<Name, 'component', undefined> {
   <
     CallProps extends ComponentCallProps<
       Props,

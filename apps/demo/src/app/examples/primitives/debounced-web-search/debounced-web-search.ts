@@ -19,6 +19,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   asyncProcess,
   CraftHttpClient,
   craftComputed,
@@ -144,9 +145,8 @@ const searchBooks = craftGen(function* (term: string) {
   }));
 });
 
-const DebouncedWebSearch = craftComponent(
-  'DebouncedWebSearch',
-  { stylesUrl: styles },
+const { DebouncedWebSearchView, provideDebouncedWebSearchView } = craftService(
+  { name: 'debouncedWebSearchView', providedIn: 'toProvide' },
   function* () {
     const searchInput = yield* state(
       'searchInput',
@@ -264,13 +264,23 @@ const DebouncedWebSearch = craftComponent(
       showDebouncing,
     };
   },
-  ({
-    searchInput,
-    debouncedSearch,
-    searchQuery,
-    showDebouncing,
-    setSearchInput,
-  }) => {
+);
+
+const DebouncedWebSearch = craftComponent(
+  'DebouncedWebSearch',
+  {
+    providers: [provideDebouncedWebSearchView()],
+    stylesUrl: styles,
+  },
+  function* () {
+    const {
+      searchInput,
+      debouncedSearch,
+      searchQuery,
+      showDebouncing,
+      setSearchInput,
+    } = yield* DebouncedWebSearchView();
+
     return section([
       heading('Debounced web search'),
       p(

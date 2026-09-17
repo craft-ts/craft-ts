@@ -10,7 +10,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, settled } from '@craft-ts/core';
+import { craftService, craftComputed, settled } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
 import { Database } from './effect-database';
@@ -24,21 +24,8 @@ export const getData = Effect.gen(function* () {
   return yield* db.query('SELECT id, value FROM demo_data');
 });
 
-const EffectFunctionComponent = craftComponent(
-  'EffectFunctionComponent',
-  {
-    styles: `
-      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #ede9fe; border-radius: 12px; color: #312e81; background: #f5f3ff; }
-      :scope h1 { margin: 0 0 0.5rem; color: #2e1065; }
-      .intro { margin: 0 0 1.25rem; color: #4338ca; line-height: 1.55; }
-      .panel { padding: 1rem 1.1rem; border: 1px solid #ddd6fe; border-radius: 8px; background: #fff; }
-      .panel-title { margin: 0 0 0.65rem; color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-      .result { margin: 0; color: #1e1b4b; font-size: 1.1rem; line-height: 1.5; }
-      .note { margin-top: 1rem; color: #4c1d95; font-size: 0.85rem; line-height: 1.6; }
-      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ede9fe; font-family: ui-monospace, monospace; font-size: 0.8rem; }
-      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-    `,
-  },
+const { EffectFunctionView, provideEffectFunctionView } = craftService(
+  { name: 'effectFunctionView', providedIn: 'toProvide' },
   function* () {
     const dataQuery = yield* queryEffect(
       'effectFunctionQuery',
@@ -61,8 +48,27 @@ const EffectFunctionComponent = craftComponent(
       summary: dataQuery.summary,
     };
   },
-  ({ dataQuery, hasData, summary }) =>
-    div([
+);
+
+const EffectFunctionComponent = craftComponent(
+  'EffectFunctionComponent',
+  {
+    providers: [provideEffectFunctionView()],
+    styles: `
+      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #ede9fe; border-radius: 12px; color: #312e81; background: #f5f3ff; }
+      :scope h1 { margin: 0 0 0.5rem; color: #2e1065; }
+      .intro { margin: 0 0 1.25rem; color: #4338ca; line-height: 1.55; }
+      .panel { padding: 1rem 1.1rem; border: 1px solid #ddd6fe; border-radius: 8px; background: #fff; }
+      .panel-title { margin: 0 0 0.65rem; color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+      .result { margin: 0; color: #1e1b4b; font-size: 1.1rem; line-height: 1.5; }
+      .note { margin-top: 1rem; color: #4c1d95; font-size: 0.85rem; line-height: 1.6; }
+      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ede9fe; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+    `,
+  },
+  function* () {
+    const { dataQuery, hasData, summary } = yield* EffectFunctionView();
+    return div([
       heading('Use an Effect function with injected Database'),
       p(
         { class: 'intro' },
@@ -104,7 +110,8 @@ const EffectFunctionComponent = craftComponent(
         span({ class: 'mono' }, 'pendingNode'),
         ' has shown the connection state.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectFunctionComponent;

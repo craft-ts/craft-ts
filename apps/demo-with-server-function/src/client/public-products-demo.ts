@@ -16,7 +16,7 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, query } from '@craft-ts/core';
+import { craftService, craftComputed, query } from '@craft-ts/core';
 import { getPublicProducts } from '../products/public-products.fn-client';
 
 /**
@@ -24,9 +24,54 @@ import { getPublicProducts } from '../products/public-products.fn-client';
  * server-function path before any middleware, context, or authorization is
  * introduced by the other examples.
  */
+const { PublicProductsDemoView, providePublicProductsDemoView } = craftService(
+  { name: 'publicProductsDemoView', providedIn: 'toProvide' },
+  function* () {
+    const productsQuery = yield* query(
+      'publicProductsQuery',
+      {
+        params: () => true,
+        loader: function* () {
+          return yield* getPublicProducts({});
+        },
+      },
+      ({ resource }) => ({
+        hasProducts: craftComputed('hasProducts', () => resource.hasValue()),
+        isEmpty: craftComputed('productsIsEmpty', function* () {
+          const currentStatus = yield* resource.status();
+          return (
+            currentStatus !== 'loading' &&
+            currentStatus !== 'reloading' &&
+            !resource.hasValue()
+          );
+        }),
+        requestTitle: craftComputed('productsRequestTitle', function* () {
+          const currentStatus = yield* resource.status();
+          return currentStatus === 'loading' || currentStatus === 'reloading'
+            ? 'Calling demo.products.list…'
+            : 'Public response ready';
+        }),
+        requestDetail: craftComputed('productsRequestDetail', function* () {
+          const currentStatus = yield* resource.status();
+          return currentStatus === 'loading' || currentStatus === 'reloading'
+            ? 'POST /__server-functions · no middleware'
+            : `Status: ${currentStatus}`;
+        }),
+        resultCount: craftComputed('productsResultCount', function* () {
+          const value = yield* resource.value();
+          return Array.isArray(value) ? value.length.toString() : '—';
+        }),
+      }),
+    );
+
+    return { productsQuery };
+  },
+);
+
 const PublicProductsDemo = craftComponent(
   'PublicProductsDemo',
   {
+    providers: [providePublicProductsDemoView()],
     styles: `
       :scope { display: block; min-height: 100vh; color: #e8edf8; background: radial-gradient(circle at 85% 5%, #244534 0, #0b1020 38rem); }
       .shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 70px 0 34px; }
@@ -100,47 +145,8 @@ const PublicProductsDemo = craftComponent(
     `,
   },
   function* () {
-    const productsQuery = yield* query(
-      'publicProductsQuery',
-      {
-        params: () => true,
-        loader: function* () {
-          return yield* getPublicProducts({});
-        },
-      },
-      ({ resource }) => ({
-        hasProducts: craftComputed('hasProducts', () => resource.hasValue()),
-        isEmpty: craftComputed('productsIsEmpty', function* () {
-          const currentStatus = yield* resource.status();
-          return (
-            currentStatus !== 'loading' &&
-            currentStatus !== 'reloading' &&
-            !resource.hasValue()
-          );
-        }),
-        requestTitle: craftComputed('productsRequestTitle', function* () {
-          const currentStatus = yield* resource.status();
-          return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'Calling demo.products.list…'
-            : 'Public response ready';
-        }),
-        requestDetail: craftComputed('productsRequestDetail', function* () {
-          const currentStatus = yield* resource.status();
-          return currentStatus === 'loading' || currentStatus === 'reloading'
-            ? 'POST /__server-functions · no middleware'
-            : `Status: ${currentStatus}`;
-        }),
-        resultCount: craftComputed('productsResultCount', function* () {
-          const value = yield* resource.value();
-          return Array.isArray(value) ? value.length.toString() : '—';
-        }),
-      }),
-    );
-
-    return { productsQuery };
-  },
-  ({ productsQuery }) =>
-    main({ class: 'shell' }, [
+    const { productsQuery } = yield* PublicProductsDemoView();
+    return main({ class: 'shell' }, [
       header({ class: 'hero' }, [
         div({ class: 'eyebrow' }, [
           span({ class: 'pulse' }),
@@ -235,7 +241,8 @@ const PublicProductsDemo = craftComponent(
           'products/public-products.fn-serveur.ts',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 function flowStep(number: string, title: string, description: string) {

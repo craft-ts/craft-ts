@@ -10,6 +10,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftMethod,
   CraftRouter,
   queryParams,
@@ -24,9 +25,66 @@ function formatParseException(exception: {
   return `${exception._tag}: ${exception.payload.error}`;
 }
 
+const { ExceptionQueryParamsView, provideExceptionQueryParamsView } =
+  craftService(
+    { name: 'exceptionQueryParamsView', providedIn: 'toProvide' },
+    function* () {
+      const router = yield* CraftRouter(undefined, ({ navigate }) => ({
+        navigate,
+      }));
+      const modeQueryParams = yield* queryParams(
+        'modeQueryParams',
+        {
+          state: {
+            mode: {
+              fallbackValue: 'fallbackValue',
+              codec: {
+                // The runtime accepts a CraftException as a decode result and
+                // records it in `exceptions().parse`; the cast keeps the public
+                // decoded state limited to the successful domain value.
+                decode: (value: string) => {
+                  if (value !== 'success') {
+                    return craftException(
+                      { _tag: 'UNEXPECTED_ERROR' },
+                      { error: new Error(`Invalid mode: ${value}`) },
+                    );
+                  }
+                  return 'success';
+                },
+                encode: String,
+              },
+            },
+          },
+        },
+        ({ exceptions }) => ({
+          hasParseException: craftComputed('hasParseException', function* () {
+            return (yield* exceptions()).parse.mode !== undefined;
+          }),
+          parseExceptionMessage: craftComputed(
+            'parseExceptionMessage',
+            function* () {
+              const exception = (yield* exceptions()).parse.mode;
+              return exception ? formatParseException(exception) : '';
+            },
+          ),
+        }),
+      );
+      const navigate = craftMethod('navigate', function* (mode: string) {
+        void router.navigate({
+          to: 'exception-query-params',
+          //@ts-expect-error intentional to demonstrate the example
+          queryParams: { mode },
+          queryParamsHandling: 'merge',
+        });
+      });
+      return { modeQueryParams, navigate };
+    },
+  );
+
 const ExceptionQueryParamsComponent = craftComponent(
   'ExceptionQueryParamsComponent',
   {
+    providers: [provideExceptionQueryParamsView()],
     styles: `
       :scope {
         display: block;
@@ -60,75 +118,27 @@ const ExceptionQueryParamsComponent = craftComponent(
     `,
   },
   function* () {
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
-    const modeQueryParams = yield* queryParams(
-      'modeQueryParams',
-      {
-        state: {
-          mode: {
-            fallbackValue: 'fallbackValue',
-            codec: {
-              // The runtime accepts a CraftException as a decode result and
-              // records it in `exceptions().parse`; the cast keeps the public
-              // decoded state limited to the successful domain value.
-              decode: (value: string) => {
-                if (value !== 'success') {
-                  return craftException(
-                    { _tag: 'UNEXPECTED_ERROR' },
-                    { error: new Error(`Invalid mode: ${value}`) },
-                  );
-                }
-                return 'success';
-              },
-              encode: String,
-            },
-          },
-        },
-      },
-      ({ exceptions }) => ({
-        hasParseException: craftComputed(
-          'hasParseException',
-          function* () {
-            return (yield* exceptions()).parse.mode !== undefined;
-          },
-        ),
-        parseExceptionMessage: craftComputed(
-          'parseExceptionMessage',
-          function* () {
-            const exception = (yield* exceptions()).parse.mode;
-            return exception ? formatParseException(exception) : '';
-          },
-        ),
-      }),
-    );
-    const navigate = craftMethod('navigate', function* (mode: string) {
-      void router.navigate({
-        to: 'exception-query-params',
-        //@ts-expect-error intentional to demonstrate the example
-        queryParams: { mode },
-        queryParamsHandling: 'merge',
-      });
-    });
-    return { modeQueryParams, navigate };
-  },
-  ({ modeQueryParams, navigate }) => {
+    const { modeQueryParams, navigate } = yield* ExceptionQueryParamsView();
+
     return section([
-      heading( 'QueryParams decode exception'),
+      heading('QueryParams decode exception'),
       div([
-        button('success',
-          { type: 'button',
+        button(
+          'success',
+          {
+            type: 'button',
             *click() {
-              yield* navigate('success');
+navigate('success');
             },
           },
           'Navigate success',
         ),
-        button('exception',
-          { type: 'button',
+        button(
+          'exception',
+          {
+            type: 'button',
             *click() {
-              yield* navigate('exception');
+navigate('exception');
             },
           },
           'Navigate exception',
@@ -142,11 +152,7 @@ const ExceptionQueryParamsComponent = craftComponent(
       ]),
       ifNode(
         modeQueryParams.hasParseException,
-        () =>
-          p([
-            strong('Exception: '),
-            modeQueryParams.parseExceptionMessage,
-          ]),
+        () => p([strong('Exception: '), modeQueryParams.parseExceptionMessage]),
         () => p([strong('Exception: '), 'none']),
       ),
     ]);

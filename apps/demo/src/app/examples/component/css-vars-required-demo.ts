@@ -1,3 +1,4 @@
+import { craftService } from '@craft-ts/core';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   article,
@@ -11,9 +12,18 @@ import {
 } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
+const { TokenCardView, provideTokenCardView } = craftService(
+  { name: 'tokenCardView', providedIn: 'toProvide' },
+  (inputs: { readonly label: Input<string> }) => {
+    const { label } = inputs;
+    return { label };
+  },
+);
+
 export const TokenCard = craftComponent(
   'TokenCard',
   {
+    providers: [provideTokenCardView()],
     styles: `
       :scope {
         --token-card-bg: #ffffff;
@@ -32,20 +42,28 @@ export const TokenCard = craftComponent(
       .token-card__contract { opacity: .72; font-size: .82rem; }
     `,
   },
-  (label: Input<string>) => ({ label }),
-  ({ label }) =>
-    article({ class: 'token-card' }, [
+  function* (inputs: { readonly label: Input<string> }) {
+    const { label } = yield* TokenCardView(inputs);
+    return article({ class: 'token-card' }, [
       span({ class: 'token-card__label' }, label),
       span(
         { class: 'token-card__contract' },
         'ink: required · bg/radius: optional',
       ),
-    ]),
+    ]);
+  },
 );
+
+const { CssVarsRequiredDemoView, provideCssVarsRequiredDemoView } =
+  craftService(
+    { name: 'cssVarsRequiredDemoView', providedIn: 'toProvide' },
+    () => ({}),
+  );
 
 export const CssVarsRequiredDemo = craftComponent(
   'CssVarsRequiredDemo',
   {
+    providers: [provideCssVarsRequiredDemoView()],
     styles: `
       :scope { display: grid; gap: 1.5rem; max-width: 72rem; margin: 0 auto; color: #172033; }
       h1, p { margin: 0; }
@@ -57,9 +75,9 @@ export const CssVarsRequiredDemo = craftComponent(
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
-  () => ({}),
-  () =>
-    div([
+  function* () {
+    yield* CssVarsRequiredDemoView();
+    return div([
       CssVarsPageNav(),
       div({ class: 'css-vars-required__intro' }, [
         heading('Required and optional values'),
@@ -99,7 +117,8 @@ export const CssVarsRequiredDemo = craftComponent(
           },
         }),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default CssVarsRequiredDemo;

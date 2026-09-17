@@ -1,3 +1,4 @@
+import { craftService } from '@craft-ts/core';
 /**
  * The level-3 witness: a demand that travels, and the layout that answers it.
  *
@@ -42,12 +43,17 @@ import { dsTheme } from './foundation.style.ts';
 import { backToTop, shell } from './scroll.style.ts';
 
 /** Asks for a scroll port. Cannot provide one. Does not pretend to. */
+const { BackToTopView, provideBackToTopView } = craftService(
+  { name: 'backToTopView', providedIn: 'toProvide' },
+  () => ({}),
+);
+
 export const BackToTop = craftComponent(
   'BackToTop',
-  {},
-  () => ({}),
-  () =>
-    div({ class: backToTop.anchor }, [
+  { providers: [provideBackToTopView()] },
+  function* () {
+    yield* BackToTopView();
+    return div({ class: backToTop.anchor }, [
       button(
         'backToTop',
         {
@@ -61,7 +67,8 @@ export const BackToTop = craftComponent(
         },
         'Back to top',
       ),
-    ]),
+    ]);
+  },
 );
 
 export type BackToTop = typeof BackToTop;
@@ -90,12 +97,20 @@ const filler = (count: number) =>
  * `seals` is what turns a travelling requirement into an error. Without it the
  * demand would keep going up and out of the application, unanswered and unsaid.
  */
+const { ScrollDemoView, provideScrollDemoView } = craftService(
+  { name: 'scrollDemoView', providedIn: 'toProvide' },
+  () => ({}),
+);
+
 export const ScrollDemo = craftComponent(
   'ScrollDemo',
-  { seals: [true] },
-  () => ({}),
-  () =>
-    div({ class: dsTheme.root }, [
+  {
+    providers: [provideScrollDemoView()],
+    seals: [true],
+  },
+  function* () {
+    yield* ScrollDemoView();
+    return div({ class: dsTheme.root }, [
       section({ class: stack.column }, [
         heading('A demand that travels, and where it stops'),
         p(
@@ -114,7 +129,8 @@ export const ScrollDemo = craftComponent(
           'The button is hidden at the top, then stays sticky at the top of the scroll port while the rows move underneath it; its fill changes when the scroll-state query detects that the port can scroll back.',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default ScrollDemo;

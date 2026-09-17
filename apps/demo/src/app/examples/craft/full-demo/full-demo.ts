@@ -113,12 +113,8 @@ export const { provideTodoStore, TodoStore } = craftService(
   },
 );
 
-const FullDemoCraft = craftComponent(
-  'FullDemoCraft',
-  {
-    providers: [provideTodoStore()],
-    stylesUrl: styles,
-  },
+const { FullDemoCraftView, provideFullDemoCraftView } = craftService(
+  { name: 'fullDemoCraftView', providedIn: 'toProvide' },
   function* () {
     const store = yield* TodoStore();
     const titleForm = yield* state(
@@ -131,7 +127,17 @@ const FullDemoCraft = craftComponent(
     );
     return { store, titleForm };
   },
-  ({ store, titleForm }) => {
+);
+
+const FullDemoCraft = craftComponent(
+  'FullDemoCraft',
+  {
+    providers: [provideFullDemoCraftView(), provideTodoStore()],
+    stylesUrl: styles,
+  },
+  function* () {
+    const { store, titleForm } = yield* FullDemoCraftView();
+
     return div([
       heading([
         'Full craftService demo ',

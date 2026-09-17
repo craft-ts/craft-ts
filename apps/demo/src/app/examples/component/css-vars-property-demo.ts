@@ -1,16 +1,17 @@
+import { craftService } from '@craft-ts/core';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import {
-  craftComponent,
-  div,
-  p,
-  span,
-  heading,
-} from '@craft-ts/component';
+import { craftComponent, div, p, span, heading } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
+
+const { RegisteredMeterView, provideRegisteredMeterView } = craftService(
+  { name: 'registeredMeterView', providedIn: 'toProvide' },
+  () => ({}),
+);
 
 const RegisteredMeter = craftComponent(
   'RegisteredMeter',
   {
+    providers: [provideRegisteredMeterView()],
     styles: `
       @property --registered-meter-value {
         syntax: '<number>';
@@ -42,20 +43,28 @@ const RegisteredMeter = craftComponent(
       @media (prefers-reduced-motion: reduce){:scope{animation:none;transition:none}}
     `,
   },
-  () => ({}),
-  () =>
-    div([
+  function* () {
+    yield* RegisteredMeterView();
+    return div([
       span('Token registered and validated by the browser'),
       div(
         { class: 'registered-meter__track' },
         div({ class: 'registered-meter__fill' }),
       ),
-    ]),
+    ]);
+  },
 );
+
+const { CssVarsPropertyDemoView, provideCssVarsPropertyDemoView } =
+  craftService(
+    { name: 'cssVarsPropertyDemoView', providedIn: 'toProvide' },
+    () => ({}),
+  );
 
 export const CssVarsPropertyDemo = craftComponent(
   'CssVarsPropertyDemo',
   {
+    providers: [provideCssVarsPropertyDemoView()],
     styles: `
       :scope { display: grid; gap: 1.5rem; max-width: 72rem; margin: 0 auto; color: #172033; }
       h1, p { margin: 0; }
@@ -66,9 +75,9 @@ export const CssVarsPropertyDemo = craftComponent(
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
-  () => ({}),
-  () =>
-    div([
+  function* () {
+    yield* CssVarsPropertyDemoView();
+    return div([
       CssVarsPageNav(),
       div({ class: 'css-vars-property__intro' }, [
         heading('Component-owned @property'),
@@ -80,7 +89,8 @@ export const CssVarsPropertyDemo = craftComponent(
         RegisteredMeter(),
         RegisteredMeter({ cssVars: { '--registered-meter-value': 78 } }),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default CssVarsPropertyDemo;

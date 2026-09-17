@@ -1,3 +1,4 @@
+import { craftService } from '@craft-ts/core';
 import {
   craftComponent,
   forNode,
@@ -18,15 +19,30 @@ const scenarioCountText = (value: VisualAssetEntry): string =>
   `${value.scenarios.length} scenario${value.scenarios.length === 1 ? '' : 's'}`;
 
 /** The flat list of visual-evidence assets, one row per screenshot family. */
+const { AssetsInventoryListView, provideAssetsInventoryListView } =
+  craftService(
+    { name: 'assetsInventoryListView', providedIn: 'toProvide' },
+    (inputs: {
+      readonly assets: Input<readonly VisualAssetEntry[]>;
+      readonly t: Input<Messages>;
+    }) => {
+      const { assets, t } = inputs;
+      return {
+        assets,
+        t,
+      };
+    },
+  );
+
 export const AssetsInventoryList = craftComponent(
   'AssetsInventoryList',
-  {},
-  (assets: Input<readonly VisualAssetEntry[]>, t: Input<Messages>) => ({
-    assets,
-    t,
-  }),
-  ({ assets, t }) =>
-    ul(
+  { providers: [provideAssetsInventoryListView()] },
+  function* (inputs: {
+    readonly assets: Input<readonly VisualAssetEntry[]>;
+    readonly t: Input<Messages>;
+  }) {
+    const { assets, t } = yield* AssetsInventoryListView(inputs);
+    return ul(
       { class: 'inventory-list' },
       forNode(
         assets,
@@ -47,5 +63,6 @@ export const AssetsInventoryList = craftComponent(
             }),
           ]),
       ),
-    ),
+    );
+  },
 );

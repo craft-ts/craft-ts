@@ -23,6 +23,7 @@ import {
   GlobalPersisterHandlerService,
   type CraftRouterLinkInput,
   state,
+  craftService,
 } from '@craft-ts/core';
 import { demoEnabledRoutePaths } from './app.routes';
 
@@ -133,24 +134,8 @@ export function isEnabledDemoRoute(to: string): boolean {
   return false;
 }
 
-export const App = craftComponent(
-  'App',
-  {
-    styles: `
-      :scope{display:flex;flex-direction:column;height:100vh;background:#fafafa}
-      .skip-link{position:absolute;left:-9999px;z-index:10;padding:.5rem .75rem;background:#1d4ed8;color:#fff;border-radius:.3rem;font-weight:700}
-      .skip-link:focus,.skip-link:focus-visible{left:1rem;top:1rem}
-      a:focus-visible,button:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
-      .demo-banner{display:grid;gap:.25rem;padding:.7rem 1.25rem;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font-size:.85rem;line-height:1.45;flex-shrink:0}
-      .demo-banner__main{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .5rem}.demo-banner__main strong{font-weight:700}.demo-banner a{color:#1d4ed8;font-weight:700;text-decoration:underline;text-underline-offset:2px}.demo-banner a:hover{color:#1e3a8a}
-      .demo-banner__hint{color:#475569;font-size:.8rem}.demo-banner__hint strong{color:#1e293b}
-      .demo-nav{position:relative;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1.25rem;background:#fff;border-bottom:1px solid #e5e7eb;z-index:2}
-      .demo-nav__toggle{padding:.55rem .8rem;border:1px solid #d1d5db;border-radius:.45rem;background:#fff;color:#374151;font:inherit;font-weight:600;cursor:pointer}.demo-nav__toggle:hover{background:#f3f4f6}
-      .demo-nav__panel{position:absolute;top:calc(100% + .5rem);left:1.25rem;right:1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1.25rem;padding:1rem;background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;box-shadow:0 12px 30px #1118271c}
-      .demo-nav__group{display:grid;align-content:start;gap:.45rem}.demo-nav__group strong{color:#111827;font-size:.85rem}.demo-nav__links{display:grid;gap:.15rem}.demo-nav__links a{padding:.35rem .45rem;border-radius:.3rem;text-decoration:none;color:#4b5563;font-size:.9rem}.demo-nav__links a:hover{color:#111827;background:#f3f4f6}
-      .content{flex:1;overflow:auto;padding:2rem;background:#fff;margin:1.5rem;border-radius:8px}.clear-cache-btn{position:fixed;bottom:5.5rem;right:2rem;padding:1rem 1.5rem;background:#374151;color:#fff;border:0;border-radius:50px;cursor:pointer}
-    `,
-  },
+const { AppView, provideAppView } = craftService(
+  { name: 'appView', providedIn: 'toProvide' },
   function* () {
     const navOpen = yield* state(
       'navOpen',
@@ -186,8 +171,30 @@ export const App = craftComponent(
       closeNav: navOpen.close,
     };
   },
-  ({ clearCache, navOpen, toggleNav, closeNav }) =>
-    div([
+);
+
+export const App = craftComponent(
+  'App',
+  {
+    providers: [provideAppView()],
+    styles: `
+      :scope{display:flex;flex-direction:column;height:100vh;background:#fafafa}
+      .skip-link{position:absolute;left:-9999px;z-index:10;padding:.5rem .75rem;background:#1d4ed8;color:#fff;border-radius:.3rem;font-weight:700}
+      .skip-link:focus,.skip-link:focus-visible{left:1rem;top:1rem}
+      a:focus-visible,button:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}
+      .demo-banner{display:grid;gap:.25rem;padding:.7rem 1.25rem;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font-size:.85rem;line-height:1.45;flex-shrink:0}
+      .demo-banner__main{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .5rem}.demo-banner__main strong{font-weight:700}.demo-banner a{color:#1d4ed8;font-weight:700;text-decoration:underline;text-underline-offset:2px}.demo-banner a:hover{color:#1e3a8a}
+      .demo-banner__hint{color:#475569;font-size:.8rem}.demo-banner__hint strong{color:#1e293b}
+      .demo-nav{position:relative;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1.25rem;background:#fff;border-bottom:1px solid #e5e7eb;z-index:2}
+      .demo-nav__toggle{padding:.55rem .8rem;border:1px solid #d1d5db;border-radius:.45rem;background:#fff;color:#374151;font:inherit;font-weight:600;cursor:pointer}.demo-nav__toggle:hover{background:#f3f4f6}
+      .demo-nav__panel{position:absolute;top:calc(100% + .5rem);left:1.25rem;right:1.25rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1.25rem;padding:1rem;background:#fff;border:1px solid #e5e7eb;border-radius:.75rem;box-shadow:0 12px 30px #1118271c}
+      .demo-nav__group{display:grid;align-content:start;gap:.45rem}.demo-nav__group strong{color:#111827;font-size:.85rem}.demo-nav__links{display:grid;gap:.15rem}.demo-nav__links a{padding:.35rem .45rem;border-radius:.3rem;text-decoration:none;color:#4b5563;font-size:.9rem}.demo-nav__links a:hover{color:#111827;background:#f3f4f6}
+      .content{flex:1;overflow:auto;padding:2rem;background:#fff;margin:1.5rem;border-radius:8px}.clear-cache-btn{position:fixed;bottom:5.5rem;right:2rem;padding:1rem 1.5rem;background:#374151;color:#fff;border:0;border-radius:50px;cursor:pointer}
+    `,
+  },
+  function* () {
+    const { clearCache, navOpen, toggleNav, closeNav } = yield* AppView();
+    return div([
       skipLink('main', 'Skip to content'),
       div('demo-banner', { class: 'demo-banner' }, [
         div({ class: 'demo-banner__main' }, [
@@ -285,5 +292,6 @@ export const App = craftComponent(
         },
         '🗑️ Clear Cache',
       ),
-    ]),
+    ]);
+  },
 );

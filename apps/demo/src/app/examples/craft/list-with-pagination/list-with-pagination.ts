@@ -65,10 +65,12 @@ export const { provideUserList, UserList } = craftService(
         },
       },
       insertQueryPipe(
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app-craft',
-          key: 'list-with-pagination',
-        })),
+        insertStoragePersister(
+          craftUnique({
+            storeName: 'demo-app-craft',
+            key: 'list-with-pagination',
+          }),
+        ),
         insertPaginationPlaceholderData(
           { initialValue: Array<User>() },
           ({ state }) => ({
@@ -83,31 +85,41 @@ export const { provideUserList, UserList } = craftService(
   },
 );
 
+const { ListWithPaginationCraftView, provideListWithPaginationCraftView } =
+  craftService(
+    { name: 'listWithPaginationCraftView', providedIn: 'toProvide' },
+    function* () {
+      const store = yield* UserList();
+      const isCurrentPageResolved = craftComputed(
+        'isCurrentPageResolved',
+        function* () {
+          const _storeuserscurrentPageStatus =
+            yield* store.users.currentPageStatus();
+          return _storeuserscurrentPageStatus === 'resolved';
+        },
+      );
+      const updatePageSize = craftMethod(
+        'updatePageSize',
+        function* (event: Event) {
+          (yield* UserList()).pagination.updatePageSize(
+            Number(eventValue(event)),
+          );
+        },
+      );
+      return { store, updatePageSize, isCurrentPageResolved };
+    },
+  );
+
 const ListWithPaginationCraft = craftComponent(
   'ListWithPaginationCraft',
   {
     stylesUrl: styles,
-    providers: [provideUserList()],
+    providers: [provideListWithPaginationCraftView(), provideUserList()],
   },
   function* () {
-    const store = yield* UserList();
-    const isCurrentPageResolved = craftComputed(
-      'isCurrentPageResolved',
-      function* () {
-          const _storeuserscurrentPageStatus = yield* store.users.currentPageStatus(); return _storeuserscurrentPageStatus === 'resolved'; },
-    );
-    const updatePageSize = craftMethod(
-      'updatePageSize',
-      function* (event: Event) {
-        (yield* UserList()).pagination.updatePageSize(
-          Number(eventValue(event)),
-        );
-      },
-    );
-    return { store, updatePageSize, isCurrentPageResolved };
-  },
-  ({ store, updatePageSize, isCurrentPageResolved }) =>
-    div({ class: 'container' }, [
+    const { store, updatePageSize, isCurrentPageResolved } =
+      yield* ListWithPaginationCraftView();
+    return div({ class: 'container' }, [
       main({ class: 'content' }, [
         div({ class: 'content-wrapper' }, [
           div({ class: 'card' }, [
@@ -122,20 +134,16 @@ const ListWithPaginationCraft = craftComponent(
                   status: store.users.currentPageStatus,
                 }),
               ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
-              span(
-                'TotalUsers',
-                { class: 'current-page' },
-                function* () {
-                  return ` ${yield* store.users.total()} on page`;
-                },
-              ),
+              span('TotalUsers', { class: 'current-page' }, function* () {
+                return ` ${yield* store.users.total()} on page`;
+              }),
             ]),
             // Only reached on the very first load: once a page has been
             // shown, the placeholder keeps `currentPageData` non-empty, so the
             // empty slot — and the settled read inside it — never runs again.
             div({ class: 'table-container' }, [
-              table( { class: 'table' }, [
-                thead( tr( [th( 'ID'), th( 'Name')])),
+              table({ class: 'table' }, [
+                thead(tr([th('ID'), th('Name')])),
                 tbody(
                   forNode(
                     store.users.currentPageData,
@@ -160,11 +168,11 @@ const ListWithPaginationCraft = craftComponent(
                         ),
                     },
                     (user) =>
-                      tr( [
-                        td( function* () {
+                      tr([
+                        td(function* () {
                           return (yield* user()).id;
                         }),
-                        td( function* () {
+                        td(function* () {
                           return (yield* user()).name;
                         }),
                       ]),
@@ -182,7 +190,7 @@ const ListWithPaginationCraft = craftComponent(
                   },
                   style: { marginRight: '8px' },
                   *change(event) {
-                    yield* updatePageSize(event);
+updatePageSize(event);
                   },
                 },
                 [2, 4, 8, 16].map((size) =>
@@ -199,26 +207,31 @@ const ListWithPaginationCraft = craftComponent(
               ),
               button(
                 'PreviousPage',
-                { type: 'button', class: 'btn', click: store.pagination.previousPage },
+                {
+                  type: 'button',
+                  class: 'btn',
+                  click: store.pagination.previousPage,
+                },
                 'Previous',
               ),
-              span(
-                'CurrentPage',
-                { class: 'current-page' },
-                function* () {
-                  return (yield* store.pagination()).page;
-                },
-              ),
+              span('CurrentPage', { class: 'current-page' }, function* () {
+                return (yield* store.pagination()).page;
+              }),
               button(
                 'NextPage',
-                { type: 'button', class: 'btn', click: store.pagination.nextPage },
+                {
+                  type: 'button',
+                  class: 'btn',
+                  click: store.pagination.nextPage,
+                },
                 'Next',
               ),
             ]),
           ]),
         ]),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default ListWithPaginationCraft;

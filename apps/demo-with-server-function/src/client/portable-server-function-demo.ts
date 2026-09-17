@@ -20,12 +20,89 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, query, state } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  craftMethod,
+  query,
+  state,
+} from '@craft-ts/core';
 import { getPortableUsers } from '../users/portable-list.fn-client';
+
+const {
+  PortableServerFunctionDemoView,
+  providePortableServerFunctionDemoView,
+} = craftService(
+  { name: 'portableServerFunctionDemoView', providedIn: 'toProvide' },
+  function* () {
+    const searchInput = yield* state('portableSearchInput', '', ({ set }) => ({
+      setPortableSearchInput: (value: string) => set(value),
+    }));
+    const usersQuery = yield* query('portableUsersQuery', {
+      method: (term: string) => term,
+      loader: function* ({ params }) {
+        return yield* getPortableUsers({ filter: params });
+      },
+    });
+    yield* usersQuery.call('');
+    // Le payload remonté par la chaîne : chaque clé a été produite par une
+    // couche différente du `.pipe(...)` côté serveur.
+    const portableUsers = craftComputed('portableUsers', function* () {
+      return (yield* usersQuery.value())?.users ?? [];
+    });
+    const hasUsers = craftComputed('portableHasUsers', function* () {
+      return (yield* portableUsers()).length > 0;
+    });
+    const isEmpty = craftComputed('portableIsEmpty', function* () {
+      return !usersQuery.isLoading && !(yield* hasUsers());
+    });
+    const auditId = craftComputed('portableAuditId', function* () {
+      return (yield* usersQuery.value())?.auditId ?? '—';
+    });
+    const normalizedFilter = craftComputed(
+      'portableNormalizedFilter',
+      function* () {
+        const value = (yield* usersQuery.value())?.filter ?? '';
+        return value.length === 0 ? '(empty)' : value;
+      },
+    );
+    const scannedCount = craftComputed('portableScannedCount', function* () {
+      const value = yield* usersQuery.value();
+      return value === undefined ? '—' : value.scanned.toString();
+    });
+
+    const submitSearch = craftMethod(
+      'submitPortableSearch',
+      function* (event?: Event) {
+        event?.preventDefault();
+        yield* usersQuery.call((yield* searchInput()).trim());
+      },
+    );
+    const resultCount = craftComputed('portableResultCount', function* () {
+      const value = yield* usersQuery.value();
+      return value === undefined ? '—' : value.users.length.toString();
+    });
+
+    return {
+      searchInput,
+      setSearchInput: searchInput.setPortableSearchInput,
+      usersQuery,
+      submitSearch,
+      resultCount,
+      hasUsers,
+      isEmpty,
+      portableUsers,
+      auditId,
+      normalizedFilter,
+      scannedCount,
+    };
+  },
+);
 
 const PortableServerFunctionDemo = craftComponent(
   'PortableServerFunctionDemo',
   {
+    providers: [providePortableServerFunctionDemoView()],
     styles: `
       :scope { display: block; min-height: 100vh; color: #e8edf8; background: radial-gradient(circle at 85% 5%, #263f70 0, #0b1020 36rem); }
       .shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 70px 0 34px; }
@@ -119,57 +196,9 @@ const PortableServerFunctionDemo = craftComponent(
     `,
   },
   function* () {
-    const searchInput = yield* state('portableSearchInput', '', ({ set }) => ({
-      setPortableSearchInput: (value: string) => set(value),
-    }));
-    const usersQuery = yield* query('portableUsersQuery', {
-      method: (term: string) => term,
-      loader: function* ({ params }) {
-        return yield* getPortableUsers({ filter: params });
-      },
-    });
-    yield* usersQuery.call('');
-    // Le payload remonté par la chaîne : chaque clé a été produite par une
-    // couche différente du `.pipe(...)` côté serveur.
-    const portableUsers = craftComputed('portableUsers', function* () {
-      return (yield* usersQuery.value())?.users ?? [];
-    });
-    const hasUsers = craftComputed('portableHasUsers', function* () {
-      return (yield* portableUsers()).length > 0;
-    });
-    const isEmpty = craftComputed('portableIsEmpty', function* () {
-      return !usersQuery.isLoading && !(yield* hasUsers());
-    });
-    const auditId = craftComputed('portableAuditId', function* () {
-      return (yield* usersQuery.value())?.auditId ?? '—';
-    });
-    const normalizedFilter = craftComputed(
-      'portableNormalizedFilter',
-      function* () {
-        const value = (yield* usersQuery.value())?.filter ?? '';
-        return value.length === 0 ? '(empty)' : value;
-      },
-    );
-    const scannedCount = craftComputed('portableScannedCount', function* () {
-      const value = yield* usersQuery.value();
-      return value === undefined ? '—' : value.scanned.toString();
-    });
-
-    const submitSearch = craftMethod(
-      'submitPortableSearch',
-      function* (event?: Event) {
-        event?.preventDefault();
-        yield* usersQuery.call((yield* searchInput()).trim());
-      },
-    );
-    const resultCount = craftComputed('portableResultCount', function* () {
-      const value = yield* usersQuery.value();
-      return value === undefined ? '—' : value.users.length.toString();
-    });
-
-    return {
+    const {
       searchInput,
-      setSearchInput: searchInput.setPortableSearchInput,
+      setSearchInput,
       usersQuery,
       submitSearch,
       resultCount,
@@ -179,22 +208,8 @@ const PortableServerFunctionDemo = craftComponent(
       auditId,
       normalizedFilter,
       scannedCount,
-    };
-  },
-  ({
-    searchInput,
-    setSearchInput,
-    usersQuery,
-    submitSearch,
-    resultCount,
-    hasUsers,
-    isEmpty,
-    portableUsers,
-    auditId,
-    normalizedFilter,
-    scannedCount,
-  }) =>
-    main({ class: 'shell' }, [
+    } = yield* PortableServerFunctionDemoView();
+    return main({ class: 'shell' }, [
       header({ class: 'hero' }, [
         div({ class: 'eyebrow' }, [
           span({ class: 'pulse' }),
@@ -333,7 +348,8 @@ const PortableServerFunctionDemo = craftComponent(
         span('No Effect import in the server function or its layers.'),
         span({ class: 'footer-file' }, 'users/portable-list.fn-serveur.ts'),
       ]),
-    ]),
+    ]);
+  },
 );
 
 function flowStep(number: string, title: string, description: string) {

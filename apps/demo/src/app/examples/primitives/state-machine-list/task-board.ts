@@ -16,6 +16,7 @@ import {
 } from '@craft-ts/component';
 import { eventValue } from '../../../event-value';
 import {
+  craftService,
   craftComputed,
   craftStateMachine,
   initStateMachine,
@@ -46,10 +47,11 @@ const TASKS: readonly Task[] = [
  * the component instance that holds them. That is what keeps each row's
  * snapshot capturing its own primitives and nobody else's.
  */
-const TaskRow = craftComponent(
-  'TaskRow',
-  { stylesUrl: styles },
-  function* (task: Input<Task>) {
+const { TaskRowView, provideTaskRowView } = craftService(
+  { name: 'taskRowView', providedIn: 'toProvide' },
+  function* (inputs: { readonly task: Input<Task> }) {
+    const { task } = inputs;
+
     const { id, title } = yield* task();
     const machine = yield* craftStateMachine(
       'taskRow',
@@ -146,8 +148,17 @@ const TaskRow = craftComponent(
 
     return { machine, title, id };
   },
-  ({ machine, title }) =>
-    li({ class: 'row' }, [
+);
+
+const TaskRow = craftComponent(
+  'TaskRow',
+  {
+    providers: [provideTaskRowView()],
+    stylesUrl: styles,
+  },
+  function* (inputs: { readonly task: Input<Task> }) {
+    const { machine, title } = yield* TaskRowView(inputs);
+    return li({ class: 'row' }, [
       div({ class: 'row__head' }, [
         span({ class: 'row__title' }, title),
         span({ class: 'badge' }, machine.step),
@@ -217,17 +228,27 @@ const TaskRow = craftComponent(
         ),
         span({ class: 'row__history' }, machine.historyLabel),
       ]),
-    ]),
+    ]);
+  },
 );
+
+const { TaskBoardStateMachineListView, provideTaskBoardStateMachineListView } =
+  craftService(
+    { name: 'taskBoardStateMachineListView', providedIn: 'toProvide' },
+    function* () {
+      return {};
+    },
+  );
 
 const TaskBoardStateMachineList = craftComponent(
   'TaskBoardStateMachineList',
-  { stylesUrl: styles },
-  function* () {
-    return {};
+  {
+    providers: [provideTaskBoardStateMachineListView()],
+    stylesUrl: styles,
   },
-  () =>
-    section([
+  function* () {
+    yield* TaskBoardStateMachineListView();
+    return section([
       heading('State machine — one per row'),
       p(
         { class: 'intro' },
@@ -241,7 +262,8 @@ const TaskBoardStateMachineList = craftComponent(
           }),
         ),
       ),
-    ]),
+    ]);
+  },
 );
 
 export default TaskBoardStateMachineList;

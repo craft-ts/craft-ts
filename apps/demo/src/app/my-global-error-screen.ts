@@ -1,12 +1,6 @@
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import {
-  craftComponent,
-  div,
-  ifNode,
-  p,
-  heading,
-} from '@craft-ts/component';
-import { craftComputed, CraftGlobalError } from '@craft-ts/core';
+import { craftComponent, div, ifNode, p, heading } from '@craft-ts/component';
+import { craftService, craftComputed, CraftGlobalError } from '@craft-ts/core';
 
 function isDisabledError(value: unknown): boolean {
   return (
@@ -17,32 +11,42 @@ function isDisabledError(value: unknown): boolean {
   );
 }
 
+const { MyGlobalErrorScreenView, provideMyGlobalErrorScreenView } =
+  craftService(
+    { name: 'myGlobalErrorScreenView', providedIn: 'toProvide' },
+    function* () {
+      const error = yield* CraftGlobalError();
+      const disabled = craftComputed('disabled', () => {
+        return isDisabledError(error());
+      });
+      return { error, disabled };
+    },
+  );
+
 export const MyGlobalErrorScreen = craftComponent(
   'MyGlobalErrorScreen',
   {
+    providers: [provideMyGlobalErrorScreenView()],
     styles:
       ':scope{padding:2rem;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;color:#991b1b}',
   },
   function* () {
-    const error = yield* CraftGlobalError();
-    const disabled = craftComputed(
-      'disabled',
-      () => {
-        return isDisabledError(error());
-      },
-    );
-    return { error, disabled };
-  },
-  ({ disabled }) => {
+    const { disabled } = yield* MyGlobalErrorScreenView();
+
     return div([
       heading([
         '⚠️ ',
-        ifNode(disabled, () => 'Account disabled', () => 'Something went wrong'),
+        ifNode(
+          disabled,
+          () => 'Account disabled',
+          () => 'Something went wrong',
+        ),
       ]),
       p(
         ifNode(
           disabled,
-          () => 'This account has been disabled. Contact support to restore access.',
+          () =>
+            'This account has been disabled. Contact support to restore access.',
           () => 'An unexpected error occurred while loading this page.',
         ),
       ),

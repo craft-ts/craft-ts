@@ -1,8 +1,4 @@
-import {
-  craftComponent,
-  div,
-  p,
-} from '@craft-ts/component';
+import { craftComponent, div, p } from '@craft-ts/component';
 import {
   craftException,
   CraftHttpClient,
@@ -47,13 +43,13 @@ const { UsersApiOnError } = craftService(
   },
 );
 
-const { Test2 } = craftService({ name: 'test2', providedIn: 'global' }, () => ({}));
+const { Test2 } = craftService(
+  { name: 'test2', providedIn: 'global' },
+  () => ({}),
+);
 
-export const OtherComponent = craftComponent(
-  'OtherComponent',
-  {
-    providers: [provideOtherService()],
-  },
+const { OtherView, provideOtherView } = craftService(
+  { name: 'otherView', providedIn: 'toProvide' },
   function* () {
     return {
       other: yield* OtherService(),
@@ -61,11 +57,20 @@ export const OtherComponent = craftComponent(
       test: yield* Test2(),
     };
   },
-  ({ other, users }) =>
-    div([
+);
+
+export const OtherComponent = craftComponent(
+  'OtherComponent',
+  {
+    providers: [provideOtherView(), provideOtherService()],
+  },
+  function* () {
+    const { other, users } = yield* OtherView();
+    return div([
       p(() => other.getValue()),
       p(function* () {
         return `Query status: ${yield* users.query.status()}`;
       }),
-    ]),
+    ]);
+  },
 );

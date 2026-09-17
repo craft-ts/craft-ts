@@ -29,7 +29,7 @@ import {
   span,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
+import { craftService, craftComputed, state } from '@craft-ts/core';
 import { card, stack } from './components.style';
 import { dsTheme } from './foundation.style';
 import {
@@ -67,9 +67,8 @@ const constant = <Value>(value: Value) =>
     return value;
   };
 
-export const designSystemDemo = craftComponent(
-  'designSystemDemo',
-  { host: { class: 'design-system-host' } },
+const { DesignSystemDemoView, provideDesignSystemDemoView } = craftService(
+  { name: 'designSystemDemoView', providedIn: 'toProvide' },
   () =>
     state('showcase', initialShowcase(), ({ state: showcase, update }) => ({
       tone: craftComputed('tone', function* () {
@@ -89,8 +88,17 @@ export const designSystemDemo = craftComponent(
           progress: current.progress >= 100 ? 0 : current.progress + 10,
         })),
     })),
-  (showcase) =>
-    // One class on the wrapper, and the whole subtree is themed. Remove it and
+);
+
+export const designSystemDemo = craftComponent(
+  'designSystemDemo',
+  {
+    providers: [provideDesignSystemDemoView()],
+    host: { class: 'design-system-host' },
+  },
+  function* () {
+    const showcase = yield* DesignSystemDemoView();
+    return; // One class on the wrapper, and the whole subtree is themed. Remove it and
     // every colour below falls back to the `@property` initial value — which
     // is a defined behaviour, not an unstyled page.
     div('DesignSystemOverview', { class: dsTheme.root }, [
@@ -183,7 +191,8 @@ export const designSystemDemo = craftComponent(
           ]),
         ]),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default designSystemDemo;

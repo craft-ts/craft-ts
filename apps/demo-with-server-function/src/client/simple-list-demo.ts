@@ -21,6 +21,7 @@ import {
   ul,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftComputed,
   craftMethod,
   isCraftException,
@@ -36,9 +37,95 @@ import { getUsers } from '../users/list.fn-client';
  * shows the server function pipeline (client → HTTP → Effect handler → DB)
  * stripped down to its simplest form.
  */
+const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
+  { name: 'simpleListDemoView', providedIn: 'toProvide' },
+  function* () {
+    const usersFilter = yield* queryParams(
+      'usersFilter',
+      {
+        state: {
+          filter: {
+            fallbackValue: '',
+            codec: {
+              decode: (value: string) => value,
+              encode: (value: string) => value,
+            },
+          },
+        },
+      },
+      ({ patch }) => ({ patch }),
+    );
+    const usersQuery = yield* query(
+      'usersQuery',
+      {
+        params: () => usersFilter.filter(),
+        loader: function* ({ params }) {
+          return yield* getUsers({ filter: params });
+        },
+      },
+      ({ resource, exceptions }) => {
+        const notFound = craftComputed('notFound', function* () {
+          const error = (yield* exceptions()).loader;
+          return isCraftException(error) && error._tag === 'UsersNotFound';
+        });
+
+        return {
+          notFound,
+          requestTitle: craftComputed('requestTitle', function* () {
+            const currentStatus = yield* resource.status();
+            if (yield* notFound()) return 'Server returned 404';
+            return currentStatus === 'loading' || currentStatus === 'reloading'
+              ? 'Calling demo.users.list from the URL filter…'
+              : 'Server function ready';
+          }),
+          requestDetail: craftComputed('requestDetail', function* () {
+            const currentStatus = yield* resource.status();
+            if (yield* notFound()) {
+              const error = (yield* exceptions()).loader;
+              return `404 · ${exceptionMessage(error, 'No matching users.')}`;
+            }
+            return currentStatus === 'loading' || currentStatus === 'reloading'
+              ? 'POST /__server-functions · Effect is running'
+              : `Status: ${currentStatus}`;
+          }),
+          resultCount: craftComputed('resultCount', function* () {
+            const value = yield* resource.value();
+            return Array.isArray(value) ? value.length.toString() : '—';
+          }),
+        };
+      },
+    );
+    const users = craftComputed('users', function* () {
+      const value = yield* usersQuery.value();
+      return Array.isArray(value) ? value : [];
+    });
+    const searchInput = yield* state(
+      'searchInput',
+      yield* usersFilter.filter(),
+      ({ set }) => ({
+        setSearchInput: (value: string) => set(value),
+      }),
+    );
+    const submitSearch = craftMethod('submitSearch', function* (event?: Event) {
+      event?.preventDefault();
+      yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
+    });
+
+    return {
+      searchInput,
+      setSearchInput: searchInput.setSearchInput,
+      usersFilter,
+      usersQuery,
+      users,
+      submitSearch,
+    };
+  },
+);
+
 const SimpleListDemo = craftComponent(
   'SimpleListDemo',
   {
+    providers: [provideSimpleListDemoView()],
     styles: `
       :scope { display: block; min-height: 100vh; color: #e8edf8; background: radial-gradient(circle at 85% 5%, #243768 0, #0b1020 36rem); }
       .shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 70px 0 34px; }
@@ -130,88 +217,9 @@ const SimpleListDemo = craftComponent(
     `,
   },
   function* () {
-    const usersFilter = yield* queryParams(
-      'usersFilter',
-      {
-        state: {
-          filter: {
-            fallbackValue: '',
-            codec: {
-              decode: (value: string) => value,
-              encode: (value: string) => value,
-            },
-          },
-        },
-      },
-      ({ patch }) => ({ patch }),
-    );
-    const usersQuery = yield* query(
-      'usersQuery',
-      {
-        params: () => usersFilter.filter(),
-        loader: function* ({ params }) {
-          return yield* getUsers({ filter: params });
-        },
-      },
-      ({ resource, exceptions }) => {
-        const notFound = craftComputed('notFound', function* () {
-          const error = (yield* exceptions()).loader;
-          return isCraftException(error) && error._tag === 'UsersNotFound';
-        });
-
-        return {
-          notFound,
-          requestTitle: craftComputed('requestTitle', function* () {
-            const currentStatus = yield* resource.status();
-            if (yield* notFound()) return 'Server returned 404';
-            return currentStatus === 'loading' || currentStatus === 'reloading'
-              ? 'Calling demo.users.list from the URL filter…'
-              : 'Server function ready';
-          }),
-          requestDetail: craftComputed('requestDetail', function* () {
-            const currentStatus = yield* resource.status();
-            if (yield* notFound()) {
-              const error = (yield* exceptions()).loader;
-              return `404 · ${exceptionMessage(error, 'No matching users.')}`;
-            }
-            return currentStatus === 'loading' || currentStatus === 'reloading'
-              ? 'POST /__server-functions · Effect is running'
-              : `Status: ${currentStatus}`;
-          }),
-          resultCount: craftComputed('resultCount', function* () {
-            const value = yield* resource.value();
-            return Array.isArray(value) ? value.length.toString() : '—';
-          }),
-        };
-      },
-    );
-    const users = craftComputed('users', function* () {
-      const value = yield* usersQuery.value();
-      return Array.isArray(value) ? value : [];
-    });
-    const searchInput = yield* state(
-      'searchInput',
-      yield* usersFilter.filter(),
-      ({ set }) => ({
-        setSearchInput: (value: string) => set(value),
-      }),
-    );
-    const submitSearch = craftMethod('submitSearch', function* (event?: Event) {
-      event?.preventDefault();
-      yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
-    });
-
-    return {
-      searchInput,
-      setSearchInput: searchInput.setSearchInput,
-      usersFilter,
-      usersQuery,
-      users,
-      submitSearch,
-    };
-  },
-  ({ searchInput, setSearchInput, usersQuery, users, submitSearch }) =>
-    main({ class: 'shell' }, [
+    const { searchInput, setSearchInput, usersQuery, users, submitSearch } =
+      yield* SimpleListDemoView();
+    return main({ class: 'shell' }, [
       header({ class: 'hero' }, [
         div({ class: 'eyebrow' }, [
           span({ class: 'pulse' }),
@@ -316,7 +324,8 @@ const SimpleListDemo = craftComponent(
         span('Same Effect service, two instances: client and server.'),
         span({ class: 'footer-file' }, 'apps/demo-with-server-function'),
       ]),
-    ]),
+    ]);
+  },
 );
 
 function exceptionMessage(error: unknown, fallback: string): string {
