@@ -1,6 +1,7 @@
 import {
   CRAFT_REGISTRATION_TARGET,
   type CraftComponentDependencies,
+  type CraftServiceTransform,
   type UnmetRequirements,
 } from '@craft-ts/core';
 import {
@@ -14,27 +15,21 @@ import {
   type ComponentResidualFieldExceptions,
   type ContentRequirementsOfContext,
   type CraftComponent,
-  type FactoryContext,
   type FactoryYielded,
   type PropsFromFactory,
   type StyleOwner,
   type TemplateDependencies,
   type TemplateCssVars,
   type TemplateHeadingNeed,
+  type TemplateInput,
   type TemplatePendingSources,
   type TemplateSettledExceptions,
   type ValidComponentFactoryInputs,
 } from './types';
 import type { CssVarsContractOfMeta } from './css-vars.type';
-import { forwardedCssVarStyles } from './css-vars';
-import type { HostProps } from './hyperscript';
 import type { ComponentNode, ComponentTemplateChannels } from './render/vnode';
-import {
-  applyHostPropsToChildren,
-  currentCraftRenderContext,
-  mergeHostProps,
-  pipeCraftNode,
-} from './render/vnode';
+import type { HostProps } from './hyperscript';
+import { currentCraftRenderContext, pipeCraftNode } from './render/vnode';
 
 type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
   readonly providers: infer Providers;
@@ -51,22 +46,13 @@ function mergeStyles(
 }
 
 type ContentSlotNamesForFactory<Factory extends ComponentFactory> = {
-  [Key in keyof ObjectFactoryInput<Factory>]: NonNullable<
-    ObjectFactoryInput<Factory>[Key]
+  [Key in keyof TemplateInput<Factory>]: NonNullable<
+    TemplateInput<Factory>[Key]
   > extends (...args: any[]) => any
     ? Key
     : never;
-}[keyof ObjectFactoryInput<Factory>] &
+}[keyof TemplateInput<Factory>] &
   string;
-
-type ObjectFactoryInput<Factory extends ComponentFactory> =
-  Parameters<Factory> extends [infer Input]
-    ? Input extends (...args: any[]) => any
-      ? never
-      : Input extends object
-        ? Input
-        : never
-    : never;
 
 type ValidContentStyles<
   Meta extends ComponentMeta,
@@ -167,49 +153,61 @@ type ValidInheritedCssVars<Meta extends ComponentMeta, Template> =
           }
       : never;
 
+type ComponentOf<
+  Name extends string,
+  Meta extends ComponentMeta,
+  Template extends ComponentFactory,
+> = CraftComponent<
+  PropsFromFactory<Template>,
+  CraftComponentDependencies<
+    FactoryYielded<Template>,
+    unknown,
+    ProvidersFromMeta<Meta>,
+    PropsFromFactory<Template>,
+    TemplateDependencies<Template>
+  >,
+  Template,
+  Meta,
+  Template,
+  TemplateDependencies<Template>,
+  Template,
+  Name,
+  ComponentInitializationExceptionCodesForTemplate<
+    Template,
+    ProvidersFromMeta<Meta>,
+    Template
+  >,
+  ContentRequirementsOfContext<TemplateInput<Template>>,
+  ComponentResidualFieldExceptions<Template, Template>
+>;
+
+/**
+ * Declares a component: one function taking the component's inputs, reaching
+ * its services with `yield*`, and returning what it renders.
+ *
+ * Local state does not live here — it lives in a `craftService` the component
+ * provides, so a rerender reads the same instance instead of building a new one.
+ */
 export function craftComponent<
   const Name extends string,
   const Meta extends ComponentMeta,
-  Factory extends ComponentFactory,
-  Template extends ComponentTemplate<FactoryContext<Factory>>,
+  Template extends ComponentFactory,
 >(
   name: Name,
-  meta: Meta & ValidContentStyles<Meta, Factory>,
-  factory: Factory & ValidComponentFactoryInputs<Factory>,
+  meta: Meta & ValidContentStyles<Meta, Template>,
   template: Template &
+    ValidComponentFactoryInputs<Template, Meta> &
     ValidInheritedCssVars<Meta, NoInfer<Template>> &
     ValidPendingSources<NoInfer<Template>> &
     ValidSettledExceptions<NoInfer<Template>> &
     ValidHeadingNeed<NoInfer<Template>> &
     ValidSeals<Meta, NoInfer<Template>>,
-): CraftComponent<
-  PropsFromFactory<Factory>,
-  CraftComponentDependencies<
-    FactoryYielded<Factory>,
-    FactoryContext<Factory>,
-    ProvidersFromMeta<Meta>,
-    PropsFromFactory<Factory>,
-    TemplateDependencies<Template>
-  >,
-  Factory,
-  Meta,
-  Factory,
-  TemplateDependencies<Template>,
-  Template,
-  Name,
-  ComponentInitializationExceptionCodesForTemplate<
-    Factory,
-    ProvidersFromMeta<Meta>,
-    Template
-  >,
-  ContentRequirementsOfContext<FactoryContext<Factory>>,
-  ComponentResidualFieldExceptions<Factory, Template>
-> {
-  return createCraftComponent<Name, Meta, Factory, Template>({
+): ComponentOf<Name, Meta, Template> {
+  return createCraftComponent<Name, Meta, Template>({
     name,
     meta,
-    factory,
     template,
+    service: [],
     styleOwners: [{ name, styles: mergeStyles(meta.styles, meta.stylesUrl) }],
     scopeDefinition: undefined,
   });
@@ -218,66 +216,24 @@ export function craftComponent<
 function createCraftComponent<
   const Name extends string,
   const Meta extends ComponentMeta,
-  Factory extends ComponentFactory,
-  Template extends ComponentTemplate<FactoryContext<Factory>>,
+  Template extends ComponentFactory,
 >(definition: {
   readonly name: Name;
   readonly meta: Meta;
-  readonly factory: Factory;
   readonly template: Template;
+  readonly service: readonly CraftServiceTransform[];
   readonly styleOwners: readonly StyleOwner[];
   readonly scopeDefinition: object | undefined;
   readonly composition?: ComponentCompositionDefinition;
-}): CraftComponent<
-  PropsFromFactory<Factory>,
-  CraftComponentDependencies<
-    FactoryYielded<Factory>,
-    FactoryContext<Factory>,
-    ProvidersFromMeta<Meta>,
-    PropsFromFactory<Factory>,
-    TemplateDependencies<Template>
-  >,
-  Factory,
-  Meta,
-  Factory,
-  TemplateDependencies<Template>,
-  Template,
-  Name,
-  ComponentInitializationExceptionCodesForTemplate<
-    Factory,
-    ProvidersFromMeta<Meta>,
-    Template
-  >,
-  ContentRequirementsOfContext<FactoryContext<Factory>>,
-  ComponentResidualFieldExceptions<Factory, Template>
-> {
-  type Props = PropsFromFactory<Factory>;
+}): ComponentOf<Name, Meta, Template> {
+  type Props = PropsFromFactory<Template>;
   type ComponentDeps = CraftComponentDependencies<
-    FactoryYielded<Factory>,
-    FactoryContext<Factory>,
+    FactoryYielded<Template>,
+    unknown,
     ProvidersFromMeta<Meta>,
     Props,
     TemplateDependencies<Template>
   >;
-
-  // Keep host props in the template pipeline. This lets a directive pass
-  // additional host props to its base template while preserving props that
-  // were already supplied by the component caller.
-  const hostAwareTemplate: ComponentTemplate<FactoryContext<Factory>> = (
-    context,
-    hostProps,
-  ) => {
-    const children = definition.template(context, hostProps);
-    const forwardedStyles = forwardedCssVarStyles(children);
-    const withForwardedDefaults = mergeHostProps(definition.meta.host ?? {}, {
-      style: forwardedStyles,
-    });
-    const effectiveHostProps = mergeHostProps(
-      withForwardedDefaults,
-      hostProps ?? {},
-    );
-    return applyHostPropsToChildren(children, effectiveHostProps);
-  };
 
   const craftComponent = ((
     props: Props & HostProps = {} as Props & HostProps,
@@ -303,23 +259,7 @@ function createCraftComponent<
       enumerable: false,
     });
     return node;
-  }) as unknown as CraftComponent<
-    Props,
-    ComponentDeps,
-    Factory,
-    Meta,
-    Factory,
-    TemplateDependencies<Template>,
-    Template,
-    Name,
-    ComponentInitializationExceptionCodesForTemplate<
-      Factory,
-      ProvidersFromMeta<Meta>,
-      Template
-    >,
-    ContentRequirementsOfContext<FactoryContext<Factory>>,
-    ComponentResidualFieldExceptions<Factory, Template>
-  >;
+  }) as unknown as ComponentOf<Name, Meta, Template>;
 
   const scopeDefinition = definition.scopeDefinition ?? {};
   const styleOwners = definition.styleOwners.map((owner, index) =>
@@ -331,7 +271,6 @@ function createCraftComponent<
   Object.defineProperty(craftComponent, CRAFT_COMPONENT, {
     value: {
       ...definition,
-      template: hostAwareTemplate,
       scopeDefinition,
       styleOwners,
     },
@@ -346,18 +285,7 @@ function createCraftComponent<
   Object.defineProperty(craftComponent, 'pipe', {
     value: (
       ...directives: {
-        readonly [CRAFT_DIRECTIVE]?: {
-          readonly name: string;
-          readonly meta: {
-            readonly styles?: string | readonly string[];
-            readonly stylesUrl?: string | readonly string[];
-          };
-          readonly logic: (baseLogic: ComponentFactory) => ComponentFactory;
-          readonly template: (
-            baseTemplate: ComponentTemplate<any>,
-          ) => ComponentTemplate<any>;
-          readonly componentOperator?: ComponentCompositionDefinition;
-        };
+        readonly [CRAFT_DIRECTIVE]?: DirectiveDefinition;
         (...args: any[]): unknown;
       }[]
     ) =>
@@ -365,46 +293,32 @@ function createCraftComponent<
         const currentComponent = current as CraftComponent<any>;
         const resolvedDirective = (
           CRAFT_DIRECTIVE in directive ? directive : directive(currentComponent)
-        ) as {
-          readonly [CRAFT_DIRECTIVE]: {
-            readonly name: string;
-            readonly meta: {
-              readonly styles?: string | readonly string[];
-              readonly stylesUrl?: string | readonly string[];
-            };
-            readonly logic: (baseLogic: ComponentFactory) => ComponentFactory;
-            readonly template: (
-              baseTemplate: ComponentTemplate<any>,
-            ) => ComponentTemplate<any>;
-            readonly componentOperator?: ComponentCompositionDefinition;
-          };
-        };
+        ) as { readonly [CRAFT_DIRECTIVE]: DirectiveDefinition };
+        const applied = resolvedDirective[CRAFT_DIRECTIVE];
         const currentDefinition = currentComponent[CRAFT_COMPONENT];
-        const currentTemplate = currentDefinition.template;
-        return createCraftComponent<any, any, any, any>({
+        return createCraftComponent<any, any, any>({
           name: currentDefinition.name,
           meta: currentDefinition.meta,
-          factory: resolvedDirective[CRAFT_DIRECTIVE].logic(
-            currentDefinition.factory,
-          ),
-          template:
-            resolvedDirective[CRAFT_DIRECTIVE].template(currentTemplate),
+          template: applied.template
+            ? applied.template(currentDefinition.template)
+            : currentDefinition.template,
+          service: [...currentDefinition.service, ...applied.service],
           styleOwners: [
             ...currentDefinition.styleOwners,
             {
-              name: resolvedDirective[CRAFT_DIRECTIVE].name,
+              name: applied.name,
               styles: mergeStyles(
-                resolvedDirective[CRAFT_DIRECTIVE].meta.styles,
-                resolvedDirective[CRAFT_DIRECTIVE].meta.stylesUrl,
+                applied.meta.styles,
+                applied.meta.stylesUrl,
               ),
-              definition: resolvedDirective[CRAFT_DIRECTIVE],
+              definition: applied,
               registrationTarget: resolvedDirective,
             },
           ],
           scopeDefinition: currentDefinition.scopeDefinition,
           composition: mergeComponentComposition(
             currentDefinition.composition,
-            resolvedDirective[CRAFT_DIRECTIVE].componentOperator,
+            applied.componentOperator,
           ),
         });
       }, craftComponent),
@@ -413,6 +327,17 @@ function createCraftComponent<
 
   return craftComponent;
 }
+
+type DirectiveDefinition = {
+  readonly name: string;
+  readonly meta: {
+    readonly styles?: string | readonly string[];
+    readonly stylesUrl?: string | readonly string[];
+  };
+  readonly service: readonly CraftServiceTransform[];
+  readonly template?: (baseTemplate: ComponentTemplate) => ComponentTemplate;
+  readonly componentOperator?: ComponentCompositionDefinition;
+};
 
 function mergeComponentComposition(
   existing: ComponentCompositionDefinition | undefined,

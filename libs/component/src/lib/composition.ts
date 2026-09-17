@@ -15,8 +15,7 @@ export function withProviders<
   const operator = craftDirective(
     'withProviders',
     {},
-    (baseLogic) => baseLogic,
-    (baseTemplate) => baseTemplate,
+    {},
     { providers },
   ) as unknown as ComponentOperator<Providers>;
 
@@ -94,8 +93,7 @@ function createCatchTagOperator<
   const operator = craftDirective(
     'catchTag.exhaustive',
     {},
-    (baseLogic) => baseLogic,
-    (baseTemplate) => baseTemplate,
+    {},
     {
       catchTagHandlers: handlers as unknown as Record<
         string,

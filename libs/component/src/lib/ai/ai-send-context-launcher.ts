@@ -57,8 +57,7 @@ export const AiSendContextLauncher: CraftComponent<{
       }
     `,
   },
-  (onOpen: Output<() => void>) => ({ onOpen }),
-  ({ onOpen }) =>
+  ({ onOpen }: { readonly onOpen: Output<() => void> }) =>
     button(
       'aiContextLauncher',
       {

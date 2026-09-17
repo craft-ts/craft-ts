@@ -253,6 +253,8 @@ type RunCraftGeneratorOptions = {
   guardAwaitNotSupportedErrorMessage?: string;
   /** Identity of the computation currently consuming reactive values. */
   reactiveReader?: ReactiveReadIdentity;
+  /** Sees every service instance this run resolved, in resolution order. */
+  onServiceResolved?: (instance: unknown) => void;
 };
 
 export function runCraftGenerator({
@@ -265,6 +267,7 @@ export function runCraftGenerator({
   onAppStartNotSupportedErrorMessage,
   guardAwaitNotSupportedErrorMessage,
   reactiveReader,
+  onServiceResolved,
 }: RunCraftGeneratorOptions): {
   value: unknown;
   appStartHook?: () => AppStartResult;
@@ -287,9 +290,9 @@ export function runCraftGenerator({
     }
 
     if (isServiceYieldRequest(yielded)) {
-      current = iterator.next(
-        resolveServiceYield(yielded, injector, hostScope),
-      );
+      const instance = resolveServiceYield(yielded, injector, hostScope);
+      onServiceResolved?.(instance);
+      current = iterator.next(instance);
       continue;
     }
 
@@ -387,6 +390,7 @@ export function executeGeneratorCompatibleFactory<
   invalidYieldErrorMessage,
   multipleAppStartErrorMessage,
   onAppStartNotSupportedErrorMessage,
+  onServiceResolved,
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
@@ -395,6 +399,7 @@ export function executeGeneratorCompatibleFactory<
   invalidYieldErrorMessage: string;
   multipleAppStartErrorMessage: string;
   onAppStartNotSupportedErrorMessage?: string;
+  onServiceResolved?: (instance: unknown) => void;
 }): ResolveGeneratorResult<Result> {
   const injector = getInjector();
   const craftInjector = ɵcraftInjectorFromHost(injector);
@@ -413,6 +418,7 @@ export function executeGeneratorCompatibleFactory<
       invalidYieldErrorMessage,
       multipleAppStartErrorMessage,
       onAppStartNotSupportedErrorMessage,
+      onServiceResolved,
     }).value as ResolveGeneratorResult<Result>;
   });
 }

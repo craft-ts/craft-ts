@@ -93,10 +93,6 @@ type ServiceNamesFromContract<Contract> = Contract extends object
           : never)
   : never;
 
-/** The dependency contract used when only a Craft component factory is tested. */
-export type CraftComponentLogicDepsOf<Component> =
-  LogicDependenciesOf<Component>;
-
 /** The service dependency contract used when only a Craft component template is tested. */
 export type CraftComponentTemplateDepsOf<Component> = {
   deps: Record<
@@ -112,21 +108,6 @@ export type CraftComponentTemplateDepsOf<Component> = {
   missingProvider: {};
 };
 
-type DirectiveLogicFactory<Directive> =
-  Directive extends CraftDirective<infer Logic, any, any>
-    ? ReturnType<Logic> extends ComponentFactory
-      ? ReturnType<Logic>
-      : ComponentFactory
-    : ComponentFactory;
-
-type LogicDependenciesForFactory<Factory extends ComponentFactory> = {
-  deps: CompleteServiceDependencyMapFromYielded<FactoryYielded<Factory>>;
-  propertiesDeps: {};
-  provided: {};
-  publicProperties: {};
-  missingProvider: {};
-};
-
 type TemplateContractForTemplate<Template extends ComponentTemplate<any>> = {
   deps: Record<
     Extract<ServiceNamesFromContract<TemplateDependencies<Template>>, string>,
@@ -134,13 +115,8 @@ type TemplateContractForTemplate<Template extends ComponentTemplate<any>> = {
   >;
 };
 
-/** The dependency contract added by a directive's logic decorator. */
-export type CraftDirectiveLogicDepsOf<Directive> = LogicDependenciesForFactory<
-  DirectiveLogicFactory<Directive>
->;
-
 type DirectiveTemplateDependenciesOf<Directive> =
-  Directive extends CraftDirective<any, infer Template, any>
+  Directive extends CraftDirective<infer Template, any>
     ? Template extends (baseTemplate: ComponentTemplate<any>) => infer Decorated
       ? TemplateDependencies<Decorated>
       : {}
@@ -183,16 +159,9 @@ type TestBedOptions = {
   appStart?: Record<string, AppStartDecision>;
 };
 
-type LogicOptions<
-  Factory extends ComponentFactory,
-  Contract,
-> = TestBedOptions & {
-  register: RegisterForContract<Contract>;
-  args?: Parameters<Factory>;
-};
-
-type TemplateOptions<Context, Contract> = TestBedOptions & {
-  context: Context;
+type TemplateOptions<Inputs, Contract> = TestBedOptions & {
+  /** What the caller passes the component: its one input object. */
+  inputs: Inputs;
   register: RegisterForContract<Contract>;
   detectChanges?: boolean;
 };
@@ -384,66 +353,15 @@ function componentTemplateMount<Component extends CraftComponent<any>, Context>(
   return { host, mounted, mocks: runtime.mocks, parent };
 }
 
-async function setupCraftComponentLogicTestImpl<
-  Component extends CraftComponent<any>,
-  const Contract extends
-    CraftComponentLogicDepsOf<Component> = CraftComponentLogicDepsOf<Component>,
->(
-  component: Component,
-  options: LogicOptions<ComponentFactoryOf<Component>, Contract>,
-) {
-  const parent = createTestingInjector(options.providers);
-  const host = document.createElement('div');
-  const definition = component[CRAFT_COMPONENT];
-  const { injector, mocks } = createComponentInjector(
-    component,
-    parent,
-    host,
-    options.register as Record<string, RegisterRuntimeEntry>,
-  );
-  const factory = definition.factory;
-  const args = (options.args ?? []) as Parameters<typeof factory>;
-  const context = runInInjectionContext(injector, () =>
-    executeCraftComponentFactory(factory, args, injector),
-  ) as ComponentContextOf<Component>;
-
-  if (isPromiseLike(context)) {
-    throw new Error(
-      'Async component factories are not supported by setupCraftComponentLogicTest.',
-    );
-  }
-
-  await runConfiguredAppStart(
-    options.register as Record<string, RegisterRuntimeEntry>,
-    options.appStart,
-    injector,
-  );
-
-  return {
-    context,
-    mocks: mocks as Record<string, unknown>,
-    injector,
-    destroy: () => {
-      injector.destroy();
-      parent.destroy();
-    },
-  };
-}
-
-export const setupCraftComponentLogicTest = Object.assign(
-  setupCraftComponentLogicTestImpl,
-  { byRegister: setupCraftComponentLogicTestImpl },
-);
-
 type TemplateTestResult<
   Component extends CraftComponent<any>,
-  Context,
+  Inputs,
 > = CraftTemplateLocatorApi<Component> & {
   nativeElement: HTMLDivElement;
   element: HTMLDivElement;
   mocks: Record<string, unknown>;
   detectChanges(): void;
-  updateContext(context: Context): void;
+  updateInputs(inputs: Inputs): void;
   destroy(): void;
   toBeAccessible(): Promise<void>;
   getByRole(role: string, options?: { name?: string | RegExp }): HTMLElement;
@@ -594,21 +512,21 @@ function setupCraftComponentTemplateTestImpl<
   Component extends CraftComponent<any>,
   const Contract extends
     CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
-  Context = unknown,
+  Inputs = unknown,
 >(
   component: Component,
-  options: TemplateOptions<Context, Contract>,
-): Promise<TemplateTestResult<Component, Context>>;
+  options: TemplateOptions<Inputs, Contract>,
+): Promise<TemplateTestResult<Component, Inputs>>;
 
 async function setupCraftComponentTemplateTestImpl<
   Component extends CraftComponent<any>,
   const Contract extends
     CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
-  Context = unknown,
->(component: Component, options: TemplateOptions<Context, Contract>) {
+  Inputs = unknown,
+>(component: Component, options: TemplateOptions<Inputs, Contract>) {
   const { host, mounted, mocks, parent } = componentTemplateMount(
     component,
-    options.context,
+    options.inputs,
     options.register as Record<string, RegisterRuntimeEntry>,
     options.providers,
   );
@@ -633,8 +551,8 @@ async function setupCraftComponentTemplateTestImpl<
     mocks: mocks as Record<string, unknown>,
     ...createAccessibleQueries(host),
     detectChanges,
-    updateContext(context: Context) {
-      mounted.updateContext(context);
+    updateInputs(inputs: Inputs) {
+      mounted.updateContext(inputs);
     },
     locator,
     toBeAccessible: () => assertAccessible(host),
@@ -700,83 +618,8 @@ export async function renderCraftComponent<
   };
 }
 
-type DirectiveLogicOptions<
-  BaseLogic extends ComponentFactory,
-  Contract,
-> = LogicOptions<BaseLogic, Contract> & {
-  baseLogic: BaseLogic;
-};
-
-async function setupCraftDirectiveLogicTestImpl<
-  Directive extends CraftDirective,
-  const BaseLogic extends ComponentFactory,
-  const Contract extends CraftDirectiveLogicDepsOf<Directive> &
-    LogicDependenciesForFactory<BaseLogic> = CraftDirectiveLogicDepsOf<Directive> &
-    LogicDependenciesForFactory<BaseLogic>,
->(directive: Directive, options: DirectiveLogicOptions<BaseLogic, Contract>) {
-  const parent = createTestingInjector(options.providers);
-  const host = document.createElement('div');
-  const { injector, mocks } = createRuntimeDirectiveInjector(
-    parent,
-    host,
-    options.register as Record<string, RegisterRuntimeEntry>,
-  );
-  const definition = directive[CRAFT_DIRECTIVE];
-  const logic = definition.logic(options.baseLogic);
-  const context = runInInjectionContext(injector, () =>
-    executeCraftComponentFactory(
-      logic,
-      (options.args ?? []) as Parameters<typeof logic>,
-      injector,
-    ),
-  ) as FactoryContext<DirectiveLogicFactory<Directive>>;
-
-  if (isPromiseLike(context)) {
-    throw new Error(
-      'Async directive factories are not supported by setupCraftDirectiveLogicTest.',
-    );
-  }
-
-  await runConfiguredAppStart(
-    options.register as Record<string, RegisterRuntimeEntry>,
-    options.appStart,
-    injector,
-  );
-
-  return {
-    context,
-    mocks: mocks as Record<string, unknown>,
-    injector,
-    destroy: () => {
-      injector.destroy();
-      parent.destroy();
-    },
-  };
-}
-
-function createRuntimeDirectiveInjector(
-  parent: EnvironmentInjector,
-  host: Element,
-  register: Record<string, RegisterRuntimeEntry>,
-) {
-  const { providers, mocks } = createRuntimeProviders(register);
-  return {
-    injector: createEnvironmentInjector(
-      [{ provide: ElementRef, useValue: new ElementRef(host) }, ...providers],
-      parent,
-      'CraftDirectiveTest',
-    ),
-    mocks,
-  };
-}
-
-export const setupCraftDirectiveLogicTest = Object.assign(
-  setupCraftDirectiveLogicTestImpl,
-  { byRegister: setupCraftDirectiveLogicTestImpl },
-);
-
-type DirectiveTemplateOptions<Context, Contract> = TemplateOptions<
-  Context,
+type DirectiveTemplateOptions<Inputs, Contract> = TemplateOptions<
+  Inputs,
   Contract
 > & {
   baseTemplate: ComponentTemplate<any>;
@@ -788,27 +631,29 @@ async function setupCraftDirectiveTemplateTestImpl<
   const Contract extends CraftDirectiveTemplateDepsOf<Directive> &
     TemplateContractForTemplate<BaseTemplate> = CraftDirectiveTemplateDepsOf<Directive> &
     TemplateContractForTemplate<BaseTemplate>,
-  Context = unknown,
+  Inputs = unknown,
 >(
   directive: Directive,
-  options: DirectiveTemplateOptions<Context, Contract> & {
+  options: DirectiveTemplateOptions<Inputs, Contract> & {
     baseTemplate: BaseTemplate;
   },
 ) {
   const definition = directive[CRAFT_DIRECTIVE];
-  const decoratedTemplate = definition.template(options.baseTemplate);
+  const decoratedTemplate = definition.template
+    ? definition.template(options.baseTemplate)
+    : options.baseTemplate;
   const synthetic = craftComponent(
     `CraftDirectiveTemplate:${definition.name}`,
     {
       styles: definition.meta.styles,
       stylesUrl: definition.meta.stylesUrl,
+      providers: definition.service,
     },
-    () => ({}),
-    decoratedTemplate as ComponentTemplate<{}>,
+    decoratedTemplate as ComponentTemplate,
   );
   const { host, mounted, mocks, parent } = componentTemplateMount(
     synthetic,
-    options.context,
+    options.inputs,
     options.register as Record<string, RegisterRuntimeEntry>,
     options.providers,
   );
@@ -824,8 +669,8 @@ async function setupCraftDirectiveTemplateTestImpl<
     mocks: mocks as Record<string, unknown>,
     ...createAccessibleQueries(host),
     detectChanges,
-    updateContext(context: Context) {
-      mounted.updateContext(context);
+    updateInputs(inputs: Inputs) {
+      mounted.updateContext(inputs);
     },
     destroy() {
       mounted.destroy();

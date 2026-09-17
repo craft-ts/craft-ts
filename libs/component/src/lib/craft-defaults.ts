@@ -30,8 +30,7 @@ const DefaultCraftPendingComponent = craftComponent(
       }
     `,
   },
-  () => ({ loading: inject(CRAFT_LOADING_TEXT) }),
-  ({ loading }) => div({ class: 'craft-pending' }, loading),
+  () => div({ class: 'craft-pending' }, inject(CRAFT_LOADING_TEXT)),
 );
 
 ɵregisterDefaultCraftPendingComponent(

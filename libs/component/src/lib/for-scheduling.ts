@@ -58,8 +58,7 @@ export function scheduleFor<const Options extends ForScheduleOptions>(
   const directive = craftDirective(
     'scheduleFor',
     {},
-    (baseLogic) => baseLogic,
-    (baseTemplate) => baseTemplate,
+    {},
   ) as ScheduleForDirective<NormalizedPolicy<Options>>;
   Object.defineProperty(directive, SCHEDULE_FOR_DIRECTIVE, {
     value: Object.freeze(policy),

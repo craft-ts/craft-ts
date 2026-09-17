@@ -1,8 +1,34 @@
-import { craftUse, fromEventToSource$ } from '@craft-ts/core';
+import { craftService, craftUse, fromEventToSource$ } from '@craft-ts/core';
 import { craftComponent } from '../component';
 import { button, div, span } from '../hyperscript';
-import type { Input, Output } from '../types';
+import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { AI_OVERLAY_THEME } from './ai-overlay-theme';
+
+
+/**
+ * Closes the menu on any interaction outside of it.
+ *
+ * The subscriptions belong to a service so a rerender keeps the ones the first
+ * render opened instead of stacking new ones on top of them.
+ */
+const { AiContextMenuDismissal, provideAiContextMenuDismissal } = craftService(
+  { name: 'aiContextMenuDismissal', providedIn: 'toProvide' },
+  (onDismiss: Output<() => void>) => {
+    // Clicks inside the menu stop propagating, so anything reaching the
+    // document is an outside click.
+    fromEventToSource$<MouseEvent>(document, 'click').subscribe(() =>
+      onDismiss(),
+    );
+    fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
+      (event) => {
+        if (event.key === 'Escape') {
+          onDismiss();
+        }
+      },
+    );
+    return {};
+  },
+);
 
 /**
  * Context menu shown at the pointer position when a component is
@@ -11,6 +37,7 @@ import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 export const AiContextMenu = craftComponent(
   'AiContextMenu',
   {
+    providers: [provideAiContextMenuDismissal()],
     styles: `${AI_OVERLAY_THEME}
       :scope {
         position: fixed;
@@ -46,29 +73,15 @@ export const AiContextMenu = craftComponent(
       }
     `,
   },
-  (
-    x: Input<number>,
-    y: Input<number>,
-    onSelect: Output<() => void>,
-    onDismiss: Output<() => void>,
-  ) => {
-    // Clicks inside the menu stop propagating, so anything reaching the
-    // document is an outside click.
-    fromEventToSource$<MouseEvent>(document, 'click').subscribe(() =>
-      onDismiss(),
-    );
-    fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
-      (event) => {
-        if (event.key === 'Escape') {
-          onDismiss();
-        }
-      },
-    );
-
-    return { x, y, onSelect, onDismiss };
-  },
-  ({ x, y, onSelect }) =>
-    div(
+  function* (inputs: {
+    readonly x: Input<number>;
+    readonly y: Input<number>;
+    readonly onSelect: Output<() => void>;
+    readonly onDismiss: Output<() => void>;
+  }) {
+    const { x, y, onSelect } = inputs;
+    yield* AiContextMenuDismissal(inputs.onDismiss);
+    return div(
       'aiContextMenu',
       {
         class: 'craft-ai-menu',
@@ -92,5 +105,11 @@ export const AiContextMenu = craftComponent(
         },
         [span({ 'aria-hidden': 'true' }, '✨'), span('Add to AI context')],
       ),
-    ),
-);
+    );
+  },
+) as unknown as CraftComponent<{
+  readonly x: InputValue<number>;
+  readonly y: InputValue<number>;
+  readonly onSelect: () => void;
+  readonly onDismiss: () => void;
+}, any>;

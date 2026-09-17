@@ -10,7 +10,10 @@ import {
   type SendContextEvent,
   type TemporalTaskHandle,
 } from '@craft-ts/core';
-import { ɵtoCraftService as toCraftService } from '@craft-ts/core';
+import {
+  craftService,
+  ɵtoCraftService as toCraftService,
+} from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import { DestroyRef, inject } from '../host-runtime';
@@ -32,7 +35,12 @@ import {
   strong,
   textarea,
 } from '../hyperscript';
-import type { CraftComponent, Input, Output } from '../types';
+import type {
+  CraftComponent,
+  Input,
+  InputValue,
+  Output,
+} from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
 import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 import {
@@ -167,259 +175,17 @@ type ChatFactoryContext = Omit<ChatContext, 'onClose'> & {
  * recorded event timeline, an instruction box, and the per-section switches
  * that decide what the copied prompt actually carries.
  */
-export const AiSendContextChat: CraftComponent<{
-  context: Input<SendContextUiContext>;
-  onClose: Output<() => void>;
-}> = craftComponent(
-  'AiSendContextChat',
-  {
-    styles: `${AI_OVERLAY_THEME}
-      :scope {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-end;
-        padding: 20px;
-        pointer-events: none;
-        font-family: system-ui, -apple-system, sans-serif;
-        font-size: 13px;
-        color: var(--craft-ai-text);
-      }
-      :scope .craft-ai-chat {
-        pointer-events: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        width: min(460px, 100%);
-        max-height: min(760px, 88vh);
-        overflow: auto;
-        background: var(--craft-ai-bg);
-        border: 1px solid var(--craft-ai-border-subtle);
-        border-radius: 12px;
-        box-shadow: 0 20px 60px var(--craft-ai-shadow);
-        padding: 16px;
-      }
-      :scope .craft-ai-chat-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        cursor: grab;
-        /* Let the pointer handlers own touch drags instead of scrolling. */
-        touch-action: none;
-        user-select: none;
-      }
-      :scope .craft-ai-chat-header:active {
-        cursor: grabbing;
-      }
-      :scope .craft-ai-title {
-        font-size: 14px;
-        font-weight: 600;
-      }
-      :scope .craft-ai-chat-close {
-        background: transparent;
-        border: none;
-        font-size: 20px;
-        line-height: 1;
-        padding: 0 4px;
-        color: var(--craft-ai-text-muted);
-        cursor: pointer;
-      }
-      :scope .craft-ai-section {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      :scope .craft-ai-section-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--craft-ai-text-muted);
-      }
-      :scope .craft-ai-targets {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      :scope .craft-ai-target {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        max-width: 100%;
-        background: var(--craft-ai-surface-accent);
-        color: var(--craft-ai-accent-text);
-        border-radius: 999px;
-        padding: 3px 4px 3px 10px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 11px;
-      }
-      :scope .craft-ai-target-label {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      :scope .craft-ai-target-remove {
-        border: none;
-        background: transparent;
-        color: inherit;
-        cursor: pointer;
-        font-size: 13px;
-        line-height: 1;
-        padding: 2px 4px;
-        border-radius: 999px;
-      }
-      :scope .craft-ai-target-remove:hover {
-        background: var(--craft-ai-accent-soft);
-      }
-      :scope .craft-ai-empty {
-        margin: 0;
-        color: var(--craft-ai-text-muted);
-        font-size: 12px;
-      }
-      :scope .craft-ai-timeline {
-        margin: 0;
-        padding: 6px 8px;
-        list-style: none;
-        max-height: 190px;
-        overflow: auto;
-        background: var(--craft-ai-surface);
-        border: 1px solid var(--craft-ai-border-subtle);
-        border-radius: 6px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 11px;
-        line-height: 1.6;
-      }
-      :scope .craft-ai-timeline li {
-        display: flex;
-        gap: 6px;
-        white-space: nowrap;
-      }
-      :scope .craft-ai-event-time {
-        color: var(--craft-ai-text-muted);
-      }
-      :scope .craft-ai-event-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      :scope .craft-ai-phase {
-        text-transform: uppercase;
-        font-size: 10px;
-        letter-spacing: 0.03em;
-      }
-      :scope .craft-ai-phase--failed { color: var(--craft-ai-phase-failed); }
-      :scope .craft-ai-phase--succeeded { color: var(--craft-ai-phase-succeeded); }
-      :scope .craft-ai-phase--started { color: var(--craft-ai-phase-started); }
-      :scope .craft-ai-phase--emitted { color: var(--craft-ai-phase-emitted); }
-      :scope .craft-ai-textarea {
-        width: 100%;
-        box-sizing: border-box;
-        resize: vertical;
-        font: inherit;
-        border: 1px solid var(--craft-ai-border);
-        border-radius: 6px;
-        padding: 8px 10px;
-        color: var(--craft-ai-text);
-        background: var(--craft-ai-control-bg);
-        caret-color: var(--craft-ai-text);
-      }
-      :scope .craft-ai-textarea::placeholder {
-        color: var(--craft-ai-text-muted);
-        opacity: 1;
-      }
-      :scope .craft-ai-option input[type='checkbox'] {
-        accent-color: var(--craft-ai-accent);
-      }
-      :scope .craft-ai-textarea:focus-visible {
-        outline: 2px solid var(--craft-ai-focus);
-        outline-offset: -1px;
-      }
-      :scope .craft-ai-options {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 6px 12px;
-        margin: 0;
-        padding: 10px;
-        border: 1px solid var(--craft-ai-border-subtle);
-        border-radius: 6px;
-      }
-      :scope .craft-ai-options legend {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--craft-ai-text-muted);
-        padding: 0 4px;
-      }
-      :scope .craft-ai-option {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-      }
-      :scope .craft-ai-chat-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        align-items: center;
-      }
-      :scope .craft-ai-chat-actions .spacer {
-        flex: 1;
-      }
-      :scope button {
-        font: inherit;
-        font-size: 12px;
-        border: 1px solid var(--craft-ai-border);
-        background: var(--craft-ai-control-bg);
-        color: var(--craft-ai-text);
-        border-radius: 6px;
-        padding: 7px 11px;
-        cursor: pointer;
-      }
-      :scope button:hover:not(:disabled) {
-        background: var(--craft-ai-surface);
-      }
-      :scope button:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-      }
-      :scope button.primary {
-        background: var(--craft-ai-accent);
-        border-color: var(--craft-ai-accent);
-        color: #ffffff;
-      }
-      :scope button.primary:hover:not(:disabled) {
-        background: var(--craft-ai-accent-hover);
-      }
-      :scope button.recording {
-        background: var(--craft-ai-danger);
-        border-color: var(--craft-ai-danger);
-        color: #ffffff;
-      }
-      :scope .craft-ai-success {
-        margin: 0;
-        color: var(--craft-ai-success);
-        font-size: 12px;
-      }
-      :scope .craft-ai-warning {
-        margin: 0;
-        color: var(--craft-ai-warning);
-        font-size: 12px;
-      }
-    `,
-  },
-  function* (
-    context: Input<SendContextUiContext>,
-    onClose: Output<() => void>,
-  ): Generator<unknown, ChatFactoryContext, unknown> {
+/**
+ * The chat's own memory: captured targets, the recorded timeline, the draft
+ * instruction and the send in flight. A rerender must find all of it again.
+ */
+const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
+  { name: 'aiSendContextChatState', providedIn: 'toProvide' },
+  function* (input: {
+    readonly context: Input<SendContextUiContext>;
+    readonly onClose: Output<() => void>;
+  }): Generator<unknown, ChatFactoryContext, unknown> {
+    const { context, onClose } = input;
     const temporalRuntime = yield* CraftTemporalRuntime();
 
     // Reactive values carry `unique symbol`s that declaration emit cannot name
@@ -886,8 +652,261 @@ export const AiSendContextChat: CraftComponent<{
       retrySend,
       copyPayload,
     };
+  }
+);
+
+export const AiSendContextChat = craftComponent(
+  'AiSendContextChat',
+  {
+    providers: [provideAiSendContextChatState()],
+    styles: `${AI_OVERLAY_THEME}
+      :scope {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        padding: 20px;
+        pointer-events: none;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+        color: var(--craft-ai-text);
+      }
+      :scope .craft-ai-chat {
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: min(460px, 100%);
+        max-height: min(760px, 88vh);
+        overflow: auto;
+        background: var(--craft-ai-bg);
+        border: 1px solid var(--craft-ai-border-subtle);
+        border-radius: 12px;
+        box-shadow: 0 20px 60px var(--craft-ai-shadow);
+        padding: 16px;
+      }
+      :scope .craft-ai-chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        cursor: grab;
+        /* Let the pointer handlers own touch drags instead of scrolling. */
+        touch-action: none;
+        user-select: none;
+      }
+      :scope .craft-ai-chat-header:active {
+        cursor: grabbing;
+      }
+      :scope .craft-ai-title {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      :scope .craft-ai-chat-close {
+        background: transparent;
+        border: none;
+        font-size: 20px;
+        line-height: 1;
+        padding: 0 4px;
+        color: var(--craft-ai-text-muted);
+        cursor: pointer;
+      }
+      :scope .craft-ai-section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      :scope .craft-ai-section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--craft-ai-text-muted);
+      }
+      :scope .craft-ai-targets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      :scope .craft-ai-target {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        background: var(--craft-ai-surface-accent);
+        color: var(--craft-ai-accent-text);
+        border-radius: 999px;
+        padding: 3px 4px 3px 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+      }
+      :scope .craft-ai-target-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      :scope .craft-ai-target-remove {
+        border: none;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+        padding: 2px 4px;
+        border-radius: 999px;
+      }
+      :scope .craft-ai-target-remove:hover {
+        background: var(--craft-ai-accent-soft);
+      }
+      :scope .craft-ai-empty {
+        margin: 0;
+        color: var(--craft-ai-text-muted);
+        font-size: 12px;
+      }
+      :scope .craft-ai-timeline {
+        margin: 0;
+        padding: 6px 8px;
+        list-style: none;
+        max-height: 190px;
+        overflow: auto;
+        background: var(--craft-ai-surface);
+        border: 1px solid var(--craft-ai-border-subtle);
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        line-height: 1.6;
+      }
+      :scope .craft-ai-timeline li {
+        display: flex;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      :scope .craft-ai-event-time {
+        color: var(--craft-ai-text-muted);
+      }
+      :scope .craft-ai-event-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      :scope .craft-ai-phase {
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.03em;
+      }
+      :scope .craft-ai-phase--failed { color: var(--craft-ai-phase-failed); }
+      :scope .craft-ai-phase--succeeded { color: var(--craft-ai-phase-succeeded); }
+      :scope .craft-ai-phase--started { color: var(--craft-ai-phase-started); }
+      :scope .craft-ai-phase--emitted { color: var(--craft-ai-phase-emitted); }
+      :scope .craft-ai-textarea {
+        width: 100%;
+        box-sizing: border-box;
+        resize: vertical;
+        font: inherit;
+        border: 1px solid var(--craft-ai-border);
+        border-radius: 6px;
+        padding: 8px 10px;
+        color: var(--craft-ai-text);
+        background: var(--craft-ai-control-bg);
+        caret-color: var(--craft-ai-text);
+      }
+      :scope .craft-ai-textarea::placeholder {
+        color: var(--craft-ai-text-muted);
+        opacity: 1;
+      }
+      :scope .craft-ai-option input[type='checkbox'] {
+        accent-color: var(--craft-ai-accent);
+      }
+      :scope .craft-ai-textarea:focus-visible {
+        outline: 2px solid var(--craft-ai-focus);
+        outline-offset: -1px;
+      }
+      :scope .craft-ai-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 6px 12px;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid var(--craft-ai-border-subtle);
+        border-radius: 6px;
+      }
+      :scope .craft-ai-options legend {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--craft-ai-text-muted);
+        padding: 0 4px;
+      }
+      :scope .craft-ai-option {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+      }
+      :scope .craft-ai-chat-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      :scope .craft-ai-chat-actions .spacer {
+        flex: 1;
+      }
+      :scope button {
+        font: inherit;
+        font-size: 12px;
+        border: 1px solid var(--craft-ai-border);
+        background: var(--craft-ai-control-bg);
+        color: var(--craft-ai-text);
+        border-radius: 6px;
+        padding: 7px 11px;
+        cursor: pointer;
+      }
+      :scope button:hover:not(:disabled) {
+        background: var(--craft-ai-surface);
+      }
+      :scope button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      :scope button.primary {
+        background: var(--craft-ai-accent);
+        border-color: var(--craft-ai-accent);
+        color: #ffffff;
+      }
+      :scope button.primary:hover:not(:disabled) {
+        background: var(--craft-ai-accent-hover);
+      }
+      :scope button.recording {
+        background: var(--craft-ai-danger);
+        border-color: var(--craft-ai-danger);
+        color: #ffffff;
+      }
+      :scope .craft-ai-success {
+        margin: 0;
+        color: var(--craft-ai-success);
+        font-size: 12px;
+      }
+      :scope .craft-ai-warning {
+        margin: 0;
+        color: var(--craft-ai-warning);
+        font-size: 12px;
+      }
+    `,
   },
-  ({
+  function* (inputs: {
+    readonly context: Input<SendContextUiContext>;
+    readonly onClose: Output<() => void>;
+  }) {
+    const {
     onClose,
     visibleEvents,
     eventCount,
@@ -912,7 +931,8 @@ export const AiSendContextChat: CraftComponent<{
     sendPayload,
     retrySend,
     copyPayload,
-  }: ChatContext) =>
+    } = yield* AiSendContextChatState(inputs);
+    return
     div({ class: 'craft-ai-chat-overlay' }, [
       div(
         {
@@ -1235,8 +1255,12 @@ export const AiSendContextChat: CraftComponent<{
           ] as never),
         ],
       ),
-    ]),
-);
+    ]);
+  },
+) as unknown as CraftComponent<{
+  readonly context: InputValue<SendContextUiContext>;
+  readonly onClose: () => void;
+}, any>;
 
 function toTimelineRow(event: SendContextEvent): SendContextTimelineRow {
   return {

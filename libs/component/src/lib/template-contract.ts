@@ -3,6 +3,7 @@ import type {
   ComponentTemplateOf,
   ComponentTemplateNameOf,
   FactoryContext,
+  TemplateChildren,
   Output,
   PropsOf,
   TemplateMethodUse,
@@ -289,7 +290,7 @@ type FindElement<
             : Children extends DeferNode<infer Loaded>
               ? FindElement<
                   Loaded extends CraftComponent<any, any>
-                    ? ReturnType<ComponentTemplateOf<Loaded>>
+                    ? TemplateChildren<ComponentTemplateOf<Loaded>>
                     : ReturnType<Children['resolve']>,
                   Tag,
                   Props
@@ -355,7 +356,7 @@ type VisitProperty<
           : Children extends DeferNode<infer Loaded>
             ? VisitProperty<
                 Loaded extends CraftComponent<any, any>
-                  ? ReturnType<ComponentTemplateOf<Loaded>>
+                  ? TemplateChildren<ComponentTemplateOf<Loaded>>
                   : ReturnType<Children['resolve']>,
                 Tag,
                 Property,
@@ -426,7 +427,7 @@ type VisitYieldableProperty<
           : Children extends DeferNode<infer Loaded>
             ? VisitYieldableProperty<
                 Loaded extends CraftComponent<any, any>
-                  ? ReturnType<ComponentTemplateOf<Loaded>>
+                  ? TemplateChildren<ComponentTemplateOf<Loaded>>
                   : ReturnType<Children['resolve']>,
                 Tag,
                 Property,
@@ -503,7 +504,7 @@ type VisitContextUse<
           : Children extends DeferNode<infer Loaded>
             ? VisitContextUse<
                 Loaded extends CraftComponent<any, any>
-                  ? ReturnType<ComponentTemplateOf<Loaded>>
+                  ? TemplateChildren<ComponentTemplateOf<Loaded>>
                   : ReturnType<Children['resolve']>,
                 Tag,
                 Property,
@@ -597,7 +598,7 @@ type VisitOutput<
           : Children extends DeferNode<infer Loaded>
             ? VisitOutput<
                 Loaded extends CraftComponent<any, any>
-                  ? ReturnType<ComponentTemplateOf<Loaded>>
+                  ? TemplateChildren<ComponentTemplateOf<Loaded>>
                   : ReturnType<Children['resolve']>,
                 Target,
                 Name,
@@ -703,7 +704,7 @@ export type TemplateUsesComponent<
               ? [Loaded] extends [Component]
                 ? true
                 : TemplateUsesComponent<
-                    ReturnType<ComponentTemplateOf<Loaded>>,
+                    TemplateChildren<ComponentTemplateOf<Loaded>>,
                     Component
                   >
               : TemplateUsesComponent<
@@ -909,7 +910,7 @@ type VisitRenderedState<
               : Children extends DeferNode<infer Loaded>
                 ? VisitRenderedState<
                     Loaded extends CraftComponent<any, any>
-                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
                       : ReturnType<Children['resolve']>,
                     StateName,
                     Expected,
@@ -1098,7 +1099,7 @@ type VisitAvailableAction<
               : Children extends DeferNode<infer Loaded>
                 ? VisitAvailableAction<
                     Loaded extends CraftComponent<any, any>
-                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
                       : ReturnType<Children['resolve']>,
                     EventName,
                     LocalName,
@@ -1256,7 +1257,7 @@ type VisitNamedElementIdentities<
                 : Children extends DeferNode<infer Loaded>
                   ? VisitNamedElementIdentities<
                       Loaded extends CraftComponent<any, any>
-                        ? ReturnType<ComponentTemplateOf<Loaded>>
+                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
                         : ReturnType<Children['resolve']>,
                       Owner,
                       Seen,
@@ -1409,7 +1410,7 @@ type NamedElementPropsOf<
                 : Children extends DeferNode<infer Loaded>
                   ? NamedElementPropsOf<
                       Loaded extends CraftComponent<any, any>
-                        ? ReturnType<ComponentTemplateOf<Loaded>>
+                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
                         : ReturnType<Children['resolve']>,
                       Identity,
                       Owner,
@@ -1554,7 +1555,7 @@ type NamedElementDelegatesToContextOf<
               : Children extends DeferNode<infer Loaded>
                 ? NamedElementDelegatesToContextOf<
                     Loaded extends CraftComponent<any, any>
-                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
                       : ReturnType<Children['resolve']>,
                     Identity,
                     Property,
@@ -1749,7 +1750,7 @@ type NamedElementRendersStateWhenOf<
               : Children extends DeferNode<infer Loaded>
                 ? NamedElementRendersStateWhenOf<
                     Loaded extends CraftComponent<any, any>
-                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
                       : ReturnType<Children['resolve']>,
                     Identity,
                     Property,
@@ -1926,7 +1927,7 @@ type VisitNamedElement<
               : Children extends DeferNode<infer Loaded>
                 ? VisitNamedElement<
                     Loaded extends CraftComponent<any, any>
-                      ? ReturnType<ComponentTemplateOf<Loaded>>
+                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
                       : ReturnType<Children['resolve']>,
                     Identity,
                     Expected,

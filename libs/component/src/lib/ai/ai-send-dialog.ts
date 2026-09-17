@@ -8,7 +8,10 @@ import {
   type TemporalTaskHandle,
   type SendContextPayload,
 } from '@craft-ts/core';
-import { ɵtoCraftService as toCraftService } from '@craft-ts/core';
+import {
+  craftService,
+  ɵtoCraftService as toCraftService,
+} from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import {
@@ -26,7 +29,12 @@ import {
   strong,
   textarea,
 } from '../hyperscript';
-import type { CraftComponent, Input, Output } from '../types';
+import type {
+  CraftComponent,
+  Input,
+  InputValue,
+  Output,
+} from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
 import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 
@@ -162,15 +170,184 @@ function formatPrompt(
 }
 
 /**
+ * Everything the dialog remembers: its draft instruction, its options, and the
+ * copy in flight. It lives in a service so a rerender finds the same draft.
+ */
+const { AiSendDialogState, provideAiSendDialogState } = craftService(
+  { name: 'aiSendDialogState', providedIn: 'toProvide' },
+  function* (input: {
+    readonly payload: Input<AiDialogPayload>;
+    readonly onClose: Output<() => void>;
+  }): Generator<unknown, AiDialogFactoryContext, unknown> {
+    const { payload, onClose } = input;
+    const temporalRuntime = yield* CraftTemporalRuntime();
+    type InstructionState = (() => string) & {
+      setInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+    };
+    type CopiedState = (() => boolean) & {
+      setCopied: (value: boolean) => Generator<unknown, unknown, unknown>;
+    };
+    type PromptOptionsState = (() => PromptOptions) & {
+      setPromptOptions: (
+        value: PromptOptions,
+      ) => Generator<unknown, unknown, unknown>;
+    };
+    type CaptureState = (() => boolean) & {
+      setCaptureInProgress: (
+        value: boolean,
+      ) => Generator<unknown, unknown, unknown>;
+    };
+    type ErrorState = (() => string) & {
+      setCaptureError: (value: string) => Generator<unknown, unknown, unknown>;
+    };
+
+    // This component ships in a published package, so its inferred type goes
+    // through declaration emit. Reactive values (craft `state()`, Angular
+    // signals) carry `unique symbol`s that the emitter cannot name (TS4023),
+    // so the signals stay local and the context exposes plain accessors only.
+    const instruction = yield* state('instruction', '', ({ set }) => ({
+      setInstruction: (value: string) => set(value),
+    })) as unknown as Generator<never, InstructionState, unknown>;
+    const copied = yield* state('copied', false, ({ set }) => ({
+      setCopied: (value: boolean) => set(value),
+    })) as unknown as Generator<never, CopiedState, unknown>;
+    const promptOptions = yield* state(
+      'promptOptions',
+      DEFAULT_PROMPT_OPTIONS,
+      ({ set }) => ({
+        setPromptOptions: (value: PromptOptions) => set(value),
+      }),
+    ) as unknown as Generator<never, PromptOptionsState, unknown>;
+    const captureInProgress = yield* state(
+      'captureInProgress',
+      false,
+      ({ set }) => ({
+        setCaptureInProgress: (value: boolean) => set(value),
+      }),
+    ) as unknown as Generator<never, CaptureState, unknown>;
+    const captureError = yield* state('captureError', '', ({ set }) => ({
+      setCaptureError: (value: string) => set(value),
+    })) as unknown as Generator<never, ErrorState, unknown>;
+
+    const setCopied: (value: boolean) => void = craftMethod(
+      'setCopied',
+      function* (value: boolean) {
+        yield* copied.setCopied(value);
+      },
+    );
+    const setCaptureInProgress: (value: boolean) => void = craftMethod(
+      'setCaptureInProgress',
+      function* (value: boolean) {
+        yield* captureInProgress.setCaptureInProgress(value);
+      },
+    );
+    const setCaptureError: (value: string) => void = craftMethod(
+      'setCaptureError',
+      function* (value: string) {
+        yield* captureError.setCaptureError(value);
+      },
+    );
+
+    let copiedTimer: TemporalTaskHandle | null = null;
+
+    const readInstruction = (): string => craftUse(instruction());
+    const readCopied = (): boolean => craftUse(copied());
+    const readPromptOptions = (): PromptOptions => craftUse(promptOptions());
+    const readCaptureInProgress = (): boolean =>
+      craftUse(captureInProgress());
+    const readCaptureError = (): string => craftUse(captureError());
+
+    fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
+      (event) => {
+        if (event.key === 'Escape') {
+          onClose();
+        }
+      },
+    );
+
+    const copy = () => {
+      const text = readInstruction().trim();
+      if (!text || readCaptureInProgress()) return;
+
+      const options = readPromptOptions();
+      setCopied(false);
+      setCaptureError('');
+      setCaptureInProgress(true);
+      setTimeout(() => {
+        try {
+          const currentPayload = craftUse(payload());
+          const componentCapture = options.includeDomStyles
+            ? currentPayload.captureElement === undefined
+              ? undefined
+              : captureAiDomStyles(currentPayload.captureElement)
+            : undefined;
+          const pageCapture = options.includePageDomStyles
+            ? captureAiDomStyles(document.documentElement, {
+                maxBytes: 1024 * 1024,
+                maxNodes: 10000,
+              })
+            : undefined;
+          const content = formatPrompt(
+            { ...currentPayload, instruction: text },
+            options,
+            { component: componentCapture, page: pageCapture },
+          );
+          void navigator.clipboard
+            .writeText(content)
+            .then(() => {
+              setCopied(true);
+              copiedTimer?.cancel();
+              copiedTimer = temporalRuntime.schedule(
+                () => {
+                  setCopied(false);
+                },
+                2500,
+                {
+                  kind: 'ai-copy-feedback',
+                  owner: 'ai-send-dialog',
+                },
+              );
+            })
+            .catch(() => {
+              setCaptureError('Impossible de copier le prompt.');
+            })
+            .finally(() => {
+              setCaptureInProgress(false);
+            });
+        } catch (error) {
+          setCaptureError(
+            error instanceof Error
+              ? error.message
+              : 'Impossible de préparer le prompt.',
+          );
+          setCaptureInProgress(false);
+        }
+      }, 0);
+    };
+
+    return {
+      payload,
+      onClose,
+      instruction: readInstruction,
+      writeInstruction: instruction.setInstruction,
+      copied: readCopied,
+      options: readPromptOptions,
+      writeOptions: promptOptions.setPromptOptions,
+      captureInProgress: readCaptureInProgress,
+      captureError: readCaptureError,
+      copy,
+    };
+  }
+);
+
+/**
  * Modal that collects an instruction and copies the formatted prompt, with the
  * captured component context and app snapshot, to the clipboard.
  */
-export const AiSendDialog: CraftComponent<{
-  payload: Input<AiDialogPayload>;
-  onClose: Output<() => void>;
-}> = craftComponent(
+export const AiSendDialog = craftComponent(
   'AiSendDialog',
   {
+    providers: [provideAiSendDialogState()],
     styles: `${AI_OVERLAY_THEME}
       :scope {
         position: fixed;
@@ -342,180 +519,23 @@ export const AiSendDialog: CraftComponent<{
       }
     `,
   },
-  function* (
-    payload: Input<AiDialogPayload>,
-    onClose: Output<() => void>,
-  ): Generator<unknown, AiDialogFactoryContext, unknown> {
-    const temporalRuntime = yield* CraftTemporalRuntime();
-    type InstructionState = (() => string) & {
-      setInstruction: (value: string) => Generator<unknown, unknown, unknown>;
-    };
-    type CopiedState = (() => boolean) & {
-      setCopied: (value: boolean) => Generator<unknown, unknown, unknown>;
-    };
-    type PromptOptionsState = (() => PromptOptions) & {
-      setPromptOptions: (
-        value: PromptOptions,
-      ) => Generator<unknown, unknown, unknown>;
-    };
-    type CaptureState = (() => boolean) & {
-      setCaptureInProgress: (
-        value: boolean,
-      ) => Generator<unknown, unknown, unknown>;
-    };
-    type ErrorState = (() => string) & {
-      setCaptureError: (value: string) => Generator<unknown, unknown, unknown>;
-    };
-
-    // This component ships in a published package, so its inferred type goes
-    // through declaration emit. Reactive values (craft `state()`, Angular
-    // signals) carry `unique symbol`s that the emitter cannot name (TS4023),
-    // so the signals stay local and the context exposes plain accessors only.
-    const instruction = yield* state('instruction', '', ({ set }) => ({
-      setInstruction: (value: string) => set(value),
-    })) as unknown as Generator<never, InstructionState, unknown>;
-    const copied = yield* state('copied', false, ({ set }) => ({
-      setCopied: (value: boolean) => set(value),
-    })) as unknown as Generator<never, CopiedState, unknown>;
-    const promptOptions = yield* state(
-      'promptOptions',
-      DEFAULT_PROMPT_OPTIONS,
-      ({ set }) => ({
-        setPromptOptions: (value: PromptOptions) => set(value),
-      }),
-    ) as unknown as Generator<never, PromptOptionsState, unknown>;
-    const captureInProgress = yield* state(
-      'captureInProgress',
-      false,
-      ({ set }) => ({
-        setCaptureInProgress: (value: boolean) => set(value),
-      }),
-    ) as unknown as Generator<never, CaptureState, unknown>;
-    const captureError = yield* state('captureError', '', ({ set }) => ({
-      setCaptureError: (value: string) => set(value),
-    })) as unknown as Generator<never, ErrorState, unknown>;
-
-    const setCopied: (value: boolean) => void = craftMethod(
-      'setCopied',
-      function* (value: boolean) {
-        yield* copied.setCopied(value);
-      },
-    );
-    const setCaptureInProgress: (value: boolean) => void = craftMethod(
-      'setCaptureInProgress',
-      function* (value: boolean) {
-        yield* captureInProgress.setCaptureInProgress(value);
-      },
-    );
-    const setCaptureError: (value: string) => void = craftMethod(
-      'setCaptureError',
-      function* (value: string) {
-        yield* captureError.setCaptureError(value);
-      },
-    );
-
-    let copiedTimer: TemporalTaskHandle | null = null;
-
-    const readInstruction = (): string => craftUse(instruction());
-    const readCopied = (): boolean => craftUse(copied());
-    const readPromptOptions = (): PromptOptions => craftUse(promptOptions());
-    const readCaptureInProgress = (): boolean =>
-      craftUse(captureInProgress());
-    const readCaptureError = (): string => craftUse(captureError());
-
-    fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
-      (event) => {
-        if (event.key === 'Escape') {
-          onClose();
-        }
-      },
-    );
-
-    const copy = () => {
-      const text = readInstruction().trim();
-      if (!text || readCaptureInProgress()) return;
-
-      const options = readPromptOptions();
-      setCopied(false);
-      setCaptureError('');
-      setCaptureInProgress(true);
-      setTimeout(() => {
-        try {
-          const currentPayload = craftUse(payload());
-          const componentCapture = options.includeDomStyles
-            ? currentPayload.captureElement === undefined
-              ? undefined
-              : captureAiDomStyles(currentPayload.captureElement)
-            : undefined;
-          const pageCapture = options.includePageDomStyles
-            ? captureAiDomStyles(document.documentElement, {
-                maxBytes: 1024 * 1024,
-                maxNodes: 10000,
-              })
-            : undefined;
-          const content = formatPrompt(
-            { ...currentPayload, instruction: text },
-            options,
-            { component: componentCapture, page: pageCapture },
-          );
-          void navigator.clipboard
-            .writeText(content)
-            .then(() => {
-              setCopied(true);
-              copiedTimer?.cancel();
-              copiedTimer = temporalRuntime.schedule(
-                () => {
-                  setCopied(false);
-                },
-                2500,
-                {
-                  kind: 'ai-copy-feedback',
-                  owner: 'ai-send-dialog',
-                },
-              );
-            })
-            .catch(() => {
-              setCaptureError('Impossible de copier le prompt.');
-            })
-            .finally(() => {
-              setCaptureInProgress(false);
-            });
-        } catch (error) {
-          setCaptureError(
-            error instanceof Error
-              ? error.message
-              : 'Impossible de préparer le prompt.',
-          );
-          setCaptureInProgress(false);
-        }
-      }, 0);
-    };
-
-    return {
+  function* (inputs: {
+    readonly payload: Input<AiDialogPayload>;
+    readonly onClose: Output<() => void>;
+  }) {
+    const {
       payload,
       onClose,
-      instruction: readInstruction,
-      writeInstruction: instruction.setInstruction,
-      copied: readCopied,
-      options: readPromptOptions,
-      writeOptions: promptOptions.setPromptOptions,
-      captureInProgress: readCaptureInProgress,
-      captureError: readCaptureError,
+      instruction,
+      writeInstruction,
+      copied,
+      options,
+      writeOptions,
+      captureInProgress,
+      captureError,
       copy,
-    };
-  },
-  ({
-    payload,
-    onClose,
-    instruction,
-    writeInstruction,
-    copied,
-    options,
-    writeOptions,
-    captureInProgress,
-    captureError,
-    copy,
-  }: AiDialogContext) =>
+    } = yield* AiSendDialogState(inputs);
+    return
     dialog(
       {
         class: 'craft-ai-overlay',
@@ -721,6 +741,9 @@ export const AiSendDialog: CraftComponent<{
           ]),
         ],
       ),
-    ),
-
-);
+    );
+  },
+) as unknown as CraftComponent<{
+  readonly payload: InputValue<AiDialogPayload>;
+  readonly onClose: () => void;
+}, any>;

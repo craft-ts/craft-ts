@@ -19,6 +19,7 @@ import type {
   YieldableReactiveValue,
 } from '@craft-ts/core';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from '@craft-ts/core';
+import type { CraftServiceTransform } from '@craft-ts/core';
 import type {
   CraftChannels,
   EmptyChannels,
@@ -419,8 +420,29 @@ type SlotOutput<Value> = Value extends (...args: any[]) => infer Output
 export type ContentDependencies<Slots extends object> =
   CraftNodeChildrenDependencies<SlotOutput<NonNullable<Slots[keyof Slots]>>>;
 
+/**
+ * A component is one function: its parameters are the component inputs, its
+ * body may `yield*` services, and it returns the rendered children.
+ *
+ * The historical name is kept for the generic slots that used to carry a
+ * separate logic factory: there is only one function now, so `Factory` and
+ * `Template` always denote the same one.
+ */
 export type ComponentFactory = (...args: any[]) => any;
 
+/** The children a template renders, whether it is a generator or not. */
+export type TemplateChildren<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? Awaited<ResolveGeneratorResult<Output>>
+  : never;
+
+/**
+ * What a template returns once its generator is driven.
+ *
+ * Kept under the historical name because every consumer reads it as "the value
+ * the component function produced".
+ */
 export type FactoryContext<Factory extends ComponentFactory> = Awaited<
   ResolveGeneratorResult<ReturnType<Factory>>
 >;
@@ -449,8 +471,21 @@ export type ComponentLogicFieldExceptions<Context> =
 type ComponentTemplateFieldExceptions<Template> = Template extends (
   ...args: any[]
 ) => any
-  ? CraftNodeChildrenRawFieldExceptions<ReturnType<Template>>
+  ? CraftNodeChildrenRawFieldExceptions<TemplateChildren<Template>>
   : never;
+
+/**
+ * The values the services a template yields resolve to.
+ *
+ * Read structurally from the yield request's own resolver so this layer stays
+ * ignorant of how core shapes a service request.
+ */
+export type TemplateServiceOutputs<Template> =
+  FactoryYielded<Template & ComponentFactory> extends infer Yielded
+    ? Yielded extends { readonly resolve: (...args: any[]) => infer Result }
+      ? Result
+      : never
+    : never;
 
 export type ComponentResidualFieldExceptions<Factory, Template> = 0 extends 1 &
   Factory
@@ -461,7 +496,7 @@ export type ComponentResidualFieldExceptions<Factory, Template> = 0 extends 1 &
       ? Template extends (...args: any[]) => any
         ?
             | ResidualFieldValidationCasesByIdentity<
-                ComponentLogicFieldExceptions<FactoryContext<Factory>>,
+                ComponentLogicFieldExceptions<TemplateServiceOutputs<Template>>,
                 FieldValidationHandledIdentitiesOf<
                   ComponentTemplateFieldExceptions<Template>
                 >
@@ -477,13 +512,19 @@ export type FactoryYielded<Factory extends ComponentFactory> =
     ? Yielded
     : never;
 
+/**
+ * The one function a component is made of: inputs in, children out, services
+ * reached with `yield*` on the way.
+ */
 export type ComponentTemplate<
-  Context = unknown,
   Output extends CraftNodeChildren = CraftNodeChildren,
-> = (
-  context: YieldableTemplateContext<Context>,
+> = (...args: any[]) => Output | Generator<any, Output, any>;
+
+/** Shape the interpreter drives: inputs as an array, host props aside. */
+export type RuntimeComponentTemplate = (
+  args: readonly unknown[],
   hostProps?: HostProps,
-) => Output;
+) => CraftNodeChildren | Generator<any, CraftNodeChildren, any>;
 
 type NamedComponentTemplate<Template, Name extends string> = Template & {
   readonly [COMPONENT_TEMPLATE_NAME]?: Name;
@@ -497,21 +538,21 @@ export type ComponentTemplateNameOf<Template> = Template extends {
 
 export type TemplateDependencies<Template> = Template extends (
   ...args: any[]
-) => infer Output
-  ? CraftNodeChildrenDependencies<Output>
+) => any
+  ? CraftNodeChildrenDependencies<TemplateChildren<Template>>
   : {};
 
 export type TemplateCssVars<Template> = Template extends (
   ...args: any[]
-) => infer Output
-  ? CraftNodeChildrenCssVars<Output>
+) => any
+  ? CraftNodeChildrenCssVars<TemplateChildren<Template>>
   : import('./css-vars.type').EmptyCssVarContract;
 
 /** Async sources a template renders without covering them with a `pendingNode`. */
 export type TemplatePendingSources<Template> = Template extends (
   ...args: any[]
-) => infer Output
-  ? CraftNodeChildrenPendingSources<Output>
+) => any
+  ? CraftNodeChildrenPendingSources<TemplateChildren<Template>>
   : never;
 
 /**
@@ -520,8 +561,8 @@ export type TemplatePendingSources<Template> = Template extends (
  */
 export type TemplateHeadingNeed<Template> = Template extends (
   ...args: any[]
-) => infer Output
-  ? CraftNodeChildrenHeadingNeed<Output>
+) => any
+  ? CraftNodeChildrenHeadingNeed<TemplateChildren<Template>>
   : never;
 
 /**
@@ -530,53 +571,53 @@ export type TemplateHeadingNeed<Template> = Template extends (
  */
 export type TemplateSettledExceptions<Template> = Template extends (
   ...args: any[]
-) => infer Output
-  ? CraftNodeChildrenSettledExceptions<Output>
+) => any
+  ? CraftNodeChildrenSettledExceptions<TemplateChildren<Template>>
   : never;
 
 export type HostRequiredLogic<Context extends object> = (
   ...args: any[]
 ) => Context;
 
-export type HostTemplate<Context extends object> = ComponentTemplate<Context>;
-
-export type LogicDecorator = (baseLogic: ComponentFactory) => ComponentFactory;
+export type HostTemplate = ComponentTemplate;
 
 export type TemplateDecorator = (
   baseTemplate: ComponentTemplate<any>,
 ) => ComponentTemplate<any>;
 
-type DirectiveInstance<Logic extends LogicDecorator> =
-  ReturnType<Logic> extends ComponentFactory
-    ? FactoryContext<ReturnType<Logic>>
-    : unknown;
+/**
+ * What a directive is allowed to change about a component.
+ *
+ * `service` rewrites an implementation for the scope the directive is piped
+ * into; `template` wraps what the component renders. Nothing else: a directive
+ * no longer adds props, it enriches or restricts a service façade.
+ */
+export type DirectiveTransforms = {
+  readonly service?: CraftServiceTransform | readonly CraftServiceTransform[];
+  readonly template?: TemplateDecorator;
+};
 
 export const CRAFT_DIRECTIVE = Symbol('craft-directive');
 declare const CRAFT_DIRECTIVE_DEPS: unique symbol;
 
 export interface CraftDirective<
-  Logic extends LogicDecorator = LogicDecorator,
   Template extends (
     baseTemplate: ComponentTemplate<any>,
   ) => any = TemplateDecorator,
   TemplateDependencies extends object = {},
-> extends CraftRegistrationTarget<
-    string,
-    'directive',
-    DirectiveInstance<Logic>
-  > {
+> extends CraftRegistrationTarget<string, 'directive', unknown> {
   readonly [CRAFT_DIRECTIVE]: {
     readonly name: string;
     readonly meta: DirectiveMeta;
-    readonly logic: Logic;
-    readonly template: Template;
+    readonly service: readonly CraftServiceTransform[];
+    readonly template: Template | undefined;
     readonly componentOperator?: ComponentOperatorDefinition;
   };
   readonly [CRAFT_DIRECTIVE_DEPS]?: TemplateDependencies;
 }
 
 export type CraftDirectiveTemplateDependencies<Directive> =
-  Directive extends CraftDirective<any, any, infer Dependencies extends object>
+  Directive extends CraftDirective<any, infer Dependencies extends object>
     ? Dependencies
     : {};
 
@@ -669,11 +710,11 @@ export interface StyleOwner {
   readonly registrationTarget?: unknown;
 }
 
-export interface ComponentDefinition<Context = unknown> {
+export interface ComponentDefinition {
   readonly name: string;
   readonly meta: ComponentMeta;
-  readonly factory: ComponentFactory;
-  readonly template: ComponentTemplate<Context>;
+  readonly template: ComponentTemplate;
+  readonly service: readonly CraftServiceTransform[];
   readonly styleOwners: readonly StyleOwner[];
   readonly scopeDefinition: object;
   readonly composition?: ComponentCompositionDefinition;
@@ -814,8 +855,7 @@ export type ProviderExceptions<Providers> =
       : never;
 
 type ComponentFactoryExceptions<Factory extends ComponentFactory> =
-  | ExtractCraftGenExceptions<FactoryYielded<Factory>>
-  | Extract<FactoryContext<Factory>, { readonly _tag: string }>;
+  ExtractCraftGenExceptions<FactoryYielded<Factory>>;
 
 export type ComponentInitializationExceptions<
   Factory extends ComponentFactory,
@@ -838,10 +878,13 @@ export type ComponentInitializationExceptionCodes<
 export type ComponentInitializationExceptionCodesForTemplate<
   Factory extends ComponentFactory,
   Providers,
-  Template extends ComponentTemplate<FactoryContext<Factory>>,
+  Template extends ComponentTemplate,
 > = Exclude<
   ComponentInitializationExceptionCodes<Factory, Providers>,
-  Extract<CraftNodeChildrenHandledExceptionCodes<ReturnType<Template>>, string>
+  Extract<
+    CraftNodeChildrenHandledExceptionCodes<TemplateChildren<Template>>,
+    string
+  >
 >;
 
 type ComponentOperatorProviders<Operator> = Operator extends {
@@ -937,10 +980,8 @@ type ComponentOperatorExhaustiveCheck<
             }
         : unknown);
 
-type ComponentTemplateHandledExceptionCodes<
-  Template extends ComponentTemplate<any>,
-> = Extract<
-  CraftNodeChildrenHandledExceptionCodes<ReturnType<Template>>,
+type ComponentTemplateHandledExceptionCodes<Template> = Extract<
+  CraftNodeChildrenHandledExceptionCodes<TemplateChildren<Template>>,
   string
 >;
 
@@ -1103,8 +1144,9 @@ type InvalidComponentFactoryInput<
   Value,
   Path extends string,
   IsProjectionFactory extends boolean,
-> =
-  IsComponentFactoryInput<Value> extends true
+> = 0 extends 1 & Value
+  ? never
+  : IsComponentFactoryInput<Value> extends true
     ? never
     : Value extends object
       ? [InvalidComponentFactoryInputKeys<Value>] extends [never]
@@ -1120,40 +1162,45 @@ type InvalidComponentFactoryInput<
           readonly ERROR_component_factory_inputs_must_be_Input_or_Output: Path;
         };
 
-type InvalidComponentFactoryInputs<Factory extends ComponentFactory> =
+type InvalidComponentFactoryInputs<
+  Factory extends ComponentFactory,
+  Meta = unknown,
+> =
   Parameters<Factory> extends infer Parameters extends readonly unknown[]
     ? {
         [Index in keyof Parameters]: InvalidComponentFactoryInput<
           Parameters[Index],
-          `factory parameter ${Extract<Index, string>}`,
-          FactoryContext<Factory> extends {
-            readonly contract: unknown;
-            readonly key: PropertyKey;
-          }
-            ? true
-            : false
+          `component input ${Extract<Index, string>}`,
+          [ProjectionContractOfMeta<Meta>] extends [never] ? false : true
         >;
       }[Extract<keyof Parameters, `${number}`>]
     : never;
 
-export type ValidComponentFactoryInputs<Factory extends ComponentFactory> = [
-  InvalidComponentFactoryInputs<Factory>,
-] extends [never]
+export type ValidComponentFactoryInputs<
+  Factory extends ComponentFactory,
+  Meta = unknown,
+> = [InvalidComponentFactoryInputs<Factory, Meta>] extends [never]
   ? unknown
-  : InvalidComponentFactoryInputs<Factory>;
+  : InvalidComponentFactoryInputs<Factory, Meta>;
 
-type LogicInputProps<Factory extends ComponentFactory> =
-  Parameters<Factory> extends [infer Input]
-    ? IsLogicInputObject<Input> extends true
-      ? PropsFromContext<Input & object>
-      : never
-    : never;
+/**
+ * A component declares its inputs as one object parameter.
+ *
+ * One parameter, because the prop *names* have to be written somewhere the
+ * caller can read: positional parameters only name themselves inside the
+ * function.
+ */
+export type TemplateInput<Template> = Template extends (
+  input: infer Input,
+  ...rest: any[]
+) => any
+  ? IsLogicInputObject<Input> extends true
+    ? Input & object
+    : {}
+  : {};
 
-export type PropsFromFactory<Factory extends ComponentFactory> = [
-  LogicInputProps<Factory>,
-] extends [never]
-  ? PropsFromContext<FactoryContext<Factory>>
-  : LogicInputProps<Factory>;
+export type PropsFromFactory<Factory extends ComponentFactory> =
+  PropsFromContext<TemplateInput<Factory>>;
 
 type ContentRequirementsFromContext<Context> = Simplify<{
   [Key in keyof Context as ContentRequirementOf<Context[Key]> extends never
@@ -1162,7 +1209,7 @@ type ContentRequirementsFromContext<Context> = Simplify<{
 }>;
 
 type ContentRequirementsOfFactory<Factory extends ComponentFactory> =
-  ContentRequirementsFromContext<FactoryContext<Factory>>;
+  ContentRequirementsFromContext<TemplateInput<Factory>>;
 
 type ProjectionOutputOf<Component> = Component extends {
   readonly [COMPONENT_LOGIC_OUTPUT]: infer Output;
@@ -1177,12 +1224,30 @@ export type ProjectionContractOf<Component> =
     ? Contract
     : never;
 
+/** Type-only declaration of the contract a component exposes to its host slot. */
+export type ProjectionMarker<Contract> = {
+  readonly [PROJECTION_CONTRACT]?: Contract;
+};
+
+/** Declares the contract a component answers when it is projected into a slot. */
+export function projection<Contract>(): ProjectionMarker<Contract> {
+  return {};
+}
+
+export type ProjectionContractOfMeta<Meta> = Meta extends {
+  readonly projection: ProjectionMarker<infer Contract>;
+}
+  ? Contract
+  : never;
+
+// A projected component is keyed by its call site (`key` prop), so the key
+// type is only known there — the declaration accepts any of them.
 type ProjectionKeyOf<Component> =
   ProjectionOutputOf<Component> extends {
     readonly key: infer Key extends PropertyKey;
   }
     ? Key
-    : never;
+    : PropertyKey;
 
 export type ProjectionUnit<
   Contract = unknown,
@@ -1204,7 +1269,7 @@ type ComponentCallNode<
   CallProps extends object,
   ComponentDeps extends object,
   Component extends CraftComponent<any, ComponentDeps>,
-  Factory extends ComponentFactory,
+  Meta,
   InputProps extends object = {},
   CssVars extends
     CssVarContract = import('./css-vars.type').EmptyCssVarContract,
@@ -1213,47 +1278,26 @@ type ComponentCallNode<
   ComponentInputExceptionsOf<
     Pick<CallProps, keyof InputProps & keyof CallProps>
   > extends infer InputExceptions extends string
-    ? FactoryContext<Factory> extends {
-        readonly contract: infer Contract;
-        readonly key: infer Key extends PropertyKey;
-      }
-      ? ComponentNode<
-          CallProps,
-          ComponentDeps,
-          Component,
-          ContentDependenciesFromProps<CallProps>,
-          InputExceptions,
-          CssVars,
-          never,
-          never,
-          Channels
-        > &
-          ProjectionUnit<Contract, Key>
-      : ComponentNode<
-          CallProps,
-          ComponentDeps,
-          Component,
-          ContentDependenciesFromProps<CallProps>,
-          InputExceptions,
-          CssVars,
-          never,
-          never,
-          Channels
-        >
+    ? ComponentNode<
+        CallProps,
+        ComponentDeps,
+        Component,
+        ContentDependenciesFromProps<CallProps>,
+        InputExceptions,
+        CssVars,
+        never,
+        never,
+        Channels
+      > &
+        ([ProjectionContractOfMeta<Meta>] extends [never]
+          ? unknown
+          : ProjectionUnit<
+              ProjectionContractOfMeta<Meta>,
+              CallProps extends { readonly key: infer Key extends PropertyKey }
+                ? Key
+                : PropertyKey
+            >)
     : never;
-
-type AppliedDirectiveFactory<
-  Factory extends ComponentFactory,
-  Directive extends CraftDirective,
-> = Directive extends { readonly [COMPONENT_FIELD_ERROR_NODE]: true }
-  ? Factory
-  : Directive extends ComponentOperator<any, any>
-    ? Factory
-    : Directive extends CraftDirective<infer Logic, any>
-      ? ReturnType<Logic> extends ComponentFactory
-        ? ReturnType<Logic>
-        : Factory
-      : Factory;
 
 type MissingProviderMap<Dependencies> = Dependencies extends {
   missingProvider: infer Missing extends object;
@@ -1311,20 +1355,16 @@ type PipedComponent<
   ExistingExceptions extends string,
   ExistingFieldExceptions,
   TemplateDependencies extends object,
-  Template extends ComponentTemplate<
-    FactoryContext<Factory>
-  > = ComponentTemplate<FactoryContext<Factory>>,
+  Template extends ComponentTemplate = ComponentTemplate,
   Name extends string = string,
-> =
-  AppliedDirectiveFactory<Factory, Directive> extends infer NextFactory extends
-    ComponentFactory
+> = Factory extends infer NextFactory extends ComponentFactory
     ? CraftComponent<
         PropsFromFactory<NextFactory>,
         MergePipedComponentDependencies<
           ExistingComponentDeps,
           CraftComponentDependencies<
             FactoryYielded<RootFactory> | FactoryYielded<NextFactory>,
-            FactoryContext<NextFactory>,
+            unknown,
             ProvidersFromMeta<Meta> | ComponentOperatorProviders<Directive>,
             PropsFromFactory<NextFactory>,
             TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>
@@ -1334,8 +1374,7 @@ type PipedComponent<
         Meta,
         RootFactory,
         TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>,
-        Template &
-          ComponentTemplate<FactoryContext<NextFactory>, ReturnType<Template>>,
+        Template,
         Name,
         (
           | ComponentExceptionsAfterOperator<
@@ -1367,15 +1406,13 @@ export interface CraftComponent<
   Meta extends ComponentMeta = ComponentMeta,
   RootFactory extends ComponentFactory = Factory,
   TemplateDependencies extends object = never,
-  Template extends ComponentTemplate<
-    FactoryContext<Factory>
-  > = ComponentTemplate<FactoryContext<Factory>>,
+  Template extends ComponentTemplate = ComponentTemplate,
   Name extends string = string,
   InitializationExceptions extends string = string,
   ContentRequirements extends object = {},
   FieldExceptions = any,
 > extends ComponentDepsCarrier<ComponentDeps>,
-    CraftRegistrationTarget<Name, 'component', FactoryContext<Factory>> {
+    CraftRegistrationTarget<Name, 'component', TemplateChildren<Factory>> {
   <
     CallProps extends ComponentCallProps<
       Props,
@@ -1407,18 +1444,22 @@ export interface CraftComponent<
       ContentRequirements,
       FieldExceptions
     >,
-    Factory,
+    Meta,
     Props,
     CssVarsAfterCall<ComponentCssVars<Meta, Template>, CallProps>,
     ComponentTemplateChannels<Template>
   >;
-  readonly [CRAFT_COMPONENT]: ComponentDefinition<unknown> & {
+  readonly [CRAFT_COMPONENT]: ComponentDefinition & {
     readonly name: Name;
-    readonly factory: Factory;
+    readonly template: Factory;
   };
   readonly [COMPONENT_INITIALIZATION_EXCEPTIONS]: InitializationExceptions;
   readonly [COMPONENT_FIELD_EXCEPTIONS]: FieldExceptions;
-  readonly [COMPONENT_LOGIC_OUTPUT]: FactoryContext<Factory>;
+  readonly [COMPONENT_LOGIC_OUTPUT]: [
+    ProjectionContractOfMeta<Meta>,
+  ] extends [never]
+    ? never
+    : { readonly contract: ProjectionContractOfMeta<Meta> };
   readonly pipe: {
     <Directive extends CraftDirective>(
       directiveFactory: (

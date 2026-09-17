@@ -1,6 +1,7 @@
 import {
+  craftService,
+  craftUse,
   createCraftRouterOutletController,
-  type CraftRouterOutletController,
 } from '@craft-ts/core';
 import { craftComponent } from './component';
 import type { CraftComponent } from './types';
@@ -13,24 +14,33 @@ import type { ComponentNode } from './render/vnode';
  * render lifetime and mounts the active Angular route target with the
  * route-scoped injector supplied by the controller.
  */
-type CraftRouterOutletFactory = () => {
-  readonly outlet: CraftRouterOutletController;
-};
+type CraftRouterOutletTemplate = () => unknown;
+
+/**
+ * The outlet controller is the route's render lifetime: one per mounted outlet,
+ * never one per render.
+ */
+const { CraftRouterOutletState, provideCraftRouterOutletState } = craftService(
+  { name: 'craftRouterOutletState', providedIn: 'toProvide' },
+  () => createCraftRouterOutletController(),
+);
 
 export const CraftRouterOutlet = craftComponent(
   'CraftRouterOutlet',
-  {},
-  () => ({ outlet: createCraftRouterOutletController() }),
-  ({ outlet }) => {
-    const target = outlet.displayedTarget();
+  { providers: [provideCraftRouterOutletState()] },
+  function* () {
+    const outlet = yield* CraftRouterOutletState();
+    const target = craftUse(outlet.displayedTarget());
     if (!target) return [];
     const node = (target.component as CraftComponent<any>)(
-      outlet.displayedProps() as never,
+      craftUse(outlet.displayedProps()) as never,
     ) as ComponentNode;
-    return Object.assign(node, { injector: outlet.displayedInjector() });
+    return Object.assign(node, {
+      injector: craftUse(outlet.displayedInjector()),
+    });
   },
 ) as CraftComponent<
   Record<never, never>,
   Record<never, never>,
-  CraftRouterOutletFactory
+  CraftRouterOutletTemplate
 >;

@@ -3713,6 +3713,19 @@ function attachServiceRuntimeMeta(
   });
 }
 
+/**
+ * The injection token a concrete service is stored under, when it has one.
+ *
+ * Scopes that never reach the injector (a `function` service, a global one)
+ * answer `undefined`: there is nothing to re-provide for them.
+ */
+export function ɵgetServiceInjectionToken(
+  target: unknown,
+): InjectionToken<unknown> | undefined {
+  const metaData = getServiceMetaData(target) as InternalServiceMetaData;
+  return metaData[SERVICE_RUNTIME_DEFINITION]?.token;
+}
+
 export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   if (isServiceMetaData(target)) {
     return target;
