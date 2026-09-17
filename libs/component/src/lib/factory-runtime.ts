@@ -65,6 +65,19 @@ export function executeCraftComponentFactoryAsync<
 }
 
 /**
+ * Hands a directive a base template it can always delegate to with `yield*`,
+ * whatever shape the template underneath has.
+ */
+export function ɵasGeneratorTemplate(
+  template: ComponentFactory,
+): ComponentFactory {
+  return function* (...args: unknown[]) {
+    const result = (template as (...args: unknown[]) => unknown)(...args);
+    return isGenerator(result) ? yield* result : result;
+  } as ComponentFactory;
+}
+
+/**
  * Renders a component: drives its template in the component's own injector and
  * settles the host props on what came out.
  *

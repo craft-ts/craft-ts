@@ -30,6 +30,7 @@ import type { CssVarsContractOfMeta } from './css-vars.type';
 import type { ComponentNode, ComponentTemplateChannels } from './render/vnode';
 import type { HostProps } from './hyperscript';
 import { currentCraftRenderContext, pipeCraftNode } from './render/vnode';
+import { ɵasGeneratorTemplate } from './factory-runtime';
 
 type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
   readonly providers: infer Providers;
@@ -304,7 +305,9 @@ function createCraftComponent<
           name: currentDefinition.name,
           meta: currentDefinition.meta,
           template: applied.template
-            ? applied.template(currentDefinition.template)
+            ? applied.template(
+                ɵasGeneratorTemplate(currentDefinition.template),
+              )
             : currentDefinition.template,
           service: [...currentDefinition.service, ...applied.service],
           styleOwners: [

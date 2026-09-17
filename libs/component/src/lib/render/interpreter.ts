@@ -65,6 +65,7 @@ import {
 import {
   executeCraftComponentFactory,
   renderCraftComponentTemplate,
+  ɵasGeneratorTemplate,
 } from '../factory-runtime';
 import {
   computed,
@@ -1215,7 +1216,9 @@ function renderCraftDirectiveNode(
   for (const directive of node.directives) {
     const decorator = directive[CRAFT_DIRECTIVE].template;
     if (decorator) {
-      template = decorator(template as never) as (...args: any[]) => unknown;
+      template = decorator(
+        ɵasGeneratorTemplate(template as never) as never,
+      ) as (...args: any[]) => unknown;
     }
   }
 

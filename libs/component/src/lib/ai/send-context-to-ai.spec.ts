@@ -5,7 +5,7 @@ import { mountCraftComponent } from '../bridge';
 import { div, span } from '../hyperscript';
 import { renderCraftComponent } from '../testing';
 import { createEnvironmentInjector, Injector } from '../host-runtime';
-import { ɵgetCraftRootDefaultProviders } from '@craft-ts/core';
+import { craftService, ɵgetCraftRootDefaultProviders } from '@craft-ts/core';
 import { AiContextMenu } from './ai-context-menu';
 import {
   AI_CONTEXT_MENU_CONTROLLER,
@@ -29,15 +29,21 @@ describe('provideSendContextToAi', () => {
   });
 
   it('opens the AI context menu from the component host context', async () => {
+    const { ContextHostView, provideContextHostView } = craftService(
+      { name: 'contextHostView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const controller = { open: vi.fn() };
     const component = craftComponent(
       'ContextHost',
-      {},
-      () => ({}),
-      () =>
-        div({ class: 'context-target' }, [
+      { providers: [provideContextHostView()] },
+      function* () {
+        yield* ContextHostView();
+        return div({ class: 'context-target' }, [
           span({ class: 'nested-target' }, 'Target'),
-        ]),
+        ]);
+      },
     );
     const rendered = await renderCraftComponent(component, {
       providers: [
@@ -76,11 +82,21 @@ describe('provideSendContextToAi', () => {
   });
 
   it('mounts the default launcher without re-entering the controller factory', async () => {
+    const {
+      ContextHostWithDefaultAiView,
+      provideContextHostWithDefaultAiView,
+    } = craftService(
+      { name: 'contextHostWithDefaultAiView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const component = craftComponent(
       'ContextHostWithDefaultAi',
-      {},
-      () => ({}),
-      () => div({}, 'content'),
+      { providers: [provideContextHostWithDefaultAiView()] },
+      function* () {
+        yield* ContextHostWithDefaultAiView();
+        return div({}, 'content');
+      },
     );
 
     const parent = createEnvironmentInjector(
@@ -101,11 +117,19 @@ describe('provideSendContextToAi', () => {
   });
 
   it('opens the chat from the launcher even without a prior right-click', async () => {
+    const { ContextHostWithLauncherView, provideContextHostWithLauncherView } =
+      craftService(
+        { name: 'contextHostWithLauncherView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const component = craftComponent(
       'ContextHostWithLauncher',
-      {},
-      () => ({}),
-      () => div({}, 'content'),
+      { providers: [provideContextHostWithLauncherView()] },
+      function* () {
+        yield* ContextHostWithLauncherView();
+        return div({}, 'content');
+      },
     );
 
     const parent = createEnvironmentInjector(
@@ -155,15 +179,24 @@ describe('provideSendContextToAi', () => {
   });
 
   it('preserves the instruction when another element is added to the open chat', async () => {
+    const {
+      ContextHostWithMultipleTargetsView,
+      provideContextHostWithMultipleTargetsView,
+    } = craftService(
+      { name: 'contextHostWithMultipleTargetsView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const component = craftComponent(
       'ContextHostWithMultipleTargets',
-      {},
-      () => ({}),
-      () =>
-        div({}, [
+      { providers: [provideContextHostWithMultipleTargetsView()] },
+      function* () {
+        yield* ContextHostWithMultipleTargetsView();
+        return div({}, [
           span({ class: 'first-target' }, 'First target'),
           span({ class: 'second-target' }, 'Second target'),
-        ]),
+        ]);
+      },
     );
 
     const parent = createEnvironmentInjector(
@@ -263,11 +296,19 @@ describe('provideSendContextToAi', () => {
   });
 
   it('keeps renderer and chat replacement helpers typed and distinct', () => {
+    const { CustomSendContextUiView, provideCustomSendContextUiView } =
+      craftService(
+        { name: 'customSendContextUiView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const custom = craftComponent(
       'CustomSendContextUi',
-      {},
-      () => ({}),
-      () => div({}, 'custom'),
+      { providers: [provideCustomSendContextUiView()] },
+      function* () {
+        yield* CustomSendContextUiView();
+        return div({}, 'custom');
+      },
     );
 
     const rendererProvider: Provider = provideSendContextUiRenderer(

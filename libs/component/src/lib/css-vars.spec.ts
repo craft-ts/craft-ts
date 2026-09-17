@@ -1,3 +1,4 @@
+import { craftService } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import { craftComponent } from './component';
@@ -41,20 +42,38 @@ type _PropertyRequired = Expect<Equal<PropertyContract['required'], never>>;
 type OpaqueContract = CssVarsContractOfMeta<{ readonly stylesUrl: string }>;
 type _Opaque = Expect<Equal<OpaqueContract['unknownCss'], true>>;
 
+const { TypedBadgeSpecView, provideTypedBadgeSpecView } = craftService(
+  { name: 'typedBadgeSpecView', providedIn: 'toProvide' },
+  () => ({}),
+);
+
 const TypedBadge = craftComponent(
   'TypedBadgeSpec',
   {
+    providers: [provideTypedBadgeSpecView()],
     styles: `.badge { color: var(--typed-badge-ink); background: var(--typed-badge-bg, white); }`,
   },
+  function* () {
+    yield* TypedBadgeSpecView();
+    return span({ class: 'badge' }, 'Badge');
+  },
+);
+
+const { InheritingCardSpecView, provideInheritingCardSpecView } = craftService(
+  { name: 'inheritingCardSpecView', providedIn: 'toProvide' },
   () => ({}),
-  () => span({ class: 'badge' }, 'Badge'),
 );
 
 const InheritingCard = craftComponent(
   'InheritingCardSpec',
-  { styles: `:scope { --typed-badge-ink: navy; }` },
-  () => ({}),
-  () => div(TypedBadge({ cssVars: { '--typed-badge-ink': inherit } })),
+  {
+    providers: [provideInheritingCardSpecView()],
+    styles: `:scope { --typed-badge-ink: navy; }`,
+  },
+  function* () {
+    yield* InheritingCardSpecView();
+    return div(TypedBadge({ cssVars: { '--typed-badge-ink': inherit } }));
+  },
 );
 
 // All dispositions are accepted and remain visible in the inferred node type.
@@ -67,32 +86,51 @@ InheritingCard();
 // @ts-expect-error unknown names are rejected at the component boundary.
 TypedBadge({ cssVars: { '--typed-badge-unknown': 'red' } });
 
+const { ExplicitExternalSpecView, provideExplicitExternalSpecView } =
+  craftService(
+    { name: 'explicitExternalSpecView', providedIn: 'toProvide' },
+    () => ({}),
+  );
+
 const ExplicitExternal = craftComponent(
   'ExplicitExternalSpec',
   {
+    providers: [provideExplicitExternalSpecView()],
     stylesUrl: '.external { color: var(--external-ink) }' as string,
     cssVars: { '--external-ink': required<string>(), '--external-gap': '1rem' },
   },
-  () => ({}),
-  () => div({ class: 'external' }, 'External'),
+  function* () {
+    yield* ExplicitExternalSpecView();
+    return div({ class: 'external' }, 'External');
+  },
 );
 ExplicitExternal({ cssVars: { '--external-ink': 'black' } });
 
 describe('component CSS variables', () => {
-
   it('writes supplied variables on the component root and keeps instances independent', async () => {
+    const { CssVarRuntimeRootSpecView, provideCssVarRuntimeRootSpecView } =
+      craftService(
+        { name: 'cssVarRuntimeRootSpecView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const root = craftComponent(
       'CssVarRuntimeRootSpec',
-      {},
-      () => ({}),
-      () =>
-        div([
+      { providers: [provideCssVarRuntimeRootSpecView()] },
+      function* () {
+        yield* CssVarRuntimeRootSpecView();
+        return div([
           TypedBadge({ cssVars: { '--typed-badge-ink': 'red' } }),
           TypedBadge({ cssVars: { '--typed-badge-ink': 'blue' } }),
           TypedBadge({ cssVars: { '--typed-badge-ink': 'green' } }),
-        ]),
+        ]);
+      },
     );
-    const { nativeElement: host, flush, destroy } = await renderCraftComponent(root);
+    const {
+      nativeElement: host,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     const badges = host.querySelectorAll<HTMLElement>('.badge');
     expect(
       Array.from(badges).map((badge) =>
@@ -102,12 +140,21 @@ describe('component CSS variables', () => {
   });
 
   it('puts a forward default on the parent so caller values can override it', async () => {
+    const { ForwardParentSpecView, provideForwardParentSpecView } =
+      craftService(
+        { name: 'forwardParentSpecView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const parent = craftComponent(
       'ForwardParentSpec',
-      {},
-      () => ({}),
-      () =>
-        div(TypedBadge({ cssVars: { '--typed-badge-ink': forward('navy') } })),
+      { providers: [provideForwardParentSpecView()] },
+      function* () {
+        yield* ForwardParentSpecView();
+        return div(
+          TypedBadge({ cssVars: { '--typed-badge-ink': forward('navy') } }),
+        );
+      },
     );
     const { nativeElement: host, destroy } = await renderCraftComponent(
       parent,

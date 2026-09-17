@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { craftSignal as signal } from '@craft-ts/core';
+import { craftService, craftSignal as signal } from '@craft-ts/core';
 import {
   afterEach,
   beforeEach,
@@ -51,9 +51,8 @@ describe('pendingNode', () => {
   });
 
   it('shows the fallback until the source settles, then the subtree', async () => {
-    const root = craftComponent(
-      'pendingRoot',
-      {},
+    const { PendingRootView, providePendingRootView } = craftService(
+      { name: 'pendingRootView', providedIn: 'toProvide' },
       function* () {
         const users = yield* query('users', {
           params: () => true,
@@ -68,12 +67,19 @@ describe('pendingNode', () => {
         });
         return { firstName };
       },
-      ({ firstName }) =>
-        section([
+    );
+
+    const root = craftComponent(
+      'pendingRoot',
+      { providers: [providePendingRootView()] },
+      function* () {
+        const { firstName } = yield* PendingRootView();
+        return section([
           div([span(firstName)]).pipe(
             pendingNode({ fallback: () => p('chargement') }),
           ),
-        ]),
+        ]);
+      },
     );
 
     const {
@@ -101,9 +107,8 @@ describe('pendingNode', () => {
   });
 
   it('renders a settledValue bound directly in the template', async () => {
-    const root = craftComponent(
-      'pendingDirect',
-      {},
+    const { PendingDirectView, providePendingDirectView } = craftService(
+      { name: 'pendingDirectView', providedIn: 'toProvide' },
       function* () {
         const label = yield* query('label', {
           params: () => true,
@@ -118,8 +123,17 @@ describe('pendingNode', () => {
         });
         return { label, text };
       },
-      ({ text }) =>
-        div([span(text)]).pipe(pendingNode({ fallback: () => p('attente') })),
+    );
+
+    const root = craftComponent(
+      'pendingDirect',
+      { providers: [providePendingDirectView()] },
+      function* () {
+        const { text } = yield* PendingDirectView();
+        return div([span(text)]).pipe(
+          pendingNode({ fallback: () => p('attente') }),
+        );
+      },
     );
 
     const {
@@ -137,9 +151,8 @@ describe('pendingNode', () => {
   });
 
   it('shows the reloading slot while a settled source refetches', async () => {
-    const root = craftComponent(
-      'pendingReloading',
-      {},
+    const { PendingReloadingView, providePendingReloadingView } = craftService(
+      { name: 'pendingReloadingView', providedIn: 'toProvide' },
       function* () {
         const reload = yield* state('reload', 0, ({ update }) => ({
           again: () => update((current) => current + 1),
@@ -160,8 +173,14 @@ describe('pendingNode', () => {
         });
         return { firstName, reload };
       },
-      ({ firstName, reload }) =>
-        section([
+    );
+
+    const root = craftComponent(
+      'pendingReloading',
+      { providers: [providePendingReloadingView()] },
+      function* () {
+        const { firstName, reload } = yield* PendingReloadingView();
+        return section([
           button({ click: reload.again }, 'recharger'),
           div([span(firstName)]).pipe(
             pendingNode.exhaustive({
@@ -171,7 +190,8 @@ describe('pendingNode', () => {
               },
             }),
           ),
-        ]),
+        ]);
+      },
     );
 
     const {
@@ -203,24 +223,30 @@ describe('pendingNode', () => {
   });
 
   it('routes a source exception to the catchNode, not to the fallback', async () => {
+    const { PendingWithExceptionView, providePendingWithExceptionView } =
+      craftService(
+        { name: 'pendingWithExceptionView', providedIn: 'toProvide' },
+        function* () {
+          const users = yield* query('users', {
+            params: () =>
+              shouldFail() ? craftException({ _tag: 'MISSING_USER_ID' }) : true,
+            loader: async (): Promise<User[]> => [{ id: '1', name: 'Ada' }],
+          });
+          const firstName = craftComputed('firstName', function* () {
+            const list = yield* settled(users);
+            return list[0].name;
+          });
+          return { firstName };
+        },
+      );
+
     const shouldFail = signal(true);
     const root = craftComponent(
       'pendingWithException',
-      {},
+      { providers: [providePendingWithExceptionView()] },
       function* () {
-        const users = yield* query('users', {
-          params: () =>
-            shouldFail() ? craftException({ _tag: 'MISSING_USER_ID' }) : true,
-          loader: async (): Promise<User[]> => [{ id: '1', name: 'Ada' }],
-        });
-        const firstName = craftComputed('firstName', function* () {
-          const list = yield* settled(users);
-          return list[0].name;
-        });
-        return { firstName };
-      },
-      ({ firstName }) =>
-        section([
+        const { firstName } = yield* PendingWithExceptionView();
+        return section([
           div([span(firstName)])
             .pipe(pendingNode({ fallback: () => p('chargement') }))
             .pipe(
@@ -228,7 +254,8 @@ describe('pendingNode', () => {
                 MISSING_USER_ID: () => p('identifiant manquant'),
               }),
             ),
-        ]),
+        ]);
+      },
     );
 
     const {
@@ -250,29 +277,36 @@ describe('pendingNode', () => {
   });
 
   it('picks the fallback of the pending source with the exhaustive form', async () => {
+    const { PendingExhaustiveView, providePendingExhaustiveView } =
+      craftService(
+        { name: 'pendingExhaustiveView', providedIn: 'toProvide' },
+        function* () {
+          const users = yield* query('users', {
+            params: () => true,
+            loader: async (): Promise<User[]> => {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              return [{ id: '1', name: 'Ada' }];
+            },
+          });
+          // The boundary is keyed on the QUERY name, even when the template only
+          // ever sees the computed derived from it.
+          const firstName = craftComputed('firstName', function* () {
+            const list = yield* settled(users);
+            return list[0].name;
+          });
+          return { firstName };
+        },
+      );
+
     const root = craftComponent(
       'pendingExhaustive',
-      {},
+      { providers: [providePendingExhaustiveView()] },
       function* () {
-        const users = yield* query('users', {
-          params: () => true,
-          loader: async (): Promise<User[]> => {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            return [{ id: '1', name: 'Ada' }];
-          },
-        });
-        // The boundary is keyed on the QUERY name, even when the template only
-        // ever sees the computed derived from it.
-        const firstName = craftComputed('firstName', function* () {
-          const list = yield* settled(users);
-          return list[0].name;
-        });
-        return { firstName };
-      },
-      ({ firstName }) =>
-        div([span(firstName)]).pipe(
+        const { firstName } = yield* PendingExhaustiveView();
+        return div([span(firstName)]).pipe(
           pendingNode.exhaustive({ users: () => p('squelette utilisateurs') }),
-        ),
+        );
+      },
     );
 
     const {
@@ -351,9 +385,11 @@ describe('pendingNode type-level contract', () => {
   });
 
   it('preserves insertion resource sources through the template boundary', () => {
-    const root = craftComponent(
-      'pendingInsertionResource',
-      {},
+    const {
+      PendingInsertionResourceView,
+      providePendingInsertionResourceView,
+    } = craftService(
+      { name: 'pendingInsertionResourceView', providedIn: 'toProvide' },
       function* () {
         const users = yield* query(
           'users',
@@ -369,10 +405,17 @@ describe('pendingNode type-level contract', () => {
         );
         return { users };
       },
-      ({ users }) =>
-        div([span(users.count)]).pipe(
+    );
+
+    const root = craftComponent(
+      'pendingInsertionResource',
+      { providers: [providePendingInsertionResourceView()] },
+      function* () {
+        const { users } = yield* PendingInsertionResourceView();
+        return div([span(users.count)]).pipe(
           pendingNode.exhaustive({ users: () => p('…') }),
-        ),
+        );
+      },
     );
 
     expect(root).toBeDefined();
@@ -399,9 +442,7 @@ describe('pendingNode type-level contract', () => {
       );
     };
     const _caught = () =>
-      _uncaught().pipe(
-        catchNode.exhaustive({ MISSING_USER_ID: () => p('…') }),
-      );
+      _uncaught().pipe(catchNode.exhaustive({ MISSING_USER_ID: () => p('…') }));
 
     // A pending boundary is not an exception boundary.
     expectTypeOf<

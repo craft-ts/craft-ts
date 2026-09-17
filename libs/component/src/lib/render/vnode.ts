@@ -1246,7 +1246,9 @@ export type ContentHeadingNeedFromProps<Props extends object> =
 export type ComponentTemplateChannels<Template> = Template extends (
   ...args: any[]
 ) => infer Output
-  ? CraftNodeChildrenChannels<Output>
+  ? CraftNodeChildrenChannels<
+      Output extends Generator<any, infer Children, any> ? Children : Output
+    >
   : EmptyChannels;
 
 /**
@@ -1264,7 +1266,9 @@ type ComponentNodeChannels<
 export type ComponentHeadingNeedOf<Component> =
   Component extends CraftComponent<any, any, any, any, any, any, infer Template>
     ? Template extends (...args: any[]) => infer Output
-      ? CraftNodeChildrenHeadingNeed<Output>
+      ? CraftNodeChildrenHeadingNeed<
+          Output extends Generator<any, infer Children, any> ? Children : Output
+        >
       : never
     : never;
 

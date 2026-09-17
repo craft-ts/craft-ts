@@ -1,6 +1,7 @@
 import type {
   CraftComponent,
   ComponentTemplateOf,
+  TemplateChildren,
 } from './types';
 import { YIELDABLE_VALUE } from '@craft-ts/core';
 import type {
@@ -159,7 +160,7 @@ type VisitContentNode<
           ? Component extends Seen[number]
             ? never
             : VisitContentNode<
-                ReturnType<ComponentTemplateOf<Component>>,
+                TemplateChildren<ComponentTemplateOf<Component>>,
                 Optional,
                 Repeated,
                 [...Seen, Component],
@@ -212,7 +213,7 @@ type VisitContentNode<
                 : never;
 
 type ContentLocatorCandidatesOfTemplate<Template> = VisitContentNode<
-  Template extends (...args: any[]) => infer Output ? Output : never,
+  TemplateChildren<Template>,
   false,
   false
 >;
@@ -261,7 +262,7 @@ type VisitOptionalTag<
             ? Component extends Seen[number]
               ? false
               : VisitOptionalTag<
-                  ReturnType<ComponentTemplateOf<Component>>,
+                  TemplateChildren<ComponentTemplateOf<Component>>,
                   Tag,
                   Optional,
                   [...Seen, Component],
@@ -315,7 +316,7 @@ type VisitOptionalTag<
 
 type TemplateHasOptionalTag<Template, Tag extends keyof HTMLElementTagNameMap> =
   true extends VisitOptionalTag<
-    Template extends (...args: any[]) => infer Output ? Output : never,
+    TemplateChildren<Template>,
     Tag
   >
     ? true
@@ -343,7 +344,7 @@ type VisitComponent<
   ? never
   : Component extends CraftComponent<any, any>
     ? VisitChildren<
-        ReturnType<ComponentTemplateOf<Component>>,
+        TemplateChildren<ComponentTemplateOf<Component>>,
         NextDepth<Depth>,
         Optional,
         Repeated,
@@ -422,7 +423,7 @@ type VisitNode<
 export type TemplateLocatorCandidates<
   Component extends CraftComponent<any, any>,
 > = VisitNode<
-  ReturnType<ComponentTemplateOf<Component>>,
+  TemplateChildren<ComponentTemplateOf<Component>>,
   [],
   false,
   false,

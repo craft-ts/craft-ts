@@ -53,9 +53,13 @@ describe('hyperscript a11y types', () => {
     expect(dialog({}).tag).toBe('dialog');
     expect(fieldset([legend('Account')]).tag).toBe('fieldset');
     expect(legend('Account').tag).toBe('legend');
-    expect(table([caption('Scores'), thead([tr([th('Name')])]), tbody([tr([td('Ada')])])]).tag).toBe(
-      'table',
-    );
+    expect(
+      table([
+        caption('Scores'),
+        thead([tr([th('Name')])]),
+        tbody([tr([td('Ada')])]),
+      ]).tag,
+    ).toBe('table');
     expect(figure([figcaption('Caption')]).tag).toBe('figure');
     expect(h4('Four').tag).toBe('h4');
     expect(h5('Five').tag).toBe('h5');

@@ -1,12 +1,6 @@
 // @vitest-environment jsdom
-import { craftSignal as signal } from '@craft-ts/core';
-import {
-  beforeEach,
-  describe,
-  expect,
-  expectTypeOf,
-  it,
-} from 'vitest';
+import { craftService, craftSignal as signal } from '@craft-ts/core';
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import {
   assertDefinedInput,
   catchNode,
@@ -33,21 +27,37 @@ describe('assertDefinedInput', () => {
   });
 
   it('narrows the input and adds the typed exception to the component node', async () => {
+    const {
+      AssertDefinedInputTypeChildView,
+      provideAssertDefinedInputTypeChildView,
+    } = craftService(
+      { name: 'assertDefinedInputTypeChildView', providedIn: 'toProvide' },
+      (inputs: { readonly sourceValue: Input<'ready'> }) => {
+        const { sourceValue } = inputs;
+        return { sourceValue };
+      },
+    );
+
     const value = signal<'ready' | undefined>('ready');
     const child = craftComponent(
       'assertDefinedInputTypeChild',
-      {},
-      (sourceValue: Input<'ready'>) => ({ sourceValue }),
-      ({ sourceValue }) => span(function* () {
-        return yield* sourceValue();
-      }),
+      { providers: [provideAssertDefinedInputTypeChildView()] },
+      function* (inputs: { readonly sourceValue: Input<'ready'> }) {
+        const { sourceValue } = yield* AssertDefinedInputTypeChildView(inputs);
+        return span(function* () {
+          return yield* sourceValue();
+        });
+      },
     );
     const source = child({
-      sourceValue: assertDefinedInput(function* () {
-        return value();
-      }, {
-        property: 'child.input',
-      }),
+      sourceValue: assertDefinedInput(
+        function* () {
+          return value();
+        },
+        {
+          property: 'child.input',
+        },
+      ),
     });
 
     expectTypeOf<
@@ -72,21 +82,43 @@ describe('assertDefinedInput', () => {
   });
 
   it('renders the fallback and recovers when the source becomes defined', async () => {
+    const {
+      AssertDefinedInputRuntimeChildView,
+      provideAssertDefinedInputRuntimeChildView,
+    } = craftService(
+      { name: 'assertDefinedInputRuntimeChildView', providedIn: 'toProvide' },
+      (inputs: { readonly sourceValue: Input<'ready'> }) => {
+        const { sourceValue } = inputs;
+        return { sourceValue };
+      },
+    );
+
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputRuntimeChild',
-      {},
-      (sourceValue: Input<'ready'>) => ({ sourceValue }),
-      ({ sourceValue }) => span(function* () {
-        return yield* sourceValue();
-      }),
+      { providers: [provideAssertDefinedInputRuntimeChildView()] },
+      function* (inputs: { readonly sourceValue: Input<'ready'> }) {
+        const { sourceValue } =
+          yield* AssertDefinedInputRuntimeChildView(inputs);
+        return span(function* () {
+          return yield* sourceValue();
+        });
+      },
     );
+    const {
+      AssertDefinedInputRuntimeRootView,
+      provideAssertDefinedInputRuntimeRootView,
+    } = craftService(
+      { name: 'assertDefinedInputRuntimeRootView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const root = craftComponent(
       'assertDefinedInputRuntimeRoot',
-      {},
-      () => ({}),
-      () =>
-        section([
+      { providers: [provideAssertDefinedInputRuntimeRootView()] },
+      function* () {
+        yield* AssertDefinedInputRuntimeRootView();
+        return section([
           child({
             sourceValue: assertDefinedInput(function* () {
               return value();
@@ -104,12 +136,15 @@ describe('assertDefinedInput', () => {
               },
             }),
           ),
-        ]),
+        ]);
+      },
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      root,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     expect(element.textContent).toBe('fallback');
 
     value.set('ready');
@@ -124,14 +159,31 @@ describe('assertDefinedInput', () => {
   });
 
   it('can convert the exception into an input value', async () => {
+    const {
+      AssertDefinedInputValueCatchChildView,
+      provideAssertDefinedInputValueCatchChildView,
+    } = craftService(
+      {
+        name: 'assertDefinedInputValueCatchChildView',
+        providedIn: 'toProvide',
+      },
+      (inputs: { readonly sourceValue: Input<'ready' | 'idle'> }) => {
+        const { sourceValue } = inputs;
+        return { sourceValue };
+      },
+    );
+
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputValueCatchChild',
-      {},
-      (sourceValue: Input<'ready' | 'idle'>) => ({ sourceValue }),
-      ({ sourceValue }) => span(function* () {
-        return yield* sourceValue();
-      }),
+      { providers: [provideAssertDefinedInputValueCatchChildView()] },
+      function* (inputs: { readonly sourceValue: Input<'ready' | 'idle'> }) {
+        const { sourceValue } =
+          yield* AssertDefinedInputValueCatchChildView(inputs);
+        return span(function* () {
+          return yield* sourceValue();
+        });
+      },
     );
     const status = assertDefinedInput(function* () {
       return value();
@@ -140,16 +192,28 @@ describe('assertDefinedInput', () => {
         CraftUndefinedPropertyException: () => 'idle' as const,
       }),
     );
-    const root = craftComponent(
-      'assertDefinedInputValueCatchRoot',
-      {},
+    const {
+      AssertDefinedInputValueCatchRootView,
+      provideAssertDefinedInputValueCatchRootView,
+    } = craftService(
+      { name: 'assertDefinedInputValueCatchRootView', providedIn: 'toProvide' },
       () => ({}),
-      () => section([child({ sourceValue: status })]),
     );
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      root,
+    const root = craftComponent(
+      'assertDefinedInputValueCatchRoot',
+      { providers: [provideAssertDefinedInputValueCatchRootView()] },
+      function* () {
+        yield* AssertDefinedInputValueCatchRootView();
+        return section([child({ sourceValue: status })]);
+      },
     );
+
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     expect(element.textContent).toBe('idle');
 
     value.set('ready');
@@ -167,20 +231,43 @@ describe('assertDefinedInput', () => {
   });
 
   it('throws the standard unhandled error without a boundary', async () => {
+    const {
+      AssertDefinedInputUnhandledChildView,
+      provideAssertDefinedInputUnhandledChildView,
+    } = craftService(
+      { name: 'assertDefinedInputUnhandledChildView', providedIn: 'toProvide' },
+      (inputs: { readonly sourceValue: Input<'ready'> }) => {
+        const { sourceValue } = inputs;
+        return { sourceValue };
+      },
+    );
+
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputUnhandledChild',
-      {},
-      (sourceValue: Input<'ready'>) => ({ sourceValue }),
-      ({ sourceValue }) => span(function* () {
-        return yield* sourceValue();
-      }),
+      { providers: [provideAssertDefinedInputUnhandledChildView()] },
+      function* (inputs: { readonly sourceValue: Input<'ready'> }) {
+        const { sourceValue } =
+          yield* AssertDefinedInputUnhandledChildView(inputs);
+        return span(function* () {
+          return yield* sourceValue();
+        });
+      },
     );
+    const {
+      AssertDefinedInputUnhandledRootView,
+      provideAssertDefinedInputUnhandledRootView,
+    } = craftService(
+      { name: 'assertDefinedInputUnhandledRootView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const root = craftComponent(
       'assertDefinedInputUnhandledRoot',
-      {},
-      () => ({}),
-      () => {
+      { providers: [provideAssertDefinedInputUnhandledRootView()] },
+      function* () {
+        yield* AssertDefinedInputUnhandledRootView();
+
         const unhandled = child({
           sourceValue: assertDefinedInput(function* () {
             return value();

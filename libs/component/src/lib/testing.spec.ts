@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 import { craftSignal as signal } from '@craft-ts/core';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
-import { craftService, craftUse } from '@craft-ts/core';
+import {
+  craftService,
+  craftUse,
+  overrideService,
+  setupCraftServiceTestingByRegister,
+} from '@craft-ts/core';
 import { craftComponent } from './component';
 import { craftDirective } from './directive';
 import { div, button, input, label, p, span } from './hyperscript';
@@ -9,12 +14,11 @@ import { ifNode } from './if-node';
 import { forNode } from './for-node';
 import { markYieldableValue } from '@craft-ts/core';
 import {
-  setupCraftComponentLogicTest,
+  renderCraftComponent,
   setupCraftComponentTemplateTest,
-  setupCraftDirectiveLogicTest,
   setupCraftDirectiveTemplateTest,
 } from './testing';
-import type { HostRequiredLogic, HostTemplate, Input } from './types';
+import type { Input } from './types';
 import type { NamedYieldableValue } from '@craft-ts/core';
 import type { LocatorContentNamesFor } from './locator';
 
@@ -23,65 +27,89 @@ describe('Craft component and directive testing utilities', () => {
     document.body.replaceChildren();
   });
 
-  it('tests component logic with an isolated service register', async () => {
+  it('tests the service a component provides, on its own', async () => {
     const { LogicDependency } = craftService(
       { name: 'LogicDependency', providedIn: 'function' },
       () => ({ value: 'real' }),
     );
-    const component = craftComponent(
-      'logicTestComponent',
-      {},
-      function* (label: Input<string>) {
+    const { LogicTestView, provideLogicTestView } = craftService(
+      { name: 'logicTestView', providedIn: 'toProvide' },
+      function* (inputs: { readonly label: Input<string> }) {
+        const { label } = inputs;
+
         const dependency = yield* LogicDependency();
         return { label, dependency };
       },
-      () => p('template'),
     );
 
-    const result = await setupCraftComponentLogicTest.byRegister(component, {
-      args: [
-        function* () {
-          return 'logic';
-        } as Input<string>,
-      ],
-      register: {
+    const { sut, mocks, injector } = await setupCraftServiceTestingByRegister(
+      LogicTestView,
+      {
+        logicTestView: provideLogicTestView(),
         LogicDependency: { value: 'mock' },
       },
-    });
+      {
+        bindings: {
+          label: function* () {
+            return 'logic';
+          } as Input<string>,
+        },
+      },
+    );
 
-    expect(craftUse(result.context.label())).toBe('logic');
-    expect(result.context.dependency.value).toBe('mock');
-    expect(result.mocks.LogicDependency).toBeDefined();
-    result.destroy();
+    expect(craftUse(sut.label())).toBe('logic');
+    expect(sut.dependency.value).toBe('mock');
+    expect(mocks.LogicDependency).toBeDefined();
+    injector.destroy();
   });
 
-  it('tests a component template with direct context and child services', async () => {
+  it('tests a template against a mocked service and mocked child services', async () => {
     const { ChildDependency } = craftService(
       { name: 'ChildDependency', providedIn: 'function' },
       () => ({ label: 'child' }),
     );
-    const child = craftComponent(
-      'templateChild',
-      {},
+    const { TemplateChildView, provideTemplateChildView } = craftService(
+      { name: 'templateChildView', providedIn: 'toProvide' },
       function* () {
         return { dependency: yield* ChildDependency() };
       },
-      ({ dependency }) => span(dependency.label),
     );
+
+    const child = craftComponent(
+      'templateChild',
+      { providers: [provideTemplateChildView()] },
+      function* () {
+        const { dependency } = yield* TemplateChildView();
+        return span(dependency.label);
+      },
+    );
+    const { TemplateTestView, provideTemplateTestView } = craftService(
+      { name: 'templateTestView', providedIn: 'toProvide' },
+      () => ({ label: 'real label' }),
+    );
+
     const component = craftComponent(
       'templateTestComponent',
-      { styles: '.template-root { color: red; }' },
-      () => ({ label: 'ignored' }),
-      ({ label }) => div({ class: 'template-root' }, [p(label), child()]),
+      {
+        providers: [provideTemplateTestView()],
+        styles: '.template-root { color: red; }',
+      },
+      function* () {
+        const { label } = yield* TemplateTestView();
+        return div({ class: 'template-root' }, [p(label), child()]);
+      },
     );
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
-      context: { label: 'direct context' },
+      inputs: {},
       register: {
+        // The component's own service is what a template test replaces now.
+        templateTestView: { label: 'mocked label' },
         ChildDependency: { label: 'mock child' },
+        templateChildView: 'provided',
       },
     });
-    expect(result.nativeElement.textContent).toContain('direct context');
+    expect(result.nativeElement.textContent).toContain('mocked label');
     expect(result.nativeElement.textContent).toContain('mock child');
     expect(result.nativeElement.querySelector('.template-root')).not.toBeNull();
     expect(document.querySelector('style[data-craft-sheet]')).not.toBeNull();
@@ -91,20 +119,27 @@ describe('Craft component and directive testing utilities', () => {
   });
 
   it('finds controls by role and accessible name', async () => {
+    const { RoleLocatorPageView, provideRoleLocatorPageView } = craftService(
+      { name: 'roleLocatorPageView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const Page = craftComponent(
       'roleLocatorPage',
-      {},
-      () => ({}),
-      () => [
-        label({ htmlFor: 'email' }, 'Email'),
-        input({ id: 'email', type: 'email' }),
-        label({ htmlFor: 'save-button' }, 'Save'),
-        button({ id: 'save-button', type: 'button' }, 'Save'),
-        button({ type: 'button' }, 'Cancel'),
-      ],
+      { providers: [provideRoleLocatorPageView()] },
+      function* () {
+        yield* RoleLocatorPageView();
+        return [
+          label({ htmlFor: 'email' }, 'Email'),
+          input({ id: 'email', type: 'email' }),
+          label({ htmlFor: 'save-button' }, 'Save'),
+          button({ id: 'save-button', type: 'button' }, 'Save'),
+          button({ type: 'button' }, 'Cancel'),
+        ];
+      },
     );
     const result = await setupCraftComponentTemplateTest(Page, {
-      context: {},
+      inputs: {},
       register: {},
     });
     expect(result.getByRole('button', { name: 'Save' }).textContent).toBe(
@@ -123,27 +158,40 @@ describe('Craft component and directive testing utilities', () => {
   });
 
   it('locates statically identified elements with inferred DOM types', async () => {
+    const { LocatorChildView, provideLocatorChildView } = craftService(
+      { name: 'locatorChildView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const child = craftComponent(
       'locatorChild',
-      {},
-      () => ({}),
-      () => button({ class: 'child', 'data-testid': 'child' }, 'Child'),
+      { providers: [provideLocatorChildView()] },
+      function* () {
+        yield* LocatorChildView();
+        return button({ class: 'child', 'data-testid': 'child' }, 'Child');
+      },
     );
+    const { LocatorView, provideLocatorView } = craftService(
+      { name: 'locatorView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const component = craftComponent(
       'locatorComponent',
-      {},
-      () => ({}),
-      () =>
-        div([
+      { providers: [provideLocatorView()] },
+      function* () {
+        yield* LocatorView();
+        return div([
           button({ class: 'save primary', 'data-testid': 'save' }, 'Save'),
           input({ attrs: { 'aria-label': 'Search' } }),
           child(),
-        ]),
+        ]);
+      },
     );
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
-      context: {},
-      register: {},
+      inputs: {},
+      register: { locatorChildView: 'provided' },
     });
 
     const save = result.locator('button', { class: 'save' });
@@ -169,15 +217,23 @@ describe('Craft component and directive testing utilities', () => {
       rawBrandedStatus,
       'brandedStatus',
     ) as NamedYieldableValue<'brandedStatus', typeof rawBrandedStatus>;
+    const { BrandedContentLocatorView, provideBrandedContentLocatorView } =
+      craftService(
+        { name: 'brandedContentLocatorView', providedIn: 'toProvide' },
+        () => ({ brandedStatus }),
+      );
+
     const component = craftComponent(
       'brandedContentLocatorComponent',
-      {},
-      () => ({ brandedStatus }),
-      ({ brandedStatus }) => div([span(brandedStatus)]),
+      { providers: [provideBrandedContentLocatorView()] },
+      function* () {
+        const { brandedStatus } = yield* BrandedContentLocatorView();
+        return div([span(brandedStatus)]);
+      },
     );
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
-      context: { brandedStatus },
+      inputs: { brandedStatus },
       register: {},
     });
 
@@ -194,7 +250,7 @@ describe('Craft component and directive testing utilities', () => {
     expect(brandedStatusElement.textContent).toBe('Saved');
 
     brandedStatus.set('Updated');
-    result.updateContext({ brandedStatus });
+    result.updateInputs({ brandedStatus });
     result.detectChanges();
     expect(result.locator('span', { content: 'brandedStatus' })).toBe(
       brandedStatusElement,
@@ -221,20 +277,30 @@ describe('Craft component and directive testing utilities', () => {
       rawBrandedStatus,
       'brandedStatus',
     ) as NamedYieldableValue<'brandedStatus', typeof rawBrandedStatus>;
+    const {
+      ConditionalBrandedContentLocatorView,
+      provideConditionalBrandedContentLocatorView,
+    } = craftService(
+      { name: 'conditionalBrandedContentLocatorView', providedIn: 'toProvide' },
+      () => ({ visible, brandedStatus }),
+    );
+
     const component = craftComponent(
       'conditionalBrandedContentLocatorComponent',
-      {},
-      () => ({ visible, brandedStatus }),
-      ({ visible, brandedStatus }) =>
-        ifNode(
+      { providers: [provideConditionalBrandedContentLocatorView()] },
+      function* () {
+        const { visible, brandedStatus } =
+          yield* ConditionalBrandedContentLocatorView();
+        return ifNode(
           visible,
           () => span(brandedStatus),
           () => p('Hidden'),
-        ),
+        );
+      },
     );
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
-      context: { visible, brandedStatus },
+      inputs: { visible, brandedStatus },
       register: {},
     });
     const visibleElement = result.locator('span', {
@@ -244,7 +310,7 @@ describe('Craft component and directive testing utilities', () => {
     expect(visibleElement?.textContent).toBe('Visible');
 
     visible.set(false);
-    result.updateContext({ visible, brandedStatus });
+    result.updateInputs({ visible, brandedStatus });
     result.detectChanges();
     expect(
       result.locator('span', { content: 'brandedStatus' }),
@@ -253,46 +319,59 @@ describe('Craft component and directive testing utilities', () => {
   });
 
   it('returns an optional locator for conditional elements and refreshes it', async () => {
+    const { ConditionalLocatorView, provideConditionalLocatorView } =
+      craftService(
+        { name: 'conditionalLocatorView', providedIn: 'toProvide' },
+        () => ({ visible: initialVisible }),
+      );
+
     const initialVisible = markYieldableValue(signal(true), 'visible');
     const component = craftComponent(
       'conditionalLocatorComponent',
-      {},
-      () => ({ visible: initialVisible }),
-      ({ visible }: { visible: any }) =>
-        ifNode(
+      { providers: [provideConditionalLocatorView()] },
+      function* () {
+        const { visible }: { visible: any } = yield* ConditionalLocatorView();
+        return ifNode(
           visible,
           () => button({ class: 'conditional' }, 'Conditional'),
           () => p('Hidden'),
-        ),
+        );
+      },
     );
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
-      context: { visible: initialVisible },
+      inputs: { visible: initialVisible },
       register: {},
     });
     const conditional = result.locator('button', { class: 'conditional' });
     expect(conditional?.textContent).toBe('Conditional');
 
     initialVisible.set(false);
-    result.updateContext({ visible: initialVisible });
+    result.updateInputs({ visible: initialVisible });
     result.detectChanges();
     expect(result.locator('button', { class: 'conditional' })).toBeUndefined();
     result.destroy();
   });
 
   it('rejects statically repeated targets in the singular locator API', async () => {
+    const { AmbiguousLocatorView, provideAmbiguousLocatorView } = craftService(
+      { name: 'ambiguousLocatorView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const component = craftComponent(
       'ambiguousLocatorComponent',
-      {},
-      () => ({}),
-      () =>
-        div([
+      { providers: [provideAmbiguousLocatorView()] },
+      function* () {
+        yield* AmbiguousLocatorView();
+        return div([
           button({ class: 'duplicate' }, 'One'),
           button({ class: 'duplicate' }, 'Two'),
-        ]),
+        ]);
+      },
     );
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
-      context: {},
+      inputs: {},
       register: {},
     });
 
@@ -305,20 +384,26 @@ describe('Craft component and directive testing utilities', () => {
   });
 
   it('rejects targets rendered by each as potentially repeated', async () => {
+    const { EachLocatorView, provideEachLocatorView } = craftService(
+      { name: 'eachLocatorView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const component = craftComponent(
       'eachLocatorComponent',
-      {},
-      () => ({}),
-      () =>
-        forNode(
+      { providers: [provideEachLocatorView()] },
+      function* () {
+        yield* EachLocatorView();
+        return forNode(
           [{ id: 1 }, { id: 2 }],
           { track: (item: { id: number }) => item.id },
           () => button({ class: 'row' }, 'Row'),
-        ),
+        );
+      },
     );
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
-      context: {},
+      inputs: {},
       register: {},
     });
     expect(() => result.locator('button', { class: 'row' })).toThrow(
@@ -327,62 +412,68 @@ describe('Craft component and directive testing utilities', () => {
     result.destroy();
   });
 
-  it('tests directive logic separately from its base logic', async () => {
-    const directive = craftDirective(
-      'testDirective',
-      {},
-      (baseLogic: HostRequiredLogic<{ value: Input<string> }>) =>
-        (value: Input<string>) => ({
-          ...baseLogic(value),
-          decorated: true,
-        }),
-      (baseTemplate: HostTemplate<{ value: Input<string> }>) => baseTemplate,
+  it('replaces a service member for the components a directive is piped on', async () => {
+    const { DirectiveCounter, provideDirectiveCounter } = craftService(
+      { name: 'directiveCounter', providedIn: 'toProvide' },
+      () => ({ label: 'base' }),
     );
 
-    const result = await setupCraftDirectiveLogicTest.byRegister(directive, {
-      baseLogic: (value: Input<string>) => ({ value }),
-      args: [
-        function* () {
-          return 'directive';
-        } as Input<string>,
-      ],
-      register: {},
-    });
+    const component = craftComponent(
+      'directiveServiceComponent',
+      { providers: [provideDirectiveCounter()] },
+      function* () {
+        const counter = yield* DirectiveCounter();
+        return p(counter.label);
+      },
+    );
 
-    expect(craftUse(result.context.value())).toBe('directive');
-    expect(result.context.decorated).toBe(true);
+    const decorated = component.pipe(
+      craftDirective(
+        'labelled',
+        {},
+        {
+          service: overrideService(DirectiveCounter, (base) => ({
+            ...base,
+            label: `${base.label} + directive`,
+          })),
+        },
+      ),
+    );
+
+    const result = await renderCraftComponent(decorated as never);
+    expect(result.nativeElement.textContent).toBe('base + directive');
     result.destroy();
   });
 
-  it('mounts directive templates and supports context updates', async () => {
+  it('mounts directive templates and supports input updates', async () => {
     const directive = craftDirective(
       'conditionalTestDirective',
       { styles: '.directive-root { color: blue; }' },
-      (baseLogic) => baseLogic,
-      (baseTemplate: HostTemplate<{ visible: Input<boolean> }>) => (context) =>
-        craftUse(context.visible()) ? baseTemplate(context) : p('hidden'),
-    );
-    const baseTemplate: HostTemplate<{ visible: Input<boolean> }> = (
-      _context,
-    ) => div({ class: 'directive-root' }, 'visible');
-
-    const initialContext: { visible: Input<boolean> } = {
-      visible: function* () {
-        return true;
+      {
+        template:
+          (baseTemplate) => (inputs: { readonly visible: Input<boolean> }) =>
+            craftUse(inputs.visible()) ? baseTemplate(inputs) : p('hidden'),
       },
-    };
+    );
+    const baseTemplate = (_inputs: { readonly visible: Input<boolean> }) =>
+      div({ class: 'directive-root' }, 'visible');
+
     const result = await setupCraftDirectiveTemplateTest.byRegister(directive, {
       baseTemplate,
-      context: initialContext,
+      inputs: {
+        visible: function* () {
+          return true;
+        },
+      } as { readonly visible: Input<boolean> },
       register: {},
     });
 
     expect(result.nativeElement.textContent).toBe('visible');
-    result.updateContext({
+    result.updateInputs({
       visible: function* () {
         return false;
       },
-    });
+    } as { readonly visible: Input<boolean> });
     expect(result.nativeElement.textContent).toBe('hidden');
     result.destroy();
   });

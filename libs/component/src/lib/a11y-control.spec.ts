@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { craftSignal as signal } from '@craft-ts/core';
+import { craftService, craftSignal as signal } from '@craft-ts/core';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   button,
@@ -31,18 +31,30 @@ describe('fieldControl', () => {
   });
 
   it('wires label htmlFor, input id, and aria-describedby', async () => {
+    const { FieldControlBasicView, provideFieldControlBasicView } =
+      craftService(
+        { name: 'fieldControlBasicView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const email = fieldControl('email');
     const root = craftComponent(
       'fieldControlBasic',
-      {},
-      () => ({}),
-      () => [
-        label(email.label, 'Email'),
-        input({ ...email.input, type: 'email' }),
-        p(email.description, 'We never share your email.'),
-      ],
+      { providers: [provideFieldControlBasicView()] },
+      function* () {
+        yield* FieldControlBasicView();
+        return [
+          label(email.label, 'Email'),
+          input({ ...email.input, type: 'email' }),
+          p(email.description, 'We never share your email.'),
+        ];
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     const control = element.querySelector('input');
     const labelEl = element.querySelector('label');
     const hint = element.querySelector('#email-description');
@@ -54,14 +66,28 @@ describe('fieldControl', () => {
   });
 
   it('clears the native for attribute when htmlFor is cleared', async () => {
+    const {
+      FieldControlHtmlForCleanupView,
+      provideFieldControlHtmlForCleanupView,
+    } = craftService(
+      { name: 'fieldControlHtmlForCleanupView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const htmlFor = signal<string | null>('email');
     const root = craftComponent(
       'fieldControlHtmlForCleanup',
-      {},
-      () => ({}),
-      () => label({ htmlFor }, 'Email'),
+      { providers: [provideFieldControlHtmlForCleanupView()] },
+      function* () {
+        yield* FieldControlHtmlForCleanupView();
+        return label({ htmlFor }, 'Email');
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
 
     const labelEl = element.querySelector('label')!;
     expect(labelEl.htmlFor).toBe('email');
@@ -75,14 +101,26 @@ describe('fieldControl', () => {
   });
 
   it('sets aria-invalid and data-invalid when invalid is true', async () => {
+    const { FieldControlInvalidView, provideFieldControlInvalidView } =
+      craftService(
+        { name: 'fieldControlInvalidView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const email = fieldControl('email', { invalid: true });
     const root = craftComponent(
       'fieldControlInvalid',
-      {},
-      () => ({}),
-      () => input({ ...email.input, type: 'email' }),
+      { providers: [provideFieldControlInvalidView()] },
+      function* () {
+        yield* FieldControlInvalidView();
+        return input({ ...email.input, type: 'email' });
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     const control = element.querySelector('input');
     expect(control?.getAttribute('aria-invalid')).toBe('true');
     expect(control?.hasAttribute('data-invalid')).toBe(true);
@@ -95,17 +133,28 @@ afterEach(() => {
 
 describe('disclosureControl', () => {
   it('links aria-expanded and aria-controls to the panel id', async () => {
+    const { DisclosureOpenView, provideDisclosureOpenView } = craftService(
+      { name: 'disclosureOpenView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const faq = disclosureControl('faq-1', true);
     const root = craftComponent(
       'disclosureOpen',
-      {},
-      () => ({}),
-      () => [
-        button(faq.button, 'What is Craft?'),
-        div(faq.panel, 'A typed Angular framework.'),
-      ],
+      { providers: [provideDisclosureOpenView()] },
+      function* () {
+        yield* DisclosureOpenView();
+        return [
+          button(faq.button, 'What is Craft?'),
+          div(faq.panel, 'A typed Angular framework.'),
+        ];
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     const toggle = element.querySelector('button');
     const panel = element.querySelector('#faq-1-panel');
     expect(toggle?.id).toBe('faq-1-button');
@@ -118,14 +167,25 @@ describe('disclosureControl', () => {
   });
 
   it('hides the panel and drops data-open when closed', async () => {
+    const { DisclosureClosedView, provideDisclosureClosedView } = craftService(
+      { name: 'disclosureClosedView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const faq = disclosureControl('faq-1', false);
     const root = craftComponent(
       'disclosureClosed',
-      {},
-      () => ({}),
-      () => [button(faq.button, 'Q'), div(faq.panel, 'A')],
+      { providers: [provideDisclosureClosedView()] },
+      function* () {
+        yield* DisclosureClosedView();
+        return [button(faq.button, 'Q'), div(faq.panel, 'A')];
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     const toggle = element.querySelector('button');
     const panel = element.querySelector('#faq-1-panel');
     expect(toggle?.getAttribute('aria-expanded')).toBe('false');
@@ -143,24 +203,50 @@ describe('disclosureControl', () => {
 
 describe('buttonControl', () => {
   it('defaults type to button', async () => {
+    const { ButtonControlTypeView, provideButtonControlTypeView } =
+      craftService(
+        { name: 'buttonControlTypeView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const root = craftComponent(
       'buttonControlType',
-      {},
-      () => ({}),
-      () => button(buttonControl(), 'Save'),
+      { providers: [provideButtonControlTypeView()] },
+      function* () {
+        yield* ButtonControlTypeView();
+        return button(buttonControl(), 'Save');
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
-    expect(element.querySelector('button')?.getAttribute('type')).toBe('button');
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
+    expect(element.querySelector('button')?.getAttribute('type')).toBe(
+      'button',
+    );
   });
 
   it('uses native disabled by default', async () => {
+    const { ButtonControlDisabledView, provideButtonControlDisabledView } =
+      craftService(
+        { name: 'buttonControlDisabledView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const root = craftComponent(
       'buttonControlDisabled',
-      {},
-      () => ({}),
-      () => button(buttonControl({ disabled: true }), 'Save'),
+      { providers: [provideButtonControlDisabledView()] },
+      function* () {
+        yield* ButtonControlDisabledView();
+        return button(buttonControl({ disabled: true }), 'Save');
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     const el = element.querySelector('button');
     expect(el?.disabled).toBe(true);
     expect(el?.hasAttribute('data-disabled')).toBe(true);
@@ -168,14 +254,30 @@ describe('buttonControl', () => {
   });
 
   it('keeps the button focusable when keepFocusable is set', async () => {
+    const {
+      ButtonControlKeepFocusableView,
+      provideButtonControlKeepFocusableView,
+    } = craftService(
+      { name: 'buttonControlKeepFocusableView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const root = craftComponent(
       'buttonControlKeepFocusable',
-      {},
-      () => ({}),
-      () =>
-        button(buttonControl({ disabled: true, keepFocusable: true }), 'Save'),
+      { providers: [provideButtonControlKeepFocusableView()] },
+      function* () {
+        yield* ButtonControlKeepFocusableView();
+        return button(
+          buttonControl({ disabled: true, keepFocusable: true }),
+          'Save',
+        );
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(root);
     const el = element.querySelector('button') as HTMLButtonElement;
     expect(el.disabled).toBe(false);
     expect(el.getAttribute('aria-disabled')).toBe('true');

@@ -55,9 +55,7 @@ describe('AiSendDialog', () => {
       )?.[0] ?? '';
 
     expect(sheet?.textContent).toContain('color-scheme: light dark');
-    expect(sheet?.textContent).toContain(
-      '@media (prefers-color-scheme: dark)',
-    );
+    expect(sheet?.textContent).toContain('@media (prefers-color-scheme: dark)');
     expect(textareaRule).toContain('color: var(--craft-ai-text)');
     expect(textareaRule).toContain('background: var(--craft-ai-control-bg)');
 

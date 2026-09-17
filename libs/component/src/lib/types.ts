@@ -488,12 +488,15 @@ type ComponentTemplateFieldExceptions<Template> = Template extends (
  * Read structurally from the yield request's own resolver so this layer stays
  * ignorant of how core shapes a service request.
  */
-export type TemplateServiceOutputs<Template> =
-  FactoryYielded<Template & ComponentFactory> extends infer Yielded
+export type TemplateServiceOutputs<Template> = Template extends (
+  ...args: any[]
+) => infer Output
+  ? Output extends Generator<infer Yielded, any, any>
     ? Yielded extends { readonly resolve: (...args: any[]) => infer Result }
       ? Result
       : never
-    : never;
+    : never
+  : never;
 
 export type ComponentResidualFieldExceptions<Factory, Template> = 0 extends 1 &
   Factory

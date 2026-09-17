@@ -204,7 +204,7 @@ type VisitComponent<
         ? Component extends Seen[number]
           ? true
           : VisitChildren<
-              ReturnType<ComponentTemplateOf<Component>>,
+              TemplateChildren<ComponentTemplateOf<Component>>,
               Registry,
               [...Seen, Component]
             >
@@ -214,7 +214,7 @@ type RootVisit<
   Component extends CraftComponent<any, any>,
   Registry extends readonly CraftComponent<any, any>[],
 > = VisitChildren<
-  ReturnType<ComponentTemplateOf<Component>>,
+  TemplateChildren<ComponentTemplateOf<Component>>,
   Registry,
   [Component]
 >;
@@ -270,7 +270,7 @@ type FindElement<
       : Children extends CraftDirectiveNode<any>
       ? FindElement<Children['node'], Tag, Props>
       : Children extends ComponentNode<any, any, infer Component>
-        ? FindElement<ReturnType<ComponentTemplateOf<Component>>, Tag, Props>
+        ? FindElement<TemplateChildren<ComponentTemplateOf<Component>>, Tag, Props>
         : Children extends ForNode<any, any>
           ? FindElement<
               | ReturnType<Children['itemTemplate']>
@@ -335,7 +335,7 @@ type VisitProperty<
       ? VisitProperty<Children['node'], Tag, Property, Value>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitProperty<
-            ReturnType<ComponentTemplateOf<Component>>,
+            TemplateChildren<ComponentTemplateOf<Component>>,
             Tag,
             Property,
             Value
@@ -406,7 +406,7 @@ type VisitYieldableProperty<
       ? VisitYieldableProperty<Children['node'], Tag, Property, Result>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitYieldableProperty<
-            ReturnType<ComponentTemplateOf<Component>>,
+            TemplateChildren<ComponentTemplateOf<Component>>,
             Tag,
             Property,
             Result
@@ -483,7 +483,7 @@ type VisitContextUse<
       ? VisitContextUse<Children['node'], Tag, Property, ContextMethod>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitContextUse<
-            ReturnType<ComponentTemplateOf<Component>>,
+            TemplateChildren<ComponentTemplateOf<Component>>,
             Tag,
             Property,
             ContextMethod
@@ -550,7 +550,7 @@ type VisitEvent<
       ? VisitEvent<Children['node'], Tag, EventName, Handler>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitEvent<
-            ReturnType<ComponentTemplateOf<Component>>,
+            TemplateChildren<ComponentTemplateOf<Component>>,
             Tag,
             EventName,
             Handler
@@ -580,7 +580,7 @@ type VisitOutput<
               : false
             : false
           : VisitOutput<
-              ReturnType<ComponentTemplateOf<Actual>>,
+              TemplateChildren<ComponentTemplateOf<Actual>>,
               Target,
               Name,
               Handler
@@ -655,7 +655,7 @@ type VisitYieldableEvent<
       ? VisitYieldableEvent<Children['node'], Tag, EventName, Args>
       : Children extends ComponentNode<any, any, infer Component>
         ? VisitYieldableEvent<
-            ReturnType<ComponentTemplateOf<Component>>,
+            TemplateChildren<ComponentTemplateOf<Component>>,
             Tag,
             EventName,
             Args
@@ -679,7 +679,7 @@ export type TemplateUsesComponent<
     ? [Actual] extends [Component]
       ? true
       : TemplateUsesComponent<
-          ReturnType<ComponentTemplateOf<Actual>>,
+          TemplateChildren<ComponentTemplateOf<Actual>> & CraftNodeChildren,
           Component
         >
     : Children extends ElementNodeBase<any, any, any, infer Nested>
@@ -840,7 +840,7 @@ type VisitRenderedState<
           ? Component extends Seen[number]
             ? false
             : VisitRenderedState<
-                ReturnType<ComponentTemplateOf<Component>>,
+                TemplateChildren<ComponentTemplateOf<Component>>,
                 StateName,
                 Expected,
                 Current,
@@ -1024,7 +1024,7 @@ type VisitAvailableAction<
           ? Component extends Seen[number]
             ? false
             : VisitAvailableAction<
-                ReturnType<ComponentTemplateOf<Component>>,
+                TemplateChildren<ComponentTemplateOf<Component>>,
                 EventName,
                 LocalName,
                 Expected,
@@ -1228,7 +1228,7 @@ type VisitNamedElementIdentities<
               : Component extends Seen[number]
                 ? never
                 : VisitNamedElementIdentities<
-                    ReturnType<ComponentTemplateOf<Component>>,
+                    TemplateChildren<ComponentTemplateOf<Component>>,
                     ComponentName<Component>,
                     [...Seen, Component],
                     [...Depth, unknown]
@@ -1378,7 +1378,7 @@ type NamedElementPropsOf<
             ? Component extends Seen[number]
               ? never
               : NamedElementPropsOf<
-                  ReturnType<ComponentTemplateOf<Component>>,
+                  TemplateChildren<ComponentTemplateOf<Component>>,
                   Identity,
                   ComponentName<Component>,
                   [...Seen, Component],
@@ -1517,7 +1517,7 @@ type NamedElementDelegatesToContextOf<
           ? Component extends Seen[number]
             ? false
             : NamedElementDelegatesToContextOf<
-                ReturnType<ComponentTemplateOf<Component>>,
+                TemplateChildren<ComponentTemplateOf<Component>>,
                 Identity,
                 Property,
                 ContextMethod,
@@ -1665,7 +1665,7 @@ type NamedElementRendersStateWhenOf<
           ? Component extends Seen[number]
             ? false
             : NamedElementRendersStateWhenOf<
-                ReturnType<ComponentTemplateOf<Component>>,
+                TemplateChildren<ComponentTemplateOf<Component>>,
                 Identity,
                 Property,
                 StateName,
@@ -1852,7 +1852,7 @@ type VisitNamedElement<
           ? Component extends Seen[number]
             ? false
             : VisitNamedElement<
-                ReturnType<ComponentTemplateOf<Component>>,
+                TemplateChildren<ComponentTemplateOf<Component>>,
                 Identity,
                 Expected,
                 ComponentName<Component>,

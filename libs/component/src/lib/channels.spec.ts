@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
 import type { ChannelsOf, CraftChannelsCarrier } from '@craft-ts/core';
-import { YIELDABLE_VALUE } from '@craft-ts/core';
+import { craftService, YIELDABLE_VALUE } from '@craft-ts/core';
 import { div, span } from './hyperscript';
 import { forNode } from './for-node';
 import { ifNode } from './if-node';
@@ -45,7 +45,10 @@ describe('channels through the render tree', () => {
   });
 
   it('bubbles through several levels of nesting and arrays', () => {
-    const tree = div([[span({ class: needsPort })], [[span({ class: needsRoom })]]]);
+    const tree = div([
+      [span({ class: needsPort })],
+      [[span({ class: needsRoom })]],
+    ]);
 
     type _ = Expect<
       Equal<
@@ -124,7 +127,7 @@ describe('channels through the render tree', () => {
 
   it('crosses the component boundary — the caller inherits the demand', () => {
     const template = () => div([span({ class: needsPort })]);
-    const scroller = craftComponent('scroller', {}, () => ({}), template);
+    const scroller = craftComponent('scroller', {}, template);
 
     type _fromTemplate = Expect<
       Equal<
@@ -141,11 +144,19 @@ describe('channels through the render tree', () => {
   });
 
   it('lets the caller answer what a nested component demands', () => {
+    const { ScrollerNeedingPortView, provideScrollerNeedingPortView } =
+      craftService(
+        { name: 'scrollerNeedingPortView', providedIn: 'toProvide' },
+        () => ({}),
+      );
+
     const scroller = craftComponent(
       'scrollerNeedingPort',
-      {},
-      () => ({}),
-      () => div([span({ class: needsPort })]),
+      { providers: [provideScrollerNeedingPortView()] },
+      function* () {
+        yield* ScrollerNeedingPortView();
+        return div([span({ class: needsPort })]);
+      },
     );
     const shell = div({ class: providesPort }, [scroller({})]);
 
@@ -154,11 +165,18 @@ describe('channels through the render tree', () => {
   });
 
   it('leaves a component with no style on the neutral element', () => {
+    const { PlainView, providePlainView } = craftService(
+      { name: 'plainView', providedIn: 'toProvide' },
+      () => ({}),
+    );
+
     const plain = craftComponent(
       'plain',
-      {},
-      () => ({}),
-      () => div([span('text')]),
+      { providers: [providePlainView()] },
+      function* () {
+        yield* PlainView();
+        return div([span('text')]);
+      },
     );
     const call = plain({});
 
