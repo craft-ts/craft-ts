@@ -14,8 +14,13 @@ function propertyName(node) {
 }
 
 function isCallNamed(node, name) {
-  return node && node.type === 'CallExpression' &&
-    node.callee && node.callee.type === 'Identifier' && node.callee.name === name;
+  return (
+    node &&
+    node.type === 'CallExpression' &&
+    node.callee &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === name
+  );
 }
 
 module.exports = { report, propertyName, isCallNamed };

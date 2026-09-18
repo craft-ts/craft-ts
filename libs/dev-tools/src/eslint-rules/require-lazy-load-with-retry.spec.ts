@@ -39,11 +39,14 @@ const routes = craftRoutes('test', [{
   });
 
   it('reports unsupported loader parameters without applying an unsafe fix', async () => {
-    const result = await lint(`
+    const result = await lint(
+      `
 const routes = craftRoutes('test', [{
   loadComponent: (context) => import('./component'),
 }]);
-`, true);
+`,
+      true,
+    );
 
     expect(result.messages).toHaveLength(1);
     expect(result.output).toBeUndefined();

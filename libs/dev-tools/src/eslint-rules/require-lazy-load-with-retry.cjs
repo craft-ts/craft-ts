@@ -1,9 +1,6 @@
 'use strict';
 
-const LAZY_PROPERTIES = new Set([
-  'loadComponent',
-  'loadChildren',
-]);
+const LAZY_PROPERTIES = new Set(['loadComponent', 'loadChildren']);
 
 module.exports = {
   meta: {

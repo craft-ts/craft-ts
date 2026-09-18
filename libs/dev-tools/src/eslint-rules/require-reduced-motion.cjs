@@ -22,9 +22,10 @@ module.exports = {
         const info = componentInfo(context, sourceCode, node);
         if (!info?.css) return;
         const hasKeyframes = /@keyframes\b/.test(info.css);
-        const hasTransition = /\btransition(?:-duration|-property|-timing-function)?\s*:/.test(
-          info.css,
-        );
+        const hasTransition =
+          /\btransition(?:-duration|-property|-timing-function)?\s*:/.test(
+            info.css,
+          );
         if (!hasKeyframes && !hasTransition) return;
         if (/prefers-reduced-motion/.test(info.css)) return;
         context.report({

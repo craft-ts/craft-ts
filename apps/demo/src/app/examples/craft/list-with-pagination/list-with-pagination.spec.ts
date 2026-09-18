@@ -17,7 +17,6 @@ import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPaginationCraft, {
   ListWithPaginationCraftView,
-  provideListWithPaginationCraftView,
   UserList,
   provideUserList,
 } from './list-with-pagination';

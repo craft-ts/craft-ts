@@ -39,7 +39,8 @@ module.exports = {
             if (importedName === 'craftComponent') {
               componentNames.add(specifier.local.name);
             }
-            if (importedName === 'button') buttonNames.add(specifier.local.name);
+            if (importedName === 'button')
+              buttonNames.add(specifier.local.name);
             if (INPUT_CONTROLS.has(importedName)) {
               inputControlNames.add(specifier.local.name);
             }
@@ -51,12 +52,12 @@ module.exports = {
         if (
           node.callee.type !== 'Identifier' ||
           !componentNames.has(node.callee.name) ||
-          node.arguments.length < 4
+          node.arguments.length < 3
         ) {
           return;
         }
 
-        const template = resolveTemplate(node.arguments[3]);
+        const template = resolveTemplate(node.arguments[2]);
         if (!template) return;
 
         for (const input of findInputControls(template, inputControlNames)) {
@@ -197,14 +198,22 @@ module.exports = {
 
     function isActionCall(node) {
       if (node.callee.type === 'MemberExpression') {
-        const name = getPropertyName(node.callee.property, node.callee.computed);
+        const name = getPropertyName(
+          node.callee.property,
+          node.callee.computed,
+        );
         return ACTION_METHODS.has(name);
       }
 
       return node.callee.type === 'Identifier';
     }
 
-    function dependsOnInput(node, inputValues, localBindings, seen = new Set()) {
+    function dependsOnInput(
+      node,
+      inputValues,
+      localBindings,
+      seen = new Set(),
+    ) {
       if (!node || typeof node.type !== 'string') return false;
 
       if (node.type === 'Identifier') {
@@ -219,7 +228,8 @@ module.exports = {
 
       if (node.type === 'Property') {
         return (
-          (node.computed && dependsOnInput(node.key, inputValues, localBindings, seen)) ||
+          (node.computed &&
+            dependsOnInput(node.key, inputValues, localBindings, seen)) ||
           dependsOnInput(node.value, inputValues, localBindings, seen)
         );
       }
@@ -234,7 +244,11 @@ module.exports = {
       const keys = sourceCode.visitorKeys[node.type] ?? [];
       for (const key of keys) {
         if (key === 'id' && node.type === 'VariableDeclarator') continue;
-        if (key === 'property' && node.type === 'MemberExpression' && !node.computed) {
+        if (
+          key === 'property' &&
+          node.type === 'MemberExpression' &&
+          !node.computed
+        ) {
           continue;
         }
 
@@ -302,7 +316,9 @@ function collectReadIdentifiers(node, identifiers) {
     }
     if (
       (parent.type === 'VariableDeclarator' && parent.id === candidate) ||
-      (parent.type === 'Property' && parent.key === candidate && !parent.computed) ||
+      (parent.type === 'Property' &&
+        parent.key === candidate &&
+        !parent.computed) ||
       (parent.type === 'FunctionDeclaration' && parent.id === candidate) ||
       (parent.type === 'FunctionExpression' && parent.id === candidate) ||
       (parent.type === 'ArrowFunctionExpression' && parent.id === candidate)

@@ -30,9 +30,9 @@ module.exports = {
     schema: [],
     messages: {
       useState:
-        "Do not declare '{{name}}' with {{kind}} in a Craft template. Move it to the logic factory as state() or craftComputed().",
+        "Do not declare '{{name}}' with {{kind}} in a Craft template. Move it to the component's service as state() or craftComputed().",
       useStatePattern:
-        'Do not declare {{kind}} bindings in a Craft template. Move them to the logic factory as state() or craftComputed().',
+        "Do not declare {{kind}} bindings in a Craft template. Move them to the component's service as state() or craftComputed().",
     },
   },
 
@@ -41,16 +41,31 @@ module.exports = {
 
     return {
       CallExpression(node) {
-        if (!isTemplateHostCall(node) || node.arguments.length < 4) {
+        if (!isTemplateHostCall(node) || node.arguments.length < 3) {
           return;
         }
 
-        const template = resolveTemplateFunction(node.arguments[3]);
+        const template = resolveTemplateFunction(
+          templateArgument(node.arguments[2]),
+        );
         if (!template) return;
 
         inspectTemplate(template);
       },
     };
+
+    /** A directive declares its template inside its transforms object. */
+    function templateArgument(argument) {
+      if (argument?.type !== 'ObjectExpression') return argument;
+      const property = argument.properties.find(
+        (candidate) =>
+          candidate.type === 'Property' &&
+          !candidate.computed &&
+          candidate.key.type === 'Identifier' &&
+          candidate.key.name === 'template',
+      );
+      return property?.value ?? null;
+    }
 
     function resolveTemplateFunction(node) {
       if (isFunctionNode(node)) return node;
@@ -64,7 +79,10 @@ module.exports = {
         if (variable) {
           for (const definition of variable.defs) {
             if (definition.type === 'ImportBinding') return null;
-            if (definition.type === 'FunctionName' && isFunctionNode(definition.node)) {
+            if (
+              definition.type === 'FunctionName' &&
+              isFunctionNode(definition.node)
+            ) {
               return definition.node;
             }
             if (
@@ -90,9 +108,7 @@ module.exports = {
 
         if (node.type !== 'VariableDeclaration') return;
 
-        const named = node.declarations
-          .map(declaratorName)
-          .filter(Boolean);
+        const named = node.declarations.map(declaratorName).filter(Boolean);
 
         if (named.length === 0) {
           context.report({

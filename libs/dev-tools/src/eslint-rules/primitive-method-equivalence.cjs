@@ -54,9 +54,11 @@ function collectPrimitiveMethodUsages(program, primitiveBindings, sourceCode) {
         return;
       }
 
+      // A component is one function now: what it hands to an element it also
+      // built, so setup and template are the same body.
       const setup = node.arguments[2];
-      const template = node.arguments[3];
-      if (!isFunction(setup) || !isFunction(template)) return;
+      const template = setup;
+      if (!isFunction(setup)) return;
 
       for (const returned of getReturnedObjects(setup)) {
         for (const property of returned.properties) {

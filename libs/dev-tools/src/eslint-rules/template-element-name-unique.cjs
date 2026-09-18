@@ -24,12 +24,12 @@ module.exports = {
         if (
           node.callee.type !== 'Identifier' ||
           node.callee.name !== 'craftComponent' ||
-          node.arguments.length < 4
+          node.arguments.length < 3
         ) {
           return;
         }
 
-        const template = node.arguments[3];
+        const template = node.arguments[2];
         const seen = new Map();
 
         walk(template, (candidate) => {

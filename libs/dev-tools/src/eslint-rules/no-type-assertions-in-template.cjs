@@ -20,12 +20,12 @@ module.exports = {
         if (
           node.callee.type !== 'Identifier' ||
           node.callee.name !== 'craftComponent' ||
-          node.arguments.length < 4
+          node.arguments.length < 3
         ) {
           return;
         }
 
-        inspectTemplate(node.arguments[3]);
+        inspectTemplate(node.arguments[2]);
       },
     };
 
@@ -39,10 +39,7 @@ module.exports = {
           return 'skip';
         }
 
-        if (
-          node.type === 'TSAsExpression' ||
-          node.type === 'TSTypeAssertion'
-        ) {
+        if (node.type === 'TSAsExpression' || node.type === 'TSTypeAssertion') {
           context.report({ node, messageId: 'forbidden' });
           return 'skip';
         }

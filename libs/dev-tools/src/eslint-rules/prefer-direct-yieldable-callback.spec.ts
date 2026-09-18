@@ -110,12 +110,13 @@ describe('prefer-direct-yieldable-callback', () => {
   it('only inspects templates and does not report a nested component twice', async () => {
     const result = await lintFixture(`
       declare function craftComponent(...args: unknown[]): unknown;
+      declare function craftService(...args: unknown[]): unknown;
       declare function span(...args: unknown[]): unknown;
       declare const role: () => Generator<unknown, string, unknown>;
 
-      craftComponent('FactoryOnly', {}, function* () {
+      craftService({ name: 'serviceOnly', providedIn: 'toProvide' }, function* () {
         return yield* role();
-      }, () => null);
+      });
 
       craftComponent('Parent', {}, () =>
         craftComponent('Child', {}, () =>

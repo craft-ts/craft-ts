@@ -95,25 +95,22 @@ describe('require-primitive-generator-unwrap', () => {
     expect(messages).toEqual([]);
   });
 
-  it('does not report a direct primitive return from a craftComponent factory', async () => {
+  it('does not report a direct primitive return from a craftService factory', async () => {
     const { messages } = await lintFixture({
       'src/app/counter.ts': `
-        import { craftComponent } from '@craft-ts/component';
-        import { state } from '@craft-ts/core';
+        import { craftService, state } from '@craft-ts/core';
 
-        export const Counter = craftComponent(
-          'Counter',
-          {},
+        export const { CounterView } = craftService(
+          { name: 'counterView', providedIn: 'toProvide' },
           () => state('counter', 0),
-          ({ counter }) => counter(),
-        );
+        ) as { CounterView: () => unknown };
       `,
     });
 
     expect(messages).toEqual([]);
   });
 
-  it('still reports a bare primitive inside a craftComponent generator factory', async () => {
+  it('still reports a bare primitive inside a craftComponent generator template', async () => {
     const { messages } = await lintFixture({
       'src/app/counter.ts': `
         import { craftComponent } from '@craft-ts/component';
@@ -124,9 +121,8 @@ describe('require-primitive-generator-unwrap', () => {
           {},
           function* () {
             const counter = state('counter', 0);
-            return { counter };
+            return counter();
           },
-          ({ counter }) => counter(),
         );
       `,
     });
@@ -207,7 +203,9 @@ describe('require-primitive-generator-unwrap', () => {
     );
 
     expect(output).toContain('readonly counter = craftUse(state(0));');
-    expect(output).toContain("import { state, craftUse } from '@craft-ts/core';");
+    expect(output).toContain(
+      "import { state, craftUse } from '@craft-ts/core';",
+    );
   });
 });
 

@@ -95,11 +95,8 @@ describe('no-reused-primitive-method', () => {
       );
       const myPrimitiveMethod = counter.increment;
 
-      craftComponent(
-        'Counter',
-        {},
-        () => ({ myPrimitiveMethod }),
-        ({ myPrimitiveMethod }) => div([
+      craftComponent('Counter', {}, () =>
+        div([
           button({ click: myPrimitiveMethod }),
           button({ click: myPrimitiveMethod }),
         ]),

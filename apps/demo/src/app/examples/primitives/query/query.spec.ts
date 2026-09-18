@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 import {
   ComponentTemplateOf,
-  TemplateNamedElementDelegatesToContext,
   TemplateRendersNamedElementWhen,
-  type Input,
 } from '@craft-ts/component';
 import type { ExtractDeps, GetServiceDependencies } from '@craft-ts/core';
 import {

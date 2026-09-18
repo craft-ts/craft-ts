@@ -57,9 +57,7 @@ module.exports = {
           return;
         }
 
-        const callback = [...node.arguments]
-          .reverse()
-          .find(isFunction);
+        const callback = [...node.arguments].reverse().find(isFunction);
         if (callback) effectCallbacks.push(callback);
       },
 

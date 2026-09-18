@@ -161,7 +161,7 @@ export const { AppView, provideAppView } = craftService(
       yield* BrowserWindow.alert('Cache cleared! The page will reload.');
       // This button is an explicit development reset action; reload after the
       // confirmation so every demo resource starts from the cleared cache.
-      // eslint-disable-next-line craft-ts/no-imperative-storage-in-craft-method
+       
       yield* BrowserLocation.reload();
     });
     return {

@@ -88,7 +88,6 @@ module.exports = {
           bindings.set(node.id.name, { kind: 'derived', node });
           return;
         }
-
       },
 
       FunctionDeclaration(node) {
@@ -96,23 +95,27 @@ module.exports = {
       },
 
       'Program:exit'() {
-        walkResourceCalls(sourceCode.ast, (primitive, paramsProperty) => {
-          const states = collectStateDependencies(
-            paramsProperty.value,
-            bindings,
-            sourceCode,
-          );
-          if (states.size === 0) return;
+        walkResourceCalls(
+          sourceCode.ast,
+          (primitive, paramsProperty) => {
+            const states = collectStateDependencies(
+              paramsProperty.value,
+              bindings,
+              sourceCode,
+            );
+            if (states.size === 0) return;
 
-          context.report({
-            node: paramsProperty,
-            messageId: 'stateInParams',
-            data: {
-              primitive,
-              states: [...states].sort().join(', '),
-            },
-          });
-        }, resourceFactories);
+            context.report({
+              node: paramsProperty,
+              messageId: 'stateInParams',
+              data: {
+                primitive,
+                states: [...states].sort().join(', '),
+              },
+            });
+          },
+          resourceFactories,
+        );
       },
     };
   },
@@ -144,14 +147,20 @@ function walkResourceCalls(node, callback, resourceFactories) {
     if (key === 'parent') continue;
     const child = node[key];
     if (Array.isArray(child)) {
-      for (const item of child) walkResourceCalls(item, callback, resourceFactories);
+      for (const item of child)
+        walkResourceCalls(item, callback, resourceFactories);
     } else if (child && typeof child === 'object' && child.type) {
       walkResourceCalls(child, callback, resourceFactories);
     }
   }
 }
 
-function collectStateDependencies(node, bindings, sourceCode, visited = new Set()) {
+function collectStateDependencies(
+  node,
+  bindings,
+  sourceCode,
+  visited = new Set(),
+) {
   const states = new Set();
   const collectInto = (current) => {
     if (!current || typeof current !== 'object') return;

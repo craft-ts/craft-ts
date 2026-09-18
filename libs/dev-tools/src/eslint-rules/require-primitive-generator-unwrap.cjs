@@ -6,11 +6,9 @@ const DEFAULT_PRIMITIVES = [
   'queryParam',
 ];
 
-const FACTORY_HOST_CALLEES = new Set([
-  'craftComponent',
-  'craftService',
-  'toCraftService',
-]);
+// A component is a template, never a primitive factory: returning `state(...)`
+// from it renders a generator instead of consuming it.
+const FACTORY_HOST_CALLEES = new Set(['craftService', 'toCraftService']);
 
 module.exports = {
   meta: {
@@ -151,9 +149,6 @@ function isFactoryHostArrow(arrow) {
     parent.callee.type === 'Identifier' &&
     FACTORY_HOST_CALLEES.has(parent.callee.name)
   ) {
-    if (parent.callee.name === 'craftComponent') {
-      return parent.arguments[2] === arrow;
-    }
     return parent.arguments.includes(arrow);
   }
   return (

@@ -5,9 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const noManualRouteProviderList = require('./no-manual-route-provider-list.cjs');
-const noWidenedRouteProviderContext = require(
-  './no-widened-route-provider-context.cjs',
-);
+const noWidenedRouteProviderContext = require('./no-widened-route-provider-context.cjs');
 
 describe('route provider context rules', () => {
   it('rejects a manually enumerated application provider list', async () => {

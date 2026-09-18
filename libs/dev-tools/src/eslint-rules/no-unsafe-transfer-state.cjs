@@ -23,7 +23,10 @@ module.exports = {
     return {
       CallExpression(node) {
         if (isCallNamed(node, 'captureCraftTransferSnapshot')) {
-          if (node.arguments.length < 2 || !hasProperty(node.arguments[1], 'policy')) {
+          if (
+            node.arguments.length < 2 ||
+            !hasProperty(node.arguments[1], 'policy')
+          ) {
             report(
               context,
               node,

@@ -1,7 +1,11 @@
 'use strict';
 
 const ariaQuery = require('aria-query');
-const { parseHyperscriptCall, hasProp, staticPropString } = require('./hyperscript-walk.cjs');
+const {
+  parseHyperscriptCall,
+  hasProp,
+  staticPropString,
+} = require('./hyperscript-walk.cjs');
 
 module.exports = {
   meta: {
@@ -11,8 +15,7 @@ module.exports = {
     },
     schema: [],
     messages: {
-      missing:
-        'role="{{role}}" requires {{prop}}.',
+      missing: 'role="{{role}}" requires {{prop}}.',
     },
   },
   create(context) {

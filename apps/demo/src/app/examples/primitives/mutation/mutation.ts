@@ -147,7 +147,7 @@ const MutationDemoComponent = craftComponent(
           click: function* () {
             // This example intentionally demonstrates direct mutation wiring;
             // the form-based variant is covered by the full-demo example.
-            // eslint-disable-next-line craft-ts/require-form-for-input-action
+             
             update(yield* nameInput());
           },
         },

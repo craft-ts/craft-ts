@@ -12,8 +12,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ ready: state, kind: query }),
-        ({ ready, kind }) => div([
+        () => div([
           ifNode(ready, () => p('ready'), () => p('not ready')),
           matchNode.exhaustive(kind, 'code', {
             OK: () => p('ok'),
@@ -32,8 +31,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ store }),
-        ({ store }) => button(
+        () => button(
           {
             disabled: store.add.isLoading(),
             click: () => {
@@ -55,8 +53,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ canReadRestrictedData, noAccess, lastHandledException }),
-        ({ restrictedContent }) => restrictedContent.pipe(
+        () => restrictedContent.pipe(
           withProviders([
             provideRestrictedData(() =>
               canReadRestrictedData() ? 'accessible' : noAccess,
@@ -101,8 +98,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ canGoBack }),
-        ({ canGoBack }) => button({
+        () => button({
           disabled: function* () {
             return !(yield* canGoBack());
           },
@@ -120,8 +116,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ store }),
-        ({ store }) => button({
+        () => button({
           click: function* () {
             if (!store.isReady()) {
               yield* store.retry();
@@ -186,9 +181,7 @@ describe('prefer-craft-template-blocks', () => {
       );
     `);
 
-    expect(fixed).toContain(
-      "import { matchNode } from '@craft-ts/component';",
-    );
+    expect(fixed).toContain("import { matchNode } from '@craft-ts/component';");
     expect(fixed).toContain(
       "return matchNode.exhaustive(() => result(), \"code\", { OK: () => p('ok'), ERROR: () => p('error') });",
     );

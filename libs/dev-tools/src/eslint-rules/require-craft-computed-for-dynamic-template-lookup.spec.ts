@@ -17,8 +17,7 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
       const Status = craftComponent(
         'Status',
         {},
-        (status: unknown) => ({ status }),
-        ({ status: resourceStatus }) => span([
+        (resourceStatus: unknown) => span([
           span(function* () {
             return STATUS_VIEW[yield* resourceStatus()][0];
           }),

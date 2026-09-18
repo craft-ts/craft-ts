@@ -1,12 +1,17 @@
 'use strict';
 
-const { parseHyperscriptCall, hasProp, staticPropString } = require('./hyperscript-walk.cjs');
+const {
+  parseHyperscriptCall,
+  hasProp,
+  staticPropString,
+} = require('./hyperscript-walk.cjs');
 
 module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Require rel="noopener" (or noreferrer) when target="_blank".',
+      description:
+        'Require rel="noopener" (or noreferrer) when target="_blank".',
     },
     schema: [],
     messages: {

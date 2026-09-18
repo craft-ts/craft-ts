@@ -77,7 +77,7 @@ describe('require-yieldable-template-method', () => {
     );
 
     expect(result.output).toContain(
-      "click: function* () { yield* store.remove.mutate(1); }",
+      'click: function* () { yield* store.remove.mutate(1); }',
     );
     expect(result.messages).toEqual([]);
   });
@@ -94,17 +94,13 @@ describe('require-yieldable-template-method', () => {
             store.remove.mutate(id);
           };
 
-          return { remove };
-        }, ({ remove }) =>
-          button({ click: () => remove(1) }, 'Remove'),
-        );
+          return button({ click: () => remove(1) }, 'Remove');
+        });
       `,
       true,
     );
 
-    expect(result.output).toContain(
-      'const remove = function* (id: number) {',
-    );
+    expect(result.output).toContain('const remove = function* (id: number) {');
     expect(result.output).toContain('yield* store.remove.mutate(id);');
     expect(result.output).toContain(
       'click: function* () { yield* remove(1); }',

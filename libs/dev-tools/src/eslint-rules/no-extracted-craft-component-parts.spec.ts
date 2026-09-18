@@ -16,33 +16,25 @@ describe('no-extracted-craft-component-parts', () => {
     ).toBe('error');
   });
 
-  it('reports extracted logic and template identifiers', async () => {
+  it('reports an extracted template identifier', async () => {
     const result = await lint(`
       import { craftComponent } from '@craft-ts/component';
 
-      const ReviewLogic = () => ({});
       const ReviewTemplate = () => [];
 
-      craftComponent('ReviewApp', {}, ReviewLogic, ReviewTemplate);
+      craftComponent('ReviewApp', {}, ReviewTemplate);
     `);
 
     expect(result.messages.map(({ message }) => message)).toEqual([
-      'Keep the craftComponent logic factory inline; do not extract it into "ReviewLogic".',
       'Keep the craftComponent template inline; do not extract it into "ReviewTemplate".',
     ]);
   });
 
-  it('allows inline logic and template callbacks', async () => {
+  it('allows an inline template callback', async () => {
     const result = await lint(`
       import { craftComponent, craftTemplate } from '@craft-ts/component';
-      import { craftGen } from '@craft-ts/core';
 
-      craftComponent(
-        'ReviewApp',
-        {},
-        craftGen(function* () { return {}; }),
-        craftTemplate(() => []),
-      );
+      craftComponent('ReviewApp', {}, craftTemplate(() => []));
     `);
 
     expect(result.messages).toEqual([]);
@@ -51,21 +43,21 @@ describe('no-extracted-craft-component-parts', () => {
   it('supports namespace imports', async () => {
     const result = await lint(`
       import * as component from '@craft-ts/component';
-      const logic = () => ({});
+      const template = () => [];
 
-      component.craftComponent('Demo', {}, logic, () => []);
+      component.craftComponent('Demo', {}, template);
     `);
 
     expect(result.messages).toHaveLength(1);
-    expect(result.messages[0].message).toContain('logic factory');
+    expect(result.messages[0].message).toContain('template');
   });
 
   it('ignores local functions with the same name', async () => {
     const result = await lint(`
       const craftComponent = () => {};
-      const logic = () => ({});
+      const template = () => [];
 
-      craftComponent('Demo', {}, logic, logic);
+      craftComponent('Demo', {}, template);
     `);
 
     expect(result.messages).toEqual([]);

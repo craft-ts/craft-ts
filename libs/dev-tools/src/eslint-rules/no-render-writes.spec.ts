@@ -9,7 +9,8 @@ const rule = require('./no-render-writes.cjs');
 describe('no-render-writes', () => {
   it('reports writes in a component template and a render binding', async () => {
     const result = await lintFixture(`
-      craftComponent('Counter', {}, () => ({ count }), ({ count }) => {
+      craftComponent('Counter', {}, function* () {
+        const { count } = yield* CounterView();
         count.set(1);
         return p(() => {
           count.update(value => value + 1);
@@ -26,12 +27,13 @@ describe('no-render-writes', () => {
 
   it('allows writes from DOM events and output callbacks', async () => {
     const result = await lintFixture(`
-      craftComponent('Counter', {}, () => ({ count }), ({ count }) =>
-        div([
+      craftComponent('Counter', {}, function* () {
+        const { count } = yield* CounterView();
+        return div([
           button({ click: () => count.update(value => value + 1) }, '+'),
           Child({ onReset: () => count.set(0) }),
-        ]),
-      );
+        ]);
+      });
     `);
 
     expect(result).toEqual([]);
@@ -40,7 +42,8 @@ describe('no-render-writes', () => {
   it('reports a nested component template only once', async () => {
     const result = await lintFixture(`
       craftComponent('Parent', {}, () => {
-        const Child = craftComponent('Child', {}, () => ({ count }), ({ count }) => {
+        const Child = craftComponent('Child', {}, function* () {
+          const { count } = yield* CounterView();
           count.set(1);
           return p('child');
         });

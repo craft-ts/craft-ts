@@ -42,11 +42,11 @@ module.exports = {
 
     return {
       CallExpression(node) {
-        if (!isTemplateHostCall(node) || node.arguments.length < 4) {
+        if (!isTemplateHostCall(node) || node.arguments.length < 3) {
           return;
         }
 
-        const template = resolveTemplateFunction(node.arguments[3]);
+        const template = resolveTemplateFunction(node.arguments[2]);
         if (template) inspectTemplate(template);
       },
     };

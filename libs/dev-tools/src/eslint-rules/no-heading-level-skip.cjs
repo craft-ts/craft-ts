@@ -40,7 +40,10 @@ module.exports = {
 
       function walkCall(node, sectionDepth) {
         if (!node || typeof node.type !== 'string') return;
-        if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
+        if (
+          node.type === 'CallExpression' &&
+          node.callee.type === 'Identifier'
+        ) {
           const name = node.callee.name;
           if (name === 'headingSection') {
             walkCall(node.arguments[0], sectionDepth + 1);
@@ -78,7 +81,8 @@ module.exports = {
         const keys = sourceCode.visitorKeys[node.type] ?? [];
         for (const key of keys) {
           const child = node[key];
-          if (Array.isArray(child)) child.forEach((item) => walkCall(item, sectionDepth));
+          if (Array.isArray(child))
+            child.forEach((item) => walkCall(item, sectionDepth));
           else walkCall(child, sectionDepth);
         }
       }
@@ -91,9 +95,9 @@ module.exports = {
         if (
           node.callee.type === 'Identifier' &&
           node.callee.name === 'craftComponent' &&
-          node.arguments.length >= 4
+          node.arguments.length >= 3
         ) {
-          visitTemplate(node.arguments[3]);
+          visitTemplate(node.arguments[2]);
         }
       },
     };

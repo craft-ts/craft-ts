@@ -20,7 +20,9 @@ module.exports = {
     docs: { description: 'Require an explicit Craft HTML sanitizer.' },
   },
   create(context) {
-    const sourceCode = (context.sourceCode ?? context.getSourceCode()).getText();
+    const sourceCode = (
+      context.sourceCode ?? context.getSourceCode()
+    ).getText();
     return {
       AssignmentExpression(node) {
         if (
@@ -84,7 +86,10 @@ module.exports = {
         }
       },
       NewExpression(node) {
-        if (node.callee.type === 'Identifier' && node.callee.name === 'Function') {
+        if (
+          node.callee.type === 'Identifier' &&
+          node.callee.name === 'Function'
+        ) {
           report(context, node, 'Dynamic code evaluation is forbidden.');
         }
       },

@@ -55,7 +55,10 @@ module.exports = {
 
         // Preserve the guard through a trivial local alias:
         // `const route = router; route.url`.
-        if (node.init?.type === 'Identifier' && routerVariables.has(node.init.name)) {
+        if (
+          node.init?.type === 'Identifier' &&
+          routerVariables.has(node.init.name)
+        ) {
           routerVariables.add(node.id.name);
         }
       },

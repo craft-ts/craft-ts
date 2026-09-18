@@ -58,7 +58,9 @@ describe('require-child-route-mount-check', () => {
     expect(output).toContain('assertChildRouteMounts(demoRoutes);');
     // The @craft-ts/core import stays a single merged import.
     expect((output?.match(/@craft-ts\/core/g) ?? []).length).toBe(1);
-    expect(output).toMatch(/import \{[\s\S]*assertChildRouteMounts[\s\S]*\} from '@craft-ts\/core'/);
+    expect(output).toMatch(
+      /import \{[\s\S]*assertChildRouteMounts[\s\S]*\} from '@craft-ts\/core'/,
+    );
   });
 
   it('accepts a collection already checked with assertChildRouteMounts', async () => {
@@ -130,7 +132,9 @@ async function lintFixture(
           parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
         },
         plugins: {
-          local: { rules: { 'require-child-route-mount-check': rule as never } },
+          local: {
+            rules: { 'require-child-route-mount-check': rule as never },
+          },
         },
         rules: { 'local/require-child-route-mount-check': 'error' },
       },

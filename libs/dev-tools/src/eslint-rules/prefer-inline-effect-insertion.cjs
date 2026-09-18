@@ -36,62 +36,66 @@ module.exports = {
       },
 
       'Program:exit'(program) {
-        walk(program, (node) => {
-          if (
-            node.type !== 'CallExpression' ||
-            node.callee.type !== 'Identifier' ||
-            !queryEffectBindings.has(node.callee.name)
-          ) {
-            return;
-          }
-
-          const insertion = node.arguments[2];
-          if (!insertion || insertion.type !== 'Identifier') return;
-
-          const helper = findInsertionHelper(program, insertion.name);
-          if (!helper) return;
-
-          const callback = helper.init;
-          const callbackText = withoutParameterType(callback, sourceCode);
-          const fixes = [
-            fixerReplace(sourceCode, insertion, callbackText),
-            removeDeclaration(helper),
-          ];
-
-          const typeName = getParameterTypeName(callback);
-          const typeAlias = typeName && findTypeAlias(program, typeName);
-          if (
-            typeAlias &&
-            !hasOtherReference(program, typeName, [
-              typeAlias,
-              callback.params[0]?.typeAnnotation,
-            ])
-          ) {
-            fixes.push(removeDeclaration(typeAlias));
-
-            const insertionParamsImport = findImportSpecifier(
-              program,
-              'InsertionParams',
-            );
+        walk(
+          program,
+          (node) => {
             if (
-              insertionParamsImport &&
-              !hasOtherReference(program, 'InsertionParams', [
+              node.type !== 'CallExpression' ||
+              node.callee.type !== 'Identifier' ||
+              !queryEffectBindings.has(node.callee.name)
+            ) {
+              return;
+            }
+
+            const insertion = node.arguments[2];
+            if (!insertion || insertion.type !== 'Identifier') return;
+
+            const helper = findInsertionHelper(program, insertion.name);
+            if (!helper) return;
+
+            const callback = helper.init;
+            const callbackText = withoutParameterType(callback, sourceCode);
+            const fixes = [
+              fixerReplace(sourceCode, insertion, callbackText),
+              removeDeclaration(helper),
+            ];
+
+            const typeName = getParameterTypeName(callback);
+            const typeAlias = typeName && findTypeAlias(program, typeName);
+            if (
+              typeAlias &&
+              !hasOtherReference(program, typeName, [
                 typeAlias,
-                insertionParamsImport,
+                callback.params[0]?.typeAnnotation,
               ])
             ) {
-              fixes.push(removeImportSpecifier(insertionParamsImport));
-            }
-          }
+              fixes.push(removeDeclaration(typeAlias));
 
-          context.report({
-            node: insertion,
-            messageId: 'inline',
-            fix(fixer) {
-              return fixes.map((fix) => fix(fixer));
-            },
-          });
-        }, visitorKeys);
+              const insertionParamsImport = findImportSpecifier(
+                program,
+                'InsertionParams',
+              );
+              if (
+                insertionParamsImport &&
+                !hasOtherReference(program, 'InsertionParams', [
+                  typeAlias,
+                  insertionParamsImport,
+                ])
+              ) {
+                fixes.push(removeImportSpecifier(insertionParamsImport));
+              }
+            }
+
+            context.report({
+              node: insertion,
+              messageId: 'inline',
+              fix(fixer) {
+                return fixes.map((fix) => fix(fixer));
+              },
+            });
+          },
+          visitorKeys,
+        );
       },
     };
 
@@ -117,9 +121,7 @@ module.exports = {
           declaration.parent.type === 'ExportNamedDeclaration'
             ? declaration.parent
             : declaration;
-        if (
-          declaration.declarations.length === 1
-        ) {
+        if (declaration.declarations.length === 1) {
           return fixer.remove(statement);
         }
 
@@ -150,61 +152,77 @@ module.exports = {
 
     function findInsertionHelper(program, name) {
       let result;
-      walk(program, (node) => {
-        if (
-          result ||
-          node.type !== 'VariableDeclarator' ||
-          node.id.type !== 'Identifier' ||
-          node.id.name !== name ||
-          !isFunction(node.init)
-        ) {
-          return;
-        }
-        result = node;
-      }, visitorKeys);
+      walk(
+        program,
+        (node) => {
+          if (
+            result ||
+            node.type !== 'VariableDeclarator' ||
+            node.id.type !== 'Identifier' ||
+            node.id.name !== name ||
+            !isFunction(node.init)
+          ) {
+            return;
+          }
+          result = node;
+        },
+        visitorKeys,
+      );
       return result;
     }
 
     function findTypeAlias(program, name) {
       let result;
-      walk(program, (node) => {
-        if (
-          !result &&
-          node.type === 'TSTypeAliasDeclaration' &&
-          node.id.name === name
-        ) {
-          result = node;
-        }
-      }, visitorKeys);
+      walk(
+        program,
+        (node) => {
+          if (
+            !result &&
+            node.type === 'TSTypeAliasDeclaration' &&
+            node.id.name === name
+          ) {
+            result = node;
+          }
+        },
+        visitorKeys,
+      );
       return result;
     }
 
     function findImportSpecifier(program, name) {
       let result;
-      walk(program, (node) => {
-        if (
-          !result &&
-          node.type === 'ImportSpecifier' &&
-          getIdentifierName(node.imported) === name
-        ) {
-          result = node;
-        }
-      }, visitorKeys);
+      walk(
+        program,
+        (node) => {
+          if (
+            !result &&
+            node.type === 'ImportSpecifier' &&
+            getIdentifierName(node.imported) === name
+          ) {
+            result = node;
+          }
+        },
+        visitorKeys,
+      );
       return result;
     }
 
     function hasOtherReference(program, name, excluded) {
       let found = false;
-      walk(program, (node) => {
-        if (
-          !found &&
-          node.type === 'Identifier' &&
-          node.name === name &&
-          !excluded.some((parent) => parent && isDescendant(node, parent))
-        ) {
-          found = true;
-        }
-      }, visitorKeys);
+      walk(
+        program,
+        (node) => {
+          if (
+            !found &&
+            node.type === 'Identifier' &&
+            node.name === name &&
+            !excluded.some((parent) => parent && isDescendant(node, parent))
+          ) {
+            found = true;
+          }
+        },
+        visitorKeys,
+      );
       return found;
     }
 

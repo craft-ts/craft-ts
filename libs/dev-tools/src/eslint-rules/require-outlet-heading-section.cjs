@@ -49,7 +49,7 @@ module.exports = {
     return {
       CallExpression(node) {
         if (!isCallNamed(node, 'craftComponent')) return;
-        const template = node.arguments[3];
+        const template = node.arguments[2];
         if (!template) return;
         const outlets = collectCalls(template, sourceCode, 'CraftRouterOutlet');
         if (outlets.length === 0) return;

@@ -18,7 +18,8 @@ function isSafeExpression(node, visitorKeys = {}) {
       return true;
     case 'CallExpression':
       return (
-        (node.callee.type === 'Identifier' && SAFE_CALLS.has(node.callee.name)) ||
+        (node.callee.type === 'Identifier' &&
+          SAFE_CALLS.has(node.callee.name)) ||
         (node.callee.type === 'MemberExpression' &&
           node.callee.property.type === 'Identifier' &&
           SAFE_CALLS.has(node.callee.property.name))

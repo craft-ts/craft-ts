@@ -13,7 +13,9 @@ module.exports = {
   meta: {
     type: 'problem',
     schema: [],
-    docs: { description: 'Require body and timeout limits for server functions.' },
+    docs: {
+      description: 'Require body and timeout limits for server functions.',
+    },
   },
   create(context) {
     return {

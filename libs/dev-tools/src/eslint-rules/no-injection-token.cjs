@@ -77,10 +77,7 @@ module.exports = {
             continue;
           }
 
-          const specifier = findInjectionTokenImport(
-            sourceCode.ast,
-            name,
-          );
+          const specifier = findInjectionTokenImport(sourceCode.ast, name);
           if (specifier) {
             report(context, specifier, reportedNodes);
           }

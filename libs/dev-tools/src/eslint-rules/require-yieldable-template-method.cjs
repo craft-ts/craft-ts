@@ -42,13 +42,13 @@ module.exports = {
           !esTreeNodeToTSNodeMap ||
           node.callee.type !== 'Identifier' ||
           node.callee.name !== 'craftComponent' ||
-          node.arguments.length < 4
+          node.arguments.length < 3
         ) {
           return;
         }
 
         inspectTemplate(
-          node.arguments[3],
+          node.arguments[2],
           collectLocalWrappers(node.arguments[2]),
         );
       },
@@ -111,7 +111,9 @@ module.exports = {
 
       return checker
         .getPropertiesOfType(type)
-        .some((property) => String(property.escapedName).includes(YIELDABLE_METHOD_NAME));
+        .some((property) =>
+          String(property.escapedName).includes(YIELDABLE_METHOD_NAME),
+        );
     }
 
     function returnsGenerator(type) {
@@ -125,10 +127,14 @@ module.exports = {
         return type.types.every((part) => returnsGenerator(part));
       }
 
-      return checker
-        .getPropertiesOfType(type)
-        .some((property) => property.name === 'next') &&
-        checker.getPropertiesOfType(type).some((property) => property.name === 'return');
+      return (
+        checker
+          .getPropertiesOfType(type)
+          .some((property) => property.name === 'next') &&
+        checker
+          .getPropertiesOfType(type)
+          .some((property) => property.name === 'return')
+      );
     }
 
     function collectLocalWrappers(factory) {
@@ -319,7 +325,9 @@ module.exports = {
       }
 
       for (const node of wrapper.yieldableCalls) {
-        fixes.push(fixer.replaceText(node, `yield* ${sourceCode.getText(node)}`));
+        fixes.push(
+          fixer.replaceText(node, `yield* ${sourceCode.getText(node)}`),
+        );
       }
 
       return fixes;

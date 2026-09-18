@@ -17,19 +17,30 @@ module.exports = {
   create(context) {
     const sourceCode = context.sourceCode ?? context.getSourceCode();
     const calls = [];
+    const componentProvided = new Set();
 
     return {
       CallExpression(node) {
         const kind = getCraftHostKind(node.callee, sourceCode);
         if (kind) {
-          calls.push({ kind, node });
+          calls.push({ kind, node, name: serviceName(node, kind) });
+          if (kind === 'component') {
+            collectProvidedServices(node, componentProvided);
+          }
         }
       },
       'Program:exit'() {
-        const hasService = calls.some(({ kind }) => kind === 'service');
+        // A component's own service is the component: it is declared beside it
+        // and provided by it, so it travels with the lazy chunk. What still
+        // breaks a lazy load is a service left here for someone *else* — a
+        // route — to provide.
+        const strayServices = calls.filter(
+          ({ kind, name }) =>
+            kind === 'service' && (!name || !componentProvided.has(name)),
+        );
         const hasComponent = calls.some(({ kind }) => kind === 'component');
 
-        if (!hasService || !hasComponent) {
+        if (strayServices.length === 0 || !hasComponent) {
           return;
         }
 
@@ -43,6 +54,48 @@ module.exports = {
     };
   },
 };
+
+/** The `name` a craftService(...) call declares, when it is a literal. */
+function serviceName(node, kind) {
+  if (kind !== 'service') return undefined;
+  const options = node.arguments?.[0];
+  if (options?.type !== 'ObjectExpression') return undefined;
+  const property = options.properties.find(
+    (candidate) =>
+      candidate.type === 'Property' &&
+      !candidate.computed &&
+      candidate.key.type === 'Identifier' &&
+      candidate.key.name === 'name' &&
+      candidate.value.type === 'Literal',
+  );
+  return property?.value.value;
+}
+
+/** Service names a craftComponent(...) provides through its own meta. */
+function collectProvidedServices(node, names) {
+  const meta = node.arguments?.[1];
+  if (meta?.type !== 'ObjectExpression') return;
+  const providers = meta.properties.find(
+    (candidate) =>
+      candidate.type === 'Property' &&
+      !candidate.computed &&
+      candidate.key.type === 'Identifier' &&
+      candidate.key.name === 'providers',
+  );
+  if (providers?.value?.type !== 'ArrayExpression') return;
+
+  for (const element of providers.value.elements) {
+    if (
+      element?.type === 'CallExpression' &&
+      element.callee.type === 'Identifier' &&
+      element.callee.name.startsWith('provide')
+    ) {
+      const provided = element.callee.name.slice('provide'.length);
+      names.add(provided.charAt(0).toLowerCase() + provided.slice(1));
+      names.add(provided);
+    }
+  }
+}
 
 function getCraftHostKind(callee, sourceCode) {
   if (callee.type === 'Identifier') {

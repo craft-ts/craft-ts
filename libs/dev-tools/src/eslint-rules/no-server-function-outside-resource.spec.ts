@@ -13,9 +13,9 @@ const temporaryDirectories: string[] = [];
 describe('no-server-function-outside-resource', () => {
   afterEach(async () => {
     await Promise.all(
-      temporaryDirectories.splice(0).map((directory) =>
-        rm(directory, { recursive: true, force: true }),
-      ),
+      temporaryDirectories
+        .splice(0)
+        .map((directory) => rm(directory, { recursive: true, force: true })),
     );
   });
 

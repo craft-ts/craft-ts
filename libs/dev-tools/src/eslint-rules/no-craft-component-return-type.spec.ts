@@ -15,7 +15,7 @@ describe('no-craft-component-return-type', () => {
       import { craftComponent } from '@craft-ts/component';
 
       const ProductPage: ReturnType<typeof craftComponent> = craftComponent(
-        'ProductPage', {}, function* () { return {}; }, () => null,
+        'ProductPage', {}, () => null,
       );
     `;
     const result = await lintText(source);
@@ -23,9 +23,7 @@ describe('no-craft-component-return-type', () => {
 
     expect(result.messages).toEqual([MESSAGE]);
     expect(fixed.messages).toEqual([]);
-    expect(fixed.output).toContain(
-      'const ProductPage = craftComponent(',
-    );
+    expect(fixed.output).toContain('const ProductPage = craftComponent(');
   });
 
   it('reports any explicit annotation while allowing inferred results', async () => {

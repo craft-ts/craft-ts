@@ -96,21 +96,12 @@ function isInsideAllowedHost(node, sourceCode) {
 
 function isAllowedHostImport(identifier, sourceCode) {
   const allowedNames =
-    identifier.name === 'craftComponent'
-      ? COMPONENT_IMPORTS
-      : CORE_IMPORTS;
+    identifier.name === 'craftComponent' ? COMPONENT_IMPORTS : CORE_IMPORTS;
   const allowedModules =
-    identifier.name === 'craftComponent'
-      ? COMPONENT_MODULES
-      : CORE_MODULES;
+    identifier.name === 'craftComponent' ? COMPONENT_MODULES : CORE_MODULES;
   return (
     ALLOWED_HOSTS.has(identifier.name) &&
-    resolvesToImportedName(
-      identifier,
-      sourceCode,
-      allowedNames,
-      allowedModules,
-    )
+    resolvesToImportedName(identifier, sourceCode, allowedNames, allowedModules)
   );
 }
 

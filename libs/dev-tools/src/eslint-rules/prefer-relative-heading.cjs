@@ -24,11 +24,16 @@ module.exports = {
       CallExpression(node) {
         const call = parseHyperscriptCall(node);
         if (!call || !call.tag) return;
-        if (HEADING_HELPERS.has(call.tag) || (call.via === 'h' && HEADING_HELPERS.has(call.tag))) {
+        if (
+          HEADING_HELPERS.has(call.tag) ||
+          (call.via === 'h' && HEADING_HELPERS.has(call.tag))
+        ) {
           context.report({
             node,
             messageId: 'absolute',
-            data: { callee: call.via === 'helper' ? call.tag : `h('${call.tag}')` },
+            data: {
+              callee: call.via === 'helper' ? call.tag : `h('${call.tag}')`,
+            },
             fix(fixer) {
               if (call.via === 'helper' && node.callee.type === 'Identifier') {
                 return fixer.replaceText(node.callee, 'heading');

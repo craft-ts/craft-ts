@@ -34,10 +34,7 @@ module.exports = {
           if (specifier.type !== 'ImportSpecifier') continue;
           imported.set(specifier.local.name, specifier.imported.name);
           if (PRIMITIVE_METHODS[specifier.imported.name]) {
-            primitiveNames.set(
-              specifier.local.name,
-              specifier.imported.name,
-            );
+            primitiveNames.set(specifier.local.name, specifier.imported.name);
           }
         }
       },

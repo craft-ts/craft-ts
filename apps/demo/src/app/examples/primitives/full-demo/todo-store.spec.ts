@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import FullDemo, { FullDemoView, provideFullDemoView } from './full-demo';
+import { FullDemoView, provideFullDemoView } from './full-demo';
 import {
   setupCraftServiceTestingByRegister,
   TestBed,

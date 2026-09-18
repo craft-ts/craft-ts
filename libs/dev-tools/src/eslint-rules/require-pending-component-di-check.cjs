@@ -1,6 +1,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { IndentationText, Node, Project, QuoteKind, SyntaxKind } = require('ts-morph');
+const {
+  IndentationText,
+  Node,
+  Project,
+  QuoteKind,
+  SyntaxKind,
+} = require('ts-morph');
 
 const projectCache = new Map();
 
@@ -148,7 +154,10 @@ function collectCollections(sourceFile, filePath) {
         continue;
       }
 
-      const importSpecifier = getLazyImportSpecifier(route.object, PENDING_PROP);
+      const importSpecifier = getLazyImportSpecifier(
+        route.object,
+        PENDING_PROP,
+      );
       if (!importSpecifier) {
         continue;
       }
@@ -181,10 +190,17 @@ function collectCollections(sourceFile, filePath) {
 // A route element is either `craftRoute('<path>', { … })` or a `{ path: '<path>', … }`
 // object literal. Returns the path string and the route's object literal.
 function readRoute(element) {
-  if (Node.isCallExpression(element) && element.getExpression().getText() === ROUTE_FN) {
+  if (
+    Node.isCallExpression(element) &&
+    element.getExpression().getText() === ROUTE_FN
+  ) {
     const pathArg = getStringArg(element, 0);
     const object = element.getArguments()[1];
-    if (pathArg !== undefined && object && Node.isObjectLiteralExpression(object)) {
+    if (
+      pathArg !== undefined &&
+      object &&
+      Node.isObjectLiteralExpression(object)
+    ) {
       return { path: pathArg, object };
     }
     return undefined;
@@ -293,7 +309,9 @@ function getRoutesBindingName(call) {
 
   const elements = nameNode.getElements();
   const expected =
-    getStringArg(call, 0) !== undefined ? `${getStringArg(call, 0)}Routes` : undefined;
+    getStringArg(call, 0) !== undefined
+      ? `${getStringArg(call, 0)}Routes`
+      : undefined;
   if (expected) {
     const match = elements.find(
       (element) =>
@@ -375,7 +393,10 @@ function resolveGenDepsName(fromFilePath, importSpecifier) {
   if (!importSpecifier.startsWith('.')) {
     return undefined;
   }
-  const resolvedBase = path.resolve(path.dirname(fromFilePath), importSpecifier);
+  const resolvedBase = path.resolve(
+    path.dirname(fromFilePath),
+    importSpecifier,
+  );
   const candidates = [
     `${resolvedBase}.ts`,
     `${resolvedBase}.tsx`,

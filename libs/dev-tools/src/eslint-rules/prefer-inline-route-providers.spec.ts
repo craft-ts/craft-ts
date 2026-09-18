@@ -9,8 +9,14 @@ const plugin = require('./index.cjs');
 
 describe('prefer-inline-route-providers', () => {
   it('is enabled by the default CraftTS presets', () => {
-    expect(plugin.configs.recommended.rules['craft-ts/prefer-inline-route-providers']).toBe('error');
-    expect(plugin.configs.effect.rules['craft-ts/prefer-inline-route-providers']).toBe('error');
+    expect(
+      plugin.configs.recommended.rules[
+        'craft-ts/prefer-inline-route-providers'
+      ],
+    ).toBe('error');
+    expect(
+      plugin.configs.effect.rules['craft-ts/prefer-inline-route-providers'],
+    ).toBe('error');
   });
 
   it('reports and autofixes a single-use provider tuple', async () => {

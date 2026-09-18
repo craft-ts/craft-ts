@@ -4,7 +4,6 @@ import {
   ComponentTemplateOf,
   TemplateRendersNamedElementWhen,
   setupCraftComponentTemplateTest,
-  type Input,
 } from '@craft-ts/component';
 import {
   setupCraftServiceTestingByRegister,

@@ -16,13 +16,12 @@ describe('require-form-for-input-action', () => {
       import { mutation, state } from '@craft-ts/core';
 
       craftComponent('Demo', {}, function* () {
-        const titleInput = yield* state('titleInput', '');
-        const addTodo = yield* mutation('addTodo', { method: (title) => title, loader: () => undefined });
-        return { titleInput, addTodo };
-      }, ({ titleInput, addTodo }) => div([
-        input({ value: titleInput }),
-        button({ click: function* () { yield* addTodo.mutate((yield* titleInput()).trim()); } }),
-      ]));
+        const { titleInput, addTodo } = yield* DemoView();
+        return div([
+          input({ value: titleInput }),
+          button({ click: function* () { yield* addTodo.mutate((yield* titleInput()).trim()); } }),
+        ]);
+      });
     `);
 
     expect(messages).toEqual([MESSAGE]);
@@ -63,16 +62,14 @@ describe('require-form-for-input-action', () => {
       import { insertForm, insertFormSubmit, state } from '@craft-ts/core';
 
       craftComponent('Demo', {}, function* () {
-        const titleForm = yield* state('titleForm', { title: '' }, insertForm(
-          insertFormSubmit(saveTitle),
-        ));
-        return { titleForm };
-      }, ({ titleForm }) => form({
-        submit: function* () { yield* titleForm.form.submit(); },
-      }, [
-        input({ value: titleForm.form.title }),
-        button({ type: 'submit' }),
-      ]));
+        const { titleForm } = yield* DemoView();
+        return form({
+          submit: function* () { yield* titleForm.form.submit(); },
+        }, [
+          input({ value: titleForm.form.title }),
+          button({ type: 'submit' }),
+        ]);
+      });
     `);
 
     expect(messages).toEqual([]);
@@ -84,16 +81,14 @@ describe('require-form-for-input-action', () => {
       import { insertForm, insertFormSubmit, state } from '@craft-ts/core';
 
       craftComponent('Demo', {}, function* () {
-        const titleForm = yield* state('titleForm', '', insertForm(
-          insertFormSubmit(saveTitle),
-        ));
-        return { titleForm };
-      }, ({ titleForm }) => form('DemoForm', {
-        *submit(event) { event.preventDefault(); yield* titleForm.form.submit(); },
-      }, [
-        input('TitleInput', { value: titleForm.form }),
-        button({ click: function* () { yield* saveTitle.mutate(titleForm.form); } }),
-      ]));
+        const { titleForm } = yield* DemoView();
+        return form('DemoForm', {
+          *submit(event) { event.preventDefault(); yield* titleForm.form.submit(); },
+        }, [
+          input('TitleInput', { value: titleForm.form }),
+          button({ click: function* () { yield* saveTitle.mutate(titleForm.form); } }),
+        ]);
+      });
     `);
 
     expect(messages).toEqual([MESSAGE]);
@@ -134,10 +129,7 @@ describe('require-form-for-input-action', () => {
         button({ click: () => save.mutate(value()) }),
       ]);
 
-      component('Demo', {}, function* () {
-        const value = yield* state('value', '');
-        return { value };
-      }, render);
+      component('Demo', {}, render);
     `);
 
     expect(messages).toEqual([MESSAGE]);

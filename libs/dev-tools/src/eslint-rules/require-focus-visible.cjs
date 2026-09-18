@@ -2,7 +2,8 @@
 
 const { componentInfo } = require('./css-rule-utils.cjs');
 
-const INTERACTIVE_SELECTOR = /(^|[\s,>+~])(button|a|input|select|textarea|\[tabindex\b)/i;
+const INTERACTIVE_SELECTOR =
+  /(^|[\s,>+~])(button|a|input|select|textarea|\[tabindex\b)/i;
 
 module.exports = {
   meta: {

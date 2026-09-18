@@ -2,7 +2,6 @@
 import { craftSignal as signal } from '@craft-ts/core';
 import {
   ComponentTemplateOf,
-  TemplateNamedElementDelegatesToContext,
   TemplateRendersNamedElementWhen,
   setupCraftComponentTemplateTest,
   type Input,

@@ -20,11 +20,11 @@ module.exports = {
 
     return {
       CallExpression(node) {
-        if (!isNamedCall(node, CRAFT_COMPONENT) || node.arguments.length < 4) {
+        if (!isNamedCall(node, CRAFT_COMPONENT) || node.arguments.length < 3) {
           return;
         }
 
-        inspectTemplate(node.arguments[3]);
+        inspectTemplate(node.arguments[2]);
       },
     };
 
@@ -83,11 +83,7 @@ module.exports = {
     }
 
     function getRepeatedPropertyRead(node, itemName, itemVariable) {
-      if (
-        node.type !== 'MemberExpression' ||
-        node.computed ||
-        !node.object
-      ) {
+      if (node.type !== 'MemberExpression' || node.computed || !node.object) {
         return undefined;
       }
 
@@ -139,9 +135,12 @@ module.exports = {
       let current = node;
       while (
         current &&
-        ['ChainExpression', 'TSAsExpression', 'TSTypeAssertion', 'TSNonNullExpression'].includes(
-          current.type,
-        )
+        [
+          'ChainExpression',
+          'TSAsExpression',
+          'TSTypeAssertion',
+          'TSNonNullExpression',
+        ].includes(current.type)
       ) {
         current = current.expression;
       }
