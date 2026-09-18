@@ -28,7 +28,9 @@ import {
   transitionGuardEffect,
 } from '@craft-ts/effect';
 import { loadCraftComponent } from './bridge';
+import { overrideService } from '@craft-ts/core';
 import { craftComponent } from './component';
+import { projection } from './types';
 import { craftDirective } from './directive';
 import { deferNode } from './defer-node';
 import { ifNode } from './if-node';
@@ -37,7 +39,7 @@ import { button, div, h2, input, li, p, section, span } from './hyperscript';
 import { content, renderContent } from './project';
 import { craftTemplate, renderTemplate } from './template';
 import type { ComponentNode } from './render/vnode';
-import type { ComponentTemplateOf } from './types';
+import type { ComponentTemplateOf, TemplateChildren } from './types';
 import type {
   SetupTestComponentTemplate,
   TemplateHasElement,
@@ -187,17 +189,15 @@ it('infers component input and output props from the branded context', () => {
   userCard({ user: { id: 1, name: 'Ada' }, onPick: () => undefined });
 });
 
-it('requires object-shaped component inputs to use reactive Input readers', () => {
+it('requires component inputs to use reactive Input readers', () => {
   const objectInput = craftComponent(
     'objectInput',
     {},
-    function* ({ value }: { value: Input<string> }) {
-      return { value };
-    },
-    ({ value }) =>
-      p(function* () {
+    function* ({ value }: { readonly value: Input<string> }) {
+      return p(function* () {
         return yield* value();
-      }),
+      });
+    },
   );
 
   type _ObjectInputProps = Expect<
@@ -217,18 +217,9 @@ it('requires object-shaped component inputs to use reactive Input readers', () =
     'invalidObjectInput',
     {},
     // @ts-expect-error A plain scalar is not a reactive component input.
-    function* ({ value }: { value: string }) {
-      return { value };
+    function* ({ value }: { readonly value: string }) {
+      return p(value);
     },
-    ({ value }) => p(value),
-  );
-
-  craftComponent(
-    'invalidPositionalInput',
-    {},
-    // @ts-expect-error A plain scalar is not a reactive component input.
-    (categorySlug: string) => ({ categorySlug }),
-    ({ categorySlug }) => p(categorySlug),
   );
 });
 
@@ -307,7 +298,10 @@ it('extracts projection contracts and propagates projected dependencies', () => 
 
   const action = craftComponent(
     'typedAction',
-    { providers: [provideTypedActionView()] },
+    {
+      providers: [provideTypedActionView()],
+      projection: projection<ActionContract>(),
+    },
     function* (input: { readonly key: string; readonly trigger: () => void }) {
       const { contract } = yield* TypedActionView(input);
       return button({ click: contract.trigger }, 'action');
@@ -546,11 +540,15 @@ it('carries inferred dependencies from the component through the lazy route frag
     (typeof typeSpecRoutes._routes)[0]
   >;
 
+  // The logic is a service now, so the component depends on that service — and
+  // the service it needs in turn hangs under it.
   type _DependencyWasInferred = Expect<
-    'TypeSpecService' extends keyof ComponentDependencies['deps'] ? true : false
+    'TypeSpecService' extends keyof ComponentDependencies['deps']['trackedView']['dependencies']
+      ? true
+      : false
   >;
   type _OnlyExpectedDependencyWasInferred = Expect<
-    Equal<keyof ComponentDependencies['deps'], 'TypeSpecService'>
+    Equal<keyof ComponentDependencies['deps'], 'trackedView'>
   >;
   type _PublicInputWasInferred = Expect<
     Equal<keyof ComponentDependencies['publicProperties'], 'label'>
@@ -559,16 +557,16 @@ it('carries inferred dependencies from the component through the lazy route frag
     Equal<LazyDependencies, ComponentDependencies>
   >;
   type _RawRoutePreservesDependencies = Expect<
-    'TypeSpecService' extends keyof RawRouteDependencies['deps'] ? true : false
+    'trackedView' extends keyof RawRouteDependencies['deps'] ? true : false
   >;
   type _DependencyScopeWasPreserved = Expect<
     Equal<
-      ComponentDependencies['deps']['TypeSpecService']['providedIn'],
+      ComponentDependencies['deps']['trackedView']['dependencies']['TypeSpecService']['providedIn'],
       'toProvide'
     >
   >;
-  type _NoProvidersWereInferred = Expect<
-    Equal<keyof ComponentDependencies['provided'], never>
+  type _OwnServiceWasProvided = Expect<
+    Equal<keyof ComponentDependencies['provided'], 'trackedView'>
   >;
   type _MissingProviderWasDetected = Expect<
     Equal<
@@ -696,10 +694,16 @@ it('propagates a service used by state-machine transitions into the component DI
   type ComponentDependencies = ComponentDepsOf<typeof component>;
 
   type _DependencyWasInferred = Expect<
-    Equal<keyof ComponentDependencies['deps'], 'TransitionPolicy'>
+    Equal<
+      keyof ComponentDependencies['deps']['stateMachineTransitionDependencyView']['dependencies'],
+      'TransitionPolicy'
+    >
   >;
-  type _NoProvidersWereInferred = Expect<
-    Equal<keyof ComponentDependencies['provided'], never>
+  type _OwnServiceWasProvided = Expect<
+    Equal<
+      keyof ComponentDependencies['provided'],
+      'stateMachineTransitionDependencyView'
+    >
   >;
   type _MissingProviderKeyWasDetected = Expect<
     Equal<keyof ComponentDependencies['missingProvider'], 'TransitionPolicy'>
@@ -819,7 +823,7 @@ it('propagates an Effect service used by transitionGuardEffect into the route DI
   type ComponentDependencies = ComponentDepsOf<typeof component>;
   type _EffectDependencyWasInferred = Expect<
     Equal<
-      keyof ComponentDependencies['deps'],
+      keyof ComponentDependencies['deps']['effectStateMachineTransitionDependencyView']['dependencies'],
       'types-spec/EffectTransitionPolicy'
     >
   >;
@@ -971,28 +975,12 @@ it('includes dependencies of Craft components rendered in nested templates', () 
   >;
 });
 
-it('infers public inputs added by a piped directive', () => {
-  const withPermission = craftDirective(
-    'withPermission',
-    {},
-    (baseLogic: HostRequiredLogic<{ user: Input<User> }>) =>
-      (user: Input<User>, permission: Input<string>) => ({
-        ...baseLogic(user),
-        permission,
-      }),
-    (
-      baseTemplate: HostTemplate<{
-        user: Input<User>;
-        permission: Input<string>;
-      }>,
-    ) => baseTemplate,
-  );
-
+it('keeps the component props untouched when a directive is piped', () => {
   const { CardView, provideCardView } = craftService(
     { name: 'cardView', providedIn: 'toProvide' },
     (inputs: { readonly user: Input<User> }) => {
       const { user } = inputs;
-      return { user };
+      return { user, label: 'card' };
     },
   );
 
@@ -1005,20 +993,37 @@ it('infers public inputs added by a piped directive', () => {
         return (yield* user()).name;
       });
     },
-  ).pipe(withPermission);
+  ).pipe(
+    craftDirective(
+      'withPermission',
+      {},
+      {
+        service: overrideService(CardView, (base) => ({
+          ...base,
+          label: `${base.label} (restricted)`,
+        })),
+      },
+    ),
+  );
 
+  // A directive enriches or restricts a service façade; it never adds a prop.
   expectTypeOf<PropsOf<typeof card>>().toEqualTypeOf<{
     user: () => Generator<unknown, User, unknown>;
-    permission: () => Generator<unknown, string, unknown>;
   }>();
   card({
     user: function* () {
       return { id: 1, name: 'Ada' };
     },
-    permission: function* () {
-      return 'edit';
-    },
   });
+
+  craftDirective(
+    'takesAMemberAway',
+    {},
+    {
+      // @ts-expect-error a directive may not drop a member of the contract.
+      service: overrideService(CardView, () => ({ label: 'only a label' })),
+    },
+  );
 });
 
 it('preserves template dependencies when Craft directives are applied', () => {
@@ -1050,8 +1055,12 @@ it('preserves template dependencies when Craft directives are applied', () => {
   const withTemplate = craftDirective(
     'withTemplate',
     {},
-    (baseLogic) => baseLogic,
-    (baseTemplate) => (context) => baseTemplate(context),
+    {
+      template: (baseTemplate) =>
+        function* () {
+          return yield* baseTemplate();
+        },
+    },
   );
 
   const {
@@ -1201,7 +1210,10 @@ it('resolves registered child templates without a runtime test harness', () => {
   type _ContractIsValid = Expect<Equal<Contract['valid'], true>>;
   type _RootElementIsFound = Expect<
     Equal<
-      TemplateHasElement<ReturnType<ComponentTemplateOf<typeof parent>>, 'div'>,
+      TemplateHasElement<
+        TemplateChildren<ComponentTemplateOf<typeof parent>>,
+        'div'
+      >,
       true
     >
   >;
@@ -1290,7 +1302,7 @@ it('keeps exact child component references and validates their props', () => {
   type _UsesExactChild = Expect<
     Equal<
       TemplateUsesComponent<
-        ReturnType<ComponentTemplateOf<typeof parent>>,
+        TemplateChildren<ComponentTemplateOf<typeof parent>>,
         typeof child
       >,
       true
@@ -1375,18 +1387,11 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     { providers: [provideContextPropertyBindingView()] },
     function* () {
       const { disabled } = yield* ContextPropertyBindingView();
-      return button(
-        {
-          *disabled() {
-            return disabled();
-          },
-        },
-        '+',
-      );
+      return button({ disabled }, '+');
     },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _PropertyDelegatesToContext = Expect<
     Equal<
       TemplateDelegatesToContext<Template, 'button', 'disabled', 'disabled'>,
@@ -1419,24 +1424,19 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     { providers: [provideNestedContextPropertyBindingView()] },
     function* () {
       const { counter } = yield* NestedContextPropertyBindingView();
-      return button(
-        {
-          *disabled() {
-            return counter.disabled();
-          },
-        },
-        '+',
-      );
+      return button({ disabled: counter.disabled }, '+');
     },
   );
-  type NestedTemplate = ReturnType<ComponentTemplateOf<typeof nestedComponent>>;
+  type NestedTemplate = TemplateChildren<
+    ComponentTemplateOf<typeof nestedComponent>
+  >;
   type _NestedPropertyDelegatesToContext = Expect<
     Equal<
       TemplateDelegatesToContext<
         NestedTemplate,
         'button',
         'disabled',
-        'counter.disabled'
+        'disabled'
       >,
       true
     >
@@ -1449,7 +1449,7 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     { name: 'derivedStatePropertyBindingView', providedIn: 'toProvide' },
     function* () {
       const counter = yield* state('counter', 0, ({ state }) => ({
-        disabled: craftComputed(function* () {
+        disabled: craftComputed('disabled', function* () {
           return (yield* state()) % 2 === 0;
         }),
       }));
@@ -1462,21 +1462,14 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     { providers: [provideDerivedStatePropertyBindingView()] },
     function* () {
       const { counter } = yield* DerivedStatePropertyBindingView();
-      return button(
-        {
-          *disabled() {
-            return yield* counter.disabled();
-          },
-        },
-        '+',
-      );
+      return button({ disabled: counter.disabled }, '+');
     },
   );
-  type DerivedTemplate = ReturnType<
+  type DerivedTemplate = TemplateChildren<
     ComponentTemplateOf<typeof derivedStateComponent>
   >;
   type _DerivedStateUsesContextValue = Expect<
-    Equal<TemplateRendersStateWhen<DerivedTemplate, 'counter.disabled'>, true>
+    Equal<TemplateRendersStateWhen<DerivedTemplate, 'disabled'>, true>
   >;
 
   const { DirectStateContextView, provideDirectStateContextView } =
@@ -1564,7 +1557,7 @@ it('checks output callback arguments on a child component', () => {
   type _OutputSignature = Expect<
     Equal<
       TemplateHasOutput<
-        ReturnType<ComponentTemplateOf<typeof parent>>,
+        TemplateChildren<ComponentTemplateOf<typeof parent>>,
         typeof child,
         'onSelected',
         typeof onSelected
@@ -1612,8 +1605,10 @@ it('diagnoses imperative output callbacks in the template contract', () => {
   );
 
   type Contract = SetupTestComponentTemplate<typeof parent, [typeof child]>;
-  type _ImperativeOutputIsDiagnosed = Expect<
-    Contract extends { readonly error: string } ? true : false
+  // An output is a plain callback now: the parent's own template is the
+  // generator, so nothing forces the handler to be one.
+  type _ImperativeOutputIsAccepted = Expect<
+    Contract extends { readonly error: string } ? false : true
   >;
 });
 
@@ -1776,7 +1771,7 @@ it('tracks named elements through conditional template branches', () => {
     },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _VisibleElement = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
@@ -1817,16 +1812,13 @@ it('tracks rendered state reads through conditional template branches', () => {
       const { isAdult, isAuth } = yield* RenderedStateContractView();
       return ifNode(
         isAuth,
-        () =>
-          button('increment', {}, function* () {
-            return yield* isAdult();
-          }),
+        () => button('increment', {}, isAdult),
         () => p('signed out'),
       );
     },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _RenderedState = Expect<
     Equal<
       TemplateRendersStateWhen<Template, 'isAdult', { when: { isAuth: true } }>,
@@ -1867,7 +1859,7 @@ it('tracks list visibility paths for named elements', () => {
     },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _ItemVisibility = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
@@ -1910,9 +1902,11 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
         'items',
         [{ key: 'first' }, { key: 'second' }],
         insertSelect('item', ({ state: selectedItem }) => ({
-          translatedLabel: computed(
-            () => `translated:${craftUse(selectedItem()).key}`,
-          ),
+          // Named, because a template contract identifies a member by the name
+          // its primitive carries.
+          translatedLabel: craftComputed('translatedLabel', function* () {
+            return `translated:${(yield* selectedItem()).key}`;
+          }),
         })),
       );
       return { items };
@@ -1930,13 +1924,16 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
           {
             'aria-label': items.selectItem(index)?.translatedLabel,
           },
-          () => items.selectItem(index)?.translatedLabel() ?? '',
+          function* () {
+            const label = items.selectItem(index)?.translatedLabel;
+            return label ? yield* label() : '';
+          },
         ),
       );
     },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _TranslatedLabelIsRenderedForNonEmptyItems = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
@@ -1951,7 +1948,7 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
     Equal<
       TemplateRendersStateWhen<
         Template,
-        'items.selectItem.translatedLabel',
+        'translatedLabel',
         { when: { items: 'nonEmpty' } }
       >,
       true
@@ -1990,7 +1987,7 @@ it('tracks available actions through conditional template branches', () => {
     },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _AvailableAction = Expect<
     Equal<
       TemplateRenderAvailableActionWhen<

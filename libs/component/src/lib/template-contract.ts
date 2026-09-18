@@ -8,6 +8,7 @@ import type {
   PropsOf,
   TemplateMethodUse,
 } from './types';
+import type { YIELDABLE_VALUE } from '@craft-ts/core';
 import type {
   NamedYieldableValue,
   Yieldable,
@@ -479,18 +480,24 @@ type VisitContextUse<
       >
     ? ActualTag extends Tag
       ? Property extends keyof Props
-        ? NonNullable<Props[Property]> extends (
-            ...args: any[]
-          ) => Generator<infer Yielded, infer Returned, any>
-          ? TemplateMethodUse<ContextMethod> extends Yielded | Returned
-            ? true
-            : Extract<
-                  Yielded | Returned,
-                  TemplateMethodUse<ContextMethod>
-                > extends never
-              ? false
-              : true
-          : false
+        ? // A binding that *is* the member — the idiomatic form — names it.
+          StateMarkerMatches<
+            NonNullable<Props[Property]>,
+            ContextMethod
+          > extends true
+          ? true
+          : NonNullable<Props[Property]> extends (
+                ...args: any[]
+              ) => Generator<infer Yielded, infer Returned, any>
+            ? TemplateMethodUse<ContextMethod> extends Yielded | Returned
+              ? true
+              : Extract<
+                    Yielded | Returned,
+                    TemplateMethodUse<ContextMethod>
+                  > extends never
+                ? false
+                : true
+            : false
         : false
       : VisitContextUse<Nested, Tag, Property, ContextMethod>
     : Children extends {
@@ -774,14 +781,17 @@ type VisibilityMatches<
           : false;
       }[keyof Expected];
 
-type StateMarkerMatches<Value, StateName extends string> =
-  Value extends NamedYieldableValue<infer ActualName extends string, any>
-    ? ActualName extends StateName
-      ? true
-      : false
-    : Value extends TemplateMethodUse<StateName>
-      ? true
-      : false;
+// Read the brand itself: `NamedYieldableValue<infer Name, any>` intersects with
+// `any`, so it matches everything and infers nothing.
+type StateMarkerMatches<Value, StateName extends string> = Value extends {
+  readonly [YIELDABLE_VALUE]: infer ActualName extends string;
+}
+  ? ActualName extends StateName
+    ? true
+    : false
+  : Value extends TemplateMethodUse<StateName>
+    ? true
+    : false;
 
 type ValueUsesState<Value, StateName extends string> =
   IsAny<Value> extends true
@@ -1308,7 +1318,9 @@ type VisitNamedElementIdentities<
 type TemplateContractOutput<Template> = Template extends (
   ...args: any[]
 ) => infer Output
-  ? Output
+  ? Output extends Generator<any, infer Children, any>
+    ? Children
+    : Output
   : Template;
 
 type TemplateContractOwner<Template> = Template extends (...args: any[]) => any

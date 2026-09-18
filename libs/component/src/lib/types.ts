@@ -650,8 +650,12 @@ type InputValueOfContextValue<Value> =
       : never
     : never;
 
+// A call site writes its props as a fresh object, so the readonly modifiers the
+// input declaration carries have nothing to say there.
 export type PropsFromContext<Context> = Simplify<{
-  [Key in keyof Context as IsInputContextValue<Context[Key]> extends true
+  -readonly [Key in keyof Context as IsInputContextValue<
+    Context[Key]
+  > extends true
     ? Key
     : Context[Key] extends RenderableContent
       ? Key
