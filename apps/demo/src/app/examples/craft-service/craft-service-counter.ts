@@ -14,7 +14,7 @@ const { Counter, provideCounter } = craftService(
   },
 );
 
-const { CraftServiceCounterView, provideCraftServiceCounterView } =
+export const { CraftServiceCounterView, provideCraftServiceCounterView } =
   craftService(
     { name: 'craftServiceCounterView', providedIn: 'toProvide' },
     function* () {

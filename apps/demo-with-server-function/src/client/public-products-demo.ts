@@ -24,7 +24,7 @@ import { getPublicProducts } from '../products/public-products.fn-client';
  * server-function path before any middleware, context, or authorization is
  * introduced by the other examples.
  */
-const { PublicProductsDemoView, providePublicProductsDemoView } = craftService(
+export const { PublicProductsDemoView, providePublicProductsDemoView } = craftService(
   { name: 'publicProductsDemoView', providedIn: 'toProvide' },
   function* () {
     const productsQuery = yield* query(

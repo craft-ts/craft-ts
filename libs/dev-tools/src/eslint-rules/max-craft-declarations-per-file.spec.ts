@@ -13,8 +13,8 @@ describe('max-craft-declarations-per-file', () => {
       import { craftComponent, craftDirective } from '@craft-ts/component';
       import { craftService } from '@craft-ts/core';
 
-      craftComponent('ComponentOne', {}, () => ({}), () => []);
-      craftComponent('ComponentTwo', {}, () => ({}), () => []);
+      craftComponent('ComponentOne', {}, () => []);
+      craftComponent('ComponentTwo', {}, () => []);
       craftDirective('DirectiveOne', {}, () => ({}), () => []);
       craftDirective('DirectiveTwo', {}, () => ({}), () => []);
       craftService({ name: 'ServiceOne', scope: 'global' }, () => ({}));
@@ -29,9 +29,9 @@ describe('max-craft-declarations-per-file', () => {
       import { craftComponent, craftDirective } from '@craft-ts/component';
       import { craftService } from '@craft-ts/core';
 
-      craftComponent('ComponentOne', {}, () => ({}), () => []);
-      craftComponent('ComponentTwo', {}, () => ({}), () => []);
-      craftComponent('ComponentThree', {}, () => ({}), () => []);
+      craftComponent('ComponentOne', {}, () => []);
+      craftComponent('ComponentTwo', {}, () => []);
+      craftComponent('ComponentThree', {}, () => []);
       craftDirective('DirectiveOne', {}, () => ({}), () => []);
       craftDirective('DirectiveTwo', {}, () => ({}), () => []);
       craftDirective('DirectiveThree', {}, () => ({}), () => []);
@@ -56,7 +56,7 @@ describe('max-craft-declarations-per-file', () => {
 
       createComponent('ComponentOne', {}, () => ({}), () => []);
       createComponent('ComponentTwo', {}, () => ({}), () => []);
-      component.craftComponent('ComponentThree', {}, () => ({}), () => []);
+      component.craftComponent('ComponentThree', {}, () => []);
       createDirective('DirectiveOne', {}, () => ({}), () => []);
       createDirective('DirectiveTwo', {}, () => ({}), () => []);
       component.craftDirective('DirectiveThree', {}, () => ({}), () => []);

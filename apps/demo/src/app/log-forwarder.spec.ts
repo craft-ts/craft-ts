@@ -214,7 +214,8 @@ describe('createLogForwarder', () => {
     );
     forwarder.flush();
 
-    const [errorArg, cyclicArg, fnArg] = sent[0]?.payload.entries[0]?.args ?? [];
+    const [errorArg, cyclicArg, fnArg] =
+      sent[0]?.payload.entries[0]?.args ?? [];
     expect(errorArg).toMatchObject({ name: 'Error', message: 'boom' });
     expect(cyclicArg).toMatchObject({ name: 'root', self: '[Circular]' });
     expect(String(fnArg)).toContain('[Function');

@@ -85,30 +85,32 @@ export const { provideUserList, UserList } = craftService(
   },
 );
 
-const { ListWithPaginationCraftView, provideListWithPaginationCraftView } =
-  craftService(
-    { name: 'listWithPaginationCraftView', providedIn: 'toProvide' },
-    function* () {
-      const store = yield* UserList();
-      const isCurrentPageResolved = craftComputed(
-        'isCurrentPageResolved',
-        function* () {
-          const _storeuserscurrentPageStatus =
-            yield* store.users.currentPageStatus();
-          return _storeuserscurrentPageStatus === 'resolved';
-        },
-      );
-      const updatePageSize = craftMethod(
-        'updatePageSize',
-        function* (event: Event) {
-          (yield* UserList()).pagination.updatePageSize(
-            Number(eventValue(event)),
-          );
-        },
-      );
-      return { store, updatePageSize, isCurrentPageResolved };
-    },
-  );
+export const {
+  ListWithPaginationCraftView,
+  provideListWithPaginationCraftView,
+} = craftService(
+  { name: 'listWithPaginationCraftView', providedIn: 'toProvide' },
+  function* () {
+    const store = yield* UserList();
+    const isCurrentPageResolved = craftComputed(
+      'isCurrentPageResolved',
+      function* () {
+        const _storeuserscurrentPageStatus =
+          yield* store.users.currentPageStatus();
+        return _storeuserscurrentPageStatus === 'resolved';
+      },
+    );
+    const updatePageSize = craftMethod(
+      'updatePageSize',
+      function* (event: Event) {
+        (yield* UserList()).pagination.updatePageSize(
+          Number(eventValue(event)),
+        );
+      },
+    );
+    return { store, updatePageSize, isCurrentPageResolved };
+  },
+);
 
 const ListWithPaginationCraft = craftComponent(
   'ListWithPaginationCraft',
@@ -190,7 +192,7 @@ const ListWithPaginationCraft = craftComponent(
                   },
                   style: { marginRight: '8px' },
                   *change(event) {
-updatePageSize(event);
+                    updatePageSize(event);
                   },
                 },
                 [2, 4, 8, 16].map((size) =>

@@ -37,7 +37,7 @@ import { getUsers } from '../users/list.fn-client';
  * shows the server function pipeline (client → HTTP → Effect handler → DB)
  * stripped down to its simplest form.
  */
-const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
+export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
   { name: 'simpleListDemoView', providedIn: 'toProvide' },
   function* () {
     const usersFilter = yield* queryParams(

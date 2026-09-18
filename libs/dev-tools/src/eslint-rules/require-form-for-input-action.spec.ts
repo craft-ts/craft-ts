@@ -32,7 +32,7 @@ describe('require-form-for-input-action', () => {
     const messages = await lint(`
       import { button, craftComponent, div, input } from '@craft-ts/component';
 
-      craftComponent('Demo', {}, () => ({}), ({ titleInput }) => div([
+      craftComponent('Demo', {}, ({ titleInput }) => div([
         input({ value: titleInput }),
         button({ click: function* () {
           const params = { payload: { title: (yield* titleInput()).trim() } };
@@ -48,7 +48,7 @@ describe('require-form-for-input-action', () => {
     const messages = await lint(`
       import { button, craftComponent, div, input } from '@craft-ts/component';
 
-      craftComponent('Demo', {}, () => ({}), ({ query }) => div([
+      craftComponent('Demo', {}, ({ query }) => div([
         input({ value: query }),
         button({ click: () => searchProcess.method({ query: query() }) }),
       ]));
@@ -103,7 +103,7 @@ describe('require-form-for-input-action', () => {
     const messages = await lint(`
       import { button, craftComponent, div, input } from '@craft-ts/component';
 
-      craftComponent('Demo', {}, () => ({}), () => div([
+      craftComponent('Demo', {}, () => div([
         input({ value: 'search' }),
         button({ click: () => navigate('/next') }),
       ]));
@@ -116,7 +116,7 @@ describe('require-form-for-input-action', () => {
     const messages = await lint(`
       import { craftComponent, div, input } from '@craft-ts/component';
 
-      craftComponent('Demo', {}, () => ({}), ({ value }) => div([
+      craftComponent('Demo', {}, ({ value }) => div([
         input({ value, input: () => save(value()) }),
       ]));
     `);

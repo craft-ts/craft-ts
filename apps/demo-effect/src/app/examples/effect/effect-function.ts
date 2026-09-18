@@ -24,7 +24,7 @@ export const getData = Effect.gen(function* () {
   return yield* db.query('SELECT id, value FROM demo_data');
 });
 
-const { EffectFunctionView, provideEffectFunctionView } = craftService(
+export const { EffectFunctionView, provideEffectFunctionView } = craftService(
   { name: 'effectFunctionView', providedIn: 'toProvide' },
   function* () {
     const dataQuery = yield* queryEffect(

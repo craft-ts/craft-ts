@@ -35,27 +35,29 @@ function isTransitionPayload(value: unknown): value is TransitionPayload {
 const photoGradient = (photo: Photo | undefined) =>
   photo?.gradient ?? '#e2e8f0';
 
-const { ViewTransitionsSkeletonView, provideViewTransitionsSkeletonView } =
-  craftService(
-    { name: 'viewTransitionsSkeletonView', providedIn: 'toProvide' },
-    (inputs: { readonly photoId: Input<string> }) => {
-      const { photoId } = inputs;
+export const {
+  ViewTransitionsSkeletonView,
+  provideViewTransitionsSkeletonView,
+} = craftService(
+  { name: 'viewTransitionsSkeletonView', providedIn: 'toProvide' },
+  (inputs: { readonly photoId: Input<string> }) => {
+    const { photoId } = inputs;
 
-      const rawViewTransition = injectCraftViewTransition();
-      const viewTransition = craftComputed('viewTransition', function* () {
-        // The generic inject helper is an untyped transport boundary.
-        const value = rawViewTransition();
-        return isTransitionPayload(value) ? value : null;
-      });
-      const hasImage = craftComputed('hasImage', function* () {
-        return (yield* viewTransition())?.image !== null;
-      });
-      const imageSrc = craftComputed('imageSrc', function* () {
-        return (yield* viewTransition())?.image ?? '';
-      });
-      return { photoId, viewTransition, hasImage, imageSrc };
-    },
-  );
+    const rawViewTransition = injectCraftViewTransition();
+    const viewTransition = craftComputed('viewTransition', function* () {
+      // The generic inject helper is an untyped transport boundary.
+      const value = rawViewTransition();
+      return isTransitionPayload(value) ? value : null;
+    });
+    const hasImage = craftComputed('hasImage', function* () {
+      return (yield* viewTransition())?.image !== null;
+    });
+    const imageSrc = craftComputed('imageSrc', function* () {
+      return (yield* viewTransition())?.image ?? '';
+    });
+    return { photoId, viewTransition, hasImage, imageSrc };
+  },
+);
 
 const ViewTransitionsSkeletonComponent = craftComponent(
   'ViewTransitionsSkeletonComponent',

@@ -30,7 +30,7 @@ const STATUS_VIEW = {
  *   attribute, and the five tones are five rules the emitter already knows
  *   about — which is what will let the matrix count them in wave 2.
  */
-const { StatusView, provideStatusView } = craftService(
+export const { StatusView, provideStatusView } = craftService(
   { name: 'statusView', providedIn: 'toProvide' },
   (inputs: { readonly status: Input<CraftResourceStatus> }) => {
     const { status } = inputs;

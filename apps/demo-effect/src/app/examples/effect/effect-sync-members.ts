@@ -41,7 +41,7 @@ const CATALOG: readonly Omit<CartLine, 'qty'>[] = [
  * `params` still uses a synchronous member to compute the cart weight — that is
  * the position where an undeclared Effect used to be banned outright.
  */
-const { EffectSyncMembersView, provideEffectSyncMembersView } = craftService(
+export const { EffectSyncMembersView, provideEffectSyncMembersView } = craftService(
   { name: 'effectSyncMembersView', providedIn: 'toProvide' },
   function* () {
     // Everything derived from the quantity alone lives in its insertion.

@@ -47,7 +47,7 @@ const TASKS: readonly Task[] = [
  * the component instance that holds them. That is what keeps each row's
  * snapshot capturing its own primitives and nobody else's.
  */
-const { TaskRowView, provideTaskRowView } = craftService(
+export const { TaskRowView, provideTaskRowView } = craftService(
   { name: 'taskRowView', providedIn: 'toProvide' },
   function* (inputs: { readonly task: Input<Task> }) {
     const { task } = inputs;
@@ -232,13 +232,15 @@ const TaskRow = craftComponent(
   },
 );
 
-const { TaskBoardStateMachineListView, provideTaskBoardStateMachineListView } =
-  craftService(
-    { name: 'taskBoardStateMachineListView', providedIn: 'toProvide' },
-    function* () {
-      return {};
-    },
-  );
+export const {
+  TaskBoardStateMachineListView,
+  provideTaskBoardStateMachineListView,
+} = craftService(
+  { name: 'taskBoardStateMachineListView', providedIn: 'toProvide' },
+  function* () {
+    return {};
+  },
+);
 
 const TaskBoardStateMachineList = craftComponent(
   'TaskBoardStateMachineList',

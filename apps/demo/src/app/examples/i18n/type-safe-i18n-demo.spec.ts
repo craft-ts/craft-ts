@@ -36,14 +36,10 @@ const ORDER_PARAMS = {
   weight: 12.4,
 } as const;
 
-const _BrokenI18nDemo = craftComponent(
-  'BrokenI18nDemo',
-  {},
-  function* () {
-    return yield* I18n();
-  },
-  ({ translate }) => p(translate('page.order', { ...ORDER_PARAMS })),
-);
+const _BrokenI18nDemo = craftComponent('BrokenI18nDemo', {}, function* () {
+  const { translate } = yield* I18n();
+  return p(translate('page.order', { ...ORDER_PARAMS }));
+});
 
 type _MissingTranslationProviderIsReported = Expect<
   Equal<
@@ -65,10 +61,9 @@ const _BrokenAttributeDemo = craftComponent(
   'BrokenAttributeDemo',
   {},
   function* () {
-    return yield* I18n();
+    const { translate } = yield* I18n();
+    return p({ title: translate('page.order', { ...ORDER_PARAMS }) }, 'order');
   },
-  ({ translate }) =>
-    p({ title: translate('page.order', { ...ORDER_PARAMS }) }, 'order'),
 );
 
 type _MissingProviderIsReportedFromAnAttribute = Expect<

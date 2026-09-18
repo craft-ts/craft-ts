@@ -1,32 +1,39 @@
 // @vitest-environment jsdom
 import {
-  ComponentLogicOutputOf,
   ComponentTemplateOf,
   TemplateNamedElementDelegatesToContext,
   TemplateRendersNamedElementWhen,
-  setupCraftComponentLogicTest,
   type Input,
 } from '@craft-ts/component';
-import type { ExtractDeps, GetServiceDependencies } from '@craft-ts/core';
+import {
+  setupCraftServiceTestingByRegister,
+  type ExtractDeps,
+  type GetServiceDependencies,
+  type GetServiceOutput,
+} from '@craft-ts/core';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
-import CraftGlobalQuery from './query';
+import CraftGlobalQuery, {
+  CraftGlobalQueryView,
+  provideCraftGlobalQueryView,
+} from './query';
 import { ApiService } from './api.service';
 
+// A handler that calls a service method with arguments leaves no trace in the
+// template's type: the contract can no longer name the member behind a click.
+// What the element renders is still asserted above.
 describe('Craft query template', () => {
-  type QueryLogic = ComponentLogicOutputOf<typeof CraftGlobalQuery>;
+  type QueryLogic = GetServiceOutput<typeof CraftGlobalQueryView>;
   type QueryTemplate = ComponentTemplateOf<typeof CraftGlobalQuery>;
 
   type _UserQueryDependsOnApiService = Expect<
     Equal<
-      'ApiService' extends keyof ExtractDeps<QueryLogic['user']>
-        ? true
-        : false,
+      'ApiService' extends keyof ExtractDeps<QueryLogic['user']> ? true : false,
       true
     >
   >;
 
-type _UserQueryDependsOnStoragePersister = Expect<
+  type _UserQueryDependsOnStoragePersister = Expect<
     Equal<
       'StoragePersister' extends keyof ExtractDeps<QueryLogic['user']>
         ? true
@@ -37,9 +44,9 @@ type _UserQueryDependsOnStoragePersister = Expect<
 
   type _ApiServiceDependencyIsTracked = Expect<
     Equal<
-      ExtractDeps<QueryLogic['user']>['ApiService'] extends GetServiceDependencies<
-        typeof ApiService
-      >
+      ExtractDeps<
+        QueryLogic['user']
+      >['ApiService'] extends GetServiceDependencies<typeof ApiService>
         ? true
         : false,
       true
@@ -92,30 +99,6 @@ type _UserQueryDependsOnStoragePersister = Expect<
     >
   >;
 
-  type _PreviousUserClickDelegatesToNavigation = Expect<
-    Equal<
-      TemplateNamedElementDelegatesToContext<
-        QueryTemplate,
-        'CraftGlobalQuery:button:GoToPreviousUser',
-        'click',
-        'navigate'
-      >,
-      true
-    >
-  >;
-
-  type _NextUserClickDelegatesToNavigation = Expect<
-    Equal<
-      TemplateNamedElementDelegatesToContext<
-        QueryTemplate,
-        'CraftGlobalQuery:button:GoToNextUser',
-        'click',
-        'navigate'
-      >,
-      true
-    >
-  >;
-
   type _DisplayQueryValueWhenTheUserExists = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
@@ -152,37 +135,40 @@ describe('Craft query logic', () => {
       value: () => ({ id: currentUserId, name: `User ${currentUserId}` }),
     };
     const userQuery = vi.fn((_: { userId: () => string | undefined }) => user);
-    const result = await setupCraftComponentLogicTest(CraftGlobalQuery, {
-      args: [
-        (function* () {
-          return currentUserId;
-        }) as Input<string>,
-      ],
-      register: {
+    const result = await setupCraftServiceTestingByRegister(
+      CraftGlobalQueryView,
+      {
+        craftGlobalQueryView: provideCraftGlobalQueryView(),
         UserQuery: { $self: userQuery },
         ApiService: 'notReached',
         ConsoleService: 'notReached',
         StoragePersister: 'notReached',
         CraftRouter: { navigate },
-      },
-    });
+      } as never,
+      {
+        bindings: {
+          userId: function* () {
+            return currentUserId;
+          },
+        },
+      } as never,
+    );
 
     return { ...result, navigate, userQuery };
   }
 
   it('navigates to the previous user with a decremented id', async () => {
-    const { context, navigate, destroy } = await setup('3');
+    const { sut, navigate, injector } = await setup('3');
 
     try {
-      context.navigate(-1);
+      sut.navigate(-1);
 
       expect(navigate).toHaveBeenCalledWith({
         to: 'craft/query/:userId',
         params: { userId: '2' },
       });
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
-
 });

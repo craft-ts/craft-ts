@@ -79,7 +79,6 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({}),
         ({ ready, label }) => {
           if (ready()) {
             return p(label);
@@ -140,13 +139,11 @@ describe('prefer-craft-template-blocks', () => {
       const Child = craftComponent(
         'Child',
         {},
-        () => ({}),
         () => p(ready ? 'yes' : 'no'),
       );
       const Parent = craftComponent(
         'Parent',
         {},
-        () => ({}),
         () => Child(),
       );
     `);
@@ -159,7 +156,6 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({}),
         ({ ready }) => div([
           button({}, () => ready() ? 'Ready' : 'Waiting'),
           ready() ? p('Ready') : p('Waiting'),
@@ -181,7 +177,6 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({}),
         ({ result }) => {
           switch (result().code) {
             case 'OK': return p('ok');
@@ -204,7 +199,6 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({}),
         ({ value }) => div([value ? p('yes') : p('no')]),
       );
     `;

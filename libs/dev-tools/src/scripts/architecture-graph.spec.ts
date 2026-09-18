@@ -2986,7 +2986,6 @@ describe('assertInteractiveElementNamed', () => {
         export const Counter = craftComponent(
           'Counter',
           {},
-          () => ({}),
           () => button({ click() {} }, '+'),
         );
       `,
@@ -3009,7 +3008,6 @@ describe('assertInteractiveElementNamed', () => {
         export const Counter = craftComponent(
           'Counter',
           {},
-          () => ({}),
           () => button(name, {}, '+'),
         );
       `,
@@ -3031,14 +3029,12 @@ describe('assertInteractiveElementNamed', () => {
         export const Login = craftComponent(
           'Login',
           {},
-          () => ({}),
           () => button('save', { type: 'button' }, 'Save'),
         );
 
         export const Checkout = craftComponent(
           'Checkout',
           {},
-          () => ({}),
           () => input('save', { type: 'text' }),
         );
       `,
@@ -3063,7 +3059,6 @@ describe('assertInteractiveElementNamed', () => {
         export const Login = craftComponent(
           'Login',
           {},
-          () => ({}),
           () => [
             input('loginEmail', { type: 'email' }),
             input({ type: 'hidden', name: 'csrf' }),
@@ -3086,7 +3081,6 @@ describe('assertInteractiveElementNamed', () => {
         export const Card = craftComponent(
           'Card',
           {},
-          () => ({}),
           () => div({ click() {} }, 'Open'),
         );
       `,

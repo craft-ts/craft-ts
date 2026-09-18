@@ -13,7 +13,7 @@ import {
 import { craftService, CraftRouterLink } from '@craft-ts/core';
 import { PHOTOS } from './photos';
 
-const { ViewTransitionsGalleryView, provideViewTransitionsGalleryView } =
+export const { ViewTransitionsGalleryView, provideViewTransitionsGalleryView } =
   craftService(
     { name: 'viewTransitionsGalleryView', providedIn: 'toProvide' },
     () => ({}),

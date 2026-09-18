@@ -17,7 +17,7 @@ import { loadTeamOverview } from '../../shared/access-domain';
  * The query returns a team overview; it never exposes the services used to
  * produce that overview as if they were server-state data.
  */
-const { EffectLayerScopeView, provideEffectLayerScopeView } = craftService(
+export const { EffectLayerScopeView, provideEffectLayerScopeView } = craftService(
   { name: 'effectLayerScopeView', providedIn: 'toProvide' },
   function* () {
     const teamOverviewQuery = yield* queryEffect(

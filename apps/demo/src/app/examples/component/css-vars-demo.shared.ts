@@ -14,7 +14,7 @@ const CSS_VARS_LINKS = [
   ['@property', { to: 'css-vars/property' }],
 ] satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
-const { CssVarsPageNavView, provideCssVarsPageNavView } = craftService(
+export const { CssVarsPageNavView, provideCssVarsPageNavView } = craftService(
   { name: 'cssVarsPageNavView', providedIn: 'toProvide' },
   () => ({}),
 );

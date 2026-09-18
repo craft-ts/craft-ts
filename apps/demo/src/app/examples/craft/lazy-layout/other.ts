@@ -48,7 +48,7 @@ const { Test2 } = craftService(
   () => ({}),
 );
 
-const { OtherView, provideOtherView } = craftService(
+export const { OtherView, provideOtherView } = craftService(
   { name: 'otherView', providedIn: 'toProvide' },
   function* () {
     return {

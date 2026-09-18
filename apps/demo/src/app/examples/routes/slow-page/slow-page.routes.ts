@@ -16,9 +16,7 @@ import {
   type ComponentDepsOf,
   type RouteCheckedDI,
 } from '@craft-ts/core';
-import {
-  loadCraftComponent,
-} from '@craft-ts/component';
+import { loadCraftComponent } from '@craft-ts/component';
 
 // --- Slow guard + slow resolve demo (non-blocking outlet) -------------------
 // Two deliberately slow async steps (~1.5s each) used to showcase
@@ -83,45 +81,42 @@ const loadSlowReport = craftGen(function* () {
     : report;
 });
 
-export const { slowPageRoutes } = craftRoutes(
-  'slowPage',
-  [
-    craftRoute(
-      '',
-      {
-        ...loadCraftComponent(({ withRetry }) =>
-          withRetry(import('./slow-page')).then(
-            ({ default: component }) => component,
-          ),
+export const { slowPageRoutes } = craftRoutes('slowPage', [
+  craftRoute(
+    '',
+    {
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(import('./slow-page')).then(
+          ({ default: component }) => component,
         ),
-        // Slow (~1.5s) — the outlet shows the pending component until it settles.
-        // `retry` replays the whole guard program on failure (E unchanged, so
-        // NOT_AUTHENTICATED still routes through `handleExceptions`).
-        canActivate: function* () {
-          return yield* slowAccessGuard().pipe(
-            retry({ times: 2, backoff: 'linear', delayMs: 250 }),
-          );
-        },
-        // Slow (~1.5s) — runs after the guard; the target mounts only once settled.
-        // `catchTag` recovers REPORT_EMPTY locally: the code leaves the route's
-        // exception union, so no route handler is required for it.
-        resolve: craftResolve(function* () {
-          return yield* loadSlowReport().pipe(
-            catchTag('REPORT_EMPTY', function* () {
-              return { generatedAt: 'n/a', totalUsers: 0 };
-            }),
-          );
-        }),
+      ),
+      // Slow (~1.5s) — the outlet shows the pending component until it settles.
+      // `retry` replays the whole guard program on failure (E unchanged, so
+      // NOT_AUTHENTICATED still routes through `handleExceptions`).
+      canActivate: function* () {
+        return yield* slowAccessGuard().pipe(
+          retry({ times: 2, backoff: 'linear', delayMs: 250 }),
+        );
       },
-      {
-        // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.
-        NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
-          return redirectUrl('/login-form');
-        }),
-      },
-    ),
-  ],
-);
+      // Slow (~1.5s) — runs after the guard; the target mounts only once settled.
+      // `catchTag` recovers REPORT_EMPTY locally: the code leaves the route's
+      // exception union, so no route handler is required for it.
+      resolve: craftResolve(function* () {
+        return yield* loadSlowReport().pipe(
+          catchTag('REPORT_EMPTY', function* () {
+            return { generatedAt: 'n/a', totalUsers: 0 };
+          }),
+        );
+      }),
+    },
+    {
+      // Exhaustive over canActivate ∪ canMatch ∪ resolve, enforced at the call site.
+      NOT_AUTHENTICATED: craftExceptionHandler(function* ({ redirectUrl }) {
+        return redirectUrl('/login-form');
+      }),
+    },
+  ),
+]);
 
 // Required-handler safety net for routes authored with the 2-arg `craftRoute()` form.
 assertExhaustiveRouteExceptions(slowPageRoutes);

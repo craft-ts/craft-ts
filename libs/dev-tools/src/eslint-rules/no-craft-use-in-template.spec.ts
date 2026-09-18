@@ -52,7 +52,7 @@ describe('no-craft-use-in-template', () => {
       declare function craftComponent(...args: unknown[]): unknown;
       declare const value: () => string;
 
-      craftComponent('Demo', {}, () => ({}), () => read(value()));
+      craftComponent('Demo', {}, () => read(value()));
     `);
 
     expect(result.messages).toEqual([

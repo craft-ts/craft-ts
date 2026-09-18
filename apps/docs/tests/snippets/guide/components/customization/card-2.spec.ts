@@ -21,7 +21,6 @@ const Card = craftComponent(
       .title strong { font-weight: 700; }
     `,
   },
-  () => ({}),
   () => div([h2({ class: 'title' }, [strong('Card')])]),
 );
 // #endregion card-2

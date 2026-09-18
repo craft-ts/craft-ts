@@ -67,9 +67,8 @@ const constant = <Value>(value: Value) =>
     return value;
   };
 
-const { DesignSystemDemoView, provideDesignSystemDemoView } = craftService(
-  { name: 'designSystemDemoView', providedIn: 'toProvide' },
-  () =>
+export const { DesignSystemDemoView, provideDesignSystemDemoView } =
+  craftService({ name: 'designSystemDemoView', providedIn: 'toProvide' }, () =>
     state('showcase', initialShowcase(), ({ state: showcase, update }) => ({
       tone: craftComputed('tone', function* () {
         return (yield* showcase()).tone;
@@ -88,7 +87,7 @@ const { DesignSystemDemoView, provideDesignSystemDemoView } = craftService(
           progress: current.progress >= 100 ? 0 : current.progress + 10,
         })),
     })),
-);
+  );
 
 export const designSystemDemo = craftComponent(
   'designSystemDemo',

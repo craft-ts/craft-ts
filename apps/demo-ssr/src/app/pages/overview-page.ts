@@ -15,7 +15,7 @@ import { page } from './page-layout';
 import { Pipeline } from './pipeline';
 import { getPublicProducts } from '../../../../demo-with-server-function/src/products/public-products.fn-client';
 
-const { SsrOverviewPageView, provideSsrOverviewPageView } = craftService(
+export const { SsrOverviewPageView, provideSsrOverviewPageView } = craftService(
   { name: 'ssrOverviewPageView', providedIn: 'toProvide' },
   function* () {
     const products = yield* query('serverFunctionProducts', {

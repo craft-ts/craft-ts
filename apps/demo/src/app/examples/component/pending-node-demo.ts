@@ -39,7 +39,7 @@ const USERS: readonly DemoUser[] = [
  * boundary below is a **compile error**, not an `undefined` leaking into the
  * render.
  */
-const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
+export const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
   { name: 'pendingNodeDemoView', providedIn: 'toProvide' },
   function* () {
     const users = yield* query(

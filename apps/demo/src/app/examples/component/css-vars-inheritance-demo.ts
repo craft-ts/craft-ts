@@ -4,7 +4,7 @@ import { craftComponent, div, p, heading } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { InheritanceExample } from './css-vars-inheritance.shared';
 
-const { CssVarsInheritanceDemoView, provideCssVarsInheritanceDemoView } =
+export const { CssVarsInheritanceDemoView, provideCssVarsInheritanceDemoView } =
   craftService(
     { name: 'cssVarsInheritanceDemoView', providedIn: 'toProvide' },
     () => ({}),

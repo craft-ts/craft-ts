@@ -13,7 +13,7 @@ describe('prefer-direct-yieldable-callback', () => {
       declare function span(...args: unknown[]): unknown;
       declare const role: () => Generator<unknown, string, unknown>;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         span({ class: 'badge' }, function* () {
           return yield* role();
         }),
@@ -36,7 +36,7 @@ describe('prefer-direct-yieldable-callback', () => {
       declare function button(...args: unknown[]): unknown;
       declare const press: () => Generator<unknown, void, unknown>;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         button({ *click() {
           yield* press();
         } }),
@@ -61,7 +61,7 @@ describe('prefer-direct-yieldable-callback', () => {
         increment: () => Generator<unknown, void, unknown>;
       };
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         span(function* () {
           return yield* counter.increment();
         }),
@@ -79,7 +79,7 @@ describe('prefer-direct-yieldable-callback', () => {
       declare function span(...args: unknown[]): unknown;
       declare const role: (value?: string) => Generator<unknown, string, unknown>;
 
-      craftComponent('Demo', {}, () => ({}), () => span(
+      craftComponent('Demo', {}, () => span(
         function* (value: string) {
           return yield* role(value);
         },
@@ -117,8 +117,8 @@ describe('prefer-direct-yieldable-callback', () => {
         return yield* role();
       }, () => null);
 
-      craftComponent('Parent', {}, () => ({}), () =>
-        craftComponent('Child', {}, () => ({}), () =>
+      craftComponent('Parent', {}, () =>
+        craftComponent('Child', {}, () =>
           span(function* () {
             return yield* role();
           }),

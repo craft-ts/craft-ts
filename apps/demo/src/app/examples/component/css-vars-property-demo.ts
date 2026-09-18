@@ -3,7 +3,7 @@ import { craftService } from '@craft-ts/core';
 import { craftComponent, div, p, span, heading } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
-const { RegisteredMeterView, provideRegisteredMeterView } = craftService(
+export const { RegisteredMeterView, provideRegisteredMeterView } = craftService(
   { name: 'registeredMeterView', providedIn: 'toProvide' },
   () => ({}),
 );
@@ -55,7 +55,7 @@ const RegisteredMeter = craftComponent(
   },
 );
 
-const { CssVarsPropertyDemoView, provideCssVarsPropertyDemoView } =
+export const { CssVarsPropertyDemoView, provideCssVarsPropertyDemoView } =
   craftService(
     { name: 'cssVarsPropertyDemoView', providedIn: 'toProvide' },
     () => ({}),

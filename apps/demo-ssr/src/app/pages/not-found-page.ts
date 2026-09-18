@@ -2,7 +2,7 @@ import { a, craftComponent, p, section } from '@craft-ts/component';
 import { craftService, CraftRouterLink } from '@craft-ts/core';
 import { page } from './page-layout';
 
-const { SsrNotFoundPageView, provideSsrNotFoundPageView } = craftService(
+export const { SsrNotFoundPageView, provideSsrNotFoundPageView } = craftService(
   { name: 'ssrNotFoundPageView', providedIn: 'toProvide' },
   () => ({}),
 );

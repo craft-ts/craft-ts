@@ -41,7 +41,7 @@ const INDEXES = Array.from({ length: CELL_COUNT }, (_, index) => index);
 const cellColor = (cell: { color: string } | undefined) =>
   cell?.color ?? EMPTY_COLOR;
 
-const { PixelArtView, providePixelArtView } = craftService(
+export const { PixelArtView, providePixelArtView } = craftService(
   { name: 'pixelArtView', providedIn: 'toProvide' },
   function* () {
     const ui = yield* state(

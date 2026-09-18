@@ -15,7 +15,7 @@ describe('prefer-deep-yieldable-for-item', () => {
       declare function span(...args: unknown[]): unknown;
       declare const catalog: { products: unknown };
 
-      craftComponent('Catalog', {}, () => ({}), () =>
+      craftComponent('Catalog', {}, () =>
         div(forNode(catalog.products, { track: (product) => product }, (product) =>
           div([
             span(function* () { return (yield* product()).category; }),
@@ -44,7 +44,7 @@ describe('prefer-deep-yieldable-for-item', () => {
         );
       }
 
-      craftComponent('Catalog', {}, () => ({}), () =>
+      craftComponent('Catalog', {}, () =>
         div(forNode(catalog.products, { track: (product) => product }, (product) =>
           div(function* () {
             return (yield* other()).name + ':' + (yield* product()).name;
@@ -63,7 +63,7 @@ describe('prefer-deep-yieldable-for-item', () => {
       declare function div(...args: unknown[]): unknown;
       declare const catalog: { categories: unknown };
 
-      craftComponent('Catalog', {}, () => ({}), () =>
+      craftComponent('Catalog', {}, () =>
         div(forNode(catalog.categories, {}, (category) =>
           forNode(category.products, {}, (product) => div([
             div(function* () { return (yield* product()).name; }),

@@ -25,7 +25,7 @@ function formatParseException(exception: {
   return `${exception._tag}: ${exception.payload.error}`;
 }
 
-const { ExceptionQueryParamsView, provideExceptionQueryParamsView } =
+export const { ExceptionQueryParamsView, provideExceptionQueryParamsView } =
   craftService(
     { name: 'exceptionQueryParamsView', providedIn: 'toProvide' },
     function* () {
@@ -128,7 +128,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           {
             type: 'button',
             *click() {
-navigate('success');
+              navigate('success');
             },
           },
           'Navigate success',
@@ -138,7 +138,7 @@ navigate('success');
           {
             type: 'button',
             *click() {
-navigate('exception');
+              navigate('exception');
             },
           },
           'Navigate exception',

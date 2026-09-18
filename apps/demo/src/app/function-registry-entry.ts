@@ -97,9 +97,11 @@ export function ensureResourceRegistryEntry(
 }
 
 export const provideMcpExperimentation = () => [
-  provideFunctionRegistryBridgeUrl(() =>
-    // eslint-disable-next-line craft-ts/prefer-browser-boundaries
-    globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ?? 'ws://127.0.0.1:3333',
+  provideFunctionRegistryBridgeUrl(
+    () =>
+      // eslint-disable-next-line craft-ts/prefer-browser-boundaries
+      globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ??
+      'ws://127.0.0.1:3333',
   ),
   provideFunctionRegistryClientId(() =>
     createFunctionRegistryClientId(

@@ -1371,11 +1371,23 @@ type TemplateContextPaths<
               }[TemplateContextPathKeys<Value>]
             : never);
 
-/** Context paths available for a template callback, with editor completion. */
+/**
+ * Member names a template callback may delegate to, for editor completion.
+ *
+ * A component's members come from the services it yields, which this layer
+ * cannot enumerate: when nothing is left to complete from, any name is
+ * accepted and the assertion itself says whether it holds.
+ */
 export type TemplateContextMethodOf<Template> = Extract<
   TemplateContextPaths<TemplateContextOf<Template>>,
   string
->;
+> extends infer Paths extends string
+  ? [Paths] extends [never]
+    ? string
+    : '' extends Paths
+      ? string
+      : Paths
+  : string;
 
 type NamedElementPropsOf<
   Children,

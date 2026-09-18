@@ -23,7 +23,7 @@ import {
   transitionStep,
 } from '@craft-ts/core';
 
-const { TextEditorStateMachineView, provideTextEditorStateMachineView } =
+export const { TextEditorStateMachineView, provideTextEditorStateMachineView } =
   craftService(
     { name: 'textEditorStateMachineView', providedIn: 'toProvide' },
     function* () {

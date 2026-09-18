@@ -43,7 +43,7 @@ import { dsTheme } from './foundation.style.ts';
 import { backToTop, shell } from './scroll.style.ts';
 
 /** Asks for a scroll port. Cannot provide one. Does not pretend to. */
-const { BackToTopView, provideBackToTopView } = craftService(
+export const { BackToTopView, provideBackToTopView } = craftService(
   { name: 'backToTopView', providedIn: 'toProvide' },
   () => ({}),
 );
@@ -97,7 +97,7 @@ const filler = (count: number) =>
  * `seals` is what turns a travelling requirement into an error. Without it the
  * demand would keep going up and out of the application, unanswered and unsaid.
  */
-const { ScrollDemoView, provideScrollDemoView } = craftService(
+export const { ScrollDemoView, provideScrollDemoView } = craftService(
   { name: 'scrollDemoView', providedIn: 'toProvide' },
   () => ({}),
 );

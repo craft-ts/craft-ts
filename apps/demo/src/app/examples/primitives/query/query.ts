@@ -23,7 +23,7 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 
-const { GlobalQueryView, provideGlobalQueryView } = craftService(
+export const { GlobalQueryView, provideGlobalQueryView } = craftService(
   { name: 'globalQueryView', providedIn: 'toProvide' },
   function* (inputs: { readonly userId: Input<string> }) {
     const { userId } = inputs;

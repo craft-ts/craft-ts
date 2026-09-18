@@ -4,7 +4,7 @@ import { assign, unit } from '@craft-ts/style';
 import { alert, meter, meterVars } from './components.style';
 
 /** A banner whose accent colour is one variable written by the tone axis. */
-const { DsAlertView, provideDsAlertView } = craftService(
+export const { DsAlertView, provideDsAlertView } = craftService(
   { name: 'dsAlertView', providedIn: 'toProvide' },
   (inputs: {
     readonly message: Input<string>;
@@ -37,7 +37,7 @@ export const DsAlert = craftComponent(
 export type DsAlert = typeof DsAlert;
 
 /** A progress meter whose dynamic width is emitted through a custom property. */
-const { DsMeterView, provideDsMeterView } = craftService(
+export const { DsMeterView, provideDsMeterView } = craftService(
   { name: 'dsMeterView', providedIn: 'toProvide' },
   (inputs: {
     readonly value: Input<number>;

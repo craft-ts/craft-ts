@@ -1,23 +1,29 @@
 // @vitest-environment jsdom
-import {
-  ComponentLogicOutputOf,
-  setupCraftComponentTemplateTest,
-} from '@craft-ts/component';
+import { setupCraftComponentTemplateTest } from '@craft-ts/component';
 import type {
   ExtractDeps,
   GetServiceDependencies,
   ResolvedServiceOutput,
 } from '@craft-ts/core';
-import { craftUse, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter, setupCraftServiceTestingByRegister } from '@craft-ts/core';
+import {
+  craftUse,
+  markYieldableMethod,
+  markYieldableValue,
+  provideCraftRouter as provideRouter,
+  setupCraftServiceTestingByRegister,
+  type GetServiceOutput,
+} from '@craft-ts/core';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import ListWithPaginationCraft, {
+  ListWithPaginationCraftView,
+  provideListWithPaginationCraftView,
   UserList,
   provideUserList,
 } from './list-with-pagination';
 import { ApiService, type User } from './api.service';
 
-type ListLogic = ComponentLogicOutputOf<typeof ListWithPaginationCraft>;
+type ListLogic = GetServiceOutput<typeof ListWithPaginationCraftView>;
 type UserListOutput = ResolvedServiceOutput<
   typeof UserList,
   Record<never, never>
@@ -110,29 +116,35 @@ function createUserListMock(users: User[]) {
   const updatePageSize = vi.fn((pageSize: number) => {
     paginationState.pageSize = pageSize;
   });
-  const pagination = markYieldableValue(Object.assign(
-    vi.fn(function* () {
-      return { ...paginationState };
-    }),
-    {
-      previousPage: markYieldableMethod(function* () {
-        previousPage();
+  const pagination = markYieldableValue(
+    Object.assign(
+      vi.fn(function* () {
+        return { ...paginationState };
       }),
-      nextPage: markYieldableMethod(function* () {
-        nextPage();
-      }),
-      updatePageSize: markYieldableMethod(updatePageSize),
-    },
-  ), 'pagination');
+      {
+        previousPage: markYieldableMethod(function* () {
+          previousPage();
+        }),
+        nextPage: markYieldableMethod(function* () {
+          nextPage();
+        }),
+        updatePageSize: markYieldableMethod(updatePageSize),
+      },
+    ),
+    'pagination',
+  );
   const store = {
     pagination,
     users: {
-      currentPageData: markYieldableValue(() => users, 'currentPageData'),
-      currentPageStatus: markYieldableValue(
-        () => 'resolved' as const,
-        'currentPageStatus',
-      ),
-      total: markYieldableValue(() => users.length, 'total'),
+      currentPageData: markYieldableValue(function* () {
+        return users;
+      }, 'currentPageData'),
+      currentPageStatus: markYieldableValue(function* () {
+        return 'resolved' as const;
+      }, 'currentPageStatus'),
+      total: markYieldableValue(function* () {
+        return users.length;
+      }, 'total'),
     },
   };
   const userList = vi.fn(() => ({
@@ -153,7 +165,8 @@ function setupComponent(users: User[] = [{ id: '1', name: 'Romain' }]) {
   const mock = createUserListMock(users);
   const context = {
     store: mock.store,
-    updatePageSize: function* (event: Event) {
+    // A craft method runs when it is called, so the fake is a plain function.
+    updatePageSize: (event: Event) => {
       mock.updatePageSize(Number((event.target as HTMLSelectElement).value));
     },
   };
@@ -169,7 +182,16 @@ describe('list with pagination template', () => {
     ]);
     const template = await setupCraftComponentTemplateTest.byRegister(
       ListWithPaginationCraft,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          StoragePersister: 'notReached',
+          UserList: 'notReached',
+          statusView: 'notReached',
+          listWithPaginationCraftView: result.context,
+        },
+      },
     );
 
     try {
@@ -189,7 +211,16 @@ describe('list with pagination template', () => {
     const result = await setupComponent();
     const template = await setupCraftComponentTemplateTest.byRegister(
       ListWithPaginationCraft,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          StoragePersister: 'notReached',
+          UserList: 'notReached',
+          statusView: 'notReached',
+          listWithPaginationCraftView: result.context,
+        },
+      },
     );
 
     try {
@@ -210,7 +241,16 @@ describe('list with pagination template', () => {
     const result = await setupComponent();
     const template = await setupCraftComponentTemplateTest.byRegister(
       ListWithPaginationCraft,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          StoragePersister: 'notReached',
+          UserList: 'notReached',
+          statusView: 'notReached',
+          listWithPaginationCraftView: result.context,
+        },
+      },
     );
 
     try {

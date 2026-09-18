@@ -28,7 +28,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 
-const { MutationDemoView, provideMutationDemoView } = craftService(
+export const { MutationDemoView, provideMutationDemoView } = craftService(
   { name: 'mutationDemoView', providedIn: 'toProvide' },
   function* (inputs: { readonly userId: Input<string> }) {
     const { userId } = inputs;
@@ -148,7 +148,7 @@ const MutationDemoComponent = craftComponent(
             // This example intentionally demonstrates direct mutation wiring;
             // the form-based variant is covered by the full-demo example.
             // eslint-disable-next-line craft-ts/require-form-for-input-action
-update(yield* nameInput());
+            update(yield* nameInput());
           },
         },
         [
@@ -163,7 +163,7 @@ update(yield* nameInput());
         {
           type: 'button',
           click: function* () {
-goTo(-1);
+            goTo(-1);
           },
         },
         'Previous user',
@@ -173,7 +173,7 @@ goTo(-1);
         {
           type: 'button',
           click: function* () {
-goTo(1);
+            goTo(1);
           },
         },
         'Next user',

@@ -167,7 +167,7 @@ interface ReplayState {
   readonly chrome: readonly string[];
 }
 
-const { ReviewAppView, provideReviewAppView } = craftService(
+export const { ReviewAppView, provideReviewAppView } = craftService(
   { name: 'reviewAppView', providedIn: 'toProvide' },
   craftGen(function* () {
     const navigation$ = source$<number>('navigation$');

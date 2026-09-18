@@ -3,14 +3,17 @@ import { craftException, craftGen, craftService, query } from '@craft-ts/core';
 type User = { name: string };
 const noUser = (): User | undefined => undefined;
 
-const { Auth } = craftService({ name: 'Auth', providedIn: 'global' }, function* () {
-  return yield* query('auth', {
-    params: () => true,
-    loader: function* () {
-      return noUser();
-    },
-  });
-});
+const { Auth } = craftService(
+  { name: 'Auth', providedIn: 'global' },
+  function* () {
+    return yield* query('auth', {
+      params: () => true,
+      loader: function* () {
+        return noUser();
+      },
+    });
+  },
+);
 
 export const authGuard = craftGen(function* () {
   const user = yield* Auth();

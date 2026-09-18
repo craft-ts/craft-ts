@@ -19,7 +19,6 @@ const Card = craftComponent(
       }
     `,
   },
-  () => ({}),
   () => article({ class: 'card' }, 'Card'),
 );
 

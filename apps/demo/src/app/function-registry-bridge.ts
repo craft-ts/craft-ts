@@ -25,13 +25,11 @@ declare global {
   var __CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__: string | undefined;
 }
 
-export const {
-  FunctionRegistryBridgeUrl,
-  provideFunctionRegistryBridgeUrl,
-} = craftService(
-  { name: 'FunctionRegistryBridgeUrl', providedIn: 'abstract' },
-  abstract<string>(),
-);
+export const { FunctionRegistryBridgeUrl, provideFunctionRegistryBridgeUrl } =
+  craftService(
+    { name: 'FunctionRegistryBridgeUrl', providedIn: 'abstract' },
+    abstract<string>(),
+  );
 
 export const FUNCTION_REGISTRY_CLIENT_ID_STORAGE_KEY =
   'craft-ts.function-registry.client-id';
@@ -57,13 +55,11 @@ export function nextReconnectDelayMs(
   return exp + Math.floor(random() * 250);
 }
 
-export const {
-  FunctionRegistryClientId,
-  provideFunctionRegistryClientId,
-} = craftService(
-  { name: 'FunctionRegistryClientId', providedIn: 'abstract' },
-  abstract<string>(),
-);
+export const { FunctionRegistryClientId, provideFunctionRegistryClientId } =
+  craftService(
+    { name: 'FunctionRegistryClientId', providedIn: 'abstract' },
+    abstract<string>(),
+  );
 
 export type RegistryMethod =
   | 'registry/list'
@@ -316,7 +312,10 @@ export function respondToBridgeMessage(
   registry: FunctionRegistry = functionRegistry,
   // eslint-disable-next-line craft-ts/prefer-browser-boundaries
   getDocument: () => Document = () => globalThis.document,
-  getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }> = () => ({
+  getPageInfo: () => Readonly<{
+    pageUrl?: string;
+    pageTitle?: string;
+  }> = () => ({
     // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     pageUrl: globalThis.location?.href,
     // eslint-disable-next-line craft-ts/prefer-browser-boundaries
@@ -356,7 +355,10 @@ export function handleFunctionRegistryRequest(
   registry: FunctionRegistry = functionRegistry,
   // eslint-disable-next-line craft-ts/prefer-browser-boundaries
   getDocument: () => Document = () => globalThis.document,
-  getPageInfo: () => Readonly<{ pageUrl?: string; pageTitle?: string }> = () => ({
+  getPageInfo: () => Readonly<{
+    pageUrl?: string;
+    pageTitle?: string;
+  }> = () => ({
     // eslint-disable-next-line craft-ts/prefer-browser-boundaries
     pageUrl: globalThis.location?.href,
     // eslint-disable-next-line craft-ts/prefer-browser-boundaries
@@ -499,8 +501,9 @@ async function handlePageRequest(
         }
         const next = actions
           .slice(index + 1)
-          .find((item): item is Exclude<PageAction, { readonly goto: string }> =>
-            !isGotoAction(item),
+          .find(
+            (item): item is Exclude<PageAction, { readonly goto: string }> =>
+              !isGotoAction(item),
           );
         if (next !== undefined) {
           await waitForControlIds(getDocument(), [next.id]);

@@ -42,7 +42,7 @@ const CASES = [
   description: string;
 }[];
 
-const { CssVarsDemoView, provideCssVarsDemoView } = craftService(
+export const { CssVarsDemoView, provideCssVarsDemoView } = craftService(
   { name: 'cssVarsDemoView', providedIn: 'toProvide' },
   () => ({}),
 );

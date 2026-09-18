@@ -28,7 +28,7 @@ describe('require-yieldable-template-method', () => {
       declare const store: { remove: { mutate: YieldableMethod } };
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         button({ click: () => store.remove.mutate(1) }, 'Remove'),
       );
     `);
@@ -49,7 +49,7 @@ describe('require-yieldable-template-method', () => {
       };
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         button({
           click: function* () {
             yield* store.remove.mutate(1);
@@ -69,7 +69,7 @@ describe('require-yieldable-template-method', () => {
         declare const store: { remove: { mutate: YieldableMethod } };
         declare function craftComponent(...args: unknown[]): unknown;
 
-        craftComponent('Demo', {}, () => ({}), () =>
+        craftComponent('Demo', {}, () =>
           button({ click: () => store.remove.mutate(1) }, 'Remove'),
         );
       `,

@@ -13,7 +13,7 @@ import {
 import { craftService, state } from '@craft-ts/core';
 import { page } from './page-layout';
 
-const { SsrStaticPageView, provideSsrStaticPageView } = craftService(
+export const { SsrStaticPageView, provideSsrStaticPageView } = craftService(
   { name: 'ssrStaticPageView', providedIn: 'toProvide' },
   function* () {
     const counter = yield* state('counter', 0, ({ update }) => ({

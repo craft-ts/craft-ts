@@ -12,7 +12,7 @@ import type { DevtoolView } from './devtool-view-state';
 import type { Messages } from './messages';
 
 /** The tabs that switch which devtool view is on screen. */
-const { ViewTabsView, provideViewTabsView } = craftService(
+export const { ViewTabsView, provideViewTabsView } = craftService(
   { name: 'viewTabsView', providedIn: 'toProvide' },
   (inputs: {
     readonly devtoolView: Input<DevtoolView>;

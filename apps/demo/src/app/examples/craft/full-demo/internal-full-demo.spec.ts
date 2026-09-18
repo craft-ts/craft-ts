@@ -155,7 +155,9 @@ describe('Craft Full Demo route component', () => {
       });
       expect(fullDemoLink).toBeDefined();
       await vi.waitFor(() =>
-        expect(fullDemoLink?.getAttribute('href')).toContain('/craft/full-demo'),
+        expect(fullDemoLink?.getAttribute('href')).toContain(
+          '/craft/full-demo',
+        ),
       );
       expect(fullDemoLink?.getAttribute('href')).toContain('/craft/full-demo');
       await TestBed.inject(CRAFT_ROUTER).navigateByUrl(

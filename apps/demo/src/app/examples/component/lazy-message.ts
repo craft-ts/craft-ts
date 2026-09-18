@@ -1,7 +1,7 @@
 import { craftService } from '@craft-ts/core';
 import { craftComponent, p } from '@craft-ts/component';
 
-const { LazyMessageView, provideLazyMessageView } = craftService(
+export const { LazyMessageView, provideLazyMessageView } = craftService(
   { name: 'lazyMessageView', providedIn: 'toProvide' },
   () => ({}),
 );

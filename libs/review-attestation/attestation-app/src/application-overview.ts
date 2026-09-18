@@ -30,7 +30,7 @@ export type ApplicationVerdict = {
   readonly verdict: 'ok' | 'rejected';
   readonly note: string;
 };
-const { ApplicationOverviewView, provideApplicationOverviewView } =
+export const { ApplicationOverviewView, provideApplicationOverviewView } =
   craftService(
     { name: 'applicationOverviewView', providedIn: 'toProvide' },
     function* (inputs: {

@@ -19,7 +19,7 @@ type CardInput = {
   }>;
 };
 
-const { CardView, provideCardView } = craftService(
+export const { CardView, provideCardView } = craftService(
   { name: 'cardView', providedIn: 'toProvide' },
   (input: CardInput) => {
     return {

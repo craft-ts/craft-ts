@@ -99,7 +99,7 @@ export const { provideGranularMutation, GranularMutation } = craftService(
   },
 );
 
-const { GranularMutationCraftView, provideGranularMutationCraftView } =
+export const { GranularMutationCraftView, provideGranularMutationCraftView } =
   craftService(
     { name: 'granularMutationCraftView', providedIn: 'toProvide' },
     function* () {
@@ -200,7 +200,7 @@ const GranularMutationCraft = craftComponent(
                   },
                   style: { marginRight: '8px' },
                   *change(event) {
-updatePageSize(event);
+                    updatePageSize(event);
                   },
                 },
                 [2, 4, 8, 16].map((size) =>

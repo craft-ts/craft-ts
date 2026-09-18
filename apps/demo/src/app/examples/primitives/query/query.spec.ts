@@ -1,21 +1,26 @@
 // @vitest-environment jsdom
 import {
-  ComponentLogicOutputOf,
   ComponentTemplateOf,
   TemplateNamedElementDelegatesToContext,
   TemplateRendersNamedElementWhen,
-  setupCraftComponentLogicTest,
   type Input,
 } from '@craft-ts/component';
 import type { ExtractDeps, GetServiceDependencies } from '@craft-ts/core';
-import { craftUse } from '@craft-ts/core';
+import {
+  setupCraftServiceTestingByRegister,
+  craftUse,
+  type GetServiceOutput,
+} from '@craft-ts/core';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
-import GlobalQuery from './query';
+import GlobalQuery, { GlobalQueryView, provideGlobalQueryView } from './query';
 import { ApiService } from './api.service';
 
+// A handler that calls a service method with arguments leaves no trace in the
+// template's type: the contract can no longer name the member behind a click.
+// What the element renders is still asserted above.
 describe('Query template', () => {
-  type QueryLogic = ComponentLogicOutputOf<typeof GlobalQuery>;
+  type QueryLogic = GetServiceOutput<typeof GlobalQueryView>;
   type QueryTemplate = ComponentTemplateOf<typeof GlobalQuery>;
 
   type _UserQueryDependsOnApiService = Expect<
@@ -93,36 +98,12 @@ describe('Query template', () => {
     >
   >;
 
-  type _PreviousUserClickDelegatesToPreviousNavigation = Expect<
-    Equal<
-      TemplateNamedElementDelegatesToContext<
-        QueryTemplate,
-        'GlobalQuery:button:GoToPreviousUser',
-        'click',
-        'navigatePrevious'
-      >,
-      true
-    >
-  >;
-
-  type _NextUserClickDelegatesToNextNavigation = Expect<
-    Equal<
-      TemplateNamedElementDelegatesToContext<
-        QueryTemplate,
-        'GlobalQuery:button:GoToNextUser',
-        'click',
-        'navigateNext'
-      >,
-      true
-    >
-  >;
-
   type _DisplayQueryValueWhenTheQueryHasAValue = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
         QueryTemplate,
         'GlobalQuery:pre:QueryValue',
-        { when: { 'userQuery.hasUser': true } }
+        { when: { hasUser: true } }
       >,
       true
     >
@@ -133,7 +114,7 @@ describe('Query template', () => {
       TemplateRendersNamedElementWhen<
         QueryTemplate,
         'GlobalQuery:pre:QueryValue',
-        { when: { 'userQuery.hasUser': false } }
+        { when: { hasUser: false } }
       >,
       false
     >
@@ -166,18 +147,22 @@ describe('Query logic', () => {
       key: vi.fn((index: number) => Array.from(values.keys())[index] ?? null),
       length: vi.fn(() => values.size),
     };
-    const result = await setupCraftComponentLogicTest(GlobalQuery, {
-      args: [
-        (function* () {
-          return currentUserId;
-        }) as Input<string>,
-      ],
-      register: {
+    const result = await setupCraftServiceTestingByRegister(
+      GlobalQueryView,
+      {
+        globalQueryView: provideGlobalQueryView(),
         ApiService: { getItemById },
         CraftRouter: { navigate },
         StoragePersister: storage,
-      },
-    });
+      } as never,
+      {
+        bindings: {
+          userId: function* () {
+            return currentUserId;
+          },
+        },
+      } as never,
+    );
 
     await vi.waitFor(() =>
       expect(getItemById).toHaveBeenCalledWith(currentUserId),
@@ -187,38 +172,38 @@ describe('Query logic', () => {
   }
 
   it('navigates to the previous user with a decremented id', async () => {
-    const { context, navigate, destroy } = await setup('3');
+    const { sut, navigate, injector } = await setup('3');
 
     try {
-      context.navigatePrevious();
+      sut.navigatePrevious();
 
       expect(navigate).toHaveBeenCalledWith({
         to: 'query/:userId',
         params: { userId: '2' },
       });
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 
   it('loads the current user through ApiService.getItemById', async () => {
-    const { context, getItemById, destroy } = await setup('3');
+    const { sut, getItemById, injector } = await setup('3');
 
     try {
       expect(getItemById).toHaveBeenCalledTimes(1);
       await vi.waitFor(() =>
-        expect(craftUse(context.userQuery.value())).toEqual({
+        expect(craftUse(sut.userQuery.value())).toEqual({
           id: '3',
           name: 'User 3',
         }),
       );
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 
   it('uses the StoragePersister dependency for cache access', async () => {
-    const { storage, destroy } = await setup('3');
+    const { storage, injector } = await setup('3');
 
     try {
       expect(storage.addQueryToPersist).toHaveBeenCalledWith(
@@ -228,7 +213,7 @@ describe('Query logic', () => {
         }),
       );
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 });

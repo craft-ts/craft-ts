@@ -12,7 +12,6 @@ import { button, craftComponent } from '@craft-ts/component';
 const SaveToolbar = craftComponent(
   'SaveToolbar',
   {},
-  () => ({}),
   () => button('save', { type: 'button' }, 'Save'),
 );
 // #endregion save-button

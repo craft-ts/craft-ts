@@ -22,7 +22,7 @@ import { ReviewFilters } from './review-filters.service';
  * document outline at the type level — has to stay a direct call in
  * `review-app.ts` rather than move behind a component boundary).
  */
-const { FilterBarActionsView, provideFilterBarActionsView } = craftService(
+export const { FilterBarActionsView, provideFilterBarActionsView } = craftService(
   { name: 'filterBarActionsView', providedIn: 'toProvide' },
   function* () {
     const { clearFilters, activeFilterCount } = yield* ReviewFilters();
@@ -65,7 +65,7 @@ export const FilterBarActions = craftComponent(
 );
 
 /** The five independent fields of the queue's filter bar. */
-const { FilterBarFieldsView, provideFilterBarFieldsView } = craftService(
+export const { FilterBarFieldsView, provideFilterBarFieldsView } = craftService(
   { name: 'filterBarFieldsView', providedIn: 'toProvide' },
   function* () {
     const {

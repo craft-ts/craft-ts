@@ -11,7 +11,7 @@ import {
 } from '@craft-ts/component';
 import { OtherComponent } from './other';
 
-const { LazyLayoutChildView, provideLazyLayoutChildView } = craftService(
+export const { LazyLayoutChildView, provideLazyLayoutChildView } = craftService(
   { name: 'lazyLayoutChildView', providedIn: 'toProvide' },
   (inputs: {
     readonly teamId: Input<string>;

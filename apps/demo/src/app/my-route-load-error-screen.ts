@@ -7,7 +7,7 @@ import {
   CraftRouteLoadRecovery,
 } from '@craft-ts/core';
 
-const { MyRouteLoadErrorScreenView, provideMyRouteLoadErrorScreenView } =
+export const { MyRouteLoadErrorScreenView, provideMyRouteLoadErrorScreenView } =
   craftService(
     { name: 'myRouteLoadErrorScreenView', providedIn: 'toProvide' },
     function* () {

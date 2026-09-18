@@ -18,7 +18,7 @@ import {
 } from '@craft-ts/core';
 import { page } from './page-layout';
 
-const { SsrClientOnlyPageView, provideSsrClientOnlyPageView } = craftService(
+export const { SsrClientOnlyPageView, provideSsrClientOnlyPageView } = craftService(
   { name: 'ssrClientOnlyPageView', providedIn: 'toProvide' },
   function* () {
     const data = yield* query('clientOnlyData', {

@@ -31,7 +31,7 @@ import {
 import { CurrentUser, requireAdmin } from '../shared/authenticated-user';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-client';
 
-const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftService(
+export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftService(
   { name: 'serverFunctionDemoView', providedIn: 'toProvide' },
   function* () {
     const searchInput = yield* state('searchInput', '', ({ set }) => ({

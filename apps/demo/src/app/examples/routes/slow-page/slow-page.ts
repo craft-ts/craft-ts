@@ -2,7 +2,7 @@ import { craftService } from '@craft-ts/core';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, p, heading } from '@craft-ts/component';
 
-const { SlowPageView, provideSlowPageView } = craftService(
+export const { SlowPageView, provideSlowPageView } = craftService(
   { name: 'slowPageView', providedIn: 'toProvide' },
   () => ({}),
 );

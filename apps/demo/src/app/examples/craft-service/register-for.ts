@@ -28,7 +28,7 @@ const { Counter, provideCounter } = craftService(
   },
 );
 
-const { CounterChildView, provideCounterChildView } = craftService(
+export const { CounterChildView, provideCounterChildView } = craftService(
   { name: 'counterChildView', providedIn: 'toProvide' },
   function* () {
     const counter = yield* Counter();
@@ -97,7 +97,7 @@ const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   }),
 );
 
-const { RegisterForDemoView, provideRegisterForDemoView } = craftService(
+export const { RegisterForDemoView, provideRegisterForDemoView } = craftService(
   { name: 'registerForDemoView', providedIn: 'toProvide' },
   function* () {
     const counterChildIds = yield* state(
@@ -154,12 +154,7 @@ const RegisterForDemo = craftComponent(
     `,
   },
   function* () {
-    const {
-      counterChildIds,
-      counters,
-      childTotal,
-      serviceTotal,
-    } =
+    const { counterChildIds, counters, childTotal, serviceTotal } =
       yield* RegisterForDemoView();
     return section([
       heading('craftRegisterFor: control child counters'),

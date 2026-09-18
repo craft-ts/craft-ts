@@ -32,65 +32,66 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 
-const { ListWithPaginationView, provideListWithPaginationView } = craftService(
-  { name: 'listWithPaginationView', providedIn: 'toProvide' },
-  function* () {
-    const pagination = yield* queryParams(
-      'pagination',
-      paginationQueryParams(),
-      ({ patch, state }) => ({
-        nextPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: _state.page + 1 });
+export const { ListWithPaginationView, provideListWithPaginationView } =
+  craftService(
+    { name: 'listWithPaginationView', providedIn: 'toProvide' },
+    function* () {
+      const pagination = yield* queryParams(
+        'pagination',
+        paginationQueryParams(),
+        ({ patch, state }) => ({
+          nextPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: _state.page + 1 });
+          },
+          previousPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: Math.max(1, _state.page - 1) });
+          },
+          updatePageSize: function* (pageSize: number) {
+            return yield* patch({ pageSize, page: 1 });
+          },
+        }),
+      );
+      const usersQuery = yield* query(
+        'usersQuery',
+        {
+          params: pagination,
+          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+          loader: function* ({ params }) {
+            return yield* ApiService.getDataList(params);
+          },
         },
-        previousPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: Math.max(1, _state.page - 1) });
-        },
-        updatePageSize: function* (pageSize: number) {
-          return yield* patch({ pageSize, page: 1 });
-        },
-      }),
-    );
-    const usersQuery = yield* query(
-      'usersQuery',
-      {
-        params: pagination,
-        identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-        loader: function* ({ params }) {
-          return yield* ApiService.getDataList(params);
-        },
-      },
-      insertQueryPipe(
-        insertStoragePersister(
-          craftUnique({
-            storeName: 'demo-app',
-            key: 'list-with-pagination',
-          }),
+        insertQueryPipe(
+          insertStoragePersister(
+            craftUnique({
+              storeName: 'demo-app',
+              key: 'list-with-pagination',
+            }),
+          ),
+          insertPaginationPlaceholderData(
+            { initialValue: Array<User>() },
+            ({ currentPageStatus }) => ({
+              isCurrentPageResolved: craftComputed(
+                'isCurrentPageResolved',
+                function* () {
+                  return (yield* currentPageStatus()) === 'resolved';
+                },
+              ),
+            }),
+          ),
         ),
-        insertPaginationPlaceholderData(
-          { initialValue: Array<User>() },
-          ({ currentPageStatus }) => ({
-            isCurrentPageResolved: craftComputed(
-              'isCurrentPageResolved',
-              function* () {
-                return (yield* currentPageStatus()) === 'resolved';
-              },
-            ),
-          }),
-        ),
-      ),
-    );
+      );
 
-    const updatePageSize = craftMethod(
-      'updatePageSize',
-      function* (event: Event) {
-        yield* pagination.updatePageSize(Number(eventValue(event)));
-      },
-    );
-    return { pagination, usersQuery, updatePageSize };
-  },
-);
+      const updatePageSize = craftMethod(
+        'updatePageSize',
+        function* (event: Event) {
+          yield* pagination.updatePageSize(Number(eventValue(event)));
+        },
+      );
+      return { pagination, usersQuery, updatePageSize };
+    },
+  );
 
 const ListWithPagination = craftComponent(
   'ListWithPagination',

@@ -19,7 +19,7 @@ const scenarioCountText = (value: VisualAssetEntry): string =>
   `${value.scenarios.length} scenario${value.scenarios.length === 1 ? '' : 's'}`;
 
 /** The flat list of visual-evidence assets, one row per screenshot family. */
-const { AssetsInventoryListView, provideAssetsInventoryListView } =
+export const { AssetsInventoryListView, provideAssetsInventoryListView } =
   craftService(
     { name: 'assetsInventoryListView', providedIn: 'toProvide' },
     (inputs: {

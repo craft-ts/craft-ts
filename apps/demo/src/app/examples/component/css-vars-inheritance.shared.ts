@@ -2,7 +2,7 @@ import { craftService } from '@craft-ts/core';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, inherit, p, span } from '@craft-ts/component';
 
-const { InheritedBadgeView, provideInheritedBadgeView } = craftService(
+export const { InheritedBadgeView, provideInheritedBadgeView } = craftService(
   { name: 'inheritedBadgeView', providedIn: 'toProvide' },
   () => ({}),
 );
@@ -31,10 +31,11 @@ const InheritedBadge = craftComponent(
   },
 );
 
-const { InheritanceExampleView, provideInheritanceExampleView } = craftService(
-  { name: 'inheritanceExampleView', providedIn: 'toProvide' },
-  () => ({}),
-);
+export const { InheritanceExampleView, provideInheritanceExampleView } =
+  craftService(
+    { name: 'inheritanceExampleView', providedIn: 'toProvide' },
+    () => ({}),
+  );
 
 export const InheritanceExample = craftComponent(
   'InheritanceExample',

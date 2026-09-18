@@ -17,7 +17,7 @@ import {
 } from '@craft-ts/core';
 import { page } from './page-layout';
 
-const { SsrFallbackPageView, provideSsrFallbackPageView } = craftService(
+export const { SsrFallbackPageView, provideSsrFallbackPageView } = craftService(
   { name: 'ssrFallbackPageView', providedIn: 'toProvide' },
   function* () {
     const data = yield* query('deferredData', {

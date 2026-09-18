@@ -24,7 +24,7 @@ async function lint(code: string) {
 describe('template-element-name-unique', () => {
   it('reports duplicate names across conditional branches', async () => {
     const [result] = await lint(`
-      const component = craftComponent('Demo', {}, () => ({}), () =>
+      const component = craftComponent('Demo', {}, () =>
         ifNode(condition, () => button('save', {}, 'a'), () => button('save', {}, 'b'))
       );
     `);
@@ -36,8 +36,8 @@ describe('template-element-name-unique', () => {
 
   it('allows the same local name in separate component templates', async () => {
     const [result] = await lint(`
-      const child = craftComponent('Child', {}, () => ({}), () => button('save', {}, 'child'));
-      const parent = craftComponent('Parent', {}, () => ({}), () => button('save', {}, 'parent'));
+      const child = craftComponent('Child', {}, () => button('save', {}, 'child'));
+      const parent = craftComponent('Parent', {}, () => button('save', {}, 'parent'));
     `);
 
     expect(result.messages).toEqual([]);
@@ -46,7 +46,7 @@ describe('template-element-name-unique', () => {
   it('requires a statically resolvable name in the named form', async () => {
     const [result] = await lint(`
       const name = 'save';
-      const component = craftComponent('Demo', {}, () => ({}), () => button(name, {}, 'save'));
+      const component = craftComponent('Demo', {}, () => button(name, {}, 'save'));
     `);
 
     expect(result.messages.map((message) => message.message)).toEqual([

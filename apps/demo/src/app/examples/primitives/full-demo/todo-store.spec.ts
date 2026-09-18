@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
-import { setupCraftComponentLogicTest } from '@craft-ts/component';
 import { describe, expect, it, vi } from 'vitest';
-import FullDemo from './full-demo';
-import { TestBed, craftUse, type ValidatedFormValue } from '@craft-ts/core';
+import FullDemo, { FullDemoView, provideFullDemoView } from './full-demo';
+import {
+  setupCraftServiceTestingByRegister,
+  TestBed,
+  craftUse,
+  type ValidatedFormValue,
+} from '@craft-ts/core';
 
 const validatedTitle = (
   title: string,
@@ -11,13 +15,13 @@ const validatedTitle = (
 
 describe('Full primitives demo logic', () => {
   async function createLogic() {
-    const result = await setupCraftComponentLogicTest(FullDemo, {
-      register: {},
+    const result = await setupCraftServiceTestingByRegister(FullDemoView, {
+      fullDemoView: provideFullDemoView(),
     });
 
     TestBed.tick();
     await vi.waitFor(() =>
-      expect(craftUse(result.context.todos.value())).toEqual([
+      expect(craftUse(result.sut.todos.value())).toEqual([
         { id: 1, title: 'Learn Craft primitives' },
         { id: 2, title: 'Build functional components' },
       ]),
@@ -27,99 +31,99 @@ describe('Full primitives demo logic', () => {
   }
 
   it('loads the initial todos', async () => {
-    const { context, destroy } = await createLogic();
+    const { sut, injector } = await createLogic();
 
     try {
-      expect(craftUse(context.todos.value())).toEqual([
+      expect(craftUse(sut.todos.value())).toEqual([
         { id: 1, title: 'Learn Craft primitives' },
         { id: 2, title: 'Build functional components' },
       ]);
-      expect(craftUse(context.todos.status())).toBe('resolved');
+      expect(craftUse(sut.todos.status())).toBe('resolved');
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 
   it('adds todos through the mutation with a new id', async () => {
-    const { context, destroy } = await createLogic();
+    const { sut, injector } = await createLogic();
 
     try {
-      context.addTodo.mutate(validatedTitle('Write primitive tests'));
+      sut.addTodo.mutate(validatedTitle('Write primitive tests'));
 
       await vi.waitFor(() =>
-        expect(craftUse(context.todos.value())).toContainEqual({
+        expect(craftUse(sut.todos.value())).toContainEqual({
           id: 3,
           title: 'Write primitive tests',
         }),
       );
-      expect(craftUse(context.addTodo.value())).toEqual({
+      expect(craftUse(sut.addTodo.value())).toEqual({
         id: 3,
         title: 'Write primitive tests',
       });
-      expect(craftUse(context.todos.value())).toHaveLength(3);
+      expect(craftUse(sut.todos.value())).toHaveLength(3);
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 
   it('allocates unique monotonic ids for successive additions', async () => {
-    const { context, destroy } = await createLogic();
+    const { sut, injector } = await createLogic();
 
     try {
-      context.addTodo.mutate(validatedTitle('Third todo'));
+      sut.addTodo.mutate(validatedTitle('Third todo'));
       await vi.waitFor(() =>
-        expect(craftUse(context.todos.value())).toHaveLength(3),
+        expect(craftUse(sut.todos.value())).toHaveLength(3),
       );
 
-      context.addTodo.mutate(validatedTitle('Fourth todo'));
+      sut.addTodo.mutate(validatedTitle('Fourth todo'));
       await vi.waitFor(() =>
-        expect(craftUse(context.todos.value())).toHaveLength(4),
+        expect(craftUse(sut.todos.value())).toHaveLength(4),
       );
 
-      expect(craftUse(context.todos.value())).toContainEqual({
+      expect(craftUse(sut.todos.value())).toContainEqual({
         id: 3,
         title: 'Third todo',
       });
-      expect(craftUse(context.todos.value())).toContainEqual({
+      expect(craftUse(sut.todos.value())).toContainEqual({
         id: 4,
         title: 'Fourth todo',
       });
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 
   it('removes only the requested todo', async () => {
-    const { context, destroy } = await createLogic();
+    const { sut, injector } = await createLogic();
 
     try {
-      context.removeTodo.mutate(1);
+      sut.removeTodo.mutate(1);
 
       await vi.waitFor(() =>
-        expect(craftUse(context.todos.value())).toEqual([
+        expect(craftUse(sut.todos.value())).toEqual([
           { id: 2, title: 'Build functional components' },
         ]),
       );
-      expect(craftUse(context.removeTodo.value())).toBe(1);
+      expect(craftUse(sut.removeTodo.value())).toBe(1);
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 
   it('keeps the list unchanged when removing an unknown id', async () => {
-    const { context, destroy } = await createLogic();
+    const { sut, injector } = await createLogic();
 
     try {
-      const initialTodos = craftUse(context.todos.value());
+      const initialTodos = craftUse(sut.todos.value());
 
-      context.removeTodo.mutate(999);
+      sut.removeTodo.mutate(999);
 
       await vi.waitFor(() =>
-        expect(craftUse(context.removeTodo.status())).toBe('resolved'),
+        expect(craftUse(sut.removeTodo.status())).toBe('resolved'),
       );
-      expect(craftUse(context.todos.value())).toEqual(initialTodos);
+      expect(craftUse(sut.todos.value())).toEqual(initialTodos);
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 });

@@ -35,82 +35,83 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 
-const { GranularMutationView, provideGranularMutationView } = craftService(
-  { name: 'granularMutationView', providedIn: 'toProvide' },
-  function* () {
-    const pagination = yield* queryParams(
-      'pagination',
-      paginationQueryParams(),
-      ({ patch, state }) => ({
-        nextPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: _state.page + 1 });
-        },
-        previousPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: Math.max(1, _state.page - 1) });
-        },
-        updatePageSize: function* (pageSize: number) {
-          return yield* patch({ pageSize, page: 1 });
-        },
-      }),
-    );
+export const { GranularMutationView, provideGranularMutationView } =
+  craftService(
+    { name: 'granularMutationView', providedIn: 'toProvide' },
+    function* () {
+      const pagination = yield* queryParams(
+        'pagination',
+        paginationQueryParams(),
+        ({ patch, state }) => ({
+          nextPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: _state.page + 1 });
+          },
+          previousPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: Math.max(1, _state.page - 1) });
+          },
+          updatePageSize: function* (pageSize: number) {
+            return yield* patch({ pageSize, page: 1 });
+          },
+        }),
+      );
 
-    const updateUserName = yield* mutation('updateUserName', {
-      method: (user: User) => ({ ...user, name: `${user.name}-` }),
-      identifier: ({ id }) => id,
-      loader: function* ({ params }) {
-        return yield* ApiService.updateItem(params);
-      },
-    });
-    const usersQuery = yield* query(
-      'usersQuery',
-      {
-        params: pagination,
-        identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+      const updateUserName = yield* mutation('updateUserName', {
+        method: (user: User) => ({ ...user, name: `${user.name}-` }),
+        identifier: ({ id }) => id,
         loader: function* ({ params }) {
-          return yield* ApiService.getDataList(params);
+          return yield* ApiService.updateItem(params);
         },
-      },
-      insertQueryPipe(
-        insertStoragePersister(
-          craftUnique({
-            storeName: 'demo-app',
-            key: 'granular',
+      });
+      const usersQuery = yield* query(
+        'usersQuery',
+        {
+          params: pagination,
+          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+          loader: function* ({ params }) {
+            return yield* ApiService.getDataList(params);
+          },
+        },
+        insertQueryPipe(
+          insertStoragePersister(
+            craftUnique({
+              storeName: 'demo-app',
+              key: 'granular',
+            }),
+          ),
+          insertPaginationPlaceholderData({ initialValue: Array<User>() }),
+          insertReactOnMutation(updateUserName, {
+            filter: ({ mutationIdentifier, queryResource }) =>
+              queryResource
+                .value()
+                ?.some(({ id }) => id === mutationIdentifier) ?? false,
+            optimisticUpdate: ({
+              queryResource,
+              mutationIdentifier,
+              mutationParams,
+            }) =>
+              (queryResource.value() ?? []).map((user) =>
+                user.id === mutationIdentifier ? mutationParams : user,
+              ),
           }),
         ),
-        insertPaginationPlaceholderData({ initialValue: Array<User>() }),
-        insertReactOnMutation(updateUserName, {
-          filter: ({ mutationIdentifier, queryResource }) =>
-            queryResource
-              .value()
-              ?.some(({ id }) => id === mutationIdentifier) ?? false,
-          optimisticUpdate: ({
-            queryResource,
-            mutationIdentifier,
-            mutationParams,
-          }) =>
-            (queryResource.value() ?? []).map((user) =>
-              user.id === mutationIdentifier ? mutationParams : user,
-            ),
+      );
+      function* isUpdatePending(user: User) {
+        const pending = updateUserName.select(user.id);
+        return pending ? yield* pending.isLoading() : false;
+      }
+      return {
+        pagination,
+        updateUserName,
+        usersQuery,
+        isUpdatePending,
+        updatePageSize: craftMethod('updatePageSize', function* (event: Event) {
+          yield* pagination.updatePageSize(Number(eventValue(event)));
         }),
-      ),
-    );
-    function* isUpdatePending(user: User) {
-      const pending = updateUserName.select(user.id);
-      return pending ? yield* pending.isLoading() : false;
-    }
-    return {
-      pagination,
-      updateUserName,
-      usersQuery,
-      isUpdatePending,
-      updatePageSize: craftMethod('updatePageSize', function* (event: Event) {
-        yield* pagination.updatePageSize(Number(eventValue(event)));
-      }),
-    };
-  },
-);
+      };
+    },
+  );
 
 const GranularMutation = craftComponent(
   'GranularMutation',

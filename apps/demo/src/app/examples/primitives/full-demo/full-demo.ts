@@ -30,7 +30,7 @@ import { StatusComponent } from '../../../ui/status.component';
 
 type Todo = { readonly id: number; readonly title: string };
 
-const { FullDemoView, provideFullDemoView } = craftService(
+export const { FullDemoView, provideFullDemoView } = craftService(
   { name: 'fullDemoView', providedIn: 'toProvide' },
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({

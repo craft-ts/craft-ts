@@ -32,7 +32,7 @@ export type Size = 'sm' | 'md' | 'lg';
  * strings and no way to enumerate them; this one has one class, and the fifteen
  * combinations are rules the emitter already wrote.
  */
-const { DsButtonView, provideDsButtonView } = craftService(
+export const { DsButtonView, provideDsButtonView } = craftService(
   { name: 'dsButtonView', providedIn: 'toProvide' },
   (inputs: {
     readonly label: Input<string>;
@@ -72,7 +72,7 @@ export const DsButton = craftComponent(
 export type DsButton = typeof DsButton;
 
 /** The same geometry without the fill — a second class, not a second component. */
-const { DsGhostButtonView, provideDsGhostButtonView } = craftService(
+export const { DsGhostButtonView, provideDsGhostButtonView } = craftService(
   { name: 'dsGhostButtonView', providedIn: 'toProvide' },
   (inputs: {
     readonly label: Input<string>;

@@ -30,7 +30,7 @@ import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import styles from './list-with-pagination.css' with { loader: 'text' };
 
-const { QpListWithPaginationView, provideQpListWithPaginationView } =
+export const { QpListWithPaginationView, provideQpListWithPaginationView } =
   craftService(
     { name: 'qpListWithPaginationView', providedIn: 'toProvide' },
     function* () {

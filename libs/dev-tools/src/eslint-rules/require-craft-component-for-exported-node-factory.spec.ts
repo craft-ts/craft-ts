@@ -83,7 +83,7 @@ describe('require-craft-component-for-exported-node-factory', () => {
   it('allows an exported craftComponent result', async () => {
     const [result] = await lint(`
       import { craftComponent } from '@craft-ts/component';
-      export const FilterButton = craftComponent('FilterButton', {}, () => ({}), () => button('filter'));
+      export const FilterButton = craftComponent('FilterButton', {}, () => button('filter'));
     `);
     expect(result.messages).toEqual([]);
   });

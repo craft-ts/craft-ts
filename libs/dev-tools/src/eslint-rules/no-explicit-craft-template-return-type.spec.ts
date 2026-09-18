@@ -16,7 +16,7 @@ describe('no-explicit-craft-template-return-type', () => {
       import type { CraftNodeChildren } from '@craft-ts/component';
 
       const Demo = craftComponent(
-        'Demo', {}, () => ({}),
+        'Demo', {},
         (): CraftNodeChildren => div([
           p('content'),
         ]).pipe(pendingNode({
@@ -39,7 +39,7 @@ describe('no-explicit-craft-template-return-type', () => {
       declare function craftComponent(...args: unknown[]): unknown;
       declare function button(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () => button({
+      craftComponent('Demo', {}, () => button({
         click: (event: MouseEvent): void => event.preventDefault(),
         onSubmit: (): void => undefined,
       }, 'Save'));
@@ -54,11 +54,11 @@ describe('no-explicit-craft-template-return-type', () => {
       declare function p(...args: unknown[]): unknown;
       declare function pendingNode(...args: unknown[]): unknown;
 
-      craftComponent('Outer', {}, () => ({}), () => p({
+      craftComponent('Outer', {}, () => p({
         fallback: (): string => 'wrong',
       }));
 
-      craftComponent('Inner', {}, () => ({}), (): string => 'wrong');
+      craftComponent('Inner', {}, (): string => 'wrong');
     `);
 
     expect(result.messages).toEqual([MESSAGE, MESSAGE]);

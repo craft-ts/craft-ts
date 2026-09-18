@@ -4,10 +4,11 @@ import { craftComponent, div, forward, p, heading } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { TokenCard } from './css-vars-required-demo';
 
-const { ForwardingExampleView, provideForwardingExampleView } = craftService(
-  { name: 'forwardingExampleView', providedIn: 'toProvide' },
-  () => ({}),
-);
+export const { ForwardingExampleView, provideForwardingExampleView } =
+  craftService(
+    { name: 'forwardingExampleView', providedIn: 'toProvide' },
+    () => ({}),
+  );
 
 const ForwardingExample = craftComponent(
   'ForwardingExample',
@@ -38,7 +39,7 @@ const ForwardingExample = craftComponent(
   },
 );
 
-const { CssVarsForwardingDemoView, provideCssVarsForwardingDemoView } =
+export const { CssVarsForwardingDemoView, provideCssVarsForwardingDemoView } =
   craftService(
     { name: 'cssVarsForwardingDemoView', providedIn: 'toProvide' },
     () => ({}),

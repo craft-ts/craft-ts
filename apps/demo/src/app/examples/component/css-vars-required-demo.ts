@@ -12,7 +12,7 @@ import {
 } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
-const { TokenCardView, provideTokenCardView } = craftService(
+export const { TokenCardView, provideTokenCardView } = craftService(
   { name: 'tokenCardView', providedIn: 'toProvide' },
   (inputs: { readonly label: Input<string> }) => {
     const { label } = inputs;
@@ -54,7 +54,7 @@ export const TokenCard = craftComponent(
   },
 );
 
-const { CssVarsRequiredDemoView, provideCssVarsRequiredDemoView } =
+export const { CssVarsRequiredDemoView, provideCssVarsRequiredDemoView } =
   craftService(
     { name: 'cssVarsRequiredDemoView', providedIn: 'toProvide' },
     () => ({}),

@@ -41,7 +41,7 @@ const userRow = craftTemplate<{
   ]),
 );
 
-const { ContentProjectionDemoView, provideContentProjectionDemoView } =
+export const { ContentProjectionDemoView, provideContentProjectionDemoView } =
   craftService(
     { name: 'contentProjectionDemoView', providedIn: 'toProvide' },
     function* () {

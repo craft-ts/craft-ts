@@ -8,7 +8,7 @@ import {
 } from '@craft-ts/component';
 import { SendContextCounterComponent } from './counter';
 
-const { DemoSendContextView, provideDemoSendContextView } = craftService(
+export const { DemoSendContextView, provideDemoSendContextView } = craftService(
   { name: 'demoSendContextView', providedIn: 'toProvide' },
   () => ({ counters: Array.from({ length: 13 }, (_, index) => index) }),
 );

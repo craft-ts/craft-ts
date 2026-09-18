@@ -13,7 +13,7 @@ import {
 import { craftService, BrowserLocation } from '@craft-ts/core';
 import { page } from './page-layout';
 
-const { SsrRequestPageView, provideSsrRequestPageView } = craftService(
+export const { SsrRequestPageView, provideSsrRequestPageView } = craftService(
   { name: 'ssrRequestPageView', providedIn: 'toProvide' },
   function* () {
     const search = yield* BrowserLocation.search();

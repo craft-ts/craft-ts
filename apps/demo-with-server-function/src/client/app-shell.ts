@@ -9,7 +9,7 @@ import {
 } from '@craft-ts/component';
 import { craftService, CraftRouterLink } from '@craft-ts/core';
 
-const { AppShellView, provideAppShellView } = craftService(
+export const { AppShellView, provideAppShellView } = craftService(
   { name: 'appShellView', providedIn: 'toProvide' },
   function* () {
     return {};

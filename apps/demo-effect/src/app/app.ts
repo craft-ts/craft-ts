@@ -26,7 +26,7 @@ const EXAMPLE_LINKS = [
   ['Translate in an Effect', { to: 'i18n' }],
 ] satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
-const { AppView, provideAppView } = craftService(
+export const { AppView, provideAppView } = craftService(
   { name: 'appView', providedIn: 'toProvide' },
   function* () {
     return {};

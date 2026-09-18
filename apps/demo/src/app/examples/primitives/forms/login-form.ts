@@ -34,7 +34,7 @@ type LoginData = {
   password: string;
 };
 
-const { LoginFormView, provideLoginFormView } = craftService(
+export const { LoginFormView, provideLoginFormView } = craftService(
   { name: 'loginFormView', providedIn: 'toProvide' },
   function* () {
     const submitted = yield* mutation('submitted', {

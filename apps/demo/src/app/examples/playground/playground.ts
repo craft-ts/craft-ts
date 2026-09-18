@@ -164,7 +164,7 @@ const { Playground } = craftService(
 
 // -- Component --
 
-const { PlaygroundView, providePlaygroundView } = craftService(
+export const { PlaygroundView, providePlaygroundView } = craftService(
   { name: 'playgroundView', providedIn: 'toProvide' },
   function* () {
     const pg = yield* Playground();

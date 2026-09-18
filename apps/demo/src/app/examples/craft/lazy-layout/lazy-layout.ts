@@ -15,7 +15,7 @@ import {
   headingSection,
 } from '@craft-ts/component';
 
-const { LazyLayoutView, provideLazyLayoutView } = craftService(
+export const { LazyLayoutView, provideLazyLayoutView } = craftService(
   { name: 'lazyLayoutView', providedIn: 'toProvide' },
   (inputs: {
     readonly teamId: Input<string>;

@@ -10,7 +10,7 @@ import { RetirementReasonChoice } from './retirement-reason.service';
  * both `RetirementReasonChoice` and `ReviewPreferences` (for the language
  * the labels render in) are global services — no Input needed.
  */
-const { RetirementReasonPickerView, provideRetirementReasonPickerView } =
+export const { RetirementReasonPickerView, provideRetirementReasonPickerView } =
   craftService(
     { name: 'retirementReasonPickerView', providedIn: 'toProvide' },
     function* () {

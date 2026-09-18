@@ -24,7 +24,7 @@ type SsrData = Readonly<{
   generatedAt: string;
 }>;
 
-const { SsrDataPageView, provideSsrDataPageView } = craftService(
+export const { SsrDataPageView, provideSsrDataPageView } = craftService(
   { name: 'ssrDataPageView', providedIn: 'toProvide' },
   function* () {
     const data = yield* query('ssrData', {

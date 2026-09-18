@@ -20,7 +20,6 @@ export const SavePanel = craftComponent(
       }),
     ],
   },
-  () => ({}),
   () => button('save', { type: 'button', click: save }, 'Save'),
 );
 // #endregion savepanel

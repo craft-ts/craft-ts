@@ -38,44 +38,46 @@ const pendingStatusMessage = (className: string, message: string) =>
  * `craftComponent(...)` refuses to compile — naming the "issue" source for the
  * first, the `INVOICE_REJECTED` code for the second.
  */
-const { PendingNodeExceptionDemoView, providePendingNodeExceptionDemoView } =
-  craftService(
-    { name: 'pendingNodeExceptionDemoView', providedIn: 'toProvide' },
-    function* () {
-      const issue = yield* mutation(
-        'issue',
-        {
-          // The outcome is an argument of the call, not ambient state.
-          method: (input: { reference: string; reject: boolean }) => input,
-          // Keep the previous invoice on screen while a new one is issued: the
-          // settled read then serves the stale value instead of suspending, which
-          // is what the boundary's `reloading` slot reports.
-          preservePreviousValue: () => true,
-          loader: craftGen(function* ({ params }) {
-            yield* craftSleep(900);
+export const {
+  PendingNodeExceptionDemoView,
+  providePendingNodeExceptionDemoView,
+} = craftService(
+  { name: 'pendingNodeExceptionDemoView', providedIn: 'toProvide' },
+  function* () {
+    const issue = yield* mutation(
+      'issue',
+      {
+        // The outcome is an argument of the call, not ambient state.
+        method: (input: { reference: string; reject: boolean }) => input,
+        // Keep the previous invoice on screen while a new one is issued: the
+        // settled read then serves the stale value instead of suspending, which
+        // is what the boundary's `reloading` slot reports.
+        preservePreviousValue: () => true,
+        loader: craftGen(function* ({ params }) {
+          yield* craftSleep(900);
 
-            // A business failure is a value the loader returns, not a throw.
-            if (params.reject) {
-              return craftException(
-                { _tag: 'INVOICE_REJECTED' },
-                { reference: params.reference },
-              );
-            }
+          // A business failure is a value the loader returns, not a throw.
+          if (params.reject) {
+            return craftException(
+              { _tag: 'INVOICE_REJECTED' },
+              { reference: params.reference },
+            );
+          }
 
-            return { reference: params.reference, amount: 4200 };
-          }),
-        },
-        ({ resource }) => ({
-          summary: craftComputed('summary', function* () {
-            const invoice = yield* settled(resource);
-            return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
-          }),
+          return { reference: params.reference, amount: 4200 };
         }),
-      );
+      },
+      ({ resource }) => ({
+        summary: craftComputed('summary', function* () {
+          const invoice = yield* settled(resource);
+          return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
+        }),
+      }),
+    );
 
-      return { issue };
-    },
-  );
+    return { issue };
+  },
+);
 
 export const pendingNodeExceptionDemo = craftComponent(
   'pendingNodeExceptionDemo',

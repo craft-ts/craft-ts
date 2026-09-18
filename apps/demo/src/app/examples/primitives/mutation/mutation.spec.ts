@@ -1,16 +1,13 @@
 // @vitest-environment jsdom
+import { craftSignal as signal, type GetServiceOutput } from '@craft-ts/core';
 import {
-  craftSignal as signal,
-} from '@craft-ts/core';
-import {
-  ComponentLogicOutputOf,
   ComponentTemplateOf,
   TemplateRendersNamedElementWhen,
-  setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
   type Input,
 } from '@craft-ts/component';
 import {
+  setupCraftServiceTestingByRegister,
   markYieldableMethod,
   markYieldableValue,
   type ExtractDeps,
@@ -18,10 +15,13 @@ import {
 } from '@craft-ts/core';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
-import MutationDemoComponent from './mutation';
+import MutationDemoComponent, {
+  MutationDemoView,
+  provideMutationDemoView,
+} from './mutation';
 import { ApiService, type User } from './api.service';
 
-type MutationLogic = ComponentLogicOutputOf<typeof MutationDemoComponent>;
+type MutationLogic = GetServiceOutput<typeof MutationDemoView>;
 type MutationTemplate = ComponentTemplateOf<typeof MutationDemoComponent>;
 
 type _UserQueryDependsOnApiService = Expect<
@@ -35,7 +35,7 @@ type _UserQueryDependsOnApiService = Expect<
 
 type _UserQueryDependsOnStoragePersister = Expect<
   Equal<
-      'StoragePersister' extends keyof ExtractDeps<MutationLogic['userQuery']>
+    'StoragePersister' extends keyof ExtractDeps<MutationLogic['userQuery']>
       ? true
       : false,
     true
@@ -80,7 +80,7 @@ type _UserValueIsVisibleWhenQueryHasAValue = Expect<
     TemplateRendersNamedElementWhen<
       MutationTemplate,
       'MutationDemoComponent:pre:UserValue',
-      { when: { 'userQuery.hasUser': true } }
+      { when: { hasUser: true } }
     >,
     true
   >
@@ -91,7 +91,7 @@ type _UserValueIsNotVisibleWhenQueryHasNoValue = Expect<
     TemplateRendersNamedElementWhen<
       MutationTemplate,
       'MutationDemoComponent:pre:UserValue',
-      { when: { 'userQuery.hasUser': false } }
+      { when: { hasUser: false } }
     >,
     false
   >
@@ -141,13 +141,14 @@ function createTemplateContext(
 ) {
   const name = signal('');
   const updateSpy = vi.fn();
+  // A craft method runs when it is called: the fakes are plain functions.
   const update = markYieldableMethod(
-    vi.fn(function* (newName: string | undefined) {
+    vi.fn((newName: string | undefined) => {
       updateSpy(newName);
     }),
   );
   const setName = markYieldableMethod(
-    vi.fn(function* (newName: string) {
+    vi.fn((newName: string) => {
       name.set(newName);
     }),
   );
@@ -158,7 +159,10 @@ function createTemplateContext(
       'status',
     ),
     hasUser: markYieldableValue(signal(user !== undefined), 'hasUser'),
-    value: markYieldableValue(vi.fn(() => user), 'value'),
+    value: markYieldableValue(
+      vi.fn(() => user),
+      'value',
+    ),
   };
   const updateUserName = {
     isLoading: markYieldableValue(
@@ -166,9 +170,7 @@ function createTemplateContext(
       'isLoading',
     ),
     status: markYieldableValue(
-      vi.fn(() =>
-        mutationLoading ? ('loading' as const) : ('idle' as const),
-      ),
+      vi.fn(() => (mutationLoading ? ('loading' as const) : ('idle' as const))),
       'status',
     ),
   };
@@ -179,7 +181,13 @@ function createTemplateContext(
       updateUserName,
       update,
       goTo,
-      nameInput: markYieldableValue(name, 'nameInput'),
+      // A service member is read with `yield*`, so the fake is a reader too.
+      nameInput: markYieldableValue(
+        vi.fn(function* () {
+          return name();
+        }),
+        'nameInput',
+      ),
       setName,
     },
     update: updateSpy,
@@ -192,7 +200,16 @@ describe('primitive mutation template', () => {
     const result = createTemplateContext({ id: '1', name: 'Romain' });
     const template = await setupCraftComponentTemplateTest.byRegister(
       MutationDemoComponent,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          CraftRouter: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          mutationDemoView: result.context,
+        },
+      },
     );
 
     try {
@@ -217,7 +234,16 @@ describe('primitive mutation template', () => {
     const withUser = createTemplateContext({ id: '1', name: 'Romain' });
     const withUserTemplate = await setupCraftComponentTemplateTest.byRegister(
       MutationDemoComponent,
-      { context: withUser.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          CraftRouter: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          mutationDemoView: withUser.context,
+        },
+      },
     );
 
     try {
@@ -231,8 +257,14 @@ describe('primitive mutation template', () => {
     const withoutUser = createTemplateContext(undefined);
     const withoutUserTemplate =
       await setupCraftComponentTemplateTest.byRegister(MutationDemoComponent, {
-        context: withoutUser.context,
-        register: {},
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          CraftRouter: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          mutationDemoView: withoutUser.context,
+        },
       });
 
     try {
@@ -246,7 +278,16 @@ describe('primitive mutation template', () => {
     const result = createTemplateContext({ id: '1', name: 'Romain' }, true);
     const template = await setupCraftComponentTemplateTest.byRegister(
       MutationDemoComponent,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          CraftRouter: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          mutationDemoView: result.context,
+        },
+      },
     );
 
     try {
@@ -272,20 +313,21 @@ describe('primitive mutation logic', () => {
     });
     const navigate = vi.fn();
     const storage = createStorageMock();
-    const result = await setupCraftComponentLogicTest.byRegister(
-      MutationDemoComponent,
+    const result = await setupCraftServiceTestingByRegister(
+      MutationDemoView,
       {
-        args: [
-          (function* () {
+        mutationDemoView: provideMutationDemoView(),
+        ApiService: { getItemById, updateItem },
+        StoragePersister: storage,
+        CraftRouter: { navigate },
+      } as never,
+      {
+        bindings: {
+          userId: function* () {
             return user.id;
-          }) as Input<string>,
-        ],
-        register: {
-          ApiService: { getItemById, updateItem },
-          StoragePersister: storage,
-          CraftRouter: { navigate },
+          },
         },
-      },
+      } as never,
     );
 
     await vi.waitFor(() => expect(getItemById).toHaveBeenCalledWith(user.id));
@@ -294,10 +336,10 @@ describe('primitive mutation logic', () => {
   }
 
   it('loads the user and updates its name through the mutation', async () => {
-    const { context, updateItem, user, destroy } = await setupLogic();
+    const { sut, updateItem, user, injector } = await setupLogic();
 
     try {
-      context.update('Alice');
+      sut.update('Alice');
 
       await vi.waitFor(() =>
         expect(updateItem).toHaveBeenCalledWith({
@@ -306,22 +348,22 @@ describe('primitive mutation logic', () => {
         }),
       );
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 
   it('navigates to the relative user from goTo', async () => {
-    const { context, navigate, destroy } = await setupLogic();
+    const { sut, navigate, injector } = await setupLogic();
 
     try {
-      context.goTo(-1);
+      sut.goTo(-1);
 
       expect(navigate).toHaveBeenCalledWith({
         to: 'mutation/:userId',
         params: { userId: '0' },
       });
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 });

@@ -11,7 +11,7 @@ import { craftService, craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadTask } from './task-domain';
 
-const { QuickstartTaskPageView, provideQuickstartTaskPageView } = craftService(
+export const { QuickstartTaskPageView, provideQuickstartTaskPageView } = craftService(
   { name: 'quickstartTaskPageView', providedIn: 'toProvide' },
   function* () {
     const taskQuery = yield* queryEffect(

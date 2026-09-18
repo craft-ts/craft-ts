@@ -20,7 +20,7 @@ import {
 import { craftService, craftComputed, query, state } from '@craft-ts/core';
 import { getEffectMiddlewareUsers } from '../users/effect-middleware-list.fn-client';
 
-const {
+export const {
   EffectServerMiddlewareDemoView,
   provideEffectServerMiddlewareDemoView,
 } = craftService(

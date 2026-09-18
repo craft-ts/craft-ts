@@ -29,15 +29,16 @@ function eventClientId(event: Event): DemoClientId {
 const ORDER_DATE = new Date('2026-08-25T14:30:00Z');
 const LAST_SYNC_DAYS = -2;
 
-const { TypeSafeI18nDemoView, provideTypeSafeI18nDemoView } = craftService(
-  { name: 'typeSafeI18nDemoView', providedIn: 'toProvide' },
-  function* () {
-    return {
-      ...(yield* I18n()),
-      clientCurrency: yield* ClientCurrency(),
-    };
-  },
-);
+export const { TypeSafeI18nDemoView, provideTypeSafeI18nDemoView } =
+  craftService(
+    { name: 'typeSafeI18nDemoView', providedIn: 'toProvide' },
+    function* () {
+      return {
+        ...(yield* I18n()),
+        clientCurrency: yield* ClientCurrency(),
+      };
+    },
+  );
 
 export const TypeSafeI18nDemo = craftComponent(
   'TypeSafeI18nDemo',

@@ -23,7 +23,7 @@ interface DemoUser {
   readonly name: string;
 }
 
-const { UserCardView, provideUserCardView } = craftService(
+export const { UserCardView, provideUserCardView } = craftService(
   { name: 'userCardView', providedIn: 'toProvide' },
   (inputs: {
     readonly user: Input<DemoUser>;
@@ -58,7 +58,7 @@ const userCard = craftComponent(
             type: 'button',
             class: 'component-demo__remove',
             *click() {
-onRemove(yield* user());
+              onRemove(yield* user());
             },
             'aria-label': function* () {
               return `Remove ${(yield* user()).name}`;
@@ -71,7 +71,7 @@ onRemove(yield* user());
   },
 );
 
-const { ComponentDemoView, provideComponentDemoView } = craftService(
+export const { ComponentDemoView, provideComponentDemoView } = craftService(
   { name: 'componentDemoView', providedIn: 'toProvide' },
   () =>
     state(

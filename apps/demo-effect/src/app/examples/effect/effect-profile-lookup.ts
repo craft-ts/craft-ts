@@ -19,7 +19,7 @@ import {
   type ProfileScenario,
 } from '../../shared/access-domain';
 
-const { EffectYieldView, provideEffectYieldView } = craftService(
+export const { EffectYieldView, provideEffectYieldView } = craftService(
   { name: 'effectYieldView', providedIn: 'toProvide' },
   function* () {
     const profileQuery = yield* queryEffect(

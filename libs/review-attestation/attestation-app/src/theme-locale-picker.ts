@@ -15,7 +15,7 @@ import { ReviewPreferences } from './preferences.service';
  * render: language and theme. Self-contained because `ReviewPreferences` is
  * a global service — this component needs no Input to reach it.
  */
-const { ThemeLocalePickerView, provideThemeLocalePickerView } = craftService(
+export const { ThemeLocalePickerView, provideThemeLocalePickerView } = craftService(
   { name: 'themeLocalePickerView', providedIn: 'toProvide' },
   function* () {
     const { locale, theme, chooseLocale, chooseTheme } =

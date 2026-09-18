@@ -1,7 +1,7 @@
 import { craftService } from '@craft-ts/core';
 import { craftComponent, heading } from '@craft-ts/component';
 
-const { GuardDemoView, provideGuardDemoView } = craftService(
+export const { GuardDemoView, provideGuardDemoView } = craftService(
   { name: 'guardDemoView', providedIn: 'toProvide' },
   () => ({}),
 );

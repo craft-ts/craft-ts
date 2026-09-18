@@ -113,7 +113,7 @@ export const { provideTodoStore, TodoStore } = craftService(
   },
 );
 
-const { FullDemoCraftView, provideFullDemoCraftView } = craftService(
+export const { FullDemoCraftView, provideFullDemoCraftView } = craftService(
   { name: 'fullDemoCraftView', providedIn: 'toProvide' },
   function* () {
     const store = yield* TodoStore();

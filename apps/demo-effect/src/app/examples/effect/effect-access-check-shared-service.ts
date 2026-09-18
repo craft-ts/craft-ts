@@ -17,7 +17,7 @@ import { checkUserAccess } from '../../shared/access-domain';
  * Demonstrates a shared business operation whose service dependency is
  * provided by the application Layer, not resolved by the component.
  */
-const { EffectSharedServiceView, provideEffectSharedServiceView } =
+export const { EffectSharedServiceView, provideEffectSharedServiceView } =
   craftService(
     { name: 'effectSharedServiceView', providedIn: 'toProvide' },
     function* () {

@@ -71,7 +71,7 @@ export const { provideUserMutation, UserMutation } = craftService(
   },
 );
 
-const { MutationCraftView, provideMutationCraftView } = craftService(
+export const { MutationCraftView, provideMutationCraftView } = craftService(
   { name: 'mutationCraftView', providedIn: 'toProvide' },
   function* (inputs: { readonly userId: Input<string> }) {
     const { userId } = inputs;
@@ -167,7 +167,7 @@ const MutationCraft = craftComponent(
             // This example intentionally demonstrates direct mutation wiring;
             // the form-based variant is covered by the full-demo example.
             // eslint-disable-next-line craft-ts/require-form-for-input-action
-updateUserNameFn((yield* nameInput()) ?? '');
+            updateUserNameFn((yield* nameInput()) ?? '');
           },
         },
         [
@@ -182,7 +182,7 @@ updateUserNameFn((yield* nameInput()) ?? '');
         {
           type: 'button',
           *click() {
-navigate(-1);
+            navigate(-1);
           },
         },
         'Previous user',
@@ -192,7 +192,7 @@ navigate(-1);
         {
           type: 'button',
           *click() {
-navigate(1);
+            navigate(1);
           },
         },
         'Next user',

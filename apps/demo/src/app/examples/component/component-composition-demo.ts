@@ -21,12 +21,13 @@ const { RestrictedData, provideRestrictedData } = craftService(
   abstract<string | typeof noAccess>(),
 );
 
-const { RestrictedContentView, provideRestrictedContentView } = craftService(
-  { name: 'restrictedContentView', providedIn: 'toProvide' },
-  function* () {
-    return { value: yield* RestrictedData() };
-  },
-);
+export const { RestrictedContentView, provideRestrictedContentView } =
+  craftService(
+    { name: 'restrictedContentView', providedIn: 'toProvide' },
+    function* () {
+      return { value: yield* RestrictedData() };
+    },
+  );
 
 const restrictedContent = craftComponent(
   'restrictedContent',
@@ -40,37 +41,39 @@ const restrictedContent = craftComponent(
   },
 );
 
-const { ComponentCompositionDemoView, provideComponentCompositionDemoView } =
-  craftService(
-    { name: 'componentCompositionDemoView', providedIn: 'toProvide' },
-    function* () {
-      const canReadRestrictedData = yield* state(
-        'canReadRestrictedData',
-        false,
-        ({ update, state }) => ({
-          restriction: craftComputed('restriction', function* () {
-            return (yield* state()) ? 'accessible' : noAccess;
-          }),
-          toggle: () => update((v) => !v),
+export const {
+  ComponentCompositionDemoView,
+  provideComponentCompositionDemoView,
+} = craftService(
+  { name: 'componentCompositionDemoView', providedIn: 'toProvide' },
+  function* () {
+    const canReadRestrictedData = yield* state(
+      'canReadRestrictedData',
+      false,
+      ({ update, state }) => ({
+        restriction: craftComputed('restriction', function* () {
+          return (yield* state()) ? 'accessible' : noAccess;
         }),
-      );
+        toggle: () => update((v) => !v),
+      }),
+    );
 
-      const lastHandledException = yield* state(
-        'lastHandledException',
-        '',
-        ({ set }) => ({
-          showNoAccessText: () =>
-            set(
-              'NO_ACCESS handled by catchTag (the boundary renders no template).',
-            ),
-        }),
-      );
-      return {
-        canReadRestrictedData,
-        lastHandledException,
-      };
-    },
-  );
+    const lastHandledException = yield* state(
+      'lastHandledException',
+      '',
+      ({ set }) => ({
+        showNoAccessText: () =>
+          set(
+            'NO_ACCESS handled by catchTag (the boundary renders no template).',
+          ),
+      }),
+    );
+    return {
+      canReadRestrictedData,
+      lastHandledException,
+    };
+  },
+);
 
 export const componentCompositionDemo = craftComponent(
   'componentCompositionDemo',

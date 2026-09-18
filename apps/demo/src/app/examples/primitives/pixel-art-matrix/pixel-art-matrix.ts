@@ -34,7 +34,7 @@ const makeGrid = (): Cell[][] =>
     })),
   );
 
-const { PixelArtMatrixView, providePixelArtMatrixView } = craftService(
+export const { PixelArtMatrixView, providePixelArtMatrixView } = craftService(
   { name: 'pixelArtMatrixView', providedIn: 'toProvide' },
   function* () {
     const activeColor = yield* state('activeColor', COLORS[0], ({ set }) => ({

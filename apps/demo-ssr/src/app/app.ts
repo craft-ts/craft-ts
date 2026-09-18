@@ -22,7 +22,7 @@ const SCENARIOS = [
   ['05 · client-only', { to: 'client-only' }],
 ] satisfies readonly (readonly [string, { readonly to: string }])[];
 
-const { SsrLabAppView, provideSsrLabAppView } = craftService(
+export const { SsrLabAppView, provideSsrLabAppView } = craftService(
   { name: 'ssrLabAppView', providedIn: 'toProvide' },
   () => ({}),
 );

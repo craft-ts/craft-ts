@@ -34,7 +34,7 @@ const ORDER = {
  * calls `setLocale` on the shared runtime and re-runs the program, so every
  * string on screen changes together.
  */
-const { EffectI18nView, provideEffectI18nView } = craftService(
+export const { EffectI18nView, provideEffectI18nView } = craftService(
   { name: 'effectI18nView', providedIn: 'toProvide' },
   function* () {
     const locale = yield* state('locale', 'en-US', ({ set, state: read }) => {

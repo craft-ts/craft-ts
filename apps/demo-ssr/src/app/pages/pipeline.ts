@@ -1,7 +1,7 @@
 import { craftService } from '@craft-ts/core';
 import { craftComponent, li, span, ul } from '@craft-ts/component';
 
-const { SsrPipelineView, provideSsrPipelineView } = craftService(
+export const { SsrPipelineView, provideSsrPipelineView } = craftService(
   { name: 'ssrPipelineView', providedIn: 'toProvide' },
   () => ({}),
 );

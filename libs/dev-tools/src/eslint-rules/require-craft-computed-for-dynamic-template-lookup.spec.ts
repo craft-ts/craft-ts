@@ -68,7 +68,6 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
       craftComponent(
         'Status',
         {},
-        () => ({}),
         ({ status: resourceStatus }) => span(labels[yield* resourceStatus()]),
       );
     `);
@@ -85,10 +84,9 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
       const Child = craftComponent(
         'Child',
         {},
-        () => ({}),
         ({ status }) => span(labels[yield* status()]),
       );
-      craftComponent('Parent', {}, () => ({}), () => Child({}));
+      craftComponent('Parent', {}, () => Child({}));
     `);
 
     expect(messages).toHaveLength(1);

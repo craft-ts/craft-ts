@@ -12,7 +12,6 @@ import { CraftRouterLink } from '@craft-ts/core';
 export const TasksLink = craftComponent(
   'TasksLink',
   {},
-  () => ({}),
   () => a('tasks', {}, 'Tasks').pipe(CraftRouterLink({ to: 'tasks' })),
 );
 // #endregion router-link

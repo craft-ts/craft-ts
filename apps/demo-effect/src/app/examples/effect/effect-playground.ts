@@ -30,7 +30,7 @@ const TODO_ICONS: Readonly<Record<string, string>> = {
   true: '✅',
 };
 
-const { EffectPlaygroundView, provideEffectPlaygroundView } = craftService(
+export const { EffectPlaygroundView, provideEffectPlaygroundView } = craftService(
   { name: 'effectPlaygroundView', providedIn: 'toProvide' },
   function* () {
     const addTodo = yield* mutationEffect<

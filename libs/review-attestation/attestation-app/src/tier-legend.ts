@@ -40,7 +40,7 @@ const legendEntry = (
  * meets a dotted orange box around a button they never touched and has no
  * way to find out what it is telling them.
  */
-const { TierLegendView, provideTierLegendView } = craftService(
+export const { TierLegendView, provideTierLegendView } = craftService(
   { name: 'tierLegendView', providedIn: 'toProvide' },
   (inputs: {
     readonly showing: Input<boolean>;

@@ -145,126 +145,127 @@ const searchBooks = craftGen(function* (term: string) {
   }));
 });
 
-const { DebouncedWebSearchView, provideDebouncedWebSearchView } = craftService(
-  { name: 'debouncedWebSearchView', providedIn: 'toProvide' },
-  function* () {
-    const searchInput = yield* state(
-      'searchInput',
-      '',
-      insertStatePipe(
-        ({ set }) => ({
-          setSearchInput: (value: string) => set(value),
-        }),
-        ({ state }) => ({
-          currentTerm: craftComputed('currentTerm', function* () {
-            return (yield* state())?.trim() ?? '';
+export const { DebouncedWebSearchView, provideDebouncedWebSearchView } =
+  craftService(
+    { name: 'debouncedWebSearchView', providedIn: 'toProvide' },
+    function* () {
+      const searchInput = yield* state(
+        'searchInput',
+        '',
+        insertStatePipe(
+          ({ set }) => ({
+            setSearchInput: (value: string) => set(value),
           }),
-          tooShort: craftComputed('tooShort', function* () {
-            return (yield* state()).trim().length < 2;
-          }),
-        }),
-      ),
-    );
-
-    // asyncProcess owns the debounce. The new temporal runtime makes the wait
-    // cancellable and replaceable by a virtual clock in tests.
-    const debouncedSearch = yield* asyncProcess(
-      'debouncedSearch',
-      {
-        params: function* () {
-          const _searchInput = yield* searchInput();
-          return _searchInput.trim();
-        },
-        loader: function* ({ params }) {
-          if (!params) return { term: '' };
-
-          yield* craftSleep(350, { owner: 'open-library-search-debounce' });
-          return { term: params };
-        },
-      },
-      ({ resource }) => ({
-        isDebouncing: craftComputed('isDebouncing', function* () {
-          return yield* resource.isLoading();
-        }),
-      }),
-    );
-
-    // query owns the server state. It only sees values emitted after the
-    // debounce and retries transient CraftHttpClient failures.
-    const searchQuery = yield* query(
-      'openLibrarySearch',
-      {
-        params: function* () {
-          const _debouncedSearchvalue = yield* debouncedSearch.value();
-          return _debouncedSearchvalue?.term;
-        },
-        loader: function* ({ params }) {
-          if (!params) return EMPTY_RESULTS;
-
-          return yield* searchBooks(params).pipe(
-            retry({
-              times: 3,
-              while: ['TransientHttpError'],
-              backoff: 'exponential',
-              delayMs: 250,
+          ({ state }) => ({
+            currentTerm: craftComputed('currentTerm', function* () {
+              return (yield* state())?.trim() ?? '';
             }),
-          );
+            tooShort: craftComputed('tooShort', function* () {
+              return (yield* state()).trim().length < 2;
+            }),
+          }),
+        ),
+      );
+
+      // asyncProcess owns the debounce. The new temporal runtime makes the wait
+      // cancellable and replaceable by a virtual clock in tests.
+      const debouncedSearch = yield* asyncProcess(
+        'debouncedSearch',
+        {
+          params: function* () {
+            const _searchInput = yield* searchInput();
+            return _searchInput.trim();
+          },
+          loader: function* ({ params }) {
+            if (!params) return { term: '' };
+
+            yield* craftSleep(350, { owner: 'open-library-search-debounce' });
+            return { term: params };
+          },
         },
-      },
-      ({ resource, hasException }) => {
-        const hasResults = craftComputed('hasResults', function* () {
-          const value = yield* resource.value();
-          return isSearchResults(value) && value.books.length > 0;
-        });
+        ({ resource }) => ({
+          isDebouncing: craftComputed('isDebouncing', function* () {
+            return yield* resource.isLoading();
+          }),
+        }),
+      );
 
-        return {
-          hasResults,
-          resultCount: craftComputed('resultCount', function* () {
-            const value = yield* resource.value();
-            return String(isSearchResults(value) ? value.total : 0);
-          }),
-          resultBooks: craftComputed('resultBooks', function* () {
-            const value = yield* resource.value();
-            return isSearchResults(value) ? value.books : [];
-          }),
-          hasSearchError: craftComputed('hasSearchError', function* () {
-            return yield* hasException();
-          }),
-          showResults: craftComputed('showResults', function* () {
-            return (
-              !(yield* resource.isLoading()) &&
-              !(yield* hasException()) &&
-              (yield* hasResults())
+      // query owns the server state. It only sees values emitted after the
+      // debounce and retries transient CraftHttpClient failures.
+      const searchQuery = yield* query(
+        'openLibrarySearch',
+        {
+          params: function* () {
+            const _debouncedSearchvalue = yield* debouncedSearch.value();
+            return _debouncedSearchvalue?.term;
+          },
+          loader: function* ({ params }) {
+            if (!params) return EMPTY_RESULTS;
+
+            return yield* searchBooks(params).pipe(
+              retry({
+                times: 3,
+                while: ['TransientHttpError'],
+                backoff: 'exponential',
+                delayMs: 250,
+              }),
             );
-          }),
-          showEmpty: craftComputed('showEmpty', function* () {
-            return (
-              (yield* searchInput.currentTerm()).length >= 2 &&
-              !(yield* resource.isLoading()) &&
-              !(yield* hasException()) &&
-              !(yield* hasResults())
-            );
-          }),
-        };
-      },
-    );
+          },
+        },
+        ({ resource, hasException }) => {
+          const hasResults = craftComputed('hasResults', function* () {
+            const value = yield* resource.value();
+            return isSearchResults(value) && value.books.length > 0;
+          });
 
-    const showDebouncing = craftComputed('showDebouncing', function* () {
-      const _debouncedSearchisDebouncing =
-        yield* debouncedSearch.isDebouncing();
-      const _searchInput = yield* searchInput();
-      return _searchInput.trim().length >= 2 && _debouncedSearchisDebouncing;
-    });
+          return {
+            hasResults,
+            resultCount: craftComputed('resultCount', function* () {
+              const value = yield* resource.value();
+              return String(isSearchResults(value) ? value.total : 0);
+            }),
+            resultBooks: craftComputed('resultBooks', function* () {
+              const value = yield* resource.value();
+              return isSearchResults(value) ? value.books : [];
+            }),
+            hasSearchError: craftComputed('hasSearchError', function* () {
+              return yield* hasException();
+            }),
+            showResults: craftComputed('showResults', function* () {
+              return (
+                !(yield* resource.isLoading()) &&
+                !(yield* hasException()) &&
+                (yield* hasResults())
+              );
+            }),
+            showEmpty: craftComputed('showEmpty', function* () {
+              return (
+                (yield* searchInput.currentTerm()).length >= 2 &&
+                !(yield* resource.isLoading()) &&
+                !(yield* hasException()) &&
+                !(yield* hasResults())
+              );
+            }),
+          };
+        },
+      );
 
-    return {
-      searchInput,
-      setSearchInput: searchInput.setSearchInput,
-      debouncedSearch,
-      searchQuery,
-      showDebouncing,
-    };
-  },
-);
+      const showDebouncing = craftComputed('showDebouncing', function* () {
+        const _debouncedSearchisDebouncing =
+          yield* debouncedSearch.isDebouncing();
+        const _searchInput = yield* searchInput();
+        return _searchInput.trim().length >= 2 && _debouncedSearchisDebouncing;
+      });
+
+      return {
+        searchInput,
+        setSearchInput: searchInput.setSearchInput,
+        debouncedSearch,
+        searchQuery,
+        showDebouncing,
+      };
+    },
+  );
 
 const DebouncedWebSearch = craftComponent(
   'DebouncedWebSearch',

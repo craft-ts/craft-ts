@@ -22,7 +22,7 @@ const MISSING_PHOTO: Photo = {
   gradient: 'transparent',
 };
 
-const { ViewTransitionsDetailView, provideViewTransitionsDetailView } =
+export const { ViewTransitionsDetailView, provideViewTransitionsDetailView } =
   craftService(
     { name: 'viewTransitionsDetailView', providedIn: 'toProvide' },
     function* (inputs: { readonly photoId: Input<string> }) {

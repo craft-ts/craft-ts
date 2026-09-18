@@ -29,7 +29,7 @@ import {
 } from '@craft-ts/core';
 import { getPortableUsers } from '../users/portable-list.fn-client';
 
-const {
+export const {
   PortableServerFunctionDemoView,
   providePortableServerFunctionDemoView,
 } = craftService(

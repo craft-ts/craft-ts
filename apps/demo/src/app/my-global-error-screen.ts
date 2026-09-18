@@ -11,7 +11,7 @@ function isDisabledError(value: unknown): boolean {
   );
 }
 
-const { MyGlobalErrorScreenView, provideMyGlobalErrorScreenView } =
+export const { MyGlobalErrorScreenView, provideMyGlobalErrorScreenView } =
   craftService(
     { name: 'myGlobalErrorScreenView', providedIn: 'toProvide' },
     function* () {

@@ -388,7 +388,6 @@ describe('analyzeDependencyGraph architecture facts', () => {
         const Checkout = craftComponent(
           'Checkout',
           { providers: [provideCart()] },
-          () => ({}),
           () => div([]),
         );
 

@@ -11,7 +11,6 @@ import { setupCraftComponentTemplateTest } from '@craft-ts/component/testing';
 const Editor = craftComponent(
   'Editor',
   {},
-  () => ({}),
   () =>
     div([
       button(

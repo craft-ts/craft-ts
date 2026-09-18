@@ -39,7 +39,7 @@ describe('no-render-writes', () => {
 
   it('reports a nested component template only once', async () => {
     const result = await lintFixture(`
-      craftComponent('Parent', {}, () => ({}), () => {
+      craftComponent('Parent', {}, () => {
         const Child = craftComponent('Child', {}, () => ({ count }), ({ count }) => {
           count.set(1);
           return p('child');

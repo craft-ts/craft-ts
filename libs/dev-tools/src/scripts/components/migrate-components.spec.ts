@@ -37,7 +37,7 @@ describe('components migration', () => {
       "import { craftComponent } from '@craft-ts/component'",
     );
     expect(output).toContain(
-      "craftComponent('Card', {}, () => ({}), () => [])",
+      "craftComponent('Card', {}, () => [])",
     );
 
     const second = await runComponentsMigration({

@@ -343,7 +343,7 @@ describe('code slices', () => {
   it('resolves a portable node id to the same slice in another worktree', async () => {
     const root = await fixture({
       'app.ts': `
-        export const Widget = craftComponent('Widget', {}, () => ({}), () => div());
+        export const Widget = craftComponent('Widget', {}, () => div());
       `,
     });
     const graph = analyze(root);

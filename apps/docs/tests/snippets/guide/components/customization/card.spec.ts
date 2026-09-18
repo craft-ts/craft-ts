@@ -15,7 +15,6 @@ const Card = craftComponent(
       attrs: { role: 'article' },
     },
   },
-  () => ({}),
   () => div([h2('A card')]),
 );
 

@@ -14,7 +14,8 @@ const PAINTED = 'rgb(15, 23, 42)';
 
 const cellsInColumn = (root: HTMLElement, columnIndex: number) =>
   Array.from(root.querySelectorAll('.matrix-row')).map(
-    (row) => row.querySelectorAll<HTMLButtonElement>('.matrix-cell')[columnIndex],
+    (row) =>
+      row.querySelectorAll<HTMLButtonElement>('.matrix-cell')[columnIndex],
   );
 
 describe('PixelArtMatrix', () => {
@@ -73,9 +74,9 @@ describe('PixelArtMatrix', () => {
 
     const column = cellsInColumn(element, 0);
     expect(column.length).toBe(16);
-    expect(
-      column.map((cell) => cell?.style.backgroundColor),
-    ).toEqual(Array.from({ length: 16 }, () => PAINTED));
+    expect(column.map((cell) => cell?.style.backgroundColor)).toEqual(
+      Array.from({ length: 16 }, () => PAINTED),
+    );
 
     const neighbor = cellsInColumn(element, 1)[0];
     expect(neighbor?.style.backgroundColor).toBe(EMPTY);

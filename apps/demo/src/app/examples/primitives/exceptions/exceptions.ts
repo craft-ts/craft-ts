@@ -21,7 +21,7 @@ import {
 } from '@craft-ts/core';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
-const { ExceptionsView, provideExceptionsView } = craftService(
+export const { ExceptionsView, provideExceptionsView } = craftService(
   { name: 'exceptionsView', providedIn: 'toProvide' },
   function* () {
     const userQuery = yield* query(

@@ -13,7 +13,7 @@ describe('no-type-assertions-in-template', () => {
       declare function button(...args: unknown[]): unknown;
       declare const machine: { stepState: unknown };
 
-      craftComponent('Demo', {}, () => ({}), () => button(
+      craftComponent('Demo', {}, () => button(
         {},
         machine.stepState as unknown as () => { step: 'ready' },
       ));
@@ -30,7 +30,7 @@ describe('no-type-assertions-in-template', () => {
       declare function p(...args: unknown[]): unknown;
       declare const value: unknown;
 
-      craftComponent('Demo', {}, () => ({}), () => p(<string>value));
+      craftComponent('Demo', {}, () => p(<string>value));
     `);
 
     expect(result.messages).toEqual([
@@ -43,7 +43,7 @@ describe('no-type-assertions-in-template', () => {
       declare function craftComponent(...args: unknown[]): unknown;
       declare function button(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () => button({
+      craftComponent('Demo', {}, () => button({
         *input(event: Event) {
           (event.target as HTMLInputElement).dispatchEvent(new Event('change'));
         },

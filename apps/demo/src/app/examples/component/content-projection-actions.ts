@@ -10,7 +10,7 @@ import {
   type ProjectionSlot,
 } from '@craft-ts/component';
 
-const { UserBadgeView, provideUserBadgeView } = craftService(
+export const { UserBadgeView, provideUserBadgeView } = craftService(
   { name: 'userBadgeView', providedIn: 'toProvide' },
   (inputs: { readonly role: Input<string> }) => {
     const { role } = inputs;
@@ -33,7 +33,7 @@ type ToolbarActionContract = {
   readonly disabled: () => boolean;
 };
 
-const { ToolbarActionView, provideToolbarActionView } = craftService(
+export const { ToolbarActionView, provideToolbarActionView } = craftService(
   { name: 'toolbarActionView', providedIn: 'toProvide' },
   (input: {
     readonly key: string;

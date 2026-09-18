@@ -68,7 +68,7 @@ const { provideUser, User } = craftService(
   },
 );
 
-const { CraftServiceUserDetailView, provideCraftServiceUserDetailView } =
+export const { CraftServiceUserDetailView, provideCraftServiceUserDetailView } =
   craftService(
     { name: 'craftServiceUserDetailView', providedIn: 'toProvide' },
     function* () {

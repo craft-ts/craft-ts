@@ -145,7 +145,6 @@ describe('require-primitive-generator-unwrap', () => {
         export const Counter = craftComponent(
           'Counter',
           {},
-          () => ({}),
           () => state('counter', 0),
         );
       `,

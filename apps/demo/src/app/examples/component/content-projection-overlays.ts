@@ -28,7 +28,7 @@ export const toolbar = craftComponent(
   },
 );
 
-const { DialogView, provideDialogView } = craftService(
+export const { DialogView, provideDialogView } = craftService(
   { name: 'dialogView', providedIn: 'toProvide' },
   (input: {
     readonly body?: ContentSlot;

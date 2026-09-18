@@ -134,7 +134,7 @@ export function isEnabledDemoRoute(to: string): boolean {
   return false;
 }
 
-const { AppView, provideAppView } = craftService(
+export const { AppView, provideAppView } = craftService(
   { name: 'appView', providedIn: 'toProvide' },
   function* () {
     const navOpen = yield* state(

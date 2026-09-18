@@ -46,34 +46,35 @@ const { UserQuery } = craftService(
   },
 );
 
-const { CraftGlobalQueryView, provideCraftGlobalQueryView } = craftService(
-  { name: 'craftGlobalQueryView', providedIn: 'toProvide' },
-  function* (inputs: { readonly userId: Input<string> }) {
-    const { userId } = inputs;
+export const { CraftGlobalQueryView, provideCraftGlobalQueryView } =
+  craftService(
+    { name: 'craftGlobalQueryView', providedIn: 'toProvide' },
+    function* (inputs: { readonly userId: Input<string> }) {
+      const { userId } = inputs;
 
-    const user = yield* UserQuery({
-      userId,
-    });
-
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
-
-    const navigate = craftMethod('navigate', function* (offset: number) {
-      void router.navigate({
-        to: 'craft/query/:userId',
-        params: {
-          userId: String(Number((yield* userId()) ?? '0') + offset),
-        },
+      const user = yield* UserQuery({
+        userId,
       });
-    });
-    const hasUser = craftComputed('hasUser', () => user.hasValue());
-    const userValueJson = craftComputed('userValueJson', function* () {
-      return JSON.stringify(yield* user.value(), null, 2);
-    });
-    return { user, hasUser, userValueJson, navigate };
-  },
-);
+
+      const router = yield* CraftRouter(undefined, ({ navigate }) => ({
+        navigate,
+      }));
+
+      const navigate = craftMethod('navigate', function* (offset: number) {
+        void router.navigate({
+          to: 'craft/query/:userId',
+          params: {
+            userId: String(Number((yield* userId()) ?? '0') + offset),
+          },
+        });
+      });
+      const hasUser = craftComputed('hasUser', () => user.hasValue());
+      const userValueJson = craftComputed('userValueJson', function* () {
+        return JSON.stringify(yield* user.value(), null, 2);
+      });
+      return { user, hasUser, userValueJson, navigate };
+    },
+  );
 
 const CraftGlobalQuery = craftComponent(
   'CraftGlobalQuery',
@@ -108,7 +109,7 @@ const CraftGlobalQuery = craftComponent(
           {
             type: 'button',
             *click() {
-navigate(-1);
+              navigate(-1);
             },
           },
           'Previous user',
@@ -118,7 +119,7 @@ navigate(-1);
           {
             type: 'button',
             *click() {
-navigate(1);
+              navigate(1);
             },
           },
           'Next user',
