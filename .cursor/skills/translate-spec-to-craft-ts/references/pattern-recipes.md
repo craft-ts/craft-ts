@@ -27,7 +27,7 @@ Use:
 - `query` for the entity detail.
 - `mutation` for update or delete intents.
 - `insertReactOnMutation` on the detail `query` when edits should be reflected immediately.
-- `craftInputs` when the entity id comes from component or route context but does not belong in query params.
+- `CraftServiceInput` when the entity id comes from component or route context but does not belong in query params.
 
 Default policy:
 - Keep one detail `query` per detail intent.
@@ -39,7 +39,7 @@ Use:
 - one `query` for the list.
 - one `mutation` for single delete.
 - one `mutation` for bulk delete.
-- one selection `state` or `craftState` holding selected ids.
+- one selection `state` holding selected ids.
 - `insertReactOnMutation` on the list `query` for each mutation.
 
 Default policy:
@@ -67,35 +67,35 @@ Default policy:
 ## Search Page With URL Filters
 
 Use:
-- `queryParams` or `craftQueryParams` for the filters.
+- `queryParams` for the filters.
 - `query` for the result list.
-- `craftSetAllQueriesParamsStandalone` when links or router navigation must be generated outside injection context.
+- the router service when links or navigation must be generated outside a component template.
 
 Default policy:
 - Reset `page` to `1` when a search term or filter changes.
 - Keep URL parsing and serialization explicit for each field.
-- Choose `craftQueryParams` when the page has several named query-params groups.
+- Use separate named `queryParams` primitives when the page has several query-params groups.
 
-## Feature Or Page Store
+## Feature Or Page Service
 
 Use:
-- `craft` as the boundary.
-- `craftInject` for services and tokens.
-- `craftInputs` for non-URL external values.
-- `craftQueryParams` or `craftQueryParams` for URL-backed state.
-- `craftSources` for reset, refresh, and cross-entry triggers.
-- `craftQuery`, `craftMutations`, `craftState`, and `craftComputedStates` for the actual feature logic.
+- `craftService` as the boundary.
+- generated service dependencies for services and tokens.
+- `CraftServiceInput` for non-URL external values.
+- `queryParams` for URL-backed state.
+- `source$` and `on$` for reset, refresh, and cross-entry triggers.
+- `query`, `mutation`, `state`, and `craftComputed` for the actual feature logic.
 
 Default policy:
-- Choose `providedIn: 'feature'` for page or route scoped stores.
-- Choose `providedIn: 'root'` for global shared stores.
-- Keep remote state in `craftQuery` and `craftMutations`, not in ad-hoc service fields.
+- Choose a scoped `craftService` for page or route scoped logic.
+- Choose `providedIn: 'root'` for globally shared services.
+- Keep remote state in `query` and `mutation`, not in ad-hoc service fields.
 
 ## Smaller Facade Over An Angular Service
 
 Use:
-- `injectService` when no `craft` store is needed.
-- `craftInject` when the service participates in a store composition.
+- `craftService` when the facade needs to own primitives or dependencies.
+- a plain adapter when no reactive service boundary is needed.
 
 Default policy:
 - Expose only the service surface the feature actually needs.

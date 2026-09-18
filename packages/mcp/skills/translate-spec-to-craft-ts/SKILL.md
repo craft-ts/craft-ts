@@ -1,6 +1,6 @@
 ---
 name: translate-spec-to-craft-ts
-description: Translate functional specifications, user stories, page requirements, CRUD flows, list/detail screens, filters, pagination, bulk actions, optimistic updates, forms, and Angular feature-store architecture into @craft-ts/core primitives, insertions, store utilities, and source helpers. Use when a request asks which craft-ts utility to choose, or when wording such as "afficher", "liste", "detail", "supprimer", "selection multiple", "pagination", "filtre URL", "formulaire", "recharger en cas d'erreur", or "feature store" must be mapped to `query`, `mutation`, `state`, `queryParams`, `craft*`, form helpers, or entity helpers.
+description: Translate functional specifications, user stories, page requirements, CRUD flows, list/detail screens, filters, pagination, bulk actions, optimistic updates, forms, and Angular feature architecture into @craft-ts/core primitives, insertions, services, and source helpers. Use when a request asks which craft-ts utility to choose, or when wording such as "afficher", "liste", "detail", "supprimer", "selection multiple", "pagination", "filtre URL", "formulaire", "recharger en cas d'erreur", or "feature" must be mapped to `query`, `mutation`, `state`, `queryParams`, `craftService`, form helpers, or entity helpers.
 ---
 
 # Translate Spec To Ng Craft
@@ -33,12 +33,12 @@ the published docs (MCP `search_documentation`, or https://ng-angular-stack.gith
 - Match generic asynchronous client tasks to `asyncProcess`.
 - Match local UI-only state to `state`.
 - Match URL-backed state to `queryParams`.
-- Match reusable, page-level, or global store requirements to `craft` plus `craft*` helpers.
+- Match reusable, page-level, or global feature requirements to `craftService` plus the primitives it owns.
 - Match event buses, resets, refreshes, and hidden triggers to `source$` and `on$`.
 - Match list collection semantics to `insertEntities` and the entity helpers when the spec explicitly talks about add, remove, update, upsert, replace, or clear.
 - Match nested sub-state behavior to `insertSelect`.
 - Match forms to `insertForm`, `insertSelectFormTree`, `insertFormAttributes`, and `insertFormSubmit`.
-- Treat `computedSource`, `toSource`, `signalSource`, `linkedSource`, `resourceById`, `toInject`, and other infra helpers as advanced choices. Do not choose them first unless the spec is about plumbing.
+- Treat `computedSource`, `toSource`, `signalSource`, `linkedSource`, `resourceById`, and other infra helpers as advanced choices. Do not choose them first unless the spec is about plumbing.
 
 ## Default Heuristics
 
@@ -49,8 +49,8 @@ the published docs (MCP `search_documentation`, or https://ng-angular-stack.gith
 - When optimistic deletion can empty the current page, consider a second `insertReactOnMutation(..., { reload: { onMutationResolved: true } })`.
 - When the spec mentions pagination or page transitions, consider `identifier` on the `query` and `insertPaginationPlaceholderData`.
 - When the spec mentions remembered filters, remembered results, refresh survival, or lightweight cache, consider `insertLocalStoragePersister`.
-- When the spec mentions parent-provided values or route or context values that are not URL query params, consider `craftInputs`.
-- When the spec mentions Angular services or a facade over a service, consider `craftInject` or `injectService`.
+- When the spec mentions parent-provided values or route or context values that are not URL query params, consider `CraftServiceInput` in a `craftService` factory.
+- When the spec mentions Angular services or a facade over a service, consider `craftService` and its generated dependency helpers.
 
 ## Output Contract
 
@@ -73,11 +73,11 @@ Spec: `Creer une page qui affiche une liste d'utilisateurs.`
 Mapping: `query` for remote list loading. Add `queryParams` only if pagination, filters, sort, or shareable URL state are part of the spec.
 
 Spec: `Creer une page qui affiche une liste d'utilisateurs. On peut supprimer un utilisateur via un bouton, ou en selectionner plusieurs pour en supprimer plusieurs.`
-Mapping: `query` for the list, one `mutation` for single delete, one `mutation` for bulk delete, one selection `state` or `craftState` for selected ids, and `insertReactOnMutation` on the `query` with optimistic removal plus `reload.onMutationError = true`. Use `removeOne` and `removeMany` for the optimistic transforms.
+Mapping: `query` for the list, one `mutation` for single delete, one `mutation` for bulk delete, one selection `state` for selected ids, and `insertReactOnMutation` on the `query` with optimistic removal plus `reload.onMutationError = true`. Use `removeOne` and `removeMany` for the optimistic transforms.
 Baseline helper already covering this: `assertMutationHasReactOn` (and `assertHttpEndpointUnique` if the list HTTP is owned once). Do not add an architecture rule for the feature.
 
 Spec: `Creer une page de recherche avec filtres dans l'URL et pagination sans flicker.`
-Mapping: `queryParams` for filter and pagination state, `query` for results, `insertPaginationPlaceholderData` to keep previous page data visible during transitions, `craftSetAllQueriesParamsStandalone` if the page must generate URLs outside injection context.
+Mapping: `queryParams` for filter and pagination state, `query` for results, and `insertPaginationPlaceholderData` to keep previous page data visible during transitions.
 
 ## References
 

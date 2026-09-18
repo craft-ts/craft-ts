@@ -10,124 +10,78 @@ Prefer the documented APIs first. Use the advanced exports only when the request
 ### `query`
 
 Match: `afficher`, `liste`, `tableau`, `detail`, `charger`, `recuperer`, `fetch`, `read`, `dashboard`, `feed`, `resultats`, `historique`, `stats`, `donnees serveur`, `recharger`, `rafraichir`.
-Pair with: `queryParams`, `insertReactOnMutation`, `insertPaginationPlaceholderData`, `insertLocalStoragePersister`, `craftQuery`.
+Pair with: `queryParams`, `insertReactOnMutation`, `insertPaginationPlaceholderData`, `insertLocalStoragePersister`.
 Default: Use `params` for reactive inputs, `method` for explicit trigger flows, `identifier` for pagination or parallel instances, and `preservePreviousValue` or placeholder strategies when flicker matters.
 
 ### `mutation`
 
 Match: `creer`, `ajouter`, `enregistrer`, `modifier`, `mettre a jour`, `editer`, `patcher`, `supprimer`, `archiver`, `activer`, `desactiver`, `publier`, `bulk action`, `submit`, `confirmer`.
-Pair with: `insertReactOnMutation`, `insertFormSubmit`, `craftMutations`, `query`.
+Pair with: `insertReactOnMutation`, `insertFormSubmit`, `query`.
 Default: Create one mutation per server intent. Add `identifier` when row-level actions need independent loading states or cancellation semantics.
 
 ### `asyncProcess`
 
 Match: `debounce`, `temporiser`, `retarder`, `valider en asynchrone`, `autosave`, `partager`, `clipboard`, `native API`, `background task`, `processus asynchrone`, `polling`.
-Pair with: `source$`, `afterRecomputation`, `craftAsyncProcesses`.
+Pair with: `source$`, `afterRecomputation`.
 Default: Choose this when the flow is asynchronous but is not the canonical server read cache and is not a write that should drive query synchronization.
 
 ### `state`
 
 Match: `etat local`, `selection`, `toggle`, `ouvert`, `ferme`, `modal`, `onglet actif`, `draft`, `brouillon`, `checkbox`, `expanded`, `wizard step`, `current tab`, `UI state`.
-Pair with: `insertSelect`, `insertEntities`, `insertForm`, `craftState`.
+Pair with: `insertSelect`, `insertEntities`, `insertForm`.
 Default: Keep the state granular. Use it for client-only state and view state that should not live in the URL.
 
 ### `queryParams`
 
 Match: `URL`, `query string`, `search params`, `filtre URL`, `pagination URL`, `tri dans l'URL`, `onglet partageable`, `deep link`, `etat partageable`, `back-forward`.
-Pair with: `query`, `craftQueryParams`, `craftQueryParams`, `craftSetAllQueriesParamsStandalone`.
+Pair with: `query`.
 Default: Split URL concerns by group when useful. Put `page`, `pageSize`, `sort`, `search`, `filters`, `tab`, and similar shareable state here.
 
 ### `source$`
 
 Match: `trigger`, `refresh`, `reset`, `bus evenementiel`, `broadcast`, `declencher`, `signal d'action`, `event stream`, `cross feature trigger`.
-Pair with: `on$`, `afterRecomputation`, `craftSources`.
+Pair with: `on$`, `afterRecomputation`.
 Default: Choose this when the spec describes an event, not a persistent state.
 
 ### `on$`
 
 Match: `quand X arrive alors`, `react to`, `reset on`, `sync on`, `internal reaction`, `hidden binding`, `do not expose this method`.
-Pair with: `source$`, `state`, `mutation`, `asyncProcess`, `injectService`.
+Pair with: `source$`, `state`, `mutation`, `asyncProcess`, `craftService`.
 Default: Use this for hidden reactive wiring that should run from a source but should not become part of the public API.
 
-### `injectService`
+### `craftService` facade
 
 Match: `facade`, `wrapper de service`, `exposer une petite API`, `renommer des methodes`, `derive from service signals`, `hide imperative router/service API`.
-Pair with: `on$`, `computed`, `craftInject`.
+Pair with: `on$`, `craftComputed`, and generated service dependencies.
 Default: Choose this outside store composition when the user wants a smaller typed service-facing API.
 
-## Store Composition
+## Feature composition
 
-### `craft`
+### `craftService`
 
-Match: `feature store`, `page store`, `global store`, `store reutilisable`, `compose store`, `DI`, `providedIn`, `scope`, `reusable state module`.
-Pair with: `craftState`, `craftQuery`, `craftMutations`, `craftSources`, `craftInputs`, `craftQueryParams`, `craftQueryParams`, `craftInject`, `craftComputedStates`, `craftAsyncProcesses`.
-Default: Use `providedIn: 'feature'` for page or route scoped logic and `providedIn: 'root'` for global shared logic.
+Match: `feature`, `page logic`, `reusable state module`, `providedIn`, `scope`,
+`dependency injection`, or a domain facade shared by several components.
+Pair with: `state`, `query`, `mutation`, `asyncProcess`, `queryParams`,
+`source$`, and `craftYieldRecord`.
+Default: use `craftService` as the named boundary and return the primitives or
+facade methods that the feature actually exposes. Do not invent a separate
+store wrapper around each primitive.
 
-### `craftState`
+### `CraftServiceInput`
 
-Match: `etat local dans le store`, `selection store`, `modal store`, `draft store`, `store-owned UI state`.
-Pair with: `state`, `on$`.
-Default: Use when the state belongs inside a `craft` store and should be exposed as store entries and prefixed methods.
+Match: `parent provides id`, `route provides id`, `component input`, `external
+signal`, `context value`, or `page receives userId`.
+Pair with: `craftService` and the primitive that consumes the value.
+Default: declare changing service inputs as `CraftServiceInput<T>` and yield
+`inputs.value()` inside the service factory. Use `queryParams` only when the
+value belongs in the URL.
 
-### `craftQuery`
+### Derived and injected service logic
 
-Match: `requete dans le store`, `server state in store`, `cached resource in feature store`, `page query`.
-Pair with: `query`, `craftInputs`, `craftInject`, `craftQueryParams`, `insertReactOnMutation`.
-Default: Use when a `query` belongs inside a composed store boundary.
-
-### `craftMutations`
-
-Match: `actions serveur du store`, `store mutations`, `CRUD actions grouped in store`, `row actions in store`.
-Pair with: `mutation`, `craftQuery`, `insertReactOnMutation`.
-Default: Group server write actions here so the store gets prefixed trigger methods and typed state access.
-
-### `craftAsyncProcesses`
-
-Match: `async workflow in store`, `debounced action in store`, `delayed delete`, `background task in store`.
-Pair with: `asyncProcess`, `craftSources`.
-Default: Use when async client tasks belong to a `craft` store but are not the primary server-read/write state.
-
-### `craftSources`
-
-Match: `reset event`, `refresh event`, `select event`, `open modal event`, `trigger inside store`.
-Pair with: `source$`, `on$`, `afterRecomputation`.
-Default: Use this to define event channels inside a store and to auto-generate `emit*`, `set*`, or `next*` methods.
-
-### `craftInputs`
-
-Match: `parent provides id`, `route provides id`, `component input`, `external signal`, `context value`, `page receives userId`.
-Pair with: `craftQuery`, `craftState`, `craftMutations`.
-Default: Use this instead of `queryParams` when the value does not belong in the URL.
-
-### `craftQueryParams`
-
-Match: `one query param group in store`, `pagination in store`, `filters in store`, `search params in store`.
-Pair with: `queryParams`, `craftQuery`, `craftSetAllQueriesParamsStandalone`.
-Default: Use when one named query-params group should live inside a `craft` store.
-
-### `craftQueryParams`
-
-Match: `several URL state groups`, `pagination + filters + active tab`, `multiple query param groups`.
-Pair with: `queryParams`, `craftSetAllQueriesParamsStandalone`.
-Default: Use when the store needs several named query-params groups.
-
-### `craftComputedStates`
-
-Match: `derived store data`, `isAllSelected`, `count`, `filtered count`, `UI flags`, `aggregation`, `composed loading state`.
-Pair with: `computed`, `craftState`, `craftQuery`.
-Default: Use for derived store-level signals instead of duplicating state.
-
-### `craftInject`
-
-Match: `inject ApiService`, `inject Router`, `inject HttpClient`, `inject token`, `service dependency in store`.
-Pair with: `craft`, `craftQuery`, `craftMutations`.
-Default: Use inside `craft` when store factories need Angular services or tokens.
-
-### `craftSetAllQueriesParamsStandalone`
-
-Match: `generate URL`, `router navigate queryParams`, `shareable link`, `build full query string outside injection context`.
-Pair with: `craftQueryParams`, `craftQueryParams`.
-Default: Use when the spec mentions programmatic navigation or link generation from the current query-params model.
+Match: `derived data`, `count`, `filtered count`, `UI flags`, or a service
+dependency. Use `craftComputed` for derived values, and yield the generated
+service dependency from a `craftService` generator. Use `on$` and `source$` for
+internal event wiring rather than store-specific source helpers.
 
 ## Insertions
 
@@ -280,7 +234,7 @@ Default: Use when the spec is explicit about source transformation pipelines.
 ### `signalSource`
 
 Match: `source with signal shape`, `event source with set`, `lazy event signal`, `source semantics with preserveLastValue`.
-Pair with: `craftSources`, `afterRecomputation`, `linkedSource`.
+Pair with: `source$`, `afterRecomputation`, `linkedSource`.
 Default: Choose this only when the implementation specifically wants signal-like source behavior rather than `source$`.
 
 ### `linkedSource`
@@ -314,9 +268,3 @@ Default: Prefer the insertion for product specs. Use this lower-level factory on
 Match: `low-level resource registry`, `resources keyed by identifier`, `manual per-id cache infrastructure`, `bind one resource-by-id to another`.
 Pair with: `query.identifier`, `mutation.identifier`.
 Default: Prefer ordinary `query` and `mutation` with `identifier` until the request explicitly asks for custom resource infrastructure.
-
-### `toInject`
-
-Match: `bind external signals into service entries`, `service ...Entry wiring`, `service adapter for signals`.
-Pair with: Angular services exposing writable `...Entry` signals.
-Default: Use only when the service API already follows the `...Entry` convention and the request is about service binding infrastructure.

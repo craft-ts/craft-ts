@@ -180,27 +180,6 @@ const { saveUser } =
   });
 ```
 
-Inside `craftMutations(...)`, `providers` stays on each `mutation(name, ...)`
-config, not on the wrapper:
-
-```typescript
-const userFeature = craft(
-  { name: 'userFeature', providedIn: 'root' },
-  craftMutations(() => ({
-    saveUser: mutation('saveUser', {
-      providers: [provideMutationLogger(), provideUserApiService()],
-      method: function* (user: { id: string; name: string }) {
-        yield* MutationLogger.log(`mutate:${user.id}`);
-        return user;
-      },
-      loader: function* ({ params }) {
-        return yield* UserApiService.save(params);
-      },
-    }).saveUser,
-  })),
-);
-```
-
 :::
 
 ::: tip Advanced — injectable writes
