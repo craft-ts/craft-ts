@@ -152,7 +152,7 @@ it('infers component input and output props from the branded context', () => {
       return p(
         {
           *click() {
-onPick(yield* user());
+            onPick(yield* user());
           },
         },
         function* () {

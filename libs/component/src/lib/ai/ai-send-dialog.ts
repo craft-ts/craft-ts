@@ -29,12 +29,7 @@ import {
   strong,
   textarea,
 } from '../hyperscript';
-import type {
-  CraftComponent,
-  Input,
-  InputValue,
-  Output,
-} from '../types';
+import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
 import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 
@@ -253,8 +248,7 @@ const { AiSendDialogState, provideAiSendDialogState } = craftService(
     const readInstruction = (): string => craftUse(instruction());
     const readCopied = (): boolean => craftUse(copied());
     const readPromptOptions = (): PromptOptions => craftUse(promptOptions());
-    const readCaptureInProgress = (): boolean =>
-      craftUse(captureInProgress());
+    const readCaptureInProgress = (): boolean => craftUse(captureInProgress());
     const readCaptureError = (): string => craftUse(captureError());
 
     fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
@@ -337,7 +331,7 @@ const { AiSendDialogState, provideAiSendDialogState } = craftService(
       captureError: readCaptureError,
       copy,
     };
-  }
+  },
 );
 
 /**
@@ -535,8 +529,7 @@ export const AiSendDialog = craftComponent(
       captureError,
       copy,
     } = yield* AiSendDialogState(inputs);
-    return
-    dialog(
+    return dialog(
       {
         class: 'craft-ai-overlay',
         open: true,
@@ -593,9 +586,8 @@ export const AiSendDialog = craftComponent(
                 *change(event) {
                   yield* writeOptions({
                     ...options(),
-                    includeClickedElement: (
-                      event.target as HTMLInputElement
-                    ).checked,
+                    includeClickedElement: (event.target as HTMLInputElement)
+                      .checked,
                   });
                 },
               }),
@@ -727,8 +719,7 @@ export const AiSendDialog = craftComponent(
                   'craft-ai-copy',
                   copied() && 'craft-ai-copy--done',
                 ],
-                disabled: () =>
-                  !instruction().trim() || captureInProgress(),
+                disabled: () => !instruction().trim() || captureInProgress(),
                 click: copy,
               },
               () =>
@@ -743,7 +734,10 @@ export const AiSendDialog = craftComponent(
       ),
     );
   },
-) as unknown as CraftComponent<{
-  readonly payload: InputValue<AiDialogPayload>;
-  readonly onClose: () => void;
-}, any>;
+) as unknown as CraftComponent<
+  {
+    readonly payload: InputValue<AiDialogPayload>;
+    readonly onClose: () => void;
+  },
+  any
+>;

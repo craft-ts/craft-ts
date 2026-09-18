@@ -1,10 +1,11 @@
-import {
-  InjectionToken,
-  signal,
-} from './host/craft-compat';
+import { InjectionToken, signal } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { craftService, ɵtoCraftService as toCraftService, type CraftServiceInput } from './craft-service';
+import {
+  craftService,
+  ɵtoCraftService as toCraftService,
+  type CraftServiceInput,
+} from './craft-service';
 import { craftUse } from './craft-use';
 import {
   provideReactiveReadObserver,

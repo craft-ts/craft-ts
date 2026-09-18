@@ -28,9 +28,7 @@ export type PendingHandler =
     };
 
 /** One handler per async source name, for the `.exhaustive` form. */
-export type PendingHandlers = Readonly<
-  Record<string, PendingHandler>
->;
+export type PendingHandlers = Readonly<Record<string, PendingHandler>>;
 
 type HandlerChildrenOf<Handler> = Handler extends () => infer Children
   ? Children
@@ -121,17 +119,14 @@ export type PendingExhaustiveCheck<
       >;
     };
 
-function createPendingDirective<
-  Handlers extends PendingHandlers | undefined,
->(
+function createPendingDirective<Handlers extends PendingHandlers | undefined>(
   handlers: Handlers,
   fallback: PendingFallback | undefined,
   reloading: PendingFallback | undefined,
   position: PendingPosition,
   ssr: SsrMode | undefined,
 ): PendingDirective<Handlers> {
-  const directive = (() =>
-    undefined) as unknown as PendingDirective<Handlers>;
+  const directive = (() => undefined) as unknown as PendingDirective<Handlers>;
 
   Object.defineProperty(directive, CRAFT_DIRECTIVE, {
     value: {
@@ -150,38 +145,36 @@ function createPendingDirective<
   return directive;
 }
 
-type PendingBaseOptions<
-  Fallback extends PendingFallback = PendingFallback,
-> = Readonly<{
-  /**
-   * Rendered next to the still-visible subtree while a source that already has
-   * a value is refetching. A refetch does not suspend — the stale value stays
-   * on screen — so this is how the boundary reports it.
-   */
-  readonly reloading?: Fallback;
-  /** Where the fallback goes relative to the (hidden) subtree. Defaults to `'before'`. */
-  readonly position?: PendingPosition;
-}>;
+type PendingBaseOptions<Fallback extends PendingFallback = PendingFallback> =
+  Readonly<{
+    /**
+     * Rendered next to the still-visible subtree while a source that already has
+     * a value is refetching. A refetch does not suspend — the stale value stays
+     * on screen — so this is how the boundary reports it.
+     */
+    readonly reloading?: Fallback;
+    /** Where the fallback goes relative to the (hidden) subtree. Defaults to `'before'`. */
+    readonly position?: PendingPosition;
+  }>;
 
 /**
  * A client-only SSR boundary must name the shell that replaces the skipped
  * subtree. Other modes may omit it when an exhaustive handler or an outer
  * boundary owns the pending UI.
  */
-export type PendingOptions<
-  Fallback extends PendingFallback = PendingFallback,
-> = PendingBaseOptions<Fallback> &
-  (
-    | Readonly<{
-        readonly ssr: 'client';
-        readonly fallback: Fallback;
-      }>
-    | Readonly<{
-        readonly ssr?: Exclude<SsrMode, 'client'>;
-        /** Rendered while the subtree has an async source with no value yet. */
-        readonly fallback?: Fallback;
-      }>
-  );
+export type PendingOptions<Fallback extends PendingFallback = PendingFallback> =
+  PendingBaseOptions<Fallback> &
+    (
+      | Readonly<{
+          readonly ssr: 'client';
+          readonly fallback: Fallback;
+        }>
+      | Readonly<{
+          readonly ssr?: Exclude<SsrMode, 'client'>;
+          /** Rendered while the subtree has an async source with no value yet. */
+          readonly fallback?: Fallback;
+        }>
+    );
 
 interface PendingFactory {
   /**
@@ -229,9 +222,7 @@ interface PendingFactory {
     options?: Omit<PendingOptions, 'fallback' | 'reloading'>,
   ): PendingDirective<
     Handlers,
-    PendingHandlerChildren<
-      Handlers[keyof Handlers]
-    > extends CraftNodeChildren
+    PendingHandlerChildren<Handlers[keyof Handlers]> extends CraftNodeChildren
       ? PendingHandlerChildren<Handlers[keyof Handlers]>
       : CraftNodeChildren
   >;

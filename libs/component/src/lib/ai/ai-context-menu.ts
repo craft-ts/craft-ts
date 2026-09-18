@@ -4,7 +4,6 @@ import { button, div, span } from '../hyperscript';
 import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 
-
 /**
  * Closes the menu on any interaction outside of it.
  *
@@ -107,9 +106,12 @@ export const AiContextMenu = craftComponent(
       ),
     );
   },
-) as unknown as CraftComponent<{
-  readonly x: InputValue<number>;
-  readonly y: InputValue<number>;
-  readonly onSelect: () => void;
-  readonly onDismiss: () => void;
-}, any>;
+) as unknown as CraftComponent<
+  {
+    readonly x: InputValue<number>;
+    readonly y: InputValue<number>;
+    readonly onSelect: () => void;
+    readonly onDismiss: () => void;
+  },
+  any
+>;

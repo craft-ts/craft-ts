@@ -140,23 +140,24 @@ type ValidHeadingNeed<Template> =
             readonly ERROR_child_heading_rendered_outside_a_headingSection: 'heading-from-child';
           };
 
-type ValidInheritedCssVars<Meta extends ComponentMeta, Template> = Exclude<
-  TemplateCssVars<Template>['inherited'],
-  CssVarsContractOfMeta<Meta>['declared']
-> extends infer Missing
-  ? [Missing] extends [never]
-    ? unknown
-    : // A template whose children were never narrowed (or a variable still
-      // being inferred) leaves nothing to name: only a concrete set of variable
-      // names is worth an error.
-      IsAny<Missing> extends true
+type ValidInheritedCssVars<Meta extends ComponentMeta, Template> =
+  Exclude<
+    TemplateCssVars<Template>['inherited'],
+    CssVarsContractOfMeta<Meta>['declared']
+  > extends infer Missing
+    ? [Missing] extends [never]
       ? unknown
-      : string extends Missing
+      : // A template whose children were never narrowed (or a variable still
+        // being inferred) leaves nothing to name: only a concrete set of variable
+        // names is worth an error.
+        IsAny<Missing> extends true
         ? unknown
-        : {
-            readonly ERROR_css_var_marked_inherit_is_not_declared_here: Missing;
-          }
-  : never;
+        : string extends Missing
+          ? unknown
+          : {
+              readonly ERROR_css_var_marked_inherit_is_not_declared_here: Missing;
+            }
+    : never;
 
 type ComponentOf<
   Name extends string,
@@ -305,19 +306,17 @@ function createCraftComponent<
           name: currentDefinition.name,
           meta: currentDefinition.meta,
           template: applied.template
-            ? applied.template(
-                ɵasGeneratorTemplate(currentDefinition.template),
-              )
+            ? applied.template(ɵasGeneratorTemplate(currentDefinition.template))
             : currentDefinition.template,
-          service: [...currentDefinition.service, ...applied.service],
+          service: [
+            ...(currentDefinition.service ?? []),
+            ...(applied.service ?? []),
+          ],
           styleOwners: [
             ...currentDefinition.styleOwners,
             {
               name: applied.name,
-              styles: mergeStyles(
-                applied.meta.styles,
-                applied.meta.stylesUrl,
-              ),
+              styles: mergeStyles(applied.meta.styles, applied.meta.stylesUrl),
               definition: applied,
               registrationTarget: resolvedDirective,
             },

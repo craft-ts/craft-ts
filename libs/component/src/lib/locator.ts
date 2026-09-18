@@ -53,7 +53,9 @@ type StaticAttributeValue<Value> = [Value] extends [string]
       : never;
 
 type StaticDirectAttributes<Props> = {
-  [Key in keyof Props & string as Key extends `data-${string}` | `aria-${string}`
+  [Key in keyof Props & string as Key extends
+    | `data-${string}`
+    | `aria-${string}`
     ? StaticAttributeValue<Props[Key]> extends never
       ? never
       : Key
@@ -110,14 +112,15 @@ type ContentLocatorCandidates<
   Children,
   Optional extends boolean,
   Repeated extends boolean,
-> = DirectContentNames<Children> extends infer Name extends string
-  ? LocatorCandidate<
-      Tag,
-      StaticLocatorCriteria<Props> & { readonly content: Name },
-      Optional,
-      Repeated
-    >
-  : never;
+> =
+  DirectContentNames<Children> extends infer Name extends string
+    ? LocatorCandidate<
+        Tag,
+        StaticLocatorCriteria<Props> & { readonly content: Name },
+        Optional,
+        Repeated
+      >
+    : never;
 
 type VisitContentNode<
   Node,
@@ -130,87 +133,83 @@ type VisitContentNode<
   : IsAny<Node> extends true
     ? never
     : Node extends readonly (infer Child)[]
-    ? VisitContentNode<Child, Optional, Repeated, Seen, [...Depth, unknown]>
-    : Node extends ElementNodeBase<
-          any,
-          infer Tag extends keyof HTMLElementTagNameMap,
-          infer Props,
-          infer Children
-        >
-      ?
-          | ContentLocatorCandidates<
-              Tag,
-              Props,
-              Children,
-              Optional,
-              Repeated
-            >
-          | VisitContentNode<
-              Children,
-              Optional,
-              Repeated,
-              Seen,
-              [...Depth, unknown]
-            >
-      : Node extends {
-            readonly kind: 'component';
-            readonly component: infer Component;
-          }
-        ? Component extends CraftComponent<any, any>
-          ? Component extends Seen[number]
-            ? never
-            : VisitContentNode<
-                TemplateChildren<ComponentTemplateOf<Component>>,
+      ? VisitContentNode<Child, Optional, Repeated, Seen, [...Depth, unknown]>
+      : Node extends ElementNodeBase<
+            any,
+            infer Tag extends keyof HTMLElementTagNameMap,
+            infer Props,
+            infer Children
+          >
+        ?
+            | ContentLocatorCandidates<Tag, Props, Children, Optional, Repeated>
+            | VisitContentNode<
+                Children,
                 Optional,
                 Repeated,
-                [...Seen, Component],
+                Seen,
                 [...Depth, unknown]
               >
-          : never
-        : Node extends CraftDirectiveNode<any>
-          ? VisitContentNode<
-              Node['node'],
-              Optional,
-              Repeated,
-              Seen,
-              [...Depth, unknown]
-            >
-          : Node extends {
-                readonly kind: 'if';
-                readonly whenTrue: () => infer TrueChildren;
-                readonly whenFalse?: () => infer FalseChildren;
-              }
+        : Node extends {
+              readonly kind: 'component';
+              readonly component: infer Component;
+            }
+          ? Component extends CraftComponent<any, any>
+            ? Component extends Seen[number]
+              ? never
+              : VisitContentNode<
+                  TemplateChildren<ComponentTemplateOf<Component>>,
+                  Optional,
+                  Repeated,
+                  [...Seen, Component],
+                  [...Depth, unknown]
+                >
+            : never
+          : Node extends CraftDirectiveNode<any>
             ? VisitContentNode<
-                TrueChildren | FalseChildren,
-                true,
+                Node['node'],
+                Optional,
                 Repeated,
                 Seen,
                 [...Depth, unknown]
               >
             : Node extends {
-                  readonly kind: 'for';
-                  readonly itemTemplate: (...args: any[]) => infer ItemChildren;
-                  readonly empty?: () => infer EmptyChildren;
+                  readonly kind: 'if';
+                  readonly whenTrue: () => infer TrueChildren;
+                  readonly whenFalse?: () => infer FalseChildren;
                 }
               ? VisitContentNode<
-                  ItemChildren | EmptyChildren,
+                  TrueChildren | FalseChildren,
                   true,
-                  true,
+                  Repeated,
                   Seen,
                   [...Depth, unknown]
                 >
               : Node extends {
-                    readonly kind: 'defer';
-                    readonly resolve: (...args: any[]) => infer Resolved;
+                    readonly kind: 'for';
+                    readonly itemTemplate: (
+                      ...args: any[]
+                    ) => infer ItemChildren;
+                    readonly empty?: () => infer EmptyChildren;
                   }
                 ? VisitContentNode<
-                    Resolved,
+                    ItemChildren | EmptyChildren,
                     true,
-                    Repeated,
+                    true,
                     Seen,
                     [...Depth, unknown]
                   >
-                : never;
+                : Node extends {
+                      readonly kind: 'defer';
+                      readonly resolve: (...args: any[]) => infer Resolved;
+                    }
+                  ? VisitContentNode<
+                      Resolved,
+                      true,
+                      Repeated,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  : never;
 
 type ContentLocatorCandidatesOfTemplate<Template> = VisitContentNode<
   TemplateChildren<Template>,
@@ -252,8 +251,15 @@ type VisitOptionalTag<
             any,
             infer Children
           >
-        ? (ActualTag extends Tag ? Optional : false) |
-            VisitOptionalTag<Children, Tag, Optional, Seen, [...Depth, unknown]>
+        ?
+            | (ActualTag extends Tag ? Optional : false)
+            | VisitOptionalTag<
+                Children,
+                Tag,
+                Optional,
+                Seen,
+                [...Depth, unknown]
+              >
         : Node extends {
               readonly kind: 'component';
               readonly component: infer Component;
@@ -291,7 +297,9 @@ type VisitOptionalTag<
                 >
               : Node extends {
                     readonly kind: 'for';
-                    readonly itemTemplate: (...args: any[]) => infer ItemChildren;
+                    readonly itemTemplate: (
+                      ...args: any[]
+                    ) => infer ItemChildren;
                     readonly empty?: () => infer EmptyChildren;
                   }
                 ? VisitOptionalTag<
@@ -315,12 +323,7 @@ type VisitOptionalTag<
                   : false;
 
 type TemplateHasOptionalTag<Template, Tag extends keyof HTMLElementTagNameMap> =
-  true extends VisitOptionalTag<
-    TemplateChildren<Template>,
-    Tag
-  >
-    ? true
-    : false;
+  true extends VisitOptionalTag<TemplateChildren<Template>, Tag> ? true : false;
 
 type NextDepth<Depth extends readonly unknown[]> = [...Depth, unknown];
 
@@ -340,17 +343,18 @@ type VisitComponent<
   Optional extends boolean,
   Repeated extends boolean,
   Seen extends readonly unknown[],
-> = IsAny<Component> extends true
-  ? never
-  : Component extends CraftComponent<any, any>
-    ? VisitChildren<
-        TemplateChildren<ComponentTemplateOf<Component>>,
-        NextDepth<Depth>,
-        Optional,
-        Repeated,
-        Seen
-      >
-    : never;
+> =
+  IsAny<Component> extends true
+    ? never
+    : Component extends CraftComponent<any, any>
+      ? VisitChildren<
+          TemplateChildren<ComponentTemplateOf<Component>>,
+          NextDepth<Depth>,
+          Optional,
+          Repeated,
+          Seen
+        >
+      : never;
 
 type VisitNode<
   Node,
@@ -363,62 +367,62 @@ type VisitNode<
   : IsAny<Node> extends true
     ? never
     : Node extends ElementNodeBase<
-        any,
-        infer Tag extends keyof HTMLElementTagNameMap,
-        infer Props,
-        infer Children
-      >
-    ?
-        | LocatorCandidate<
-            Tag,
-            StaticLocatorCriteria<Props>,
-            Optional,
-            Repeated
-          >
-        | VisitChildren<Children, NextDepth<Depth>, Optional, Repeated, Seen>
-    : Node extends {
-        readonly kind: 'component';
-        readonly component: infer Component;
-      }
-      ? VisitComponent<Component, Depth, Optional, Repeated, Seen>
-      : Node extends CraftDirectiveNode<any>
-        ? VisitNode<Node['node'], NextDepth<Depth>, Optional, Repeated, Seen>
-        : Node extends {
-            readonly kind: 'if';
-            readonly whenTrue: () => infer TrueChildren;
-            readonly whenFalse?: () => infer FalseChildren;
-          }
-          ? VisitChildren<
-              TrueChildren | FalseChildren,
-              NextDepth<Depth>,
-              true,
-              Repeated,
-              Seen
+          any,
+          infer Tag extends keyof HTMLElementTagNameMap,
+          infer Props,
+          infer Children
+        >
+      ?
+          | LocatorCandidate<
+              Tag,
+              StaticLocatorCriteria<Props>,
+              Optional,
+              Repeated
             >
+          | VisitChildren<Children, NextDepth<Depth>, Optional, Repeated, Seen>
+      : Node extends {
+            readonly kind: 'component';
+            readonly component: infer Component;
+          }
+        ? VisitComponent<Component, Depth, Optional, Repeated, Seen>
+        : Node extends CraftDirectiveNode<any>
+          ? VisitNode<Node['node'], NextDepth<Depth>, Optional, Repeated, Seen>
           : Node extends {
-              readonly kind: 'for';
-              readonly itemTemplate: (...args: any[]) => infer ItemChildren;
-              readonly empty?: () => infer EmptyChildren;
-            }
+                readonly kind: 'if';
+                readonly whenTrue: () => infer TrueChildren;
+                readonly whenFalse?: () => infer FalseChildren;
+              }
             ? VisitChildren<
-                ItemChildren | EmptyChildren,
+                TrueChildren | FalseChildren,
                 NextDepth<Depth>,
                 true,
-                true,
+                Repeated,
                 Seen
               >
             : Node extends {
-                readonly kind: 'defer';
-                readonly resolve: (...args: any[]) => infer Resolved;
-              }
+                  readonly kind: 'for';
+                  readonly itemTemplate: (...args: any[]) => infer ItemChildren;
+                  readonly empty?: () => infer EmptyChildren;
+                }
               ? VisitChildren<
-                  Resolved,
+                  ItemChildren | EmptyChildren,
                   NextDepth<Depth>,
                   true,
-                  Repeated,
+                  true,
                   Seen
                 >
-              : never;
+              : Node extends {
+                    readonly kind: 'defer';
+                    readonly resolve: (...args: any[]) => infer Resolved;
+                  }
+                ? VisitChildren<
+                    Resolved,
+                    NextDepth<Depth>,
+                    true,
+                    Repeated,
+                    Seen
+                  >
+                : never;
 
 export type TemplateLocatorCandidates<
   Component extends CraftComponent<any, any>,
@@ -437,26 +441,22 @@ export type LocatorCriteriaFor<
   readonly content?: ContentLocatorNames<ComponentTemplateOf<Component>, Tag>;
 };
 
-type CriteriaMatches<Available, Wanted> = Wanted extends Partial<Available>
-  ? true
-  : false;
+type CriteriaMatches<Available, Wanted> =
+  Wanted extends Partial<Available> ? true : false;
 
-type MatchingCandidates<
-  Candidates,
-  Tag,
-  Criteria,
-> = Candidates extends LocatorCandidate<
-  infer CandidateTag,
-  infer Available,
-  any,
-  any
->
-  ? CandidateTag extends Tag
-    ? CriteriaMatches<Available, Criteria> extends true
-      ? Candidates
+type MatchingCandidates<Candidates, Tag, Criteria> =
+  Candidates extends LocatorCandidate<
+    infer CandidateTag,
+    infer Available,
+    any,
+    any
+  >
+    ? CandidateTag extends Tag
+      ? CriteriaMatches<Available, Criteria> extends true
+        ? Candidates
+        : never
       : never
-    : never
-  : never;
+    : never;
 
 type IsUnion<Value, Whole = Value> = Value extends any
   ? [Whole] extends [Value]
@@ -464,12 +464,8 @@ type IsUnion<Value, Whole = Value> = Value extends any
     : true
   : never;
 
-type HasRepeated<Candidates> = Extract<
-  Candidates,
-  { readonly repeated: true }
-> extends never
-  ? false
-  : true;
+type HasRepeated<Candidates> =
+  Extract<Candidates, { readonly repeated: true }> extends never ? false : true;
 
 type HasMultiple<Candidates> = IsUnion<Candidates> extends true ? true : false;
 
@@ -481,41 +477,36 @@ type LocatorIsValid<Candidates> = [Candidates] extends [never]
       ? false
       : true;
 
-type LocatorOptional<Candidates> = Extract<
-  Candidates,
-  { readonly optional: true }
-> extends never
-  ? false
-  : true;
+type LocatorOptional<Candidates> =
+  Extract<Candidates, { readonly optional: true }> extends never ? false : true;
 
 export type CraftLocatorResult<
   Tag extends keyof HTMLElementTagNameMap,
   Candidates,
-> = MaybeDefined<
-  HTMLElementTagNameMap[Tag],
-  LocatorOptional<Candidates>
->;
+> = MaybeDefined<HTMLElementTagNameMap[Tag], LocatorOptional<Candidates>>;
 
-export type MaybeDefined<Value, Optional extends boolean = true> = Optional extends true
-  ? Value | undefined
-  : Value;
+export type MaybeDefined<
+  Value,
+  Optional extends boolean = true,
+> = Optional extends true ? Value | undefined : Value;
 
 export type LocatorCriteriaValidation<
   Component extends CraftComponent<any, any>,
   Tag extends keyof HTMLElementTagNameMap,
   Criteria,
-> = MatchingCandidates<
-  TemplateLocatorCandidates<Component> |
-    ContentLocatorCandidatesOfTemplate<ComponentTemplateOf<Component>>,
-  Tag,
-  Criteria
-> extends infer Candidates
-  ? LocatorIsValid<Candidates> extends true
-    ? unknown
-    : {
-        readonly 'locator must identify exactly one static element': never;
-      }
-  : never;
+> =
+  MatchingCandidates<
+    | TemplateLocatorCandidates<Component>
+    | ContentLocatorCandidatesOfTemplate<ComponentTemplateOf<Component>>,
+    Tag,
+    Criteria
+  > extends infer Candidates
+    ? LocatorIsValid<Candidates> extends true
+      ? unknown
+      : {
+          readonly 'locator must identify exactly one static element': never;
+        }
+    : never;
 
 export type LocatorCriteria = {
   readonly class?: string;
@@ -523,9 +514,7 @@ export type LocatorCriteria = {
   readonly [ariaAttribute: `aria-${string}`]: string | undefined;
 };
 
-type CraftTemplateLocatorApiForTemplate<
-  Template,
-> = {
+type CraftTemplateLocatorApiForTemplate<Template> = {
   locator<
     const Tag extends keyof HTMLElementTagNameMap,
     const Criteria extends LocatorCriteria,
@@ -541,9 +530,9 @@ type CraftTemplateLocatorApiForTemplate<
     const Content extends string,
   >(
     tag: Tag,
-    criteria: LocatorCriteria &
-      { readonly content: Content } &
-      (Content extends ContentLocatorNames<Template, Tag>
+    criteria: LocatorCriteria & {
+      readonly content: Content;
+    } & (Content extends ContentLocatorNames<Template, Tag>
         ? unknown
         : {
             readonly 'content brand is not rendered by this template': never;
@@ -816,7 +805,10 @@ export function findCraftTemplateLocator(
       .filter(([key]) => key !== 'class' && key !== 'content')
       .every(([key, expected]) => {
         const actual = element.getAttribute(key);
-        return actual !== null && actual === (expected === true ? '' : String(expected));
+        return (
+          actual !== null &&
+          actual === (expected === true ? '' : String(expected))
+        );
       });
   });
   const runtimeMatches = runtimeTemplateMatches(template, tag, criteria);

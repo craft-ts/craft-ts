@@ -366,7 +366,9 @@ function setStringProperty(
   // would emit an escaped `innerHTML="…"` attribute and the content would only
   // appear once the browser hydrated, diverging from the server output.
   if (name === 'innerHTML') {
-    element.ɵsetTrustedHtml(value === null || value === undefined ? '' : String(value));
+    element.ɵsetTrustedHtml(
+      value === null || value === undefined ? '' : String(value),
+    );
     return;
   }
   Reflect.set(element, name, value);

@@ -91,7 +91,9 @@ export const CONTENT_STYLE_POLICY = Symbol('craft-content-style-policy');
 export const CONTENT_OUTPUT = Symbol('craft-content-output');
 export const CONTENT_REQUIREMENT = Symbol('craft-content-requirement');
 export const CONTENT_RENDERABLE = Symbol('craft-content-renderable');
-export const CONTENT_DECLARATION_CONTEXT = Symbol(
+// Registered globally: core has to recognise projected content to keep its
+// hands off it when it crosses a service input.
+export const CONTENT_DECLARATION_CONTEXT = Symbol.for(
   'craft-content-declaration-context',
 );
 export const PROJECTION_CONTRACT = Symbol('craft-projection-contract');
@@ -298,10 +300,9 @@ type ProjectTemplateValueWithoutComponentDeps<
 // picks the signal one and collapses both channels to `unknown`, so the value
 // type is read from the `REACTIVE_VALUE_TYPE` carrier instead — the same
 // carrier the non-deep reactive branch above uses.
-type ProjectTemplateDeepYieldableValue<
-  Value,
-  ContextMethod extends string,
-> = { readonly __craftDeepYieldable: true } & (Value extends {
+type ProjectTemplateDeepYieldableValue<Value, ContextMethod extends string> = {
+  readonly __craftDeepYieldable: true;
+} & (Value extends {
   readonly [REACTIVE_VALUE_TYPE]: infer ReactiveState;
 }
   ? YieldableTemplateCallback<
@@ -553,9 +554,7 @@ export type TemplateDependencies<Template> = Template extends (
   ? CraftNodeChildrenDependencies<TemplateChildren<Template>>
   : {};
 
-export type TemplateCssVars<Template> = Template extends (
-  ...args: any[]
-) => any
+export type TemplateCssVars<Template> = Template extends (...args: any[]) => any
   ? CraftNodeChildrenCssVars<TemplateChildren<Template>>
   : import('./css-vars.type').EmptyCssVarContract;
 
@@ -1369,46 +1368,43 @@ type PipedComponent<
   Template extends ComponentTemplate = ComponentTemplate,
   Name extends string = string,
 > = Factory extends infer NextFactory extends ComponentFactory
-    ? CraftComponent<
-        PropsFromFactory<NextFactory>,
-        MergePipedComponentDependencies<
-          ExistingComponentDeps,
-          CraftComponentDependencies<
-            FactoryYielded<RootFactory> | FactoryYielded<NextFactory>,
-            unknown,
-            ProvidersFromMeta<Meta> | ComponentOperatorProviders<Directive>,
-            PropsFromFactory<NextFactory>,
-            TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>
-          >
-        >,
-        NextFactory,
-        Meta,
-        RootFactory,
-        TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>,
-        Template,
-        Name,
-        (
-          | ComponentExceptionsAfterOperator<
-              Factory,
-              Meta,
-              Directive,
-              ExistingExceptions
-            >
-          | ComponentFieldExceptionFallbackExceptionCodes<Directive>
-        ) &
-          ComponentOperatorExhaustiveCheck<
+  ? CraftComponent<
+      PropsFromFactory<NextFactory>,
+      MergePipedComponentDependencies<
+        ExistingComponentDeps,
+        CraftComponentDependencies<
+          FactoryYielded<RootFactory> | FactoryYielded<NextFactory>,
+          unknown,
+          ProvidersFromMeta<Meta> | ComponentOperatorProviders<Directive>,
+          PropsFromFactory<NextFactory>,
+          TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>
+        >
+      >,
+      NextFactory,
+      Meta,
+      RootFactory,
+      TemplateDependencies | CraftDirectiveTemplateDependencies<Directive>,
+      Template,
+      Name,
+      (
+        | ComponentExceptionsAfterOperator<
             Factory,
             Meta,
             Directive,
             ExistingExceptions
-          >,
-        ContentRequirementsOfFactory<NextFactory>,
-        ComponentFieldExceptionsAfterOperator<
-          ExistingFieldExceptions,
-          Directive
-        >
-      >
-    : never;
+          >
+        | ComponentFieldExceptionFallbackExceptionCodes<Directive>
+      ) &
+        ComponentOperatorExhaustiveCheck<
+          Factory,
+          Meta,
+          Directive,
+          ExistingExceptions
+        >,
+      ContentRequirementsOfFactory<NextFactory>,
+      ComponentFieldExceptionsAfterOperator<ExistingFieldExceptions, Directive>
+    >
+  : never;
 
 export interface CraftComponent<
   Props extends object = Record<never, never>,
@@ -1468,9 +1464,9 @@ export interface CraftComponent<
   };
   readonly [COMPONENT_INITIALIZATION_EXCEPTIONS]: InitializationExceptions;
   readonly [COMPONENT_FIELD_EXCEPTIONS]: FieldExceptions;
-  readonly [COMPONENT_LOGIC_OUTPUT]: [
-    ProjectionContractOfMeta<Meta>,
-  ] extends [never]
+  readonly [COMPONENT_LOGIC_OUTPUT]: [ProjectionContractOfMeta<Meta>] extends [
+    never,
+  ]
     ? never
     : { readonly contract: ProjectionContractOfMeta<Meta> };
   readonly pipe: {

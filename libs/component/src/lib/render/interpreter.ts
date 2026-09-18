@@ -287,9 +287,7 @@ function shouldUseInputShell(value: unknown): boolean {
   return (
     (typeof value === 'function' &&
       (isGeneratorFunction(value) || isYieldableValue(value))) ||
-    (value !== null &&
-      typeof value !== 'function' &&
-      typeof value !== 'object')
+    (value !== null && typeof value !== 'function' && typeof value !== 'object')
   );
 }
 
@@ -1318,12 +1316,16 @@ class CraftDirectiveRenderedNode implements RenderedNode {
       [],
       'craft-directive',
     );
-    this.effectRef = createRenderEffect(scopedContext, 'craft-directive', () => {
-      this.node = this.descriptor();
-      this.view.patchChildren(
-        renderCraftDirectiveNode(this.node, scopedContext),
-      );
-    });
+    this.effectRef = createRenderEffect(
+      scopedContext,
+      'craft-directive',
+      () => {
+        this.node = this.descriptor();
+        this.view.patchChildren(
+          renderCraftDirectiveNode(this.node, scopedContext),
+        );
+      },
+    );
   }
 
   firstNode(): NativeNode {
@@ -1673,7 +1675,11 @@ function applyAttribute(
       `Inline event attribute "${key}" is not allowed.`,
     );
   }
-  if (isCraftUrlAttribute(normalizedKey) && value !== null && value !== undefined) {
+  if (
+    isCraftUrlAttribute(normalizedKey) &&
+    value !== null &&
+    value !== undefined
+  ) {
     const policy = context.injector.get(CRAFT_SECURITY_POLICY, null);
     const urlOptions = {
       allowedOrigins: policy?.dom.allowedResourceOrigins ?? [],
@@ -1759,7 +1765,9 @@ export function ɵassertSafeStyleValue(
   }
   // Chaque url() passe par le même garde-fou que les attributs d'URL, ce qui
   // écarte les schémas exécutables comme les chargements protocol-relative.
-  for (const match of text.matchAll(/url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\)/gi)) {
+  for (const match of text.matchAll(
+    /url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\)/gi,
+  )) {
     const url = (match[1] ?? match[2] ?? match[3] ?? '').trim();
     if (url === '') continue;
     safeResourceUrl(url, { allowedOrigins: resourceOrigins });
@@ -2535,7 +2543,9 @@ class ForRenderedNode implements RenderedNode {
     const seenKeys = new Set<unknown>();
     keys.forEach((key) => {
       if (seenKeys.has(key)) {
-        throw new Error(`forNode() received the duplicate key "${String(key)}".`);
+        throw new Error(
+          `forNode() received the duplicate key "${String(key)}".`,
+        );
       }
       seenKeys.add(key);
     });
@@ -2727,10 +2737,7 @@ class ForRenderedNode implements RenderedNode {
       }),
       'for',
       this.node.itemTemplate,
-      [
-        itemInput,
-        index,
-      ],
+      [itemInput, index],
     );
   }
 
@@ -2843,13 +2850,7 @@ class MatchRenderedNode implements RenderedNode {
     this.node = node;
     this.context = context;
     this.descriptor = signal(node);
-    this.view = createFragment(
-      parent,
-      before,
-      context,
-      [],
-      'craft-match-node',
-    );
+    this.view = createFragment(parent, before, context, [], 'craft-match-node');
     this.effectRef = createRenderEffect(context, 'match-node', () => {
       this.node = this.descriptor();
       this.view.patchChildren(this.children());
@@ -3700,20 +3701,16 @@ class FieldErrorRenderedNode implements RenderedNode {
     this.componentSourceCleanups = componentFieldExceptionSources(
       context.componentContext,
     ).map((source) => this.register(source));
-    this.effectRef = createRenderEffect(
-      context,
-      'field-error-node',
-      () => {
-        this.node = this.descriptor();
-        this.sourcesVersion();
-        const fallbacks = this.renderFallbacks();
-        this.view.patchChildren(
-          this.node.options.position === 'before'
-            ? [fallbacks, this.node.source]
-            : [this.node.source, fallbacks],
-        );
-      },
-    );
+    this.effectRef = createRenderEffect(context, 'field-error-node', () => {
+      this.node = this.descriptor();
+      this.sourcesVersion();
+      const fallbacks = this.renderFallbacks();
+      this.view.patchChildren(
+        this.node.options.position === 'before'
+          ? [fallbacks, this.node.source]
+          : [this.node.source, fallbacks],
+      );
+    });
   }
 
   firstNode(): NativeNode {
@@ -3993,7 +3990,9 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly traceState: TemplateTraceState;
   private readonly componentRenderContext: RenderContext;
   private traceCreated = false;
-  private resolvedServices: unknown[] = [];
+  // Kept as one array for the whole component: the nodes that read it (a field
+  // error boundary looking for validation cases) hold on to the reference.
+  private readonly resolvedServices: unknown[] = [];
   private templateArgs: readonly unknown[] = [];
   private latestTemplate: CraftNodeChildren = [];
   private registrationReleases: (() => void)[] = [];
@@ -4169,46 +4168,46 @@ class ComponentRenderedNode implements RenderedNode {
     const args = this.templateOnly
       ? [templateContext?.value]
       : [
-            new Proxy(
-              ((...callbackArgs: unknown[]) =>
-                (inputShells[0] as (...args: unknown[]) => unknown)(
-                  ...callbackArgs,
-                )) as (...args: unknown[]) => unknown,
-              {
-                get: (target, property, receiver) => {
-                  const index = this.propKeys.indexOf(String(property));
-                  if (index !== -1) {
-                    const value = this.propSources[index]();
-                    return shouldUseInputShell(value)
-                      ? inputShells[index]
-                      : preserveContentDeclarationContext(
-                          value,
-                          declarationContext ?? context,
-                        );
-                  }
-                  return Reflect.get(target, property, receiver);
-                },
-                has: (target, property) =>
-                  this.propKeys.includes(String(property)) ||
-                  Reflect.has(target, property),
-                ownKeys: (target) => [
-                  ...new Set([...Reflect.ownKeys(target), ...this.propKeys]),
-                ],
-                getOwnPropertyDescriptor: (target, property) => {
-                  const index = this.propKeys.indexOf(String(property));
-                  return index === -1
-                    ? Reflect.getOwnPropertyDescriptor(target, property)
-                    : {
-                        configurable: true,
-                        enumerable: true,
-                        value: shouldUseInputShell(this.propSources[index]())
-                          ? inputShells[index]
-                          : preserveContentDeclarationContext(
-                              this.propSources[index](),
-                              declarationContext ?? context,
-                            ),
-                      };
-                },
+          new Proxy(
+            ((...callbackArgs: unknown[]) =>
+              (inputShells[0] as (...args: unknown[]) => unknown)(
+                ...callbackArgs,
+              )) as (...args: unknown[]) => unknown,
+            {
+              get: (target, property, receiver) => {
+                const index = this.propKeys.indexOf(String(property));
+                if (index !== -1) {
+                  const value = this.propSources[index]();
+                  return shouldUseInputShell(value)
+                    ? inputShells[index]
+                    : preserveContentDeclarationContext(
+                        value,
+                        declarationContext ?? context,
+                      );
+                }
+                return Reflect.get(target, property, receiver);
+              },
+              has: (target, property) =>
+                this.propKeys.includes(String(property)) ||
+                Reflect.has(target, property),
+              ownKeys: (target) => [
+                ...new Set([...Reflect.ownKeys(target), ...this.propKeys]),
+              ],
+              getOwnPropertyDescriptor: (target, property) => {
+                const index = this.propKeys.indexOf(String(property));
+                return index === -1
+                  ? Reflect.getOwnPropertyDescriptor(target, property)
+                  : {
+                      configurable: true,
+                      enumerable: true,
+                      value: shouldUseInputShell(this.propSources[index]())
+                        ? inputShells[index]
+                        : preserveContentDeclarationContext(
+                            this.propSources[index](),
+                            declarationContext ?? context,
+                          ),
+                    };
+              },
             },
           ),
         ];
@@ -4227,6 +4226,7 @@ class ComponentRenderedNode implements RenderedNode {
       before,
       childContext(componentRenderContext, {
         injector: composition ? parentInjector : this.environmentInjector,
+        componentContext: this.resolvedServices,
       }),
       composition ? [] : [],
       'craft-component',
@@ -4271,6 +4271,7 @@ class ComponentRenderedNode implements RenderedNode {
                     );
                     const renderContext = childContext(componentRenderContext, {
                       injector: this.environmentInjector!,
+                      componentContext: this.resolvedServices,
                     });
                     this.traceState.renderCount += 1;
                     this.latestTemplate = executeTemplateTrace(
@@ -4285,7 +4286,7 @@ class ComponentRenderedNode implements RenderedNode {
                       ),
                       () =>
                         withCraftRenderContext(renderContext, () => {
-                          this.resolvedServices = [];
+                          this.resolvedServices.length = 0;
                           return renderCraftComponentTemplate(
                             definition,
                             args,
@@ -4454,6 +4455,7 @@ class ComponentRenderedNode implements RenderedNode {
       renderContext = childContext(componentRenderContext, {
         injector: renderInjector,
         handledResourceExceptionCodes,
+        componentContext: this.resolvedServices,
       });
       this.view.updateContext(renderContext);
       this.registerRuntimeTargets(definition, undefined, renderInjector);
@@ -4488,10 +4490,7 @@ class ComponentRenderedNode implements RenderedNode {
             context,
             hostTarget,
           );
-          if (
-            composition.catchNodePosition &&
-            !this.componentExceptionEffect
-          ) {
+          if (composition.catchNodePosition && !this.componentExceptionEffect) {
             this.installComponentExceptionEffect(
               definition,
               args,
@@ -4663,7 +4662,11 @@ class ComponentRenderedNode implements RenderedNode {
     args: readonly unknown[],
     renderContext: RenderContext,
   ): { readonly children: CraftNodeChildren; readonly hostProps: HostProps } {
-    this.view.updateContext(childContext(renderContext, {}));
+    this.view.updateContext(
+      childContext(renderContext, {
+        componentContext: this.resolvedServices,
+      }),
+    );
     const callSiteHostProps = this.hostPropsSource();
     const hostProps = mergeHostProps(
       definition.meta.host ?? {},
@@ -4680,7 +4683,7 @@ class ComponentRenderedNode implements RenderedNode {
         ),
         () =>
           withCraftRenderContext(renderContext, () => {
-            this.resolvedServices = [];
+            this.resolvedServices.length = 0;
             return renderCraftComponentTemplate(
               definition,
               args,
@@ -4771,16 +4774,10 @@ class ComponentRenderedNode implements RenderedNode {
             resolved.position === 'before'
               ? [
                   resolved.children,
-                  this.withComponentFieldError(
-                    definition,
-                    source.children,
-                  ),
+                  this.withComponentFieldError(definition, source.children),
                 ]
               : [
-                  this.withComponentFieldError(
-                    definition,
-                    source.children,
-                  ),
+                  this.withComponentFieldError(definition, source.children),
                   resolved.children,
                 ];
           this.view.patchChildren(children);

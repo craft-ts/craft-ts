@@ -137,15 +137,15 @@ export function assertCssVarsSatisfied<Routes>(
 
 export function loadCraftComponent<
   const Component extends CraftComponent<any>,
-  const AdditionalProviders extends NonNullable<Route['providers']> = readonly [],
+  const AdditionalProviders extends NonNullable<
+    Route['providers']
+  > = readonly [],
 >(
   loader: ((helpers: CraftRouteLazyLoadHelpers) => Promise<Component>) &
     RequireHandledRouteFieldExceptions<NoInfer<Component>>,
   additionalProviders: AdditionalProviders = [] as unknown as AdditionalProviders,
 ): {
-  loadComponent: (
-    helpers: CraftRouteLazyLoadHelpers,
-  ) => Promise<Type<unknown>>;
+  loadComponent: (helpers: CraftRouteLazyLoadHelpers) => Promise<Type<unknown>>;
   providers: NonNullable<Route['providers']>;
 } & ComponentDepsCarrier<ComponentDepsOf<Component>> &
   ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> &
@@ -195,8 +195,7 @@ export function loadCraftComponent<
       helpers: CraftRouteLazyLoadHelpers,
     ) => Promise<Type<unknown>>;
     providers: NonNullable<Route['providers']>;
-  } &
-    ComponentDepsCarrier<ComponentDepsOf<Component>> &
+  } & ComponentDepsCarrier<ComponentDepsOf<Component>> &
     ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> &
     CraftRouteAdditionalProvidersCarrier<AdditionalProviders>;
 }

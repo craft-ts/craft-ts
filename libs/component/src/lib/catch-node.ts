@@ -66,15 +66,14 @@ export function resolveCatchHandler(
   };
 }
 
-export type CatchDirective<Handlers extends CatchHandlers> =
-  CraftDirective &
-    ComponentOperator<readonly [], Extract<keyof Handlers, string>> & {
-      readonly [COMPONENT_CATCH_NODE]: true;
-      readonly [CATCH_NODE_DIRECTIVE]: {
-        readonly handlers: Handlers;
-        readonly position: CatchPosition;
-      };
+export type CatchDirective<Handlers extends CatchHandlers> = CraftDirective &
+  ComponentOperator<readonly [], Extract<keyof Handlers, string>> & {
+    readonly [COMPONENT_CATCH_NODE]: true;
+    readonly [CATCH_NODE_DIRECTIVE]: {
+      readonly handlers: Handlers;
+      readonly position: CatchPosition;
     };
+  };
 
 /** A template boundary which keeps its source block and inserts a fallback. */
 export const catchNode = {
@@ -83,8 +82,7 @@ export const catchNode = {
     options: { readonly position?: CatchPosition } = {},
   ): CatchDirective<Handlers> {
     const position = options.position ?? 'after';
-    const directive = (() =>
-      undefined) as unknown as CatchDirective<Handlers>;
+    const directive = (() => undefined) as unknown as CatchDirective<Handlers>;
     Object.defineProperty(directive, CRAFT_DIRECTIVE, {
       value: {
         name: 'catchNode.exhaustive',

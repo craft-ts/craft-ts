@@ -93,11 +93,15 @@ type ServiceNamesFromContract<Contract> = Contract extends object
           : never)
   : never;
 
-/** The service dependency contract used when only a Craft component template is tested. */
+/**
+ * The services a component test has to decide about: the ones its own template
+ * yields, and the ones the nodes it renders reach.
+ */
 export type CraftComponentTemplateDepsOf<Component> = {
   deps: Record<
     Extract<
-      ServiceNamesFromContract<ComponentTemplateDepsOf<Component>>,
+      | ServiceNamesFromContract<ComponentTemplateDepsOf<Component>>
+      | ServiceNamesFromContract<LogicDependenciesOf<Component>>,
       string
     >,
     unknown
@@ -182,10 +186,7 @@ function createTestingInjector(
   providers: readonly CraftServiceProvider[] | undefined,
 ) {
   return createEnvironmentInjector(
-    [
-      { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
-      ...(providers ?? []),
-    ],
+    [{ provide: ɵINJECTOR_SCOPE, useValue: 'root' }, ...(providers ?? [])],
     Injector.NULL as EnvironmentInjector,
     'CraftComponentTestRoot',
   );

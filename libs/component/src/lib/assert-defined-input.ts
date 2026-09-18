@@ -96,9 +96,7 @@ export const catchInput = {
   ) {
     return <Value>(
       source: Input<Value>,
-    ): PipeableInput<
-      Exclude<Value, undefined> | HandlerOutput<Handlers>
-    > =>
+    ): PipeableInput<Exclude<Value, undefined> | HandlerOutput<Handlers>> =>
       pipeableInput(function* () {
         try {
           return (yield* source()) as Exclude<Value, undefined>;
@@ -108,8 +106,7 @@ export const catchInput = {
           }
 
           if (
-            error.exception._tag !==
-            CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE
+            error.exception._tag !== CRAFT_UNDEFINED_PROPERTY_EXCEPTION_CODE
           ) {
             throw error;
           }

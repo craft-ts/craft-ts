@@ -1,8 +1,4 @@
-import {
-  inject,
-  InjectionToken,
-  signal,
-} from './host/craft-compat';
+import { inject, InjectionToken, signal } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { state } from './state';
 import { Subject } from 'rxjs';
@@ -662,9 +658,12 @@ describe('scope', () => {
   });
 
   it('should resolve services yielded inside an abstract provideX generator factory', () => {
-    const { Seed } = craftService({ name: 'Seed', providedIn: 'global' }, () => ({
-      base: 10,
-    }));
+    const { Seed } = craftService(
+      { name: 'Seed', providedIn: 'global' },
+      () => ({
+        base: 10,
+      }),
+    );
     const { Score, provideScore } = craftService(
       { name: 'Score', providedIn: 'abstract' },
       abstract<{ total: number }>(),

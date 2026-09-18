@@ -73,7 +73,8 @@ export function hydrateCraft(
       primeCraftTransferSnapshot(
         injector.get(CRAFT_PRIMITIVE_REGISTRY),
         snapshot,
-        injector.get(CRAFT_SECURITY_POLICY, createCraftSecurityPolicy()).transfer,
+        injector.get(CRAFT_SECURITY_POLICY, createCraftSecurityPolicy())
+          .transfer,
       );
     }
     ɵrunCraftAppInitializers(injector);

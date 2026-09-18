@@ -70,11 +70,10 @@ export const EnvironmentInjector = ɵEnvironmentInjector;
 export const Injector = CraftInjectorToken;
 export const InjectionToken = CraftInjectionToken;
 export const inject = ɵinject;
-export const reflectComponentType: HostRuntimeApi['reflectComponentType'] = () =>
-  null;
+export const reflectComponentType: HostRuntimeApi['reflectComponentType'] =
+  () => null;
 export const runInInjectionContext = ɵrunInInjectionContext;
 export const signal = ɵsignal;
 export const untracked = ɵuntracked;
 export const ɵEffectScheduler = CraftEffectScheduler;
 export const ɵINJECTOR_SCOPE = CraftInjectorScope;
-

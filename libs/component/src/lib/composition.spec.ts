@@ -21,6 +21,7 @@ import type {
   ComponentInitializationExceptionsOf,
   ComponentTemplateOf,
   ProviderExceptions,
+  TemplateChildren,
 } from './types';
 import type {
   CraftNodeChildrenExceptions,
@@ -192,7 +193,7 @@ describe('component composition', () => {
     );
     expectTypeOf<
       CraftNodeChildrenHandledExceptionCodes<
-        ReturnType<ComponentTemplateOf<typeof source>>
+        TemplateChildren<ComponentTemplateOf<typeof source>>
       >
     >().toEqualTypeOf<'FAILED_TO_LOAD'>();
     const caughtWithSource = source.pipe(

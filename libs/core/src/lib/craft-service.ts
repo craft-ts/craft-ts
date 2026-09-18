@@ -2332,7 +2332,10 @@ export type GetMergedServiceDependencyNodeMap<
 export type ServiceBindings<Reference extends ServiceReference> = Partial<
   InputBindings<
     GetServiceInputs<Reference>,
-    Extract<GetServiceReferenceMeta<Reference>['providedIn'], ConcreteServiceScope>
+    Extract<
+      GetServiceReferenceMeta<Reference>['providedIn'],
+      ConcreteServiceScope
+    >
   >
 >;
 
@@ -3409,7 +3412,12 @@ function createInjectHelper(
     const injector = inject(Injector);
     const serviceValue = resolveConcreteService(definition, injector, bindings);
     return expose
-      ? resolveExposedService(serviceValue, expose, injector, definition.providedIn)
+      ? resolveExposedService(
+          serviceValue,
+          expose,
+          injector,
+          definition.providedIn,
+        )
       : serviceValue;
   };
 
@@ -3965,15 +3973,50 @@ function resolveConcreteService(
     definition.initialBindings = bindings;
   }
 
+  // The instance is built by the provider, which knows nothing of this call
+  // site. Hand it this call's inputs for the length of the resolution: two
+  // scopes that provide the same service each get their own inputs, instead of
+  // every one of them inheriting whichever scope resolved it first.
   return trackResolvedService(
     definition,
     injector,
     markNamedReactiveProperties(
-      ɵcraftInjectorFromHost(injector).get(
-        (definition.token ?? definition.craftToken) as object,
+      withPendingServiceBindings(
+        definition.name,
+        bindings === OMIT_INPUTS_BINDINGS
+          ? undefined
+          : (bindings as Record<string, unknown> | undefined),
+        () =>
+          ɵcraftInjectorFromHost(injector).get(
+            (definition.token ?? definition.craftToken) as object,
+          ),
       ),
     ),
   );
+}
+
+const PENDING_SERVICE_BINDINGS = new Map<string, Record<string, unknown>>();
+
+function withPendingServiceBindings<Result>(
+  name: string,
+  bindings: Record<string, unknown> | undefined,
+  resolve: () => Result,
+): Result {
+  if (bindings === undefined) {
+    return resolve();
+  }
+
+  const previous = PENDING_SERVICE_BINDINGS.get(name);
+  PENDING_SERVICE_BINDINGS.set(name, bindings);
+  try {
+    return resolve();
+  } finally {
+    if (previous === undefined) {
+      PENDING_SERVICE_BINDINGS.delete(name);
+    } else {
+      PENDING_SERVICE_BINDINGS.set(name, previous);
+    }
+  }
 }
 
 function trackResolvedService(
@@ -4021,7 +4064,10 @@ function createConcreteServiceInstance(
       const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
       const bindings = omitInputs
         ? {}
-        : (bindingsOverride ?? definition.initialBindings ?? {});
+        : (bindingsOverride ??
+          PENDING_SERVICE_BINDINGS.get(definition.name) ??
+          definition.initialBindings ??
+          {});
       const inputs = createInputProxy(
         bindings,
         providedConfig,
@@ -4139,7 +4185,24 @@ function createInputProxy(
   });
 }
 
+const CONTENT_DECLARATION_CONTEXT = Symbol.for(
+  'craft-content-declaration-context',
+);
+
+/** Projected content is a renderer, never a value to read: leave it alone. */
+function isProjectedContent(value: unknown): boolean {
+  return (
+    (typeof value === 'function' || typeof value === 'object') &&
+    value !== null &&
+    CONTENT_DECLARATION_CONTEXT in (value as object)
+  );
+}
+
 function isReactiveServiceInput(value: unknown): boolean {
+  if (isProjectedContent(value)) {
+    return false;
+  }
+
   return (
     isSignal(value) ||
     isYieldableReactiveValue(value) ||

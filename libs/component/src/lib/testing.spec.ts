@@ -140,7 +140,7 @@ describe('Craft component and directive testing utilities', () => {
     );
     const result = await setupCraftComponentTemplateTest(Page, {
       inputs: {},
-      register: {},
+      register: { roleLocatorPageView: 'provided' },
     });
     expect(result.getByRole('button', { name: 'Save' }).textContent).toBe(
       'Save',
@@ -191,7 +191,7 @@ describe('Craft component and directive testing utilities', () => {
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
       inputs: {},
-      register: { locatorChildView: 'provided' },
+      register: { locatorView: 'provided', locatorChildView: 'provided' },
     });
 
     const save = result.locator('button', { class: 'save' });
@@ -234,7 +234,7 @@ describe('Craft component and directive testing utilities', () => {
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
       inputs: { brandedStatus },
-      register: {},
+      register: { brandedContentLocatorView: 'provided' },
     });
 
     expectTypeOf<typeof brandedStatus>().toMatchTypeOf<
@@ -301,7 +301,7 @@ describe('Craft component and directive testing utilities', () => {
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
       inputs: { visible, brandedStatus },
-      register: {},
+      register: { conditionalBrandedContentLocatorView: 'provided' },
     });
     const visibleElement = result.locator('span', {
       content: 'brandedStatus',
@@ -341,7 +341,7 @@ describe('Craft component and directive testing utilities', () => {
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
       inputs: { visible: initialVisible },
-      register: {},
+      register: { conditionalLocatorView: 'provided' },
     });
     const conditional = result.locator('button', { class: 'conditional' });
     expect(conditional?.textContent).toBe('Conditional');
@@ -372,7 +372,7 @@ describe('Craft component and directive testing utilities', () => {
     );
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
       inputs: {},
-      register: {},
+      register: { ambiguousLocatorView: 'provided' },
     });
 
     expect(() =>
@@ -404,7 +404,7 @@ describe('Craft component and directive testing utilities', () => {
 
     const result = await setupCraftComponentTemplateTest.byRegister(component, {
       inputs: {},
-      register: {},
+      register: { eachLocatorView: 'provided' },
     });
     expect(() => result.locator('button', { class: 'row' })).toThrow(
       /exactly one/,

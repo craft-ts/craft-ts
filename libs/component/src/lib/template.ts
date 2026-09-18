@@ -3,11 +3,7 @@ import type {
   CraftNodeChildrenDependencies,
   TemplateNode,
 } from './render/vnode';
-import {
-  CRAFT_TEMPLATE,
-  type CraftTemplate,
-  type InputValue,
-} from './types';
+import { CRAFT_TEMPLATE, type CraftTemplate, type InputValue } from './types';
 import { currentCraftRenderContext } from './render/vnode';
 
 type TemplateContextInput<Context> = Context extends object

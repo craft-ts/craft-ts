@@ -164,31 +164,34 @@ type VisitChildren<
           | ComponentPropsMatch<ActualProps, ComponentOfNode<Children>>
           | InvalidOutputCallbacks<ActualProps, ComponentOfNode<Children>>
           | VisitComponent<ComponentOfNode<Children>, Registry, Seen>
-      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      : Children extends {
+            readonly kind: 'field-error';
+            readonly source: infer Source;
+          }
         ? VisitChildren<Source, Registry, Seen>
         : Children extends CraftDirectiveNode<any>
-        ? VisitChildren<Children['node'], Registry, Seen>
-        : Children extends ForNode<
-              infer _Item,
-              infer _Key,
-              infer _Dependencies
-            >
-          ? VisitChildren<
-              | ReturnType<Children['itemTemplate']>
-              | (Children['empty'] extends (...args: any[]) => infer Empty
-                  ? Empty
-                  : never),
-              Registry,
-              Seen
-            >
-          : Children extends DeferNode<infer Loaded, infer _Dependencies>
+          ? VisitChildren<Children['node'], Registry, Seen>
+          : Children extends ForNode<
+                infer _Item,
+                infer _Key,
+                infer _Dependencies
+              >
             ? VisitChildren<
-                Loaded extends CraftComponent<any, any>
-                  ? ComponentNode<PropsOf<Loaded>, {}, Loaded>
-                  : ReturnType<Children['resolve']>,
+                | ReturnType<Children['itemTemplate']>
+                | (Children['empty'] extends (...args: any[]) => infer Empty
+                    ? Empty
+                    : never),
                 Registry,
                 Seen
               >
+            : Children extends DeferNode<infer Loaded, infer _Dependencies>
+              ? VisitChildren<
+                  Loaded extends CraftComponent<any, any>
+                    ? ComponentNode<PropsOf<Loaded>, {}, Loaded>
+                    : ReturnType<Children['resolve']>,
+                  Registry,
+                  Seen
+                >
               : true;
 
 type VisitComponent<
@@ -265,37 +268,44 @@ type FindElement<
     ? ActualTag extends Tag
       ? ElementMatching<Children, Tag, Props>
       : FindElement<Children['children'], Tag, Props>
-    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+    : Children extends {
+          readonly kind: 'field-error';
+          readonly source: infer Source;
+        }
       ? FindElement<Source, Tag, Props>
       : Children extends CraftDirectiveNode<any>
-      ? FindElement<Children['node'], Tag, Props>
-      : Children extends ComponentNode<any, any, infer Component>
-        ? FindElement<TemplateChildren<ComponentTemplateOf<Component>>, Tag, Props>
-        : Children extends ForNode<any, any>
+        ? FindElement<Children['node'], Tag, Props>
+        : Children extends ComponentNode<any, any, infer Component>
           ? FindElement<
-              | ReturnType<Children['itemTemplate']>
-              | (Children['empty'] extends (...args: any[]) => infer Empty
-                  ? Empty
-                  : never),
+              TemplateChildren<ComponentTemplateOf<Component>>,
               Tag,
               Props
             >
-          : Children extends IfNode<
-                infer ConditionName,
-                any,
-                infer True,
-                infer False
+          : Children extends ForNode<any, any>
+            ? FindElement<
+                | ReturnType<Children['itemTemplate']>
+                | (Children['empty'] extends (...args: any[]) => infer Empty
+                    ? Empty
+                    : never),
+                Tag,
+                Props
               >
-            ? FindElement<True | False, Tag, Props>
-            : Children extends DeferNode<infer Loaded>
-              ? FindElement<
-                  Loaded extends CraftComponent<any, any>
-                    ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                    : ReturnType<Children['resolve']>,
-                  Tag,
-                  Props
+            : Children extends IfNode<
+                  infer ConditionName,
+                  any,
+                  infer True,
+                  infer False
                 >
-              : false;
+              ? FindElement<True | False, Tag, Props>
+              : Children extends DeferNode<infer Loaded>
+                ? FindElement<
+                    Loaded extends CraftComponent<any, any>
+                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                      : ReturnType<Children['resolve']>,
+                    Tag,
+                    Props
+                  >
+                : false;
 
 export type TemplateHasElement<
   Children extends CraftNodeChildren,
@@ -329,40 +339,43 @@ type VisitProperty<
           : false
         : false
       : VisitProperty<Nested, Tag, Property, Value>
-    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+    : Children extends {
+          readonly kind: 'field-error';
+          readonly source: infer Source;
+        }
       ? VisitProperty<Source, Tag, Property, Value>
       : Children extends CraftDirectiveNode<any>
-      ? VisitProperty<Children['node'], Tag, Property, Value>
-      : Children extends ComponentNode<any, any, infer Component>
-        ? VisitProperty<
-            TemplateChildren<ComponentTemplateOf<Component>>,
-            Tag,
-            Property,
-            Value
-          >
-        : Children extends ForNode<any, any>
+        ? VisitProperty<Children['node'], Tag, Property, Value>
+        : Children extends ComponentNode<any, any, infer Component>
           ? VisitProperty<
-              (
-                | ReturnType<Children['itemTemplate']>
-                | (Children['empty'] extends (...args: any[]) => infer Empty
-                    ? Empty
-                    : never)
-              ) &
-                CraftNodeChildren,
+              TemplateChildren<ComponentTemplateOf<Component>>,
               Tag,
               Property,
               Value
             >
-          : Children extends DeferNode<infer Loaded>
+          : Children extends ForNode<any, any>
             ? VisitProperty<
-                Loaded extends CraftComponent<any, any>
-                  ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                  : ReturnType<Children['resolve']>,
+                (
+                  | ReturnType<Children['itemTemplate']>
+                  | (Children['empty'] extends (...args: any[]) => infer Empty
+                      ? Empty
+                      : never)
+                ) &
+                  CraftNodeChildren,
                 Tag,
                 Property,
                 Value
               >
-            : false;
+            : Children extends DeferNode<infer Loaded>
+              ? VisitProperty<
+                  Loaded extends CraftComponent<any, any>
+                    ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                    : ReturnType<Children['resolve']>,
+                  Tag,
+                  Property,
+                  Value
+                >
+              : false;
 
 /** Checks the type of a static or dynamic property on an element. */
 export type TemplateHasProperty<
@@ -400,40 +413,43 @@ type VisitYieldableProperty<
           : false
         : false
       : VisitYieldableProperty<Nested, Tag, Property, Result>
-    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+    : Children extends {
+          readonly kind: 'field-error';
+          readonly source: infer Source;
+        }
       ? VisitYieldableProperty<Source, Tag, Property, Result>
       : Children extends CraftDirectiveNode<any>
-      ? VisitYieldableProperty<Children['node'], Tag, Property, Result>
-      : Children extends ComponentNode<any, any, infer Component>
-        ? VisitYieldableProperty<
-            TemplateChildren<ComponentTemplateOf<Component>>,
-            Tag,
-            Property,
-            Result
-          >
-        : Children extends ForNode<any, any>
+        ? VisitYieldableProperty<Children['node'], Tag, Property, Result>
+        : Children extends ComponentNode<any, any, infer Component>
           ? VisitYieldableProperty<
-              (
-                | ReturnType<Children['itemTemplate']>
-                | (Children['empty'] extends (...args: any[]) => infer Empty
-                    ? Empty
-                    : never)
-              ) &
-                CraftNodeChildren,
+              TemplateChildren<ComponentTemplateOf<Component>>,
               Tag,
               Property,
               Result
             >
-          : Children extends DeferNode<infer Loaded>
+          : Children extends ForNode<any, any>
             ? VisitYieldableProperty<
-                Loaded extends CraftComponent<any, any>
-                  ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                  : ReturnType<Children['resolve']>,
+                (
+                  | ReturnType<Children['itemTemplate']>
+                  | (Children['empty'] extends (...args: any[]) => infer Empty
+                      ? Empty
+                      : never)
+                ) &
+                  CraftNodeChildren,
                 Tag,
                 Property,
                 Result
               >
-            : false;
+            : Children extends DeferNode<infer Loaded>
+              ? VisitYieldableProperty<
+                  Loaded extends CraftComponent<any, any>
+                    ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                    : ReturnType<Children['resolve']>,
+                  Tag,
+                  Property,
+                  Result
+                >
+              : false;
 
 /** Checks that an element property is driven by a no-argument generator. */
 export type TemplateHasYieldableProperty<
@@ -477,40 +493,43 @@ type VisitContextUse<
           : false
         : false
       : VisitContextUse<Nested, Tag, Property, ContextMethod>
-    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+    : Children extends {
+          readonly kind: 'field-error';
+          readonly source: infer Source;
+        }
       ? VisitContextUse<Source, Tag, Property, ContextMethod>
       : Children extends CraftDirectiveNode<any>
-      ? VisitContextUse<Children['node'], Tag, Property, ContextMethod>
-      : Children extends ComponentNode<any, any, infer Component>
-        ? VisitContextUse<
-            TemplateChildren<ComponentTemplateOf<Component>>,
-            Tag,
-            Property,
-            ContextMethod
-          >
-        : Children extends ForNode<any, any>
+        ? VisitContextUse<Children['node'], Tag, Property, ContextMethod>
+        : Children extends ComponentNode<any, any, infer Component>
           ? VisitContextUse<
-              (
-                | ReturnType<Children['itemTemplate']>
-                | (Children['empty'] extends (...args: any[]) => infer Empty
-                    ? Empty
-                    : never)
-              ) &
-                CraftNodeChildren,
+              TemplateChildren<ComponentTemplateOf<Component>>,
               Tag,
               Property,
               ContextMethod
             >
-          : Children extends DeferNode<infer Loaded>
+          : Children extends ForNode<any, any>
             ? VisitContextUse<
-                Loaded extends CraftComponent<any, any>
-                  ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                  : ReturnType<Children['resolve']>,
+                (
+                  | ReturnType<Children['itemTemplate']>
+                  | (Children['empty'] extends (...args: any[]) => infer Empty
+                      ? Empty
+                      : never)
+                ) &
+                  CraftNodeChildren,
                 Tag,
                 Property,
                 ContextMethod
               >
-            : false;
+            : Children extends DeferNode<infer Loaded>
+              ? VisitContextUse<
+                  Loaded extends CraftComponent<any, any>
+                    ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                    : ReturnType<Children['resolve']>,
+                  Tag,
+                  Property,
+                  ContextMethod
+                >
+              : false;
 
 /** Checks that a property callback delegates to a named template context member. */
 export type TemplateDelegatesToContext<
@@ -544,18 +563,21 @@ type VisitEvent<
           : false
         : false
       : VisitEvent<Children['children'], Tag, EventName, Handler>
-    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+    : Children extends {
+          readonly kind: 'field-error';
+          readonly source: infer Source;
+        }
       ? VisitEvent<Source, Tag, EventName, Handler>
       : Children extends CraftDirectiveNode<any>
-      ? VisitEvent<Children['node'], Tag, EventName, Handler>
-      : Children extends ComponentNode<any, any, infer Component>
-        ? VisitEvent<
-            TemplateChildren<ComponentTemplateOf<Component>>,
-            Tag,
-            EventName,
-            Handler
-          >
-        : false;
+        ? VisitEvent<Children['node'], Tag, EventName, Handler>
+        : Children extends ComponentNode<any, any, infer Component>
+          ? VisitEvent<
+              TemplateChildren<ComponentTemplateOf<Component>>,
+              Tag,
+              EventName,
+              Handler
+            >
+          : false;
 
 type VisitOutput<
   Children,
@@ -566,45 +588,48 @@ type VisitOutput<
   ? VisitOutput<Child, Target, Name, Handler>
   : Children extends ElementNodeBase<any, any, any, infer Nested>
     ? VisitOutput<Nested, Target, Name, Handler>
-    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+    : Children extends {
+          readonly kind: 'field-error';
+          readonly source: infer Source;
+        }
       ? VisitOutput<Source, Target, Name, Handler>
       : Children extends CraftDirectiveNode<any>
-      ? VisitOutput<Children['node'], Target, Name, Handler>
-      : Children extends ComponentNode<infer Props, any, infer Actual>
-        ? [Actual] extends [Target]
-          ? Name extends keyof Props
-            ? Props[Name] extends Handler
-              ? Handler extends Props[Name]
-                ? true
+        ? VisitOutput<Children['node'], Target, Name, Handler>
+        : Children extends ComponentNode<infer Props, any, infer Actual>
+          ? [Actual] extends [Target]
+            ? Name extends keyof Props
+              ? Props[Name] extends Handler
+                ? Handler extends Props[Name]
+                  ? true
+                  : false
                 : false
               : false
-            : false
-          : VisitOutput<
-              TemplateChildren<ComponentTemplateOf<Actual>>,
-              Target,
-              Name,
-              Handler
-            >
-        : Children extends ForNode<any, any>
-          ? VisitOutput<
-              | ReturnType<Children['itemTemplate']>
-              | (Children['empty'] extends (...args: any[]) => infer Empty
-                  ? Empty
-                  : never),
-              Target,
-              Name,
-              Handler
-            >
-          : Children extends DeferNode<infer Loaded>
-            ? VisitOutput<
-                Loaded extends CraftComponent<any, any>
-                  ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                  : ReturnType<Children['resolve']>,
+            : VisitOutput<
+                TemplateChildren<ComponentTemplateOf<Actual>>,
                 Target,
                 Name,
                 Handler
               >
-            : false;
+          : Children extends ForNode<any, any>
+            ? VisitOutput<
+                | ReturnType<Children['itemTemplate']>
+                | (Children['empty'] extends (...args: any[]) => infer Empty
+                    ? Empty
+                    : never),
+                Target,
+                Name,
+                Handler
+              >
+            : Children extends DeferNode<infer Loaded>
+              ? VisitOutput<
+                  Loaded extends CraftComponent<any, any>
+                    ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                    : ReturnType<Children['resolve']>,
+                  Target,
+                  Name,
+                  Handler
+                >
+              : false;
 
 /** Checks an event callback and therefore preserves its argument type. */
 export type TemplateHasEvent<
@@ -649,18 +674,21 @@ type VisitYieldableEvent<
           : false
         : false
       : VisitYieldableEvent<Children['children'], Tag, EventName, Args>
-    : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+    : Children extends {
+          readonly kind: 'field-error';
+          readonly source: infer Source;
+        }
       ? VisitYieldableEvent<Source, Tag, EventName, Args>
       : Children extends CraftDirectiveNode<any>
-      ? VisitYieldableEvent<Children['node'], Tag, EventName, Args>
-      : Children extends ComponentNode<any, any, infer Component>
-        ? VisitYieldableEvent<
-            TemplateChildren<ComponentTemplateOf<Component>>,
-            Tag,
-            EventName,
-            Args
-          >
-        : false;
+        ? VisitYieldableEvent<Children['node'], Tag, EventName, Args>
+        : Children extends ComponentNode<any, any, infer Component>
+          ? VisitYieldableEvent<
+              TemplateChildren<ComponentTemplateOf<Component>>,
+              Tag,
+              EventName,
+              Args
+            >
+          : false;
 
 /** Checks an output callback passed to a concrete Craft child component. */
 export type TemplateHasOutput<
@@ -684,34 +712,37 @@ export type TemplateUsesComponent<
         >
     : Children extends ElementNodeBase<any, any, any, infer Nested>
       ? TemplateUsesComponent<Nested, Component>
-      : Children extends { readonly kind: 'field-error'; readonly source: infer Source extends CraftNodeChildren }
-      ? TemplateUsesComponent<Source, Component>
-      : Children extends CraftDirectiveNode<any>
-        ? TemplateUsesComponent<Children['node'], Component>
-        : Children extends ForNode<any, any>
-          ? TemplateUsesComponent<
-              (
-                | ReturnType<Children['itemTemplate']>
-                | (Children['empty'] extends (...args: any[]) => infer Empty
-                    ? Empty
-                    : never)
-              ) &
-                CraftNodeChildren,
-              Component
-            >
-          : Children extends DeferNode<infer Loaded>
-            ? Loaded extends CraftComponent<any, any>
-              ? [Loaded] extends [Component]
-                ? true
+      : Children extends {
+            readonly kind: 'field-error';
+            readonly source: infer Source extends CraftNodeChildren;
+          }
+        ? TemplateUsesComponent<Source, Component>
+        : Children extends CraftDirectiveNode<any>
+          ? TemplateUsesComponent<Children['node'], Component>
+          : Children extends ForNode<any, any>
+            ? TemplateUsesComponent<
+                (
+                  | ReturnType<Children['itemTemplate']>
+                  | (Children['empty'] extends (...args: any[]) => infer Empty
+                      ? Empty
+                      : never)
+                ) &
+                  CraftNodeChildren,
+                Component
+              >
+            : Children extends DeferNode<infer Loaded>
+              ? Loaded extends CraftComponent<any, any>
+                ? [Loaded] extends [Component]
+                  ? true
+                  : TemplateUsesComponent<
+                      TemplateChildren<ComponentTemplateOf<Loaded>>,
+                      Component
+                    >
                 : TemplateUsesComponent<
-                    TemplateChildren<ComponentTemplateOf<Loaded>>,
+                    ReturnType<Children['resolve']>,
                     Component
                   >
-              : TemplateUsesComponent<
-                  ReturnType<Children['resolve']>,
-                  Component
-                >
-            : false;
+              : false;
 
 type VisibilityValue = boolean | 'nonEmpty' | 'empty';
 type Visibility = Readonly<Record<string, VisibilityValue>>;
@@ -724,14 +755,14 @@ type VisibilityMatches<
     ? true
     : false
   : {
-      [Key in keyof Expected]: Key extends keyof Actual
-        ? Actual[Key] extends Expected[Key]
-          ? Expected[Key] extends Actual[Key]
-            ? never
+        [Key in keyof Expected]: Key extends keyof Actual
+          ? Actual[Key] extends Expected[Key]
+            ? Expected[Key] extends Actual[Key]
+              ? never
+              : false
             : false
-          : false
-        : false;
-    }[keyof Expected] extends never
+          : false;
+      }[keyof Expected] extends never
     ? true
     : {
         [Key in keyof Expected]: Key extends keyof Actual
@@ -818,7 +849,10 @@ type VisitRenderedState<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      : Children extends {
+            readonly kind: 'field-error';
+            readonly source: infer Source;
+          }
         ? VisitRenderedState<
             Source,
             StateName,
@@ -828,96 +862,96 @@ type VisitRenderedState<
             [...Depth, unknown]
           >
         : Children extends CraftDirectiveNode<any>
-        ? VisitRenderedState<
-            Children['node'],
-            StateName,
-            Expected,
-            Current,
-            Seen,
-            [...Depth, unknown]
-          >
-        : Children extends ComponentNode<any, any, infer Component>
-          ? Component extends Seen[number]
-            ? false
-            : VisitRenderedState<
-                TemplateChildren<ComponentTemplateOf<Component>>,
-                StateName,
-                Expected,
-                Current,
-                [...Seen, Component],
-                [...Depth, unknown]
-              >
-          : Children extends ForNode<
-                any,
-                any,
-                any,
-                infer SourceName,
-                infer Item,
-                infer Empty
-              >
-            ?
-                | VisitRenderedState<
-                    Item,
-                    StateName,
-                    Expected,
-                    Extract<SourceName, string> extends never
-                      ? Current
-                      : AddVisibility<
-                          Current,
-                          Extract<SourceName, string>,
-                          'nonEmpty'
-                        >,
-                    Seen,
-                    [...Depth, unknown]
-                  >
-                | VisitRenderedState<
-                    Empty,
-                    StateName,
-                    Expected,
-                    Extract<SourceName, string> extends never
-                      ? Current
-                      : AddVisibility<
-                          Current,
-                          Extract<SourceName, string>,
-                          'empty'
-                        >,
-                    Seen,
-                    [...Depth, unknown]
-                  >
-            : Children extends IfNode<
-                  infer ConditionName,
+          ? VisitRenderedState<
+              Children['node'],
+              StateName,
+              Expected,
+              Current,
+              Seen,
+              [...Depth, unknown]
+            >
+          : Children extends ComponentNode<any, any, infer Component>
+            ? Component extends Seen[number]
+              ? false
+              : VisitRenderedState<
+                  TemplateChildren<ComponentTemplateOf<Component>>,
+                  StateName,
+                  Expected,
+                  Current,
+                  [...Seen, Component],
+                  [...Depth, unknown]
+                >
+            : Children extends ForNode<
                   any,
-                  infer True,
-                  infer False
+                  any,
+                  any,
+                  infer SourceName,
+                  infer Item,
+                  infer Empty
                 >
               ?
                   | VisitRenderedState<
-                      True,
+                      Item,
                       StateName,
                       Expected,
-                      AddVisibility<Current, ConditionName, true>,
+                      Extract<SourceName, string> extends never
+                        ? Current
+                        : AddVisibility<
+                            Current,
+                            Extract<SourceName, string>,
+                            'nonEmpty'
+                          >,
                       Seen,
                       [...Depth, unknown]
                     >
                   | VisitRenderedState<
-                      False,
+                      Empty,
                       StateName,
                       Expected,
-                      AddVisibility<Current, ConditionName, false>,
+                      Extract<SourceName, string> extends never
+                        ? Current
+                        : AddVisibility<
+                            Current,
+                            Extract<SourceName, string>,
+                            'empty'
+                          >,
                       Seen,
                       [...Depth, unknown]
                     >
-              : Children extends DeferNode<infer Loaded>
-                ? VisitRenderedState<
-                    Loaded extends CraftComponent<any, any>
-                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                      : ReturnType<Children['resolve']>,
-                    StateName,
-                    Expected,
-                    Current,
-                    Seen,
-                    [...Depth, unknown]
+              : Children extends IfNode<
+                    infer ConditionName,
+                    any,
+                    infer True,
+                    infer False
                   >
+                ?
+                    | VisitRenderedState<
+                        True,
+                        StateName,
+                        Expected,
+                        AddVisibility<Current, ConditionName, true>,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                    | VisitRenderedState<
+                        False,
+                        StateName,
+                        Expected,
+                        AddVisibility<Current, ConditionName, false>,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                : Children extends DeferNode<infer Loaded>
+                  ? VisitRenderedState<
+                      Loaded extends CraftComponent<any, any>
+                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                        : ReturnType<Children['resolve']>,
+                      StateName,
+                      Expected,
+                      Current,
+                      Seen,
+                      [...Depth, unknown]
+                    >
                   : ValueUsesState<Children, StateName> extends true
                     ? VisibilityMatches<Current, Expected>
                     : false;
@@ -1000,7 +1034,10 @@ type VisitAvailableAction<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      : Children extends {
+            readonly kind: 'field-error';
+            readonly source: infer Source;
+          }
         ? VisitAvailableAction<
             Source,
             EventName,
@@ -1011,104 +1048,104 @@ type VisitAvailableAction<
             [...Depth, unknown]
           >
         : Children extends CraftDirectiveNode<any>
-        ? VisitAvailableAction<
-            Children['node'],
-            EventName,
-            LocalName,
-            Expected,
-            Current,
-            Seen,
-            [...Depth, unknown]
-          >
-        : Children extends ComponentNode<any, any, infer Component>
-          ? Component extends Seen[number]
-            ? false
-            : VisitAvailableAction<
-                TemplateChildren<ComponentTemplateOf<Component>>,
-                EventName,
-                LocalName,
-                Expected,
-                Current,
-                [...Seen, Component],
-                [...Depth, unknown]
-              >
-          : Children extends ForNode<
-                any,
-                any,
-                any,
-                infer SourceName,
-                infer Item,
-                infer Empty
-              >
-            ?
-                | VisitAvailableAction<
-                    Item,
-                    EventName,
-                    LocalName,
-                    Expected,
-                    Extract<SourceName, string> extends never
-                      ? Current
-                      : AddVisibility<
-                          Current,
-                          Extract<SourceName, string>,
-                          'nonEmpty'
-                        >,
-                    Seen,
-                    [...Depth, unknown]
-                  >
-                | VisitAvailableAction<
-                    Empty,
-                    EventName,
-                    LocalName,
-                    Expected,
-                    Extract<SourceName, string> extends never
-                      ? Current
-                      : AddVisibility<
-                          Current,
-                          Extract<SourceName, string>,
-                          'empty'
-                        >,
-                    Seen,
-                    [...Depth, unknown]
-                  >
-            : Children extends IfNode<
-                  infer ConditionName,
+          ? VisitAvailableAction<
+              Children['node'],
+              EventName,
+              LocalName,
+              Expected,
+              Current,
+              Seen,
+              [...Depth, unknown]
+            >
+          : Children extends ComponentNode<any, any, infer Component>
+            ? Component extends Seen[number]
+              ? false
+              : VisitAvailableAction<
+                  TemplateChildren<ComponentTemplateOf<Component>>,
+                  EventName,
+                  LocalName,
+                  Expected,
+                  Current,
+                  [...Seen, Component],
+                  [...Depth, unknown]
+                >
+            : Children extends ForNode<
                   any,
-                  infer True,
-                  infer False
+                  any,
+                  any,
+                  infer SourceName,
+                  infer Item,
+                  infer Empty
                 >
               ?
                   | VisitAvailableAction<
-                      True,
+                      Item,
                       EventName,
                       LocalName,
                       Expected,
-                      AddVisibility<Current, ConditionName, true>,
+                      Extract<SourceName, string> extends never
+                        ? Current
+                        : AddVisibility<
+                            Current,
+                            Extract<SourceName, string>,
+                            'nonEmpty'
+                          >,
                       Seen,
                       [...Depth, unknown]
                     >
                   | VisitAvailableAction<
-                      False,
+                      Empty,
                       EventName,
                       LocalName,
                       Expected,
-                      AddVisibility<Current, ConditionName, false>,
+                      Extract<SourceName, string> extends never
+                        ? Current
+                        : AddVisibility<
+                            Current,
+                            Extract<SourceName, string>,
+                            'empty'
+                          >,
                       Seen,
                       [...Depth, unknown]
                     >
-              : Children extends DeferNode<infer Loaded>
-                ? VisitAvailableAction<
-                    Loaded extends CraftComponent<any, any>
-                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                      : ReturnType<Children['resolve']>,
-                    EventName,
-                    LocalName,
-                    Expected,
-                    Current,
-                    Seen,
-                    [...Depth, unknown]
+              : Children extends IfNode<
+                    infer ConditionName,
+                    any,
+                    infer True,
+                    infer False
                   >
-                : false;
+                ?
+                    | VisitAvailableAction<
+                        True,
+                        EventName,
+                        LocalName,
+                        Expected,
+                        AddVisibility<Current, ConditionName, true>,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                    | VisitAvailableAction<
+                        False,
+                        EventName,
+                        LocalName,
+                        Expected,
+                        AddVisibility<Current, ConditionName, false>,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                : Children extends DeferNode<infer Loaded>
+                  ? VisitAvailableAction<
+                      Loaded extends CraftComponent<any, any>
+                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                        : ReturnType<Children['resolve']>,
+                      EventName,
+                      LocalName,
+                      Expected,
+                      Current,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  : false;
 
 type AvailableActionResult<Result> =
   true extends Extract<Result, true> ? true : false;
@@ -1208,62 +1245,65 @@ type VisitNamedElementIdentities<
               Seen,
               [...Depth, unknown]
             >
-        : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
-        ? VisitNamedElementIdentities<
-            Source,
-            Owner,
-            Seen,
-            [...Depth, unknown]
-          >
-        : Children extends CraftDirectiveNode<any>
+        : Children extends {
+              readonly kind: 'field-error';
+              readonly source: infer Source;
+            }
           ? VisitNamedElementIdentities<
-              Children['node'],
+              Source,
               Owner,
               Seen,
               [...Depth, unknown]
             >
-          : Children extends ComponentNode<any, any, infer Component>
-            ? IsAny<Component> extends true
-              ? never
-              : Component extends Seen[number]
+          : Children extends CraftDirectiveNode<any>
+            ? VisitNamedElementIdentities<
+                Children['node'],
+                Owner,
+                Seen,
+                [...Depth, unknown]
+              >
+            : Children extends ComponentNode<any, any, infer Component>
+              ? IsAny<Component> extends true
                 ? never
-                : VisitNamedElementIdentities<
-                    TemplateChildren<ComponentTemplateOf<Component>>,
-                    ComponentName<Component>,
-                    [...Seen, Component],
-                    [...Depth, unknown]
+                : Component extends Seen[number]
+                  ? never
+                  : VisitNamedElementIdentities<
+                      TemplateChildren<ComponentTemplateOf<Component>>,
+                      ComponentName<Component>,
+                      [...Seen, Component],
+                      [...Depth, unknown]
+                    >
+              : Children extends ForNode<
+                    any,
+                    any,
+                    any,
+                    any,
+                    infer Item,
+                    infer Empty
                   >
-            : Children extends ForNode<
-                  any,
-                  any,
-                  any,
-                  any,
-                  infer Item,
-                  infer Empty
-                >
-              ? VisitNamedElementIdentities<
-                  Item | Empty,
-                  Owner,
-                  Seen,
-                  [...Depth, unknown]
-                >
-              : Children extends IfNode<any, any, infer True, infer False>
                 ? VisitNamedElementIdentities<
-                    True | False,
+                    Item | Empty,
                     Owner,
                     Seen,
                     [...Depth, unknown]
                   >
-                : Children extends DeferNode<infer Loaded>
+                : Children extends IfNode<any, any, infer True, infer False>
                   ? VisitNamedElementIdentities<
-                      Loaded extends CraftComponent<any, any>
-                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                        : ReturnType<Children['resolve']>,
+                      True | False,
                       Owner,
                       Seen,
                       [...Depth, unknown]
                     >
-                  : never;
+                  : Children extends DeferNode<infer Loaded>
+                    ? VisitNamedElementIdentities<
+                        Loaded extends CraftComponent<any, any>
+                          ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                          : ReturnType<Children['resolve']>,
+                        Owner,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                    : never;
 
 type TemplateContractOutput<Template> = Template extends (
   ...args: any[]
@@ -1358,7 +1398,10 @@ type NamedElementPropsOf<
               Seen,
               [...Depth, unknown]
             >
-        : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+        : Children extends {
+              readonly kind: 'field-error';
+              readonly source: infer Source;
+            }
           ? NamedElementPropsOf<
               Source,
               Identity,
@@ -1367,57 +1410,57 @@ type NamedElementPropsOf<
               [...Depth, unknown]
             >
           : Children extends CraftDirectiveNode<any>
-          ? NamedElementPropsOf<
-              Children['node'],
-              Identity,
-              Owner,
-              Seen,
-              [...Depth, unknown]
-            >
-          : Children extends ComponentNode<any, any, infer Component>
-            ? Component extends Seen[number]
-              ? never
-              : NamedElementPropsOf<
-                  TemplateChildren<ComponentTemplateOf<Component>>,
-                  Identity,
-                  ComponentName<Component>,
-                  [...Seen, Component],
-                  [...Depth, unknown]
-                >
-            : Children extends ForNode<
-                  any,
-                  any,
-                  any,
-                  any,
-                  infer Item,
-                  infer Empty
-                >
-              ? NamedElementPropsOf<
-                  Item | Empty,
-                  Identity,
-                  Owner,
-                  Seen,
-                  [...Depth, unknown]
-                >
-              : Children extends IfNode<any, any, infer True, infer False>
+            ? NamedElementPropsOf<
+                Children['node'],
+                Identity,
+                Owner,
+                Seen,
+                [...Depth, unknown]
+              >
+            : Children extends ComponentNode<any, any, infer Component>
+              ? Component extends Seen[number]
+                ? never
+                : NamedElementPropsOf<
+                    TemplateChildren<ComponentTemplateOf<Component>>,
+                    Identity,
+                    ComponentName<Component>,
+                    [...Seen, Component],
+                    [...Depth, unknown]
+                  >
+              : Children extends ForNode<
+                    any,
+                    any,
+                    any,
+                    any,
+                    infer Item,
+                    infer Empty
+                  >
                 ? NamedElementPropsOf<
-                    True | False,
+                    Item | Empty,
                     Identity,
                     Owner,
                     Seen,
                     [...Depth, unknown]
                   >
-                : Children extends DeferNode<infer Loaded>
+                : Children extends IfNode<any, any, infer True, infer False>
                   ? NamedElementPropsOf<
-                      Loaded extends CraftComponent<any, any>
-                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                        : ReturnType<Children['resolve']>,
+                      True | False,
                       Identity,
                       Owner,
                       Seen,
                       [...Depth, unknown]
                     >
-                  : never;
+                  : Children extends DeferNode<infer Loaded>
+                    ? NamedElementPropsOf<
+                        Loaded extends CraftComponent<any, any>
+                          ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                          : ReturnType<Children['resolve']>,
+                        Identity,
+                        Owner,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                    : never;
 
 /** Properties declared on a named element, with editor completion. */
 export type TemplateNamedElementProperty<
@@ -1493,7 +1536,10 @@ type NamedElementDelegatesToContextOf<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      : Children extends {
+            readonly kind: 'field-error';
+            readonly source: infer Source;
+          }
         ? NamedElementDelegatesToContextOf<
             Source,
             Identity,
@@ -1504,47 +1550,37 @@ type NamedElementDelegatesToContextOf<
             [...Depth, unknown]
           >
         : Children extends CraftDirectiveNode<any>
-        ? NamedElementDelegatesToContextOf<
-            Children['node'],
-            Identity,
-            Property,
-            ContextMethod,
-            Owner,
-            Seen,
-            [...Depth, unknown]
-          >
-        : Children extends ComponentNode<any, any, infer Component>
-          ? Component extends Seen[number]
-            ? false
-            : NamedElementDelegatesToContextOf<
-                TemplateChildren<ComponentTemplateOf<Component>>,
-                Identity,
-                Property,
-                ContextMethod,
-                ComponentName<Component>,
-                [...Seen, Component],
-                [...Depth, unknown]
-              >
-          : Children extends ForNode<
-                any,
-                any,
-                any,
-                any,
-                infer Item,
-                infer Empty
-              >
-            ? NamedElementDelegatesToContextOf<
-                Item | Empty,
-                Identity,
-                Property,
-                ContextMethod,
-                Owner,
-                Seen,
-                [...Depth, unknown]
-              >
-            : Children extends IfNode<any, any, infer True, infer False>
+          ? NamedElementDelegatesToContextOf<
+              Children['node'],
+              Identity,
+              Property,
+              ContextMethod,
+              Owner,
+              Seen,
+              [...Depth, unknown]
+            >
+          : Children extends ComponentNode<any, any, infer Component>
+            ? Component extends Seen[number]
+              ? false
+              : NamedElementDelegatesToContextOf<
+                  TemplateChildren<ComponentTemplateOf<Component>>,
+                  Identity,
+                  Property,
+                  ContextMethod,
+                  ComponentName<Component>,
+                  [...Seen, Component],
+                  [...Depth, unknown]
+                >
+            : Children extends ForNode<
+                  any,
+                  any,
+                  any,
+                  any,
+                  infer Item,
+                  infer Empty
+                >
               ? NamedElementDelegatesToContextOf<
-                  True | False,
+                  Item | Empty,
                   Identity,
                   Property,
                   ContextMethod,
@@ -1552,11 +1588,9 @@ type NamedElementDelegatesToContextOf<
                   Seen,
                   [...Depth, unknown]
                 >
-              : Children extends DeferNode<infer Loaded>
+              : Children extends IfNode<any, any, infer True, infer False>
                 ? NamedElementDelegatesToContextOf<
-                    Loaded extends CraftComponent<any, any>
-                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                      : ReturnType<Children['resolve']>,
+                    True | False,
                     Identity,
                     Property,
                     ContextMethod,
@@ -1564,7 +1598,19 @@ type NamedElementDelegatesToContextOf<
                     Seen,
                     [...Depth, unknown]
                   >
-                : false;
+                : Children extends DeferNode<infer Loaded>
+                  ? NamedElementDelegatesToContextOf<
+                      Loaded extends CraftComponent<any, any>
+                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                        : ReturnType<Children['resolve']>,
+                      Identity,
+                      Property,
+                      ContextMethod,
+                      Owner,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  : false;
 
 /** Checks that a named element property delegates to a context method. */
 export type TemplateNamedElementDelegatesToContext<
@@ -1637,7 +1683,10 @@ type NamedElementRendersStateWhenOf<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      : Children extends {
+            readonly kind: 'field-error';
+            readonly source: infer Source;
+          }
         ? NamedElementRendersStateWhenOf<
             Source,
             Identity,
@@ -1650,118 +1699,118 @@ type NamedElementRendersStateWhenOf<
             [...Depth, unknown]
           >
         : Children extends CraftDirectiveNode<any>
-        ? NamedElementRendersStateWhenOf<
-            Children['node'],
-            Identity,
-            Property,
-            StateName,
-            Expected,
-            Owner,
-            Current,
-            Seen,
-            [...Depth, unknown]
-          >
-        : Children extends ComponentNode<any, any, infer Component>
-          ? Component extends Seen[number]
-            ? false
-            : NamedElementRendersStateWhenOf<
-                TemplateChildren<ComponentTemplateOf<Component>>,
-                Identity,
-                Property,
-                StateName,
-                Expected,
-                ComponentName<Component>,
-                Current,
-                [...Seen, Component],
-                [...Depth, unknown]
-              >
-          : Children extends ForNode<
-                any,
-                any,
-                any,
-                infer SourceName,
-                infer Item,
-                infer Empty
-              >
-            ?
-                | NamedElementRendersStateWhenOf<
-                    Item,
-                    Identity,
-                    Property,
-                    StateName,
-                    Expected,
-                    Owner,
-                    Extract<SourceName, string> extends never
-                      ? Current
-                      : AddVisibility<
-                          Current,
-                          Extract<SourceName, string>,
-                          'nonEmpty'
-                        >,
-                    Seen,
-                    [...Depth, unknown]
-                  >
-                | NamedElementRendersStateWhenOf<
-                    Empty,
-                    Identity,
-                    Property,
-                    StateName,
-                    Expected,
-                    Owner,
-                    Extract<SourceName, string> extends never
-                      ? Current
-                      : AddVisibility<
-                          Current,
-                          Extract<SourceName, string>,
-                          'empty'
-                        >,
-                    Seen,
-                    [...Depth, unknown]
-                  >
-            : Children extends IfNode<
-                  infer ConditionName,
+          ? NamedElementRendersStateWhenOf<
+              Children['node'],
+              Identity,
+              Property,
+              StateName,
+              Expected,
+              Owner,
+              Current,
+              Seen,
+              [...Depth, unknown]
+            >
+          : Children extends ComponentNode<any, any, infer Component>
+            ? Component extends Seen[number]
+              ? false
+              : NamedElementRendersStateWhenOf<
+                  TemplateChildren<ComponentTemplateOf<Component>>,
+                  Identity,
+                  Property,
+                  StateName,
+                  Expected,
+                  ComponentName<Component>,
+                  Current,
+                  [...Seen, Component],
+                  [...Depth, unknown]
+                >
+            : Children extends ForNode<
                   any,
-                  infer True,
-                  infer False
+                  any,
+                  any,
+                  infer SourceName,
+                  infer Item,
+                  infer Empty
                 >
               ?
                   | NamedElementRendersStateWhenOf<
-                      True,
+                      Item,
                       Identity,
                       Property,
                       StateName,
                       Expected,
                       Owner,
-                      AddVisibility<Current, ConditionName, true>,
+                      Extract<SourceName, string> extends never
+                        ? Current
+                        : AddVisibility<
+                            Current,
+                            Extract<SourceName, string>,
+                            'nonEmpty'
+                          >,
                       Seen,
                       [...Depth, unknown]
                     >
                   | NamedElementRendersStateWhenOf<
-                      False,
+                      Empty,
                       Identity,
                       Property,
                       StateName,
                       Expected,
                       Owner,
-                      AddVisibility<Current, ConditionName, false>,
+                      Extract<SourceName, string> extends never
+                        ? Current
+                        : AddVisibility<
+                            Current,
+                            Extract<SourceName, string>,
+                            'empty'
+                          >,
                       Seen,
                       [...Depth, unknown]
                     >
-              : Children extends DeferNode<infer Loaded>
-                ? NamedElementRendersStateWhenOf<
-                    Loaded extends CraftComponent<any, any>
-                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                      : ReturnType<Children['resolve']>,
-                    Identity,
-                    Property,
-                    StateName,
-                    Expected,
-                    Owner,
-                    Current,
-                    Seen,
-                    [...Depth, unknown]
+              : Children extends IfNode<
+                    infer ConditionName,
+                    any,
+                    infer True,
+                    infer False
                   >
-                : false;
+                ?
+                    | NamedElementRendersStateWhenOf<
+                        True,
+                        Identity,
+                        Property,
+                        StateName,
+                        Expected,
+                        Owner,
+                        AddVisibility<Current, ConditionName, true>,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                    | NamedElementRendersStateWhenOf<
+                        False,
+                        Identity,
+                        Property,
+                        StateName,
+                        Expected,
+                        Owner,
+                        AddVisibility<Current, ConditionName, false>,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                : Children extends DeferNode<infer Loaded>
+                  ? NamedElementRendersStateWhenOf<
+                      Loaded extends CraftComponent<any, any>
+                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                        : ReturnType<Children['resolve']>,
+                      Identity,
+                      Property,
+                      StateName,
+                      Expected,
+                      Owner,
+                      Current,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  : false;
 
 /** Checks that a named element property is driven by a context state. */
 export type TemplateNamedElementRendersStateWhen<
@@ -1828,7 +1877,10 @@ type VisitNamedElement<
               Seen,
               [...Depth, unknown]
             >
-      : Children extends { readonly kind: 'field-error'; readonly source: infer Source }
+      : Children extends {
+            readonly kind: 'field-error';
+            readonly source: infer Source;
+          }
         ? VisitNamedElement<
             Source,
             Identity,
@@ -1839,104 +1891,104 @@ type VisitNamedElement<
             [...Depth, unknown]
           >
         : Children extends CraftDirectiveNode<any>
-        ? VisitNamedElement<
-            Children['node'],
-            Identity,
-            Expected,
-            Owner,
-            Current,
-            Seen,
-            [...Depth, unknown]
-          >
-        : Children extends ComponentNode<any, any, infer Component>
-          ? Component extends Seen[number]
-            ? false
-            : VisitNamedElement<
-                TemplateChildren<ComponentTemplateOf<Component>>,
-                Identity,
-                Expected,
-                ComponentName<Component>,
-                Current,
-                [...Seen, Component],
-                [...Depth, unknown]
-              >
-          : Children extends ForNode<
-                any,
-                any,
-                any,
-                infer SourceName,
-                infer Item,
-                infer Empty
-              >
-            ?
-                | VisitNamedElement<
-                    Item,
-                    Identity,
-                    Expected,
-                    Owner,
-                    Extract<SourceName, string> extends never
-                      ? Current
-                      : AddVisibility<
-                          Current,
-                          Extract<SourceName, string>,
-                          'nonEmpty'
-                        >,
-                    Seen,
-                    [...Depth, unknown]
-                  >
-                | VisitNamedElement<
-                    Empty,
-                    Identity,
-                    Expected,
-                    Owner,
-                    Extract<SourceName, string> extends never
-                      ? Current
-                      : AddVisibility<
-                          Current,
-                          Extract<SourceName, string>,
-                          'empty'
-                        >,
-                    Seen,
-                    [...Depth, unknown]
-                  >
-            : Children extends IfNode<
-                  infer ConditionName,
+          ? VisitNamedElement<
+              Children['node'],
+              Identity,
+              Expected,
+              Owner,
+              Current,
+              Seen,
+              [...Depth, unknown]
+            >
+          : Children extends ComponentNode<any, any, infer Component>
+            ? Component extends Seen[number]
+              ? false
+              : VisitNamedElement<
+                  TemplateChildren<ComponentTemplateOf<Component>>,
+                  Identity,
+                  Expected,
+                  ComponentName<Component>,
+                  Current,
+                  [...Seen, Component],
+                  [...Depth, unknown]
+                >
+            : Children extends ForNode<
                   any,
-                  infer True,
-                  infer False
+                  any,
+                  any,
+                  infer SourceName,
+                  infer Item,
+                  infer Empty
                 >
               ?
                   | VisitNamedElement<
-                      True,
+                      Item,
                       Identity,
                       Expected,
                       Owner,
-                      AddVisibility<Current, ConditionName, true>,
+                      Extract<SourceName, string> extends never
+                        ? Current
+                        : AddVisibility<
+                            Current,
+                            Extract<SourceName, string>,
+                            'nonEmpty'
+                          >,
                       Seen,
                       [...Depth, unknown]
                     >
                   | VisitNamedElement<
-                      False,
+                      Empty,
                       Identity,
                       Expected,
                       Owner,
-                      AddVisibility<Current, ConditionName, false>,
+                      Extract<SourceName, string> extends never
+                        ? Current
+                        : AddVisibility<
+                            Current,
+                            Extract<SourceName, string>,
+                            'empty'
+                          >,
                       Seen,
                       [...Depth, unknown]
                     >
-              : Children extends DeferNode<infer Loaded>
-                ? VisitNamedElement<
-                    Loaded extends CraftComponent<any, any>
-                      ? TemplateChildren<ComponentTemplateOf<Loaded>>
-                      : ReturnType<Children['resolve']>,
-                    Identity,
-                    Expected,
-                    Owner,
-                    Current,
-                    Seen,
-                    [...Depth, unknown]
+              : Children extends IfNode<
+                    infer ConditionName,
+                    any,
+                    infer True,
+                    infer False
                   >
-                : false;
+                ?
+                    | VisitNamedElement<
+                        True,
+                        Identity,
+                        Expected,
+                        Owner,
+                        AddVisibility<Current, ConditionName, true>,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                    | VisitNamedElement<
+                        False,
+                        Identity,
+                        Expected,
+                        Owner,
+                        AddVisibility<Current, ConditionName, false>,
+                        Seen,
+                        [...Depth, unknown]
+                      >
+                : Children extends DeferNode<infer Loaded>
+                  ? VisitNamedElement<
+                      Loaded extends CraftComponent<any, any>
+                        ? TemplateChildren<ComponentTemplateOf<Loaded>>
+                        : ReturnType<Children['resolve']>,
+                      Identity,
+                      Expected,
+                      Owner,
+                      Current,
+                      Seen,
+                      [...Depth, unknown]
+                    >
+                  : false;
 
 type NamedElementResult<Result> =
   true extends Extract<Result, true>

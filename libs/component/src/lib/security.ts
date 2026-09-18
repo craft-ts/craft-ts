@@ -14,10 +14,7 @@ export type CraftUnsafeHtml = Readonly<{
 export class CraftDomSecurityError extends Error {
   readonly code: string;
 
-  constructor(
-    code: string,
-    message: string,
-  ) {
+  constructor(code: string, message: string) {
     super(`${code}: ${message}`);
     this.code = code;
     this.name = 'CraftDomSecurityError';
@@ -120,7 +117,9 @@ function sanitizeUrl(
   } catch {
     throw new CraftDomSecurityError('CRAFT_DOM_URL_INVALID', 'Invalid URL.');
   }
-  const relative = parsed.origin === PLACEHOLDER_ORIGIN && !/^[a-z][a-z0-9+.-]*:/i.test(normalized);
+  const relative =
+    parsed.origin === PLACEHOLDER_ORIGIN &&
+    !/^[a-z][a-z0-9+.-]*:/i.test(normalized);
   const allowedSchemes = resource
     ? ['http:', 'https:']
     : (options.allowedSchemes ?? DEFAULT_NAVIGATION_SCHEMES);
@@ -251,13 +250,7 @@ const ALLOWED_ELEMENTS = new Map<string, ReadonlySet<string>>([
  */
 const GLOBAL_ATTRIBUTES = new Set(['class', 'dir', 'lang', 'role']);
 
-const VOID_ELEMENTS = new Set([
-  'br',
-  'col',
-  'hr',
-  'img',
-  'wbr',
-]);
+const VOID_ELEMENTS = new Set(['br', 'col', 'hr', 'img', 'wbr']);
 
 /** Elements whose text content is markup or code, dropped with their content. */
 const RAW_TEXT_ELEMENTS = new Set([
@@ -364,7 +357,10 @@ export function sanitizedHtml(
   }
 
   while (open.length > 0) output.push(`</${open.pop()}>`);
-  return Object.freeze({ value: output.join(''), [CRAFT_SAFE_HTML]: true as const });
+  return Object.freeze({
+    value: output.join(''),
+    [CRAFT_SAFE_HTML]: true as const,
+  });
 }
 
 type ParsedTag = Readonly<{
@@ -380,7 +376,8 @@ function readTag(input: string, start: number): ParsedTag | undefined {
   const closing = input[index] === '/';
   if (closing) index += 1;
   const nameStart = index;
-  while (index < input.length && /[A-Za-z0-9:_-]/.test(input[index])) index += 1;
+  while (index < input.length && /[A-Za-z0-9:_-]/.test(input[index]))
+    index += 1;
   const name = input.slice(nameStart, index).toLowerCase();
   if (name === '' || !/^[a-z]/.test(name)) return undefined;
 
@@ -441,7 +438,12 @@ function renderAttributes(
   for (const [name, rawValue] of attributes) {
     const isAria = name.startsWith('aria-');
     const isData = name.startsWith('data-');
-    if (!allowed.has(name) && !GLOBAL_ATTRIBUTES.has(name) && !isAria && !isData) {
+    if (
+      !allowed.has(name) &&
+      !GLOBAL_ATTRIBUTES.has(name) &&
+      !isAria &&
+      !isData
+    ) {
       continue;
     }
     // Entities are decoded before validation: a browser reads

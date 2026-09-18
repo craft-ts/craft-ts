@@ -76,9 +76,7 @@ export interface ForScheduler {
 }
 
 /** Injectable override used by deterministic tests and host integrations. */
-export const FOR_SCHEDULER = new InjectionToken<ForScheduler>(
-  'FOR_SCHEDULER',
-);
+export const FOR_SCHEDULER = new InjectionToken<ForScheduler>('FOR_SCHEDULER');
 
 const NOOP_CANCEL: CancelHandle = { cancel: () => undefined };
 

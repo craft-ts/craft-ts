@@ -83,7 +83,7 @@ describe('hyperscript DOM event types', () => {
   });
 
   it('types generator methods inside a ComponentTemplate', () => {
-    const template: import('./types').ComponentTemplate<{}> = () =>
+    const template: import('./types').ComponentTemplate = () =>
       input({
         type: 'text',
         *input(event) {

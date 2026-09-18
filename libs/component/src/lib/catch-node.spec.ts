@@ -160,21 +160,18 @@ describe('template exception blocks', () => {
     async (position) => {
       const denied = craftException({ _tag: 'DENIED' }, { reason: 'private' });
       const exception = signal<typeof denied | undefined>(undefined);
-      const root = craftComponent(
-        `matchRoot${position}`,
-        {},
-        () =>
-          section([
-            p('source'),
-            matchNode.exhaustive(exception, '_tag', {
-              DENIED: (value) => {
-                expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
-                return p(
-                  position === 'before' ? 'before fallback' : 'after fallback',
-                );
-              },
-            }),
-          ]),
+      const root = craftComponent(`matchRoot${position}`, {}, () =>
+        section([
+          p('source'),
+          matchNode.exhaustive(exception, '_tag', {
+            DENIED: (value) => {
+              expectTypeOf(value.payload).toEqualTypeOf<{ reason: string }>();
+              return p(
+                position === 'before' ? 'before fallback' : 'after fallback',
+              );
+            },
+          }),
+        ]),
       );
       const {
         nativeElement: element,

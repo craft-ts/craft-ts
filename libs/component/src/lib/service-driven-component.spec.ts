@@ -80,7 +80,7 @@ describe('a component driven by its own service', () => {
       {
         service: overrideService(ServiceDrivenCounter, (base) => ({
           ...base,
-          increment: () => undefined,
+          increment: (() => undefined) as unknown as typeof base.increment,
         })),
       },
     );

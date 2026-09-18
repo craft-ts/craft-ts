@@ -35,12 +35,7 @@ import {
   strong,
   textarea,
 } from '../hyperscript';
-import type {
-  CraftComponent,
-  Input,
-  InputValue,
-  Output,
-} from '../types';
+import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
 import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 import {
@@ -652,7 +647,7 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
       retrySend,
       copyPayload,
     };
-  }
+  },
 );
 
 export const AiSendContextChat = craftComponent(
@@ -907,33 +902,32 @@ export const AiSendContextChat = craftComponent(
     readonly onClose: Output<() => void>;
   }) {
     const {
-    onClose,
-    visibleEvents,
-    eventCount,
-    targets,
-    recording,
-    removeTarget,
-    instruction,
-    writeInstruction,
-    options,
-    writeOptions,
-    status,
-    error,
-    busy,
-    panelOffset,
-    startDrag,
-    resetPanelOffset,
-    toggleRecord,
-    clearTimeline,
-    copyPrompt,
-    exportJson,
-    endpoint,
-    sendPayload,
-    retrySend,
-    copyPayload,
+      onClose,
+      visibleEvents,
+      eventCount,
+      targets,
+      recording,
+      removeTarget,
+      instruction,
+      writeInstruction,
+      options,
+      writeOptions,
+      status,
+      error,
+      busy,
+      panelOffset,
+      startDrag,
+      resetPanelOffset,
+      toggleRecord,
+      clearTimeline,
+      copyPrompt,
+      exportJson,
+      endpoint,
+      sendPayload,
+      retrySend,
+      copyPayload,
     } = yield* AiSendContextChatState(inputs);
-    return
-    div({ class: 'craft-ai-chat-overlay' }, [
+    return div({ class: 'craft-ai-chat-overlay' }, [
       div(
         {
           class: 'craft-ai-chat',
@@ -1257,10 +1251,13 @@ export const AiSendContextChat = craftComponent(
       ),
     ]);
   },
-) as unknown as CraftComponent<{
-  readonly context: InputValue<SendContextUiContext>;
-  readonly onClose: () => void;
-}, any>;
+) as unknown as CraftComponent<
+  {
+    readonly context: InputValue<SendContextUiContext>;
+    readonly onClose: () => void;
+  },
+  any
+>;
 
 function toTimelineRow(event: SendContextEvent): SendContextTimelineRow {
   return {

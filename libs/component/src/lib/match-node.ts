@@ -1,7 +1,4 @@
-import type {
-  AnyCraftException,
-  YieldableReactiveValue,
-} from '@craft-ts/core';
+import type { AnyCraftException, YieldableReactiveValue } from '@craft-ts/core';
 import { craftUse } from '@craft-ts/core';
 import type {
   CraftNodeChildren,
@@ -129,10 +126,7 @@ function exhaustive(
   >,
 ) {
   if (maybeHandlers === undefined) {
-    const handlers = keyOrHandlers as Record<
-      string,
-      () => CraftNodeChildren
-    >;
+    const handlers = keyOrHandlers as Record<string, () => CraftNodeChildren>;
     const scalarSource =
       typeof source === 'function'
         ? () => ({
