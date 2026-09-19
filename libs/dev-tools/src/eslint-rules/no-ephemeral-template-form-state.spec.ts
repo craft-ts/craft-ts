@@ -123,6 +123,40 @@ describe('no-ephemeral-template-form-state', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it('accepts the service, primitives and inputs a component declares', async () => {
+    const result = await lintFixture(`
+      ${DECLARE_HOSTS}
+      declare function state(...args: unknown[]): unknown;
+      declare function craftMethod(...args: unknown[]): unknown;
+      declare function DemoView(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, function* (inputs) {
+        const { todos } = inputs;
+        const { title } = yield* DemoView(inputs);
+        const draft = yield* state('draft', '');
+        const submit = craftMethod('submit', function* () {});
+        return div([title, draft, todos, submit]);
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('still reports a plain local in the component scope', async () => {
+    const result = await lintFixture(`
+      ${DECLARE_HOSTS}
+      declare function DemoView(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, function* () {
+        const { title } = yield* DemoView();
+        const label = 'todos';
+        return div([title, label]);
+      });
+    `);
+
+    expect(result.messages).toEqual([declareMessage('label', 'const')]);
+  });
+
   it('reports declarations in a craftDirective template transformer', async () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}

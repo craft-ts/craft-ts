@@ -82,7 +82,12 @@ describe('impactOf', () => {
       { readFile: () => '' },
     );
 
-    expect(impactOf(index, 'store')).toEqual(['page', 'route', 'service', 'store']);
+    expect(impactOf(index, 'store')).toEqual([
+      'page',
+      'route',
+      'service',
+      'store',
+    ]);
     expect(impactOf(index, 'writer')).toEqual([
       'page',
       'route',
@@ -319,10 +324,10 @@ describe('code slices', () => {
           return { count };
         });
 
-        export const Widget = craftComponent('Widget', {}, () => {
+        export const Widget = craftComponent('Widget', {}, function* () {
           const { count } = counter();
-          return { count };
-        }, () => div({}, [button({ name: 'go' })]));
+          return div({}, [button({ name: 'go' })]);
+        });
       `,
     });
     const graph = analyze(root);

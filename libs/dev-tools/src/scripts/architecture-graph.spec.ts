@@ -159,19 +159,14 @@ describe('createArchitectureGraph', () => {
       'todo-page.ts': `
         ${STUBS}
         import { TodoStore } from './todo-store';
-        const TodoPage = craftComponent(
-          'TodoPage',
-          {},
-          function* () {
-            const store = yield* TodoStore();
-            const todoForm = yield* state(
-              'todoForm',
-              '',
-              insertForm(insertFormSubmit(store.addTodo)),
-            );
-            return { store, todoForm };
-          },
-          ({ store, todoForm }) => form('TodoForm', {
+        const TodoPage = craftComponent('TodoPage', {}, function* () {
+          const store = yield* TodoStore();
+          const todoForm = yield* state(
+            'todoForm',
+            '',
+            insertForm(insertFormSubmit(store.addTodo)),
+          );
+          return form('TodoForm', {
             *submit(event) {
               event.preventDefault();
               yield* todoForm.form.submit();
@@ -181,8 +176,8 @@ describe('createArchitectureGraph', () => {
             button('SubmitButton', {
               click: function* () { yield* store.addTodo.mutate(); },
             }, 'Submit'),
-          ]),
-        );
+          ]);
+        });
       `,
     });
 
@@ -214,18 +209,13 @@ describe('createArchitectureGraph', () => {
       'todo-page.ts': `
         ${STUBS}
         import { TodoStore } from './todo-store';
-        const TodoPage = craftComponent(
-          'TodoPage',
-          {},
-          function* () {
-            const store = yield* TodoStore();
-            return { store };
-          },
-          ({ store }) => div([
+        const TodoPage = craftComponent('TodoPage', {}, function* () {
+          const store = yield* TodoStore();
+          return div([
             input({ value: store.titleInput }),
             button({ click: function* () { yield* store.saveTodo.method(); } }),
-          ]),
-        );
+          ]);
+        });
       `,
     });
 
@@ -250,22 +240,17 @@ describe('createArchitectureGraph', () => {
       'todo-page.ts': `
         ${STUBS}
         import { TodoStore } from './todo-store';
-        const TodoPage = craftComponent(
-          'TodoPage',
-          {},
-          function* () {
-            const store = yield* TodoStore();
-            const todoForm = yield* state(
-              'todoForm',
-              '',
-              insertForm(
-                insertFormAttributes(() => ({ validators: [] })),
-                insertFormSubmit(store.addTodo),
-              ),
-            );
-            return { store, todoForm };
-          },
-          ({ todoForm }) => form('TodoForm', {
+        const TodoPage = craftComponent('TodoPage', {}, function* () {
+          const store = yield* TodoStore();
+          const todoForm = yield* state(
+            'todoForm',
+            '',
+            insertForm(
+              insertFormAttributes(() => ({ validators: [] })),
+              insertFormSubmit(store.addTodo),
+            ),
+          );
+          return form('TodoForm', {
             *submit(event) {
               event.preventDefault();
               yield* todoForm.form.submit();
@@ -273,8 +258,8 @@ describe('createArchitectureGraph', () => {
           }, [
             input('TitleInput', { value: todoForm }),
             button('SubmitButton', { type: 'submit' }, 'Submit'),
-          ]),
-        );
+          ]);
+        });
       `,
     });
 
@@ -290,9 +275,9 @@ describe('createArchitectureGraph', () => {
             url: '/api/users',
             success: response(),
           }));
-          return {};
+          return div([]);
         }
-        const HomePage = craftComponent('HomePage', {}, setupHome, () => div([]));
+        const HomePage = craftComponent('HomePage', {}, setupHome);
         craftRoutes('app', [{ path: '', component: HomePage }]);
       `,
     });
@@ -398,15 +383,10 @@ describe('createArchitectureGraph', () => {
           () => ({}),
         );
 
-        const Admin = craftComponent(
-          'Admin',
-          {},
-          function* () {
-            yield* User();
-            return {};
-          },
-          () => div([]),
-        );
+        const Admin = craftComponent('Admin', {}, function* () {
+          yield* User();
+          return div([]);
+        });
 
         export const appRoutes = craftRoutes('appRoutes', [
           craftRoute('/admin', {
@@ -1557,19 +1537,14 @@ describe('declarative architecture rules', () => {
       'app.ts': `
         ${STUBS}
         import { FilterStore } from './filters';
-        const Users = craftComponent(
-          'Users',
-          {},
-          function* () {
-            const filters = yield* FilterStore();
-            yield* query('users', {
-              params: () => filters.search(),
-              loader: () => Promise.resolve([]),
-            });
-            return {};
-          },
-          () => [],
-        );
+        const Users = craftComponent('Users', {}, function* () {
+          const filters = yield* FilterStore();
+          yield* query('users', {
+            params: () => filters.search(),
+            loader: () => Promise.resolve([]),
+          });
+          return [];
+        });
       `,
     });
 
@@ -2164,8 +2139,8 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2193,8 +2168,8 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2234,8 +2209,8 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2274,8 +2249,8 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2309,8 +2284,8 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2352,8 +2327,8 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2379,14 +2354,14 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
       'skeleton.ts': `
         ${STUBS}
         export const skeleton = craftComponent('Skeleton', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2420,14 +2395,14 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
       'skeleton.ts': `
         ${STUBS}
         export const skeleton = craftComponent('Skeleton', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2453,14 +2428,14 @@ describe('route DI proofs', () => {
       'users.ts': `
         ${STUBS}
         export const users = craftComponent('Users', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
       'error-screen.ts': `
         ${STUBS}
         export const errorScreen = craftComponent('ErrorScreen', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
       `,
     });
 
@@ -2486,8 +2461,8 @@ describe('app config DI proofs', () => {
       'app.config.ts': `
         ${APP_CONFIG_STUBS}
         export const ErrorScreen = craftComponent('ErrorScreen', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
         export const appConfig = craftAppConfig({
           providers: [provideCraftGlobalErrorComponent(ErrorScreen)],
         });
@@ -2505,8 +2480,8 @@ describe('app config DI proofs', () => {
       'app.config.ts': `
         ${APP_CONFIG_STUBS}
         export const LoadErrorScreen = craftComponent('LoadErrorScreen', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
         export const appConfig = craftAppConfig({
           providers: [provideCraftRouteLoadErrorComponent(LoadErrorScreen)],
         });
@@ -2524,11 +2499,11 @@ describe('app config DI proofs', () => {
       'app.config.ts': `
         ${APP_CONFIG_STUBS}
         export const ErrorScreen = craftComponent('ErrorScreen', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
         export const LoadErrorScreen = craftComponent('LoadErrorScreen', {}, function* () {
-          return {};
-        }, () => div());
+          return div();
+        });
         export const appConfig = craftAppConfig({
           providers: [
             provideCraftGlobalErrorComponent(ErrorScreen),

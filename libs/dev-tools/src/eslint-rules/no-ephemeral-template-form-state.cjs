@@ -1,5 +1,28 @@
 const TEMPLATE_HOSTS = new Set(['craftComponent', 'craftDirective']);
 
+/**
+ * The component's own scope is where it declares what it renders from: the
+ * service it takes, the primitives it owns, its inputs. Those declarations are
+ * the API, not ephemeral render state.
+ */
+const CRAFT_DECLARATION_CALLEES = new Set([
+  'state',
+  'query',
+  'mutation',
+  'source',
+  'source$',
+  'asyncProcess',
+  'craftComputed',
+  'craftMethod',
+  'craftStateMachine',
+  'craftUse',
+  'computedEffect',
+  'methodEffect',
+  'mutationEffect',
+  'queryEffect',
+  'stateEffect',
+]);
+
 function isFunctionNode(node) {
   return (
     node?.type === 'ArrowFunctionExpression' ||
@@ -101,12 +124,27 @@ module.exports = {
     }
 
     function inspectTemplate(template) {
+      const componentScope = new Set(
+        template.body?.type === 'BlockStatement' ? template.body.body : [],
+      );
+      const parameterNames = new Set(
+        template.params
+          .filter((parameter) => parameter.type === 'Identifier')
+          .map((parameter) => parameter.name),
+      );
+
       walk(template, (node) => {
         if (node !== template && isTemplateHostCall(node)) {
           return 'skip';
         }
 
         if (node.type !== 'VariableDeclaration') return;
+        if (
+          componentScope.has(node) &&
+          isComponentDeclaration(node, parameterNames)
+        ) {
+          return;
+        }
 
         const named = node.declarations.map(declaratorName).filter(Boolean);
 
@@ -126,6 +164,21 @@ module.exports = {
             data: { name, kind: node.kind },
           });
         }
+      });
+    }
+
+    /** `const … = yield* Service()`, a craft primitive, or the inputs object. */
+    function isComponentDeclaration(node, parameterNames) {
+      return node.declarations.every((declarator) => {
+        const init = declarator.init;
+        if (!init) return false;
+        if (init.type === 'YieldExpression') return true;
+        if (init.type === 'Identifier') return parameterNames.has(init.name);
+        return (
+          init.type === 'CallExpression' &&
+          init.callee.type === 'Identifier' &&
+          CRAFT_DECLARATION_CALLEES.has(init.callee.name)
+        );
       });
     }
 

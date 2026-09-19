@@ -55,7 +55,24 @@ export const {
     const imageSrc = craftComputed('imageSrc', function* () {
       return (yield* viewTransition())?.image ?? '';
     });
-    return { photoId, viewTransition, hasImage, imageSrc };
+    const heroStyle = craftComputed('heroStyle', function* () {
+      const id = yield* photoId();
+      return {
+        background: photoGradient(findPhoto(id)),
+        viewTransitionName: `photo-${id}`,
+      };
+    });
+    const photoEmoji = craftComputed('photoEmoji', function* () {
+      return findPhoto(yield* photoId())?.emoji;
+    });
+    return {
+      photoId,
+      viewTransition,
+      hasImage,
+      imageSrc,
+      heroStyle,
+      photoEmoji,
+    };
   },
 );
 
@@ -70,7 +87,7 @@ const ViewTransitionsSkeletonComponent = craftComponent(
     `,
   },
   function* (inputs: { readonly photoId: Input<string> }) {
-    const { photoId, hasImage, imageSrc } =
+    const { hasImage, imageSrc, heroStyle, photoEmoji } =
       yield* ViewTransitionsSkeletonView(inputs);
     return [
       span('← Back to gallery'),
@@ -78,12 +95,7 @@ const ViewTransitionsSkeletonComponent = craftComponent(
         span(
           {
             class: 'vt-hero',
-            style: function* () {
-              return {
-                background: photoGradient(findPhoto(yield* photoId())),
-                viewTransitionName: `photo-${yield* photoId()}`,
-              };
-            },
+            style: heroStyle,
           },
           [
             ifNode(
@@ -96,10 +108,7 @@ const ViewTransitionsSkeletonComponent = craftComponent(
                   },
                   alt: '',
                 }),
-              () =>
-                span({ class: 'vt-emoji' }, function* () {
-                  return findPhoto(yield* photoId())?.emoji;
-                }),
+              () => span({ class: 'vt-emoji' }, photoEmoji),
             ),
           ],
         ),

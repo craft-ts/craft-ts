@@ -121,7 +121,7 @@ function renderComponent(
 ): string {
   imports.add('craftComponent');
   const identifier = safeIdentifier(name, 'PastedTemplate');
-  return `export const ${identifier} = craftComponent(\n  '${escapeSingleQuoted(name)}',\n  {},\n  () => ({}),\n  () => ${expression},\n);`;
+  return `export const ${identifier} = craftComponent(\n  '${escapeSingleQuoted(name)}',\n  {},\n  () => ${expression},\n);`;
 }
 
 function renderNodes(

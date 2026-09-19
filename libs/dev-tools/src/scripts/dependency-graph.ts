@@ -687,9 +687,9 @@ export function dependencyGraphToHtml(graph: DependencyGraph): string {
     .replace(/&/g, '\\u0026');
   // Template elements are left out, as in the report: an element's total
   // counts every element nested in it.
-  const hotspotKinds = [...new Set(graph.nodes.map((node) => node.kind))].filter(
-    (kind) => kind !== 'styled-element' && kind !== 'template-element',
-  );
+  const hotspotKinds = [
+    ...new Set(graph.nodes.map((node) => node.kind)),
+  ].filter((kind) => kind !== 'styled-element' && kind !== 'template-element');
   const serializedHotspots = JSON.stringify(
     graphHotspots(graph, { limit: 10, kinds: hotspotKinds }).map((hotspot) => ({
       id: hotspot.id,
@@ -1740,19 +1740,24 @@ function collectAppConfigs(
           item.getExpression().getText() === 'withRouteLoadError',
       );
       builder.appConfigs.push({
-        node: addNode(builder, {
-          id: `app-config:${sourceFile.getFilePath()}:${label}`,
-          kind: 'app-config',
-          label,
-          filePath: sourceFile.getFilePath(),
-          line: object.getStartLineNumber(),
-          details: {
-            hasGlobalError: Boolean(globalErrorCall),
-            hasRouteLoadError: Boolean(routeLoadErrorCall),
-            globalErrorComponent: appConfigComponentName(globalErrorCall),
-            routeLoadErrorComponent: appConfigComponentName(routeLoadErrorCall),
+        node: addNode(
+          builder,
+          {
+            id: `app-config:${sourceFile.getFilePath()}:${label}`,
+            kind: 'app-config',
+            label,
+            filePath: sourceFile.getFilePath(),
+            line: object.getStartLineNumber(),
+            details: {
+              hasGlobalError: Boolean(globalErrorCall),
+              hasRouteLoadError: Boolean(routeLoadErrorCall),
+              globalErrorComponent: appConfigComponentName(globalErrorCall),
+              routeLoadErrorComponent:
+                appConfigComponentName(routeLoadErrorCall),
+            },
           },
-        }, object),
+          object,
+        ),
         sourceFile,
         object,
       });
@@ -2190,7 +2195,7 @@ function analyzeComponents(builder: GraphBuilder): void {
   for (const component of builder.components) {
     const call = component.call;
     const setup = call.getArguments()[2];
-    const template = call.getArguments()[3];
+    const template = setup;
     const setupPartsForMetadata = componentImplementationParts(setup);
     const templatePartsForMetadata = templateImplementationParts(template);
     component.node.details = {
@@ -2430,7 +2435,7 @@ export type ParsedHyperscript = {
 
 function collectInteractiveTemplateElements(builder: GraphBuilder): void {
   for (const component of builder.components) {
-    const template = component.call.getArguments()[3];
+    const template = component.call.getArguments()[2];
     for (const templatePart of templateImplementationParts(template))
       walkTemplate(templatePart, (node) => {
         if (!Node.isCallExpression(node)) return;
@@ -2736,7 +2741,7 @@ const branchPathText = (path: readonly BranchSegment[]): string =>
  */
 function collectStyledElements(builder: GraphBuilder): void {
   for (const component of builder.components) {
-    const template = component.call.getArguments()[3];
+    const template = component.call.getArguments()[2];
     for (const part of templateImplementationParts(template)) {
       walkStyledElements(builder, component, part, undefined, [], 0);
     }
@@ -3409,13 +3414,17 @@ function analyzeRoutes(builder: GraphBuilder): void {
         ) {
           continue;
         }
-        const hook = addNode(builder, {
-          id: `route-hook:${route.node.id}:${name}`,
-          kind: 'route-hook',
-          label: `${route.node.label}.${name}`,
-          filePath: route.sourceFile.getFilePath(),
-          line: property.getStartLineNumber(),
-        }, property);
+        const hook = addNode(
+          builder,
+          {
+            id: `route-hook:${route.node.id}:${name}`,
+            kind: 'route-hook',
+            label: `${route.node.label}.${name}`,
+            filePath: route.sourceFile.getFilePath(),
+            line: property.getStartLineNumber(),
+          },
+          property,
+        );
         addEdge(builder, route.node.id, hook.id, 'contains', 'ast');
         collectRouteHookServiceDependencies(builder, hook.id, property);
       }
@@ -3526,10 +3535,8 @@ function collectServicePropertyUses(
   builder: GraphBuilder,
   component: ComponentInfo,
 ): void {
-  const parts = [
-    [component.call.getArguments()[2], 'setup'],
-    [component.call.getArguments()[3], 'template'],
-  ] as const;
+  // One function: what it reads, it reads from the template.
+  const parts = [[component.call.getArguments()[2], 'template']] as const;
   for (const [part, usage] of parts) {
     if (!part) continue;
     for (const access of part.getDescendantsOfKind(
@@ -4125,6 +4132,9 @@ function analyzeTemplateDependencies(
     ) {
       continue;
     }
+    // Naming a method — `const go = counter.increment;` — is not a call site.
+    // Only what the template binds to `go` counts.
+    if (isMethodAliasDeclaration(expression, methodAliases)) continue;
     if (Node.isIdentifier(expression)) {
       const alias = methodAliases.get(symbolKey(expression.getSymbol()));
       if (alias) {
@@ -4217,6 +4227,24 @@ type PrimitiveMethodAlias = {
  * template. A wrapper such as `() => counter.increment()` is intentionally not
  * equivalent: it is a new call site with its own behavior.
  */
+function isMethodAliasDeclaration(
+  expression: Node,
+  methodAliases: Map<string | undefined, PrimitiveMethodAlias>,
+): boolean {
+  const declaration = expression.getParent();
+  if (
+    !declaration ||
+    !Node.isVariableDeclaration(declaration) ||
+    declaration.getInitializer() !== expression
+  ) {
+    return false;
+  }
+  const name = declaration.getNameNode();
+  return (
+    Node.isIdentifier(name) && methodAliases.has(symbolKey(name.getSymbol()))
+  );
+}
+
 export function collectPrimitiveMethodAliases(
   builder: GraphBuilder,
   component: ComponentInfo,
@@ -4871,7 +4899,19 @@ export function templateParameterNames(template: Node): Set<string> {
     return new Set();
   }
   const parameter = template.getParameters()[0]?.getNameNode();
-  return new Set(parameter ? getBindingNames(parameter) : []);
+  const names = new Set(parameter ? getBindingNames(parameter) : []);
+  // The template names its reactive surface twice: through its input parameter,
+  // and through what it takes from its service — `const x = yield* …`.
+  for (const declaration of template.getDescendantsOfKind(
+    SyntaxKind.VariableDeclaration,
+  )) {
+    if (!declaration.getInitializer()?.isKind(SyntaxKind.YieldExpression))
+      continue;
+    for (const name of getBindingNames(declaration.getNameNode())) {
+      names.add(name);
+    }
+  }
+  return names;
 }
 
 export function isBindingName(
@@ -6388,79 +6428,86 @@ function collectServerFunctions(
     });
 
     for (const part of familyParts) {
-      const node = addNode(builder, {
-        id: `server-function-part:${part.kind}:${part.sourceFile.getFilePath()}`,
-        kind: part.kind,
-        label: id ?? part.id ?? relative(builder.rootDir, family),
-        filePath: part.sourceFile.getFilePath(),
-        line: part.sourceFile.getLineAndColumnAtPos(0).line,
-        details: {
-          family: relative(builder.rootDir, family),
-          ...(part.id === undefined ? {} : { serverFunctionId: part.id }),
-          ...(part.exposure === undefined ? {} : { exposure: part.exposure }),
-          ...(part.declaresClientContext === undefined
-            ? {}
-            : { declaresClientContext: part.declaresClientContext }),
-          ...(part.contractFamily === undefined
-            ? {}
-            : {
-                contractFamily: relative(builder.rootDir, part.contractFamily),
-              }),
-          ...(part.clientDefinitionFile === undefined
-            ? {}
-            : {
-                clientDefinitionFile: relative(
-                  builder.rootDir,
-                  part.clientDefinitionFile,
-                ),
-              }),
-          ...(part.usesCraftUnique === undefined
-            ? {}
-            : { usesCraftUnique: part.usesCraftUnique }),
-          ...(part.clientIdentityStatic === undefined
-            ? {}
-            : { clientIdentityStatic: part.clientIdentityStatic }),
-          ...(part.runtimeServerImports?.length
-            ? {
-                runtimeServerImports: part.runtimeServerImports.map((file) =>
-                  relative(builder.rootDir, file),
-                ),
-              }
-            : {}),
-          ...(part.runtimeClientImports?.length
-            ? {
-                runtimeClientImports: part.runtimeClientImports.map((file) =>
-                  relative(builder.rootDir, file),
-                ),
-              }
-            : {}),
-          ...(part.importsServerOnly?.length
-            ? {
-                importsServerOnly: part.importsServerOnly.map((file) =>
-                  relative(builder.rootDir, file),
-                ),
-              }
-            : {}),
-          ...(part.runtimeMiddlewareImports?.length
-            ? {
-                runtimeMiddlewareImports: part.runtimeMiddlewareImports.map(
-                  (file) => relative(builder.rootDir, file),
-                ),
-              }
-            : {}),
-          ...(part.runtimeClientMiddlewareImports?.length
-            ? {
-                runtimeClientMiddlewareImports:
-                  part.runtimeClientMiddlewareImports.map((file) =>
+      const node = addNode(
+        builder,
+        {
+          id: `server-function-part:${part.kind}:${part.sourceFile.getFilePath()}`,
+          kind: part.kind,
+          label: id ?? part.id ?? relative(builder.rootDir, family),
+          filePath: part.sourceFile.getFilePath(),
+          line: part.sourceFile.getLineAndColumnAtPos(0).line,
+          details: {
+            family: relative(builder.rootDir, family),
+            ...(part.id === undefined ? {} : { serverFunctionId: part.id }),
+            ...(part.exposure === undefined ? {} : { exposure: part.exposure }),
+            ...(part.declaresClientContext === undefined
+              ? {}
+              : { declaresClientContext: part.declaresClientContext }),
+            ...(part.contractFamily === undefined
+              ? {}
+              : {
+                  contractFamily: relative(
+                    builder.rootDir,
+                    part.contractFamily,
+                  ),
+                }),
+            ...(part.clientDefinitionFile === undefined
+              ? {}
+              : {
+                  clientDefinitionFile: relative(
+                    builder.rootDir,
+                    part.clientDefinitionFile,
+                  ),
+                }),
+            ...(part.usesCraftUnique === undefined
+              ? {}
+              : { usesCraftUnique: part.usesCraftUnique }),
+            ...(part.clientIdentityStatic === undefined
+              ? {}
+              : { clientIdentityStatic: part.clientIdentityStatic }),
+            ...(part.runtimeServerImports?.length
+              ? {
+                  runtimeServerImports: part.runtimeServerImports.map((file) =>
                     relative(builder.rootDir, file),
                   ),
-              }
-            : {}),
-          ...(part.middlewareUses?.length
-            ? { middlewareUses: [...part.middlewareUses] }
-            : {}),
+                }
+              : {}),
+            ...(part.runtimeClientImports?.length
+              ? {
+                  runtimeClientImports: part.runtimeClientImports.map((file) =>
+                    relative(builder.rootDir, file),
+                  ),
+                }
+              : {}),
+            ...(part.importsServerOnly?.length
+              ? {
+                  importsServerOnly: part.importsServerOnly.map((file) =>
+                    relative(builder.rootDir, file),
+                  ),
+                }
+              : {}),
+            ...(part.runtimeMiddlewareImports?.length
+              ? {
+                  runtimeMiddlewareImports: part.runtimeMiddlewareImports.map(
+                    (file) => relative(builder.rootDir, file),
+                  ),
+                }
+              : {}),
+            ...(part.runtimeClientMiddlewareImports?.length
+              ? {
+                  runtimeClientMiddlewareImports:
+                    part.runtimeClientMiddlewareImports.map((file) =>
+                      relative(builder.rootDir, file),
+                    ),
+                }
+              : {}),
+            ...(part.middlewareUses?.length
+              ? { middlewareUses: [...part.middlewareUses] }
+              : {}),
+          },
         },
-      }, part.sourceFile);
+        part.sourceFile,
+      );
       addEdge(builder, familyNode.id, node.id, 'contains', 'ast');
 
       for (const imported of part.runtimeServerImports ?? []) {
@@ -6678,17 +6725,21 @@ function collectServerFunctionMiddlewares(
       // `collectClientFunctionMiddlewares`, pas ici.
       if (part.terminal === 'client') continue;
       if (!isMiddlewareFile) {
-        addNode(builder, {
-          id: `server-function-middleware-misnamed:${sourceFile.getFilePath()}#${part.variableName}`,
-          kind: 'server-function-middleware-misnamed',
-          label: part.id ?? part.variableName,
-          filePath: sourceFile.getFilePath(),
-          line: part.line,
-          details: {
-            ...(part.id === undefined ? {} : { middlewareId: part.id }),
-            middlewareName: part.variableName,
+        addNode(
+          builder,
+          {
+            id: `server-function-middleware-misnamed:${sourceFile.getFilePath()}#${part.variableName}`,
+            kind: 'server-function-middleware-misnamed',
+            label: part.id ?? part.variableName,
+            filePath: sourceFile.getFilePath(),
+            line: part.line,
+            details: {
+              ...(part.id === undefined ? {} : { middlewareId: part.id }),
+              middlewareName: part.variableName,
+            },
           },
-        }, part.declaration);
+          part.declaration,
+        );
         continue;
       }
       registry.set(
@@ -6703,31 +6754,35 @@ function collectServerFunctionMiddlewares(
       part.sourceFile,
       byPath,
     ).clientMiddleware;
-    addNode(builder, {
-      id: middlewareNodeId(part.sourceFile.getFilePath(), part.variableName),
-      kind: 'server-function-middleware',
-      label: part.id ?? part.variableName,
-      filePath: part.sourceFile.getFilePath(),
-      line: part.line,
-      details: {
-        ...(part.id === undefined ? {} : { middlewareId: part.id }),
-        middlewareName: part.variableName,
-        composition: part.composition ?? 'use',
-        ...(builder.middlewareCapabilities[part.id ?? part.variableName]
-          ? {
-              protects:
-                builder.middlewareCapabilities[part.id ?? part.variableName],
-            }
-          : {}),
-        ...(clientMiddlewareImports.length
-          ? {
-              runtimeClientMiddlewareImports: clientMiddlewareImports.map(
-                (file) => relative(builder.rootDir, file),
-              ),
-            }
-          : {}),
+    addNode(
+      builder,
+      {
+        id: middlewareNodeId(part.sourceFile.getFilePath(), part.variableName),
+        kind: 'server-function-middleware',
+        label: part.id ?? part.variableName,
+        filePath: part.sourceFile.getFilePath(),
+        line: part.line,
+        details: {
+          ...(part.id === undefined ? {} : { middlewareId: part.id }),
+          middlewareName: part.variableName,
+          composition: part.composition ?? 'use',
+          ...(builder.middlewareCapabilities[part.id ?? part.variableName]
+            ? {
+                protects:
+                  builder.middlewareCapabilities[part.id ?? part.variableName],
+              }
+            : {}),
+          ...(clientMiddlewareImports.length
+            ? {
+                runtimeClientMiddlewareImports: clientMiddlewareImports.map(
+                  (file) => relative(builder.rootDir, file),
+                ),
+              }
+            : {}),
+        },
       },
-    }, part.declaration);
+      part.declaration,
+    );
   }
 
   for (const part of registry.values()) {
@@ -6807,17 +6862,21 @@ function collectClientFunctionMiddlewares(
     for (const part of findCraftMiddlewares(sourceFile, byPath)) {
       if (part.terminal !== 'client') continue;
       if (!isClientFile) {
-        addNode(builder, {
-          id: `client-function-middleware-misnamed:${sourceFile.getFilePath()}#${part.variableName}`,
-          kind: 'client-function-middleware-misnamed',
-          label: part.id ?? part.variableName,
-          filePath: sourceFile.getFilePath(),
-          line: part.line,
-          details: {
-            ...(part.id === undefined ? {} : { middlewareId: part.id }),
-            middlewareName: part.variableName,
+        addNode(
+          builder,
+          {
+            id: `client-function-middleware-misnamed:${sourceFile.getFilePath()}#${part.variableName}`,
+            kind: 'client-function-middleware-misnamed',
+            label: part.id ?? part.variableName,
+            filePath: sourceFile.getFilePath(),
+            line: part.line,
+            details: {
+              ...(part.id === undefined ? {} : { middlewareId: part.id }),
+              middlewareName: part.variableName,
+            },
           },
-        }, part.declaration);
+          part.declaration,
+        );
         continue;
       }
       registry.set(
@@ -6831,34 +6890,38 @@ function collectClientFunctionMiddlewares(
 
   for (const part of registry.values()) {
     const unused = part.providesKeys.filter((key) => !serverReads.has(key));
-    addNode(builder, {
-      id: clientMiddlewareNodeId(
-        part.sourceFile.getFilePath(),
-        part.variableName,
-      ),
-      kind: 'client-function-middleware',
-      label: part.id ?? part.variableName,
-      filePath: part.sourceFile.getFilePath(),
-      line: part.line,
-      details: {
-        ...(part.id === undefined ? {} : { middlewareId: part.id }),
-        middlewareName: part.variableName,
-        composition: part.composition ?? 'use',
-        ...(builder.middlewareCapabilities[part.id ?? part.variableName]
-          ? {
-              protects:
-                builder.middlewareCapabilities[part.id ?? part.variableName],
-            }
-          : {}),
-        ...(part.providesKeys.length
-          ? { providesKeys: [...part.providesKeys] }
-          : {}),
-        ...(part.providesKeys.length > 0 &&
-        unused.length === part.providesKeys.length
-          ? { unusedClientContextKeys: unused }
-          : {}),
+    addNode(
+      builder,
+      {
+        id: clientMiddlewareNodeId(
+          part.sourceFile.getFilePath(),
+          part.variableName,
+        ),
+        kind: 'client-function-middleware',
+        label: part.id ?? part.variableName,
+        filePath: part.sourceFile.getFilePath(),
+        line: part.line,
+        details: {
+          ...(part.id === undefined ? {} : { middlewareId: part.id }),
+          middlewareName: part.variableName,
+          composition: part.composition ?? 'use',
+          ...(builder.middlewareCapabilities[part.id ?? part.variableName]
+            ? {
+                protects:
+                  builder.middlewareCapabilities[part.id ?? part.variableName],
+              }
+            : {}),
+          ...(part.providesKeys.length
+            ? { providesKeys: [...part.providesKeys] }
+            : {}),
+          ...(part.providesKeys.length > 0 &&
+          unused.length === part.providesKeys.length
+            ? { unusedClientContextKeys: unused }
+            : {}),
+        },
       },
-    }, part.declaration);
+      part.declaration,
+    );
   }
 
   for (const part of registry.values()) {
@@ -6984,21 +7047,25 @@ function collectHandshakes(
   }
 
   for (const [part, reached] of sides) {
-    addNode(builder, {
-      id: handshakeNodeId(part.sourceFile.getFilePath(), part.variableName),
-      kind: 'handshake',
-      label: part.name ?? part.variableName,
-      filePath: part.sourceFile.getFilePath(),
-      line: part.line,
-      details: {
-        ...(part.name === undefined
-          ? { static: false }
-          : { handshakeName: part.name }),
-        handshakeVariable: part.variableName,
-        ...(reached.server.length ? { serverSites: reached.server } : {}),
-        ...(reached.client.length ? { clientSites: reached.client } : {}),
+    addNode(
+      builder,
+      {
+        id: handshakeNodeId(part.sourceFile.getFilePath(), part.variableName),
+        kind: 'handshake',
+        label: part.name ?? part.variableName,
+        filePath: part.sourceFile.getFilePath(),
+        line: part.line,
+        details: {
+          ...(part.name === undefined
+            ? { static: false }
+            : { handshakeName: part.name }),
+          handshakeVariable: part.variableName,
+          ...(reached.server.length ? { serverSites: reached.server } : {}),
+          ...(reached.client.length ? { clientSites: reached.client } : {}),
+        },
       },
-    }, part.declaration);
+      part.declaration,
+    );
   }
 }
 

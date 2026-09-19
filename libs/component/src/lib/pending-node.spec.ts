@@ -457,13 +457,14 @@ describe('pendingNode type-level contract', () => {
     craftComponent(
       'uncaughtSettledException',
       {},
-      () => ({ users: _asyncFailingTemplate().users }),
       // @ts-expect-error MISSING_USER_ID can be raised by the settled read and
       // is not handled by any catchNode
-      ({ users }) =>
-        div([span(users.settledValue)]).pipe(
+      () => {
+        const { users } = _asyncFailingTemplate();
+        return div([span(users.settledValue)]).pipe(
           pendingNode({ fallback: () => p('…') }),
-        ),
+        );
+      },
     );
   });
 
@@ -471,6 +472,8 @@ describe('pendingNode type-level contract', () => {
     craftComponent(
       'uncoveredComputed',
       {},
+      // @ts-expect-error the 'users' source reached through the computed has no
+      // pendingNode to show its loading state
       function* () {
         const users = yield* query('users', {
           params: () => true,
@@ -480,11 +483,8 @@ describe('pendingNode type-level contract', () => {
           const settledUsers = yield* settled(users);
           return settledUsers.text;
         });
-        return { label };
+        return div([span(label)]);
       },
-      // @ts-expect-error the 'users' source reached through the computed has no
-      // pendingNode to show its loading state
-      ({ label }) => div([span(label)]),
     );
   });
 
@@ -492,9 +492,11 @@ describe('pendingNode type-level contract', () => {
     craftComponent(
       'uncovered',
       {},
-      () => ({ users: _asyncTemplate().users }),
       // @ts-expect-error the 'users' source has no pendingNode to show it
-      ({ users }) => div([span(users.settledValue)]),
+      () => {
+        const { users } = _asyncTemplate();
+        return div([span(users.settledValue)]);
+      },
     );
   });
 });

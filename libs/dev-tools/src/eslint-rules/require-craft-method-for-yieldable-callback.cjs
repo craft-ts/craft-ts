@@ -5,7 +5,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Require callbacks returned from a craftComponent factory to use craftMethod when they call yieldable Craft methods.',
+        'Require callbacks bound in a craftComponent template to use craftMethod when they call yieldable Craft methods.',
     },
     schema: [],
     messages: {
@@ -52,15 +52,11 @@ module.exports = {
 
     function inspectFactory(factory) {
       const localFunctions = collectLocalFunctions(factory);
-      const returnedObject = findReturnedObject(factory);
-
-      if (!returnedObject) return;
-
-      for (const property of returnedObject.properties) {
-        if (property.type !== 'Property') continue;
-
+      // A callback only reaches the runtime through a binding the template
+      // declares — `{ click: … }` — so that is where the rule looks.
+      for (const property of collectBoundProperties(factory)) {
         const callback = resolveCallback(property.value, localFunctions);
-        if (!callback) continue;
+        if (!callback || callback.generator) continue;
 
         const yieldableCalls = [];
         walkFunctionBody(callback, (node) => {
@@ -74,9 +70,28 @@ module.exports = {
         context.report({
           node: callback,
           messageId: 'requireCraftMethod',
-          data: { name: getPropertyName(property) },
+          data: { name: callbackName(property) },
         });
       }
+    }
+
+    function collectBoundProperties(factory) {
+      const properties = [];
+      if (!factory) return properties;
+      walk(factory.body, (node) => {
+        if (node.type !== 'ObjectExpression') return undefined;
+        for (const property of node.properties) {
+          if (property.type === 'Property') properties.push(property);
+        }
+        return undefined;
+      });
+      return properties;
+    }
+
+    function callbackName(property) {
+      return property.value.type === 'Identifier'
+        ? property.value.name
+        : getPropertyName(property);
     }
 
     function collectLocalFunctions(factory) {
@@ -107,31 +122,6 @@ module.exports = {
       });
 
       return localFunctions;
-    }
-
-    function findReturnedObject(factory) {
-      if (!factory) return undefined;
-
-      if (
-        factory.type === 'ArrowFunctionExpression' &&
-        factory.body.type === 'ObjectExpression'
-      ) {
-        return factory.body;
-      }
-
-      let returnedObject;
-      walkFunctionBody(factory.body, (node) => {
-        if (
-          !returnedObject &&
-          node.type === 'ReturnStatement' &&
-          node.argument?.type === 'ObjectExpression'
-        ) {
-          returnedObject = node.argument;
-          return 'skip';
-        }
-      });
-
-      return returnedObject;
     }
 
     function resolveCallback(value, localFunctions) {

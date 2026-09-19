@@ -101,7 +101,7 @@ describe('require-reactive-template-bindings', () => {
       declare function safeResourceUrl(value: unknown): string;
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () => [
         p({
           'data-value': function* () {
             return String(yield* value());
@@ -112,7 +112,7 @@ describe('require-reactive-template-bindings', () => {
             return safeResourceUrl(yield* value());
           },
         }),
-      );
+      ]);
     `);
 
     expect(messages).toEqual([]);

@@ -1,17 +1,8 @@
-import {
-  craftComponent,
-  craftRoutes,
-  div,
-} from '../craft-runtime';
+import { craftComponent, craftRoutes, div } from '../craft-runtime';
 
-export const SameFilePage = craftComponent(
-  'SameFilePage',
-  {},
-  function* () {
-    return {};
-  },
-  () => div([]),
-);
+export const SameFilePage = craftComponent('SameFilePage', {}, function* () {
+  return div([]);
+});
 
 export const appRoutes = craftRoutes('appRoutes', [
   {

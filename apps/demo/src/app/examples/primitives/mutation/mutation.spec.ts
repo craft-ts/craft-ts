@@ -146,8 +146,9 @@ function createTemplateContext(
       updateSpy(newName);
     }),
   );
+  // A state method keeps its yieldable invocation across the service boundary.
   const setName = markYieldableMethod(
-    vi.fn((newName: string) => {
+    vi.fn(function* (newName: string) {
       name.set(newName);
     }),
   );

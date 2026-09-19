@@ -36,9 +36,7 @@ describe('components migration', () => {
     expect(output).toContain(
       "import { craftComponent } from '@craft-ts/component'",
     );
-    expect(output).toContain(
-      "craftComponent('Card', {}, () => [])",
-    );
+    expect(output).toContain("craftComponent('Card', {}, () => [])");
 
     const second = await runComponentsMigration({
       rootDir: root,
@@ -47,6 +45,65 @@ describe('components migration', () => {
     });
     expect(second.changedFiles).toEqual([]);
     expect(second.diagnostics).toEqual([]);
+  });
+
+  it('folds the logic factory into the template generator', async () => {
+    const root = await fixture({
+      'tsconfig.json': '{}',
+      'counter.ts': `
+        import { craftComponent } from '@craft-ts/component';
+        export const Counter = craftComponent(
+          'Counter',
+          {},
+          (props: { start: number }) => {
+            const count = state('count', props.start);
+            return { count };
+          },
+          ({ count }) => div([count]),
+        );
+      `,
+    });
+
+    const result = await runComponentsMigration({
+      rootDir: root,
+      write: true,
+      log: () => undefined,
+    });
+    const output = await readFile(join(root, 'counter.ts'), 'utf8');
+
+    expect(result.diagnostics).toEqual([]);
+    expect(output).toContain('function* (props: { start: number })');
+    expect(output).toContain("const count = state('count', props.start);");
+    expect(output).toContain('return div([count]);');
+    expect(output).not.toContain('return { count };');
+  });
+
+  it('reports a logic factory whose members the template renames', async () => {
+    const root = await fixture({
+      'tsconfig.json': '{}',
+      'counter.ts': `
+        import { craftComponent } from '@craft-ts/component';
+        export const Counter = craftComponent(
+          'Counter',
+          {},
+          () => {
+            const count = state('count', 0);
+            return { count };
+          },
+          ({ count: value }) => div([value]),
+        );
+      `,
+    });
+
+    const result = await runComponentsMigration({
+      rootDir: root,
+      write: true,
+      failOnManual: true,
+      log: () => undefined,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.diagnostics[0]?.code).toBe('TEMPLATE_MERGE_MANUAL');
   });
 
   it('reports when a component name cannot be inferred', async () => {

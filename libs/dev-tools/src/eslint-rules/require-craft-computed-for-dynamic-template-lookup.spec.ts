@@ -43,16 +43,13 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
       declare function span(...args: unknown[]): unknown;
       declare const STATUS_VIEW: Record<string, readonly [string, string]>;
 
-      craftComponent(
-        'Status',
-        {},
-        () => ({ statusEmoji, statusTone, statusLabel }),
-        ({ statusEmoji, statusTone, statusLabel }) => span([
+      craftComponent('Status', {}, function* ({ statusEmoji, statusTone, statusLabel }) {
+        return span([
           span(STATUS_VIEW['idle'][0]),
           span({ 'data-status': statusTone }, statusLabel),
           span(statusEmoji),
-        ]),
-      );
+        ]);
+      });
     `);
 
     expect(messages).toEqual([]);

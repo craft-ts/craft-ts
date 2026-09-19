@@ -1,4 +1,4 @@
-import { craftService } from '@craft-ts/core';
+import { craftComputed, craftService } from '@craft-ts/core';
 import { craftComponent, div, span, type Input } from '@craft-ts/component';
 import { assign, unit } from '@craft-ts/style';
 import { alert, meter, meterVars } from './components.style';
@@ -44,7 +44,10 @@ export const { DsMeterView, provideDsMeterView } = craftService(
     readonly caption: Input<string>;
   }) => {
     const { value, caption } = inputs;
-    return { value, caption };
+    const fillStyle = craftComputed('fillStyle', function* () {
+      return assign(meterVars.value, unit.pct(yield* value()));
+    });
+    return { value, caption, fillStyle };
   },
 );
 
@@ -55,7 +58,7 @@ export const DsMeter = craftComponent(
     readonly value: Input<number>;
     readonly caption: Input<string>;
   }) {
-    const { value, caption } = yield* DsMeterView(inputs);
+    const { value, caption, fillStyle } = yield* DsMeterView(inputs);
     return div({ class: meter.root }, [
       div(
         {
@@ -66,14 +69,7 @@ export const DsMeter = craftComponent(
           'aria-valuenow': value,
           'aria-label': caption,
         },
-        [
-          div({
-            class: meter.fill,
-            style: function* () {
-              return assign(meterVars.value, unit.pct(yield* value()));
-            },
-          }),
-        ],
+        [div({ class: meter.fill, style: fillStyle })],
       ),
       span({ class: meter.label }, function* () {
         return `${yield* caption()} — ${yield* value()}%`;

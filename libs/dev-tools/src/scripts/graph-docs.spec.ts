@@ -8,7 +8,10 @@ import {
   graphHash,
   undocumentedNodeViolations,
 } from './architecture-graph';
-import { analyzeDependencyGraph, type DependencyGraph } from './dependency-graph';
+import {
+  analyzeDependencyGraph,
+  type DependencyGraph,
+} from './dependency-graph';
 import {
   createMarkdownDocsCollector,
   DOC_AMBIGUOUS_DIAGNOSTIC,
@@ -38,7 +41,12 @@ async function fixture(): Promise<string> {
   temporaryDirectories.push(root);
   const files: Record<string, string> = {
     'tsconfig.json': JSON.stringify({
-      compilerOptions: { target: 'ES2022', module: 'ESNext', strict: true, skipLibCheck: true },
+      compilerOptions: {
+        target: 'ES2022',
+        module: 'ESNext',
+        strict: true,
+        skipLibCheck: true,
+      },
       include: ['./**/*.ts'],
     }),
     'orders.ts': `${STUBS}
@@ -49,27 +57,26 @@ async function fixture(): Promise<string> {
  * @deprecated Use OrdersBoard.
  * @see OrdersBoard
  */
-export const Orders = craftComponent(
-  'Orders',
-  {},
-  function* () {
-    // WHY: kept local so the URL stays clean.
-    /** Filter typed by the user. */
-    const filter = yield* state('filter', '');
-    // NOTE: recomputed on every keystroke.
-    const visible = craftComputed('visible', function* () {
-      return (yield* filter()) !== '';
-    });
-    return { filter, visible };
-  },
-  () => div([span('orders')]),
-);
+export const Orders = craftComponent('Orders', {}, function* () {
+  // WHY: kept local so the URL stays clean.
+  /** Filter typed by the user. */
+  const filter = yield* state('filter', '');
+  // NOTE: recomputed on every keystroke.
+  const visible = craftComputed('visible', function* () {
+    return (yield* filter()) !== '';
+  });
+  return div([span('orders')]);
+});
 `,
     'card-a.ts': `${STUBS}
-export const CardA = craftComponent('Card', {}, function* () { return {}; }, () => div([span('a')]));
+export const CardA = craftComponent('Card', {}, function* () {
+  return div([span('a')]);
+});
 `,
     'card-b.ts': `${STUBS}
-export const CardB = craftComponent('Card', {}, function* () { return {}; }, () => div([span('b')]));
+export const CardB = craftComponent('Card', {}, function* () {
+  return div([span('b')]);
+});
 `,
     'docs/orders.md': [
       '# Orders page',
@@ -113,7 +120,10 @@ describe('node documentation', () => {
     expect(byLabel(graph, 'craftComputed:visible')[0]?.doc).toEqual({
       rationale: ['NOTE: recomputed on every keystroke.'],
     });
-    expect(byLabel(graph, 'Card').map((node) => node.doc)).toEqual([undefined, undefined]);
+    expect(byLabel(graph, 'Card').map((node) => node.doc)).toEqual([
+      undefined,
+      undefined,
+    ]);
   });
 
   it('ignores ordinary comments and comment-like strings', () => {
@@ -142,7 +152,10 @@ describe('node documentation', () => {
     });
 
     expect(graphHash(graph)).toBe(
-      graphHash({ ...graph, nodes: graph.nodes.map(({ doc: _doc, ...node }) => node) }),
+      graphHash({
+        ...graph,
+        nodes: graph.nodes.map(({ doc: _doc, ...node }) => node),
+      }),
     );
   });
 });
@@ -161,7 +174,9 @@ describe('Markdown documentation collector', () => {
     const page = graph.nodes.find((node) => node.kind === 'doc-page');
     const orders = byLabel(graph, 'Orders')[0];
 
-    expect(graph.nodes.filter((node) => node.kind === 'doc-page')).toHaveLength(1);
+    expect(graph.nodes.filter((node) => node.kind === 'doc-page')).toHaveLength(
+      1,
+    );
     expect(page).toMatchObject({ label: 'Orders page', line: 1 });
     expect(graph.edges.filter((edge) => edge.kind === 'documents')).toEqual([
       expect.objectContaining({
@@ -174,11 +189,14 @@ describe('Markdown documentation collector', () => {
       expect.objectContaining({
         // The collector contract namespaces diagnostic codes by collector name.
         code: `markdown-docs/${DOC_AMBIGUOUS_DIAGNOSTIC}`,
-        message: 'docs/orders.md:3 cites `Card`, which names 2 nodes (component): no relation drawn.',
+        message:
+          'docs/orders.md:3 cites `Card`, which names 2 nodes (component): no relation drawn.',
       }),
     );
     expect(
-      graph.diagnostics?.some((diagnostic) => diagnostic.message.includes('doc-page')),
+      graph.diagnostics?.some((diagnostic) =>
+        diagnostic.message.includes('doc-page'),
+      ),
     ).toBe(false);
   });
 

@@ -531,7 +531,7 @@ function derive(
     (node) => node.kind === 'component',
   )) {
     const call = componentCall(project, component);
-    const templates = templateImplementationParts(call?.getArguments()[3]);
+    const templates = templateImplementationParts(call?.getArguments()[2]);
     if (templates.length === 0) continue;
     const outgoing: Candidate[] = graph.edges
       .filter(

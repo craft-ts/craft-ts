@@ -41,73 +41,74 @@ const CATALOG: readonly Omit<CartLine, 'qty'>[] = [
  * `params` still uses a synchronous member to compute the cart weight — that is
  * the position where an undeclared Effect used to be banned outright.
  */
-export const { EffectSyncMembersView, provideEffectSyncMembersView } = craftService(
-  { name: 'effectSyncMembersView', providedIn: 'toProvide' },
-  function* () {
-    // Everything derived from the quantity alone lives in its insertion.
-    const qty = yield* state('qty', 2, ({ state: read, update }) => {
-      const lines = craftComputed('lines', function* () {
-        const currentQty = yield* read();
-        return CATALOG.map((item) => ({ ...item, qty: currentQty }));
+export const { EffectSyncMembersView, provideEffectSyncMembersView } =
+  craftService(
+    { name: 'effectSyncMembersView', providedIn: 'toProvide' },
+    function* () {
+      // Everything derived from the quantity alone lives in its insertion.
+      const qty = yield* state('qty', 2, ({ state: read, update }) => {
+        const lines = craftComputed('lines', function* () {
+          const currentQty = yield* read();
+          return CATALOG.map((item) => ({ ...item, qty: currentQty }));
+        });
+
+        return {
+          increment: () => update((value) => Math.min(20, value + 1)),
+          decrement: () => update((value) => Math.max(0, value - 1)),
+          lines,
+
+          // `computedEffect` is the Effect counterpart of `craftComputed`: the
+          // factory RETURNS the Effect, the adapter runs it in place. The value
+          // is ready before the computation returns — no pending state, no flash.
+          totalLabel: computedEffect('totalLabel', function* () {
+            return cartTotalLabel(yield* lines());
+          }),
+
+          weightLabel: computedEffect('weightLabel', function* () {
+            return Effect.map(
+              cartWeightGrams(yield* lines()),
+              (grams) => `${(grams / 1_000).toFixed(2)} kg`,
+            );
+          }),
+        };
       });
 
-      return {
-        increment: () => update((value) => Math.min(20, value + 1)),
-        decrement: () => update((value) => Math.max(0, value - 1)),
-        lines,
-
-        // `computedEffect` is the Effect counterpart of `craftComputed`: the
-        // factory RETURNS the Effect, the adapter runs it in place. The value
-        // is ready before the computation returns — no pending state, no flash.
-        totalLabel: computedEffect('totalLabel', function* () {
-          return cartTotalLabel(yield* lines());
-        }),
-
-        weightLabel: computedEffect('weightLabel', function* () {
-          return Effect.map(
-            cartWeightGrams(yield* lines()),
-            (grams) => `${(grams / 1_000).toFixed(2)} kg`,
-          );
-        }),
-      };
-    });
-
-    // Asynchronous: the carrier call belongs to a loader. Its params, however,
-    // are still built with a synchronous member.
-    const shippingQuery = yield* queryEffect(
-      'shippingQuery',
-      {
-        params: function* () {
-          return yield* syncEffect(cartWeightGrams(yield* qty.lines()));
+      // Asynchronous: the carrier call belongs to a loader. Its params, however,
+      // are still built with a synchronous member.
+      const shippingQuery = yield* queryEffect(
+        'shippingQuery',
+        {
+          params: function* () {
+            return yield* syncEffect(cartWeightGrams(yield* qty.lines()));
+          },
+          loader: ({ params }) => quoteShipping(params),
         },
-        loader: ({ params }) => quoteShipping(params),
-      },
-      ({ resource }) => ({
-        quoteLabel: craftComputed('quoteLabel', function* () {
-          const quote = yield* settled(resource);
-          return `${quote.carrier} — ${(quote.cents / 100).toFixed(2)} €`;
+        ({ resource }) => ({
+          quoteLabel: craftComputed('quoteLabel', function* () {
+            const quote = yield* settled(resource);
+            return `${quote.carrier} — ${(quote.cents / 100).toFixed(2)} €`;
+          }),
         }),
-      }),
-    );
+      );
 
-    // This is an imperative method triggered by a user action. Avoid this
-    // pattern for derived values; use `computedEffect` instead.
-    // ! it is imperative, avoid that kind of pattern
-    const formatCurrentCart = methodEffect('formatCurrentCart', function* () {
-      return cartTotalLabel(yield* qty.lines());
-    });
+      // This is an imperative method triggered by a user action. Avoid this
+      // pattern for derived values; use `computedEffect` instead.
+      // ! it is imperative, avoid that kind of pattern
+      const formatCurrentCart = methodEffect('formatCurrentCart', function* () {
+        return cartTotalLabel(yield* qty.lines());
+      });
 
-    const formattedPreview = yield* state(
-      'formattedPreview',
-      'Click the button to format the current cart',
-      ({ set }) => ({
-        setPreview: (value: string) => set(value),
-      }),
-    );
+      const formattedPreview = yield* state(
+        'formattedPreview',
+        'Click the button to format the current cart',
+        ({ set }) => ({
+          setPreview: (value: string) => set(value),
+        }),
+      );
 
-    return { formattedPreview, formatCurrentCart, qty, shippingQuery };
-  },
-);
+      return { formattedPreview, formatCurrentCart, qty, shippingQuery };
+    },
+  );
 
 const EffectSyncMembersComponent = craftComponent(
   'EffectSyncMembersComponent',
@@ -164,10 +165,11 @@ const EffectSyncMembersComponent = craftComponent(
             'formatCurrentCart',
             {
               type: 'button',
-              // A service method hands back a yieldable invocation: `craftUse`
-              // is what runs it here, outside a generator.
-              click: () =>
-                formattedPreview.setPreview(craftUse(formatCurrentCart())),
+              // A service member runs when it is called; the state method it
+              // feeds still hands back a yieldable invocation.
+              click: function* () {
+                yield* formattedPreview.setPreview(formatCurrentCart());
+              },
             },
             'Format current cart',
           ),

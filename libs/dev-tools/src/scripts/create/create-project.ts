@@ -389,7 +389,10 @@ export function graphAgentFiles(agent: CreateAgent): GraphAgentFiles {
         '.agents/skills/craft-ts-graph-mcp/SKILL.md': GRAPH_AGENT_SKILL,
         '.codex/hooks/graph-first.mjs': GRAPH_FIRST_HOOK_SCRIPT,
       },
-      hookConfig: { file: '.codex/hooks.json', value: CODEX_GRAPH_HOOK_SETTINGS },
+      hookConfig: {
+        file: '.codex/hooks.json',
+        value: CODEX_GRAPH_HOOK_SETTINGS,
+      },
     };
   }
   if (agent === 'cursor') {
@@ -1840,13 +1843,13 @@ function uiComponentsTs(context: TemplateContext): string {
   return `import { a, button, craftComponent, div, p } from '@craft-ts/component';
 ${styleImport}${i18nImport}
 
-export const Stack = craftComponent('Stack', {}, () => ({}), () => div({ class: surface.card }, []));
-export const Card = craftComponent('Card', {}, () => ({}), () => div({ class: surface.card }, []));
-export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card, type: 'button' }, ${continueLabel}));
-export const Alert = craftComponent('Alert', {}, () => ({}), () => p({ class: surface.message, 'data-tone': 'danger' }, ${alertLabel}));
+export const Stack = craftComponent('Stack', {}, () => div({ class: surface.card }, []));
+export const Card = craftComponent('Card', {}, () => div({ class: surface.card }, []));
+export const Button = craftComponent('Button', {}, () => button('continue', { class: surface.card, type: 'button' }, ${continueLabel}));
+export const Alert = craftComponent('Alert', {}, () => p({ class: surface.message, 'data-tone': 'danger' }, ${alertLabel}));
 // The hovered state is a variant of one class, not a second component. Its
 // colours are checked by \`npm run style:check\` without a browser.
-export const Link = craftComponent('Link', {}, () => ({}), () => a('more', { class: link.root, href: '#' }, ${continueLabel}));
+export const Link = craftComponent('Link', {}, () => a('more', { class: link.root, href: '#' }, ${continueLabel}));
 `;
 }
 
@@ -1947,18 +1950,14 @@ ${spanImport}
 import { CraftRouterLink } from '@craft-ts/core';
 ${i18nImport}${uiImport}
 
-export const App = craftComponent(
-  'App',
-  {},
-  () => ({}),
-  () =>
-    ${themeOpen}
-      nav([
+export const App = craftComponent('App', {}, () =>
+  ${themeOpen}
+    nav([
 ${navigation}
 ${badge}
-      ]),
-      main(CraftRouterOutlet()),
-    ${themeClose},
+    ]),
+    main(CraftRouterOutlet()),
+  ${themeClose},
 );
 `;
 }
@@ -2747,14 +2746,10 @@ function aboutPageTs(context: TemplateContext): string {
   return `import { craftComponent, div, heading, p } from '@craft-ts/component';
 ${surfaceImport}${i18nImport}
 
-export const AboutPage = craftComponent(
-  'AboutPage',
-  {},
-  () => ({}),
-  () =>
-    div(${card}[
-      ${children}
-    ]),
+export const AboutPage = craftComponent('AboutPage', {}, () =>
+  div(${card}[
+    ${children}
+  ]),
 );
 
 export default AboutPage;
@@ -2775,11 +2770,8 @@ function domainPageTs(context: TemplateContext): string {
   return `import { craftComponent, div, heading, p } from '@craft-ts/component';
 ${i18nImport}
 /** Domain-first entry point. Add queries, mutations and forms in this feature. */
-export const ${type}Page = craftComponent(
-  '${type}Page',
-  {},
-  () => ({}),
-  () => div([
+export const ${type}Page = craftComponent('${type}Page', {}, () =>
+  div([
     heading(${title}),
     p(${body}),
   ]),
@@ -2890,11 +2882,8 @@ const { StarterService } = craftService({ name: 'StarterService', providedIn: 'g
       : '/* eslint-disable require-yield -- Synchronous DI factory is intentional in this starter. */\n';
   return `${lintComment}import { craftComponent, div, heading, p } from '@craft-ts/component';
 ${uiImport}${i18n}${effectI18n}${service}
-export const ServicesPage = craftComponent(
-  'ServicesPage',
-  {},
-  () => ({}),
-  () => div(${card}[
+export const ServicesPage = craftComponent('ServicesPage', {}, () =>
+  div(${card}[
     heading(${title}),
     ${body}
   ]),
@@ -2941,44 +2930,39 @@ function plainHomePageTs(context: TemplateContext): string {
 import { craftComputed, query } from '@craft-ts/core';
 ${i18n}${surfaceImport}
 import { loadWelcome } from './api';
-export const HomePage = craftComponent(
-  'HomePage',
-  {},
-  function* () {
-    const welcomeQuery = yield* query(
-      'welcomeQuery',
-      {
-        params: () => true,
-        loader: ${loadLoader},
-      },
-      ({ resource }) => ({
-        hasWelcome: craftComputed('hasWelcome', () => resource.hasValue()),
-      }),
-    );
-    return { welcomeQuery };
-  },
-  ({ welcomeQuery }) =>
-    div(${card}[
-      heading(${title}),
-      ${summary}
-      ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
-      ifNode(welcomeQuery.hasWelcome, () =>
-        div([
-          p(function* () {
-            return 'API title: ' + String((yield* welcomeQuery.value())?.title);
-          }),
-          p(function* () {
-            return 'API body: ' + String((yield* welcomeQuery.value())?.body);
-          }),
-        ]),
-      ),
-      ifNode(welcomeQuery.hasException, () =>
-        p(${message}[
-          span(${apiError}),
-        ]),
-      ),
-    ]),
-);
+export const HomePage = craftComponent('HomePage', {}, function* () {
+  const welcomeQuery = yield* query(
+    'welcomeQuery',
+    {
+      params: () => true,
+      loader: ${loadLoader},
+    },
+    ({ resource }) => ({
+      hasWelcome: craftComputed('hasWelcome', () => resource.hasValue()),
+    }),
+  );
+
+  return div(${card}[
+    heading(${title}),
+    ${summary}
+    ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
+    ifNode(welcomeQuery.hasWelcome, () =>
+      div([
+        p(function* () {
+          return 'API title: ' + String((yield* welcomeQuery.value())?.title);
+        }),
+        p(function* () {
+          return 'API body: ' + String((yield* welcomeQuery.value())?.body);
+        }),
+      ]),
+    ),
+    ifNode(welcomeQuery.hasException, () =>
+      p(${message}[
+        span(${apiError}),
+      ]),
+    ),
+  ]);
+});
 
 export default HomePage;
 `;
@@ -3090,57 +3074,52 @@ function readWelcomeField(value: unknown, field: 'title' | 'body'): string {
   return typeof fieldValue === 'string' ? fieldValue : '';
 }
 
-export const HomePage = craftComponent(
-  'HomePage',
-  {},
-  function* () {
-    const welcomeQuery = yield* queryEffect(
-      'welcomeQuery',
-      {
-        method: (request: boolean) => request,
-        loader: () => ${effectLoader},
-      },
-      ({ resource, exceptions }) => ({
-        hasWelcome: computedEffect('hasWelcome', () => Effect.gen(function* () {
-          yield* SyncOp;
-          return resource.hasValue();
-        })),
-        errorMessage: computedEffect('errorMessage', function* () {
-          const loaderError = (yield* exceptions()).loader;
-          return Effect.flatMap(
-            SyncOp,
-            () => Effect.succeed(loaderError?.${effectErrorTag}?.message ?? 'Unknown API error'),
-          );
-        }),
+export const HomePage = craftComponent('HomePage', {}, function* () {
+  const welcomeQuery = yield* queryEffect(
+    'welcomeQuery',
+    {
+      method: (request: boolean) => request,
+      loader: () => ${effectLoader},
+    },
+    ({ resource, exceptions }) => ({
+      hasWelcome: computedEffect('hasWelcome', () => Effect.gen(function* () {
+        yield* SyncOp;
+        return resource.hasValue();
+      })),
+      errorMessage: computedEffect('errorMessage', function* () {
+        const loaderError = (yield* exceptions()).loader;
+        return Effect.flatMap(
+          SyncOp,
+          () => Effect.succeed(loaderError?.${effectErrorTag}?.message ?? 'Unknown API error'),
+        );
       }),
-    );
-    yield* welcomeQuery.call(true);
-    return { welcomeQuery };
-  },
-  ({ welcomeQuery }) =>
-    div(${card}[
-      heading(${title}),
-      ${summary}
-      ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
-      ifNode(welcomeQuery.hasWelcome, () =>
-        div([
-          p(function* () {
-            return 'API title: ' + readWelcomeField(yield* welcomeQuery.value(), 'title');
-          }),
-          p(function* () {
-            return 'API body: ' + readWelcomeField(yield* welcomeQuery.value(), 'body');
-          }),
-        ]),
-      ),
-      ifNode(welcomeQuery.hasException, () =>
-        p(${message}[
-          span(function* () {
-            return 'API error: ' + (yield* welcomeQuery.errorMessage());
-          }),
-        ]),
-      ),
-    ]),
-);
+    }),
+  );
+  yield* welcomeQuery.call(true);
+
+  return div(${card}[
+    heading(${title}),
+    ${summary}
+    ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
+    ifNode(welcomeQuery.hasWelcome, () =>
+      div([
+        p(function* () {
+          return 'API title: ' + readWelcomeField(yield* welcomeQuery.value(), 'title');
+        }),
+        p(function* () {
+          return 'API body: ' + readWelcomeField(yield* welcomeQuery.value(), 'body');
+        }),
+      ]),
+    ),
+    ifNode(welcomeQuery.hasException, () =>
+      p(${message}[
+        span(function* () {
+          return 'API error: ' + (yield* welcomeQuery.errorMessage());
+        }),
+      ]),
+    ),
+  ]);
+});
 
 export type HomePageError = unknown;
 

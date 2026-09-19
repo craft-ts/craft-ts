@@ -19,10 +19,10 @@ describe('require-yieldable-template-method', () => {
     );
   });
 
-  it('reports a branded yieldable method called without yield*', async () => {
+  it('reports a primitive invocation called without yield*', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = ((id: number) => void) & {
+      type YieldableMethod = ((id: number) => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const store: { remove: { mutate: YieldableMethod } };
@@ -38,10 +38,30 @@ describe('require-yieldable-template-method', () => {
     ]);
   });
 
+  it('does not report a craftMethod, which runs when it is called', async () => {
+    const result = await lintFixture(`
+      declare const YIELDABLE_METHOD: unique symbol;
+      declare const YIELDABLE_VALUE: unique symbol;
+      // What craftMethod('remove', …) hands back: branded, but eager.
+      type CraftMethod = ((id: number) => void) & {
+        readonly [YIELDABLE_VALUE]: 'remove';
+        readonly [YIELDABLE_METHOD]: { readonly yielded?: never };
+      };
+      declare const remove: CraftMethod;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () =>
+        button({ click: () => remove(1) }, 'Remove'),
+      );
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('does not report ordinary methods or an already delegated call', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = ((id: number) => void) & {
+      type YieldableMethod = ((id: number) => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const store: {

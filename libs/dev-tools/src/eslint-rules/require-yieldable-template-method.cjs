@@ -1,5 +1,3 @@
-const YIELDABLE_METHOD_NAME = 'YIELDABLE_METHOD';
-
 module.exports = {
   meta: {
     type: 'problem',
@@ -88,32 +86,16 @@ module.exports = {
       return Boolean(findLocalWrapper(node, localWrappers));
     }
 
+    // What must be delegated is what hands back an invocation. A craftMethod
+    // carries the same brand but runs when it is called and returns its result,
+    // so the brand alone does not make a call a delegation.
     function isDirectYieldableCall(node) {
       const tsNode = esTreeNodeToTSNodeMap.get(node.callee);
       if (!tsNode) return false;
 
       const calleeType = checker.getTypeAtLocation(tsNode);
-      if (hasYieldableBrand(calleeType, new Set())) {
-        return true;
-      }
-
       const signature = calleeType.getCallSignatures?.()[0];
       return signature ? returnsGenerator(signature.getReturnType()) : false;
-    }
-
-    function hasYieldableBrand(type, seen) {
-      if (!type || seen.has(type)) return false;
-      seen.add(type);
-
-      if (type.isUnion?.() || type.isIntersection?.()) {
-        return type.types.some((part) => hasYieldableBrand(part, seen));
-      }
-
-      return checker
-        .getPropertiesOfType(type)
-        .some((property) =>
-          String(property.escapedName).includes(YIELDABLE_METHOD_NAME),
-        );
     }
 
     function returnsGenerator(type) {

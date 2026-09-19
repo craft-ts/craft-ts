@@ -451,11 +451,8 @@ async function generateComponent(
     `import { craftComponent } from '@craft-ts/component';
 import { p } from '@craft-ts/component';
 
-export const ${exportName} = craftComponent(
-  '${target.name}',
-  {},
-  () => ({}),
-  () => p('${target.name} works'),
+export const ${exportName} = craftComponent('${target.name}', {}, () =>
+  p('${target.name} works'),
 );
 
 export default ${exportName};

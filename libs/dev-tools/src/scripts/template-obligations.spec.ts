@@ -60,21 +60,16 @@ const indexFor = (rootDir: string) => {
 describe('template obligations', () => {
   it('derives one render promise per target and one command per handler target', async () => {
     const root = await fixture(`
-      const Counter = craftComponent(
-        'Counter',
-        {},
-        function* () {
-          const count = yield* state('count', 0, ({ update }: any) => ({
-            increment: () => update((value: number) => value + 1),
-          }));
-          return { count };
-        },
-        ({ count }) => div([
+      const Counter = craftComponent('Counter', {}, function* () {
+        const count = yield* state('count', 0, ({ update }: any) => ({
+          increment: () => update((value: number) => value + 1),
+        }));
+        return div([
           span(function* () { return yield* count(); }),
           span(function* () { return yield* count(); }),
           button('add', { click: count.increment }, '+'),
-        ]),
-      );
+        ]);
+      });
     `);
 
     const index = indexFor(root);
@@ -103,14 +98,10 @@ describe('template obligations', () => {
 
   it('adds the template site and the target slice to the fingerprint leaves', async () => {
     const root = await fixture(`
-      const Counter = craftComponent(
-        'Counter', {},
-        function* () {
-          const count = yield* state('count', 0);
-          return { count };
-        },
-        ({ count }) => span(function* () { return yield* count(); }),
-      );
+      const Counter = craftComponent('Counter', {}, function* () {
+        const count = yield* state('count', 0);
+        return span(function* () { return yield* count(); });
+      });
     `);
     const index = indexFor(root);
     const obligation = index.obligations[0];
@@ -128,20 +119,13 @@ describe('template obligations', () => {
     ).toMatch(/^[a-f0-9]{32}$/);
   });
 
-  it('resolves a named craftTemplate passed to craftComponent', async () => {
+  it('resolves a named template function passed to craftComponent', async () => {
     const root = await fixture(`
-      const CounterTemplate = craftTemplate(
-        ({ count }: any) => span(function* () { return yield* count(); }),
-      );
-      const Counter = craftComponent(
-        'Counter',
-        {},
-        function* () {
-          const count = yield* state('count', 0);
-          return { count };
-        },
-        CounterTemplate,
-      );
+      const counterView = function* () {
+        const count = yield* state('count', 0);
+        return span(function* () { return yield* count(); });
+      };
+      const Counter = craftComponent('Counter', {}, counterView);
     `);
 
     const index = indexFor(root);
@@ -157,14 +141,10 @@ describe('template obligations', () => {
 
   it('reports a dynamic template reference as a known derivation hole', async () => {
     const root = await fixture(`
-      const Dynamic = craftComponent(
-        'Dynamic', {},
-        function* () {
-          const model = yield* state('model', { title: 'hello' });
-          return { model };
-        },
-        ({ model }) => span(model['title']),
-      );
+      const Dynamic = craftComponent('Dynamic', {}, function* () {
+        const model = yield* state('model', { title: 'hello' });
+        return span(model['title']);
+      });
     `);
     const index = indexFor(root);
 
@@ -175,23 +155,19 @@ describe('template obligations', () => {
 
   it('records the structural guards around an interactive promise', async () => {
     const root = await fixture(`
-      const Review = craftComponent(
-        'Review', {},
-        function* () {
-          const dialogOpen = yield* state('dialogOpen', true);
-          const actions = yield* state('actions', [{ id: 'cancel' }]);
-          const dialog = yield* state('dialog', false, ({ update }: any) => ({
-            close: () => update(true),
-          }));
-          return { dialogOpen, actions, dialog };
-        },
-        ({ dialogOpen, actions, dialog }) => ifNode(
+      const Review = craftComponent('Review', {}, function* () {
+        const dialogOpen = yield* state('dialogOpen', true);
+        const actions = yield* state('actions', [{ id: 'cancel' }]);
+        const dialog = yield* state('dialog', false, ({ update }: any) => ({
+          close: () => update(true),
+        }));
+        return ifNode(
           dialogOpen,
           () => forNode(actions, { track: (action: any) => action.id }, (action: any) =>
             button('Cancel', { click: dialog.close }, 'Cancel'),
           ),
-        ),
-      );
+        );
+      });
     `);
 
     const index = indexFor(root);

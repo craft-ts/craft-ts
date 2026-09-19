@@ -72,55 +72,63 @@ const save${type} = mutation('save${type}', {
       : params,
 });
 
-export const ${formName} = craftComponent(
-  '${type}Form',
-  {},
-  function* () {
-    const ${name} = yield* state(
-      '${name}Form',
-      { name: '', email: '' } satisfies ${type}FormValue,
-      insertForm(
-        insertSelectFormTree(
-          'name',
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({ validators: [cRequired()] })),
-        ),
-        insertSelectFormTree(
-          'email',
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({ validators: [cRequired(), cEmail()] })),
-        ),
-        insertFormSubmit(save${type}),
+export const ${formName} = craftComponent('${type}Form', {}, function* () {
+  const ${name} = yield* state(
+    '${name}Form',
+    { name: '', email: '' } satisfies ${type}FormValue,
+    insertForm(
+      insertSelectFormTree(
+        'name',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({ validators: [cRequired()] })),
       ),
-    );
-    return { ${name} };
-  },
-  ({ ${name} }) => form('${name}-form', {
-    *submit(event) {
-      event.preventDefault();
-      yield* ${name}.form.submit();
+      insertSelectFormTree(
+        'email',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({ validators: [cRequired(), cEmail()] })),
+      ),
+      insertFormSubmit(save${type}),
+    ),
+  );
+
+  return form(
+    '${name}-form',
+    {
+      *submit(event) {
+        event.preventDefault();
+        yield* ${name}.form.submit();
+      },
     },
-  }, [
-    label({ htmlFor: '${name}-name' }, 'Name'),
-    input('${name}-name', { id: '${name}-name' }).pipe(
-      CraftFieldDirective(${name}.form.selectName()),
-    ).pipe(fieldErrorNode.exhaustive({
-      required: () => p('Name is required.'),
-    })),
-    label({ htmlFor: '${name}-email' }, 'Email'),
-    input('${name}-email', { id: '${name}-email', type: 'email' }).pipe(
-      CraftFieldDirective(${name}.form.selectEmail()),
-    ).pipe(fieldErrorNode.exhaustive({
-      required: () => p('Email is required.'),
-      email: () => p('Enter a valid email.'),
-    })),
-    button('${name}-submit', { type: 'submit', disabled: ${name}.form.submitting }, 'Save'),
-    p(function* () {
-      const errors = yield* ${name}.form.submitExceptions();
-      return errors.length === 0 ? '' : 'The server rejected this value.';
-    }),
-  ]),
-);
+    [
+      label({ htmlFor: '${name}-name' }, 'Name'),
+      input('${name}-name', { id: '${name}-name' })
+        .pipe(CraftFieldDirective(${name}.form.selectName()))
+        .pipe(
+          fieldErrorNode.exhaustive({
+            required: () => p('Name is required.'),
+          }),
+        ),
+      label({ htmlFor: '${name}-email' }, 'Email'),
+      input('${name}-email', { id: '${name}-email', type: 'email' })
+        .pipe(CraftFieldDirective(${name}.form.selectEmail()))
+        .pipe(
+          fieldErrorNode.exhaustive({
+            required: () => p('Email is required.'),
+            email: () => p('Enter a valid email.'),
+          }),
+        ),
+      button(
+        '${name}-submit',
+        { type: 'submit', disabled: ${name}.form.submitting },
+        'Save',
+      ),
+      p(function* () {
+        const errors = yield* ${name}.form.submitExceptions();
+        return errors.length === 0 ? '' : 'The server rejected this value.';
+      }),
+    ],
+  );
+});
 
 export default ${formName};
 `;
@@ -185,81 +193,107 @@ const save${type} = mutation('save${type}', {
       : params,
 });
 
-export const ${formName} = craftComponent(
-  '${type}Form',
-  {},
-  function* () {
-    const includeAddress = yield* state('${name}IncludeAddress', true);
-    const ${name} = yield* state(
-      '${name}Form',
-      {
-        name: '',
-        email: '',
-        includeAddress: true,
-        address: { city: '', postalCode: '' },
-      } satisfies ${type}FormValue,
-      insertForm(
-        insertFormSchema(${name}Schema),
-        insertSelectFormTree('name', insertNoopTypingAnchor,
-          insertFormAttributes(() => ({ validators: [cRequired()] }))),
-        insertSelectFormTree('email', insertNoopTypingAnchor,
-          insertFormAttributes(() => ({ validators: [cRequired(), cEmail()] }))),
-        insertSelectFormTree('address', (context) => craftPipe(
+export const ${formName} = craftComponent('${type}Form', {}, function* () {
+  const includeAddress = yield* state('${name}IncludeAddress', true);
+  const ${name} = yield* state(
+    '${name}Form',
+    {
+      name: '',
+      email: '',
+      includeAddress: true,
+      address: { city: '', postalCode: '' },
+    } satisfies ${type}FormValue,
+    insertForm(
+      insertFormSchema(${name}Schema),
+      insertSelectFormTree(
+        'name',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({ validators: [cRequired()] })),
+      ),
+      insertSelectFormTree(
+        'email',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({ validators: [cRequired(), cEmail()] })),
+      ),
+      insertSelectFormTree('address', (context) =>
+        craftPipe(
           context,
           insertNoopTypingAnchor,
-          insertSelectFormTree('city', insertNoopTypingAnchor,
+          insertSelectFormTree(
+            'city',
+            insertNoopTypingAnchor,
             insertFormAttributes(() => ({
               validators: [cRequired()],
               hidden: () => !includeAddress(),
-            }))),
-          insertSelectFormTree('postalCode', insertNoopTypingAnchor,
+            })),
+          ),
+          insertSelectFormTree(
+            'postalCode',
+            insertNoopTypingAnchor,
             insertFormAttributes(() => ({
               validators: [cRequired()],
               hidden: () => !includeAddress(),
-            }))),
-        )),
-        insertFormSubmit(save${type}),
+            })),
+          ),
+        ),
       ),
-    );
-    // Add cAsyncValidate here when an async uniqueness resource is available.
-    return { ${name}, includeAddress };
-  },
-  ({ ${name}, includeAddress }) => form('${name}-form', {
-    *submit(event) {
-      event.preventDefault();
-      yield* ${name}.form.submit();
+      insertFormSubmit(save${type}),
+    ),
+  );
+  // Add cAsyncValidate here when an async uniqueness resource is available.
+
+  return form(
+    '${name}-form',
+    {
+      *submit(event) {
+        event.preventDefault();
+        yield* ${name}.form.submit();
+      },
     },
-  }, [
-    label({ htmlFor: '${name}-name' }, 'Name'),
-    input('${name}-name', { id: '${name}-name' }).pipe(
-      CraftFieldDirective(${name}.form.selectName()),
-    ).pipe(fieldErrorNode.exhaustive({
-      required: () => p('Name is required.'),
-    })),
-    label({ htmlFor: '${name}-email' }, 'Email'),
-    input('${name}-email', { id: '${name}-email', type: 'email' }).pipe(
-      CraftFieldDirective(${name}.form.selectEmail()),
-    ).pipe(fieldErrorNode.exhaustive({
-      required: () => p('Email is required.'),
-      email: () => p('Enter a valid email.'),
-    })),
-    ifNode(includeAddress, () => [
-      label({ htmlFor: '${name}-city' }, 'City'),
-      input('${name}-city', { id: '${name}-city' }).pipe(
-        CraftFieldDirective(${name}.form.selectAddress().selectCity()),
+    [
+      label({ htmlFor: '${name}-name' }, 'Name'),
+      input('${name}-name', { id: '${name}-name' })
+        .pipe(CraftFieldDirective(${name}.form.selectName()))
+        .pipe(
+          fieldErrorNode.exhaustive({
+            required: () => p('Name is required.'),
+          }),
+        ),
+      label({ htmlFor: '${name}-email' }, 'Email'),
+      input('${name}-email', { id: '${name}-email', type: 'email' })
+        .pipe(CraftFieldDirective(${name}.form.selectEmail()))
+        .pipe(
+          fieldErrorNode.exhaustive({
+            required: () => p('Email is required.'),
+            email: () => p('Enter a valid email.'),
+          }),
+        ),
+      ifNode(includeAddress, () => [
+        label({ htmlFor: '${name}-city' }, 'City'),
+        input('${name}-city', { id: '${name}-city' }).pipe(
+          CraftFieldDirective(${name}.form.selectAddress().selectCity()),
+        ),
+        label({ htmlFor: '${name}-postal-code' }, 'Postal code'),
+        input('${name}-postal-code', {
+          id: '${name}-postal-code',
+        }).pipe(
+          CraftFieldDirective(
+            ${name}.form.selectAddress().selectPostalCode(),
+          ),
+        ),
+      ]),
+      button(
+        '${name}-submit',
+        { type: 'submit', disabled: ${name}.form.submitting },
+        'Save',
       ),
-      label({ htmlFor: '${name}-postal-code' }, 'Postal code'),
-      input('${name}-postal-code', { id: '${name}-postal-code' }).pipe(
-        CraftFieldDirective(${name}.form.selectAddress().selectPostalCode()),
-      ),
-    ]),
-    button('${name}-submit', { type: 'submit', disabled: ${name}.form.submitting }, 'Save'),
-    p(function* () {
-      const errors = yield* ${name}.form.submitExceptions();
-      return errors.length === 0 ? '' : 'The server rejected this value.';
-    }),
-  ]),
-);
+      p(function* () {
+        const errors = yield* ${name}.form.submitExceptions();
+        return errors.length === 0 ? '' : 'The server rejected this value.';
+      }),
+    ],
+  );
+});
 
 export default ${formName};
 `;
