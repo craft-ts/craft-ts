@@ -49,9 +49,9 @@
       "types": "./src/scripts/dependency-graph.d.ts",
       "default": "./src/scripts/dependency-graph.js"
     },
-    "./organize": {
-      "types": "./src/scripts/organize.d.ts",
-      "default": "./src/scripts/organize.js"
+    "./folder-layout": {
+      "types": "./src/scripts/folder-layout.d.ts",
+      "default": "./src/scripts/folder-layout.js"
     },
     "./architecture-graph": {
       "types": "./src/scripts/architecture-graph.d.ts",

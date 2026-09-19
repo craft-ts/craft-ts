@@ -1,4 +1,4 @@
-# Architecture proposal
+# Folder layout proposal
 
 Source graph hash: `eff02d3c62d5f6f6`
 

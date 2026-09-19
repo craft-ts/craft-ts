@@ -212,7 +212,7 @@ export type OrganizerDiagnostic = {
   proof?: GraphProof;
 };
 
-export type ArchitectureAnalysis = {
+export type FolderLayoutAnalysis = {
   version: 1;
   sourceGraphHash: string;
   graph: {
@@ -240,7 +240,7 @@ export type ArchitectureAnalysis = {
   diagnostics: OrganizerDiagnostic[];
 };
 
-export type ArchitectureProposal = {
+export type FolderLayoutProposal = {
   version: 1;
   sourceGraphHash: string;
   configHash: string;
@@ -278,8 +278,8 @@ export type OrganizeOptions = {
 };
 
 export type OrganizeResult = {
-  analysis: ArchitectureAnalysis;
-  proposal: ArchitectureProposal;
+  analysis: FolderLayoutAnalysis;
+  proposal: FolderLayoutProposal;
   report: string;
   outputDir: string;
 };
@@ -960,11 +960,11 @@ function destinationFor(
 }
 
 function renderReport(
-  analysis: ArchitectureAnalysis,
-  proposal: ArchitectureProposal,
+  analysis: FolderLayoutAnalysis,
+  proposal: FolderLayoutProposal,
 ): string {
   const lines: string[] = [
-    '# Architecture proposal',
+    '# Folder layout proposal',
     '',
     `Source graph hash: \`${analysis.sourceGraphHash}\``,
     '',
@@ -1200,7 +1200,7 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
     thresholds,
   };
   const configHash = shortHash(config);
-  const analysis: ArchitectureAnalysis = {
+  const analysis: FolderLayoutAnalysis = {
     version: 1,
     sourceGraphHash: graphHash(loaded.graph),
     graph: {
@@ -1267,7 +1267,7 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
       low: placements.filter((placement) => placement.confidence < 0.5).length,
     },
   };
-  const proposal: ArchitectureProposal = {
+  const proposal: FolderLayoutProposal = {
     version: 1,
     sourceGraphHash: analysis.sourceGraphHash,
     configHash,
@@ -1278,15 +1278,15 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
   const outputDir = resolve(rootDir, options.out);
   mkdirSync(outputDir, { recursive: true });
   writeFileSync(
-    join(outputDir, 'architecture-analysis.json'),
+    join(outputDir, 'folder-layout-analysis.json'),
     `${JSON.stringify(analysis, null, 2)}\n`,
     'utf8',
   );
   writeFileSync(
-    join(outputDir, 'architecture-proposal.json'),
+    join(outputDir, 'folder-layout-proposal.json'),
     `${JSON.stringify(proposal, null, 2)}\n`,
     'utf8',
   );
-  writeFileSync(join(outputDir, 'ARCHITECTURE_REPORT.md'), report, 'utf8');
+  writeFileSync(join(outputDir, 'FOLDER_LAYOUT_REPORT.md'), report, 'utf8');
   return { analysis, proposal, report, outputDir };
 }

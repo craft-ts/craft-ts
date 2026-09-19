@@ -9,7 +9,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 import type { DependencyGraph } from './dependency-graph';
-import { GraphStore, organizeProject } from './organize';
+import { GraphStore, organizeProject } from './folder-layout';
 
 function fixture(): {
   root: string;
@@ -130,7 +130,7 @@ describe('craft organize', () => {
     expect(result.analysis.sourceGraphHash).toBeTruthy();
     expect(
       readFileSync(
-        join(setup.root, 'proposal', 'ARCHITECTURE_REPORT.md'),
+        join(setup.root, 'proposal', 'FOLDER_LAYOUT_REPORT.md'),
         'utf8',
       ),
     ).toContain('File-by-file decisions');
@@ -204,13 +204,13 @@ describe('craft organize', () => {
     );
     expect(
       readFileSync(
-        join(result.outputDir, 'architecture-analysis.json'),
+        join(result.outputDir, 'folder-layout-analysis.json'),
         'utf8',
       ),
     ).toContain('sourceGraphHash');
     expect(
       readFileSync(
-        join(result.outputDir, 'architecture-proposal.json'),
+        join(result.outputDir, 'folder-layout-proposal.json'),
         'utf8',
       ),
     ).toContain('placements');

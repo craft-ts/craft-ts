@@ -163,21 +163,21 @@ The graph records services, primitives, route ownership, HTTP endpoints,
 browser boundaries, and dependency edges. It can be extended with a catalog for
 backend or other TypeScript sources.
 
-## Architecture proposal
+## Folder layout proposal
 
 For CraftTS projects with a fresh `DependencyGraph v1`, `craft organize` builds
-a deterministic file projection and writes a read-only architecture proposal:
+a deterministic file projection and writes a read-only folder layout proposal:
 
 ```bash
 craft organize \
   --project apps/demo/tsconfig.graph.json \
   --graph craft-dependency-graph.json \
-  --out architecture-proposal
+  --out folder-layout
 ```
 
 The command refuses an obsolete or invalid graph and never rebuilds it or moves
-files. It writes `architecture-analysis.json`,
-`architecture-proposal.json`, and `ARCHITECTURE_REPORT.md`. Route scopes,
+files. It writes `folder-layout-analysis.json`,
+`folder-layout-proposal.json`, and `FOLDER_LAYOUT_REPORT.md`. Route scopes,
 CraftTS relations and proofs are preferred over imports; existing directory
 names are not used as architectural evidence. Use `--target-root` when the
 proposed application root should not be inferred from the project tsconfig.

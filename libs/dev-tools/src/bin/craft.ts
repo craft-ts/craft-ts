@@ -35,7 +35,7 @@ import { runAgentSync } from '../scripts/create/sync-agents.js';
 import { runSecurityCheck } from '../scripts/security-check.js';
 import { runFormAdd } from '../scripts/forms/form-command.js';
 import { spawnSync } from 'node:child_process';
-import { organizeProject } from '../scripts/organize.js';
+import { organizeProject } from '../scripts/folder-layout.js';
 
 type CommonOptions = {
   rootDir?: string;
@@ -216,7 +216,7 @@ async function main(argv: string[]): Promise<number> {
 function runOrganize(argv: string[]): number {
   let project = 'tsconfig.graph.json';
   let graph = 'craft-dependency-graph.json';
-  let out = 'architecture-proposal';
+  let out = 'folder-layout';
   let rootDir = process.cwd();
   let targetRoot: string | undefined;
   let json = false;
@@ -246,7 +246,7 @@ function runOrganize(argv: string[]): number {
   if (json) console.log(JSON.stringify(result.proposal, null, 2));
   else
     console.log(
-      `Craft architecture proposal written to ${result.outputDir} (${result.proposal.statistics.moves} move(s), ${result.proposal.statistics.reviews} review(s)).`,
+      `Craft folder layout written to ${result.outputDir} (${result.proposal.statistics.moves} move(s), ${result.proposal.statistics.reviews} review(s)).`,
     );
   return 0;
 }
