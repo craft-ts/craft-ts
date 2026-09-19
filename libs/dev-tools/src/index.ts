@@ -17,6 +17,7 @@ export * from './scripts/components/migrate-components.js';
 export * from './scripts/components/migration-diagnostic.js';
 export * from './scripts/architecture/migrate-architecture.js';
 export * from './scripts/dependency-graph.js';
+export * from './scripts/organize.js';
 export * from './scripts/architecture-graph.js';
 export * from './scripts/contrast.js';
 export * from './scripts/style-graph.js';
