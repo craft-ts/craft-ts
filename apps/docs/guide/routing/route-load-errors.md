@@ -123,12 +123,6 @@ export const MyRouteLoadErrorScreen = craftComponent(
       .actions { display: flex; gap: .75rem; margin-top: 1rem }
     `,
   },
-  function* () {
-    return {
-      error: yield* CraftRouteLoadError(),
-      recovery: yield* CraftRouteLoadRecovery(),
-    };
-  },
   ({ error, recovery }) => {
     const current = error();
 

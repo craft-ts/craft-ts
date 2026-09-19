@@ -6,40 +6,30 @@ useSnippetHarness();
 
 // #region whendirective
 import {
-  HostRequiredLogic,
-  HostTemplate,
   Input,
   craftComponent,
   craftDirective,
   div,
   p,
 } from '@craft-ts/component';
-import { craftSignal } from '@craft-ts/core';
+import { craftSignal, craftUse } from '@craft-ts/core';
 
 const isVisible = craftSignal(true);
 
+// A directive declares transformations. `template` wraps the template the
+// component already has; the inputs it reads become inputs of the component.
 const whenDirective = craftDirective(
   'whenDirective',
   {},
-  (
-    baseLogic: HostRequiredLogic<{
-      when: Input<boolean>;
-    }>,
-  ) => baseLogic,
-
-  (
-    baseTemplate: HostTemplate<{
-      when: Input<boolean>;
-    }>,
-  ) =>
-    (context) => (context.when() ? baseTemplate(context) : []),
+  {
+    template:
+      (baseTemplate) => (inputs: { readonly when: Input<boolean> }) =>
+        craftUse(inputs.when()) ? baseTemplate(inputs) : [],
+  },
 );
 
-const Panel = craftComponent(
-  'Panel',
-  {},
-  (when: Input<boolean>) => ({ when }),
-  () => div(p('Conditional content')),
+const Panel = craftComponent('Panel', {}, () =>
+  div(p('Conditional content')),
 ).pipe(whenDirective);
 
 Panel({

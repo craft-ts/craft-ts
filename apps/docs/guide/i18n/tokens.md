@@ -96,7 +96,7 @@ kilogrammes for one user and pounds for another:
 
 The yielded service travels with the message: pass the reader to the template
 and a missing provider is a compile error, exactly as for a service yielded by
-the component factory. See
+the component. See
 [DI inside a translation](./runtime.md#di-inside-a-translation).
 
 `format` receives the value and a context carrying `locale` and, when the

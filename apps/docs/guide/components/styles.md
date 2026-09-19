@@ -15,7 +15,7 @@ Pick this page for a component whose look is settled and local. Pick
 They coexist: a component can carry `meta.styles` and bind a sheet class.
 :::
 
-Styles declared in `craftComponent(name, meta, factory, template)` are shared by
+Styles declared in `craftComponent(name, meta, template)` are shared by
 every instance of the component and encapsulated with CSS `@scope`. The registry
 keeps a single sheet per component and removes it when the last instance is
 destroyed.
@@ -30,7 +30,6 @@ scoping them here just makes them harder to find.
 const Card = craftComponent(
   'Card',
   { styles: ':scope { padding: 1rem } .title { font-weight: 700 }' },
-  () => ({}),
   () => div([h2({ class: 'title' }, 'Title')]),
 );
 ```

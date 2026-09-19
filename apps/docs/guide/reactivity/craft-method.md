@@ -60,31 +60,23 @@ enforces the match and offers a quick fix.
 
 ## The common case — inside a Craft component
 
-In a Craft component's logic factory there is no `this`: declare the method with
-`craftMethod(name, fn)` and return it in the context.
+In a Craft component there is no `this`: declare the method with
+`craftMethod(name, fn)` and bind it where the template needs it.
 
 ```typescript
 import { button, craftComponent, div, p } from '@craft-ts/component';
 import { Console, craftMethod, state } from '@craft-ts/core';
 
-export const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({ update }));
+export const Counter = craftComponent('Counter', {}, function* () {
+  const counter = yield* state('counter', 0, ({ update }) => ({ update }));
 
-    const increment = craftMethod('increment', function* (step = 1) {
-      yield* Console.log('increment is called');
-      yield* counter.update((value) => value + step);
-    });
+  const increment = craftMethod('increment', function* (step = 1) {
+    yield* Console.log('increment is called');
+    yield* counter.update((value) => value + step);
+  });
 
-    return { counter, increment };
-  },
-  ({ counter, increment }) => [
-    p(counter),
-    button({ click: increment }, 'Increment'),
-  ],
-);
+  return [p(counter), button({ click: increment }, 'Increment')];
+});
 ```
 
 `counter` does not belong to `increment`, so the method yields

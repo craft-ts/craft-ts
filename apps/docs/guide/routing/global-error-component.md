@@ -44,18 +44,17 @@ export const MyGlobalErrorScreen = craftComponent(
     // Signal<USER_DISABLED | HttpError | …>
     const error = yield* CraftGlobalError();
 
-    return {
-      message: computed(() => {
-        switch (error()?.code) {
-          case 'USER_DISABLED':
-            return 'This account is disabled.';
-          default:
-            return 'Something went wrong.';
-        }
-      }),
-    };
+    const message = computed(() => {
+      switch (error()?.code) {
+        case 'USER_DISABLED':
+          return 'This account is disabled.';
+        default:
+          return 'Something went wrong.';
+      }
+    });
+
+    return div(h1(() => message()));
   },
-  ({ message }) => div(h1(() => message())),
 );
 ```
 

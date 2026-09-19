@@ -21,7 +21,7 @@ Most of what you'll write falls into one of these. Each is expanded below.
 | a binding is rendered **for every item of a non-empty list** | the same, with `{ when: { items: 'nonEmpty' } }`   |
 | a **property is used** on a named element                    | `TemplateNamedElementRendersStateWhen`             |
 | an element property delegates to a context method            | `TemplateNamedElementDelegatesToContext`           |
-| a component logic field has a specific service output        | `ComponentLogicOutputOf` + `ResolvedServiceOutput` |
+| a service exposes a specific output                          | `GetServiceOutput` + `ResolvedServiceOutput`       |
 
 ::: warning Experimental
 This contract is the least settled part of `@craft-ts`. The assertions below
@@ -46,24 +46,24 @@ An assertion is the pair: a helper that computes a boolean type, wrapped in
 `Expect<Equal<…, true>>`. If the computed type stops being `true`, the file stops
 compiling.
 
-`ComponentTemplateOf` gets you the template type to assert on:
+`ComponentTemplateOf` gets you the component's function, and
+`TemplateChildren` the nodes it returns — that is what the assertions read:
 
 ```ts
-type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+type CounterTemplate = TemplateChildren<ComponentTemplateOf<typeof Counter>>;
 ```
 
-`ComponentLogicOutputOf` gets the value returned by the component logic
-factory. This lets you assert the type of a field returned by the factory,
-instead of checking only that the component declares a dependency:
+Behaviour is asserted where it lives, on the **service** the component takes.
+`GetServiceOutput` gets what a service exposes, so you can assert the type of a
+member instead of checking only that the component declares a dependency:
 
 ```ts
-import type { ComponentLogicOutputOf } from '@craft-ts/component';
-import type { ResolvedServiceOutput } from '@craft-ts/core';
+import type { GetServiceOutput, ResolvedServiceOutput } from '@craft-ts/core';
 
-type FullDemoLogic = ComponentLogicOutputOf<typeof FullDemoCraft>;
+type FullDemoView = GetServiceOutput<typeof FullDemoView>;
 type TodoStoreOutput = ResolvedServiceOutput<typeof TodoStore, {}>;
 
-type StoreIsTodoStore = Expect<Equal<FullDemoLogic['store'], TodoStoreOutput>>;
+type StoreIsTodoStore = Expect<Equal<FullDemoView['store'], TodoStoreOutput>>;
 ```
 
 `ResolvedServiceOutput` is used here because it preserves the reactive brands
@@ -91,9 +91,9 @@ covered by `vitest typecheck`, or make sure `tsc --noEmit` runs over them in CI.
 
 ## The template contract
 
-`SetupTestComponentTemplate` resolves the template without `TestBed`, a DOM,
-the factory, or runtime providers. The component tuple contains the references
-allowed for children:
+`SetupTestComponentTemplate` resolves the template without `TestBed`, a DOM, or
+runtime providers. The component tuple contains the references allowed for
+children:
 
 ```ts
 type CounterTemplateTest = SetupTestComponentTemplate<
@@ -124,7 +124,7 @@ The type assertions inspect the template returned by `Counter`; they do not
 instantiate the component or render a DOM fixture:
 
 ```ts
-type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+type CounterTemplate = TemplateChildren<ComponentTemplateOf<typeof Counter>>;
 
 type HasButton = Expect<
   Equal<TemplateHasElement<CounterTemplate, 'button'>, true>
@@ -166,14 +166,12 @@ Primitive properties follow the same contract as events. For derived state, use
 <<< @/tests/snippets/guide/testing/type-level/counter-derived.spec.ts#counter-derived
 
 
-Here, `counter` is created by the component factory and returned in its
-context. The template receives that context, and the branded
-`context.counter.disabled()` read is the binding that the type assertion
-checks:
+Here, `counter` is declared by the component itself, and the branded
+`counter.disabled` read is the binding that the type assertion checks:
 
 ```ts
 type HasDerivedDisabledBinding = TemplateRendersStateWhen<
-  ReturnType<ComponentTemplateOf<typeof Counter>>,
+  TemplateChildren<ComponentTemplateOf<typeof Counter>>,
   'counter.disabled'
 >;
 
@@ -189,7 +187,7 @@ assertion would fail:
 type UsesWrongBinding = Expect<
   Equal<
     TemplateRendersStateWhen<
-      ReturnType<ComponentTemplateOf<typeof Counter>>,
+      TemplateChildren<ComponentTemplateOf<typeof Counter>>,
       'counter.enabled'
     >,
     false
@@ -246,7 +244,7 @@ A named element is asserted with its **full component identity** —
 `'<Component>:<tag>:<localName>'` — and the visibility path it sits behind:
 
 ```ts
-type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+type CounterTemplate = TemplateChildren<ComponentTemplateOf<typeof Counter>>;
 
 type CanIncrement = Expect<
   Equal<
@@ -293,7 +291,7 @@ content. Here, `brandedStatus` is not selected by its text; its brand proves tha
 `span` renders that value in the authenticated branch:
 
 ```ts
-type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+type CounterTemplate = TemplateChildren<ComponentTemplateOf<typeof Counter>>;
 
 type StatusIsRenderedWhenAuthenticated = Expect<
   Equal<
@@ -322,7 +320,7 @@ test.destroy();
 ```
 
 Because the element is conditional, `brandedStatusElement` is typed as
-`HTMLSpanElement | undefined`. After `updateContext` and `detectChanges`, the
+`HTMLSpanElement | undefined`. After `updateInputs` and `detectChanges`, the
 same locator returns `undefined` while the branch is absent.
 
 ### Proving a binding renders for every item of a non-empty list
@@ -337,37 +335,33 @@ import { insertSelect, state } from '@craft-ts/core';
 import { craftComponent, forNode, span } from '@craft-ts/component';
 import type {
   ComponentTemplateOf,
+  TemplateChildren,
   TemplateRendersNamedElementWhen,
   TemplateRendersStateWhen,
 } from '@craft-ts/component';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 
-const ItemList = craftComponent(
-  'ItemList',
-  {},
-  function* () {
-    const items = yield* state(
-      'items',
-      [{ key: 'first' }, { key: 'second' }],
-      insertSelect('item', ({ state: selectedItem }) => ({
-        translatedLabel: craftComputed(function* () {
-          return `translated:${(yield* selectedItem()).key}`;
-        }),
-      })),
-    );
-    return { items };
-  },
-  ({ items }) =>
-    forNode(items, { track: (item) => item.key }, (_item, index) =>
-      span(
-        'itemLabel',
-        { 'aria-label': items.selectItem(index)?.translatedLabel },
-        () => items.selectItem(index)?.translatedLabel() ?? '',
-      ),
-    ),
-);
+const ItemList = craftComponent('ItemList', {}, function* () {
+  const items = yield* state(
+    'items',
+    [{ key: 'first' }, { key: 'second' }],
+    insertSelect('item', ({ state: selectedItem }) => ({
+      translatedLabel: craftComputed(function* () {
+        return `translated:${(yield* selectedItem()).key}`;
+      }),
+    })),
+  );
 
-type ItemListTemplate = ReturnType<ComponentTemplateOf<typeof ItemList>>;
+  return forNode(items, { track: (item) => item.key }, (_item, index) =>
+    span(
+      'itemLabel',
+      { 'aria-label': items.selectItem(index)?.translatedLabel },
+      () => items.selectItem(index)?.translatedLabel() ?? '',
+    ),
+  );
+});
+
+type ItemListTemplate = TemplateChildren<ComponentTemplateOf<typeof ItemList>>;
 
 type HasTranslatedLabel = Expect<
   Equal<
@@ -405,32 +399,27 @@ import { craftMethod, state } from '@craft-ts/core';
 import { button, craftComponent, ifNode } from '@craft-ts/component';
 import type {
   ComponentTemplateOf,
+  TemplateChildren,
   TemplateRenderAvailableActionWhen,
   TemplateRendersStateWhen,
 } from '@craft-ts/component';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 
-const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const isAuth = yield* state('isAuth', true);
-    const isAdult = yield* state('isAdult', true);
-    const increment = craftMethod('increment', function* () {
-      return undefined;
-    });
+const Counter = craftComponent('Counter', {}, function* () {
+  const isAuth = yield* state('isAuth', true);
+  const isAdult = yield* state('isAdult', true);
+  const increment = craftMethod('increment', function* () {
+    return undefined;
+  });
 
-    return { isAuth, isAdult, increment };
-  },
-  ({ isAuth, isAdult, increment }) =>
-    ifNode(
-      isAuth,
-      () => button('increment', { click: increment }, () => isAdult()),
-      () => [],
-    ),
-);
+  return ifNode(
+    isAuth,
+    () => button('increment', { click: increment }, () => isAdult()),
+    () => [],
+  );
+});
 
-type CounterTemplate = ReturnType<ComponentTemplateOf<typeof Counter>>;
+type CounterTemplate = TemplateChildren<ComponentTemplateOf<typeof Counter>>;
 
 type RendersAdultState = Expect<
   Equal<
@@ -482,6 +471,7 @@ available property names, and the available context paths:
 ```ts
 import type {
   ComponentTemplateOf,
+  TemplateChildren,
   TemplateNamedElementRendersStateWhen,
 } from '@craft-ts/component';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
@@ -570,7 +560,7 @@ ComponentTemplateOf<typeof X>>, …>, true>>` is a lot of ceremony for one
 assertion. Shorter façades are being explored; until then, alias what repeats:
 
 ```ts
-type Tpl = ReturnType<ComponentTemplateOf<typeof Counter>>;
+type Tpl = TemplateChildren<ComponentTemplateOf<typeof Counter>>;
 type Assert<T extends true> = Expect<T>;
 ```
 

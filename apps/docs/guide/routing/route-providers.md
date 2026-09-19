@@ -77,7 +77,7 @@ export const { demoRoutes } = craftRoutes('demo', [
 ]);
 ```
 
-The routed component can now yield `User()` from its Craft component factory and receive the value
+The routed component can now yield `User()` and receive the value
 that the guard resolved — without ever touching the fully-qualified route helper.
 
 ## The helpers object
@@ -142,7 +142,7 @@ const { User, provideUser } = craftService(
   }),
 ])
 
-// In the routed component factory:
+// In the routed component:
 const user = yield* User(); // User
 ```
 

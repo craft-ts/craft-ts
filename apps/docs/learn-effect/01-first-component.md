@@ -3,8 +3,8 @@
 **Goal:** render a reactive task list before introducing Effect.
 
 Effect users do not need to replace their domain model or Effect programs. They
-do need to adopt Craft's UI model: a component is a function with a generator
-logic factory and a typed template:
+do need to adopt Craft's UI model: a component is one generator function that
+declares what it takes and returns typed hyperscript:
 
 ```typescript
 import { craftComponent, div, h1, li, ul, forNode } from '@craft-ts/component';
@@ -15,36 +15,34 @@ type Task = { readonly id: string; readonly title: string; readonly done: boolea
 export const Tasks = craftComponent(
   'Tasks', // name: stable component name used by tooling and the graph
   {}, // meta: providers, styles and host configuration
-  function* () { // logic factory: creates the component context
+  function* () {
     const tasks = yield* state('tasks', [ // name: state identifier
       { id: '1', title: 'Learn Craft components', done: true },
       { id: '2', title: 'Add the first Effect program', done: false },
     ] satisfies Task[]); // initial value: the seeded task list
 
-    return { tasks };
-  },
-  ({ tasks }) => [ // template: turns the context into rendered nodes
-    h1('Tasks'),
-    ul(
-      forNode(
-        tasks, // source: the reactive collection to render
-        { track: (task) => task.id }, // options: stable identity for each item
-        (task) => li(task.title), // render: creates one node per task
+    return [ // what the component renders
+      h1('Tasks'),
+      ul(
+        forNode(
+          tasks, // source: the reactive collection to render
+          { track: (task) => task.id }, // options: stable identity for each item
+          (task) => li(task.title), // render: creates one node per task
+        ),
       ),
-    ),
-  ],
+    ];
+  },
 );
 ```
 
 There is no class, decorator, selector or separate HTML file. The template is
-typed hyperscript. A component has four responsibilities:
+typed hyperscript. A component has three responsibilities:
 
 | Argument | Responsibility |
 | --- | --- |
 | `'Tasks'` | stable name used by tooling and the graph |
 | `{}` | providers, styles and host configuration |
-| `function*` | create the component context and yield dependencies |
-| template | turn that context into nodes |
+| `function*` | yield the dependencies, return the nodes |
 
 `tasks` is a Craft reader. Yield it when a generator reads it; pass it directly
 to a template binding. The renderer tracks the exact binding that reads it.

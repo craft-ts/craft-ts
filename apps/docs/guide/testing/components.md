@@ -1,81 +1,71 @@
 # Testing components
 
-Craft components are tested in two independent halves: the **logic factory**
-(plain values, no DOM) and the **template** (real DOM, explicit locators). You
-can test one without paying for the other.
+A component is one function, so the seam is no longer inside it: it is the
+**service** the component takes. Behaviour lives there and is tested with plain
+values and no DOM; the component is then rendered against that service, real or
+mocked.
 
-**Use the logic test** for what the factory computes and exposes.
-**Use the template test** for what actually renders, and for interaction.
+**Use a [service test](/guide/testing/services)** for what the behaviour
+computes. **Use the template test** for what actually renders, and for
+interaction.
 
-The utilities live in a dedicated submodule:
+The rendering utilities live in a dedicated submodule:
 
 ```ts
 import {
-  setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
-  setupCraftDirectiveLogicTest,
   setupCraftDirectiveTemplateTest,
 } from '@craft-ts/component/testing';
 ```
 
-They deliberately separate the factory from rendering. Each utility also
-exposes a `.byRegister(...)` form, which makes the services used by the tested
-code explicit.
+Each also exposes a `.byRegister(...)` form, which makes the services used by
+the rendered code explicit.
 
-## Component logic
+## The component's service
 
-The logic test executes only the factory and returns its context together with
-the installed mocks:
+`setupCraftServiceTestingByRegister` runs the service alone and returns what it
+exposes, together with the installed mocks:
 
 ```ts
-const { context, mocks, destroy } =
-  await setupCraftComponentLogicTest.byRegister(FullDemoCraft, {
-    register: {
-      TodoStore: {
-        todos: {
-          status: () => 'resolved',
-          value: () => [],
-        },
-      },
+const { sut, mocks } = await setupCraftServiceTestingByRegister(TodoStoreView, {
+  todoStoreView: provideTodoStoreView(),
+  TodoStore: {
+    todos: {
+      status: () => 'resolved',
+      value: () => [],
     },
-  });
-
-expect(context.store.todos.value()).toEqual([]);
-expect(mocks.TodoStore).toBeDefined();
-destroy();
-```
-
-Factory arguments can be provided through `args` when the component declares
-inputs:
-
-```ts
-await setupCraftComponentLogicTest.byRegister(StatusComponent, {
-  args: [statusInput],
-  register: {},
+  },
 });
+
+expect(craftUse(sut.todos.value())).toEqual([]);
+expect(mocks.TodoStore).toBeDefined();
 ```
+
+A service that takes inputs receives them through `bindings`; see
+[Testing services](/guide/testing/services).
 
 ## Component template
 
-The template test receives an already-built context. The component logic is not
-executed:
+The template test mounts the component with the inputs it declares, and with
+its services taken from `register`:
 
 ```ts
 const test = await setupCraftComponentTemplateTest.byRegister(StatusComponent, {
-  context: { status: () => 'resolved' },
-  register: {},
+  inputs: { status: () => 'resolved' },
+  register: { statusView: provideStatusView() },
 });
 
 expect(test.nativeElement.textContent).toContain('Loaded');
 test.detectChanges();
-test.updateContext({ status: () => 'error' });
+test.updateInputs({ status: () => 'error' });
 expect(test.nativeElement.textContent).toContain('Error');
 test.destroy();
 ```
 
 The result exposes `nativeElement`, `element`, `mocks`, `detectChanges`,
-`updateContext`, and `destroy`. Craft styles, child components, Craft
-directives, and reactivity are rendered by the normal renderer.
+`updateInputs`, `locator`, the accessible queries (`getByRole`, `getByLabel`,
+…), and `destroy`. Craft styles, child components, Craft directives, and
+reactivity are rendered by the normal renderer.
 
 ### Explicit DOM locators
 
@@ -116,24 +106,16 @@ the `content` criterion. The locator does not inspect the rendered value, so
 this also works for non-text values and remains independent of formatting:
 
 ```typescript
-import { craftSignal as signal } from '@craft-ts/core';
 import { span, craftComponent } from '@craft-ts/component';
-import { markYieldableValue, state } from '@craft-ts/core';
+import { state } from '@craft-ts/core';
 
-const Status = craftComponent(
-  'Status',
-  {},
-  function* () {
-    const brandedStatus = yield* state('brandedStatus', 'ready');
-    return { brandedStatus };
-  },
-  ({ brandedStatus }) => span(brandedStatus),
-);
+const Status = craftComponent('Status', {}, function* () {
+  const brandedStatus = yield* state('brandedStatus', 'ready');
+  return span(brandedStatus);
+});
 
 const test = await setupCraftComponentTemplateTest.byRegister(Status, {
-  context: {
-    brandedStatus: markYieldableValue(signal('ready'), 'brandedStatus'),
-  },
+  inputs: {},
   register: {},
 });
 
@@ -169,7 +151,7 @@ test.locator('input', { 'aria-label': 'Search' });
 The locator searches the complete rendered subtree, including Craft child
 components. A branch that is currently absent returns `undefined`; a runtime
 result with more than one matching element throws an explicit cardinality
-error. Call the locator again after `updateContext` and `detectChanges` when a
+error. Call the locator again after `updateInputs` and `detectChanges` when a
 conditional branch changes.
 
 When a class is not sufficiently discriminating, keep using the existing
@@ -177,7 +159,7 @@ named locators (`tag('name', props, children)`) and query their
 `data-craft-name` marker. A future collection API will cover repeated targets;
 the singular locator should remain reserved for one expected element.
 
-To verify that a DOM property is connected to the correct context member, add a
+To verify that a DOM property is connected to the correct member, add a
 contract assertion next to the template test:
 
 <<< @/tests/snippets/guide/testing/components/counter.spec.ts#counter
@@ -187,21 +169,20 @@ TypeScript performs this check. It fails if the branded `counter.disabled` read
 is no longer exposed by the rendered template. It does not replace the
 rendering test; it verifies the template contract without a DOM.
 
-## Context and service dependencies
+## Inputs and service dependencies
 
-The `context` is a factory value and is not a registry dependency. In this
-example, `store` is provided directly to the template:
+`inputs` are what the call site passes; everything the component *takes* goes
+through `register` — including its own service:
 
 ```ts
 await setupCraftComponentTemplateTest.byRegister(FullDemoCraft, {
-  context: { store: todoStoreMock },
-  register: {},
+  inputs: {},
+  register: { fullDemoView: todoStoreMock },
 });
 ```
 
-Conversely, if `StatusComponent` or a child component uses a
-`FormatterService`, the template registry contains `FormatterService`, never
-the child component:
+If the component or a child uses a `FormatterService`, the registry contains
+`FormatterService`, never the child component:
 
 ```ts
 register: {
@@ -209,10 +190,9 @@ register: {
 }
 ```
 
-The `CraftComponentLogicDepsOf<Component>` and
-`CraftComponentTemplateDepsOf<Component>` projections keep these two graphs
-separate. A template registry therefore accepts only services; child components
-are never entries in `register`.
+`CraftComponentTemplateDepsOf<Component>` is the projection that types the
+registry: it lists the services the rendered tree reaches. Child components are
+never entries in `register`.
 
 ## Registry values and providers
 
@@ -228,7 +208,8 @@ Providers declared in `meta.providers` are available in the component scope.
 Upstream providers go in `providers`:
 
 ```ts
-await setupCraftComponentLogicTest.byRegister(Component, {
+await setupCraftComponentTemplateTest.byRegister(Component, {
+  inputs: {},
   providers: [provideApiService({ baseUrl: '/test' })],
   register: {
     ApiService: 'provided',
@@ -241,29 +222,19 @@ the tested graph contains a service with `appStart: true`.
 
 ## Testing a directive
 
-Directive logic receives its `baseLogic` and arguments explicitly:
-
-```ts
-const { context } = await setupCraftDirectiveLogicTest.byRegister(
-  hasPermissionInput,
-  {
-    baseLogic,
-    args: [userInput, permissionInput],
-    register: {},
-  },
-);
-```
-
-For the template, provide `baseTemplate` and the final context:
+A directive declares transformations, so each is tested where it acts. A
+`service` transform is tested like any service — take the service the directive
+overrides and read the members it changed. A `template` transform is mounted
+with the base template it wraps:
 
 ```ts
 const test = await setupCraftDirectiveTemplateTest.byRegister(whenDirective, {
-  baseTemplate: (context) => p(context.message()),
-  context: { when: () => true, message: () => 'ready' },
+  baseTemplate: (inputs) => p(inputs.message),
+  inputs: { when: () => true, message: 'ready' },
   register: {},
 });
 
-test.updateContext({ when: () => false, message: () => 'hidden' });
+test.updateInputs({ when: () => false, message: 'hidden' });
 test.destroy();
 ```
 

@@ -1,3 +1,5 @@
+const { templateRegions } = require('./craft-template-region.cjs');
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -45,10 +47,10 @@ module.exports = {
           return;
         }
 
-        inspectTemplate(
-          node.arguments[2],
-          collectLocalWrappers(node.arguments[2]),
-        );
+        const wrappers = collectLocalWrappers(node.arguments[2]);
+        for (const region of templateRegions(node.arguments[2])) {
+          inspectTemplate(region, wrappers);
+        }
       },
     };
 
@@ -119,14 +121,13 @@ module.exports = {
       );
     }
 
+    // A local function the component declares and a binding then calls: the
+    // delegation it forgot is the one inside that function.
     function collectLocalWrappers(factory) {
+      const wrappers = new Map();
+      if (!factory?.body) return wrappers;
+
       const localFunctions = new Map();
-      let returnedObject;
-
-      if (!factory) {
-        return new Map();
-      }
-
       walk(factory.body, (node) => {
         if (isFunctionNode(node)) {
           if (node.type === 'FunctionDeclaration' && node.id) {
@@ -135,59 +136,30 @@ module.exports = {
           return 'skip';
         }
 
-        if (node.type === 'VariableDeclarator') {
-          if (
-            node.id.type === 'Identifier' &&
-            node.init &&
-            isFunctionNode(node.init)
-          ) {
-            localFunctions.set(node.id.name, node.init);
-          }
-          return;
-        }
-
         if (
-          !returnedObject &&
-          node.type === 'ReturnStatement' &&
-          node.argument?.type === 'ObjectExpression'
+          node.type === 'VariableDeclarator' &&
+          node.id.type === 'Identifier' &&
+          node.init &&
+          isFunctionNode(node.init)
         ) {
-          returnedObject = node.argument;
-          return 'skip';
+          localFunctions.set(node.id.name, node.init);
         }
       });
 
-      if (!returnedObject) {
-        return new Map();
-      }
-
-      const wrappers = new Map();
-      for (const property of returnedObject.properties) {
-        if (
-          property.type !== 'Property' ||
-          property.value.type !== 'Identifier'
-        ) {
-          continue;
-        }
-
-        const functionNode = localFunctions.get(property.value.name);
-        if (!functionNode) {
-          continue;
-        }
-
+      for (const [name, functionNode] of localFunctions) {
         const yieldableCalls = [];
         walkFunctionBody(functionNode.body, (node) => {
-          if (node.type === 'CallExpression' && isDirectYieldableCall(node)) {
-            if (!isDelegated(node)) {
-              yieldableCalls.push(node);
-            }
+          if (
+            node.type === 'CallExpression' &&
+            isDirectYieldableCall(node) &&
+            !isDelegated(node)
+          ) {
+            yieldableCalls.push(node);
           }
         });
 
         if (yieldableCalls.length > 0) {
-          wrappers.set(property.value.name, {
-            functionNode,
-            yieldableCalls,
-          });
+          wrappers.set(name, { functionNode, yieldableCalls });
         }
       }
 

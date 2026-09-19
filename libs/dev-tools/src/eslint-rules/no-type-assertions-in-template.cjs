@@ -1,3 +1,5 @@
+const { templateRegions } = require('./craft-template-region.cjs');
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -25,7 +27,9 @@ module.exports = {
           return;
         }
 
-        inspectTemplate(node.arguments[2]);
+        for (const region of templateRegions(node.arguments[2])) {
+          inspectTemplate(region);
+        }
       },
     };
 

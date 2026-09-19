@@ -8,8 +8,6 @@ useSnippetHarness();
 import {
   ContentSlot,
   craftComponent,
-  footer,
-  input,
   renderContent,
 } from '@craft-ts/component';
 
@@ -19,8 +17,7 @@ craftComponent(
   {
     contentStyles: { footer: ':scope { color: red; }' },
   },
-  (input: { readonly body: ContentSlot }) => input,
-  ({ body }) => renderContent('body', body),
+  ({ body }: { readonly body: ContentSlot }) => renderContent('body', body),
 );
 // #endregion example-12
 

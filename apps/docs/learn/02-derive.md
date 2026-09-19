@@ -37,14 +37,10 @@ import {
   ul,
 } from '@craft-ts/component';
 
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* state('tasks', [] as Task[], /* … as above … */);
-    return { tasks };
-  },
-  ({ tasks }) => [
+export const Tasks = craftComponent('Tasks', {}, function* () {
+  const tasks = yield* state('tasks', [] as Task[], /* … as above … */);
+
+  return [
     h1(function* () {
       return `Tasks — ${yield* tasks.remaining()} left`;
     }),
@@ -82,8 +78,8 @@ export const Tasks = craftComponent(
           ]),
       ),
     ),
-  ],
-);
+  ];
+});
 ```
 
 Two template things worth noting. `forNode(source, options, render)` takes a
@@ -92,8 +88,8 @@ nodes — and an optional `empty` branch. Pass the reader itself (`tasks`) rathe
 than `() => tasks()`. When a binding must format or call a method, use a
 generator and `yield*`.
 
-The logic factory is now three lines. That's the point: **behaviour lives on the
-state, not around it.**
+What the component declares is now three lines. That's the point: **behaviour
+lives on the state, not around it.**
 
 ## Control flow
 
@@ -149,20 +145,20 @@ visibility contract records.
 ## Reusing behaviour across components
 
 An insertion factors logic out of a **primitive**. Its counterpart for
-**components** is a directive: `craftDirective` decorates both a component's
-logic factory and its template, and you attach it with `.pipe(...)`:
+**components** is a directive: `craftDirective` transforms the service a
+component takes and the template it returns, and you attach it with `.pipe(...)`:
 
 ```typescript
-export const Card = craftComponent(
-  'Card',
-  {},
-  (user: Input<User>) => ({ user: deepYieldable(user) }),
-  ({ user }) => div(user.name),
-).pipe(InteractivePermissions);
+export const Card = craftComponent('Card', {}, function* (inputs: {
+  readonly user: Input<User>;
+}) {
+  const { user } = yield* CardView(inputs);
+  return div(user.name);
+}).pipe(InteractivePermissions);
 ```
 
-The directive can add to the context the template receives — here a
-`permissions` object the component never had to declare — and directives compose
+The directive can enrich what the component reads from its service — here a
+`permissions` façade the component never had to declare — and directives compose
 left to right. That is how a tooltip, focus management or interaction analytics
 get added to several components without any of them knowing about it.
 
@@ -174,8 +170,8 @@ component customization, and [Encapsulated styles](/guide/components/styles).
 
 ## Every exception a component picks up must be handled
 
-If a component's factory — or one of its providers — can raise a
-`craftException`, that code becomes part of the component's contract. It has to
+If a component — or one of its providers — can raise a `craftException`, that
+code becomes part of the component's contract. It has to
 be dealt with, and the compiler is the one that says so:
 
 ```typescript
@@ -187,8 +183,8 @@ export const Restricted = MyComponent.pipe(
 ```
 
 `catchNode.exhaustive` is the one you want most of the time: it renders a
-**fallback**. When the failure happens in the factory or a provider — before the
-template exists — the fallback simply renders alone.
+**fallback**. When the failure happens while the component is declaring what it
+takes — before there are any nodes — the fallback simply renders alone.
 
 Handle it here and the code disappears from the contract. Leave it and it flows
 up to the route, where `handleExceptions` **must** cover it — a reachable code

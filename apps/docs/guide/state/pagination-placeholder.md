@@ -116,41 +116,43 @@ The pagination outputs (`currentPageData`, `currentPageStatus`, `isPlaceHolderDa
 ::: details A full paginated component
 
 ```typescript
-import { button, craftComponent, div, forNode, ifNode, span } from '@craft-ts/component';
+import {
+  button,
+  craftComponent,
+  div,
+  forNode,
+  ifNode,
+  span,
+} from '@craft-ts/component';
 import { craftComputed, query, state } from '@craft-ts/core';
 
-export const UsersList = craftComponent(
-  'UsersList',
-  {},
-  function* () {
-    const page = yield* state('page', 1, ({ state, update, set }) => ({
-      next: () => update((value) => value + 1),
-      previous: function* () {
-        const current = yield* state();
-        return yield* set(Math.max(1, current - 1));
-      },
-      isFirst: craftComputed(function* () {
-        return (yield* state()) === 1;
-      }),
-      label: craftComputed(function* () {
-        return `Page ${yield* state()}`;
-      }),
-    }));
+export const UsersList = craftComponent('UsersList', {}, function* () {
+  const page = yield* state('page', 1, ({ state, update, set }) => ({
+    next: () => update((value) => value + 1),
+    previous: function* () {
+      const current = yield* state();
+      return yield* set(Math.max(1, current - 1));
+    },
+    isFirst: craftComputed(function* () {
+      return (yield* state()) === 1;
+    }),
+    label: craftComputed(function* () {
+      return `Page ${yield* state()}`;
+    }),
+  }));
 
-    const userQuery = yield* query(
-      'userQuery',
-      {
-        params: page,
-        identifier: (page) => `page-${page}`,
-        loader: async ({ params }) =>
-          (await fetch(`/api/users?page=${params}`)).json() as Promise<User[]>,
-      },
-      insertPaginationPlaceholderData({ initialValue: [] as User[] }),
-    );
+  const userQuery = yield* query(
+    'userQuery',
+    {
+      params: page,
+      identifier: (page) => `page-${page}`,
+      loader: async ({ params }) =>
+        (await fetch(`/api/users?page=${params}`)).json() as Promise<User[]>,
+    },
+    insertPaginationPlaceholderData({ initialValue: [] as User[] }),
+  );
 
-    return { page, userQuery };
-  },
-  ({ page, userQuery }) => [
+  return [
     div(
       {
         class: function* () {
@@ -159,10 +161,8 @@ export const UsersList = craftComponent(
             : 'users-list';
         },
       },
-      forNode(
-        userQuery.currentPageData,
-        { track: (user) => user.id },
-        (user) => UserCard({ user }),
+      forNode(userQuery.currentPageData, { track: (user) => user.id }, (user) =>
+        UserCard({ user }),
       ),
     ),
 
@@ -175,8 +175,8 @@ export const UsersList = craftComponent(
     ifNode(userQuery.isPlaceHolderData, () =>
       div({ class: 'loading-indicator' }, 'Loading new page…'),
     ),
-  ],
-);
+  ];
+});
 ```
 
 :::

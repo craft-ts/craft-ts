@@ -83,16 +83,15 @@ a computed derived from them.
 craftComponent(
   'teamList',
   {},
+  // ERROR_async_source_rendered_outside_a_pendingNode: "users"
   function* () {
     const users = yield* query('users', { ... });
     const teams = craftComputed('teams', function* () {
       const list = yield* settled(users);
       return () => list().length;
     });
-    return { teams };
+    return div([span(teams)]);
   },
-  // ERROR_async_source_rendered_outside_a_pendingNode: "users"
-  ({ teams }) => div([span(teams)]),
 );
 ```
 

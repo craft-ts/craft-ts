@@ -22,7 +22,9 @@ describe('require-craft-method-for-yieldable-callback', () => {
   it('reports a bound callback that calls a yieldable method', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = ((value: number) => void) & {
+      type YieldableMethod = ((
+        value: number,
+      ) => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const pagination: { updatePageSize: YieldableMethod };
@@ -44,7 +46,7 @@ describe('require-craft-method-for-yieldable-callback', () => {
   it('reports an inline bound callback', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = (() => void) & {
+      type YieldableMethod = (() => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const action: YieldableMethod;
@@ -64,7 +66,9 @@ describe('require-craft-method-for-yieldable-callback', () => {
   it('accepts a callback created with craftMethod', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = ((value: number) => void) & {
+      type YieldableMethod = ((
+        value: number,
+      ) => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const pagination: { updatePageSize: YieldableMethod };
@@ -86,7 +90,7 @@ describe('require-craft-method-for-yieldable-callback', () => {
   it('ignores ordinary bound callbacks and nested functions', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = (() => void) & {
+      type YieldableMethod = (() => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const action: YieldableMethod;

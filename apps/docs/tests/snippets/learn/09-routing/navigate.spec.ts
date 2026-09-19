@@ -1,44 +1,41 @@
 // @vitest-environment jsdom
-import { setupCraftComponentLogicTest } from '@craft-ts/component';
-import { describe, expect, it } from 'vitest';
+import { setupCraftComponentTemplateTest } from '@craft-ts/component';
+import { describe, expect, it, vi } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
 useSnippetHarness();
 
 // #region navigate
-import { craftComponent } from '@craft-ts/component';
+import { button, craftComponent } from '@craft-ts/component';
 import { CraftRouter, craftMethod } from '@craft-ts/core';
 
-export const TaskOpener = craftComponent(
-  'TaskOpener',
-  {},
-  function* () {
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({ navigate }));
+export const TaskOpener = craftComponent('TaskOpener', {}, function* () {
+  const router = yield* CraftRouter(undefined, ({ navigate }) => ({ navigate }));
 
-    const goToTask = craftMethod('goToTask', function* (taskId: string) {
-      void router.navigate({ to: 'tasks/:taskId', params: { taskId } });
-    });
+  const goToTask = craftMethod('goToTask', function* (taskId: string) {
+    void router.navigate({ to: 'tasks/:taskId', params: { taskId } });
+  });
 
-    return { goToTask };
-  },
-  () => [],
-);
+  return button('openTask', { type: 'button', click: () => goToTask('1') }, 'Open task 1');
+});
 // #endregion navigate
 
 describe('Learn 09 CraftRouter navigate', () => {
-  it('exposes a named goToTask method', async () => {
-    const { context, destroy } = await setupCraftComponentLogicTest(TaskOpener, {
-      register: {
-        CraftRouter: {
-          navigate: () => undefined,
-        },
-      },
+  it('navigates to the task route when the button is clicked', async () => {
+    const navigate = vi.fn();
+    const template = await setupCraftComponentTemplateTest(TaskOpener, {
+      inputs: {},
+      register: { CraftRouter: { navigate } },
     });
 
     try {
-      expect(typeof context.goToTask).toBe('function');
+      template.getByRole('button', { name: 'Open task 1' }).click();
+      expect(navigate).toHaveBeenCalledWith({
+        to: 'tasks/:taskId',
+        params: { taskId: '1' },
+      });
     } finally {
-      destroy();
+      template.destroy();
     }
   });
 });

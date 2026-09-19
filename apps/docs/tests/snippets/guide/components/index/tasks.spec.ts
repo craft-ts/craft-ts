@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { TestBed } from '@craft-ts/core';
-import { setupCraftComponentLogicTest } from '@craft-ts/component';
-import { craftUse } from '@craft-ts/core';
+import { setupCraftComponentTemplateTest } from '@craft-ts/component';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 // #region tasks
@@ -10,14 +9,10 @@ import { state } from '@craft-ts/core';
 
 type Task = { id: string; title: string; done: boolean };
 
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* state('tasks', [] as Task[]);
-    return { tasks };
-  },
-  ({ tasks }) => [
+export const Tasks = craftComponent('Tasks', {}, function* () {
+  const tasks = yield* state('tasks', [] as Task[]);
+
+  return [
     h1('Tasks'),
     ul(
       forNode(tasks, { track: (task) => task.id }, (task) =>
@@ -26,8 +21,8 @@ export const Tasks = craftComponent(
         }),
       ),
     ),
-  ],
-);
+  ];
+});
 // #endregion tasks
 
 beforeAll(() => {});
@@ -37,15 +32,19 @@ beforeEach(() => {
 });
 
 describe('guide/components/index.md #tasks', () => {
-  it('exposes an empty task list', async () => {
-    const { context, destroy } = await setupCraftComponentLogicTest(Tasks, {
+  it('renders the heading and an empty list', async () => {
+    const template = await setupCraftComponentTemplateTest(Tasks, {
+      inputs: {},
       register: {},
     });
 
     try {
-      expect(craftUse(context.tasks())).toEqual([]);
+      expect(template.nativeElement.querySelector('h1')?.textContent).toBe(
+        'Tasks',
+      );
+      expect(template.nativeElement.querySelectorAll('li')).toHaveLength(0);
     } finally {
-      destroy();
+      template.destroy();
     }
   });
 });

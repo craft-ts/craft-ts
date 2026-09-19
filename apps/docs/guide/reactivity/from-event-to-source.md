@@ -185,47 +185,38 @@ const { counter } = state('counter', 0, ({ update }) => ({
 import { craftComponent, p } from '@craft-ts/component';
 import { fromEventToSource$, on$, state } from '@craft-ts/core';
 
-export const Clicker = craftComponent(
-  'Clicker',
-  {},
-  function* () {
-    const click$ = fromEventToSource$<MouseEvent>(document, 'click');
+export const Clicker = craftComponent('Clicker', {}, function* () {
+  const click$ = fromEventToSource$<MouseEvent>(document, 'click');
 
-    const clicks = yield* state('clicks', 0, ({ update }) => ({
-      // bound to the source, so NOT exposed on the ref
-      increment: on$(click$, () => update((count) => count + 1)),
-    }));
+  const clicks = yield* state('clicks', 0, ({ update }) => ({
+    // bound to the source, so NOT exposed on the ref
+    increment: on$(click$, () => update((count) => count + 1)),
+  }));
 
-    return { clicks };
-  },
-  ({ clicks }) =>
-    p(function* () {
-      return `Clicks: ${yield* clicks()}`;
-    }),
-);
+  return p(function* () {
+    return `Clicks: ${yield* clicks()}`;
+  });
+});
 ```
 
 ### Input Value Tracking
 
 ```typescript
-export const Search = craftComponent(
-  'Search',
-  {},
-  function* () {
-    const input$ = fromEventToSource$(document, 'input', {
-      computedValue: (event: Event) => (event.target as HTMLInputElement).value,
-    });
+export const Search = craftComponent('Search', {}, function* () {
+  const input$ = fromEventToSource$(document, 'input', {
+    computedValue: (event: Event) => (event.target as HTMLInputElement).value,
+  });
 
-    // reactive access to the current input value
-    return { searchTerm: input$.value };
-  },
-  ({ searchTerm }) => [
+  // reactive access to the current input value
+  const searchTerm = input$.value;
+
+  return [
     input({ type: 'text', placeholder: 'Search…' }),
     p(function* () {
       return `You typed: ${(yield* searchTerm()) || 'nothing yet'}`;
     }),
-  ],
-);
+  ];
+});
 ```
 
 ### Window Scroll Tracking
@@ -253,49 +244,41 @@ export const InfiniteScroll = craftComponent(
       }
     });
 
-    return { scrollPosition: scroll$.value };
-  },
-  ({ scrollPosition }) =>
-    div(
+    return div(
       p(function* () {
         return `Scroll position: ${(yield* scrollPosition())?.scrollY}`;
       }),
-    ),
+    );
+  },
 );
 ```
 
 ### Window Resize Handling
 
 ```typescript
-export const Responsive = craftComponent(
-  'Responsive',
-  {},
-  function* () {
-    const resize$ = fromEventToSource$(window, 'resize', {
-      computedValue: () => ({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      }),
-    });
+export const Responsive = craftComponent('Responsive', {}, function* () {
+  const resize$ = fromEventToSource$(window, 'resize', {
+    computedValue: () => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }),
+  });
 
-    const dimensions = resize$.value;
+  const dimensions = resize$.value;
 
-    return {
-      dimensions,
-      isMobile: craftComputed('isMobile', function* () {
-        const dims = yield* dimensions();
-        return dims ? dims.width < 768 : false;
-      }),
-    };
-  },
-  ({ dimensions }) =>
-    div(
-      p(function* () {
-        const dims = yield* dimensions();
-        return `Viewport: ${dims?.width} x ${dims?.height}`;
-      }),
-    ),
-);
+  const isMobile = craftComputed('isMobile', function* () {
+    const dims = yield* dimensions();
+    return dims ? dims.width < 768 : false;
+  });
+
+  return div(
+    { 'data-mobile': isMobile },
+    p(function* () {
+      const dims = yield* dimensions();
+      return `Viewport: ${dims?.width} x ${dims?.height}`;
+    }),
+  );
+});
 ```
 
 ### Keyboard Shortcuts
@@ -322,10 +305,7 @@ export const Dynamic = craftComponent(
       });
     };
 
-    return { items, attachListener };
-  },
-  ({ items, attachListener }) =>
-    forNode(
+    return forNode(
       () => items(),
       { track: (item) => item.id },
       (item) =>
@@ -335,7 +315,8 @@ export const Dynamic = craftComponent(
             'Attach listener',
           ),
         ),
-    ),
+    );
+  },
 );
 ```
 
@@ -347,28 +328,22 @@ interface Position {
   y: number;
 }
 
-export const CursorTracker = craftComponent(
-  'CursorTracker',
-  {},
-  function* () {
-    const mouseMove$ = fromEventToSource$(document, 'mousemove', {
-      computedValue: (event: MouseEvent) => ({
-        x: event.clientX,
-        y: event.clientY,
-      }),
-      event: { passive: true },
-    });
+export const CursorTracker = craftComponent('CursorTracker', {}, function* () {
+  const mouseMove$ = fromEventToSource$(document, 'mousemove', {
+    computedValue: (event: MouseEvent) => ({
+      x: event.clientX,
+      y: event.clientY,
+    }),
+    event: { passive: true },
+  });
 
-    return { position: mouseMove$.value };
-  },
-  ({ position }) =>
-    div(
-      p(function* () {
-        const pos = yield* position();
-        return `Mouse position: ${pos?.x}, ${pos?.y}`;
-      }),
-    ),
-);
+  return div(
+    p(function* () {
+      const pos = yield* position();
+      return `Mouse position: ${pos?.x}, ${pos?.y}`;
+    }),
+  );
+});
 ```
 
 ### Form Submission

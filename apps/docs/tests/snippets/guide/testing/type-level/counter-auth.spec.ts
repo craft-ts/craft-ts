@@ -14,25 +14,20 @@ import {
   span,
 } from '@craft-ts/component';
 
-const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const isAuth = yield* state('isAuth', true);
-    const brandedStatus = yield* state('brandedStatus', 'ready');
-    return { isAuth, brandedStatus };
-  },
-  ({ isAuth, brandedStatus }) =>
-    ifNode(
-      isAuth,
-      () =>
-        div([
-          button('increment', { type: 'button', click: function* () {} }, '+'),
-          span(brandedStatus),
-        ]),
-      () => [],
-    ),
-);
+const Counter = craftComponent('Counter', {}, function* () {
+  const isAuth = yield* state('isAuth', true);
+  const brandedStatus = yield* state('brandedStatus', 'ready');
+
+  return ifNode(
+    isAuth,
+    () =>
+      div([
+        button('increment', { type: 'button', click: function* () {} }, '+'),
+        span(brandedStatus),
+      ]),
+    () => [],
+  );
+});
 // #endregion counter-auth
 
 describe('guide/testing/type-level.md #counter-auth', () => {

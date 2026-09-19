@@ -111,7 +111,7 @@ export default [
 What each rule does:
 
 - `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifNode(...)`, `matchNode.exhaustive(...)`, `forNode(...)`, or `deferNode(...)`
-- `craft-ts/require-craft-computed-for-dynamic-template-lookup`: rejects dynamic object or array lookups in a Craft template when the lookup key comes from a template parameter; move the lookup to a named `craftComputed()` in the component logic factory and bind that value directly
+- `craft-ts/require-craft-computed-for-dynamic-template-lookup`: rejects dynamic object or array lookups in a Craft template when the lookup key comes from a reactive member; move the lookup to a named `craftComputed()` in the component's service and bind that value directly
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
 - `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files; use a generator and delegate the reader with `yield*` instead
@@ -138,15 +138,15 @@ export function filterButton(filter: TodoFilter, label: string) {
 export const FilterButton = craftComponent(
   'FilterButton',
   {},
-  (filter: Input<TodoFilter>, label: Input<string>) => ({ filter, label }),
-  ({ label }) => button('todoFilterButton', { type: 'button' }, label),
+  ({ label }: { readonly filter: Input<TodoFilter>; readonly label: Input<string> }) =>
+    button('todoFilterButton', { type: 'button' }, label),
 );
 ```
 
 The rule also follows named exports such as `export { filterButton }` and
 checks exported arrow functions.
 
-- `craft-ts/no-type-assertions-in-template`: forbids `as ...` and angle-bracket type assertions in Craft templates; fix the type in the logic factory or expose a correctly typed derived value
+- `craft-ts/no-type-assertions-in-template`: forbids `as ...` and angle-bracket type assertions in Craft templates; fix the type in the component's service or expose a correctly typed derived value
 - `craft-ts/no-explicit-craft-template-return-type`: forbids explicit return annotations on render callbacks inside `craftComponent(...)`. A broad annotation such as `(): CraftNodeChildren` widens the concrete node type, breaks dependency and type-safe DI inference, and can surface as a runtime error. Let the callback return type be inferred:
 
   ```ts
@@ -169,54 +169,39 @@ checks exported arrow functions.
   and output callbacks remain allowed because those callbacks do not produce
   rendered children.
 
-- `craft-ts/no-extracted-craft-component-parts`: requires the logic factory and
-  template passed to `craftComponent(...)` to stay inline. Keeping both parts at
-  the component boundary preserves contextual type inference and makes the
-  component's behaviour readable in one place. The rule reports both extracted
-  identifiers independently.
+- `craft-ts/no-extracted-craft-component-parts`: requires the function passed to
+  `craftComponent(...)` to stay inline. Keeping it at the component boundary
+  preserves contextual type inference and makes the component's behaviour
+  readable in one place.
 
-  Before — extracted `ReviewLogic` and `ReviewTemplate` hide the component's
+  Before — an extracted `ReviewTemplate` hides the component's
   two halves behind names at the call site:
 
   ```ts
   // ❌ craft-ts/no-extracted-craft-component-parts
-  const ReviewLogic = craftGen(function* () {
-    return { review, decide };
-  });
-
   const ReviewTemplate = craftTemplate(({ decide }) =>
     div([button({ click: decide }, 'Review')]),
   );
 
-  export const ReviewApp = craftComponent(
-    'ReviewApp',
-    {},
-    ReviewLogic,
-    ReviewTemplate,
-  );
+  export const ReviewApp = craftComponent('ReviewApp', {}, ReviewTemplate);
   ```
 
-  After — keep the logic and template callback in the component call:
+  After — keep the component's own function in the component call:
 
   ```ts
   // ✅
-  export const ReviewApp = craftComponent(
-    'ReviewApp',
-    {},
-    craftGen(function* () {
-      return { review, decide };
-    }),
-    ({ decide }) => div([button({ click: decide }, 'Review')]),
-  );
+  export const ReviewApp = craftComponent('ReviewApp', {}, function* () {
+    const { decide } = yield* ReviewAppView();
+    return div([button({ click: decide }, 'Review')]);
+  });
   ```
 
-  The rule only rejects identifiers in the logic and template argument
-  positions. Inline callbacks and inline `craftGen(...)` / `craftTemplate(...)`
-  expressions remain valid. A direct template callback is usually the simplest
-  form because `craftComponent(...)` can contextually type it from the inline
-  logic factory.
+  The rule only rejects an identifier in the template argument position. An
+  inline callback or an inline `craftTemplate(...)` expression remains valid: a
+  direct callback is usually the simplest form, because `craftComponent(...)`
+  can contextually type it.
 
-- `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the fourth argument of `craftComponent(...)` and `craftDirective(...)` (inline or a same-file identifier). Declare that state in the logic factory with `state()` or `craftComputed()` instead
+- `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the template a `craftComponent(...)` or `craftDirective(...)` returns (inline or a same-file identifier). What the component declares in its own scope — its service, its primitives, its inputs — is fine; a plain local is not, because the body reruns. Declare that state with `state()` or `craftComputed()`
 - `craft-ts/require-form-for-input-action`: rejects a button's direct `mutate(...)` or `method(...)` call when it consumes an input-bound value, including through a local record or variable; use `insertForm`, `insertFormAttributes`, and `insertFormSubmit` for mutation-backed forms, then submit a native `form(...)` with a `type: 'submit'` button
 - `craft-ts/template-element-name-unique`: requires named HTML helpers to use a static, unique local name within a component; use the object-first helper form for unnamed elements such as `p({ id: 'hint' }, ...)`
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
@@ -234,30 +219,28 @@ checks exported arrow functions.
   ```ts
   // ❌ craft-ts/max-craft-component-lines
   // review-app.ts — 3894 lines: filtering, sorting, diff computation,
-  // pagination, and the full markup tree all inlined in one logic factory
-  // and one template.
+  // pagination, and the full markup tree inlined in one component.
   export const ReviewApp = craftComponent(
     'ReviewApp',
     {},
-    (subjects: Input<Subject[]>) => {
-      const filtered = craftComputed(() => /* 80 lines of filtering */ []);
-      const diff = craftComputed(() => /* 150 lines of diffing */ null);
+    function* (inputs: { readonly subjects: Input<Subject[]> }) {
+      const filtered = craftComputed('filtered', () => /* 80 lines */ []);
+      const diff = craftComputed('diff', () => /* 150 lines of diffing */ null);
       // …dozens more computeds and craftMethods…
-      return { subjects, filtered, diff /* … */ };
-    },
-    ({ filtered, diff /* … */ }) =>
-      div(
+
+      return div(
         {},
         /* a thousand-plus lines of markup for the filter bar, the diff
            viewport, the review card list, and the pagination controls */
-      ),
+      );
+    },
   );
 
   // ✅ Business logic moves to a craftService; independent template
   // regions become their own craftComponent, each testable and readable
   // on its own.
-  export const ReviewFilters = craftService(
-    { name: 'ReviewFilters', scope: 'global' },
+  export const { ReviewFilters } = craftService(
+    { name: 'ReviewFilters', providedIn: 'global' },
     () => ({
       filter: (subjects: Subject[], criteria: FilterCriteria) => /* … */ [],
     }),
@@ -266,25 +249,20 @@ checks exported arrow functions.
   export const SubjectDiffViewport = craftComponent(
     'SubjectDiffViewport',
     {},
-    (subject: Input<Subject>) => ({ subject }),
-    ({ subject }) => div({} /* … */),
+    ({ subject }: { readonly subject: Input<Subject> }) => div({} /* … */),
   );
 
   export const ReviewApp = craftComponent(
     'ReviewApp',
-    {},
-    (subjects: Input<Subject[]>) => {
-      const filters = injectX(ReviewFilters);
-      const filtered = craftComputed(() =>
-        filters.filter(subjects(), criteria()),
-      );
-      return { filtered /* … */ };
-    },
-    ({ filtered }) =>
-      div(
+    { providers: [provideReviewAppView()] },
+    function* (inputs: { readonly subjects: Input<Subject[]> }) {
+      const { filtered } = yield* ReviewAppView(inputs);
+
+      return div(
         {},
         forNode(filtered, (subject) => SubjectDiffViewport({ subject })),
-      ),
+      );
+    },
   );
   ```
 
@@ -296,7 +274,7 @@ checks exported arrow functions.
 - `craft-ts/prefer-craft-http-transport`: forbids direct `fetch()` and `XMLHttpRequest` because they bypass typed responses and exceptions, tracing, cancellation, and the architecture graph; use `query()` for reads or `mutation()` for writes with `CraftHttpClient`, or `CraftBinaryHttpClient` for raw binary bodies
 - `craft-ts/prefer-craft-input-output`: keeps component inputs and outputs in the `Input`/`Output` model used by `craftComponent(...)`
 - `craft-ts/require-primitive-derived-property`: requires a `computed` or `craftComputed` that only depends on one primitive in the same component/service to be exposed by that primitive's insertion; simple cases are autofixed
-- `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file, including unchanged aliases forwarded through a component template context; create a context-specific insertion method for each distinct use
+- `craft-ts/no-reused-primitive-method`: requires an exposed primitive insertion method to have one call site per file, including unchanged aliases; naming an alias is not a call site, binding it is. Create a context-specific insertion method for each distinct use
 - `craft-ts/no-async-await`: forbids `async` functions, `await`, and `for await...of` because native Promise suspension hides Craft dependencies and can lose cancellation or exception tracking; use generator-based Craft primitives, `craftSleep`, and `CraftHttpClient` instead
 - `craft-ts/require-generator-resource-loader`: requires `query`, `mutation`, and `asyncProcess` loaders to be generator functions because a plain or async return hides remote dependencies from the resource lifecycle; use `yield*` to keep each suspension tracked
 - `craft-ts/no-throw`: forbids `throw` in Craft code because it bypasses the typed resource exception channel, and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
@@ -526,7 +504,7 @@ button(
   'Back',
 );
 
-// Correct: derive it in the logic factory and bind the result.
+// Correct: derive it with a named computed and bind the result.
 const backDisabled = craftComputed('backDisabled', function* () {
   return !(yield* history.canGoBack());
 });

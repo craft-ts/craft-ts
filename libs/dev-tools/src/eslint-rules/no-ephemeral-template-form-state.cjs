@@ -1,26 +1,19 @@
+const { templateRegions } = require('./craft-template-region.cjs');
+
 const TEMPLATE_HOSTS = new Set(['craftComponent', 'craftDirective']);
 
 /**
  * The component's own scope is where it declares what it renders from: the
- * service it takes, the primitives it owns, its inputs. Those declarations are
- * the API, not ephemeral render state.
+ * service it takes, the primitives it owns, its inputs, the helpers it builds
+ * from them. What it may not hold there is a **value** — a literal, or nothing
+ * at all — because the body runs again on every render and that value is lost.
  */
-const CRAFT_DECLARATION_CALLEES = new Set([
-  'state',
-  'query',
-  'mutation',
-  'source',
-  'source$',
-  'asyncProcess',
-  'craftComputed',
-  'craftMethod',
-  'craftStateMachine',
-  'craftUse',
-  'computedEffect',
-  'methodEffect',
-  'mutationEffect',
-  'queryEffect',
-  'stateEffect',
+const STATE_SHAPED_INITIALIZERS = new Set([
+  'Literal',
+  'TemplateLiteral',
+  'ArrayExpression',
+  'ObjectExpression',
+  'UnaryExpression',
 ]);
 
 function isFunctionNode(node) {
@@ -127,58 +120,57 @@ module.exports = {
       const componentScope = new Set(
         template.body?.type === 'BlockStatement' ? template.body.body : [],
       );
-      const parameterNames = new Set(
-        template.params
-          .filter((parameter) => parameter.type === 'Identifier')
-          .map((parameter) => parameter.name),
-      );
+      // Below the component's own scope, only what it renders is a template: a
+      // local inside a primitive's insertion is a declaration, not a binding.
+      const roots = [...componentScope, ...templateRegions(template)];
 
-      walk(template, (node) => {
+      const visit = (node) => {
         if (node !== template && isTemplateHostCall(node)) {
           return 'skip';
         }
 
         if (node.type !== 'VariableDeclaration') return;
-        if (
-          componentScope.has(node) &&
-          isComponentDeclaration(node, parameterNames)
-        ) {
-          return;
+        // What a component declares in its own scope is checked here and not
+        // walked into: the callbacks a primitive takes are declaration code.
+        if (componentScope.has(node)) {
+          if (isComponentDeclaration(node)) return 'skip';
+          reportDeclaration(node);
+          return 'skip';
         }
 
-        const named = node.declarations.map(declaratorName).filter(Boolean);
+        reportDeclaration(node);
+        return undefined;
+      };
 
-        if (named.length === 0) {
-          context.report({
-            node,
-            messageId: 'useStatePattern',
-            data: { kind: node.kind },
-          });
-          return;
-        }
-
-        for (const name of named) {
-          context.report({
-            node,
-            messageId: 'useState',
-            data: { name, kind: node.kind },
-          });
-        }
-      });
+      for (const root of roots) walk(root, visit);
     }
 
-    /** `const … = yield* Service()`, a craft primitive, or the inputs object. */
-    function isComponentDeclaration(node, parameterNames) {
+    function reportDeclaration(node) {
+      const named = node.declarations.map(declaratorName).filter(Boolean);
+
+      if (named.length === 0) {
+        context.report({
+          node,
+          messageId: 'useStatePattern',
+          data: { kind: node.kind },
+        });
+        return;
+      }
+
+      for (const name of named) {
+        context.report({
+          node,
+          messageId: 'useState',
+          data: { name, kind: node.kind },
+        });
+      }
+    }
+
+    /** Anything but a value the next render would rebuild from nothing. */
+    function isComponentDeclaration(node) {
       return node.declarations.every((declarator) => {
         const init = declarator.init;
-        if (!init) return false;
-        if (init.type === 'YieldExpression') return true;
-        if (init.type === 'Identifier') return parameterNames.has(init.name);
-        return (
-          init.type === 'CallExpression' &&
-          init.callee.type === 'Identifier' &&
-          CRAFT_DECLARATION_CALLEES.has(init.callee.name)
-        );
+        return Boolean(init) && !STATE_SHAPED_INITIALIZERS.has(init.type);
       });
     }
 

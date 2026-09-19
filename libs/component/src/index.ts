@@ -106,7 +106,7 @@ export type {
   CraftDirectiveTemplateDependencies,
   ComponentTemplateOf,
   ComponentTemplateNameOf,
-  ComponentLogicOutputOf,
+  TemplateChildren,
   YieldableTemplateCallback,
   YieldableTemplateContext,
   TemplateMethodUse,
@@ -138,6 +138,7 @@ export type {
   CraftInputExceptionsCarrier,
   ComponentInputExceptionsOf,
 } from './lib/types';
+export { projection } from './lib/types';
 export type {
   TemplateRenderAvailableActionWhen,
   TemplateRendersNamedElementWhen,

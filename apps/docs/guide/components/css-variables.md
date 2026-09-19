@@ -46,7 +46,6 @@ craftComponent(
       '--external-card-gap': '1rem',
     },
   },
-  () => ({}),
   template,
 );
 ```

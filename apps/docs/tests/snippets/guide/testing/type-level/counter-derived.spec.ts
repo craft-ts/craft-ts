@@ -8,27 +8,22 @@ useSnippetHarness();
 import { button, craftComponent } from '@craft-ts/component';
 import { craftComputed, state } from '@craft-ts/core';
 
-const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const counter = yield* state('counter', 0, ({ state }) => ({
-      disabled: craftComputed(function* () {
-        return (yield* state()) % 2 === 0;
-      }),
-    }));
+const Counter = craftComponent('Counter', {}, function* () {
+  const counter = yield* state('counter', 0, ({ state }) => ({
+    disabled: craftComputed(function* () {
+      return (yield* state()) % 2 === 0;
+    }),
+  }));
 
-    return { counter };
-  },
-  (context) =>
-    button('increment',
-      {
-        type: 'button',
-        disabled: context.counter.disabled,
-      },
-      '+',
-    ),
-);
+  return button(
+    'increment',
+    {
+      type: 'button',
+      disabled: counter.disabled,
+    },
+    '+',
+  );
+});
 // #endregion counter-derived
 
 describe('guide/testing/type-level.md #counter-derived', () => {

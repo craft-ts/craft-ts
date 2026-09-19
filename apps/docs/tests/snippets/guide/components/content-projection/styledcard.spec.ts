@@ -19,8 +19,7 @@ const StyledCard = craftComponent(
       body: ':scope { display: block; color: #344054; }',
     },
   },
-  (input: { readonly body: ContentSlot }) => input,
-  ({ body }) => renderContent('body', body),
+  ({ body }: { readonly body: ContentSlot }) => renderContent('body', body),
 );
 // #endregion styledcard
 

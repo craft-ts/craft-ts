@@ -201,32 +201,27 @@ const { counter } = state('counter', 0, ({ set, update }) => ({
 import { button, craftComponent, p } from '@craft-ts/component';
 import { on$, source$, state } from '@craft-ts/core';
 
-export const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    // a source for reset events
-    const reset$ = source$<void>('reset$');
+export const Counter = craftComponent('Counter', {}, function* () {
+  // a source for reset events
+  const reset$ = source$<void>('reset$');
 
-    const counter = yield* state('counter', 0, ({ set, update }) => ({
-      increment: () => update((v) => v + 1),
-      decrement: () => update((v) => v - 1),
-      // internal: listens to reset$ and sets counter to 0.
-      // NOT exposed on the ref, because it is bound with on$
-      reset: on$(reset$, () => set(0)),
-    }));
+  const counter = yield* state('counter', 0, ({ set, update }) => ({
+    increment: () => update((v) => v + 1),
+    decrement: () => update((v) => v - 1),
+    // internal: listens to reset$ and sets counter to 0.
+    // NOT exposed on the ref, because it is bound with on$
+    reset: on$(reset$, () => set(0)),
+  }));
 
-    return { counter, reset$ };
-  },
-  ({ counter, reset$ }) => [
+  return [
     p(function* () {
       return `Count: ${yield* counter()}`;
     }),
     button({ click: counter.increment }, '+1'),
     button({ click: counter.decrement }, '-1'),
     button({ click: () => reset$.emit() }, 'Reset'),
-  ],
-);
+  ];
+});
 ```
 
 ### Multi-Source Coordination

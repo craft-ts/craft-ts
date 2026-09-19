@@ -49,7 +49,6 @@ const Panel = craftComponent(
       button { cursor: pointer; }
     `,
   },
-  () => ({}),
   () => div([h2({ class: 'title' }, 'Panel'), button('Save')]),
 );
 ```
@@ -129,9 +128,9 @@ const MyRestrictedCraftComponent = craftComponent(
   'MyRestrictedCraftComponent',
   {},
   function* () {
-    return { value: yield* RestrictedData() };
+    const value = yield* RestrictedData();
+    return p(`Private data: ${value}`);
   },
-  ({ value }) => p(`Private data: ${value}`),
 );
 
 const Restricted = MyRestrictedCraftComponent.pipe(
@@ -235,8 +234,8 @@ With `showSource: true`, the source and fallback are both rendered. Use
 `showSource: false` to hide the source explicitly. `position` can be set on
 each handler (`before` or `after`); the second argument remains available as a
 default for handlers that do not specify their own position. Existing function
-handlers keep their previous behavior. If the component factory or a provider
-fails before the template is created, there is no source block to preserve, so
+handlers keep their previous behavior. If the component fails while it declares
+what it takes, or one of its providers does, there are no nodes to preserve, so
 the fallback is rendered alone.
 
 ### `matchNode.exhaustive`: render a resource exception
@@ -262,8 +261,8 @@ the host component or directive:
   of the component using it; Craft keeps the association with the component;
 - directive styles remain encapsulated with `@scope`, without rewriting
   selectors or adding a wrapper;
-- multiple directives can compose their logic, template, host classes, and
-  styles through `.pipe(...)`;
+- multiple directives can compose their service transforms, template, host
+  classes, and styles through `.pipe(...)`;
 - styles are deduplicated and reference-counted across instances, then removed
   when the last instance is destroyed.
 
@@ -276,7 +275,7 @@ responsibilities do not leak into application code.
 - `styles`: local, reusable component appearance; the stylesheet is shared
   across instances, while its rules remain limited to the component roots;
 - `craftDirective`: behavior or customization reusable across components;
-- the factory: component-specific state and dependencies.
+- the component's own service: component-specific state and dependencies.
 
 ### Understanding style scope
 

@@ -50,24 +50,20 @@ const en = defineLocale(
 );
 const runtime = createI18nRuntime({ locales: [en] });
 
-const ShippingLine = craftComponent(
-  'ShippingLine',
-  {},
-  function* () {
-    const units = yield* Units();
-    // The translator re-reads whenever the unit system does.
-    return { translate: runtime.bind(units.system), units };
-  },
-  ({ translate, units }) =>
-    div([
-      p(translate('order.line', { weight: 12 })),
-      button(
-        'imperial',
-        { type: 'button', click: units.system.useImperial },
-        'Imperial',
-      ),
-    ]),
-);
+const ShippingLine = craftComponent('ShippingLine', {}, function* () {
+  const units = yield* Units();
+  // The translator re-reads whenever the unit system does.
+  const translate = runtime.bind(units.system);
+
+  return div([
+    p(translate('order.line', { weight: 12 })),
+    button(
+      'imperial',
+      { type: 'button', click: units.system.useImperial },
+      'Imperial',
+    ),
+  ]);
+});
 // #endregion di-token
 
 describe('guide/i18n/tokens.md #di-token', () => {

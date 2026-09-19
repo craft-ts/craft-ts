@@ -1,4 +1,4 @@
-const YIELDABLE_METHOD_NAME = 'YIELDABLE_METHOD';
+const { templateRegions } = require('./craft-template-region.cjs');
 
 module.exports = {
   meta: {
@@ -78,14 +78,20 @@ module.exports = {
     function collectBoundProperties(factory) {
       const properties = [];
       if (!factory) return properties;
-      walk(factory.body, (node) => {
+      for (const region of templateRegions(factory)) {
+        collectFrom(region, properties);
+      }
+      return properties;
+    }
+
+    function collectFrom(region, properties) {
+      walk(region, (node) => {
         if (node.type !== 'ObjectExpression') return undefined;
         for (const property of node.properties) {
           if (property.type === 'Property') properties.push(property);
         }
         return undefined;
       });
-      return properties;
     }
 
     function callbackName(property) {
@@ -136,32 +142,16 @@ module.exports = {
       return undefined;
     }
 
+    // A call that hands back an invocation has to be driven. A craftMethod
+    // carries the same brand but runs when it is called — it is already the fix
+    // this rule asks for, so the brand alone is not the defect.
     function isDirectYieldableCall(node) {
       const tsNode = esTreeNodeToTSNodeMap.get(node.callee);
       if (!tsNode) return false;
 
       const calleeType = checker.getTypeAtLocation(tsNode);
-      if (hasYieldableBrand(calleeType, new Set())) {
-        return true;
-      }
-
       const signature = calleeType.getCallSignatures?.()[0];
       return signature ? returnsGenerator(signature.getReturnType()) : false;
-    }
-
-    function hasYieldableBrand(type, seen) {
-      if (!type || seen.has(type)) return false;
-      seen.add(type);
-
-      if (type.isUnion?.() || type.isIntersection?.()) {
-        return type.types.some((part) => hasYieldableBrand(part, seen));
-      }
-
-      return checker
-        .getPropertiesOfType(type)
-        .some((property) =>
-          String(property.escapedName).includes(YIELDABLE_METHOD_NAME),
-        );
     }
 
     function returnsGenerator(type) {

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
+import { setupCraftComponentTemplateTest } from '@craft-ts/component/testing';
 import {
-  setupCraftComponentLogicTest,
-  setupCraftComponentTemplateTest,
-} from '@craft-ts/component/testing';
-import { craftService, state } from '@craft-ts/core';
+  craftService,
+  craftUse,
+  setupCraftServiceTestingByRegister,
+  state,
+} from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
@@ -31,14 +33,10 @@ const { TaskList } = craftService(
 // #region tasks-component
 import { craftComponent, forNode, h1, li, ul } from '@craft-ts/component';
 
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* TaskList();
-    return { tasks };
-  },
-  ({ tasks }) => [
+export const Tasks = craftComponent('Tasks', {}, function* () {
+  const tasks = yield* TaskList();
+
+  return [
     h1(function* () {
       return `Tasks — ${yield* tasks.remaining()} left`;
     }),
@@ -49,48 +47,34 @@ export const Tasks = craftComponent(
         }),
       ),
     ),
-  ],
-);
+  ];
+});
 // #endregion tasks-component
 
 describe('Learn 10 Tasks component', () => {
-  it('tests the factory without the DOM', async () => {
-    // #region tasks-logic-test
-    const { context, mocks, destroy } =
-      await setupCraftComponentLogicTest.byRegister(Tasks, {
-        register: {
-          TaskList: {
-            $self: () => [{ id: '1', title: 'a', done: false }],
-            remaining: () => 1,
-          },
-        },
-      });
+  it('tests the service without the DOM', async () => {
+    // #region tasks-service-test
+    const { sut } = await setupCraftServiceTestingByRegister(TaskList, {
+      TaskList: 'real',
+    });
 
-    expect(context.tasks.remaining()).toBe(1);
-    destroy();
-    // #endregion tasks-logic-test
-    expect(mocks.TaskList).toBeDefined();
+    expect(craftUse(sut.remaining())).toBe(0);
+    // #endregion tasks-service-test
   });
 
-  it('renders the template from a provided context', async () => {
+  it('renders the template against a mocked service', async () => {
     // #region tasks-template-test
     const test = await setupCraftComponentTemplateTest.byRegister(Tasks, {
-      context: {
-        tasks: Object.assign(
-          function* () {
-            return [{ id: '1', title: 'Write tests', done: false }];
+      inputs: {},
+      register: {
+        TaskList: {
+          $self: () => [{ id: '1', title: 'Write tests', done: false }],
+          // A state method hands back an invocation, so the fake does too.
+          remaining: function* () {
+            return 1;
           },
-          {
-            remaining: function* () {
-              return 1;
-            },
-            add: () => undefined,
-            toggle: () => undefined,
-            remove: () => undefined,
-          },
-        ),
+        },
       },
-      register: {},
     });
 
     expect(test.nativeElement.textContent).toContain('Tasks — 1 left');

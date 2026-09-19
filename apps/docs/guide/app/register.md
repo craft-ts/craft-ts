@@ -95,14 +95,10 @@ observes them:
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
   function* () {
-    const counter = yield* state(
-      'counter',
-      0,
-      ({ update }) => ({
-        increment: () => update((value) => value + 1),
-        decrement: () => update((value) => value - 1),
-      }),
-    );
+    const counter = yield* state('counter', 0, ({ update }) => ({
+      increment: () => update((value) => value + 1),
+      decrement: () => update((value) => value - 1),
+    }));
 
     return counter;
   },
@@ -112,9 +108,10 @@ const CounterChild = craftComponent(
   'CounterChild',
   { providers: [provideCounter()] },
   function* () {
-    return yield* Counter();
+    const counter = yield* Counter();
+
+    return div(counter);
   },
-  ({ counter }) => div(counter),
 );
 
 const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
@@ -129,25 +126,23 @@ const CounterBoard = craftComponent(
     const counters = yield* RegisterForCounter();
     const children = yield* RegisterForCounter.CounterChild();
 
-    return {
-      incrementAll: function* () {
-        for (const { ref } of (yield* counters()) ?? []) {
-          yield* ref.increment();
-        }
-      },
-      childCount: craftComputed('childCount', function* () {
-        return (yield* children())?.length ?? 0;
-      }),
-    };
-  },
-  ({ incrementAll, childCount }) =>
-    section([
+    const incrementAll = craftMethod('incrementAll', function* () {
+      for (const { ref } of (yield* counters()) ?? []) {
+        yield* ref.increment();
+      }
+    });
+    const childCount = craftComputed('childCount', function* () {
+      return (yield* children())?.length ?? 0;
+    });
+
+    return section([
       button({ click: incrementAll }, 'Increment every child'),
       p(function* () {
         return `Active children: ${yield* childCount()}`;
       }),
       forNode([1, 2, 3], () => CounterChild({})),
-    ]),
+    ]);
+  },
 );
 ```
 
@@ -290,19 +285,19 @@ debugEntries()?.forEach(({ hostName, ref }) => {
 });
 ```
 
-A functional directive has no class instance, so `ref` is the factory context of
-the decorated component. Its `hostName` remains specific to the directive and
-its instance, which is what lets you tell several identical directives apart on
-the same screen.
+A functional directive has no class instance, so `ref` is what the decorated
+component registered — the service it exposes. Its `hostName` remains specific
+to the directive and its instance, which is what lets you tell several identical
+directives apart on the same screen.
 
 ## Lifecycle and references
 
 Services are registered when their yield resolves. The runtime attaches their
 removal to the destruction of the injector that carries them.
 
-Craft components and directives are functional factories with no class instance,
-so `ref` is their factory context. For a directive used with `.pipe(...)`, the
-final component's context is exposed, because that is the execution scope the
+Craft components and directives are functions with no class instance, so `ref`
+is what they registered. For a directive used with `.pipe(...)`, the final
+component's registration is exposed, because that is the execution scope the
 directive shares.
 
 Every Craft component automatically gets a host tag of the form

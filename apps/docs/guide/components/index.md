@@ -20,24 +20,25 @@ See [`@craft-ts/component` on npm](https://www.npmjs.com/package/@craft-ts/compo
 ## The shape
 
 ```typescript
-craftComponent(name, meta, factory, template);
+craftComponent(name, meta, template);
 ```
 
 | Argument   | What it is                                                        |
 | ---------- | ----------------------------------------------------------------- |
 | `name`     | the component's name — used for host tags, snapshots, diagnostics |
 | `meta`     | `providers`, `styles`, `host`, `contentStyles`                    |
-| `factory`  | the **logic**: builds and returns the context                     |
-| `template` | receives that context, returns nodes                              |
+| `template` | the component: it declares what it takes, then returns nodes      |
 
 <<< @/tests/snippets/guide/components/index/tasks.spec.ts#tasks
 
 
-The split matters: the factory produces a context **without touching the DOM**,
-and the template renders a context **without running the factory**. That is what
-makes the two [testable independently](/guide/testing/components).
+One function, read top to bottom. What the component takes — its service, its
+primitives, its inputs — is declared with `yield*`; what it renders is what it
+returns. The **service** is the seam: it holds the behaviour, so it can be
+tested without a DOM while the template is tested against it. See
+[Testing components](/guide/testing/components).
 
-## The logic factory
+## The function
 
 A `function*` when it needs dependencies — every `yield*` is tracked and folds
 into the component's dependency type:
@@ -45,29 +46,30 @@ into the component's dependency type:
 ```typescript
 function* () {
   const tasks = yield* TaskList();
-  return { tasks };
+  return ul(/* … */);
 }
 ```
 
 A plain arrow when it needs none:
 
 ```typescript
-() => ({});
+() => ul(/* … */);
 ```
 
-Whatever it returns is the context the template receives. Nothing else is
-exposed.
+Local state that must survive a rerender belongs to a primitive or to the
+component's service — never to a plain `const` in the body, which is rebuilt on
+every render.
 
 ## Inputs and outputs
 
-They are **parameters of the factory**, typed with `Input<T>` and
+They are the **members of the single parameter**, typed with `Input<T>` and
 `Output<Handler>`:
 
 <<< @/tests/snippets/guide/components/index/usercard.spec.ts#usercard
 
 
 An `Input<T>` **is a yieldable reader** — `yield* user()` reads the current
-value. An `Output<H>` is a yieldable callback; delegate to it with `yield*`.
+value. An `Output<H>` is a plain callback: call it.
 
 Rendering a child is a function call, so there is no binding layer to get wrong:
 
@@ -77,23 +79,23 @@ UserCard({ user: currentUser, onRemove: removeUser });
 
 | Contract | Craft |
 | --- | --- |
-| Input | an `Input<T>` factory parameter |
-| Output | an `Output<H>` parameter, called directly |
+| Input | an `Input<T>` member of the inputs object |
+| Output | an `Output<H>` member, called directly |
 | Component call | `UserCard({ user: u, onRemove: fn })` |
 | Missing required input | **compile error** |
 
-## The template
+## What it returns
 
 Nodes are built with hyperscript helpers — `div`, `ul`, `button`, and `h(tag, …)`
 for anything without one. Pass a yieldable reader to a binding. Use a generator
 when the binding must format or call a method:
 
 ```typescript
-({ tasks }) => [
+return [
   h1(function* () {
     return `Tasks — ${yield* tasks.remaining()} left`;
   }),
-  h1(`Tasks — static`); // static text needs no reader
+  h1(`Tasks — static`), // static text needs no reader
 ];
 ```
 
@@ -133,7 +135,7 @@ craftComponent(
 );
 ```
 
-- **`providers`** — the component's own DI scope, evaluated before the template.
+- **`providers`** — the component's own DI scope, mounted before the function runs.
 - **`styles`** — scoped with CSS `@scope`; `:scope` is this component's root. See
   [Encapsulated styles](/guide/components/styles).
 - **`host`** — default properties for the root element.
@@ -142,8 +144,8 @@ craftComponent(
 
 ## Composing behaviour
 
-`.pipe(...)` attaches directives, which decorate **both** the logic factory and
-the template, left to right:
+`.pipe(...)` attaches directives, which transform **the service the component
+takes** and **the template it returns**, left to right:
 
 ```typescript
 const EditablePanel = Panel.pipe(WithPermission);
@@ -184,8 +186,9 @@ build time. Pass the reader (`p(tasks.remaining)`) or use a generator:
 **Forgetting `track` in `forNode`.** Without a stable identity the renderer cannot
 reuse, move or remove the right node.
 
-**Exceptions from the factory or providers don't vanish.** They become the
-component's initialization exceptions and flow up to the route unless handled
+**Exceptions raised while the component declares itself, or by its providers,
+don't vanish.** They become the component's initialization exceptions and flow
+up to the route unless handled
 with `.pipe(catchNode.exhaustive(...))` — see
 [Exceptions as values](/guide/concepts/exceptions).
 

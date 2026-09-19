@@ -12,30 +12,25 @@ intermediary method to a component just to forward the call.
 
 ## The forwarding shape to avoid
 
-Even with Craft, do not resolve an API in the component factory only to forward
+Even with Craft, do not resolve an API in the component only to forward
 it into a query:
 
 ```typescript
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const api = yield* TaskApi();
-    const tasks = yield* query('tasks', {
-      params: () => true,
-      loader: function* () {
-        return yield* api.list();
-      },
-    });
+export const Tasks = craftComponent('Tasks', {}, function* () {
+  const api = yield* TaskApi();
+  const tasks = yield* query('tasks', {
+    params: () => true,
+    loader: function* () {
+      return yield* api.list();
+    },
+  });
 
-    return { tasks };
-  },
-  ({ tasks }) => /* … */,
-);
+  return /* … */;
+});
 ```
 
 The loader closes over `api`, so the query itself does not declare the operation
-it uses. The dependency is attached to the component factory instead of to the
+it uses. The dependency is attached to the component instead of to the
 smallest factory that performs the request.
 
 ## Craft puts the dependency next to the work
@@ -45,36 +40,37 @@ exactly the API operation it needs. In this example, `TaskApi` is a crafted
 service (or a small boundary adapter):
 
 ```typescript
-import { craftComponent, forNode, ifNode, li, p, ul } from '@craft-ts/component';
+import {
+  craftComponent,
+  forNode,
+  ifNode,
+  li,
+  p,
+  ul,
+} from '@craft-ts/component';
 import { query } from '@craft-ts/core';
 
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const tasks = yield* query('tasks', {
-      params: () => true,
-      loader: function* () {
-        return yield* TaskApi.list();
-      },
-    });
+export const Tasks = craftComponent('Tasks', {}, function* () {
+  const tasks = yield* query('tasks', {
+    params: () => true,
+    loader: function* () {
+      return yield* TaskApi.list();
+    },
+  });
 
-    return { tasks };
-  },
-  ({ tasks }) =>
-    ifNode(
-      tasks.isLoading,
-      () => p('Loading…'),
-      () =>
-        ul(
-          forNode(
-            () => tasks.value() ?? [],
-            { track: (task) => task.id },
-            (task) => li(task.title),
-          ),
+  return ifNode(
+    tasks.isLoading,
+    () => p('Loading…'),
+    () =>
+      ul(
+        forNode(
+          () => tasks.value() ?? [],
+          { track: (task) => task.id },
+          (task) => li(task.title),
         ),
-    ),
-);
+      ),
+  );
+});
 ```
 
 `TaskApi.list()` is yielded directly from the `query` loader. The query owns the

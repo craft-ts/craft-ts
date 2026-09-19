@@ -46,21 +46,18 @@ asks for that. Had it yielded the whole `TaskApi`, the register would demand
 
 ## Testing a component
 
-Here is the component under test, from steps 2 and 3 — a factory that yields
-`TaskList`, and a template that renders it:
+Here is the component under test, from steps 2 and 3 — one function that yields
+`TaskList` and returns the nodes:
 
 <<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-component
 
-Those two halves are tested **independently**: the factory produces a context
-without touching the DOM, and the template renders a context without running the
-factory.
+The seam is the **service**. Behaviour is tested there, with plain values and no
+DOM:
 
-The logic test runs the factory only — no DOM:
+<<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-service-test
 
-<<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-logic-test
-
-The template test does the opposite — it renders with a context you hand it, and
-never runs the factory:
+The template test does the opposite — it renders the component with that service
+mocked through the register:
 
 <<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-template-test
 
@@ -80,7 +77,7 @@ removeButton?.click();
 
 Some of what craft guarantees isn't observable at runtime at all — it's in the
 types. Those get their own kind of test, resolved by the compiler with no
-`TestBed`, no DOM and no factory:
+`TestBed` and no DOM:
 
 ```typescript
 type TasksTemplateTest = SetupTestComponentTemplate<typeof Tasks, [typeof TaskRow]>;

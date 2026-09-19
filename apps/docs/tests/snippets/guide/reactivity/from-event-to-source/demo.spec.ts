@@ -8,17 +8,12 @@ useSnippetHarness();
 import { craftComponent, p } from '@craft-ts/component';
 import { fromEventToSource$ } from '@craft-ts/core';
 
-export const Demo = craftComponent(
-  'Demo',
-  {},
-  function* () {
-    const keydown$ = fromEventToSource$<KeyboardEvent>(document, 'keydown');
+export const Demo = craftComponent('Demo', {}, function* () {
+  const _keydown$ = fromEventToSource$<KeyboardEvent>(document, 'keydown');
 
-    // the listener is removed automatically when the component is destroyed
-    return { keydown$ };
-  },
-  () => p('Press any key'),
-);
+  // the listener is removed automatically when the component is destroyed
+  return p('Press any key');
+});
 // #endregion demo
 
 describe('guide/reactivity/from-event-to-source.md #demo', () => {

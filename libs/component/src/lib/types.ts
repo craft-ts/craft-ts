@@ -84,7 +84,7 @@ declare const TEMPLATE_METHOD_USE: unique symbol;
 declare const COMPONENT_TEMPLATE_NAME: unique symbol;
 declare const COMPONENT_INITIALIZATION_EXCEPTIONS: unique symbol;
 declare const COMPONENT_FIELD_EXCEPTIONS: unique symbol;
-declare const COMPONENT_LOGIC_OUTPUT: unique symbol;
+declare const COMPONENT_PROJECTION_CONTRACT: unique symbol;
 declare const COMPONENT_OPERATOR_PROVIDERS: unique symbol;
 declare const COMPONENT_OPERATOR_CODES: unique symbol;
 export const CONTENT_STYLE_POLICY = Symbol('craft-content-style-policy');
@@ -692,6 +692,11 @@ export interface ComponentMeta<
   /** Styles exposed explicitly to opted-in projected fragments, by slot. */
   readonly contentStyles?: ContentStyles<SlotName>;
   /**
+   * The contract this component answers once a host projects it into a slot.
+   * Type-only: `projection<Contract>()` carries the contract, nothing else.
+   */
+  readonly projection?: ProjectionMarker<any>;
+  /**
    * Closes the tree for context requirements: from here up, nobody will answer.
    *
    * Until a component seals, an unmet requirement travels — an ancestor still
@@ -1226,7 +1231,7 @@ type ContentRequirementsOfFactory<Factory extends ComponentFactory> =
   ContentRequirementsFromContext<TemplateInput<Factory>>;
 
 type ProjectionOutputOf<Component> = Component extends {
-  readonly [COMPONENT_LOGIC_OUTPUT]: infer Output;
+  readonly [COMPONENT_PROJECTION_CONTRACT]: infer Output;
 }
   ? Output
   : never;
@@ -1468,9 +1473,9 @@ export interface CraftComponent<
   };
   readonly [COMPONENT_INITIALIZATION_EXCEPTIONS]: InitializationExceptions;
   readonly [COMPONENT_FIELD_EXCEPTIONS]: FieldExceptions;
-  readonly [COMPONENT_LOGIC_OUTPUT]: [ProjectionContractOfMeta<Meta>] extends [
-    never,
-  ]
+  readonly [COMPONENT_PROJECTION_CONTRACT]: [
+    ProjectionContractOfMeta<Meta>,
+  ] extends [never]
     ? never
     : { readonly contract: ProjectionContractOfMeta<Meta> };
   readonly pipe: {
@@ -1586,12 +1591,6 @@ export type ComponentFieldExceptionsOf<Component> = Component extends {
   : never;
 
 /** The value returned by a component's logic factory. */
-export type ComponentLogicOutputOf<Component> = Component extends {
-  readonly [COMPONENT_LOGIC_OUTPUT]: infer Output;
-}
-  ? Output
-  : never;
-
 export type ContentRequirementsOfContext<Context> =
   ContentRequirementsFromContext<Context>;
 

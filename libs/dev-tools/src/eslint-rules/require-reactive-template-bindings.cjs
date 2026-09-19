@@ -66,6 +66,8 @@ const SAFE_TEMPLATE_CALLS = new Set([
   'safeUrlList',
 ]);
 
+const { templateRegions } = require('./craft-template-region.cjs');
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -113,13 +115,17 @@ module.exports = {
         ) {
           return;
         }
-        inspectTemplate(node.arguments[2]);
+        for (const region of templateRegions(node.arguments[2])) {
+          inspectTemplate(region, node.arguments[2]);
+        }
       },
     };
 
-    function inspectTemplate(template) {
-      walk(template, (node) => {
-        if (node !== template && isNestedCraftComponent(node)) {
+    // `region` is what the component returns; `template` stays the function, so
+    // the "am I inside a binding?" walks keep the same boundary as before.
+    function inspectTemplate(region, template) {
+      walk(region, (node) => {
+        if (node !== region && isNestedCraftComponent(node)) {
           return 'skip';
         }
         if (

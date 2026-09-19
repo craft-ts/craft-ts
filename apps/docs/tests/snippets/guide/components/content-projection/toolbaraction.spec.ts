@@ -5,11 +5,10 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region toolbaraction
-import { content, input } from '@craft-ts/component';
-
 import {
   button,
   craftComponent,
+  projection,
   renderContent,
   type ContentSlot,
   type ProjectionContractOf,
@@ -22,32 +21,27 @@ type ToolbarActionContract = {
   readonly disabled: () => boolean;
 };
 
+// The contract a parent may read is declared in the meta; the component's own
+// function stays what it always is — inputs in, nodes out.
 const ToolbarAction = craftComponent(
   'ToolbarAction',
-  {},
-  (input: {
+  { projection: projection<ToolbarActionContract>() },
+  function* (input: {
     readonly key: string;
     readonly content: ContentSlot;
     readonly trigger: () => void;
     readonly disabled?: () => boolean;
-  }) => ({
-    key: input.key,
-    contract: {
-      kind: 'toolbar-action',
-      trigger: input.trigger,
-      disabled: input.disabled ?? (() => false),
-    } satisfies ToolbarActionContract,
-    content: input.content,
-  }),
-  ({ contract, content }) =>
-    button('action',
+  }) {
+    return button(
+      'action',
       {
         type: 'button',
-        disabled: contract.disabled,
-        click: contract.trigger,
+        disabled: input.disabled ?? (() => false),
+        click: input.trigger,
       },
-      renderContent(content),
-    ),
+      renderContent(input.content),
+    );
+  },
 );
 
 type ExtractedContract = ProjectionContractOf<typeof ToolbarAction>;

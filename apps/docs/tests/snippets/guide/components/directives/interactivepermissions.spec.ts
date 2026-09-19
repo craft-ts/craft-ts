@@ -5,47 +5,32 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region interactivepermissions
-import {
-  HostRequiredLogic,
-  HostTemplate,
-  Input,
-  craftDirective,
-} from '@craft-ts/component';
-import { craftUse } from '@craft-ts/core';
+import { Input, craftDirective } from '@craft-ts/component';
+import { craftService, craftUse, overrideService } from '@craft-ts/core';
 
 type User = { id?: string; name: string; permissions: readonly string[] };
 
-type RequiresUser = {
-  user: Input<User>;
-};
+const { UserPanelView, provideUserPanelView } = craftService(
+  { name: 'userPanelView', providedIn: 'toProvide' },
+  (inputs: { readonly user: Input<User> }) => ({ user: inputs.user }),
+);
 
-type ProvidesPermissions = RequiresUser & {
-  permissions: {
-    canEdit: () => boolean;
-  };
-};
-
+// A directive transforms the service the component takes. It may enrich what
+// the template reads — here a permission façade — and it never adds a prop.
 const InteractivePermissions = craftDirective(
   'InteractivePermissions',
   {},
-  (baseLogic: HostRequiredLogic<RequiresUser>) => (user: Input<User>) => {
-    const context = baseLogic(user);
-
-    return {
-      ...context,
-      permissions: {
-        canEdit: () => craftUse(user()).permissions.includes('edit'),
-      },
-    };
+  {
+    service: overrideService(UserPanelView, (base) => ({
+      ...base,
+      canEdit: () => craftUse(base.user()).permissions.includes('edit'),
+    })),
   },
-
-  (baseTemplate: HostTemplate<ProvidesPermissions>) => (context) =>
-    baseTemplate(context),
 );
 // #endregion interactivepermissions
 
 describe('guide/components/directives.md #interactivepermissions', () => {
   it('loads the documented snippet', () => {
-    expect(true).toBe(true);
+    expect(InteractivePermissions && provideUserPanelView).toBeDefined();
   });
 });

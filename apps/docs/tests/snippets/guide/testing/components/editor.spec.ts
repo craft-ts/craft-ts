@@ -26,7 +26,7 @@ const Editor = craftComponent(
 
 it('finds the save button', async () => {
   const test = await setupCraftComponentTemplateTest.byRegister(Editor, {
-    context: {},
+    inputs: {},
     register: {},
   });
 

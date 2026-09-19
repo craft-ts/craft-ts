@@ -45,15 +45,11 @@ type CardInput = {
   }>;
 };
 
-const Card = craftComponent(
-  'Card',
-  {},
-  (input: CardInput) => input,
-  ({ header, body }) =>
-    section([
-      header ? renderContent('header', header) : 'Default title',
-      renderContent('body', body),
-    ]),
+const Card = craftComponent('Card', {}, ({ header, body }: CardInput) =>
+  section([
+    header ? renderContent('header', header) : 'Default title',
+    renderContent('body', body),
+  ]),
 );
 
 Card({
@@ -101,19 +97,20 @@ ProjectionOf<Component>       → the logical capabilities of a component
 
 ## Logical projection by contract
 
-A component becomes projectable when its logic factory returns a `contract`
-property, built and checked with `satisfies`.
+A component becomes projectable when it declares the contract it answers in its
+meta, with `projection<Contract>()`.
 
 <<< @/tests/snippets/guide/components/content-projection/toolbaraction.spec.ts#toolbaraction
 
 
-`ProjectionContractOf<Component>` extracts the type of `logicOutput.contract`.
+`ProjectionContractOf<Component>` extracts that contract.
 `ProjectionOf<Component>` adds the stable key the renderer expects. For generic
 consumers, `ProjectionSlot<Contract>` directly describes a collection of
 compatible units.
 
-Projection therefore depends on **neither** the component's name, **nor** a
-`projection` metadata field, **nor** a runtime registry.
+The marker is **type-only**: `projection<Contract>()` carries a contract and
+nothing else. Projection therefore depends on neither the component's name nor
+a runtime registry — the host reads the contract from the type.
 
 ## Explicit collections, order and stable keys
 
@@ -133,10 +130,11 @@ import {
 const Toolbar = craftComponent(
   'Toolbar',
   {},
-  (input: {
+  ({
+    actions,
+  }: {
     readonly actions: readonly ProjectionOf<typeof ToolbarAction>[];
-  }) => input,
-  ({ actions }) =>
+  }) =>
     div(
       { role: 'toolbar' },
       forNode(actions, { track: (action) => action.key }, (action) =>
@@ -156,27 +154,22 @@ Toolbar({
 The same `ToolbarAction` stays usable on its own:
 
 ```ts
-const Page = craftComponent(
-  'Page',
-  {},
-  () => ({}),
-  () => [
-    ToolbarAction({
-      key: 'standalone',
-      content: () => 'Direct action',
-      trigger: save,
-    }),
-    Toolbar({
-      actions: [
-        ToolbarAction({
-          key: 'projected',
-          content: () => 'Projected action',
-          trigger: save,
-        }),
-      ],
-    }),
-  ],
-);
+const Page = craftComponent('Page', {}, () => [
+  ToolbarAction({
+    key: 'standalone',
+    content: () => 'Direct action',
+    trigger: save,
+  }),
+  Toolbar({
+    actions: [
+      ToolbarAction({
+        key: 'projected',
+        content: () => 'Projected action',
+        trigger: save,
+      }),
+    ],
+  }),
+]);
 ```
 
 ## Styling projected content
@@ -229,7 +222,6 @@ usable as a direct child, but the slot rejects it:
 const PlainCard = craftComponent(
   'PlainCard',
   {},
-  () => ({}),
   () => 'Card with no contract',
 );
 
@@ -264,11 +256,13 @@ explicit collection:
 const Dialog = craftComponent(
   'Dialog',
   {},
-  (input: {
+  ({
+    body,
+    actions,
+  }: {
     readonly body?: ContentSlot;
     readonly actions: readonly ProjectionOf<typeof ToolbarAction>[];
-  }) => input,
-  ({ body, actions }) =>
+  }) =>
     section({ role: 'dialog' }, [
       body ? renderContent(body) : [],
       footer(
@@ -284,8 +278,16 @@ Dialog({
     div(['Delete the account', 'This action cannot be undone.']),
   ),
   actions: [
-    ToolbarAction({ key: 'cancel', content: () => 'Cancel', trigger: closeDialog }),
-    ToolbarAction({ key: 'delete', content: () => 'Delete', trigger: deleteAccount }),
+    ToolbarAction({
+      key: 'cancel',
+      content: () => 'Cancel',
+      trigger: closeDialog,
+    }),
+    ToolbarAction({
+      key: 'delete',
+      content: () => 'Delete',
+      trigger: deleteAccount,
+    }),
   ],
 });
 ```
@@ -304,11 +306,13 @@ is a callable reactive value supplied by the caller:
 const OptionalToolbar = craftComponent(
   'OptionalToolbar',
   {},
-  (input: {
+  ({
+    visible,
+    actions,
+  }: {
     readonly visible: () => boolean;
     readonly actions: readonly ProjectionOf<typeof ToolbarAction>[];
-  }) => input,
-  ({ visible, actions }) =>
+  }) =>
     visible()
       ? forNode(actions, { track: (action) => action.key }, (action) =>
           renderContent(action),

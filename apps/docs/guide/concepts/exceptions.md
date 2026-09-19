@@ -204,7 +204,7 @@ contract and from the route's. Whatever you don't handle is **residual**, and it
 into the route's exception union — where `handleExceptions` must cover it:
 
 ```
-component factory + providers
+component + providers
         ↓  (codes not handled by .pipe)
    residual exceptions
         ↓
