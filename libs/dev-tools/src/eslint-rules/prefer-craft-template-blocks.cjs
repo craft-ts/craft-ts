@@ -110,6 +110,8 @@ const DOM_EVENT_NAMES = new Set([
   'wheel',
 ]);
 
+const { templateRegions } = require('./craft-template-region.cjs');
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -144,7 +146,14 @@ module.exports = {
           return;
         }
 
-        inspectTemplate(node.arguments[2]);
+        // Control flow is read on the whole function: a branch around what a
+        // component declares breaks the render contract the same way a branch
+        // around what it renders does. The expression checks only apply to
+        // what it returns, so a derivation inside a craftComputed is spared.
+        inspectControlFlow(node.arguments[2]);
+        for (const region of templateRegions(node.arguments[2])) {
+          inspectTemplate(region);
+        }
       },
     };
 
@@ -185,26 +194,36 @@ module.exports = {
           context.report({ node, messageId: 'negation' });
           return;
         }
+      });
+    }
 
-        if (TEMPLATE_CONTROL_FLOW.has(node.type)) {
-          const replacement =
-            node.type === 'SwitchStatement'
-              ? switchReplacement(node)
-              : undefined;
-          context.report({
-            node,
-            messageId: 'controlFlow',
-            ...(replacement === undefined
-              ? {}
-              : {
-                  fix: (fixer) =>
-                    [
-                      fixer.replaceText(node, replacement),
-                      namedImportFix(fixer, 'matchNode'),
-                    ].filter(Boolean),
-                }),
-          });
+    function inspectControlFlow(template) {
+      walk(template, (node) => {
+        if (node !== template && isNestedCraftComponent(node)) {
+          return 'skip';
         }
+
+        if (isTemplatePipe(node)) {
+          return 'skip';
+        }
+
+        if (!TEMPLATE_CONTROL_FLOW.has(node.type)) return;
+
+        const replacement =
+          node.type === 'SwitchStatement' ? switchReplacement(node) : undefined;
+        context.report({
+          node,
+          messageId: 'controlFlow',
+          ...(replacement === undefined
+            ? {}
+            : {
+                fix: (fixer) =>
+                  [
+                    fixer.replaceText(node, replacement),
+                    namedImportFix(fixer, 'matchNode'),
+                  ].filter(Boolean),
+              }),
+        });
       });
     }
 

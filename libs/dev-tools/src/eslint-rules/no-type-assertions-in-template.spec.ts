@@ -20,7 +20,7 @@ describe('no-type-assertions-in-template', () => {
     `);
 
     expect(result.messages).toEqual([
-      'Do not use type assertions in a Craft template. Fix the type in the component logic or expose a correctly typed derived value.',
+      'Do not use type assertions in a Craft template. Fix the type where the component declares it, or expose a correctly typed derived value.',
     ]);
   });
 
@@ -34,7 +34,7 @@ describe('no-type-assertions-in-template', () => {
     `);
 
     expect(result.messages).toEqual([
-      'Do not use type assertions in a Craft template. Fix the type in the component logic or expose a correctly typed derived value.',
+      'Do not use type assertions in a Craft template. Fix the type where the component declares it, or expose a correctly typed derived value.',
     ]);
   });
 

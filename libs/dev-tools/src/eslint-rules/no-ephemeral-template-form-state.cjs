@@ -41,7 +41,7 @@ module.exports = {
     type: 'problem',
     docs: {
       description:
-        'Forbid let/const/var declarations in Craft component and directive templates; declare state in the logic factory.',
+        'Forbid let/const/var declarations in what a Craft component or directive renders; declare state with a primitive, or in the service the component takes.',
     },
     schema: [],
     messages: {

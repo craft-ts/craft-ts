@@ -26,6 +26,24 @@ describe('no-craft-use-in-template', () => {
     ]);
   });
 
+  it('allows craftUse where a component declares what it takes', async () => {
+    const result = await lintFixture(`
+      declare function craftComponent(...args: unknown[]): unknown;
+      declare function p(child: unknown): unknown;
+      declare function state(...args: unknown[]): any;
+      declare function craftUse<T>(value: T): T;
+
+      craftComponent('Demo', {}, function* () {
+        const count = yield* state('count', 0);
+        const initial = craftUse(count());
+
+        return p(String(initial));
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('allows craftUse in the service a component reads', async () => {
     const result = await lintFixture(`
       declare function craftComponent(...args: unknown[]): unknown;

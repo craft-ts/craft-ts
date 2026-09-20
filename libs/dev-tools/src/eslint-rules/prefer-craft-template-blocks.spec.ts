@@ -26,6 +26,21 @@ describe('prefer-craft-template-blocks', () => {
     expect(messages).toEqual([]);
   });
 
+  it('spares the derivations a component declares before it renders', async () => {
+    const messages = await lintText(`
+      const Demo = craftComponent('Demo', {}, function* () {
+        const count = yield* state('count', 0);
+        const label = craftComputed('label', function* () {
+          return (yield* count()) || 'none';
+        });
+
+        return p(label);
+      });
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('allows imperative control flow inside DOM event handlers', async () => {
     const messages = await lintText(`
       const Demo = craftComponent(

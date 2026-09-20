@@ -33,7 +33,7 @@ module.exports = {
     schema: [],
     messages: {
       moveToComputed:
-        'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() in the component logic factory, then bind the computed value directly.',
+        'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() where the component declares what it takes, then bind the computed value directly.',
     },
   },
 
