@@ -81,38 +81,36 @@ export const componentCompositionDemo = craftComponent(
     providers: [provideComponentCompositionDemoView()],
     host: { class: 'component-demo-host' },
   },
-  function* () {
-    const { canReadRestrictedData, lastHandledException } =
-      yield* ComponentCompositionDemoView();
-    return section(
-      { class: 'component-demo component-demo__composition-page' },
-      [
-        heading('Reactive composition with providers'),
-        p(
-          'The provider supplies data to the component. Click to go through the NO_ACCESS handler, then back to the template.',
-        ),
-        button(
-          'accessToggle',
-          {
-            type: 'button',
-            class: 'component-demo__access-toggle',
-            click: canReadRestrictedData.toggle,
-          },
-          'Toggle access',
-        ),
-        p(lastHandledException),
-        restrictedContent.pipe(
-          withProviders([
-            provideRestrictedData(canReadRestrictedData.restriction),
-          ]),
-          catchTag.exhaustive({
-            NO_ACCESS: function* () {
-              yield* lastHandledException.showNoAccessText();
-              return;
-            },
+  () =>
+    section({ class: 'component-demo component-demo__composition-page' }, [
+      heading('Reactive composition with providers'),
+      p(
+        'The provider supplies data to the component. Click to go through the NO_ACCESS handler, then back to the template.',
+      ),
+      button(
+        'accessToggle',
+        {
+          type: 'button',
+          class: 'component-demo__access-toggle',
+          click: ComponentCompositionDemoView.canReadRestrictedData.toggle,
+        },
+        'Toggle access',
+      ),
+      p(ComponentCompositionDemoView.lastHandledException),
+      restrictedContent.pipe(
+        withProviders([
+          provideRestrictedData(function* () {
+            const restriction =
+              yield* ComponentCompositionDemoView.canReadRestrictedData.restriction();
+            return yield* restriction();
           }),
-        )({}),
-      ],
-    );
-  },
+        ]),
+        catchTag.exhaustive({
+          NO_ACCESS: function* () {
+            yield* ComponentCompositionDemoView.lastHandledException.showNoAccessText();
+            return;
+          },
+        }),
+      )({}),
+    ]),
 );

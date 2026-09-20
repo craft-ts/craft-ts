@@ -680,9 +680,45 @@ function executeTemplateCallback(
   }
 }
 
+/**
+ * A `Service.member` shortcut resolves in two steps: driving it hands back the
+ * member, and the member is the reader the binding wanted. Reading it here is
+ * what makes `p(View.label)` render the label instead of the reference.
+ */
+function readResolvedBinding(value: unknown, context: RenderContext): unknown {
+  return isYieldableReactiveValue(value)
+    ? executeTemplateCallback(value as (...args: any[]) => unknown, [], context)
+    : value;
+}
+
+/**
+ * The action side of the same two steps: a `Service.member.method` shortcut
+ * resolves to the method, and the method is what the event wanted to run.
+ */
+function runResolvedAction(
+  resolved: unknown,
+  args: unknown[],
+  context: RenderContext,
+): unknown {
+  return isYieldableMethod(resolved)
+    ? executeTemplateCallback(
+        resolved as (...args: any[]) => unknown,
+        args,
+        context,
+      )
+    : resolved;
+}
+
 function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
   return typeof value === 'function'
-    ? executeTemplateCallback(value as (...args: any[]) => unknown, [], context)
+    ? readResolvedBinding(
+        executeTemplateCallback(
+          value as (...args: any[]) => unknown,
+          [],
+          context,
+        ),
+        context,
+      )
     : value;
 }
 
@@ -1192,7 +1228,10 @@ class ReactiveTextRenderedNode implements RenderedNode {
 
   private createEffect(): EffectRef {
     return createRenderEffect(this.context, 'text-binding', () => {
-      const resolved = executeTemplateCallback(this.binding, [], this.context);
+      const resolved = readResolvedBinding(
+        executeTemplateCallback(this.binding, [], this.context),
+        this.context,
+      );
       const next =
         resolved === null || resolved === undefined || resolved === false
           ? ''
@@ -2029,7 +2068,11 @@ class ElementRenderedNode implements RenderedNode {
             const hooks = this.context.injector.get(CRAFT_DOM_EVENT_HOOK);
             runInInjectionContext(this.context.injector, () =>
               executeDomEventHooks(hooks, interaction, () =>
-                executeTemplateCallback(listener, [event], this.context),
+                runResolvedAction(
+                  executeTemplateCallback(listener, [event], this.context),
+                  [event],
+                  this.context,
+                ),
               ),
             );
             return undefined;

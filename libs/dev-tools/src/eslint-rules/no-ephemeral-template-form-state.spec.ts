@@ -157,6 +157,28 @@ describe('no-ephemeral-template-form-state', () => {
     expect(result.messages).toEqual([declareMessage('label', 'const')]);
   });
 
+  it('spares what a provider factory declares', async () => {
+    const result = await lintFixture(`
+      ${DECLARE_HOSTS}
+      declare function provideRestrictedData(...args: unknown[]): unknown;
+      declare function withProviders(...args: unknown[]): unknown;
+      declare const View: any;
+
+      craftComponent('Demo', {}, () =>
+        div([]).pipe(
+          withProviders([
+            provideRestrictedData(function* () {
+              const restriction = yield* View.restriction();
+              return yield* restriction();
+            }),
+          ]),
+        ),
+      );
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('reports declarations in a craftDirective template transformer', async () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}

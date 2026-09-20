@@ -972,6 +972,19 @@ export type ExtractServiceHelperDependencyMap<ServiceHelper> =
       }
     : never;
 
+/**
+ * The dependency a value carries because it *is* a service helper — the
+ * shortcut `Service.member` handed to a template binding.
+ *
+ * The carrier is optional, so `extends { [SERVICE_HELPER_DEPENDENCIES]?: … }`
+ * alone would match every type and answer with the constraint. The `keyof`
+ * guard is what makes the question "does this value carry the brand?".
+ */
+export type ServiceHelperDependencyMapOf<Value> =
+  typeof SERVICE_HELPER_DEPENDENCIES extends keyof Value
+    ? ExtractServiceHelperDependencyMap<Value>
+    : {};
+
 export type ServiceDependencyMapFromYielded<Yielded> = BuildDependencyMap<
   DependencyRequests<Yielded>
 >;

@@ -129,6 +129,12 @@ module.exports = {
           return 'skip';
         }
 
+        // A `provideX(...)` argument is wiring, not rendering: what it declares
+        // builds the value a provider hands over, once.
+        if (isProviderCall(node)) {
+          return 'skip';
+        }
+
         if (node.type !== 'VariableDeclaration') return;
         // What a component declares in its own scope is checked here and not
         // walked into: the callbacks a primitive takes are declaration code.
@@ -143,6 +149,14 @@ module.exports = {
       };
 
       for (const root of roots) walk(root, visit);
+    }
+
+    function isProviderCall(node) {
+      return (
+        node.type === 'CallExpression' &&
+        node.callee.type === 'Identifier' &&
+        /^provide[A-Z]/.test(node.callee.name)
+      );
     }
 
     function reportDeclaration(node) {

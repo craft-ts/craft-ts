@@ -15,6 +15,7 @@ import type {
   ExtractCraftGenExceptions,
   ExtractCraftPendingSources,
   FieldValidationCasesOf,
+  ServiceHelperDependencyMapOf,
   SsrMode,
 } from '@craft-ts/core';
 import { CRAFT_NODE_DIRECTIVE, isCraftNodeDirective } from '@craft-ts/core';
@@ -208,7 +209,11 @@ type CraftNodeChildrenDependenciesOf<Value> =
                   ? {}
                   : Dependencies
                 : {}
-              : {}
+              : // A `Service.member` shortcut bound here is a dependency of the
+                // component, exactly like the `yield*` it replaces: without
+                // this, the binding would resolve at runtime against a provider
+                // nobody checked.
+                ServiceHelperDependencyMapOf<Value>
           : {};
 
 type MergedCraftNodeChildrenDependencies<Value> = {
@@ -378,7 +383,17 @@ export type CraftTextValue = string | number | bigint | boolean;
  */
 export type CraftTextBinding =
   | (() => CraftTextValue | null | undefined)
-  | (() => Generator<any, CraftTextValue | null | undefined, any>);
+  | (() => Generator<any, CraftTextValue | null | undefined, any>)
+  // A `Service.member` shortcut: driving it resolves the member, and the
+  // member is itself the reader the renderer then binds.
+  | (() => Generator<
+      any,
+      | (() => CraftTextValue | null | undefined)
+      | CraftTextValue
+      | null
+      | undefined,
+      any
+    >);
 
 type ElementNodeExceptions<
   Children extends CraftNodeChildren,
