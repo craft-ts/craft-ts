@@ -11,7 +11,7 @@ const ForwardingExample = craftComponent(
       .forwarding-example__note { margin: 0; color: #64748b; font-size: .82rem; }
     `,
   },
-  function* () {
+  () => {
     return div([
       TokenCard({
         cssVars: {
@@ -43,8 +43,8 @@ export const CssVarsForwardingDemo = craftComponent(
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
-  function* () {
-    return div([
+  () =>
+    div([
       CssVarsPageNav(),
       div({ class: 'css-vars-forwarding__intro' }, [
         heading('Forwarding and overrides'),
@@ -61,8 +61,7 @@ export const CssVarsForwardingDemo = craftComponent(
           },
         }),
       ]),
-    ]);
-  },
+    ]),
 );
 
 export default CssVarsForwardingDemo;

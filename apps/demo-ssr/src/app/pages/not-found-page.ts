@@ -2,8 +2,8 @@ import { a, craftComponent, p, section } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
 import { page } from './page-layout';
 
-export const NotFoundPage = craftComponent('SsrNotFoundPage', {}, function* () {
-  return page(
+export const NotFoundPage = craftComponent('SsrNotFoundPage', {}, () =>
+  page(
     'Rendu serveur · 404',
     'Page non trouvée',
     'Le serveur et le routeur CraftTS partagent la même route wildcard.',
@@ -13,5 +13,5 @@ export const NotFoundPage = craftComponent('SsrNotFoundPage', {}, function* () {
         CraftRouterLink({ to: '' }),
       ),
     ]),
-  );
-});
+  ),
+);

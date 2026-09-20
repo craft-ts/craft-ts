@@ -85,8 +85,8 @@ export const App = craftComponent(
       @media (max-width: 720px) { .masthead { align-items: flex-start; flex-direction: column; } .server-indicator { justify-items: start; text-align: left; } .grid { grid-template-columns: 1fr; } .inline-form { grid-template-columns: 1fr; } }
     `,
   },
-  function* () {
-    return div({ class: 'shell' }, [
+  () =>
+    div({ class: 'shell' }, [
       header({ class: 'masthead' }, [
         a('brand', {}, [
           span({ class: 'brand__mark' }, 'S'),
@@ -111,6 +111,5 @@ export const App = craftComponent(
         span('SSR lab'),
         span('Chaque route documente sa stratégie de rendu.'),
       ]),
-    ]);
-  },
+    ]),
 );

@@ -77,8 +77,8 @@ export const CssVarsDemo = craftComponent(
       @media (prefers-reduced-motion: reduce){:scope{animation:none;transition:none}}
     `,
   },
-  function* () {
-    return div([
+  () =>
+    div([
       CssVarsPageNav(),
       div({ class: 'css-vars-demo__intro' }, [
         heading('Typed CSS variables'),
@@ -100,8 +100,7 @@ export const CssVarsDemo = craftComponent(
           ),
         ),
       ),
-    ]);
-  },
+    ]),
 );
 
 export default CssVarsDemo;

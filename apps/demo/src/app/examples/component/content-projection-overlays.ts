@@ -17,7 +17,7 @@ import type { ToolbarActionSlot } from './content-projection-actions';
 export const toolbar = craftComponent(
   'toolbar',
   {},
-  function* (input: { readonly actions: ToolbarActionSlot }) {
+  (input: { readonly actions: ToolbarActionSlot }) => {
     const { actions } = input;
     return div(
       { class: 'projection-demo__toolbar', role: 'toolbar' },

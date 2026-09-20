@@ -18,9 +18,7 @@ const InheritedBadge = craftComponent(
       }
     `,
   },
-  function* () {
-    return span('Inherited from parent');
-  },
+  () => span('Inherited from parent'),
 );
 
 export const InheritanceExample = craftComponent(
@@ -38,10 +36,9 @@ export const InheritanceExample = craftComponent(
       }
     `,
   },
-  function* () {
-    return div([
+  () =>
+    div([
       p('The parent declares --inherited-badge-ink in its own scope.'),
       InheritedBadge({ cssVars: { '--inherited-badge-ink': inherit } }),
-    ]);
-  },
+    ]),
 );

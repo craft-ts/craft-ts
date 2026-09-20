@@ -10,8 +10,8 @@ const SlowPageComponent = craftComponent(
       dt { font-weight:600; }
     `,
   },
-  function* () {
-    return div([
+  () =>
+    div([
       heading('✅ Slow page loaded'),
       p(
         'Both the slow guard and resolver finished. This component was mounted only after the whole chain settled.',
@@ -32,8 +32,7 @@ const SlowPageComponent = craftComponent(
           { kind: 'element', tag: 'dd', props: {}, children: '1234' },
         ],
       },
-    ]);
-  },
+    ]),
 );
 
 export default SlowPageComponent;

@@ -30,12 +30,11 @@ export const CssVarsPageNav = craftComponent(
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
-  function* () {
-    return nav(
+  () =>
+    nav(
       { 'aria-label': 'CSS variable examples' },
       CSS_VARS_LINKS.map(([label, link]) =>
         a('link', {}, label).pipe(CraftRouterLink(link)),
       ),
-    );
-  },
+    ),
 );

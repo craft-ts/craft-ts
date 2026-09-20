@@ -36,15 +36,14 @@ const RegisteredMeter = craftComponent(
       @media (prefers-reduced-motion: reduce){:scope{animation:none;transition:none}}
     `,
   },
-  function* () {
-    return div([
+  () =>
+    div([
       span('Token registered and validated by the browser'),
       div(
         { class: 'registered-meter__track' },
         div({ class: 'registered-meter__fill' }),
       ),
-    ]);
-  },
+    ]),
 );
 
 export const CssVarsPropertyDemo = craftComponent(
@@ -60,8 +59,8 @@ export const CssVarsPropertyDemo = craftComponent(
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
-  function* () {
-    return div([
+  () =>
+    div([
       CssVarsPageNav(),
       div({ class: 'css-vars-property__intro' }, [
         heading('Component-owned @property'),
@@ -73,8 +72,7 @@ export const CssVarsPropertyDemo = craftComponent(
         RegisteredMeter(),
         RegisteredMeter({ cssVars: { '--registered-meter-value': 78 } }),
       ]),
-    ]);
-  },
+    ]),
 );
 
 export default CssVarsPropertyDemo;

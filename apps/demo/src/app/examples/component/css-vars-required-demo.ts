@@ -68,7 +68,7 @@ export const CssVarsRequiredDemo = craftComponent(
       button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
     `,
   },
-  function* () {
+  () => {
     return div([
       CssVarsPageNav(),
       div({ class: 'css-vars-required__intro' }, [

@@ -28,20 +28,16 @@ function statusPage(
   message: string,
   detail: string,
 ) {
-  return craftComponent(
-    name,
-    { styles: statusPageStyles },
-    function* () {
-      return main([
-        section({ class: 'card' }, [
-          p({ class: 'eyebrow' }, eyebrow),
-          heading(title),
-          p({ class: 'message' }, message),
-          p({ class: 'detail' }, detail),
-          divActions(),
-        ]),
-      ]);
-    },
+  return craftComponent(name, { styles: statusPageStyles }, () =>
+    main([
+      section({ class: 'card' }, [
+        p({ class: 'eyebrow' }, eyebrow),
+        heading(title),
+        p({ class: 'message' }, message),
+        p({ class: 'detail' }, detail),
+        divActions(),
+      ]),
+    ]),
   );
 }
 

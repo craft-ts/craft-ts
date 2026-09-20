@@ -42,8 +42,8 @@ import { dsTheme } from './foundation.style.ts';
 import { backToTop, shell } from './scroll.style.ts';
 
 /** Asks for a scroll port. Cannot provide one. Does not pretend to. */
-export const BackToTop = craftComponent('BackToTop', {}, function* () {
-  return div({ class: backToTop.anchor }, [
+export const BackToTop = craftComponent('BackToTop', {}, () =>
+  div({ class: backToTop.anchor }, [
     button(
       'backToTop',
       {
@@ -57,8 +57,8 @@ export const BackToTop = craftComponent('BackToTop', {}, function* () {
       },
       'Back to top',
     ),
-  ]);
-});
+  ]),
+);
 
 export type BackToTop = typeof BackToTop;
 
@@ -91,8 +91,8 @@ export const ScrollDemo = craftComponent(
   {
     seals: [true],
   },
-  function* () {
-    return div({ class: dsTheme.root }, [
+  () =>
+    div({ class: dsTheme.root }, [
       section({ class: stack.column }, [
         heading('A demand that travels, and where it stops'),
         p(
@@ -111,8 +111,7 @@ export const ScrollDemo = craftComponent(
           'The button is hidden at the top, then stays sticky at the top of the scroll port while the rows move underneath it; its fill changes when the scroll-state query detects that the port can scroll back.',
         ),
       ]),
-    ]);
-  },
+    ]),
 );
 
 export default ScrollDemo;
