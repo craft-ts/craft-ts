@@ -11,7 +11,7 @@ import {
   strong,
   CraftRouterOutlet,
 } from '@craft-ts/component';
-import { craftService, CraftRouterLink } from '@craft-ts/core';
+import { CraftRouterLink } from '@craft-ts/core';
 
 const SCENARIOS = [
   ['Overview', { to: '' }],
@@ -22,15 +22,9 @@ const SCENARIOS = [
   ['05 · client-only', { to: 'client-only' }],
 ] satisfies readonly (readonly [string, { readonly to: string }])[];
 
-export const { SsrLabAppView, provideSsrLabAppView } = craftService(
-  { name: 'ssrLabAppView', providedIn: 'toProvide' },
-  () => ({}),
-);
-
 export const App = craftComponent(
   'SsrLabApp',
   {
-    providers: [provideSsrLabAppView()],
     styles: `
       :scope { display: block; min-height: 100vh; background: #f5f7fb; color: #172033; }
       .shell { min-height: 100vh; }
@@ -92,7 +86,6 @@ export const App = craftComponent(
     `,
   },
   function* () {
-    yield* SsrLabAppView();
     return div({ class: 'shell' }, [
       header({ class: 'masthead' }, [
         a('brand', {}, [

@@ -54,16 +54,9 @@ export const TokenCard = craftComponent(
   },
 );
 
-export const { CssVarsRequiredDemoView, provideCssVarsRequiredDemoView } =
-  craftService(
-    { name: 'cssVarsRequiredDemoView', providedIn: 'toProvide' },
-    () => ({}),
-  );
-
 export const CssVarsRequiredDemo = craftComponent(
   'CssVarsRequiredDemo',
   {
-    providers: [provideCssVarsRequiredDemoView()],
     styles: `
       :scope { display: grid; gap: 1.5rem; max-width: 72rem; margin: 0 auto; color: #172033; }
       h1, p { margin: 0; }
@@ -76,7 +69,6 @@ export const CssVarsRequiredDemo = craftComponent(
     `,
   },
   function* () {
-    yield* CssVarsRequiredDemoView();
     return div([
       CssVarsPageNav(),
       div({ class: 'css-vars-required__intro' }, [

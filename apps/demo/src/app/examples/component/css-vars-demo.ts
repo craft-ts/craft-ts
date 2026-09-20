@@ -8,11 +8,7 @@ import {
   p,
   section,
 } from '@craft-ts/component';
-import {
-  craftService,
-  CraftRouterLink,
-  type CraftRouterLinkInput,
-} from '@craft-ts/core';
+import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ts/core';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 
 const CASES = [
@@ -42,15 +38,9 @@ const CASES = [
   description: string;
 }[];
 
-export const { CssVarsDemoView, provideCssVarsDemoView } = craftService(
-  { name: 'cssVarsDemoView', providedIn: 'toProvide' },
-  () => ({}),
-);
-
 export const CssVarsDemo = craftComponent(
   'CssVarsDemo',
   {
-    providers: [provideCssVarsDemoView()],
     styles: `
       :scope {
         --css-vars-demo-ink: #172033;
@@ -88,7 +78,6 @@ export const CssVarsDemo = craftComponent(
     `,
   },
   function* () {
-    yield* CssVarsDemoView();
     return div([
       CssVarsPageNav(),
       div({ class: 'css-vars-demo__intro' }, [

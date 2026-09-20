@@ -1,4 +1,3 @@
-import { craftService } from '@craft-ts/core';
 /**
  * The level-3 witness: a demand that travels, and the layout that answers it.
  *
@@ -43,33 +42,23 @@ import { dsTheme } from './foundation.style.ts';
 import { backToTop, shell } from './scroll.style.ts';
 
 /** Asks for a scroll port. Cannot provide one. Does not pretend to. */
-export const { BackToTopView, provideBackToTopView } = craftService(
-  { name: 'backToTopView', providedIn: 'toProvide' },
-  () => ({}),
-);
-
-export const BackToTop = craftComponent(
-  'BackToTop',
-  { providers: [provideBackToTopView()] },
-  function* () {
-    yield* BackToTopView();
-    return div({ class: backToTop.anchor }, [
-      button(
-        'backToTop',
-        {
-          type: 'button',
-          class: backToTop.button,
-          *click() {
-            document
-              .querySelector('[data-scroll-port] > *')
-              ?.scrollTo({ top: 0 });
-          },
+export const BackToTop = craftComponent('BackToTop', {}, function* () {
+  return div({ class: backToTop.anchor }, [
+    button(
+      'backToTop',
+      {
+        type: 'button',
+        class: backToTop.button,
+        *click() {
+          document
+            .querySelector('[data-scroll-port] > *')
+            ?.scrollTo({ top: 0 });
         },
-        'Back to top',
-      ),
-    ]);
-  },
-);
+      },
+      'Back to top',
+    ),
+  ]);
+});
 
 export type BackToTop = typeof BackToTop;
 
@@ -97,19 +86,12 @@ const filler = (count: number) =>
  * `seals` is what turns a travelling requirement into an error. Without it the
  * demand would keep going up and out of the application, unanswered and unsaid.
  */
-export const { ScrollDemoView, provideScrollDemoView } = craftService(
-  { name: 'scrollDemoView', providedIn: 'toProvide' },
-  () => ({}),
-);
-
 export const ScrollDemo = craftComponent(
   'ScrollDemo',
   {
-    providers: [provideScrollDemoView()],
     seals: [true],
   },
   function* () {
-    yield* ScrollDemoView();
     return div({ class: dsTheme.root }, [
       section({ class: stack.column }, [
         heading('A demand that travels, and where it stops'),

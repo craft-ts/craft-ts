@@ -10,19 +10,12 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import { craftService, CraftRouterLink } from '@craft-ts/core';
+import { CraftRouterLink } from '@craft-ts/core';
 import { PHOTOS } from './photos';
-
-export const { ViewTransitionsGalleryView, provideViewTransitionsGalleryView } =
-  craftService(
-    { name: 'viewTransitionsGalleryView', providedIn: 'toProvide' },
-    () => ({}),
-  );
 
 const ViewTransitionsGalleryComponent = craftComponent(
   'ViewTransitionsGalleryComponent',
   {
-    providers: [provideViewTransitionsGalleryView()],
     styles: `
       .vt-intro{margin-bottom:1.75rem}.vt-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.25rem}
       .vt-tile{display:grid;gap:.75rem;text-decoration:none;color:inherit}.vt-art{display:grid;place-items:center;aspect-ratio:4/3;border-radius:16px;box-shadow:0 12px 30px #0f172a2e}
@@ -30,7 +23,6 @@ const ViewTransitionsGalleryComponent = craftComponent(
     `,
   },
   function* () {
-    yield* ViewTransitionsGalleryView();
     return [
       header({ class: 'vt-intro' }, [
         heading('View Transitions'),

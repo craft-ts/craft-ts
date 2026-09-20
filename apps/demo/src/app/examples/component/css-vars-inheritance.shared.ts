@@ -1,16 +1,9 @@
-import { craftService } from '@craft-ts/core';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, inherit, p, span } from '@craft-ts/component';
-
-export const { InheritedBadgeView, provideInheritedBadgeView } = craftService(
-  { name: 'inheritedBadgeView', providedIn: 'toProvide' },
-  () => ({}),
-);
 
 const InheritedBadge = craftComponent(
   'InheritedBadge',
   {
-    providers: [provideInheritedBadgeView()],
     styles: `
       :scope {
         --inherited-badge-bg: #e0e7ff;
@@ -26,21 +19,13 @@ const InheritedBadge = craftComponent(
     `,
   },
   function* () {
-    yield* InheritedBadgeView();
     return span('Inherited from parent');
   },
 );
 
-export const { InheritanceExampleView, provideInheritanceExampleView } =
-  craftService(
-    { name: 'inheritanceExampleView', providedIn: 'toProvide' },
-    () => ({}),
-  );
-
 export const InheritanceExample = craftComponent(
   'InheritanceExample',
   {
-    providers: [provideInheritanceExampleView()],
     styles: `
       :scope {
         --inherited-badge-ink: #3730a3;
@@ -54,7 +39,6 @@ export const InheritanceExample = craftComponent(
     `,
   },
   function* () {
-    yield* InheritanceExampleView();
     return div([
       p('The parent declares --inherited-badge-ink in its own scope.'),
       InheritedBadge({ cssVars: { '--inherited-badge-ink': inherit } }),

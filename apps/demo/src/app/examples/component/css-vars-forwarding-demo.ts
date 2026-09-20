@@ -1,26 +1,17 @@
-import { craftService } from '@craft-ts/core';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, forward, p, heading } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { TokenCard } from './css-vars-required-demo';
 
-export const { ForwardingExampleView, provideForwardingExampleView } =
-  craftService(
-    { name: 'forwardingExampleView', providedIn: 'toProvide' },
-    () => ({}),
-  );
-
 const ForwardingExample = craftComponent(
   'ForwardingExample',
   {
-    providers: [provideForwardingExampleView()],
     styles: `
       :scope { display: grid; gap: .6rem; }
       .forwarding-example__note { margin: 0; color: #64748b; font-size: .82rem; }
     `,
   },
   function* () {
-    yield* ForwardingExampleView();
     return div([
       TokenCard({
         cssVars: {
@@ -39,16 +30,9 @@ const ForwardingExample = craftComponent(
   },
 );
 
-export const { CssVarsForwardingDemoView, provideCssVarsForwardingDemoView } =
-  craftService(
-    { name: 'cssVarsForwardingDemoView', providedIn: 'toProvide' },
-    () => ({}),
-  );
-
 export const CssVarsForwardingDemo = craftComponent(
   'CssVarsForwardingDemo',
   {
-    providers: [provideCssVarsForwardingDemoView()],
     styles: `
       :scope { display: grid; gap: 1.5rem; max-width: 72rem; margin: 0 auto; color: #172033; }
       h1, p { margin: 0; }
@@ -60,7 +44,6 @@ export const CssVarsForwardingDemo = craftComponent(
     `,
   },
   function* () {
-    yield* CssVarsForwardingDemoView();
     return div([
       CssVarsPageNav(),
       div({ class: 'css-vars-forwarding__intro' }, [

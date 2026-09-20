@@ -1,16 +1,9 @@
-import { craftService } from '@craft-ts/core';
 /* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, p, heading } from '@craft-ts/component';
-
-export const { SlowPageView, provideSlowPageView } = craftService(
-  { name: 'slowPageView', providedIn: 'toProvide' },
-  () => ({}),
-);
 
 const SlowPageComponent = craftComponent(
   'SlowPageComponent',
   {
-    providers: [provideSlowPageView()],
     styles: `
       :scope { padding:2rem; border:1px solid #bbf7d0; border-radius:8px; background:#f0fdf4; color:#166534; }
       dl { display:grid; grid-template-columns:auto 1fr; gap:.25rem 1rem; margin-top:1rem; }
@@ -18,7 +11,6 @@ const SlowPageComponent = craftComponent(
     `,
   },
   function* () {
-    yield* SlowPageView();
     return div([
       heading('✅ Slow page loaded'),
       p(
