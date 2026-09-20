@@ -27,7 +27,8 @@ export type SubjectKind =
   | 'visual'
   | 'doc-example'
   | 'api-surface'
-  | 'template';
+  | 'template'
+  | 'folder-layout';
 
 export type Verdict =
   | 'ok'

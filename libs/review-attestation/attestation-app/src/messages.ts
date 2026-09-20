@@ -21,6 +21,7 @@ const en = {
   viewAssets: 'Visual assets',
   viewVisual: 'Visual tests',
   viewTemplate: 'Template obligations',
+  viewFolderLayout: 'Folder layout',
   viewReview: 'Review queue',
   viewNavigation: 'Attestation views',
   viewNavigationDescription:
@@ -30,6 +31,7 @@ const en = {
   visualDetail: 'Visual evidence',
   openVisualReview: 'Open in review queue',
   viewTemplateDescription: 'Contracts emitted by templates',
+  viewFolderLayoutDescription: 'Before and proposed file trees',
   viewReviewDescription: 'Decisions waiting for review',
   noInventory: 'Nothing to show in this view.',
   extractionDiagnostics: 'Extraction diagnostics',
@@ -345,6 +347,7 @@ const fr: Messages = {
   viewAssets: 'Assets visuels',
   viewVisual: 'Tests visuels',
   viewTemplate: 'Obligations de template',
+  viewFolderLayout: 'Disposition des dossiers',
   viewReview: 'File de revue',
   viewNavigation: "Vues d'attestation",
   viewNavigationDescription:
@@ -354,6 +357,7 @@ const fr: Messages = {
   visualDetail: 'Preuve visuelle',
   openVisualReview: 'Ouvrir dans la file de revue',
   viewTemplateDescription: 'Contrats produits par les templates',
+  viewFolderLayoutDescription: 'Arborescences actuelle et proposée',
   viewReviewDescription: 'Décisions qui attendent une revue',
   noInventory: 'Aucun élément dans cette vue.',
   extractionDiagnostics: "Diagnostics d'extraction",

@@ -78,6 +78,7 @@ import {
 } from './application-overview';
 import { ViewTabs } from './view-tabs';
 import { AssetsInventoryList } from './assets-inventory-list';
+import { FolderLayoutView } from './folder-layout-view';
 import {
   MENTION_ID,
   chipFor,
@@ -768,6 +769,11 @@ export const ReviewApp = craftComponent(
       if ((yield* devtoolView()) === 'review') {
         return (yield* review.value())?.cards ?? [];
       }
+      if ((yield* devtoolView()) === 'folder-layout') {
+        return ((yield* review.value())?.cards ?? []).filter(
+          (card) => card.kind === 'folder-layout',
+        );
+      }
       const component = (yield* componentFilter()).trim().toLowerCase();
       const text = (yield* textFilter()).trim().toLowerCase();
       const kind = yield* kindFilter();
@@ -806,6 +812,9 @@ export const ReviewApp = craftComponent(
         }
         return true;
       });
+    });
+    const folderLayouts = craftComputed('folderLayouts', function* () {
+      return (yield* review.value())?.folderLayouts ?? [];
     });
     const visualAssets = craftComputed('visualAssets', function* () {
       if ((yield* kindFilter()) !== 'all' && (yield* kindFilter()) !== 'visual')
@@ -913,6 +922,12 @@ export const ReviewApp = craftComponent(
     const visualEvidence = craftComputed('visualEvidence', function* () {
       return (yield* current())?.kind === 'visual';
     });
+    const folderLayoutEvidence = craftComputed(
+      'folderLayoutEvidence',
+      function* () {
+        return (yield* current())?.kind === 'folder-layout';
+      },
+    );
     /** Every sentence, in the language on screen. */
     const t = craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
@@ -1515,9 +1530,11 @@ export const ReviewApp = craftComponent(
       selectedVisualAsset,
       visualReviewCard,
       templateObligations,
+      folderLayouts,
       activeIndex,
       current,
       visualEvidence,
+      folderLayoutEvidence,
       sessionHistory,
       zoom,
       note,
@@ -1602,6 +1619,7 @@ export const ReviewApp = craftComponent(
     selectedVisualAsset,
     visualReviewCard,
     templateObligations,
+    folderLayouts,
     activeIndex,
     sessionHistory,
     zoom,
@@ -1646,6 +1664,7 @@ export const ReviewApp = craftComponent(
     openVisualReview,
     current,
     visualEvidence,
+    folderLayoutEvidence,
     evidenceView,
     rememberCaret,
     freezePick,
@@ -1864,6 +1883,9 @@ export const ReviewApp = craftComponent(
                   },
                   templateObligationsCount: function* () {
                     return (yield* templateObligations()).length;
+                  },
+                  folderLayoutCount: function* () {
+                    return (yield* folderLayouts()).length;
                   },
                   cardsCount: function* () {
                     return (yield* cards()).length;
@@ -2084,7 +2106,8 @@ export const ReviewApp = craftComponent(
             {
               class: 'review-panel',
               hidden: function* () {
-                return (yield* devtoolView()) !== 'review';
+                const view = yield* devtoolView();
+                return view !== 'review' && view !== 'folder-layout';
               },
             },
             // Keep one review card in the DOM. Rendering the complete queue and
@@ -2164,7 +2187,10 @@ export const ReviewApp = craftComponent(
                         {
                           class: 'nonvisual-evidence',
                           hidden: function* () {
-                            return (yield* card()).kind === 'visual';
+                            const kind = (yield* card()).kind;
+                            return (
+                              kind === 'visual' || kind === 'folder-layout'
+                            );
                           },
                         },
                         [
@@ -2236,7 +2262,8 @@ export const ReviewApp = craftComponent(
                           ),
                           p({ class: 'template-warning' }, function* () {
                             const value = yield* card();
-                            return value.kind !== 'visual' &&
+                            return (value.kind === 'template' ||
+                              value.kind === 'removal') &&
                               value.previousEvidenceUnavailable
                               ? (yield* t()).previousUnavailable
                               : '';
@@ -2280,185 +2307,228 @@ export const ReviewApp = craftComponent(
                           ),
                         ],
                       ),
-                      section({ class: 'evidence-toolbar' }, [
-                        div({ class: 'metadata' }, [
-                          span({ class: 'chip' }, function* () {
-                            const viewport = (yield* card()).members[0]
-                              ?.metadata?.viewport;
-                            const say = yield* t();
-                            return viewport
-                              ? say.viewport(viewport.width, viewport.height)
-                              : say.viewportUnknown;
-                          }),
-                          span({ class: 'chip' }, function* () {
-                            const screenshot = (yield* card()).members[0]
-                              ?.metadata?.screenshot;
-                            const say = yield* t();
-                            return screenshot
-                              ? say.capture(screenshot.width, screenshot.height)
-                              : say.captureUnknown;
-                          }),
-                          span({ class: 'chip' }, function* () {
-                            return (
-                              (yield* card()).members[0]?.metadata
-                                ?.colorScheme ?? (yield* t()).schemeUnknown
-                            );
-                          }),
-                          span({ class: 'chip' }, function* () {
-                            const browser = (yield* card()).members[0]?.metadata
-                              ?.browser;
-                            return browser
-                              ? `${browser.name} ${browser.version}`
-                              : (yield* t()).browserUnknown;
-                          }),
-                          // What the verdict covers against what anybody could look
-                          // at. Said out loud, on the same rule as `bulk`: an
-                          // attestation must not claim a coverage it does not have.
-                          // A subject nobody has attested, said once and small.
-                          span(
-                            {
-                              class: 'chip',
-                              hidden: function* () {
-                                return (yield* card()).changes.length > 0;
+                      ifNode(folderLayoutEvidence, () =>
+                        FolderLayoutView({
+                          entries: function* () {
+                            const value = yield* card();
+                            return value.kind === 'folder-layout'
+                              ? value.entries
+                              : [];
+                          },
+                          sourceGraphHash: function* () {
+                            const value = yield* card();
+                            return value.kind === 'folder-layout'
+                              ? value.sourceGraphHash
+                              : '';
+                          },
+                          configHash: function* () {
+                            const value = yield* card();
+                            return value.kind === 'folder-layout'
+                              ? value.configHash
+                              : '';
+                          },
+                          moves: function* () {
+                            const value = yield* card();
+                            return value.kind === 'folder-layout'
+                              ? value.statistics.moves
+                              : 0;
+                          },
+                          reviews: function* () {
+                            const value = yield* card();
+                            return value.kind === 'folder-layout'
+                              ? value.statistics.reviews
+                              : 0;
+                          },
+                        }),
+                      ),
+                      section(
+                        {
+                          class: 'evidence-toolbar',
+                          hidden: folderLayoutEvidence,
+                        },
+                        [
+                          div({ class: 'metadata' }, [
+                            span({ class: 'chip' }, function* () {
+                              const viewport = (yield* card()).members[0]
+                                ?.metadata?.viewport;
+                              const say = yield* t();
+                              return viewport
+                                ? say.viewport(viewport.width, viewport.height)
+                                : say.viewportUnknown;
+                            }),
+                            span({ class: 'chip' }, function* () {
+                              const screenshot = (yield* card()).members[0]
+                                ?.metadata?.screenshot;
+                              const say = yield* t();
+                              return screenshot
+                                ? say.capture(
+                                    screenshot.width,
+                                    screenshot.height,
+                                  )
+                                : say.captureUnknown;
+                            }),
+                            span({ class: 'chip' }, function* () {
+                              return (
+                                (yield* card()).members[0]?.metadata
+                                  ?.colorScheme ?? (yield* t()).schemeUnknown
+                              );
+                            }),
+                            span({ class: 'chip' }, function* () {
+                              const browser = (yield* card()).members[0]
+                                ?.metadata?.browser;
+                              return browser
+                                ? `${browser.name} ${browser.version}`
+                                : (yield* t()).browserUnknown;
+                            }),
+                            // What the verdict covers against what anybody could look
+                            // at. Said out loud, on the same rule as `bulk`: an
+                            // attestation must not claim a coverage it does not have.
+                            // A subject nobody has attested, said once and small.
+                            span(
+                              {
+                                class: 'chip',
+                                hidden: function* () {
+                                  return (yield* card()).changes.length > 0;
+                                },
                               },
-                            },
-                            function* () {
-                              return (yield* t()).neverApproved;
-                            },
-                          ),
-                          span({ class: 'chip coverage' }, function* () {
-                            const coverage = (yield* card()).members[0]
-                              ?.metadata?.coverage;
-                            const say = yield* t();
-                            if (!coverage) return say.coverageUnknown;
-                            const seen =
-                              coverage.attested -
-                              coverage.offScreen -
-                              coverage.occluded;
-                            return say.coverage(
-                              coverage.attested,
-                              seen,
-                              coverage.occluded,
-                            );
-                          }),
-                        ]),
-                        div({ class: 'evidence-views' }, [
-                          span(
+                              function* () {
+                                return (yield* t()).neverApproved;
+                              },
+                            ),
+                            span({ class: 'chip coverage' }, function* () {
+                              const coverage = (yield* card()).members[0]
+                                ?.metadata?.coverage;
+                              const say = yield* t();
+                              if (!coverage) return say.coverageUnknown;
+                              const seen =
+                                coverage.attested -
+                                coverage.offScreen -
+                                coverage.occluded;
+                              return say.coverage(
+                                coverage.attested,
+                                seen,
+                                coverage.occluded,
+                              );
+                            }),
+                          ]),
+                          div({ class: 'evidence-views' }, [
+                            span(
+                              {
+                                class: 'field-label',
+                                id: 'evidence-views-label',
+                              },
+                              function* () {
+                                return (yield* t()).evidence;
+                              },
+                            ),
+                            div(
+                              {
+                                class: 'view-toggle',
+                                role: 'group',
+                                'aria-labelledby': 'evidence-views-label',
+                              },
+                              [
+                                button(
+                                  'ShowReplay',
+                                  {
+                                    type: 'button',
+                                    'data-view': 'replay',
+                                    title: function* () {
+                                      return (yield* t()).viewPageHint;
+                                    },
+                                    disabled: function* () {
+                                      return !(yield* canReplay());
+                                    },
+                                    'aria-pressed': function* () {
+                                      return String(yield* showingReplay());
+                                    },
+                                    click: evidenceView.chooseReplay,
+                                  },
+                                  function* () {
+                                    return (yield* t()).viewPage;
+                                  },
+                                ),
+                                button(
+                                  'ShowImage',
+                                  {
+                                    type: 'button',
+                                    'data-view': 'image',
+                                    title: function* () {
+                                      return (yield* t()).viewImageHint;
+                                    },
+                                    'aria-pressed': function* () {
+                                      return String(!(yield* showingReplay()));
+                                    },
+                                    click: evidenceView.chooseImage,
+                                  },
+                                  function* () {
+                                    return (yield* t()).viewImage;
+                                  },
+                                ),
+                              ],
+                            ),
+                            button(
+                              'ToggleChrome',
+                              {
+                                type: 'button',
+                                class: 'overlay-toggle',
+                                // Only the page can do this. In a screenshot those
+                                // pixels have already been replaced.
+                                'data-hint': overlayHint,
+                                // Offered only when there is something to lift. A
+                                // control that is always present and does nothing on
+                                // most cards reads as broken — and on those cards it
+                                // was, because it marked every fixed element on the
+                                // page whether or not it covered anything.
+                                hidden: function* () {
+                                  return (
+                                    !(yield* showingReplay()) ||
+                                    (yield* chrome()).length === 0
+                                  );
+                                },
+                                'aria-pressed': function* () {
+                                  return String(yield* hideChrome());
+                                },
+                                click: toggleChrome,
+                              },
+                              overlayLabel,
+                            ),
+                          ]),
+                          // Applies to both artefacts, by different means: the
+                          // picture is a picture, and the frozen page is drawn
+                          // smaller with a transform. Never a width — that would
+                          // relayout it and it would stop being what was measured.
+                          label(
                             {
                               class: 'field-label',
-                              id: 'evidence-views-label',
+                              htmlFor: 'evidence-zoom',
                             },
                             function* () {
-                              return (yield* t()).evidence;
+                              return (yield* t()).zoom;
                             },
                           ),
-                          div(
+                          select(
+                            'EvidenceZoom',
                             {
-                              class: 'view-toggle',
-                              role: 'group',
-                              'aria-labelledby': 'evidence-views-label',
+                              id: 'evidence-zoom',
+                              'aria-label': 'Evidence zoom',
+                              value: zoom,
+                              *change(event: Event) {
+                                const value = eventValue(event);
+                                if (isZoomMode(value)) yield* chooseZoom(value);
+                              },
                             },
                             [
-                              button(
-                                'ShowReplay',
-                                {
-                                  type: 'button',
-                                  'data-view': 'replay',
-                                  title: function* () {
-                                    return (yield* t()).viewPageHint;
-                                  },
-                                  disabled: function* () {
-                                    return !(yield* canReplay());
-                                  },
-                                  'aria-pressed': function* () {
-                                    return String(yield* showingReplay());
-                                  },
-                                  click: evidenceView.chooseReplay,
-                                },
-                                function* () {
-                                  return (yield* t()).viewPage;
-                                },
-                              ),
-                              button(
-                                'ShowImage',
-                                {
-                                  type: 'button',
-                                  'data-view': 'image',
-                                  title: function* () {
-                                    return (yield* t()).viewImageHint;
-                                  },
-                                  'aria-pressed': function* () {
-                                    return String(!(yield* showingReplay()));
-                                  },
-                                  click: evidenceView.chooseImage,
-                                },
-                                function* () {
-                                  return (yield* t()).viewImage;
-                                },
-                              ),
+                              option({ value: 'fit' }, function* () {
+                                return (yield* t()).zoomFit;
+                              }),
+                              option({ value: 'actual' }, function* () {
+                                return (yield* t()).zoomActual;
+                              }),
                             ],
                           ),
-                          button(
-                            'ToggleChrome',
-                            {
-                              type: 'button',
-                              class: 'overlay-toggle',
-                              // Only the page can do this. In a screenshot those
-                              // pixels have already been replaced.
-                              'data-hint': overlayHint,
-                              // Offered only when there is something to lift. A
-                              // control that is always present and does nothing on
-                              // most cards reads as broken — and on those cards it
-                              // was, because it marked every fixed element on the
-                              // page whether or not it covered anything.
-                              hidden: function* () {
-                                return (
-                                  !(yield* showingReplay()) ||
-                                  (yield* chrome()).length === 0
-                                );
-                              },
-                              'aria-pressed': function* () {
-                                return String(yield* hideChrome());
-                              },
-                              click: toggleChrome,
-                            },
-                            overlayLabel,
-                          ),
-                        ]),
-                        // Applies to both artefacts, by different means: the
-                        // picture is a picture, and the frozen page is drawn
-                        // smaller with a transform. Never a width — that would
-                        // relayout it and it would stop being what was measured.
-                        label(
-                          {
-                            class: 'field-label',
-                            htmlFor: 'evidence-zoom',
-                          },
-                          function* () {
-                            return (yield* t()).zoom;
-                          },
-                        ),
-                        select(
-                          'EvidenceZoom',
-                          {
-                            id: 'evidence-zoom',
-                            'aria-label': 'Evidence zoom',
-                            value: zoom,
-                            *change(event: Event) {
-                              const value = eventValue(event);
-                              if (isZoomMode(value)) yield* chooseZoom(value);
-                            },
-                          },
-                          [
-                            option({ value: 'fit' }, function* () {
-                              return (yield* t()).zoomFit;
-                            }),
-                            option({ value: 'actual' }, function* () {
-                              return (yield* t()).zoomActual;
-                            }),
-                          ],
-                        ),
-                      ]),
+                        ],
+                      ),
                       p({ class: 'evidence-help' }, function* () {
                         const say = yield* t();
                         return (yield* showingReplay())

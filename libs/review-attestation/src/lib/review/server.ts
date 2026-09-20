@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { buildReviewQueue, type ReviewCard, type ReviewItem } from './queue.js';
 import type {
   AttestationDevtoolModel,
+  FolderLayoutReviewCard,
   RemovalReviewCard,
   TemplateReviewCard,
 } from '@craft-ts/dev-tools/attestation-review';
@@ -26,7 +27,8 @@ import { craftStyle } from '@craft-ts/style/vite';
 export type AttestationReviewCard =
   | ReviewCard
   | TemplateReviewCard
-  | RemovalReviewCard;
+  | RemovalReviewCard
+  | FolderLayoutReviewCard;
 
 export interface ReviewFinding {
   readonly path: string;
@@ -64,6 +66,9 @@ export interface ReviewApiQueue {
   readonly visualAssets: AttestationDevtoolModel['visualAssets'];
   readonly visualTests: AttestationDevtoolModel['visualTests'];
   readonly templateObligations: AttestationDevtoolModel['templateObligations'];
+  readonly folderLayouts?: NonNullable<
+    AttestationDevtoolModel['folderLayouts']
+  >;
   readonly diagnostics: AttestationDevtoolModel['diagnostics'];
   /** Decisions accepted during this review session, in acceptance order. */
   readonly history: readonly ReviewSessionDecision[];
@@ -215,6 +220,7 @@ const queueValue = (
   visualAssets: model?.visualAssets ?? [],
   visualTests: model?.visualTests ?? [],
   templateObligations: model?.templateObligations ?? [],
+  folderLayouts: model?.folderLayouts ?? [],
   diagnostics: model?.diagnostics ?? [],
   history,
   ...(regeneration ? { regeneration } : {}),

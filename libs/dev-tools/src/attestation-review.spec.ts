@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildRemovalReviewCard,
+  buildFolderLayoutReviewCard,
   buildTemplateReviewCard,
   clusterTemplateReviewCards,
   codeLeavesDiff,
@@ -129,5 +130,77 @@ describe('attestation review core', () => {
         note: '',
       }),
     ).toContain('comment');
+  });
+
+  it('turns a deterministic folder-layout proposal into a stable review card', () => {
+    const card = buildFolderLayoutReviewCard({
+      analysis: {},
+      proposal: {
+        sourceGraphHash: 'graph-1',
+        configHash: 'config-1',
+        placements: [
+          {
+            sourcePath: 'src/app/orders.ts',
+            proposedPath: 'src/features/orders/orders.ts',
+            scope: 'feature-local',
+            confidence: 0.95,
+            reasons: ['route anchor orders'],
+          },
+          {
+            sourcePath: 'src/app/legacy.ts',
+            proposedPath: null,
+            scope: 'unresolved',
+            confidence: 0.1,
+            reasons: ['review required'],
+          },
+        ],
+        statistics: {
+          files: 2,
+          moves: 1,
+          reviews: 1,
+          unresolved: 1,
+          confidence: { high: 1, medium: 0, low: 1 },
+        },
+      },
+    });
+
+    expect(card.kind).toBe('folder-layout');
+    expect(card.entries.map((entry) => entry.status)).toEqual([
+      'unchanged',
+      'moved',
+    ]);
+    expect(card.shape).toBe(card.subject);
+    expect(card.revision).toBe(
+      buildFolderLayoutReviewCard({
+        analysis: {},
+        proposal: {
+          sourceGraphHash: 'graph-1',
+          configHash: 'config-1',
+          placements: [
+            {
+              sourcePath: 'src/app/orders.ts',
+              proposedPath: 'src/features/orders/orders.ts',
+              scope: 'feature-local',
+              confidence: 0.95,
+              reasons: ['route anchor orders'],
+            },
+            {
+              sourcePath: 'src/app/legacy.ts',
+              proposedPath: null,
+              scope: 'unresolved',
+              confidence: 0.1,
+              reasons: ['review required'],
+            },
+          ],
+          statistics: {
+            files: 2,
+            moves: 1,
+            reviews: 1,
+            unresolved: 1,
+            confidence: { high: 1, medium: 0, low: 1 },
+          },
+        },
+      }).revision,
+    );
   });
 });
