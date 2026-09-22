@@ -20,6 +20,7 @@ export const ViewTabs = craftComponent(
     chooseDevtoolView: Output<(view: DevtoolView) => void>,
     visualTestsCount: Input<number>,
     templateObligationsCount: Input<number>,
+    folderLayoutCount: Input<number>,
     cardsCount: Input<number>,
     t: Input<Messages>,
   ) => {
@@ -41,8 +42,10 @@ export const ViewTabs = craftComponent(
 
     return {
       chooseDevtoolView,
+      devtoolView,
       visualTestsCount,
       templateObligationsCount,
+      folderLayoutCount,
       cardsCount,
       t,
       applicationPressed,
@@ -55,12 +58,14 @@ export const ViewTabs = craftComponent(
     chooseDevtoolView,
     visualTestsCount,
     templateObligationsCount,
+    folderLayoutCount,
     cardsCount,
     t,
     applicationPressed,
     visualPressed,
     templatePressed,
     reviewPressed,
+    devtoolView,
   }) => [
     button(
       'ShowApplicationOverview',
@@ -152,6 +157,33 @@ export const ViewTabs = craftComponent(
         ]),
         span({ class: 'view-tab-count' }, function* () {
           return String(yield* cardsCount());
+        }),
+      ],
+    ),
+    button(
+      'ShowFolderLayout',
+      {
+        type: 'button',
+        class: 'view-tab',
+        'aria-pressed': function* () {
+          return (yield* devtoolView()) === 'folder-layout' ? 'true' : 'false';
+        },
+        *click() {
+          yield* chooseDevtoolView('folder-layout');
+        },
+      },
+      [
+        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '⇄'),
+        span({ class: 'view-tab-copy' }, [
+          strong(function* () {
+            return (yield* t()).viewFolderLayout;
+          }),
+          small(function* () {
+            return (yield* t()).viewFolderLayoutDescription;
+          }),
+        ]),
+        span({ class: 'view-tab-count' }, function* () {
+          return String(yield* folderLayoutCount());
         }),
       ],
     ),

@@ -37,11 +37,22 @@ export type ReviewAttestConfigInput = {
   };
   /** Global v1 switch for template obligations. */
   readonly template?: boolean;
+  /** Deterministic folder-layout proposal to include in the review queue. */
+  readonly folderLayout?:
+    | string
+    | {
+        readonly proposal: string;
+        readonly analysis?: string;
+      };
 };
 
 export type ReviewAttestConfig = {
   readonly visual?: ReviewAttestVisualConfig;
   readonly template: boolean;
+  readonly folderLayout?: {
+    readonly proposal: string;
+    readonly analysis?: string;
+  };
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -105,6 +116,18 @@ export function defineReviewAttestConfig<
   if (!isRecord(input)) invalid('the root value must be an object.');
   if (input.template !== undefined && typeof input.template !== 'boolean')
     invalid('template must be a boolean.');
+  const folderLayout = input.folderLayout;
+  if (
+    folderLayout !== undefined &&
+    typeof folderLayout !== 'string' &&
+    (!isRecord(folderLayout) || typeof folderLayout['proposal'] !== 'string')
+  ) {
+    invalid('folderLayout must be a proposal path or an object with proposal.');
+  }
+  const normalizedFolderLayout =
+    typeof folderLayout === 'string'
+      ? { proposal: folderLayout }
+      : folderLayout;
   const visual = input.visual;
   if (visual !== undefined) {
     if (!isRecord(visual)) invalid('visual must be an object.');
@@ -118,12 +141,18 @@ export function defineReviewAttestConfig<
         matrices,
       },
       template: input.template === true,
+      ...(normalizedFolderLayout
+        ? { folderLayout: normalizedFolderLayout }
+        : {}),
     };
   }
   if (input.template !== undefined && typeof input.template !== 'boolean') {
     invalid('template must be a boolean.');
   }
-  return { template: input.template === true };
+  return {
+    template: input.template === true,
+    ...(normalizedFolderLayout ? { folderLayout: normalizedFolderLayout } : {}),
+  };
 }
 
 /** Runtime guard for config values loaded from JavaScript or transpiled TS. */

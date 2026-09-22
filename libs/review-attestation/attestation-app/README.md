@@ -17,6 +17,23 @@ The separation is intentional. A server cannot reliably review a queue that it
 is still changing while capturing itself. The frozen, script-free artefacts
 make the second session reproducible and avoid an infinite recursion.
 
+## Review a folder layout
+
+The unified DevTool can also attest a deterministic `folder-layout` proposal
+produced by `craft organize`. Add the proposal to the review configuration:
+
+```ts
+folderLayout: {
+  proposal: 'apps/demo/folder-layout/folder-layout-proposal.json',
+  analysis: 'apps/demo/folder-layout/folder-layout-analysis.json',
+}
+```
+
+The **Folder layout** view presents the original and proposed trees side by
+side. Moved, deleted, created and unchanged files receive distinct visual
+states. The same Accept, Accept with note, Reject and history actions are used
+by the attestation queue, so the result is written to the normal ledger.
+
 ## Run the self-attestation
 
 From the repository root:

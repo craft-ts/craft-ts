@@ -223,6 +223,115 @@ select {
     color 140ms ease,
     transform 140ms ease;
 }
+
+.folder-layout-view {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-sunken);
+}
+.folder-layout-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.folder-layout-summary small,
+.folder-layout-hash {
+  color: var(--text-muted);
+}
+.folder-layout-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.folder-layout-legend-item,
+.folder-layout-row-status {
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 650;
+}
+.folder-layout-legend-item.moved,
+.folder-layout-row.moved {
+  color: #b9c4ff;
+  background: #28346c;
+}
+.folder-layout-legend-item.deleted,
+.folder-layout-row.deleted {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+.folder-layout-legend-item.created,
+.folder-layout-row.created {
+  color: #9ee6ba;
+  background: #183d2b;
+}
+.folder-layout-legend-item.unchanged,
+.folder-layout-row.unchanged {
+  color: var(--text-muted);
+  background: var(--surface-raised);
+}
+.folder-layout-trees {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.folder-layout-tree {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.folder-layout-tree-heading {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-bright);
+}
+.folder-layout-tree-list {
+  max-height: 480px;
+  margin: 0;
+  padding: 8px 0;
+  overflow: auto;
+  list-style: none;
+}
+.folder-layout-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  margin: 0 8px;
+  padding: 3px 7px;
+  padding-left: calc(7px + var(--tree-depth) * 16px);
+  border-radius: 6px;
+}
+.folder-layout-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-layout-row-icon {
+  color: var(--text-dim);
+  text-align: center;
+}
+.folder-layout-row-status {
+  padding: 1px 5px;
+  background: transparent;
+}
+.folder-layout-hash {
+  margin: 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .folder-layout-trees {
+    grid-template-columns: 1fr;
+  }
+}
 .view-tab:hover:not(:disabled) {
   border-color: var(--line-strong);
   background: var(--surface-sunken);

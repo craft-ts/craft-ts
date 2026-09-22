@@ -98,7 +98,11 @@ const sourcePathsOf = (card: AttestationReviewCard): readonly string[] => {
   const candidates: readonly (string | undefined)[] =
     card.kind === 'visual'
       ? card.cluster.map(componentSourcePath)
-      : [componentSourcePath(card.component)];
+      : card.kind === 'folder-layout'
+        ? card.entries.flatMap((entry) => [entry.sourcePath ?? undefined])
+        : card.kind === 'template' || card.kind === 'removal'
+          ? [componentSourcePath(card.component)]
+          : [];
   return [
     ...new Set(candidates.filter((path): path is string => Boolean(path))),
   ].sort();
@@ -188,7 +192,9 @@ const itemOf = (
     subjects: [...card.cluster],
     scenarios: card.cluster.map(scenarioOf),
     sourcePaths: sourcePathsOf(card),
-    ...(card.kind !== 'visual' ? { component: card.component } : {}),
+    ...(card.kind === 'template' || card.kind === 'removal'
+      ? { component: card.component }
+      : {}),
     reason: card.reason,
     comment,
     changes: card.changes,

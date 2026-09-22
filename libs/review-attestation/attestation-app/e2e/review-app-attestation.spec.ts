@@ -8,9 +8,35 @@ import {
 } from '@craft-ts/style-testing/review';
 import {
   reviewAppHappyPathModel,
+  reviewAppFolderLayoutCard,
   reviewAppTemplateCard,
   reviewAttestConfig,
 } from '../src/review-app.happy-path.ts';
+
+test('reviews a folder-layout proposal as a visual before/after tree', async ({
+  page,
+}) => {
+  const running = await startReviewServer({
+    port: 0,
+    cards: [reviewAppFolderLayoutCard],
+    model: reviewAppHappyPathModel,
+  });
+  try {
+    await page.goto(`${running.url}?view=folder-layout`);
+    await expect(
+      page.locator('[data-craft-name="ShowFolderLayout"]'),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.folder-layout-trees')).toBeVisible();
+    await expect(page.locator('.folder-layout-tree')).toHaveCount(2);
+    await expect(page.locator('.folder-layout-row.moved')).toHaveCount(4);
+    await expect(page.locator('.folder-layout-row.deleted')).toHaveCount(1);
+    await expect(page.locator('.folder-layout-row.created')).toHaveCount(1);
+    await page.locator('[data-craft-name="AcceptReviewCard"]').click();
+    await expect(page.locator('.folder-layout-trees')).toHaveCount(0);
+  } finally {
+    await running.close();
+  }
+});
 
 const REQUESTED_REPORT = process.env['CRAFT_REVIEW_APP_REPORT'];
 

@@ -51,12 +51,17 @@ import {
   type Verdict,
 } from '@craft-ts/attest';
 import type {
+  FolderLayoutReviewCard,
   PreviousDecision,
   ReviewCard as AttestationReviewCard,
   AttestationDevtoolModel,
   TemplateDiagnostic,
   TemplateReviewCard,
 } from '@craft-ts/dev-tools/attestation-review';
+import type {
+  FolderLayoutAnalysis,
+  FolderLayoutProposal,
+} from '@craft-ts/dev-tools';
 import type { LayoutDigest } from '@craft-ts/style-testing';
 import type { ReviewIterationOptions } from '@craft-ts/style-testing/review';
 import { parseArguments } from '../args.js';
@@ -206,12 +211,13 @@ const VERDICTS: readonly Verdict[] = [
   'blocked',
 ];
 type RequestedKind =
-  | Extract<SubjectKind, 'test' | 'visual' | 'template'>
+  | Extract<SubjectKind, 'test' | 'visual' | 'template' | 'folder-layout'>
   | 'all';
 const SUBJECT_KINDS: readonly RequestedKind[] = [
   'test',
   'visual',
   'template',
+  'folder-layout',
   'all',
 ];
 const RETIREMENT_REASONS: readonly Retirement['reason'][] = [
@@ -344,7 +350,11 @@ interface ObservedRun {
   readonly visuals: ReadonlyMap<string, VisualArtifact>;
   readonly templates: ReadonlyMap<string, TemplateObligationInput>;
   readonly diagnostics: readonly TemplateDiagnostic[];
-  readonly kind: 'test' | 'visual' | 'template' | 'all';
+  readonly folderLayout?: {
+    readonly analysis: FolderLayoutAnalysis;
+    readonly proposal: FolderLayoutProposal;
+  };
+  readonly kind: 'test' | 'visual' | 'template' | 'folder-layout' | 'all';
 }
 
 export async function runAttestCommand(
@@ -415,6 +425,58 @@ export async function runAttestCommand(
     const workspace = await slices();
     const { reviewAttestHasVisualTargets, reviewAttestVisualSubjects } =
       await import('@craft-ts/style-testing/review-attest');
+    const folderLayoutRun = async (): Promise<ObservedRun | undefined> => {
+      const configured = reviewConfig?.folderLayout;
+      if (!configured) return undefined;
+      const proposalPath = resolve(rootDir, configured.proposal);
+      const analysisPath = resolve(
+        rootDir,
+        configured.analysis ??
+          configured.proposal.replace(/proposal/i, 'analysis'),
+      );
+      const proposal = JSON.parse(
+        await readFile(proposalPath, 'utf8'),
+      ) as FolderLayoutProposal;
+      const analysis = JSON.parse(
+        await readFile(analysisPath, 'utf8'),
+      ) as FolderLayoutAnalysis;
+      if (
+        proposal.version !== 1 ||
+        !Array.isArray(proposal.placements) ||
+        analysis.version !== 1
+      ) {
+        throw new Error(
+          `craft-ts attest: invalid folder-layout artifacts at ${proposalPath}.`,
+        );
+      }
+      const subject = `folder-layout:${proposal.sourceGraphHash}:${proposal.configHash}`;
+      return {
+        list: [
+          {
+            subject,
+            kind: 'folder-layout',
+            fingerprint: proposal.configHash,
+            evidence: evidenceHash(canonicalJson(proposal)),
+            assumptions: [],
+          },
+        ],
+        workspace,
+        leaves: new Map(),
+        visuals: new Map(),
+        templates: new Map(),
+        diagnostics: [],
+        folderLayout: { analysis, proposal },
+        kind: 'folder-layout',
+      };
+    };
+    const folderLayout = await folderLayoutRun();
+    if (requestedKind === 'folder-layout') {
+      if (!folderLayout)
+        throw new Error(
+          'craft-ts attest: no folder-layout proposal is configured.',
+        );
+      return folderLayout;
+    }
     const templateRun = async (): Promise<ObservedRun> => {
       const templateEnabled =
         reviewConfig?.template ?? reviewConfig === undefined;
@@ -467,6 +529,9 @@ export async function runAttestCommand(
           obligations.map((obligation) => [obligation.subject, obligation]),
         ),
         diagnostics,
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         kind: 'template',
       };
     };
@@ -488,6 +553,9 @@ export async function runAttestCommand(
         visuals: new Map(),
         templates: new Map(),
         diagnostics: [],
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         kind: requestedKind === 'all' ? 'all' : 'visual',
       };
     }
@@ -506,6 +574,7 @@ export async function runAttestCommand(
         applicationTargets,
         list: [
           ...templates.list,
+          ...(folderLayout?.list ?? []),
           ...applicationTargets.map((target) => ({
             subject: target.subject,
             kind: 'visual' as const,
@@ -515,6 +584,9 @@ export async function runAttestCommand(
             unavailable: 'No application capture report supplied.',
           })),
         ],
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         kind: 'all',
       };
     }
@@ -711,18 +783,28 @@ export async function runAttestCommand(
         visuals,
         templates: new Map(),
         diagnostics,
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         applicationTargets: expected,
         kind: 'visual',
       };
       if (requestedKind !== 'all') return visual;
       const templates = await templateRun();
       return {
-        list: [...visual.list, ...templates.list],
+        list: [
+          ...visual.list,
+          ...templates.list,
+          ...(folderLayout?.list ?? []),
+        ],
         workspace,
         leaves: new Map([...visual.leaves, ...templates.leaves]),
         visuals,
         templates: templates.templates,
         diagnostics: [...visual.diagnostics, ...templates.diagnostics],
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         applicationTargets: expected,
         kind: 'all',
       };
@@ -755,6 +837,9 @@ export async function runAttestCommand(
       visuals: new Map(),
       templates: new Map(),
       diagnostics: [],
+      ...(folderLayout?.folderLayout
+        ? { folderLayout: folderLayout.folderLayout }
+        : {}),
       kind: 'test',
     };
   };
@@ -966,7 +1051,7 @@ async function status(
   ledger: Ledger,
   observed: {
     readonly list: readonly SubjectObservation[];
-    readonly kind: 'test' | 'visual' | 'template' | 'all';
+    readonly kind: 'test' | 'visual' | 'template' | 'folder-layout' | 'all';
   },
 ): Promise<number> {
   const report = reportOn(ledger, observed.list, { toolVersion: TOOL_VERSION });
@@ -1397,6 +1482,7 @@ async function review(
     | undefined,
 ): Promise<number> {
   const {
+    buildFolderLayoutReviewCard,
     buildRemovalReviewCard,
     buildTemplateReviewCard,
     clusterTemplateReviewCards,
@@ -1475,6 +1561,7 @@ async function review(
     const visualItems: import('@craft-ts/style-testing/review').ReviewItem[] =
       [];
     const templateCards: TemplateReviewCard[] = [];
+    const folderLayoutCards: FolderLayoutReviewCard[] = [];
 
     for (const status of report.statuses) {
       if (
@@ -1531,6 +1618,23 @@ async function review(
       }
 
       const obligation = observed.templates.get(status.subject);
+      if (
+        observed.folderLayout &&
+        status.subject.startsWith('folder-layout:')
+      ) {
+        const previousDecision = previousDecisionOf(status.attestation);
+        if (status.state === 'review' || status.state === 'missing') {
+          folderLayoutCards.push(
+            buildFolderLayoutReviewCard({
+              analysis: observed.folderLayout.analysis,
+              proposal: observed.folderLayout.proposal,
+              state: status.state,
+              ...(previousDecision ? { previousDecision } : {}),
+            }),
+          );
+        }
+        continue;
+      }
       if (!obligation) continue;
       const acceptedReference = acceptedReferenceOf(status.attestation);
       const previousEvidence = acceptedReference
@@ -1595,6 +1699,7 @@ async function review(
     return [
       ...module.buildReviewQueue(visualItems).cards,
       ...clusterTemplateReviewCards(templateCards),
+      ...folderLayoutCards,
       ...removals,
     ];
   };
@@ -1673,6 +1778,40 @@ async function review(
           evidence: templateEvidenceValue(obligation),
         }))
         .sort((left, right) => left.subject.localeCompare(right.subject)),
+      folderLayouts: observed.folderLayout
+        ? [
+            {
+              subject:
+                observed.list.find((item) =>
+                  item.subject.startsWith('folder-layout:'),
+                )?.subject ?? '',
+              sourceGraphHash: observed.folderLayout.proposal.sourceGraphHash,
+              configHash: observed.folderLayout.proposal.configHash,
+              state:
+                statuses.get(
+                  observed.list.find((item) =>
+                    item.subject.startsWith('folder-layout:'),
+                  )?.subject ?? '',
+                )?.state ?? 'missing',
+              entries: observed.folderLayout.proposal.placements.map(
+                (placement) => ({
+                  sourcePath: placement.sourcePath,
+                  proposedPath: placement.proposedPath,
+                  status:
+                    placement.proposedPath === null
+                      ? ('unchanged' as const)
+                      : placement.proposedPath === placement.sourcePath
+                        ? ('unchanged' as const)
+                        : ('moved' as const),
+                  scope: placement.scope,
+                  confidence: placement.confidence,
+                  reasons: placement.reasons,
+                }),
+              ),
+              statistics: observed.folderLayout.proposal.statistics,
+            },
+          ]
+        : [],
       diagnostics: observed.diagnostics,
       applicationCaptures: (observed.applicationTargets ?? []).map((target) => {
         const status = statuses.get(target.subject);

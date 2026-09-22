@@ -35,6 +35,7 @@ import { runAgentSync } from '../scripts/create/sync-agents.js';
 import { runSecurityCheck } from '../scripts/security-check.js';
 import { runFormAdd } from '../scripts/forms/form-command.js';
 import { spawnSync } from 'node:child_process';
+import { organizeProject } from '../scripts/folder-layout.js';
 
 type CommonOptions = {
   rootDir?: string;
@@ -66,6 +67,9 @@ async function main(argv: string[]): Promise<number> {
       child.on('exit', (code) => resolve(code ?? 1));
       child.on('error', () => resolve(1));
     });
+  }
+  if (argv[0] === 'organize') {
+    return runOrganize(argv.slice(1));
   }
   if (argv[0] === 'security' && argv[1] === 'check') {
     const rootIndex = argv.indexOf('--root');
@@ -207,6 +211,44 @@ async function main(argv: string[]): Promise<number> {
   } finally {
     readline.close();
   }
+}
+
+function runOrganize(argv: string[]): number {
+  let project = 'tsconfig.graph.json';
+  let graph = 'craft-dependency-graph.json';
+  let out = 'folder-layout';
+  let rootDir = process.cwd();
+  let targetRoot: string | undefined;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--project' || argument === '--tsconfig')
+      project = argv[++index] ?? project;
+    else if (argument === '--graph') graph = argv[++index] ?? graph;
+    else if (argument === '--out') out = argv[++index] ?? out;
+    else if (argument === '--root') rootDir = argv[++index] ?? rootDir;
+    else if (argument === '--target-root') targetRoot = argv[++index];
+    else if (argument === '--json') json = true;
+    else if (argument === '--help' || argument === '-h') {
+      console.log(
+        'Usage: craft organize --project <tsconfig> --graph <graph.json> [--out <directory>] [--target-root <directory>] [--root <directory>] [--json]',
+      );
+      return 0;
+    } else throw new Error(`craft organize: unknown argument ${argument}`);
+  }
+  const result = organizeProject({
+    rootDir,
+    project,
+    graph,
+    out,
+    ...(targetRoot ? { targetRoot } : {}),
+  });
+  if (json) console.log(JSON.stringify(result.proposal, null, 2));
+  else
+    console.log(
+      `Craft folder layout written to ${result.outputDir} (${result.proposal.statistics.moves} move(s), ${result.proposal.statistics.reviews} review(s)).`,
+    );
+  return 0;
 }
 
 async function runForm(argv: string[]): Promise<number> {
@@ -1056,6 +1098,7 @@ function printHelp(): void {
   craft add form <name> [--advanced] [--force]
   craft i18n check|test
   craft graph [options]
+  craft organize --project <tsconfig> --graph <graph.json> [options]
   craft agents sync [--agents <list>] [--root <dir>] [--dry-run] [--json]
   craft security check [--strict] [--root <dir>]
   craft route add [path] [options]

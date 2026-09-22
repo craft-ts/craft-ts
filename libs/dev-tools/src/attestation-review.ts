@@ -5,8 +5,36 @@
  * evidence. Visual, template and removal presenters enrich the same base card.
  */
 import { createHash } from 'node:crypto';
+type FolderLayoutStatistics = {
+  readonly files: number;
+  readonly moves: number;
+  readonly reviews: number;
+  readonly unresolved: number;
+  readonly confidence: {
+    readonly high: number;
+    readonly medium: number;
+    readonly low: number;
+  };
+};
+type FolderLayoutPlacement = {
+  readonly sourcePath: string;
+  readonly proposedPath: string | null;
+  readonly scope: string;
+  readonly confidence: number;
+  readonly reasons: readonly string[];
+};
+type FolderLayoutProposalLike = {
+  readonly sourceGraphHash: string;
+  readonly configHash: string;
+  readonly placements: readonly FolderLayoutPlacement[];
+  readonly statistics: FolderLayoutStatistics;
+};
 
-export type ReviewCardKind = 'visual' | 'template' | 'removal';
+export type ReviewCardKind =
+  | 'visual'
+  | 'template'
+  | 'removal'
+  | 'folder-layout';
 export type ReviewableState = 'missing' | 'review';
 export type ReviewVerdict =
   | 'ok'
@@ -176,10 +204,114 @@ export interface RemovalReviewCard extends ReviewCardBase {
   readonly previousEvidenceUnavailable: boolean;
 }
 
+export type FolderLayoutEntryStatus =
+  | 'moved'
+  | 'deleted'
+  | 'created'
+  | 'unchanged';
+
+/** One file as it appears in the before/after folder-layout comparison. */
+export interface FolderLayoutEntry {
+  readonly sourcePath: string | null;
+  readonly proposedPath: string | null;
+  readonly status: FolderLayoutEntryStatus;
+  readonly scope?: string;
+  readonly confidence?: number;
+  readonly reasons: readonly string[];
+}
+
+export interface FolderLayoutReviewCard extends ReviewCardBase {
+  readonly kind: 'folder-layout';
+  readonly presenter: 'folder-layout';
+  readonly sourceGraphHash: string;
+  readonly configHash: string;
+  readonly entries: readonly FolderLayoutEntry[];
+  readonly statistics: FolderLayoutStatistics;
+}
+
 export type ReviewCard =
   | VisualReviewCard
   | TemplateReviewCard
-  | RemovalReviewCard;
+  | RemovalReviewCard
+  | FolderLayoutReviewCard;
+
+export interface FolderLayoutInventoryItem {
+  readonly subject: string;
+  readonly sourceGraphHash: string;
+  readonly configHash: string;
+  readonly state: 'current' | 'renewed' | 'missing' | 'review';
+  readonly entries: readonly FolderLayoutEntry[];
+  readonly statistics: FolderLayoutStatistics;
+}
+
+export interface FolderLayoutReviewInput {
+  readonly analysis: object;
+  readonly proposal: FolderLayoutProposalLike;
+  readonly state?: ReviewableState;
+  readonly previousDecision?: PreviousDecision;
+}
+
+const folderLayoutEntry = (
+  placement: FolderLayoutPlacement,
+): FolderLayoutEntry => ({
+  sourcePath: placement.sourcePath,
+  proposedPath: placement.proposedPath,
+  status:
+    placement.proposedPath === null
+      ? 'unchanged'
+      : placement.proposedPath === placement.sourcePath
+        ? 'unchanged'
+        : 'moved',
+  scope: placement.scope,
+  confidence: placement.confidence,
+  reasons: placement.reasons,
+});
+
+/** Converts the deterministic organizer output into an attestable review card. */
+export function buildFolderLayoutReviewCard(
+  input: FolderLayoutReviewInput,
+): FolderLayoutReviewCard {
+  const entries = input.proposal.placements
+    .map(folderLayoutEntry)
+    .sort((left, right) =>
+      `${left.sourcePath ?? ''}:${left.proposedPath ?? ''}`.localeCompare(
+        `${right.sourcePath ?? ''}:${right.proposedPath ?? ''}`,
+      ),
+    );
+  const subject = `folder-layout:${input.proposal.sourceGraphHash}:${input.proposal.configHash}`;
+  const changed = entries.filter((entry) => entry.status !== 'unchanged');
+  return {
+    kind: 'folder-layout',
+    presenter: 'folder-layout',
+    id: subject,
+    shape: subject,
+    revision: reviewRevision({
+      subject,
+      evidence: canonical(input.proposal),
+      state: input.state ?? 'review',
+    }),
+    state: input.state ?? 'review',
+    subject,
+    reason: 'the folder layout proposal changed',
+    cluster: [subject],
+    reviewMembers: [{ subject, label: 'folder-layout' }],
+    members: [{ subject, attested: [], changed: [] }],
+    changes: [
+      `${input.proposal.statistics.moves} moved`,
+      `${entries.filter((entry) => entry.status === 'deleted').length} deleted`,
+      `${entries.filter((entry) => entry.status === 'created').length} created`,
+      `${entries.filter((entry) => entry.status === 'unchanged').length} unchanged`,
+    ],
+    sourceGraphHash: input.proposal.sourceGraphHash,
+    configHash: input.proposal.configHash,
+    entries,
+    statistics: input.proposal.statistics,
+    ...(input.previousDecision
+      ? { previousDecision: input.previousDecision }
+      : {}),
+    ...(changed.length === 0 ? { rejectionReason: undefined } : {}),
+  };
+}
 
 export interface TemplateDiagnostic {
   readonly code: string;
@@ -243,6 +375,7 @@ export interface AttestationDevtoolModel {
   readonly visualAssets: readonly VisualAssetInventoryItem[];
   readonly visualTests: readonly VisualTestInventoryItem[];
   readonly templateObligations: readonly TemplateInventoryItem[];
+  readonly folderLayouts?: readonly FolderLayoutInventoryItem[];
   readonly diagnostics: readonly TemplateDiagnostic[];
   readonly cards: readonly ReviewCard[];
 }

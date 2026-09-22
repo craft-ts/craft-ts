@@ -12,6 +12,7 @@ export * from './handoff.js';
 // while visual consumers can keep importing the established review entry.
 export {
   buildRemovalReviewCard,
+  buildFolderLayoutReviewCard,
   buildTemplateReviewCard,
   clusterTemplateReviewCards,
   codeLeavesDiff,
@@ -20,6 +21,7 @@ export {
   templateEvidenceDiff,
   validateReviewDecision,
   type AttestationDevtoolModel,
+  type FolderLayoutReviewCard,
   type PreviousDecision,
   type RemovalReviewCard,
   type ReviewCardBase,
