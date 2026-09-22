@@ -1,7 +1,6 @@
 import {
   bootstrapCraft,
   provideCraftRootComponent,
-  provideSendContextToAi,
 } from '@craft-ts/component';
 import {
   craftAppConfig,
@@ -19,10 +18,6 @@ import {
 import './styles.css';
 import 'virtual:craft-style.css';
 
-const developmentProviders = import.meta.env.DEV
-  ? [provideSendContextToAi()]
-  : [];
-
 // Before the app renders, not after. Reading the stored choice from inside the
 // component would paint one theme and correct it a frame later, which is the
 // flash every theme switcher is judged on.
@@ -31,7 +26,6 @@ applyLocale(initialLocale(), reviewDocument.documentElement);
 
 const config = craftAppConfig({
   providers: [
-    ...developmentProviders,
     provideCraftRootComponent(ReviewApp),
     ...provideCraftRouter([]),
     provideFnWrapper(

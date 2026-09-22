@@ -1,8 +1,9 @@
 import {
   DestroyRef,
   inject,
+  type InjectionToken,
+  type Provider,
 } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
 
 export const TEMPORAL_AWAIT_REQUEST_MARKER = Symbol(
   'temporal-await-request-marker',
@@ -192,26 +193,27 @@ function normalizeMaxAttempts(value: number | undefined): number {
   return maxAttempts;
 }
 
+// This optional runtime must be available while the generator runtime starts.
+// A plain provider key avoids constructing a Craft token during that cycle.
+export const CRAFT_TEMPORAL_RUNTIME = Object.freeze({});
+
 export function provideCraftTemporalRuntime(
   runtime: CraftTemporalRuntime,
-): CraftServiceProvider {
-  return craftTemporalRuntimeService.provideCraftTemporalRuntime(runtime);
+): Provider {
+  return { provide: CRAFT_TEMPORAL_RUNTIME, useValue: runtime };
 }
 
-const craftTemporalRuntimeService = craftService(
-  { name: 'CraftTemporalRuntime', providedIn: 'toProvide' },
-  (inputs: { $provided?: CraftTemporalRuntime }) =>
-    inputs.$provided ?? new RealCraftTemporalRuntime(),
-) as unknown as {
-  CraftTemporalRuntime: () => Generator<unknown, CraftTemporalRuntime, unknown>;
-  provideCraftTemporalRuntime: (value: CraftTemporalRuntime) => CraftServiceProvider;
-  CRAFT_TEMPORAL_RUNTIME_META_DATA: { inject(): CraftTemporalRuntime };
-};
+export function* CraftTemporalRuntime(): Generator<
+  unknown,
+  CraftTemporalRuntime,
+  unknown
+> {
+  return ɵinjectCraftTemporalRuntime();
+}
 
-export const CraftTemporalRuntime = craftTemporalRuntimeService.CraftTemporalRuntime;
 export const ɵinjectCraftTemporalRuntime = (): CraftTemporalRuntime => {
   try {
-    return craftTemporalRuntimeService.CRAFT_TEMPORAL_RUNTIME_META_DATA.inject();
+    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? new RealCraftTemporalRuntime();
   } catch {
     return new RealCraftTemporalRuntime();
   }
@@ -268,7 +270,11 @@ export function withCraftTimeout<T>(
 }
 
 function tryInjectTemporalRuntime(): CraftTemporalRuntime | undefined {
-  return ɵinjectCraftTemporalRuntime();
+  try {
+    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 class TemporalTask implements TemporalTaskHandle {

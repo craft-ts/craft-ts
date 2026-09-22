@@ -58,7 +58,7 @@ export type SchemaValidationPolicy = (
 ) => SchemaValidationDecision;
 
 const craftSchemaValidationPolicyService = craftService(
-  { name: 'CraftSchemaValidationPolicy', providedIn: 'toProvide' },
+  { name: 'CraftSchemaValidationPolicy', providedIn: 'global' },
   (inputs: { $provided?: SchemaValidationPolicy }) =>
     inputs.$provided ?? ((context: SchemaValidationContext) => {
       // Invalid data is useful feedback during development. In production the

@@ -1,5 +1,5 @@
 import { isCraftSignal, type CraftSignal as Signal } from './host/craft-signal';
-import { craftService } from './craft-service';
+import { inject, type InjectionToken, type Provider } from './host/craft-compat';
 import type { SourceBranded } from './util/util';
 
 function isCallableSignal(value: unknown): boolean {
@@ -448,36 +448,32 @@ export function ɵwithActiveReactiveReader<T>(
 }
 
 /** Observability hook notified whenever a Craft generator resolves a reactive read. */
-const reactiveReadObserversService = craftService(
-  {
-    name: 'ReactiveReadObservers',
-    providedIn: 'toProvide',
-    collection: true,
-  },
-  (inputs: { $provided: ReactiveReadObserver }) => [inputs.$provided],
-) as unknown as {
-  ReactiveReadObservers: () => Generator<
-    unknown,
-    readonly ReactiveReadObserver[],
-    unknown
-  >;
-  provideReactiveReadObservers: (value: ReactiveReadObserver) => unknown;
-  REACTIVE_READ_OBSERVERS_META_DATA: {
-    inject(): readonly ReactiveReadObserver[];
-  };
-};
+export const REACTIVE_READ_OBSERVERS = Object.freeze({});
 
-export const ReactiveReadObservers =
-  reactiveReadObserversService.ReactiveReadObservers;
+export function* ReactiveReadObservers(): Generator<
+  unknown,
+  readonly ReactiveReadObserver[],
+  unknown
+> {
+  return ɵinjectReactiveReadObservers();
+}
+
 export function provideReactiveReadObserver(
   observer: ReactiveReadObserver,
-): unknown {
-  return reactiveReadObserversService.provideReactiveReadObservers(observer);
+): Provider {
+  return { provide: REACTIVE_READ_OBSERVERS, useValue: observer, multi: true };
 }
 
 export function ɵinjectReactiveReadObservers(): readonly ReactiveReadObserver[] {
   try {
-    return reactiveReadObserversService.REACTIVE_READ_OBSERVERS_META_DATA.inject() as readonly ReactiveReadObserver[];
+    return (
+      inject(
+        REACTIVE_READ_OBSERVERS as InjectionToken<
+          readonly ReactiveReadObserver[]
+        >,
+        { optional: true },
+      ) ?? []
+    );
   } catch {
     return [];
   }

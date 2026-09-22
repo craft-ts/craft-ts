@@ -29,8 +29,12 @@ test('reviews a folder-layout proposal as a visual before/after tree', async ({
     await expect(page.locator('.folder-layout-trees')).toBeVisible();
     await expect(page.locator('.folder-layout-tree')).toHaveCount(2);
     await expect(page.locator('.folder-layout-row.moved')).toHaveCount(4);
-    await expect(page.locator('.folder-layout-row.deleted')).toHaveCount(1);
-    await expect(page.locator('.folder-layout-row.created')).toHaveCount(1);
+    await expect(
+      page.locator('.folder-layout-row.deleted:not([hidden])'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('.folder-layout-row.created:not([hidden])'),
+    ).toHaveCount(1);
     await page.locator('[data-craft-name="AcceptReviewCard"]').click();
     await expect(page.locator('.folder-layout-trees')).toHaveCount(0);
   } finally {

@@ -4047,7 +4047,7 @@ function createInputProxy(
       }
 
       if (!Object.prototype.hasOwnProperty.call(resolvedBindings, property)) {
-        if (allowMissing) {
+        if (allowMissing || property === SERVICE_PROVIDED_INPUT_KEY) {
           return undefined;
         }
         throw new Error(`Inputs Error, ${property} is not provided`);
@@ -4057,6 +4057,13 @@ function createInputProxy(
 
       if (value === PROVIDED_ELSEWHERE) {
         throw new Error(`Inputs Error, ${property} is not provided`);
+      }
+
+      // `$provided` is service configuration, not a reactive service input.
+      // In particular, host components are callable values and must reach
+      // their provider factory unchanged.
+      if (property === SERVICE_PROVIDED_INPUT_KEY) {
+        return value;
       }
 
       return isReactiveServiceInput(value)

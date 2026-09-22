@@ -1,10 +1,8 @@
 import {
   DestroyRef,
-  runInInjectionContext,
   type Injector,
   type Provider,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
 import { runCraftGenerator } from './craft-generator-runtime';
 
 export type CraftTargetKind = 'component' | 'directive';
@@ -31,21 +29,14 @@ export type CraftTargetWrapper = (
   ) => Generator<unknown, CraftTargetRelease, unknown>,
 ) => Generator<unknown, CraftTargetRelease, unknown>;
 
-const craftTargetWrappersService = craftService(
-  { name: 'CraftTargetWrappers', providedIn: 'toProvide', collection: true },
-  (inputs: { $provided?: CraftTargetWrapper }) =>
-    inputs.$provided ? [inputs.$provided] : [],
-) as unknown as {
-  provideCraftTargetWrappers: (value: CraftTargetWrapper) => unknown;
-  CRAFT_TARGET_WRAPPERS_META_DATA: { inject(): readonly CraftTargetWrapper[] };
-};
+export const CRAFT_TARGET_WRAPPER = Object.freeze({});
 
 /** Adds a wrapper around the lifecycle registration of Craft targets. */
 export function provideCraftTargetWrapper(
   _warning: string,
   wrapper: CraftTargetWrapper,
 ): Provider {
-  return craftTargetWrappersService.provideCraftTargetWrappers(wrapper) as Provider;
+  return { provide: CRAFT_TARGET_WRAPPER, useValue: wrapper, multi: true };
 }
 
 const EMPTY_RELEASE: CraftTargetRelease = () => undefined;
@@ -58,8 +49,9 @@ export function ɵrunCraftTargetWrappers(
   context: CraftTargetContext,
   autoCleanup: boolean,
 ): CraftTargetRelease {
-  const wrappers = runInInjectionContext(injector, () =>
-    craftTargetWrappersService.CRAFT_TARGET_WRAPPERS_META_DATA.inject(),
+  const wrappers = injector.get(
+    CRAFT_TARGET_WRAPPER as never,
+    [] as readonly CraftTargetWrapper[],
   );
   let next: CraftTargetWrapperRunner = function* () {
     return EMPTY_RELEASE;

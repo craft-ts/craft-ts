@@ -1,5 +1,5 @@
 import type { GetDeps } from './branded-component/branded-component';
-import { craftService } from './craft-service';
+import { inject, type InjectionToken, type Provider } from './host/craft-compat';
 
 export type ComponentRegister = { next(): number };
 
@@ -15,22 +15,20 @@ export function createComponentRegister(): ComponentRegister {
 
 type ComponentRegisterHelper = () =>
   Generator<unknown, ComponentRegister, unknown>;
-const componentRegisterService = craftService(
-  { name: 'ComponentRegister', providedIn: 'manuallyProvidedAtRoot' },
-  (inputs: { $provided: ComponentRegister }) => inputs.$provided,
-) as unknown as {
-  ComponentRegister: ComponentRegisterHelper;
-  provideComponentRegister: (value: ComponentRegister) => unknown;
-  COMPONENT_REGISTER_META_DATA: { inject(): ComponentRegister };
-};
+export const COMPONENT_REGISTER = Object.freeze({});
 
-export const ComponentRegister = componentRegisterService.ComponentRegister;
+export const ComponentRegister: ComponentRegisterHelper = function* () {
+  return ɵinjectComponentRegister() ?? ɵfallbackComponentRegister;
+};
 export const provideComponentRegister =
-  (value: ComponentRegister): unknown =>
-    componentRegisterService.provideComponentRegister(value);
+  (value: ComponentRegister): Provider =>
+    ({ provide: COMPONENT_REGISTER, useValue: value });
 export const ɵinjectComponentRegister = (): ComponentRegister | null => {
   try {
-    return componentRegisterService.COMPONENT_REGISTER_META_DATA.inject() as ComponentRegister;
+    return inject(
+      COMPONENT_REGISTER as InjectionToken<ComponentRegister>,
+      { optional: true },
+    );
   } catch {
     return null;
   }

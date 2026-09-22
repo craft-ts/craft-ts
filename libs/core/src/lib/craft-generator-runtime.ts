@@ -1,5 +1,4 @@
-import { Injector, runInInjectionContext, type Provider } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { Injector, type Provider } from './host/craft-compat';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
@@ -114,23 +113,16 @@ export type ServiceYieldWrapper = (
   next: () => Generator<unknown, unknown, unknown>,
 ) => Generator<unknown, unknown, unknown>;
 
-const serviceYieldWrapperService = craftService(
-  { name: 'ServiceYieldWrappers', providedIn: 'toProvide', collection: true },
-  (inputs: { $provided?: ServiceYieldWrapper }) =>
-    inputs.$provided ? [inputs.$provided] : [],
-) as unknown as {
-  provideServiceYieldWrappers: (value?: ServiceYieldWrapper) => unknown;
-  SERVICE_YIELD_WRAPPERS_META_DATA: {
-    inject(): readonly ServiceYieldWrapper[];
-  };
-};
+// This optional multi-provider is read by the generator runtime while core is
+// bootstrapping, so it cannot be declared through craftService itself.
+export const SERVICE_YIELD_WRAPPER = Object.freeze({});
 
 /** Registers a wrapper around every Craft service yield below the provider. */
 export function provideServiceYieldWrapper(
   _warning: string,
   wrapper: ServiceYieldWrapper,
 ): Provider {
-  return serviceYieldWrapperService.provideServiceYieldWrappers(wrapper) as Provider;
+  return { provide: SERVICE_YIELD_WRAPPER, useValue: wrapper, multi: true };
 }
 
 type AppStartResult = Observable<unknown> | Promise<unknown> | void;
@@ -472,14 +464,10 @@ function resolveServiceYield(
   injector: Injector,
   hostScope: ConcreteServiceScope,
 ): unknown {
-  let wrappers: readonly ServiceYieldWrapper[];
-  try {
-    wrappers = runInInjectionContext(injector, () =>
-      serviceYieldWrapperService.SERVICE_YIELD_WRAPPERS_META_DATA.inject(),
-    );
-  } catch {
-    wrappers = [];
-  }
+  const wrappers = injector.get(
+    SERVICE_YIELD_WRAPPER as never,
+    [] as readonly ServiceYieldWrapper[],
+  );
   const context: ServiceYieldContext = {
     name: request.name,
     providedIn: request.providedIn,

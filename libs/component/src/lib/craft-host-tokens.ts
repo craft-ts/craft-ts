@@ -1,4 +1,5 @@
 import { craftService, type Provider } from '@craft-ts/core';
+import { isCraftComponent } from './types';
 
 type HostComponent = unknown;
 type HostComponentHelper = () => Generator<unknown, HostComponent, unknown>;
@@ -7,6 +8,14 @@ type HostComponentService = {
   readonly provide: (value: HostComponent | (() => HostComponent)) => Provider;
   readonly inject: { inject(): HostComponent };
 };
+
+function resolveHostComponent(
+  value: HostComponent | (() => HostComponent),
+): HostComponent {
+  return typeof value === 'function' && !isCraftComponent(value)
+    ? value()
+    : value;
+}
 
 function serviceAsHostComponentService(
   service: unknown,
@@ -24,38 +33,28 @@ function serviceAsHostComponentService(
 
 const craftRoutedComponentService = craftService(
   { name: 'CraftRoutedComponent', providedIn: 'toProvide' },
-  (inputs: { $provided: unknown | (() => unknown) }) =>
-    typeof inputs.$provided === 'function'
-      ? inputs.$provided()
-      : inputs.$provided,
+  (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
+    resolveHostComponent(inputs.$provided),
 );
 const craftRootComponentService = craftService(
   { name: 'CraftRootComponent', providedIn: 'manuallyProvidedAtRoot' },
-  (inputs: { $provided: unknown | (() => unknown) }) =>
-    typeof inputs.$provided === 'function'
-      ? inputs.$provided()
-      : inputs.$provided,
+  (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
+    resolveHostComponent(inputs.$provided),
 );
 const craftGlobalErrorComponentService = craftService(
   { name: 'CraftGlobalErrorComponent', providedIn: 'manuallyProvidedAtRoot' },
-  (inputs: { $provided: unknown | (() => unknown) }) =>
-    typeof inputs.$provided === 'function'
-      ? inputs.$provided()
-      : inputs.$provided,
+  (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
+    resolveHostComponent(inputs.$provided),
 );
 const craftRouteLoadErrorComponentService = craftService(
   { name: 'CraftRouteLoadErrorComponent', providedIn: 'toProvide' },
-  (inputs: { $provided: unknown | (() => unknown) }) =>
-    typeof inputs.$provided === 'function'
-      ? inputs.$provided()
-      : inputs.$provided,
+  (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
+    resolveHostComponent(inputs.$provided),
 );
 const craftPendingComponentService = craftService(
   { name: 'CraftPendingComponent', providedIn: 'toProvide' },
-  (inputs: { $provided: unknown | (() => unknown) }) =>
-    typeof inputs.$provided === 'function'
-      ? inputs.$provided()
-      : inputs.$provided,
+  (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
+    resolveHostComponent(inputs.$provided),
 );
 
 const routed = serviceAsHostComponentService(

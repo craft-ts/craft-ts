@@ -89,7 +89,10 @@ export function bootstrapCraft(options: BootstrapCraftOptions): CraftAppRef {
   // has done so by the time the root component reads it.
   ɵrunCraftAppInitializers(injector);
 
-  const root = ɵinjectCraftRootComponent() as CraftComponent<any>;
+  const root = runInInjectionContext(
+    injector,
+    () => ɵinjectCraftRootComponent() as CraftComponent<any>,
+  );
   if (!root) {
     throw new Error(
       'bootstrapCraft found no root component. Add provideCraftRootComponent(App) to your app config.',

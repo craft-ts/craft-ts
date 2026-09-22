@@ -1,11 +1,10 @@
 import {
   DestroyRef,
   signal,
-  runInInjectionContext,
   type Injector,
+  type Provider,
   type Signal,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { ɵrunCraftTargetWrappers } from './craft-target-runtime';
 
@@ -57,22 +56,16 @@ export type RegisterForRegistry = Readonly<{
 
 const EMPTY_CLEANUP = () => undefined;
 
-const registerForRegistriesService = craftService(
-  { name: 'RegisterForRegistries', providedIn: 'toProvide', collection: true },
-  (inputs: { $provided?: RegisterForRegistry }) =>
-    inputs.$provided ? [inputs.$provided] : [],
-) as unknown as {
-  provideRegisterForRegistries: (value: RegisterForRegistry) => unknown;
-  REGISTER_FOR_REGISTRIES_META_DATA: { inject(): readonly RegisterForRegistry[] };
-};
-export function provideRegisterForRegistry(value: RegisterForRegistry): unknown {
-  return registerForRegistriesService.provideRegisterForRegistries(value);
+export const REGISTER_FOR_REGISTRIES = Object.freeze({});
+export function provideRegisterForRegistry(value: RegisterForRegistry): Provider {
+  return { provide: REGISTER_FOR_REGISTRIES, useValue: value, multi: true };
 }
 export function ɵinjectRegisterForRegistries(
   injector: Injector,
 ): readonly RegisterForRegistry[] {
-  return runInInjectionContext(injector, () =>
-    registerForRegistriesService.REGISTER_FOR_REGISTRIES_META_DATA.inject(),
+  return injector.get(
+    REGISTER_FOR_REGISTRIES as never,
+    [] as readonly RegisterForRegistry[],
   );
 }
 
