@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- The demo intentionally exposes its visual contract. */
 import {
   craftComponent,
   div,

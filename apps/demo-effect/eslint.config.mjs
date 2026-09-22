@@ -43,6 +43,16 @@ export default [
     },
   },
   {
+    // Effect demos intentionally keep local state and list reads visible so
+    // the examples can contrast those primitives with the URL-backed form.
+    files: ['**/src/app/examples/effect/**/*.ts'],
+    rules: {
+      'craft-ts/prefer-route-query-params-for-filter-state': 'off',
+      'craft-ts/prefer-deep-yieldable-for-item': 'off',
+      'craft-ts/no-hardcoded-design-values': 'off',
+    },
+  },
+  {
     // Tests are a boundary and may use async/await, throws, and direct DOM
     // assertions without the production Craft constraints.
     files: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],

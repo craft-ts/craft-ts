@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 type BenchmarkStrategy = 'sync' | 'frame';
 
@@ -107,6 +107,7 @@ test('measures Pixel Art sync/frame rendering', async ({ page }) => {
         };
       }, cells);
 
+      expect(result.cells).toBe(cells);
       console.log(JSON.stringify({ strategy, ...result }));
     }
   }

@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Dedicated demo UI styles. */
 import {
   button,
   craftComponent,

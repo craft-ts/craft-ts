@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Playground UI is intentionally self-contained. */
 import {
   button,
   craftComponent,

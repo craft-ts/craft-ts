@@ -46,6 +46,21 @@ export default [
     },
   },
   {
+    // These files are a teaching catalogue. A number of them intentionally
+    // contrast the recommended Craft architecture with a compact, local
+    // alternative, so the examples can explain the trade-off in one place.
+    // Keep the recommendations enabled for application source outside this
+    // catalogue, where they should guide production code.
+    files: ['**/src/app/examples/**/*.ts'],
+    rules: {
+      'craft-ts/no-craft-service-component-same-file': 'off',
+      'craft-ts/prefer-deep-yieldable-for-item': 'off',
+      'craft-ts/prefer-route-query-params-for-filter-state': 'off',
+      'craft-ts/prefer-browser-boundaries': 'off',
+      'craft-ts/no-hardcoded-design-values': 'off',
+    },
+  },
+  {
     // The demo registry, actor, trace and log files are protocol adapters:
     // their assertions narrow untyped browser/WebSocket payloads at the
     // boundary, rather than asserting Craft primitive values.
@@ -144,6 +159,17 @@ export default [
     files: unitTestFiles,
     rules: {
       'playwright/no-standalone-expect': 'off',
+    },
+  },
+  {
+    // The benchmark and Chromium-only witness are deliberately opt-in / scoped
+    // to one browser project rather than skipped tests in normal test runs.
+    files: [
+      '**/e2e/pixel-art-scheduling.bench.spec.ts',
+      '**/e2e/scroll-state-witness.spec.ts',
+    ],
+    rules: {
+      'playwright/no-skipped-test': 'off',
     },
   },
 ];

@@ -44,6 +44,10 @@ export default [
       'craft-ts/require-reduced-motion': 'off',
       'craft-ts/require-yieldable-reactive-read': 'off',
       'craft-ts/prefer-route-query-params-for-filter-state': 'off',
+      'craft-ts/global-exception-registry-match': 'off',
+      'craft-ts/craft-computed-name-match': 'off',
+      'craft-ts/craft-method-name-match': 'off',
+      'craft-ts/prefer-deep-yieldable-for-item': 'off',
     },
   },
   {

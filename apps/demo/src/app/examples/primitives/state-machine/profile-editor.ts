@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import styles from './profile-editor.css' with { loader: 'text' };
 import { eventValue } from '../../../event-value';
 import {

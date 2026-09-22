@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { craftComponent, div, p, heading } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { InheritanceExample } from './css-vars-inheritance.shared';

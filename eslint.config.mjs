@@ -56,4 +56,46 @@ export default [
       ],
     },
   },
+  {
+    // Test fixtures and browser scenarios deliberately model invalid or
+    // partially-initialised values. Their assertions establish the narrowing.
+    files: ['**/*.spec.ts', '**/*.test.ts', '**/e2e/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+    },
+  },
+  {
+    // These public type-level adapters preserve an unconstrained generic at
+    // their framework boundary; replacing it with `unknown` would reject the
+    // valid callback contracts they adapt.
+    files: [
+      '**/src/lib/effect-adapter.ts',
+      '**/src/lib/effect-checked-di.ts',
+      '**/src/lib/effect-state-machine.ts',
+      '**/src/lib/server-function-middleware.ts',
+      '**/src/lib/i18n.ts',
+      '**/src/lib/css-vars.ts',
+      '**/src/lib/kinds.ts',
+      '**/src/lib/styles.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    // These integration adapters narrow values before their assertions or
+    // transport hand-off, where a non-null assertion is the explicit contract.
+    files: [
+      '**/src/lib/commands/attest.ts',
+      '**/src/lib/review/server.ts',
+      '**/src/lib/visual-app/playwright.ts',
+      '**/src/lib/review/template-agent.ts',
+      '**/attestation-app/src/review-app.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-empty-function': 'off',
+    },
+  },
 ];

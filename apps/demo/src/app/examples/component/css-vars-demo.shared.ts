@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { a, craftComponent, nav } from '@craft-ts/component';
 import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ts/core';
 
