@@ -29,6 +29,7 @@ export default [
       'craft-ts/no-explicit-craft-template-return-type': 'error',
       'craft-ts/no-craft-primitive-type-assertion': 'error',
       'craft-ts/prefer-insert-deep-yieldable': 'error',
+      'craft-ts/no-external-state-transition': 'error',
       'craft-ts/no-type-assertions-in-craft-code': 'error',
     },
   },

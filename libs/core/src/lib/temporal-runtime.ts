@@ -1,7 +1,7 @@
 import {
   DestroyRef,
   inject,
-  type InjectionToken,
+  InjectionToken,
   type Provider,
 } from './host/craft-compat';
 
@@ -194,8 +194,10 @@ function normalizeMaxAttempts(value: number | undefined): number {
 }
 
 // This optional runtime must be available while the generator runtime starts.
-// A plain provider key avoids constructing a Craft token during that cycle.
-export const CRAFT_TEMPORAL_RUNTIME = Object.freeze({});
+// A host injection token keeps it separate from Craft's generator-based services.
+export const CRAFT_TEMPORAL_RUNTIME = new InjectionToken<CraftTemporalRuntime>(
+  'CRAFT_TEMPORAL_RUNTIME',
+);
 
 export function provideCraftTemporalRuntime(
   runtime: CraftTemporalRuntime,

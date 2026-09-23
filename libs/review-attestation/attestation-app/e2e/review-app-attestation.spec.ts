@@ -118,6 +118,46 @@ test('reviews a folder-layout proposal as a visual before/after tree', async ({
   }
 });
 
+test('keeps folder-layout cards out of the review queue when switching views', async ({
+  page,
+}) => {
+  const running = await startReviewServer({
+    port: 0,
+    cards: [reviewAppFolderLayoutCard],
+    model: reviewAppHappyPathModel,
+  });
+  try {
+    await page.goto(`${running.url}?view=folder-layout`);
+
+    const reviewTab = page.locator('[data-craft-name="ShowReviewQueue"]');
+    const folderLayoutTab = page.locator(
+      '[data-craft-name="ShowFolderLayout"]',
+    );
+
+    await expect(folderLayoutTab).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.review-card')).toHaveCount(1);
+    await expect(page.locator('.review-card')).toHaveAttribute(
+      'data-kind',
+      'folder-layout',
+    );
+
+    await reviewTab.click();
+    await expect(reviewTab).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.folder-layout-view')).toHaveCount(0);
+    await expect(page.locator('.review-card')).toHaveCount(0);
+
+    await folderLayoutTab.click();
+    await expect(folderLayoutTab).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.review-card')).toHaveCount(1);
+    await expect(page.locator('.review-card')).toHaveAttribute(
+      'data-kind',
+      'folder-layout',
+    );
+  } finally {
+    await running.close();
+  }
+});
+
 const REQUESTED_REPORT = process.env['CRAFT_REVIEW_APP_REPORT'];
 
 const reportPathFor = (testInfo: TestInfo): string =>

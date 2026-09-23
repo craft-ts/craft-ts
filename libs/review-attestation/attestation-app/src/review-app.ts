@@ -797,12 +797,17 @@ export const ReviewApp = craftComponent(
       return (yield* reopen.status()) === 'exception';
     });
 
+    const reviewCards = craftComputed('reviewCards', function* () {
+      return ((yield* review.value())?.cards ?? []).filter(
+        (card) => card.kind !== 'folder-layout',
+      );
+    });
     const cards = craftComputed('cards', function* () {
       // Filters describe the inventory views. The review queue is already the
       // actionable subset, so a filter selected elsewhere must not silently
       // hide decisions when the filters are not on screen.
       if ((yield* devtoolView()) === 'review') {
-        return (yield* review.value())?.cards ?? [];
+        return yield* reviewCards();
       }
       if ((yield* devtoolView()) === 'folder-layout') {
         return ((yield* review.value())?.cards ?? []).filter(
@@ -1576,6 +1581,7 @@ export const ReviewApp = craftComponent(
       regenerate,
       iterationHandoff,
       closeReview,
+      reviewCards,
       cards,
       visualAssets,
       visualTests,
@@ -1668,6 +1674,7 @@ export const ReviewApp = craftComponent(
     regenerate,
     iterationHandoff,
     closeReview,
+    reviewCards,
     cards,
     visualAssets,
     visualTests,
@@ -1947,7 +1954,7 @@ export const ReviewApp = craftComponent(
                     return (yield* folderLayouts()).length;
                   },
                   cardsCount: function* () {
-                    return (yield* cards()).length;
+                    return (yield* reviewCards()).length;
                   },
                   t,
                 }),

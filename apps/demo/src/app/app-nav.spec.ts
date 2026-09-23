@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
-import { CRAFT_ROUTER, provideCraftRouter } from '@craft-ts/core';
+import {
+  ɵinjectCraftRouterRuntime,
+  ɵrunInInjectionContext,
+  provideCraftRouter,
+} from '@craft-ts/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './app';
 import { demoRoutes } from './app.routes';
@@ -74,7 +78,10 @@ describe('App navbar', () => {
       providers: [provideCraftRouter(demoRoutes.toRoutes())],
     });
 
-    const router = TestBed.inject(CRAFT_ROUTER);
+    const router = ɵrunInInjectionContext(TestBed.inject(Injector), () =>
+      ɵinjectCraftRouterRuntime(),
+    );
+    if (router === null) throw new Error('Craft router was not provided');
     const navigateByUrl = vi.spyOn(router, 'navigateByUrl');
     const element = document.createElement('div');
     document.body.append(element);

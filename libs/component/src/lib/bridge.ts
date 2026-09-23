@@ -6,6 +6,7 @@ import {
   type ComponentExceptionsCarrier,
   type CraftRouteAdditionalProvidersCarrier,
   type CraftRouteLazyLoadHelpers,
+  type Provider,
 } from '@craft-ts/core';
 import {
   provideCraftGlobalErrorComponent as provideGlobalErrorComponentService,
@@ -60,7 +61,7 @@ type Type<T> = new (...args: never[]) => T;
 
 export function provideCraftComponent(
   component: CraftComponent<any>,
-): unknown {
+): Provider {
   return provideRoutedComponentService(component);
 }
 
@@ -188,25 +189,25 @@ export function craftComponentRouteData(
 
 export function provideCraftRootComponent(
   component: CraftComponent<any>,
-): unknown {
+): Provider {
   return provideRootComponentService(component);
 }
 
 export function provideCraftGlobalErrorComponent(
   component: CraftComponent<any>,
-): unknown {
+): Provider {
   return provideGlobalErrorComponentService(component);
 }
 
 export function provideCraftRouteLoadErrorComponent(
   component: CraftComponent<any>,
-): unknown {
+): Provider {
   return provideRouteLoadErrorComponentService(component);
 }
 
 export function provideCraftPendingComponent(
   component: CraftComponent<any>,
-): unknown {
+): Provider {
   return providePendingComponentService(component);
 }
 

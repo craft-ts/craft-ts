@@ -1,5 +1,10 @@
 // @vitest-environment jsdom
-import { CRAFT_ROUTER, TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import {
+  ɵinjectCraftRouterRuntime,
+  ɵrunInInjectionContext,
+  TestBed,
+  ɵInjector as Injector,
+} from '@craft-ts/core';
 import { loadCraftComponent, mountCraftComponent } from '@craft-ts/component';
 import {
   HostTag,
@@ -158,9 +163,11 @@ describe('Craft Full Demo route component', () => {
         expect(fullDemoLink?.getAttribute('href')).toContain('/craft/full-demo'),
       );
       expect(fullDemoLink?.getAttribute('href')).toContain('/craft/full-demo');
-      await TestBed.inject(CRAFT_ROUTER).navigateByUrl(
-        fullDemoLink!.getAttribute('href')!,
+      const router = ɵrunInInjectionContext(TestBed.inject(Injector), () =>
+        ɵinjectCraftRouterRuntime(),
       );
+      if (router === null) throw new Error('Craft router was not provided');
+      await router.navigateByUrl(fullDemoLink!.getAttribute('href')!);
       TestBed.tick();
 
       await vi.waitFor(() =>

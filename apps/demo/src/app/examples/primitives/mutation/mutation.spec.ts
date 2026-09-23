@@ -284,7 +284,7 @@ describe('primitive mutation logic', () => {
           ApiService: { getItemById, updateItem },
           StoragePersister: storage,
           CraftRouter: { navigate },
-        },
+        } as never,
       },
     );
 
