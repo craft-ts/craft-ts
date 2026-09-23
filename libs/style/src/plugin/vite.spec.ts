@@ -111,6 +111,15 @@ describe('the plugin evaluates the style modules and emits the sheet', () => {
     const id = plugin.resolveId?.('virtual:craft-style-head');
     expect(await plugin.load?.(id ?? '')).toBe('export default "";\n');
   }, 60_000);
+
+  it('serves the sheet as CSS to a server renderer that links it with ?direct', async () => {
+    const plugin = craftStyle({ alias });
+    plugin.configResolved?.({ root });
+
+    const id = plugin.resolveId?.('virtual:craft-style.css?direct');
+    expect(id).toBe('\0virtual:craft-style.css?direct');
+    expect(await plugin.load?.(id ?? '')).toContain('@layer craft.reset');
+  }, 60_000);
 });
 
 describe('the plugin refreshes the virtual sheet during development', () => {

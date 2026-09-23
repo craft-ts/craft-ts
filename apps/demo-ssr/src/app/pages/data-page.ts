@@ -11,6 +11,7 @@ import {
 import { pendingNode } from '@craft-ts/component';
 import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
 import { page } from './page-layout';
+import { page as pageStyle } from '../ssr-lab.style';
 
 type SsrData = Readonly<{
   visitors: number;
@@ -43,30 +44,31 @@ export const DataPage = craftComponent(
       'Route SSR : `block`',
       'Query résolue avant la réponse',
       'La route déclare explicitement qu’elle attend ses données. Le HTML initial contient déjà la valeur résolue et le snapshot la transfère à hydrateCraft.',
-      section({ class: 'grid' }, [
-        article({ class: 'card card--accent' }, [
-          span({ class: 'badge' }, 'SSR fetch'),
-          h2('Données prêtes'),
-          div({ class: 'metric' }, [
-            strong(function* () {
+      section({ class: pageStyle.grid }, [
+        article({ class: pageStyle.card, 'data-ssrCard': 'accent' }, [
+          span({ class: pageStyle.badge }, 'SSR fetch'),
+          h2({ class: pageStyle.cardTitle }, 'Données prêtes'),
+          div({ class: pageStyle.metric }, [
+            strong({ class: pageStyle.metricValue }, function* () {
               return (yield* resolved()).visitors.toLocaleString('fr-FR');
             }),
-            span('visiteurs servis aujourd’hui'),
+            span({ class: pageStyle.muted }, 'visiteurs servis aujourd’hui'),
           ]),
           p(
+            { class: pageStyle.text },
             'La query a été exécutée une fois côté serveur puis réutilisée côté client.',
           ),
         ]),
-        article({ class: 'card' }, [
-          h2('Payload rendu'),
-          div({ class: 'data-list' }, [
-            p([
+        article({ class: pageStyle.card }, [
+          h2({ class: pageStyle.cardTitle }, 'Payload rendu'),
+          div({ class: pageStyle.dataList }, [
+            p({ class: pageStyle.dataRow }, [
               strong('Région · '),
               function* () {
                 return (yield* resolved()).region;
               },
             ]),
-            p([
+            p({ class: pageStyle.dataRow }, [
               strong('Généré à · '),
               function* () {
                 return (yield* resolved()).generatedAt;
@@ -78,9 +80,9 @@ export const DataPage = craftComponent(
         pendingNode({
           ssr: 'block',
           fallback: () =>
-            div({ class: 'pending-box' }, [
+            div({ class: pageStyle.pendingBox }, [
               span('Le serveur résout la query…'),
-              div({ class: 'skeleton' }),
+              div({ class: pageStyle.skeleton }),
             ]),
         }),
       ),

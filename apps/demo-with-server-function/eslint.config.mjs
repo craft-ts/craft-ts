@@ -49,23 +49,6 @@ export default [
     },
   },
   {
-    // TODO(style-only): this project is not migrated to @craft-ts/style yet
-    // (lot 5 of the style-only plan). Its migration removes this block; the
-    // three rules stay `error` in `recommended`. Until then the rules that
-    // read component CSS text keep guarding the legacy `meta.styles`.
-    files: ['**/src/client/**/*.ts'],
-    plugins: { 'craft-ts': craftRules },
-    rules: {
-      ...craftRules.configs.legacyComponentCss.rules,
-      // Kept off, as before the move out of `recommended`.
-      'craft-ts/require-focus-visible': 'off',
-      'craft-ts/require-reduced-motion': 'off',
-      'craft-ts/no-raw-class': 'off',
-      'craft-ts/no-inline-style': 'off',
-      'craft-ts/no-component-css': 'off',
-    },
-  },
-  {
     // These demos intentionally showcase lower-level primitive APIs and
     // dynamic lazy imports; the production-only rules are too strict here.
     files: ['**/src/client/app.routes.ts'],

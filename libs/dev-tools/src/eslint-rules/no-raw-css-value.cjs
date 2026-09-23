@@ -58,10 +58,17 @@ const TAKES_PRIMITIVES = new Set([
   'defineFont',
   'googleFont',
   'localFont',
+  'systemFontStack',
 ]);
 
 /** Namespaces whose members are value constructors: `unit.px(4)`, `at.…`. */
-const PRIMITIVE_NAMESPACES = new Set(['unit', 'kind', 'at', 'easing']);
+const PRIMITIVE_NAMESPACES = new Set([
+  'unit',
+  'kind',
+  'at',
+  'easing',
+  'tracks',
+]);
 
 module.exports = {
   meta: {

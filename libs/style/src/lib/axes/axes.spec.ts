@@ -36,6 +36,7 @@ import {
 } from './define.ts';
 import {
   STANDARD_AXES,
+  ariaCurrent,
   contrast,
   descendant,
   forcedColors,
@@ -80,6 +81,15 @@ describe('the standard axes are closed sets', () => {
       expect(point.driver).toBeDefined();
       expect(typeof point.driver.kind).toBe('string');
     }
+  });
+
+  it('reads the aria-current the router sets, not a second data attribute', () => {
+    expect(ariaCurrent.page.open).toBe("&[aria-current='page']");
+    expect(ariaCurrent.page.driver).toEqual({
+      kind: 'setAttribute',
+      name: 'aria-current',
+      value: 'page',
+    });
   });
 
   it('keeps the three scroll-state groups apart', () => {

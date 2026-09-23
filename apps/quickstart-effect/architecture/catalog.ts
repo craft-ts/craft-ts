@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "0f15e4c567436960",
+  "graphHash": "2c89b93f79bb6c0c",
   "routes": [],
   "services": [
     "AiContextMenuController",
@@ -151,7 +151,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:268>"
+      "url": "<unresolved:ai-send-context-chat.ts:267>"
     }
   ],
   "uniques": [],

@@ -6,20 +6,7 @@ import {
   p,
   section,
 } from '@craft-ts/component';
-
-const statusPageStyles = `
-  :scope { display: block; min-height: 100vh; color: #172033; background: #f6f7fb; }
-  main { display: grid; place-items: center; min-height: 70vh; padding: 48px 20px; }
-  .card { width: min(620px, 100%); padding: 34px; border: 1px solid #e2e6ef; border-radius: 18px; background: #fff; box-shadow: 0 14px 34px #25345a0d; }
-  .eyebrow { margin: 0 0 12px; color: #5570c7; font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
-  h1 { margin: 0; color: #172033; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -.05em; line-height: 1.02; }
-  .message { margin: 16px 0 0; color: #526078; font-size: 1rem; line-height: 1.6; }
-  .detail { margin: 10px 0 0; color: #7a8498; font-size: .84rem; line-height: 1.55; }
-  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
-  a { padding: 10px 14px; border-radius: 9px; color: #fff; background: #4665c4; font-size: .82rem; font-weight: 800; text-decoration: none; }
-  a:hover { background: #3855ad; }
-  a.secondary { color: #4665c4; background: #edf2ff; }
-`;
+import { statusPage as statusStyle } from './demo.style';
 
 function statusPage(
   name: string,
@@ -30,17 +17,17 @@ function statusPage(
 ) {
   return craftComponent(
     name,
-    { styles: statusPageStyles },
+    {},
     function* () {
       return {};
     },
     () =>
-      main([
-        section({ class: 'card' }, [
-          p({ class: 'eyebrow' }, eyebrow),
-          heading(title),
-          p({ class: 'message' }, message),
-          p({ class: 'detail' }, detail),
+      main({ class: statusStyle.root }, [
+        section({ class: statusStyle.card }, [
+          p({ class: statusStyle.eyebrow }, eyebrow),
+          heading({ class: statusStyle.title }, title),
+          p({ class: statusStyle.message }, message),
+          p({ class: statusStyle.detail }, detail),
           divActions(),
         ]),
       ]),
@@ -48,16 +35,17 @@ function statusPage(
 }
 
 function divActions() {
-  return section({ class: 'actions' }, [
+  return section({ class: statusStyle.actions }, [
     a(
       'statusHomeLink',
-      { href: '/', 'data-navigation': 'external' },
+      { class: statusStyle.link, href: '/', 'data-navigation': 'external' },
       'Retour aux produits',
     ),
     a(
       'statusListLink',
       {
-        class: 'secondary',
+        class: statusStyle.link,
+        'data-statusLink': 'secondary',
         href: '/authenticated-list',
         'data-navigation': 'external',
       },

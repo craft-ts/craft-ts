@@ -448,11 +448,11 @@ function walk(
       };
       if (entry.kind === 'requires') walked.requires.push(entry.spec.id);
       if (entry.kind === 'violates') walked.violates.push(entry.spec.id);
-      if (entry.kind === 'provides') {
-        walked.provides.push(entry.spec.id);
-        // The discharge and its CSS effect are inseparable: claiming to
-        // provide a scroll port without laying down the overflow would be a
-        // lie the type system could not catch.
+      if (entry.kind === 'provides') walked.provides.push(entry.spec.id);
+      if (entry.kind === 'provides' || entry.kind === 'violates') {
+        // The claim and its CSS effect are inseparable: providing a scroll
+        // port without laying down the overflow, or declaring a clip that
+        // never clips, would be a lie the type system could not catch.
         for (const declaration of entry.spec.effect) {
           addRule(walked, conditions, declaration);
         }

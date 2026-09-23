@@ -320,6 +320,25 @@ plugin.configs = {
     plugins: { 'craft-ts': plugin },
     rules: securityRules,
   },
+  /**
+   * The design-system rules alone, as `recommended` carries them: for a project
+   * that does not take `recommended` (the SSR demo, a library) but whose
+   * components must still be styled through `@craft-ts/style` only.
+   */
+  style: {
+    plugins: { 'craft-ts': plugin },
+    rules: Object.fromEntries(
+      [
+        'craft-ts/no-raw-css-value',
+        'craft-ts/no-raw-class',
+        'craft-ts/no-inline-style',
+        'craft-ts/no-component-css',
+        'craft-ts/no-forbidden-eslint-disable',
+        'craft-ts/no-free-has',
+        'craft-ts/style-file-boundary',
+      ].map((rule) => [rule, recommendedRules[rule]]),
+    ),
+  },
   i18n: {
     plugins: { 'craft-ts': plugin },
     rules: {

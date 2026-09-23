@@ -112,12 +112,6 @@ export default defineConfig({
     demoSsrTypecheckStatusPlugin(),
     ssrDemoPlugin(),
     craftStyle({
-      // TODO(style-only): the app is not migrated yet, so the foundation stays
-      // off — turning the reset on would move every margin of the legacy CSS.
-      // What the plugin emits today is the sheets of @craft-ts/component (the
-      // AI overlay, the pending indicator, the skip link).
-      reset: false,
-      base: false,
       include: [path.resolve(import.meta.dirname, '../../libs/component/src')],
       alias: {
         '@craft-ts/style': path.resolve(

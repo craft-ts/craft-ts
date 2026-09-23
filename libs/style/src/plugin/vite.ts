@@ -59,6 +59,12 @@ export {
 export const VIRTUAL_CSS_ID = 'virtual:craft-style.css';
 const RESOLVED_CSS_ID = '\0' + VIRTUAL_CSS_ID;
 
+/** `id?query` → `[id, '?query']`, the query kept whole. */
+const splitQuery = (id: string): readonly [string, string] => {
+  const at = id.indexOf('?');
+  return at === -1 ? [id, ''] : [id.slice(0, at), id.slice(at)];
+};
+
 /**
  * `import head from 'virtual:craft-style-head'` — the font `<link>` tags as an
  * HTML string, for a server renderer that writes `<head>` itself. A
@@ -396,12 +402,16 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
       root = config.root;
     },
     resolveId(id) {
-      if (id === VIRTUAL_CSS_ID) return RESOLVED_CSS_ID;
-      if (id === VIRTUAL_HEAD_ID) return RESOLVED_HEAD_ID;
+      // The query is kept: `virtual:craft-style.css?direct` is how a server
+      // renderer links the sheet in dev (`<link href="/@id/__x00__…?direct">`),
+      // and Vite serves it as CSS rather than as the JS module an import gets.
+      const [bare, query] = splitQuery(id);
+      if (bare === VIRTUAL_CSS_ID) return RESOLVED_CSS_ID + query;
+      if (bare === VIRTUAL_HEAD_ID) return RESOLVED_HEAD_ID;
       return undefined;
     },
     async load(id) {
-      if (id === RESOLVED_CSS_ID) return (await emitted()).css;
+      if (splitQuery(id)[0] === RESOLVED_CSS_ID) return (await emitted()).css;
       if (id === RESOLVED_HEAD_ID) {
         return `export default ${JSON.stringify(renderHeadTags((await emitted()).head))};\n`;
       }

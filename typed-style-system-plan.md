@@ -826,3 +826,56 @@ Les composants internes de `@craft-ts/component` passent sur des sheets.
     component »).
 - Restent dans `libs/component`, sans être du style : les deux `styles` de
   `testing.ts`, qui recopient le meta d'un composant.
+
+## Style uniquement par le design system — lot 5 (en cours, 2026-09-23)
+
+Migration des projets, dans l'ordre du plan.
+
+- **quickstart-effect** : fait. `foundation.style.ts` porte une palette, le thème du
+  document (`craftGlobalStyles`) et la classe d'erreur. `styles.css` est supprimé, le
+  socle (reset + base) est actif, il n'y a plus de dérogation ni de bloc
+  `TODO(style-only)`.
+- **demo-ssr** : fait.
+  - Le vrai design était le `styles:` inline d'`App`. `styles.css` était en grande
+    partie mort : classes sans usage, `html[data-navigation]` que personne ne pose.
+    Tout tient maintenant dans `ssr-lab.style.ts` : une palette, un thème en variables
+    (clair par défaut, sombre en un seul bloc sur `:root`), les sheets `shell`, `page`
+    et `pipeline`. Deux axes d'état : `data-ssrCard`, `data-ssrBadge`.
+  - L'indicateur de typecheck, en DOM brut, a sa propre sheet ; `data-status` devient
+    `data-typecheck`.
+  - Polices système au lieu de Manrope et DM Mono : la CSP de production
+    (`font-src 'self'`) bloquait déjà l'`@import` Google Fonts.
+  - En dev, le HTML serveur lie `/@id/__x00__virtual:craft-style.css?direct` : le plugin
+    accepte désormais une query sur l'id virtuel.
+  - Preset ESLint `style` (les règles de style de `recommended`, seules) : demo-ssr le
+    prend, sans prendre tout `recommended`.
+- **Vocabulaire ajouté** :
+  - `ariaCurrent.page`, axe standard qui lit l'`aria-current` posé par le routeur ;
+  - `tracks.fr` / `tracks.list`, des pistes en `fr` que seul un track list accepte ;
+  - `tracks` rejoint les espaces de noms de constructeurs de `no-raw-css-value`, et
+    `systemFontStack` ses fonctions à primitives.
+- **Bloquant en amont, hors de ce lot** : le rendu SSR échoue sur `HEAD`. Dans
+  `server-render.ts` et `hydrate.ts`, `ɵinjectCraftRootComponent()` est appelé hors du
+  contexte d'injection (`a0e3e991e` n'a corrigé que `bootstrap.ts`). Derrière, les
+  services `toProvide` non fournis lèvent au lieu de prendre leur valeur par défaut.
+  demo-ssr a donc été vérifié sur une page statique qui reprend son balisage avec les
+  vraies classes et le CSS construit, en clair, en sombre et en mobile.
+- **demo-with-server-function** : fait.
+  - Chacun des cinq écrans recopiait le même CSS : un thème sombre, puis un thème clair
+    écrit après lui qui gagnait partout. Le rendu réel était le clair, avec la bande
+    `.flow` masquée. Tout tient maintenant dans une seule `demo.style.ts` :
+    - une palette, avec le clair par défaut et l'ancien sombre en `scheme.dark` ;
+    - les sheets `demoNav`, `demoPage` et `statusPage` ;
+    - deux axes d'état : `data-demoButton`, `data-statusLink`.
+  - La bande `.flow` (morte) et ses `flowStep` sont retirés.
+  - Les quatre `eslint-disable no-hardcoded-design-values` disparaissent avec le CSS.
+- **Bug de la lib corrigé** : `clipOverflow` (canal `violates`) enregistrait la
+  violation sans **émettre** son `overflow-*: clip`. La troncature ne s'appliquait donc
+  jamais, y compris dans le chat IA du lot 4. Spec ajoutée.
+- **`tracks.minmax`** : sans `minmax(0, …)`, une piste `fr` ou la colonne implicite
+  `auto` d'une grille prend la largeur min-content d'un contenu insécable (ellipses,
+  `nowrap`) et déborde. Vu en vrai en mobile.
+- **Même blocage en amont, côté client** : sans SSR, le contenu routé échoue lui aussi
+  sur `No provider for Craft token "CraftPendingComponentServiceToken"`. Seul le shell
+  s'affiche. Vérification faite sur une page statique, avec les vraies classes et le
+  CSS construit : clair et sombre en desktop, clair en mobile.

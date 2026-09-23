@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "c3f9b008e38e961e",
+  "graphHash": "7940fed70d2019c5",
   "routes": [
     "",
     "access-denied",
@@ -210,7 +210,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:268>"
+      "url": "<unresolved:ai-send-context-chat.ts:267>"
     }
   ],
   "uniques": [

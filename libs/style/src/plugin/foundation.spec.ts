@@ -346,6 +346,17 @@ describe('value constructors', () => {
     expect(tracks.autoFit(unit.px(170)).css).toBe(
       'repeat(auto-fit, minmax(170px, 1fr))',
     );
+    expect(tracks.list(unit.rem(2), tracks.fr(1), 'auto').css).toBe(
+      '2rem 1fr auto',
+    );
+    expect(
+      tracks.list(tracks.minmax(unit.px(0), tracks.fr(0.9)), 'auto').css,
+    ).toBe('minmax(0px, 0.9fr) auto');
+    const _rejected = () => {
+      // @ts-expect-error a flex value is a track size, not a length
+      maxInlineSize(tracks.fr(1));
+    };
+    expect(_rejected).toBeTypeOf('function');
     craftStyles('panel', {
       root: [
         shadow({

@@ -16,6 +16,7 @@ import {
   settled,
 } from '@craft-ts/core';
 import { page } from './page-layout';
+import { page as pageStyle } from '../ssr-lab.style';
 
 export const ClientOnlyPage = craftComponent(
   'SsrClientOnlyPage',
@@ -43,18 +44,25 @@ export const ClientOnlyPage = craftComponent(
       'Route SSR : `client`',
       'Contenu réservé au navigateur',
       'La source ne démarre pas pendant renderCraft. Le navigateur la lance après hydrateCraft, ce qui permet d’utiliser viewport et localStorage sans bloquer le SSR.',
-      section({ class: 'grid' }, [
-        article({ class: 'card card--accent' }, [
-          span({ class: 'badge badge--client' }, 'client-only'),
-          h2('Donnée navigateur'),
-          div({ class: 'pending-box' }, function* () {
+      section({ class: pageStyle.grid }, [
+        article({ class: pageStyle.card, 'data-ssrCard': 'accent' }, [
+          span(
+            { class: pageStyle.badge, 'data-ssrBadge': 'client' },
+            'client-only',
+          ),
+          h2({ class: pageStyle.cardTitle }, 'Donnée navigateur'),
+          div({ class: pageStyle.pendingBox }, function* () {
             const value = yield* resolved();
             return `${value.width}px · ${value.visits} visite(s)`;
           }),
         ]),
-        article({ class: 'card' }, [
-          h2('Le placeholder est rendu côté serveur'),
+        article({ class: pageStyle.card }, [
+          h2(
+            { class: pageStyle.cardTitle },
+            'Le placeholder est rendu côté serveur',
+          ),
           p(
+            { class: pageStyle.text },
             'Le navigateur remplit ensuite cette zone avec ses propres capacités. Rafraîchis pour voir le compteur localStorage évoluer.',
           ),
         ]),
@@ -62,9 +70,9 @@ export const ClientOnlyPage = craftComponent(
         pendingNode({
           ssr: 'client',
           fallback: () =>
-            div({ class: 'pending-box' }, [
+            div({ class: pageStyle.pendingBox }, [
               span('En attente de l’hydratation…'),
-              div({ class: 'skeleton' }),
+              div({ class: pageStyle.skeleton }),
             ]),
         }),
       ),

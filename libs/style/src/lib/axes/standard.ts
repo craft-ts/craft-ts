@@ -220,6 +220,26 @@ export const interaction = {
   }) as AxisPoint<'interaction.disabled', 'active'>,
 } as const;
 
+// ─── current item ────────────────────────────────────────────────────────────
+
+/**
+ * `aria-current`, as an axis — the one attribute a sheet may read that it did
+ * not define itself.
+ *
+ * The router sets `aria-current="page"` on the link to the active route; a
+ * `data-*` state axis would have to be set a second time by hand, and the two
+ * would drift. Reading the ARIA attribute keeps one source of truth, and it is
+ * the attribute assistive technology announces, so the highlighted link is the
+ * announced one by construction.
+ */
+export const ariaCurrent = {
+  page: axisPoint('ariaCurrent', 'page', "&[aria-current='page']", {
+    kind: 'setAttribute',
+    name: 'aria-current',
+    value: 'page',
+  }) as AxisPoint<'ariaCurrent', 'page'>,
+} as const;
+
 /** Every standard point, for the specs that assert each one has a driver. */
 export const STANDARD_AXES = [
   ...Object.values(scheme),
@@ -231,4 +251,5 @@ export const STANDARD_AXES = [
   ...Object.values(scrollState.scrollable),
   ...Object.values(descendant),
   ...Object.values(interaction),
+  ...Object.values(ariaCurrent),
 ] as const;

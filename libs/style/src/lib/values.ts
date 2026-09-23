@@ -74,6 +74,22 @@ export function shadow(
  * Grid track lists. Typed as a `<length>` so `gridTemplateColumns` takes them;
  * the text is a valid track list by construction.
  */
+declare const FLEX_TRACK: unique symbol;
+
+/** `<flex>` — `tracks.fr(1)`. Accepted by `tracks.list` and nowhere else. */
+export interface FlexTrack {
+  readonly css: string;
+  readonly [FLEX_TRACK]: true;
+}
+
+/** One entry of `tracks.list`. */
+export type TrackSize =
+  | LengthLike
+  | FlexTrack
+  | 'auto'
+  | 'min-content'
+  | 'max-content';
+
 export const tracks = {
   /** `repeat(auto-fit, minmax(<min>, 1fr))` — as many columns as fit. */
   autoFit: (minimum: LengthValue) =>
@@ -84,4 +100,25 @@ export const tracks = {
   /** `repeat(<count>, minmax(0, 1fr))` — equal columns that may shrink. */
   equal: (count: number) =>
     lengthOf(`repeat(${Math.max(1, Math.trunc(count))}, minmax(0, 1fr))`),
+  /**
+   * A share of the free space, `<n>fr`. Only a track list takes it: a flex
+   * value is not a length, so it cannot reach `width` or `padding` by mistake.
+   */
+  fr: (amount: number): FlexTrack => ({ css: `${amount}fr` }) as FlexTrack,
+  /**
+   * `minmax(<min>, <max>)` — most often `tracks.minmax(space(0), tracks.fr(1))`,
+   * a share of the space that may shrink below its content's width, where a
+   * bare `fr` track would push the grid wider than its container.
+   */
+  minmax: (minimum: LengthLike, maximum: TrackSize): FlexTrack =>
+    ({
+      css: `minmax(${minimum.css}, ${typeof maximum === 'string' ? maximum : maximum.css})`,
+    }) as FlexTrack,
+  /** An explicit track list — `tracks.list(unit.rem(2), tracks.fr(1), 'auto')`. */
+  list: (...sizes: readonly [TrackSize, ...TrackSize[]]) =>
+    lengthOf(
+      sizes
+        .map((size) => (typeof size === 'string' ? size : size.css))
+        .join(' '),
+    ),
 } as const;
