@@ -31,6 +31,11 @@ export * from './lib/pending-node';
 export * from './lib/field-error-node';
 export * from './lib/match-node';
 export * from './lib/directive';
+export {
+  eventAction,
+  type EventActionOptions,
+  type EventActions,
+} from './lib/event-action';
 export * from './lib/craft-router-outlet';
 export * from './lib/defer-node';
 export * from './lib/for-node';

@@ -74,19 +74,14 @@ export const DEFAULT_ORGANIZER_WEIGHTS: OrganizerWeights = {
 };
 
 export type OrganizerThresholds = {
-  maxIterations: number;
+  /** Deepest `features/…` folder a proposal creates. */
   maxDepth: number;
-  minCommunitySize: number;
-  minCohesion: number;
   hubFanIn: number;
   hubFanOut: number;
 };
 
 export const DEFAULT_ORGANIZER_THRESHOLDS: OrganizerThresholds = {
-  maxIterations: 12,
   maxDepth: 3,
-  minCommunitySize: 3,
-  minCohesion: 0.2,
   hubFanIn: 6,
   hubFanOut: 6,
 };
@@ -287,9 +282,20 @@ export type OrganizeResult = {
 type InternalFile = FileNode & {
   absolutePath: string;
   nodeKinds: Set<string>;
+  /** Feature keys (route paths) and/or the shell owner using this file. */
+  owners: Set<string>;
+  ownership: 'graph' | 'import' | 'none';
+  /** Shell by name, app config or global/browser boundary declaration. */
+  coreSeed: boolean;
+  /** What the app config declares this file to be, if anything. */
+  shellRole: 'root' | 'global-error' | 'route-load-error' | null;
 };
 
-type ScopeScore = Map<string, number>;
+const SHELL_ROLE_REASONS = {
+  root: 'root component (provideCraftRootComponent)',
+  'global-error': 'global error screen of the app config',
+  'route-load-error': 'route load error screen of the app config',
+} as const;
 
 const relationWeight = (
   edge: DependencyGraphEdge,
@@ -390,39 +396,6 @@ function relativeSource(rootDir: string, file: string): string {
   return posix(relative(rootDir, file) || '.');
 }
 
-function nodeFile(
-  node: DependencyGraphNode,
-  rootDir: string,
-): string | undefined {
-  return node.filePath ? resolve(node.filePath) : undefined;
-}
-
-function routeAnchor(
-  node: DependencyGraphNode,
-  rootDir: string,
-): OrganizerRoute | undefined {
-  if (node.kind !== 'route') return undefined;
-  const details = node.details ?? {};
-  const collection = String(details['collection'] ?? 'routes');
-  const path = String(details['path'] ?? '');
-  const pathParts = path
-    .split('/')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => part.replace(/^[:*]/, 'param'));
-  const anchor = [collection, ...pathParts].join('/');
-  return {
-    nodeId: node.id,
-    collection,
-    path,
-    anchor,
-    parentNodeId: null,
-    file: node.filePath
-      ? relativeSource(rootDir, resolve(node.filePath))
-      : null,
-  };
-}
-
 function relativeProof(rootDir: string, proof: GraphProof): GraphProof {
   return {
     ...proof,
@@ -508,6 +481,117 @@ function resolveImports(
   return imports.sort();
 }
 
+/**
+ * Owner key standing for the application shell: bootstrap entry, `app.*`
+ * files, app config and everything only they reach.
+ */
+const CORE_OWNER = '#core';
+
+/**
+ * Relations read as "`from` uses `to`": `to` then belongs to every feature
+ * that owns `from`. `checks` (compile-time route checks) and `triggers`
+ * (reactive wiring inside one owner) carry no ownership.
+ */
+const OWNERSHIP_RELATIONS = new Set([
+  'loads',
+  'provides',
+  'depends-on',
+  'renders',
+  'calls',
+  'uses-property',
+  'contains',
+  'reads',
+]);
+
+const ROUTING_KINDS = new Set(['route', 'route-hook', 'route-check']);
+
+/** Bundler entry points: they stay where the build configuration expects them. */
+function isEntryFile(sourcePath: string): boolean {
+  return /^main(\.[\w-]+)?\.[cm]?[jt]sx?$/.test(basename(sourcePath));
+}
+
+/** `main.ts`, `app.ts`, `app.config.ts`, `app.routes.ts`, `app-shell.ts`… */
+function isShellFile(sourcePath: string): boolean {
+  return isEntryFile(sourcePath) || /^app[.-]/.test(basename(sourcePath));
+}
+
+/** Route path → feature folder segments; route params and wildcards are not folders. */
+function featureSegments(path: string): string[] {
+  return path
+    .split('/')
+    .map((part) => part.trim())
+    .filter((part) => part && !part.startsWith(':') && !part.includes('*'))
+    .map(slug);
+}
+
+const featureKey = (segments: readonly string[]): string =>
+  segments.join('/') || 'home';
+
+/**
+ * Anchors every route on its full feature path. A collection loaded by a
+ * route of another collection inherits that route's path as a prefix; the
+ * collection name itself is never a folder (it names a routes table).
+ */
+function projectRoutes(
+  graph: DependencyGraph,
+  rootDir: string,
+): OrganizerRoute[] {
+  const routeNodes = graph.nodes
+    .filter((node) => node.kind === 'route')
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const byId = new Map(routeNodes.map((node) => [node.id, node]));
+  const collectionOf = (node: DependencyGraphNode): string =>
+    String(node.details?.['collection'] ?? 'routes');
+  const parentOfCollection = new Map<string, string>();
+  for (const edge of [...graph.edges].sort((a, b) =>
+    `${a.from}\0${a.to}`.localeCompare(`${b.from}\0${b.to}`),
+  )) {
+    if (edge.kind !== 'loads') continue;
+    const from = byId.get(edge.from);
+    const to = byId.get(edge.to);
+    if (!from || !to) continue;
+    const collection = collectionOf(to);
+    if (
+      collection !== collectionOf(from) &&
+      !parentOfCollection.has(collection)
+    )
+      parentOfCollection.set(collection, from.id);
+  }
+  const segmentsOf = new Map<string, string[]>();
+  const resolveSegments = (
+    node: DependencyGraphNode,
+    visiting: ReadonlySet<string>,
+  ): string[] => {
+    const cached = segmentsOf.get(node.id);
+    if (cached) return cached;
+    const parentId = parentOfCollection.get(collectionOf(node));
+    const parent =
+      parentId && !visiting.has(parentId) ? byId.get(parentId) : undefined;
+    const prefix = parent
+      ? resolveSegments(parent, new Set([...visiting, node.id]))
+      : [];
+    const segments = [
+      ...prefix,
+      ...featureSegments(String(node.details?.['path'] ?? '')),
+    ];
+    segmentsOf.set(node.id, segments);
+    return segments;
+  };
+  return routeNodes.map((node) => {
+    const collection = collectionOf(node);
+    return {
+      nodeId: node.id,
+      collection,
+      path: String(node.details?.['path'] ?? ''),
+      anchor: featureKey(resolveSegments(node, new Set())),
+      parentNodeId: parentOfCollection.get(collection) ?? null,
+      file: node.filePath
+        ? relativeSource(rootDir, resolve(node.filePath))
+        : null,
+    };
+  });
+}
+
 function makeProjection(
   graph: DependencyGraph,
   rootDir: string,
@@ -517,7 +601,6 @@ function makeProjection(
   files: InternalFile[];
   edges: FileEdge[];
   routes: OrganizerRoute[];
-  routeScores: Map<string, ScopeScore>;
   diagnostics: OrganizerDiagnostic[];
 } {
   const files = parsed.fileNames
@@ -534,28 +617,17 @@ function makeProjection(
         nodeKinds: new Set(),
         routeAnchors: [],
         metrics: { fanIn: 0, fanOut: 0, routeSpan: 0 },
+        owners: new Set(),
+        ownership: 'none',
+        coreSeed: false,
+        shellRole: null,
       }),
     );
   const byPath = new Map(files.map((file) => [file.absolutePath, file]));
   const byNode = new Map(graph.nodes.map((node) => [node.id, node]));
   const edgeMap = new Map<string, FileEdge>();
   const diagnostics: OrganizerDiagnostic[] = [];
-  const routes = graph.nodes
-    .map((node) => routeAnchor(node, rootDir))
-    .filter((route): route is OrganizerRoute => route !== undefined)
-    .sort((a, b) => a.nodeId.localeCompare(b.nodeId));
-
-  for (const route of routes) {
-    const routeNode = byNode.get(route.nodeId);
-    if (!routeNode?.filePath) continue;
-    const owner = byPath.get(resolve(routeNode.filePath));
-    if (owner) {
-      owner.routeAnchors.push(route.anchor);
-      owner.craftNodeIds.push(routeNode.id);
-      owner.craftKinds.push(routeNode.kind);
-      owner.nodeKinds.add(routeNode.kind);
-    }
-  }
+  const routes = projectRoutes(graph, rootDir);
 
   for (const node of graph.nodes) {
     if (!node.filePath) continue;
@@ -573,12 +645,18 @@ function makeProjection(
     owner.craftNodeIds.push(node.id);
     owner.craftKinds.push(node.kind);
     owner.nodeKinds.add(node.kind);
+    if (
+      node.kind === 'app-config' ||
+      node.details?.['browserBoundary'] === true ||
+      node.details?.['global'] === true
+    )
+      owner.coreSeed = true;
   }
 
   for (const file of files) {
     file.craftNodeIds = [...new Set(file.craftNodeIds)].sort();
     file.craftKinds = [...new Set(file.craftKinds)].sort();
-    file.routeAnchors = [...new Set(file.routeAnchors)].sort();
+    if (isShellFile(file.sourcePath)) file.coreSeed = true;
     if (file.craftNodeIds.length === 0) {
       diagnostics.push({
         code: 'FILE_WITHOUT_CRAFT_NODE',
@@ -586,6 +664,26 @@ function makeProjection(
           'File is part of the frontend tsconfig but has no CraftTS node.',
         file: file.sourcePath,
       });
+    }
+  }
+
+  for (const edge of graph.edges) {
+    const from = byNode.get(edge.from);
+    const to = byNode.get(edge.to);
+    const role = edge.details?.['role'];
+    if (
+      from?.kind === 'app-config' &&
+      edge.kind === 'renders' &&
+      to?.filePath &&
+      (role === 'root' ||
+        role === 'global-error' ||
+        role === 'route-load-error')
+    ) {
+      const shell = byPath.get(resolve(to.filePath));
+      if (shell && shell.shellRole !== 'root') {
+        shell.shellRole = role;
+        shell.coreSeed = true;
+      }
     }
   }
 
@@ -646,165 +744,248 @@ function makeProjection(
     file.metrics.fanOut = outgoing.get(file.id) ?? 0;
   }
 
-  const routeByNode = new Map(routes.map((route) => [route.nodeId, route]));
-  for (const edge of graph.edges) {
-    const parent = routeByNode.get(edge.from);
-    const child = routeByNode.get(edge.to);
-    if (edge.kind !== 'loads' || !parent || !child) continue;
-    child.parentNodeId = parent.nodeId;
-  }
-  for (const route of routes) route.parentNodeId ??= null;
-
-  const routeScores = new Map<string, ScopeScore>();
-  const seed = (fileId: string, anchor: string, score: number) => {
-    const scores = routeScores.get(fileId) ?? new Map<string, number>();
-    scores.set(anchor, Math.max(scores.get(anchor) ?? 0, score));
-    routeScores.set(fileId, scores);
-  };
-  for (const route of routes) {
-    const routeNode = byNode.get(route.nodeId);
-    if (!routeNode?.filePath) continue;
-    const routeFile = byPath.get(resolve(routeNode.filePath));
-    if (!routeFile) continue;
-    seed(routeFile.id, route.anchor, 1);
-    for (const edge of graph.edges.filter(
-      (candidate) =>
-        candidate.from === route.nodeId && candidate.kind !== 'contains',
-    )) {
-      const target = byNode.get(edge.to);
-      if (!target?.filePath) continue;
-      const targetFile = byPath.get(resolve(target.filePath));
-      if (targetFile) seed(targetFile.id, route.anchor, 0.92);
-    }
-  }
-
-  // An import is deliberately weak evidence, but it is still useful for a
-  // file the CraftTS collectors do not know. Give one direct import hop a
-  // small route signal without allowing it to compete with graph relations.
-  for (const edge of edgeMap.values()) {
-    if (!edge.relationKinds.includes('imports')) continue;
-    const sourceScores = routeScores.get(edge.from);
-    if (!sourceScores) continue;
-    const targetScores = routeScores.get(edge.to) ?? new Map<string, number>();
-    for (const [anchor] of sourceScores)
-      targetScores.set(anchor, Math.max(targetScores.get(anchor) ?? 0, 0.09));
-    routeScores.set(edge.to, targetScores);
-  }
-
-  const adjacency = new Map<string, FileEdge[]>();
-  for (const edge of fileEdges) {
-    if (edge.relationKinds.includes('contains') || edge.weight <= 0) continue;
-    adjacency.set(edge.from, [...(adjacency.get(edge.from) ?? []), edge]);
-    adjacency.set(edge.to, [
-      ...(adjacency.get(edge.to) ?? []),
-      { ...edge, from: edge.to, to: edge.from },
-    ]);
-  }
-  const routeIterations = Math.min(8, Math.max(2, files.length));
-  for (let iteration = 0; iteration < routeIterations; iteration += 1) {
-    const next = new Map<string, ScopeScore>(
-      [...routeScores.entries()].map(([id, scores]) => [id, new Map(scores)]),
-    );
-    for (const file of files) {
-      const candidates = next.get(file.id) ?? new Map<string, number>();
-      for (const edge of adjacency.get(file.id) ?? []) {
-        const neighborScores = routeScores.get(edge.to);
-        if (!neighborScores) continue;
-        const neighbor = files.find((candidate) => candidate.id === edge.to);
-        const hubPenalty = neighbor
-          ? 1 / Math.sqrt(1 + neighbor.metrics.fanIn + neighbor.metrics.fanOut)
-          : 1;
-        const attenuation = Math.min(0.82, edge.weight / 8) * 0.72 * hubPenalty;
-        for (const [anchor, score] of neighborScores) {
-          const candidate = score * attenuation;
-          if (candidate > (candidates.get(anchor) ?? 0))
-            candidates.set(anchor, candidate);
-        }
-      }
-      next.set(file.id, candidates);
-    }
-    routeScores.clear();
-    for (const [id, scores] of next) routeScores.set(id, scores);
-  }
+  assignOwners(graph, files, routes, fileEdges, byPath);
   for (const file of files) {
-    const anchors = [...(routeScores.get(file.id) ?? new Map())]
-      .filter(([, score]) => score >= 0.08)
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .map(([anchor]) => anchor);
-    file.routeAnchors = [...new Set([...file.routeAnchors, ...anchors])].sort();
+    file.routeAnchors = [...file.owners]
+      .filter((owner) => owner !== CORE_OWNER)
+      .sort();
     file.metrics.routeSpan = file.routeAnchors.length;
   }
-  return { files, edges: fileEdges, routes, routeScores, diagnostics };
+  return { files, edges: fileEdges, routes, diagnostics };
 }
 
-function labelPropagation(
+/**
+ * Feature ownership, following usage direction only: a route owns what it
+ * loads, and a node belongs to every owner of the nodes that use it. The
+ * reverse never holds — being used by a route file does not make the route
+ * file's other routes yours, which is what used to put every page in
+ * `shared`. Imports only decide for files the CraftTS graph says nothing
+ * about.
+ */
+function assignOwners(
+  graph: DependencyGraph,
   files: readonly InternalFile[],
-  edges: readonly FileEdge[],
-  thresholds: OrganizerThresholds,
-): Map<string, string> {
-  // Initial labels are structural signatures, never source paths. File paths
-  // identify outputs, but must not decide which community wins a tie.
-  const labels = new Map(
-    files.map((file) => [
-      file.id,
-      `seed:${shortHash({
-        routeAnchors: file.routeAnchors,
-        craftKinds: file.craftKinds,
-        fanIn: file.metrics.fanIn,
-        fanOut: file.metrics.fanOut,
-      })}`,
-    ]),
-  );
-  const structuralOrder = (file: InternalFile): string =>
-    stableStringify({
-      routeAnchors: file.routeAnchors,
-      craftKinds: file.craftKinds,
-      fanIn: file.metrics.fanIn,
-      fanOut: file.metrics.fanOut,
-    });
-  const degree = new Map<string, number>();
-  for (const edge of edges) {
-    if (edge.weight <= 0 || edge.relationKinds.includes('contains')) continue;
-    degree.set(edge.from, (degree.get(edge.from) ?? 0) + 1);
-    degree.set(edge.to, (degree.get(edge.to) ?? 0) + 1);
+  routes: readonly OrganizerRoute[],
+  fileEdges: readonly FileEdge[],
+  byPath: ReadonlyMap<string, InternalFile>,
+): void {
+  const fileOfNode = new Map<string, InternalFile>();
+  for (const node of graph.nodes) {
+    const file = node.filePath ? byPath.get(resolve(node.filePath)) : undefined;
+    if (file) fileOfNode.set(node.id, file);
   }
-  const adjacency = new Map<string, FileEdge[]>();
-  for (const edge of edges) {
-    if (edge.weight <= 0 || edge.relationKinds.includes('contains')) continue;
-    adjacency.set(edge.from, [...(adjacency.get(edge.from) ?? []), edge]);
-    adjacency.set(edge.to, [
-      ...(adjacency.get(edge.to) ?? []),
-      { ...edge, from: edge.to, to: edge.from },
-    ]);
-  }
-  for (
-    let iteration = 0;
-    iteration < thresholds.maxIterations;
-    iteration += 1
-  ) {
-    let changed = false;
-    for (const file of [...files].sort((a, b) =>
-      structuralOrder(a).localeCompare(structuralOrder(b)),
-    )) {
-      const scores = new Map<string, number>();
-      for (const edge of adjacency.get(file.id) ?? []) {
-        const label = labels.get(edge.to);
-        if (!label) continue;
-        const hubPenalty = 1 / Math.sqrt(1 + (degree.get(edge.to) ?? 0));
-        scores.set(label, (scores.get(label) ?? 0) + edge.weight * hubPenalty);
-      }
-      if (scores.size === 0) continue;
-      const next = [...scores.entries()].sort(
-        (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-      )[0];
-      if (next && next[0] !== labels.get(file.id)) {
-        labels.set(file.id, next[0]);
-        changed = true;
-      }
+  const owners = new Map<string, Set<string>>();
+  const add = (nodeId: string, owner: string): boolean => {
+    const set = owners.get(nodeId) ?? new Set<string>();
+    if (set.has(owner)) return false;
+    set.add(owner);
+    owners.set(nodeId, set);
+    return true;
+  };
+  const routeKey = new Map(routes.map((route) => [route.nodeId, route.anchor]));
+  for (const node of graph.nodes) {
+    const key = routeKey.get(node.id);
+    if (key !== undefined) {
+      add(node.id, key);
+      continue;
     }
-    if (!changed) break;
+    // Routes and their checks/hooks sit in the shell's routes file, but they
+    // are owned by the route they belong to, not by the shell.
+    if (ROUTING_KINDS.has(node.kind)) continue;
+    if (
+      node.kind === 'app-config' ||
+      node.details?.['browserBoundary'] === true ||
+      node.details?.['global'] === true ||
+      (fileOfNode.get(node.id)?.coreSeed ?? false)
+    )
+      add(node.id, CORE_OWNER);
   }
-  return labels;
+
+  const uses = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    if (!OWNERSHIP_RELATIONS.has(edge.kind)) continue;
+    uses.set(edge.from, [...(uses.get(edge.from) ?? []), edge.to]);
+  }
+  const queue = [...owners.keys()].sort();
+  for (let index = 0; index < queue.length; index += 1) {
+    const id = queue[index] as string;
+    const from = [...(owners.get(id) ?? [])];
+    for (const to of uses.get(id) ?? []) {
+      let grew = false;
+      for (const owner of from) grew = add(to, owner) || grew;
+      if (grew) queue.push(to);
+    }
+  }
+
+  for (const file of files) {
+    for (const id of file.craftNodeIds)
+      for (const owner of owners.get(id) ?? []) file.owners.add(owner);
+    if (file.owners.size > 0) file.ownership = 'graph';
+  }
+
+  const filesById = new Map(files.map((file) => [file.id, file]));
+  const importers = new Map<string, InternalFile[]>();
+  for (const edge of fileEdges) {
+    if (!edge.relationKinds.includes('imports')) continue;
+    const importer = filesById.get(edge.from);
+    if (importer)
+      importers.set(edge.to, [...(importers.get(edge.to) ?? []), importer]);
+  }
+  // What an importer hands down: the shell hands down the shell only, never
+  // the features its routes table happens to import.
+  const handedDown = (importer: InternalFile): string[] =>
+    importer.coreSeed || importer.owners.has(CORE_OWNER)
+      ? [CORE_OWNER]
+      : [...importer.owners];
+  let changed = true;
+  for (let pass = 0; changed && pass <= files.length; pass += 1) {
+    changed = false;
+    for (const file of files) {
+      if (file.ownership === 'graph') continue;
+      for (const importer of importers.get(file.id) ?? [])
+        for (const owner of handedDown(importer)) {
+          if (file.owners.has(owner)) continue;
+          file.owners.add(owner);
+          file.ownership = 'import';
+          changed = true;
+        }
+    }
+  }
+}
+
+function commonPrefix(paths: readonly (readonly string[])[]): string[] {
+  const [first = [], ...rest] = paths;
+  const prefix: string[] = [];
+  for (const [index, segment] of first.entries()) {
+    if (rest.some((path) => path[index] !== segment)) break;
+    prefix.push(segment);
+  }
+  return prefix;
+}
+
+type ScopeDecision = {
+  scope: OrganizerScope;
+  /** Folder under `features/` for feature scopes. */
+  featurePath: string[];
+  reasons: string[];
+};
+
+/**
+ * Feature first: a file lives in the deepest feature that contains every
+ * feature using it. `shared/` only receives what several top-level features
+ * use; `core/` receives the shell and what only the shell reaches.
+ */
+function classifyScope(file: InternalFile): ScopeDecision {
+  const features = file.routeAnchors;
+  const topLevel = [
+    ...new Set(features.map((feature) => feature.split('/')[0] as string)),
+  ].sort();
+  if (file.shellRole)
+    return {
+      scope: 'core',
+      featurePath: [],
+      reasons: [SHELL_ROLE_REASONS[file.shellRole]],
+    };
+  if (isShellFile(file.sourcePath))
+    return {
+      scope: 'core',
+      featurePath: [],
+      reasons: ['application shell file (main/app.*)'],
+    };
+  if (file.coreSeed)
+    return {
+      scope: 'core',
+      featurePath: [],
+      reasons: ['declares app config or a global/browser boundary'],
+    };
+  if (file.owners.size === 0)
+    return {
+      scope: 'unresolved',
+      featurePath: [],
+      reasons: ['no route, shell or importer reaches this file'],
+    };
+  if (file.owners.has(CORE_OWNER))
+    return {
+      scope: 'core',
+      featurePath: [],
+      reasons: [
+        features.length > 0
+          ? `used by the application shell and by ${features.join(', ')}`
+          : 'reached from the application shell only',
+      ],
+    };
+  if (
+    topLevel.length > 1 &&
+    [...file.nodeKinds].some((kind) => ROUTING_KINDS.has(kind))
+  )
+    return {
+      scope: 'core',
+      featurePath: [],
+      reasons: [`routing infrastructure spanning ${topLevel.join(', ')}`],
+    };
+  if (features.length === 1)
+    return {
+      scope: 'feature-local',
+      featurePath: (features[0] as string).split('/'),
+      reasons: [`used by feature ${features[0]} only`],
+    };
+  const paths = features.map((feature) => feature.split('/'));
+  // Users on one lineage (`css-vars` and `css-vars/required`): the file is
+  // the deepest one's, the ancestors reach into their own sub-feature. A
+  // routes table stays with its parent route instead.
+  const deepest = [...paths].sort((a, b) => b.length - a.length)[0] as string[];
+  if (
+    !file.nodeKinds.has('route') &&
+    paths.every((path) => commonPrefix([path, deepest]).length === path.length)
+  )
+    return {
+      scope: 'feature-local',
+      featurePath: deepest,
+      reasons: [
+        `used by feature ${deepest.join('/')} and its ancestors ${features
+          .filter((feature) => feature !== deepest.join('/'))
+          .join(', ')}`,
+      ],
+    };
+  const ancestor = commonPrefix(paths);
+  if (ancestor.length > 0)
+    return {
+      scope: 'parent-shared',
+      featurePath: ancestor,
+      reasons: [
+        `common ancestor feature ${ancestor.join('/')} of ${features.join(', ')}`,
+      ],
+    };
+  return {
+    scope: 'global-shared',
+    featurePath: [],
+    reasons: [`used across top-level features ${topLevel.join(', ')}`],
+  };
+}
+
+function confidenceFor(scope: OrganizerScope, file: InternalFile): number {
+  if (scope === 'unresolved') return 0.2;
+  if (scope === 'core' && (isShellFile(file.sourcePath) || file.coreSeed))
+    return 0.95;
+  if (file.craftNodeIds.length === 0) return 0.25;
+  if (file.ownership === 'import') return 0.45;
+  if (scope === 'feature-local') return 0.92;
+  if (scope === 'parent-shared') return 0.85;
+  if (scope === 'core') return 0.85;
+  return 0.78;
+}
+
+/** Folder (relative to the target root) a decision places a file in. */
+function folderFor(
+  decision: ScopeDecision,
+  thresholds: OrganizerThresholds,
+): string | null {
+  if (decision.scope === 'unresolved') return null;
+  if (decision.scope === 'core') return 'core';
+  if (decision.scope === 'global-shared') return 'shared';
+  return posix(
+    join('features', ...decision.featurePath.slice(0, thresholds.maxDepth)),
+  );
 }
 
 function slug(value: string): string {
@@ -816,12 +997,6 @@ function slug(value: string): string {
       .replace(/^-|-$/g, '') || 'shared'
   );
 }
-
-type CommunityPartition = {
-  fileIds: string[];
-  depth: number;
-  cohesion: number;
-};
 
 function partitionCohesion(
   fileIds: readonly string[],
@@ -839,124 +1014,6 @@ function partitionCohesion(
     1,
     internal / Math.max(1, fileIds.length * Math.max(1, fileIds.length - 1)),
   );
-}
-
-/** Split only weak, sufficiently large communities, with a fixed depth cap. */
-function recursivelyPartition(
-  fileIds: readonly string[],
-  labels: ReadonlyMap<string, string>,
-  edges: readonly FileEdge[],
-  thresholds: OrganizerThresholds,
-  depth = 0,
-): CommunityPartition[] {
-  const cohesion = partitionCohesion(fileIds, edges);
-  if (
-    depth >= thresholds.maxDepth ||
-    fileIds.length < thresholds.minCommunitySize ||
-    cohesion >= thresholds.minCohesion
-  ) {
-    return [{ fileIds: [...fileIds].sort(), depth, cohesion }];
-  }
-  const subgroups = new Map<string, string[]>();
-  for (const fileId of fileIds) {
-    const label = labels.get(fileId) ?? fileId;
-    subgroups.set(label, [...(subgroups.get(label) ?? []), fileId]);
-  }
-  if (subgroups.size < 2)
-    return [{ fileIds: [...fileIds].sort(), depth, cohesion }];
-  return [...subgroups.values()]
-    .sort((a, b) =>
-      a.slice().sort().join('|').localeCompare(b.slice().sort().join('|')),
-    )
-    .flatMap((group) =>
-      recursivelyPartition(group, labels, edges, thresholds, depth + 1),
-    );
-}
-
-function communityName(
-  fileIds: readonly string[],
-  filesById: Map<string, InternalFile>,
-): string {
-  const tokens = new Map<string, number>();
-  for (const fileId of fileIds) {
-    const file = filesById.get(fileId);
-    if (!file) continue;
-    for (const token of file.routeAnchors
-      .flatMap((anchor) => anchor.split('/'))
-      .concat(file.craftKinds, [basename(file.sourcePath)])) {
-      const value = slug(token);
-      if (
-        value.length < 3 ||
-        ['src', 'app', 'index', 'component', 'service', 'routes'].includes(
-          value,
-        )
-      )
-        continue;
-      tokens.set(value, (tokens.get(value) ?? 0) + 1);
-    }
-  }
-  return (
-    [...tokens.entries()].sort(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-    )[0]?.[0] ?? 'shared'
-  );
-}
-
-function classifyScope(
-  file: InternalFile,
-  graph: DependencyGraph,
-  byNode: Map<string, DependencyGraphNode>,
-): OrganizerScope {
-  const routeSpan = file.routeAnchors.length;
-  if (file.nodeKinds.has('app-config')) return 'core';
-  const hasBoundary = file.craftNodeIds.some((id) => {
-    const node = byNode.get(id);
-    return (
-      node?.details?.['browserBoundary'] === true ||
-      node?.details?.['global'] === true
-    );
-  });
-  if (hasBoundary) return 'core';
-  const topScopes = new Set(
-    file.routeAnchors.map((anchor) => anchor.split('/')[0] ?? anchor),
-  );
-  if (
-    (file.nodeKinds.has('route-hook') || file.nodeKinds.has('route-check')) &&
-    routeSpan > 1
-  )
-    return 'core';
-  if (topScopes.size > 1) return 'global-shared';
-  if (routeSpan > 1) return 'parent-shared';
-  if (routeSpan === 1) return 'feature-local';
-  if (file.nodeKinds.has('service') || file.nodeKinds.has('provider'))
-    return 'unresolved';
-  void graph;
-  return 'unresolved';
-}
-
-function confidenceFor(scope: OrganizerScope, file: InternalFile): number {
-  if (file.craftNodeIds.length === 0) return 0.25;
-  if (scope === 'unresolved') return 0.2;
-  if (scope === 'feature-local') return 0.92;
-  if (scope === 'core') return 0.86;
-  if (scope === 'parent-shared') return 0.78;
-  return 0.74;
-}
-
-function destinationFor(
-  file: InternalFile,
-  scope: OrganizerScope,
-  community: OrganizerCommunity | undefined,
-  targetRoot: string,
-): string | null {
-  if (scope === 'unresolved' || !community) return null;
-  const base = basename(file.sourcePath);
-  const top = slug(file.routeAnchors[0]?.split('/')[0] ?? community.name);
-  if (scope === 'core') return posix(join(targetRoot, 'core', base));
-  if (scope === 'global-shared') return posix(join(targetRoot, 'shared', base));
-  if (scope === 'parent-shared')
-    return posix(join(targetRoot, 'features', top, 'shared', base));
-  return posix(join(targetRoot, 'features', top, slug(community.name), base));
 }
 
 function renderReport(
@@ -1070,46 +1127,33 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
     );
   }
   const projection = makeProjection(loaded.graph, rootDir, parsed, weights);
-  const byNode = new Map(loaded.graph.nodes.map((node) => [node.id, node]));
-  const labels = labelPropagation(
-    projection.files,
-    projection.edges,
-    thresholds,
-  );
   const filesById = new Map(projection.files.map((file) => [file.id, file]));
-  const groups = new Map<OrganizerScope, string[]>();
+  const decisions = new Map(
+    projection.files.map((file) => [file.id, classifyScope(file)] as const),
+  );
+  const folders = new Map<
+    string,
+    { scope: OrganizerScope; fileIds: string[] }
+  >();
   for (const file of projection.files) {
-    const scope = classifyScope(file, loaded.graph, byNode);
-    groups.set(scope, [...(groups.get(scope) ?? []), file.id]);
+    const decision = decisions.get(file.id) as ScopeDecision;
+    const folder = folderFor(decision, thresholds);
+    if (folder === null) continue;
+    const group = folders.get(folder) ?? { scope: decision.scope, fileIds: [] };
+    group.fileIds.push(file.id);
+    folders.set(folder, group);
   }
-  const communities: OrganizerCommunity[] = [...groups.entries()]
-    .flatMap(([scope, fileIds]) =>
-      recursivelyPartition(fileIds, labels, projection.edges, thresholds).map(
-        (partition) => {
-          const first = filesById.get(partition.fileIds[0] ?? '');
-          // Community identity is architectural, not a hash of absolute source
-          // paths. This keeps the same proposal stable when a legacy folder is
-          // renamed before analysis.
-          const partitionKey = `${scope}:${partition.fileIds
-            .map((fileId) => filesById.get(fileId))
-            .filter((file): file is InternalFile => file !== undefined)
-            .map(
-              (file) =>
-                `${file.routeAnchors.join(',')}:${file.craftKinds.join(',')}:${basename(file.sourcePath)}`,
-            )
-            .sort()
-            .join('|')}`;
-          return {
-            id: `community:${shortHash(partitionKey)}`,
-            name: communityName(partition.fileIds, filesById),
-            scope: first ? classifyScope(first, loaded.graph, byNode) : scope,
-            fileIds: partition.fileIds,
-            depth: partition.depth,
-            cohesion: partition.cohesion,
-          };
-        },
-      ),
-    )
+  // A community is a destination folder. Its identity is the folder, not the
+  // source paths, so renaming a legacy folder keeps the proposal stable.
+  const communities: OrganizerCommunity[] = [...folders.entries()]
+    .map(([folder, group]) => ({
+      id: `community:${shortHash(folder)}`,
+      name: folder,
+      scope: group.scope,
+      fileIds: group.fileIds.sort(),
+      depth: folder.split('/').length - 1,
+      cohesion: partitionCohesion(group.fileIds, projection.edges),
+    }))
     .sort((a, b) => a.id.localeCompare(b.id));
   const communityForFile = new Map(
     communities.flatMap((community) =>
@@ -1119,9 +1163,15 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
   const occupied = new Map<string, string>();
   const placements: FilePlacement[] = projection.files
     .map((file) => {
-      const scope = classifyScope(file, loaded.graph, byNode);
+      const decision = decisions.get(file.id) as ScopeDecision;
+      const { scope } = decision;
       const community = communityForFile.get(file.id);
-      const proposedPath = destinationFor(file, scope, community, targetRoot);
+      const base = basename(file.sourcePath);
+      const proposedPath = isEntryFile(file.sourcePath)
+        ? file.sourcePath
+        : community
+          ? posix(join(targetRoot, community.name, base))
+          : null;
       const routeAnchors = [...file.routeAnchors].sort();
       const relatedFiles = projection.edges
         .filter((edge) => edge.from === file.id || edge.to === file.id)
@@ -1133,9 +1183,11 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
               ?.sourcePath,
         )
         .filter((path): path is string => path !== undefined);
-      const reasons: string[] = [];
-      if (routeAnchors.length > 0)
-        reasons.push(`route evidence: ${routeAnchors.join(', ')}`);
+      const reasons: string[] = [...decision.reasons];
+      if (isEntryFile(file.sourcePath))
+        reasons.push('bundler entry point stays in place');
+      if (file.ownership === 'import')
+        reasons.push('ownership inferred from importers only');
       if (file.nodeKinds.size > 0)
         reasons.push(`CraftTS kinds: ${[...file.nodeKinds].sort().join(', ')}`);
       if (file.craftNodeIds.length === 0)
@@ -1144,11 +1196,11 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
         file.metrics.fanIn >= thresholds.hubFanIn ||
         file.metrics.fanOut >= thresholds.hubFanOut
       )
-        reasons.push('hub influence reduced');
+        reasons.push('hub');
       let action: FilePlacement['action'] = proposedPath
         ? 'move'
         : 'keep-at-root';
-      let finalPath = proposedPath;
+      const finalPath = proposedPath;
       if (finalPath) {
         const previous = occupied.get(finalPath);
         if (previous && previous !== file.id) {
@@ -1170,9 +1222,9 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
         reasons,
         relatedFiles,
         alternatives:
-          scope === 'unresolved'
-            ? []
-            : [posix(join(targetRoot, 'shared', basename(file.sourcePath)))],
+          scope === 'parent-shared' && community
+            ? [posix(join(targetRoot, community.name, 'shared', base))]
+            : [],
         action,
       };
     })

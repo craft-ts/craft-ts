@@ -33,6 +33,7 @@ import {
 import { mountCraftComponent } from '../bridge';
 import type { Output } from '../types';
 import { AiContextMenu } from './ai-context-menu';
+import { observeAiPerformance } from './ai-performance';
 import { AiSendDialog } from './ai-send-dialog';
 import { AiSendContextChat } from './ai-send-context-chat';
 import { AiSendContextLauncher } from './ai-send-context-launcher';
@@ -252,6 +253,9 @@ export function createAiContextMenuController({
   let dialog: Overlay | null = null;
   let launcher: Overlay | null = null;
   let dialogTimer: TemporalTaskHandle | null = null;
+  // Long tasks are recorded from startup so a freeze that happens before the
+  // chat is opened still shows up in the next exported prompt.
+  const stopAiPerformance = observeAiPerformance();
 
   // The captured context and the element list are the two things a renderer
   // reads and the controller writes, so they live in signals: a template that
@@ -428,6 +432,7 @@ export function createAiContextMenuController({
 
   mountLauncher();
   destroyRef.onDestroy(() => {
+    stopAiPerformance();
     dialogTimer?.cancel();
     closeMenu();
     dialog = closeOverlay(dialog);

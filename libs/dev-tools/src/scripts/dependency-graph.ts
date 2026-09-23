@@ -1474,9 +1474,7 @@ function collectServices(
         getStringProperty(config, 'name') ??
         inferNameFromServiceDeclaration(call);
       if (!name) continue;
-      const node = addNode(
-        builder,
-        {
+      const node = addNode(builder, {
           id: `service:${sourceFile.getFilePath()}:${name}`,
           kind: 'service',
           label: name,
@@ -1739,8 +1737,13 @@ function collectAppConfigs(
             'provideCraftRouteLoadErrorComponent' ||
           item.getExpression().getText() === 'withRouteLoadError',
       );
-      builder.appConfigs.push({
-        node: addNode(builder, {
+      const rootComponentCall = calls.find(
+        (item) =>
+          item.getExpression().getText() === 'provideCraftRootComponent',
+      );
+      const node = addNode(
+        builder,
+        {
           id: `app-config:${sourceFile.getFilePath()}:${label}`,
           kind: 'app-config',
           label,
@@ -1751,13 +1754,40 @@ function collectAppConfigs(
             hasRouteLoadError: Boolean(routeLoadErrorCall),
             globalErrorComponent: appConfigComponentName(globalErrorCall),
             routeLoadErrorComponent: appConfigComponentName(routeLoadErrorCall),
+            rootComponent: appConfigComponentName(rootComponentCall),
           },
-        }, object),
-        sourceFile,
-        object,
-      });
+        }, object);
+      builder.appConfigs.push({ node, sourceFile, object });
+      // The app config renders its root and fallback screens: they are the
+      // application shell, whatever their file is called.
+      for (const [role, componentCall] of [
+        ['root', rootComponentCall],
+        ['global-error', globalErrorCall],
+        ['route-load-error', routeLoadErrorCall],
+      ] as const) {
+        const component = appConfigComponent(builder, componentCall);
+        if (component)
+          addEdge(builder, node.id, component.node.id, 'renders', 'ast', {
+            role,
+          });
+      }
     }
   }
+}
+
+function appConfigComponent(
+  builder: GraphBuilder,
+  call: CallExpression | undefined,
+): ComponentInfo | undefined {
+  const first = call?.getArguments()[0];
+  if (!first) return undefined;
+  const component =
+    first
+      .asKind(SyntaxKind.ObjectLiteralExpression)
+      ?.getProperty('component')
+      ?.asKind(SyntaxKind.PropertyAssignment)
+      ?.getInitializer() ?? first;
+  return findComponentForExpression(builder, component);
 }
 
 function appConfigComponentName(

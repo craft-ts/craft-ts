@@ -177,9 +177,22 @@ craft organize \
 
 The command refuses an obsolete or invalid graph and never rebuilds it or moves
 files. It writes `folder-layout-analysis.json`,
-`folder-layout-proposal.json`, and `FOLDER_LAYOUT_REPORT.md`. Route scopes,
-CraftTS relations and proofs are preferred over imports; existing directory
-names are not used as architectural evidence. Use `--target-root` when the
+`folder-layout-proposal.json`, and `FOLDER_LAYOUT_REPORT.md`.
+
+The layout is feature first. Each route anchors a feature folder on its full
+path (a collection loaded by a route nests under it; route params are not
+folders). A file belongs to the features that use it, following CraftTS
+relations from user to used; imports only decide for files the graph says
+nothing about. A file then goes to:
+
+- `core/` — `main`/`app.*` files, app config, global boundaries, and what the
+  application shell reaches (`main.ts` itself stays in place);
+- `features/<route>/` — the one feature using it, or the deepest one when its
+  users sit on a single route lineage;
+- `features/<ancestor>/` — the common ancestor feature of sibling users;
+- `shared/` — only what several top-level features use.
+
+Existing directory names are not used as architectural evidence. Use `--target-root` when the
 proposed application root should not be inferred from the project tsconfig.
 
 ## ESLint rules

@@ -13,6 +13,82 @@ import {
   reviewAttestConfig,
 } from '../src/review-app.happy-path.ts';
 
+test('shows command effects and loads the button and method snippets for the selected card', async ({
+  page,
+}) => {
+  const subject = reviewAppTemplateCard.subject;
+  const detail = {
+    subject,
+    element: {
+      file: 'src/profile.ts',
+      line: 12,
+      code: "button('Save', { click: commit }, 'Save')",
+    },
+    method: {
+      file: 'src/profile.ts',
+      line: 4,
+      code: "craftMethod('commit', function* () { yield* save(); })",
+    },
+  };
+  let detailRequests = 0;
+  const running = await startReviewServer({
+    port: 0,
+    cards: [{ ...reviewAppTemplateCard, effects: ['save()'] }],
+    model: reviewAppHappyPathModel,
+    templateDetailFor: (requested) => {
+      detailRequests += 1;
+      return requested === subject ? detail : undefined;
+    },
+  });
+  try {
+    const queue = await fetch(`${running.url}/api/review`).then((response) =>
+      response.text(),
+    );
+    expect(queue).not.toContain(detail.method.code);
+    expect(detailRequests).toBe(0);
+    await page.goto(running.url);
+    await expect(
+      page.locator('.review-card:not([hidden]) .template-effects'),
+    ).toContainText('save()');
+    await expect(
+      page.locator('.review-card:not([hidden]) .template-source'),
+    ).toContainText(detail.element.code);
+    await expect(
+      page.locator('.review-card:not([hidden]) .template-source'),
+    ).toContainText(detail.method.code);
+    expect(detailRequests).toBeGreaterThan(0);
+  } finally {
+    await running.close();
+  }
+});
+
+test('offers AI context actions from the review screen in development', async ({
+  page,
+}) => {
+  const running = await startReviewServer({
+    port: 0,
+    cards: [reviewAppTemplateCard],
+    model: reviewAppHappyPathModel,
+  });
+
+  try {
+    await page.goto(running.url);
+    await expect(
+      page.locator('.queue-panel .panel-heading.brand'),
+    ).toBeVisible();
+    await page
+      .locator('.queue-panel .panel-heading.brand')
+      .click({ button: 'right' });
+    await expect(
+      page.getByRole('menuitem', { name: 'Add to AI context' }),
+    ).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Add to AI context' }).click();
+    await expect(page.getByLabel('Send context to AI')).toBeVisible();
+  } finally {
+    await running.close();
+  }
+});
+
 test('reviews a folder-layout proposal as a visual before/after tree', async ({
   page,
 }) => {

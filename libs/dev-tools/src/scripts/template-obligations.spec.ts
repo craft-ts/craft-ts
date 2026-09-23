@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -19,6 +19,7 @@ const STUBS = `
 declare function craftComponent(...args: any[]): unknown;
 declare function craftTemplate(...args: any[]): unknown;
 declare function state(...args: any[]): any;
+declare function craftMethod(...args: any[]): any;
 declare function div(...args: any[]): unknown;
 declare function span(...args: any[]): unknown;
 declare function button(...args: any[]): unknown;
@@ -58,6 +59,36 @@ const indexFor = (rootDir: string) => {
 };
 
 describe('template obligations', () => {
+  it('records ordered craftMethod effects and serves code separately from the list', async () => {
+    const root = await fixture(`
+      const BrowserWindow: any = {};
+      const BrowserLocation: any = {};
+      const Persister: any = {};
+      const App = craftComponent('App', {}, function* () {
+        const clearCache = craftMethod('clearCache', function* () {
+          yield* Persister.clearAllCache();
+          yield* BrowserWindow.alert('Cache cleared');
+          yield* BrowserLocation.reload();
+        });
+        return { clearCache };
+      }, ({ clearCache }) => div([
+        button('clearCache', { click: clearCache }, 'Clear cache'),
+      ]));
+    `);
+    const index = indexFor(root);
+    const obligation = index.obligations.find(
+      (item) => item.direction === 'command',
+    );
+    expect(obligation?.effects).toEqual([
+      'Persister.clearAllCache()',
+      "BrowserWindow.alert('Cache cleared')",
+      'BrowserLocation.reload()',
+    ]);
+    expect(JSON.stringify(obligation)).not.toContain("button('clearCache'");
+    const detail = index.detailFor(obligation!);
+    expect(detail.element?.code).toContain("button('clearCache'");
+    expect(detail.method?.code).toContain("craftMethod('clearCache'");
+  });
   it('derives one render promise per target and one command per handler target', async () => {
     const root = await fixture(`
       const Counter = craftComponent(
@@ -126,6 +157,40 @@ describe('template obligations', () => {
     expect(
       index.fingerprintFor(obligation as NonNullable<typeof obligation>),
     ).toMatch(/^[a-f0-9]{32}$/);
+  });
+
+  it('shows every render location with nearby code and its exact line', async () => {
+    const root = await fixture(`
+      const App = craftComponent(
+        'App', {},
+        function* () {
+          const navOpen = yield* state('navOpen', false);
+          return { navOpen };
+        },
+        ({ navOpen }) => div([
+          button('toggle', {
+            'aria-expanded': navOpen,
+          }, 'Browse'),
+          ifNode(navOpen, () => span('Navigation')),
+        ]),
+      );
+    `);
+    const index = indexFor(root);
+    const render = index.obligations.find(
+      (value) =>
+        value.direction === 'render' && value.target.includes('navOpen'),
+    );
+    expect(render).toBeDefined();
+    const sites = index.detailFor(render!.subject).renderSites;
+    const lines = (await readFile(join(root, 'view.ts'), 'utf8')).split('\n');
+    expect(sites).toHaveLength(2);
+    expect(sites?.map((site) => site.line)).toEqual([
+      lines.findIndex((line) => line.includes("'aria-expanded': navOpen")) + 1,
+      lines.findIndex((line) => line.includes('ifNode(navOpen')) + 1,
+    ]);
+    expect(sites?.[0]?.code).toContain("'aria-expanded': navOpen");
+    expect(sites?.[0]?.code).toContain("button('toggle'");
+    expect(sites?.[1]?.code).toContain('ifNode(navOpen');
   });
 
   it('resolves a named craftTemplate passed to craftComponent', async () => {

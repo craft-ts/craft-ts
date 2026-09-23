@@ -36,6 +36,8 @@ export default defineConfig({
       'libs/core/src/**/*.spec.ts',
       'libs/component/src/**/*.spec.ts',
       'libs/effect/src/**/*.spec.ts',
+      'libs/review-attestation/attestation-app/src/ide-links.spec.ts',
+      'libs/review-attestation/attestation-app/src/folder-layout-tree.spec.ts',
       'tools/**/*.spec.ts',
     ],
     reporters: ['default'],

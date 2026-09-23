@@ -36,6 +36,10 @@ const en = {
   noInventory: 'Nothing to show in this view.',
   extractionDiagnostics: 'Extraction diagnostics',
   currentPromise: 'Current promise',
+  templateEffects: 'Direct effects, in order',
+  templateRenderSource: 'Where the template reads this value',
+  templateElementSource: 'Button in the template',
+  templateMethodSource: 'Craft method',
   templateWhen: (conditions: string) => `When ${conditions}, `,
   templateConditionJoiner: ' and ',
   templateCondition: (
@@ -95,8 +99,7 @@ const en = {
   reasonOutputChanged: 'The output changed since the last accepted evidence.',
   reasonTemplateChanged:
     'The template promise changed since the last accepted evidence.',
-  reasonAssumptionsChanged:
-    'The reductions behind the decision changed.',
+  reasonAssumptionsChanged: 'The reductions behind the decision changed.',
   reasonTemplateRemoved: 'The template no longer produces this promise.',
   reasonLastVerdict: (verdict: string) => `The last verdict was ${verdict}.`,
   rawEnglish: 'English source text',
@@ -214,6 +217,8 @@ const en = {
 
   language: 'Language',
   theme: 'Theme',
+  ide: 'Editor',
+  openInIde: 'Open source in editor ↗',
   themeSystem: 'System',
   themeLight: 'Light',
   themeDark: 'Dark',
@@ -362,6 +367,10 @@ const fr: Messages = {
   noInventory: 'Aucun élément dans cette vue.',
   extractionDiagnostics: "Diagnostics d'extraction",
   currentPromise: 'Promesse courante',
+  templateEffects: 'Effets directs, dans l’ordre',
+  templateRenderSource: 'Où le template lit cette valeur',
+  templateElementSource: 'Bouton dans le template',
+  templateMethodSource: 'Méthode Craft',
   templateWhen: (conditions) => `Lorsque ${conditions}, `,
   templateConditionJoiner: ' et ',
   templateCondition: (name, expectation) =>
@@ -416,8 +425,7 @@ const fr: Messages = {
     'La promesse du template a changé depuis la dernière attestation acceptée.',
   reasonAssumptionsChanged:
     'Les réductions sur lesquelles reposait la décision ont changé.',
-  reasonTemplateRemoved:
-    'Le template ne produit plus cette promesse.',
+  reasonTemplateRemoved: 'Le template ne produit plus cette promesse.',
   reasonLastVerdict: (verdict) => `Le dernier verdict était ${verdict}.`,
   rawEnglish: 'Texte anglais de référence',
   diagnosticRaw: 'Diagnostic anglais',
@@ -533,6 +541,8 @@ const fr: Messages = {
 
   language: 'Langue',
   theme: 'Thème',
+  ide: 'Éditeur',
+  openInIde: 'Ouvrir le code dans l’éditeur ↗',
   themeSystem: 'Système',
   themeLight: 'Clair',
   themeDark: 'Sombre',

@@ -10,6 +10,41 @@ factory.
 
 Directives are applied from left to right.
 
+## Event actions and DOM modifiers
+
+`eventAction(...)` is an element directive. Use it when an element must adjust
+a DOM event before invoking one action. The action stays on the element; no
+`craftMethod` wrapper is needed:
+
+```ts
+import { button, eventAction } from '@craft-ts/component';
+
+button(
+  'navToggle',
+  {
+    type: 'button',
+    'aria-expanded': navOpen,
+  },
+  navOpen.navToggleLabel,
+).pipe(
+  eventAction({
+    click: { action: navOpen.toggle, stopPropagation: true },
+  }),
+);
+```
+
+Each event entry requires `action` and can set `preventDefault`,
+`stopPropagation`, or `stopImmediatePropagation` to `true`. The modifiers run
+before the action in the same DOM listener. The action remains in Craft's normal
+event pipeline, including event hooks and generator callbacks. Use the event
+name as the key, such as `click`, `submit`, or `keydown`. Do not also put that
+event in the element's props; `eventAction` rejects duplicate handlers.
+
+The recommended ESLint rule `craft-ts/no-event-only-craft-method` and the
+default architecture rule `no-event-only-craft-method` report a `craftMethod`
+that only modifies an event and delegates to one action, even when that method
+is declared in a different file from the element.
+
 ```ts
 import {
   button,

@@ -33,6 +33,7 @@ import {
 } from '../hyperscript';
 import type { CraftComponent, Input, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
+import { measureAi, writeAiClipboard } from './ai-performance';
 import { AI_OVERLAY_THEME } from './ai-overlay-theme';
 import {
   buildSendContextWebhookPayload,
@@ -692,8 +693,7 @@ export const AiSendContextChat: CraftComponent<{
         setError('Clipboard access is unavailable in this browser.');
         return;
       }
-      void clipboard
-        .writeText(text)
+      void writeAiClipboard(text)
         .then(() => flashStatus(message))
         .catch(() => setError('Could not write to the clipboard.'));
     };
@@ -740,7 +740,7 @@ export const AiSendContextChat: CraftComponent<{
       setTimeout(() => {
         try {
           copyToClipboard(
-            preparePayload().prompt,
+            measureAi('prompt.build', preparePayload).prompt,
             'Prompt copied to the clipboard ✓',
           );
         } catch (caught) {

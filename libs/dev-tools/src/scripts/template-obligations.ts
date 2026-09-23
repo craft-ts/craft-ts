@@ -64,6 +64,27 @@ export interface TemplateObligation {
   readonly statement: string;
   /** Ingredients for localized presentation. Never part of the evidence. */
   readonly statementParts: TemplateStatementParts;
+  /** Ordered calls made directly by a craftMethod command. */
+  readonly effects?: readonly string[];
+}
+
+export interface TemplateObligationDetail {
+  readonly subject: string;
+  readonly renderSites?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  }[];
+  readonly element?: {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  };
+  readonly method?: {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  };
 }
 
 export interface TemplateObligationOptions {
@@ -80,6 +101,7 @@ export interface TemplateObligationIndex {
   leavesFor(
     obligation: TemplateObligation | string,
   ): Readonly<Record<string, string>>;
+  detailFor(obligation: TemplateObligation | string): TemplateObligationDetail;
 }
 
 type Site = {
@@ -87,6 +109,7 @@ type Site = {
   readonly node: Node;
   readonly parsed?: ParsedHyperscript;
   readonly conditions: readonly TemplateCondition[];
+  readonly codeNode?: Node;
 };
 
 type Candidate = {
@@ -103,6 +126,8 @@ type Accumulated = {
   readonly elements: Set<string>;
   readonly elementNames: Set<string>;
   readonly conditionPaths: Map<string, readonly TemplateCondition[]>;
+  readonly codeNodes: Set<Node>;
+  readonly renderNodes: Set<Node>;
 };
 
 const INTERACTIVE_HANDLERS = new Set([
@@ -215,12 +240,21 @@ const handlerSites = (
   props: ObjectLiteralExpression | undefined,
   parsed: ParsedHyperscript,
   conditions: readonly TemplateCondition[],
+  codeNode: Node,
 ): readonly Site[] =>
   (props?.getProperties() ?? []).flatMap((property) => {
     const name = propertyName(property);
     const scope = handlerScope(property);
     return name && INTERACTIVE_HANDLERS.has(name) && scope
-      ? [{ text: property.getText(), node: scope, parsed, conditions }]
+      ? [
+          {
+            text: property.getText(),
+            node: scope,
+            parsed,
+            conditions,
+            codeNode,
+          },
+        ]
       : [];
   });
 
@@ -430,9 +464,77 @@ const portableLeaves = (
     ]),
   );
 
+const methodCall = (
+  project: Project,
+  target: DependencyGraphNode,
+): CallExpression | undefined => {
+  if (target.kind !== 'primitive' || !target.filePath) return undefined;
+  const source = project.getSourceFile(target.filePath);
+  return source
+    ?.getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find(
+      (call) =>
+        call.getExpression().getText() === 'craftMethod' &&
+        call.getStartLineNumber() === target.line &&
+        call
+          .getArguments()[0]
+          ?.asKind(SyntaxKind.StringLiteral)
+          ?.getLiteralValue() === target.label.replace(/^craftMethod:/, ''),
+    );
+};
+
+const directEffects = (call: CallExpression | undefined): readonly string[] => {
+  const implementation = call
+    ?.getArguments()
+    .find((arg) => Node.isFunctionExpression(arg) || Node.isArrowFunction(arg));
+  const body =
+    implementation &&
+    (Node.isFunctionExpression(implementation) ||
+      Node.isArrowFunction(implementation))
+      ? implementation.getBody().asKind(SyntaxKind.Block)
+      : undefined;
+  if (!body) return [];
+  // A branch or nested callback is not an unconditional promise. Only direct
+  // statements in the method body are described as ordered effects.
+  return body.getStatements().flatMap((statement) => {
+    if (!Node.isExpressionStatement(statement)) return [];
+    const expression = statement.getExpression();
+    if (Node.isYieldExpression(expression) && expression.getAsteriskToken())
+      return expression.getExpression()?.getText() ?? [];
+    return Node.isCallExpression(expression) ? [expression.getText()] : [];
+  });
+};
+
+const sourceSnippet = (node: Node, rootDir: string) => ({
+  file: node.getSourceFile().getFilePath().replace(`${rootDir}/`, ''),
+  line: node.getStartLineNumber(),
+  code: node.getText(),
+});
+
+const renderSnippet = (node: Node, rootDir: string) => {
+  const source = node.getSourceFile();
+  const line = node.getStartLineNumber();
+  const lines = source.getFullText().split(/\r?\n/);
+  const excerpt = lines.slice(Math.max(0, line - 7), line + 4);
+  const indent = Math.min(
+    ...excerpt
+      .filter((value) => value.trim())
+      .map((value) => /^\s*/.exec(value)?.[0].length ?? 0),
+  );
+  return {
+    file: source.getFilePath().replace(`${rootDir}/`, ''),
+    line,
+    code: excerpt
+      .map((value) => value.slice(indent))
+      .join('\n')
+      .trimEnd(),
+  };
+};
+
 const obligationOf = (
   value: Accumulated,
   rootDir: string,
+  effects: readonly string[],
 ): TemplateObligation => {
   const component = portableNodeId(value.component.id, rootDir);
   const target = portableNodeId(value.target.id, rootDir);
@@ -472,6 +574,7 @@ const obligationOf = (
     conditions,
     statement,
     statementParts,
+    ...(effects.length ? { effects } : {}),
   };
 };
 
@@ -483,6 +586,7 @@ function derive(
   readonly diagnostics: readonly DependencyGraphDiagnostic[];
   readonly sites: ReadonlyMap<string, string>;
   readonly rawTargets: ReadonlyMap<string, string>;
+  readonly details: ReadonlyMap<string, TemplateObligationDetail>;
 } {
   const rootDir = resolve(options.rootDir ?? graph.rootDir);
   const project = new Project({
@@ -500,9 +604,14 @@ function derive(
     component: DependencyGraphNode,
     candidate: Candidate,
     site: Site,
+    sourceOnly = false,
   ): void => {
     const key = `${component.id}\0${direction}\0${candidate.target.id}`;
     let known = accumulated.get(key);
+    if (sourceOnly) {
+      known?.renderNodes.add(site.node);
+      return;
+    }
     if (!known) {
       known = {
         direction,
@@ -512,6 +621,8 @@ function derive(
         elements: new Set(),
         elementNames: new Set(),
         conditionPaths: new Map(),
+        codeNodes: new Set(),
+        renderNodes: new Set(),
       };
       accumulated.set(key, known);
     }
@@ -521,6 +632,8 @@ function derive(
       `${siteText}${conditions.length > 0 ? ` [${conditionKey(conditions)}]` : ''}`,
     );
     known.conditionPaths.set(conditionKey(conditions), conditions);
+    if (site.codeNode) known.codeNodes.add(site.codeNode);
+    if (direction === 'render') known.renderNodes.add(site.node);
     if (site.parsed) {
       known.elements.add(site.parsed.tag);
       if (site.parsed.name) known.elementNames.add(site.parsed.name);
@@ -565,7 +678,7 @@ function derive(
         const parsed = parseCraftHyperscript(node);
         if (!parsed || !isInteractiveElement(parsed)) return undefined;
         handlers.push(
-          ...handlerSites(parsed.props, parsed, conditionsFor(node)),
+          ...handlerSites(parsed.props, parsed, conditionsFor(node), node),
         );
         return undefined;
       });
@@ -586,6 +699,15 @@ function derive(
 
       const handlerNodes = handlers.map((handler) => handler.node);
       const parameters = templateParameterNames(template);
+      const structuralReads = template
+        .getDescendantsOfKind(SyntaxKind.CallExpression)
+        .filter(
+          (call) =>
+            call.getExpression().getText() === 'ifNode' ||
+            call.getExpression().getText() === 'forNode',
+        )
+        .map((call) => call.getArguments()[0])
+        .filter((argument): argument is Node => argument !== undefined);
       for (const expression of collectReactiveExpressions(template)) {
         if (handlerNodes.some((handler) => isWithin(expression, handler)))
           continue;
@@ -605,6 +727,25 @@ function derive(
           });
         }
       }
+      for (const expression of structuralReads) {
+        if (handlerNodes.some((handler) => isWithin(expression, handler)))
+          continue;
+        for (const candidate of resolvedCandidates(
+          expression,
+          renderCandidates,
+        ))
+          add(
+            'render',
+            component,
+            candidate,
+            {
+              text: expression.getText(),
+              node: expression,
+              conditions: conditionsFor(expression),
+            },
+            true,
+          );
+      }
       for (const dynamic of dynamicReferencesIn(template, parameters)) {
         if (handlerNodes.some((handler) => isWithin(dynamic, handler)))
           continue;
@@ -618,7 +759,10 @@ function derive(
       `${right.component.id}:${right.direction}:${right.target.id}`,
     ),
   );
-  const obligations = values.map((value) => obligationOf(value, rootDir));
+  const methods = values.map((value) => methodCall(project, value.target));
+  const obligations = values.map((value, index) =>
+    obligationOf(value, rootDir, directEffects(methods[index])),
+  );
   return {
     obligations,
     diagnostics: diagnostics.filter(
@@ -641,6 +785,42 @@ function derive(
         (obligations[index] as TemplateObligation).subject,
         value.target.id,
       ]),
+    ),
+    details: new Map(
+      values.map((value, index) => {
+        const subject = (obligations[index] as TemplateObligation).subject;
+        const element = [...value.codeNodes].sort(
+          (a, b) => a.getStart() - b.getStart(),
+        )[0];
+        const method = methods[index];
+        return [
+          subject,
+          {
+            subject,
+            ...(value.renderNodes.size
+              ? {
+                  renderSites: [...value.renderNodes]
+                    .map((node) => renderSnippet(node, rootDir))
+                    .filter(
+                      (site, index, all) =>
+                        all.findIndex(
+                          (other) =>
+                            other.file === site.file &&
+                            other.line === site.line,
+                        ) === index,
+                    )
+                    .sort(
+                      (left, right) =>
+                        left.file.localeCompare(right.file) ||
+                        left.line - right.line,
+                    ),
+                }
+              : {}),
+            ...(element ? { element: sourceSnippet(element, rootDir) } : {}),
+            ...(method ? { method: sourceSnippet(method, rootDir) } : {}),
+          },
+        ];
+      }),
     ),
   };
 }
@@ -679,6 +859,14 @@ export function createTemplateObligationIndex(
     obligations: derived.obligations,
     diagnostics: derived.diagnostics,
     leavesFor,
+    detailFor: (obligation) => {
+      const subject =
+        typeof obligation === 'string' ? obligation : obligation.subject;
+      const detail = derived.details.get(subject);
+      if (!detail)
+        throw new Error(`template obligation: unknown subject '${subject}'.`);
+      return detail;
+    },
     fingerprintFor: (obligation) => fingerprintOf(leavesFor(obligation)),
   };
 }

@@ -1,4 +1,10 @@
-import { craftComponent, div, label, option, select } from '@craft-ts/component';
+import {
+  craftComponent,
+  div,
+  label,
+  option,
+  select,
+} from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
 import { MESSAGES } from './messages';
@@ -13,14 +19,14 @@ export const ThemeLocalePicker = craftComponent(
   'ThemeLocalePicker',
   {},
   function* () {
-    const { locale, theme, chooseLocale, chooseTheme } =
+    const { locale, theme, ide, chooseLocale, chooseTheme, chooseIde } =
       yield* ReviewPreferences();
     const t = craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
-    return { locale, theme, chooseLocale, chooseTheme, t };
+    return { locale, theme, ide, chooseLocale, chooseTheme, chooseIde, t };
   },
-  ({ locale, theme, chooseLocale, chooseTheme, t }) =>
+  ({ locale, theme, ide, chooseLocale, chooseTheme, chooseIde, t }) =>
     div({ class: 'preferences' }, [
       label({ class: 'field-label', htmlFor: 'review-locale' }, function* () {
         return (yield* t()).language;
@@ -34,7 +40,10 @@ export const ThemeLocalePicker = craftComponent(
             yield* chooseLocale(eventValue(event));
           },
         },
-        [option({ value: 'en' }, 'English'), option({ value: 'fr' }, 'Français')],
+        [
+          option({ value: 'en' }, 'English'),
+          option({ value: 'fr' }, 'Français'),
+        ],
       ),
       label({ class: 'field-label', htmlFor: 'review-theme' }, function* () {
         return (yield* t()).theme;
@@ -61,6 +70,24 @@ export const ThemeLocalePicker = craftComponent(
           option({ value: 'dark' }, function* () {
             return (yield* t()).themeDark;
           }),
+        ],
+      ),
+      label({ class: 'field-label', htmlFor: 'review-ide' }, function* () {
+        return (yield* t()).ide;
+      }),
+      select(
+        'ReviewIde',
+        {
+          id: 'review-ide',
+          value: ide,
+          *change(event: Event) {
+            yield* chooseIde(eventValue(event));
+          },
+        },
+        [
+          option({ value: 'vscode' }, 'VS Code'),
+          option({ value: 'cursor' }, 'Cursor'),
+          option({ value: 'zed' }, 'Zed'),
         ],
       ),
     ]),

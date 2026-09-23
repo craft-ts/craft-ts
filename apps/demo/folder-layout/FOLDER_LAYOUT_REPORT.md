@@ -1,98 +1,103 @@
 # Folder layout proposal
 
-Source graph hash: `eff02d3c62d5f6f6`
+Source graph hash: `f7bcd3d9530dee51`
 
 ## Proposed tree
 
-- `apps/demo/src/core/app.config.ts` — core (0.86)
-- `apps/demo/src/core/app.routes.ts` — core (0.86)
-- `apps/demo/src/core/lazy-layout.routes.ts` — core (0.86)
-- `apps/demo/src/core/slow-page.routes.ts` — core (0.86)
-- `apps/demo/src/core/view-transitions.routes.ts` — core (0.86)
-- `apps/demo/src/features/demo/api-service-ts/api.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/api-service-ts/api.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/api-service-ts/api.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/api-service-ts/api.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/api-service-ts/api.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/api-service-ts/api.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/api-service-ts/api.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/api-service-ts/api.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/content-projection/content-projection-actions.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/content-projection/content-projection-card.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/content-projection/content-projection-overlays.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/counter-ts/counter.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/css-vars/css-vars-inheritance.shared.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/demo/ds-components.alert-meter.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/demo/ds-components.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/demo/i18n-runtime.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/demo/i18n.service.ts` — feature-local (0.92)
-- `apps/demo/src/features/demo/shared/app.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/auth.guard.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/component-composition-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/component-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/components.style.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/content-projection-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/craft-service-counter.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/craft-service-user-detail.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/css-vars-demo.shared.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/css-vars-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/css-vars-forwarding-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/css-vars-inheritance-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/css-vars-property-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/css-vars-required-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/debounced-web-search.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/demo-send-context.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/design-system-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/event-value.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/exception-query-params.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/exceptions.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/foundation.style.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/full-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/full-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/function-registry-entry.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/granular-mutation.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/granular-mutation.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/GuardDemo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/lazy-layout.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/lazy-message.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/list-with-pagination.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/list-with-pagination.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/log-forwarder.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/login-form.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/long-press.directive.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/mutation.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/mutation.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/my-global-error-screen.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/my-route-load-error-screen.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/pending-node-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/pending-node-exception-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/pixel-art-matrix.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/pixel-art.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/playground.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/profile-editor.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/qp-list-with-pagination.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/query-params.utils.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/query.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/query.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/register-for.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/run-on-app-start.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/scroll.style.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/scroll.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/status.component.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/status.style.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/task-board.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/template-trace-demo.ts` — parent-shared (0.25)
-- `apps/demo/src/features/demo/shared/text-editor.ts` — parent-shared (0.78)
-- `apps/demo/src/features/demo/shared/type-safe-i18n-demo.ts` — parent-shared (0.78)
-- `apps/demo/src/features/lazy-layout/lazy-layout/other.ts` — feature-local (0.92)
-- `apps/demo/src/features/lazy-layout/lazy-layout/to-provide.service.ts` — feature-local (0.92)
-- `apps/demo/src/shared/api.service.ts` — global-shared (0.74)
-- `apps/demo/src/shared/gallery.ts` — global-shared (0.74)
-- `apps/demo/src/shared/lazy-layout-child.ts` — global-shared (0.74)
-- `apps/demo/src/shared/photo-detail.ts` — global-shared (0.74)
-- `apps/demo/src/shared/photo-skeleton.ts` — global-shared (0.74)
-- `apps/demo/src/shared/photos.ts` — global-shared (0.25)
-- `apps/demo/src/shared/slow-page.ts` — global-shared (0.74)
+- `apps/demo/src/core/app.config.ts` — core (0.95)
+- `apps/demo/src/core/app.routes.ts` — core (0.95)
+- `apps/demo/src/core/app.ts` — core (0.95)
+- `apps/demo/src/core/demo-typecheck-indicator.ts` — core (0.25)
+- `apps/demo/src/core/function-registry-bridge.ts` — core (0.45)
+- `apps/demo/src/core/function-registry-entry.ts` — core (0.25)
+- `apps/demo/src/core/function-registry.ts` — core (0.25)
+- `apps/demo/src/core/log-forwarder.ts` — core (0.45)
+- `apps/demo/src/core/my-global-error-screen.ts` — core (0.95)
+- `apps/demo/src/core/my-route-load-error-screen.ts` — core (0.95)
+- `apps/demo/src/core/page-actor.ts` — core (0.25)
+- `apps/demo/src/core/query-params.utils.ts` — core (0.25)
+- `apps/demo/src/core/run-on-app-start.ts` — core (0.45)
+- `apps/demo/src/core/template-trace-demo.ts` — core (0.25)
+- `apps/demo/src/features/component-composition/component-composition-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/content-projection/content-projection-actions.ts` — feature-local (0.92)
+- `apps/demo/src/features/content-projection/content-projection-card.ts` — feature-local (0.92)
+- `apps/demo/src/features/content-projection/content-projection-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/content-projection/content-projection-overlays.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft-service/counter/craft-service-counter.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft-service/register-for/register-for.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft-service/user-detail/craft-service-user-detail.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/full-demo/full-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/granular-mutation/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/granular-mutation/granular-mutation.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/lazy-layout/lazy-layout.routes.ts` — parent-shared (0.85)
+- `apps/demo/src/features/craft/lazy-layout/lazy-layout.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/lazy-layout/users/lazy-layout-child.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/lazy-layout/users/other.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/lazy-layout/users/to-provide.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/list-with-pagination/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/list-with-pagination/list-with-pagination.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/mutation/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/mutation/mutation.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/query/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/craft/query/query.ts` — feature-local (0.92)
+- `apps/demo/src/features/css-vars/css-vars-demo.shared.ts` — parent-shared (0.85)
+- `apps/demo/src/features/css-vars/css-vars-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/css-vars/css-vars-required-demo.ts` — parent-shared (0.85)
+- `apps/demo/src/features/css-vars/forwarding/css-vars-forwarding-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/css-vars/inheritance/css-vars-inheritance-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/css-vars/inheritance/css-vars-inheritance.shared.ts` — feature-local (0.92)
+- `apps/demo/src/features/css-vars/property/css-vars-property-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/debounced-web-search/debounced-web-search.ts` — feature-local (0.92)
+- `apps/demo/src/features/demo-send-context/counter.ts` — feature-local (0.92)
+- `apps/demo/src/features/demo-send-context/demo-send-context.ts` — feature-local (0.92)
+- `apps/demo/src/features/design-system/design-system-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/design-system/ds-components.alert-meter.ts` — feature-local (0.92)
+- `apps/demo/src/features/design-system/ds-components.ts` — feature-local (0.92)
+- `apps/demo/src/features/design-system/scroll/components.style.ts` — feature-local (0.25)
+- `apps/demo/src/features/design-system/scroll/foundation.style.ts` — feature-local (0.25)
+- `apps/demo/src/features/design-system/scroll/scroll.style.ts` — feature-local (0.25)
+- `apps/demo/src/features/design-system/scroll/scroll.ts` — feature-local (0.92)
+- `apps/demo/src/features/exception-query-params/exception-query-params.ts` — feature-local (0.92)
+- `apps/demo/src/features/exceptions/exceptions.ts` — feature-local (0.92)
+- `apps/demo/src/features/full-demo/full-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/granular-mutation/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/granular-mutation/granular-mutation.ts` — feature-local (0.92)
+- `apps/demo/src/features/guard-demo/auth.guard.ts` — feature-local (0.92)
+- `apps/demo/src/features/guard-demo/GuardDemo.ts` — feature-local (0.92)
+- `apps/demo/src/features/home/component-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/home/lazy-message.ts` — feature-local (0.45)
+- `apps/demo/src/features/i18n/i18n-runtime.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/i18n/i18n.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/i18n/type-safe-i18n-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/list-with-pagination/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/list-with-pagination/list-with-pagination.ts` — feature-local (0.92)
+- `apps/demo/src/features/login-form/login-form.ts` — feature-local (0.92)
+- `apps/demo/src/features/mutation/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/mutation/mutation.ts` — feature-local (0.92)
+- `apps/demo/src/features/pending-node/exception/pending-node-exception-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/pending-node/pending-node-demo.ts` — feature-local (0.92)
+- `apps/demo/src/features/pixel-art-matrix/long-press.directive.ts` — feature-local (0.25)
+- `apps/demo/src/features/pixel-art-matrix/pixel-art-matrix.ts` — feature-local (0.92)
+- `apps/demo/src/features/pixel-art/pixel-art.ts` — feature-local (0.92)
+- `apps/demo/src/features/playground/playground.ts` — feature-local (0.92)
+- `apps/demo/src/features/query-params/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/query-params/qp-list-with-pagination.ts` — feature-local (0.92)
+- `apps/demo/src/features/query/api.service.ts` — feature-local (0.92)
+- `apps/demo/src/features/query/query.ts` — feature-local (0.92)
+- `apps/demo/src/features/slow-page/slow-page.routes.ts` — feature-local (0.92)
+- `apps/demo/src/features/slow-page/slow-page.ts` — feature-local (0.92)
+- `apps/demo/src/features/state-machine-list/task-board.ts` — feature-local (0.92)
+- `apps/demo/src/features/state-machine-text/text-editor.ts` — feature-local (0.92)
+- `apps/demo/src/features/state-machine/profile-editor.ts` — feature-local (0.92)
+- `apps/demo/src/features/view-transitions/gallery.ts` — feature-local (0.92)
+- `apps/demo/src/features/view-transitions/photo-detail.ts` — feature-local (0.92)
+- `apps/demo/src/features/view-transitions/photo-skeleton.ts` — feature-local (0.45)
+- `apps/demo/src/features/view-transitions/photos.ts` — feature-local (0.25)
+- `apps/demo/src/features/view-transitions/view-transitions.routes.ts` — feature-local (0.92)
+- `apps/demo/src/main.ts` — core (0.95)
+- `apps/demo/src/shared/event-value.ts` — global-shared (0.25)
+- `apps/demo/src/shared/status.component.ts` — global-shared (0.78)
+- `apps/demo/src/shared/status.style.ts` — global-shared (0.25)
 
 ## File-by-file decisions
 
@@ -101,229 +106,227 @@ Source graph hash: `eff02d3c62d5f6f6`
 - Action: **move**
 - Scope: **core**
 - Destination: `apps/demo/src/core/app.config.ts`
-- Confidence: **0.86**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: app-config, route-check; hub influence reduced
-- Related files: `apps/demo/src/app/app.ts`, `apps/demo/src/app/function-registry-entry.ts`, `apps/demo/src/app/log-forwarder.ts`, `apps/demo/src/app/my-global-error-screen.ts`, `apps/demo/src/app/my-route-load-error-screen.ts`
+- Confidence: **0.95**
+- Reasons: application shell file (main/app.*); CraftTS kinds: app-config, route-check; hub
+- Related files: `apps/demo/src/app/app.ts`, `apps/demo/src/app/my-global-error-screen.ts`, `apps/demo/src/app/my-route-load-error-screen.ts`, `apps/demo/src/app/function-registry-entry.ts`, `apps/demo/src/app/log-forwarder.ts`
 
 ### `apps/demo/src/app/app.routes.ts`
 
 - Action: **move**
 - Scope: **core**
 - Destination: `apps/demo/src/core/app.routes.ts`
-- Confidence: **0.86**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `lazyLayout/users/paramuserId`, `slowPage`, `viewTransitions`, `viewTransitions/paramphotoId`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, lazyLayout/users/paramuserId, slowPage, viewTransitions, viewTransitions/paramphotoId; CraftTS kinds: route, route-check, route-hook; hub influence reduced
+- Confidence: **0.95**
+- Route scopes: `component-composition`, `content-projection`, `craft-service/counter`, `craft-service/register-for`, `craft-service/user-detail`, `craft/full-demo`, `craft/granular-mutation`, `craft/lazy-layout`, `craft/list-with-pagination`, `craft/mutation`, `craft/query`, `css-vars`, `css-vars/forwarding`, `css-vars/inheritance`, `css-vars/property`, `css-vars/required`, `debounced-web-search`, `demo-send-context`, `design-system`, `design-system/scroll`, `exception-query-params`, `exceptions`, `full-demo`, `granular-mutation`, `guard-demo`, `home`, `i18n`, `list-with-pagination`, `login-form`, `mutation`, `pending-node`, `pending-node/exception`, `pixel-art`, `pixel-art-matrix`, `playground`, `query`, `query-params`, `slow-page`, `state-machine`, `state-machine-list`, `state-machine-text`, `view-transitions`
+- Reasons: application shell file (main/app.*); CraftTS kinds: route, route-check, route-hook; hub
 - Related files: `apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts`, `apps/demo/src/app/examples/component/component-composition-demo.ts`, `apps/demo/src/app/examples/component/component-demo.ts`, `apps/demo/src/app/examples/component/content-projection-demo.ts`, `apps/demo/src/app/examples/component/css-vars-demo.ts`
 
 ### `apps/demo/src/app/app.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/app.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **core**
+- Destination: `apps/demo/src/core/app.ts`
+- Confidence: **0.95**
+- Reasons: root component (provideCraftRootComponent); CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/event-value.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/event-value.ts`
+- Scope: **global-shared**
+- Destination: `apps/demo/src/shared/event-value.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; no CraftTS node; import evidence only; hub influence reduced
+- Route scopes: `craft-service/user-detail`, `craft/granular-mutation`, `craft/list-with-pagination`, `craft/mutation`, `debounced-web-search`, `granular-mutation`, `i18n`, `list-with-pagination`, `mutation`, `query-params`, `state-machine`, `state-machine-list`
+- Reasons: used across top-level features craft, craft-service, debounced-web-search, granular-mutation, i18n, list-with-pagination, mutation, query-params, state-machine, state-machine-list; ownership inferred from importers only; no CraftTS node; import evidence only; hub
 - Related files: `apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts`, `apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts`, `apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts`, `apps/demo/src/app/examples/craft/mutation/mutation.ts`, `apps/demo/src/app/examples/i18n/i18n-runtime.service.ts`
 
 ### `apps/demo/src/app/examples/component/component-composition-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/component-composition-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/component-composition/component-composition-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `component-composition`
+- Reasons: used by feature component-composition only; CraftTS kinds: component, primitive, property, service, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/component/component-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/component-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/home/component-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `home`
+- Reasons: used by feature home only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/component/lazy-message.ts`
 
 ### `apps/demo/src/app/examples/component/content-projection-actions.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/content-projection/content-projection-actions.ts`
+- Destination: `apps/demo/src/features/content-projection/content-projection-actions.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/content-projection`
-- Reasons: route evidence: demo/content-projection; CraftTS kinds: component, styled-element, template-element
+- Route scopes: `content-projection`
+- Reasons: used by feature content-projection only; CraftTS kinds: component, styled-element, template-element
 - Related files: `apps/demo/src/app/examples/component/content-projection-demo.ts`, `apps/demo/src/app/examples/component/content-projection-overlays.ts`
 
 ### `apps/demo/src/app/examples/component/content-projection-card.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/content-projection/content-projection-card.ts`
+- Destination: `apps/demo/src/features/content-projection/content-projection-card.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/content-projection`
-- Reasons: route evidence: demo/content-projection; CraftTS kinds: component, styled-element
+- Route scopes: `content-projection`
+- Reasons: used by feature content-projection only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/component/content-projection-demo.ts`
 
 ### `apps/demo/src/app/examples/component/content-projection-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/content-projection-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/content-projection/content-projection-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `content-projection`
+- Reasons: used by feature content-projection only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/examples/component/content-projection-overlays.ts`, `apps/demo/src/app/examples/component/content-projection-actions.ts`, `apps/demo/src/app/examples/component/content-projection-card.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/component/content-projection-overlays.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/content-projection/content-projection-overlays.ts`
+- Destination: `apps/demo/src/features/content-projection/content-projection-overlays.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/content-projection`
-- Reasons: route evidence: demo/content-projection; CraftTS kinds: component, styled-element
+- Route scopes: `content-projection`
+- Reasons: used by feature content-projection only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/component/content-projection-demo.ts`, `apps/demo/src/app/examples/component/content-projection-actions.ts`
 
 ### `apps/demo/src/app/examples/component/css-vars-demo.shared.ts`
 
 - Action: **move**
 - Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/css-vars-demo.shared.ts`
-- Confidence: **0.78**
-- Route scopes: `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`
-- Reasons: route evidence: demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required; CraftTS kinds: component, styled-element, template-element
+- Destination: `apps/demo/src/features/css-vars/css-vars-demo.shared.ts`
+- Confidence: **0.85**
+- Route scopes: `css-vars`, `css-vars/forwarding`, `css-vars/inheritance`, `css-vars/property`, `css-vars/required`
+- Reasons: common ancestor feature css-vars of css-vars, css-vars/forwarding, css-vars/inheritance, css-vars/property, css-vars/required; CraftTS kinds: component, styled-element, template-element
 - Related files: `apps/demo/src/app/examples/component/css-vars-demo.ts`, `apps/demo/src/app/examples/component/css-vars-forwarding-demo.ts`, `apps/demo/src/app/examples/component/css-vars-inheritance-demo.ts`, `apps/demo/src/app/examples/component/css-vars-property-demo.ts`, `apps/demo/src/app/examples/component/css-vars-required-demo.ts`
 
 ### `apps/demo/src/app/examples/component/css-vars-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/css-vars-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/css-vars/css-vars-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `css-vars`
+- Reasons: used by feature css-vars only; CraftTS kinds: component, styled-element, template-element
 - Related files: `apps/demo/src/app/examples/component/css-vars-demo.shared.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/component/css-vars-forwarding-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/css-vars-forwarding-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/css-vars/forwarding/css-vars-forwarding-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `css-vars/forwarding`
+- Reasons: used by feature css-vars/forwarding only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/component/css-vars-demo.shared.ts`, `apps/demo/src/app/examples/component/css-vars-required-demo.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/component/css-vars-inheritance-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/css-vars-inheritance-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/css-vars/inheritance/css-vars-inheritance-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `css-vars/inheritance`
+- Reasons: used by feature css-vars/inheritance only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/component/css-vars-demo.shared.ts`, `apps/demo/src/app/examples/component/css-vars-inheritance.shared.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/component/css-vars-inheritance.shared.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/css-vars/css-vars-inheritance.shared.ts`
+- Destination: `apps/demo/src/features/css-vars/inheritance/css-vars-inheritance.shared.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/css-vars/inheritance`
-- Reasons: route evidence: demo/css-vars/inheritance; CraftTS kinds: component, styled-element
+- Route scopes: `css-vars/inheritance`
+- Reasons: used by feature css-vars/inheritance only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/component/css-vars-inheritance-demo.ts`
 
 ### `apps/demo/src/app/examples/component/css-vars-property-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/css-vars-property-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/css-vars/property/css-vars-property-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `css-vars/property`
+- Reasons: used by feature css-vars/property only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/component/css-vars-demo.shared.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/component/css-vars-required-demo.ts`
 
 - Action: **move**
 - Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/css-vars-required-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element
+- Destination: `apps/demo/src/features/css-vars/css-vars-required-demo.ts`
+- Confidence: **0.85**
+- Route scopes: `css-vars/forwarding`, `css-vars/required`
+- Reasons: common ancestor feature css-vars of css-vars/forwarding, css-vars/required; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/component/css-vars-forwarding-demo.ts`, `apps/demo/src/app/examples/component/css-vars-demo.shared.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/component/lazy-message.ts`
 
-- Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/lazy-message.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element
+- Action: **review**
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/home/lazy-message.ts`
+- Confidence: **0.45**
+- Route scopes: `home`
+- Reasons: used by feature home only; ownership inferred from importers only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/component/component-demo.ts`
 
 ### `apps/demo/src/app/examples/component/pending-node-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/pending-node-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/pending-node/pending-node-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `pending-node`
+- Reasons: used by feature pending-node only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/component/pending-node-exception-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/pending-node-exception-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/pending-node/exception/pending-node-exception-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `pending-node/exception`
+- Reasons: used by feature pending-node/exception only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/craft-service/craft-service-counter.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/craft-service-counter.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft-service/counter/craft-service-counter.ts`
+- Confidence: **0.92**
+- Route scopes: `craft-service/counter`
+- Reasons: used by feature craft-service/counter only; CraftTS kinds: component, primitive, property, service, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/craft-service-user-detail.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft-service/user-detail/craft-service-user-detail.ts`
+- Confidence: **0.92**
+- Route scopes: `craft-service/user-detail`
+- Reasons: used by feature craft-service/user-detail only; CraftTS kinds: component, primitive, property, service, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`
 
 ### `apps/demo/src/app/examples/craft-service/register-for.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/register-for.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft-service/register-for/register-for.ts`
+- Confidence: **0.92**
+- Route scopes: `craft-service/register-for`
+- Reasons: used by feature craft-service/register-for only; CraftTS kinds: component, primitive, property, service, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/craft/full-demo/api.service.ts`
@@ -332,316 +335,316 @@ Source graph hash: `eff02d3c62d5f6f6`
 - Scope: **unresolved**
 - Destination: _unresolved_
 - Confidence: **0.20**
-- Reasons: CraftTS kinds: primitive, property, service
+- Reasons: no route, shell or importer reaches this file; no CraftTS node; import evidence only
 
 ### `apps/demo/src/app/examples/craft/full-demo/full-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/full-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft/full-demo/full-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `craft/full-demo`
+- Reasons: used by feature craft/full-demo only; CraftTS kinds: component, primitive, property, service, styled-element, template-element
 - Related files: `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/craft/granular-mutation/api.service.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/api-service-ts/api.service.ts`
+- Destination: `apps/demo/src/features/craft/granular-mutation/api.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/craft/granular-mutation`
-- Reasons: route evidence: demo/craft/granular-mutation; CraftTS kinds: primitive, property, service
+- Route scopes: `craft/granular-mutation`
+- Reasons: used by feature craft/granular-mutation only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts`
 
 ### `apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/granular-mutation.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft/granular-mutation/granular-mutation.ts`
+- Confidence: **0.92**
+- Route scopes: `craft/granular-mutation`
+- Reasons: used by feature craft/granular-mutation only; CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/craft/granular-mutation/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`, `apps/demo/src/app/query-params.utils.ts`
 
 ### `apps/demo/src/app/examples/craft/lazy-layout/lazy-layout-child.ts`
 
 - Action: **move**
-- Scope: **global-shared**
-- Destination: `apps/demo/src/shared/lazy-layout-child.ts`
-- Confidence: **0.74**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `lazyLayout/users/paramuserId`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, lazyLayout/users/paramuserId; CraftTS kinds: component, styled-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft/lazy-layout/users/lazy-layout-child.ts`
+- Confidence: **0.92**
+- Route scopes: `craft/lazy-layout`, `craft/lazy-layout/users`
+- Reasons: used by feature craft/lazy-layout/users and its ancestors craft/lazy-layout; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/craft/lazy-layout/lazy-layout.routes.ts`, `apps/demo/src/app/examples/craft/lazy-layout/other.ts`
 
 ### `apps/demo/src/app/examples/craft/lazy-layout/lazy-layout.routes.ts`
 
 - Action: **move**
-- Scope: **core**
-- Destination: `apps/demo/src/core/lazy-layout.routes.ts`
-- Confidence: **0.86**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `lazyLayout/users/paramuserId`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, lazyLayout/users/paramuserId; CraftTS kinds: route, route-check
+- Scope: **parent-shared**
+- Destination: `apps/demo/src/features/craft/lazy-layout/lazy-layout.routes.ts`
+- Confidence: **0.85**
+- Route scopes: `craft/lazy-layout`, `craft/lazy-layout/users`
+- Reasons: common ancestor feature craft/lazy-layout of craft/lazy-layout, craft/lazy-layout/users; CraftTS kinds: route, route-check
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/craft/lazy-layout/lazy-layout-child.ts`
 
 ### `apps/demo/src/app/examples/craft/lazy-layout/lazy-layout.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/lazy-layout.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft/lazy-layout/lazy-layout.ts`
+- Confidence: **0.92**
+- Route scopes: `craft/lazy-layout`
+- Reasons: used by feature craft/lazy-layout only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/craft/lazy-layout/other.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/lazy-layout/lazy-layout/other.ts`
+- Destination: `apps/demo/src/features/craft/lazy-layout/users/other.ts`
 - Confidence: **0.92**
-- Route scopes: `lazyLayout/users/paramuserId`
-- Reasons: route evidence: lazyLayout/users/paramuserId; CraftTS kinds: component, http-endpoint, primitive, property, service, styled-element
+- Route scopes: `craft/lazy-layout`, `craft/lazy-layout/users`
+- Reasons: used by feature craft/lazy-layout/users and its ancestors craft/lazy-layout; CraftTS kinds: component, http-endpoint, primitive, property, service, styled-element
 - Related files: `apps/demo/src/app/examples/craft/lazy-layout/to-provide.service.ts`, `apps/demo/src/app/examples/craft/lazy-layout/lazy-layout-child.ts`, `apps/demo/src/app/examples/craft/query/api.service.ts`
 
 ### `apps/demo/src/app/examples/craft/lazy-layout/to-provide.service.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/lazy-layout/lazy-layout/to-provide.service.ts`
+- Destination: `apps/demo/src/features/craft/lazy-layout/users/to-provide.service.ts`
 - Confidence: **0.92**
-- Route scopes: `lazyLayout/users/paramuserId`
-- Reasons: route evidence: lazyLayout/users/paramuserId; CraftTS kinds: property, service
+- Route scopes: `craft/lazy-layout`, `craft/lazy-layout/users`
+- Reasons: used by feature craft/lazy-layout/users and its ancestors craft/lazy-layout; CraftTS kinds: property, service
 - Related files: `apps/demo/src/app/examples/craft/lazy-layout/other.ts`
 
 ### `apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts`
 
-- Action: **review**
+- Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/api-service-ts/api.service.ts`
+- Destination: `apps/demo/src/features/craft/list-with-pagination/api.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/craft/list-with-pagination`
-- Reasons: route evidence: demo/craft/list-with-pagination; CraftTS kinds: primitive, property, service; destination collision with apps/demo/src/app/examples/craft/granular-mutation/api.service.ts
+- Route scopes: `craft/list-with-pagination`
+- Reasons: used by feature craft/list-with-pagination only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts`
 
 ### `apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/list-with-pagination.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft/list-with-pagination/list-with-pagination.ts`
+- Confidence: **0.92**
+- Route scopes: `craft/list-with-pagination`
+- Reasons: used by feature craft/list-with-pagination only; CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`, `apps/demo/src/app/query-params.utils.ts`
 
 ### `apps/demo/src/app/examples/craft/mutation/api.service.ts`
 
-- Action: **review**
+- Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/api-service-ts/api.service.ts`
+- Destination: `apps/demo/src/features/craft/mutation/api.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/craft/mutation/paramuserId`
-- Reasons: route evidence: demo/craft/mutation/paramuserId; CraftTS kinds: primitive, property, service; destination collision with apps/demo/src/app/examples/craft/granular-mutation/api.service.ts
+- Route scopes: `craft/mutation`
+- Reasons: used by feature craft/mutation only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/craft/mutation/mutation.ts`
 
 ### `apps/demo/src/app/examples/craft/mutation/mutation.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/mutation.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft/mutation/mutation.ts`
+- Confidence: **0.92**
+- Route scopes: `craft/mutation`
+- Reasons: used by feature craft/mutation only; CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/craft/mutation/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`
 
 ### `apps/demo/src/app/examples/craft/query/api.service.ts`
 
 - Action: **move**
-- Scope: **global-shared**
-- Destination: `apps/demo/src/shared/api.service.ts`
-- Confidence: **0.74**
-- Route scopes: `demo/craft/query/paramuserId`, `lazyLayout/users/paramuserId`
-- Reasons: route evidence: demo/craft/query/paramuserId, lazyLayout/users/paramuserId; CraftTS kinds: primitive, property, service
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft/query/api.service.ts`
+- Confidence: **0.92**
+- Route scopes: `craft/query`
+- Reasons: used by feature craft/query only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/craft/query/query.ts`, `apps/demo/src/app/examples/craft/lazy-layout/other.ts`
 
 ### `apps/demo/src/app/examples/craft/query/query.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/query.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/craft/query/query.ts`
+- Confidence: **0.92**
+- Route scopes: `craft/query`
+- Reasons: used by feature craft/query only; CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/craft/query/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/design-system/components.style.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/components.style.ts`
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/design-system/scroll/components.style.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; no CraftTS node; import evidence only
+- Route scopes: `design-system`, `design-system/scroll`
+- Reasons: used by feature design-system/scroll and its ancestors design-system; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/examples/design-system/foundation.style.ts`, `apps/demo/src/app/examples/design-system/design-system-demo.ts`, `apps/demo/src/app/examples/design-system/ds-components.alert-meter.ts`, `apps/demo/src/app/examples/design-system/ds-components.ts`, `apps/demo/src/app/examples/design-system/scroll.ts`
 
 ### `apps/demo/src/app/examples/design-system/design-system-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/design-system-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/design-system/design-system-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `design-system`
+- Reasons: used by feature design-system only; CraftTS kinds: component, primitive, property, styled-element
 - Related files: `apps/demo/src/app/examples/design-system/ds-components.ts`, `apps/demo/src/app/examples/design-system/ds-components.alert-meter.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/design-system/components.style.ts`, `apps/demo/src/app/examples/design-system/foundation.style.ts`
 
 ### `apps/demo/src/app/examples/design-system/ds-components.alert-meter.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/demo/ds-components.alert-meter.ts`
+- Destination: `apps/demo/src/features/design-system/ds-components.alert-meter.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/design-system`
-- Reasons: route evidence: demo/design-system; CraftTS kinds: component, styled-element
+- Route scopes: `design-system`
+- Reasons: used by feature design-system only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/design-system/design-system-demo.ts`, `apps/demo/src/app/examples/design-system/components.style.ts`, `apps/demo/src/app/examples/design-system/ds-components.ts`
 
 ### `apps/demo/src/app/examples/design-system/ds-components.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/demo/ds-components.ts`
+- Destination: `apps/demo/src/features/design-system/ds-components.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/design-system`
-- Reasons: route evidence: demo/design-system; CraftTS kinds: component
+- Route scopes: `design-system`
+- Reasons: used by feature design-system only; CraftTS kinds: component
 - Related files: `apps/demo/src/app/examples/design-system/design-system-demo.ts`, `apps/demo/src/app/examples/design-system/components.style.ts`, `apps/demo/src/app/examples/design-system/ds-components.alert-meter.ts`
 
 ### `apps/demo/src/app/examples/design-system/foundation.style.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/foundation.style.ts`
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/design-system/scroll/foundation.style.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; no CraftTS node; import evidence only
+- Route scopes: `design-system`, `design-system/scroll`
+- Reasons: used by feature design-system/scroll and its ancestors design-system; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/examples/design-system/components.style.ts`, `apps/demo/src/app/examples/design-system/design-system-demo.ts`, `apps/demo/src/app/examples/design-system/scroll.style.ts`, `apps/demo/src/app/examples/design-system/scroll.ts`
 
 ### `apps/demo/src/app/examples/design-system/scroll.style.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/scroll.style.ts`
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/design-system/scroll/scroll.style.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; no CraftTS node; import evidence only
+- Route scopes: `design-system/scroll`
+- Reasons: used by feature design-system/scroll only; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/examples/design-system/foundation.style.ts`, `apps/demo/src/app/examples/design-system/scroll.ts`
 
 ### `apps/demo/src/app/examples/design-system/scroll.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/scroll.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/design-system/scroll/scroll.ts`
+- Confidence: **0.92**
+- Route scopes: `design-system/scroll`
+- Reasons: used by feature design-system/scroll only; CraftTS kinds: component, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/design-system/components.style.ts`, `apps/demo/src/app/examples/design-system/foundation.style.ts`, `apps/demo/src/app/examples/design-system/scroll.style.ts`
 
 ### `apps/demo/src/app/examples/i18n/i18n-runtime.service.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/demo/i18n-runtime.service.ts`
+- Destination: `apps/demo/src/features/i18n/i18n-runtime.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/i18n`
-- Reasons: route evidence: demo/i18n; CraftTS kinds: primitive, property, service
+- Route scopes: `i18n`
+- Reasons: used by feature i18n only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/i18n/type-safe-i18n-demo.ts`, `apps/demo/src/app/event-value.ts`, `apps/demo/src/app/examples/i18n/i18n.service.ts`
 
 ### `apps/demo/src/app/examples/i18n/i18n.service.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/demo/i18n.service.ts`
+- Destination: `apps/demo/src/features/i18n/i18n.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/i18n`
-- Reasons: route evidence: demo/i18n; CraftTS kinds: primitive, property, service
+- Route scopes: `i18n`
+- Reasons: used by feature i18n only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/i18n/type-safe-i18n-demo.ts`, `apps/demo/src/app/examples/i18n/i18n-runtime.service.ts`, `apps/demo/src/app/examples/i18n/type-safe-i18n-demo.ts`
 
 ### `apps/demo/src/app/examples/i18n/type-safe-i18n-demo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/type-safe-i18n-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/i18n/type-safe-i18n-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `i18n`
+- Reasons: used by feature i18n only; CraftTS kinds: component, property, styled-element, template-element
 - Related files: `apps/demo/src/app/examples/i18n/i18n.service.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/i18n/i18n-runtime.service.ts`, `apps/demo/src/app/event-value.ts`, `apps/demo/src/app/examples/i18n/i18n.service.ts`
 
 ### `apps/demo/src/app/examples/ia/demo-send-context/counter.ts`
 
 - Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/counter-ts/counter.ts`
+- Destination: `apps/demo/src/features/demo-send-context/counter.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/demo-send-context`
-- Reasons: route evidence: demo/demo-send-context; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Route scopes: `demo-send-context`
+- Reasons: used by feature demo-send-context only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/examples/ia/demo-send-context/demo-send-context.ts`
 
 ### `apps/demo/src/app/examples/ia/demo-send-context/demo-send-context.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/demo-send-context.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, styled-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/demo-send-context/demo-send-context.ts`
+- Confidence: **0.92**
+- Route scopes: `demo-send-context`
+- Reasons: used by feature demo-send-context only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/ia/demo-send-context/counter.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/playground/playground.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/playground.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/playground/playground.ts`
+- Confidence: **0.92**
+- Route scopes: `playground`
+- Reasons: used by feature playground only; CraftTS kinds: component, primitive, property, service, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/debounced-web-search.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/debounced-web-search/debounced-web-search.ts`
+- Confidence: **0.92**
+- Route scopes: `debounced-web-search`
+- Reasons: used by feature debounced-web-search only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`
 
 ### `apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/exception-query-params.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/exception-query-params/exception-query-params.ts`
+- Confidence: **0.92**
+- Route scopes: `exception-query-params`
+- Reasons: used by feature exception-query-params only; CraftTS kinds: component, primitive, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/primitives/exceptions/exceptions.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/exceptions.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/exceptions/exceptions.ts`
+- Confidence: **0.92**
+- Route scopes: `exceptions`
+- Reasons: used by feature exceptions only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/primitives/forms/login-form.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/login-form.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/login-form/login-form.ts`
+- Confidence: **0.92**
+- Route scopes: `login-form`
+- Reasons: used by feature login-form only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/primitives/full-demo/api.service.ts`
@@ -650,401 +653,395 @@ Source graph hash: `eff02d3c62d5f6f6`
 - Scope: **unresolved**
 - Destination: _unresolved_
 - Confidence: **0.20**
-- Reasons: CraftTS kinds: primitive, property, service
+- Reasons: no route, shell or importer reaches this file; no CraftTS node; import evidence only
 
 ### `apps/demo/src/app/examples/primitives/full-demo/full-demo.ts`
 
-- Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/full-demo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element; destination collision with apps/demo/src/app/examples/craft/full-demo/full-demo.ts
+- Action: **move**
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/full-demo/full-demo.ts`
+- Confidence: **0.92**
+- Route scopes: `full-demo`
+- Reasons: used by feature full-demo only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts`
 
-- Action: **review**
+- Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/api-service-ts/api.service.ts`
+- Destination: `apps/demo/src/features/granular-mutation/api.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/granular-mutation`
-- Reasons: route evidence: demo/granular-mutation; CraftTS kinds: primitive, property, service; destination collision with apps/demo/src/app/examples/craft/granular-mutation/api.service.ts
+- Route scopes: `granular-mutation`
+- Reasons: used by feature granular-mutation only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts`
 
 ### `apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts`
 
-- Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/granular-mutation.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element, unique; destination collision with apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts
+- Action: **move**
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/granular-mutation/granular-mutation.ts`
+- Confidence: **0.92**
+- Route scopes: `granular-mutation`
+- Reasons: used by feature granular-mutation only; CraftTS kinds: component, primitive, property, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`, `apps/demo/src/app/query-params.utils.ts`
 
 ### `apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts`
 
-- Action: **review**
+- Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/api-service-ts/api.service.ts`
+- Destination: `apps/demo/src/features/list-with-pagination/api.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/list-with-pagination`
-- Reasons: route evidence: demo/list-with-pagination; CraftTS kinds: primitive, property, service; destination collision with apps/demo/src/app/examples/craft/granular-mutation/api.service.ts
+- Route scopes: `list-with-pagination`
+- Reasons: used by feature list-with-pagination only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts`
 
 ### `apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts`
 
-- Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/list-with-pagination.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element, unique; destination collision with apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts
+- Action: **move**
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/list-with-pagination/list-with-pagination.ts`
+- Confidence: **0.92**
+- Route scopes: `list-with-pagination`
+- Reasons: used by feature list-with-pagination only; CraftTS kinds: component, primitive, property, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`, `apps/demo/src/app/query-params.utils.ts`
 
 ### `apps/demo/src/app/examples/primitives/mutation/api.service.ts`
 
-- Action: **review**
+- Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/api-service-ts/api.service.ts`
+- Destination: `apps/demo/src/features/mutation/api.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/mutation/paramuserId`
-- Reasons: route evidence: demo/mutation/paramuserId; CraftTS kinds: primitive, property, service; destination collision with apps/demo/src/app/examples/craft/granular-mutation/api.service.ts
+- Route scopes: `mutation`
+- Reasons: used by feature mutation only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/primitives/mutation/mutation.ts`
 
 ### `apps/demo/src/app/examples/primitives/mutation/mutation.ts`
 
-- Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/mutation.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element, unique; destination collision with apps/demo/src/app/examples/craft/mutation/mutation.ts
+- Action: **move**
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/mutation/mutation.ts`
+- Confidence: **0.92**
+- Route scopes: `mutation`
+- Reasons: used by feature mutation only; CraftTS kinds: component, primitive, property, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/primitives/mutation/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`
 
 ### `apps/demo/src/app/examples/primitives/pixel-art-matrix/long-press.directive.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/long-press.directive.ts`
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/pixel-art-matrix/long-press.directive.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; no CraftTS node; import evidence only
+- Route scopes: `pixel-art-matrix`
+- Reasons: used by feature pixel-art-matrix only; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts`
 
 ### `apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/pixel-art-matrix.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/pixel-art-matrix/pixel-art-matrix.ts`
+- Confidence: **0.92**
+- Route scopes: `pixel-art-matrix`
+- Reasons: used by feature pixel-art-matrix only; CraftTS kinds: component, primitive, property, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/primitives/pixel-art-matrix/long-press.directive.ts`
 
 ### `apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/pixel-art.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element, unique
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/pixel-art/pixel-art.ts`
+- Confidence: **0.92**
+- Route scopes: `pixel-art`
+- Reasons: used by feature pixel-art only; CraftTS kinds: component, primitive, property, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/primitives/query/api.service.ts`
 
-- Action: **review**
+- Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/api-service-ts/api.service.ts`
+- Destination: `apps/demo/src/features/query/api.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/query/paramuserId`
-- Reasons: route evidence: demo/query/paramuserId; CraftTS kinds: primitive, property, service; destination collision with apps/demo/src/app/examples/craft/granular-mutation/api.service.ts
+- Route scopes: `query`
+- Reasons: used by feature query only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/primitives/query/query.ts`
 
 ### `apps/demo/src/app/examples/primitives/query/query.ts`
 
-- Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/query.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element, unique; destination collision with apps/demo/src/app/examples/craft/query/query.ts
+- Action: **move**
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/query/query.ts`
+- Confidence: **0.92**
+- Route scopes: `query`
+- Reasons: used by feature query only; CraftTS kinds: component, primitive, property, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/primitives/query/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/task-board.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, source, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/state-machine-list/task-board.ts`
+- Confidence: **0.92**
+- Route scopes: `state-machine-list`
+- Reasons: used by feature state-machine-list only; CraftTS kinds: component, primitive, property, source, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`
 
 ### `apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/profile-editor.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, service, source, styled-element, template-element, unique
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/state-machine/profile-editor.ts`
+- Confidence: **0.92**
+- Route scopes: `state-machine`
+- Reasons: used by feature state-machine only; CraftTS kinds: component, primitive, property, service, source, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/primitives/state-machine/text-editor.ts`, `apps/demo/src/app/event-value.ts`
 
 ### `apps/demo/src/app/examples/primitives/state-machine/text-editor.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/text-editor.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, source, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/state-machine-text/text-editor.ts`
+- Confidence: **0.92**
+- Route scopes: `state-machine-text`
+- Reasons: used by feature state-machine-text only; CraftTS kinds: component, primitive, property, source, styled-element, template-element
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts`
 
 ### `apps/demo/src/app/examples/routes/guard-demo/GuardDemo.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/GuardDemo.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/guard-demo/GuardDemo.ts`
+- Confidence: **0.92**
+- Route scopes: `guard-demo`
+- Reasons: used by feature guard-demo only; CraftTS kinds: component
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts`
 
-- Action: **review**
+- Action: **move**
 - Scope: **feature-local**
-- Destination: `apps/demo/src/features/demo/api-service-ts/api.service.ts`
+- Destination: `apps/demo/src/features/query-params/api.service.ts`
 - Confidence: **0.92**
-- Route scopes: `demo/query-params`
-- Reasons: route evidence: demo/query-params; CraftTS kinds: primitive, property, service; destination collision with apps/demo/src/app/examples/craft/granular-mutation/api.service.ts
+- Route scopes: `query-params`
+- Reasons: used by feature query-params only; CraftTS kinds: primitive, property, service
 - Related files: `apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts`
 
 ### `apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/qp-list-with-pagination.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, property, styled-element, template-element, unique
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/query-params/qp-list-with-pagination.ts`
+- Confidence: **0.92**
+- Route scopes: `query-params`
+- Reasons: used by feature query-params only; CraftTS kinds: component, primitive, property, styled-element, template-element, unique
 - Related files: `apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts`, `apps/demo/src/app/ui/status.component.ts`, `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/event-value.ts`, `apps/demo/src/app/query-params.utils.ts`
 
 ### `apps/demo/src/app/examples/routes/slow-page/slow-page.routes.ts`
 
 - Action: **move**
-- Scope: **core**
-- Destination: `apps/demo/src/core/slow-page.routes.ts`
-- Confidence: **0.86**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `slowPage`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, slowPage; CraftTS kinds: primitive, route, route-check, route-hook, service
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/slow-page/slow-page.routes.ts`
+- Confidence: **0.92**
+- Route scopes: `slow-page`
+- Reasons: used by feature slow-page only; CraftTS kinds: primitive, route, route-check, route-hook, service
 - Related files: `apps/demo/src/app/examples/routes/slow-page/slow-page.ts`, `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/examples/routes/slow-page/slow-page.ts`
 
 - Action: **move**
-- Scope: **global-shared**
-- Destination: `apps/demo/src/shared/slow-page.ts`
-- Confidence: **0.74**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `slowPage`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, slowPage; CraftTS kinds: component, styled-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/slow-page/slow-page.ts`
+- Confidence: **0.92**
+- Route scopes: `slow-page`
+- Reasons: used by feature slow-page only; CraftTS kinds: component, styled-element
 - Related files: `apps/demo/src/app/examples/routes/slow-page/slow-page.routes.ts`
 
 ### `apps/demo/src/app/examples/routes/view-transitions/gallery.ts`
 
 - Action: **move**
-- Scope: **global-shared**
-- Destination: `apps/demo/src/shared/gallery.ts`
-- Confidence: **0.74**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `viewTransitions`, `viewTransitions/paramphotoId`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, viewTransitions, viewTransitions/paramphotoId; CraftTS kinds: component, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/view-transitions/gallery.ts`
+- Confidence: **0.92**
+- Route scopes: `view-transitions`
+- Reasons: used by feature view-transitions only; CraftTS kinds: component, styled-element, template-element
 - Related files: `apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts`, `apps/demo/src/app/examples/routes/view-transitions/photos.ts`
 
 ### `apps/demo/src/app/examples/routes/view-transitions/photo-detail.ts`
 
 - Action: **move**
-- Scope: **global-shared**
-- Destination: `apps/demo/src/shared/photo-detail.ts`
-- Confidence: **0.74**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `viewTransitions`, `viewTransitions/paramphotoId`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, viewTransitions, viewTransitions/paramphotoId; CraftTS kinds: component, primitive, styled-element, template-element
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/view-transitions/photo-detail.ts`
+- Confidence: **0.92**
+- Route scopes: `view-transitions`
+- Reasons: used by feature view-transitions only; CraftTS kinds: component, primitive, styled-element, template-element
 - Related files: `apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts`, `apps/demo/src/app/examples/routes/view-transitions/photos.ts`
 
 ### `apps/demo/src/app/examples/routes/view-transitions/photo-skeleton.ts`
 
-- Action: **move**
-- Scope: **global-shared**
-- Destination: `apps/demo/src/shared/photo-skeleton.ts`
-- Confidence: **0.74**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `viewTransitions`, `viewTransitions/paramphotoId`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, viewTransitions, viewTransitions/paramphotoId; CraftTS kinds: component, primitive, styled-element
+- Action: **review**
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/view-transitions/photo-skeleton.ts`
+- Confidence: **0.45**
+- Route scopes: `view-transitions`
+- Reasons: used by feature view-transitions only; ownership inferred from importers only; CraftTS kinds: component, primitive, styled-element
 - Related files: `apps/demo/src/app/examples/routes/view-transitions/photos.ts`, `apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts`
 
 ### `apps/demo/src/app/examples/routes/view-transitions/photos.ts`
 
 - Action: **review**
-- Scope: **global-shared**
-- Destination: `apps/demo/src/shared/photos.ts`
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/view-transitions/photos.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `viewTransitions`, `viewTransitions/paramphotoId`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, viewTransitions, viewTransitions/paramphotoId; no CraftTS node; import evidence only
+- Route scopes: `view-transitions`
+- Reasons: used by feature view-transitions only; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/examples/routes/view-transitions/gallery.ts`, `apps/demo/src/app/examples/routes/view-transitions/photo-detail.ts`, `apps/demo/src/app/examples/routes/view-transitions/photo-skeleton.ts`
 
 ### `apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts`
 
 - Action: **move**
-- Scope: **core**
-- Destination: `apps/demo/src/core/view-transitions.routes.ts`
-- Confidence: **0.86**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`, `viewTransitions`, `viewTransitions/paramphotoId`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions, viewTransitions, viewTransitions/paramphotoId; CraftTS kinds: primitive, route, route-check, route-hook, service
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/view-transitions/view-transitions.routes.ts`
+- Confidence: **0.92**
+- Route scopes: `view-transitions`
+- Reasons: used by feature view-transitions only; CraftTS kinds: primitive, route, route-check, route-hook, service
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/routes/view-transitions/gallery.ts`, `apps/demo/src/app/examples/routes/view-transitions/photo-detail.ts`, `apps/demo/src/app/examples/routes/view-transitions/photo-skeleton.ts`
 
 ### `apps/demo/src/app/function-registry-bridge.ts`
 
-- Action: **keep-at-root**
-- Scope: **unresolved**
-- Destination: _unresolved_
-- Confidence: **0.20**
-- Reasons: CraftTS kinds: service
+- Action: **review**
+- Scope: **core**
+- Destination: `apps/demo/src/core/function-registry-bridge.ts`
+- Confidence: **0.45**
+- Reasons: reached from the application shell only; ownership inferred from importers only; CraftTS kinds: service
 - Related files: `apps/demo/src/app/function-registry.ts`, `apps/demo/src/app/page-actor.ts`, `apps/demo/src/app/function-registry-entry.ts`, `apps/demo/src/app/log-forwarder.ts`
 
 ### `apps/demo/src/app/function-registry-entry.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/function-registry-entry.ts`
+- Scope: **core**
+- Destination: `apps/demo/src/core/function-registry-entry.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; no CraftTS node; import evidence only
+- Reasons: reached from the application shell only; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/function-registry.ts`, `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/function-registry-bridge.ts`, `apps/demo/src/app/page-actor.ts`
 
 ### `apps/demo/src/app/function-registry.ts`
 
-- Action: **keep-at-root**
-- Scope: **unresolved**
-- Destination: _unresolved_
+- Action: **review**
+- Scope: **core**
+- Destination: `apps/demo/src/core/function-registry.ts`
 - Confidence: **0.25**
-- Reasons: no CraftTS node; import evidence only
+- Reasons: reached from the application shell only; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/function-registry-entry.ts`, `apps/demo/src/app/function-registry-bridge.ts`
 
 ### `apps/demo/src/app/guard/auth.guard.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/auth.guard.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: primitive, service
+- Scope: **feature-local**
+- Destination: `apps/demo/src/features/guard-demo/auth.guard.ts`
+- Confidence: **0.92**
+- Route scopes: `guard-demo`
+- Reasons: used by feature guard-demo only; CraftTS kinds: primitive, service
 - Related files: `apps/demo/src/app/app.routes.ts`
 
 ### `apps/demo/src/app/log-forwarder.ts`
 
-- Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/log-forwarder.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: service
+- Action: **review**
+- Scope: **core**
+- Destination: `apps/demo/src/core/log-forwarder.ts`
+- Confidence: **0.45**
+- Reasons: reached from the application shell only; ownership inferred from importers only; CraftTS kinds: service
 - Related files: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/function-registry-bridge.ts`
 
 ### `apps/demo/src/app/my-global-error-screen.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/my-global-error-screen.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, styled-element
+- Scope: **core**
+- Destination: `apps/demo/src/core/my-global-error-screen.ts`
+- Confidence: **0.95**
+- Reasons: global error screen of the app config; CraftTS kinds: component, primitive, styled-element
 - Related files: `apps/demo/src/app/app.config.ts`
 
 ### `apps/demo/src/app/my-route-load-error-screen.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/my-route-load-error-screen.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: component, primitive, styled-element, template-element
+- Scope: **core**
+- Destination: `apps/demo/src/core/my-route-load-error-screen.ts`
+- Confidence: **0.95**
+- Reasons: route load error screen of the app config; CraftTS kinds: component, primitive, styled-element, template-element
 - Related files: `apps/demo/src/app/app.config.ts`
 
 ### `apps/demo/src/app/page-actor.ts`
 
-- Action: **keep-at-root**
-- Scope: **unresolved**
-- Destination: _unresolved_
+- Action: **review**
+- Scope: **core**
+- Destination: `apps/demo/src/core/page-actor.ts`
 - Confidence: **0.25**
-- Reasons: no CraftTS node; import evidence only
+- Reasons: reached from the application shell only; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/function-registry-bridge.ts`, `apps/demo/src/app/function-registry-entry.ts`
 
 ### `apps/demo/src/app/query-params.utils.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/query-params.utils.ts`
+- Scope: **core**
+- Destination: `apps/demo/src/core/query-params.utils.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; no CraftTS node; import evidence only; hub influence reduced
+- Route scopes: `craft/granular-mutation`, `craft/list-with-pagination`, `granular-mutation`, `list-with-pagination`, `query-params`
+- Reasons: used by the application shell and by craft/granular-mutation, craft/list-with-pagination, granular-mutation, list-with-pagination, query-params; ownership inferred from importers only; no CraftTS node; import evidence only; hub
 - Related files: `apps/demo/src/app/app.routes.ts`, `apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts`, `apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts`, `apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts`, `apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts`
 
 ### `apps/demo/src/app/run-on-app-start/run-on-app-start.ts`
 
-- Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/run-on-app-start.ts`
-- Confidence: **0.78**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; CraftTS kinds: service
+- Action: **review**
+- Scope: **core**
+- Destination: `apps/demo/src/core/run-on-app-start.ts`
+- Confidence: **0.45**
+- Reasons: reached from the application shell only; ownership inferred from importers only; CraftTS kinds: service
 - Related files: `apps/demo/src/app/app.config.ts`
 
 ### `apps/demo/src/app/template-trace-demo.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/template-trace-demo.ts`
+- Scope: **core**
+- Destination: `apps/demo/src/core/template-trace-demo.ts`
 - Confidence: **0.25**
-- Route scopes: `demo`, `demo/component-composition`, `demo/content-projection`, `demo/craft-service/counter`, `demo/craft-service/register-for`, `demo/craft-service/user-detail`, `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/lazy-layout/paramteamId`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/css-vars`, `demo/css-vars/forwarding`, `demo/css-vars/inheritance`, `demo/css-vars/property`, `demo/css-vars/required`, `demo/debounced-web-search`, `demo/demo-send-context`, `demo/design-system`, `demo/design-system/scroll`, `demo/exception-query-params`, `demo/exceptions`, `demo/full-demo`, `demo/granular-mutation`, `demo/guard-demo`, `demo/i18n`, `demo/list-with-pagination`, `demo/login-form`, `demo/mutation/paramuserId`, `demo/pending-node`, `demo/pending-node/exception`, `demo/pixel-art`, `demo/pixel-art-matrix`, `demo/playground`, `demo/query-params`, `demo/query/paramuserId`, `demo/slow-page`, `demo/state-machine`, `demo/state-machine-list`, `demo/state-machine-text`, `demo/view-transitions`
-- Reasons: route evidence: demo, demo/component-composition, demo/content-projection, demo/craft-service/counter, demo/craft-service/register-for, demo/craft-service/user-detail, demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/lazy-layout/paramteamId, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/css-vars, demo/css-vars/forwarding, demo/css-vars/inheritance, demo/css-vars/property, demo/css-vars/required, demo/debounced-web-search, demo/demo-send-context, demo/design-system, demo/design-system/scroll, demo/exception-query-params, demo/exceptions, demo/full-demo, demo/granular-mutation, demo/guard-demo, demo/i18n, demo/list-with-pagination, demo/login-form, demo/mutation/paramuserId, demo/pending-node, demo/pending-node/exception, demo/pixel-art, demo/pixel-art-matrix, demo/playground, demo/query-params, demo/query/paramuserId, demo/slow-page, demo/state-machine, demo/state-machine-list, demo/state-machine-text, demo/view-transitions; no CraftTS node; import evidence only
+- Reasons: reached from the application shell only; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/app.config.ts`
 
 ### `apps/demo/src/app/ui/status.component.ts`
 
 - Action: **move**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/status.component.ts`
+- Scope: **global-shared**
+- Destination: `apps/demo/src/shared/status.component.ts`
 - Confidence: **0.78**
-- Route scopes: `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/debounced-web-search`, `demo/full-demo`, `demo/granular-mutation`, `demo/list-with-pagination`, `demo/mutation/paramuserId`, `demo/query-params`, `demo/query/paramuserId`
-- Reasons: route evidence: demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/debounced-web-search, demo/full-demo, demo/granular-mutation, demo/list-with-pagination, demo/mutation/paramuserId, demo/query-params, demo/query/paramuserId; CraftTS kinds: component, primitive, styled-element; hub influence reduced
+- Route scopes: `craft/full-demo`, `craft/granular-mutation`, `craft/list-with-pagination`, `craft/mutation`, `craft/query`, `debounced-web-search`, `full-demo`, `granular-mutation`, `list-with-pagination`, `mutation`, `query`, `query-params`
+- Reasons: used across top-level features craft, debounced-web-search, full-demo, granular-mutation, list-with-pagination, mutation, query, query-params; CraftTS kinds: component, primitive, styled-element; hub
 - Related files: `apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts`, `apps/demo/src/app/examples/craft/mutation/mutation.ts`, `apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts`, `apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts`, `apps/demo/src/app/examples/primitives/mutation/mutation.ts`
 
 ### `apps/demo/src/app/ui/status.style.ts`
 
 - Action: **review**
-- Scope: **parent-shared**
-- Destination: `apps/demo/src/features/demo/shared/status.style.ts`
+- Scope: **global-shared**
+- Destination: `apps/demo/src/shared/status.style.ts`
 - Confidence: **0.25**
-- Route scopes: `demo/craft/full-demo`, `demo/craft/granular-mutation`, `demo/craft/list-with-pagination`, `demo/craft/mutation/paramuserId`, `demo/craft/query/paramuserId`, `demo/debounced-web-search`, `demo/full-demo`, `demo/granular-mutation`, `demo/list-with-pagination`, `demo/mutation/paramuserId`, `demo/query-params`, `demo/query/paramuserId`
-- Reasons: route evidence: demo/craft/full-demo, demo/craft/granular-mutation, demo/craft/list-with-pagination, demo/craft/mutation/paramuserId, demo/craft/query/paramuserId, demo/debounced-web-search, demo/full-demo, demo/granular-mutation, demo/list-with-pagination, demo/mutation/paramuserId, demo/query-params, demo/query/paramuserId; no CraftTS node; import evidence only
+- Route scopes: `craft/full-demo`, `craft/granular-mutation`, `craft/list-with-pagination`, `craft/mutation`, `craft/query`, `debounced-web-search`, `full-demo`, `granular-mutation`, `list-with-pagination`, `mutation`, `query`, `query-params`
+- Reasons: used across top-level features craft, debounced-web-search, full-demo, granular-mutation, list-with-pagination, mutation, query, query-params; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/ui/status.component.ts`
 
 ### `apps/demo/src/demo-typecheck-indicator.ts`
 
-- Action: **keep-at-root**
-- Scope: **unresolved**
-- Destination: _unresolved_
+- Action: **review**
+- Scope: **core**
+- Destination: `apps/demo/src/core/demo-typecheck-indicator.ts`
 - Confidence: **0.25**
-- Reasons: no CraftTS node; import evidence only
+- Reasons: reached from the application shell only; ownership inferred from importers only; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/main.ts`
 
 ### `apps/demo/src/main.ts`
 
 - Action: **keep-at-root**
-- Scope: **unresolved**
-- Destination: _unresolved_
-- Confidence: **0.25**
-- Reasons: no CraftTS node; import evidence only
+- Scope: **core**
+- Destination: `apps/demo/src/main.ts`
+- Confidence: **0.95**
+- Reasons: application shell file (main/app.*); bundler entry point stays in place; no CraftTS node; import evidence only
 - Related files: `apps/demo/src/app/app.config.ts`, `apps/demo/src/demo-typecheck-indicator.ts`
 
 ## Hubs and diagnostics
@@ -1059,9 +1056,11 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 - **CRAFT_GRAPH_METRICS_UNKNOWN**: 1 service node has no source range: complexity and line count are unknown, not zero.
 - **CRAFT_GRAPH_METRICS_UNKNOWN**: 12 unique nodes have no source range: complexity and line count are unknown, not zero.
 - **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/event-value.ts`: File is part of the frontend tsconfig but has no CraftTS node.
+- **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/examples/craft/full-demo/api.service.ts`: File is part of the frontend tsconfig but has no CraftTS node.
 - **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/examples/design-system/components.style.ts`: File is part of the frontend tsconfig but has no CraftTS node.
 - **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/examples/design-system/foundation.style.ts`: File is part of the frontend tsconfig but has no CraftTS node.
 - **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/examples/design-system/scroll.style.ts`: File is part of the frontend tsconfig but has no CraftTS node.
+- **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/examples/primitives/full-demo/api.service.ts`: File is part of the frontend tsconfig but has no CraftTS node.
 - **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/examples/primitives/pixel-art-matrix/long-press.directive.ts`: File is part of the frontend tsconfig but has no CraftTS node.
 - **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/examples/routes/view-transitions/photos.ts`: File is part of the frontend tsconfig but has no CraftTS node.
 - **FILE_WITHOUT_CRAFT_NODE** `apps/demo/src/app/function-registry-entry.ts`: File is part of the frontend tsconfig but has no CraftTS node.
@@ -1207,7 +1206,7 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/component/src/lib/ai/ai-context-menu.ts`: CraftTS node template-element:./libs/component/src/lib/ai/ai-context-menu.ts#AiContextMenu/craftComponent(AiContextMenu)/div:aiContextMenu/0 points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/component/src/lib/ai/ai-context-menu.ts`: CraftTS node template-element:./libs/component/src/lib/ai/ai-context-menu.ts#AiContextMenu/craftComponent(AiContextMenu)/div(aiContextMenu)/button:aiSendToIa/0 points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/component/src/lib/ai/ai-send-context-chat.ts`: CraftTS node component:./libs/component/src/lib/ai/ai-send-context-chat.ts:AiSendContextChat points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/component/src/lib/ai/ai-send-context-chat.ts`: CraftTS node http-endpoint:POST:<unresolved:ai-send-context-chat.ts:507> points at a file outside the tsconfig inventory.
+- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/component/src/lib/ai/ai-send-context-chat.ts`: CraftTS node http-endpoint:POST:<unresolved:ai-send-context-chat.ts:508> points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/component/src/lib/ai/ai-send-context-chat.ts`: CraftTS node primitive:./libs/component/src/lib/ai/ai-send-context-chat.ts#AiSendContextChat/craftComponent(AiSendContextChat)/busy/state:busy/0 points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/component/src/lib/ai/ai-send-context-chat.ts`: CraftTS node primitive:./libs/component/src/lib/ai/ai-send-context-chat.ts#AiSendContextChat/craftComponent(AiSendContextChat)/error/state:error/0 points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/component/src/lib/ai/ai-send-context-chat.ts`: CraftTS node primitive:./libs/component/src/lib/ai/ai-send-context-chat.ts#AiSendContextChat/craftComponent(AiSendContextChat)/instruction/state:instruction/0 points at a file outside the tsconfig inventory.
@@ -1376,12 +1375,10 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/browser-boundaries.ts`: CraftTS node service:./libs/core/src/lib/browser-boundaries.ts:SessionStorageService points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/browser-boundaries.ts`: CraftTS node service:./libs/core/src/lib/browser-boundaries.ts:StorageService points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/component-monitoring.ts`: CraftTS node service:./libs/core/src/lib/component-monitoring.ts:ComponentMonitoring points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/component-register.ts`: CraftTS node service:./libs/core/src/lib/component-register.ts:ComponentRegister points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/correlation-id.ts`: CraftTS node service:./libs/core/src/lib/correlation-id.ts:CorrelationIdService points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-a11y.ts`: CraftTS node service:./libs/core/src/lib/craft-a11y.ts:CraftA11yNavigationFocus points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-a11y.ts`: CraftTS node service:./libs/core/src/lib/craft-a11y.ts:CraftTitleStrategy points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-activated-route.ts`: CraftTS node service:./libs/core/src/lib/craft-activated-route.ts:CraftActivatedRoute points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-generator-runtime.ts`: CraftTS node service:./libs/core/src/lib/craft-generator-runtime.ts:ServiceYieldWrappers points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-http-trace.ts`: CraftTS node service:./libs/core/src/lib/craft-http-trace.ts:CraftHttpTraces points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-hydration.ts`: CraftTS node service:./libs/core/src/lib/craft-hydration.ts:CraftHydrationRuntime points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-load-retry.ts`: CraftTS node service:./libs/core/src/lib/craft-load-retry.ts:CraftDynamicImport points at a file outside the tsconfig inventory.
@@ -1395,7 +1392,6 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-pending.ts`: CraftTS node service:./libs/core/src/lib/craft-pending.ts:CraftStayMs points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-platform.ts`: CraftTS node service:./libs/core/src/lib/craft-platform.ts:CraftPlatform points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-primitive-registry.ts`: CraftTS node service:./libs/core/src/lib/craft-primitive-registry.ts:CraftPrimitiveRegistry points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-register-for-runtime.ts`: CraftTS node service:./libs/core/src/lib/craft-register-for-runtime.ts:RegisterForRegistries points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-register-for.ts`: CraftTS node service:./libs/core/src/lib/craft-register-for.ts:api points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-render-identity.ts`: CraftTS node service:./libs/core/src/lib/craft-render-identity.ts:CraftRenderIdentity points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-route-exceptions.ts`: CraftTS node service:./libs/core/src/lib/craft-route-exceptions.ts:CraftGlobalError points at a file outside the tsconfig inventory.
@@ -1422,15 +1418,12 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-service.ts`: CraftTS node service:./libs/core/src/lib/craft-service.ts:HostName points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-ssr.ts`: CraftTS node service:./libs/core/src/lib/craft-ssr.ts:CraftSsrPolicy points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-ssr.ts`: CraftTS node service:./libs/core/src/lib/craft-ssr.ts:CraftSsrRuntime points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-target-runtime.ts`: CraftTS node service:./libs/core/src/lib/craft-target-runtime.ts:CraftTargetWrappers points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-view-transition.ts`: CraftTS node service:./libs/core/src/lib/craft-view-transition.ts:CraftStartViewTransition points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-view-transition.ts`: CraftTS node service:./libs/core/src/lib/craft-view-transition.ts:CraftViewTransition points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-view-transition.ts`: CraftTS node service:./libs/core/src/lib/craft-view-transition.ts:CraftViewTransitionsEnabled points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/craft-view-transition.ts`: CraftTS node service:./libs/core/src/lib/craft-view-transition.ts:CraftViewTransitionSkipBlank points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/dev-tools.ts`: CraftTS node service:./libs/core/src/lib/dev-tools.ts:CraftLogServerUrl points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/dom-event-hook.ts`: CraftTS node service:./libs/core/src/lib/dom-event-hook.ts:CraftDomEventHooks points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/fn-wrapper.ts`: CraftTS node service:./libs/core/src/lib/fn-wrapper.ts:FnWrapObservers points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/fn-wrapper.ts`: CraftTS node service:./libs/core/src/lib/fn-wrapper.ts:FnWrappers points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/form/craft-field.directive.ts`: CraftTS node service:./libs/core/src/lib/form/craft-field.directive.ts:CraftFieldCheckboxControl points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/form/craft-field.directive.ts`: CraftTS node service:./libs/core/src/lib/form/craft-field.directive.ts:CraftFieldValueControl points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/form/field-exception.ts`: CraftTS node service:./libs/core/src/lib/form/field-exception.ts:CraftFieldExceptionBoundary points at a file outside the tsconfig inventory.
@@ -1439,7 +1432,6 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/insert-select.ts`: CraftTS node source:./libs/core/src/lib/insert-select.ts#createInsertSelectPropertyRuntime/getOrCreateCrossLayerSource/newSource/source$:source$/0 points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/primitive-method-runtime-context.ts`: CraftTS node service:./libs/core/src/lib/primitive-method-runtime-context.ts:PrimitiveMethodRuntimeContext points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/primitive-resource-runtime-context.ts`: CraftTS node service:./libs/core/src/lib/primitive-resource-runtime-context.ts:PrimitiveResourceRuntimeObservers points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/reactive-read.ts`: CraftTS node service:./libs/core/src/lib/reactive-read.ts:ReactiveReadObservers points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/resource-by-id.ts`: CraftTS node service:./libs/core/src/lib/resource-by-id.ts:DynamicResourceInstance points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/schema-validation.ts`: CraftTS node service:./libs/core/src/lib/schema-validation.ts:CraftSchemaValidationPolicy points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/send-context-to-ai.tokens.ts`: CraftTS node service:./libs/core/src/lib/send-context-to-ai.tokens.ts:SendContextEventEnrichers points at a file outside the tsconfig inventory.
@@ -1463,7 +1455,6 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/take-app-snapshot.ts`: CraftTS node service:./libs/core/src/lib/take-app-snapshot.ts:InsertionSnapshotRegistry points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/take-app-snapshot.ts`: CraftTS node service:./libs/core/src/lib/take-app-snapshot.ts:TakeAppSnapshot points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/template-trace.ts`: CraftTS node service:./libs/core/src/lib/template-trace.ts:TemplateTraces points at a file outside the tsconfig inventory.
-- **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/temporal-runtime.ts`: CraftTS node service:./libs/core/src/lib/temporal-runtime.ts:CraftTemporalRuntime points at a file outside the tsconfig inventory.
 - **GRAPH_FILE_OUTSIDE_PROJECT** `libs/core/src/lib/util/types/util.ts`: CraftTS node service:./libs/core/src/lib/util/types/util.ts:DynamicEffectRefInstance points at a file outside the tsconfig inventory.
 - **styled-element-class-unresolved** `apps/demo/src/app/app.ts`: App: 'demo-banner' is not a constant sheet class. The contrast solver reads the styles of a class it can name; a computed class names none.
 - **styled-element-class-unresolved** `apps/demo/src/app/app.ts`: App: 'demo-banner__main' is not a constant sheet class. The contrast solver reads the styles of a class it can name; a computed class names none.
@@ -1758,9 +1749,9 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 
 ## Confidence statistics
 
-- High: 24
-- Medium: 55
-- Low: 17
-- Moves: 67
-- Reviews: 22
-- Unresolved: 7
+- High: 75
+- Medium: 1
+- Low: 20
+- Moves: 75
+- Reviews: 18
+- Unresolved: 2

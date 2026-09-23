@@ -55,6 +55,25 @@ describe('template subject', () => {
     );
   });
 
+  it('reviews a changed sequence of command effects', () => {
+    const command = obligation({
+      direction: 'command',
+      element: 'button',
+      elementName: 'clearCache',
+      effects: [
+        'Persister.clearAllCache()',
+        'BrowserWindow.alert()',
+        'BrowserLocation.reload()',
+      ],
+    });
+    expect(templateEvidence(command)).not.toBe(
+      templateEvidence({
+        ...command,
+        effects: ['Persister.clearAllCache()', 'BrowserLocation.reload()'],
+      }),
+    );
+  });
+
   it('stores canonical readable evidence under the ledger hash', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'craft-template-proof-'));
     directories.push(directory);

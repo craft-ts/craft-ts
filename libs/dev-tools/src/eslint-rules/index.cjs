@@ -50,6 +50,7 @@ const preferCraftTemplateBlocks = require('./prefer-craft-template-blocks.cjs');
 const requireCraftComputedForDynamicTemplateLookup = require('./require-craft-computed-for-dynamic-template-lookup.cjs');
 const noImperativeCraftResourceTrigger = require('./no-imperative-craft-resource-trigger.cjs');
 const noImperativeCraftMethodActions = require('./no-imperative-craft-method-actions.cjs');
+const noEventOnlyCraftMethod = require('./no-event-only-craft-method.cjs');
 const noRemoteWorkInCraftMethod = require('./no-remote-work-in-craft-method.cjs');
 const noTypeAssertionsInResourceLoader = require('./no-type-assertions-in-resource-loader.cjs');
 const noExplicitResourceLoaderType = require('./no-explicit-resource-loader-type.cjs');
@@ -183,6 +184,7 @@ const plugin = {
       requireCraftComputedForDynamicTemplateLookup,
     'no-imperative-craft-resource-trigger': noImperativeCraftResourceTrigger,
     'no-imperative-craft-method-actions': noImperativeCraftMethodActions,
+    'no-event-only-craft-method': noEventOnlyCraftMethod,
     'no-remote-work-in-craft-method': noRemoteWorkInCraftMethod,
     'no-type-assertions-in-resource-loader': noTypeAssertionsInResourceLoader,
     'no-explicit-resource-loader-type': noExplicitResourceLoaderType,

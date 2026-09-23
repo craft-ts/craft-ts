@@ -38,6 +38,12 @@ additional boundary, such as route DI, folder ownership or URL-backed resource
 params.
 :::
 
+The default baseline also rejects event-only `craftMethod` wrappers through
+`assertNoEventOnlyCraftMethods`. It scans every TypeScript source file in the
+application's graph project, so moving the wrapper to another file does not
+avoid the rule. Use [`eventAction(...)`](/guide/components/directives#event-actions-and-dom-modifiers)
+on the element to apply DOM event modifiers and invoke the action directly.
+
 ## What a rule looks like
 
 A rule is an ordinary Vitest assertion. Look up a node, inspect its graph
@@ -68,6 +74,7 @@ import {
   assertInteractiveElementNamed,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
+  assertNoEventOnlyCraftMethods,
   assertPathBoundaries,
   assertPrimitiveLoaderRequirements,
   assertQueryMutationHasServerState,

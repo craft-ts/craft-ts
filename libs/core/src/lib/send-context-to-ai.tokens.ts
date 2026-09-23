@@ -539,7 +539,22 @@ export function createSendContextSession(
             : clip,
         );
       }
+      const trimStart = performance.now();
+      const eventsBefore = eventList.length;
       trim();
+      const trimMs = performance.now() - trimStart;
+      // Picked up by the AI performance observer (component lib) so a stall
+      // caused by retention shows up, attributed, in the exported prompt.
+      if (trimMs > 16 && typeof performance.measure === 'function') {
+        try {
+          performance.measure(
+            `craft:send-context.trim ${serialized.kind} removed=${eventsBefore - eventList.length}`,
+            { start: trimStart, duration: trimMs },
+          );
+        } catch {
+          // Instrumentation must never break the application flow.
+        }
+      }
       publish();
       return serialized;
     },

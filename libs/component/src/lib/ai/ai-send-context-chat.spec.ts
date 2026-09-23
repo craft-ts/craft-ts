@@ -246,7 +246,13 @@ describe('AiSendContextChat', () => {
         )
         ?.click();
       await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
-      expect(writeText.mock.calls[0]?.[0]).toBe(body.prompt);
+      // The performance section is live: the copy also reports the send.
+      const withoutDiagnostics = (prompt: unknown) =>
+        String(prompt).split('\n\n# Send Context performance diagnostics')[0];
+      expect(withoutDiagnostics(writeText.mock.calls[0]?.[0])).toBe(
+        withoutDiagnostics(body.prompt),
+      );
+      expect(body.prompt).toContain('# Send Context performance diagnostics');
 
       rendered.destroy();
       session.destroy();

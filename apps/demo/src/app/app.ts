@@ -5,6 +5,7 @@ import {
   craftComponent,
   CraftRouterOutlet,
   div,
+  eventAction,
   forNode,
   ifNode,
   main,
@@ -163,16 +164,8 @@ export const App = craftComponent(
         }),
       }),
     );
-    const toggleNav = craftMethod('toggleNav', function* (event?: Event) {
-      event?.stopPropagation();
-      yield* navOpen.toggle();
-    });
     const clearCache = craftMethod('clearCache', function* () {
-      const persister = yield* GlobalPersisterHandlerService(
-        undefined,
-        ({ clearAllCache }) => ({ clearAllCache }),
-      );
-      persister.clearAllCache();
+      yield* GlobalPersisterHandlerService.clearAllCache();
       yield* BrowserWindow.alert('Cache cleared! The page will reload.');
       // This button is an explicit development reset action; reload after the
       // confirmation so every demo resource starts from the cleared cache.
@@ -182,11 +175,10 @@ export const App = craftComponent(
     return {
       clearCache,
       navOpen,
-      toggleNav,
       closeNav: navOpen.close,
     };
   },
-  ({ clearCache, navOpen, toggleNav, closeNav }) =>
+  ({ clearCache, navOpen, closeNav }) =>
     div([
       skipLink('main', 'Skip to content'),
       div('demo-banner', { class: 'demo-banner' }, [
@@ -225,10 +217,13 @@ export const App = craftComponent(
           {
             class: 'demo-nav__toggle',
             type: 'button',
-            click: toggleNav,
             'aria-expanded': navOpen,
           },
           navOpen.navToggleLabel,
+        ).pipe(
+          eventAction({
+            click: { action: navOpen.toggle, stopPropagation: true },
+          }),
         ),
         ifNode(
           navOpen,

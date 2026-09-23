@@ -136,6 +136,7 @@ export interface TemplateEvidence {
   readonly elementName: string | null;
   readonly target: string;
   readonly targetKind: string;
+  readonly effects?: readonly string[];
 }
 
 /** A structural condition under which a template promise is rendered. */
@@ -187,6 +188,7 @@ export interface TemplateReviewCard extends ReviewCardBase {
   readonly direction: 'render' | 'command';
   readonly statement: string;
   readonly statementParts?: TemplateStatementParts;
+  readonly effects?: readonly string[];
   readonly conditions?: readonly TemplateCondition[];
   readonly currentEvidence: TemplateEvidence;
   /** Absent for a new subject and for ledgers created before readable proofs. */
@@ -343,6 +345,7 @@ export interface TemplateInventoryItem {
   readonly direction: 'render' | 'command';
   readonly statement: string;
   readonly statementParts?: TemplateStatementParts;
+  readonly effects?: readonly string[];
   readonly conditions?: readonly TemplateCondition[];
   readonly state: 'current' | 'renewed' | 'missing' | 'review';
   readonly evidence: TemplateEvidence;
@@ -407,6 +410,7 @@ const EVIDENCE_FIELDS: readonly TemplateEvidenceField[] = [
   'elementName',
   'target',
   'targetKind',
+  'effects',
 ];
 
 export function templateEvidenceDiff(
@@ -415,9 +419,22 @@ export function templateEvidenceDiff(
 ): readonly SemanticChange[] {
   if (!before) return [];
   return EVIDENCE_FIELDS.flatMap((field) =>
-    before[field] === after[field]
+    JSON.stringify(before[field] ?? null) ===
+    JSON.stringify(after[field] ?? null)
       ? []
-      : [{ field, before: before[field], after: after[field] }],
+      : [
+          {
+            field,
+            before:
+              field === 'effects'
+                ? (before.effects?.join(' → ') ?? null)
+                : (before[field] as string | null),
+            after:
+              field === 'effects'
+                ? (after.effects?.join(' → ') ?? null)
+                : (after[field] as string | null),
+          },
+        ],
   );
 }
 
@@ -477,6 +494,7 @@ export interface TemplateReviewCardInput {
   readonly component: string;
   readonly statement: string;
   readonly statementParts?: TemplateStatementParts;
+  readonly effects?: readonly string[];
   readonly conditions?: readonly TemplateCondition[];
   readonly currentEvidence: TemplateEvidence;
   readonly previousEvidence?: TemplateEvidence;
@@ -520,6 +538,7 @@ export function buildTemplateReviewCard(
     direction: input.currentEvidence.direction,
     statement: input.statement,
     ...(input.statementParts ? { statementParts: input.statementParts } : {}),
+    ...(input.effects?.length ? { effects: input.effects } : {}),
     ...(input.conditions && input.conditions.length > 0
       ? { conditions: input.conditions }
       : {}),

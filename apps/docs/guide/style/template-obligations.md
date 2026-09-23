@@ -37,6 +37,16 @@ This template promises that the named button invokes `users.remove`. The
 element tag and its literal name are part of the promise, so moving the action
 to a different control asks for a new judgement.
 
+For a command that resolves to a `craftMethod`, the obligation also records
+the method's top-level call statements in source order. Calls inside a branch or a
+nested callback are omitted because they are not guaranteed on every click.
+The ordered calls are part of the readable evidence, so changing them asks for
+a new judgement. The review card shows this sequence below the promise.
+
+The review queue contains the promise and its short effect list, but no source
+code. When a template review card opens, the review app requests its button
+and method snippets from `/api/template-detail` and shows both by default.
+
 Computed or dynamic accesses that cannot be addressed are printed as
 `template-obligation-unresolved` diagnostics. They are known extraction gaps;
 they are never silently treated as if the template made no promise.
@@ -52,15 +62,16 @@ decision.
 
 Every obligation has two independent keys:
 
-| key              | meaning                                                                               |
-| ---------------- | ------------------------------------------------------------------------------------- |
-| code fingerprint | the transitive code slice behind the bound or invoked target                          |
-| evidence         | the canonical shape of the promise: direction, element, name, target, and target kind |
+| key              | meaning                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| code fingerprint | the transitive code slice behind the bound or invoked target                                                  |
+| evidence         | the canonical shape of the promise: direction, element, name, target, target kind, and direct command effects |
 
 When implementation code changes but the template still promises the same
 thing, the state is `renewed`. The previous judgement carries forward without
 asking a person to review it again. When the template binds or invokes a
-different target, the evidence changes and the state is `review`.
+different target, or a command's direct effects change, the evidence changes
+and the state is `review`.
 
 An attested obligation is **not a passing test**. It says that a person confirmed
 the promise was intentional. It does not prove that the implementation fulfils

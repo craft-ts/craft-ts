@@ -62,6 +62,21 @@ describe('attestation review core', () => {
     });
   });
 
+  it('shows the ordered effect change in a template proof', () => {
+    expect(
+      templateEvidenceDiff(
+        { ...previous, effects: ['clearCache()', 'alert()', 'reload()'] },
+        { ...previous, effects: ['clearCache()', 'reload()'] },
+      ),
+    ).toEqual([
+      {
+        field: 'effects',
+        before: 'clearCache() → alert() → reload()',
+        after: 'clearCache() → reload()',
+      },
+    ]);
+  });
+
   it('groups identical before/after changes and retains every subject', () => {
     const clustered = clusterTemplateReviewCards([
       card('template:UserCard'),

@@ -1,0 +1,173 @@
+{
+  "version": 2,
+  "classes": [
+    {
+      "key": "reviewDecision-key",
+      "className": "color-var-reviewApp-onAccent-6uykij",
+      "axes": {},
+      "atoms": [
+        "color-var-reviewApp-onAccent-6uykij"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewDecision-primary",
+      "className": "background-color-var-reviewApp-accentActive-g4f8l7 color-var-reviewApp-onAccent-6uykij",
+      "axes": {},
+      "atoms": [
+        "background-color-var-reviewApp-accentActive-g4f8l7",
+        "color-var-reviewApp-onAccent-6uykij"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewTheme-root",
+      "className": "reviewApp-onAccent-ffffff-oac9f5 reviewApp-accentActive-2a3eb0-phuibl scheme-dark-reviewApp-onAccent-ffffff-d4nr1k scheme-dark-reviewApp-accentActive-5268ef-74ed4v",
+      "axes": {
+        "scheme": [
+          "dark"
+        ]
+      },
+      "atoms": [
+        "reviewApp-onAccent-ffffff-oac9f5",
+        "reviewApp-accentActive-2a3eb0-phuibl",
+        "scheme-dark-reviewApp-onAccent-ffffff-d4nr1k",
+        "scheme-dark-reviewApp-accentActive-5268ef-74ed4v"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    }
+  ],
+  "atoms": [
+    {
+      "className": "background-color-var-reviewApp-accentActive-g4f8l7",
+      "property": "background-color",
+      "value": "var(--reviewApp-accentActive)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "color-var-reviewApp-onAccent-6uykij",
+      "property": "color",
+      "value": "var(--reviewApp-onAccent)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "reviewApp-accentActive-2a3eb0-phuibl",
+      "property": "--reviewApp-accentActive",
+      "value": "#2a3eb0",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "reviewUi",
+        "group": "accent",
+        "token": "active",
+        "role": "accent",
+        "light": "#2a3eb0",
+        "dark": "#5268ef",
+        "side": "light"
+      }
+    },
+    {
+      "className": "reviewApp-onAccent-ffffff-oac9f5",
+      "property": "--reviewApp-onAccent",
+      "value": "#ffffff",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "reviewUi",
+        "group": "text",
+        "token": "onAccent",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#ffffff",
+        "side": "light"
+      }
+    },
+    {
+      "className": "scheme-dark-reviewApp-accentActive-5268ef-74ed4v",
+      "property": "--reviewApp-accentActive",
+      "value": "#5268ef",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "reviewUi",
+        "group": "accent",
+        "token": "active",
+        "role": "accent",
+        "light": "#2a3eb0",
+        "dark": "#5268ef",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "scheme-dark-reviewApp-onAccent-ffffff-d4nr1k",
+      "property": "--reviewApp-onAccent",
+      "value": "#ffffff",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "reviewUi",
+        "group": "text",
+        "token": "onAccent",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#ffffff",
+        "side": "dark"
+      }
+    }
+  ],
+  "vars": [
+    {
+      "name": "--reviewApp-accentActive",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#2a3eb0",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "reviewUi",
+        "group": "accent",
+        "token": "active",
+        "role": "accent",
+        "light": "#2a3eb0",
+        "dark": "#5268ef",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--reviewApp-onAccent",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#ffffff",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "reviewUi",
+        "group": "text",
+        "token": "onAccent",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#ffffff",
+        "side": "light"
+      }
+    }
+  ]
+}

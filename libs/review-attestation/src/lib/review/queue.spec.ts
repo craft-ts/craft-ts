@@ -332,6 +332,68 @@ describe('findings are checked against what the card attests', () => {
 });
 
 describe('review server', () => {
+  it('keeps template code out of the queue and serves it for a known subject', async () => {
+    const subject = 'template:component:app.ts:App#command:clearCache';
+    const detail = {
+      subject,
+      element: {
+        file: 'app.ts',
+        line: 10,
+        code: "button('clearCache', { click: clearCache })",
+      },
+      method: {
+        file: 'app.ts',
+        line: 5,
+        code: "craftMethod('clearCache', function* () {})",
+      },
+    };
+    const running = await startReviewServer({
+      port: 0,
+      model: {
+        visualAssets: [],
+        visualTests: [],
+        templateObligations: [
+          {
+            subject,
+            component: 'App',
+            direction: 'command',
+            statement: 'Clear cache',
+            state: 'review',
+            evidence: {
+              direction: 'command',
+              element: 'button',
+              elementName: 'clearCache',
+              target: 'clearCache',
+              targetKind: 'primitive',
+            },
+          },
+        ],
+        diagnostics: [],
+      },
+      templateDetailFor: (requested) =>
+        requested === subject ? detail : undefined,
+    });
+    try {
+      const queue = await fetch(`${running.url}/api/review`).then((response) =>
+        response.text(),
+      );
+      expect(queue).not.toContain(detail.element.code);
+      const source = await fetch(
+        `${running.url}/api/template-detail?subject=${encodeURIComponent(subject)}`,
+      );
+      expect(source.status).toBe(200);
+      expect(await source.json()).toEqual(detail);
+      expect(
+        (
+          await fetch(
+            `${running.url}/api/template-detail?subject=template:unknown`,
+          )
+        ).status,
+      ).toBe(404);
+    } finally {
+      await running.close();
+    }
+  });
   it('regenerates the authoritative queue without touching recorded history', async () => {
     const [before] = buildReviewQueue([
       item('visual:Card#before', 'card', '8px'),

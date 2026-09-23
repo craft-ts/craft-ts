@@ -4131,6 +4131,157 @@ export function assertDeclarativeArchitecture(
   throw new Error(messages.join('\n'));
 }
 
+const EVENT_MODIFIER_METHODS = new Set([
+  'preventDefault',
+  'stopPropagation',
+  'stopImmediatePropagation',
+]);
+
+/** Catches event-only craftMethod wrappers across every file in the graph. */
+export function assertNoEventOnlyCraftMethods(graph: DependencyGraph): void {
+  const config = ts.readConfigFile(graph.tsConfigFilePath, ts.sys.readFile);
+  if (config.error) {
+    throw new Error(
+      ts.flattenDiagnosticMessageText(config.error.messageText, '\n'),
+    );
+  }
+  const files = ts.parseJsonConfigFileContent(
+    config.config,
+    ts.sys,
+    dirname(graph.tsConfigFilePath),
+  ).fileNames;
+  const messages: string[] = [];
+  for (const filePath of files) {
+    if (filePath.endsWith('.d.ts')) continue;
+    const source = ts.createSourceFile(
+      filePath,
+      readFileSync(filePath, 'utf8'),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    const methodNames = new Set(['craftMethod']);
+    for (const statement of source.statements) {
+      if (
+        !ts.isImportDeclaration(statement) ||
+        !ts.isStringLiteral(statement.moduleSpecifier) ||
+        statement.moduleSpecifier.text !== '@craft-ts/core'
+      )
+        continue;
+      for (const specifier of statement.importClause?.namedBindings &&
+      ts.isNamedImports(statement.importClause.namedBindings)
+        ? statement.importClause.namedBindings.elements
+        : []) {
+        if ((specifier.propertyName ?? specifier.name).text === 'craftMethod') {
+          methodNames.add(specifier.name.text);
+        }
+      }
+    }
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        methodNames.has(node.expression.text) &&
+        isEventOnlyCraftMethod(node)
+      ) {
+        const line =
+          source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+        messages.push(
+          `${relativeGraphPath(graph, filePath)}:${line}: craftMethod only modifies a DOM event and delegates to one action; use eventAction(...) on the element.`,
+        );
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  if (messages.length > 0) throw new Error(messages.join('\n'));
+}
+
+function isEventOnlyCraftMethod(call: ts.CallExpression): boolean {
+  const callback = [...call.arguments]
+    .reverse()
+    .find(
+      (argument): argument is ts.FunctionExpression | ts.ArrowFunction =>
+        ts.isFunctionExpression(argument) || ts.isArrowFunction(argument),
+    );
+  if (!callback || !ts.isBlock(callback.body)) return false;
+  const parameter = callback.parameters[0]?.name;
+  if (!parameter || !ts.isIdentifier(parameter)) return false;
+  const statements = callback.body.statements;
+  if (statements.length < 2) return false;
+  if (
+    !statements
+      .slice(0, -1)
+      .every((statement) => isEventModifierStatement(statement, parameter.text))
+  ) {
+    return false;
+  }
+  const lastStatement = statements[statements.length - 1];
+  return lastStatement
+    ? isDelegatingStatement(lastStatement, parameter.text)
+    : false;
+}
+
+function isEventModifierStatement(
+  statement: ts.Statement,
+  eventName: string,
+): boolean {
+  if (!ts.isExpressionStatement(statement)) return false;
+  const call = statement.expression;
+  if (!ts.isCallExpression(call) || call.arguments.length !== 0) return false;
+  const member = call.expression;
+  return (
+    ts.isPropertyAccessExpression(member) &&
+    ts.isIdentifier(member.expression) &&
+    member.expression.text === eventName &&
+    EVENT_MODIFIER_METHODS.has(member.name.text)
+  );
+}
+
+function isDelegatingStatement(
+  statement: ts.Statement,
+  eventName: string,
+): boolean {
+  let expression: ts.Expression | undefined;
+  if (ts.isExpressionStatement(statement)) expression = statement.expression;
+  else if (ts.isReturnStatement(statement)) expression = statement.expression;
+  if (expression && ts.isYieldExpression(expression))
+    expression = expression.expression;
+  if (
+    !expression ||
+    !ts.isCallExpression(expression) ||
+    !isForwardingTsArguments(expression.arguments, eventName)
+  ) {
+    return false;
+  }
+  const callee = expression.expression;
+  return (
+    (ts.isIdentifier(callee) || ts.isPropertyAccessExpression(callee)) &&
+    !containsTsIdentifier(callee, eventName)
+  );
+}
+
+function isForwardingTsArguments(
+  args: ts.NodeArray<ts.Expression>,
+  eventName: string,
+): boolean {
+  const first = args[0];
+  return (
+    args.length === 0 ||
+    (args.length === 1 &&
+      first !== undefined &&
+      ts.isIdentifier(first) &&
+      first.text === eventName)
+  );
+}
+
+function containsTsIdentifier(node: ts.Node, name: string): boolean {
+  if (ts.isIdentifier(node)) return node.text === name;
+  if (ts.isPropertyAccessExpression(node)) {
+    return containsTsIdentifier(node.expression, name);
+  }
+  return false;
+}
+
 export type ArchitectureRuleViolations = {
   rule: string;
   messages: string[];
@@ -4155,22 +4306,25 @@ export function architectureViolations(
   if (target !== 'development' && target !== 'production') {
     throw new Error(`Unknown architecture check target "${target}".`);
   }
-  const rules: readonly (readonly [string, (graph: DependencyGraph) => void])[] =
+  const rules: readonly (readonly [
+    string,
+    (graph: DependencyGraph) => void,
+  ])[] = [
+    ['craft-unique', assertCraftUnique],
+    ['http-endpoint-unique', assertHttpEndpointUnique],
+    ['craft-computed-pure', assertCraftComputedPure],
+    ['primitive-methods-used-once', assertPrimitiveMethodsUsedOnce],
+    ['no-unused-primitive-methods', assertNoUnusedPrimitiveMethods],
+    ['no-dependency-cycles', assertNoDependencyCycles],
+    ['no-event-only-craft-method', assertNoEventOnlyCraftMethods],
+    ['server-function-architecture', assertServerFunctionArchitecture],
+    ['input-action-forms', assertInputActionForms],
     [
-      ['craft-unique', assertCraftUnique],
-      ['http-endpoint-unique', assertHttpEndpointUnique],
-      ['craft-computed-pure', assertCraftComputedPure],
-      ['primitive-methods-used-once', assertPrimitiveMethodsUsedOnce],
-      ['no-unused-primitive-methods', assertNoUnusedPrimitiveMethods],
-      ['no-dependency-cycles', assertNoDependencyCycles],
-      ['server-function-architecture', assertServerFunctionArchitecture],
-      ['input-action-forms', assertInputActionForms],
-      [
-        'mutation-react-on',
-        (checked) =>
-          assertMutationHasReactOn(checked, options.mutationReactOn ?? {}),
-      ],
-    ];
+      'mutation-react-on',
+      (checked) =>
+        assertMutationHasReactOn(checked, options.mutationReactOn ?? {}),
+    ],
+  ];
   return rules.flatMap(([rule, assert]) => {
     try {
       assert(graph);

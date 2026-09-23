@@ -267,6 +267,24 @@ export interface WorkspaceSlices {
   }[];
   fingerprintForTemplate(subject: string): string;
   leavesForTemplate(subject: string): Readonly<Record<string, string>>;
+  detailForTemplate?(subject: string): {
+    readonly subject: string;
+    readonly renderSites?: readonly {
+      readonly file: string;
+      readonly line: number;
+      readonly code: string;
+    }[];
+    readonly element?: {
+      readonly file: string;
+      readonly line: number;
+      readonly code: string;
+    };
+    readonly method?: {
+      readonly file: string;
+      readonly line: number;
+      readonly code: string;
+    };
+  };
   /** `nodeId → hash` for every node in the graph. */
   nodeHashes(): Readonly<Record<string, string>>;
 }
@@ -327,6 +345,7 @@ const defaultLoadSlices = async (options: {
     fingerprintForTemplate: (subject) =>
       prepareTemplateIndex().fingerprintFor(subject),
     leavesForTemplate: (subject) => prepareTemplateIndex().leavesFor(subject),
+    detailForTemplate: (subject) => prepareTemplateIndex().detailFor(subject),
     nodeHashes: () =>
       Object.fromEntries(
         [...index.slices.hashes].map(([id, hash]) => [
@@ -1656,6 +1675,7 @@ async function review(
           component: obligation.component,
           statement: obligation.statement,
           statementParts: obligation.statementParts,
+          effects: obligation.effects,
           conditions: obligation.conditions,
           currentEvidence: templateEvidenceValue(obligation),
           ...(previousEvidence ? { previousEvidence } : {}),
@@ -1771,6 +1791,9 @@ async function review(
           direction: obligation.direction,
           statement: obligation.statement,
           statementParts: obligation.statementParts,
+          ...(obligation.effects?.length
+            ? { effects: obligation.effects }
+            : {}),
           ...(obligation.conditions && obligation.conditions.length > 0
             ? { conditions: obligation.conditions }
             : {}),
@@ -1877,6 +1900,8 @@ async function review(
     port: Number(port ?? 4320),
     cards: activeCards,
     model,
+    templateDetailFor: (subject: string) =>
+      observed.workspace.detailForTemplate?.(subject),
     iteration,
     onClose: async (handoff) => {
       io.write('Review application closed.');

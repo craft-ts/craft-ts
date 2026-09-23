@@ -21,6 +21,8 @@ import {
   assertInteractiveElementNamed,
   assertMutationHasReactOn,
   assertNoDependencyCycles,
+  assertNoEventOnlyCraftMethods,
+  architectureViolations,
   assertNoAppConfigRouteCycles,
   assertPathBoundaries,
   assertPersistedPrimitiveHasUnique,
@@ -136,6 +138,33 @@ declare const CraftHttpClient: {
   post(config: (helpers: { response: () => unknown }) => { url: string }): unknown;
 };
 `;
+
+describe('event-only craftMethod architecture', () => {
+  it('rejects a wrapper declared in a different file from its button', async () => {
+    const graph = await graphOf({
+      'navigation.ts': `
+        ${STUBS}
+        export const toggleNav = craftMethod('toggleNav', function* (event?: Event) {
+          event?.stopPropagation();
+          yield* navOpen.toggle();
+        });
+      `,
+      'view.ts': `
+        ${STUBS}
+        import { toggleNav } from './navigation';
+        const view = button('navToggle', { click: toggleNav }, 'Browse');
+      `,
+    });
+    expect(() => assertNoEventOnlyCraftMethods(graph.graph)).toThrow(
+      /navigation\.ts:.*eventAction/,
+    );
+    expect(
+      architectureViolations(graph.graph).some(
+        (violation) => violation.rule === 'no-event-only-craft-method',
+      ),
+    ).toBe(true);
+  });
+});
 
 describe('createArchitectureGraph', () => {
   it('finds input-dependent mutations declared in a service', async () => {

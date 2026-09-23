@@ -1,4 +1,5 @@
 import {
+  a,
   article,
   aside,
   button,
@@ -15,8 +16,10 @@ import {
   label,
   li,
   main,
+  ol,
   option,
   p,
+  pre,
   section,
   details,
   summary,
@@ -64,6 +67,7 @@ import type { FidelityReason, LayoutDigest } from '@craft-ts/style-testing';
 import { reviewClipboard, reviewDocument } from './browser-adapter';
 import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
+import { ideLinkUrl, sourcePathOf } from './ide-links';
 import { ReviewFilters } from './review-filters.service';
 import { CloseReview } from './close-review.service';
 import { RetirementReasonChoice } from './retirement-reason.service';
@@ -168,6 +172,25 @@ interface ReplayState {
   readonly chrome: readonly string[];
 }
 
+interface TemplateSourceDetail {
+  readonly subject: string;
+  readonly renderSites?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  }[];
+  readonly element?: {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  };
+  readonly method?: {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  };
+}
+
 export const ReviewApp = craftComponent(
   'ReviewApp',
   {},
@@ -259,7 +282,7 @@ export const ReviewApp = craftComponent(
 
     // Read from the environment before the first paint, so nothing renders in
     // the wrong language or the wrong theme and then corrects itself.
-    const { locale } = yield* ReviewPreferences();
+    const { locale, ide } = yield* ReviewPreferences();
     const devtoolView = craftComputed('devtoolView', function* () {
       const value = yield* navigationParams.view();
       return value || initialDevtoolView();
@@ -755,6 +778,18 @@ export const ReviewApp = craftComponent(
 
     const review = yield* reviewQueue;
 
+    const fileUrl = function* (file: string | undefined, line?: number) {
+      return ideLinkUrl(
+        (yield* review.value())?.sourceLinksAvailable,
+        file,
+        yield* ide(),
+        line,
+      );
+    };
+    const sourceUrl = function* (reference: string, line?: number) {
+      return yield* fileUrl(sourcePathOf(reference), line);
+    };
+
     const sessionHistory = craftComputed('sessionHistory', function* () {
       return (yield* review.value())?.history ?? [];
     });
@@ -919,6 +954,24 @@ export const ReviewApp = craftComponent(
       const list = yield* cards();
       return list[yield* activeIndex()];
     });
+    const templateSource = query('templateSource', {
+      params: function* () {
+        const selected = yield* current();
+        return selected?.kind === 'template'
+          ? { subject: selected.subject, revision: selected.revision }
+          : { subject: '', revision: '' };
+      },
+      loader: function* ({ params }) {
+        if (!params.subject) return undefined;
+        return yield* craftUntilSettled(
+          CraftHttpClient.get(({ response }) => ({
+            url: `/api/template-detail?subject=${encodeURIComponent(params.subject)}`,
+            success: response<TemplateSourceDetail>(),
+          })),
+        );
+      },
+    });
+    const sourceDetail = yield* templateSource;
     const visualEvidence = craftComputed('visualEvidence', function* () {
       return (yield* current())?.kind === 'visual';
     });
@@ -1533,6 +1586,7 @@ export const ReviewApp = craftComponent(
       folderLayouts,
       activeIndex,
       current,
+      sourceDetail,
       visualEvidence,
       folderLayoutEvidence,
       sessionHistory,
@@ -1601,6 +1655,8 @@ export const ReviewApp = craftComponent(
       freezePick,
       chooseZoom,
       locale,
+      fileUrl,
+      sourceUrl,
       t,
       fidelitySentence,
     };
@@ -1663,6 +1719,7 @@ export const ReviewApp = craftComponent(
     selectVisualTest,
     openVisualReview,
     current,
+    sourceDetail,
     visualEvidence,
     folderLayoutEvidence,
     evidenceView,
@@ -1671,6 +1728,8 @@ export const ReviewApp = craftComponent(
     previewMention,
     chooseZoom,
     locale,
+    fileUrl,
+    sourceUrl,
     t,
     fidelitySentence,
     hideChrome,
@@ -2137,8 +2196,42 @@ export const ReviewApp = craftComponent(
                           return scenarioOf((yield* card()).subject);
                         }),
                         span({ class: 'subject code' }, function* () {
-                          return componentOf((yield* card()).subject);
+                          const value = yield* card();
+                          const detail = yield* sourceDetail.value();
+                          const line =
+                            value.kind === 'template' &&
+                            detail?.subject === value.subject
+                              ? (detail.renderSites?.[0]?.line ??
+                                detail.element?.line)
+                              : undefined;
+                          return `${componentOf(value.subject)}${line ? `:${line}` : ''}`;
                         }),
+                        a(
+                          {
+                            class: 'source-link',
+                            href: function* () {
+                              const value = yield* card();
+                              const detail = yield* sourceDetail.value();
+                              const line =
+                                value.kind === 'template' &&
+                                detail?.subject === value.subject
+                                  ? (detail.renderSites?.[0]?.line ??
+                                    detail.element?.line)
+                                  : undefined;
+                              return (
+                                (yield* sourceUrl(value.subject, line)) ?? ''
+                              );
+                            },
+                            hidden: function* () {
+                              return !(yield* sourceUrl(
+                                (yield* card()).subject,
+                              ));
+                            },
+                          },
+                          function* () {
+                            return (yield* t()).openInIde;
+                          },
+                        ),
                       ]),
                       span({ class: 'reason' }, function* () {
                         return reasonText((yield* card()).reason, yield* t());
@@ -2242,6 +2335,226 @@ export const ReviewApp = craftComponent(
                               return '';
                             }),
                           ]),
+                          section(
+                            {
+                              class: 'template-effects',
+                              hidden: function* () {
+                                const value = yield* card();
+                                return (
+                                  value.kind !== 'template' ||
+                                  !value.effects?.length
+                                );
+                              },
+                            },
+                            [
+                              strong(function* () {
+                                return (yield* t()).templateEffects;
+                              }),
+                              ol(
+                                forNode(
+                                  function* () {
+                                    const value = yield* card();
+                                    return value.kind === 'template'
+                                      ? (value.effects ?? [])
+                                      : [];
+                                  },
+                                  {
+                                    track: (effect, index) =>
+                                      `${index}:${effect}`,
+                                  },
+                                  (effect) =>
+                                    li({ class: 'code' }, function* () {
+                                      return yield* effect();
+                                    }),
+                                ),
+                              ),
+                            ],
+                          ),
+                          section(
+                            {
+                              class: 'template-source',
+                              hidden: function* () {
+                                const value = yield* card();
+                                const detail = yield* sourceDetail.value();
+                                return (
+                                  value.kind !== 'template' ||
+                                  detail?.subject !== value.subject ||
+                                  !(
+                                    detail.element ||
+                                    detail.method ||
+                                    detail.renderSites?.length
+                                  )
+                                );
+                              },
+                            },
+                            [
+                              section(
+                                {
+                                  hidden: function* () {
+                                    return !(yield* sourceDetail.value())
+                                      ?.renderSites?.length;
+                                  },
+                                },
+                                [
+                                  strong(function* () {
+                                    return (yield* t()).templateRenderSource;
+                                  }),
+                                  forNode(
+                                    function* () {
+                                      return (
+                                        (yield* sourceDetail.value())
+                                          ?.renderSites ?? []
+                                      );
+                                    },
+                                    {
+                                      track: (site) =>
+                                        `${site.file}:${site.line}`,
+                                    },
+                                    (site) =>
+                                      div({ class: 'template-source-site' }, [
+                                        small({ class: 'code' }, function* () {
+                                          const value = yield* site();
+                                          return `${value.file}:${value.line}`;
+                                        }),
+                                        a(
+                                          {
+                                            class: 'source-link',
+                                            href: function* () {
+                                              const value = yield* site();
+                                              return (
+                                                (yield* fileUrl(
+                                                  value.file,
+                                                  value.line,
+                                                )) ?? ''
+                                              );
+                                            },
+                                            hidden: function* () {
+                                              const value = yield* site();
+                                              return !(yield* fileUrl(
+                                                value.file,
+                                                value.line,
+                                              ));
+                                            },
+                                          },
+                                          function* () {
+                                            return (yield* t()).openInIde;
+                                          },
+                                        ),
+                                        pre({ class: 'code' }, function* () {
+                                          return (yield* site()).code;
+                                        }),
+                                      ]),
+                                  ),
+                                ],
+                              ),
+                              section(
+                                {
+                                  hidden: function* () {
+                                    return !(yield* sourceDetail.value())
+                                      ?.element;
+                                  },
+                                },
+                                [
+                                  strong(function* () {
+                                    return (yield* t()).templateElementSource;
+                                  }),
+                                  small({ class: 'code' }, function* () {
+                                    const value = (yield* sourceDetail.value())
+                                      ?.element;
+                                    return value
+                                      ? `${value.file}:${value.line}`
+                                      : '';
+                                  }),
+                                  a(
+                                    {
+                                      class: 'source-link',
+                                      href: function* () {
+                                        const value =
+                                          (yield* sourceDetail.value())
+                                            ?.element;
+                                        return (
+                                          (yield* fileUrl(
+                                            value?.file,
+                                            value?.line,
+                                          )) ?? ''
+                                        );
+                                      },
+                                      hidden: function* () {
+                                        const value =
+                                          (yield* sourceDetail.value())
+                                            ?.element;
+                                        return !(yield* fileUrl(
+                                          value?.file,
+                                          value?.line,
+                                        ));
+                                      },
+                                    },
+                                    function* () {
+                                      return (yield* t()).openInIde;
+                                    },
+                                  ),
+                                  pre({ class: 'code' }, function* () {
+                                    return (
+                                      (yield* sourceDetail.value())?.element
+                                        ?.code ?? ''
+                                    );
+                                  }),
+                                ],
+                              ),
+                              section(
+                                {
+                                  hidden: function* () {
+                                    return !(yield* sourceDetail.value())
+                                      ?.method;
+                                  },
+                                },
+                                [
+                                  strong(function* () {
+                                    return (yield* t()).templateMethodSource;
+                                  }),
+                                  small({ class: 'code' }, function* () {
+                                    const value = (yield* sourceDetail.value())
+                                      ?.method;
+                                    return value
+                                      ? `${value.file}:${value.line}`
+                                      : '';
+                                  }),
+                                  a(
+                                    {
+                                      class: 'source-link',
+                                      href: function* () {
+                                        const value =
+                                          (yield* sourceDetail.value())?.method;
+                                        return (
+                                          (yield* fileUrl(
+                                            value?.file,
+                                            value?.line,
+                                          )) ?? ''
+                                        );
+                                      },
+                                      hidden: function* () {
+                                        const value =
+                                          (yield* sourceDetail.value())?.method;
+                                        return !(yield* fileUrl(
+                                          value?.file,
+                                          value?.line,
+                                        ));
+                                      },
+                                    },
+                                    function* () {
+                                      return (yield* t()).openInIde;
+                                    },
+                                  ),
+                                  pre({ class: 'code' }, function* () {
+                                    return (
+                                      (yield* sourceDetail.value())?.method
+                                        ?.code ?? ''
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ],
+                          ),
                           ul(
                             { class: 'template-diff' },
                             forNode(
@@ -2344,7 +2657,9 @@ export const ReviewApp = craftComponent(
                       section(
                         {
                           class: 'evidence-toolbar',
-                          hidden: folderLayoutEvidence,
+                          hidden: function* () {
+                            return !(yield* visualEvidence());
+                          },
                         },
                         [
                           div({ class: 'metadata' }, [
@@ -2529,12 +2844,20 @@ export const ReviewApp = craftComponent(
                           ),
                         ],
                       ),
-                      p({ class: 'evidence-help' }, function* () {
-                        const say = yield* t();
-                        return (yield* showingReplay())
-                          ? say.helpReplay
-                          : say.helpImage;
-                      }),
+                      p(
+                        {
+                          class: 'evidence-help',
+                          hidden: function* () {
+                            return !(yield* visualEvidence());
+                          },
+                        },
+                        function* () {
+                          const say = yield* t();
+                          return (yield* showingReplay())
+                            ? say.helpReplay
+                            : say.helpImage;
+                        },
+                      ),
                       // What the outlines drawn into the frame mean. Without it a
                       // reviewer meets a dotted orange box around a button they never
                       // touched and has no way to find out what it is telling them.
@@ -3239,6 +3562,26 @@ export const ReviewApp = craftComponent(
                       span({ class: 'subject code' }, function* () {
                         return (yield* selectedVisualTest())?.component ?? '';
                       }),
+                      a(
+                        {
+                          class: 'source-link',
+                          href: function* () {
+                            return (
+                              (yield* sourceUrl(
+                                (yield* selectedVisualTest())?.subject ?? '',
+                              )) ?? ''
+                            );
+                          },
+                          hidden: function* () {
+                            return !(yield* sourceUrl(
+                              (yield* selectedVisualTest())?.subject ?? '',
+                            ));
+                          },
+                        },
+                        function* () {
+                          return (yield* t()).openInIde;
+                        },
+                      ),
                     ]),
                     span({ class: 'chip' }, function* () {
                       const test = yield* selectedVisualTest();
@@ -3344,6 +3687,26 @@ export const ReviewApp = craftComponent(
                         const say = yield* t();
                         return `${value.component} · ${directionText(value.direction, say)}`;
                       }),
+                      a(
+                        {
+                          class: 'source-link',
+                          href: function* () {
+                            return (
+                              (yield* sourceUrl(
+                                (yield* obligation()).subject,
+                              )) ?? ''
+                            );
+                          },
+                          hidden: function* () {
+                            return !(yield* sourceUrl(
+                              (yield* obligation()).subject,
+                            ));
+                          },
+                        },
+                        function* () {
+                          return (yield* t()).openInIde;
+                        },
+                      ),
                       p([
                         span(
                           {
@@ -3400,6 +3763,25 @@ export const ReviewApp = craftComponent(
                       p(function* () {
                         return (yield* diagnostic()).message;
                       }),
+                      a(
+                        {
+                          class: 'source-link',
+                          href: function* () {
+                            const value = yield* diagnostic();
+                            return (
+                              (yield* fileUrl(value.filePath, value.line)) ?? ''
+                            );
+                          },
+                          hidden: function* () {
+                            return !(yield* fileUrl(
+                              (yield* diagnostic()).filePath,
+                            ));
+                          },
+                        },
+                        function* () {
+                          return (yield* t()).openInIde;
+                        },
+                      ),
                       small(
                         {
                           class: 'diagnostic-summary',

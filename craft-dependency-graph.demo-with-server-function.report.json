@@ -1,0 +1,294 @@
+{
+  "version": 1,
+  "graphHash": "e83cff16dff2d0dd",
+  "summary": {
+    "nodes": 675,
+    "edges": 646,
+    "nodesByKind": {
+      "app-config": 1,
+      "client-function-middleware": 3,
+      "component": 14,
+      "data-classification": 1,
+      "effect-layer": 1,
+      "effect-operation": 6,
+      "effect-service": 4,
+      "external-output": 4,
+      "handshake": 4,
+      "http-endpoint": 1,
+      "primitive": 65,
+      "property": 40,
+      "route": 9,
+      "route-check": 19,
+      "server-function-client": 5,
+      "server-function-family": 5,
+      "server-function-middleware": 5,
+      "server-function-server": 5,
+      "service": 109,
+      "source": 3,
+      "styled-element": 324,
+      "template-element": 43,
+      "unique": 4
+    },
+    "edgesByKind": {
+      "calls": 12,
+      "checks": 30,
+      "contains": 491,
+      "depends-on": 61,
+      "exposes-data": 3,
+      "loads": 5,
+      "provided-by-layer": 1,
+      "renders": 3,
+      "requires-service": 7,
+      "uses-property": 33
+    },
+    "diagnostics": {
+      "CRAFT_GRAPH_METRICS_UNKNOWN": 9,
+      "styled-element-class-unresolved": 221
+    }
+  },
+  "godNodes": [
+    {
+      "id": "primitive:apps/demo-with-server-function/src/client/server-function-demo.ts#ServerFunctionDemo/craftComponent(ServerFunctionDemo)/currentUser/craftComputed:currentUser/0",
+      "kind": "primitive",
+      "label": "craftComputed:currentUser",
+      "location": "apps/demo-with-server-function/src/client/server-function-demo.ts:131",
+      "fanIn": 6,
+      "fanOut": 1,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "property:primitive:apps/demo-with-server-function/src/client/portable-server-function-demo.ts#PortableServerFunctionDemo/craftComponent(PortableServerFunctionDemo)/usersQuery/query:portableUsersQuery/0:value",
+      "kind": "property",
+      "label": "query:portableUsersQuery.value",
+      "location": "apps/demo-with-server-function/src/client/portable-server-function-demo.ts:135",
+      "fanIn": 5,
+      "fanOut": 0,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "effect-service:UserRepository",
+      "kind": "effect-service",
+      "label": "UserRepository",
+      "location": "apps/demo-with-server-function/src/server/database.ts:9",
+      "fanIn": 3,
+      "fanOut": 0
+    },
+    {
+      "id": "property:primitive:apps/demo-with-server-function/src/client/public-products-demo.ts#PublicProductsDemo/craftComponent(PublicProductsDemo)/productsQuery/query:publicProductsQuery/0:status",
+      "kind": "property",
+      "label": "query:publicProductsQuery.status",
+      "location": "apps/demo-with-server-function/src/client/public-products-demo.ts:114",
+      "fanIn": 3,
+      "fanOut": 0,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "property:primitive:apps/demo-with-server-function/src/client/server-function-demo.ts#ServerFunctionDemo/craftComponent(ServerFunctionDemo)/usersQuery/query:usersQuery/0:status",
+      "kind": "property",
+      "label": "query:usersQuery.status",
+      "location": "apps/demo-with-server-function/src/client/server-function-demo.ts:179",
+      "fanIn": 3,
+      "fanOut": 0,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "component:libs/component/src/lib/craft-router-outlet.ts:CraftRouterOutlet",
+      "kind": "component",
+      "label": "CraftRouterOutlet",
+      "location": "libs/component/src/lib/craft-router-outlet.ts:20",
+      "fanIn": 2,
+      "fanOut": 0,
+      "cyclomaticTotal": 2
+    },
+    {
+      "id": "effect-service:CurrentUser",
+      "kind": "effect-service",
+      "label": "CurrentUser",
+      "location": "apps/demo-with-server-function/src/shared/authenticated-user.ts:14",
+      "fanIn": 2,
+      "fanOut": 1
+    },
+    {
+      "id": "primitive:apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts#EffectServerMiddlewareDemo/craftComponent(EffectServerMiddlewareDemo)/filter/state:effectMiddlewareFilter/0",
+      "kind": "primitive",
+      "label": "state:effectMiddlewareFilter",
+      "location": "apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts:89",
+      "fanIn": 2,
+      "fanOut": 0,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "primitive:apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts#EffectServerMiddlewareDemo/craftComponent(EffectServerMiddlewareDemo)/usersQuery/query(effectMiddlewareUsersQuery)/serverError/craftComputed:effectMiddlewareServerError/0",
+      "kind": "primitive",
+      "label": "craftComputed:effectMiddlewareServerError",
+      "location": "apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts:104",
+      "fanIn": 2,
+      "fanOut": 1,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "primitive:apps/demo-with-server-function/src/client/portable-server-function-demo.ts#PortableServerFunctionDemo/craftComponent(PortableServerFunctionDemo)/searchInput/state:portableSearchInput/0",
+      "kind": "primitive",
+      "label": "state:portableSearchInput",
+      "location": "apps/demo-with-server-function/src/client/portable-server-function-demo.ts:122",
+      "fanIn": 2,
+      "fanOut": 0,
+      "cyclomaticTotal": 1
+    }
+  ],
+  "hotspots": {
+    "churnMeasured": false,
+    "entries": [
+      {
+        "id": "primitive:apps/demo-with-server-function/src/client/server-function-demo.ts#ServerFunctionDemo/craftComponent(ServerFunctionDemo)/usersQuery/query:usersQuery/0",
+        "kind": "primitive",
+        "label": "query:usersQuery",
+        "location": "apps/demo-with-server-function/src/client/server-function-demo.ts:138",
+        "fanIn": 2,
+        "fanOut": 1,
+        "cyclomaticTotal": 21,
+        "churn": 0,
+        "score": 63
+      },
+      {
+        "id": "component:libs/component/src/lib/ai/ai-send-context-chat.ts:AiSendContextChat",
+        "kind": "component",
+        "label": "AiSendContextChat",
+        "location": "libs/component/src/lib/ai/ai-send-context-chat.ts:161",
+        "fanIn": 0,
+        "fanOut": 6,
+        "cyclomaticTotal": 62,
+        "churn": 0,
+        "score": 62
+      },
+      {
+        "id": "component:apps/demo-with-server-function/src/client/server-function-demo.ts:ServerFunctionDemo",
+        "kind": "component",
+        "label": "ServerFunctionDemo",
+        "location": "apps/demo-with-server-function/src/client/server-function-demo.ts:33",
+        "fanIn": 1,
+        "fanOut": 8,
+        "cyclomaticTotal": 24,
+        "churn": 0,
+        "score": 48
+      },
+      {
+        "id": "primitive:apps/demo-with-server-function/src/client/simple-list-demo.ts#SimpleListDemo/craftComponent(SimpleListDemo)/usersQuery/query:usersQuery/0",
+        "kind": "primitive",
+        "label": "query:usersQuery",
+        "location": "apps/demo-with-server-function/src/client/simple-list-demo.ts:148",
+        "fanIn": 2,
+        "fanOut": 2,
+        "cyclomaticTotal": 9,
+        "churn": 0,
+        "score": 27
+      },
+      {
+        "id": "component:apps/demo-with-server-function/src/client/portable-server-function-demo.ts:PortableServerFunctionDemo",
+        "kind": "component",
+        "label": "PortableServerFunctionDemo",
+        "location": "apps/demo-with-server-function/src/client/portable-server-function-demo.ts:26",
+        "fanIn": 1,
+        "fanOut": 4,
+        "cyclomaticTotal": 10,
+        "churn": 0,
+        "score": 20
+      },
+      {
+        "id": "component:apps/demo-with-server-function/src/client/simple-list-demo.ts:SimpleListDemo",
+        "kind": "component",
+        "label": "SimpleListDemo",
+        "location": "apps/demo-with-server-function/src/client/simple-list-demo.ts:39",
+        "fanIn": 1,
+        "fanOut": 7,
+        "cyclomaticTotal": 10,
+        "churn": 0,
+        "score": 20
+      },
+      {
+        "id": "component:apps/demo-with-server-function/src/client/public-products-demo.ts:PublicProductsDemo",
+        "kind": "component",
+        "label": "PublicProductsDemo",
+        "location": "apps/demo-with-server-function/src/client/public-products-demo.ts:27",
+        "fanIn": 1,
+        "fanOut": 3,
+        "cyclomaticTotal": 9,
+        "churn": 0,
+        "score": 18
+      },
+      {
+        "id": "component:libs/component/src/lib/ai/ai-send-dialog.ts:AiSendDialog",
+        "kind": "component",
+        "label": "AiSendDialog",
+        "location": "libs/component/src/lib/ai/ai-send-dialog.ts:158",
+        "fanIn": 0,
+        "fanOut": 5,
+        "cyclomaticTotal": 17,
+        "churn": 0,
+        "score": 17
+      },
+      {
+        "id": "component:apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts:EffectServerMiddlewareDemo",
+        "kind": "component",
+        "label": "EffectServerMiddlewareDemo",
+        "location": "apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts:23",
+        "fanIn": 1,
+        "fanOut": 3,
+        "cyclomaticTotal": 8,
+        "churn": 0,
+        "score": 16
+      },
+      {
+        "id": "primitive:apps/demo-with-server-function/src/client/server-function-demo.ts#ServerFunctionDemo/craftComponent(ServerFunctionDemo)/usersQuery/query(usersQuery)/requestDetail/craftComputed:requestDetail/0",
+        "kind": "primitive",
+        "label": "craftComputed:requestDetail",
+        "location": "apps/demo-with-server-function/src/client/server-function-demo.ts:198",
+        "fanIn": 1,
+        "fanOut": 2,
+        "cyclomaticTotal": 6,
+        "churn": 0,
+        "score": 12
+      }
+    ]
+  },
+  "cycles": [],
+  "unusedMethods": [],
+  "documentation": [
+    {
+      "kind": "service",
+      "nodes": 109,
+      "measured": 105,
+      "withJsDoc": 24,
+      "withDocPage": 0
+    },
+    {
+      "kind": "component",
+      "nodes": 14,
+      "measured": 14,
+      "withJsDoc": 7,
+      "withDocPage": 0
+    },
+    {
+      "kind": "route",
+      "nodes": 9,
+      "measured": 9,
+      "withJsDoc": 0,
+      "withDocPage": 0
+    },
+    {
+      "kind": "primitive",
+      "nodes": 65,
+      "measured": 65,
+      "withJsDoc": 0,
+      "withDocPage": 0
+    }
+  ],
+  "violations": [
+    {
+      "rule": "mutation-react-on",
+      "messages": [
+        "Mutation sendContextToAi has no query reacting to it (libs/component/src/lib/ai/ai-send-context-chat.ts:505)."
+      ]
+    }
+  ]
+}

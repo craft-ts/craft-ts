@@ -3,6 +3,7 @@ import type {
   SendContextPayload,
   SendContextTarget,
 } from '@craft-ts/core';
+import { aiPerformanceSection } from './ai-performance';
 
 /** What the chat puts in the clipboard when the user copies a prompt. */
 export interface SendContextPromptOptions {
@@ -13,6 +14,8 @@ export interface SendContextPromptOptions {
   readonly includeAppSnapshot: boolean;
   readonly includeDomStyles: boolean;
   readonly includePageDomStyles: boolean;
+  /** Long tasks and send-context timings; on unless explicitly `false`. */
+  readonly includePerformance?: boolean;
 }
 
 export const DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS: SendContextPromptOptions = {
@@ -23,6 +26,7 @@ export const DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS: SendContextPromptOptions = {
   includeAppSnapshot: true,
   includeDomStyles: false,
   includePageDomStyles: false,
+  includePerformance: true,
 };
 
 /** A short, human-readable name for a captured element. */
@@ -197,5 +201,8 @@ export function buildSendContextPrompt(
     );
   }
 
-  return sections.join('\n').trimEnd();
+  const prompt = sections.join('\n').trimEnd();
+  return options.includePerformance === false
+    ? prompt
+    : prompt + aiPerformanceSection();
 }

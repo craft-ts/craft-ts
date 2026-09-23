@@ -7,7 +7,7 @@
  */
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildReviewQueue, type ReviewCard, type ReviewItem } from './queue.js';
 import type {
@@ -59,6 +59,8 @@ export interface ReviewDecisionReopenRequest {
 }
 
 export interface ReviewApiQueue {
+  /** This local review server can resolve source references for IDE links. */
+  readonly sourceLinksAvailable?: true;
   readonly applicationCaptures?: AttestationDevtoolModel['applicationCaptures'];
   readonly items: number;
   readonly decisions: number;
@@ -104,6 +106,27 @@ export interface ReviewServerOptions {
   /** Pre-built mixed cards for the unified DevTool. */
   readonly cards?: readonly AttestationReviewCard[];
   readonly model?: Omit<AttestationDevtoolModel, 'cards'>;
+  /** Source excerpts are resolved only when a reviewer opens one obligation. */
+  readonly templateDetailFor?: (subject: string) =>
+    | {
+        readonly subject: string;
+        readonly renderSites?: readonly {
+          readonly file: string;
+          readonly line: number;
+          readonly code: string;
+        }[];
+        readonly element?: {
+          readonly file: string;
+          readonly line: number;
+          readonly code: string;
+        };
+        readonly method?: {
+          readonly file: string;
+          readonly line: number;
+          readonly code: string;
+        };
+      }
+    | undefined;
   /** Re-derives cards from the authoritative ledger before reads/decisions. */
   readonly refreshCards?: () => Promise<readonly AttestationReviewCard[]>;
   /** Re-runs configured producers, then re-derives the complete review model. */
@@ -206,6 +229,7 @@ const queueValue = (
   iteration: ReviewServerOptions['iteration'],
   history: readonly ReviewSessionDecision[] = [],
 ): ReviewApiQueue => ({
+  ...(iteration ? { sourceLinksAvailable: true as const } : {}),
   items: cards.reduce((total, card) => total + card.cluster.length, 0),
   decisions: cards.length,
   cards,
@@ -363,6 +387,49 @@ export async function startReviewServer(
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost');
 
+    if (request.method === 'GET' && url.pathname === '/api/open-in-ide') {
+      const root = options.iteration?.rootDir;
+      const ide = url.searchParams.get('ide');
+      const file = url.searchParams.get('file');
+      const line = url.searchParams.get('line');
+      if (
+        !root ||
+        !file ||
+        isAbsolute(file) ||
+        !['vscode', 'cursor', 'zed'].includes(ide ?? '') ||
+        (line !== null && !/^[1-9]\d*$/.test(line))
+      ) {
+        response.writeHead(400).end();
+        return;
+      }
+      const absolute = resolve(root, file);
+      const withinRoot = relative(resolve(root), absolute);
+      if (
+        !withinRoot ||
+        withinRoot === '..' ||
+        withinRoot.startsWith(`..${sep}`) ||
+        isAbsolute(withinRoot)
+      ) {
+        response.writeHead(400).end();
+        return;
+      }
+      const encoded = absolute
+        .replace(/\\/g, '/')
+        .split('/')
+        .map((segment, index) =>
+          index === 0 && /^[A-Za-z]:$/.test(segment)
+            ? segment.toLowerCase()
+            : encodeURIComponent(segment),
+        )
+        .join('/');
+      response.writeHead(302, {
+        location: `${ide}://file/${encoded}${line ? `:${line}` : ''}`,
+        'cache-control': 'no-store',
+      });
+      response.end();
+      return;
+    }
+
     if (request.method === 'GET' && url.pathname === '/@vite/client') {
       response.writeHead(200, {
         'content-type': 'text/javascript; charset=utf-8',
@@ -394,6 +461,41 @@ export async function startReviewServer(
           });
         }
       })();
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/template-detail') {
+      const subject = url.searchParams.get('subject');
+      if (
+        !subject ||
+        subject.length > 2048 ||
+        !subject.startsWith('template:')
+      ) {
+        writeJson(response, 400, {
+          error: 'review: invalid template subject.',
+        });
+        return;
+      }
+      if (
+        !model?.templateObligations.some((item) => item.subject === subject)
+      ) {
+        writeJson(response, 404, {
+          error: 'review: unknown template subject.',
+        });
+        return;
+      }
+      try {
+        const detail = options.templateDetailFor?.(subject);
+        if (!detail) {
+          writeJson(response, 200, { subject });
+          return;
+        }
+        writeJson(response, 200, detail);
+      } catch {
+        writeJson(response, 404, {
+          error: 'review: template source is unavailable.',
+        });
+      }
       return;
     }
 

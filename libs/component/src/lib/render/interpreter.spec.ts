@@ -36,6 +36,7 @@ import {
 import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
 import { craftDirective } from '../directive';
+import { eventAction } from '../event-action';
 import { content, renderContent } from '../project';
 import { deferNode } from '../defer-node';
 import { forNode } from '../for-node';
@@ -557,6 +558,81 @@ describe('functional component interpreter', () => {
 
     destroy();
     expect(element.textContent).toBe('');
+  });
+
+  it('runs event modifiers before the piped action through the normal click listener', async () => {
+    const seen: string[] = [];
+    const widget = craftComponent(
+      'eventActionWidget',
+      {},
+      function* () {
+        const navOpen = yield* state('navOpen', false, ({ update }) => ({
+          toggle: () => update((open) => !open),
+        }));
+        return { navOpen };
+      },
+      ({ navOpen }) =>
+        div({ click: () => seen.push('parent') }, [
+          button('navToggle', { type: 'button' }, 'Browse').pipe(
+            eventAction({
+              click: {
+                action: (event) => {
+                  seen.push(
+                    `action:${event.defaultPrevented}:${event.cancelBubble}`,
+                  );
+                  return navOpen.toggle();
+                },
+                preventDefault: true,
+                stopPropagation: true,
+              },
+            }),
+          ),
+          span(navOpen),
+        ]),
+    );
+    const { nativeElement, flush, destroy } =
+      await renderCraftComponent(widget);
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    nativeElement.querySelector('button')!.dispatchEvent(click);
+    await flush();
+    expect(seen).toEqual(['action:true:true']);
+    expect(click.defaultPrevented).toBe(true);
+    expect(nativeElement.querySelector('span')?.textContent).toBe('true');
+    destroy();
+  });
+
+  it('stops later same-element listeners while still running a generator action', async () => {
+    const seen: string[] = [];
+    const widget = craftComponent(
+      'immediateEventActionWidget',
+      {},
+      () => ({}),
+      () =>
+        button('action', { type: 'button' }, 'Act').pipe(
+          eventAction({
+            click: {
+              action: function* () {
+                seen.push('action');
+              },
+              stopImmediatePropagation: true,
+            },
+          }),
+        ),
+    );
+    const { nativeElement, destroy } = await renderCraftComponent(widget);
+    const buttonElement = nativeElement.querySelector('button')!;
+    buttonElement.addEventListener('click', () => seen.push('later'));
+    buttonElement.click();
+    expect(seen).toEqual(['action']);
+    destroy();
+  });
+
+  it('rejects a duplicate event handler, including onClick', () => {
+    expect(() =>
+      button('action', { onClick: () => undefined }, 'Act').pipe(
+        eventAction({ click: { action: () => undefined } }),
+      ),
+    ).toThrow(/already has a click handler/);
   });
 
   it('keeps an inline click handler after the parent template re-renders', async () => {
