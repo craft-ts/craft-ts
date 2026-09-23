@@ -60,6 +60,9 @@ export default defineConfig({
       // The dump is the style half of the dependency graph. Written on every
       // emission so the graph never reads a picture older than the CSS.
       dumpPath: path.resolve(root, '../../tmp/craft-style-graph.json'),
+      // The sheets of the framework's own components (AI overlay, pending
+      // indicator, skip link): outside the app root, so listed by path.
+      include: [path.resolve(root, '../../libs/component/src')],
       alias: {
         '@craft-ts/style': path.resolve(root, '../../libs/style/src/index.ts'),
         '@craft-ts/core': path.resolve(root, '../../libs/core/src/index.ts'),

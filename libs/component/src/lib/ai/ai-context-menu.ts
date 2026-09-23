@@ -2,7 +2,8 @@ import { craftUse, fromEventToSource$ } from '@craft-ts/core';
 import { craftComponent } from '../component';
 import { button, div, span } from '../hyperscript';
 import type { Input, Output } from '../types';
-import { AI_OVERLAY_THEME } from './ai-overlay-theme';
+import { assign, unit } from '@craft-ts/style';
+import { aiMenu, aiTheme, menuPosition } from './ai-overlay.style';
 
 /**
  * Context menu shown at the pointer position when a component is
@@ -10,42 +11,7 @@ import { AI_OVERLAY_THEME } from './ai-overlay-theme';
  */
 export const AiContextMenu = craftComponent(
   'AiContextMenu',
-  {
-    styles: `${AI_OVERLAY_THEME}
-      :scope {
-        position: fixed;
-        min-width: 180px;
-        background: var(--craft-ai-bg);
-        border: 1px solid var(--craft-ai-border);
-        border-radius: 6px;
-        box-shadow: 0 8px 24px var(--craft-ai-shadow);
-        padding: 4px;
-        pointer-events: auto;
-        font-family:
-          system-ui,
-          -apple-system,
-          sans-serif;
-        font-size: 13px;
-        color: var(--craft-ai-text);
-      }
-      :scope .craft-ai-menu-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        width: 100%;
-        padding: 6px 10px;
-        background: transparent;
-        border: none;
-        text-align: left;
-        color: var(--craft-ai-text);
-        cursor: pointer;
-        border-radius: 4px;
-      }
-      :scope .craft-ai-menu-item:hover {
-        background: var(--craft-ai-surface-muted);
-      }
-    `,
-  },
+  {},
   (
     x: Input<number>,
     y: Input<number>,
@@ -71,13 +37,14 @@ export const AiContextMenu = craftComponent(
     div(
       'aiContextMenu',
       {
-        class: 'craft-ai-menu',
+        class: [aiTheme.root, aiMenu.root],
         role: 'menu',
         tabIndex: -1,
         'aria-label': 'Component actions',
+        // Where the pointer was: a typed variable, read by the sheet.
         style: () => ({
-          left: `${craftUse(x())}px`,
-          top: `${craftUse(y())}px`,
+          ...assign(menuPosition.x, unit.px(craftUse(x()))),
+          ...assign(menuPosition.y, unit.px(craftUse(y()))),
         }),
         click: (event: MouseEvent) => event.stopPropagation(),
         contextmenu: (event: MouseEvent) => event.preventDefault(),
@@ -87,7 +54,7 @@ export const AiContextMenu = craftComponent(
         {
           type: 'button',
           role: 'menuitem',
-          class: 'craft-ai-menu-item',
+          class: aiMenu.item,
           click: () => onSelect(),
         },
         [span({ 'aria-hidden': 'true' }, '✨'), span('Add to AI context')],

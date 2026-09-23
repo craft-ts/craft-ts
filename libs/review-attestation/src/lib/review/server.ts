@@ -11,7 +11,9 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildReviewQueue, type ReviewCard, type ReviewItem } from './queue.js';
 import type {
+  ArchitectureWaiverReviewCard,
   AttestationDevtoolModel,
+  EslintDisableReviewCard,
   FolderLayoutReviewCard,
   RemovalReviewCard,
   TemplateReviewCard,
@@ -28,7 +30,9 @@ export type AttestationReviewCard =
   | ReviewCard
   | TemplateReviewCard
   | RemovalReviewCard
-  | FolderLayoutReviewCard;
+  | FolderLayoutReviewCard
+  | EslintDisableReviewCard
+  | ArchitectureWaiverReviewCard;
 
 export interface ReviewFinding {
   readonly path: string;
@@ -71,6 +75,10 @@ export interface ReviewApiQueue {
   readonly folderLayouts?: NonNullable<
     AttestationDevtoolModel['folderLayouts']
   >;
+  /** Every deliberate bypass — directives and waivers — whatever its state. */
+  readonly bypasses?: NonNullable<AttestationDevtoolModel['bypasses']>;
+  /** How far the design system has reached; absent when nothing could say. */
+  readonly styleAdoption?: AttestationDevtoolModel['styleAdoption'];
   readonly diagnostics: AttestationDevtoolModel['diagnostics'];
   /** Decisions accepted during this review session, in acceptance order. */
   readonly history: readonly ReviewSessionDecision[];
@@ -245,6 +253,8 @@ const queueValue = (
   visualTests: model?.visualTests ?? [],
   templateObligations: model?.templateObligations ?? [],
   folderLayouts: model?.folderLayouts ?? [],
+  bypasses: model?.bypasses ?? [],
+  ...(model?.styleAdoption ? { styleAdoption: model.styleAdoption } : {}),
   diagnostics: model?.diagnostics ?? [],
   history,
   ...(regeneration ? { regeneration } : {}),

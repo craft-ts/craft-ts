@@ -16,16 +16,17 @@ import {
   assertRouteDiProofs,
 } from '@craft-ts/dev-tools/architecture-graph';
 import { loadArchitectureGraph } from './load-graph';
+import { architectureWaiverList } from './waivers';
 
 /**
  * The graph is loaded once for the whole suite. Keep all graph assertions in
  * this file so Vitest does not rebuild the TypeScript graph in every worker.
  */
 describe('architecture', () => {
-  let graph: ReturnType<typeof loadArchitectureGraph>;
+  let graph: Awaited<ReturnType<typeof loadArchitectureGraph>>;
 
-  beforeAll(() => {
-    graph = loadArchitectureGraph();
+  beforeAll(async () => {
+    graph = await loadArchitectureGraph();
   }, 180_000);
 
   it('loads the architecture graph', () => {
@@ -164,6 +165,9 @@ describe('architecture', () => {
   });
 
   it('keeps the Effect demo declarative', () => {
-    assertDeclarativeArchitecture(graph.graph, { allow: ['sendContextToAi'] });
+    assertDeclarativeArchitecture(graph.graph, {
+      waivers: architectureWaiverList,
+      allow: ['sendContextToAi'],
+    });
   });
 });

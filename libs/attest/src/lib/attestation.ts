@@ -28,7 +28,9 @@ export type SubjectKind =
   | 'doc-example'
   | 'api-surface'
   | 'template'
-  | 'folder-layout';
+  | 'folder-layout'
+  | 'eslint-disable'
+  | 'architecture-waiver';
 
 export type Verdict =
   | 'ok'

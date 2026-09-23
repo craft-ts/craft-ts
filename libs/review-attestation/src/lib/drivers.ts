@@ -30,6 +30,12 @@ export interface ScenarioPage {
    * being handed a screenshot of the wrong state.
    */
   hover?(selector: string): Promise<unknown>;
+  /**
+   * Holds a real pointer down on the element, for `:active`. Optional for the
+   * same reason as `hover`: a synthetic `mousedown` does not set the
+   * pseudo-class. A Playwright harness implements it as `hover` + `mouse.down()`.
+   */
+  holdPointer?(selector: string): Promise<unknown>;
 }
 
 export interface ApplyOptions {
@@ -129,6 +135,21 @@ export async function applyScenario(
         });
         break;
       case 'selfState':
+        if (driver.state === 'focus') {
+          // Programmatic focus does set `:focus` — unlike a synthetic mouse
+          // event and `:hover` — so no harness method is needed.
+          await page.evaluate(applyFocus, { target });
+          break;
+        }
+        if (driver.state === 'active') {
+          if (!page.holdPointer) {
+            throw new Error(
+              `applyScenario: the scenario needs ':active' on '${target}', and this page cannot hold a pointer down. A synthetic mousedown would not set the pseudo-class — the capture would silently be the base state. Pass a harness with a holdPointer(selector) method.`,
+            );
+          }
+          await page.holdPointer(target);
+          break;
+        }
         if (!page.hover) {
           throw new Error(
             `applyScenario: the scenario needs ':${driver.state}' on '${target}', and this page cannot move a pointer. Dispatching a mouse event would not set the pseudo-class — the capture would silently be the base state. Pass a harness with a hover(selector) method, such as a Playwright Page.`,
@@ -155,6 +176,11 @@ const mediaOption = (
 
 // The bodies below run in the page, so they take a single serialisable
 // argument and reach for nothing from this module's scope.
+
+function applyFocus(input: { target: string }): void {
+  const element = document.querySelector(input.target);
+  if (element instanceof HTMLElement) element.focus();
+}
 
 function applyContainerWidth(input: {
   container: string;

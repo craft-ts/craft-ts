@@ -3,9 +3,9 @@ import { assertCraftUnique } from '@craft-ts/dev-tools';
 import { loadArchitectureGraph } from '../load-graph';
 
 describe('assertCraftUnique', () => {
-  let graph: ReturnType<typeof loadArchitectureGraph>;
-  beforeAll(() => {
-    graph = loadArchitectureGraph();
+  let graph: Awaited<ReturnType<typeof loadArchitectureGraph>>;
+  beforeAll(async () => {
+    graph = await loadArchitectureGraph();
   }, 180_000);
   it('requires craftUnique identities to appear once', () => {
     assertCraftUnique(graph.graph);

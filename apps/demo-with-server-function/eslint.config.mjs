@@ -39,15 +39,30 @@ export default [
       'craft-ts/prefer-craft-template-blocks': 'off',
       'craft-ts/prefer-direct-yieldable-callback': 'off',
       'craft-ts/require-effect-adapters': 'off',
-      'craft-ts/require-focus-visible': 'off',
       'craft-ts/require-primitive-derived-property': 'off',
-      'craft-ts/require-reduced-motion': 'off',
       'craft-ts/require-yieldable-reactive-read': 'off',
       'craft-ts/prefer-route-query-params-for-filter-state': 'off',
       'craft-ts/global-exception-registry-match': 'off',
       'craft-ts/craft-computed-name-match': 'off',
       'craft-ts/craft-method-name-match': 'off',
       'craft-ts/prefer-deep-yieldable-for-item': 'off',
+    },
+  },
+  {
+    // TODO(style-only): this project is not migrated to @craft-ts/style yet
+    // (lot 5 of the style-only plan). Its migration removes this block; the
+    // three rules stay `error` in `recommended`. Until then the rules that
+    // read component CSS text keep guarding the legacy `meta.styles`.
+    files: ['**/src/client/**/*.ts'],
+    plugins: { 'craft-ts': craftRules },
+    rules: {
+      ...craftRules.configs.legacyComponentCss.rules,
+      // Kept off, as before the move out of `recommended`.
+      'craft-ts/require-focus-visible': 'off',
+      'craft-ts/require-reduced-motion': 'off',
+      'craft-ts/no-raw-class': 'off',
+      'craft-ts/no-inline-style': 'off',
+      'craft-ts/no-component-css': 'off',
     },
   },
   {

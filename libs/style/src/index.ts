@@ -15,3 +15,8 @@ export * from './lib/props/index.ts';
 export * from './lib/axes/index.ts';
 export * from './lib/obligations.ts';
 export * from './lib/styles.ts';
+export * from './lib/pseudo.ts';
+export * from './lib/animation.ts';
+export * from './lib/font.ts';
+export * from './lib/global/index.ts';
+export * from './lib/values.ts';

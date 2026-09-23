@@ -13,9 +13,8 @@ describe('no-raw-class', () => {
     const result = await lint(
       noRawClass,
       `
-      import { craftStyles } from '@craft-ts/style';
       import { div } from '@craft-ts/component';
-      const sheet = craftStyles('card', {});
+      import { sheet } from './card.style';
       export const view = div({ class: sheet.root }, []);
     `,
     );
@@ -35,7 +34,7 @@ describe('no-raw-class', () => {
 
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0].message).toContain(
-      'Move the rule into the sheet',
+      'Move the rule into a *.style.ts sheet',
     );
   });
 
@@ -56,7 +55,7 @@ describe('no-raw-class', () => {
     expect(result.messages[0].message).toContain('when(tone.danger');
   });
 
-  it('leaves a file that does not use the design system alone', async () => {
+  it('holds a file that does not import the design system too', async () => {
     const result = await lint(
       noRawClass,
       `
@@ -65,9 +64,10 @@ describe('no-raw-class', () => {
     `,
     );
 
-    // A component that has not been migrated is not claiming the guarantee.
-    // Reporting it would teach people to disable the rule.
-    expect(result.messages).toEqual([]);
+    // The design system is the only way to style a component: an unmigrated
+    // file is exactly the file this rule is for. A project migrates in steps
+    // by turning the rule off in its own config, under TODO(style-only).
+    expect(result.messages).toHaveLength(1);
   });
 });
 

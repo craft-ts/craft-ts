@@ -195,6 +195,29 @@ export const interaction = {
     kind: 'selfState',
     state: 'hover',
   }) as AxisPoint<'interaction.hover', 'active'>,
+  /**
+   * `:focus` on the element itself — for what must *appear* on focus (a skip
+   * link), not for the focus ring: the ring is the foundation's, on every
+   * `:focus-visible`, and a component does not redraw it.
+   */
+  focus: axisPoint('interaction.focus', 'active', '&:focus', {
+    kind: 'selfState',
+    state: 'focus',
+  }) as AxisPoint<'interaction.focus', 'active'>,
+  /** `:active` — pressed. Reached by holding a real pointer down. */
+  active: axisPoint('interaction.active', 'active', '&:active', {
+    kind: 'selfState',
+    state: 'active',
+  }) as AxisPoint<'interaction.active', 'active'>,
+  /**
+   * `:disabled` — a form control that cannot be used. Reached by setting the
+   * attribute, which is exactly what produces the pseudo-class.
+   */
+  disabled: axisPoint('interaction.disabled', 'active', '&:disabled', {
+    kind: 'setAttribute',
+    name: 'disabled',
+    value: '',
+  }) as AxisPoint<'interaction.disabled', 'active'>,
 } as const;
 
 /** Every standard point, for the specs that assert each one has a driver. */

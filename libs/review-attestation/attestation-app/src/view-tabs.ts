@@ -21,6 +21,7 @@ export const ViewTabs = craftComponent(
     visualTestsCount: Input<number>,
     templateObligationsCount: Input<number>,
     folderLayoutCount: Input<number>,
+    bypassesCount: Input<number>,
     cardsCount: Input<number>,
     t: Input<Messages>,
   ) => {
@@ -46,6 +47,7 @@ export const ViewTabs = craftComponent(
       visualTestsCount,
       templateObligationsCount,
       folderLayoutCount,
+      bypassesCount,
       cardsCount,
       t,
       applicationPressed,
@@ -59,6 +61,7 @@ export const ViewTabs = craftComponent(
     visualTestsCount,
     templateObligationsCount,
     folderLayoutCount,
+    bypassesCount,
     cardsCount,
     t,
     applicationPressed,
@@ -184,6 +187,33 @@ export const ViewTabs = craftComponent(
         ]),
         span({ class: 'view-tab-count' }, function* () {
           return String(yield* folderLayoutCount());
+        }),
+      ],
+    ),
+    button(
+      'ShowBypasses',
+      {
+        type: 'button',
+        class: 'view-tab',
+        'aria-pressed': function* () {
+          return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
+        },
+        *click() {
+          yield* chooseDevtoolView('bypasses');
+        },
+      },
+      [
+        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '⚑'),
+        span({ class: 'view-tab-copy' }, [
+          strong(function* () {
+            return (yield* t()).viewBypasses;
+          }),
+          small(function* () {
+            return (yield* t()).viewBypassesDescription;
+          }),
+        ]),
+        span({ class: 'view-tab-count' }, function* () {
+          return String(yield* bypassesCount());
         }),
       ],
     ),

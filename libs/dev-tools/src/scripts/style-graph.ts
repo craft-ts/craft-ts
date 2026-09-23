@@ -83,6 +83,8 @@ export interface StyleDumpAtom {
    * conservative reading is zero for every atom.
    */
   readonly selectorConditions?: number;
+  /** Set when the atom styles a pseudo-element (`before`), not the element. */
+  readonly pseudoElement?: string;
 }
 
 export interface StyleDumpVar {
@@ -100,6 +102,8 @@ export interface StyleDump {
   readonly classes: readonly StyleDumpClass[];
   readonly atoms: readonly StyleDumpAtom[];
   readonly vars: readonly StyleDumpVar[];
+  /** Variables read by document-level rules and keyframes. Absent on older dumps. */
+  readonly globalReads?: readonly string[];
 }
 
 /** `ui.text.onAccent`, or `ui.text.onAccent.dark` for the other side. */
@@ -163,12 +167,14 @@ export function mergeStyleDump(
   const addEdge = (edge: DependencyGraphEdge) =>
     edges.set(`${edge.from}|${edge.kind}|${edge.to}`, edge);
 
+  const readByGlobal = new Set(dump.globalReads ?? []);
   for (const declaration of dump.vars) {
     addNode({
       id: cssVarId(declaration.name),
       kind: 'css-var',
       label: declaration.name,
       details: {
+        ...(readByGlobal.has(declaration.name) ? { readByGlobal: true } : {}),
         syntax: declaration.syntax,
         inherits: declaration.inherits,
         initialValue: declaration.initialValue,

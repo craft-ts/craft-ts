@@ -10,12 +10,6 @@ module.exports = {
   'craft-ts/require-craft-computed-for-dynamic-template-lookup': 'error',
   'craft-ts/no-render-writes': 'error',
   'craft-ts/require-reactive-template-bindings': 'error',
-  'craft-ts/craft-css-vars-contract': 'error',
-  'craft-ts/craft-styles-scope-safe': 'error',
-  'craft-ts/craft-css-var-naming': 'warn',
-  'craft-ts/craft-css-token-registry': 'error',
-  'craft-ts/no-hardcoded-design-values': 'warn',
-  'craft-ts/no-important-in-component-styles': 'error',
   'craft-ts/no-craft-computed-side-effects': 'error',
   'craft-ts/no-craft-component-return-type': 'error',
   'craft-ts/require-craft-component-for-exported-node-factory': 'error',
@@ -28,6 +22,11 @@ module.exports = {
   'craft-ts/max-craft-component-lines': 'warn',
   'craft-ts/no-raw-css-value': 'error',
   'craft-ts/no-raw-class': 'error',
+  // The design system is the only way to style a component. Each of these can
+  // still be disabled, with a `-- reason` that Review Attest lists.
+  'craft-ts/no-inline-style': 'error',
+  'craft-ts/no-component-css': 'error',
+  'craft-ts/no-forbidden-eslint-disable': 'error',
   'craft-ts/no-free-has': 'error',
   'craft-ts/style-file-boundary': 'error',
   'craft-ts/no-imperative-craft-resource-trigger': 'error',
@@ -105,6 +104,4 @@ module.exports = {
   'craft-ts/valid-aria': 'error',
   'craft-ts/role-has-required-aria': 'error',
   'craft-ts/target-blank-noopener': 'error',
-  'craft-ts/require-focus-visible': 'error',
-  'craft-ts/require-reduced-motion': 'error',
 };

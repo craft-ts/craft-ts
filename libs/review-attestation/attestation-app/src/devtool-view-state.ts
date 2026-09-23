@@ -6,6 +6,7 @@ export type DevtoolView =
   | 'visual'
   | 'template'
   | 'folder-layout'
+  | 'bypasses'
   | 'review';
 export type UrlDevtoolView = DevtoolView | '';
 export type RetirementReason = 'superseded' | 'defect' | 'derivation';
@@ -46,6 +47,7 @@ export const isDevtoolView = (value: string): value is DevtoolView =>
   value === 'visual' ||
   value === 'template' ||
   value === 'folder-layout' ||
+  value === 'bypasses' ||
   value === 'review';
 
 export const stringQueryParamCodec = {

@@ -18,6 +18,18 @@ import {
   SEND_CONTEXT_UI_RENDERER,
 } from './send-context-ui.tokens';
 import type { Provider } from '../host-runtime';
+import { registeredClasses } from '@craft-ts/style';
+import { aiLauncher, aiMenu, aiTheme } from './ai-overlay.style';
+
+/** A sheet class's declarations, as `conditions property: value` lines. */
+const declarationsOf = (className: string): string[] =>
+  (
+    registeredClasses().find((entry) => entry.className === className)?.rules ??
+    []
+  ).map(
+    (rule) =>
+      `${rule.conditions.map((point) => `${point.axis}:${point.point}`).join('|')}${rule.pseudoElement ? `::${rule.pseudoElement}` : ''} ${rule.property}: ${rule.value}`,
+  );
 
 describe('provideSendContextToAi', () => {
   beforeEach(() => {
@@ -122,10 +134,8 @@ describe('provideSendContextToAi', () => {
     );
     // The overlay host turns pointer events off so the app stays usable; the
     // button has to turn them back on or the click never lands.
-    const launcherSheet = Array.from(
-      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
-    ).find((style) => style.textContent?.includes('craft-ai-launcher'));
-    expect(launcherSheet?.textContent).toContain('pointer-events: auto');
+    expect(launcher?.className).toContain(aiLauncher.root);
+    expect(declarationsOf(aiLauncher.root)).toContain(' pointer-events: auto');
 
     expect(
       document.querySelector('[aria-label="Send context to AI"]'),
@@ -227,7 +237,7 @@ describe('provideSendContextToAi', () => {
     parent.destroy();
   });
 
-  it('scopes overlay styles to the component root', async () => {
+  it('styles the menu from its sheet, positioned by typed variables', async () => {
     const rendered = await renderCraftComponent(AiContextMenu, {
       props: {
         x: function* () {
@@ -241,23 +251,22 @@ describe('provideSendContextToAi', () => {
       } as never,
     });
 
-    const sheet = Array.from(
-      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
-    ).find((style) => style.textContent?.includes('AiContextMenu'));
     const menu = rendered.nativeElement.querySelector(
-      '.craft-ai-menu',
+      '[role="menu"]',
     ) as HTMLElement;
 
-    expect(sheet?.textContent).toContain(':scope {');
-    expect(sheet?.textContent).toContain(':scope .craft-ai-menu-item');
-    const menuItemRule =
-      sheet?.textContent?.match(
-        /:scope \.craft-ai-menu-item\s*\{[^}]*\}/,
-      )?.[0] ?? '';
-    expect(menuItemRule).toContain('color: var(--craft-ai-text)');
-    expect(sheet?.textContent).toContain('@media (prefers-color-scheme: dark)');
-    expect(menu.style.left).toBe('120px');
-    expect(menu.style.top).toBe('80px');
+    expect(menu.className).toBe(`${aiTheme.root} ${aiMenu.root}`);
+    expect(menu.querySelector('[role="menuitem"]')?.className).toBe(
+      aiMenu.item,
+    );
+    expect(declarationsOf(aiMenu.item)).toContain(
+      ' color: var(--craft-ai-text)',
+    );
+    expect(declarationsOf(aiTheme.root)).toEqual(
+      expect.arrayContaining(['scheme:dark --craft-ai-bg: #1f2937']),
+    );
+    expect(menu.style.getPropertyValue('--craftAiMenu-x')).toBe('120px');
+    expect(menu.style.getPropertyValue('--craftAiMenu-y')).toBe('80px');
 
     rendered.destroy();
   });

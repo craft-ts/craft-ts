@@ -53,10 +53,15 @@ const TAKES_PRIMITIVES = new Set([
   'defineStateAxis',
   'defineBreakpoints',
   'defineAxis',
+  'craftGlobalStyles',
+  'keyframes',
+  'defineFont',
+  'googleFont',
+  'localFont',
 ]);
 
 /** Namespaces whose members are value constructors: `unit.px(4)`, `at.…`. */
-const PRIMITIVE_NAMESPACES = new Set(['unit', 'kind', 'at']);
+const PRIMITIVE_NAMESPACES = new Set(['unit', 'kind', 'at', 'easing']);
 
 module.exports = {
   meta: {

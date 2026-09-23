@@ -83,6 +83,7 @@ import {
 import { ViewTabs } from './view-tabs';
 import { AssetsInventoryList } from './assets-inventory-list';
 import { FolderLayoutView } from './folder-layout-view';
+import { BypassCardEvidence, BypassesView } from './bypasses-view';
 import {
   MENTION_ID,
   chipFor,
@@ -851,6 +852,12 @@ export const ReviewApp = craftComponent(
     const folderLayouts = craftComputed('folderLayouts', function* () {
       return (yield* review.value())?.folderLayouts ?? [];
     });
+    const bypasses = craftComputed('bypasses', function* () {
+      return (yield* review.value())?.bypasses ?? [];
+    });
+    const styleAdoption = craftComputed('styleAdoption', function* () {
+      return (yield* review.value())?.styleAdoption;
+    });
     const visualAssets = craftComputed('visualAssets', function* () {
       if ((yield* kindFilter()) !== 'all' && (yield* kindFilter()) !== 'visual')
         return [];
@@ -981,6 +988,10 @@ export const ReviewApp = craftComponent(
         return (yield* current())?.kind === 'folder-layout';
       },
     );
+    const bypassEvidence = craftComputed('bypassEvidence', function* () {
+      const kind = (yield* current())?.kind;
+      return kind === 'eslint-disable' || kind === 'architecture-waiver';
+    });
     /** Every sentence, in the language on screen. */
     const t = craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
@@ -1584,11 +1595,14 @@ export const ReviewApp = craftComponent(
       visualReviewCard,
       templateObligations,
       folderLayouts,
+      bypasses,
+      styleAdoption,
       activeIndex,
       current,
       sourceDetail,
       visualEvidence,
       folderLayoutEvidence,
+      bypassEvidence,
       sessionHistory,
       zoom,
       note,
@@ -1676,6 +1690,8 @@ export const ReviewApp = craftComponent(
     visualReviewCard,
     templateObligations,
     folderLayouts,
+    bypasses,
+    styleAdoption,
     activeIndex,
     sessionHistory,
     zoom,
@@ -1722,6 +1738,7 @@ export const ReviewApp = craftComponent(
     sourceDetail,
     visualEvidence,
     folderLayoutEvidence,
+    bypassEvidence,
     evidenceView,
     rememberCaret,
     freezePick,
@@ -1945,6 +1962,9 @@ export const ReviewApp = craftComponent(
                   },
                   folderLayoutCount: function* () {
                     return (yield* folderLayouts()).length;
+                  },
+                  bypassesCount: function* () {
+                    return (yield* bypasses()).length;
                   },
                   cardsCount: function* () {
                     return (yield* cards()).length;
@@ -2281,8 +2301,13 @@ export const ReviewApp = craftComponent(
                           class: 'nonvisual-evidence',
                           hidden: function* () {
                             const kind = (yield* card()).kind;
+                            // Template and removal evidence only: a bypass
+                            // has its own presenter below.
                             return (
-                              kind === 'visual' || kind === 'folder-layout'
+                              kind === 'visual' ||
+                              kind === 'folder-layout' ||
+                              kind === 'eslint-disable' ||
+                              kind === 'architecture-waiver'
                             );
                           },
                         },
@@ -2619,6 +2644,56 @@ export const ReviewApp = craftComponent(
                             ),
                           ),
                         ],
+                      ),
+                      ifNode(bypassEvidence, () =>
+                        BypassCardEvidence({
+                          label: function* () {
+                            const value = yield* card();
+                            return value.kind === 'eslint-disable'
+                              ? `eslint-disable · ${value.rule}`
+                              : value.kind === 'architecture-waiver'
+                                ? `${value.rule} → ${value.target}`
+                                : '';
+                          },
+                          location: function* () {
+                            const value = yield* card();
+                            return value.kind === 'eslint-disable'
+                              ? `${value.filePath}:${value.excerpt.highlightLine}`
+                              : value.kind === 'architecture-waiver'
+                                ? `${value.filePath}:${value.line}`
+                                : '';
+                          },
+                          reason: function* () {
+                            const value = yield* card();
+                            return value.kind === 'eslint-disable' ||
+                              value.kind === 'architecture-waiver'
+                              ? value.bypassReason
+                              : null;
+                          },
+                          code: function* () {
+                            const value = yield* card();
+                            if (value.kind === 'eslint-disable') {
+                              return value.excerpt.lines
+                                .map(
+                                  (line, index) =>
+                                    `${String(value.excerpt.startLine + index).padStart(4)}  ${line}`,
+                                )
+                                .join('\n');
+                            }
+                            return value.kind === 'architecture-waiver'
+                              ? `${value.project}: ${value.rule} → ${value.target}`
+                              : '';
+                          },
+                          previousReason: function* () {
+                            const value = yield* card();
+                            return (value.kind === 'eslint-disable' ||
+                              value.kind === 'architecture-waiver') &&
+                              value.previousReason !== undefined
+                              ? value.previousReason
+                              : null;
+                          },
+                          t,
+                        }),
                       ),
                       ifNode(folderLayoutEvidence, () =>
                         FolderLayoutView({
@@ -3454,6 +3529,20 @@ export const ReviewApp = craftComponent(
                 decide: decideApplicationCaptures,
                 inspect: inspectApplicationCapture,
               }),
+            ],
+          ),
+          main(
+            {
+              class: 'inventory-panel',
+              hidden: function* () {
+                return (yield* devtoolView()) !== 'bypasses';
+              },
+            },
+            [
+              heading(function* () {
+                return (yield* t()).viewBypasses;
+              }),
+              BypassesView({ bypasses, adoption: styleAdoption, t }),
             ],
           ),
           main(

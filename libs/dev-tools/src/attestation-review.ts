@@ -34,7 +34,9 @@ export type ReviewCardKind =
   | 'visual'
   | 'template'
   | 'removal'
-  | 'folder-layout';
+  | 'folder-layout'
+  | 'eslint-disable'
+  | 'architecture-waiver';
 export type ReviewableState = 'missing' | 'review';
 export type ReviewVerdict =
   | 'ok'
@@ -231,11 +233,201 @@ export interface FolderLayoutReviewCard extends ReviewCardBase {
   readonly statistics: FolderLayoutStatistics;
 }
 
+// ─── bypasses ───────────────────────────────────────────────────────────────
+// A deliberate bypass of a rule — an `eslint-disable` directive or an
+// architecture waiver — is a card like any other: the reviewer reads the
+// reason next to what it excuses and accepts it or rejects it. Bypasses are
+// possible on purpose; they are never silent.
+
+export interface BypassExcerpt {
+  /** 1-based line of the first excerpt line. */
+  readonly startLine: number;
+  readonly lines: readonly string[];
+  /** 1-based line the directive silences, inside the excerpt. */
+  readonly highlightLine: number;
+}
+
+export interface EslintDisableReviewCard extends ReviewCardBase {
+  readonly kind: 'eslint-disable';
+  readonly presenter: 'bypass';
+  readonly rule: string;
+  readonly directive: 'disable' | 'disable-line' | 'disable-next-line';
+  readonly bypassReason: string | null;
+  readonly filePath: string;
+  readonly excerpt: BypassExcerpt;
+  /** The reason the last accepted version gave, when it was different. */
+  readonly previousReason?: string | null;
+}
+
+export interface ArchitectureWaiverReviewCard extends ReviewCardBase {
+  readonly kind: 'architecture-waiver';
+  readonly presenter: 'bypass';
+  readonly project: string;
+  readonly rule: string;
+  readonly target: string;
+  readonly bypassReason: string;
+  readonly filePath: string;
+  readonly line: number;
+  readonly previousReason?: string;
+}
+
+export interface EslintDisableReviewInput {
+  readonly subject: string;
+  readonly state: ReviewableState;
+  readonly rule: string;
+  readonly directive: EslintDisableReviewCard['directive'];
+  readonly reason: string | null;
+  readonly filePath: string;
+  readonly excerpt: BypassExcerpt;
+  readonly previousReason?: string | null;
+  readonly previousDecision?: PreviousDecision;
+}
+
+export function buildEslintDisableReviewCard(
+  input: EslintDisableReviewInput,
+): EslintDisableReviewCard {
+  const evidence = {
+    rule: input.rule,
+    directive: input.directive,
+    reason: input.reason,
+    lines: input.excerpt.lines,
+  };
+  const reasonChanged =
+    input.previousReason !== undefined && input.previousReason !== input.reason;
+  return {
+    kind: 'eslint-disable',
+    presenter: 'bypass',
+    id: input.subject,
+    shape: input.subject,
+    revision: reviewRevision({
+      subject: input.subject,
+      evidence: canonical(evidence),
+      state: input.state,
+    }),
+    state: input.state,
+    subject: input.subject,
+    reason:
+      input.state === 'missing'
+        ? 'a new eslint-disable directive'
+        : reasonChanged
+          ? 'the reason changed'
+          : 'the silenced code changed',
+    cluster: [input.subject],
+    reviewMembers: [{ subject: input.subject, label: input.rule }],
+    members: [{ subject: input.subject, attested: [], changed: [] }],
+    changes: [
+      `${input.directive} ${input.rule}`,
+      input.reason ? `reason: ${input.reason}` : 'no reason given',
+    ],
+    rule: input.rule,
+    directive: input.directive,
+    bypassReason: input.reason,
+    filePath: input.filePath,
+    excerpt: input.excerpt,
+    ...(reasonChanged ? { previousReason: input.previousReason } : {}),
+    ...(input.previousDecision
+      ? { previousDecision: input.previousDecision }
+      : {}),
+  };
+}
+
+export interface ArchitectureWaiverReviewInput {
+  readonly subject: string;
+  readonly state: ReviewableState;
+  readonly project: string;
+  readonly rule: string;
+  readonly target: string;
+  readonly reason: string;
+  readonly filePath: string;
+  readonly line: number;
+  readonly previousReason?: string;
+  readonly previousDecision?: PreviousDecision;
+}
+
+export function buildArchitectureWaiverReviewCard(
+  input: ArchitectureWaiverReviewInput,
+): ArchitectureWaiverReviewCard {
+  const reasonChanged =
+    input.previousReason !== undefined && input.previousReason !== input.reason;
+  return {
+    kind: 'architecture-waiver',
+    presenter: 'bypass',
+    id: input.subject,
+    shape: input.subject,
+    revision: reviewRevision({
+      subject: input.subject,
+      evidence: canonical({
+        project: input.project,
+        rule: input.rule,
+        target: input.target,
+        reason: input.reason,
+      }),
+      state: input.state,
+    }),
+    state: input.state,
+    subject: input.subject,
+    reason:
+      input.state === 'missing'
+        ? 'a new architecture waiver'
+        : 'the waiver reason changed',
+    cluster: [input.subject],
+    reviewMembers: [{ subject: input.subject, label: input.rule }],
+    members: [{ subject: input.subject, attested: [], changed: [] }],
+    changes: [`${input.rule} → ${input.target}`, `reason: ${input.reason}`],
+    project: input.project,
+    rule: input.rule,
+    target: input.target,
+    bypassReason: input.reason,
+    filePath: input.filePath,
+    line: input.line,
+    ...(reasonChanged ? { previousReason: input.previousReason } : {}),
+    ...(input.previousDecision
+      ? { previousDecision: input.previousDecision }
+      : {}),
+  };
+}
+
 export type ReviewCard =
   | VisualReviewCard
   | TemplateReviewCard
   | RemovalReviewCard
-  | FolderLayoutReviewCard;
+  | FolderLayoutReviewCard
+  | EslintDisableReviewCard
+  | ArchitectureWaiverReviewCard;
+
+/** One bypass in the inventory, whatever its review state. */
+export interface BypassInventoryItem {
+  readonly subject: string;
+  readonly kind: 'eslint-disable' | 'architecture-waiver';
+  readonly rule: string;
+  /** `'*'` for an `eslint-disable` that names no rule. */
+  readonly target?: string;
+  readonly project?: string;
+  readonly reason: string | null;
+  readonly filePath: string;
+  readonly line: number;
+  readonly excerpt?: BypassExcerpt;
+  readonly state: 'current' | 'renewed' | 'missing' | 'review';
+}
+
+/**
+ * How far the design system has reached: components whose every class comes
+ * from a sheet, against the components that style anything at all.
+ */
+export interface StyleAdoption {
+  /** Components that set a class, carry meta CSS, or import a stylesheet. */
+  readonly styling: number;
+  /** Of those, the ones fully on the design system. */
+  readonly adopted: number;
+  /** Components that render no class of their own — not counted. */
+  readonly composition: number;
+  readonly remaining: readonly {
+    readonly component: string;
+    readonly findings: readonly string[];
+    /** The reason of the waiver that excuses it, target or whole rule. */
+    readonly waivedBy?: string;
+  }[];
+}
 
 export interface FolderLayoutInventoryItem {
   readonly subject: string;
@@ -379,6 +571,8 @@ export interface AttestationDevtoolModel {
   readonly visualTests: readonly VisualTestInventoryItem[];
   readonly templateObligations: readonly TemplateInventoryItem[];
   readonly folderLayouts?: readonly FolderLayoutInventoryItem[];
+  readonly bypasses?: readonly BypassInventoryItem[];
+  readonly styleAdoption?: StyleAdoption;
   readonly diagnostics: readonly TemplateDiagnostic[];
   readonly cards: readonly ReviewCard[];
 }

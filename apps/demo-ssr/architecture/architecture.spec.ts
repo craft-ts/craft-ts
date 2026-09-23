@@ -18,12 +18,13 @@ import {
   assertRouteDiProofs,
 } from '@craft-ts/dev-tools';
 import { loadArchitectureGraph } from './load-graph';
+import { architectureWaiverList } from './waivers';
 
 describe('demo-ssr architecture', () => {
-  let graph: ReturnType<typeof loadArchitectureGraph>;
+  let graph: Awaited<ReturnType<typeof loadArchitectureGraph>>;
 
-  beforeAll(() => {
-    graph = loadArchitectureGraph();
+  beforeAll(async () => {
+    graph = await loadArchitectureGraph();
   }, 180_000);
 
   it('loads the SSR routes and Craft components', () => {
@@ -98,6 +99,9 @@ describe('demo-ssr architecture', () => {
   });
 
   it('keeps the SSR lab declarative', () => {
-    assertDeclarativeArchitecture(graph.graph, { allow: ['sendContextToAi'] });
+    assertDeclarativeArchitecture(graph.graph, {
+      waivers: architectureWaiverList,
+      allow: ['sendContextToAi'],
+    });
   });
 });

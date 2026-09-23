@@ -1,6 +1,8 @@
+import { dirname } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
-  architectureViolations,
+  architectureReport,
+  architectureWaivers,
   dependencyGraphPathsBetween,
   relativeGraphPath,
 } from '@craft-ts/dev-tools/architecture-graph';
@@ -394,7 +396,7 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
     'graph.violations',
     {
       description:
-        'The architecture rules assertArchitecture enforces, as named rules with their messages. An empty list means the graph passes.',
+        'The architecture rules assertArchitecture enforces, as named rules with their messages, after the waivers the project declares in architecture/waivers.ts. An empty list means the graph passes; `waived` lists what a waiver excused, with its reason.',
       inputSchema: {
         target: z.enum(['development', 'production']).optional(),
       },
@@ -402,10 +404,24 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
     },
     async ({ target }) =>
       respond(store, (graph) => {
-        const rules = architectureViolations(graph, target ? { target } : {});
+        const waivers = architectureWaivers(
+          dirname(graph.tsConfigFilePath),
+        ).map(({ rule, target: waived, reason }) => ({
+          rule,
+          target: waived,
+          reason,
+        }));
+        const report = architectureReport(graph, {
+          ...(target ? { target } : {}),
+          waivers: waivers as never,
+        });
         return {
-          rules,
-          total: rules.reduce((sum, rule) => sum + rule.messages.length, 0),
+          rules: report.violations,
+          total: report.violations.reduce(
+            (sum, rule) => sum + rule.messages.length,
+            0,
+          ),
+          waived: report.waived,
         };
       }),
   );

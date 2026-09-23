@@ -2,6 +2,1258 @@
   "version": 2,
   "classes": [
     {
+      "key": "craftAiChat-actions",
+      "className": "i-display-flex-nk10xv i-gap-0-5rem-nxhppl i-flex-wrap-wrap-au5pkq i-align-items-center-0fb4tz",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-gap-0-5rem-nxhppl",
+        "i-flex-wrap-wrap-au5pkq",
+        "i-align-items-center-0fb4tz"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-button",
+      "className": "i-font-inherit-fsufdu i-font-size-12px-9g0id0 i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-w9857c i-background-color-var-craft-ai-control-bg-9kcj6f i-color-var-craft-ai-text-t015ds i-border-radius-0-375rem-wxbltw i-padding-block-7px-2cbdua i-padding-inline-11px-tpf4ot i-cursor-pointer-0i8by1 i-interaction-hover-active-background-color-var-craft-ai-s-nx2pj7 i-craftAiButton-primary-background-color-var-craft-ai-acce-vsafi2 i-craftAiButton-primary-border-color-var-craft-ai-accent-0rlhl0 i-craftAiButton-primary-color-var-craft-ai-on-accent-4b9tg7 i-craftAiButton-primary-interaction-hover-active-backgroun-m9ni61 i-craftAiButton-recording-background-color-var-craft-ai-da-984v8e i-craftAiButton-recording-border-color-var-craft-ai-danger-ogo52k i-craftAiButton-recording-color-var-craft-ai-on-accent-b6h5e4 i-interaction-disabled-active-opacity-0-55-41qzy3 i-interaction-disabled-active-cursor-not-allowed-omqa38",
+      "axes": {
+        "interaction.hover": [
+          "active"
+        ],
+        "craftAiButton": [
+          "primary",
+          "recording"
+        ],
+        "interaction.disabled": [
+          "active"
+        ]
+      },
+      "atoms": [
+        "i-font-inherit-fsufdu",
+        "i-font-size-12px-9g0id0",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-w9857c",
+        "i-background-color-var-craft-ai-control-bg-9kcj6f",
+        "i-color-var-craft-ai-text-t015ds",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-padding-block-7px-2cbdua",
+        "i-padding-inline-11px-tpf4ot",
+        "i-cursor-pointer-0i8by1",
+        "i-interaction-hover-active-background-color-var-craft-ai-s-nx2pj7",
+        "i-craftAiButton-primary-background-color-var-craft-ai-acce-vsafi2",
+        "i-craftAiButton-primary-border-color-var-craft-ai-accent-0rlhl0",
+        "i-craftAiButton-primary-color-var-craft-ai-on-accent-4b9tg7",
+        "i-craftAiButton-primary-interaction-hover-active-backgroun-m9ni61",
+        "i-craftAiButton-recording-background-color-var-craft-ai-da-984v8e",
+        "i-craftAiButton-recording-border-color-var-craft-ai-danger-ogo52k",
+        "i-craftAiButton-recording-color-var-craft-ai-on-accent-b6h5e4",
+        "i-interaction-disabled-active-opacity-0-55-41qzy3",
+        "i-interaction-disabled-active-cursor-not-allowed-omqa38"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-checkbox",
+      "className": "i-accent-color-var-craft-ai-accent-omkf9g",
+      "axes": {},
+      "atoms": [
+        "i-accent-color-var-craft-ai-accent-omkf9g"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-close",
+      "className": "i-background-color-transparent-mj59g8 i-border-style-none-7grrcy i-font-size-20px-u4zjof i-line-height-1-gdjij9 i-padding-block-0rem-qobq15 i-padding-inline-0-25rem-vew8mg i-color-var-craft-ai-text-muted-v9761y i-cursor-pointer-0i8by1",
+      "axes": {},
+      "atoms": [
+        "i-background-color-transparent-mj59g8",
+        "i-border-style-none-7grrcy",
+        "i-font-size-20px-u4zjof",
+        "i-line-height-1-gdjij9",
+        "i-padding-block-0rem-qobq15",
+        "i-padding-inline-0-25rem-vew8mg",
+        "i-color-var-craft-ai-text-muted-v9761y",
+        "i-cursor-pointer-0i8by1"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-empty",
+      "className": "i-margin-0rem-rlsg3w i-color-var-craft-ai-text-muted-v9761y i-font-size-12px-9g0id0",
+      "axes": {},
+      "atoms": [
+        "i-margin-0rem-rlsg3w",
+        "i-color-var-craft-ai-text-muted-v9761y",
+        "i-font-size-12px-9g0id0"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-event",
+      "className": "i-display-flex-nk10xv i-gap-6px-4kz084 i-white-space-nowrap-upmuvb",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-gap-6px-4kz084",
+        "i-white-space-nowrap-upmuvb"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-eventName",
+      "className": "i-text-overflow-ellipsis-k93ia1",
+      "axes": {},
+      "atoms": [
+        "i-text-overflow-ellipsis-k93ia1"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": [
+        "noClipping.inline"
+      ]
+    },
+    {
+      "key": "craftAiChat-eventTime",
+      "className": "i-color-var-craft-ai-text-muted-v9761y",
+      "axes": {},
+      "atoms": [
+        "i-color-var-craft-ai-text-muted-v9761y"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-header",
+      "className": "i-display-flex-nk10xv i-justify-content-space-between-4997qn i-align-items-center-0fb4tz i-gap-0-5rem-nxhppl i-cursor-grab-i7dg7e i-touch-action-none-cyl2as i-user-select-none-oki7jg i-interaction-active-active-cursor-grabbing-e0pas4",
+      "axes": {
+        "interaction.active": [
+          "active"
+        ]
+      },
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-justify-content-space-between-4997qn",
+        "i-align-items-center-0fb4tz",
+        "i-gap-0-5rem-nxhppl",
+        "i-cursor-grab-i7dg7e",
+        "i-touch-action-none-cyl2as",
+        "i-user-select-none-oki7jg",
+        "i-interaction-active-active-cursor-grabbing-e0pas4"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-legend",
+      "className": "i-font-size-11px-s5mzsn i-font-weight-600-vveqqg i-letter-spacing-0-04em-m0wmf6 i-text-transform-uppercase-cbzy1e i-color-var-craft-ai-text-muted-v9761y i-padding-inline-0-25rem-vew8mg",
+      "axes": {},
+      "atoms": [
+        "i-font-size-11px-s5mzsn",
+        "i-font-weight-600-vveqqg",
+        "i-letter-spacing-0-04em-m0wmf6",
+        "i-text-transform-uppercase-cbzy1e",
+        "i-color-var-craft-ai-text-muted-v9761y",
+        "i-padding-inline-0-25rem-vew8mg"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-option",
+      "className": "i-display-flex-nk10xv i-align-items-center-0fb4tz i-gap-6px-4kz084 i-font-size-12px-9g0id0",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-align-items-center-0fb4tz",
+        "i-gap-6px-4kz084",
+        "i-font-size-12px-9g0id0"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-options",
+      "className": "i-display-grid-erx1xi i-grid-template-columns-repeat-auto-fit-minmax-170px-1fr-v8y5qu i-row-gap-6px-qy33ev i-column-gap-0-75rem-5uimgn i-margin-0rem-rlsg3w i-padding-10px-jm78mu i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-subtle-by96sm i-border-radius-0-375rem-wxbltw",
+      "axes": {},
+      "atoms": [
+        "i-display-grid-erx1xi",
+        "i-grid-template-columns-repeat-auto-fit-minmax-170px-1fr-v8y5qu",
+        "i-row-gap-6px-qy33ev",
+        "i-column-gap-0-75rem-5uimgn",
+        "i-margin-0rem-rlsg3w",
+        "i-padding-10px-jm78mu",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-subtle-by96sm",
+        "i-border-radius-0-375rem-wxbltw"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-overlay",
+      "className": "i-font-family-system-ui-apple-system-sans-serif-6tjbns i-font-size-13px-affpvl i-color-var-craft-ai-text-t015ds i-position-fixed-srek1r i-inset-0rem-rjjyx5 i-display-flex-nk10xv i-align-items-flex-end-pd30qp i-justify-content-flex-end-13ay25 i-padding-1-25rem-d1u6f3 i-pointer-events-none-z0o01p",
+      "axes": {},
+      "atoms": [
+        "i-font-family-system-ui-apple-system-sans-serif-6tjbns",
+        "i-font-size-13px-affpvl",
+        "i-color-var-craft-ai-text-t015ds",
+        "i-position-fixed-srek1r",
+        "i-inset-0rem-rjjyx5",
+        "i-display-flex-nk10xv",
+        "i-align-items-flex-end-pd30qp",
+        "i-justify-content-flex-end-13ay25",
+        "i-padding-1-25rem-d1u6f3",
+        "i-pointer-events-none-z0o01p"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-panel",
+      "className": "i-position-relative-e6suxt i-left-var-craftAiChat-x-2kv3gq i-top-var-craftAiChat-y-8pmwz5 i-pointer-events-auto-uvq03y i-display-flex-nk10xv i-flex-direction-column-1c6t1r i-gap-0-75rem-qf1jps i-inline-size-min-460px-100-urjxxg i-max-height-min-760px-88vh-31wnk0 i-overflow-block-auto-p4zn29 i-min-block-size-0-l2iwby i-background-color-var-craft-ai-bg-h2f2m3 i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-subtle-by96sm i-border-radius-0-75rem-zm57fd i-box-shadow-0-20px-60px-var-craft-ai-shadow-vlf4wm i-padding-1rem-cjcwdq",
+      "axes": {},
+      "atoms": [
+        "i-position-relative-e6suxt",
+        "i-left-var-craftAiChat-x-2kv3gq",
+        "i-top-var-craftAiChat-y-8pmwz5",
+        "i-pointer-events-auto-uvq03y",
+        "i-display-flex-nk10xv",
+        "i-flex-direction-column-1c6t1r",
+        "i-gap-0-75rem-qf1jps",
+        "i-inline-size-min-460px-100-urjxxg",
+        "i-max-height-min-760px-88vh-31wnk0",
+        "i-overflow-block-auto-p4zn29",
+        "i-min-block-size-0-l2iwby",
+        "i-background-color-var-craft-ai-bg-h2f2m3",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-subtle-by96sm",
+        "i-border-radius-0-75rem-zm57fd",
+        "i-box-shadow-0-20px-60px-var-craft-ai-shadow-vlf4wm",
+        "i-padding-1rem-cjcwdq"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [
+        "scrollPort.block"
+      ],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-phase",
+      "className": "i-text-transform-uppercase-cbzy1e i-font-size-10px-2byj8i i-letter-spacing-0-03em-xwjojx i-craftAiPhase-failed-color-var-craft-ai-danger-gsadqm i-craftAiPhase-succeeded-color-var-craft-ai-success-3dyqda i-craftAiPhase-started-color-var-craft-ai-warning-w8r6j9 i-craftAiPhase-emitted-color-var-craft-ai-phase-emitted-kix2jo",
+      "axes": {
+        "craftAiPhase": [
+          "emitted",
+          "failed",
+          "started",
+          "succeeded"
+        ]
+      },
+      "atoms": [
+        "i-text-transform-uppercase-cbzy1e",
+        "i-font-size-10px-2byj8i",
+        "i-letter-spacing-0-03em-xwjojx",
+        "i-craftAiPhase-failed-color-var-craft-ai-danger-gsadqm",
+        "i-craftAiPhase-succeeded-color-var-craft-ai-success-3dyqda",
+        "i-craftAiPhase-started-color-var-craft-ai-warning-w8r6j9",
+        "i-craftAiPhase-emitted-color-var-craft-ai-phase-emitted-kix2jo"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-section",
+      "className": "i-display-flex-nk10xv i-flex-direction-column-1c6t1r i-gap-6px-4kz084",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-flex-direction-column-1c6t1r",
+        "i-gap-6px-4kz084"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-sectionHead",
+      "className": "i-display-flex-nk10xv i-align-items-center-0fb4tz i-justify-content-space-between-4997qn i-gap-0-5rem-nxhppl i-font-size-11px-s5mzsn i-font-weight-600-vveqqg i-letter-spacing-0-04em-m0wmf6 i-text-transform-uppercase-cbzy1e i-color-var-craft-ai-text-muted-v9761y",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-align-items-center-0fb4tz",
+        "i-justify-content-space-between-4997qn",
+        "i-gap-0-5rem-nxhppl",
+        "i-font-size-11px-s5mzsn",
+        "i-font-weight-600-vveqqg",
+        "i-letter-spacing-0-04em-m0wmf6",
+        "i-text-transform-uppercase-cbzy1e",
+        "i-color-var-craft-ai-text-muted-v9761y"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-spacer",
+      "className": "i-flex-grow-1-7wywkw",
+      "axes": {},
+      "atoms": [
+        "i-flex-grow-1-7wywkw"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-success",
+      "className": "i-margin-0rem-rlsg3w i-color-var-craft-ai-success-ra12wq i-font-size-12px-9g0id0",
+      "axes": {},
+      "atoms": [
+        "i-margin-0rem-rlsg3w",
+        "i-color-var-craft-ai-success-ra12wq",
+        "i-font-size-12px-9g0id0"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-target",
+      "className": "i-display-inline-flex-i0vm91 i-align-items-center-0fb4tz i-gap-6px-4kz084 i-max-width-100-4fulc9 i-background-color-var-craft-ai-surface-accent-6pfkfw i-color-var-craft-ai-accent-text-n1fpcr i-border-radius-9999px-lzzxqf i-padding-block-3px-jqkjji i-padding-inline-10px-1ntukw i-font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-ecrvnf i-font-size-11px-s5mzsn",
+      "axes": {},
+      "atoms": [
+        "i-display-inline-flex-i0vm91",
+        "i-align-items-center-0fb4tz",
+        "i-gap-6px-4kz084",
+        "i-max-width-100-4fulc9",
+        "i-background-color-var-craft-ai-surface-accent-6pfkfw",
+        "i-color-var-craft-ai-accent-text-n1fpcr",
+        "i-border-radius-9999px-lzzxqf",
+        "i-padding-block-3px-jqkjji",
+        "i-padding-inline-10px-1ntukw",
+        "i-font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-ecrvnf",
+        "i-font-size-11px-s5mzsn"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-targetLabel",
+      "className": "i-text-overflow-ellipsis-k93ia1 i-white-space-nowrap-upmuvb",
+      "axes": {},
+      "atoms": [
+        "i-text-overflow-ellipsis-k93ia1",
+        "i-white-space-nowrap-upmuvb"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": [
+        "noClipping.inline"
+      ]
+    },
+    {
+      "key": "craftAiChat-targetRemove",
+      "className": "i-border-style-none-7grrcy i-background-color-transparent-mj59g8 i-color-inherit-v7mp1m i-cursor-pointer-0i8by1 i-font-size-13px-affpvl i-line-height-1-gdjij9 i-padding-block-2px-aj4y4j i-padding-inline-0-25rem-vew8mg i-border-radius-9999px-lzzxqf i-interaction-hover-active-background-color-var-craft-ai-a-rztr7t",
+      "axes": {
+        "interaction.hover": [
+          "active"
+        ]
+      },
+      "atoms": [
+        "i-border-style-none-7grrcy",
+        "i-background-color-transparent-mj59g8",
+        "i-color-inherit-v7mp1m",
+        "i-cursor-pointer-0i8by1",
+        "i-font-size-13px-affpvl",
+        "i-line-height-1-gdjij9",
+        "i-padding-block-2px-aj4y4j",
+        "i-padding-inline-0-25rem-vew8mg",
+        "i-border-radius-9999px-lzzxqf",
+        "i-interaction-hover-active-background-color-var-craft-ai-a-rztr7t"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-targets",
+      "className": "i-display-flex-nk10xv i-flex-wrap-wrap-au5pkq i-gap-6px-4kz084 i-margin-0rem-rlsg3w i-padding-0rem-78q2fl i-list-style-type-none-3a73c9",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-flex-wrap-wrap-au5pkq",
+        "i-gap-6px-4kz084",
+        "i-margin-0rem-rlsg3w",
+        "i-padding-0rem-78q2fl",
+        "i-list-style-type-none-3a73c9"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-textarea",
+      "className": "i-inline-size-100-jrlf03 i-box-sizing-border-box-8k8qaq i-resize-vertical-0k6rt4 i-font-inherit-fsufdu i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-w9857c i-border-radius-0-375rem-wxbltw i-padding-block-0-5rem-ypxjgo i-padding-inline-10px-1ntukw i-color-var-craft-ai-text-t015ds i-background-color-var-craft-ai-control-bg-9kcj6f i-caret-color-var-craft-ai-text-h2pflq i-craft-focusOffset-1px-mk9b6o i-placeholder-color-var-craft-ai-text-muted-lgij1j i-placeholder-opacity-1-0fxgtn",
+      "axes": {},
+      "atoms": [
+        "i-inline-size-100-jrlf03",
+        "i-box-sizing-border-box-8k8qaq",
+        "i-resize-vertical-0k6rt4",
+        "i-font-inherit-fsufdu",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-w9857c",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-padding-block-0-5rem-ypxjgo",
+        "i-padding-inline-10px-1ntukw",
+        "i-color-var-craft-ai-text-t015ds",
+        "i-background-color-var-craft-ai-control-bg-9kcj6f",
+        "i-caret-color-var-craft-ai-text-h2pflq",
+        "i-craft-focusOffset-1px-mk9b6o",
+        "i-placeholder-color-var-craft-ai-text-muted-lgij1j",
+        "i-placeholder-opacity-1-0fxgtn"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-timeline",
+      "className": "i-margin-0rem-rlsg3w i-padding-block-6px-s5zuef i-padding-inline-0-5rem-lma6u2 i-list-style-type-none-3a73c9 i-max-height-190px-7rkozo i-overflow-block-auto-p4zn29 i-min-block-size-0-l2iwby i-background-color-var-craft-ai-surface-o1mzv3 i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-subtle-by96sm i-border-radius-0-375rem-wxbltw i-font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-ecrvnf i-font-size-11px-s5mzsn i-line-height-1-6-tuqasp",
+      "axes": {},
+      "atoms": [
+        "i-margin-0rem-rlsg3w",
+        "i-padding-block-6px-s5zuef",
+        "i-padding-inline-0-5rem-lma6u2",
+        "i-list-style-type-none-3a73c9",
+        "i-max-height-190px-7rkozo",
+        "i-overflow-block-auto-p4zn29",
+        "i-min-block-size-0-l2iwby",
+        "i-background-color-var-craft-ai-surface-o1mzv3",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-subtle-by96sm",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-ecrvnf",
+        "i-font-size-11px-s5mzsn",
+        "i-line-height-1-6-tuqasp"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [
+        "scrollPort.block"
+      ],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-title",
+      "className": "i-font-size-14px-qqxaf2 i-font-weight-600-vveqqg",
+      "axes": {},
+      "atoms": [
+        "i-font-size-14px-qqxaf2",
+        "i-font-weight-600-vveqqg"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiChat-warning",
+      "className": "i-margin-0rem-rlsg3w i-color-var-craft-ai-warning-200p11 i-font-size-12px-9g0id0",
+      "axes": {},
+      "atoms": [
+        "i-margin-0rem-rlsg3w",
+        "i-color-var-craft-ai-warning-200p11",
+        "i-font-size-12px-9g0id0"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-cancel",
+      "className": "i-background-color-var-craft-ai-control-bg-9kcj6f i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-w9857c i-padding-block-6px-s5zuef i-padding-inline-0-75rem-kpjzht i-border-radius-0-375rem-wxbltw i-color-var-craft-ai-text-t015ds i-cursor-pointer-0i8by1",
+      "axes": {},
+      "atoms": [
+        "i-background-color-var-craft-ai-control-bg-9kcj6f",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-w9857c",
+        "i-padding-block-6px-s5zuef",
+        "i-padding-inline-0-75rem-kpjzht",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-color-var-craft-ai-text-t015ds",
+        "i-cursor-pointer-0i8by1"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-card",
+      "className": "i-background-color-var-craft-ai-bg-h2f2m3 i-border-radius-0-5rem-5ta3wy i-box-shadow-0-20px-50px-var-craft-ai-shadow-r9cabp i-inline-size-min-560px-100-230r0b i-max-height-90vh-uaztep i-overflow-block-auto-p4zn29 i-min-block-size-0-l2iwby i-padding-block-1rem-vvulza i-padding-inline-1-25rem-yj774h i-display-flex-nk10xv i-flex-direction-column-1c6t1r i-gap-0-75rem-qf1jps",
+      "axes": {},
+      "atoms": [
+        "i-background-color-var-craft-ai-bg-h2f2m3",
+        "i-border-radius-0-5rem-5ta3wy",
+        "i-box-shadow-0-20px-50px-var-craft-ai-shadow-r9cabp",
+        "i-inline-size-min-560px-100-230r0b",
+        "i-max-height-90vh-uaztep",
+        "i-overflow-block-auto-p4zn29",
+        "i-min-block-size-0-l2iwby",
+        "i-padding-block-1rem-vvulza",
+        "i-padding-inline-1-25rem-yj774h",
+        "i-display-flex-nk10xv",
+        "i-flex-direction-column-1c6t1r",
+        "i-gap-0-75rem-qf1jps"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [
+        "scrollPort.block"
+      ],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-checkbox",
+      "className": "i-margin-0rem-rlsg3w i-accent-color-var-craft-ai-accent-omkf9g",
+      "axes": {},
+      "atoms": [
+        "i-margin-0rem-rlsg3w",
+        "i-accent-color-var-craft-ai-accent-omkf9g"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-close",
+      "className": "i-background-color-transparent-mj59g8 i-border-style-none-7grrcy i-font-size-20px-u4zjof i-line-height-1-gdjij9 i-cursor-pointer-0i8by1 i-color-var-craft-ai-text-muted-v9761y",
+      "axes": {},
+      "atoms": [
+        "i-background-color-transparent-mj59g8",
+        "i-border-style-none-7grrcy",
+        "i-font-size-20px-u4zjof",
+        "i-line-height-1-gdjij9",
+        "i-cursor-pointer-0i8by1",
+        "i-color-var-craft-ai-text-muted-v9761y"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-context",
+      "className": "i-background-color-var-craft-ai-surface-o1mzv3 i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-subtle-by96sm i-border-radius-0-375rem-wxbltw i-padding-block-0-5rem-ypxjgo i-padding-inline-10px-1ntukw i-font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-ecrvnf i-font-size-12px-9g0id0 i-display-grid-erx1xi i-gap-0-25rem-93c9i1",
+      "axes": {},
+      "atoms": [
+        "i-background-color-var-craft-ai-surface-o1mzv3",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-subtle-by96sm",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-padding-block-0-5rem-ypxjgo",
+        "i-padding-inline-10px-1ntukw",
+        "i-font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-ecrvnf",
+        "i-font-size-12px-9g0id0",
+        "i-display-grid-erx1xi",
+        "i-gap-0-25rem-93c9i1"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-contextLabel",
+      "className": "i-color-var-craft-ai-text-muted-v9761y i-margin-inline-end-0-25rem-7l4h29",
+      "axes": {},
+      "atoms": [
+        "i-color-var-craft-ai-text-muted-v9761y",
+        "i-margin-inline-end-0-25rem-7l4h29"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-copy",
+      "className": "i-display-flex-nk10xv i-align-items-center-0fb4tz i-gap-6px-4kz084 i-background-color-var-craft-ai-accent-9vxulq i-color-var-craft-ai-on-accent-aor4cz i-border-style-none-7grrcy i-padding-block-6px-s5zuef i-padding-inline-14px-bbqrh0 i-border-radius-0-375rem-wxbltw i-cursor-pointer-0i8by1 i-font-weight-500-bmatrf i-transition-property-background-color-9eeedh i-transition-duration-150ms-t7c13q i-transition-timing-function-ease-49ve8z i-craftAiCopy-done-background-color-var-craft-ai-success-f-q9c0qw i-interaction-disabled-active-opacity-0-6-0ip90n i-interaction-disabled-active-cursor-not-allowed-omqa38",
+      "axes": {
+        "craftAiCopy": [
+          "done"
+        ],
+        "interaction.disabled": [
+          "active"
+        ]
+      },
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-align-items-center-0fb4tz",
+        "i-gap-6px-4kz084",
+        "i-background-color-var-craft-ai-accent-9vxulq",
+        "i-color-var-craft-ai-on-accent-aor4cz",
+        "i-border-style-none-7grrcy",
+        "i-padding-block-6px-s5zuef",
+        "i-padding-inline-14px-bbqrh0",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-cursor-pointer-0i8by1",
+        "i-font-weight-500-bmatrf",
+        "i-transition-property-background-color-9eeedh",
+        "i-transition-duration-150ms-t7c13q",
+        "i-transition-timing-function-ease-49ve8z",
+        "i-craftAiCopy-done-background-color-var-craft-ai-success-f-q9c0qw",
+        "i-interaction-disabled-active-opacity-0-6-0ip90n",
+        "i-interaction-disabled-active-cursor-not-allowed-omqa38"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-footer",
+      "className": "i-display-flex-nk10xv i-justify-content-flex-end-13ay25 i-gap-0-5rem-nxhppl",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-justify-content-flex-end-13ay25",
+        "i-gap-0-5rem-nxhppl"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-header",
+      "className": "i-display-flex-nk10xv i-align-items-center-0fb4tz i-justify-content-space-between-4997qn i-font-size-14px-qqxaf2",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-align-items-center-0fb4tz",
+        "i-justify-content-space-between-4997qn",
+        "i-font-size-14px-qqxaf2"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-label",
+      "className": "i-font-weight-600-vveqqg",
+      "axes": {},
+      "atoms": [
+        "i-font-weight-600-vveqqg"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-legend",
+      "className": "i-padding-inline-0-25rem-vew8mg i-font-weight-600-vveqqg",
+      "axes": {},
+      "atoms": [
+        "i-padding-inline-0-25rem-vew8mg",
+        "i-font-weight-600-vveqqg"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-option",
+      "className": "i-display-flex-nk10xv i-align-items-flex-start-s9u6kq i-gap-0-5rem-nxhppl i-line-height-1-35-n4pob3 i-cursor-pointer-0i8by1",
+      "axes": {},
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-align-items-flex-start-s9u6kq",
+        "i-gap-0-5rem-nxhppl",
+        "i-line-height-1-35-n4pob3",
+        "i-cursor-pointer-0i8by1"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-options",
+      "className": "i-display-grid-erx1xi i-gap-7px-4li9pt i-margin-0rem-rlsg3w i-padding-10px-jm78mu i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-subtle-by96sm i-border-radius-0-375rem-wxbltw",
+      "axes": {},
+      "atoms": [
+        "i-display-grid-erx1xi",
+        "i-gap-7px-4li9pt",
+        "i-margin-0rem-rlsg3w",
+        "i-padding-10px-jm78mu",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-subtle-by96sm",
+        "i-border-radius-0-375rem-wxbltw"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-overlay",
+      "className": "i-font-family-system-ui-apple-system-sans-serif-6tjbns i-font-size-13px-affpvl i-color-var-craft-ai-text-t015ds i-position-fixed-srek1r i-inset-0rem-rjjyx5 i-inline-size-100-jrlf03 i-max-width-none-nzccy1 i-height-100-zl22n7 i-max-height-none-xrt04u i-box-sizing-border-box-8k8qaq i-margin-0rem-rlsg3w i-border-style-none-7grrcy i-background-color-transparent-mj59g8 i-padding-1-5rem-31al47 i-display-flex-nk10xv i-align-items-center-0fb4tz i-justify-content-center-w240h7 i-backdrop-background-color-var-craft-ai-overlay-backdrop-mmufs3",
+      "axes": {},
+      "atoms": [
+        "i-font-family-system-ui-apple-system-sans-serif-6tjbns",
+        "i-font-size-13px-affpvl",
+        "i-color-var-craft-ai-text-t015ds",
+        "i-position-fixed-srek1r",
+        "i-inset-0rem-rjjyx5",
+        "i-inline-size-100-jrlf03",
+        "i-max-width-none-nzccy1",
+        "i-height-100-zl22n7",
+        "i-max-height-none-xrt04u",
+        "i-box-sizing-border-box-8k8qaq",
+        "i-margin-0rem-rlsg3w",
+        "i-border-style-none-7grrcy",
+        "i-background-color-transparent-mj59g8",
+        "i-padding-1-5rem-31al47",
+        "i-display-flex-nk10xv",
+        "i-align-items-center-0fb4tz",
+        "i-justify-content-center-w240h7",
+        "i-backdrop-background-color-var-craft-ai-overlay-backdrop-mmufs3"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-success",
+      "className": "i-background-color-var-craft-ai-success-bg-xph5sx i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-success-border-st6yz6 i-color-var-craft-ai-success-text-epecje i-padding-block-0-5rem-ypxjgo i-padding-inline-10px-1ntukw i-border-radius-0-375rem-wxbltw",
+      "axes": {},
+      "atoms": [
+        "i-background-color-var-craft-ai-success-bg-xph5sx",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-success-border-st6yz6",
+        "i-color-var-craft-ai-success-text-epecje",
+        "i-padding-block-0-5rem-ypxjgo",
+        "i-padding-inline-10px-1ntukw",
+        "i-border-radius-0-375rem-wxbltw"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-textarea",
+      "className": "i-inline-size-100-jrlf03 i-box-sizing-border-box-8k8qaq i-font-family-inherit-tdz55n i-font-size-13px-affpvl i-padding-block-0-5rem-ypxjgo i-padding-inline-10px-1ntukw i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-w9857c i-border-radius-0-375rem-wxbltw i-resize-vertical-0k6rt4 i-min-height-96px-l93wj3 i-color-var-craft-ai-text-t015ds i-background-color-var-craft-ai-control-bg-9kcj6f i-caret-color-var-craft-ai-text-h2pflq i-craft-focusOffset-1px-mk9b6o i-placeholder-color-var-craft-ai-text-muted-lgij1j i-placeholder-opacity-1-0fxgtn",
+      "axes": {},
+      "atoms": [
+        "i-inline-size-100-jrlf03",
+        "i-box-sizing-border-box-8k8qaq",
+        "i-font-family-inherit-tdz55n",
+        "i-font-size-13px-affpvl",
+        "i-padding-block-0-5rem-ypxjgo",
+        "i-padding-inline-10px-1ntukw",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-w9857c",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-resize-vertical-0k6rt4",
+        "i-min-height-96px-l93wj3",
+        "i-color-var-craft-ai-text-t015ds",
+        "i-background-color-var-craft-ai-control-bg-9kcj6f",
+        "i-caret-color-var-craft-ai-text-h2pflq",
+        "i-craft-focusOffset-1px-mk9b6o",
+        "i-placeholder-color-var-craft-ai-text-muted-lgij1j",
+        "i-placeholder-opacity-1-0fxgtn"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiDialog-warning",
+      "className": "i-font-size-12px-9g0id0 i-padding-block-6px-s5zuef i-padding-inline-0-5rem-lma6u2 i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-radius-0-25rem-hmlmfk i-color-var-craft-ai-warning-200p11 i-background-color-var-craft-ai-warning-bg-4z115g i-border-color-var-craft-ai-warning-border-m1ecfv",
+      "axes": {},
+      "atoms": [
+        "i-font-size-12px-9g0id0",
+        "i-padding-block-6px-s5zuef",
+        "i-padding-inline-0-5rem-lma6u2",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-radius-0-25rem-hmlmfk",
+        "i-color-var-craft-ai-warning-200p11",
+        "i-background-color-var-craft-ai-warning-bg-4z115g",
+        "i-border-color-var-craft-ai-warning-border-m1ecfv"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiLauncher-root",
+      "className": "i-font-family-system-ui-apple-system-sans-serif-6tjbns i-font-size-13px-affpvl i-position-fixed-srek1r i-right-var-craft-ai-launcher-right-danpe9 i-bottom-var-craft-ai-launcher-bottom-uwm3b7 i-z-index-1-fwsekm i-pointer-events-auto-uvq03y i-display-inline-flex-i0vm91 i-align-items-center-0fb4tz i-justify-content-center-w240h7 i-gap-0-5rem-nxhppl i-margin-0rem-rlsg3w i-border-style-none-7grrcy i-border-radius-9999px-lzzxqf i-padding-block-11px-t67ijn i-padding-inline-1rem-w70kx0 i-font-weight-600-vveqqg i-line-height-1-gdjij9 i-background-color-var-craft-ai-accent-9vxulq i-color-var-craft-ai-on-accent-aor4cz i-box-shadow-0-8px-24px-var-craft-ai-launcher-shadow-4elm11 i-cursor-pointer-0i8by1 i-transition-property-background-color-scale-e34psr i-transition-duration-120ms-g1abir i-transition-timing-function-ease-49ve8z i-interaction-hover-active-background-color-var-craft-ai-a-o2l3zh i-interaction-active-active-scale-0-97-ns9ed4",
+      "axes": {
+        "interaction.hover": [
+          "active"
+        ],
+        "interaction.active": [
+          "active"
+        ]
+      },
+      "atoms": [
+        "i-font-family-system-ui-apple-system-sans-serif-6tjbns",
+        "i-font-size-13px-affpvl",
+        "i-position-fixed-srek1r",
+        "i-right-var-craft-ai-launcher-right-danpe9",
+        "i-bottom-var-craft-ai-launcher-bottom-uwm3b7",
+        "i-z-index-1-fwsekm",
+        "i-pointer-events-auto-uvq03y",
+        "i-display-inline-flex-i0vm91",
+        "i-align-items-center-0fb4tz",
+        "i-justify-content-center-w240h7",
+        "i-gap-0-5rem-nxhppl",
+        "i-margin-0rem-rlsg3w",
+        "i-border-style-none-7grrcy",
+        "i-border-radius-9999px-lzzxqf",
+        "i-padding-block-11px-t67ijn",
+        "i-padding-inline-1rem-w70kx0",
+        "i-font-weight-600-vveqqg",
+        "i-line-height-1-gdjij9",
+        "i-background-color-var-craft-ai-accent-9vxulq",
+        "i-color-var-craft-ai-on-accent-aor4cz",
+        "i-box-shadow-0-8px-24px-var-craft-ai-launcher-shadow-4elm11",
+        "i-cursor-pointer-0i8by1",
+        "i-transition-property-background-color-scale-e34psr",
+        "i-transition-duration-120ms-g1abir",
+        "i-transition-timing-function-ease-49ve8z",
+        "i-interaction-hover-active-background-color-var-craft-ai-a-o2l3zh",
+        "i-interaction-active-active-scale-0-97-ns9ed4"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiMenu-item",
+      "className": "i-display-flex-nk10xv i-align-items-center-0fb4tz i-gap-0-5rem-nxhppl i-inline-size-100-jrlf03 i-padding-block-6px-s5zuef i-padding-inline-10px-1ntukw i-background-color-transparent-mj59g8 i-border-style-none-7grrcy i-text-align-left-8xp00i i-color-var-craft-ai-text-t015ds i-cursor-pointer-0i8by1 i-border-radius-0-25rem-hmlmfk i-interaction-hover-active-background-color-var-craft-ai-s-uq5rad",
+      "axes": {
+        "interaction.hover": [
+          "active"
+        ]
+      },
+      "atoms": [
+        "i-display-flex-nk10xv",
+        "i-align-items-center-0fb4tz",
+        "i-gap-0-5rem-nxhppl",
+        "i-inline-size-100-jrlf03",
+        "i-padding-block-6px-s5zuef",
+        "i-padding-inline-10px-1ntukw",
+        "i-background-color-transparent-mj59g8",
+        "i-border-style-none-7grrcy",
+        "i-text-align-left-8xp00i",
+        "i-color-var-craft-ai-text-t015ds",
+        "i-cursor-pointer-0i8by1",
+        "i-border-radius-0-25rem-hmlmfk",
+        "i-interaction-hover-active-background-color-var-craft-ai-s-uq5rad"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiMenu-root",
+      "className": "i-font-family-system-ui-apple-system-sans-serif-6tjbns i-font-size-13px-affpvl i-color-var-craft-ai-text-t015ds i-position-fixed-srek1r i-left-var-craftAiMenu-x-jmablz i-top-var-craftAiMenu-y-dqdbf4 i-min-width-180px-jqssx0 i-background-color-var-craft-ai-bg-h2f2m3 i-border-width-1px-5nboqc i-border-style-solid-1qf5az i-border-color-var-craft-ai-border-w9857c i-border-radius-0-375rem-wxbltw i-box-shadow-0-8px-24px-var-craft-ai-shadow-186ac6 i-padding-0-25rem-eammha i-pointer-events-auto-uvq03y",
+      "axes": {},
+      "atoms": [
+        "i-font-family-system-ui-apple-system-sans-serif-6tjbns",
+        "i-font-size-13px-affpvl",
+        "i-color-var-craft-ai-text-t015ds",
+        "i-position-fixed-srek1r",
+        "i-left-var-craftAiMenu-x-jmablz",
+        "i-top-var-craftAiMenu-y-dqdbf4",
+        "i-min-width-180px-jqssx0",
+        "i-background-color-var-craft-ai-bg-h2f2m3",
+        "i-border-width-1px-5nboqc",
+        "i-border-style-solid-1qf5az",
+        "i-border-color-var-craft-ai-border-w9857c",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-box-shadow-0-8px-24px-var-craft-ai-shadow-186ac6",
+        "i-padding-0-25rem-eammha",
+        "i-pointer-events-auto-uvq03y"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftAiTheme-root",
+      "className": "i-craft-ai-bg-ffffff-m0eefc i-craft-ai-surface-f9fafb-t5t0s2 i-craft-ai-surface-muted-f3f4f6-c261yj i-craft-ai-surface-accent-eff6ff-n507xs i-craft-ai-control-bg-ffffff-g93et0 i-craft-ai-success-bg-ecfdf5-91pb77 i-craft-ai-warning-bg-fffbeb-qe4xjc i-craft-ai-text-111827-s65gm4 i-craft-ai-text-muted-6b7280-ltvu2x i-craft-ai-accent-text-1d4ed8-7i1dgn i-craft-ai-on-accent-ffffff-puyo5d i-craft-ai-success-text-065f46-cjswlr i-craft-ai-success-047857-mjt2yr i-craft-ai-warning-b45309-vnzoo8 i-craft-ai-danger-b91c1c-5s86nv i-craft-ai-phase-emitted-4338ca-2zia77 i-craft-ai-border-d1d5db-7sgdph i-craft-ai-border-subtle-e5e7eb-jqfhn4 i-craft-ai-success-border-a7f3d0-c1wdsw i-craft-ai-warning-border-fde68a-rx7kj0 i-craft-ai-accent-2563eb-f80sa4 i-craft-ai-accent-hover-1d4ed8-djauj0 i-craft-ai-focus-3b82f6-kjdxze i-craft-ai-accent-soft-rgba-29-78-216-0-15-ezjzy3 i-craft-ai-danger-fill-b91c1c-sv32zl i-craft-ai-success-fill-047857-cr9di5 i-craft-ai-shadow-rgba-15-23-42-0-25-tl34xz i-craft-ai-overlay-backdrop-rgba-15-23-42-0-5-80flbm i-craft-ai-launcher-shadow-rgba-37-99-235-0-35-qbz0l2 i-scheme-dark-craft-ai-bg-1f2937-xd4ls1 i-scheme-dark-craft-ai-surface-111827-c5gxi1 i-scheme-dark-craft-ai-surface-muted-374151-35fmny i-scheme-dark-craft-ai-surface-accent-1e3a8a-c8vh97 i-scheme-dark-craft-ai-control-bg-111827-olpgn5 i-scheme-dark-craft-ai-success-bg-064e3b-vy6ayf i-scheme-dark-craft-ai-warning-bg-78350f-aj4243 i-scheme-dark-craft-ai-text-f9fafb-sn75nx i-scheme-dark-craft-ai-text-muted-d1d5db-8femzt i-scheme-dark-craft-ai-accent-text-bfdbfe-wl7yf3 i-scheme-dark-craft-ai-on-accent-ffffff-npl9nu i-scheme-dark-craft-ai-success-text-a7f3d0-myxei6 i-scheme-dark-craft-ai-success-6ee7b7-4fquk7 i-scheme-dark-craft-ai-warning-fbbf24-7zap4q i-scheme-dark-craft-ai-danger-fca5a5-9hwgl4 i-scheme-dark-craft-ai-phase-emitted-a5b4fc-s8hjcz i-scheme-dark-craft-ai-border-6b7280-kleyyd i-scheme-dark-craft-ai-border-subtle-4b5563-nvru2l i-scheme-dark-craft-ai-success-border-047857-ytle8t i-scheme-dark-craft-ai-warning-border-b45309-uv4g6c i-scheme-dark-craft-ai-accent-2563eb-ndjwm9 i-scheme-dark-craft-ai-accent-hover-1d4ed8-pd6puh i-scheme-dark-craft-ai-focus-93c5fd-i5b40e i-scheme-dark-craft-ai-accent-soft-rgba-191-219-254-0-2-pbhvr3 i-scheme-dark-craft-ai-danger-fill-fca5a5-t566to i-scheme-dark-craft-ai-success-fill-6ee7b7-ns8uw3 i-scheme-dark-craft-ai-shadow-rgba-0-0-0-0-45-6peqrd i-scheme-dark-craft-ai-overlay-backdrop-rgba-2-6-23-0-7-upswip i-scheme-dark-craft-ai-launcher-shadow-rgba-37-99-235-0-35-dgz68l i-craft-focusRing-var-craft-ai-focus-owj5t1",
+      "axes": {
+        "scheme": [
+          "dark"
+        ]
+      },
+      "atoms": [
+        "i-craft-ai-bg-ffffff-m0eefc",
+        "i-craft-ai-surface-f9fafb-t5t0s2",
+        "i-craft-ai-surface-muted-f3f4f6-c261yj",
+        "i-craft-ai-surface-accent-eff6ff-n507xs",
+        "i-craft-ai-control-bg-ffffff-g93et0",
+        "i-craft-ai-success-bg-ecfdf5-91pb77",
+        "i-craft-ai-warning-bg-fffbeb-qe4xjc",
+        "i-craft-ai-text-111827-s65gm4",
+        "i-craft-ai-text-muted-6b7280-ltvu2x",
+        "i-craft-ai-accent-text-1d4ed8-7i1dgn",
+        "i-craft-ai-on-accent-ffffff-puyo5d",
+        "i-craft-ai-success-text-065f46-cjswlr",
+        "i-craft-ai-success-047857-mjt2yr",
+        "i-craft-ai-warning-b45309-vnzoo8",
+        "i-craft-ai-danger-b91c1c-5s86nv",
+        "i-craft-ai-phase-emitted-4338ca-2zia77",
+        "i-craft-ai-border-d1d5db-7sgdph",
+        "i-craft-ai-border-subtle-e5e7eb-jqfhn4",
+        "i-craft-ai-success-border-a7f3d0-c1wdsw",
+        "i-craft-ai-warning-border-fde68a-rx7kj0",
+        "i-craft-ai-accent-2563eb-f80sa4",
+        "i-craft-ai-accent-hover-1d4ed8-djauj0",
+        "i-craft-ai-focus-3b82f6-kjdxze",
+        "i-craft-ai-accent-soft-rgba-29-78-216-0-15-ezjzy3",
+        "i-craft-ai-danger-fill-b91c1c-sv32zl",
+        "i-craft-ai-success-fill-047857-cr9di5",
+        "i-craft-ai-shadow-rgba-15-23-42-0-25-tl34xz",
+        "i-craft-ai-overlay-backdrop-rgba-15-23-42-0-5-80flbm",
+        "i-craft-ai-launcher-shadow-rgba-37-99-235-0-35-qbz0l2",
+        "i-scheme-dark-craft-ai-bg-1f2937-xd4ls1",
+        "i-scheme-dark-craft-ai-surface-111827-c5gxi1",
+        "i-scheme-dark-craft-ai-surface-muted-374151-35fmny",
+        "i-scheme-dark-craft-ai-surface-accent-1e3a8a-c8vh97",
+        "i-scheme-dark-craft-ai-control-bg-111827-olpgn5",
+        "i-scheme-dark-craft-ai-success-bg-064e3b-vy6ayf",
+        "i-scheme-dark-craft-ai-warning-bg-78350f-aj4243",
+        "i-scheme-dark-craft-ai-text-f9fafb-sn75nx",
+        "i-scheme-dark-craft-ai-text-muted-d1d5db-8femzt",
+        "i-scheme-dark-craft-ai-accent-text-bfdbfe-wl7yf3",
+        "i-scheme-dark-craft-ai-on-accent-ffffff-npl9nu",
+        "i-scheme-dark-craft-ai-success-text-a7f3d0-myxei6",
+        "i-scheme-dark-craft-ai-success-6ee7b7-4fquk7",
+        "i-scheme-dark-craft-ai-warning-fbbf24-7zap4q",
+        "i-scheme-dark-craft-ai-danger-fca5a5-9hwgl4",
+        "i-scheme-dark-craft-ai-phase-emitted-a5b4fc-s8hjcz",
+        "i-scheme-dark-craft-ai-border-6b7280-kleyyd",
+        "i-scheme-dark-craft-ai-border-subtle-4b5563-nvru2l",
+        "i-scheme-dark-craft-ai-success-border-047857-ytle8t",
+        "i-scheme-dark-craft-ai-warning-border-b45309-uv4g6c",
+        "i-scheme-dark-craft-ai-accent-2563eb-ndjwm9",
+        "i-scheme-dark-craft-ai-accent-hover-1d4ed8-pd6puh",
+        "i-scheme-dark-craft-ai-focus-93c5fd-i5b40e",
+        "i-scheme-dark-craft-ai-accent-soft-rgba-191-219-254-0-2-pbhvr3",
+        "i-scheme-dark-craft-ai-danger-fill-fca5a5-t566to",
+        "i-scheme-dark-craft-ai-success-fill-6ee7b7-ns8uw3",
+        "i-scheme-dark-craft-ai-shadow-rgba-0-0-0-0-45-6peqrd",
+        "i-scheme-dark-craft-ai-overlay-backdrop-rgba-2-6-23-0-7-upswip",
+        "i-scheme-dark-craft-ai-launcher-shadow-rgba-37-99-235-0-35-dgz68l",
+        "i-craft-focusRing-var-craft-ai-focus-owj5t1"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftPending-root",
+      "className": "i-padding-1rem-cjcwdq i-font-family-system-ui-apple-system-sans-serif-6tjbns i-color-5b6472-e3gxqw",
+      "axes": {},
+      "atoms": [
+        "i-padding-1rem-cjcwdq",
+        "i-font-family-system-ui-apple-system-sans-serif-6tjbns",
+        "i-color-5b6472-e3gxqw"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "craftSkipLink-link",
+      "className": "i-position-absolute-ih5aza i-left-9999px-b9r25e i-top-1rem-vlyj8g i-z-index-10-gkq134 i-padding-block-0-5rem-ypxjgo i-padding-inline-0-75rem-kpjzht i-background-color-1b5fa1-opdt1j i-color-ffffff-o13vng i-border-radius-0-375rem-wxbltw i-font-weight-700-oxeu2d i-interaction-focus-active-left-1rem-oooh86",
+      "axes": {
+        "interaction.focus": [
+          "active"
+        ]
+      },
+      "atoms": [
+        "i-position-absolute-ih5aza",
+        "i-left-9999px-b9r25e",
+        "i-top-1rem-vlyj8g",
+        "i-z-index-10-gkq134",
+        "i-padding-block-0-5rem-ypxjgo",
+        "i-padding-inline-0-75rem-kpjzht",
+        "i-background-color-1b5fa1-opdt1j",
+        "i-color-ffffff-o13vng",
+        "i-border-radius-0-375rem-wxbltw",
+        "i-font-weight-700-oxeu2d",
+        "i-interaction-focus-active-left-1rem-oooh86"
+      ],
+      "unproven": [
+        "Moved off-screen, not hidden: a hidden link cannot receive focus."
+      ],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-adoption",
+      "className": "display-flex-0ucuto flex-direction-column-0meumq gap-0-5rem-91sm4q padding-0-75rem-juhf7m border-width-1px-yhb9pj border-style-solid-eeub8s border-color-var-reviewBypass-border-a0ob54 border-radius-0-375rem-p8cjfv",
+      "axes": {},
+      "atoms": [
+        "display-flex-0ucuto",
+        "flex-direction-column-0meumq",
+        "gap-0-5rem-91sm4q",
+        "padding-0-75rem-juhf7m",
+        "border-width-1px-yhb9pj",
+        "border-style-solid-eeub8s",
+        "border-color-var-reviewBypass-border-a0ob54",
+        "border-radius-0-375rem-p8cjfv"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-excerpt",
+      "className": "padding-0-5rem-zy8tjf background-color-var-reviewBypass-sunken-1kxd7k border-radius-0-25rem-qfv7hl font-size-0-75rem-cpg1ca line-height-1rem-8728xy font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-0oomhs white-space-pre-wrap-c0crsd overflow-wrap-anywhere-0vb3cx",
+      "axes": {},
+      "atoms": [
+        "padding-0-5rem-zy8tjf",
+        "background-color-var-reviewBypass-sunken-1kxd7k",
+        "border-radius-0-25rem-qfv7hl",
+        "font-size-0-75rem-cpg1ca",
+        "line-height-1rem-8728xy",
+        "font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-0oomhs",
+        "white-space-pre-wrap-c0crsd",
+        "overflow-wrap-anywhere-0vb3cx"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-filter",
+      "className": "padding-inline-0-75rem-lili3y padding-block-0-25rem-8gw487 font-size-0-875rem-plme5g line-height-1-25rem-3you8n border-width-1px-yhb9pj border-style-solid-eeub8s border-color-var-reviewBypass-border-a0ob54 border-radius-9999px-w98oec bypassFilter-active-background-color-var-reviewBypass-ac-5oxtke bypassFilter-active-color-var-reviewBypass-onActive-l8e6x2",
+      "axes": {
+        "bypassFilter": [
+          "active"
+        ]
+      },
+      "atoms": [
+        "padding-inline-0-75rem-lili3y",
+        "padding-block-0-25rem-8gw487",
+        "font-size-0-875rem-plme5g",
+        "line-height-1-25rem-3you8n",
+        "border-width-1px-yhb9pj",
+        "border-style-solid-eeub8s",
+        "border-color-var-reviewBypass-border-a0ob54",
+        "border-radius-9999px-w98oec",
+        "bypassFilter-active-background-color-var-reviewBypass-ac-5oxtke",
+        "bypassFilter-active-color-var-reviewBypass-onActive-l8e6x2"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-filters",
+      "className": "display-flex-0ucuto flex-wrap-wrap-cwy7g9 gap-0-5rem-91sm4q",
+      "axes": {},
+      "atoms": [
+        "display-flex-0ucuto",
+        "flex-wrap-wrap-cwy7g9",
+        "gap-0-5rem-91sm4q"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-heading",
+      "className": "font-size-1rem-3mjgi5 line-height-1-5rem-i7j1jj font-weight-600-djn24d",
+      "axes": {},
+      "atoms": [
+        "font-size-1rem-3mjgi5",
+        "line-height-1-5rem-i7j1jj",
+        "font-weight-600-djn24d"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-item",
+      "className": "display-flex-0ucuto flex-direction-column-0meumq gap-0-5rem-91sm4q padding-0-75rem-juhf7m border-width-1px-yhb9pj border-style-solid-eeub8s border-color-var-reviewBypass-border-a0ob54 border-radius-0-375rem-p8cjfv",
+      "axes": {},
+      "atoms": [
+        "display-flex-0ucuto",
+        "flex-direction-column-0meumq",
+        "gap-0-5rem-91sm4q",
+        "padding-0-75rem-juhf7m",
+        "border-width-1px-yhb9pj",
+        "border-style-solid-eeub8s",
+        "border-color-var-reviewBypass-border-a0ob54",
+        "border-radius-0-375rem-p8cjfv"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-list",
+      "className": "display-flex-0ucuto flex-direction-column-0meumq gap-0-75rem-vlvobl list-style-type-none-50loca padding-0rem-ar489e",
+      "axes": {},
+      "atoms": [
+        "display-flex-0ucuto",
+        "flex-direction-column-0meumq",
+        "gap-0-75rem-vlvobl",
+        "list-style-type-none-50loca",
+        "padding-0rem-ar489e"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-meta",
+      "className": "font-size-0-875rem-plme5g line-height-1-25rem-3you8n color-var-reviewBypass-muted-c8jues",
+      "axes": {},
+      "atoms": [
+        "font-size-0-875rem-plme5g",
+        "line-height-1-25rem-3you8n",
+        "color-var-reviewBypass-muted-c8jues"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-reason",
+      "className": "font-size-0-875rem-plme5g line-height-1-25rem-3you8n bypassReason-missing-color-var-reviewBypass-warning-q842qh bypassReason-missing-font-weight-600-3sp993",
+      "axes": {
+        "bypassReason": [
+          "missing"
+        ]
+      },
+      "atoms": [
+        "font-size-0-875rem-plme5g",
+        "line-height-1-25rem-3you8n",
+        "bypassReason-missing-color-var-reviewBypass-warning-q842qh",
+        "bypassReason-missing-font-weight-600-3sp993"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewBypass-root",
+      "className": "reviewBypass-muted-5b6472-lau81c reviewBypass-border-e3e6ea-70nwji reviewBypass-sunken-eceef2-w1hcb9 reviewBypass-warning-8a5a00-q6mthe reviewBypass-active-1b5fa1-b74kq3 reviewBypass-onActive-ffffff-6o2ndq scheme-dark-reviewBypass-muted-98a2b3-xw79aa scheme-dark-reviewBypass-border-232936-lis1f3 scheme-dark-reviewBypass-sunken-0f131a-4760qo scheme-dark-reviewBypass-warning-f5b544-pxkga8 scheme-dark-reviewBypass-active-6fb2f0-i8hdkw scheme-dark-reviewBypass-onActive-0b0d11-jw9omx display-flex-0ucuto flex-direction-column-0meumq gap-1rem-pdg1mc",
+      "axes": {
+        "scheme": [
+          "dark"
+        ]
+      },
+      "atoms": [
+        "reviewBypass-muted-5b6472-lau81c",
+        "reviewBypass-border-e3e6ea-70nwji",
+        "reviewBypass-sunken-eceef2-w1hcb9",
+        "reviewBypass-warning-8a5a00-q6mthe",
+        "reviewBypass-active-1b5fa1-b74kq3",
+        "reviewBypass-onActive-ffffff-6o2ndq",
+        "scheme-dark-reviewBypass-muted-98a2b3-xw79aa",
+        "scheme-dark-reviewBypass-border-232936-lis1f3",
+        "scheme-dark-reviewBypass-sunken-0f131a-4760qo",
+        "scheme-dark-reviewBypass-warning-f5b544-pxkga8",
+        "scheme-dark-reviewBypass-active-6fb2f0-i8hdkw",
+        "scheme-dark-reviewBypass-onActive-0b0d11-jw9omx",
+        "display-flex-0ucuto",
+        "flex-direction-column-0meumq",
+        "gap-1rem-pdg1mc"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
       "key": "reviewDecision-key",
       "className": "color-var-reviewApp-onAccent-6uykij",
       "axes": {},
@@ -56,9 +1308,2785 @@
       "selectorConditions": 0
     },
     {
+      "className": "background-color-var-reviewBypass-sunken-1kxd7k",
+      "property": "background-color",
+      "value": "var(--reviewBypass-sunken)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "border-color-var-reviewBypass-border-a0ob54",
+      "property": "border-color",
+      "value": "var(--reviewBypass-border)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "border-radius-0-25rem-qfv7hl",
+      "property": "border-radius",
+      "value": "0.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "border-radius-0-375rem-p8cjfv",
+      "property": "border-radius",
+      "value": "0.375rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "border-radius-9999px-w98oec",
+      "property": "border-radius",
+      "value": "9999px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "border-style-solid-eeub8s",
+      "property": "border-style",
+      "value": "solid",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "border-width-1px-yhb9pj",
+      "property": "border-width",
+      "value": "1px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "bypassFilter-active-background-color-var-reviewBypass-ac-5oxtke",
+      "property": "background-color",
+      "value": "var(--reviewBypass-active)",
+      "conditions": [
+        "bypassFilter:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "bypassFilter-active-color-var-reviewBypass-onActive-l8e6x2",
+      "property": "color",
+      "value": "var(--reviewBypass-onActive)",
+      "conditions": [
+        "bypassFilter:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "bypassReason-missing-color-var-reviewBypass-warning-q842qh",
+      "property": "color",
+      "value": "var(--reviewBypass-warning)",
+      "conditions": [
+        "bypassReason:missing"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "bypassReason-missing-font-weight-600-3sp993",
+      "property": "font-weight",
+      "value": "600",
+      "conditions": [
+        "bypassReason:missing"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
       "className": "color-var-reviewApp-onAccent-6uykij",
       "property": "color",
       "value": "var(--reviewApp-onAccent)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "color-var-reviewBypass-muted-c8jues",
+      "property": "color",
+      "value": "var(--reviewBypass-muted)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "display-flex-0ucuto",
+      "property": "display",
+      "value": "flex",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "flex-direction-column-0meumq",
+      "property": "flex-direction",
+      "value": "column",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "flex-wrap-wrap-cwy7g9",
+      "property": "flex-wrap",
+      "value": "wrap",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-0oomhs",
+      "property": "font-family",
+      "value": "ui-monospace, \"SFMono-Regular\", \"Menlo\", \"Consolas\", monospace",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "font-size-0-75rem-cpg1ca",
+      "property": "font-size",
+      "value": "0.75rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "font-size-0-875rem-plme5g",
+      "property": "font-size",
+      "value": "0.875rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "font-size-1rem-3mjgi5",
+      "property": "font-size",
+      "value": "1rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "font-weight-600-djn24d",
+      "property": "font-weight",
+      "value": "600",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "gap-0-5rem-91sm4q",
+      "property": "gap",
+      "value": "0.5rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "gap-0-75rem-vlvobl",
+      "property": "gap",
+      "value": "0.75rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "gap-1rem-pdg1mc",
+      "property": "gap",
+      "value": "1rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-accent-color-var-craft-ai-accent-omkf9g",
+      "property": "accent-color",
+      "value": "var(--craft-ai-accent)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-align-items-center-0fb4tz",
+      "property": "align-items",
+      "value": "center",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-align-items-flex-end-pd30qp",
+      "property": "align-items",
+      "value": "flex-end",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-align-items-flex-start-s9u6kq",
+      "property": "align-items",
+      "value": "flex-start",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-backdrop-background-color-var-craft-ai-overlay-backdrop-mmufs3",
+      "property": "background-color",
+      "value": "var(--craft-ai-overlay-backdrop)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "pseudoElement": "backdrop"
+    },
+    {
+      "className": "i-background-color-1b5fa1-opdt1j",
+      "property": "background-color",
+      "value": "#1b5fa1",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "info",
+        "role": "accent",
+        "light": "#1b5fa1",
+        "dark": "#6fb2f0",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-background-color-transparent-mj59g8",
+      "property": "background-color",
+      "value": "transparent",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "transparent",
+        "role": "surface",
+        "light": "transparent",
+        "dark": "transparent",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-background-color-var-craft-ai-accent-9vxulq",
+      "property": "background-color",
+      "value": "var(--craft-ai-accent)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-background-color-var-craft-ai-bg-h2f2m3",
+      "property": "background-color",
+      "value": "var(--craft-ai-bg)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-background-color-var-craft-ai-control-bg-9kcj6f",
+      "property": "background-color",
+      "value": "var(--craft-ai-control-bg)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-background-color-var-craft-ai-success-bg-xph5sx",
+      "property": "background-color",
+      "value": "var(--craft-ai-success-bg)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-background-color-var-craft-ai-surface-accent-6pfkfw",
+      "property": "background-color",
+      "value": "var(--craft-ai-surface-accent)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-background-color-var-craft-ai-surface-o1mzv3",
+      "property": "background-color",
+      "value": "var(--craft-ai-surface)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-background-color-var-craft-ai-warning-bg-4z115g",
+      "property": "background-color",
+      "value": "var(--craft-ai-warning-bg)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-color-var-craft-ai-border-subtle-by96sm",
+      "property": "border-color",
+      "value": "var(--craft-ai-border-subtle)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-color-var-craft-ai-border-w9857c",
+      "property": "border-color",
+      "value": "var(--craft-ai-border)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-color-var-craft-ai-success-border-st6yz6",
+      "property": "border-color",
+      "value": "var(--craft-ai-success-border)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-color-var-craft-ai-warning-border-m1ecfv",
+      "property": "border-color",
+      "value": "var(--craft-ai-warning-border)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-radius-0-25rem-hmlmfk",
+      "property": "border-radius",
+      "value": "0.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-radius-0-375rem-wxbltw",
+      "property": "border-radius",
+      "value": "0.375rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-radius-0-5rem-5ta3wy",
+      "property": "border-radius",
+      "value": "0.5rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-radius-0-75rem-zm57fd",
+      "property": "border-radius",
+      "value": "0.75rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-radius-9999px-lzzxqf",
+      "property": "border-radius",
+      "value": "9999px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-style-none-7grrcy",
+      "property": "border-style",
+      "value": "none",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-style-solid-1qf5az",
+      "property": "border-style",
+      "value": "solid",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-border-width-1px-5nboqc",
+      "property": "border-width",
+      "value": "1px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-bottom-var-craft-ai-launcher-bottom-uwm3b7",
+      "property": "bottom",
+      "value": "var(--craft-ai-launcher-bottom)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-box-shadow-0-20px-50px-var-craft-ai-shadow-r9cabp",
+      "property": "box-shadow",
+      "value": "0 20px 50px var(--craft-ai-shadow)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-box-shadow-0-20px-60px-var-craft-ai-shadow-vlf4wm",
+      "property": "box-shadow",
+      "value": "0 20px 60px var(--craft-ai-shadow)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-box-shadow-0-8px-24px-var-craft-ai-launcher-shadow-4elm11",
+      "property": "box-shadow",
+      "value": "0 8px 24px var(--craft-ai-launcher-shadow)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-box-shadow-0-8px-24px-var-craft-ai-shadow-186ac6",
+      "property": "box-shadow",
+      "value": "0 8px 24px var(--craft-ai-shadow)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-box-sizing-border-box-8k8qaq",
+      "property": "box-sizing",
+      "value": "border-box",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-caret-color-var-craft-ai-text-h2pflq",
+      "property": "caret-color",
+      "value": "var(--craft-ai-text)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-color-5b6472-e3gxqw",
+      "property": "color",
+      "value": "#5b6472",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "muted",
+        "role": "text",
+        "light": "#5b6472",
+        "dark": "#98a2b3",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-color-ffffff-o13vng",
+      "property": "color",
+      "value": "#ffffff",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "inverted",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#0b0d11",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-color-inherit-v7mp1m",
+      "property": "color",
+      "value": "inherit",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-color-var-craft-ai-accent-text-n1fpcr",
+      "property": "color",
+      "value": "var(--craft-ai-accent-text)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-color-var-craft-ai-on-accent-aor4cz",
+      "property": "color",
+      "value": "var(--craft-ai-on-accent)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-color-var-craft-ai-success-ra12wq",
+      "property": "color",
+      "value": "var(--craft-ai-success)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-color-var-craft-ai-success-text-epecje",
+      "property": "color",
+      "value": "var(--craft-ai-success-text)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-color-var-craft-ai-text-muted-v9761y",
+      "property": "color",
+      "value": "var(--craft-ai-text-muted)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-color-var-craft-ai-text-t015ds",
+      "property": "color",
+      "value": "var(--craft-ai-text)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-color-var-craft-ai-warning-200p11",
+      "property": "color",
+      "value": "var(--craft-ai-warning)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-column-gap-0-75rem-5uimgn",
+      "property": "column-gap",
+      "value": "0.75rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-craft-ai-accent-2563eb-f80sa4",
+      "property": "--craft-ai-accent",
+      "value": "#2563eb",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "primary",
+        "role": "accent",
+        "light": "#2563eb",
+        "dark": "#2563eb",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-accent-hover-1d4ed8-djauj0",
+      "property": "--craft-ai-accent-hover",
+      "value": "#1d4ed8",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "primaryHover",
+        "role": "accent",
+        "light": "#1d4ed8",
+        "dark": "#1d4ed8",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-accent-soft-rgba-29-78-216-0-15-ezjzy3",
+      "property": "--craft-ai-accent-soft",
+      "value": "rgba(29, 78, 216, 0.15)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "soft",
+        "role": "accent",
+        "light": "rgba(29, 78, 216, 0.15)",
+        "dark": "rgba(191, 219, 254, 0.2)",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-accent-text-1d4ed8-7i1dgn",
+      "property": "--craft-ai-accent-text",
+      "value": "#1d4ed8",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "accent",
+        "role": "text",
+        "light": "#1d4ed8",
+        "dark": "#bfdbfe",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-bg-ffffff-m0eefc",
+      "property": "--craft-ai-bg",
+      "value": "#ffffff",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "page",
+        "role": "surface",
+        "light": "#ffffff",
+        "dark": "#1f2937",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-border-d1d5db-7sgdph",
+      "property": "--craft-ai-border",
+      "value": "#d1d5db",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "strong",
+        "role": "border",
+        "light": "#d1d5db",
+        "dark": "#6b7280",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-border-subtle-e5e7eb-jqfhn4",
+      "property": "--craft-ai-border-subtle",
+      "value": "#e5e7eb",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "subtle",
+        "role": "border",
+        "light": "#e5e7eb",
+        "dark": "#4b5563",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-control-bg-ffffff-g93et0",
+      "property": "--craft-ai-control-bg",
+      "value": "#ffffff",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "control",
+        "role": "surface",
+        "light": "#ffffff",
+        "dark": "#111827",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-danger-b91c1c-5s86nv",
+      "property": "--craft-ai-danger",
+      "value": "#b91c1c",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "danger",
+        "role": "text",
+        "light": "#b91c1c",
+        "dark": "#fca5a5",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-danger-fill-b91c1c-sv32zl",
+      "property": "--craft-ai-danger-fill",
+      "value": "#b91c1c",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "danger",
+        "role": "accent",
+        "light": "#b91c1c",
+        "dark": "#fca5a5",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-focus-3b82f6-kjdxze",
+      "property": "--craft-ai-focus",
+      "value": "#3b82f6",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "focus",
+        "role": "accent",
+        "light": "#3b82f6",
+        "dark": "#93c5fd",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-launcher-shadow-rgba-37-99-235-0-35-qbz0l2",
+      "property": "--craft-ai-launcher-shadow",
+      "value": "rgba(37, 99, 235, 0.35)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "launcherShadow",
+        "role": "none",
+        "light": "rgba(37, 99, 235, 0.35)",
+        "dark": "rgba(37, 99, 235, 0.35)",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-on-accent-ffffff-puyo5d",
+      "property": "--craft-ai-on-accent",
+      "value": "#ffffff",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "onAccent",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#ffffff",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-overlay-backdrop-rgba-15-23-42-0-5-80flbm",
+      "property": "--craft-ai-overlay-backdrop",
+      "value": "rgba(15, 23, 42, 0.5)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "backdrop",
+        "role": "none",
+        "light": "rgba(15, 23, 42, 0.5)",
+        "dark": "rgba(2, 6, 23, 0.7)",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-phase-emitted-4338ca-2zia77",
+      "property": "--craft-ai-phase-emitted",
+      "value": "#4338ca",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "emitted",
+        "role": "text",
+        "light": "#4338ca",
+        "dark": "#a5b4fc",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-shadow-rgba-15-23-42-0-25-tl34xz",
+      "property": "--craft-ai-shadow",
+      "value": "rgba(15, 23, 42, 0.25)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "shadow",
+        "role": "none",
+        "light": "rgba(15, 23, 42, 0.25)",
+        "dark": "rgba(0, 0, 0, 0.45)",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-success-047857-mjt2yr",
+      "property": "--craft-ai-success",
+      "value": "#047857",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "success",
+        "role": "text",
+        "light": "#047857",
+        "dark": "#6ee7b7",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-success-bg-ecfdf5-91pb77",
+      "property": "--craft-ai-success-bg",
+      "value": "#ecfdf5",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "success",
+        "role": "surface",
+        "light": "#ecfdf5",
+        "dark": "#064e3b",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-success-border-a7f3d0-c1wdsw",
+      "property": "--craft-ai-success-border",
+      "value": "#a7f3d0",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "success",
+        "role": "border",
+        "light": "#a7f3d0",
+        "dark": "#047857",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-success-fill-047857-cr9di5",
+      "property": "--craft-ai-success-fill",
+      "value": "#047857",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "success",
+        "role": "accent",
+        "light": "#047857",
+        "dark": "#6ee7b7",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-success-text-065f46-cjswlr",
+      "property": "--craft-ai-success-text",
+      "value": "#065f46",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "successStrong",
+        "role": "text",
+        "light": "#065f46",
+        "dark": "#a7f3d0",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-surface-accent-eff6ff-n507xs",
+      "property": "--craft-ai-surface-accent",
+      "value": "#eff6ff",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "accent",
+        "role": "surface",
+        "light": "#eff6ff",
+        "dark": "#1e3a8a",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-surface-f9fafb-t5t0s2",
+      "property": "--craft-ai-surface",
+      "value": "#f9fafb",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "raised",
+        "role": "surface",
+        "light": "#f9fafb",
+        "dark": "#111827",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-surface-muted-f3f4f6-c261yj",
+      "property": "--craft-ai-surface-muted",
+      "value": "#f3f4f6",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "muted",
+        "role": "surface",
+        "light": "#f3f4f6",
+        "dark": "#374151",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-text-111827-s65gm4",
+      "property": "--craft-ai-text",
+      "value": "#111827",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "strong",
+        "role": "text",
+        "light": "#111827",
+        "dark": "#f9fafb",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-text-muted-6b7280-ltvu2x",
+      "property": "--craft-ai-text-muted",
+      "value": "#6b7280",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "muted",
+        "role": "text",
+        "light": "#6b7280",
+        "dark": "#d1d5db",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-warning-b45309-vnzoo8",
+      "property": "--craft-ai-warning",
+      "value": "#b45309",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "warning",
+        "role": "text",
+        "light": "#b45309",
+        "dark": "#fbbf24",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-warning-bg-fffbeb-qe4xjc",
+      "property": "--craft-ai-warning-bg",
+      "value": "#fffbeb",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "warning",
+        "role": "surface",
+        "light": "#fffbeb",
+        "dark": "#78350f",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-ai-warning-border-fde68a-rx7kj0",
+      "property": "--craft-ai-warning-border",
+      "value": "#fde68a",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "warning",
+        "role": "border",
+        "light": "#fde68a",
+        "dark": "#b45309",
+        "side": "light"
+      }
+    },
+    {
+      "className": "i-craft-focusOffset-1px-mk9b6o",
+      "property": "--craft-focusOffset",
+      "value": "-1px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-craft-focusRing-var-craft-ai-focus-owj5t1",
+      "property": "--craft-focusRing",
+      "value": "var(--craft-ai-focus)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-craftAiButton-primary-background-color-var-craft-ai-acce-vsafi2",
+      "property": "background-color",
+      "value": "var(--craft-ai-accent)",
+      "conditions": [
+        "craftAiButton:primary"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiButton-primary-border-color-var-craft-ai-accent-0rlhl0",
+      "property": "border-color",
+      "value": "var(--craft-ai-accent)",
+      "conditions": [
+        "craftAiButton:primary"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiButton-primary-color-var-craft-ai-on-accent-4b9tg7",
+      "property": "color",
+      "value": "var(--craft-ai-on-accent)",
+      "conditions": [
+        "craftAiButton:primary"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiButton-primary-interaction-hover-active-backgroun-m9ni61",
+      "property": "background-color",
+      "value": "var(--craft-ai-accent-hover)",
+      "conditions": [
+        "craftAiButton:primary",
+        "interaction.hover:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 2
+    },
+    {
+      "className": "i-craftAiButton-recording-background-color-var-craft-ai-da-984v8e",
+      "property": "background-color",
+      "value": "var(--craft-ai-danger-fill)",
+      "conditions": [
+        "craftAiButton:recording"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiButton-recording-border-color-var-craft-ai-danger-ogo52k",
+      "property": "border-color",
+      "value": "var(--craft-ai-danger-fill)",
+      "conditions": [
+        "craftAiButton:recording"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiButton-recording-color-var-craft-ai-on-accent-b6h5e4",
+      "property": "color",
+      "value": "var(--craft-ai-on-accent)",
+      "conditions": [
+        "craftAiButton:recording"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiCopy-done-background-color-var-craft-ai-success-f-q9c0qw",
+      "property": "background-color",
+      "value": "var(--craft-ai-success-fill)",
+      "conditions": [
+        "craftAiCopy:done"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiPhase-emitted-color-var-craft-ai-phase-emitted-kix2jo",
+      "property": "color",
+      "value": "var(--craft-ai-phase-emitted)",
+      "conditions": [
+        "craftAiPhase:emitted"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiPhase-failed-color-var-craft-ai-danger-gsadqm",
+      "property": "color",
+      "value": "var(--craft-ai-danger)",
+      "conditions": [
+        "craftAiPhase:failed"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiPhase-started-color-var-craft-ai-warning-w8r6j9",
+      "property": "color",
+      "value": "var(--craft-ai-warning)",
+      "conditions": [
+        "craftAiPhase:started"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-craftAiPhase-succeeded-color-var-craft-ai-success-3dyqda",
+      "property": "color",
+      "value": "var(--craft-ai-success)",
+      "conditions": [
+        "craftAiPhase:succeeded"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-cursor-grab-i7dg7e",
+      "property": "cursor",
+      "value": "grab",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-cursor-pointer-0i8by1",
+      "property": "cursor",
+      "value": "pointer",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-display-flex-nk10xv",
+      "property": "display",
+      "value": "flex",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-display-grid-erx1xi",
+      "property": "display",
+      "value": "grid",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-display-inline-flex-i0vm91",
+      "property": "display",
+      "value": "inline-flex",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-flex-direction-column-1c6t1r",
+      "property": "flex-direction",
+      "value": "column",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-flex-grow-1-7wywkw",
+      "property": "flex-grow",
+      "value": "1",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-flex-wrap-wrap-au5pkq",
+      "property": "flex-wrap",
+      "value": "wrap",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-family-inherit-tdz55n",
+      "property": "font-family",
+      "value": "inherit",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-family-system-ui-apple-system-sans-serif-6tjbns",
+      "property": "font-family",
+      "value": "system-ui, -apple-system, sans-serif",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-ecrvnf",
+      "property": "font-family",
+      "value": "ui-monospace, \"SFMono-Regular\", \"Menlo\", \"Consolas\", monospace",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-inherit-fsufdu",
+      "property": "font",
+      "value": "inherit",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-size-10px-2byj8i",
+      "property": "font-size",
+      "value": "10px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-size-11px-s5mzsn",
+      "property": "font-size",
+      "value": "11px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-size-12px-9g0id0",
+      "property": "font-size",
+      "value": "12px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-size-13px-affpvl",
+      "property": "font-size",
+      "value": "13px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-size-14px-qqxaf2",
+      "property": "font-size",
+      "value": "14px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-size-20px-u4zjof",
+      "property": "font-size",
+      "value": "20px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-weight-500-bmatrf",
+      "property": "font-weight",
+      "value": "500",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-weight-600-vveqqg",
+      "property": "font-weight",
+      "value": "600",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-font-weight-700-oxeu2d",
+      "property": "font-weight",
+      "value": "700",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-gap-0-25rem-93c9i1",
+      "property": "gap",
+      "value": "0.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-gap-0-5rem-nxhppl",
+      "property": "gap",
+      "value": "0.5rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-gap-0-75rem-qf1jps",
+      "property": "gap",
+      "value": "0.75rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-gap-6px-4kz084",
+      "property": "gap",
+      "value": "6px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-gap-7px-4li9pt",
+      "property": "gap",
+      "value": "7px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-grid-template-columns-repeat-auto-fit-minmax-170px-1fr-v8y5qu",
+      "property": "grid-template-columns",
+      "value": "repeat(auto-fit, minmax(170px, 1fr))",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-height-100-zl22n7",
+      "property": "height",
+      "value": "100%",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-inline-size-100-jrlf03",
+      "property": "inline-size",
+      "value": "100%",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-inline-size-min-460px-100-urjxxg",
+      "property": "inline-size",
+      "value": "min(460px, 100%)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-inline-size-min-560px-100-230r0b",
+      "property": "inline-size",
+      "value": "min(560px, 100%)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-inset-0rem-rjjyx5",
+      "property": "inset",
+      "value": "0rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-interaction-active-active-cursor-grabbing-e0pas4",
+      "property": "cursor",
+      "value": "grabbing",
+      "conditions": [
+        "interaction.active:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-active-active-scale-0-97-ns9ed4",
+      "property": "scale",
+      "value": "0.97",
+      "conditions": [
+        "interaction.active:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-disabled-active-cursor-not-allowed-omqa38",
+      "property": "cursor",
+      "value": "not-allowed",
+      "conditions": [
+        "interaction.disabled:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-disabled-active-opacity-0-55-41qzy3",
+      "property": "opacity",
+      "value": "0.55",
+      "conditions": [
+        "interaction.disabled:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-disabled-active-opacity-0-6-0ip90n",
+      "property": "opacity",
+      "value": "0.6",
+      "conditions": [
+        "interaction.disabled:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-focus-active-left-1rem-oooh86",
+      "property": "left",
+      "value": "1rem",
+      "conditions": [
+        "interaction.focus:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-hover-active-background-color-var-craft-ai-a-o2l3zh",
+      "property": "background-color",
+      "value": "var(--craft-ai-accent-hover)",
+      "conditions": [
+        "interaction.hover:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-hover-active-background-color-var-craft-ai-a-rztr7t",
+      "property": "background-color",
+      "value": "var(--craft-ai-accent-soft)",
+      "conditions": [
+        "interaction.hover:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-hover-active-background-color-var-craft-ai-s-nx2pj7",
+      "property": "background-color",
+      "value": "var(--craft-ai-surface)",
+      "conditions": [
+        "interaction.hover:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-interaction-hover-active-background-color-var-craft-ai-s-uq5rad",
+      "property": "background-color",
+      "value": "var(--craft-ai-surface-muted)",
+      "conditions": [
+        "interaction.hover:active"
+      ],
+      "unproven": "",
+      "selectorConditions": 1
+    },
+    {
+      "className": "i-justify-content-center-w240h7",
+      "property": "justify-content",
+      "value": "center",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-justify-content-flex-end-13ay25",
+      "property": "justify-content",
+      "value": "flex-end",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-justify-content-space-between-4997qn",
+      "property": "justify-content",
+      "value": "space-between",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-left-9999px-b9r25e",
+      "property": "left",
+      "value": "-9999px",
+      "conditions": [],
+      "unproven": "Moved off-screen, not hidden: a hidden link cannot receive focus.",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-left-var-craftAiChat-x-2kv3gq",
+      "property": "left",
+      "value": "var(--craftAiChat-x)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-left-var-craftAiMenu-x-jmablz",
+      "property": "left",
+      "value": "var(--craftAiMenu-x)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-letter-spacing-0-03em-xwjojx",
+      "property": "letter-spacing",
+      "value": "0.03em",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-letter-spacing-0-04em-m0wmf6",
+      "property": "letter-spacing",
+      "value": "0.04em",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-line-height-1-35-n4pob3",
+      "property": "line-height",
+      "value": "1.35",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-line-height-1-6-tuqasp",
+      "property": "line-height",
+      "value": "1.6",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-line-height-1-gdjij9",
+      "property": "line-height",
+      "value": "1",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-list-style-type-none-3a73c9",
+      "property": "list-style-type",
+      "value": "none",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-margin-0rem-rlsg3w",
+      "property": "margin",
+      "value": "0rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-margin-inline-end-0-25rem-7l4h29",
+      "property": "margin-inline-end",
+      "value": "0.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-max-height-190px-7rkozo",
+      "property": "max-height",
+      "value": "190px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-max-height-90vh-uaztep",
+      "property": "max-height",
+      "value": "90vh",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-max-height-min-760px-88vh-31wnk0",
+      "property": "max-height",
+      "value": "min(760px, 88vh)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-max-height-none-xrt04u",
+      "property": "max-height",
+      "value": "none",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-max-width-100-4fulc9",
+      "property": "max-width",
+      "value": "100%",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-max-width-none-nzccy1",
+      "property": "max-width",
+      "value": "none",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-min-block-size-0-l2iwby",
+      "property": "min-block-size",
+      "value": "0",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-min-height-96px-l93wj3",
+      "property": "min-height",
+      "value": "96px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-min-width-180px-jqssx0",
+      "property": "min-width",
+      "value": "180px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-overflow-block-auto-p4zn29",
+      "property": "overflow-block",
+      "value": "auto",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-0-25rem-eammha",
+      "property": "padding",
+      "value": "0.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-0rem-78q2fl",
+      "property": "padding",
+      "value": "0rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-1-25rem-d1u6f3",
+      "property": "padding",
+      "value": "1.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-1-5rem-31al47",
+      "property": "padding",
+      "value": "1.5rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-10px-jm78mu",
+      "property": "padding",
+      "value": "10px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-1rem-cjcwdq",
+      "property": "padding",
+      "value": "1rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-block-0-5rem-ypxjgo",
+      "property": "padding-block",
+      "value": "0.5rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-block-0rem-qobq15",
+      "property": "padding-block",
+      "value": "0rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-block-11px-t67ijn",
+      "property": "padding-block",
+      "value": "11px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-block-1rem-vvulza",
+      "property": "padding-block",
+      "value": "1rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-block-2px-aj4y4j",
+      "property": "padding-block",
+      "value": "2px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-block-3px-jqkjji",
+      "property": "padding-block",
+      "value": "3px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-block-6px-s5zuef",
+      "property": "padding-block",
+      "value": "6px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-block-7px-2cbdua",
+      "property": "padding-block",
+      "value": "7px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-inline-0-25rem-vew8mg",
+      "property": "padding-inline",
+      "value": "0.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-inline-0-5rem-lma6u2",
+      "property": "padding-inline",
+      "value": "0.5rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-inline-0-75rem-kpjzht",
+      "property": "padding-inline",
+      "value": "0.75rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-inline-1-25rem-yj774h",
+      "property": "padding-inline",
+      "value": "1.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-inline-10px-1ntukw",
+      "property": "padding-inline",
+      "value": "10px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-inline-11px-tpf4ot",
+      "property": "padding-inline",
+      "value": "11px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-inline-14px-bbqrh0",
+      "property": "padding-inline",
+      "value": "14px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-padding-inline-1rem-w70kx0",
+      "property": "padding-inline",
+      "value": "1rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-placeholder-color-var-craft-ai-text-muted-lgij1j",
+      "property": "color",
+      "value": "var(--craft-ai-text-muted)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "pseudoElement": "placeholder"
+    },
+    {
+      "className": "i-placeholder-opacity-1-0fxgtn",
+      "property": "opacity",
+      "value": "1",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "pseudoElement": "placeholder"
+    },
+    {
+      "className": "i-pointer-events-auto-uvq03y",
+      "property": "pointer-events",
+      "value": "auto",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-pointer-events-none-z0o01p",
+      "property": "pointer-events",
+      "value": "none",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-position-absolute-ih5aza",
+      "property": "position",
+      "value": "absolute",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-position-fixed-srek1r",
+      "property": "position",
+      "value": "fixed",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-position-relative-e6suxt",
+      "property": "position",
+      "value": "relative",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-resize-vertical-0k6rt4",
+      "property": "resize",
+      "value": "vertical",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-right-var-craft-ai-launcher-right-danpe9",
+      "property": "right",
+      "value": "var(--craft-ai-launcher-right)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-row-gap-6px-qy33ev",
+      "property": "row-gap",
+      "value": "6px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-accent-2563eb-ndjwm9",
+      "property": "--craft-ai-accent",
+      "value": "#2563eb",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "primary",
+        "role": "accent",
+        "light": "#2563eb",
+        "dark": "#2563eb",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-accent-hover-1d4ed8-pd6puh",
+      "property": "--craft-ai-accent-hover",
+      "value": "#1d4ed8",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "primaryHover",
+        "role": "accent",
+        "light": "#1d4ed8",
+        "dark": "#1d4ed8",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-accent-soft-rgba-191-219-254-0-2-pbhvr3",
+      "property": "--craft-ai-accent-soft",
+      "value": "rgba(191, 219, 254, 0.2)",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "soft",
+        "role": "accent",
+        "light": "rgba(29, 78, 216, 0.15)",
+        "dark": "rgba(191, 219, 254, 0.2)",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-accent-text-bfdbfe-wl7yf3",
+      "property": "--craft-ai-accent-text",
+      "value": "#bfdbfe",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "accent",
+        "role": "text",
+        "light": "#1d4ed8",
+        "dark": "#bfdbfe",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-bg-1f2937-xd4ls1",
+      "property": "--craft-ai-bg",
+      "value": "#1f2937",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "page",
+        "role": "surface",
+        "light": "#ffffff",
+        "dark": "#1f2937",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-border-6b7280-kleyyd",
+      "property": "--craft-ai-border",
+      "value": "#6b7280",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "strong",
+        "role": "border",
+        "light": "#d1d5db",
+        "dark": "#6b7280",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-border-subtle-4b5563-nvru2l",
+      "property": "--craft-ai-border-subtle",
+      "value": "#4b5563",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "subtle",
+        "role": "border",
+        "light": "#e5e7eb",
+        "dark": "#4b5563",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-control-bg-111827-olpgn5",
+      "property": "--craft-ai-control-bg",
+      "value": "#111827",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "control",
+        "role": "surface",
+        "light": "#ffffff",
+        "dark": "#111827",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-danger-fca5a5-9hwgl4",
+      "property": "--craft-ai-danger",
+      "value": "#fca5a5",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "danger",
+        "role": "text",
+        "light": "#b91c1c",
+        "dark": "#fca5a5",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-danger-fill-fca5a5-t566to",
+      "property": "--craft-ai-danger-fill",
+      "value": "#fca5a5",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "danger",
+        "role": "accent",
+        "light": "#b91c1c",
+        "dark": "#fca5a5",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-focus-93c5fd-i5b40e",
+      "property": "--craft-ai-focus",
+      "value": "#93c5fd",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "focus",
+        "role": "accent",
+        "light": "#3b82f6",
+        "dark": "#93c5fd",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-launcher-shadow-rgba-37-99-235-0-35-dgz68l",
+      "property": "--craft-ai-launcher-shadow",
+      "value": "rgba(37, 99, 235, 0.35)",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "launcherShadow",
+        "role": "none",
+        "light": "rgba(37, 99, 235, 0.35)",
+        "dark": "rgba(37, 99, 235, 0.35)",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-on-accent-ffffff-npl9nu",
+      "property": "--craft-ai-on-accent",
+      "value": "#ffffff",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "onAccent",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#ffffff",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-overlay-backdrop-rgba-2-6-23-0-7-upswip",
+      "property": "--craft-ai-overlay-backdrop",
+      "value": "rgba(2, 6, 23, 0.7)",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "backdrop",
+        "role": "none",
+        "light": "rgba(15, 23, 42, 0.5)",
+        "dark": "rgba(2, 6, 23, 0.7)",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-phase-emitted-a5b4fc-s8hjcz",
+      "property": "--craft-ai-phase-emitted",
+      "value": "#a5b4fc",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "emitted",
+        "role": "text",
+        "light": "#4338ca",
+        "dark": "#a5b4fc",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-shadow-rgba-0-0-0-0-45-6peqrd",
+      "property": "--craft-ai-shadow",
+      "value": "rgba(0, 0, 0, 0.45)",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "shadow",
+        "role": "none",
+        "light": "rgba(15, 23, 42, 0.25)",
+        "dark": "rgba(0, 0, 0, 0.45)",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-success-6ee7b7-4fquk7",
+      "property": "--craft-ai-success",
+      "value": "#6ee7b7",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "success",
+        "role": "text",
+        "light": "#047857",
+        "dark": "#6ee7b7",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-success-bg-064e3b-vy6ayf",
+      "property": "--craft-ai-success-bg",
+      "value": "#064e3b",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "success",
+        "role": "surface",
+        "light": "#ecfdf5",
+        "dark": "#064e3b",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-success-border-047857-ytle8t",
+      "property": "--craft-ai-success-border",
+      "value": "#047857",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "success",
+        "role": "border",
+        "light": "#a7f3d0",
+        "dark": "#047857",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-success-fill-6ee7b7-ns8uw3",
+      "property": "--craft-ai-success-fill",
+      "value": "#6ee7b7",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "success",
+        "role": "accent",
+        "light": "#047857",
+        "dark": "#6ee7b7",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-success-text-a7f3d0-myxei6",
+      "property": "--craft-ai-success-text",
+      "value": "#a7f3d0",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "successStrong",
+        "role": "text",
+        "light": "#065f46",
+        "dark": "#a7f3d0",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-surface-111827-c5gxi1",
+      "property": "--craft-ai-surface",
+      "value": "#111827",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "raised",
+        "role": "surface",
+        "light": "#f9fafb",
+        "dark": "#111827",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-surface-accent-1e3a8a-c8vh97",
+      "property": "--craft-ai-surface-accent",
+      "value": "#1e3a8a",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "accent",
+        "role": "surface",
+        "light": "#eff6ff",
+        "dark": "#1e3a8a",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-surface-muted-374151-35fmny",
+      "property": "--craft-ai-surface-muted",
+      "value": "#374151",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "muted",
+        "role": "surface",
+        "light": "#f3f4f6",
+        "dark": "#374151",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-text-f9fafb-sn75nx",
+      "property": "--craft-ai-text",
+      "value": "#f9fafb",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "strong",
+        "role": "text",
+        "light": "#111827",
+        "dark": "#f9fafb",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-text-muted-d1d5db-8femzt",
+      "property": "--craft-ai-text-muted",
+      "value": "#d1d5db",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "muted",
+        "role": "text",
+        "light": "#6b7280",
+        "dark": "#d1d5db",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-warning-bg-78350f-aj4243",
+      "property": "--craft-ai-warning-bg",
+      "value": "#78350f",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "warning",
+        "role": "surface",
+        "light": "#fffbeb",
+        "dark": "#78350f",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-warning-border-b45309-uv4g6c",
+      "property": "--craft-ai-warning-border",
+      "value": "#b45309",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "warning",
+        "role": "border",
+        "light": "#fde68a",
+        "dark": "#b45309",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-scheme-dark-craft-ai-warning-fbbf24-7zap4q",
+      "property": "--craft-ai-warning",
+      "value": "#fbbf24",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "warning",
+        "role": "text",
+        "light": "#b45309",
+        "dark": "#fbbf24",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "i-text-align-left-8xp00i",
+      "property": "text-align",
+      "value": "left",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-text-overflow-ellipsis-k93ia1",
+      "property": "text-overflow",
+      "value": "ellipsis",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-text-transform-uppercase-cbzy1e",
+      "property": "text-transform",
+      "value": "uppercase",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-top-1rem-vlyj8g",
+      "property": "top",
+      "value": "1rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-top-var-craftAiChat-y-8pmwz5",
+      "property": "top",
+      "value": "var(--craftAiChat-y)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-top-var-craftAiMenu-y-dqdbf4",
+      "property": "top",
+      "value": "var(--craftAiMenu-y)",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-touch-action-none-cyl2as",
+      "property": "touch-action",
+      "value": "none",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-transition-duration-120ms-g1abir",
+      "property": "transition-duration",
+      "value": "120ms",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-transition-duration-150ms-t7c13q",
+      "property": "transition-duration",
+      "value": "150ms",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-transition-property-background-color-9eeedh",
+      "property": "transition-property",
+      "value": "background-color",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-transition-property-background-color-scale-e34psr",
+      "property": "transition-property",
+      "value": "background-color, scale",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-transition-timing-function-ease-49ve8z",
+      "property": "transition-timing-function",
+      "value": "ease",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-user-select-none-oki7jg",
+      "property": "user-select",
+      "value": "none",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-white-space-nowrap-upmuvb",
+      "property": "white-space",
+      "value": "nowrap",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-z-index-1-fwsekm",
+      "property": "z-index",
+      "value": "1",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "i-z-index-10-gkq134",
+      "property": "z-index",
+      "value": "10",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "line-height-1-25rem-3you8n",
+      "property": "line-height",
+      "value": "1.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "line-height-1-5rem-i7j1jj",
+      "property": "line-height",
+      "value": "1.5rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "line-height-1rem-8728xy",
+      "property": "line-height",
+      "value": "1rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "list-style-type-none-50loca",
+      "property": "list-style-type",
+      "value": "none",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "overflow-wrap-anywhere-0vb3cx",
+      "property": "overflow-wrap",
+      "value": "anywhere",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "padding-0-5rem-zy8tjf",
+      "property": "padding",
+      "value": "0.5rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "padding-0-75rem-juhf7m",
+      "property": "padding",
+      "value": "0.75rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "padding-0rem-ar489e",
+      "property": "padding",
+      "value": "0rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "padding-block-0-25rem-8gw487",
+      "property": "padding-block",
+      "value": "0.25rem",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "padding-inline-0-75rem-lili3y",
+      "property": "padding-inline",
+      "value": "0.75rem",
       "conditions": [],
       "unproven": "",
       "selectorConditions": 0
@@ -94,6 +4122,108 @@
         "role": "text",
         "light": "#ffffff",
         "dark": "#ffffff",
+        "side": "light"
+      }
+    },
+    {
+      "className": "reviewBypass-active-1b5fa1-b74kq3",
+      "property": "--reviewBypass-active",
+      "value": "#1b5fa1",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "info",
+        "role": "accent",
+        "light": "#1b5fa1",
+        "dark": "#6fb2f0",
+        "side": "light"
+      }
+    },
+    {
+      "className": "reviewBypass-border-e3e6ea-70nwji",
+      "property": "--reviewBypass-border",
+      "value": "#e3e6ea",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "border",
+        "token": "subtle",
+        "role": "border",
+        "light": "#e3e6ea",
+        "dark": "#232936",
+        "side": "light"
+      }
+    },
+    {
+      "className": "reviewBypass-muted-5b6472-lau81c",
+      "property": "--reviewBypass-muted",
+      "value": "#5b6472",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "muted",
+        "role": "text",
+        "light": "#5b6472",
+        "dark": "#98a2b3",
+        "side": "light"
+      }
+    },
+    {
+      "className": "reviewBypass-onActive-ffffff-6o2ndq",
+      "property": "--reviewBypass-onActive",
+      "value": "#ffffff",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "inverted",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#0b0d11",
+        "side": "light"
+      }
+    },
+    {
+      "className": "reviewBypass-sunken-eceef2-w1hcb9",
+      "property": "--reviewBypass-sunken",
+      "value": "#eceef2",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "surface",
+        "token": "sunken",
+        "role": "surface",
+        "light": "#eceef2",
+        "dark": "#0f131a",
+        "side": "light"
+      }
+    },
+    {
+      "className": "reviewBypass-warning-8a5a00-q6mthe",
+      "property": "--reviewBypass-warning",
+      "value": "#8a5a00",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "warning",
+        "role": "accent",
+        "light": "#8a5a00",
+        "dark": "#f5b544",
         "side": "light"
       }
     },
@@ -134,9 +4264,715 @@
         "dark": "#ffffff",
         "side": "dark"
       }
+    },
+    {
+      "className": "scheme-dark-reviewBypass-active-6fb2f0-i8hdkw",
+      "property": "--reviewBypass-active",
+      "value": "#6fb2f0",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "info",
+        "role": "accent",
+        "light": "#1b5fa1",
+        "dark": "#6fb2f0",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "scheme-dark-reviewBypass-border-232936-lis1f3",
+      "property": "--reviewBypass-border",
+      "value": "#232936",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "border",
+        "token": "subtle",
+        "role": "border",
+        "light": "#e3e6ea",
+        "dark": "#232936",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "scheme-dark-reviewBypass-muted-98a2b3-xw79aa",
+      "property": "--reviewBypass-muted",
+      "value": "#98a2b3",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "muted",
+        "role": "text",
+        "light": "#5b6472",
+        "dark": "#98a2b3",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "scheme-dark-reviewBypass-onActive-0b0d11-jw9omx",
+      "property": "--reviewBypass-onActive",
+      "value": "#0b0d11",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "inverted",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#0b0d11",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "scheme-dark-reviewBypass-sunken-0f131a-4760qo",
+      "property": "--reviewBypass-sunken",
+      "value": "#0f131a",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "surface",
+        "token": "sunken",
+        "role": "surface",
+        "light": "#eceef2",
+        "dark": "#0f131a",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "scheme-dark-reviewBypass-warning-f5b544-pxkga8",
+      "property": "--reviewBypass-warning",
+      "value": "#f5b544",
+      "conditions": [
+        "scheme:dark"
+      ],
+      "unproven": "",
+      "selectorConditions": 0,
+      "provenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "warning",
+        "role": "accent",
+        "light": "#8a5a00",
+        "dark": "#f5b544",
+        "side": "dark"
+      }
+    },
+    {
+      "className": "white-space-pre-wrap-c0crsd",
+      "property": "white-space",
+      "value": "pre-wrap",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
     }
   ],
   "vars": [
+    {
+      "name": "--craft-accent",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#1b5fa1",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "info",
+        "role": "accent",
+        "light": "#1b5fa1",
+        "dark": "#6fb2f0",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-accent",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#2563eb",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "primary",
+        "role": "accent",
+        "light": "#2563eb",
+        "dark": "#2563eb",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-accent-hover",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#1d4ed8",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "primaryHover",
+        "role": "accent",
+        "light": "#1d4ed8",
+        "dark": "#1d4ed8",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-accent-soft",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "rgba(29, 78, 216, 0.15)",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "soft",
+        "role": "accent",
+        "light": "rgba(29, 78, 216, 0.15)",
+        "dark": "rgba(191, 219, 254, 0.2)",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-accent-text",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#1d4ed8",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "accent",
+        "role": "text",
+        "light": "#1d4ed8",
+        "dark": "#bfdbfe",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-bg",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#ffffff",
+      "role": "surface",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "page",
+        "role": "surface",
+        "light": "#ffffff",
+        "dark": "#1f2937",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-border",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#d1d5db",
+      "role": "border",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "strong",
+        "role": "border",
+        "light": "#d1d5db",
+        "dark": "#6b7280",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-border-subtle",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#e5e7eb",
+      "role": "border",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "subtle",
+        "role": "border",
+        "light": "#e5e7eb",
+        "dark": "#4b5563",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-control-bg",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#ffffff",
+      "role": "surface",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "control",
+        "role": "surface",
+        "light": "#ffffff",
+        "dark": "#111827",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-danger",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#b91c1c",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "danger",
+        "role": "text",
+        "light": "#b91c1c",
+        "dark": "#fca5a5",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-danger-fill",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#b91c1c",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "danger",
+        "role": "accent",
+        "light": "#b91c1c",
+        "dark": "#fca5a5",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-focus",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#3b82f6",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "focus",
+        "role": "accent",
+        "light": "#3b82f6",
+        "dark": "#93c5fd",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-launcher-bottom",
+      "syntax": "<length>",
+      "inherits": true,
+      "initialValue": "20px",
+      "role": "none"
+    },
+    {
+      "name": "--craft-ai-launcher-right",
+      "syntax": "<length>",
+      "inherits": true,
+      "initialValue": "20px",
+      "role": "none"
+    },
+    {
+      "name": "--craft-ai-launcher-shadow",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "rgba(37, 99, 235, 0.35)",
+      "role": "none",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "launcherShadow",
+        "role": "none",
+        "light": "rgba(37, 99, 235, 0.35)",
+        "dark": "rgba(37, 99, 235, 0.35)",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-on-accent",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#ffffff",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "onAccent",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#ffffff",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-overlay-backdrop",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "rgba(15, 23, 42, 0.5)",
+      "role": "none",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "backdrop",
+        "role": "none",
+        "light": "rgba(15, 23, 42, 0.5)",
+        "dark": "rgba(2, 6, 23, 0.7)",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-phase-emitted",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#4338ca",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "emitted",
+        "role": "text",
+        "light": "#4338ca",
+        "dark": "#a5b4fc",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-shadow",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "rgba(15, 23, 42, 0.25)",
+      "role": "none",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "effect",
+        "token": "shadow",
+        "role": "none",
+        "light": "rgba(15, 23, 42, 0.25)",
+        "dark": "rgba(0, 0, 0, 0.45)",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-success",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#047857",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "success",
+        "role": "text",
+        "light": "#047857",
+        "dark": "#6ee7b7",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-success-bg",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#ecfdf5",
+      "role": "surface",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "success",
+        "role": "surface",
+        "light": "#ecfdf5",
+        "dark": "#064e3b",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-success-border",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#a7f3d0",
+      "role": "border",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "success",
+        "role": "border",
+        "light": "#a7f3d0",
+        "dark": "#047857",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-success-fill",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#047857",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "accent",
+        "token": "success",
+        "role": "accent",
+        "light": "#047857",
+        "dark": "#6ee7b7",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-success-text",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#065f46",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "successStrong",
+        "role": "text",
+        "light": "#065f46",
+        "dark": "#a7f3d0",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-surface",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#f9fafb",
+      "role": "surface",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "raised",
+        "role": "surface",
+        "light": "#f9fafb",
+        "dark": "#111827",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-surface-accent",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#eff6ff",
+      "role": "surface",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "accent",
+        "role": "surface",
+        "light": "#eff6ff",
+        "dark": "#1e3a8a",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-surface-muted",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#f3f4f6",
+      "role": "surface",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "muted",
+        "role": "surface",
+        "light": "#f3f4f6",
+        "dark": "#374151",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-text",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#111827",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "strong",
+        "role": "text",
+        "light": "#111827",
+        "dark": "#f9fafb",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-text-muted",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#6b7280",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "muted",
+        "role": "text",
+        "light": "#6b7280",
+        "dark": "#d1d5db",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-warning",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#b45309",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "text",
+        "token": "warning",
+        "role": "text",
+        "light": "#b45309",
+        "dark": "#fbbf24",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-warning-bg",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#fffbeb",
+      "role": "surface",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "surface",
+        "token": "warning",
+        "role": "surface",
+        "light": "#fffbeb",
+        "dark": "#78350f",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-ai-warning-border",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#fde68a",
+      "role": "border",
+      "initialProvenance": {
+        "palette": "craftAi",
+        "group": "border",
+        "token": "warning",
+        "role": "border",
+        "light": "#fde68a",
+        "dark": "#b45309",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-focusOffset",
+      "syntax": "<length>",
+      "inherits": true,
+      "initialValue": "2px",
+      "role": "none"
+    },
+    {
+      "name": "--craft-focusRing",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#1b5fa1",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "info",
+        "role": "accent",
+        "light": "#1b5fa1",
+        "dark": "#6fb2f0",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-focusWidth",
+      "syntax": "<length>",
+      "inherits": true,
+      "initialValue": "2px",
+      "role": "none"
+    },
+    {
+      "name": "--craft-selectionBg",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#1b5fa1",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "info",
+        "role": "accent",
+        "light": "#1b5fa1",
+        "dark": "#6fb2f0",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craft-selectionInk",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#ffffff",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "inverted",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#0b0d11",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--craftAiChat-x",
+      "syntax": "<length>",
+      "inherits": false,
+      "initialValue": "0px",
+      "role": "none"
+    },
+    {
+      "name": "--craftAiChat-y",
+      "syntax": "<length>",
+      "inherits": false,
+      "initialValue": "0px",
+      "role": "none"
+    },
+    {
+      "name": "--craftAiMenu-x",
+      "syntax": "<length>",
+      "inherits": false,
+      "initialValue": "0px",
+      "role": "none"
+    },
+    {
+      "name": "--craftAiMenu-y",
+      "syntax": "<length>",
+      "inherits": false,
+      "initialValue": "0px",
+      "role": "none"
+    },
     {
       "name": "--reviewApp-accentActive",
       "syntax": "<color>",
@@ -168,6 +5004,110 @@
         "dark": "#ffffff",
         "side": "light"
       }
+    },
+    {
+      "name": "--reviewBypass-active",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#1b5fa1",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "info",
+        "role": "accent",
+        "light": "#1b5fa1",
+        "dark": "#6fb2f0",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--reviewBypass-border",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#e3e6ea",
+      "role": "border",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "border",
+        "token": "subtle",
+        "role": "border",
+        "light": "#e3e6ea",
+        "dark": "#232936",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--reviewBypass-muted",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#5b6472",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "muted",
+        "role": "text",
+        "light": "#5b6472",
+        "dark": "#98a2b3",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--reviewBypass-onActive",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#ffffff",
+      "role": "text",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "text",
+        "token": "inverted",
+        "role": "text",
+        "light": "#ffffff",
+        "dark": "#0b0d11",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--reviewBypass-sunken",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#eceef2",
+      "role": "surface",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "surface",
+        "token": "sunken",
+        "role": "surface",
+        "light": "#eceef2",
+        "dark": "#0f131a",
+        "side": "light"
+      }
+    },
+    {
+      "name": "--reviewBypass-warning",
+      "syntax": "<color>",
+      "inherits": true,
+      "initialValue": "#8a5a00",
+      "role": "accent",
+      "initialProvenance": {
+        "palette": "palette",
+        "group": "accent",
+        "token": "warning",
+        "role": "accent",
+        "light": "#8a5a00",
+        "dark": "#f5b544",
+        "side": "light"
+      }
     }
+  ],
+  "globalReads": [
+    "--craft-accent",
+    "--craft-focusOffset",
+    "--craft-focusRing",
+    "--craft-focusWidth",
+    "--craft-selectionBg",
+    "--craft-selectionInk"
   ]
 }

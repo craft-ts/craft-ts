@@ -305,13 +305,15 @@ import {
   architectureCatalogToTypeScript,
   buildArchitectureCatalog,
   createArchitectureGraph,
+  mergeStyleDump,
 } from '@craft-ts/dev-tools';
+import { loadStyleDump } from '@craft-ts/style/vite';
 import { architectureCatalog } from './catalog';
 
 const workspaceRoot = resolve(import.meta.dirname, '../../..');
 const catalogPath = join(import.meta.dirname, 'catalog.ts');
 
-export function loadArchitectureGraph() {
+export async function loadArchitectureGraph() {
   const graph = analyzeDependencyGraph({
     rootDir: workspaceRoot,
     tsConfigFilePath: 'apps/your-app/tsconfig.graph.json',
@@ -320,9 +322,17 @@ export function loadArchitectureGraph() {
     catalogPath,
     `// Generated. Do not edit.\n${architectureCatalogToTypeScript(buildArchitectureCatalog(graph))}`,
   );
-  return createArchitectureGraph(graph, architectureCatalog);
+  // The style half: every *.style.ts, evaluated by the same code the build
+  // runs. The catalog stays built from the code graph alone.
+  const styleDump = await loadStyleDump(join(workspaceRoot, 'apps/your-app/src'));
+  return createArchitectureGraph(
+    mergeStyleDump(graph, styleDump),
+    architectureCatalog,
+  );
 }
 ```
+
+Load it once in a `beforeAll(async () => { graph = await loadArchitectureGraph(); })`.
 
 The imported catalog is what TypeScript autocompletes against. The rewrite
 keeps it in sync with the sources: after a rename, the next typecheck of the
@@ -594,10 +604,62 @@ Runs the aggregate checks above and joins their messages. Pass `{ allow }`
 through to `assertMutationHasReactOn` for fire-and-forget mutations.
 
 ```typescript
+import { architectureWaiverList } from './waivers';
+
 it('keeps the app declarative', () => {
-  assertDeclarativeArchitecture(graph.graph, { allow: ['logout'] });
+  assertDeclarativeArchitecture(graph.graph, {
+    allow: ['logout'],
+    waivers: architectureWaiverList,
+  });
 });
 ```
+
+The aggregate includes four **style rules**. They make `@craft-ts/style` the
+only way to style a component, and they need the style dump merged into the
+graph (step 4):
+
+| rule                           | fails when                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `style-only-design-system`     | an element's class does not reach a sheet of a `*.style.ts` (a string, a computed class, a sheet declared elsewhere), or a component carries `meta.styles` or imports a `.css` |
+| `style-obligations-discharged` | a sheet `requires(...)` an obligation nothing `provides(...)`                                                                                                                   |
+| `no-dangling-css-vars`         | a variable is read and never declared, or declared and never read (a read from `craftGlobalStyles` counts)                                                                     |
+| `no-global-stylesheet`         | an entry file imports a `.css`, or `index.html` links a stylesheet — the only one is `virtual:craft-style.css`                                                                |
+
+A component of pure composition, with no class at all, is not at fault. A class
+passed through an input typed `CraftClass` is accepted.
+
+### Waivers
+
+A deliberate bypass — a third-party widget, HTML rendered from markdown — is a
+**waiver**: a rule, a target, and the reason. Declare them in
+`architecture/waivers.ts`, typed against the catalog, so a target that does not
+exist does not compile:
+
+```typescript
+import { defineArchitectureWaivers } from '@craft-ts/dev-tools';
+import { architectureCatalog } from './catalog';
+
+export const architectureWaiverList = defineArchitectureWaivers(
+  architectureCatalog,
+  [
+    {
+      rule: 'style-only-design-system',
+      target: 'MarkdownArticle',
+      reason: 'The HTML rendered from markdown carries its own classes.',
+    },
+  ],
+);
+```
+
+The target is a component name, `file:<path>`, `obligation:<id>`,
+`css-var:<name>`, or `'*'` for the whole rule — the only form a rule that
+checks the whole graph (`no-dependency-cycles`, …) accepts, and the one a
+project uses while it migrates. Two things keep the list honest: an **empty
+reason** is refused, and a waiver that no longer waives anything is **stale**
+and fails the check. Review Attest lists every waiver for a decision.
+
+`craft-architecture-check` reads the same file (statically, without running the
+app) and takes the dump the build wrote with `--style-dump <path>`.
 
 ### `assertRouteDiProofs`
 

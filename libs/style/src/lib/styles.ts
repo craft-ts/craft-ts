@@ -43,11 +43,44 @@ export interface Conditional<
   readonly items: Items;
 }
 
+/**
+ * The pseudo-elements a sheet may style, and nothing else.
+ *
+ * A closed list rather than a selector fragment: `::before` written by hand is
+ * a string no tool downstream can read, and a typo (`::befor`) is a rule the
+ * browser drops without a word.
+ */
+export type PseudoElementName =
+  | 'before'
+  | 'after'
+  | 'placeholder'
+  | 'marker'
+  | 'selection'
+  | 'backdrop';
+
+/**
+ * Declarations applied to a pseudo-element of the element carrying the class.
+ *
+ * Built by `pseudo.before([...])` and its siblings. It nests like `when`, and
+ * `when` nests inside it: `pseudo.before([when(tone.danger, [...])])` and
+ * `when(tone.danger, [pseudo.before([...])])` emit the same rule — the
+ * pseudo-element always lands last in the selector, where CSS requires it.
+ */
+export interface PseudoBlock<
+  Name extends PseudoElementName,
+  Items extends readonly unknown[],
+> {
+  readonly kind: 'pseudo';
+  readonly element: Name;
+  readonly items: Items;
+}
+
 export type SheetItem =
   | Declaration
   | readonly Declaration[]
   | ObligationEntry
-  | Conditional<AnyAxisPoint, readonly any[]>;
+  | Conditional<AnyAxisPoint, readonly any[]>
+  | PseudoBlock<PseudoElementName, readonly any[]>;
 
 /**
  * What an axis is allowed to contain.
@@ -111,9 +144,11 @@ function assertLive(at: AnyAxisPoint, items: readonly SheetItem[]): void {
 type PointsIn<Item> =
   Item extends Conditional<infer Point, infer Items>
     ? Point | PointsIn<Items[number]>
-    : Item extends readonly (infer Child)[]
-      ? PointsIn<Child>
-      : never;
+    : Item extends PseudoBlock<PseudoElementName, infer Items>
+      ? PointsIn<Items[number]>
+      : Item extends readonly (infer Child)[]
+        ? PointsIn<Child>
+        : never;
 
 /** axis → the points **actually** used. Never all the points of the axis. */
 export type VariantContract<Points extends AnyAxisPoint> = {
@@ -197,6 +232,14 @@ export interface AtomicRule {
   readonly unproven: string;
   /** The palette token this value came from, when it came from one. */
   readonly provenance?: ColorProvenance;
+  /**
+   * Set when the rule styles a pseudo-element of the element rather than the
+   * element itself. A reader that paints boxes — the contrast solver — must
+   * not mistake a `::before` background for the element's own.
+   */
+  readonly pseudoElement?: PseudoElementName;
+  /** Emitted outside the cascade layers. See `StyleSheetOptions.isolated`. */
+  readonly isolated?: boolean;
 }
 
 export interface RegisteredClass {
@@ -268,17 +311,35 @@ const atomicName = (
   conditions: readonly AnyAxisPoint[],
   property: string,
   value: string,
+  pseudoElement?: PseudoElementName,
+  isolated = false,
+): string => {
+  const scope = scopeOf(conditions, pseudoElement);
+  // An isolated atom is never shared with a layered one: sharing would drag
+  // an application's class out of its layer and over its own variants.
+  const identity = `${isolated ? 'isolated|' : ''}${scope}{${property}:${value}}`;
+  return `${isolated ? 'i-' : ''}${slugify(`${scope}-${property}-${value}`)}-${hash(identity)}`;
+};
+
+/**
+ * What makes two rules of one class compete for the same slot: the conditions
+ * they sit under, and the pseudo-element they style. `::before` and the
+ * element itself never compete.
+ */
+const scopeOf = (
+  conditions: readonly AnyAxisPoint[],
+  pseudoElement?: PseudoElementName,
 ): string => {
   const scope = conditions
     .map((point) => `${point.axis}:${point.point}`)
     .join('|');
-  const identity = `${scope}{${property}:${value}}`;
-  return `${slugify(`${scope}-${property}-${value}`)}-${hash(identity)}`;
+  return pseudoElement ? `${scope}::${pseudoElement}` : scope;
 };
 
 // ─── sheet walking ──────────────────────────────────────────────────────────
 
 interface Walked {
+  readonly isolated: boolean;
   readonly rules: AtomicRule[];
   readonly axes: Map<string, Set<string>>;
   readonly unproven: string[];
@@ -287,20 +348,27 @@ interface Walked {
   readonly violates: string[];
 }
 
-const isDeclaration = (item: unknown): item is Declaration =>
+export const isDeclaration = (item: unknown): item is Declaration =>
   typeof item === 'object' &&
   item !== null &&
   typeof (item as Declaration).property === 'string' &&
   typeof (item as Declaration).value === 'string';
 
-const isConditional = (
+export const isConditional = (
   item: unknown,
 ): item is Conditional<AnyAxisPoint, readonly SheetItem[]> =>
   typeof item === 'object' &&
   item !== null &&
   (item as { kind?: unknown }).kind === 'when';
 
-const isObligation = (
+export const isPseudoBlock = (
+  item: unknown,
+): item is PseudoBlock<PseudoElementName, readonly SheetItem[]> =>
+  typeof item === 'object' &&
+  item !== null &&
+  (item as { kind?: unknown }).kind === 'pseudo';
+
+export const isObligation = (
   item: unknown,
 ): item is { readonly kind: string; readonly spec: ObligationSpec<string> } =>
   typeof item === 'object' &&
@@ -311,11 +379,14 @@ function addRule(
   walked: Walked,
   conditions: readonly AnyAxisPoint[],
   declaration: Declaration,
+  pseudoElement?: PseudoElementName,
 ): void {
   const className = atomicName(
     conditions,
     declaration.property,
     declaration.value,
+    pseudoElement,
+    walked.isolated,
   );
   const rule: AtomicRule = {
     className,
@@ -324,6 +395,8 @@ function addRule(
     value: declaration.value,
     unproven: declaration.unproven,
     ...(declaration.provenance ? { provenance: declaration.provenance } : {}),
+    ...(pseudoElement ? { pseudoElement } : {}),
+    ...(walked.isolated ? { isolated: true } : {}),
   };
   // Deduplication happens here, not in the emitter: two sheets writing
   // `padding: 1rem` under the same condition converge on the same atom.
@@ -336,24 +409,39 @@ function walk(
   items: readonly SheetItem[],
   conditions: readonly AnyAxisPoint[],
   walked: Walked,
+  pseudoElement?: PseudoElementName,
 ): void {
   for (const item of items) {
     if (Array.isArray(item)) {
-      walk(item as readonly SheetItem[], conditions, walked);
+      walk(item as readonly SheetItem[], conditions, walked, pseudoElement);
       continue;
     }
     if (isConditional(item)) {
       const points = walked.axes.get(item.at.axis) ?? new Set<string>();
       points.add(item.at.point);
       walked.axes.set(item.at.axis, points);
-      walk(item.items, [...conditions, item.at], walked);
+      walk(item.items, [...conditions, item.at], walked, pseudoElement);
+      continue;
+    }
+    if (isPseudoBlock(item)) {
+      if (pseudoElement) {
+        throw new Error(
+          `craftStyles: '::${item.element}' is nested inside '::${pseudoElement}'. A pseudo-element has no pseudo-elements of its own; move the block up a level.`,
+        );
+      }
+      walk(item.items, conditions, walked, item.element);
       continue;
     }
     if (isDeclaration(item)) {
-      addRule(walked, conditions, item);
+      addRule(walked, conditions, item, pseudoElement);
       continue;
     }
     if (isObligation(item)) {
+      if (pseudoElement) {
+        throw new Error(
+          `craftStyles: an obligation sits inside '::${pseudoElement}'. Obligations are about the element's context — a scroll port, a container — and a pseudo-element has none of its own; declare it on the element.`,
+        );
+      }
       const entry = item as {
         readonly kind: string;
         readonly spec: ObligationSpec<string>;
@@ -428,6 +516,19 @@ export type WithinBudget<
 export interface StyleSheetOptions<Budget extends readonly AxisSet[]> {
   /** The axes this sheet is allowed to vary on. */
   readonly axes?: Budget;
+  /**
+   * Emits the sheet **outside** the cascade layers, after them.
+   *
+   * For chrome a library mounts into applications it does not know — the AI
+   * overlay of `@craft-ts/component`. Layered styles lose to any unlayered
+   * stylesheet, so a host's `button { color: inherit }` would repaint the
+   * overlay's buttons; unlayered, the overlay's classes win over the host's
+   * element selectors by specificity, as its scoped CSS always did.
+   *
+   * Not for application sheets: an application owns its cascade, and its
+   * classes belong in `craft.components`.
+   */
+  readonly isolated?: boolean;
 }
 
 export function craftStyles<
@@ -458,6 +559,7 @@ export function craftStyles<
       );
     }
     const walked: Walked = {
+      isolated: options.isolated === true,
       rules: [],
       axes: new Map(),
       unproven: [],
@@ -474,10 +576,10 @@ export function craftStyles<
     // Cascade order inside a sheet must be the order that was written.
     const kept = new Map<string, AtomicRule>();
     for (const rule of walked.rules) {
-      const scope = rule.conditions
-        .map((point) => `${point.axis}:${point.point}`)
-        .join('|');
-      kept.set(`${scope}|${rule.property}`, rule);
+      kept.set(
+        `${scopeOf(rule.conditions, rule.pseudoElement)}|${rule.property}`,
+        rule,
+      );
     }
     const rules = [...kept.values()];
     if (budget) {

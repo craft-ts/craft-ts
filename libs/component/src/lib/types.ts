@@ -629,12 +629,37 @@ export interface ComponentMeta<
 > {
   readonly providers?: Providers;
   readonly host?: Readonly<Record<string, unknown>>;
+  /**
+   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
+   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
+   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
+   * rule needs a `-- reason`, and the directive is attested in Review Attest.
+   */
   readonly styles?: string | readonly string[];
-  /** CSS text imported from an external stylesheet with the build text loader. */
+  /**
+   * CSS text imported from an external stylesheet with the build text loader.
+   *
+   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
+   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
+   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
+   * rule needs a `-- reason`, and the directive is attested in Review Attest.
+   */
   readonly stylesUrl?: string | readonly string[];
-  /** Explicit contract for opaque external styles. */
+  /**
+   * Explicit contract for opaque external styles.
+   *
+   * @deprecated Declare typed variables with `cssVars` from `@craft-ts/style`
+   * and write them with `assign(...)` on `style:`.
+   */
   readonly cssVars?: CssVarsMetaDeclaration;
-  /** Styles exposed explicitly to opted-in projected fragments, by slot. */
+  /**
+   * Styles exposed explicitly to opted-in projected fragments, by slot.
+   *
+   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
+   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
+   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
+   * rule needs a `-- reason`, and the directive is attested in Review Attest.
+   */
   readonly contentStyles?: ContentStyles<SlotName>;
   /**
    * Closes the tree for context requirements: from here up, nobody will answer.
@@ -652,8 +677,21 @@ export interface ComponentMeta<
 }
 
 export interface DirectiveMeta {
+  /**
+   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
+   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
+   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
+   * rule needs a `-- reason`, and the directive is attested in Review Attest.
+   */
   readonly styles?: string | readonly string[];
-  /** CSS text imported from an external stylesheet with the build text loader. */
+  /**
+   * CSS text imported from an external stylesheet with the build text loader.
+   *
+   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
+   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
+   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
+   * rule needs a `-- reason`, and the directive is attested in Review Attest.
+   */
   readonly stylesUrl?: string | readonly string[];
   /** Optional behavior mounted against the concrete DOM node being decorated. */
   readonly node?: {

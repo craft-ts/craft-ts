@@ -60,8 +60,8 @@ describe('the layers are ordered by the emitter, not by import order', () => {
 
     const css = renderCss(registeredAtoms(), []);
     expect(css.startsWith(`@layer ${LAYERS.join(', ')};`)).toBe(true);
-    expect(css.indexOf('@layer components')).toBeLessThan(
-      css.indexOf('@layer variants'),
+    expect(css.indexOf('@layer craft.components{')).toBeLessThan(
+      css.indexOf('@layer craft.variants{'),
     );
   });
 
@@ -87,7 +87,7 @@ describe('the layers are ordered by the emitter, not by import order', () => {
     const v = cssVars('card', { ink: kind.color(palette.text.strong) });
     const css = renderCss([], [v.ink.declaration]);
 
-    expect(css).toContain('@layer tokens{@property --card-ink');
+    expect(css).toContain('@layer craft.tokens{@property --card-ink');
   });
 });
 

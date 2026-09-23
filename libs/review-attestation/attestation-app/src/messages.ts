@@ -23,6 +23,26 @@ const en = {
   viewTemplate: 'Template obligations',
   viewFolderLayout: 'Folder layout',
   viewReview: 'Review queue',
+  viewBypasses: 'Bypasses',
+  viewBypassesDescription:
+    'Disabled rules and architecture waivers, with their reasons',
+  bypassAllRules: 'All rules',
+  bypassNoReason: 'No reason given',
+  bypassEslintDisable: 'eslint-disable',
+  bypassWaiver: 'Architecture waiver',
+  bypassWaivedTarget: (target: string) => `Waives ${target}`,
+  bypassPreviousReason: (reason: string) =>
+    `Previously accepted reason: ${reason}`,
+  adoptionTitle: 'Design system adoption',
+  adoptionSummary: (adopted: number, styling: number) =>
+    `${adopted} of ${styling} styling components use @craft-ts/style only`,
+  adoptionComposition: (count: number) =>
+    `${count} composition component${count === 1 ? '' : 's'}, with no class of ${count === 1 ? 'its' : 'their'} own, not counted`,
+  adoptionUnavailable:
+    'The code graph could not say how far the design system has reached.',
+  adoptionRemaining: 'Still off the design system',
+  adoptionWaivedBy: (reason: string) => `Waived: ${reason}`,
+  adoptionNotWaived: 'Not waived: the architecture check fails on it',
   viewNavigation: 'Attestation views',
   viewNavigationDescription:
     'Browse evidence, checks, contracts, and decisions.',
@@ -354,6 +374,26 @@ const fr: Messages = {
   viewTemplate: 'Obligations de template',
   viewFolderLayout: 'Disposition des dossiers',
   viewReview: 'File de revue',
+  viewBypasses: 'Contournements',
+  viewBypassesDescription:
+    'Règles désactivées et dérogations d’architecture, avec leurs raisons',
+  bypassAllRules: 'Toutes les règles',
+  bypassNoReason: 'Aucune raison donnée',
+  bypassEslintDisable: 'eslint-disable',
+  bypassWaiver: 'Dérogation d’architecture',
+  bypassWaivedTarget: (target: string) => `Déroge pour ${target}`,
+  bypassPreviousReason: (reason: string) =>
+    `Raison acceptée précédemment : ${reason}`,
+  adoptionTitle: 'Adoption du design system',
+  adoptionSummary: (adopted: number, styling: number) =>
+    `${adopted} composants sur ${styling} qui stylent n’utilisent que @craft-ts/style`,
+  adoptionComposition: (count: number) =>
+    `${count} composant${count === 1 ? '' : 's'} de composition, sans classe propre, non compté${count === 1 ? '' : 's'}`,
+  adoptionUnavailable:
+    'Le graphe de code n’a pas pu mesurer l’adoption du design system.',
+  adoptionRemaining: 'Encore hors du design system',
+  adoptionWaivedBy: (reason: string) => `Dérogé : ${reason}`,
+  adoptionNotWaived: 'Non dérogé : le contrôle d’architecture échoue dessus',
   viewNavigation: "Vues d'attestation",
   viewNavigationDescription:
     'Parcourez preuves, contrôles, contrats et décisions.',
