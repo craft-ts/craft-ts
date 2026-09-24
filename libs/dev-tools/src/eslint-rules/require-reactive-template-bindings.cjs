@@ -68,6 +68,9 @@ const SAFE_TEMPLATE_CALLS = new Set([
   // @craft-ts/style: a presentation call, not a business derivation.
   'assign',
 ]);
+// `unit.px(...)`, `unit.pct(...)`: the typed value an `assign` writes, built
+// from @craft-ts/style's unit constructors. Presentation, like `assign`.
+const STYLE_VALUE_NAMESPACES = new Set(['unit']);
 
 module.exports = {
   meta: {
@@ -172,6 +175,14 @@ module.exports = {
           PRESENTATION_FUNCTIONS.has(node.callee.name) ||
           SAFE_TEMPLATE_CALLS.has(node.callee.name)
         );
+      }
+      if (
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.object.type === 'Identifier' &&
+        STYLE_VALUE_NAMESPACES.has(node.callee.object.name)
+      ) {
+        return true;
       }
       return (
         node.callee.type === 'MemberExpression' &&

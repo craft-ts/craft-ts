@@ -166,14 +166,15 @@ export const UsersList = craftComponent(
       ),
     ),
 
-    div({ class: 'pagination' }, [
+    // `pagerSheet` is the page's sheet, from users-page.style.ts.
+    div({ class: pagerSheet.bar }, [
       button({ click: page.previous, disabled: page.isFirst }, 'Previous'),
       span(page.label),
       button({ click: page.next }, 'Next'),
     ]),
 
     ifNode(userQuery.isPlaceHolderData, () =>
-      div({ class: 'loading-indicator' }, 'Loading new page…'),
+      div({ class: pagerSheet.loading }, 'Loading new page…'),
     ),
   ],
 );

@@ -66,7 +66,7 @@ describe('no-raw-class', () => {
 
     // The design system is the only way to style a component: an unmigrated
     // file is exactly the file this rule is for. A project migrates in steps
-    // by turning the rule off in its own config, under TODO(style-only).
+    // by turning the rule off in its own config, with a TODO naming the step.
     expect(result.messages).toHaveLength(1);
   });
 });

@@ -41,6 +41,15 @@ export const ViewTabs = craftComponent(
     const reviewPressed = craftComputed('reviewPressed', function* () {
       return (yield* devtoolView()) === 'review' ? 'true' : 'false';
     });
+    const folderLayoutPressed = craftComputed(
+      'folderLayoutPressed',
+      function* () {
+        return (yield* devtoolView()) === 'folder-layout' ? 'true' : 'false';
+      },
+    );
+    const bypassesPressed = craftComputed('bypassesPressed', function* () {
+      return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
+    });
 
     return {
       chooseDevtoolView,
@@ -55,6 +64,8 @@ export const ViewTabs = craftComponent(
       visualPressed,
       templatePressed,
       reviewPressed,
+      folderLayoutPressed,
+      bypassesPressed,
     };
   },
   ({
@@ -69,7 +80,8 @@ export const ViewTabs = craftComponent(
     visualPressed,
     templatePressed,
     reviewPressed,
-    devtoolView,
+    folderLayoutPressed,
+    bypassesPressed,
   }) => [
     button(
       'ShowApplicationOverview',
@@ -206,9 +218,7 @@ export const ViewTabs = craftComponent(
       {
         type: 'button',
         class: viewTabs.tab,
-        'aria-pressed': function* () {
-          return (yield* devtoolView()) === 'folder-layout' ? 'true' : 'false';
-        },
+        'aria-pressed': folderLayoutPressed,
         *click() {
           yield* chooseDevtoolView('folder-layout');
         },
@@ -243,9 +253,7 @@ export const ViewTabs = craftComponent(
       {
         type: 'button',
         class: viewTabs.tab,
-        'aria-pressed': function* () {
-          return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
-        },
+        'aria-pressed': bypassesPressed,
         *click() {
           yield* chooseDevtoolView('bypasses');
         },

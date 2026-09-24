@@ -224,6 +224,17 @@ describe('debt and dangling ends', () => {
     expect(danglingVars(graph).unread).toEqual(['--ds-ink']);
     expect(danglingVars(graph).undeclared).toEqual([]);
   });
+
+  it('counts a variable the global layers read as read', () => {
+    const graph = mergeStyleDump(emptyGraph(), {
+      ...dump,
+      globalReads: ['--ds-ink'],
+    });
+
+    // The base's focus ring reads its variables from a global rule, not from
+    // a sheet class: the debt report and the architecture rule must agree.
+    expect(danglingVars(graph).unread).toEqual([]);
+  });
 });
 
 describe('impact analysis', () => {

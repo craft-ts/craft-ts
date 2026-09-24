@@ -1007,3 +1007,109 @@ Migration des projets, dans l'ordre du plan.
   - `vite build` OK ;
   - rendu comparé à `HEAD` dans le vrai serveur de revue (`startReviewServer`), en clair,
     en sombre, à 800 et 1 100 px.
+- **Scaffold `create-project`** : fait.
+  - Plus de `src/styles.css` ni de chemin `typedCss` : l'option disparaît de la config,
+    du CLI (`--typed-css` est accepté sans effet, `--no-typed-css` lève une erreur qui
+    explique pourquoi) et de la question interactive. `@craft-ts/style`,
+    `style:check`, le preset ESLint `typedCss` et le plugin sont toujours là, avec ou
+    sans design system.
+  - `src/app/app.style.ts` remplace la feuille globale :
+    - `craftGlobalStyles('page')` pour `body`, `a` et `label` ;
+    - la sheet `shell` : `root`, `link`, `content`, `nav`, `main` et `badge` (le badge
+      expérimental passe par une classe au lieu de `'starter-experimental-badge'`).
+  - L'indicateur de typecheck a sa sheet. Son état d'échec est l'axe
+    `data-typecheck`. Au passage, son `as` et un `eslint-disable` inutile sont retirés.
+  - Couleurs sur les classes, et pas seulement sur `body` : le solveur de contraste
+    ignore les règles globales. Liens de la nav, `main` et, sans design system, les
+    pages routées (analysées seules) étaient « indéterminés ». `style:check` échouait
+    donc sur le starter généré. Le shell porte maintenant ses couleurs, et les pages
+    sans design system passent par `shell.content`.
+  - Suite d'architecture émise par `migrate-architecture` quand le projet dépend de
+    `@craft-ts/style` : loader asynchrone qui fusionne le dump (`loadStyleDump`,
+    alias résolu par `createRequire`, `@craft-ts/component` inclus par défaut),
+    `waivers.ts` (jamais écrasé par une nouvelle exécution) et `architecture.spec.ts`
+    qui appelle `assertArchitecture` avec les dérogations.
+- **Bug de la lib** : `findProjectStyleModules` dédoublonnait par chemin, pas par
+  chemin réel. Un paquet atteint à la fois par défaut et par un `include` explicite,
+  ou derrière un lien symbolique (pnpm), était évalué deux fois : `cssVars: prefix
+  'craft-ai' is already declared`. Spec ajoutée.
+- Vérification sur des projets **générés pour de vrai**. Les paquets locaux sont
+  construits par `tsc` et liés dans `node_modules/@craft-ts` (harnais
+  `scaffold-harness.mjs` du scratchpad) :
+  - starter standard : `vite build` OK, contraste 16/16 prouvé, architecture 17/17 ;
+  - sans design system : lint à 0 erreur, build OK, contraste 18/18, architecture
+    17/17 ;
+  - domain-first : build OK, contraste 6/6.
+  - Défauts préexistants, sans rapport avec le style (tâche proposée à part) :
+    - `components.ts` du starter déclare 5 composants (`max-craft-declarations-per-file`) ;
+    - les routes domain-first n'ont pas `assertExhaustiveRouteExceptions` ;
+    - erreurs tsc de `app.config.ts`/`app.routes.ts`, les mêmes que sur les apps du
+      dépôt.
+- **Générateur de route** : fait. Il n'émettait déjà ni `.css` ni `styles`. Le
+  composant qu'il crée a maintenant sa sheet `<nom>.style.ts` (`craftStyles` avec une
+  classe `root`) et la pose sur son élément. Vérifié : spec 9/9, et les deux fichiers
+  émis passent le lint et le typecheck d'un starter généré.
+- **Docs (`apps/docs`)** : fait.
+  - `guide/components/styles.md` devient « Styling a component: the only way » :
+    - la forme : une sheet, puis un composant avec un axe `data-*` et `assign` ;
+    - où va chaque chose ;
+    - ce qui refuse les autres voies (règles ESLint et d'architecture) ;
+    - l'unique contournement, raisonné et attesté (vue Bypasses).
+  - `css-variables.md` est réécrite sur `cssVars` de `@craft-ts/style` : valeur par
+    instance par variante, héritage, transfert parent → enfant, `assign`,
+    `@property` émis. `meta.cssVars` est présenté comme déprécié.
+  - `customization.md` : la classe de host vient d'une sheet, les directives
+    ajoutent leur classe, et « How a parent reaches a child » passe par une
+    variable héritée. La section `@scope` est retirée.
+  - `content-projection.md` : le contrat de slot passe par `data-slot` au lieu
+    d'une classe, et le cadre est stylé par sa sheet ; `contentStyles` et
+    `allowContainerStyles` sont retirés de la page, `example-12` est supprimé.
+  - `components/index.md`, `learn/01`, `fine-grained-reactivity`,
+    `pagination-placeholder`, `route-load-errors`, `testing/components` : plus de
+    `styles:` ni de classe littérale.
+  - Axes ARIA documentés dans `style/define.md`, constructeurs de valeurs (dégradés,
+    `bgImage`, `uaScheme`, `spanAllColumns`, `pseudo.content.attr`) dans
+    `style/tokens.md`. `variants.md` disait encore « no-raw-class dans les fichiers
+    qui importent le paquet » ; c'est corrigé.
+  - Snippets : le bloc `TODO(style-only)` d'ESLint est retiré. Les 9 snippets
+    fautifs sont migrés : de vraies sheets `*.style.ts` à côté, et des specs qui
+    montent le composant et vérifient classe, attribut et variable (lint 0).
+    Suite docs : 173 tests verts. Un seul fichier échoue, préexistant et hors
+    sujet : `send-context-webhook` importe `provideSendContextEventEnricher`, que
+    `libs/core` n'exporte pas.
+  - `require-reactive-template-bindings` accepte `unit.*(...)` dans un binding :
+    c'est la valeur typée qu'écrit `assign`, de la présentation au même titre.
+    Spec ajoutée.
+  - `TODO(style-only)` ne subsiste plus que dans ce journal (commentaires et
+    raisons de specs reformulés, `APPLICATION-CAPTURES.md` corrigé).
+- **Vérification finale** (en cours) :
+  - `git grep "TODO(style-only)"` ne trouve plus que ce journal.
+  - `craft-graph --style-debt` a été lancé sur les 6 apps, avec un dump produit par
+    `loadStyleDump`, comme dans les loaders d'architecture. Résultat : 0 obligation
+    non déchargée, 0 variable non lue ou non déclarée, 0 trou d'extraction.
+    La seule dette est l'échappatoire motivée du skip-link (hors écran, pas
+    caché, pour rester focalisable).
+  - Bug corrigé au passage : `danglingVars`, qu'utilise le rapport de dette,
+    comptait comme « non lues » les variables que le socle lit depuis une règle
+    globale (`--craft-focusRing`…), alors que la règle `no-dangling-css-vars` les
+    excluait. Le filtre vit maintenant dans `danglingVars` ; les deux s'accordent,
+    et une spec a été ajoutée.
+  - ESLint sur les 8 projets touchés par le style : 0 erreur partout.
+    attestation-app avait 51 erreurs qui existaient déjà sur `HEAD` ; elles sont
+    corrigées :
+    - `bypasses-view.ts` (écrit au lot 4) : les textes dérivés quittent le template ;
+      `rules` et `shown` passent dans l'insertion du filtre `ruleFilter` ; le
+      comptage n'utilise plus `Map.set`, et le `as const` de sa sheet est retiré ;
+    - `view-tabs.ts` : `aria-pressed` des deux derniers onglets passe par des
+      `craftComputed`, comme les autres ;
+    - `review-app.ts` : les 7 liens vers l'IDE reçoivent un nom local unique,
+      `data-navigation="external"`, et `safeUrl` sur leur `href` (une URL relative
+      `/api/open-in-ide?…`, que `safeUrl` accepte).
+  - Specs d'architecture : quickstart-effect 4/4, demo-ssr 18/18,
+    demo-with-server-function 24/24, demo-effect 17/17, demo 19/19. attestation-app
+    passe de 4 échecs à 3 (le nommage des liens corrige
+    `interactive-element-named`). Les 3 restants existaient déjà et n'ont pas de
+    lien avec le style : `collapseSide` et ses voisines sont appelées depuis un
+    helper `tree()` que l'analyseur ne suit pas, un paramètre de ressource vient
+    d'un state, et un mock `/api/template-detail` manque. Tâche proposée à part.
+  - **Lot 5 terminé** côté style.

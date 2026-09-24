@@ -43,7 +43,7 @@ import {
   whiteSpace,
 } from '@craft-ts/style';
 
-const themed = { inherits: true } as const;
+const themed = { inherits: true };
 
 const tone = cssVars('reviewBypass', {
   muted: kind.color(palette.text.muted, themed),

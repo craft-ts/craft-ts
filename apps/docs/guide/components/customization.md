@@ -6,7 +6,7 @@ depends on how far the change should travel:
 | Layer                 | Changes                               |
 | --------------------- | ------------------------------------- |
 | Root-element `host`   | The component's own root defaults     |
-| Encapsulated `styles` | Its internal appearance               |
+| A `*.style.ts` sheet  | Its appearance                        |
 | Composable directives | Behaviour, reusable across components |
 
 **Start with `host`** for one component's defaults, and move to a directive only
@@ -17,51 +17,51 @@ when the same customization needs to apply somewhere else too.
 The component meta `host` properties define defaults for the component’s root
 element. The caller can extend or override them:
 
+<<< @/tests/snippets/guide/components/customization/card.style.ts#sheet
+
 <<< @/tests/snippets/guide/components/customization/card.spec.ts#card
 
-
 Classes, attributes, styles, and events recognized as host properties are
-applied to the component root. Other properties remain factory props.
+applied to the component root. Other properties remain factory props. A caller's
+`class` is **added** to the host's, so the two classes must not write the same
+property — `featured` writes the border, which `root` leaves alone. Everything
+else, `attrs` included, replaces the host's value.
 
-Values can be reactive:
+Values can be reactive. The class stays constant; what moves is an attribute the
+sheet reads as an axis:
 
 ```ts
-const { active } = state('active', false, ({ set }) => ({ set }));
-
 Card({
-  class: () => (active() ? 'is-active' : 'is-idle'),
-  style: () => ({ opacity: active() ? 1 : 0.6 }),
+  class: cardSheet.featured,
+  'data-cardActive': function* () {
+    return String(yield* active());
+  },
 });
 ```
 
-## Customizing with styles
+## Customizing the appearance
 
-Styles declared in `meta.styles` are shared across instances and encapsulated
-with `@scope`. The template root is written as `:scope`:
+A component's look lives in a sheet beside it and nowhere else — see
+[Styling a component: the only way](/guide/components/styles). The template
+binds the sheet's classes:
 
 ```typescript
+import { panel } from './panel.style';
+
 const Panel = craftComponent(
   'Panel',
-  {
-    styles: `
-      :scope { padding: 1rem; border: 1px solid #ddd; }
-      .title { font-weight: 700; }
-      button { cursor: pointer; }
-    `,
-  },
+  {},
   () => ({}),
-  () => div([h2({ class: 'title' }, 'Panel'), button('Save')]),
+  () =>
+    div({ class: panel.root }, [
+      h2({ class: panel.title }, 'Panel'),
+      button('save', { class: panel.action, type: 'button' }, 'Save'),
+    ]),
 );
 ```
 
-
-
-Styles do not leak into descendant components. Global rules such as
-`@keyframes` and `@font-face` cannot be nested in `@scope`, so their private
-names must start with the component scope. `@import` and document-root selectors
-are rejected. `@media`, `@supports`, and `@container` remain composable inside
-the scope. For the typed styling API, see
-[Typed CSS variables and design tokens](/guide/components/css-variables).
+A sheet's classes are atomic: they apply where they are bound and nowhere else,
+so there is no scope to manage and nothing leaks into a child component.
 
 ## Adding reusable customization with a directive
 
@@ -69,13 +69,14 @@ A directive transforms a component’s factory and template. It is applied from
 left to right with `.pipe(...)`:
 
 ```ts
+import { highlight } from './highlight.style';
+
 const Highlight = craftDirective(
   'Highlight',
-  {
-    styles: '.highlight { background: #fff3bf; }',
-  },
+  {},
   (baseLogic) => baseLogic,
-  (baseTemplate) => (context) => baseTemplate(context, { class: 'highlight' }),
+  (baseTemplate) => (context) =>
+    baseTemplate(context, { class: highlight.root }),
 );
 
 const HighlightedPanel = Panel.pipe(Highlight);
@@ -98,9 +99,9 @@ const WithPermission = craftDirective(
 const EditablePanel = Panel.pipe(WithPermission);
 ```
 
-Directive styles are registered in the scope of the component that owns them.
-The same directive can therefore be reused by several components without
-introducing an HTML wrapper.
+A directive brings its own sheet and adds its class to the host's, so the same
+directive can be reused by several components without introducing an HTML
+wrapper.
 
 ## Composing providers and exception handlers
 
@@ -258,66 +259,34 @@ matchNode.exhaustive(() => userQuery.exceptions().loader, '_tag', {
 Craft supports compositions that are not native properties of a standard
 the host component or directive:
 
-- a Craft directive can declare `meta.styles` and contribute to the stylesheet
-  of the component using it; Craft keeps the association with the component;
-- directive styles remain encapsulated with `@scope`, without rewriting
-  selectors or adding a wrapper;
-- multiple directives can compose their logic, template, host classes, and
-  styles through `.pipe(...)`;
-- styles are deduplicated and reference-counted across instances, then removed
-  when the last instance is destroyed.
-
-The directive runtime owns stylesheet injection, scoping, and cleanup, so those
-responsibilities do not leak into application code.
+- a Craft directive can add its own classes to the root of the component using
+  it, without a wrapper;
+- multiple directives can compose their logic, template and host classes
+  through `.pipe(...)`;
+- the CSS itself is emitted once, at build time, by the `@craft-ts/style`
+  plugin: nothing is injected or reference-counted at runtime.
 
 ## Choosing the right level
 
 - `host`: identity, attributes, classes, or behavior of the root element;
-- `styles`: local, reusable component appearance; the stylesheet is shared
-  across instances, while its rules remain limited to the component roots;
+- a `*.style.ts` sheet: the component's appearance, its variants as axes, its
+  runtime values as typed variables;
 - `craftDirective`: behavior or customization reusable across components;
 - the factory: component-specific state and dependencies.
 
-### Understanding style scope
+### How a parent reaches a child
 
-Inside `meta.styles`, `:scope` targets every root produced by the template:
+A parent never styles a child's internals. It has two doors, both visible in
+the child's contract: a class it passes to the child's host, and a variable
+declared with `{ inherits: true }` that the child's sheet reads.
+
+<<< @/tests/snippets/guide/components/customization/card-2.style.ts#sheet
 
 <<< @/tests/snippets/guide/components/customization/card-2.spec.ts#card-2
 
-
-Craft puts an internal token on the roots and generates a scope equivalent to:
-
-```css
-@scope ([data-craft-root~="Card"]) to ([data-craft-root] *) {
-  /* Card rules */
-}
-```
-
-In practice:
-
-- `:scope` targets the root itself;
-- `.title` targets `Card` descendants;
-- when a child Craft component is encountered, its root becomes a boundary:
-  parent rules can reach the root, but not its internal
-  DOM;
-- ordinary elements do not become boundaries and do not receive an additional
-  token;
-- a template returning multiple roots scopes each root, but cannot express a
-  relationship between sibling roots such as `header + main`;
-- a root that is directly another Craft component can carry multiple tokens.
-  The containing component can then reach into the child component: this is a
-  known limitation of the current model.
-
-Scoping is structural, not based on selector rewriting: modern selectors such
-as `:is()`, `:where()`, `&`, and nested rules are not transformed by Craft.
-`@media`, `@supports`, and `@container` remain inside the scope; rules that
-cannot be nested there, such as `@keyframes`, `@font-face`, `@import`, and
-`@namespace`, are hoisted outside the `@scope` block.
-
-Directive styles use the scope of their owning component because a directive
-does not introduce a separate root node. A directive can add `.highlight` or
-modify `:scope`, but `:scope` then refers to the host component’s roots, not to
-a directive wrapper.
+The card sets `data-cardActive`, its sheet writes `cardVars.ink`, and the title,
+a separate component, reads it. Nothing in the card knows how the title is
+built.
 
 Names passed to `craftComponent` and `craftDirective` must be unique and match
 their declaration names. The dedicated ESLint rules detect missing or
@@ -325,6 +294,6 @@ inconsistent names.
 
 ## See Also
 
-- [Encapsulated styles](/guide/components/styles)
+- [Styling a component](/guide/components/styles)
 - [Directives and `.pipe(...)`](/guide/components/directives)
 - [Content projection](/guide/components/content-projection)

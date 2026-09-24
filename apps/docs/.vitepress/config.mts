@@ -191,7 +191,7 @@ const guideSidebar = [
         link: '/guide/style/template-obligations',
       },
       {
-        text: 'Component CSS variables',
+        text: 'Typed CSS variables',
         link: '/guide/components/css-variables',
       },
       {
@@ -216,7 +216,7 @@ const guideSidebar = [
         text: 'Content projection',
         link: '/guide/components/content-projection',
       },
-      { text: 'Encapsulated styles', link: '/guide/components/styles' },
+      { text: 'Styling a component', link: '/guide/components/styles' },
       {
         text: 'Template migrator',
         link: '/guide/components/template-migrator',

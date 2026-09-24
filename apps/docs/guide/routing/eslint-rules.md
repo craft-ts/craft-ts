@@ -748,12 +748,12 @@ at `'error'`, in **every** file: none of them waits for a file to import
 `@craft-ts/style`.
 
 To migrate a project in steps, turn the three binding rules off in **its own**
-ESLint config, with a `TODO(style-only)` comment the migration removes, and keep
+ESLint config, with a `TODO` comment the migration removes, and keep
 the rules that read the legacy component CSS on in the meantime:
 
 ```js
 {
-  // TODO(style-only): remove once this project is migrated to @craft-ts/style.
+  // TODO: remove once this project is migrated to @craft-ts/style.
   files: ['**/src/**/*.ts'],
   rules: {
     ...craftRules.configs.legacyComponentCss.rules,

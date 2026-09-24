@@ -75,7 +75,7 @@ non-interactive starters, configuration options, and first checks
 [Directives and `.pipe(...)`](/guide/components/directives) ·
 [Customization](/guide/components/customization) ·
 [Content projection](/guide/components/content-projection) ·
-[Encapsulated styles](/guide/components/styles) ·
+[Styling a component](/guide/components/styles) ·
 [Accessibility](/guide/components/accessibility)
 
 ### Forms

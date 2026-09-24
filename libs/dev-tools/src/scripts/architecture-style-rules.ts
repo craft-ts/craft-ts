@@ -267,25 +267,16 @@ export function noDanglingCssVarsFindings(
   graph: DependencyGraph,
 ): ArchitectureFinding[] {
   if (!hasStyleDump(graph)) return [];
-  const readGlobally = new Set(
-    graph.nodes
-      .filter(
-        (node) => node.kind === 'css-var' && node.details?.['readByGlobal'],
-      )
-      .map((node) => node.label),
-  );
   const { unread, undeclared } = danglingVars(graph);
   return [
     ...undeclared.map((name) => ({
       target: `css-var:${name}`,
       message: `'${name}' is read by a sheet and declared by none. Declare it with cssVars(...) — a read of an undeclared variable resolves to nothing, silently.`,
     })),
-    ...unread
-      .filter((name) => !readGlobally.has(name))
-      .map((name) => ({
-        target: `css-var:${name}`,
-        message: `'${name}' is declared and read by nothing. Remove it, or read it: a reader takes a declared variable for a real variation.`,
-      })),
+    ...unread.map((name) => ({
+      target: `css-var:${name}`,
+      message: `'${name}' is declared and read by nothing. Remove it, or read it: a reader takes a declared variable for a real variation.`,
+    })),
   ];
 }
 

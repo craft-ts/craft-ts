@@ -30,6 +30,7 @@ import {
   textarea,
   ul,
   safeResourceUrl,
+  safeUrl,
 } from '@craft-ts/component';
 import {
   CraftHttpClient,
@@ -2290,8 +2291,10 @@ export const ReviewApp = craftComponent(
                             },
                           ),
                           a(
+                            'cardSource',
                             {
                               class: reviewBits.sourceLink,
+                              'data-navigation': 'external',
                               'data-testid': 'source-link',
                               href: function* () {
                                 const value = yield* card();
@@ -2302,8 +2305,8 @@ export const ReviewApp = craftComponent(
                                     ? (detail.renderSites?.[0]?.line ??
                                       detail.element?.line)
                                     : undefined;
-                                return (
-                                  (yield* sourceUrl(value.subject, line)) ?? ''
+                                return safeUrl(
+                                  (yield* sourceUrl(value.subject, line)) ?? '',
                                 );
                               },
                               hidden: function* () {
@@ -2537,16 +2540,18 @@ export const ReviewApp = craftComponent(
                                             },
                                           ),
                                           a(
+                                            'renderSite',
                                             {
                                               class: reviewBits.sourceLink,
+                                              'data-navigation': 'external',
                                               'data-testid': 'source-link',
                                               href: function* () {
                                                 const value = yield* site();
-                                                return (
+                                                return safeUrl(
                                                   (yield* fileUrl(
                                                     value.file,
                                                     value.line,
-                                                  )) ?? ''
+                                                  )) ?? '',
                                                 );
                                               },
                                               hidden: function* () {
@@ -2598,18 +2603,20 @@ export const ReviewApp = craftComponent(
                                     },
                                   ),
                                   a(
+                                    'elementSource',
                                     {
                                       class: reviewBits.sourceLink,
+                                      'data-navigation': 'external',
                                       'data-testid': 'source-link',
                                       href: function* () {
                                         const value =
                                           (yield* sourceDetail.value())
                                             ?.element;
-                                        return (
+                                        return safeUrl(
                                           (yield* fileUrl(
                                             value?.file,
                                             value?.line,
-                                          )) ?? ''
+                                          )) ?? '',
                                         );
                                       },
                                       hidden: function* () {
@@ -2660,17 +2667,19 @@ export const ReviewApp = craftComponent(
                                     },
                                   ),
                                   a(
+                                    'methodSource',
                                     {
                                       class: reviewBits.sourceLink,
+                                      'data-navigation': 'external',
                                       'data-testid': 'source-link',
                                       href: function* () {
                                         const value =
                                           (yield* sourceDetail.value())?.method;
-                                        return (
+                                        return safeUrl(
                                           (yield* fileUrl(
                                             value?.file,
                                             value?.line,
-                                          )) ?? ''
+                                          )) ?? '',
                                         );
                                       },
                                       hidden: function* () {
@@ -3925,14 +3934,16 @@ export const ReviewApp = craftComponent(
                         },
                       ),
                       a(
+                        'visualTestSource',
                         {
                           class: reviewBits.sourceLink,
+                          'data-navigation': 'external',
                           'data-testid': 'source-link',
                           href: function* () {
-                            return (
+                            return safeUrl(
                               (yield* sourceUrl(
                                 (yield* selectedVisualTest())?.subject ?? '',
-                              )) ?? ''
+                              )) ?? '',
                             );
                           },
                           hidden: function* () {
@@ -4056,14 +4067,16 @@ export const ReviewApp = craftComponent(
                         return `${value.component} · ${directionText(value.direction, say)}`;
                       }),
                       a(
+                        'obligationSource',
                         {
                           class: reviewBits.sourceLink,
+                          'data-navigation': 'external',
                           'data-testid': 'source-link',
                           href: function* () {
-                            return (
+                            return safeUrl(
                               (yield* sourceUrl(
                                 (yield* obligation()).subject,
-                              )) ?? ''
+                              )) ?? '',
                             );
                           },
                           hidden: function* () {
@@ -4134,13 +4147,16 @@ export const ReviewApp = craftComponent(
                         return (yield* diagnostic()).message;
                       }),
                       a(
+                        'diagnosticSource',
                         {
                           class: reviewBits.sourceLink,
+                          'data-navigation': 'external',
                           'data-testid': 'source-link',
                           href: function* () {
                             const value = yield* diagnostic();
-                            return (
-                              (yield* fileUrl(value.filePath, value.line)) ?? ''
+                            return safeUrl(
+                              (yield* fileUrl(value.filePath, value.line)) ??
+                                '',
                             );
                           },
                           hidden: function* () {

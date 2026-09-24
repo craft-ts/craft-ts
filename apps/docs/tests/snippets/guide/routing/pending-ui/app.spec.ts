@@ -11,7 +11,7 @@ export const App = craftComponent(
   'App',
   {},
   () => ({}),
-  () => main({ class: 'content' }, CraftRouterOutlet()),
+  () => main(CraftRouterOutlet()),
 );
 // #endregion app
 

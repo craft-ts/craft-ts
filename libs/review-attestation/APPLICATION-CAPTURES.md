@@ -36,7 +36,7 @@ export default defineReviewAttestConfig({
   template: true,
   visual: {
     app: {
-      sourceFiles: ['src/styles.css'],
+      sourceFiles: ['src/app/app.style.ts'],
       environment: 'chromium-ci-linux-v1',
       comparison: { threshold: 0.1, maxDiffPixels: 10 },
       pages: [

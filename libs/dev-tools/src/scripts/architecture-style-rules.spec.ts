@@ -220,7 +220,7 @@ describe('waivers', () => {
     const waiver = {
       rule: 'style-only-design-system' as const,
       target: '*' as const,
-      reason: 'TODO(style-only): not migrated yet',
+      reason: 'Not migrated to @craft-ts/style yet.',
     };
     // Read through the report: on a literal graph, `no-event-only-craft-method`
     // fails on its own for want of a tsconfig to read.

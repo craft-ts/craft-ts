@@ -41,8 +41,8 @@ export type ArchitectureRuleName = (typeof ARCHITECTURE_RULE_NAMES)[number];
  * What a waiver may name.
  *
  * `'*'` waives the whole rule for the app — the only form a rule that reports
- * no target accepts, and the form a project uses while it migrates
- * (`TODO(style-only)`); it goes stale, and fails, once the rule passes.
+ * no target accepts, and the form a project uses while it migrates; it goes
+ * stale, and fails, once the rule passes.
  */
 export type ArchitectureWaiverTarget<
   C extends ArchitectureCatalog = ArchitectureCatalog,

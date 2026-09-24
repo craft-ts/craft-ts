@@ -113,15 +113,13 @@ import {
   CraftRouteLoadRecovery,
   provideHostName,
 } from '@craft-ts/core';
+// A sheet beside the screen: its frame, and the row of actions.
+import { loadError } from './route-load-error.style';
 
 export const MyRouteLoadErrorScreen = craftComponent(
   'MyRouteLoadErrorScreen',
   {
     providers: [provideHostName('component:MyRouteLoadErrorScreen')],
-    styles: `
-      :scope { padding: 2rem; border: 1px solid #f97316; border-radius: 8px }
-      .actions { display: flex; gap: .75rem; margin-top: 1rem }
-    `,
   },
   function* () {
     return {
@@ -132,14 +130,14 @@ export const MyRouteLoadErrorScreen = craftComponent(
   ({ error, recovery }) => {
     const current = error();
 
-    return div([
+    return div({ class: loadError.root }, [
       h2('Route could not be loaded'),
       p(
         current
           ? `Failed to load ${current.payload.phase} for route "${current.payload.routePath}" after ${current.payload.attempt} attempts.`
           : 'The requested route chunk could not be loaded.',
       ),
-      div({ class: 'actions' }, [
+      div({ class: loadError.actions }, [
         button({ click: () => void recovery.retry() }, 'Retry route load'),
         button({ click: () => recovery.reload() }, 'Reload app'),
       ]),
