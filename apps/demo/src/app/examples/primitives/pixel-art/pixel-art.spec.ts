@@ -51,18 +51,20 @@ describe('PixelArt', () => {
     TestBed.tick();
 
     await vi.waitFor(() =>
-      expect(element.querySelector('.pixel-cell')).toBeTruthy(),
+      expect(element.querySelector('[data-testid="pixel-cell"]')).toBeTruthy(),
     );
     TestBed.tick();
 
-    const cell = element.querySelector<HTMLButtonElement>('.pixel-cell');
+    const cell = element.querySelector<HTMLButtonElement>(
+      '[data-testid="pixel-cell"]',
+    );
     expect(cell).toBeTruthy();
-    expect(cell?.style.backgroundColor).toBe('rgb(248, 250, 252)');
+    expect(cell?.style.getPropertyValue('--pixel-fill')).toBe('#f8fafc');
 
     cell?.click();
     TestBed.tick();
 
-    expect(cell?.style.backgroundColor).toBe('rgb(15, 23, 42)');
+    expect(cell?.style.getPropertyValue('--pixel-fill')).toBe('#0f172a');
 
     mounted.destroy();
   });

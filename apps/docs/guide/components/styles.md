@@ -1,84 +1,110 @@
-# Encapsulated styles
+# Styling a component: the only way
 
-::: tip Two style systems, and which to pick
-This page is `meta.styles`: a **string** of CSS shipped with the component and
-scoped with `@scope`. It is the shortest path to a component's own appearance,
-and it needs no build step.
+A component is styled through [`@craft-ts/style`](../style/), and through
+nothing else. Its visual rules live in a `*.style.ts` sheet beside it; the
+template binds the sheet's classes, sets `data-*` attributes for its variants,
+and writes typed variables for what changes at runtime. There is no CSS string
+on the meta, no `.css` import, no class assembled at render time and no raw
+`style`.
 
-[`@craft-ts/style`](../style/) is the other one: values are typed objects, the
-CSS is emitted at build time, and the exhaustive set of a component's visual
-states becomes something you can enumerate and test. It costs a Vite plugin and
-a design system to declare.
+That is not a preference. A class built in the browser, or a rule shipped as a
+string, is a visual state nothing recorded: the [visual matrix](/guide/style/testing)
+enumerates what the sheets declare, the [static contrast check](/guide/style/contrast)
+measures what the sheets write, and anything outside them is invisible to both.
+ESLint and the architecture suite therefore refuse every other route, and the
+one real exception is written down, with its reason, for someone to decide on.
 
-Pick this page for a component whose look is settled and local. Pick
-`@craft-ts/style` when the variants are a matrix you need to prove you covered.
-They coexist: a component can carry `meta.styles` and bind a sheet class.
-:::
+## The shape
 
-Styles declared in `craftComponent(name, meta, factory, template)` are shared by
-every instance of the component and encapsulated with CSS `@scope`. The registry
-keeps a single sheet per component and removes it when the last instance is
-destroyed.
+The sheet declares the classes, the axis a variant moves along, and the
+variables a template may write:
 
-**Use it for** a component's own appearance.
-**Not for** application-wide styles — those belong in your global stylesheet;
-scoping them here just makes them harder to find.
+<<< @/tests/snippets/guide/components/styles/card.style.ts#sheet
 
-## The common case
+The component imports it and binds **one constant class per element**:
+
+<<< @/tests/snippets/guide/components/styles/card.spec.ts#component
+
+- `class` is always a sheet key (`card.root`), an array of them, or a typed
+  input carrying one. Never a string, a template literal or a conditional.
+- The variant is an **attribute**. `data-cardTone` is on the element, the sheet
+  reads it through `when(cardTone.danger, …)`, and a `null` removes it.
+- `style` accepts `assign(variable, value)` and nothing else — one call, several
+  spread into an object, or a function returning them.
+
+## Where each thing goes
+
+| You want                                   | Write                                                                                   |
+| ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| the component's own look                   | `craftStyles('name', { root: [...] })` in `name.style.ts`                               |
+| a variant (tone, size, selected)           | `defineStateAxis(...)`, then `when(axis.point, [...])`; the template sets `data-*`      |
+| a state the platform already announces     | `ariaCurrent`, `ariaPressed`, `ariaInvalid`, `interaction.hover` / `.focus` / `.disabled` |
+| a value known only at runtime              | `cssVars(...)` in the sheet, `assign(...)` in the template                             |
+| a child that follows its parent's state    | a variable declared with `{ inherits: true }`, set by the parent, read by the child     |
+| page defaults (`body`, links, the theme)   | [`craftGlobalStyles`](/guide/style/foundation)                                          |
+| a web font                                 | [`defineFont`](/guide/style/foundation)                                                  |
+| `::before`, `@keyframes`, transitions      | [`pseudo.*`, `keyframes`, `animate`](/guide/style/pseudo-elements)                      |
+
+The reset and the good defaults — focus ring, reduced motion, colour scheme —
+come from `@craft-ts/style` itself. An app has no `styles.css` to write.
+
+## What refuses the other routes
+
+Per file, in `craftRules.configs.recommended`
+([details](/guide/routing/eslint-rules)):
+
+- `no-raw-class` — a `class` that does not trace back to a sheet imported from a
+  `*.style` module;
+- `no-inline-style` — a `style` that is not `assign(...)`;
+- `no-component-css` — `meta.styles`, `meta.stylesUrl`, `meta.contentStyles`, and
+  any `.css` import other than `virtual:craft-style.css`;
+- `style-file-boundary` — a sheet importing anything but style vocabulary;
+- `no-raw-css-value`, `no-free-has` — a raw value or a hand-written `:has()`
+  inside a sheet.
+
+Across the application, in the base architecture rules
+([details](/guide/testing/architecture)):
+
+- `style-only-design-system` — an element whose class reaches no sheet the build
+  emits;
+- `no-global-stylesheet` — an entry file importing a `.css`, or `index.html`
+  linking a stylesheet;
+- `style-obligations-discharged`, `no-dangling-css-vars` — a `requires` nobody
+  provides, a variable read and never declared.
+
+`styles`, `stylesUrl`, `contentStyles` and `cssVars` still exist on the meta's
+type, marked `@deprecated`. They are kept so that the exception below stays
+possible, not as an alternative.
+
+## The one real exception
+
+Content you do not author — HTML rendered from markdown, a third-party widget
+that ships its own stylesheet — cannot be styled through a sheet. It is the only
+case, and it takes an explicit, reasoned bypass:
 
 ```ts
-const Card = craftComponent(
-  'Card',
-  { styles: ':scope { padding: 1rem } .title { font-weight: 700 }' },
-  () => ({}),
-  () => div([h2({ class: 'title' }, 'Title')]),
-);
+// eslint-disable-next-line craft-ts/no-component-css -- vendor date picker ships its stylesheet
+import 'vendor-date-picker/dist/picker.css';
 ```
 
-The template root is written `:scope`. Craft adds **no host element and no
-wrapper** — roots carry an internal `data-craft-root` attribute, which you must
-never set yourself.
-
-## Composing styles from a directive
-
-A directive's styles compose with the component's:
+`no-forbidden-eslint-disable` refuses the directive without its reason. On the
+architecture side, the bypass is a waiver in `architecture/waivers.ts`:
 
 ```ts
-const Highlight = craftDirective(
-  'Highlight',
-  { styles: '.highlight { background: yellow }' },
-  (baseLogic) => baseLogic,
-  (baseTemplate) => (context) => baseTemplate(context, { class: 'highlight' }),
-);
+{
+  rule: 'no-global-stylesheet',
+  target: 'file:src/main.ts',
+  reason: 'The vendor date picker ships its stylesheet.',
+}
 ```
 
-## Pitfalls
-
-**`@scope` adds no specificity.** Adopted sheets are ordered after the document's
-sheets, and the `<style>` fallback is inserted in the `head`. Nested-scope
-proximity can therefore change the cascade compared with a global stylesheet —
-if a rule stops winning after you scope it, this is why.
-
-**Sibling roots can't see each other.** Multi-root templates are allowed, but
-relationships between sibling roots (`header + main`, say) are not expressible
-through this encapsulation.
-
-**A root that is itself a Craft component carries several tokens**, so the
-enclosing component can reach inside it. This is a known limit of the current
-implementation.
-
-**Names must be unique.** The `craft-component-name-match` and
-`craft-directive-name-match` rules also check that the name matches the
-declaration.
-
-**Hoisted rules are still global.** Craft rejects `@import`, document-root
-selectors, and private at-rules whose names are not prefixed by the component
-scope. A `Spinner` animation is named `@keyframes Spinner-spin`. Component
-`@property` registrations keep their public custom-property name, but that name
-must belong to the component namespace.
+A waiver names one target, not a rule wholesale, and one that no longer waives
+anything fails the check. Both kinds of bypass appear in the **Bypasses** view of
+[Review Attest](/guide/style/attestation), one subject per directive or waiver,
+to be accepted or rejected like any other evidence.
 
 ## See Also
 
-- [Customization](/guide/components/customization) — the three layers
-- [Typed CSS variables and design tokens](/guide/components/css-variables)
-- [Directives and `.pipe(...)`](/guide/components/directives)
+- [`@craft-ts/style`](/guide/style/) — the design system, from tokens to the matrix
+- [Axes and the visual matrix](/guide/style/variants)
+- [Customization](/guide/components/customization) — host properties and caller overrides

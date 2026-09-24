@@ -7,6 +7,19 @@ import {
 } from '@craft-ts/core';
 import { renderCraftComponent } from '../testing';
 import { AiSendDialog } from './ai-send-dialog';
+import { registeredClasses } from '@craft-ts/style';
+import { aiTheme } from './ai-overlay.style';
+import { aiDialog } from './ai-send-dialog.style';
+
+/** A sheet class's declarations, as `conditions property: value` lines. */
+const declarationsOf = (className: string): string[] =>
+  (
+    registeredClasses().find((entry) => entry.className === className)
+      ?.rules ?? []
+  ).map(
+    (rule) =>
+      `${rule.conditions.map((point) => `${point.axis}:${point.point}`).join('|')}${rule.pseudoElement ? `::${rule.pseudoElement}` : ''} ${rule.property}: ${rule.value}`,
+  );
 
 const payload: SendContextPayload = {
   hostName: 'DemoComponent',
@@ -46,20 +59,23 @@ describe('AiSendDialog', () => {
         onClose: vi.fn(),
       } as never,
     });
-    const sheet = Array.from(
-      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
-    ).find((style) => style.textContent?.includes('AiSendDialog'));
-    const textareaRule =
-      sheet?.textContent?.match(
-        /:scope \.craft-ai-textarea\s*\{[^}]*\}/,
-      )?.[0] ?? '';
-
-    expect(sheet?.textContent).toContain('color-scheme: light dark');
-    expect(sheet?.textContent).toContain(
-      '@media (prefers-color-scheme: dark)',
+    // The control sets its own colours from the overlay theme, which has a
+    // dark side: a host app's global control styles live in `craft.global`,
+    // below the components layer, and cannot repaint it.
+    const textarea = rendered.nativeElement.querySelector('textarea');
+    expect(textarea?.className).toBe(aiDialog.textarea);
+    expect(declarationsOf(aiDialog.textarea)).toEqual(
+      expect.arrayContaining([
+        ' color: var(--craft-ai-text)',
+        ' background-color: var(--craft-ai-control-bg)',
+      ]),
     );
-    expect(textareaRule).toContain('color: var(--craft-ai-text)');
-    expect(textareaRule).toContain('background: var(--craft-ai-control-bg)');
+    expect(
+      rendered.nativeElement.querySelector('dialog')?.className,
+    ).toContain(aiTheme.root);
+    expect(declarationsOf(aiTheme.root)).toEqual(
+      expect.arrayContaining(['scheme:dark --craft-ai-text: #f9fafb']),
+    );
 
     rendered.destroy();
   });

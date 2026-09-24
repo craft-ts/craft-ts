@@ -1,115 +1,60 @@
-# Typed CSS variables and design tokens
+# Typed CSS variables
 
-::: warning Two things named `cssVars`
-This page is `meta.cssVars` on `craftComponent`: one component's **per-instance**
-styling API, applied as custom properties on that instance's root.
+A component's styling API is a set of **typed custom properties** declared with
+[`cssVars`](../style/define.md#the-theme) in its sheet. Each one has a kind — a
+colour, a length, a percentage — and a typed initial value, registered with
+`@property`. None is "required": a variable nobody sets keeps its initial value,
+and one nobody reads is reported by the architecture rule `no-dangling-css-vars`.
 
-`cssVars(prefix, specs)` from
-[`@craft-ts/style`](../style/define.md#the-theme) is a different mechanism under
-the same name: it declares **design-system-wide** custom properties, registered
-through `@property` and typed by kind, shared by every component that reads
-them.
-
-Nothing is being renamed — both are legitimate and the migration cost would be
-real. Use this one to let a caller restyle one instance; use the other one to
-declare a theme.
-:::
-
-CSS custom properties are the public styling API of a Craft component. Craft
-extracts a contract from inline `meta.styles`, propagates unsatisfied variables
-through component templates, and applies supplied values to the component root.
-The browser's native inheritance then carries them to descendants.
-
-## Required and optional variables
-
-An unguarded use is required. A declaration or inline fallback is optional:
+<<< @/tests/snippets/guide/components/css-variables/card.style.ts#sheet
 
 <<< @/tests/snippets/guide/components/css-variables/card.spec.ts#card
 
-`--card-ink` is required, while `--card-bg` and `--card-radius` are optional.
-Styles supplied through `cssVars` are written as custom properties on the
-component root; different instances can therefore use different values while
-sharing one scoped stylesheet.
+## Per instance: a variant sets what it changes
 
-## External stylesheets
+A caller does not hand a component raw values. It picks a variant — here
+`data-cardLook` — and the sheet sets the variables that variant changes with
+`set(...)`. The others keep their initial value. The set of looks is therefore
+closed and enumerable, which is what lets the [visual matrix](/guide/style/variants)
+capture every one of them.
 
-An imported stylesheet is typed as `string`, so TypeScript cannot inspect it.
-Declare its contract explicitly with `required()`:
+## Inherited: a parent sets, descendants read
 
-```typescript
-craftComponent(
-  'ExternalCard',
-  {
-    stylesUrl: styles,
-    cssVars: {
-      '--external-card-ink': required<string>(),
-      '--external-card-gap': '1rem',
-    },
-  },
-  () => ({}),
-  template,
-);
-```
+`{ inherits: true }` is for a variable set once on a wrapper and read below it —
+a theme, or a card that tints whatever it contains. The default, `false`, is for
+a variable an element both sets and reads on itself.
 
-The `craft-css-vars-contract` lint rule resolves the CSS import and checks that
-the explicit contract and file remain synchronized.
+## Forwarded: a parent re-exposes a child's variable
 
-## Child-variable dispositions
+A parent that wants its own API writes `set(child, parent)`: the panel above
+declares `panelVars.ink` and forwards it to `cardVars.ink`. A caller overrides
+the panel's variable in its own sheet, and the card follows without the panel
+knowing how the card is built.
 
-At a child call site, every variable can be handled deliberately:
+## At runtime: `assign`
 
-```ts
-Badge({ cssVars: { '--badge-ink': 'navy' } });
-Badge({ cssVars: { '--badge-ink': inherit } });
-Badge({ cssVars: { '--badge-ink': omit } });
-Badge({ cssVars: { '--badge-ink': forward('navy') } });
-Badge({ cssVars: { '--badge-bg': forward() } });
-```
+A value known only at runtime — a progress, a position, a colour picked by the
+user — is written on the element with `assign(variable, value)`, the only thing
+`style:` accepts. The sheet reads it like any other variable. Because the
+variable is registered with its kind, the browser can interpolate it: a
+`transition` on `width` driven by a percentage variable animates.
 
-- A value supplies the child directly.
-- `inherit` uses a declaration in the current component's own styles and emits
-  no inline value.
-- `omit` intentionally stops propagation and emits nothing.
-- `forward(value)` gives the parent API a default that callers can override.
-- `forward()` re-exposes an optional value without adding a default.
+## `@property` is emitted, not written
 
-Use `assertCssVarsSatisfied(routes)` next to the other route proofs. It rejects
-a routed root when a required variable has propagated all the way to a mount
-that has no component call site.
+Every variable declared with `cssVars` is emitted as an `@property` block by the
+build plugin, with its syntax, its `inherits` flag and its initial value. You
+never write one by hand. Two rules follow from the registration:
 
-## `@property`: validation versus requiredness
+- an initial value must be computationally independent — `unit.px(16)`, not
+  `unit.rem(1)` — or the browser drops the whole registration; the architecture
+  suite catches it;
+- a prefix belongs to one sheet: `cssVars` throws when two sheets declare the
+  same prefix.
 
-Craft reads authored `@property` blocks; it does not generate them. A registered
-property with a non-wildcard syntax needs an `initial-value`, so it is optional
-by construction:
+## `meta.cssVars`
 
-```css
-@property --meter-value {
-  syntax: '<number>';
-  inherits: true;
-  initial-value: 0;
-}
-```
-
-Registration provides browser validation, animation support, and an initial
-value. The tradeoff is that it gives up the compile-time “nobody supplied this”
-error. `inherits: false` cannot be used for a variable supplied or forwarded by
-a parent.
-
-`@property` is document-global even when its values cascade normally. A
-component may therefore register only variables in its own namespace
-(`Meter` → `--meter-*`). Register shared design tokens once in the application's
-global stylesheet, whose lifetime matches the document.
-
-## Scope safety
-
-Craft rejects component CSS that can silently become global:
-
-- `@import`, `:root`, `html`, and `body`;
-- unprefixed `@keyframes`, `@counter-style`, font palettes, or font families;
-- `@property` registrations outside the component namespace;
-- `!important` in component styles.
-
-Private global names use the exact component scope, for example
-`@keyframes Spinner-spin`. Craft validates these names rather than rewriting
-CSS declaration values at runtime.
+The `cssVars` field of `craftComponent`'s meta — a contract extracted from a
+CSS string, with `required()`, `inherit`, `omit` and `forward()` at the call
+site — belongs to the component CSS that `no-component-css` refuses. It is
+`@deprecated`, kept only so that an [attested bypass](/guide/components/styles#the-one-real-exception)
+stays possible.

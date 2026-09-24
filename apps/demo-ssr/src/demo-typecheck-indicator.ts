@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { typecheckIndicator } from './demo-typecheck-indicator.style';
 
 /**
  * Shows typecheck progress in the hydrated SSR client. A failed check stays
@@ -11,12 +12,12 @@ export function startDemoSsrTypecheckIndicator(): void {
   const message = document.createElement('span');
   const dismiss = document.createElement('button');
 
-  indicator.className = 'demo-typecheck-indicator';
+  indicator.className = typecheckIndicator.root;
   indicator.setAttribute('role', 'status');
   indicator.setAttribute('aria-live', 'polite');
   message.textContent = 'Type checking in progress…';
   dismiss.type = 'button';
-  dismiss.className = 'demo-typecheck-indicator__dismiss';
+  dismiss.className = typecheckIndicator.dismiss;
   dismiss.setAttribute('aria-label', 'Dismiss type-check warning');
   dismiss.title = 'Dismiss';
   dismiss.textContent = '×';
@@ -45,7 +46,7 @@ export function startDemoSsrTypecheckIndicator(): void {
         return;
       }
       if (payload.status === 'failed') {
-        indicator.dataset['status'] = 'failed';
+        indicator.dataset['typecheck'] = 'failed';
         message.textContent = 'Type checking failed — app is still running';
         dismiss.hidden = false;
         return;

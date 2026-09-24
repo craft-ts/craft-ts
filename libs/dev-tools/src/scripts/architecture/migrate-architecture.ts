@@ -33,7 +33,17 @@ type ArchitectureContext = {
   nx: boolean;
   graphTsConfigRel: string;
   workspaceFromArchitecture: string;
+  /** Source directory, relative to `architecture/`: where the sheets live. */
+  sourceFromArchitecture: string;
+  /**
+   * The project styles with `@craft-ts/style`: the loader merges the style
+   * dump into the graph, so the style rules run with the others.
+   */
+  style: boolean;
 };
+
+/** Files the project owns once written: a re-run never overwrites them. */
+const USER_OWNED = new Set(['architecture/waivers.ts']);
 
 const RULES = [
   {
@@ -178,6 +188,7 @@ export async function runArchitectureMigration(
   if (options.write) {
     for (const [relativePath, contents] of Object.entries(files)) {
       const fullPath = join(context.appRoot, relativePath);
+      if (USER_OWNED.has(relativePath) && existsSync(fullPath)) continue;
       await mkdir(dirname(fullPath), { recursive: true });
       await writeFile(fullPath, contents, 'utf8');
     }
@@ -229,6 +240,7 @@ async function resolveContext(
   const sourceGlob =
     !sourceRel || sourceRel === '.' ? 'src' : sourceRel.replace(/\\/g, '/');
   const projectName = await readProjectName(appRoot, nx);
+  const style = await dependsOnStyle(appRoot, workspaceRoot);
   return {
     appRoot,
     workspaceRoot,
@@ -243,7 +255,29 @@ async function resolveContext(
       join(appRoot, 'architecture'),
       workspaceRoot,
     ),
+    sourceFromArchitecture: posixRelative(join(appRoot, 'architecture'), rootDir),
+    style,
   };
+}
+
+async function dependsOnStyle(
+  appRoot: string,
+  workspaceRoot: string,
+): Promise<boolean> {
+  const packagePath = findPackageJson(appRoot, workspaceRoot);
+  if (!packagePath) return false;
+  try {
+    const pkg = JSON.parse(await readFile(packagePath, 'utf8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    return Boolean(
+      pkg.dependencies?.['@craft-ts/style'] ??
+        pkg.devDependencies?.['@craft-ts/style'],
+    );
+  } catch {
+    return false;
+  }
 }
 
 function buildScaffoldFiles(
@@ -278,6 +312,7 @@ function buildScaffoldFiles(
     )}\n`,
     'vitest.architecture.config.ts': vitestConfig(context),
     'architecture/load-graph.ts': loadGraphSource(context),
+    'architecture/waivers.ts': waiversSource(),
     'architecture/architecture.spec.ts': architectureSpecSource(),
     ...Object.fromEntries(
       RULES.map((rule) => [
@@ -309,7 +344,8 @@ async function generateCatalog(context: ArchitectureContext): Promise<string> {
 }
 
 function loadGraphSource(context: ArchitectureContext): string {
-  return `import { writeFileSync } from 'node:fs';
+  if (!context.style) {
+    return `import { writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   analyzeDependencyGraph,
@@ -324,7 +360,7 @@ const catalogPath = join(import.meta.dirname, 'catalog.ts');
 
 let cached: ReturnType<typeof createArchitectureGraph> | undefined;
 
-export function loadArchitectureGraph() {
+export async function loadArchitectureGraph() {
   if (cached) return cached;
   const graph = analyzeDependencyGraph({
     rootDir: workspaceRoot,
@@ -338,24 +374,97 @@ export function loadArchitectureGraph() {
   return cached;
 }
 `;
+  }
+  return `import { writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
+import {
+  analyzeDependencyGraph,
+  architectureCatalogToTypeScript,
+  buildArchitectureCatalog,
+  createArchitectureGraph,
+  mergeStyleDump,
+} from '@craft-ts/dev-tools';
+import { loadStyleDump } from '@craft-ts/style/vite';
+import { architectureCatalog } from './catalog';
+
+const workspaceRoot = resolve(import.meta.dirname, '${context.workspaceFromArchitecture}');
+const sourceDir = resolve(import.meta.dirname, '${context.sourceFromArchitecture}');
+const catalogPath = join(import.meta.dirname, 'catalog.ts');
+
+/** Where an installed package keeps its sources, whatever the node_modules layout. */
+const require = createRequire(import.meta.url);
+const packageSource = (name: string): string =>
+  join(dirname(require.resolve(\`\${name}/package.json\`)), 'src');
+
+let cached: ReturnType<typeof createArchitectureGraph> | undefined;
+
+export async function loadArchitectureGraph() {
+  if (cached) return cached;
+  const graph = analyzeDependencyGraph({
+    rootDir: workspaceRoot,
+    tsConfigFilePath: '${context.graphTsConfigRel}',
+  });
+  writeFileSync(
+    catalogPath,
+    \`// Generated. Do not edit.\\n\${architectureCatalogToTypeScript(buildArchitectureCatalog(graph))}\`,
+  );
+  // The sheets are evaluated in Node by the code the build plugin runs —
+  // this app's, and by default those @craft-ts/component ships — so the style
+  // rules read the picture the build emits. The catalog stays built from the
+  // code graph alone: the style dump must not move its hash.
+  const styleDump = await loadStyleDump(sourceDir, {
+    alias: { '@craft-ts/style': join(packageSource('@craft-ts/style'), 'index.js') },
+  });
+  cached = createArchitectureGraph(
+    mergeStyleDump(graph, styleDump),
+    architectureCatalog,
+  );
+  return cached;
+}
+`;
+}
+
+function waiversSource(): string {
+  return `import { defineArchitectureWaivers } from '@craft-ts/dev-tools';
+import { architectureCatalog } from './catalog';
+
+/**
+ * Deliberate bypasses of the architecture rules, each with its reason:
+ * \`{ rule, target, reason }\`.
+ *
+ * Review Attest lists every entry for a decision. A waiver that no longer
+ * waives anything fails the check: remove it when the code it excused is gone.
+ */
+export const architectureWaiverList = defineArchitectureWaivers(
+  architectureCatalog,
+  [],
+);
+`;
 }
 
 function architectureSpecSource(): string {
   return `import { beforeAll, describe, expect, it } from 'vitest';
+import { assertArchitecture } from '@craft-ts/dev-tools';
 import { loadArchitectureGraph } from './load-graph';
+import { architectureWaiverList } from './waivers';
 
 /**
  * App-specific lookups. Common architecture rules live in \`rules/\`.
  */
 describe('architecture', () => {
-  let graph: ReturnType<typeof loadArchitectureGraph>;
+  let graph: Awaited<ReturnType<typeof loadArchitectureGraph>>;
 
-  beforeAll(() => {
-    graph = loadArchitectureGraph();
+  beforeAll(async () => {
+    graph = await loadArchitectureGraph();
   }, 180_000);
 
   it('loads the architecture graph', () => {
     expect(graph.graph.version).toBe(1);
+  });
+
+  it('keeps the base rules, the style rules included', () => {
+    assertArchitecture(graph.graph, { waivers: architectureWaiverList });
   });
 });
 `;
@@ -367,10 +476,10 @@ import { ${rule.helper} } from '@craft-ts/dev-tools';
 import { loadArchitectureGraph } from '../load-graph';
 
 describe('${rule.describe}', () => {
-  let graph: ReturnType<typeof loadArchitectureGraph>;
+  let graph: Awaited<ReturnType<typeof loadArchitectureGraph>>;
 
-  beforeAll(() => {
-    graph = loadArchitectureGraph();
+  beforeAll(async () => {
+    graph = await loadArchitectureGraph();
   }, 180_000);
 
   it('${rule.it}', () => {
@@ -561,7 +670,8 @@ async function scaffoldMatches(
     if (!existsSync(fullPath)) return false;
     if (
       relativePath === 'architecture/catalog.ts' ||
-      relativePath === 'architecture/architecture.spec.ts'
+      relativePath === 'architecture/architecture.spec.ts' ||
+      USER_OWNED.has(relativePath)
     ) {
       continue;
     }

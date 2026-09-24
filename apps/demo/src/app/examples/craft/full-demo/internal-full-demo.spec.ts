@@ -148,7 +148,7 @@ describe('Craft Full Demo route component', () => {
       );
       TestBed.tick();
 
-      element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+      element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
       TestBed.tick();
 
       const fullDemoLink = await vi.waitFor(() => {

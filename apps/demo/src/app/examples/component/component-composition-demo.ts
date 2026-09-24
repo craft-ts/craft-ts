@@ -14,6 +14,7 @@ import {
   withProviders,
   heading,
 } from '@craft-ts/component';
+import { componentUi } from './component-demos.style';
 
 const noAccess = craftException({ _tag: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(
@@ -29,14 +30,14 @@ const restrictedContent = craftComponent(
   },
   ({ value }) =>
     p(
-      { class: 'component-demo__restricted-content' },
+      { class: componentUi.restricted },
       `Private data: ${value}`,
     ),
 );
 
 export const componentCompositionDemo = craftComponent(
   'componentCompositionDemo',
-  { host: { class: 'component-demo-host' } },
+  { host: { class: componentUi.host } },
   function* () {
     const canReadRestrictedData = yield* state(
       'canReadRestrictedData',
@@ -65,14 +66,15 @@ export const componentCompositionDemo = craftComponent(
     };
   },
   ({ canReadRestrictedData, lastHandledException }) =>
-    section({ class: 'component-demo component-demo__composition-page' }, [
+    section({ class: componentUi.page }, [
       heading('Reactive composition with providers'),
       p(
         'The provider supplies data to the component. Click to go through the NO_ACCESS handler, then back to the template.',
       ),
       button('accessToggle',
         { type: 'button',
-          class: 'component-demo__access-toggle',
+          class: componentUi.button,
+          'data-componentButton': 'slate',
           click: canReadRestrictedData.toggle,
         },
         'Toggle access',

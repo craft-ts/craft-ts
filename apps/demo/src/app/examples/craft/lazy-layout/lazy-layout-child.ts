@@ -8,26 +8,24 @@ import {
   heading,
 } from '@craft-ts/component';
 import { OtherComponent } from './other';
+import { example } from '../../shared/example.style';
 
 const LazyLayoutChildComponent = craftComponent(
   'LazyLayoutChildComponent',
-  {
-    styles:
-      ':scope{display:grid;gap:.875rem;padding:1.5rem;border-radius:20px;background:#f0fdfa;border:1px solid #99f6e4}',
-  },
+  {},
   (teamId: Input<string>, someParentRouteData: Input<string>) => {
     return { teamId, someParentRouteData };
   },
   ({ teamId, someParentRouteData }) => [
-    article([
+    article({ class: example.tealCard }, [
       span('Child component'),
-      heading('Input binding inside a lazy feature'),
+      heading({ class: example.subtitle }, 'Input binding inside a lazy feature'),
       p('The inherited parent values are available as typed SFC inputs.'),
-      h('dl', [
-      h('dt', 'teamId'),
-        h('dd', teamId),
-        h('dt', 'someParentRouteData'),
-        h('dd', someParentRouteData),
+      h('dl', { class: example.definitions }, [
+      h('dt', { class: example.term }, 'teamId'),
+        h('dd', { class: example.definition }, teamId),
+        h('dt', { class: example.term }, 'someParentRouteData'),
+        h('dd', { class: example.definition }, someParentRouteData),
       ]),
     ]),
     OtherComponent({}),

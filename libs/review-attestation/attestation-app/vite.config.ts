@@ -31,6 +31,8 @@ export default defineConfig({
   plugins: [
     craftStyle({
       dumpPath: resolve(root, '../../../.craft/review-app-style-graph.json'),
+      // The sheets of the framework's own components, outside the app root.
+      include: [resolve(root, '../../component/src')],
       alias: aliases,
     }),
   ],

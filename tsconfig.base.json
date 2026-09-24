@@ -42,6 +42,7 @@
         "./libs/review-attestation/src/lib/review/frame.ts"
       ],
       "@craft-ts/component/testing": ["./libs/component/testing/public-api.ts"],
+      "@craft-ts/component/style": ["./libs/component/src/style.ts"],
       "test-type": ["./libs/test-type/src/index.ts"],
       "@craft-ts/dev-tools": ["./libs/dev-tools/src/index.ts"],
       "@craft-ts/dev-tools/style-report": [

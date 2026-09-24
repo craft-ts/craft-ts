@@ -69,7 +69,7 @@ const constant = <Value>(value: Value) =>
 
 export const designSystemDemo = craftComponent(
   'designSystemDemo',
-  { host: { class: 'design-system-host' } },
+  {},
   () =>
     state('showcase', initialShowcase(), ({ state: showcase, update }) => ({
       tone: craftComputed('tone', function* () {
@@ -93,97 +93,107 @@ export const designSystemDemo = craftComponent(
     // One class on the wrapper, and the whole subtree is themed. Remove it and
     // every colour below falls back to the `@property` initial value — which
     // is a defined behaviour, not an unstyled page.
-    div('DesignSystemOverview', { class: dsTheme.root }, [
-      section({ class: stack.column }, [
-        heading('A mini design system'),
-        p(
-          'Tokens, axes and sheets from @craft-ts/style. No component on this page ships CSS.',
-        ),
-
-        // ── tone ─────────────────────────────────────────────────────────
-        div({ class: card.root }, [
-          heading({ class: card.title }, 'Tone is an axis, not a class name'),
+    div(
+      'DesignSystemOverview',
+      {
+        class: dsTheme.root,
+        'data-testid': 'design-system',
+      },
+      [
+        section({ class: stack.column }, [
+          heading('A mini design system'),
           p(
-            { class: card.body },
-            'The buttons below share one class. What changes is the data-tone attribute — which is also what a visual test will drive.',
+            'Tokens, axes and sheets from @craft-ts/style. No component on this page ships CSS.',
           ),
-          // A static list needs no `each`: the five tones are known at build
-          // time, so five component nodes is the honest shape.
-          div(
-            { class: stack.wrap },
-            TONES.map((tone) =>
-              DsButton({
-                label: constant(tone),
-                tone: constant(tone),
-                size: showcase.size,
-                press: function* () {
-                  yield* showcase.pickTone(tone);
-                },
-              }),
+
+          // ── tone ─────────────────────────────────────────────────────────
+          div({ class: card.root }, [
+            heading({ class: card.title }, 'Tone is an axis, not a class name'),
+            p(
+              { class: card.body },
+              'The buttons below share one class. What changes is the data-tone attribute — which is also what a visual test will drive.',
             ),
-          ),
-          div({ class: card.footer }, [
-            span({ class: card.body }, function* () {
-              return `selected: ${yield* showcase.tone()}`;
+            // A static list needs no `each`: the five tones are known at build
+            // time, so five component nodes is the honest shape.
+            div(
+              { class: stack.wrap },
+              TONES.map((tone) =>
+                DsButton({
+                  label: constant(tone),
+                  tone: constant(tone),
+                  size: showcase.size,
+                  press: function* () {
+                    yield* showcase.pickTone(tone);
+                  },
+                }),
+              ),
+            ),
+            div({ class: card.footer }, [
+              span({ class: card.body }, function* () {
+                return `selected: ${yield* showcase.tone()}`;
+              }),
+            ]),
+          ]),
+
+          // ── size ─────────────────────────────────────────────────────────
+          div({ class: card.root }, [
+            heading({ class: card.title }, 'Density is a second axis'),
+            p(
+              { class: card.body },
+              'Size writes the padding variables the base rule already reads. Three rules, not three copies of the button.',
+            ),
+            div(
+              { class: stack.wrap },
+              SIZES.map((size) =>
+                DsButton({
+                  label: constant(size),
+                  tone: showcase.tone,
+                  size: constant(size),
+                  press: function* () {
+                    yield* showcase.pickSize(size);
+                  },
+                }),
+              ),
+            ),
+          ]),
+
+          // ── alert ────────────────────────────────────────────────────────
+          div({ class: card.root }, [
+            heading({ class: card.title }, 'One variable, five variants'),
+            p(
+              { class: card.body },
+              'The alert border reads --ds-alert-accent. Each tone writes it once; the rule that reads it is never repeated.',
+            ),
+            DsAlert({
+              message: constant(
+                'This banner takes its accent from the selected tone.',
+              ),
+              tone: showcase.tone,
             }),
           ]),
-        ]),
 
-        // ── size ─────────────────────────────────────────────────────────
-        div({ class: card.root }, [
-          heading({ class: card.title }, 'Density is a second axis'),
-          p(
-            { class: card.body },
-            'Size writes the padding variables the base rule already reads. Three rules, not three copies of the button.',
-          ),
-          div(
-            { class: stack.wrap },
-            SIZES.map((size) =>
-              DsButton({
-                label: constant(size),
-                tone: showcase.tone,
-                size: constant(size),
-                press: function* () {
-                  yield* showcase.pickSize(size);
-                },
+          // ── meter ────────────────────────────────────────────────────────
+          div({ class: card.root }, [
+            heading(
+              { class: card.title },
+              'What moves at runtime is a variable',
+            ),
+            p({ class: card.body }, [
+              'The fill width comes from a signal, so it cannot be a class. It goes through ',
+              span('--ds-meter-value'),
+              ', a registered percentage custom property.',
+            ]),
+            DsMeter({ value: showcase.progress, caption: constant('Upload') }),
+            div({ class: card.footer }, [
+              DsGhostButton({
+                label: constant('Advance'),
+                press: showcase.nudge,
               }),
-            ),
-          ),
-        ]),
-
-        // ── alert ────────────────────────────────────────────────────────
-        div({ class: card.root }, [
-          heading({ class: card.title }, 'One variable, five variants'),
-          p(
-            { class: card.body },
-            'The alert border reads --ds-alert-accent. Each tone writes it once; the rule that reads it is never repeated.',
-          ),
-          DsAlert({
-            message: constant(
-              'This banner takes its accent from the selected tone.',
-            ),
-            tone: showcase.tone,
-          }),
-        ]),
-
-        // ── meter ────────────────────────────────────────────────────────
-        div({ class: card.root }, [
-          heading({ class: card.title }, 'What moves at runtime is a variable'),
-          p({ class: card.body }, [
-            'The fill width comes from a signal, so it cannot be a class. It goes through ',
-            span('--ds-meter-value'),
-            ', a registered percentage custom property.',
-          ]),
-          DsMeter({ value: showcase.progress, caption: constant('Upload') }),
-          div({ class: card.footer }, [
-            DsGhostButton({
-              label: constant('Advance'),
-              press: showcase.nudge,
-            }),
+            ]),
           ]),
         ]),
-      ]),
-    ]),
+      ],
+    ),
 );
 
 export default designSystemDemo;

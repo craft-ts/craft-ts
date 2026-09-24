@@ -48,6 +48,11 @@ export interface ReviewIterationItem {
     readonly snapshotPath?: string;
   }[];
   readonly statement?: string;
+  /** For a rejected bypass: the rule it disabled and the reason it gave. */
+  readonly bypass?: {
+    readonly rule: string;
+    readonly reason: string | null;
+  };
 }
 
 export interface ReviewIterationFeedback {
@@ -102,7 +107,12 @@ const sourcePathsOf = (card: AttestationReviewCard): readonly string[] => {
         ? card.entries.flatMap((entry) => [entry.sourcePath ?? undefined])
         : card.kind === 'template' || card.kind === 'removal'
           ? [componentSourcePath(card.component)]
-          : [];
+          : card.kind === 'eslint-disable' ||
+              card.kind === 'architecture-waiver'
+            ? // The file to edit is the one holding the bypass: drop the
+              // directive or the waiver, or rewrite its reason.
+              [card.filePath]
+            : [];
   return [
     ...new Set(candidates.filter((path): path is string => Boolean(path))),
   ].sort();
@@ -202,6 +212,9 @@ const itemOf = (
     ...(previous.degraded ? { degraded: true as const } : {}),
     ...(evidence ? { evidence } : {}),
     ...(card.kind === 'template' ? { statement: card.statement } : {}),
+    ...(card.kind === 'eslint-disable' || card.kind === 'architecture-waiver'
+      ? { bypass: { rule: card.rule, reason: card.bypassReason } }
+      : {}),
   };
 };
 

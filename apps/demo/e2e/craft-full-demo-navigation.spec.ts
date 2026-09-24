@@ -29,16 +29,16 @@ test('closes the examples navbar when clicking outside the panel', async ({
   await page.goto('/');
   await page.getByRole('button', { name: 'Browse examples' }).click();
 
-  await expect(page.locator('.demo-nav__panel')).toBeVisible();
-  await page.locator('.demo-banner').click();
+  await expect(page.locator('[data-testid="nav-panel"]')).toBeVisible();
+  await page.locator('[data-testid="demo-banner"]').click();
 
-  await expect(page.locator('.demo-nav__panel')).toHaveCount(0);
+  await expect(page.locator('[data-testid="nav-panel"]')).toHaveCount(0);
 });
 
 test('shows the beta documentation and feedback banner', async ({ page }) => {
   await page.goto('/');
 
-  const banner = page.locator('.demo-banner');
+  const banner = page.locator('[data-testid="demo-banner"]');
   await expect(banner).toContainText('Beta demo');
   await expect(banner).toContainText('Your feedback is welcome');
   await expect(banner).toContainText(
@@ -103,8 +103,8 @@ test('applies the user detail component styles after navigation', async ({
   await expect(root).toBeVisible({ timeout: 3_000 });
   await expect(root).toHaveCSS('display', 'flex');
   await expect(root).toHaveCSS('padding', '32px');
-  await expect(root.locator('.controls')).toBeVisible();
-  await expect(root.locator('.card')).toHaveCSS('border-top-width', '1px');
+  await expect(root.locator('[data-testid="user-controls"]')).toBeVisible();
+  await expect(root.locator('[data-testid="user-card"]')).toHaveCSS('border-top-width', '1px');
 });
 
 test('applies the mutation component styles', async ({ page }) => {
@@ -126,9 +126,9 @@ test('applies the list with pagination styles', async ({ page }) => {
 
   const root = page.locator('[data-craft-root="ListWithPagination"]');
   await expect(root).toBeVisible({ timeout: 3_000 });
-  await expect(root.locator('table')).toHaveClass(/table/);
+  await expect(root.locator('table')).toHaveCSS('border-collapse', 'collapse');
   await expect(root.locator('td').first()).toHaveCSS('padding', '16px');
-  await expect(root.locator('.pagination')).toBeVisible();
+  await expect(root.getByTestId('pagination')).toBeVisible();
 });
 
 test('exposes the query params demo in the navbar and applies its styles', async ({
@@ -150,8 +150,8 @@ test('exposes the query params demo in the navbar and applies its styles', async
   });
   const root = page.locator('[data-craft-root="QpListWithPagination"]');
   await expect(root).toBeVisible({ timeout: 3_000 });
-  await expect(root.locator('table')).toHaveClass(/table/);
+  await expect(root.locator('table')).toHaveCSS('border-collapse', 'collapse');
   await expect(root.locator('td').first()).toHaveCSS('padding', '16px');
-  await expect(root.locator('.pagination')).toBeVisible();
-  await expect(root.locator('.current-page')).toHaveCSS('font-weight', '600');
+  await expect(root.getByTestId('pagination')).toBeVisible();
+  await expect(root.getByTestId('current-page')).toHaveCSS('font-weight', '600');
 });

@@ -37,6 +37,13 @@ export type ReviewAttestConfigInput = {
   };
   /** Global v1 switch for template obligations. */
   readonly template?: boolean;
+  /**
+   * Deliberate bypasses — `eslint-disable` directives and architecture waivers
+   * — listed for a decision. On by default: a bypass is allowed, never silent.
+   * `styleDump` points at the dump the build writes (`craftStyle({ dumpPath })`)
+   * so the design-system adoption indicator sees what the sheets emit.
+   */
+  readonly bypasses?: false | { readonly styleDump?: string };
   readonly templateReview?: TemplateReviewConfig;
   /** Deterministic folder-layout proposal to include in the review queue. */
   readonly folderLayout?:
@@ -50,6 +57,13 @@ export type ReviewAttestConfigInput = {
 export type ReviewAttestConfig = {
   readonly visual?: ReviewAttestVisualConfig;
   readonly template: boolean;
+  /**
+   * Deliberate bypasses — `eslint-disable` directives and architecture waivers
+   * — listed for a decision. On by default: a bypass is allowed, never silent.
+   * `styleDump` points at the dump the build writes (`craftStyle({ dumpPath })`)
+   * so the design-system adoption indicator sees what the sheets emit.
+   */
+  readonly bypasses?: false | { readonly styleDump?: string };
   readonly templateReview?: TemplateReviewConfig;
   readonly folderLayout?: {
     readonly proposal: string;
@@ -189,6 +203,19 @@ export function defineReviewAttestConfig<
     typeof folderLayout === 'string'
       ? { proposal: folderLayout }
       : folderLayout;
+  const bypasses = input.bypasses;
+  if (
+    bypasses !== undefined &&
+    bypasses !== false &&
+    (!isRecord(bypasses) ||
+      (bypasses['styleDump'] !== undefined &&
+        typeof bypasses['styleDump'] !== 'string'))
+  ) {
+    invalid(
+      'bypasses must be false or an object with an optional styleDump path.',
+    );
+  }
+  const bypassesOption = bypasses === undefined ? {} : { bypasses };
   const visual = input.visual;
   if (visual !== undefined) {
     if (!isRecord(visual)) invalid('visual must be an object.');
@@ -202,6 +229,7 @@ export function defineReviewAttestConfig<
         matrices,
       },
       template: input.template === true,
+      ...bypassesOption,
       ...(templateReview ? { templateReview } : {}),
       ...(normalizedFolderLayout
         ? { folderLayout: normalizedFolderLayout }
@@ -213,6 +241,7 @@ export function defineReviewAttestConfig<
   }
   return {
     template: input.template === true,
+    ...bypassesOption,
     ...(templateReview ? { templateReview } : {}),
     ...(normalizedFolderLayout ? { folderLayout: normalizedFolderLayout } : {}),
   };

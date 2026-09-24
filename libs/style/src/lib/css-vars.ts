@@ -123,7 +123,32 @@ export function cssVars<const Specs extends Readonly<Record<string, AnySpec>>>(
     );
   }
   prefixes.add(prefix);
+  const { tokens, declarations } = defineVarTokens(prefix, specs);
+  for (const declaration of declarations) {
+    declared.set(declaration.name, declaration);
+  }
+  return tokens;
+}
 
+/**
+ * `cssVars` without the registry: the tokens and their `@property` blocks,
+ * handed back instead of recorded.
+ *
+ * The global foundation needs typed variables that exist whether or not a
+ * style module was evaluated — the emitter writes their `@property` blocks
+ * itself, when the foundation is on. Registering them would make every dump
+ * and every spec that resets the registry depend on import order.
+ */
+export function defineVarTokens<
+  const Specs extends Readonly<Record<string, AnySpec>>,
+>(
+  prefix: string,
+  specs: Specs,
+): {
+  readonly tokens: CssVarTokens<Specs>;
+  readonly declarations: readonly CssVarDeclaration[];
+} {
+  const declarations: CssVarDeclaration[] = [];
   const tokens = Object.entries(specs).map(([key, spec]) => {
     const name = `--${prefix}-${key}` as `--${string}`;
     const initialValue = String(
@@ -145,7 +170,7 @@ export function cssVars<const Specs extends Readonly<Record<string, AnySpec>>>(
       role: spec.role,
       ...(initialProvenance ? { initialProvenance } : {}),
     };
-    declared.set(name, declaration);
+    declarations.push(declaration);
 
     // The token inherits the initial value's shape — its brand, its role —
     // but **not** its provenance. `bg(theme.raised)` emits `var(--ds-raised)`,
@@ -168,7 +193,10 @@ export function cssVars<const Specs extends Readonly<Record<string, AnySpec>>>(
     return [key, token] as const;
   });
 
-  return Object.fromEntries(tokens) as unknown as CssVarTokens<Specs>;
+  return {
+    tokens: Object.fromEntries(tokens) as unknown as CssVarTokens<Specs>,
+    declarations,
+  };
 }
 
 /** The `@property` block for one declaration, for the emitter. */

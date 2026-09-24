@@ -27,7 +27,8 @@ import {
 } from '../hyperscript';
 import type { CraftComponent, Input, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
-import { AI_OVERLAY_THEME } from './ai-overlay-theme';
+import { aiTheme } from './ai-overlay.style';
+import { aiDialog } from './ai-send-dialog.style';
 
 type AiDialogPayload = SendContextPayload & {
   readonly captureElement?: Element;
@@ -158,176 +159,6 @@ export const AiSendDialog: CraftComponent<{
 }> = craftComponent(
   'AiSendDialog',
   {
-    styles: `${AI_OVERLAY_THEME}
-      :scope {
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        max-width: none;
-        height: 100%;
-        max-height: none;
-        box-sizing: border-box;
-        margin: 0;
-        border: none;
-        background: transparent;
-        padding: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family:
-          system-ui,
-          -apple-system,
-          sans-serif;
-        font-size: 13px;
-        color: var(--craft-ai-text);
-      }
-      :scope::backdrop {
-        background: var(--craft-ai-overlay-backdrop);
-      }
-      :scope .craft-ai-card {
-        background: var(--craft-ai-bg);
-        border-radius: 8px;
-        box-shadow: 0 20px 50px var(--craft-ai-shadow);
-        width: min(560px, 100%);
-        max-height: 90vh;
-        overflow: auto;
-        padding: 16px 20px 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      :scope .craft-ai-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-size: 14px;
-      }
-      :scope .craft-ai-close {
-        background: transparent;
-        border: none;
-        font-size: 20px;
-        line-height: 1;
-        cursor: pointer;
-        color: var(--craft-ai-text-muted);
-      }
-      :scope .craft-ai-context {
-        background: var(--craft-ai-surface);
-        border: 1px solid var(--craft-ai-border-subtle);
-        border-radius: 6px;
-        padding: 8px 10px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 12px;
-        display: grid;
-        gap: 4px;
-      }
-      :scope .craft-ai-context .label {
-        color: var(--craft-ai-text-muted);
-        margin-right: 4px;
-      }
-      :scope .craft-ai-label {
-        font-weight: 600;
-      }
-      :scope .craft-ai-options {
-        display: grid;
-        gap: 7px;
-        margin: 0;
-        padding: 10px;
-        border: 1px solid var(--craft-ai-border-subtle);
-        border-radius: 6px;
-      }
-      :scope .craft-ai-options legend {
-        padding: 0 4px;
-        font-weight: 600;
-      }
-      :scope .craft-ai-option {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        line-height: 1.35;
-        cursor: pointer;
-      }
-      :scope .craft-ai-option input {
-        margin: 2px 0 0;
-      }
-      :scope .craft-ai-option input[type='checkbox'] {
-        accent-color: var(--craft-ai-accent);
-      }
-      :scope .craft-ai-warning {
-        color: var(--craft-ai-warning);
-        background: var(--craft-ai-warning-bg);
-        border: 1px solid var(--craft-ai-warning-border);
-        border-radius: 5px;
-        padding: 6px 8px;
-        font-size: 12px;
-      }
-      :scope .craft-ai-textarea {
-        width: 100%;
-        box-sizing: border-box;
-        font-family: inherit;
-        font-size: 13px;
-        padding: 8px 10px;
-        border: 1px solid var(--craft-ai-border);
-        border-radius: 6px;
-        resize: vertical;
-        min-height: 96px;
-        color: var(--craft-ai-text);
-        background: var(--craft-ai-control-bg);
-        caret-color: var(--craft-ai-text);
-      }
-      :scope .craft-ai-textarea::placeholder {
-        color: var(--craft-ai-text-muted);
-        opacity: 1;
-      }
-      :scope .craft-ai-textarea:focus {
-        outline: 2px solid var(--craft-ai-focus);
-        outline-offset: -1px;
-      }
-      :scope .craft-ai-success {
-        background: var(--craft-ai-success-bg);
-        border: 1px solid var(--craft-ai-success-border);
-        color: var(--craft-ai-success-text);
-        padding: 8px 10px;
-        border-radius: 6px;
-      }
-      :scope .craft-ai-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-      }
-      :scope .craft-ai-cancel {
-        background: var(--craft-ai-control-bg);
-        border: 1px solid var(--craft-ai-border);
-        padding: 6px 12px;
-        border-radius: 6px;
-        color: var(--craft-ai-text);
-        cursor: pointer;
-      }
-      :scope .craft-ai-copy {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: var(--craft-ai-accent);
-        color: #ffffff;
-        border: none;
-        padding: 6px 14px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: background 0.15s;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .craft-ai-copy {
-          transition: none;
-        }
-      }
-      :scope .craft-ai-copy--done {
-        background: var(--craft-ai-success);
-      }
-      :scope .craft-ai-copy:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-    `,
   },
   function* (
     payload: Input<AiDialogPayload>,
@@ -502,23 +333,23 @@ export const AiSendDialog: CraftComponent<{
   }: AiDialogContext) =>
     dialog(
       {
-        class: 'craft-ai-overlay',
+        class: [aiTheme.root, aiDialog.overlay],
         open: true,
         labelledBy: 'craft-ai-dialog-title',
         onClose: () => onClose(),
       },
       div(
         {
-          class: 'craft-ai-card',
+          class: aiDialog.card,
         },
         [
-          header({ class: 'craft-ai-header' }, [
+          header({ class: aiDialog.header }, [
             strong({ id: 'craft-ai-dialog-title' }, 'Send context to AI'),
             button(
               'aiDialogClose',
               {
                 type: 'button',
-                class: 'craft-ai-close',
+                class: aiDialog.close,
                 'aria-label': 'Close',
                 click: () => onClose(),
               },
@@ -526,33 +357,34 @@ export const AiSendDialog: CraftComponent<{
             ),
           ]),
 
-          section({ class: 'craft-ai-context' }, [
+          section({ class: aiDialog.context }, [
             div([
-              span({ class: 'label' }, 'Component:'),
+              span({ class: aiDialog.contextLabel }, 'Component:'),
               function* () {
                 return (yield* payload()).hostName;
               },
             ]),
             div([
-              span({ class: 'label' }, 'Coords:'),
+              span({ class: aiDialog.contextLabel }, 'Coords:'),
               function* () {
                 const value = yield* payload();
                 return `(${value.coords.x}, ${value.coords.y})`;
               },
             ]),
             div([
-              span({ class: 'label' }, 'Snapshot:'),
+              span({ class: aiDialog.contextLabel }, 'Snapshot:'),
               function* () {
                 return `${(yield* payload()).snapshot.length} report(s)`;
               },
             ]),
           ]),
 
-          fieldset({ class: 'craft-ai-options' }, [
-            legend('Contenu à copier'),
-            label({ class: 'craft-ai-option' }, [
+          fieldset({ class: aiDialog.options }, [
+            legend({ class: aiDialog.legend }, 'Contenu à copier'),
+            label({ class: aiDialog.option }, [
               input('aiIncludeClickedElement', {
                 type: 'checkbox',
+                class: aiDialog.checkbox,
                 checked: () => options().includeClickedElement,
                 *change(event) {
                   yield* writeOptions({
@@ -565,9 +397,10 @@ export const AiSendDialog: CraftComponent<{
               }),
               span('Élément ciblé'),
             ]),
-            label({ class: 'craft-ai-option' }, [
+            label({ class: aiDialog.option }, [
               input('aiIncludeComponent', {
                 type: 'checkbox',
+                class: aiDialog.checkbox,
                 checked: () => options().includeComponent,
                 *change(event) {
                   yield* writeOptions({
@@ -579,9 +412,10 @@ export const AiSendDialog: CraftComponent<{
               }),
               span('Informations du composant'),
             ]),
-            label({ class: 'craft-ai-option' }, [
+            label({ class: aiDialog.option }, [
               input('aiIncludeAppSnapshot', {
                 type: 'checkbox',
+                class: aiDialog.checkbox,
                 checked: () => options().includeAppSnapshot,
                 *change(event) {
                   yield* writeOptions({
@@ -593,9 +427,10 @@ export const AiSendDialog: CraftComponent<{
               }),
               span('État de l’application'),
             ]),
-            label({ class: 'craft-ai-option' }, [
+            label({ class: aiDialog.option }, [
               input('aiIncludeDomStyles', {
                 type: 'checkbox',
+                class: aiDialog.checkbox,
                 checked: () => options().includeDomStyles,
                 *change(event) {
                   yield* writeOptions({
@@ -607,9 +442,10 @@ export const AiSendDialog: CraftComponent<{
               }),
               span('DOM du composant et styles CSS calculés'),
             ]),
-            label({ class: 'craft-ai-option' }, [
+            label({ class: aiDialog.option }, [
               input('aiIncludePageDomStyles', {
                 type: 'checkbox',
+                class: aiDialog.checkbox,
                 checked: () => options().includePageDomStyles,
                 *change(event) {
                   yield* writeOptions({
@@ -623,23 +459,21 @@ export const AiSendDialog: CraftComponent<{
             ]),
             div(
               {
-                class: 'craft-ai-warning',
-                style: () =>
-                  options().includeDomStyles || options().includePageDomStyles
-                    ? null
-                    : { display: 'none' },
+                class: aiDialog.warning,
+                hidden: () =>
+                  !(options().includeDomStyles || options().includePageDomStyles),
               },
               'La capture DOM peut prendre quelques instants, bloquer l’interface et produire une payload volumineuse.',
             ),
           ]),
 
           label(
-            { class: 'craft-ai-label', htmlFor: 'craft-ai-instruction' },
+            { class: aiDialog.label, htmlFor: 'craft-ai-instruction' },
             'Instruction',
           ),
           textarea('aiDialogInstruction', {
             id: 'craft-ai-instruction',
-            class: 'craft-ai-textarea',
+            class: aiDialog.textarea,
             rows: 6,
             value: instruction,
             placeholder: 'Describe what you want the AI to do…',
@@ -650,14 +484,14 @@ export const AiSendDialog: CraftComponent<{
             },
           }),
 
-          // Toggled by style rather than `ifNode`, which needs a *named* craft
-          // value and would leak the same internal symbols into the type.
+          // Toggled by `hidden` rather than `ifNode`, which needs a *named*
+          // craft value and would leak the same internal symbols into the type.
           liveRegion(
             { politeness: 'polite' },
             div(
               {
-                class: 'craft-ai-success',
-                style: () => (copied() ? null : { display: 'none' }),
+                class: aiDialog.success,
+                hidden: () => !copied(),
               },
               'Copié dans le presse-papier ✓',
             ),
@@ -666,19 +500,19 @@ export const AiSendDialog: CraftComponent<{
             { politeness: 'assertive' },
             div(
               {
-                class: 'craft-ai-warning',
-                style: () => (captureError() ? null : { display: 'none' }),
+                class: aiDialog.warning,
+                hidden: () => !captureError(),
               },
               captureError,
             ),
           ),
 
-          footer({ class: 'craft-ai-footer' }, [
+          footer({ class: aiDialog.footer }, [
             button(
               'aiDialogCancel',
               {
                 type: 'button',
-                class: 'craft-ai-cancel',
+                class: aiDialog.cancel,
                 click: () => onClose(),
               },
               'Fermer',
@@ -687,10 +521,8 @@ export const AiSendDialog: CraftComponent<{
               'aiDialogCopy',
               {
                 type: 'button',
-                class: () => [
-                  'craft-ai-copy',
-                  copied() && 'craft-ai-copy--done',
-                ],
+                class: aiDialog.copy,
+                'data-craftAiCopy': () => (copied() ? 'done' : null),
                 disabled: () =>
                   !instruction().trim() || captureInProgress(),
                 click: copy,

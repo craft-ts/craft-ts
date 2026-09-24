@@ -18,6 +18,7 @@ import {
   noExclusiveLink,
 } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from './load-graph';
+import { architectureWaiverList } from './waivers';
 
 /**
  * The graph is loaded once for the whole suite. Keep all graph assertions in
@@ -25,10 +26,10 @@ import { loadDemoArchitectureGraph } from './load-graph';
  * Run with `npx nx architecture demo`.
  */
 describe('demo architecture', () => {
-  let graph: ReturnType<typeof loadDemoArchitectureGraph>;
+  let graph: Awaited<ReturnType<typeof loadDemoArchitectureGraph>>;
 
-  beforeAll(() => {
-    graph = loadDemoArchitectureGraph();
+  beforeAll(async () => {
+    graph = await loadDemoArchitectureGraph();
   }, 180_000);
 
   it('indexes demo routes and provided feature services', () => {
@@ -189,6 +190,7 @@ describe('demo architecture', () => {
 
   it('keeps the app declarative', () => {
     assertDeclarativeArchitecture(graph.graph, {
+      waivers: architectureWaiverList,
       allow: [
         'addTodo',
         'removeTodo',

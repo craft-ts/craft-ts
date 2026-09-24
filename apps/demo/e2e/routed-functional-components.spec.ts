@@ -67,7 +67,7 @@ test('updates routed functional component inputs when Angular reuses the route',
 test('centers the query navigation actions horizontally', async ({ page }) => {
   await page.goto('/query/1');
 
-  const actions = page.locator('.query-actions');
+  const actions = page.locator('[data-testid="query-actions"]');
   const [actionsBox, previousBox, nextBox] = await Promise.all([
     actions.boundingBox(),
     page.getByRole('button', { name: 'Previous user' }).boundingBox(),
@@ -96,7 +96,9 @@ test('shows the view-transition skeleton while the detail chain is pending', asy
   await page.locator('a[href="/view-transitions/aurora"]').click();
 
   await expect(page).toHaveURL(/\/view-transitions\/aurora$/);
-  await expect(page.locator('.vt-bar')).toHaveCount(3, { timeout: 1500 });
+  await expect(page.locator('[data-testid="vt-bar"]')).toHaveCount(3, {
+    timeout: 1500,
+  });
   await expect(page.getByRole('heading', { name: 'Aurora' })).toBeVisible({
     timeout: 4500,
   });
@@ -119,7 +121,7 @@ test('restores the gallery cleanly after browser back from a view-transition det
   await expect(
     page.getByRole('heading', { name: 'View Transitions' }),
   ).toBeVisible();
-  await expect(page.locator('.vt-back')).toHaveCount(0);
+  await expect(page.locator('[data-testid="vt-back"]')).toHaveCount(0);
   await expect(page.getByText(/No artwork matches/)).toHaveCount(0);
   await expect(
     page.getByText('← Back to gallery', { exact: true }),

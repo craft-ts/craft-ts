@@ -57,7 +57,6 @@ export default [
       'craft-ts/prefer-deep-yieldable-for-item': 'off',
       'craft-ts/prefer-route-query-params-for-filter-state': 'off',
       'craft-ts/prefer-browser-boundaries': 'off',
-      'craft-ts/no-hardcoded-design-values': 'off',
     },
   },
   {

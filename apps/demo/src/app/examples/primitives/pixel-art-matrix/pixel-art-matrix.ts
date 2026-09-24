@@ -1,4 +1,3 @@
-import styles from './pixel-art-matrix.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -14,6 +13,9 @@ import {
   LONG_PRESS_DURATION_MS,
   longPress,
 } from './long-press.directive';
+import { assign } from '@craft-ts/style';
+import { example } from '../../shared/example.style';
+import { pixel, pixelColor, pixelVars } from '../pixel-art/pixel.style';
 
 type Cell = {
   readonly id: number;
@@ -38,9 +40,7 @@ const makeGrid = (): Cell[][] =>
 
 const PixelArtMatrix = craftComponent(
   'PixelArtMatrix',
-  {
-    stylesUrl: styles,
-  },
+  {},
   function* () {
     const activeColor = yield* state('activeColor', COLORS[0], ({ set }) => ({
       setColor: (color: string) => set(color),
@@ -115,20 +115,21 @@ const PixelArtMatrix = craftComponent(
     return { activeColor, grid };
   },
   ({ activeColor, grid }) =>
-    section([
-      header([
-        heading('Pixel Art Workshop (Matrix)'),
+    section({ class: example.card }, [
+      header({ class: example.stack }, [
+        heading({ class: example.title }, 'Pixel Art Workshop (Matrix)'),
         p(
+          { class: example.text, 'data-exampleText': 'muted' },
           '2D matrix: click paints, right-click paints a row, long-press paints a column.',
         ),
       ]),
       div(
-        { class: 'matrix-palette' },
+        { class: pixel.palette },
         forNode(COLORS, { track: (color) => color }, (color) =>
           button('color', { type: 'button',
-            class: 'matrix-color',
+            class: pixel.swatch,
             style: function* () {
-              return { backgroundColor: yield* color() };
+              return assign(pixelVars.fill, pixelColor(yield* color()));
             },
             'aria-label': function* () {
               return `Color ${yield* color()}`;
@@ -139,16 +140,17 @@ const PixelArtMatrix = craftComponent(
           }),
         ),
       ),
-      button('reset', { type: 'button', click: grid.reset }, 'Reset'),
+      button('reset', { type: 'button', class: example.button, click: grid.reset }, 'Reset'),
       div(
-        { class: 'matrix-grid' },
+        { class: pixel.matrix },
         forNode(grid, { track: trackGridRow }, (row, rowIndex) =>
-          div({ class: 'matrix-row' }, [
+          div({ class: pixel.row, 'data-testid': 'matrix-row' }, [
             forNode(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
               button('cell', { type: 'button',
-                class: 'matrix-cell',
+                class: pixel.matrixCell,
+                'data-testid': 'matrix-cell',
                 style: function* () {
-                  return { backgroundColor: (yield* cell()).color };
+                  return assign(pixelVars.fill, pixelColor((yield* cell()).color));
                 },
                 'aria-label': function* () {
                   return `Cell ${rowIndex + 1}, ${columnIndex + 1}`;
@@ -168,6 +170,7 @@ const PixelArtMatrix = craftComponent(
             ),
             button('addCell',
               { type: 'button',
+                class: pixel.addCell,
                 *click() {
                   yield* grid.addCell(rowIndex);
                 },
@@ -177,7 +180,7 @@ const PixelArtMatrix = craftComponent(
           ]),
         ),
       ),
-      button('addRow', { type: 'button', click: grid.addRow }, 'Add row'),
+      button('addRow', { type: 'button', class: example.button, click: grid.addRow }, 'Add row'),
     ]),
 );
 

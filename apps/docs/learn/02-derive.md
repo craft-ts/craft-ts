@@ -170,7 +170,7 @@ The full pattern — writing a directive, what it can require from its host, and
 how styles compose — is on
 [Directives and `.pipe(...)`](/guide/components/directives). See also
 [Customization](/guide/components/customization) for the three layers of
-component customization, and [Encapsulated styles](/guide/components/styles).
+component customization, and [Styling a component](/guide/components/styles).
 
 ## Every exception a component picks up must be handled
 

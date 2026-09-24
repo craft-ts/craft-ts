@@ -19,9 +19,12 @@ import {
   mutation,
   settled,
 } from '@craft-ts/core';
+import { componentUi, pendingDemo } from './component-demos.style';
 
-const pendingStatusMessage = (className: string, message: string) =>
-  p({ class: className }, message);
+const pendingStatusMessage = (
+  className: typeof pendingDemo.skeleton,
+  message: string,
+) => p({ class: className }, message);
 
 /**
  * The failing side of `settledValue`: a source can settle on an **exception**
@@ -39,43 +42,7 @@ const pendingStatusMessage = (className: string, message: string) =>
 export const pendingNodeExceptionDemo = craftComponent(
   'pendingNodeExceptionDemo',
   {
-    host: { class: 'pending-exception-host' },
-    styles: `
-      :scope { display: grid; gap: 1rem; padding: 1rem; justify-items: start; }
-      .pending-exception__actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-      .pending-exception__action {
-        padding: .45rem .9rem;
-        border: 1px solid #c7d2fe;
-        border-radius: .6rem;
-        background: #fff;
-        font-weight: 650;
-        cursor: pointer;
-      }
-      .pending-exception__skeleton {
-        padding: .75rem 1rem;
-        border-radius: .75rem;
-        background: #eef2ff;
-        color: #4338ca;
-        font-weight: 650;
-      }
-      .pending-exception__error {
-        padding: .75rem 1rem;
-        border: 1px solid #fecaca;
-        border-radius: .75rem;
-        background: #fef2f2;
-        color: #b91c1c;
-        font-weight: 650;
-      }
-      .pending-exception__reloading {
-        padding: .35rem .75rem;
-        border-radius: .6rem;
-        background: #fef9c3;
-        color: #854d0e;
-        font-size: .85rem;
-        font-weight: 650;
-      }
-      .pending-exception__list { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
-    `,
+    host: { class: componentUi.host },
   },
   function* () {
     const issue = yield* mutation('issue', {
@@ -110,15 +77,15 @@ export const pendingNodeExceptionDemo = craftComponent(
     return { issue };
   },
   ({ issue }) =>
-    section({ class: 'pending-exception' }, [
+    section({ class: pendingDemo.page }, [
       heading('settledValue — the failing path'),
       p(
         'The same read suspends to the pendingNode, then fails to the catchNode.',
       ),
-      div({ class: 'pending-exception__actions' }, [
+      div({ class: pendingDemo.actions }, [
         button('issueSuccess',
           { type: 'button',
-            class: 'pending-exception__action',
+            class: pendingDemo.actionButton,
             *click() {
               yield* issue.mutate({
                 reference: 'INV-2026-014',
@@ -130,7 +97,7 @@ export const pendingNodeExceptionDemo = craftComponent(
         ),
         button('issueRejected',
           { type: 'button',
-            class: 'pending-exception__action',
+            class: pendingDemo.actionButton,
             *click() {
               yield* issue.mutate({
                 reference: 'INV-2026-015',
@@ -142,7 +109,7 @@ export const pendingNodeExceptionDemo = craftComponent(
         ),
       ]),
       div([
-        ul({ class: 'pending-exception__list' }, [
+        ul({ class: pendingDemo.list }, [
           li(['Invoice: ', strong(issue.summary)]),
         ]),
       ])
@@ -150,12 +117,12 @@ export const pendingNodeExceptionDemo = craftComponent(
           pendingNode({
             fallback: () =>
               pendingStatusMessage(
-                'pending-exception__skeleton',
+                pendingDemo.skeleton,
                 'Waiting for an invoice…',
               ),
             reloading: () =>
               pendingStatusMessage(
-                'pending-exception__reloading',
+                pendingDemo.reloading,
                 'Re-issuing…',
               ),
           }),
@@ -171,7 +138,7 @@ export const pendingNodeExceptionDemo = craftComponent(
             // the summary line has nothing to show once the source failed.
           INVOICE_REJECTED: () =>
               p(
-                { class: 'pending-exception__error' },
+                { class: pendingDemo.error },
                 'Invoice rejected (INVOICE_REJECTED)',
               ),
           }),

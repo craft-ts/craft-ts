@@ -27,7 +27,9 @@ test('measures Pixel Art sync/frame rendering', async ({ page }) => {
           };
 
           const observeGrid = () => {
-            const count = document.querySelectorAll('.pixel-cell').length;
+            const count = document.querySelectorAll(
+              '[data-testid="pixel-cell"]',
+            ).length;
             const current = performance.now();
             if (count > 0 && state.firstCellAt === undefined) {
               state.firstCellAt = current;
@@ -76,7 +78,7 @@ test('measures Pixel Art sync/frame rendering', async ({ page }) => {
 
       await page.goto(`/pixel-art?cells=${cells}&schedule=${strategy}`);
       await page
-        .locator('.pixel-cell')
+        .locator('[data-testid="pixel-cell"]')
         .nth(cells - 1)
         .waitFor({
           state: 'attached',

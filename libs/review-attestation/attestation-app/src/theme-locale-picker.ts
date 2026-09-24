@@ -9,6 +9,7 @@ import { craftComputed } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
 import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
+import { preferences } from './review-controls.style';
 
 /**
  * The two choices the reviewer makes about the tool rather than about a
@@ -27,13 +28,14 @@ export const ThemeLocalePicker = craftComponent(
     return { locale, theme, ide, chooseLocale, chooseTheme, chooseIde, t };
   },
   ({ locale, theme, ide, chooseLocale, chooseTheme, chooseIde, t }) =>
-    div({ class: 'preferences' }, [
-      label({ class: 'field-label', htmlFor: 'review-locale' }, function* () {
+    div({ class: preferences.root }, [
+      label({ htmlFor: 'review-locale' }, function* () {
         return (yield* t()).language;
       }),
       select(
         'ReviewLocale',
         {
+          class: preferences.control,
           id: 'review-locale',
           value: locale,
           *change(event: Event) {
@@ -45,12 +47,13 @@ export const ThemeLocalePicker = craftComponent(
           option({ value: 'fr' }, 'Français'),
         ],
       ),
-      label({ class: 'field-label', htmlFor: 'review-theme' }, function* () {
+      label({ htmlFor: 'review-theme' }, function* () {
         return (yield* t()).theme;
       }),
       select(
         'ReviewTheme',
         {
+          class: preferences.control,
           id: 'review-theme',
           value: theme,
           *change(event: Event) {
@@ -72,12 +75,13 @@ export const ThemeLocalePicker = craftComponent(
           }),
         ],
       ),
-      label({ class: 'field-label', htmlFor: 'review-ide' }, function* () {
+      label({ htmlFor: 'review-ide' }, function* () {
         return (yield* t()).ide;
       }),
       select(
         'ReviewIde',
         {
+          class: preferences.control,
           id: 'review-ide',
           value: ide,
           *change(event: Event) {

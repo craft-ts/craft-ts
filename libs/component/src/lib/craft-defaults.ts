@@ -7,6 +7,7 @@ import {
 import { mountCraftComponent } from './bridge';
 import { craftComponent } from './component';
 import { div } from './hyperscript';
+import { craftPending } from './craft-defaults.style';
 
 /**
  * The loader shown once a route's guard/resolve chain outruns both
@@ -20,17 +21,9 @@ import { div } from './hyperscript';
  */
 const DefaultCraftPendingComponent = craftComponent(
   'craftPending',
-  {
-    styles: `
-      .craft-pending {
-        padding: 1rem;
-        font-family: system-ui, -apple-system, sans-serif;
-        color: #6b7280;
-      }
-    `,
-  },
+  {},
   () => ({ loading: ɵinjectCraftLoadingText() }),
-  ({ loading }) => div({ class: 'craft-pending' }, loading),
+  ({ loading }) => div({ class: craftPending.root }, loading),
 );
 
 ɵregisterDefaultCraftPendingComponent(

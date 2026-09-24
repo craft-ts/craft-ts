@@ -14,6 +14,7 @@ import { craftComputed, query, settled } from '@craft-ts/core';
 import { page } from './page-layout';
 import { Pipeline } from './pipeline';
 import { getPublicProducts } from '../../../../demo-with-server-function/src/products/public-products.fn-client';
+import { page as pageStyle } from '../ssr-lab.style';
 
 export const OverviewPage = craftComponent(
   'SsrOverviewPage',
@@ -38,21 +39,22 @@ export const OverviewPage = craftComponent(
       'Rendu côté serveur · démonstration',
       'Comprendre SSR par l’expérience',
       'Chaque page expose une décision différente : attendre la donnée, afficher un fallback, ou laisser le navigateur la charger après hydratation.',
-      section({ class: 'grid' }, [
-        article({ class: 'card' }, [
-          h2('Le pipeline'),
+      section({ class: pageStyle.grid }, [
+        article({ class: pageStyle.card }, [
+          h2({ class: pageStyle.cardTitle }, 'Le pipeline'),
           p(
+            { class: pageStyle.text },
             'Le serveur produit le premier HTML. Le navigateur reprend ensuite le même arbre CraftTS.',
           ),
           Pipeline(),
           p(
-            { class: 'muted' },
+            { class: pageStyle.muted },
             'Désactive JavaScript après un rechargement pour observer le HTML initial.',
           ),
         ]),
-        article({ class: 'card card--accent' }, [
-          h2('Ce que l’on compare'),
-          ul([
+        article({ class: pageStyle.card, 'data-ssrCard': 'accent' }, [
+          h2({ class: pageStyle.cardTitle }, 'Ce que l’on compare'),
+          ul({ class: pageStyle.list }, [
             li("ssr: { mode: 'block' } : la route attend une query."),
             li(
               "ssr: { mode: 'fallback' } : le shell part avec un pending block.",
@@ -63,17 +65,18 @@ export const OverviewPage = craftComponent(
           ]),
           a(
             'overviewDataLink',
-            { class: 'button' },
+            { class: pageStyle.button },
             'Voir la query bloquante',
           ).pipe(CraftRouterLink({ to: 'data' })),
         ]),
-        article({ class: 'card' }, [
-          span({ class: 'badge' }, 'server function'),
-          h2('Même façade, deux transports'),
+        article({ class: pageStyle.card }, [
+          span({ class: pageStyle.badge }, 'server function'),
+          h2({ class: pageStyle.cardTitle }, 'Même façade, deux transports'),
           p(
+            { class: pageStyle.text },
             'Cette liste appelle la façade produit partagée avec la démo server functions. En SSR, application.invoke est utilisé directement ; après hydratation, le snapshot évite un second appel.',
           ),
-          ul([
+          ul({ class: pageStyle.list }, [
             function* () {
               return `Produits rendus : ${(yield* resolvedProducts()).length}`;
             },

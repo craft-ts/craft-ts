@@ -99,6 +99,9 @@ describe('require-reactive-template-bindings', () => {
       type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
       declare const value: CraftValue<number>;
       declare function safeResourceUrl(value: unknown): string;
+      declare function assign(token: unknown, value: unknown): object;
+      declare const fill: unknown;
+      declare const unit: { pct(value: number): unknown };
       declare function craftComponent(...args: unknown[]): unknown;
 
       craftComponent('Demo', {}, () => ({}), () =>
@@ -110,6 +113,16 @@ describe('require-reactive-template-bindings', () => {
         img({
           src: function* () {
             return safeResourceUrl(yield* value());
+          },
+        }),
+        div({
+          style: function* () {
+            return assign(fill, yield* value());
+          },
+        }),
+        div({
+          style: function* () {
+            return assign(fill, unit.pct(yield* value()));
           },
         }),
       );

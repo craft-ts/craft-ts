@@ -13,6 +13,9 @@ const maxCraftComponentLines = require('./max-craft-component-lines.cjs');
 const noRawCssValue = require('./no-raw-css-value.cjs');
 const noRawClass = require('./no-raw-class.cjs');
 const noFreeHas = require('./no-free-has.cjs');
+const noInlineStyle = require('./no-inline-style.cjs');
+const noComponentCss = require('./no-component-css.cjs');
+const noForbiddenEslintDisable = require('./no-forbidden-eslint-disable.cjs');
 const preferHoverAxis = require('./prefer-hover-axis.cjs');
 const noUnmodelledTextColor = require('./no-unmodelled-text-color.cjs');
 const styleFileBoundary = require('./style-file-boundary.cjs');
@@ -144,6 +147,9 @@ const plugin = {
     'no-raw-css-value': noRawCssValue,
     'no-raw-class': noRawClass,
     'no-free-has': noFreeHas,
+    'no-inline-style': noInlineStyle,
+    'no-component-css': noComponentCss,
+    'no-forbidden-eslint-disable': noForbiddenEslintDisable,
     'prefer-hover-axis': preferHoverAxis,
     'no-unmodelled-text-color': noUnmodelledTextColor,
     'style-file-boundary': styleFileBoundary,
@@ -316,11 +322,54 @@ plugin.configs = {
     plugins: { 'craft-ts': plugin },
     rules: securityRules,
   },
+  /**
+   * The design-system rules alone, as `recommended` carries them: for a project
+   * that does not take `recommended` (the SSR demo, a library) but whose
+   * components must still be styled through `@craft-ts/style` only.
+   */
+  style: {
+    plugins: { 'craft-ts': plugin },
+    rules: Object.fromEntries(
+      [
+        'craft-ts/no-raw-css-value',
+        'craft-ts/no-raw-class',
+        'craft-ts/no-inline-style',
+        'craft-ts/no-component-css',
+        'craft-ts/no-forbidden-eslint-disable',
+        'craft-ts/no-free-has',
+        'craft-ts/style-file-boundary',
+      ].map((rule) => [rule, recommendedRules[rule]]),
+    ),
+  },
   i18n: {
     plugins: { 'craft-ts': plugin },
     rules: {
       'craft-ts/require-i18n-text': 'error',
       'craft-ts/no-i18n-composition': 'error',
+    },
+  },
+  /**
+   * The rules that read a component's CSS **text** — `meta.styles`,
+   * `stylesUrl`, `.css` files.
+   *
+   * Out of `recommended` since `no-component-css` forbids that text: with no
+   * CSS on the meta there is nothing left for them to read. The focus ring and
+   * the reduced-motion guard they used to re-prove per component are now laid
+   * once for the whole document by the `craft.base` layer of `@craft-ts/style`.
+   * Kept as a preset for a project that deliberately keeps legacy component
+   * CSS behind an attested `eslint-disable`.
+   */
+  legacyComponentCss: {
+    plugins: { 'craft-ts': plugin },
+    rules: {
+      'craft-ts/craft-css-vars-contract': 'error',
+      'craft-ts/craft-styles-scope-safe': 'error',
+      'craft-ts/craft-css-var-naming': 'warn',
+      'craft-ts/craft-css-token-registry': 'error',
+      'craft-ts/no-hardcoded-design-values': 'warn',
+      'craft-ts/no-important-in-component-styles': 'error',
+      'craft-ts/require-focus-visible': 'error',
+      'craft-ts/require-reduced-motion': 'error',
     },
   },
   /**

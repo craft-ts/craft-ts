@@ -47,6 +47,36 @@ describe('scanEslintDisables', () => {
     expect(result[0]?.source).toContain('const value: any = input;');
   });
 
+  it('reads comments only, keys by rule and ordinal, and keeps blanket directives', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'craft-eslint-disables-'));
+    directories.push(root);
+    await writeFile(
+      join(root, 'rule.spec.ts'),
+      [
+        "const fixture = '// eslint-disable-next-line craft-ts/no-raw-class';",
+        // A bare token scan loses its place after `${` and would read this.
+        'const card = (prefix) => `${prefix}// eslint-disable-next-line no-console -- in a string\\nx`;',
+        '/* eslint-disable */',
+        'import a from "a";',
+        '// eslint-disable-next-line craft-ts/no-raw-class -- vendor widget',
+        "div({ class: 'vendor' });",
+        '// eslint-disable-next-line craft-ts/no-raw-class, no-console',
+        "div({ class: 'other' });",
+      ].join('\n'),
+    );
+
+    const result = scanEslintDisables({ rootDir: root });
+
+    expect(result.map((entry) => entry.subject)).toEqual([
+      'eslint-disable:rule.spec.ts:*:1',
+      'eslint-disable:rule.spec.ts:craft-ts/no-raw-class:1',
+      'eslint-disable:rule.spec.ts:craft-ts/no-raw-class:2',
+      'eslint-disable:rule.spec.ts:no-console:1',
+    ]);
+    expect(result[1]).toMatchObject({ line: 5, reason: 'vendor widget' });
+    expect(result[2]?.reason).toBeUndefined();
+  });
+
   it('does not scan agent worktrees inside the project', async () => {
     const root = await mkdtemp(join(tmpdir(), 'craft-eslint-disables-'));
     directories.push(root);

@@ -11,7 +11,9 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildReviewQueue, type ReviewCard, type ReviewItem } from './queue.js';
 import type {
+  ArchitectureWaiverReviewCard,
   AttestationDevtoolModel,
+  EslintDisableReviewCard,
   FolderLayoutReviewCard,
   RemovalReviewCard,
   TemplateReviewCard,
@@ -28,7 +30,9 @@ export type AttestationReviewCard =
   | ReviewCard
   | TemplateReviewCard
   | RemovalReviewCard
-  | FolderLayoutReviewCard;
+  | FolderLayoutReviewCard
+  | EslintDisableReviewCard
+  | ArchitectureWaiverReviewCard;
 
 export interface ReviewFinding {
   readonly path: string;
@@ -71,6 +75,10 @@ export interface ReviewApiQueue {
   readonly folderLayouts?: NonNullable<
     AttestationDevtoolModel['folderLayouts']
   >;
+  /** Every deliberate bypass — directives and waivers — whatever its state. */
+  readonly bypasses?: NonNullable<AttestationDevtoolModel['bypasses']>;
+  /** How far the design system has reached; absent when nothing could say. */
+  readonly styleAdoption?: AttestationDevtoolModel['styleAdoption'];
   readonly diagnostics: AttestationDevtoolModel['diagnostics'];
   /** Decisions accepted during this review session, in acceptance order. */
   readonly history: readonly ReviewSessionDecision[];
@@ -265,6 +273,8 @@ const queueValue = (
   visualTests: model?.visualTests ?? [],
   templateObligations: model?.templateObligations ?? [],
   folderLayouts: model?.folderLayouts ?? [],
+  bypasses: model?.bypasses ?? [],
+  ...(model?.styleAdoption ? { styleAdoption: model.styleAdoption } : {}),
   diagnostics: model?.diagnostics ?? [],
   history,
   ...(folderLayoutApply &&
@@ -420,7 +430,15 @@ export async function startReviewServer(
     // middleware-mode default creates a second HMR WebSocket listener on
     // port 24678, which can collide with a developer's running app and leak
     // a spurious browser error into review-server tests.
-    server: { middlewareMode: true, hmr: false, ws: false },
+    // Nothing is transformed ahead of a request: serving index.html would
+    // otherwise start loading `virtual:craft-style.css` in the background —
+    // an evaluation of every sheet — and `close()` waits for it.
+    server: {
+      middlewareMode: true,
+      hmr: false,
+      ws: false,
+      preTransformRequests: false,
+    },
     resolve: { alias: aliases, tsconfigPaths: true },
   });
 

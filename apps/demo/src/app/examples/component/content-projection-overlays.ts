@@ -12,6 +12,7 @@ import {
 } from '@craft-ts/component';
 import { toolbarAction } from './content-projection-actions';
 import type { ToolbarActionSlot } from './content-projection-actions';
+import { projectionDemo } from './component-demos.style';
 
 export const toolbar = craftComponent(
   'toolbar',
@@ -19,7 +20,7 @@ export const toolbar = craftComponent(
   (input: { readonly actions: ToolbarActionSlot }) => input,
   ({ actions }) =>
     div(
-      { class: 'projection-demo__toolbar', role: 'toolbar' },
+      { class: projectionDemo.toolbar, role: 'toolbar' },
       forNode(actions, { track: (action) => action.key }, (action) =>
         renderContent(action),
       ),
@@ -37,10 +38,10 @@ export const dialog = craftComponent(
     actions: input.actions,
   }),
   ({ body, actions }) =>
-    section({ class: 'projection-demo__dialog', role: 'dialog' }, [
+    section({ class: projectionDemo.dialog, role: 'dialog' }, [
       renderContent(body),
       footer(
-        { class: 'projection-demo__dialog-actions' },
+        { class: projectionDemo.toolbar },
         forNode(actions, { track: (action) => action.key }, (action) =>
           renderContent(action),
         ),

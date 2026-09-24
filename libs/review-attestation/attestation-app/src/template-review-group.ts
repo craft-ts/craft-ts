@@ -38,6 +38,7 @@ import {
   templateStatementOf,
   templateVariableStatementOf,
 } from './card-presentation';
+import { reviewBits } from './review-card.style';
 
 export const TemplateReviewGroupView = craftComponent(
   'TemplateReviewGroupView',
@@ -270,21 +271,21 @@ export const TemplateReviewGroupView = craftComponent(
     showAgentFailed,
     noAgent,
   }) =>
-    article({ class: 'template-review-group', 'aria-busy': busy }, [
-      header({ class: 'template-group-header' }, [
-        div({ class: 'template-group-title' }, [
-          small({ class: 'eyebrow' }, function* () {
+    article({ 'aria-busy': busy }, [
+      header({ 'data-testid': 'template-group-header' }, [
+        div([
+          small({ class: reviewBits.eyebrow }, function* () {
             return (yield* t()).templateGroupEyebrow;
           }),
           heading(viewTitle),
-          p({ class: 'template-group-base' }, function* () {
+          p(function* () {
             return (yield* view()).context;
           }),
           strong(function* () {
             return (yield* view()).lead;
           }),
         ]),
-        div({ class: 'template-group-meta' }, [
+        div([
           small(function* () {
             return (yield* view()).progress;
           }),
@@ -314,52 +315,48 @@ export const TemplateReviewGroupView = craftComponent(
               return (yield* t()).templateNextGroup;
             },
           ),
-          span({ class: 'chip' }, function* () {
+          span({ class: reviewBits.chip }, function* () {
             return (yield* view()).remaining;
           }),
         ]),
       ]),
-      section(
-        { class: 'template-group-toolbar', 'aria-label': 'Group selection' },
-        [
-          label({ class: 'group-select-all' }, [
-            input('SelectTemplateGroup', {
-              type: 'checkbox',
-              checked: allSelected,
-              disabled: busy,
-              'aria-label': function* () {
-                return (yield* t()).templateGroupSelect;
-              },
-              *change() {
-                if (yield* allSelected()) yield* clearSelection();
-                else yield* selectAll();
-              },
-            }),
-            span(function* () {
-              return (yield* view()).selectLabel;
-            }),
-          ]),
-          button(
-            'SelectHumanTemplateObligations',
-            { type: 'button', click: selectHuman, disabled: busy },
-            function* () {
-              return (yield* t()).templateSelectHuman;
+      section({ 'aria-label': 'Group selection' }, [
+        label([
+          input('SelectTemplateGroup', {
+            type: 'checkbox',
+            checked: allSelected,
+            disabled: busy,
+            'aria-label': function* () {
+              return (yield* t()).templateGroupSelect;
             },
-          ),
-          small({ 'aria-live': 'polite' }, function* () {
-            return (yield* view()).selected;
+            *change() {
+              if (yield* allSelected()) yield* clearSelection();
+              else yield* selectAll();
+            },
           }),
-        ],
-      ),
+          span(function* () {
+            return (yield* view()).selectLabel;
+          }),
+        ]),
+        button(
+          'SelectHumanTemplateObligations',
+          { type: 'button', click: selectHuman, disabled: busy },
+          function* () {
+            return (yield* t()).templateSelectHuman;
+          },
+        ),
+        small({ 'aria-live': 'polite' }, function* () {
+          return (yield* view()).selected;
+        }),
+      ]),
       ul(
         {
-          class: 'template-obligation-list',
+          'data-testid': 'template-obligation-list',
           'aria-label': 'Template obligations',
         },
         forNode(rows, { track: (row) => row.id }, (row) =>
           li(
             {
-              class: 'template-obligation-row',
               'data-review-status': function* () {
                 return (yield* row()).status;
               },
@@ -380,15 +377,15 @@ export const TemplateReviewGroupView = craftComponent(
                   yield* toggleCard((yield* row()).id);
                 },
               }),
-              div({ class: 'template-obligation-copy' }, [
+              div({ 'data-testid': 'template-obligation-copy' }, [
                 strong(function* () {
                   return (yield* row()).variable;
                 }),
-                div({ class: 'template-obligation-badges' }, [
-                  span({ class: 'chip' }, function* () {
+                div([
+                  span({ class: reviewBits.chip }, function* () {
                     return (yield* row()).policy;
                   }),
-                  span({ class: 'chip' }, function* () {
+                  span({ class: reviewBits.chip }, function* () {
                     return (yield* row()).state;
                   }),
                   small(function* () {
@@ -397,7 +394,7 @@ export const TemplateReviewGroupView = craftComponent(
                 ]),
                 div(
                   {
-                    class: 'template-agent-result',
+                    'data-testid': 'template-agent-result',
                     'aria-live': 'polite',
                     hidden: function* () {
                       return (yield* row()).hideResult;
@@ -415,14 +412,14 @@ export const TemplateReviewGroupView = craftComponent(
                     }),
                   ],
                 ),
-                details({ class: 'template-obligation-details' }, [
+                details([
                   summary(function* () {
                     return (yield* t()).templateDetails;
                   }),
                   p(function* () {
                     return (yield* row()).statement;
                   }),
-                  small({ class: 'code' }, function* () {
+                  small({ class: reviewBits.code }, function* () {
                     return (yield* row()).subject;
                   }),
                   p(function* () {
@@ -440,7 +437,7 @@ export const TemplateReviewGroupView = craftComponent(
           ),
         ),
       ),
-      section({ class: 'template-group-actions' }, [
+      section([
         ifNode(showAgentBusy, () =>
           p({ role: 'status' }, function* () {
             return (yield* t()).templateAgentBusy;
@@ -452,7 +449,7 @@ export const TemplateReviewGroupView = craftComponent(
           }),
         ),
         ifNode(showReject, () =>
-          div({ class: 'template-group-reject-editor' }, [
+          div([
             label({ htmlFor: 'template-group-note' }, function* () {
               return (yield* t()).templateGroupReason;
             }),
@@ -467,7 +464,7 @@ export const TemplateReviewGroupView = craftComponent(
                 yield* writeNote(eventValue(event));
               },
             }),
-            div({ class: 'template-group-reject-actions' }, [
+            div([
               button(
                 'CancelTemplateGroupReject',
                 { type: 'button', click: cancelReject, disabled: busy },
@@ -479,7 +476,8 @@ export const TemplateReviewGroupView = craftComponent(
                 'SubmitTemplateGroupReject',
                 {
                   type: 'button',
-                  class: 'danger',
+                  class: reviewBits.button,
+                  'data-reviewAction': 'danger',
                   disabled: actionDisabled,
                   click: submitReject,
                 },
@@ -491,7 +489,7 @@ export const TemplateReviewGroupView = craftComponent(
           ]),
         ),
         ifNode(showActions, () =>
-          div({ class: 'template-group-action-buttons' }, [
+          div([
             button(
               'DelegateTemplateGroup',
               {
@@ -509,7 +507,8 @@ export const TemplateReviewGroupView = craftComponent(
               'RejectTemplateGroup',
               {
                 type: 'button',
-                class: 'danger',
+                class: reviewBits.button,
+                'data-reviewAction': 'danger',
                 disabled: actionDisabled,
                 click: requestReject,
               },
@@ -521,7 +520,8 @@ export const TemplateReviewGroupView = craftComponent(
               'AcceptTemplateGroup',
               {
                 type: 'button',
-                class: ['primary', 'template-group-accept'],
+                class: reviewBits.button,
+                'data-reviewAction': 'primary',
                 disabled: actionDisabled,
                 click: accept,
               },
@@ -529,7 +529,7 @@ export const TemplateReviewGroupView = craftComponent(
                 function* () {
                   return (yield* view()).acceptLabel;
                 },
-                span({ class: ['key', 'template-group-action-key'] }, 'A'),
+                span({ class: reviewBits.key }, 'A'),
               ],
             ),
           ]),

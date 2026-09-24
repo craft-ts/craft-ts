@@ -199,7 +199,7 @@ describe('primitive list with pagination template', () => {
           ?.value,
       ).toBe('4');
       expect(
-        template.nativeElement.querySelector('.current-page')?.textContent,
+        template.nativeElement.querySelector('[data-testid="current-page"]')?.textContent,
       ).toContain('1');
     } finally {
       template.destroy();

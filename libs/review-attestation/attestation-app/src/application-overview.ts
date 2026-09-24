@@ -19,6 +19,7 @@ import {
 import { craftComputed, craftMethod, state } from '@craft-ts/core';
 import type { ApplicationCaptureInventoryItem } from '@craft-ts/dev-tools/attestation-review';
 import { eventValue } from './annotation-text';
+import { applicationOverview } from './application-overview.style';
 
 export type ApplicationVerdict = {
   readonly subjects: readonly string[];
@@ -163,10 +164,7 @@ export const ApplicationOverview = craftComponent(
           image: hash ? `/api/evidence/${encodeURIComponent(hash)}` : '',
           imageHidden: !hash,
           alt: `${c.page}, ${c.scenario}, ${c.capture}, ${c.viewport}`,
-          imageStyle:
-            scale === 'actual'
-              ? 'max-width:none;width:auto'
-              : 'max-width:100%;height:auto',
+          zoom: scale === 'actual' ? 'actual' : 'fit',
         };
       });
     });
@@ -233,15 +231,23 @@ export const ApplicationOverview = craftComponent(
     submit,
     next,
   }) =>
-    div({ class: 'application-overview' }, [
-      p({ class: 'application-progress', 'aria-live': 'polite' }, progress),
+    div([
+      p(
+        {
+          class: applicationOverview.progress,
+          'data-testid': 'application-progress',
+          'aria-live': 'polite',
+        },
+        progress,
+      ),
       div(
-        { class: 'application-pages' },
+        { class: applicationOverview.row },
         forNode(pageProgress, { track: (page) => page.name }, (page) =>
           button(
             'ApplicationPageProgress',
             {
               type: 'button',
+              class: applicationOverview.button,
               *click() {
                 yield* pageFilter.choose((yield* page()).name);
               },
@@ -252,8 +258,8 @@ export const ApplicationOverview = craftComponent(
           ),
         ),
       ),
-      div({ class: 'application-filters' }, [
-        label([
+      div({ class: applicationOverview.row }, [
+        label({ class: applicationOverview.field }, [
           'Scénarios',
           select(
             'ApplicationCategory',
@@ -270,7 +276,7 @@ export const ApplicationOverview = craftComponent(
             ],
           ),
         ]),
-        label([
+        label({ class: applicationOverview.field }, [
           'Page',
           select(
             'ApplicationPage',
@@ -288,7 +294,7 @@ export const ApplicationOverview = craftComponent(
             ],
           ),
         ]),
-        label([
+        label({ class: applicationOverview.field }, [
           'Scénario',
           select(
             'ApplicationScenario',
@@ -306,7 +312,7 @@ export const ApplicationOverview = craftComponent(
             ],
           ),
         ]),
-        label([
+        label({ class: applicationOverview.field }, [
           'Format',
           select(
             'ApplicationViewport',
@@ -324,7 +330,7 @@ export const ApplicationOverview = craftComponent(
             ],
           ),
         ]),
-        label([
+        label({ class: applicationOverview.field }, [
           'État',
           select(
             'ApplicationStatus',
@@ -343,7 +349,7 @@ export const ApplicationOverview = craftComponent(
             ],
           ),
         ]),
-        label([
+        label({ class: applicationOverview.field }, [
           'Zoom',
           select(
             'ApplicationZoom',
@@ -359,7 +365,7 @@ export const ApplicationOverview = craftComponent(
             ],
           ),
         ]),
-        label([
+        label({ class: applicationOverview.field }, [
           'Image',
           select(
             'ApplicationImage',
@@ -377,10 +383,11 @@ export const ApplicationOverview = craftComponent(
           ),
         ]),
       ]),
-      div({ class: 'application-actions' }, [
-        label([
+      div({ class: applicationOverview.row }, [
+        label({ class: applicationOverview.field }, [
           'Commentaire',
           textarea('ApplicationComment', {
+            class: applicationOverview.comment,
             'aria-label': 'Commentaire',
             value: note,
             *input(event) {
@@ -392,6 +399,7 @@ export const ApplicationOverview = craftComponent(
           'AcceptApplicationSelection',
           {
             type: 'button',
+            class: applicationOverview.button,
             disabled: function* () {
               return (yield* actions()).disableAccept;
             },
@@ -405,6 +413,7 @@ export const ApplicationOverview = craftComponent(
           'RejectApplicationSelection',
           {
             type: 'button',
+            class: applicationOverview.button,
             disabled: function* () {
               return (yield* actions()).disableReject;
             },
@@ -416,70 +425,78 @@ export const ApplicationOverview = craftComponent(
         ),
         button(
           'NextApplicationCapture',
-          { type: 'button', click: next },
+          { type: 'button', class: applicationOverview.button, click: next },
           'Prochaine capture à examiner',
         ),
       ]),
       div(
-        { class: 'application-captures' },
+        { class: applicationOverview.captures },
         forNode(rows, { track: (row) => row.subject }, (row) =>
-          div({ class: 'application-capture' }, [
-            strong(function* () {
-              return (yield* row()).title;
-            }),
-            small(function* () {
-              return (yield* row()).caption;
-            }),
-            label([
-              input('SelectApplicationCapture', {
-                type: 'checkbox',
-                'aria-label': 'Sélectionner cette capture',
-                checked: function* () {
-                  return (yield* row()).selected;
-                },
-                disabled: function* () {
-                  return (yield* row()).disabled;
-                },
-                *change() {
-                  yield* selected.toggle((yield* row()).subject);
-                },
+          div(
+            {
+              class: applicationOverview.capture,
+              'data-testid': 'application-capture',
+            },
+            [
+              strong(function* () {
+                return (yield* row()).title;
               }),
-              'Sélectionner cette capture',
-            ]),
-            p(function* () {
-              return (yield* row()).comparison;
-            }),
-            div(
-              { class: 'application-image-scroll' },
-              img({
-                src: function* () {
-                  return safeUrl((yield* row()).image);
-                },
-                alt: function* () {
-                  return (yield* row()).alt;
-                },
-                hidden: function* () {
-                  return (yield* row()).imageHidden;
-                },
-                style: function* () {
-                  return (yield* row()).imageStyle;
-                },
+              small(function* () {
+                return (yield* row()).caption;
               }),
-            ),
-            button(
-              'InspectApplicationCapture',
-              {
-                type: 'button',
-                disabled: function* () {
-                  return (yield* row()).disabled;
+              label({ class: applicationOverview.select }, [
+                input('SelectApplicationCapture', {
+                  type: 'checkbox',
+                  'aria-label': 'Sélectionner cette capture',
+                  checked: function* () {
+                    return (yield* row()).selected;
+                  },
+                  disabled: function* () {
+                    return (yield* row()).disabled;
+                  },
+                  *change() {
+                    yield* selected.toggle((yield* row()).subject);
+                  },
+                }),
+                'Sélectionner cette capture',
+              ]),
+              p(function* () {
+                return (yield* row()).comparison;
+              }),
+              div(
+                { class: applicationOverview.imageScroll },
+                img({
+                  src: function* () {
+                    return safeUrl((yield* row()).image);
+                  },
+                  alt: function* () {
+                    return (yield* row()).alt;
+                  },
+                  hidden: function* () {
+                    return (yield* row()).imageHidden;
+                  },
+                  class: applicationOverview.image,
+                  'data-zoom': function* () {
+                    return (yield* row()).zoom;
+                  },
+                }),
+              ),
+              button(
+                'InspectApplicationCapture',
+                {
+                  type: 'button',
+                  class: applicationOverview.button,
+                  disabled: function* () {
+                    return (yield* row()).disabled;
+                  },
+                  *click() {
+                    yield* inspect((yield* row()).subject);
+                  },
                 },
-                *click() {
-                  yield* inspect((yield* row()).subject);
-                },
-              },
-              'Examiner et donner un verdict',
-            ),
-          ]),
+                'Examiner et donner un verdict',
+              ),
+            ],
+          ),
         ),
       ),
     ]),

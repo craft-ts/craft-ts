@@ -3,6 +3,7 @@ import { craftComputed } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
 import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
+import { decisionColumn } from './review-card.style';
 import { RetirementReasonChoice } from './retirement-reason.service';
 
 /**
@@ -23,9 +24,12 @@ export const RetirementReasonPicker = craftComponent(
     return { retirementReason, chooseRetirementReason, t };
   },
   ({ retirementReason, chooseRetirementReason, t }) => [
-    label({ htmlFor: 'retirement-reason' }, function* () {
-      return (yield* t()).retirementReason;
-    }),
+    label(
+      { class: decisionColumn.retirementLabel, htmlFor: 'retirement-reason' },
+      function* () {
+        return (yield* t()).retirementReason;
+      },
+    ),
     select(
       'RetirementReason',
       {

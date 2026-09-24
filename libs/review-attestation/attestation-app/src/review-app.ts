@@ -30,6 +30,7 @@ import {
   textarea,
   ul,
   safeResourceUrl,
+  safeUrl,
 } from '@craft-ts/component';
 import {
   CraftHttpClient,
@@ -83,6 +84,7 @@ import {
 import { ViewTabs } from './view-tabs';
 import { AssetsInventoryList } from './assets-inventory-list';
 import { FolderLayoutView } from './folder-layout-view';
+import { BypassCardEvidence, BypassesView } from './bypasses-view';
 import {
   MENTION_ID,
   chipFor,
@@ -120,6 +122,22 @@ import {
   templateStatementOf,
   waitForReplayReady,
 } from './card-presentation';
+import {
+  decisionColumn,
+  dialog,
+  evidenceBox,
+  notice,
+  reviewBits,
+  reviewCard,
+  templateEvidence,
+  imageEvidence,
+} from './review-card.style';
+import { viewTabs } from './view-tabs.style';
+import { shell } from './review-shell.style';
+import { inventory } from './review-inventory.style';
+import { filters } from './review-controls.style';
+import { annotation } from './annotation.style';
+import { assign, unit } from '@craft-ts/style';
 
 /**
  * The id of the frame holding the card being reviewed.
@@ -286,7 +304,12 @@ export const ReviewApp = craftComponent(
 
     // Read from the environment before the first paint, so nothing renders in
     // the wrong language or the wrong theme and then corrects itself.
-    const { locale, ide } = yield* ReviewPreferences();
+    const { locale, ide, theme: themePreference } = yield* ReviewPreferences();
+    /** The explicit theme, or no attribute: `system` leaves the media query in charge. */
+    const themeAttribute = craftComputed('themeAttribute', function* () {
+      const choice = yield* themePreference();
+      return choice === 'system' ? null : choice;
+    });
     const devtoolView = craftComputed('devtoolView', function* () {
       const value = yield* navigationParams.view();
       return value || initialDevtoolView();
@@ -507,9 +530,9 @@ export const ReviewApp = craftComponent(
     const applyReplayScale = (): void => {
       const frame = reviewDocument.getElementById(FRAME_ID);
       if (!(frame instanceof HTMLIFrameElement)) return;
-      const box = frame.closest('.replay-scale');
-      const holder = frame.closest('.replay-holder');
-      const canvas = frame.closest('.evidence-canvas');
+      const box = frame.closest('[data-testid="replay-scale"]');
+      const holder = frame.closest('[data-testid="replay-holder"]');
+      const canvas = frame.closest('[data-testid="evidence-canvas"]');
       if (
         !(box instanceof HTMLElement) ||
         !(holder instanceof HTMLElement) ||
@@ -906,6 +929,12 @@ export const ReviewApp = craftComponent(
     const folderLayouts = craftComputed('folderLayouts', function* () {
       return (yield* review.value())?.folderLayouts ?? [];
     });
+    const bypasses = craftComputed('bypasses', function* () {
+      return (yield* review.value())?.bypasses ?? [];
+    });
+    const styleAdoption = craftComputed('styleAdoption', function* () {
+      return (yield* review.value())?.styleAdoption;
+    });
     const visualAssets = craftComputed('visualAssets', function* () {
       if ((yield* kindFilter()) !== 'all' && (yield* kindFilter()) !== 'visual')
         return [];
@@ -1036,6 +1065,10 @@ export const ReviewApp = craftComponent(
         return (yield* current())?.kind === 'folder-layout';
       },
     );
+    const bypassEvidence = craftComputed('bypassEvidence', function* () {
+      const kind = (yield* current())?.kind;
+      return kind === 'eslint-disable' || kind === 'architecture-waiver';
+    });
     /** Every sentence, in the language on screen. */
     const t = craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
@@ -1117,8 +1150,7 @@ export const ReviewApp = craftComponent(
         const value = (yield* review.value())?.folderLayoutApply?.command;
         if (!value) return;
         const clipboard = reviewClipboard();
-        if (clipboard)
-          void clipboard.writeText(value).catch(() => undefined);
+        if (clipboard) void clipboard.writeText(value).catch(() => undefined);
         yield* folderLayoutApplyCopied.markCopied();
       },
     );
@@ -1185,6 +1217,10 @@ export const ReviewApp = craftComponent(
       if (!card) return;
       yield* navigationParams.setViewForVisualReview('review');
       yield* navigationParams.setScenarioForVisualReview(card.shape);
+    });
+    /** Drives the field's placeholder: shown only while nothing is written. */
+    const noteState = craftComputed('noteState', function* () {
+      return (yield* note()).length === 0 ? 'empty' : null;
     });
     const hasNote = craftComputed('hasNote', function* () {
       // The prose, not the raw field: a reason made only of group references
@@ -1664,11 +1700,14 @@ export const ReviewApp = craftComponent(
       visualReviewCard,
       templateObligations,
       folderLayouts,
+      bypasses,
+      styleAdoption,
       activeIndex,
       current,
       sourceDetail,
       visualEvidence,
       folderLayoutEvidence,
+      bypassEvidence,
       sessionHistory,
       zoom,
       note,
@@ -1744,9 +1783,13 @@ export const ReviewApp = craftComponent(
       sourceUrl,
       t,
       fidelitySentence,
+      themeAttribute,
+      noteState,
     };
   }),
   ({
+    themeAttribute,
+    noteState,
     review,
     decision,
     reopen,
@@ -1763,6 +1806,8 @@ export const ReviewApp = craftComponent(
     visualReviewCard,
     templateObligations,
     folderLayouts,
+    bypasses,
+    styleAdoption,
     activeIndex,
     sessionHistory,
     zoom,
@@ -1814,6 +1859,7 @@ export const ReviewApp = craftComponent(
     sourceDetail,
     visualEvidence,
     folderLayoutEvidence,
+    bypassEvidence,
     evidenceView,
     rememberCaret,
     freezePick,
@@ -1840,45 +1886,41 @@ export const ReviewApp = craftComponent(
     inspectFrame,
     toggleChrome,
   }) =>
-    div({ class: ['app-shell', reviewTheme.root] }, [
+    div({ class: reviewTheme.root, 'data-reviewTheme': themeAttribute }, [
       ifNode(reviewFailed, () =>
-        section('ReviewQueueError', { class: 'notice error', role: 'alert' }, [
-          span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
-          div({ class: 'error-copy' }, [
-            strong(function* () {
+        section('ReviewQueueError', { class: notice.root, role: 'alert' }, [
+          span({ class: notice.icon, 'aria-hidden': 'true' }, '!'),
+          div({ class: notice.copy }, [
+            strong({ class: notice.title }, function* () {
               return (yield* t()).queueErrorTitle;
             }),
-            p(function* () {
+            p({ class: notice.body }, function* () {
               return (yield* t()).queueFailed;
             }),
           ]),
         ]),
       ),
       ifNode(decisionFailed, () =>
-        section(
-          'ReviewDecisionError',
-          { class: 'notice error', role: 'alert' },
-          [
-            span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
-            div({ class: 'error-copy' }, [
-              strong(function* () {
-                return (yield* t()).decisionErrorTitle;
-              }),
-              p(function* () {
-                return (yield* t()).decisionFailed;
-              }),
-            ]),
-          ],
-        ),
+        section('ReviewDecisionError', { class: notice.root, role: 'alert' }, [
+          span({ class: notice.icon, 'aria-hidden': 'true' }, '!'),
+          div({ class: notice.copy }, [
+            strong({ class: notice.title }, function* () {
+              return (yield* t()).decisionErrorTitle;
+            }),
+            p({ class: notice.body }, function* () {
+              return (yield* t()).decisionFailed;
+            }),
+          ]),
+        ]),
       ),
       ifNode(reopenFailed, () =>
-        section('ReviewReopenError', { class: 'notice error', role: 'alert' }, [
-          span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
-          div({ class: 'error-copy' }, [
-            strong(function* () {
+        section('ReviewReopenError', { class: notice.root, role: 'alert' }, [
+          span({ class: notice.icon, 'aria-hidden': 'true' }, '!'),
+          div({ class: notice.copy }, [
+            strong({ class: notice.title }, function* () {
               return (yield* t()).reopenErrorTitle;
             }),
-            p(function* () {
+            p({ class: notice.body }, function* () {
               return (yield* t()).reopenFailed;
             }),
           ]),
@@ -1887,14 +1929,14 @@ export const ReviewApp = craftComponent(
       ifNode(regenerationFailed, () =>
         section(
           'ReviewRegenerationError',
-          { class: 'notice error', role: 'alert' },
+          { class: notice.root, role: 'alert' },
           [
-            span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
-            div({ class: 'error-copy' }, [
-              strong(function* () {
+            span({ class: notice.icon, 'aria-hidden': 'true' }, '!'),
+            div({ class: notice.copy }, [
+              strong({ class: notice.title }, function* () {
                 return (yield* t()).regenerationErrorTitle;
               }),
-              p(function* () {
+              p({ class: notice.body }, function* () {
                 return (yield* t()).regenerationFailed;
               }),
             ]),
@@ -1904,14 +1946,14 @@ export const ReviewApp = craftComponent(
       ifNode(iterationHandoffFailed, () =>
         section(
           'ReviewIterationHandoffError',
-          { class: 'notice error', role: 'alert' },
+          { class: notice.root, role: 'alert' },
           [
-            span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
-            div({ class: 'error-copy' }, [
-              strong(function* () {
+            span({ class: notice.icon, 'aria-hidden': 'true' }, '!'),
+            div({ class: notice.copy }, [
+              strong({ class: notice.title }, function* () {
                 return (yield* t()).iterationHandoffErrorTitle;
               }),
-              p(function* () {
+              p({ class: notice.body }, function* () {
                 return (yield* t()).iterationHandoffFailed;
               }),
             ]),
@@ -1919,13 +1961,13 @@ export const ReviewApp = craftComponent(
         ),
       ),
       ifNode(closeReviewFailed, () =>
-        section('ReviewCloseError', { class: 'notice error', role: 'alert' }, [
-          span({ class: 'error-icon', 'aria-hidden': 'true' }, '!'),
-          div({ class: 'error-copy' }, [
-            strong(function* () {
+        section('ReviewCloseError', { class: notice.root, role: 'alert' }, [
+          span({ class: notice.icon, 'aria-hidden': 'true' }, '!'),
+          div({ class: notice.copy }, [
+            strong({ class: notice.title }, function* () {
               return (yield* t()).closeReviewErrorTitle;
             }),
-            p(function* () {
+            p({ class: notice.body }, function* () {
               return (yield* t()).closeReviewFailed;
             }),
           ]),
@@ -1933,7 +1975,7 @@ export const ReviewApp = craftComponent(
       ),
       div(
         {
-          class: 'workspace',
+          class: shell.workspace,
           inert: function* () {
             return (
               (yield* regenerationDialogOpen()) ||
@@ -1942,320 +1984,349 @@ export const ReviewApp = craftComponent(
           },
         },
         [
-          aside({ class: 'queue-panel', 'aria-label': 'Review queue' }, [
-            // In the sidebar rather than across the top. A full-width banner
-            // repeating the name of the tool cost a band of height on every
-            // card, and height is the thing a tall capture has none of.
-            header({ class: 'panel-heading brand' }, [
-              small({ class: 'eyebrow' }, function* () {
-                return (yield* t()).brand;
-              }),
-              heading(function* () {
-                const queue = yield* review.value();
-                const unified =
-                  (queue?.templateObligations.length ?? 0) > 0 ||
-                  queue?.cards.some((card) => card.kind !== 'visual');
-                const say = yield* t();
-                return unified ? say.attestationTitle : say.appTitle;
-              }),
-              div(
-                { class: 'queue-summary', 'aria-live': 'polite' },
-                function* () {
+          aside(
+            {
+              class: shell.queuePanel,
+              'data-testid': 'queue-panel',
+              'aria-label': 'Review queue',
+            },
+            [
+              // In the sidebar rather than across the top. A full-width banner
+              // repeating the name of the tool cost a band of height on every
+              // card, and height is the thing a tall capture has none of.
+              header({ class: shell.brand, 'data-testid': 'brand' }, [
+                small(
+                  { class: [reviewBits.eyebrow, shell.brandEyebrow] },
+                  function* () {
+                    return (yield* t()).brand;
+                  },
+                ),
+                heading({ class: shell.brandTitle }, function* () {
                   const queue = yield* review.value();
-                  return (yield* t()).queueSummary(
-                    queue?.items ?? 0,
-                    queue?.decisions ?? 0,
-                  );
-                },
-              ),
-              ifNode(regenerationAvailable, () =>
-                button(
-                  'OpenRegenerationDialog',
-                  {
-                    type: 'button',
-                    class: 'regeneration-trigger',
-                    disabled: regenerate.isLoading,
-                    click: openRegenerationDialog,
-                  },
-                  [
-                    span({ 'aria-hidden': 'true' }, '↻'),
-                    function* () {
-                      return (yield* regenerate.isLoading())
-                        ? (yield* t()).regeneratingEvidence
-                        : (yield* t()).regenerateEvidence;
-                    },
-                  ],
-                ),
-              ),
-              ifNode(iterationHandoffAvailable, () =>
-                button(
-                  'GenerateIterationHandoff',
-                  {
-                    type: 'button',
-                    class: 'iteration-trigger',
-                    disabled: iterationHandoff.isLoading,
-                    click: openIterationDialog,
-                  },
-                  [
-                    span({ 'aria-hidden': 'true' }, '↗'),
-                    function* () {
-                      return (yield* t()).iterationHandoff;
-                    },
-                  ],
-                ),
-              ),
-              // The two choices about the tool rather than about a render. In
-              // the sidebar with the name, because neither belongs beside the
-              // evidence: a reviewer sets them once and then judges renders.
-              ThemeLocalePicker({}),
-            ]),
-            div(
-              {
-                class: 'view-tabs',
-                role: 'navigation',
-                'aria-label': function* () {
-                  return (yield* t()).viewNavigation;
-                },
-              },
-              [
-                div({ class: 'view-tabs-heading' }, [
-                  heading(function* () {
-                    return (yield* t()).viewNavigation;
-                  }),
-                  small(function* () {
-                    return (yield* t()).viewNavigationDescription;
-                  }),
-                ]),
-                ViewTabs({
-                  devtoolView,
-                  chooseDevtoolView,
-                  visualTestsCount: function* () {
-                    return (yield* visualTests()).length;
-                  },
-                  templateObligationsCount: function* () {
-                    return (yield* templateObligations()).length;
-                  },
-                  folderLayoutCount: function* () {
-                    return (yield* folderLayouts()).length;
-                  },
-                  cardsCount: function* () {
-                    return (yield* reviewCards()).length;
-                  },
-                  t,
+                  const unified =
+                    (queue?.templateObligations.length ?? 0) > 0 ||
+                    queue?.cards.some((card) => card.kind !== 'visual');
+                  const say = yield* t();
+                  return unified ? say.attestationTitle : say.appTitle;
                 }),
-              ],
-            ),
-            section(
-              {
-                class: 'shared-filters',
-                hidden: function* () {
-                  return (yield* devtoolView()) === 'review';
+                div(
+                  { class: shell.queueSummary, 'aria-live': 'polite' },
+                  function* () {
+                    const queue = yield* review.value();
+                    return (yield* t()).queueSummary(
+                      queue?.items ?? 0,
+                      queue?.decisions ?? 0,
+                    );
+                  },
+                ),
+                ifNode(regenerationAvailable, () =>
+                  button(
+                    'OpenRegenerationDialog',
+                    {
+                      type: 'button',
+                      class: shell.regenerate,
+                      disabled: regenerate.isLoading,
+                      click: openRegenerationDialog,
+                    },
+                    [
+                      span({ 'aria-hidden': 'true' }, '↻'),
+                      function* () {
+                        return (yield* regenerate.isLoading())
+                          ? (yield* t()).regeneratingEvidence
+                          : (yield* t()).regenerateEvidence;
+                      },
+                    ],
+                  ),
+                ),
+                ifNode(iterationHandoffAvailable, () =>
+                  button(
+                    'GenerateIterationHandoff',
+                    {
+                      type: 'button',
+                      class: shell.iterate,
+                      disabled: iterationHandoff.isLoading,
+                      click: openIterationDialog,
+                    },
+                    [
+                      span({ 'aria-hidden': 'true' }, '↗'),
+                      function* () {
+                        return (yield* t()).iterationHandoff;
+                      },
+                    ],
+                  ),
+                ),
+                // The two choices about the tool rather than about a render. In
+                // the sidebar with the name, because neither belongs beside the
+                // evidence: a reviewer sets them once and then judges renders.
+                ThemeLocalePicker({}),
+              ]),
+              div(
+                {
+                  class: viewTabs.root,
+                  role: 'navigation',
+                  'aria-label': function* () {
+                    return (yield* t()).viewNavigation;
+                  },
                 },
-                'aria-label': function* () {
-                  return (yield* t()).filters;
-                },
-              },
-              [
-                div({ class: 'filters-heading' }, [
-                  div([
-                    heading(function* () {
-                      return (yield* t()).filters;
+                [
+                  div({ class: viewTabs.heading }, [
+                    heading({ class: viewTabs.headingTitle }, function* () {
+                      return (yield* t()).viewNavigation;
                     }),
-                    small(function* () {
-                      return (yield* t()).filtersDescription;
+                    small({ class: viewTabs.headingHint }, function* () {
+                      return (yield* t()).viewNavigationDescription;
                     }),
                   ]),
-                  FilterBarActions({}),
-                ]),
-                FilterBarFields({}),
-              ],
-            ),
-            div(
-              {
-                class: 'panel-heading review-navigation',
-                hidden: function* () {
-                  return (yield* devtoolView()) !== 'review';
-                },
-              },
-              [
-                heading(function* () {
-                  return (yield* t()).queue;
-                }),
-                small(function* () {
-                  return (yield* t()).queueSubtitle;
-                }),
-              ],
-            ),
-            div(
-              {
-                class: 'queue-list',
-                hidden: function* () {
-                  return (yield* devtoolView()) !== 'review';
-                },
-              },
-              forNode(
-                cards,
+                  ViewTabs({
+                    devtoolView,
+                    chooseDevtoolView,
+                    visualTestsCount: function* () {
+                      return (yield* visualTests()).length;
+                    },
+                    templateObligationsCount: function* () {
+                      return (yield* templateObligations()).length;
+                    },
+                    folderLayoutCount: function* () {
+                      return (yield* folderLayouts()).length;
+                    },
+                    bypassesCount: function* () {
+                      return (yield* bypasses()).length;
+                    },
+                    cardsCount: function* () {
+                      return (yield* reviewCards()).length;
+                    },
+                    t,
+                  }),
+                ],
+              ),
+              section(
                 {
-                  track: (card) => card.shape,
-                  empty: () =>
-                    div(
+                  class: filters.panel,
+                  'data-testid': 'shared-filters',
+                  hidden: function* () {
+                    return (yield* devtoolView()) === 'review';
+                  },
+                  'aria-label': function* () {
+                    return (yield* t()).filters;
+                  },
+                },
+                [
+                  div({ class: filters.heading }, [
+                    div([
+                      heading({ class: filters.title }, function* () {
+                        return (yield* t()).filters;
+                      }),
+                      small({ class: filters.hint }, function* () {
+                        return (yield* t()).filtersDescription;
+                      }),
+                    ]),
+                    FilterBarActions({}),
+                  ]),
+                  FilterBarFields({}),
+                ],
+              ),
+              div(
+                {
+                  class: shell.panelHeading,
+                  hidden: function* () {
+                    return (yield* devtoolView()) !== 'review';
+                  },
+                },
+                [
+                  heading(function* () {
+                    return (yield* t()).queue;
+                  }),
+                  small({ class: shell.panelHint }, function* () {
+                    return (yield* t()).queueSubtitle;
+                  }),
+                ],
+              ),
+              div(
+                {
+                  class: shell.queueList,
+                  hidden: function* () {
+                    return (yield* devtoolView()) !== 'review';
+                  },
+                },
+                forNode(
+                  cards,
+                  {
+                    track: (card) => card.shape,
+                    empty: () =>
+                      div(
+                        {
+                          class: shell.emptyQueue,
+                          // A failed request is not an empty review. Keep the
+                          // completion message from masking the error banner.
+                          hidden: reviewFailed,
+                        },
+                        [
+                          strong(function* () {
+                            return (yield* t()).reviewComplete;
+                          }),
+                          p({ class: shell.emptyQueueBody }, function* () {
+                            return (yield* t()).reviewCompleteBody;
+                          }),
+                        ],
+                      ),
+                  },
+                  (card, index) =>
+                    button(
+                      'SelectReviewCard',
                       {
-                        class: 'empty-queue',
-                        // A failed request is not an empty review. Keep the
-                        // completion message from masking the error banner.
-                        hidden: reviewFailed,
+                        type: 'button',
+                        class: shell.queueItem,
+                        'aria-current': function* () {
+                          return index === (yield* activeIndex())
+                            ? 'true'
+                            : 'false';
+                        },
+                        *click() {
+                          yield* selectCard(index);
+                        },
                       },
                       [
-                        strong(function* () {
-                          return (yield* t()).reviewComplete;
+                        span({ class: shell.scenarioName }, function* () {
+                          return scenarioOf((yield* card()).subject);
                         }),
-                        p(function* () {
-                          return (yield* t()).reviewCompleteBody;
+                        small({ class: shell.queueItemHint }, function* () {
+                          const value = yield* card();
+                          return value.cluster.length > 1
+                            ? (yield* t()).identicalChanges(
+                                value.cluster.length,
+                              )
+                            : reasonText(value.reason, yield* t());
                         }),
                       ],
                     ),
+                ),
+              ),
+              section(
+                {
+                  class: shell.history,
+                  hidden: function* () {
+                    return (yield* sessionHistory()).length === 0;
+                  },
+                  'aria-label': function* () {
+                    return (yield* t()).sessionHistoryTitle;
+                  },
                 },
-                (card, index) =>
+                [
+                  heading(function* () {
+                    return (yield* t()).sessionHistoryTitle;
+                  }),
+                  small({ class: shell.historyHint }, function* () {
+                    return (yield* t()).sessionHistoryDescription;
+                  }),
+                  ul(
+                    { class: shell.historyList },
+                    forNode(
+                      sessionHistory,
+                      {
+                        track: (entry) =>
+                          `${entry.decision.shape}:${entry.decision.id ?? ''}`,
+                      },
+                      (entry, index) =>
+                        li([
+                          button(
+                            'ReopenReviewDecision',
+                            {
+                              type: 'button',
+                              disabled: reopen.isLoading,
+                              class: shell.historyItem,
+                              *click() {
+                                yield* reopenDecision(yield* entry());
+                              },
+                            },
+                            [
+                              strong(
+                                { class: shell.historyTitle },
+                                function* () {
+                                  return `${index + 1}. ${scenarioOf((yield* entry()).card.subject)}`;
+                                },
+                              ),
+                              small(
+                                { class: shell.historyVerdict },
+                                function* () {
+                                  return (yield* t()).previousVerdict(
+                                    (yield* entry()).decision.verdict,
+                                  );
+                                },
+                              ),
+                              span(
+                                { class: shell.historyAction },
+                                function* () {
+                                  return (yield* reopen.isLoading())
+                                    ? (yield* t()).reopeningDecision
+                                    : (yield* t()).reopenDecision;
+                                },
+                              ),
+                            ],
+                          ),
+                        ]),
+                    ),
+                  ),
+                ],
+              ),
+              div(
+                {
+                  class: shell.navigation,
+                  hidden: function* () {
+                    return (yield* devtoolView()) !== 'review';
+                  },
+                },
+                [
                   button(
-                    'SelectReviewCard',
+                    'PreviousReviewCard',
                     {
                       type: 'button',
-                      class: function* () {
-                        return {
-                          'queue-item': true,
-                          active: index === (yield* activeIndex()),
-                        };
+                      class: reviewBits.button,
+                      'data-hotkey': 'k',
+                      disabled: function* () {
+                        return (yield* activeIndex()) === 0;
                       },
-                      'aria-current': function* () {
-                        return index === (yield* activeIndex())
-                          ? 'true'
-                          : 'false';
-                      },
-                      *click() {
-                        yield* selectCard(index);
-                      },
+                      click: movePrevious,
                     },
                     [
-                      span({ class: 'scenario-name' }, function* () {
-                        return scenarioOf((yield* card()).subject);
-                      }),
-                      small(function* () {
-                        const value = yield* card();
-                        return value.cluster.length > 1
-                          ? (yield* t()).identicalChanges(value.cluster.length)
-                          : reasonText(value.reason, yield* t());
-                      }),
+                      function* () {
+                        return (yield* t()).previous;
+                      },
+                      span(
+                        { class: reviewBits.key, 'data-testid': 'key' },
+                        'K',
+                      ),
                     ],
                   ),
-              ),
-            ),
-            section(
-              {
-                class: 'review-history',
-                hidden: function* () {
-                  return (yield* sessionHistory()).length === 0;
-                },
-                'aria-label': function* () {
-                  return (yield* t()).sessionHistoryTitle;
-                },
-              },
-              [
-                heading(function* () {
-                  return (yield* t()).sessionHistoryTitle;
-                }),
-                small(function* () {
-                  return (yield* t()).sessionHistoryDescription;
-                }),
-                ul(
-                  forNode(
-                    sessionHistory,
+                  button(
+                    'NextReviewCard',
                     {
-                      track: (entry) =>
-                        `${entry.decision.shape}:${entry.decision.id ?? ''}`,
+                      type: 'button',
+                      class: reviewBits.button,
+                      'data-hotkey': 'j',
+                      disabled: function* () {
+                        return (
+                          (yield* activeIndex()) >= (yield* cards()).length - 1
+                        );
+                      },
+                      click: moveNext,
                     },
-                    (entry, index) =>
-                      li([
-                        button(
-                          'ReopenReviewDecision',
-                          {
-                            type: 'button',
-                            disabled: reopen.isLoading,
-                            class: 'history-item',
-                            *click() {
-                              yield* reopenDecision(yield* entry());
-                            },
-                          },
-                          [
-                            strong(function* () {
-                              return `${index + 1}. ${scenarioOf((yield* entry()).card.subject)}`;
-                            }),
-                            small(function* () {
-                              return (yield* t()).previousVerdict(
-                                (yield* entry()).decision.verdict,
-                              );
-                            }),
-                            span({ class: 'history-action' }, function* () {
-                              return (yield* reopen.isLoading())
-                                ? (yield* t()).reopeningDecision
-                                : (yield* t()).reopenDecision;
-                            }),
-                          ],
-                        ),
-                      ]),
+                    [
+                      function* () {
+                        return (yield* t()).next;
+                      },
+                      span(
+                        { class: reviewBits.key, 'data-testid': 'key' },
+                        'J',
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-            div(
-              {
-                class: 'queue-navigation',
-                hidden: function* () {
-                  return (yield* devtoolView()) !== 'review';
-                },
-              },
-              [
-                button(
-                  'PreviousReviewCard',
-                  {
-                    type: 'button',
-                    'data-hotkey': 'k',
-                    disabled: function* () {
-                      return (yield* activeIndex()) === 0;
-                    },
-                    click: movePrevious,
-                  },
-                  [
-                    function* () {
-                      return (yield* t()).previous;
-                    },
-                    span({ class: 'key' }, 'K'),
-                  ],
-                ),
-                button(
-                  'NextReviewCard',
-                  {
-                    type: 'button',
-                    'data-hotkey': 'j',
-                    disabled: function* () {
-                      return (
-                        (yield* activeIndex()) >= (yield* cards()).length - 1
-                      );
-                    },
-                    click: moveNext,
-                  },
-                  [
-                    function* () {
-                      return (yield* t()).next;
-                    },
-                    span({ class: 'key' }, 'J'),
-                  ],
-                ),
-              ],
-            ),
-          ]),
+                ],
+              ),
+            ],
+          ),
           main(
             {
-              class: 'review-panel',
+              class: reviewCard.panel,
               hidden: function* () {
                 const view = yield* devtoolView();
                 return view !== 'review' && view !== 'folder-layout';
@@ -2273,35 +2344,32 @@ export const ReviewApp = craftComponent(
               (card) =>
                 article(
                   {
-                    class: 'review-card',
+                    class: reviewCard.card,
+                    'data-testid': 'review-card',
                     'data-kind': function* () {
                       return (yield* card()).kind;
                     },
                   },
                   [
-                    header({ class: 'review-heading' }, [
-                      div([
-                        small({ class: 'eyebrow' }, function* () {
-                          return (yield* t()).scenario;
-                        }),
-                        heading(function* () {
-                          return scenarioOf((yield* card()).subject);
-                        }),
-                        span({ class: 'subject code' }, function* () {
-                          const value = yield* card();
-                          const detail = yield* sourceDetail.value();
-                          const line =
-                            value.kind === 'template' &&
-                            detail?.subject === value.subject
-                              ? (detail.renderSites?.[0]?.line ??
-                                detail.element?.line)
-                              : undefined;
-                          return `${componentOf(value.subject)}${line ? `:${line}` : ''}`;
-                        }),
-                        a(
-                          {
-                            class: 'source-link',
-                            href: function* () {
+                    header(
+                      {
+                        class: [reviewCard.heading, reviewCard.fullRow],
+                        'data-testid': 'review-heading',
+                      },
+                      [
+                        div([
+                          small({ class: reviewBits.eyebrow }, function* () {
+                            return (yield* t()).scenario;
+                          }),
+                          heading(function* () {
+                            return scenarioOf((yield* card()).subject);
+                          }),
+                          span(
+                            {
+                              class: reviewBits.subject,
+                              'data-testid': 'subject',
+                            },
+                            function* () {
                               const value = yield* card();
                               const detail = yield* sourceDetail.value();
                               const line =
@@ -2310,28 +2378,48 @@ export const ReviewApp = craftComponent(
                                   ? (detail.renderSites?.[0]?.line ??
                                     detail.element?.line)
                                   : undefined;
-                              return (
-                                (yield* sourceUrl(value.subject, line)) ?? ''
-                              );
+                              return `${componentOf(value.subject)}${line ? `:${line}` : ''}`;
                             },
-                            hidden: function* () {
-                              return !(yield* sourceUrl(
-                                (yield* card()).subject,
-                              ));
+                          ),
+                          a(
+                            'cardSource',
+                            {
+                              class: reviewBits.sourceLink,
+                              'data-navigation': 'external',
+                              'data-testid': 'source-link',
+                              href: function* () {
+                                const value = yield* card();
+                                const detail = yield* sourceDetail.value();
+                                const line =
+                                  value.kind === 'template' &&
+                                  detail?.subject === value.subject
+                                    ? (detail.renderSites?.[0]?.line ??
+                                      detail.element?.line)
+                                    : undefined;
+                                return safeUrl(
+                                  (yield* sourceUrl(value.subject, line)) ?? '',
+                                );
+                              },
+                              hidden: function* () {
+                                return !(yield* sourceUrl(
+                                  (yield* card()).subject,
+                                ));
+                              },
                             },
-                          },
-                          function* () {
-                            return (yield* t()).openInIde;
-                          },
-                        ),
-                      ]),
-                      span({ class: 'reason' }, function* () {
-                        return reasonText((yield* card()).reason, yield* t());
-                      }),
-                    ]),
+                            function* () {
+                              return (yield* t()).openInIde;
+                            },
+                          ),
+                        ]),
+                        span({ class: reviewCard.reason }, function* () {
+                          return reasonText((yield* card()).reason, yield* t());
+                        }),
+                      ],
+                    ),
                     p(
                       {
-                        class: 'notice cluster',
+                        class: [notice.root, reviewCard.fullRow],
+                        'data-reviewNotice': 'cluster',
                         hidden: function* () {
                           return (yield* card()).cluster.length <= 1;
                         },
@@ -2344,7 +2432,7 @@ export const ReviewApp = craftComponent(
                     ),
                     section(
                       {
-                        class: 'cluster-members',
+                        class: [reviewCard.members, reviewCard.fullRow],
                         hidden: function* () {
                           return (yield* card()).members.length <= 1;
                         },
@@ -2354,6 +2442,7 @@ export const ReviewApp = craftComponent(
                           return (yield* t()).clusterMembers;
                         }),
                         ul(
+                          { class: reviewBits.list },
                           forNode(
                             function* () {
                               return (yield* card()).members;
@@ -2367,14 +2456,22 @@ export const ReviewApp = craftComponent(
                         ),
                       ],
                     ),
-                    div({ class: 'evidence-column' }, [
+                    div({ class: reviewCard.evidence }, [
                       section(
                         {
-                          class: 'nonvisual-evidence',
+                          class: templateEvidence.root,
+                          'data-reviewKind': function* () {
+                            return (yield* card()).kind;
+                          },
                           hidden: function* () {
                             const kind = (yield* card()).kind;
+                            // Template and removal evidence only: a bypass
+                            // has its own presenter below.
                             return (
-                              kind === 'visual' || kind === 'folder-layout'
+                              kind === 'visual' ||
+                              kind === 'folder-layout' ||
+                              kind === 'eslint-disable' ||
+                              kind === 'architecture-waiver'
                             );
                           },
                         },
@@ -2385,51 +2482,59 @@ export const ReviewApp = craftComponent(
                               ? (yield* t()).removedPromise
                               : (yield* t()).currentPromise;
                           }),
-                          p({ class: 'template-statement' }, [
-                            span(
-                              {
-                                class: 'template-when',
-                                hidden: function* () {
+                          p(
+                            {
+                              class: templateEvidence.statement,
+                              'data-testid': 'template-statement',
+                            },
+                            [
+                              span(
+                                {
+                                  class: reviewBits.dim,
+                                  'data-testid': 'template-when',
+                                  hidden: function* () {
+                                    const value = yield* card();
+                                    return (
+                                      value.kind !== 'template' ||
+                                      !value.conditions ||
+                                      value.conditions.length === 0
+                                    );
+                                  },
+                                },
+                                function* () {
                                   const value = yield* card();
-                                  return (
-                                    value.kind !== 'template' ||
-                                    !value.conditions ||
-                                    value.conditions.length === 0
+                                  if (value.kind !== 'template') return '';
+                                  const say = yield* t();
+                                  return say.templateWhen(
+                                    conditionText(value.conditions ?? [], say),
                                   );
                                 },
-                              },
-                              function* () {
+                              ),
+                              strong(function* () {
                                 const value = yield* card();
-                                if (value.kind !== 'template') return '';
-                                const say = yield* t();
-                                return say.templateWhen(
-                                  conditionText(value.conditions ?? [], say),
-                                );
-                              },
-                            ),
-                            strong(function* () {
-                              const value = yield* card();
-                              if (value.kind === 'template') {
-                                const say = yield* t();
-                                return templateStatementOf(
-                                  value.statementParts,
-                                  value.statement,
-                                  say,
-                                  yield* locale(),
-                                );
-                              }
-                              if (value.kind === 'removal') {
-                                const proof = value.previousEvidence;
-                                return proof
-                                  ? `${proof.element ?? 'template'}${proof.elementName ? ` "${proof.elementName}"` : ''} → ${proof.target}`
-                                  : (yield* t()).previousUnavailable;
-                              }
-                              return '';
-                            }),
-                          ]),
+                                if (value.kind === 'template') {
+                                  const say = yield* t();
+                                  return templateStatementOf(
+                                    value.statementParts,
+                                    value.statement,
+                                    say,
+                                    yield* locale(),
+                                  );
+                                }
+                                if (value.kind === 'removal') {
+                                  const proof = value.previousEvidence;
+                                  return proof
+                                    ? `${proof.element ?? 'template'}${proof.elementName ? ` "${proof.elementName}"` : ''} → ${proof.target}`
+                                    : (yield* t()).previousUnavailable;
+                                }
+                                return '';
+                              }),
+                            ],
+                          ),
                           section(
                             {
-                              class: 'template-effects',
+                              class: reviewBits.dim,
+                              'data-testid': 'template-effects',
                               hidden: function* () {
                                 const value = yield* card();
                                 return (
@@ -2443,6 +2548,7 @@ export const ReviewApp = craftComponent(
                                 return (yield* t()).templateEffects;
                               }),
                               ol(
+                                { class: templateEvidence.effects },
                                 forNode(
                                   function* () {
                                     const value = yield* card();
@@ -2455,16 +2561,20 @@ export const ReviewApp = craftComponent(
                                       `${index}:${effect}`,
                                   },
                                   (effect) =>
-                                    li({ class: 'code' }, function* () {
-                                      return yield* effect();
-                                    }),
+                                    li(
+                                      { class: reviewBits.code },
+                                      function* () {
+                                        return yield* effect();
+                                      },
+                                    ),
                                 ),
                               ),
                             ],
                           ),
                           section(
                             {
-                              class: 'template-source',
+                              class: templateEvidence.source,
+                              'data-testid': 'template-source',
                               hidden: function* () {
                                 const value = yield* card();
                                 const detail = yield* sourceDetail.value();
@@ -2482,6 +2592,7 @@ export const ReviewApp = craftComponent(
                             [
                               section(
                                 {
+                                  class: templateEvidence.sourceSection,
                                   hidden: function* () {
                                     return !(yield* sourceDetail.value())
                                       ?.renderSites?.length;
@@ -2503,44 +2614,66 @@ export const ReviewApp = craftComponent(
                                         `${site.file}:${site.line}`,
                                     },
                                     (site) =>
-                                      div({ class: 'template-source-site' }, [
-                                        small({ class: 'code' }, function* () {
-                                          const value = yield* site();
-                                          return `${value.file}:${value.line}`;
-                                        }),
-                                        a(
-                                          {
-                                            class: 'source-link',
-                                            href: function* () {
+                                      div(
+                                        {
+                                          class: templateEvidence.sourceSection,
+                                          'data-testid': 'template-source-site',
+                                        },
+                                        [
+                                          small(
+                                            {
+                                              class:
+                                                templateEvidence.sourceLocation,
+                                            },
+                                            function* () {
                                               const value = yield* site();
-                                              return (
-                                                (yield* fileUrl(
+                                              return `${value.file}:${value.line}`;
+                                            },
+                                          ),
+                                          a(
+                                            'renderSite',
+                                            {
+                                              class: reviewBits.sourceLink,
+                                              'data-navigation': 'external',
+                                              'data-testid': 'source-link',
+                                              href: function* () {
+                                                const value = yield* site();
+                                                return safeUrl(
+                                                  (yield* fileUrl(
+                                                    value.file,
+                                                    value.line,
+                                                  )) ?? '',
+                                                );
+                                              },
+                                              hidden: function* () {
+                                                const value = yield* site();
+                                                return !(yield* fileUrl(
                                                   value.file,
                                                   value.line,
-                                                )) ?? ''
-                                              );
+                                                ));
+                                              },
                                             },
-                                            hidden: function* () {
-                                              const value = yield* site();
-                                              return !(yield* fileUrl(
-                                                value.file,
-                                                value.line,
-                                              ));
+                                            function* () {
+                                              return (yield* t()).openInIde;
                                             },
-                                          },
-                                          function* () {
-                                            return (yield* t()).openInIde;
-                                          },
-                                        ),
-                                        pre({ class: 'code' }, function* () {
-                                          return (yield* site()).code;
-                                        }),
-                                      ]),
+                                          ),
+                                          pre(
+                                            {
+                                              class:
+                                                templateEvidence.sourceCode,
+                                            },
+                                            function* () {
+                                              return (yield* site()).code;
+                                            },
+                                          ),
+                                        ],
+                                      ),
                                   ),
                                 ],
                               ),
                               section(
                                 {
+                                  class: templateEvidence.sourceSection,
                                   hidden: function* () {
                                     return !(yield* sourceDetail.value())
                                       ?.element;
@@ -2550,25 +2683,31 @@ export const ReviewApp = craftComponent(
                                   strong(function* () {
                                     return (yield* t()).templateElementSource;
                                   }),
-                                  small({ class: 'code' }, function* () {
-                                    const value = (yield* sourceDetail.value())
-                                      ?.element;
-                                    return value
-                                      ? `${value.file}:${value.line}`
-                                      : '';
-                                  }),
+                                  small(
+                                    { class: templateEvidence.sourceLocation },
+                                    function* () {
+                                      const value =
+                                        (yield* sourceDetail.value())?.element;
+                                      return value
+                                        ? `${value.file}:${value.line}`
+                                        : '';
+                                    },
+                                  ),
                                   a(
+                                    'elementSource',
                                     {
-                                      class: 'source-link',
+                                      class: reviewBits.sourceLink,
+                                      'data-navigation': 'external',
+                                      'data-testid': 'source-link',
                                       href: function* () {
                                         const value =
                                           (yield* sourceDetail.value())
                                             ?.element;
-                                        return (
+                                        return safeUrl(
                                           (yield* fileUrl(
                                             value?.file,
                                             value?.line,
-                                          )) ?? ''
+                                          )) ?? '',
                                         );
                                       },
                                       hidden: function* () {
@@ -2585,16 +2724,20 @@ export const ReviewApp = craftComponent(
                                       return (yield* t()).openInIde;
                                     },
                                   ),
-                                  pre({ class: 'code' }, function* () {
-                                    return (
-                                      (yield* sourceDetail.value())?.element
-                                        ?.code ?? ''
-                                    );
-                                  }),
+                                  pre(
+                                    { class: templateEvidence.sourceCode },
+                                    function* () {
+                                      return (
+                                        (yield* sourceDetail.value())?.element
+                                          ?.code ?? ''
+                                      );
+                                    },
+                                  ),
                                 ],
                               ),
                               section(
                                 {
+                                  class: templateEvidence.sourceSection,
                                   hidden: function* () {
                                     return !(yield* sourceDetail.value())
                                       ?.method;
@@ -2604,24 +2747,30 @@ export const ReviewApp = craftComponent(
                                   strong(function* () {
                                     return (yield* t()).templateMethodSource;
                                   }),
-                                  small({ class: 'code' }, function* () {
-                                    const value = (yield* sourceDetail.value())
-                                      ?.method;
-                                    return value
-                                      ? `${value.file}:${value.line}`
-                                      : '';
-                                  }),
+                                  small(
+                                    { class: templateEvidence.sourceLocation },
+                                    function* () {
+                                      const value =
+                                        (yield* sourceDetail.value())?.method;
+                                      return value
+                                        ? `${value.file}:${value.line}`
+                                        : '';
+                                    },
+                                  ),
                                   a(
+                                    'methodSource',
                                     {
-                                      class: 'source-link',
+                                      class: reviewBits.sourceLink,
+                                      'data-navigation': 'external',
+                                      'data-testid': 'source-link',
                                       href: function* () {
                                         const value =
                                           (yield* sourceDetail.value())?.method;
-                                        return (
+                                        return safeUrl(
                                           (yield* fileUrl(
                                             value?.file,
                                             value?.line,
-                                          )) ?? ''
+                                          )) ?? '',
                                         );
                                       },
                                       hidden: function* () {
@@ -2637,18 +2786,24 @@ export const ReviewApp = craftComponent(
                                       return (yield* t()).openInIde;
                                     },
                                   ),
-                                  pre({ class: 'code' }, function* () {
-                                    return (
-                                      (yield* sourceDetail.value())?.method
-                                        ?.code ?? ''
-                                    );
-                                  }),
+                                  pre(
+                                    { class: templateEvidence.sourceCode },
+                                    function* () {
+                                      return (
+                                        (yield* sourceDetail.value())?.method
+                                          ?.code ?? ''
+                                      );
+                                    },
+                                  ),
                                 ],
                               ),
                             ],
                           ),
                           ul(
-                            { class: 'template-diff' },
+                            {
+                              class: reviewBits.list,
+                              'data-testid': 'template-diff',
+                            },
                             forNode(
                               function* () {
                                 const value = yield* card();
@@ -2658,14 +2813,14 @@ export const ReviewApp = craftComponent(
                               },
                               { track: (change) => change.field },
                               (change) =>
-                                li({ class: 'code' }, function* () {
+                                li({ class: reviewBits.code }, function* () {
                                   const value = yield* change();
                                   const say = yield* t();
                                   return `${say.templateDiffField(value.field)}: ${value.before ?? say.templateValueMissing} → ${value.after ?? say.templateValueMissing}`;
                                 }),
                             ),
                           ),
-                          p({ class: 'template-warning' }, function* () {
+                          p({ class: reviewBits.dim }, function* () {
                             const value = yield* card();
                             return (value.kind === 'template' ||
                               value.kind === 'removal') &&
@@ -2686,7 +2841,7 @@ export const ReviewApp = craftComponent(
                             return (yield* t()).codeChange;
                           }),
                           ul(
-                            { class: 'code-leaves' },
+                            { class: reviewBits.list },
                             forNode(
                               function* () {
                                 const value = yield* card();
@@ -2705,12 +2860,62 @@ export const ReviewApp = craftComponent(
                               },
                               { track: (change) => change.line },
                               (change) =>
-                                li({ class: 'code' }, function* () {
+                                li({ class: reviewBits.code }, function* () {
                                   return (yield* change()).line;
                                 }),
                             ),
                           ),
                         ],
+                      ),
+                      ifNode(bypassEvidence, () =>
+                        BypassCardEvidence({
+                          label: function* () {
+                            const value = yield* card();
+                            return value.kind === 'eslint-disable'
+                              ? `eslint-disable · ${value.rule}`
+                              : value.kind === 'architecture-waiver'
+                                ? `${value.rule} → ${value.target}`
+                                : '';
+                          },
+                          location: function* () {
+                            const value = yield* card();
+                            return value.kind === 'eslint-disable'
+                              ? `${value.filePath}:${value.excerpt.highlightLine}`
+                              : value.kind === 'architecture-waiver'
+                                ? `${value.filePath}:${value.line}`
+                                : '';
+                          },
+                          reason: function* () {
+                            const value = yield* card();
+                            return value.kind === 'eslint-disable' ||
+                              value.kind === 'architecture-waiver'
+                              ? value.bypassReason
+                              : null;
+                          },
+                          code: function* () {
+                            const value = yield* card();
+                            if (value.kind === 'eslint-disable') {
+                              return value.excerpt.lines
+                                .map(
+                                  (line, index) =>
+                                    `${String(value.excerpt.startLine + index).padStart(4)}  ${line}`,
+                                )
+                                .join('\n');
+                            }
+                            return value.kind === 'architecture-waiver'
+                              ? `${value.project}: ${value.rule} → ${value.target}`
+                              : '';
+                          },
+                          previousReason: function* () {
+                            const value = yield* card();
+                            return (value.kind === 'eslint-disable' ||
+                              value.kind === 'architecture-waiver') &&
+                              value.previousReason !== undefined
+                              ? value.previousReason
+                              : null;
+                          },
+                          t,
+                        }),
                       ),
                       ifNode(folderLayoutEvidence, () =>
                         FolderLayoutView({
@@ -2748,14 +2953,17 @@ export const ReviewApp = craftComponent(
                       ),
                       section(
                         {
-                          class: 'evidence-toolbar',
+                          class: imageEvidence.toolbar,
+                          'data-reviewKind': function* () {
+                            return (yield* card()).kind;
+                          },
                           hidden: function* () {
                             return !(yield* visualEvidence());
                           },
                         },
                         [
-                          div({ class: 'metadata' }, [
-                            span({ class: 'chip' }, function* () {
+                          div({ class: imageEvidence.metadata }, [
+                            span({ class: reviewBits.chip }, function* () {
                               const viewport = (yield* card()).members[0]
                                 ?.metadata?.viewport;
                               const say = yield* t();
@@ -2763,7 +2971,7 @@ export const ReviewApp = craftComponent(
                                 ? say.viewport(viewport.width, viewport.height)
                                 : say.viewportUnknown;
                             }),
-                            span({ class: 'chip' }, function* () {
+                            span({ class: reviewBits.chip }, function* () {
                               const screenshot = (yield* card()).members[0]
                                 ?.metadata?.screenshot;
                               const say = yield* t();
@@ -2774,13 +2982,13 @@ export const ReviewApp = craftComponent(
                                   )
                                 : say.captureUnknown;
                             }),
-                            span({ class: 'chip' }, function* () {
+                            span({ class: reviewBits.chip }, function* () {
                               return (
                                 (yield* card()).members[0]?.metadata
                                   ?.colorScheme ?? (yield* t()).schemeUnknown
                               );
                             }),
-                            span({ class: 'chip' }, function* () {
+                            span({ class: reviewBits.chip }, function* () {
                               const browser = (yield* card()).members[0]
                                 ?.metadata?.browser;
                               return browser
@@ -2793,7 +3001,7 @@ export const ReviewApp = craftComponent(
                             // A subject nobody has attested, said once and small.
                             span(
                               {
-                                class: 'chip',
+                                class: reviewBits.chip,
                                 hidden: function* () {
                                   return (yield* card()).changes.length > 0;
                                 },
@@ -2802,7 +3010,7 @@ export const ReviewApp = craftComponent(
                                 return (yield* t()).neverApproved;
                               },
                             ),
-                            span({ class: 'chip coverage' }, function* () {
+                            span({ class: reviewBits.chip }, function* () {
                               const coverage = (yield* card()).members[0]
                                 ?.metadata?.coverage;
                               const say = yield* t();
@@ -2818,10 +3026,10 @@ export const ReviewApp = craftComponent(
                               );
                             }),
                           ]),
-                          div({ class: 'evidence-views' }, [
+                          div({ class: imageEvidence.views }, [
                             span(
                               {
-                                class: 'field-label',
+                                class: imageEvidence.fieldLabel,
                                 id: 'evidence-views-label',
                               },
                               function* () {
@@ -2830,7 +3038,7 @@ export const ReviewApp = craftComponent(
                             ),
                             div(
                               {
-                                class: 'view-toggle',
+                                class: imageEvidence.toggle,
                                 role: 'group',
                                 'aria-labelledby': 'evidence-views-label',
                               },
@@ -2839,6 +3047,7 @@ export const ReviewApp = craftComponent(
                                   'ShowReplay',
                                   {
                                     type: 'button',
+                                    class: imageEvidence.toggleButton,
                                     'data-view': 'replay',
                                     title: function* () {
                                       return (yield* t()).viewPageHint;
@@ -2859,6 +3068,7 @@ export const ReviewApp = craftComponent(
                                   'ShowImage',
                                   {
                                     type: 'button',
+                                    class: imageEvidence.toggleButton,
                                     'data-view': 'image',
                                     title: function* () {
                                       return (yield* t()).viewImageHint;
@@ -2878,7 +3088,11 @@ export const ReviewApp = craftComponent(
                               'ToggleChrome',
                               {
                                 type: 'button',
-                                class: 'overlay-toggle',
+                                class: [
+                                  imageEvidence.overlayToggle,
+                                  annotation.hinted,
+                                ],
+                                'data-testid': 'overlay-toggle',
                                 // Only the page can do this. In a screenshot those
                                 // pixels have already been replaced.
                                 'data-hint': overlayHint,
@@ -2907,7 +3121,7 @@ export const ReviewApp = craftComponent(
                           // relayout it and it would stop being what was measured.
                           label(
                             {
-                              class: 'field-label',
+                              class: imageEvidence.fieldLabel,
                               htmlFor: 'evidence-zoom',
                             },
                             function* () {
@@ -2938,7 +3152,7 @@ export const ReviewApp = craftComponent(
                       ),
                       p(
                         {
-                          class: 'evidence-help',
+                          class: imageEvidence.help,
                           hidden: function* () {
                             return !(yield* visualEvidence());
                           },
@@ -2965,7 +3179,7 @@ export const ReviewApp = craftComponent(
                       section(
                         'ReviewEvidenceError',
                         {
-                          class: 'notice error review-error',
+                          class: notice.root,
                           role: 'alert',
                           hidden: function* () {
                             return (
@@ -2975,14 +3189,14 @@ export const ReviewApp = craftComponent(
                         },
                         [
                           span(
-                            { class: 'error-icon', 'aria-hidden': 'true' },
+                            { class: notice.icon, 'aria-hidden': 'true' },
                             '!',
                           ),
-                          div({ class: 'error-copy' }, [
-                            strong(function* () {
+                          div({ class: notice.copy }, [
+                            strong({ class: notice.title }, function* () {
                               return (yield* t()).evidenceErrorTitle;
                             }),
-                            p(function* () {
+                            p({ class: notice.body }, function* () {
                               return (yield* t()).evidenceError;
                             }),
                           ]),
@@ -2990,7 +3204,8 @@ export const ReviewApp = craftComponent(
                       ),
                       section(
                         {
-                          class: 'notice warning',
+                          class: notice.root,
+                          'data-reviewNotice': 'warning',
                           role: 'status',
                           // Shown in both views, not only on the page. The reviewer
                           // who was moved to the photograph is exactly the one who
@@ -3006,7 +3221,7 @@ export const ReviewApp = craftComponent(
                           },
                         },
                         [
-                          strong(function* () {
+                          strong({ class: notice.warningTitle }, function* () {
                             const sentence = yield* fidelitySentence();
                             return (yield* fellBack())
                               ? (yield* t()).fellBack(
@@ -3024,16 +3239,20 @@ export const ReviewApp = craftComponent(
                           // applies to.
                           details(
                             {
-                              class: 'fidelity-detail',
+                              class: notice.detail,
+                              'data-testid': 'fidelity-detail',
                               hidden: function* () {
                                 return (yield* replay()).report.length === 0;
                               },
                             },
                             [
-                              summary(function* () {
-                                const state = yield* replay();
-                                return `${(yield* t()).fidelityDetail} (${state.report.length})`;
-                              }),
+                              summary(
+                                { class: notice.detailSummary },
+                                function* () {
+                                  const state = yield* replay();
+                                  return `${(yield* t()).fidelityDetail} (${state.report.length})`;
+                                },
+                              ),
                               ul(
                                 forNode(
                                   function* () {
@@ -3045,9 +3264,12 @@ export const ReviewApp = craftComponent(
                                   },
                                   { track: (entry) => entry.line },
                                   (entry) =>
-                                    li({ class: 'code' }, function* () {
-                                      return (yield* entry()).line;
-                                    }),
+                                    li(
+                                      { class: reviewBits.code },
+                                      function* () {
+                                        return (yield* entry()).line;
+                                      },
+                                    ),
                                 ),
                               ),
                             ],
@@ -3057,14 +3279,14 @@ export const ReviewApp = craftComponent(
                       ifNode(visualEvidence, () =>
                         figure(
                           {
-                            class: function* () {
-                              return `evidence-canvas zoom-${yield* zoom()}`;
-                            },
+                            class: imageEvidence.canvas,
+                            'data-testid': 'evidence-canvas',
                           },
                           [
                             div(
                               {
-                                class: 'replay-holder',
+                                class: imageEvidence.replayHolder,
+                                'data-testid': 'replay-holder',
                                 hidden: function* () {
                                   return !(yield* showingReplay());
                                 },
@@ -3074,79 +3296,107 @@ export const ReviewApp = craftComponent(
                               // and this is drawn smaller instead. The band rides
                               // along, so a rectangle dragged in frame coordinates
                               // lands where the pointer was.
-                              div({ class: 'replay-scale' }, [
-                                iframe({
-                                  id: function* () {
-                                    const active = yield* current();
-                                    return (yield* card()).shape ===
-                                      active?.shape
-                                      ? FRAME_ID
-                                      : '';
-                                  },
-                                  title: function* () {
-                                    return (yield* t()).frameTitle;
-                                  },
-                                  // Sized to the captured viewport, never to the
-                                  // reviewer's window: the snapshot freezes the styles,
-                                  // not the box the page lays itself out in.
-                                  width: function* () {
-                                    return String(
-                                      (yield* card()).members[0]?.metadata
-                                        ?.viewport?.width ?? 375,
-                                    );
-                                  },
-                                  height: function* () {
-                                    // The captured viewport, not the picture's height.
-                                    // The frame has to reproduce the window the page laid
-                                    // itself out in; anything taller is a different
-                                    // viewport and measures differently.
-                                    return String(
-                                      (yield* card()).members[0]?.metadata
-                                        ?.viewport?.height ?? 900,
-                                    );
-                                  },
-                                  src: function* () {
-                                    // Only the card on screen loads a document. The
-                                    // central panel renders no inactive cards, so this
-                                    // frame always belongs to the selected scenario.
-                                    const active = yield* current();
-                                    const own = yield* card();
-                                    const hash =
-                                      own.shape === active?.shape
-                                        ? own.members[0]?.snapshot
-                                        : undefined;
-                                    return safeResourceUrl(
-                                      hash ? snapshotUrl(hash) : '/api/blank',
-                                    );
-                                  },
-                                  load: inspectFrame,
-                                }),
-                                // Drawn in this document, on top of the frame — never
-                                // inside it. Inserting an element into the frozen page
-                                // would break the one claim it makes: that nothing was
-                                // added to it after it was measured.
-                                div({
-                                  class: 'selection-band',
-                                  'aria-hidden': 'true',
-                                  hidden: function* () {
-                                    return !(yield* band());
-                                  },
-                                  style: function* () {
-                                    const rect = yield* band();
-                                    return rect
-                                      ? `left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px`
-                                      : '';
-                                  },
-                                }),
-                              ]),
+                              div(
+                                {
+                                  class: imageEvidence.replayScale,
+                                  'data-testid': 'replay-scale',
+                                },
+                                [
+                                  iframe({
+                                    class: imageEvidence.frame,
+                                    id: function* () {
+                                      const active = yield* current();
+                                      return (yield* card()).shape ===
+                                        active?.shape
+                                        ? FRAME_ID
+                                        : '';
+                                    },
+                                    title: function* () {
+                                      return (yield* t()).frameTitle;
+                                    },
+                                    // Sized to the captured viewport, never to the
+                                    // reviewer's window: the snapshot freezes the styles,
+                                    // not the box the page lays itself out in.
+                                    width: function* () {
+                                      return String(
+                                        (yield* card()).members[0]?.metadata
+                                          ?.viewport?.width ?? 375,
+                                      );
+                                    },
+                                    height: function* () {
+                                      // The captured viewport, not the picture's height.
+                                      // The frame has to reproduce the window the page laid
+                                      // itself out in; anything taller is a different
+                                      // viewport and measures differently.
+                                      return String(
+                                        (yield* card()).members[0]?.metadata
+                                          ?.viewport?.height ?? 900,
+                                      );
+                                    },
+                                    src: function* () {
+                                      // Only the card on screen loads a document. The
+                                      // central panel renders no inactive cards, so this
+                                      // frame always belongs to the selected scenario.
+                                      const active = yield* current();
+                                      const own = yield* card();
+                                      const hash =
+                                        own.shape === active?.shape
+                                          ? own.members[0]?.snapshot
+                                          : undefined;
+                                      return safeResourceUrl(
+                                        hash ? snapshotUrl(hash) : '/api/blank',
+                                      );
+                                    },
+                                    load: inspectFrame,
+                                  }),
+                                  // Drawn in this document, on top of the frame — never
+                                  // inside it. Inserting an element into the frozen page
+                                  // would break the one claim it makes: that nothing was
+                                  // added to it after it was measured.
+                                  div({
+                                    class: imageEvidence.band,
+                                    'data-testid': 'selection-band',
+                                    'aria-hidden': 'true',
+                                    hidden: function* () {
+                                      return !(yield* band());
+                                    },
+                                    style: function* () {
+                                      const rect = yield* band();
+                                      return rect
+                                        ? {
+                                            ...assign(
+                                              evidenceBox.left,
+                                              unit.px(rect.x),
+                                            ),
+                                            ...assign(
+                                              evidenceBox.top,
+                                              unit.px(rect.y),
+                                            ),
+                                            ...assign(
+                                              evidenceBox.width,
+                                              unit.px(rect.width),
+                                            ),
+                                            ...assign(
+                                              evidenceBox.height,
+                                              unit.px(rect.height),
+                                            ),
+                                          }
+                                        : null;
+                                    },
+                                  }),
+                                ],
+                              ),
                             ),
                             div(
                               {
-                                class: 'image-holder',
+                                class: imageEvidence.imageHolder,
+                                'data-testid': 'image-holder',
                                 hidden: showingReplay,
                               },
                               [
                                 img({
+                                  class: imageEvidence.picture,
+                                  'data-zoom': zoom,
                                   hidden: function* () {
                                     return !(yield* card()).image;
                                   },
@@ -3165,7 +3415,8 @@ export const ReviewApp = craftComponent(
                                 // Where the viewport ended. Everything below it is
                                 // attested and was never on anybody's screen.
                                 div({
-                                  class: 'fold',
+                                  class: imageEvidence.fold,
+                                  'data-testid': 'fold',
                                   hidden: function* () {
                                     const metadata = (yield* card()).members[0]
                                       ?.metadata;
@@ -3179,25 +3430,42 @@ export const ReviewApp = craftComponent(
                                       ?.metadata;
                                     const band = metadata?.visibleBand;
                                     const shot = metadata?.screenshot;
-                                    if (!band || !shot) return '';
+                                    if (!band || !shot) return null;
                                     const percent = (
                                       value: number,
                                       total: number,
                                     ) =>
-                                      `${Math.max(0, Math.min(100, (value / total) * 100))}%`;
-                                    return [
-                                      `left:${percent(band.x, shot.width)}`,
-                                      `top:${percent(band.y, shot.height)}`,
-                                      `width:${percent(band.width, shot.width)}`,
-                                      `height:${percent(band.height, shot.height)}`,
-                                    ].join(';');
+                                      unit.pct(
+                                        Math.max(
+                                          0,
+                                          Math.min(100, (value / total) * 100),
+                                        ),
+                                      );
+                                    return {
+                                      ...assign(
+                                        evidenceBox.left,
+                                        percent(band.x, shot.width),
+                                      ),
+                                      ...assign(
+                                        evidenceBox.top,
+                                        percent(band.y, shot.height),
+                                      ),
+                                      ...assign(
+                                        evidenceBox.width,
+                                        percent(band.width, shot.width),
+                                      ),
+                                      ...assign(
+                                        evidenceBox.height,
+                                        percent(band.height, shot.height),
+                                      ),
+                                    };
                                   },
                                 }),
                               ],
                             ),
                             p(
                               {
-                                class: 'no-image',
+                                class: imageEvidence.noImage,
                                 hidden: function* () {
                                   // A template decision never carries a
                                   // screenshot — it attests a binding, not a
@@ -3215,20 +3483,26 @@ export const ReviewApp = craftComponent(
                                 return (yield* t()).noImage;
                               },
                             ),
-                            figcaption(function* () {
-                              const target = (yield* card()).members[0]
-                                ?.metadata?.target;
-                              const say = yield* t();
-                              return target
-                                ? say.captionWithTarget(target)
-                                : say.caption;
-                            }),
+                            figcaption(
+                              { class: imageEvidence.caption },
+                              function* () {
+                                const target = (yield* card()).members[0]
+                                  ?.metadata?.target;
+                                const say = yield* t();
+                                return target
+                                  ? say.captionWithTarget(target)
+                                  : say.caption;
+                              },
+                            ),
                           ],
                         ),
                       ),
                       section(
                         {
-                          class: 'diff-panel',
+                          class: imageEvidence.diff,
+                          'data-reviewKind': function* () {
+                            return (yield* card()).kind;
+                          },
                           // Nothing to list is not worth a heading and a bullet
                           // saying so. A subject nobody has attested says that in
                           // one chip beside the viewport, where the rest of the
@@ -3242,21 +3516,28 @@ export const ReviewApp = craftComponent(
                             return (yield* t()).measuredChange;
                           }),
                           ul(
+                            { class: reviewBits.list },
                             forNode(
                               function* () {
                                 return (yield* card()).changes;
                               },
                               { track: (change) => change },
-                              (change) => li(span({ class: 'code' }, change)),
+                              (change) =>
+                                li(
+                                  span(
+                                    { class: imageEvidence.diffLine },
+                                    change,
+                                  ),
+                                ),
                             ),
                           ),
                         ],
                       ),
                     ]),
-                    div({ class: 'decision-column' }, [
+                    div({ class: reviewCard.decision }, [
                       section(
                         {
-                          class: 'previous-rejection',
+                          class: decisionColumn.previousRejection,
                           hidden: function* () {
                             const value = yield* card();
                             return (
@@ -3267,22 +3548,29 @@ export const ReviewApp = craftComponent(
                           },
                         },
                         [
-                          heading(function* () {
-                            return (yield* t()).previousDecisionLabel;
-                          }),
-                          p(function* () {
-                            const value = yield* card();
-                            const previous = value.previousDecision;
-                            return previous
-                              ? `${(yield* t()).previousVerdict(previous.verdict)} · ${previous.by} · ${previous.at}${previous.note ? ` — ${previous.note}` : ''}`
-                              : (value.rejectionReason ?? '');
-                          }),
+                          heading(
+                            { class: decisionColumn.previousRejectionTitle },
+                            function* () {
+                              return (yield* t()).previousDecisionLabel;
+                            },
+                          ),
+                          p(
+                            { class: decisionColumn.previousRejectionBody },
+                            function* () {
+                              const value = yield* card();
+                              const previous = value.previousDecision;
+                              return previous
+                                ? `${(yield* t()).previousVerdict(previous.verdict)} · ${previous.by} · ${previous.at}${previous.note ? ` — ${previous.note}` : ''}`
+                                : (value.rejectionReason ?? '');
+                            },
+                          ),
                         ],
                       ),
-                      section({ class: 'decision-panel' }, [
+                      section({ class: decisionColumn.panel }, [
                         p(
                           {
-                            class: 'notice degraded',
+                            class: notice.root,
+                            'data-reviewNotice': 'degraded',
                             hidden: function* () {
                               return !(yield* degraded());
                             },
@@ -3293,16 +3581,20 @@ export const ReviewApp = craftComponent(
                             return (yield* t()).degraded;
                           },
                         ),
-                        div({ class: 'field-row' }, [
-                          label({ htmlFor: NOTE_ID }, function* () {
-                            return (yield* t()).reason;
-                          }),
+                        div({ class: decisionColumn.fieldRow }, [
+                          label(
+                            { class: decisionColumn.label, htmlFor: NOTE_ID },
+                            function* () {
+                              return (yield* t()).reason;
+                            },
+                          ),
                           // The count of what is outlined, next to the field that is
                           // about to name it. A reviewer who dragged a box needs to
                           // see what they caught without looking back at the page.
                           span(
                             {
-                              class: 'selection-tag',
+                              class: decisionColumn.selectionTag,
+                              'data-testid': 'selection-tag',
                               hidden: function* () {
                                 return (yield* selection()).length === 0;
                               },
@@ -3320,7 +3612,8 @@ export const ReviewApp = craftComponent(
                         // field instead, and only the insertion writes into it.
                         div('ReviewNote', {
                           id: NOTE_ID,
-                          class: 'reason-input',
+                          class: annotation.reason,
+                          'data-reasonNote': noteState,
                           contenteditable: 'true',
                           role: 'textbox',
                           tabIndex: 0,
@@ -3348,7 +3641,7 @@ export const ReviewApp = craftComponent(
                             const target = event.target;
                             const chip =
                               target instanceof Element
-                                ? target.closest('.mention-chip')
+                                ? target.closest(`[${MENTION_ID}]`)
                                 : null;
                             const id = chip?.getAttribute(MENTION_ID);
                             yield* previewMention(id ? Number(id) : undefined);
@@ -3384,7 +3677,10 @@ export const ReviewApp = craftComponent(
                           },
                         }),
                         small(
-                          { id: 'review-note-help', class: 'decision-help' },
+                          {
+                            id: 'review-note-help',
+                            class: decisionColumn.help,
+                          },
                           function* () {
                             return (yield* t()).reasonHelp;
                           },
@@ -3392,7 +3688,7 @@ export const ReviewApp = craftComponent(
                         small(
                           {
                             id: 'review-note-error',
-                            class: 'field-error',
+                            class: decisionColumn.error,
                             role: 'alert',
                             hidden: function* () {
                               return !(yield* rejectionReasonMissing());
@@ -3404,7 +3700,7 @@ export const ReviewApp = craftComponent(
                         ),
                         section(
                           {
-                            class: 'retirement-actions',
+                            class: decisionColumn.retirement,
                             hidden: function* () {
                               return (yield* current())?.kind !== 'removal';
                             },
@@ -3415,7 +3711,8 @@ export const ReviewApp = craftComponent(
                               'RetireObligation',
                               {
                                 type: 'button',
-                                class: 'danger',
+                                class: reviewBits.button,
+                                'data-reviewAction': 'danger',
                                 disabled: decision.isLoading,
                                 click: retire,
                               },
@@ -3425,107 +3722,159 @@ export const ReviewApp = craftComponent(
                             ),
                           ],
                         ),
-                        div({ class: 'decision-actions' }, [
-                          button(
-                            'RejectReviewCard',
-                            {
-                              type: 'button',
-                              'data-hint': function* () {
-                                return (yield* t()).hintReject;
-                              },
-                              class: 'danger',
-                              'data-hotkey': 'r',
-                              disabled: decision.isLoading,
-                              *click() {
-                                yield* decide('rejected');
-                              },
+                        div(
+                          {
+                            class: decisionColumn.actions,
+                            'data-reviewKind': function* () {
+                              return (yield* card()).kind;
                             },
-                            [
+                          },
+                          [
+                            button(
+                              'RejectReviewCard',
+                              {
+                                type: 'button',
+                                'data-hint': function* () {
+                                  return (yield* t()).hintReject;
+                                },
+                                class: [
+                                  reviewBits.button,
+                                  decisionColumn.decisionButton,
+                                  annotation.hinted,
+                                ],
+                                'data-reviewAction': 'danger',
+                                'data-hotkey': 'r',
+                                disabled: decision.isLoading,
+                                *click() {
+                                  yield* decide('rejected');
+                                },
+                              },
+                              [
+                                function* () {
+                                  return (yield* t()).reject;
+                                },
+                                span(
+                                  {
+                                    class: reviewBits.key,
+                                    'data-testid': 'key',
+                                  },
+                                  'R',
+                                ),
+                              ],
+                            ),
+                            button(
+                              'BlockReviewCard',
+                              {
+                                type: 'button',
+                                class: [
+                                  reviewBits.button,
+                                  decisionColumn.decisionButton,
+                                  annotation.hinted,
+                                ],
+                                'data-hint': function* () {
+                                  return (yield* t()).hintBlock;
+                                },
+                                disabled: decision.isLoading,
+                                *click() {
+                                  yield* decide('blocked');
+                                },
+                              },
                               function* () {
-                                return (yield* t()).reject;
+                                return (yield* t()).block;
                               },
-                              span({ class: 'key' }, 'R'),
-                            ],
-                          ),
-                          button(
-                            'BlockReviewCard',
-                            {
-                              type: 'button',
-                              'data-hint': function* () {
-                                return (yield* t()).hintBlock;
+                            ),
+                            button(
+                              'KnownIssueReviewCard',
+                              {
+                                type: 'button',
+                                class: [
+                                  reviewBits.button,
+                                  decisionColumn.decisionButton,
+                                  annotation.hinted,
+                                ],
+                                'data-hint': function* () {
+                                  return (yield* t()).hintKnownIssue;
+                                },
+                                disabled: decision.isLoading,
+                                *click() {
+                                  yield* decide('known-issue');
+                                },
                               },
-                              disabled: decision.isLoading,
-                              *click() {
-                                yield* decide('blocked');
-                              },
-                            },
-                            function* () {
-                              return (yield* t()).block;
-                            },
-                          ),
-                          button(
-                            'KnownIssueReviewCard',
-                            {
-                              type: 'button',
-                              'data-hint': function* () {
-                                return (yield* t()).hintKnownIssue;
-                              },
-                              disabled: decision.isLoading,
-                              *click() {
-                                yield* decide('known-issue');
-                              },
-                            },
-                            function* () {
-                              return (yield* t()).knownIssue;
-                            },
-                          ),
-                          button(
-                            'AcceptWithNoteReviewCard',
-                            {
-                              type: 'button',
-                              'data-hint': function* () {
-                                return (yield* t()).hintAcceptWithNote;
-                              },
-                              'data-hotkey': 'n',
-                              disabled: function* () {
-                                return (
-                                  (yield* decision.isLoading()) ||
-                                  !(yield* hasNote())
-                                );
-                              },
-                              *click() {
-                                yield* decide('ok-with-note');
-                              },
-                            },
-                            [
                               function* () {
-                                return (yield* t()).acceptWithNote;
+                                return (yield* t()).knownIssue;
                               },
-                              span({ class: 'key' }, 'N'),
-                            ],
-                          ),
-                          button(
-                            'AcceptReviewCard',
-                            {
-                              type: 'button',
-                              'data-hint': function* () {
-                                return (yield* t()).hintAccept;
+                            ),
+                            button(
+                              'AcceptWithNoteReviewCard',
+                              {
+                                type: 'button',
+                                class: [
+                                  reviewBits.button,
+                                  decisionColumn.decisionButton,
+                                  annotation.hinted,
+                                ],
+                                'data-hint': function* () {
+                                  return (yield* t()).hintAcceptWithNote;
+                                },
+                                'data-hotkey': 'n',
+                                disabled: function* () {
+                                  return (
+                                    (yield* decision.isLoading()) ||
+                                    !(yield* hasNote())
+                                  );
+                                },
+                                *click() {
+                                  yield* decide('ok-with-note');
+                                },
                               },
-                              class: ['primary', decisionStyles.primary],
-                              'data-hotkey': 'a',
-                              disabled: decision.isLoading,
-                              *click() {
-                                yield* decide('ok');
+                              [
+                                function* () {
+                                  return (yield* t()).acceptWithNote;
+                                },
+                                span(
+                                  {
+                                    class: reviewBits.key,
+                                    'data-testid': 'key',
+                                  },
+                                  'N',
+                                ),
+                              ],
+                            ),
+                            button(
+                              'AcceptReviewCard',
+                              {
+                                type: 'button',
+                                'data-hint': function* () {
+                                  return (yield* t()).hintAccept;
+                                },
+                                class: [
+                                  reviewBits.button,
+                                  decisionColumn.decisionButton,
+                                  annotation.hinted,
+                                  decisionStyles.primary,
+                                ],
+                                'data-reviewAction': 'primary',
+                                'data-hotkey': 'a',
+                                disabled: decision.isLoading,
+                                *click() {
+                                  yield* decide('ok');
+                                },
                               },
-                            },
-                            [
-                              function* () {
-                                return (yield* t()).accept;
-                              },
-                              span({ class: ['key', decisionStyles.key] }, 'A'),
-                            ],
-                          ),
-                        ]),
+                              [
+                                function* () {
+                                  return (yield* t()).accept;
+                                },
+                                span(
+                                  {
+                                    class: [reviewBits.key, decisionStyles.key],
+                                    'data-testid': 'key',
+                                  },
+                                  'A',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ]),
                     ]),
                   ],
@@ -3534,7 +3883,8 @@ export const ReviewApp = craftComponent(
           ),
           main(
             {
-              class: 'inventory-panel',
+              class: inventory.panel,
+              'data-testid': 'inventory-panel',
               hidden: function* () {
                 return (yield* devtoolView()) !== 'application';
               },
@@ -3550,7 +3900,23 @@ export const ReviewApp = craftComponent(
           ),
           main(
             {
-              class: 'inventory-panel',
+              class: inventory.panel,
+              'data-testid': 'inventory-panel',
+              hidden: function* () {
+                return (yield* devtoolView()) !== 'bypasses';
+              },
+            },
+            [
+              heading(function* () {
+                return (yield* t()).viewBypasses;
+              }),
+              BypassesView({ bypasses, adoption: styleAdoption, t }),
+            ],
+          ),
+          main(
+            {
+              class: inventory.panel,
+              'data-testid': 'inventory-panel',
               hidden: function* () {
                 return (yield* devtoolView()) !== 'assets';
               },
@@ -3564,17 +3930,18 @@ export const ReviewApp = craftComponent(
           ),
           main(
             {
-              class: 'inventory-panel visual-inventory-panel',
+              class: inventory.visualPanel,
+              'data-testid': 'inventory-panel',
               hidden: function* () {
                 return (yield* devtoolView()) !== 'visual';
               },
             },
             [
-              heading(function* () {
+              heading({ class: inventory.heading }, function* () {
                 return (yield* t()).viewVisual;
               }),
               ul(
-                { class: 'inventory-list' },
+                { class: inventory.sideList },
                 forNode(
                   visualTests,
                   {
@@ -3587,12 +3954,12 @@ export const ReviewApp = craftComponent(
                   (test, index) =>
                     li(
                       {
-                        class: function* () {
-                          return {
-                            active:
-                              (yield* selectedVisualTest())?.subject ===
+                        class: inventory.entry,
+                        'data-inventoryActive': function* () {
+                          return String(
+                            (yield* selectedVisualTest())?.subject ===
                               (yield* test()).subject,
-                          };
+                          );
                         },
                       },
                       [
@@ -3600,14 +3967,7 @@ export const ReviewApp = craftComponent(
                           'SelectVisualTest',
                           {
                             type: 'button',
-                            class: function* () {
-                              return {
-                                'inventory-item': true,
-                                active:
-                                  (yield* selectedVisualTest())?.subject ===
-                                  (yield* test()).subject,
-                              };
-                            },
+                            class: inventory.item,
                             'aria-current': function* () {
                               return String(
                                 (yield* selectedVisualTest())?.subject ===
@@ -3622,9 +3982,15 @@ export const ReviewApp = craftComponent(
                             strong(function* () {
                               return (yield* test()).scenario;
                             }),
-                            span({ class: 'subject code' }, function* () {
-                              return (yield* test()).component;
-                            }),
+                            span(
+                              {
+                                class: reviewBits.subject,
+                                'data-testid': 'subject',
+                              },
+                              function* () {
+                                return (yield* test()).component;
+                              },
+                            ),
                             small(function* () {
                               const say = yield* t();
                               return stateText((yield* test()).state, say);
@@ -3637,31 +4003,38 @@ export const ReviewApp = craftComponent(
               ),
               section(
                 {
-                  class: 'visual-detail',
+                  class: inventory.detail,
+                  'data-testid': 'visual-detail',
                   hidden: function* () {
                     return !(yield* selectedVisualTest());
                   },
                 },
                 [
-                  header({ class: 'visual-detail-heading' }, [
+                  header({ class: inventory.detailHeading }, [
                     div([
-                      small({ class: 'eyebrow' }, function* () {
+                      small({ class: reviewBits.eyebrow }, function* () {
                         return (yield* t()).scenario;
                       }),
                       heading(function* () {
                         return (yield* selectedVisualTest())?.scenario ?? '';
                       }),
-                      span({ class: 'subject code' }, function* () {
-                        return (yield* selectedVisualTest())?.component ?? '';
-                      }),
+                      span(
+                        { class: reviewBits.subject, 'data-testid': 'subject' },
+                        function* () {
+                          return (yield* selectedVisualTest())?.component ?? '';
+                        },
+                      ),
                       a(
+                        'visualTestSource',
                         {
-                          class: 'source-link',
+                          class: reviewBits.sourceLink,
+                          'data-navigation': 'external',
+                          'data-testid': 'source-link',
                           href: function* () {
-                            return (
+                            return safeUrl(
                               (yield* sourceUrl(
                                 (yield* selectedVisualTest())?.subject ?? '',
-                              )) ?? ''
+                              )) ?? '',
                             );
                           },
                           hidden: function* () {
@@ -3675,13 +4048,15 @@ export const ReviewApp = craftComponent(
                         },
                       ),
                     ]),
-                    span({ class: 'chip' }, function* () {
+                    span({ class: reviewBits.chip }, function* () {
                       const test = yield* selectedVisualTest();
                       return test ? stateText(test.state, yield* t()) : '';
                     }),
                   ]),
-                  figure({ class: 'evidence-canvas visual-evidence' }, [
+                  figure({ class: imageEvidence.detailCanvas }, [
                     img({
+                      class: imageEvidence.picture,
+                      'data-zoom': 'fit',
                       hidden: function* () {
                         return !(yield* selectedVisualAsset())?.image;
                       },
@@ -3697,7 +4072,7 @@ export const ReviewApp = craftComponent(
                     }),
                     p(
                       {
-                        class: 'no-image',
+                        class: imageEvidence.noImage,
                         hidden: function* () {
                           return Boolean((yield* selectedVisualAsset())?.image);
                         },
@@ -3706,13 +4081,13 @@ export const ReviewApp = craftComponent(
                         return (yield* t()).noImage;
                       },
                     ),
-                    figcaption(function* () {
+                    figcaption({ class: imageEvidence.caption }, function* () {
                       return (yield* t()).caption;
                     }),
                   ]),
                   section(
                     {
-                      class: 'diff-panel',
+                      class: imageEvidence.diff,
                       hidden: function* () {
                         return !(yield* visualReviewCard())?.changes.length;
                       },
@@ -3722,12 +4097,13 @@ export const ReviewApp = craftComponent(
                         return (yield* t()).measuredChange;
                       }),
                       ul(
+                        { class: reviewBits.list },
                         forNode(
                           function* () {
                             return (yield* visualReviewCard())?.changes ?? [];
                           },
                           { track: (change) => change },
-                          (change) => li({ class: 'code' }, change),
+                          (change) => li({ class: reviewBits.code }, change),
                         ),
                       ),
                     ],
@@ -3736,7 +4112,8 @@ export const ReviewApp = craftComponent(
                     'OpenVisualReview',
                     {
                       type: 'button',
-                      class: 'primary visual-review-link',
+                      class: [reviewBits.button, inventory.reviewLink],
+                      'data-reviewAction': 'primary',
                       hidden: function* () {
                         return !(yield* visualReviewCard());
                       },
@@ -3752,7 +4129,8 @@ export const ReviewApp = craftComponent(
           ),
           main(
             {
-              class: 'inventory-panel',
+              class: inventory.panel,
+              'data-testid': 'inventory-panel',
               hidden: function* () {
                 return (yield* devtoolView()) !== 'template';
               },
@@ -3762,7 +4140,7 @@ export const ReviewApp = craftComponent(
                 return (yield* t()).viewTemplate;
               }),
               ul(
-                { class: 'inventory-list' },
+                { class: inventory.list },
                 forNode(
                   templateObligations,
                   {
@@ -3773,20 +4151,23 @@ export const ReviewApp = craftComponent(
                       }),
                   },
                   (obligation) =>
-                    li([
+                    li({ class: inventory.entry }, [
                       strong(function* () {
                         const value = yield* obligation();
                         const say = yield* t();
                         return `${value.component} · ${directionText(value.direction, say)}`;
                       }),
                       a(
+                        'obligationSource',
                         {
-                          class: 'source-link',
+                          class: reviewBits.sourceLink,
+                          'data-navigation': 'external',
+                          'data-testid': 'source-link',
                           href: function* () {
-                            return (
+                            return safeUrl(
                               (yield* sourceUrl(
                                 (yield* obligation()).subject,
-                              )) ?? ''
+                              )) ?? '',
                             );
                           },
                           hidden: function* () {
@@ -3802,7 +4183,8 @@ export const ReviewApp = craftComponent(
                       p([
                         span(
                           {
-                            class: 'template-when',
+                            class: reviewBits.dim,
+                            'data-testid': 'template-when',
                             hidden: function* () {
                               return !(yield* obligation()).conditions?.length;
                             },
@@ -3837,7 +4219,7 @@ export const ReviewApp = craftComponent(
                 return (yield* t()).extractionDiagnostics;
               }),
               ul(
-                { class: 'inventory-list diagnostics' },
+                { class: inventory.list, 'data-testid': 'diagnostics' },
                 forNode(
                   function* () {
                     return (yield* review.value())?.diagnostics ?? [];
@@ -3848,7 +4230,7 @@ export const ReviewApp = craftComponent(
                     empty: () => li('—'),
                   },
                   (diagnostic) =>
-                    li([
+                    li({ class: inventory.entry }, [
                       strong(function* () {
                         return (yield* diagnostic()).code;
                       }),
@@ -3856,12 +4238,16 @@ export const ReviewApp = craftComponent(
                         return (yield* diagnostic()).message;
                       }),
                       a(
+                        'diagnosticSource',
                         {
-                          class: 'source-link',
+                          class: reviewBits.sourceLink,
+                          'data-navigation': 'external',
+                          'data-testid': 'source-link',
                           href: function* () {
                             const value = yield* diagnostic();
-                            return (
-                              (yield* fileUrl(value.filePath, value.line)) ?? ''
+                            return safeUrl(
+                              (yield* fileUrl(value.filePath, value.line)) ??
+                                '',
                             );
                           },
                           hidden: function* () {
@@ -3876,7 +4262,7 @@ export const ReviewApp = craftComponent(
                       ),
                       small(
                         {
-                          class: 'diagnostic-summary',
+                          class: reviewBits.dim,
                           hidden: function* () {
                             const value = yield* diagnostic();
                             const say = yield* t();
@@ -3908,31 +4294,37 @@ export const ReviewApp = craftComponent(
         ],
       ),
       ifNode(regenerationDialogOpen, () =>
-        div({ class: 'regeneration-modal-backdrop' }, [
+        div({ class: dialog.backdrop }, [
           section(
             'RegenerationDialog',
             {
-              class: 'regeneration-modal',
+              class: [dialog.root, dialog.narrow],
               role: 'dialog',
               'aria-modal': 'true',
               'aria-labelledby': 'regeneration-dialog-title',
               'aria-describedby': 'regeneration-dialog-description',
             },
             [
-              small({ class: 'eyebrow' }, function* () {
+              small({ class: reviewBits.eyebrow }, function* () {
                 return (yield* t()).regenerationEyebrow;
               }),
-              heading({ id: 'regeneration-dialog-title' }, function* () {
-                return (yield* t()).regenerationTitle;
-              }),
-              p({ id: 'regeneration-dialog-description' }, function* () {
-                const queue = yield* review.value();
-                return (yield* t()).regenerationScope(
-                  queue?.visualTests.length ?? 0,
-                  queue?.templateObligations.length ?? 0,
-                );
-              }),
-              ul({ class: 'regeneration-consequences' }, [
+              heading(
+                { class: dialog.title, id: 'regeneration-dialog-title' },
+                function* () {
+                  return (yield* t()).regenerationTitle;
+                },
+              ),
+              p(
+                { class: dialog.body, id: 'regeneration-dialog-description' },
+                function* () {
+                  const queue = yield* review.value();
+                  return (yield* t()).regenerationScope(
+                    queue?.visualTests.length ?? 0,
+                    queue?.templateObligations.length ?? 0,
+                  );
+                },
+              ),
+              ul({ class: dialog.consequences }, [
                 li(function* () {
                   return (yield* t()).regenerationReplacesArtifacts;
                 }),
@@ -3949,11 +4341,12 @@ export const ReviewApp = craftComponent(
                   return (yield* t()).regenerationDropsDraft;
                 }),
               ]),
-              div({ class: 'regeneration-modal-actions' }, [
+              div({ class: dialog.actions }, [
                 button(
                   'CancelRegeneration',
                   {
                     type: 'button',
+                    class: dialog.button,
                     'data-hotkey': 'escape',
                     autofocus: true,
                     click: closeRegenerationDialog,
@@ -3966,7 +4359,8 @@ export const ReviewApp = craftComponent(
                   'ConfirmRegeneration',
                   {
                     type: 'button',
-                    class: 'primary',
+                    class: dialog.button,
+                    'data-reviewAction': 'primary',
                     disabled: regenerate.isLoading,
                     click: confirmRegeneration,
                   },
@@ -3980,47 +4374,53 @@ export const ReviewApp = craftComponent(
         ]),
       ),
       ifNode(folderLayoutApplyDialogOpen, () =>
-        div({ class: 'folder-layout-apply-backdrop' }, [
+        div({ class: dialog.backdrop }, [
           section(
             'FolderLayoutApplyDialog',
             {
-              class: 'folder-layout-apply-modal',
+              class: dialog.root,
               role: 'dialog',
               'aria-modal': 'true',
               'aria-labelledby': 'folder-layout-apply-title',
               'aria-describedby': 'folder-layout-apply-description',
             },
             [
-              small({ class: 'eyebrow' }, 'Git'),
-              heading({ id: 'folder-layout-apply-title' }, function* () {
-                return (yield* t()).folderLayoutApplyTitle;
-              }),
-              p({ id: 'folder-layout-apply-description' }, function* () {
-                const apply = (yield* review.value())?.folderLayoutApply;
-                return apply
-                  ? (yield* t()).folderLayoutApplyDescription(
-                      apply.moves,
-                      apply.deletions,
-                      apply.manualReviews,
-                    )
-                  : '';
-              }),
-              p({ class: 'folder-layout-apply-staged' }, function* () {
+              small({ class: reviewBits.eyebrow }, 'Git'),
+              heading(
+                { class: dialog.title, id: 'folder-layout-apply-title' },
+                function* () {
+                  return (yield* t()).folderLayoutApplyTitle;
+                },
+              ),
+              p(
+                { class: dialog.body, id: 'folder-layout-apply-description' },
+                function* () {
+                  const apply = (yield* review.value())?.folderLayoutApply;
+                  return apply
+                    ? (yield* t()).folderLayoutApplyDescription(
+                        apply.moves,
+                        apply.deletions,
+                        apply.manualReviews,
+                      )
+                    : '';
+                },
+              ),
+              p({ class: dialog.staged }, function* () {
                 return (yield* t()).folderLayoutApplyStaged;
               }),
-              small({ class: 'folder-layout-apply-command-label' }, function* () {
+              small({ class: dialog.commandLabel }, function* () {
                 return (yield* t()).folderLayoutApplyCommand;
               }),
-              pre({ class: 'folder-layout-apply-command code' }, function* () {
+              pre({ class: dialog.command }, function* () {
                 return (
                   (yield* review.value())?.folderLayoutApply?.command ?? ''
                 );
               }),
-              details({ class: 'folder-layout-apply-commands' }, [
-                summary(function* () {
+              details({ class: dialog.disclosure }, [
+                summary({ class: dialog.disclosureSummary }, function* () {
                   return (yield* t()).folderLayoutApplyCommands;
                 }),
-                pre({ class: 'code' }, function* () {
+                pre({ class: dialog.command }, function* () {
                   return (
                     (yield* review.value())?.folderLayoutApply?.gitCommands ??
                     ''
@@ -4030,10 +4430,12 @@ export const ReviewApp = craftComponent(
               ifNode(applyFolderLayout.status, () =>
                 p(
                   {
-                    class: 'folder-layout-apply-error',
+                    class: dialog.error,
                     role: 'alert',
                     hidden: function* () {
-                      return (yield* applyFolderLayout.status()) !== 'exception';
+                      return (
+                        (yield* applyFolderLayout.status()) !== 'exception'
+                      );
                     },
                   },
                   function* () {
@@ -4043,17 +4445,18 @@ export const ReviewApp = craftComponent(
               ),
               ifNode(folderLayoutApplyCopied, () =>
                 p(
-                  { class: 'folder-layout-apply-copied', 'aria-live': 'polite' },
+                  { class: dialog.status, 'aria-live': 'polite' },
                   function* () {
                     return (yield* t()).folderLayoutApplyCopied;
                   },
                 ),
               ),
-              div({ class: 'folder-layout-apply-actions' }, [
+              div({ class: dialog.actions }, [
                 button(
                   'CancelFolderLayoutApply',
                   {
                     type: 'button',
+                    class: dialog.button,
                     'data-hotkey': 'escape',
                     autofocus: true,
                     click: dismissFolderLayoutApply,
@@ -4064,7 +4467,11 @@ export const ReviewApp = craftComponent(
                 ),
                 button(
                   'CopyFolderLayoutGitCommands',
-                  { type: 'button', click: copyFolderLayoutCommand },
+                  {
+                    type: 'button',
+                    class: dialog.copy,
+                    click: copyFolderLayoutCommand,
+                  },
                   function* () {
                     return (yield* t()).folderLayoutApplyCopy;
                   },
@@ -4073,7 +4480,8 @@ export const ReviewApp = craftComponent(
                   'RunFolderLayoutGitCommands',
                   {
                     type: 'button',
-                    class: 'primary',
+                    class: dialog.button,
+                    'data-reviewAction': 'primary',
                     disabled: applyFolderLayout.isLoading,
                     click: confirmFolderLayoutApply,
                   },
@@ -4089,31 +4497,37 @@ export const ReviewApp = craftComponent(
         ]),
       ),
       ifNode(iterationDialogOpen, () =>
-        div({ class: 'iteration-modal-backdrop' }, [
+        div({ class: dialog.backdrop }, [
           section(
             {
-              class: 'iteration-modal',
+              class: dialog.root,
               role: 'dialog',
               'aria-modal': 'true',
               'aria-labelledby': 'iteration-dialog-title',
               'aria-describedby': 'iteration-dialog-description',
             },
             [
-              small({ class: 'eyebrow' }, function* () {
+              small({ class: reviewBits.eyebrow }, function* () {
                 return (yield* t()).iterationModalEyebrow;
               }),
               ifNode(iterationPreparationNotStarted, () => [
-                heading({ id: 'iteration-dialog-title' }, function* () {
-                  return (yield* t()).iterationModalTitle;
-                }),
-                p({ id: 'iteration-dialog-description' }, function* () {
-                  const rejected =
-                    (yield* review.value())?.cards.filter(
-                      (card) => card.previousDecision?.verdict === 'rejected',
-                    ).length ?? 0;
-                  return (yield* t()).iterationModalDescription(rejected);
-                }),
-                ul({ class: 'iteration-consequences' }, [
+                heading(
+                  { class: dialog.title, id: 'iteration-dialog-title' },
+                  function* () {
+                    return (yield* t()).iterationModalTitle;
+                  },
+                ),
+                p(
+                  { class: dialog.body, id: 'iteration-dialog-description' },
+                  function* () {
+                    const rejected =
+                      (yield* review.value())?.cards.filter(
+                        (card) => card.previousDecision?.verdict === 'rejected',
+                      ).length ?? 0;
+                    return (yield* t()).iterationModalDescription(rejected);
+                  },
+                ),
+                ul({ class: dialog.consequences }, [
                   li(function* () {
                     return (yield* t()).iterationModalWritesFiles;
                   }),
@@ -4124,11 +4538,12 @@ export const ReviewApp = craftComponent(
                     return (yield* t()).iterationModalStopsServer;
                   }),
                 ]),
-                div({ class: 'iteration-modal-actions' }, [
+                div({ class: dialog.actions }, [
                   button(
                     'CancelIteration',
                     {
                       type: 'button',
+                      class: dialog.button,
                       'data-hotkey': 'escape',
                       autofocus: true,
                       click: closeIterationDialog,
@@ -4141,7 +4556,8 @@ export const ReviewApp = craftComponent(
                     'ConfirmIterationHandoff',
                     {
                       type: 'button',
-                      class: 'primary',
+                      class: dialog.button,
+                      'data-reviewAction': 'primary',
                       disabled: iterationHandoff.isLoading,
                       click: confirmIterationHandoff,
                     },
@@ -4153,30 +4569,37 @@ export const ReviewApp = craftComponent(
               ]),
               ifNode(iterationHandoff.isLoading, () =>
                 p(
-                  { class: 'iteration-progress', 'aria-live': 'polite' },
+                  { class: dialog.status, 'aria-live': 'polite' },
                   function* () {
                     return (yield* t()).iterationModalPreparing;
                   },
                 ),
               ),
               ifNode(iterationHandoffReady, () => [
-                heading({ id: 'iteration-dialog-title' }, function* () {
-                  return (yield* t()).iterationHandoffReady;
-                }),
-                p({ id: 'iteration-dialog-description' }, function* () {
-                  const value = yield* iterationHandoff.value();
-                  return value
-                    ? (yield* t()).iterationHandoffFiles(
-                        value.rejectedCards,
-                        value.feedbackPath,
-                        value.promptPath,
-                      )
-                    : '';
-                }),
-                p({ class: 'iteration-ready' }, function* () {
+                heading(
+                  { class: dialog.title, id: 'iteration-dialog-title' },
+                  function* () {
+                    return (yield* t()).iterationHandoffReady;
+                  },
+                ),
+                p(
+                  { class: dialog.body, id: 'iteration-dialog-description' },
+                  function* () {
+                    const value = yield* iterationHandoff.value();
+                    return value
+                      ? (yield* t()).iterationHandoffFiles(
+                          value.rejectedCards,
+                          value.feedbackPath,
+                          value.promptPath,
+                        )
+                      : '';
+                  },
+                ),
+                p({ class: dialog.status }, function* () {
                   return (yield* t()).iterationModalReady;
                 }),
                 textarea('IterationPrompt', {
+                  class: dialog.prompt,
                   id: 'iteration-prompt',
                   readOnly: true,
                   value: function* () {
@@ -4186,12 +4609,12 @@ export const ReviewApp = craftComponent(
                     return (yield* t()).iterationPrompt;
                   },
                 }),
-                div({ class: 'iteration-modal-actions' }, [
+                div({ class: dialog.actions }, [
                   button(
                     'CopyIterationPrompt',
                     {
                       type: 'button',
-                      class: 'copy-iteration-prompt',
+                      class: dialog.copy,
                       click: copyIterationPrompt,
                     },
                     function* () {
@@ -4202,7 +4625,8 @@ export const ReviewApp = craftComponent(
                     'CloseReview',
                     {
                       type: 'button',
-                      class: 'primary',
+                      class: dialog.button,
+                      'data-reviewAction': 'primary',
                       disabled: closeReview.isLoading,
                       click: closeReviewSession,
                     },
@@ -4215,7 +4639,7 @@ export const ReviewApp = craftComponent(
                 ]),
                 ifNode(iterationPromptCopied, () =>
                   p(
-                    { class: 'iteration-copied', 'aria-live': 'polite' },
+                    { class: dialog.status, 'aria-live': 'polite' },
                     function* () {
                       return (yield* t()).iterationPromptCopied;
                     },

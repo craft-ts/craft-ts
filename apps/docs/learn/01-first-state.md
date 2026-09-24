@@ -65,25 +65,33 @@ and component: a wrong input name or type is a plain TypeScript error.
 
 ## Styling the component
 
-Styles go in the meta, and `:scope` is the component's own root:
+Styles go in a sheet beside the component — `tasks.style.ts` — written with
+`@craft-ts/style`:
 
 ```typescript
-craftComponent(
-  'Tasks',
-  {
-    styles: `
-      :scope { display: grid; gap: .5rem }
-      .done { text-decoration: line-through }
-    `,
-  },
-  /* … */
-);
+import {
+  craftStyles,
+  defineStateAxis,
+  display,
+  gap,
+  space,
+  textDecorationLine,
+  when,
+} from '@craft-ts/style';
+
+export const taskState = defineStateAxis('task', ['done']);
+
+export const tasks = craftStyles('tasks', {
+  root: [display.grid, gap(space(2))],
+  item: [when(taskState.done, [textDecorationLine.lineThrough])],
+});
 ```
 
-`:scope` refers to **the root of this component**. Component styles are scoped
-with CSS `@scope`, so the rule cannot leak into unrelated components — and Craft
-adds no host element or wrapper around your markup to achieve it. See
-[Encapsulated styles](/guide/components/styles).
+The template binds one constant class per element and says which state it is
+in with an attribute — `li({ class: tasks.item, 'data-task': 'done' }, …)`.
+A class is never built at render time: that is how every visual state stays
+listed in the sheet. The build emits the CSS once; nothing is injected when the
+component mounts. See [Styling a component](/guide/components/styles).
 
 ## Mounting the root
 

@@ -81,7 +81,9 @@ directives, and reactivity are rendered by the normal renderer.
 
 Template tests also expose `locator(tag, criteria)`. The tag determines the
 DOM element type, while `class`, `data-*`, and `aria-*` criteria are matched
-against the rendered element:
+against the rendered element. Prefer `data-*` and `aria-*`: a class comes from a
+sheet and is a list of atoms, not a name a test should depend on.
+
 
 <<< @/tests/snippets/guide/testing/components/editor.spec.ts#editor
 
@@ -93,7 +95,7 @@ button, write the three arguments explicitly:
 ```ts
 const saveButton = button(
   'save', // name: stable local name
-  { class: 'save' }, // props: DOM properties and attributes
+  { type: 'button' }, // props: DOM properties and attributes
   'Save', // children: rendered content
 );
 ```

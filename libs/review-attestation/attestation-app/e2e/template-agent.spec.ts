@@ -81,11 +81,11 @@ test('agent review persists authorized decisions and leaves human obligations fo
   try {
     await page.goto(running.url);
     await page.locator('#review-locale').selectOption('fr');
-    await expect(page.locator('.template-group-header')).toContainText(
-      'Le composant affiche',
-    );
     await expect(
-      page.locator('.template-obligation-copy > strong').first(),
+      page.locator('[data-testid="template-group-header"]'),
+    ).toContainText('Le composant affiche');
+    await expect(
+      page.locator('[data-testid="template-obligation-copy"] > strong').first(),
     ).toHaveText('Address');
     await page.locator('[data-craft-name="SelectTemplateGroup"]').check();
     await expect(
@@ -96,7 +96,7 @@ test('agent review persists authorized decisions and leaves human obligations fo
     expect(saved[0]?.id).toBe(allowed.id);
     expect(saved[0]?.agentReview?.name).toBe('Review agent');
     await expect(
-      page.locator('.template-agent-result:not([hidden])'),
+      page.locator('[data-testid="template-agent-result"]:not([hidden])'),
     ).toContainText([
       'Agent : à examiner par un humain',
       'Agent : conforme au contexte',
@@ -126,12 +126,14 @@ test('keeps common context and actions stationary while obligations scroll, incl
   try {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(running.url);
-    const header = page.locator('.template-group-header');
+    const header = page.locator('[data-testid="template-group-header"]');
     await expect(header).toBeVisible();
     const before = await header.boundingBox();
-    await page.locator('.template-obligation-list').evaluate((el) => {
-      el.scrollTop = el.scrollHeight;
-    });
+    await page
+      .locator('[data-testid="template-obligation-list"]')
+      .evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      });
     expect((await header.boundingBox())?.y).toBe(before?.y);
     await expect(
       page.locator('[data-craft-name="AcceptTemplateGroup"]'),

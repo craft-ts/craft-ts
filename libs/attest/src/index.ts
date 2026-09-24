@@ -22,3 +22,5 @@ export * from './lib/evidence-store.js';
 export * from './lib/subjects/test.js';
 export * from './lib/subjects/visual.js';
 export * from './lib/subjects/template.js';
+export * from './lib/subjects/eslint-disable.js';
+export * from './lib/subjects/architecture-waiver.js';

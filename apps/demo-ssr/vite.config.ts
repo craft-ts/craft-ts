@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { defineConfig, type ViteDevServer } from 'vite';
 import * as path from 'node:path';
 import { craftProductionBuildOptions } from '../../tools/vite-production-options.mjs';
+import { craftStyle } from '../../libs/style/src/plugin/vite.ts';
 
 const PAGE_PREFIXES = ['/src/', '/@', '/node_modules/', '/assets/', '/favicon'];
 const typecheckStatusPath = path.resolve(
@@ -107,7 +108,27 @@ export default defineConfig({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/demo-ssr',
   publicDir: 'public',
-  plugins: [demoSsrTypecheckStatusPlugin(), ssrDemoPlugin()],
+  plugins: [
+    demoSsrTypecheckStatusPlugin(),
+    ssrDemoPlugin(),
+    craftStyle({
+      include: [path.resolve(import.meta.dirname, '../../libs/component/src')],
+      alias: {
+        '@craft-ts/style': path.resolve(
+          import.meta.dirname,
+          '../../libs/style/src/index.ts',
+        ),
+        '@craft-ts/core': path.resolve(
+          import.meta.dirname,
+          '../../libs/core/src/index.ts',
+        ),
+        '@craft-ts/component': path.resolve(
+          import.meta.dirname,
+          '../../libs/component/src/index.ts',
+        ),
+      },
+    }),
+  ],
   server: {
     port: 4300,
     forwardConsole: true,

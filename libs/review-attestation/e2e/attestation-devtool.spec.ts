@@ -90,31 +90,31 @@ test('navigates the attestation views and presents a template diff', async ({
     await expect(
       reviewCard.getByText('button "Save" calls profile.update'),
     ).toBeVisible();
-    await expect(reviewCard.locator('.template-when')).toHaveText(
-      'When dialogOpen is true and actions is non-empty,',
-    );
-    await expect(reviewCard.locator('.template-statement strong')).toHaveText(
-      'button "Save" calls profile.update',
-    );
+    await expect(
+      reviewCard.locator('[data-testid="template-when"]'),
+    ).toHaveText('When dialogOpen is true and actions is non-empty,');
+    await expect(
+      reviewCard.locator('[data-testid="template-statement"] strong'),
+    ).toHaveText('button "Save" calls profile.update');
     await expect(
       reviewCard
-        .locator('.template-diff')
+        .locator('[data-testid="template-diff"]')
         .getByText(/method:user\.save → property:profile\.update/),
     ).toBeVisible();
 
-    await expect(page.locator('.shared-filters')).toBeHidden();
+    await expect(page.locator('[data-testid="shared-filters"]')).toBeHidden();
 
     await page.getByRole('button', { name: 'Visual tests' }).click();
-    await expect(page.locator('.shared-filters')).toBeVisible();
-    await expect(page.locator('.inventory-panel:not([hidden])')).toContainText(
-      'UserCard',
-    );
+    await expect(page.locator('[data-testid="shared-filters"]')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="inventory-panel"]:not([hidden])'),
+    ).toContainText('UserCard');
     const visualTab = page.getByRole('button', { name: 'Visual tests' });
-    await expect(visualTab.locator('.view-tab-icon')).toHaveCSS(
+    await expect(visualTab.locator('[data-testid="view-tab-icon"]')).toHaveCSS(
       'color',
       'rgb(255, 255, 255)',
     );
-    await expect(visualTab.locator('.view-tab-count')).toHaveCSS(
+    await expect(visualTab.locator('[data-testid="view-tab-count"]')).toHaveCSS(
       'color',
       'rgb(255, 255, 255)',
     );
@@ -123,9 +123,11 @@ test('navigates the attestation views and presents a template diff', async ({
     await expect(page.getByText('Dynamic target.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Review queue' }).click();
-    await expect(page.locator('.shared-filters')).toBeHidden();
+    await expect(page.locator('[data-testid="shared-filters"]')).toBeHidden();
     await expect(
-      page.locator('.review-card:not([hidden]) .template-diff'),
+      page.locator(
+        '[data-testid="review-card"]:not([hidden]) [data-testid="template-diff"]',
+      ),
     ).toContainText('property:profile.update');
   } finally {
     await running.close();

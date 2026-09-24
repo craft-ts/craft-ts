@@ -1,84 +1,41 @@
-import {
-  craftComponent,
-  div,
-  p,
-  span,
-  heading,
-} from '@craft-ts/component';
+import { button, craftComponent, div, heading, p } from '@craft-ts/component';
+import { state } from '@craft-ts/core';
 import { CssVarsPageNav } from './css-vars-demo.shared';
-
-const RegisteredMeter = craftComponent(
-  'RegisteredMeter',
-  {
-    styles: `
-      @property --registered-meter-value {
-        syntax: '<number>';
-        inherits: true;
-        initial-value: 35;
-      }
-      :scope {
-        --registered-meter-track: #e2e8f0;
-        --registered-meter-fill: #7c3aed;
-        display: grid;
-        gap: .55rem;
-        padding: 1rem;
-        border: 1px solid #dbe3f0;
-        border-radius: 1rem;
-      }
-      .registered-meter__track {
-        height: .8rem;
-        overflow: hidden;
-        border-radius: 999px;
-        background: var(--registered-meter-track);
-      }
-      .registered-meter__fill {
-        width: calc(var(--registered-meter-value) * 1%);
-        height: 100%;
-        background: var(--registered-meter-fill);
-        transition: width 220ms ease;
-      }
-    
-      @media (prefers-reduced-motion: reduce){:scope{animation:none;transition:none}}
-    `,
-  },
-  () => ({}),
-  () =>
-    div([
-      span('Token registered and validated by the browser'),
-      div(
-        { class: 'registered-meter__track' },
-        div({ class: 'registered-meter__fill' }),
-      ),
-    ]),
-);
+import { AssignedMeter, RegisteredMeter } from './css-vars-property.shared';
+import { cssVarsDemo } from './css-vars.style';
+import { example } from '../shared/example.style';
 
 export const CssVarsPropertyDemo = craftComponent(
   'CssVarsPropertyDemo',
-  {
-    styles: `
-      :scope { display: grid; gap: 1.5rem; max-width: 72rem; margin: 0 auto; color: #172033; }
-      h1, p { margin: 0; }
-      .css-vars-property__intro { display: grid; gap: .5rem; }
-      .css-vars-property__intro p { color: #64748b; line-height: 1.55; }
-      .css-vars-property__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
-  },
-  () => ({}),
+  {},
   () =>
-    div([
+    state('meterValue', 78, ({ update }) => ({
+      nudge: () => update((current) => (current >= 100 ? 10 : current + 10)),
+    })),
+  (meterValue) =>
+    div({ class: cssVarsDemo.page }, [
       CssVarsPageNav(),
-      div({ class: 'css-vars-property__intro' }, [
-        heading('Component-owned @property'),
+      div({ class: cssVarsDemo.intro }, [
+        heading('Registered variables (@property)'),
         p(
-          'The first meter uses initial-value: 35. The second receives a numeric value of 78.',
+          { class: cssVarsDemo.muted },
+          'The first meter keeps the registered initial value. The second one is assigned at runtime, and animates because the variable is typed.',
         ),
       ]),
-      div({ class: 'css-vars-property__grid' }, [
+      div({ class: cssVarsDemo.grid }, [
         RegisteredMeter(),
-        RegisteredMeter({ cssVars: { '--registered-meter-value': 78 } }),
+        AssignedMeter({ value: meterValue }),
       ]),
+      button(
+        'nudgeMeter',
+        {
+          class: example.button,
+          'data-exampleButton': 'primary',
+          type: 'button',
+          click: meterValue.nudge,
+        },
+        'Move the second meter',
+      ),
     ]),
 );
 

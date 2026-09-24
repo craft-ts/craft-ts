@@ -10,6 +10,19 @@ import {
 import { renderCraftComponent } from '../testing';
 import { AiSendContextChat } from './ai-send-context-chat';
 import type { SendContextUiContext } from './send-context-ui.tokens';
+import { registeredClasses } from '@craft-ts/style';
+import { aiTheme } from './ai-overlay.style';
+import { aiChat } from './ai-send-context-chat.style';
+
+/** A sheet class's declarations, as `conditions property: value` lines. */
+const declarationsOf = (className: string): string[] =>
+  (
+    registeredClasses().find((entry) => entry.className === className)?.rules ??
+    []
+  ).map(
+    (rule) =>
+      `${rule.conditions.map((point) => `${point.axis}:${point.point}`).join('|')}${rule.pseudoElement ? `::${rule.pseudoElement}` : ''} ${rule.property}: ${rule.value}`,
+  );
 
 function createUiContext(
   session: SendContextSession,
@@ -88,21 +101,29 @@ describe('AiSendContextChat', () => {
     const rendered = await renderChat(
       createUiContext(createSendContextSession(), []),
     );
-    const sheet = Array.from(
-      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
-    ).find((style) => style.textContent?.includes('AiSendContextChat'));
-    const textareaRule =
-      sheet?.textContent?.match(
-        /:scope \.craft-ai-textarea\s*\{[^}]*\}/,
-      )?.[0] ?? '';
-    const buttonRule =
-      sheet?.textContent?.match(/:scope button\s*\{[^}]*\}/)?.[0] ?? '';
-
-    expect(sheet?.textContent).toContain('color-scheme: light dark');
-    expect(sheet?.textContent).toContain('@media (prefers-color-scheme: dark)');
-    expect(textareaRule).toContain('color: var(--craft-ai-text)');
-    expect(textareaRule).toContain('background: var(--craft-ai-control-bg)');
-    expect(buttonRule).toContain('color: var(--craft-ai-text)');
+    // Every native control carries a sheet class that sets its own colours
+    // from the overlay theme — which has a dark side.
+    const textarea = rendered.nativeElement.querySelector('textarea');
+    const buttons = [...rendered.nativeElement.querySelectorAll('button')];
+    expect(textarea?.className).toBe(aiChat.textarea);
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(button.className).toMatch(
+        new RegExp(`${aiChat.button}|${aiChat.close}|${aiChat.targetRemove}`),
+      );
+    }
+    expect(declarationsOf(aiChat.textarea)).toEqual(
+      expect.arrayContaining([
+        ' color: var(--craft-ai-text)',
+        ' background-color: var(--craft-ai-control-bg)',
+      ]),
+    );
+    expect(declarationsOf(aiChat.button)).toContain(
+      ' color: var(--craft-ai-text)',
+    );
+    expect(declarationsOf(aiTheme.root)).toEqual(
+      expect.arrayContaining(['scheme:dark --craft-ai-text: #f9fafb']),
+    );
 
     rendered.destroy();
   });
@@ -484,7 +505,7 @@ describe('AiSendContextChat', () => {
       element.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
 
     const inside = rendered.nativeElement.querySelector(
-      '.craft-ai-chat',
+      '[role="dialog"]',
     ) as HTMLElement;
     press(inside);
     expect(onClose).not.toHaveBeenCalled();
@@ -511,11 +532,9 @@ describe('AiSendContextChat', () => {
     const rendered = await renderChat(createUiContext(session, []));
 
     const panel = rendered.nativeElement.querySelector(
-      '.craft-ai-chat',
+      '[role="dialog"]',
     ) as HTMLElement;
-    const handle = rendered.nativeElement.querySelector(
-      '.craft-ai-chat-header',
-    ) as HTMLElement;
+    const handle = panel.querySelector('header') as HTMLElement;
     // jsdom has no layout engine, so the panel reports a zero-sized rect;
     // pin a plausible one so the off-screen clamp has something to work with.
     panel.getBoundingClientRect = () =>
@@ -536,11 +555,14 @@ describe('AiSendContextChat', () => {
     pointer('pointermove', 500, 380);
     pointer('pointerup', 500, 380);
     await rendered.flush();
-    expect(panel.style.transform).toBe('translate(-100px, 60px)');
+    // The offset is written to typed variables the sheet reads.
+    expect(panel.style.getPropertyValue('--craftAiChat-x')).toBe('-100px');
+    expect(panel.style.getPropertyValue('--craftAiChat-y')).toBe('60px');
 
     handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     await rendered.flush();
-    expect(panel.style.transform).toBe('');
+    expect(panel.style.getPropertyValue('--craftAiChat-x')).toBe('0px');
+    expect(panel.style.getPropertyValue('--craftAiChat-y')).toBe('0px');
 
     rendered.destroy();
     session.destroy();

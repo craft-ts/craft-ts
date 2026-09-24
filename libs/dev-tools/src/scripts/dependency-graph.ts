@@ -11,6 +11,7 @@ import {
   PropertyAccessExpression,
   SourceFile,
   SyntaxKind,
+  Type,
   VariableDeclaration,
 } from 'ts-morph';
 import {
@@ -2612,9 +2613,29 @@ type BranchSegment = {
 };
 
 type StyleClassResolution =
-  | { readonly kind: 'resolved'; readonly keys: readonly string[] }
+  | {
+      readonly kind: 'resolved';
+      readonly keys: readonly string[];
+      /**
+       * Keys whose `craftStyles(...)` call lives outside a `*.style.ts`. The
+       * build plugin only evaluates style modules, so such a class is set on
+       * the element and has no CSS behind it.
+       */
+      readonly outsideStyleModule?: readonly string[];
+    }
   | { readonly kind: 'absent' }
-  | { readonly kind: 'unresolved'; readonly detail: string };
+  | {
+      readonly kind: 'unresolved';
+      readonly detail: string;
+      /**
+       * The class could not be named, but its **type** is a sheet class: an
+       * input typed `CraftClass`, or a function returning one. Unknown to the
+       * contrast solver, legitimate for the style-only rule.
+       */
+      readonly typedAsSheetClass?: boolean;
+    };
+
+const STYLE_MODULE_FILE = /\.style\.[cm]?[jt]s$/;
 
 /**
  * `button.root` → `dsButton-root`.
@@ -2625,6 +2646,12 @@ type StyleClassResolution =
  * dump — cannot work here: the AST sees `button.root`, never the atoms.
  */
 function craftStylesPrefix(identifier: Node): string | undefined {
+  return craftStylesSheet(identifier)?.prefix;
+}
+
+function craftStylesSheet(
+  identifier: Node,
+): { readonly prefix: string; readonly filePath: string } | undefined {
   if (!Node.isIdentifier(identifier)) return undefined;
   const symbol = identifier.getSymbol();
   const resolved = symbol?.getAliasedSymbol() ?? symbol;
@@ -2638,9 +2665,54 @@ function craftStylesPrefix(identifier: Node): string | undefined {
       .getArguments()[0]
       ?.asKind(SyntaxKind.StringLiteral)
       ?.getLiteralValue();
-    if (prefix) return prefix;
+    if (prefix) {
+      return { prefix, filePath: declaration.getSourceFile().getFilePath() };
+    }
   }
   return undefined;
+}
+
+/**
+ * Whether a type is a sheet class — `CraftClass<…>` from `@craft-ts/style` —
+ * or a function / generator producing one. Read off the alias name because
+ * the brand itself is a declared symbol the checker prints as `__@VARIANTS…`.
+ */
+function isSheetClassType(type: Type, depth = 0): boolean {
+  if (depth > 4) return false;
+  if (type.getAliasSymbol()?.getName() === 'CraftClass') return true;
+  if (type.isUnion()) {
+    const members = type
+      .getUnionTypes()
+      .filter((member) => !member.isNull() && !member.isUndefined());
+    return (
+      members.length > 0 &&
+      members.every((member) => isSheetClassType(member, depth + 1))
+    );
+  }
+  if (
+    type.isIntersection() &&
+    type
+      .getIntersectionTypes()
+      .some((member) =>
+        member.getProperties().some((property) =>
+          property.getName().startsWith('__@VARIANTS'),
+        ),
+      )
+  ) {
+    return true;
+  }
+  const signatures = type.getCallSignatures();
+  if (signatures.length > 0) {
+    return signatures.every((signature) => {
+      const returned = signature.getReturnType();
+      const generatorReturn =
+        returned.getSymbol()?.getName() === 'Generator'
+          ? returned.getTypeArguments()[1]
+          : undefined;
+      return isSheetClassType(generatorReturn ?? returned, depth + 1);
+    });
+  }
+  return false;
 }
 
 function resolveStyleClasses(
@@ -2651,26 +2723,46 @@ function resolveStyleClasses(
     const parts = expression.getElements().map(resolveStyleClasses);
     const unresolved = parts.find((part) => part.kind === 'unresolved');
     if (unresolved) return unresolved;
+    const outside = parts.flatMap((part) =>
+      part.kind === 'resolved' ? (part.outsideStyleModule ?? []) : [],
+    );
     return {
       kind: 'resolved',
       keys: parts.flatMap((part) =>
         part.kind === 'resolved' ? part.keys : [],
       ),
+      ...(outside.length ? { outsideStyleModule: outside } : {}),
     };
   }
+  const typedAsSheetClass = (() => {
+    try {
+      return isSheetClassType(expression.getType());
+    } catch {
+      return false;
+    }
+  })();
   if (Node.isPropertyAccessExpression(expression)) {
-    const prefix = craftStylesPrefix(expression.getExpression());
-    if (!prefix) {
+    const sheet = craftStylesSheet(expression.getExpression());
+    if (!sheet) {
       return {
         kind: 'unresolved',
         detail: `${quoted(expression)} does not resolve to a craftStyles(...) sheet, so the class it sets cannot be joined to the style dump.`,
+        ...(typedAsSheetClass ? { typedAsSheetClass } : {}),
       };
     }
-    return { kind: 'resolved', keys: [`${prefix}-${expression.getName()}`] };
+    const key = `${sheet.prefix}-${expression.getName()}`;
+    return {
+      kind: 'resolved',
+      keys: [key],
+      ...(STYLE_MODULE_FILE.test(sheet.filePath)
+        ? {}
+        : { outsideStyleModule: [key] }),
+    };
   }
   return {
     kind: 'unresolved',
     detail: `${quoted(expression)} is not a constant sheet class. The contrast solver reads the styles of a class it can name; a computed class names none.`,
+    ...(typedAsSheetClass ? { typedAsSheetClass } : {}),
   };
 }
 
@@ -2884,6 +2976,12 @@ function addStyledElementNode(
         mayContainText: textKind !== 'none',
         textKind,
         classKeys: classes.kind === 'resolved' ? classes.keys : [],
+        ...(classes.kind === 'resolved' && classes.outsideStyleModule
+          ? { sheetOutsideStyleModule: classes.outsideStyleModule }
+          : {}),
+        ...(classes.kind === 'unresolved' && classes.typedAsSheetClass
+          ? { classTypedAsSheetClass: true }
+          : {}),
       },
     },
     call,

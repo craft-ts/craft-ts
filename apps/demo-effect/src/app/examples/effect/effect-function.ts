@@ -13,6 +13,7 @@ import { craftComputed, settled } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
 import { Database } from './effect-database';
+import { example } from '../../effect-demo.style';
 
 /**
  * The business operation depends on the Database capability, not on a
@@ -25,19 +26,7 @@ export const getData = Effect.gen(function* () {
 
 const EffectFunctionComponent = craftComponent(
   'EffectFunctionComponent',
-  {
-    styles: `
-      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #ede9fe; border-radius: 12px; color: #312e81; background: #f5f3ff; }
-      :scope h1 { margin: 0 0 0.5rem; color: #2e1065; }
-      .intro { margin: 0 0 1.25rem; color: #4338ca; line-height: 1.55; }
-      .panel { padding: 1rem 1.1rem; border: 1px solid #ddd6fe; border-radius: 8px; background: #fff; }
-      .panel-title { margin: 0 0 0.65rem; color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-      .result { margin: 0; color: #1e1b4b; font-size: 1.1rem; line-height: 1.5; }
-      .note { margin-top: 1rem; color: #4c1d95; font-size: 0.85rem; line-height: 1.6; }
-      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ede9fe; font-family: ui-monospace, monospace; font-size: 0.8rem; }
-      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-    `,
-  },
+  {},
   function* () {
     const dataQuery = yield* queryEffect(
       'effectFunctionQuery',
@@ -61,26 +50,33 @@ const EffectFunctionComponent = craftComponent(
     };
   },
   ({ dataQuery, hasData, summary }) =>
-    div([
-      heading('Use an Effect function with injected Database'),
+    div({ class: example.card, 'data-exampleTint': 'violet' }, [
+      heading(
+        { class: example.title },
+        'Use an Effect function with injected Database',
+      ),
       p(
-        { class: 'intro' },
+        { class: example.intro },
         'The component calls getData. That function resolves Database through Effect’s context, while the route provides an in-memory implementation.',
       ),
-      div({ class: 'panel' }, [
-        p({ class: 'panel-title' }, 'Database result'),
+      div({ class: example.panel }, [
+        p({ class: example.panelTitle }, 'Database result'),
         ifNode(
           dataQuery.isLoading,
-          () => p({ class: 'result' }, 'Connecting to the in-memory database…'),
+          () =>
+            p(
+              { class: example.result },
+              'Connecting to the in-memory database…',
+            ),
           () =>
             ifNode(
               hasData,
-              () => p({ class: 'result' }, [strong('Rows: '), summary]),
+              () => p({ class: example.result }, [strong('Rows: '), summary]),
               () =>
                 matchNode.exhaustive(dataQuery.exceptions.loader, '_tag', {
                   DatabaseConnectionError: () =>
                     p(
-                      { class: 'result' },
+                      { class: example.result },
                       'DatabaseConnectionError: the in-memory connection failed.',
                     ),
                 }),
@@ -89,18 +85,21 @@ const EffectFunctionComponent = craftComponent(
       ]).pipe(
         pendingNode({
           fallback: () =>
-            p({ class: 'result' }, 'Connecting to the in-memory database…'),
+            p(
+              { class: example.result },
+              'Connecting to the in-memory database…',
+            ),
         }),
       ),
-      p({ class: 'note' }, [
+      p({ class: example.note }, [
         'The route provides ',
-        span({ class: 'mono' }, 'InMemoryDatabaseLive'),
+        span({ class: example.mono }, 'InMemoryDatabaseLive'),
         '. The loader only yields ',
-        span({ class: 'mono' }, 'getData'),
+        span({ class: example.mono }, 'getData'),
         ', and the typed Effect failure is rendered by ',
-        span({ class: 'mono' }, 'matchNode'),
+        span({ class: example.mono }, 'matchNode'),
         ' after the ',
-        span({ class: 'mono' }, 'pendingNode'),
+        span({ class: example.mono }, 'pendingNode'),
         ' has shown the connection state.',
       ]),
     ]),

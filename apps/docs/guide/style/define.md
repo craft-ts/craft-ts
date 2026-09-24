@@ -87,6 +87,20 @@ ship with `@craft-ts/style` and need no declaration — they are driven by the
 user agent or by the element's own state, not by an attribute you own. `scheme`
 is the one the theme below uses.
 
+`interaction` (`hover`, `focus`, `active`, `disabled`) reads the element's own
+pseudo-classes. Three more read an ARIA attribute instead of a `data-*` one, so
+the look and what assistive technology announces cannot disagree:
+
+| Axis                  | Opens on                  | Typical element               |
+| --------------------- | ------------------------- | ----------------------------- |
+| `ariaCurrent.page`    | `[aria-current='page']`   | the router's active link      |
+| `ariaCurrent.true`    | `[aria-current='true']`   | the current item of a list    |
+| `ariaPressed.pressed` | `[aria-pressed='true']`   | a toggle button that is on    |
+| `ariaInvalid.true`    | `[aria-invalid='true']`   | a field whose value was refused |
+
+Set the attribute for accessibility; the sheet follows it. A second `data-*`
+attribute for the same state would be one more thing to keep in sync.
+
 ### `axisPoint` — the escape hatch
 
 `axisPoint(axis, point, open, driver, extra)` builds a point by hand, for a
@@ -116,11 +130,11 @@ computationally independent initial value; a relative one makes the browser drop
 the registration entirely, and silently. The theme writes the `rem` value in the
 rule below.
 
-::: tip `cssVars` here is not `meta.cssVars`
-`cssVars(prefix, specs)` from `@craft-ts/style` declares registered custom
-properties for a design system. `meta.cssVars` on `craftComponent` declares one
-component's per-instance styling API. Same word, two mechanisms — see
-[Typed CSS variables](../components/css-variables.md) for the other one.
+::: tip One `cssVars` for the theme and for a component
+The same `cssVars` declares a design system's theme and a single component's
+styling API — per-instance variants, inheritance, forwarding, runtime values.
+See [Typed CSS variables](../components/css-variables.md). The deprecated
+`meta.cssVars` on `craftComponent` is a different, CSS-string mechanism.
 :::
 
 ## `seal` — closing a tree

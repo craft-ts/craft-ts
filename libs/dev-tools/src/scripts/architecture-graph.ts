@@ -2,6 +2,13 @@ import ts from 'typescript';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
+import { STYLE_ARCHITECTURE_RULES } from './architecture-style-rules.ts';
+import {
+  applyArchitectureWaivers,
+  type ArchitectureRuleName,
+  type ArchitectureWaiver,
+  type WaivableFinding,
+} from './architecture-waivers.ts';
 import type {
   DependencyGraph,
   DependencyGraphEdge,
@@ -4108,7 +4115,10 @@ export type ArchitectureCheckTarget = 'development' | 'production';
 
 export function assertArchitecture(
   graph: DependencyGraph,
-  options: { readonly target?: ArchitectureCheckTarget } = {},
+  options: {
+    readonly target?: ArchitectureCheckTarget;
+    readonly waivers?: readonly ArchitectureWaiver<any>[];
+  } = {},
 ): void {
   const target = options.target ?? 'development';
   // Keep the target explicit even while development and production share the
@@ -4117,15 +4127,22 @@ export function assertArchitecture(
   if (target !== 'development' && target !== 'production') {
     throw new Error(`Unknown architecture check target "${target}".`);
   }
-  assertDeclarativeArchitecture(graph);
+  assertDeclarativeArchitecture(graph, { waivers: options.waivers });
 }
+
+export type DeclarativeArchitectureOptions = MutationReactOnOptions & {
+  /** Deliberate, reasoned bypasses — see `architecture/waivers.ts`. */
+  readonly waivers?: readonly ArchitectureWaiver<any>[];
+};
 
 export function assertDeclarativeArchitecture(
   graph: DependencyGraph,
-  options: MutationReactOnOptions = {},
+  options: DeclarativeArchitectureOptions = {},
 ): void {
+  const { waivers, ...mutationReactOn } = options;
   const messages = architectureViolations(graph, {
-    mutationReactOn: options,
+    mutationReactOn,
+    waivers,
   }).flatMap((violation) => violation.messages);
   if (messages.length === 0) return;
   throw new Error(messages.join('\n'));
@@ -4290,6 +4307,14 @@ export type ArchitectureRuleViolations = {
 export type ArchitectureViolationsOptions = {
   target?: ArchitectureCheckTarget;
   mutationReactOn?: MutationReactOnOptions;
+  waivers?: readonly ArchitectureWaiver<any>[];
+};
+
+export type ArchitectureReport = {
+  /** What fails, grouped by rule — waiver problems under `architecture-waivers`. */
+  violations: ArchitectureRuleViolations[];
+  /** What a waiver excused, with the reason the waiver gave. */
+  waived: (WaivableFinding & { reason: string })[];
 };
 
 /**
@@ -4302,12 +4327,27 @@ export function architectureViolations(
   graph: DependencyGraph,
   options: ArchitectureViolationsOptions = {},
 ): ArchitectureRuleViolations[] {
+  return architectureReport(graph, options).violations;
+}
+
+/**
+ * The full outcome: violations, and what the waivers excused.
+ *
+ * The rules that reason per target (the style rules) report one finding per
+ * component, file, obligation or variable, and a waiver can excuse one of
+ * them. The older rules assert on the whole graph and report one message:
+ * only a `'*'` waiver can excuse them.
+ */
+export function architectureReport(
+  graph: DependencyGraph,
+  options: ArchitectureViolationsOptions = {},
+): ArchitectureReport {
   const target = options.target ?? 'development';
   if (target !== 'development' && target !== 'production') {
     throw new Error(`Unknown architecture check target "${target}".`);
   }
   const rules: readonly (readonly [
-    string,
+    ArchitectureRuleName,
     (graph: DependencyGraph) => void,
   ])[] = [
     ['craft-unique', assertCraftUnique],
@@ -4325,7 +4365,7 @@ export function architectureViolations(
         assertMutationHasReactOn(checked, options.mutationReactOn ?? {}),
     ],
   ];
-  return rules.flatMap(([rule, assert]) => {
+  const findings: WaivableFinding[] = rules.flatMap(([rule, assert]) => {
     try {
       assert(graph);
       return [];
@@ -4333,11 +4373,46 @@ export function architectureViolations(
       return [
         {
           rule,
-          messages: [error instanceof Error ? error.message : String(error)],
+          target: '*',
+          message: error instanceof Error ? error.message : String(error),
         },
       ];
     }
   });
+  for (const [rule, find] of STYLE_ARCHITECTURE_RULES) {
+    for (const finding of find(graph)) findings.push({ rule, ...finding });
+  }
+
+  // A rule that asserts on the whole graph names no target, so a waiver can
+  // only excuse it wholesale; a targeted waiver would otherwise read as stale.
+  const wholeGraphRules = new Set<string>(rules.map(([rule]) => rule));
+  const untargetable = (options.waivers ?? []).filter(
+    (waiver) => wholeGraphRules.has(waiver.rule) && waiver.target !== '*',
+  );
+  const outcome = applyArchitectureWaivers(
+    findings,
+    (options.waivers ?? []).filter((waiver) => !untargetable.includes(waiver)),
+  );
+  const problems = [
+    ...untargetable.map(
+      (waiver) =>
+        `waiver ${waiver.rule} → ${waiver.target}: '${waiver.rule}' checks the whole graph and reports no target; only target '*' can waive it.`,
+    ),
+    ...outcome.problems,
+  ];
+  const byRule = new Map<string, string[]>();
+  for (const finding of outcome.violations) {
+    const messages = byRule.get(finding.rule) ?? [];
+    messages.push(finding.message);
+    byRule.set(finding.rule, messages);
+  }
+  if (problems.length > 0) {
+    byRule.set('architecture-waivers', problems);
+  }
+  return {
+    violations: [...byRule].map(([rule, messages]) => ({ rule, messages })),
+    waived: [...outcome.waived],
+  };
 }
 
 function escapeRegex(value: string): string {
@@ -4671,3 +4746,14 @@ function uniqueNode<C extends ArchitectureCatalog>(
     `Ambiguous ${kind} '${name}'. Disambiguate with file: ${files}`,
   );
 }
+
+export {
+  architectureWaivers,
+  defineArchitectureWaivers,
+  type ArchitectureRuleName,
+  type ArchitectureWaiver,
+  type ArchitectureWaiverTarget,
+  type DeclaredArchitectureWaiver,
+} from './architecture-waivers.ts';
+
+export { mergeStyleDump, type StyleDump } from './style-graph.ts';

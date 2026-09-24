@@ -1,0 +1,187 @@
+/**
+ * The view switcher in the sidebar.
+ *
+ * A tab's icon, subtitle and count follow the tab's pressed state. They cannot
+ * see the tab's attribute, so the tab sets `tabVars` and the pieces read them:
+ * pressing the tab is one rule, here.
+ */
+import {
+  alignItems,
+  ariaPressed,
+  bg,
+  blockSize,
+  borderBlockEndColor,
+  borderBlockEndStyle,
+  borderBlockEndWidth,
+  borderColor,
+  borderStyle,
+  borderWidth,
+  clipOverflow,
+  color,
+  craftStyles,
+  cssVars,
+  display,
+  fontSize,
+  fontVariantNumeric,
+  fontWeight,
+  gap,
+  gridTemplateColumns,
+  inlineSize,
+  interaction,
+  kind,
+  letterSpacing,
+  lineHeight,
+  lineWidth,
+  marginBlockStart,
+  maxInlineSize,
+  minBlockSize,
+  minWidth,
+  num,
+  placeItems,
+  px,
+  py,
+  radii,
+  radius,
+  set,
+  shadow,
+  textAlign,
+  textOverflow,
+  textTransform,
+  tracks,
+  unit,
+  when,
+  whiteSpace,
+  easing,
+  prop,
+  transitions,
+} from '@craft-ts/style';
+import { reviewUi, theme } from './review-app.style';
+
+const inherited = { inherits: true };
+
+/** What a tab tells its icon, subtitle and count. */
+const tabVars = cssVars('viewTab', {
+  iconBorder: kind.color(reviewUi.border.strong, inherited),
+  iconInk: kind.color(reviewUi.text.dim, inherited),
+  iconBg: kind.color(reviewUi.surface.raised, inherited),
+  hint: kind.color(reviewUi.text.dim, inherited),
+});
+
+const ellipsis = [
+  clipOverflow.inline,
+  textOverflow.ellipsis,
+  whiteSpace.nowrap,
+  // A clipped box is not a scroll container: without this its automatic
+  // minimum is its whole text, and a grid or flex parent lets it overflow.
+  minWidth(unit.px(0)),
+];
+
+export const viewTabs = craftStyles('viewTabs', {
+  root: [
+    display.grid,
+    gap(unit.px(5)),
+    px(unit.px(12)),
+    py(unit.px(15)),
+    borderBlockEndWidth(lineWidth.hairline),
+    borderBlockEndStyle.solid,
+    borderBlockEndColor(theme.line),
+  ],
+  heading: [display.grid, gap(unit.px(3)), px(unit.px(4)), py(unit.px(4))],
+  headingTitle: [
+    fontSize(unit.px(12)),
+    letterSpacing(unit.em(0.1)),
+    textTransform.uppercase,
+  ],
+  headingHint: [
+    display.block,
+    marginBlockStart(unit.px(3)),
+    maxInlineSize(unit.px(220)),
+    fontSize(unit.px(11)),
+    color(theme.textDim),
+  ],
+  tab: [
+    set(tabVars.iconBorder, theme.lineStrong),
+    set(tabVars.iconInk, theme.textDim),
+    set(tabVars.iconBg, theme.surfaceRaised),
+    set(tabVars.hint, theme.textDim),
+    display.grid,
+    gridTemplateColumns(
+      tracks.list(unit.px(30), tracks.minmax(unit.px(0), tracks.fr(1)), 'auto'),
+    ),
+    alignItems.center,
+    gap(unit.px(10)),
+    inlineSize(unit.pct(100)),
+    minBlockSize(unit.px(56)),
+    py(unit.px(9)),
+    px(unit.px(10)),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(reviewUi.surface.transparent),
+    radius(unit.px(9)),
+    bg(reviewUi.surface.transparent),
+    color(theme.textMuted),
+    textAlign.start,
+    transitions([prop.backgroundColor, prop.borderColor, prop.color], {
+      duration: unit.ms(140),
+      easing: easing.ease,
+    }),
+    when(interaction.hover, [
+      borderColor(theme.lineStrong),
+      bg(theme.surfaceSunken),
+      color(theme.text),
+    ]),
+    when(ariaPressed.pressed, [
+      set(tabVars.iconBorder, theme.accent),
+      set(tabVars.iconInk, theme.onAccent),
+      set(tabVars.iconBg, theme.accentActive),
+      set(tabVars.hint, theme.accentLink),
+      borderColor(theme.accent),
+      bg(theme.accentBg),
+      color(theme.accentText),
+      shadow({
+        x: unit.px(3),
+        y: unit.px(0),
+        blur: unit.px(0),
+        color: theme.accentHover,
+        inset: true,
+      }),
+    ]),
+  ],
+  icon: [
+    display.grid,
+    placeItems.center,
+    inlineSize(unit.px(30)),
+    blockSize(unit.px(30)),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(tabVars.iconBorder),
+    radius(unit.px(8)),
+    fontSize(unit.px(16)),
+    lineHeight(num(1)),
+    color(tabVars.iconInk),
+    bg(tabVars.iconBg),
+  ],
+  copy: [display.grid, minWidth(unit.px(0)), gap(unit.px(2))],
+  title: [
+    ...ellipsis,
+    fontSize(unit.px(13)),
+    fontWeight(num(650)),
+    color(theme.textBright),
+  ],
+  hint: [...ellipsis, fontSize(unit.px(11)), color(tabVars.hint)],
+  count: [
+    display.grid,
+    placeItems.center,
+    minWidth(unit.px(26)),
+    blockSize(unit.px(24)),
+    px(unit.px(6)),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(tabVars.iconBorder),
+    radius(radii.full),
+    fontSize(unit.px(11)),
+    fontVariantNumeric.tabularNums,
+    color(tabVars.iconInk),
+    bg(tabVars.iconBg),
+  ],
+});

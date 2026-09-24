@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   craftComponent,
   div,
@@ -7,6 +6,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import { craftComputed, CraftGlobalError } from '@craft-ts/core';
+import { example } from './examples/shared/example.style';
 
 function isDisabledError(value: unknown): boolean {
   return (
@@ -19,10 +19,7 @@ function isDisabledError(value: unknown): boolean {
 
 export const MyGlobalErrorScreen = craftComponent(
   'MyGlobalErrorScreen',
-  {
-    styles:
-      ':scope{padding:2rem;border:1px solid #fca5a5;border-radius:8px;background:#fef2f2;color:#991b1b}',
-  },
+  {},
   function* () {
     const error = yield* CraftGlobalError();
     const disabled = craftComputed(
@@ -34,8 +31,8 @@ export const MyGlobalErrorScreen = craftComponent(
     return { error, disabled };
   },
   ({ disabled }) => {
-    return div([
-      heading([
+    return div({ class: example.alert, 'data-exampleAlert': 'danger' }, [
+      heading({ class: example.subtitle }, [
         '⚠️ ',
         ifNode(disabled, () => 'Account disabled', () => 'Something went wrong'),
       ]),

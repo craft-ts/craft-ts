@@ -29,9 +29,10 @@ import {
   state,
   insertStatePipe,
 } from '@craft-ts/core';
-import styles from './debounced-web-search.css' with { loader: 'text' };
 import { StatusComponent } from '../../../ui/status.component';
 import { eventValue } from '../../../event-value';
+import { example } from '../../shared/example.style';
+import { bookSearch } from './debounced-web-search.style';
 
 type OpenLibraryDocument = {
   key?: string;
@@ -145,7 +146,7 @@ const searchBooks = craftGen(function* (term: string) {
 
 const DebouncedWebSearch = craftComponent(
   'DebouncedWebSearch',
-  { stylesUrl: styles },
+  {},
   function* () {
     const searchInput = yield* state(
       'searchInput',
@@ -270,12 +271,15 @@ const DebouncedWebSearch = craftComponent(
     showDebouncing,
     setSearchInput,
   }) => {
-    return section([
-      heading('Debounced web search'),
+    return section({ class: example.card }, [
+      heading({ class: example.title }, 'Debounced web search'),
       p(
+        { class: example.text, 'data-exampleText': 'muted' },
         'Type a book title. The input waits 350 ms in an asyncProcess before the query calls the public Open Library API.',
       ),
       input('search', {
+        class: example.input,
+        'data-exampleField': 'wide',
         type: 'search',
         value: searchInput,
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
@@ -284,7 +288,7 @@ const DebouncedWebSearch = craftComponent(
           yield* setSearchInput(eventValue(event));
         },
       }),
-      div({ class: 'pipeline-status' }, [
+      div({ class: example.row }, [
         span([
           'Debounce: ',
           StatusComponent({
@@ -294,27 +298,33 @@ const DebouncedWebSearch = craftComponent(
         span(['HTTP query: ', StatusComponent({ status: searchQuery.status })]),
       ]),
       ifNode(searchInput.tooShort, () =>
-        p({ class: 'hint' }, 'Enter at least two characters to search.'),
+        p({ class: example.hint }, 'Enter at least two characters to search.'),
       ),
       ifNode(showDebouncing, () =>
-        p({ class: 'hint' }, 'Waiting for the debounce window…'),
+        p({ class: example.hint }, 'Waiting for the debounce window…'),
       ),
       ifNode(searchQuery.hasSearchError, () =>
         p(
-          { class: 'error' },
+          { class: example.error },
           'The search failed. Transient HTTP errors are retried up to three times.',
         ),
       ),
       ifNode(searchQuery.showResults, () => [
-        heading([searchQuery.resultCount, ' results for “', searchInput, '”']),
+        heading({ class: example.subtitle }, [
+          searchQuery.resultCount,
+          ' results for “',
+          searchInput,
+          '”',
+        ]),
         ul(
-          { class: 'results' },
+          { class: example.list },
           forNode(
             searchQuery.resultBooks,
             { track: (book) => book.key },
             (book) =>
-              article({ class: 'book' }, [
+              article({ class: bookSearch.book }, [
                 img({
+                  class: bookSearch.cover,
                   src: function* () {
                     return safeResourceUrl((yield* book()).coverUrl, {
                       allowedOrigins: ['https://covers.openlibrary.org'],
@@ -322,10 +332,11 @@ const DebouncedWebSearch = craftComponent(
                   },
                   alt: '',
                 }),
-                div({ class: 'book__content' }, [
+                div({ class: bookSearch.content }, [
                   a(
                     'book',
                     {
+                      class: bookSearch.link,
                       href: function* () {
                         // URL fournie par une API tierce : elle passe par le
                         // garde-fou avant d'atterrir dans le DOM.
@@ -338,7 +349,7 @@ const DebouncedWebSearch = craftComponent(
                       return (yield* book()).title;
                     },
                   ),
-                  small(function* () {
+                  small({ class: example.hint }, function* () {
                     return (yield* book()).metadata;
                   }),
                 ]),
@@ -347,7 +358,7 @@ const DebouncedWebSearch = craftComponent(
         ),
       ]),
       ifNode(searchQuery.showEmpty, () =>
-        p({ class: 'hint' }, 'No books found.'),
+        p({ class: example.hint }, 'No books found.'),
       ),
     ]);
   },

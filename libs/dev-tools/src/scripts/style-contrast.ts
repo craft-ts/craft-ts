@@ -254,7 +254,13 @@ function buildModel(graph: DependencyGraph, dump: StyleDump): Model {
   const atomsByClass = new Map<string, readonly StyleDumpAtom[]>(
     dump.classes.map((registered) => [
       registered.key,
-      registered.atoms.flatMap((name) => atomByName.get(name) ?? []),
+      registered.atoms.flatMap((name) => {
+        const atom = atomByName.get(name);
+        // A `::before` background is not the element's background: the text
+        // of the element never sits on it. Pseudo-element atoms are left out
+        // of the element's paint rather than resolved as if they were its own.
+        return atom && !atom.pseudoElement ? [atom] : [];
+      }),
     ]),
   );
 

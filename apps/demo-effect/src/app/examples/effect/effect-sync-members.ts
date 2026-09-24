@@ -22,6 +22,7 @@ import {
   quoteShipping,
   type CartLine,
 } from './effect-pricing-domain';
+import { example } from '../../effect-demo.style';
 
 const CATALOG: readonly Omit<CartLine, 'qty'>[] = [
   { sku: 'craft-mug', label: 'Craft mug', unitCents: 1_450 },
@@ -42,28 +43,7 @@ const CATALOG: readonly Omit<CartLine, 'qty'>[] = [
  */
 const EffectSyncMembersComponent = craftComponent(
   'EffectSyncMembersComponent',
-  {
-    styles: `
-      :scope { display: block; max-width: 880px; margin: 2rem auto; padding: 1.5rem; border: 1px solid #ccfbf1; border-radius: 12px; color: #134e4a; background: #f0fdfa; }
-      :scope h1 { margin: 0 0 0.5rem; color: #042f2e; }
-      .intro { margin: 0 0 1.25rem; color: #115e59; line-height: 1.55; }
-      .actions { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; }
-      .actions button { width: 2.25rem; height: 2.25rem; border: 1px solid #5eead4; border-radius: 6px; color: #0f766e; background: #fff; font-size: 1.1rem; cursor: pointer; }
-      .qty { min-width: 6rem; color: #0f766e; font-size: 0.9rem; }
-      .panels { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-      .panel { padding: 1rem 1.1rem; border: 1px solid #99f6e4; border-radius: 8px; background: #fff; }
-      .panel-title { margin: 0 0 0.65rem; color: #64748b; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-      .result { margin: 0; color: #042f2e; font-size: 1.35rem; font-weight: 600; }
-      .shipping-loading { display: flex; align-items: center; gap: 0.5rem; min-height: 2rem; margin: 0; color: #0f766e; font-size: 0.95rem; }
-      .shipping-spinner { width: 0.8rem; height: 0.8rem; flex: 0 0 auto; border: 2px solid #99f6e4; border-top-color: #0f766e; border-radius: 50%; animation: EffectSyncMembersComponent-shipping-spin 0.7s linear infinite; }
-      @keyframes EffectSyncMembersComponent-shipping-spin { to { transform: rotate(360deg); } }
-      @media (prefers-reduced-motion: reduce) { .shipping-spinner { animation: none; } }
-      .hint { margin: 0.5rem 0 0; color: #475569; font-size: 0.8rem; line-height: 1.5; }
-      .note { margin-top: 1.25rem; color: #115e59; font-size: 0.85rem; line-height: 1.6; }
-      .mono { padding: 0.05rem 0.3rem; border-radius: 3px; background: #ccfbf1; font-family: ui-monospace, monospace; font-size: 0.8rem; }
-      button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-    `,
-  },
+  {},
   function* () {
     // Everything derived from the quantity alone lives in its insertion.
     const qty = yield* state('qty', 2, ({ state: read, update }) => {
@@ -129,32 +109,51 @@ const EffectSyncMembersComponent = craftComponent(
     return { formattedPreview, formatCurrentCart, qty, shippingQuery };
   },
   ({ formattedPreview, formatCurrentCart, qty, shippingQuery }) =>
-    div([
-      heading('Synchronous and asynchronous members of one Effect service'),
+    div({ class: example.card, 'data-exampleTint': 'teal' }, [
+      heading(
+        { class: example.title },
+        'Synchronous and asynchronous members of one Effect service',
+      ),
       p(
-        { class: 'intro' },
+        { class: example.intro },
         'The panels read the same CartPricing service. The total is declared SyncOp, so a craftComputed can run it and it updates on the same tick. The shipping quote suspends, so it stays in a loader.',
       ),
-      div({ class: 'actions' }, [
+      div({ class: example.actions }, [
         button(
           'decreaseQty',
-          { type: 'button', click: qty.decrement, 'aria-label': 'Remove one' },
+          {
+            class: example.button,
+            'data-exampleButton': 'square',
+            type: 'button',
+            click: qty.decrement,
+            'aria-label': 'Remove one',
+          },
           '−',
         ),
-        span({ class: 'qty' }, [strong(qty), ' per product']),
+        span({ class: example.qty }, [strong(qty), ' per product']),
         button(
           'increaseQty',
-          { type: 'button', click: qty.increment, 'aria-label': 'Add one' },
+          {
+            class: example.button,
+            'data-exampleButton': 'square',
+            type: 'button',
+            click: qty.increment,
+            'aria-label': 'Add one',
+          },
           '+',
         ),
       ]),
-      div({ class: 'panels' }, [
-        div({ class: 'panel' }, [
-          p({ class: 'panel-title' }, 'Callable method — synchronous Effect'),
-          p({ class: 'result' }, formattedPreview),
+      div({ class: example.panels }, [
+        div({ class: example.panel }, [
+          p(
+            { class: example.panelTitle },
+            'Callable method — synchronous Effect',
+          ),
+          p({ class: example.result }, formattedPreview),
           button(
             'formatCurrentCart',
             {
+              class: example.button,
               type: 'button',
               click: function* () {
                 yield* formattedPreview.setPreview(yield* formatCurrentCart());
@@ -162,31 +161,31 @@ const EffectSyncMembersComponent = craftComponent(
             },
             'Format current cart',
           ),
-          p({ class: 'hint' }, [
+          p({ class: example.hint }, [
             'The click calls ',
-            span({ class: 'mono' }, 'methodEffect'),
+            span({ class: example.mono }, 'methodEffect'),
             ' to adapt the current cart total to a callable Craft method.',
           ]),
         ]),
-        div({ class: 'panel' }, [
-          p({ class: 'panel-title' }, 'Cart total — synchronous'),
-          p({ class: 'result' }, qty.totalLabel),
-          p({ class: 'hint' }, [
+        div({ class: example.panel }, [
+          p({ class: example.panelTitle }, 'Cart total — synchronous'),
+          p({ class: example.result }, qty.totalLabel),
+          p({ class: example.hint }, [
             'Computed by ',
-            span({ class: 'mono' }, 'craftComputed'),
+            span({ class: example.mono }, 'craftComputed'),
             ' through ',
-            span({ class: 'mono' }, 'syncEffect'),
+            span({ class: example.mono }, 'syncEffect'),
             '. Weight: ',
             qty.weightLabel,
             '.',
           ]),
         ]),
-        div({ class: 'panel' }, [
-          p({ class: 'panel-title' }, 'Shipping — asynchronous'),
-          p({ class: 'result' }, shippingQuery.quoteLabel),
-          p({ class: 'hint' }, [
+        div({ class: example.panel }, [
+          p({ class: example.panelTitle }, 'Shipping — asynchronous'),
+          p({ class: example.result }, shippingQuery.quoteLabel),
+          p({ class: example.hint }, [
             'Loaded by ',
-            span({ class: 'mono' }, 'queryEffect'),
+            span({ class: example.mono }, 'queryEffect'),
             ', whose params still use a synchronous member.',
           ]),
         ]).pipe(
@@ -194,27 +193,27 @@ const EffectSyncMembersComponent = craftComponent(
             fallback: () =>
               div(
                 {
-                  class: 'shipping-loading',
+                  class: example.loading,
                   role: 'status',
                   'aria-live': 'polite',
                 },
                 [
-                  span({ class: 'shipping-spinner', 'aria-hidden': 'true' }),
+                  span({ class: example.spinner, 'aria-hidden': 'true' }),
                   span('Asking the carrier…'),
                 ],
               ),
           }),
         ),
       ]),
-      p({ class: 'note' }, [
+      p({ class: example.note }, [
         'Remove ',
-        span({ class: 'mono' }, 'SyncOp'),
+        span({ class: example.mono }, 'SyncOp'),
         ' from a member and the ',
-        span({ class: 'mono' }, 'syncEffect'),
+        span({ class: example.mono }, 'syncEffect'),
         ' call stops compiling; declare it on a member that suspends and the ',
-        span({ class: 'mono' }, 'craft-ts/sync-effect-body'),
+        span({ class: example.mono }, 'craft-ts/sync-effect-body'),
         ' rule reports the body — and, at runtime, the call throws ',
-        span({ class: 'mono' }, 'CraftEffectNotSynchronous'),
+        span({ class: example.mono }, 'CraftEffectNotSynchronous'),
         ' instead of freezing the page.',
       ]),
     ]),

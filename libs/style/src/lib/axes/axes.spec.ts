@@ -36,6 +36,9 @@ import {
 } from './define.ts';
 import {
   STANDARD_AXES,
+  ariaCurrent,
+  ariaInvalid,
+  ariaPressed,
   contrast,
   descendant,
   forcedColors,
@@ -80,6 +83,34 @@ describe('the standard axes are closed sets', () => {
       expect(point.driver).toBeDefined();
       expect(typeof point.driver.kind).toBe('string');
     }
+  });
+
+  it('reads the aria-current the router sets, not a second data attribute', () => {
+    expect(ariaCurrent.page.open).toBe("&[aria-current='page']");
+    expect(ariaCurrent.true.open).toBe("&[aria-current='true']");
+    expect(ariaCurrent.page.driver).toEqual({
+      kind: 'setAttribute',
+      name: 'aria-current',
+      value: 'page',
+    });
+  });
+
+  it('reads aria-pressed for a toggle button that is on', () => {
+    expect(ariaPressed.pressed.open).toBe("&[aria-pressed='true']");
+    expect(ariaPressed.pressed.driver).toEqual({
+      kind: 'setAttribute',
+      name: 'aria-pressed',
+      value: 'true',
+    });
+  });
+
+  it('reads aria-invalid for a refused field', () => {
+    expect(ariaInvalid.true.open).toBe("&[aria-invalid='true']");
+    expect(ariaInvalid.true.driver).toEqual({
+      kind: 'setAttribute',
+      name: 'aria-invalid',
+      value: 'true',
+    });
   });
 
   it('keeps the three scroll-state groups apart', () => {

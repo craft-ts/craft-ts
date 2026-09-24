@@ -273,5 +273,5 @@ input({ type: 'email' }).pipe(
 ## See Also
 
 - [Customization](/guide/components/customization)
-- [Encapsulated styles](/guide/components/styles)
+- [Styling a component](/guide/components/styles)
 - [Testing components](/guide/testing/components)

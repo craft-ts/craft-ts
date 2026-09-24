@@ -11,6 +11,18 @@ import {
 } from '../index';
 import type { CraftNodeChildrenHeadingNeed } from './render/vnode';
 import { renderCraftComponent } from './testing';
+import { registeredClasses } from '@craft-ts/style';
+import { craftSkipLink } from './craft-defaults.style';
+
+/** A sheet class's declarations, as `conditions property: value` lines. */
+const declarationsOf = (className: string): string[] =>
+  (
+    registeredClasses().find((entry) => entry.className === className)
+      ?.rules ?? []
+  ).map(
+    (rule) =>
+      `${rule.conditions.map((point) => `${point.axis}:${point.point}`).join('|')}${rule.pseudoElement ? `::${rule.pseudoElement}` : ''} ${rule.property}: ${rule.value}`,
+  );
 
 function host(): HTMLElement {
   const element = document.createElement('div');
@@ -166,8 +178,12 @@ describe('skipLink', () => {
       () => skipLink('main', 'Aller au contenu'),
     );
     const { nativeElement: element, flush, destroy } = await renderCraftComponent(root);
-    const link = element.querySelector('a.skip-link');
-    expect(link?.getAttribute('href')).toBe('#main');
+    const link = element.querySelector('a[href="#main"]');
+    expect(link?.className).toBe(craftSkipLink.link);
     expect(link?.textContent).toBe('Aller au contenu');
+    // Off-screen at rest, in the corner once focused.
+    expect(declarationsOf(craftSkipLink.link)).toContain(
+      'interaction.focus:active left: 1rem',
+    );
   });
 });

@@ -15,6 +15,7 @@ import {
   craftComputed,
   craftException,
 } from '@craft-ts/core';
+import { example } from '../../shared/example.style';
 
 function formatParseException(exception: {
   _tag: string;
@@ -25,39 +26,7 @@ function formatParseException(exception: {
 
 const ExceptionQueryParamsComponent = craftComponent(
   'ExceptionQueryParamsComponent',
-  {
-    styles: `
-      :scope {
-        display: block;
-        max-width: 620px;
-        margin: 2rem auto;
-        padding: 1.5rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        color: #1e293b;
-        background: #f8fafc;
-      }
-      :scope h4 { margin: 0 0 1rem; color: #0f172a; }
-      :scope > div {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-      }
-      :scope button {
-        padding: 0.5rem 0.9rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        color: #334155;
-        background: #fff;
-        cursor: pointer;
-      }
-      :scope button:hover { background: #f1f5f9; }
-      :scope p { margin: 0.5rem 0; }
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
-  },
+  {},
   function* () {
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
@@ -113,11 +82,11 @@ const ExceptionQueryParamsComponent = craftComponent(
     return { modeQueryParams, navigate };
   },
   ({ modeQueryParams, navigate }) => {
-    return section([
-      heading( 'QueryParams decode exception'),
-      div([
+    return section({ class: example.card }, [
+      heading({ class: example.subtitle }, 'QueryParams decode exception'),
+      div({ class: example.row }, [
         button('success',
-          { type: 'button',
+          { class: example.button, type: 'button',
             *click() {
               yield* navigate('success');
             },
@@ -125,7 +94,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           'Navigate success',
         ),
         button('exception',
-          { type: 'button',
+          { class: example.button, type: 'button',
             *click() {
               yield* navigate('exception');
             },

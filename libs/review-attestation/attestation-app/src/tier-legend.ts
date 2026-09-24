@@ -2,6 +2,7 @@ import { craftComponent, li, span, ul, type Input } from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
 import { TIERS } from '@craft-ts/style-testing/review/frame';
 import type { Messages } from './messages';
+import { tierLegend } from './tier-legend.style';
 
 /**
  * One line of the legend, drawn from the same object that paints the frame.
@@ -13,7 +14,7 @@ import type { Messages } from './messages';
  * that for a factory private to its file.
  */
 const legendEntry = (
-  tier: (typeof TIERS)[keyof typeof TIERS],
+  name: keyof typeof TIERS,
   options: {
     readonly hidden?: () => Generator<unknown, boolean>;
     /** Overrides the tier's wording when the card knows something better. */
@@ -22,16 +23,16 @@ const legendEntry = (
 ) =>
   li(
     {
-      class: 'tier-legend-entry',
+      class: tierLegend.entry,
       ...(options.hidden ? { hidden: options.hidden } : {}),
     },
     [
       span({
-        class: 'tier-swatch',
+        class: tierLegend.swatch,
+        'data-tier': name,
         'aria-hidden': 'true',
-        style: `border-color:${tier.colour};border-style:${tier.style}`,
       }),
-      options.label ?? tier.label,
+      options.label ?? TIERS[name].label,
     ],
   );
 
@@ -101,16 +102,16 @@ export const TierLegend = craftComponent(
     occludedLabel,
     pickedLabel,
   }) =>
-    ul({ class: 'tier-legend', hidden: hiddenLegend }, [
-      legendEntry(TIERS.subject, { label: subjectLabel }),
-      legendEntry(TIERS.changed, {
+    ul({ class: tierLegend.root, hidden: hiddenLegend }, [
+      legendEntry('subject', { label: subjectLabel }),
+      legendEntry('changed', {
         hidden: changedHidden,
         label: changedLabel,
       }),
-      legendEntry(TIERS.occluded, {
+      legendEntry('occluded', {
         hidden: occludedHidden,
         label: occludedLabel,
       }),
-      legendEntry(TIERS.picked, { label: pickedLabel }),
+      legendEntry('picked', { label: pickedLabel }),
     ]),
 );

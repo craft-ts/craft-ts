@@ -45,7 +45,6 @@ export type StarterConfig = {
     readonly validation: 'strict' | 'loose';
   };
   readonly designSystem: 'none' | 'basic';
-  readonly typedCss: boolean;
   readonly attest: boolean;
   readonly attestation: CreateAttestationConfig;
   readonly references: {
@@ -74,7 +73,6 @@ export type CreateProjectOptions = {
   readonly i18n?: 'strict' | 'loose' | 'none';
   readonly i18nEnabled?: boolean;
   readonly designSystem?: 'none' | 'basic';
-  readonly typedCss?: boolean;
   /** Generate the opt-in attestation workflow (default: false). */
   readonly attest?: boolean;
   /** Configure the generated visual/template attestation workflow. */
@@ -471,8 +469,13 @@ bootstrapCraft.
    @craft-ts/i18n integrates with CraftTS: a token may resolve a service or
    parse its parameter with a Standard Schema. Do not import Effect for plain
    translations. Run npm run i18n:check and npm run i18n:test after changes.
-7. Keep visual rules in a *.style.ts sheet under src/app/ui/. A sheet may
-   import @craft-ts/style vocabulary and nothing else; the build plugin
+7. Style only through @craft-ts/style. There is no global stylesheet, no
+   component CSS and no inline style: element defaults and the app shell live
+   in src/app/app.style.ts (craftGlobalStyles, craftStyles), the design system
+   in src/app/ui/, and a component's own rules in a *.style.ts next to it. A
+   deliberate bypass is an eslint-disable with its reason, or an entry in
+   architecture/waivers.ts; both are listed for a decision in Review Attest.
+   A sheet may import @craft-ts/style vocabulary and nothing else; the build plugin
    evaluates it in Node. Static variation goes to a class the emitter wrote
    at build time; dynamic variation goes through a typed custom property.
    Never build a class string at render time and never bind class to a
@@ -484,7 +487,7 @@ bootstrapCraft.
    palettes with definePalette('name', spec), and model hover with
    when(interaction.hover, [...]) while declaring interaction in the sheet's
    axes budget; a hand-written :hover is invisible to static scenarios.
-   When package.json exposes npm run style:check, run it after changing a
+   Run npm run style:check after changing a
    colour, background, font metric, template class, theme or visual axis. It
    proves WCAG AA text contrast from the style dump and template graph without
    a browser. Do not leave --allow-indeterminate in CI, do not treat an
@@ -587,7 +590,6 @@ function agentsMd(
   const backend = config?.backendRuntime ?? 'none';
   const i18n = config?.i18n.enabled ?? true;
   const designSystem = config?.designSystem !== 'none';
-  const typedCss = config?.typedCss ?? true;
   const attestation = config?.attestation;
   const effectFrontend = frontend === 'effect';
   const effectBackend = backend === 'effect';
@@ -609,7 +611,7 @@ function agentsMd(
     'npm run typecheck',
     'npm run typecheck-spec',
     ...(i18n ? ['npm run i18n:check', 'npm run i18n:test'] : []),
-    ...(typedCss ? ['npm run style:check'] : []),
+    'npm run style:check',
     ...(backend !== 'none' ? ['npm run server:test'] : []),
     ...(effect ? ['npm run effect-check'] : []),
     'npm test',
@@ -642,7 +644,7 @@ guide for coding agents: it records the selected runtime and feature surfaces.
 - Backend runtime: **${backend}**
 - Type-safe i18n: **${i18n ? 'enabled' : 'disabled'}**
 - Design system: **${designSystem ? 'enabled' : 'disabled'}**
-- Typed CSS: **${typedCss ? 'enabled' : 'disabled'}**
+- Styling: **@craft-ts/style**, the only way to style a component
 - Starter surface: **${config?.demoPages === false ? 'domain-first' : 'demo pages'}**
 ${
   config?.attest
@@ -744,7 +746,6 @@ function packageJson(context: TemplateContext): string {
   const effectBackend = context.config.backendRuntime === 'effect';
   const hasEffect = effectFrontend || effectBackend;
   const hasI18n = context.config.i18n.enabled;
-  const hasTypedCss = context.config.typedCss;
   const hasAttest = context.config.attest;
   const hasVisualCapture =
     hasAttest && Object.keys(context.config.attestation.viewports).length > 0;
@@ -800,7 +801,7 @@ function packageJson(context: TemplateContext): string {
               'node scripts/run-effect-tsgo.mjs diagnostics --project tsconfig.effect.json --severity error,warning',
           }
         : {}),
-      ...(hasTypedCss ? { 'style:check': 'node scripts/style-check.mjs' } : {}),
+      'style:check': 'node scripts/style-check.mjs',
       ...(hasServer
         ? {
             'server:test': 'vitest run --config vitest.server.config.ts',
@@ -825,7 +826,7 @@ function packageJson(context: TemplateContext): string {
       '@craft-ts/component': craftPackage(),
       '@craft-ts/core': craftPackage(),
       ...(hasI18n ? { '@craft-ts/i18n': craftPackage() } : {}),
-      ...(hasTypedCss ? { '@craft-ts/style': craftPackage() } : {}),
+      '@craft-ts/style': craftPackage(),
       ...(hasEffect && hasI18n
         ? { '@craft-ts/i18n-effect': craftPackage() }
         : {}),
@@ -947,19 +948,11 @@ const tsconfigEffect = `{
 }\n`;
 
 function viteConfig(context: TemplateContext): string {
-  const typedCss = context.config.typedCss;
   const hasServer = context.config.backendRuntime !== 'none';
-  const styleImport = "import { craftStyle } from '@craft-ts/style/vite';";
-  const styleAliasEntries = `    '@craft-ts/style': resolvePath(import.meta.dirname, 'node_modules/@craft-ts/style/src/index.js')`;
-  const stylePlugin = typedCss
-    ? `    craftStyle({ dumpPath: '.craft/style-graph.json', alias: {
-${styleAliasEntries}
-    } }),`
-    : '';
   return `import { readFileSync } from 'node:fs';
-${typedCss ? "import { resolve as resolvePath } from 'node:path';\n" : ''}
+import { resolve as resolvePath } from 'node:path';
 import { defineConfig, type ViteDevServer } from 'vite';
-${typedCss ? styleImport : ''}
+import { craftStyle } from '@craft-ts/style/vite';
 
 const typecheckStatusPath = new URL('./.craft/typecheck-status.json', import.meta.url);
 const starterPort = Number(process.env.CRAFT_STARTER_PORT ?? 4173);
@@ -1017,12 +1010,16 @@ ${
 export default defineConfig({
   plugins: [
     craftTypecheckStatusPlugin(),
-${
-  typedCss
-    ? `    // Evaluates every *.style.ts in Node and emits the generated sheet.
-${stylePlugin}`
-    : ''
-}
+    // Evaluates every *.style.ts in Node and emits the generated sheet: this
+    // app's, and the ones @craft-ts/component ships (pending state, skip link,
+    // AI overlay), which the plugin includes by default. The reset and the
+    // base defaults are on by default too.
+    craftStyle({
+      dumpPath: '.craft/style-graph.json',
+      alias: {
+        '@craft-ts/style': resolvePath(import.meta.dirname, 'node_modules/@craft-ts/style/src/index.js'),
+      },
+    }),
 ${hasServer ? '    serverFunctionsPlugin(),' : ''}
   ],
   server: {
@@ -1214,7 +1211,6 @@ const eslintConfig = (
   effect: boolean,
   backendEffect = false,
   i18n = false,
-  typedCss = false,
 ) => `import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import playwright from 'eslint-plugin-playwright';
@@ -1253,7 +1249,11 @@ export default tseslint.config(
       // This preset enforces remote placement, loader inference, route-level
       // filter params and source-driven template actions.
       ...craftRules.configs.${effect ? 'effect' : 'recommended'}.rules,
-${i18n ? '      // Visible text belongs to src/i18n, not to a template literal.\n      ...craftRules.configs.i18n.rules,\n' : ''}${typedCss ? '      // Keeps npm run style:check honest: a :hover or a colour written\n      // outside the DSL is invisible to it, so the run would come back clean\n      // on styles nobody proved.\n      ...craftRules.configs.typedCss.rules,\n' : ''}      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
+${i18n ? '      // Visible text belongs to src/i18n, not to a template literal.\n      ...craftRules.configs.i18n.rules,\n' : ''}      // Keeps npm run style:check honest: a :hover or a colour written
+      // outside the DSL is invisible to it, so the run would come back clean
+      // on styles nobody proved.
+      ...craftRules.configs.typedCss.rules,
+      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_' }],
 ${effect ? '' : "      'craft-ts/no-effect-import-in-frontend': 'error',"}
     },
   },
@@ -1325,60 +1325,313 @@ function indexHtml(locale: string): string {
 }
 
 /**
- * What has to stay global, and nothing else.
+ * The page itself: the document defaults and the app shell.
  *
- * The card, the muted note and the error message moved to
- * src/app/ui/ui.style.ts, where they are typed and enumerable. What is left is
- * the part a sheet cannot own: element defaults, the focus ring, the
- * locale-driven typography variables the i18n harness writes, and the dev-only
- * type-check indicator, which is built imperatively and never renders through a
- * component.
+ * There is no global stylesheet. The reset and the good defaults (focus ring,
+ * reduced motion, colour scheme) come from craft-ts itself, through
+ * craftStyle() in vite.config.ts. What is left for the app is written here,
+ * with the same vocabulary as any other sheet: craftGlobalStyles for the
+ * element defaults, craftStyles for the shell the App component renders.
  */
-const styles = `:root {
-  --craft-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  --craft-font-size-heading: 2rem;
-  --craft-font-size-body: 1rem;
-  --craft-font-size-label: .875rem;
-  --craft-font-size-button: .9375rem;
-  --craft-font-size-caption: .75rem;
-  --craft-line-height-heading: 1.2;
-  --craft-line-height-body: 1.5;
-  --craft-line-height-label: 1.35;
-  --craft-line-height-button: 1.35;
-  --craft-line-height-caption: 1.35;
-  font-family: var(--craft-font-family); color: #172033; background: #f7f8fb;
-}
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
-a { color: #2457d6; }
-main { max-width: 860px; margin: 0 auto; padding: 3rem 1.25rem; }
-nav { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; background: white; border-bottom: 1px solid #e3e7ef; }
-.starter-experimental-badge { display: inline-flex; align-items: center; margin-left: auto; padding: .25rem .55rem; border: 1px solid #f0c36d; border-radius: 999px; color: #7a4b00; background: #fff8e6; font-size: .75rem; font-weight: 600; line-height: 1.2; white-space: nowrap; }
-button:focus-visible, a:focus-visible { outline: 3px solid #7aa2ff; outline-offset: 3px; }
-.heading { font-size: var(--craft-font-size-heading); line-height: var(--craft-line-height-heading); font-weight: 700; }
-body, .body { font-size: var(--craft-font-size-body); line-height: var(--craft-line-height-body); }
-label, .label { font-size: var(--craft-font-size-label); line-height: var(--craft-line-height-label); font-weight: 600; }
-button, .button { font: inherit; font-size: var(--craft-font-size-button); line-height: var(--craft-line-height-button); }
-.caption { font-size: var(--craft-font-size-caption); line-height: var(--craft-line-height-caption); }
-.craft-typecheck-indicator { position: fixed; top: .75rem; right: .75rem; z-index: 9999; display: inline-flex; align-items: center; gap: .4rem; max-width: min(24rem, calc(100vw - 1.5rem)); padding: .35rem .4rem .35rem .55rem; border: 1px solid #bfdbfe; border-radius: .45rem; color: #1e3a8a; background: #eff6ff; box-shadow: 0 4px 12px #1e3a8a1f; font-size: .7rem; font-weight: 600; }
-.craft-typecheck-indicator::before { width: .55rem; height: .55rem; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; content: ''; animation: craft-typecheck-spin .8s linear infinite; }
-.craft-typecheck-indicator[data-status='failed'] { border-color: #fecaca; color: #991b1b; background: #fef2f2; box-shadow: 0 4px 12px #991b1b1f; }
-.craft-typecheck-indicator[data-status='failed']::before { border: 0; content: '⚠'; animation: none; font-size: .8rem; }
-.craft-typecheck-indicator__dismiss { display: inline-grid; width: 1.25rem; height: 1.25rem; padding: 0; border: 0; border-radius: .25rem; color: currentColor; background: transparent; cursor: pointer; font: inherit; font-size: 1rem; line-height: 1; place-items: center; }
-.craft-typecheck-indicator__dismiss:hover, .craft-typecheck-indicator__dismiss:focus-visible { background: #991b1b1a; outline: 2px solid currentColor; outline-offset: 1px; }
-@keyframes craft-typecheck-spin { to { transform: rotate(360deg); } }
+const appStyleTs = `import {
+  alignItems,
+  bg,
+  borderBlockEndColor,
+  borderBlockEndStyle,
+  borderBlockEndWidth,
+  borderColor,
+  borderStyle,
+  borderWidth,
+  color,
+  craftGlobalStyles,
+  craftStyles,
+  darkOf,
+  definePalette,
+  display,
+  fontFamily,
+  fontSize,
+  fontWeight,
+  gap,
+  lineHeight,
+  lineWidth,
+  marginInline,
+  marginInlineStart,
+  maxInlineSize,
+  minBlockSize,
+  minWidth,
+  num,
+  px,
+  py,
+  radii,
+  radius,
+  scheme,
+  space,
+  systemFontStack,
+  unit,
+  when,
+  whiteSpace,
+} from '@craft-ts/style';
+
+export const page = definePalette('page', {
+  surface: {
+    page: { light: '#f7f8fb', dark: '#0b0d11' },
+    bar: { light: '#ffffff', dark: '#151922' },
+    badge: { light: '#fff8e6', dark: '#2b2216' },
+  },
+  text: {
+    strong: { light: '#172033', dark: '#f2f4f8' },
+    link: { light: '#2457d6', dark: '#7aa2ff' },
+    badge: { light: '#7a4b00', dark: '#ffcc80' },
+  },
+  border: {
+    subtle: { light: '#e3e7ef', dark: '#232936' },
+    badge: { light: '#f0c36d', dark: '#6b5a2e' },
+  },
+});
+
+// One call per app: the element defaults, in the craft.global layer.
+craftGlobalStyles('page', {
+  elements: {
+    body: [
+      minWidth(unit.px(320)),
+      fontFamily(systemFontStack(['Inter', 'ui-sans-serif', 'system-ui'], 'sans-serif')),
+      fontSize(unit.rem(1)),
+      lineHeight(num(1.5)),
+      bg(page.surface.page),
+      color(page.text.strong),
+      when(scheme.dark, [
+        bg(darkOf(page.surface.page)),
+        color(darkOf(page.text.strong)),
+      ]),
+    ],
+    a: [color(page.text.link), when(scheme.dark, [color(darkOf(page.text.link))])],
+    label: [fontSize(unit.rem(0.875)), lineHeight(num(1.35)), fontWeight(num(600))],
+  },
+});
+
+/**
+ * The frame App renders around every route.
+ *
+ * The page colours are set on the root class as well as on body: the contrast
+ * proof (npm run style:check) reads classes, not element defaults, so text
+ * inside the shell is only proved when its colour comes from a class.
+ */
+export const shell = craftStyles('appShell', {
+  root: [
+    minBlockSize(unit.vh(100)),
+    bg(page.surface.page),
+    color(page.text.strong),
+    when(scheme.dark, [
+      bg(darkOf(page.surface.page)),
+      color(darkOf(page.text.strong)),
+    ]),
+  ],
+  link: [color(page.text.link), when(scheme.dark, [color(darkOf(page.text.link))])],
+  /**
+   * A routed page's own frame. The proof analyses a lazy route on its own,
+   * so a page that took its colours from the shell alone would be unproved.
+   */
+  content: [
+    bg(page.surface.page),
+    color(page.text.strong),
+    when(scheme.dark, [
+      bg(darkOf(page.surface.page)),
+      color(darkOf(page.text.strong)),
+    ]),
+  ],
+  nav: [
+    display.flex,
+    alignItems.center,
+    gap(space(4)),
+    py(space(4)),
+    px(unit.rem(1.25)),
+    bg(page.surface.bar),
+    borderBlockEndWidth(lineWidth.hairline),
+    borderBlockEndStyle.solid,
+    borderBlockEndColor(page.border.subtle),
+    when(scheme.dark, [
+      bg(darkOf(page.surface.bar)),
+      borderBlockEndColor(darkOf(page.border.subtle)),
+    ]),
+  ],
+  main: [
+    maxInlineSize(unit.px(860)),
+    marginInline.auto,
+    py(unit.rem(3)),
+    px(unit.rem(1.25)),
+  ],
+  badge: [
+    display.inlineFlex,
+    alignItems.center,
+    marginInlineStart.auto,
+    py(unit.rem(0.25)),
+    px(unit.rem(0.55)),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(page.border.badge),
+    radius(radii.full),
+    color(page.text.badge),
+    bg(page.surface.badge),
+    fontSize(unit.rem(0.75)),
+    fontWeight(num(600)),
+    lineHeight(num(1.2)),
+    whiteSpace.nowrap,
+    when(scheme.dark, [
+      borderColor(darkOf(page.border.badge)),
+      color(darkOf(page.text.badge)),
+      bg(darkOf(page.surface.badge)),
+    ]),
+  ],
+});
 `;
 
-function stylesFor(context: TemplateContext): string {
-  if (context.config.designSystem === 'none' || context.config.typedCss)
-    return styles;
-  return `${styles}
-.starter-theme { min-height: 100vh; }
-.starter-card { padding: 1.25rem; border: 1px solid #e3e7ef; border-radius: .75rem; background: #fff; }
-.starter-note { color: #5c677d; }
-.starter-message { color: #b42318; }
+/**
+ * The dev-only type-check badge, pinned over the page.
+ *
+ * Its own palette rather than the app's: it reports on the build, not on the
+ * page, and must read the same whatever the page does with its colours.
+ */
+const typecheckIndicatorStyleTs = `import {
+  alignItems,
+  animate,
+  animationName,
+  bg,
+  blockSize,
+  borderColor,
+  borderStyle,
+  borderTopColor,
+  borderWidth,
+  color,
+  craftStyles,
+  cssString,
+  cursor,
+  defineStateAxis,
+  definePalette,
+  display,
+  easing,
+  fontSize,
+  fontWeight,
+  gap,
+  inlineSize,
+  insetBlockStart,
+  insetInlineEnd,
+  int,
+  interaction,
+  keyframes,
+  lineHeight,
+  lineWidth,
+  math,
+  maxInlineSize,
+  num,
+  p,
+  placeItems,
+  position,
+  pseudo,
+  px,
+  py,
+  radii,
+  radius,
+  rotate,
+  shadow,
+  space,
+  unit,
+  when,
+  zIndex,
+} from '@craft-ts/style';
+
+const badge = definePalette('typecheck', {
+  surface: {
+    running: { light: '#eff6ff', dark: '#eff6ff' },
+    failed: { light: '#fef2f2', dark: '#fef2f2' },
+    dismissHover: { light: '#fee2e2', dark: '#fee2e2' },
+    transparent: { light: 'transparent', dark: 'transparent' },
+  },
+  text: {
+    running: { light: '#1e3a8a', dark: '#1e3a8a' },
+    failed: { light: '#991b1b', dark: '#991b1b' },
+  },
+  border: {
+    running: { light: '#bfdbfe', dark: '#bfdbfe' },
+    failed: { light: '#fecaca', dark: '#fecaca' },
+  },
+  effect: {
+    running: { light: '#1e3a8a1f', dark: '#1e3a8a1f' },
+    failed: { light: '#991b1b1f', dark: '#991b1b1f' },
+  },
+});
+
+/** Drives data-typecheck on the badge. */
+export const typecheckStatus = defineStateAxis('typecheck', ['failed']);
+
+const spin = keyframes('typecheckSpin', {
+  to: [rotate(unit.deg(360))],
+});
+
+export const typecheckIndicator = craftStyles('typecheck', {
+  root: [
+    position.fixed,
+    insetBlockStart(space(3)),
+    insetInlineEnd(space(3)),
+    zIndex(int(9999)),
+    display.inlineFlex,
+    alignItems.center,
+    gap(space(2)),
+    maxInlineSize(math.min(unit.rem(24), unit.vw(90))),
+    py(space(1)),
+    px(space(2)),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(badge.border.running),
+    radius(radii.lg),
+    color(badge.text.running),
+    bg(badge.surface.running),
+    shadow({ y: unit.px(4), blur: unit.px(12), color: badge.effect.running }),
+    fontSize(unit.rem(0.7)),
+    fontWeight(num(600)),
+    pseudo.before([
+      pseudo.content.empty,
+      inlineSize(unit.rem(0.55)),
+      blockSize(unit.rem(0.55)),
+      borderWidth(lineWidth.thick),
+      borderStyle.solid,
+      borderColor(badge.text.running),
+      borderTopColor(badge.surface.transparent),
+      radius(radii.full),
+      animate(spin, {
+        duration: unit.ms(800),
+        easing: easing.linear,
+        iterations: 'infinite',
+      }),
+      when(typecheckStatus.failed, [
+        pseudo.content.text(cssString('⚠')),
+        borderStyle.none,
+        animationName.none,
+        fontSize(unit.rem(0.8)),
+      ]),
+    ]),
+    when(typecheckStatus.failed, [
+      borderColor(badge.border.failed),
+      color(badge.text.failed),
+      bg(badge.surface.failed),
+      shadow({ y: unit.px(4), blur: unit.px(12), color: badge.effect.failed }),
+    ]),
+  ],
+  dismiss: [
+    display.inlineGrid,
+    inlineSize(unit.rem(1.25)),
+    blockSize(unit.rem(1.25)),
+    p(space(0)),
+    placeItems.center,
+    radius(radii.sm),
+    color(badge.text.failed),
+    bg(badge.surface.transparent),
+    cursor.pointer,
+    fontSize(unit.rem(1)),
+    lineHeight(num(1)),
+    when(interaction.hover, [bg(badge.surface.dismissHover)]),
+  ],
+});
 `;
-}
 
 const projectTokensTs = `import { dateLong, money, number } from '@craft-ts/i18n';
 
@@ -1736,7 +1989,7 @@ export const tone = defineStateAxis('tone', ['neutral', 'danger']);
  * set once on a wrapper and read by everything below. The default, \`false\`,
  * is right for a variable an element both sets and reads on itself.
  */
-const themed = { inherits: true } as const;
+const themed = { inherits: true };
 
 export const theme = cssVars('app', {
   ink: kind.color(ui.text.strong, themed),
@@ -1818,19 +2071,8 @@ export const link = craftStyles(
 );
 `;
 
-const uiPlainTs = `export const appTheme = { root: 'starter-theme' } as const;
-export const surface = {
-  card: 'starter-card',
-  note: 'starter-note',
-  message: 'starter-message',
-} as const;
-export const link = { root: 'starter-link' } as const;
-`;
-
 function uiComponentsTs(context: TemplateContext): string {
-  const styleImport = context.config.typedCss
-    ? "import { link, surface } from './ui.style';"
-    : "import { link, surface } from './ui';";
+  const styleImport = "import { link, surface } from './ui.style';";
   const hasI18n = context.config.i18n.enabled;
   const i18nImport = hasI18n ? "\nimport { i18n } from '../../i18n';" : '';
   const continueLabel = hasI18n
@@ -1850,12 +2092,11 @@ export const Link = craftComponent('Link', {}, () => ({}), () => a('more', { cla
 `;
 }
 
-function mainTs(context: TemplateContext): string {
+function mainTs(): string {
   return `import { bootstrapCraft } from '@craft-ts/component';
 import { appConfig } from './app/app.config';
 import { startCraftTypecheckIndicator } from './dev-typecheck-indicator';
-import './styles.css';
-${context.config.typedCss ? "import 'virtual:craft-style.css';" : ''}
+import 'virtual:craft-style.css';
 
 startCraftTypecheckIndicator();
 bootstrapCraft({ config: appConfig });
@@ -1863,8 +2104,9 @@ bootstrapCraft({ config: appConfig });
 }
 
 const typecheckIndicatorTs = `/// <reference types="vite/client" />
+import { typecheckIndicator } from './dev-typecheck-indicator.style';
 
-/* eslint-disable craft-ts/prefer-browser-boundaries, craft-ts/no-direct-temporal-globals, craft-ts/prefer-craft-http-transport, craft-ts/no-async-await -- Dev-server bootstrap adapter, intentionally outside the Craft component tree. */
+/* eslint-disable craft-ts/prefer-browser-boundaries, craft-ts/prefer-craft-http-transport, craft-ts/no-async-await -- Dev-server bootstrap adapter, intentionally outside the Craft component tree. */
 export function startCraftTypecheckIndicator(): void {
   if (!import.meta.env.DEV) return;
 
@@ -1872,12 +2114,12 @@ export function startCraftTypecheckIndicator(): void {
   const message = document.createElement('span');
   const dismiss = document.createElement('button');
 
-  indicator.className = 'craft-typecheck-indicator';
+  indicator.className = typecheckIndicator.root;
   indicator.setAttribute('role', 'status');
   indicator.setAttribute('aria-live', 'polite');
   message.textContent = 'Type checking in progress…';
   dismiss.type = 'button';
-  dismiss.className = 'craft-typecheck-indicator__dismiss';
+  dismiss.className = typecheckIndicator.dismiss;
   dismiss.setAttribute('aria-label', 'Dismiss type-check warning');
   dismiss.title = 'Dismiss';
   dismiss.textContent = '×';
@@ -1894,14 +2136,14 @@ export function startCraftTypecheckIndicator(): void {
   const poll = async (): Promise<void> => {
     try {
       const response = await fetch('/__craft/typecheck', { cache: 'no-store' });
-      const payload = (await response.json()) as { status?: 'running' | 'passed' | 'failed' };
+      const payload: { status?: 'running' | 'passed' | 'failed' } = await response.json();
       if (dismissed) return;
       if (payload.status === 'passed') {
         indicator.remove();
         return;
       }
       if (payload.status === 'failed') {
-        indicator.dataset['status'] = 'failed';
+        indicator.setAttribute('data-typecheck', 'failed');
         message.textContent = 'Type checking failed — app is still running';
         dismiss.hidden = false;
         return;
@@ -1919,22 +2161,24 @@ function appTs(context: TemplateContext): string {
   const designSystem = context.config.designSystem !== 'none';
   const spanImport = context.config.demoPages ? '  span,\n' : '';
   const uiImport = designSystem
-    ? `import { appTheme } from './ui/${context.config.typedCss ? 'ui.style' : 'ui'}';`
+    ? "import { appTheme } from './ui/ui.style';\n"
     : '';
-  const themeOpen = designSystem ? 'div({ class: appTheme.root }, [' : 'div([';
+  const themeOpen = designSystem
+    ? 'div({ class: [appTheme.root, shell.root] }, ['
+    : 'div({ class: shell.root }, [';
   const themeClose = designSystem ? '])' : '])';
   const i18nEnabled = context.config.i18n.enabled;
   const text = (key: string, literal: string) =>
     i18nEnabled ? `i18n.t('${key}')` : `'${literal}'`;
   const i18nImport = i18nEnabled ? "import { i18n } from '../i18n';\n" : '';
   const badge = context.config.demoPages
-    ? `        span({ class: 'starter-experimental-badge' }, ${text('ui.badge', 'Experimental · feedback welcome')}),`
+    ? `        span({ class: shell.badge }, ${text('ui.badge', 'Experimental · feedback welcome')}),`
     : '';
   const navigation = context.config.demoPages
-    ? `        a('home', {}, ${text('ui.nav.home', 'Home')}).pipe(CraftRouterLink({ to: '' })),
-        a('services', {}, ${text('ui.nav.services', 'Services')}).pipe(CraftRouterLink({ to: 'services' })),
-        a('about', {}, ${text('ui.nav.about', 'About')}).pipe(CraftRouterLink({ to: 'about' })),`
-    : `        a('${context.config.domain}', {}, ${text('ui.nav.domain', context.config.domain)}).pipe(CraftRouterLink({ to: '${context.config.domain}' })),`;
+    ? `        a('home', { class: shell.link }, ${text('ui.nav.home', 'Home')}).pipe(CraftRouterLink({ to: '' })),
+        a('services', { class: shell.link }, ${text('ui.nav.services', 'Services')}).pipe(CraftRouterLink({ to: 'services' })),
+        a('about', { class: shell.link }, ${text('ui.nav.about', 'About')}).pipe(CraftRouterLink({ to: 'about' })),`
+    : `        a('${context.config.domain}', { class: shell.link }, ${text('ui.nav.domain', context.config.domain)}).pipe(CraftRouterLink({ to: '${context.config.domain}' })),`;
   return `import {
   a,
   CraftRouterOutlet,
@@ -1945,7 +2189,7 @@ function appTs(context: TemplateContext): string {
 ${spanImport}
 } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
-${i18nImport}${uiImport}
+${i18nImport}${uiImport}import { shell } from './app.style';
 
 export const App = craftComponent(
   'App',
@@ -1953,11 +2197,11 @@ export const App = craftComponent(
   () => ({}),
   () =>
     ${themeOpen}
-      nav([
+      nav({ class: shell.nav }, [
 ${navigation}
 ${badge}
       ]),
-      main(CraftRouterOutlet()),
+      main({ class: shell.main }, CraftRouterOutlet()),
     ${themeClose},
 );
 `;
@@ -2724,9 +2968,11 @@ function initialiseGitRepository(root: string): void {
 function aboutPageTs(context: TemplateContext): string {
   const designSystem = context.config.designSystem !== 'none';
   const surfaceImport = designSystem
-    ? `import { surface } from './ui/${context.config.typedCss ? 'ui.style' : 'ui'}';\n`
-    : '';
-  const card = designSystem ? '{ class: surface.card }, ' : '';
+    ? "import { surface } from './ui/ui.style';\n"
+    : "import { shell } from './app.style';\n";
+  const card = designSystem
+    ? '{ class: surface.card }, '
+    : '{ class: shell.content }, ';
   const sample = context.config.i18n.enabled
     ? [
         "p(i18n.t('order.summary', { amount: 1234.5, count: 2, date: Date.UTC(2026, 0, 15) })),",
@@ -2773,13 +3019,14 @@ function domainPageTs(context: TemplateContext): string {
     ? "i18n.t('ui.domain.body')"
     : `'This is the ${domain} feature boundary. Add the domain flow here.'`;
   return `import { craftComponent, div, heading, p } from '@craft-ts/component';
+import { shell } from '../../app.style';
 ${i18nImport}
 /** Domain-first entry point. Add queries, mutations and forms in this feature. */
 export const ${type}Page = craftComponent(
   '${type}Page',
   {},
   () => ({}),
-  () => div([
+  () => div({ class: shell.content }, [
     heading(${title}),
     p(${body}),
   ]),
@@ -2853,9 +3100,11 @@ console.log('Reset complete: demo pages removed; domain feature is ready.');
 function servicesPageTs(context: TemplateContext): string {
   const designSystem = context.config.designSystem !== 'none';
   const uiImport = designSystem
-    ? `import { surface } from './ui/${context.config.typedCss ? 'ui.style' : 'ui'}';\n`
-    : '';
-  const card = designSystem ? '{ class: surface.card }, ' : '';
+    ? "import { surface } from './ui/ui.style';\n"
+    : "import { shell } from './app.style';\n";
+  const card = designSystem
+    ? '{ class: surface.card }, '
+    : '{ class: shell.content }, ';
   const i18n =
     context.config.i18n.enabled && context.config.frontendRuntime !== 'effect'
       ? "import { i18n } from '../i18n';\n"
@@ -2907,9 +3156,11 @@ export default ServicesPage;
 function plainHomePageTs(context: TemplateContext): string {
   const designSystem = context.config.designSystem !== 'none';
   const surfaceImport = designSystem
-    ? `import { surface } from './ui/${context.config.typedCss ? 'ui.style' : 'ui'}';\n`
-    : '';
-  const card = designSystem ? '{ class: surface.card }, ' : '';
+    ? "import { surface } from './ui/ui.style';\n"
+    : "import { shell } from './app.style';\n";
+  const card = designSystem
+    ? '{ class: surface.card }, '
+    : '{ class: shell.content }, ';
   const note = designSystem ? '{ class: surface.note }, ' : '';
   const message = designSystem
     ? "{ class: surface.message, 'data-tone': 'danger' }, "
@@ -3039,9 +3290,11 @@ export const loadWelcome = Effect.fnUntraced(function* () {
 function effectHomePageTs(context: TemplateContext): string {
   const designSystem = context.config.designSystem !== 'none';
   const surfaceImport = designSystem
-    ? `import { surface } from './ui/${context.config.typedCss ? 'ui.style' : 'ui'}';\n`
-    : '';
-  const card = designSystem ? '{ class: surface.card }, ' : '';
+    ? "import { surface } from './ui/ui.style';\n"
+    : "import { shell } from './app.style';\n";
+  const card = designSystem
+    ? '{ class: surface.card }, '
+    : '{ class: shell.content }, ';
   const note = designSystem ? '{ class: surface.note }, ' : '';
   const message = designSystem
     ? "{ class: surface.message, 'data-tone': 'danger' }, "
@@ -3325,7 +3578,6 @@ function githubWorkflow(context: TemplateContext): string {
     context.config.frontendRuntime === 'effect' ||
     context.config.backendRuntime === 'effect';
   const i18n = context.config.i18n.enabled;
-  const typedCss = context.config.typedCss;
   const attest = context.config.attest;
   const server = context.config.backendRuntime !== 'none';
   return `name: CI
@@ -3351,7 +3603,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run typecheck-spec
-${i18n ? '      - run: npm run i18n:check\n      - run: npm run i18n:test\n' : ''}${typedCss ? '      - run: npm run style:check\n' : ''}${attest ? '      - run: npm run attest:check\n' : ''}${server ? '      - run: npm run server:test\n' : ''}
+${i18n ? '      - run: npm run i18n:check\n      - run: npm run i18n:test\n' : ''}      - run: npm run style:check
+${attest ? '      - run: npm run attest:check\n' : ''}${server ? '      - run: npm run server:test\n' : ''}
 ${effect ? '      - run: npm run effect-check\n' : ''}      - run: npm test
       - run: npm run architecture
       - run: npm run typecheck-architecture
@@ -3364,7 +3617,6 @@ function readme(context: TemplateContext): string {
     context.config.frontendRuntime === 'effect' ||
     context.config.backendRuntime === 'effect';
   const i18n = context.config.i18n.enabled;
-  const typedCss = context.config.typedCss;
   const attest = context.config.attest;
   const attestation = context.config.attestation;
   const designSystem = context.config.designSystem !== 'none';
@@ -3395,7 +3647,7 @@ function readme(context: TemplateContext): string {
         ]),
     ...(designSystem
       ? [
-          `- a ${typedCss ? 'typed CSS' : 'plain CSS'} design-system composition;`,
+          '- a typed-CSS design-system composition;',
         ]
       : []),
     '- development logs forwarded from Craft Console.* to a local JSONL server;',
@@ -3459,7 +3711,7 @@ function readme(context: TemplateContext): string {
     'npm run typecheck',
     'npm run typecheck-spec',
     ...(i18n ? ['npm run i18n:check', 'npm run i18n:test'] : []),
-    ...(typedCss ? ['npm run style:check'] : []),
+    'npm run style:check',
     ...(attest
       ? [
           '',
@@ -3541,7 +3793,6 @@ function starterManifest(context: TemplateContext): string {
     locales: context.locales,
     defaultLocale: context.defaultLocale,
     designSystem: context.config.designSystem,
-    typedCss: context.config.typedCss,
     attest: context.config.attest,
     attestation: context.config.attestation,
   });
@@ -3729,7 +3980,6 @@ function templates(context: TemplateContext): Record<string, string> {
   const hasServer = context.config.backendRuntime !== 'none';
   const hasI18n = context.config.i18n.enabled;
   const hasDesignSystem = context.config.designSystem !== 'none';
-  const typedCss = context.config.typedCss;
   const demoPages = context.config.demoPages;
   const localeFiles = Object.fromEntries(
     hasI18n
@@ -3752,7 +4002,7 @@ function templates(context: TemplateContext): Record<string, string> {
           'scripts/run-effect-tsgo.mjs': effectTsgoRunner,
         }
       : {}),
-    ...(typedCss ? { 'scripts/style-check.mjs': styleCheckScript } : {}),
+    'scripts/style-check.mjs': styleCheckScript,
     ...(hasServer ? { 'tsconfig.server.json': tsconfigServer } : {}),
     'scripts/typecheck.mjs': typecheckScript(context),
     'scripts/dev.mjs': devScript,
@@ -3763,16 +4013,16 @@ function templates(context: TemplateContext): Record<string, string> {
       effect,
       context.config.backendRuntime === 'effect',
       context.config.i18n.enabled,
-      context.config.typedCss,
     ),
     'playwright.config.ts': playwrightConfig,
     'index.html': indexHtml(context.defaultLocale),
     '.mcp.json': mcpConfig,
     '.github/workflows/ci.yml': githubWorkflow(context),
     'README.md': readme(context),
-    'src/main.ts': mainTs(context),
+    'src/main.ts': mainTs(),
     'src/dev-typecheck-indicator.ts': typecheckIndicatorTs,
-    'src/styles.css': stylesFor(context),
+    'src/dev-typecheck-indicator.style.ts': typecheckIndicatorStyleTs,
+    'src/app/app.style.ts': appStyleTs,
     '.craft/starter.json': starterManifest(context),
     ...(hasI18n
       ? {
@@ -3792,9 +4042,7 @@ function templates(context: TemplateContext): Record<string, string> {
       : {}),
     'src/types.d.ts':
       '/// <reference types="vite/client" />\n' +
-      (typedCss
-        ? "\n// Served by the craftStyle plugin; it has no file on disk to resolve.\ndeclare module 'virtual:craft-style.css';\n"
-        : ''),
+      "\n// Served by the craftStyle plugin; it has no file on disk to resolve.\ndeclare module 'virtual:craft-style.css';\n",
     'src/app/app.ts': appTs(context),
     'src/app/app.config.ts': effect
       ? effectAppConfig(context)
@@ -3826,9 +4074,7 @@ function templates(context: TemplateContext): Record<string, string> {
         }),
   };
   if (hasDesignSystem) {
-    files[`src/app/ui/${typedCss ? 'ui.style.ts' : 'ui.ts'}`] = typedCss
-      ? uiStyleTs
-      : uiPlainTs;
+    files['src/app/ui/ui.style.ts'] = uiStyleTs;
     files['src/app/ui/components.ts'] = uiComponentsTs(context);
   }
   if (context.config.attest) {
@@ -4045,7 +4291,6 @@ export function normalizeCreateOptions(
       validation: options.i18n === 'loose' ? 'loose' : 'strict',
     },
     designSystem: options.designSystem ?? 'basic',
-    typedCss: options.typedCss ?? true,
     attest,
     attestation,
     references: {

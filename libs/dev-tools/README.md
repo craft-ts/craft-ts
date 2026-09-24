@@ -23,7 +23,7 @@ choices are normalized into one effective configuration:
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=v4 --agents=codex,cursor,claude-code
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none --agents=none
-npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none --i18n=none --design-system=none --no-typed-css
+npx --yes --package @craft-ts/dev-tools@beta craft create my-app --effect=none --i18n=none --design-system=none
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --frontend-runtime=effect --backend-runtime=effect --i18n=strict
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app --frontend-runtime=plain --backend-runtime=effect
 npx --yes --package @craft-ts/dev-tools@beta craft create apps/my-app --workspace=nx --references=craft-ts
@@ -53,8 +53,7 @@ inside another Git repository, no nested repository is created.
 
 Canonical options include `--frontend-runtime=plain|effect`,
 `--backend-runtime=none|promise|effect`, `--effect-scope=none|frontend|backend|both`,
-`--i18n=strict|loose|none`, `--design-system=basic|none`,
-`--typed-css`/`--no-typed-css`, `--workspace=standalone|nx`, and
+`--i18n=strict|loose|none`, `--design-system=basic|none`, `--workspace=standalone|nx`, and
 `--references=none|craft-ts|all`.
 `--effect=v4|none`, `--locales` and `--default-locale` remain compatible aliases.
 `--json` includes the complete effective configuration.

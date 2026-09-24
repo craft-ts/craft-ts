@@ -1,4 +1,3 @@
-import styles from './text-editor.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -21,10 +20,12 @@ import {
   state,
   transitionStep,
 } from '@craft-ts/core';
+import { example } from '../../shared/example.style';
+import { editor } from './editor.style';
 
 const TextEditorStateMachine = craftComponent(
   'TextEditorStateMachine',
-  { stylesUrl: styles },
+  {},
   function* () {
     const machine = yield* craftStateMachine(
       'textEditor',
@@ -93,15 +94,11 @@ const TextEditorStateMachine = craftComponent(
 
       ({ currentStep }) => {
         return {
-          readingClass: craftComputed('readingClass', function* () {
-            return (yield* currentStep()) === 'reading'
-              ? 'step step--active'
-              : 'step';
+          readingStep: craftComputed('readingStep', function* () {
+            return (yield* currentStep()) === 'reading' ? 'active' : null;
           }),
-          editingClass: craftComputed('editingClass', function* () {
-            return (yield* currentStep()) === 'editing'
-              ? 'step step--active'
-              : 'step';
+          editingStep: craftComputed('editingStep', function* () {
+            return (yield* currentStep()) === 'editing' ? 'active' : null;
           }),
         };
       },
@@ -109,27 +106,32 @@ const TextEditorStateMachine = craftComponent(
 
     return { machine };
   },
-  ({ machine: { currentStepWithContext, editingClass, readingClass } }) =>
-    section([
-      heading('State machine — declarative text editor'),
+  ({ machine: { currentStepWithContext, editingStep, readingStep } }) =>
+    section({ class: example.card }, [
+      heading(
+        { class: example.title },
+        'State machine — declarative text editor',
+      ),
       p(
-        { class: 'intro' },
+        { class: example.text, 'data-exampleText': 'muted' },
         'The transitions only move between reading and editing. The text state reacts to change, commit, and cancel with declarative patch reactions.',
       ),
 
-      div({ class: 'steps' }, [
-        span({ class: readingClass }, 'reading'),
-        span({ class: editingClass }, 'editing'),
+      div({ class: editor.steps }, [
+        span({ class: editor.step, 'data-editorStep': readingStep }, 'reading'),
+        span({ class: editor.step, 'data-editorStep': editingStep }, 'editing'),
       ]),
 
       matchNode.exhaustive(currentStepWithContext, 'step', {
         reading: (reading) =>
-          div({ class: 'panel' }, [
+          div({ class: editor.panel }, [
             p(['Committed value: ', reading.text.committedValue]),
             p(['Current value: ', reading.text.value]),
             button(
               'text-edit',
               {
+                class: example.button,
+                'data-exampleButton': 'primary',
                 type: 'button',
                 click: () => reading.edit$.emit(),
               },
@@ -137,19 +139,23 @@ const TextEditorStateMachine = craftComponent(
             ),
           ]),
         editing: (editing) =>
-          div({ class: 'panel' }, [
+          div({ class: editor.panel }, [
             labelText('Value'),
             input('text-input', {
+              class: example.input,
+              'data-exampleField': 'wide',
               type: 'text',
               value: editing.text.value,
               input: function* (event) {
                 yield* editing.text.change(event.target.value);
               },
             }),
-            div({ class: 'actions' }, [
+            div({ class: example.row }, [
               button(
                 'text-commit',
                 {
+                  class: example.button,
+                  'data-exampleButton': 'primary',
                   type: 'button',
                   click: () => editing.commit$.emit(),
                 },
@@ -159,7 +165,7 @@ const TextEditorStateMachine = craftComponent(
                 'text-cancel',
                 {
                   type: 'button',
-                  class: 'secondary',
+                  class: example.button,
                   click: () => editing.cancel$.emit(),
                 },
                 'Cancel',
@@ -171,7 +177,7 @@ const TextEditorStateMachine = craftComponent(
 );
 
 function labelText(text: string) {
-  return span({ class: 'field-label' }, text);
+  return span({ class: editor.label }, text);
 }
 
 export default TextEditorStateMachine;

@@ -77,6 +77,24 @@ describe('no-raw-css-value', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it('accepts the names and numbers the foundation constructors take', async () => {
+    const result = await lint(
+      rawValueRule,
+      `
+      import { craftGlobalStyles, defineFont, easing, googleFont, keyframes, opacity, num, systemFontStack, tracks, unit } from '@craft-ts/style';
+      export const body = defineFont('body', { family: 'Chivo', source: googleFont({ weights: [400] }), fallback: 'system-ui' });
+      export const stack = systemFontStack(['ui-sans-serif'], 'sans-serif');
+      export const columns = [tracks.equal(2), tracks.list(unit.rem(2), tracks.fr(1), 'auto')];
+      export const fade = keyframes('fade', { to: [opacity(num(0))] });
+      export const curve = easing.cubicBezier(0.2, 0, 0, 1);
+      craftGlobalStyles('app', {});
+    `,
+      'foundation.style.ts',
+    );
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('names the exact replacement for a raw length', async () => {
     const result = await lint(
       rawValueRule,

@@ -11,6 +11,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
+import { componentUi, pendingDemo } from './component-demos.style';
 
 interface DemoUser {
   readonly id: number;
@@ -35,28 +36,7 @@ const USERS: readonly DemoUser[] = [
 export const pendingNodeDemo = craftComponent(
   'pendingNodeDemo',
   {
-    host: { class: 'pending-demo-host' },
-    styles: `
-      :scope { display: grid; gap: 1rem; padding: 1rem; justify-items: start; }
-      .pending-demo__skeleton {
-        padding: .75rem 1rem;
-        border-radius: .75rem;
-        background: #eef2ff;
-        color: #4338ca;
-        font-weight: 650;
-      }
-      .pending-demo__reload {
-        width: fit-content;
-        padding: .45rem .9rem;
-        border: 1px solid #c7d2fe;
-        border-radius: .6rem;
-        background: #fff;
-        font-weight: 650;
-        cursor: pointer;
-      }
-      .pending-demo__list { display: grid; gap: .35rem; margin: 0; padding-left: 1.1rem; }
-      .pending-demo__count { opacity: .72; font-size: .9rem; }
-    `,
+    host: { class: componentUi.host },
   },
   function* () {
     const users = yield* query(
@@ -91,7 +71,7 @@ export const pendingNodeDemo = craftComponent(
     return { users };
   },
   ({ users }) =>
-    section({ class: 'pending-demo' }, [
+    section({ class: pendingDemo.page }, [
       heading('settledValue + pendingNode'),
       p(
         'The template reads an always-resolved value; the pendingNode owns the loading state.',
@@ -100,7 +80,7 @@ export const pendingNodeDemo = craftComponent(
         'reload',
         {
           type: 'button',
-          class: 'pending-demo__reload',
+          class: pendingDemo.actionButton,
           *click() {
             yield* users.call(undefined);
           },
@@ -108,15 +88,15 @@ export const pendingNodeDemo = craftComponent(
         'Reload',
       ),
       div([
-        ul({ class: 'pending-demo__list' }, [
+        ul({ class: pendingDemo.list }, [
           li(['Teams: ', span(users.teams)]),
-          li({ class: 'pending-demo__count' }, users.total),
+          li({ class: pendingDemo.count }, users.total),
         ]),
       ]).pipe(
         // One boundary covers both computeds. Remove this line and
         // `craftComponent(...)` refuses to compile, naming the "users" source.
         pendingNode({
-          fallback: () => p({ class: 'pending-demo__skeleton' }, 'Loading teams…'),
+          fallback: () => p({ class: pendingDemo.skeleton }, 'Loading teams…'),
         }),
       ),
     ]),
