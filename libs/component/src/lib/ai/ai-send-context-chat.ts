@@ -468,10 +468,7 @@ export const AiSendContextChat: CraftComponent<{
           ? captureAiDomStyles(ui.captureElement)
           : undefined;
       const pageCapture = options.includePageDomStyles
-        ? captureAiDomStyles(document.documentElement, {
-            maxBytes: 1024 * 1024,
-            maxNodes: 10000,
-          })
+        ? captureAiDomStyles(document.documentElement)
         : undefined;
       return buildSendContextWebhookPayload(
         {

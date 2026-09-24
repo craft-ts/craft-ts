@@ -1,6 +1,3 @@
-const DEFAULT_MAX_CAPTURE_BYTES = 256 * 1024;
-const DEFAULT_MAX_CAPTURE_NODES = 2000;
-
 const STYLE_WHITELIST = [
   'display',
   'position',
@@ -45,33 +42,13 @@ const STYLE_WHITELIST = [
  * Captures a DOM subtree as a compact tree, including text, attributes and
  * computed CSS values useful for reproducing a visual/layout issue.
  */
-export function captureAiDomStyles(
-  root: Element,
-  limits: {
-    readonly maxBytes?: number;
-    readonly maxNodes?: number;
-  } = {},
-): unknown {
-  const maxBytes = limits.maxBytes ?? DEFAULT_MAX_CAPTURE_BYTES;
-  const maxNodes = limits.maxNodes ?? DEFAULT_MAX_CAPTURE_NODES;
-  let nodeCount = 0;
-  const tree = serializeDom(root, STYLE_WHITELIST, () => {
-    nodeCount += 1;
-    if (nodeCount > maxNodes) {
-      throw new Error('La capture DOM contient trop de nœuds.');
-    }
-  });
-  const json = JSON.stringify(tree);
-  if (json.length > maxBytes) {
-    throw new Error('La capture DOM est trop volumineuse.');
-  }
-  return tree;
+export function captureAiDomStyles(root: Element): unknown {
+  return serializeDom(root, STYLE_WHITELIST);
 }
 
 function serializeDom(
   element: Element,
   whitelist: readonly string[],
-  visit: () => void,
 ): Readonly<{
   tag: string;
   id?: string;
@@ -82,7 +59,6 @@ function serializeDom(
   hidden?: boolean;
   children: readonly unknown[];
 }> {
-  visit();
   const computed = getComputedStyle(element);
   const rect = element.getBoundingClientRect();
   const craftName = element.getAttribute('data-craft-name');
@@ -104,7 +80,7 @@ function serializeDom(
     styles: pickStyles(computed, whitelist),
     ...(computed.display === 'none' ? { hidden: true } : {}),
     children: Array.from(element.children, (child) =>
-      serializeDom(child, whitelist, visit),
+      serializeDom(child, whitelist),
     ),
   };
 }

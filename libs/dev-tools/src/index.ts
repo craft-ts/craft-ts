@@ -18,6 +18,7 @@ export * from './scripts/components/migration-diagnostic.js';
 export * from './scripts/architecture/migrate-architecture.js';
 export * from './scripts/dependency-graph.js';
 export * from './scripts/folder-layout.js';
+export * from './scripts/apply-folder-layout.js';
 export * from './scripts/architecture-graph.js';
 export * from './scripts/contrast.js';
 export * from './scripts/style-graph.js';

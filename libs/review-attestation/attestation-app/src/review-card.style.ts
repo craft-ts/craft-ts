@@ -766,4 +766,31 @@ export const dialog = craftStyles('reviewDialog', {
     color(theme.accentText),
     bg(theme.surface),
   ],
+  /** What the folder-layout run leaves behind: staged changes, not commits. */
+  staged: [
+    py(unit.px(10)),
+    px(unit.px(12)),
+    borderInlineStartWidth(unit.px(3)),
+    borderInlineStartStyle.solid,
+    borderInlineStartColor(theme.accent),
+    color(theme.textMuted),
+    bg(theme.surfaceSunken),
+  ],
+  commandLabel: [display.block, color(theme.textMuted)],
+  /** A generated command, kept on its lines: it scrolls rather than wraps. */
+  command: [
+    maxBlockSize(unit.px(280)),
+    provides(scrollPort.block),
+    provides(scrollPort.inline),
+    p(unit.px(12)),
+    ...hairline(theme.line),
+    radius(unit.px(7)),
+    fontFamily(monospaceStack),
+    whiteSpace.pre,
+    color(theme.text),
+    bg(theme.surfaceSunken),
+  ],
+  disclosure: [display.grid, gap(unit.px(10))],
+  disclosureSummary: [cursor.pointer, color(theme.accentLink)],
+  error: [color(theme.dangerText)],
 });

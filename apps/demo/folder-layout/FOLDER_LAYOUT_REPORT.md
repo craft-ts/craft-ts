@@ -4,6 +4,7 @@ Source graph hash: `f7bcd3d9530dee51`
 
 ## Proposed tree
 
+- `apps/demo/src/core/app-start/run-on-app-start.ts` — core (1.00)
 - `apps/demo/src/core/app.config.ts` — core (0.95)
 - `apps/demo/src/core/app.routes.ts` — core (0.95)
 - `apps/demo/src/core/app.ts` — core (0.95)
@@ -16,7 +17,6 @@ Source graph hash: `f7bcd3d9530dee51`
 - `apps/demo/src/core/my-route-load-error-screen.ts` — core (0.95)
 - `apps/demo/src/core/page-actor.ts` — core (0.25)
 - `apps/demo/src/core/query-params.utils.ts` — core (0.25)
-- `apps/demo/src/core/run-on-app-start.ts` — core (0.45)
 - `apps/demo/src/core/template-trace-demo.ts` — core (0.25)
 - `apps/demo/src/features/component-composition/component-composition-demo.ts` — feature-local (0.92)
 - `apps/demo/src/features/content-projection/content-projection-actions.ts` — feature-local (0.92)
@@ -98,6 +98,11 @@ Source graph hash: `f7bcd3d9530dee51`
 - `apps/demo/src/shared/event-value.ts` — global-shared (0.25)
 - `apps/demo/src/shared/status.component.ts` — global-shared (0.78)
 - `apps/demo/src/shared/status.style.ts` — global-shared (0.25)
+
+## Orphaned files proposed for deletion
+
+- `apps/demo/src/app/examples/craft/full-demo/api.service.ts` — no route, shell or importer reaches this file; no CraftTS node; import evidence only; orphaned file proposed for deletion
+- `apps/demo/src/app/examples/primitives/full-demo/api.service.ts` — no route, shell or importer reaches this file; no CraftTS node; import evidence only; orphaned file proposed for deletion
 
 ## File-by-file decisions
 
@@ -331,11 +336,11 @@ Source graph hash: `f7bcd3d9530dee51`
 
 ### `apps/demo/src/app/examples/craft/full-demo/api.service.ts`
 
-- Action: **keep-at-root**
+- Action: **delete**
 - Scope: **unresolved**
 - Destination: _unresolved_
 - Confidence: **0.20**
-- Reasons: no route, shell or importer reaches this file; no CraftTS node; import evidence only
+- Reasons: no route, shell or importer reaches this file; no CraftTS node; import evidence only; orphaned file proposed for deletion
 
 ### `apps/demo/src/app/examples/craft/full-demo/full-demo.ts`
 
@@ -649,11 +654,11 @@ Source graph hash: `f7bcd3d9530dee51`
 
 ### `apps/demo/src/app/examples/primitives/full-demo/api.service.ts`
 
-- Action: **keep-at-root**
+- Action: **delete**
 - Scope: **unresolved**
 - Destination: _unresolved_
 - Confidence: **0.20**
-- Reasons: no route, shell or importer reaches this file; no CraftTS node; import evidence only
+- Reasons: no route, shell or importer reaches this file; no CraftTS node; import evidence only; orphaned file proposed for deletion
 
 ### `apps/demo/src/app/examples/primitives/full-demo/full-demo.ts`
 
@@ -990,11 +995,11 @@ Source graph hash: `f7bcd3d9530dee51`
 
 ### `apps/demo/src/app/run-on-app-start/run-on-app-start.ts`
 
-- Action: **review**
+- Action: **move**
 - Scope: **core**
-- Destination: `apps/demo/src/core/run-on-app-start.ts`
-- Confidence: **0.45**
-- Reasons: reached from the application shell only; ownership inferred from importers only; CraftTS kinds: service
+- Destination: `apps/demo/src/core/app-start/run-on-app-start.ts`
+- Confidence: **1.00**
+- Reasons: placement rule "app-start-services": Service declares an onAppStart hook that runs during application bootstrap.; ownership inferred from importers only; CraftTS kinds: service
 - Related files: `apps/demo/src/app/app.config.ts`
 
 ### `apps/demo/src/app/template-trace-demo.ts`
@@ -1749,9 +1754,10 @@ Hubs: `apps/demo/src/app/app.config.ts`, `apps/demo/src/app/app.routes.ts`, `app
 
 ## Confidence statistics
 
-- High: 75
+- High: 76
 - Medium: 1
-- Low: 20
-- Moves: 75
-- Reviews: 18
+- Low: 19
+- Moves: 76
+- Deletions: 2
+- Reviews: 17
 - Unresolved: 2

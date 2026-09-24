@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "a3dc133e69816d2a",
+  "graphHash": "69dffc6b188421f9",
   "routes": [],
   "services": [
     "AiContextMenuController",
@@ -155,6 +155,7 @@ export const architectureCatalog = {
     "applicationStatus",
     "applicationViewport",
     "applicationZoom",
+    "applyFolderLayout",
     "band",
     "busy",
     "bypassEvidence",
@@ -182,9 +183,11 @@ export const architectureCatalog = {
     "closeReviewSession",
     "collapsedFolders",
     "componentFilter",
+    "confirmFolderLayoutApply",
     "confirmIterationHandoff",
     "confirmRegeneration",
     "copied",
+    "copyFolderLayoutCommand",
     "copyIterationPrompt",
     "coveredCount",
     "craftComputed",
@@ -195,12 +198,16 @@ export const architectureCatalog = {
     "degraded",
     "devtoolView",
     "directionFilter",
+    "dismissFolderLayoutApply",
     "error",
     "evidenceView",
     "fellBack",
     "fidelitySentence",
     "findings",
     "folderIds",
+    "folderLayoutApplyCopied",
+    "folderLayoutApplyDialogDismissed",
+    "folderLayoutApplyDialogOpen",
     "folderLayoutEvidence",
     "folderLayoutPressed",
     "folderLayouts",
@@ -264,6 +271,7 @@ export const architectureCatalog = {
     "replayTarget",
     "retire",
     "retirementReason",
+    "reviewCards",
     "reviewDecision",
     "reviewFailed",
     "reviewNavigation",
@@ -331,6 +339,7 @@ export const architectureCatalog = {
     "closeReviewRequested$ (source$)",
     "decisionReopened$ (source$)",
     "decisionSubmitted$ (source$)",
+    "folderLayoutApplyRequested$ (source$)",
     "iterationDialogClosed$ (source$)",
     "iterationDialogRequested$ (source$)",
     "iterationHandoffRequested$ (source$)",
@@ -367,6 +376,10 @@ export const architectureCatalog = {
     {
       "method": "POST",
       "url": "/api/decisions/reopen"
+    },
+    {
+      "method": "POST",
+      "url": "/api/folder-layout/apply"
     },
     {
       "method": "POST",

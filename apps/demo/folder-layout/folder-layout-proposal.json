@@ -1,7 +1,7 @@
 {
   "version": 1,
   "sourceGraphHash": "f7bcd3d9530dee51",
-  "configHash": "654e430eb38c6399",
+  "configHash": "05beae0d5c308af4",
   "placements": [
     {
       "sourcePath": "apps/demo/src/app/app.config.ts",
@@ -543,11 +543,12 @@
       "confidence": 0.2,
       "reasons": [
         "no route, shell or importer reaches this file",
-        "no CraftTS node; import evidence only"
+        "no CraftTS node; import evidence only",
+        "orphaned file proposed for deletion"
       ],
       "relatedFiles": [],
       "alternatives": [],
-      "action": "keep-at-root"
+      "action": "delete"
     },
     {
       "sourcePath": "apps/demo/src/app/examples/craft/full-demo/full-demo.ts",
@@ -1207,11 +1208,12 @@
       "confidence": 0.2,
       "reasons": [
         "no route, shell or importer reaches this file",
-        "no CraftTS node; import evidence only"
+        "no CraftTS node; import evidence only",
+        "orphaned file proposed for deletion"
       ],
       "relatedFiles": [],
       "alternatives": [],
-      "action": "keep-at-root"
+      "action": "delete"
     },
     {
       "sourcePath": "apps/demo/src/app/examples/primitives/full-demo/full-demo.ts",
@@ -1906,13 +1908,13 @@
     },
     {
       "sourcePath": "apps/demo/src/app/run-on-app-start/run-on-app-start.ts",
-      "proposedPath": "apps/demo/src/core/run-on-app-start.ts",
+      "proposedPath": "apps/demo/src/core/app-start/run-on-app-start.ts",
       "scope": "core",
-      "communityId": "community:ae6e9157995bdbca",
+      "communityId": "community:e9dbb530e3107468",
       "routeAnchors": [],
-      "confidence": 0.45,
+      "confidence": 1,
       "reasons": [
-        "reached from the application shell only",
+        "placement rule \"app-start-services\": Service declares an onAppStart hook that runs during application bootstrap.",
         "ownership inferred from importers only",
         "CraftTS kinds: service"
       ],
@@ -1920,7 +1922,7 @@
         "apps/demo/src/app/app.config.ts"
       ],
       "alternatives": [],
-      "action": "review"
+      "action": "move"
     },
     {
       "sourcePath": "apps/demo/src/app/template-trace-demo.ts",
@@ -2046,13 +2048,13 @@
   ],
   "statistics": {
     "files": 96,
-    "moves": 75,
-    "reviews": 18,
+    "moves": 76,
+    "reviews": 17,
     "unresolved": 2,
     "confidence": {
-      "high": 75,
+      "high": 76,
       "medium": 1,
-      "low": 20
+      "low": 19
     }
   }
 }
