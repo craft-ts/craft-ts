@@ -390,7 +390,15 @@ export async function startReviewServer(
     // middleware-mode default creates a second HMR WebSocket listener on
     // port 24678, which can collide with a developer's running app and leak
     // a spurious browser error into review-server tests.
-    server: { middlewareMode: true, hmr: false, ws: false },
+    // Nothing is transformed ahead of a request: serving index.html would
+    // otherwise start loading `virtual:craft-style.css` in the background —
+    // an evaluation of every sheet — and `close()` waits for it.
+    server: {
+      middlewareMode: true,
+      hmr: false,
+      ws: false,
+      preTransformRequests: false,
+    },
     resolve: { alias: aliases, tsconfigPaths: true },
   });
 
