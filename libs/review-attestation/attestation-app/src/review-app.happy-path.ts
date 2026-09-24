@@ -256,7 +256,9 @@ export const reviewAppHappyPathMocks = createReviewAppMocks(
 );
 
 export const reviewAppVisualTestConfig = defineVisualAppConfig({
-  sourceFiles: ['libs/review-attestation/attestation-app/src/styles.css'],
+  sourceFiles: [
+    'libs/review-attestation/attestation-app/src/review-app.style.ts',
+  ],
   pages: [
     {
       id: 'review-app',

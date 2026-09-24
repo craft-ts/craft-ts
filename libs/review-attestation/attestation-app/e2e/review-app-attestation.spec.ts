@@ -48,13 +48,19 @@ test('shows command effects and loads the button and method snippets for the sel
     expect(detailRequests).toBe(0);
     await page.goto(running.url);
     await expect(
-      page.locator('.review-card:not([hidden]) .template-effects'),
+      page.locator(
+        '[data-testid="review-card"]:not([hidden]) [data-testid="template-effects"]',
+      ),
     ).toContainText('save()');
     await expect(
-      page.locator('.review-card:not([hidden]) .template-source'),
+      page.locator(
+        '[data-testid="review-card"]:not([hidden]) [data-testid="template-source"]',
+      ),
     ).toContainText(detail.element.code);
     await expect(
-      page.locator('.review-card:not([hidden]) .template-source'),
+      page.locator(
+        '[data-testid="review-card"]:not([hidden]) [data-testid="template-source"]',
+      ),
     ).toContainText(detail.method.code);
     expect(detailRequests).toBeGreaterThan(0);
   } finally {
@@ -74,10 +80,10 @@ test('offers AI context actions from the review screen in development', async ({
   try {
     await page.goto(running.url);
     await expect(
-      page.locator('.queue-panel .panel-heading.brand'),
+      page.locator('[data-testid="queue-panel"] [data-testid="brand"]'),
     ).toBeVisible();
     await page
-      .locator('.queue-panel .panel-heading.brand')
+      .locator('[data-testid="queue-panel"] [data-testid="brand"]')
       .click({ button: 'right' });
     await expect(
       page.getByRole('menuitem', { name: 'Add to AI context' }),
@@ -102,17 +108,27 @@ test('reviews a folder-layout proposal as a visual before/after tree', async ({
     await expect(
       page.locator('[data-craft-name="ShowFolderLayout"]'),
     ).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.folder-layout-trees')).toBeVisible();
-    await expect(page.locator('.folder-layout-tree')).toHaveCount(2);
-    await expect(page.locator('.folder-layout-row.moved')).toHaveCount(4);
     await expect(
-      page.locator('.folder-layout-row.deleted:not([hidden])'),
+      page.locator('[data-testid="folder-layout-trees"]'),
+    ).toBeVisible();
+    await expect(page.locator('[data-folder-layout="tree"]')).toHaveCount(2);
+    await expect(
+      page.locator('[data-folder-layout="row"][data-rowStatus="moved"]'),
+    ).toHaveCount(4);
+    await expect(
+      page.locator(
+        '[data-folder-layout="row"][data-rowStatus="deleted"]:not([hidden])',
+      ),
     ).toHaveCount(1);
     await expect(
-      page.locator('.folder-layout-row.created:not([hidden])'),
+      page.locator(
+        '[data-folder-layout="row"][data-rowStatus="created"]:not([hidden])',
+      ),
     ).toHaveCount(1);
     await page.locator('[data-craft-name="AcceptReviewCard"]').click();
-    await expect(page.locator('.folder-layout-trees')).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="folder-layout-trees"]'),
+    ).toHaveCount(0);
   } finally {
     await running.close();
   }
@@ -171,7 +187,9 @@ test('keeps decision hints readable when their action is disabled', async ({
   try {
     await page.goto(running.url);
     await expect(
-      page.locator('.review-card:not([hidden]) .template-statement'),
+      page.locator(
+        '[data-testid="review-card"]:not([hidden]) [data-testid="template-statement"]',
+      ),
     ).toBeVisible();
 
     const acceptWithNote = page.locator(
@@ -223,7 +241,7 @@ test('keeps primary decision labels and shortcut keys at WCAG AA contrast', asyn
       await page.locator('#review-theme').selectOption(theme);
       const contrast = await accept.evaluate((element) => {
         const button = element as HTMLElement;
-        const key = button.querySelector('.key');
+        const key = button.querySelector('[data-testid="key"]');
         if (!(key instanceof HTMLElement))
           throw new Error('Shortcut key missing');
 
@@ -288,7 +306,7 @@ test('persists the selected view and scenario in the URL', async ({
   try {
     await page.goto(`${running.url}?view=visual`);
     await page.locator('[data-craft-name="SelectVisualTest"]').click();
-    await expect(page.locator('.visual-detail')).toBeVisible();
+    await expect(page.locator('[data-testid="visual-detail"]')).toBeVisible();
     await expect(page).toHaveURL(
       new RegExp(
         `scenario=${encodeURIComponent('visual:component:fixture.ts:ProfileCard#base')}`,
@@ -307,7 +325,9 @@ test('persists the selected view and scenario in the URL', async ({
     await expect(page.getByRole('dialog')).toContainText('1 rejected card');
 
     await page.goto(`${running.url}?view=template`);
-    await expect(page.locator('.inventory-panel:not([hidden])')).toBeVisible();
+    await expect(
+      page.locator('[data-testid="inventory-panel"]:not([hidden])'),
+    ).toBeVisible();
     await expect(
       page.locator('[data-craft-name="ShowTemplateObligations"]'),
     ).toHaveAttribute('aria-pressed', 'true');
@@ -359,10 +379,14 @@ test('shows only the selected template review without visual evidence', async ({
     await expect(
       page.locator('[data-craft-name="SelectReviewCard"]').nth(1),
     ).toHaveAttribute('aria-current', 'true');
-    await expect(page.locator('.review-card')).toHaveCount(1);
-    await expect(page.locator('.review-card')).toContainText('settings.commit');
+    await expect(page.locator('[data-testid="review-card"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="review-card"]')).toContainText(
+      'settings.commit',
+    );
     await expect(
-      page.locator('.review-card:not([hidden]) .evidence-canvas'),
+      page.locator(
+        '[data-testid="review-card"]:not([hidden]) [data-testid="evidence-canvas"]',
+      ),
     ).toHaveCount(0);
   } finally {
     await running.close();
@@ -398,8 +422,10 @@ test('keeps accepted decisions in order and can reopen one', async ({
     await expect(history.nth(1)).toContainText('settings.commit');
 
     await history.nth(0).click();
-    await expect(page.locator('.review-card')).toHaveCount(1);
-    await expect(page.locator('.review-card')).toContainText('profile.commit');
+    await expect(page.locator('[data-testid="review-card"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="review-card"]')).toContainText(
+      'profile.commit',
+    );
     await expect(history).toHaveCount(1);
     await expect(history.nth(0)).toContainText('settings.commit');
   } finally {
@@ -524,15 +550,17 @@ test('reviews explicit visible application captures without changing global cove
   });
   try {
     await page.goto(`${running.url}?view=application`);
-    const progress = page.locator('.application-progress');
+    const progress = page.locator('[data-testid="application-progress"]');
     await expect(progress).toContainText('0 / 4');
-    await expect(page.locator('.application-capture')).toHaveCount(3);
     await expect(
-      page.locator('.application-capture img').first(),
+      page.locator('[data-testid="application-capture"]'),
+    ).toHaveCount(3);
+    await expect(
+      page.locator('[data-testid="application-capture"] img').first(),
     ).toBeVisible();
     expect(
       await page
-        .locator('.application-capture img')
+        .locator('[data-testid="application-capture"] img')
         .first()
         .evaluate((img: HTMLImageElement) => img.naturalWidth),
     ).toBe(60);
@@ -564,10 +592,12 @@ test('reviews explicit visible application captures without changing global cove
     await page
       .locator('[data-craft-name="ApplicationCategory"]')
       .selectOption('exception');
-    await expect(page.locator('.application-capture')).toHaveCount(1);
-    await expect(page.locator('.application-capture')).toContainText(
-      'Capture missing',
-    );
+    await expect(
+      page.locator('[data-testid="application-capture"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('[data-testid="application-capture"]'),
+    ).toContainText('Capture missing');
     await expect(progress).toContainText('2 / 4');
     expect(runtimeErrors).toEqual([]);
   } finally {

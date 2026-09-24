@@ -38,6 +38,7 @@ export default defineConfig({
       'libs/effect/src/**/*.spec.ts',
       'libs/review-attestation/attestation-app/src/ide-links.spec.ts',
       'libs/review-attestation/attestation-app/src/folder-layout-tree.spec.ts',
+      'libs/review-attestation/attestation-app/src/tier-legend.style.spec.ts',
       'tools/**/*.spec.ts',
     ],
     reporters: ['default'],

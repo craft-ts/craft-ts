@@ -11,18 +11,6 @@ export const architectureWaiverList = defineArchitectureWaivers(
   architectureCatalog,
   [
     {
-      rule: 'style-only-design-system',
-      target: '*',
-      reason:
-        'TODO(style-only): not migrated to @craft-ts/style yet (lot 5 of the style-only plan); the migration removes this waiver.',
-    },
-    {
-      rule: 'no-global-stylesheet',
-      target: 'file:libs/review-attestation/attestation-app/src/main.ts',
-      reason:
-        'TODO(style-only): not migrated to @craft-ts/style yet (lot 5 of the style-only plan); the migration removes this waiver.',
-    },
-    {
       rule: 'no-unused-primitive-methods',
       target: '*',
       reason:

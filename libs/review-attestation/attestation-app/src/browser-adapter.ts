@@ -21,10 +21,18 @@ export const reviewLanguages = (): readonly string[] =>
 export const reviewClipboard = (): Clipboard | undefined =>
   globalThis.navigator?.clipboard;
 
+/**
+ * The two states the folder-layout sheet reads (`rowLinked`, `rowLocated` in
+ * `folder-layout.style.ts`). Set by name: `dataset.rowLinked` would write
+ * `data-row-linked`, which the axis does not match.
+ */
+const ROW_LINKED = 'data-rowLinked';
+const ROW_LOCATED = 'data-rowLocated';
+
 const folderLayoutRowOf = (event: Event): HTMLElement | null => {
   const target = event.currentTarget;
   return target instanceof HTMLElement
-    ? target.closest<HTMLElement>('.folder-layout-row')
+    ? target.closest<HTMLElement>('[data-folder-layout="row"]')
     : null;
 };
 
@@ -34,7 +42,7 @@ const folderLayoutRowsLinkedTo = (
 ): HTMLElement[] =>
   links.flatMap((link) => [
     ...root.querySelectorAll<HTMLElement>(
-      `.folder-layout-row[data-link="${CSS.escape(link)}"]`,
+      `[data-folder-layout="row"][data-link="${CSS.escape(link)}"]`,
     ),
   ]);
 
@@ -47,11 +55,13 @@ export const highlightFolderLayoutRow = (
   active: boolean,
 ): void => {
   const row = folderLayoutRowOf(event);
-  const view = row?.closest('.folder-layout-view');
+  const view = row?.closest('[data-folder-layout="view"]');
   const link = row?.dataset['link'];
   if (!view || !link) return;
   folderLayoutRowsLinkedTo(view, [link]).forEach((candidate) =>
-    candidate.classList.toggle('linked', active),
+    active
+      ? candidate.setAttribute(ROW_LINKED, 'true')
+      : candidate.removeAttribute(ROW_LINKED),
   );
 };
 
@@ -64,26 +74,26 @@ export const locateFolderLayoutRows = (
   links: readonly string[],
 ): void => {
   const row = folderLayoutRowOf(event);
-  const view = row?.closest('.folder-layout-view');
-  const tree = row?.closest('.folder-layout-tree');
+  const view = row?.closest('[data-folder-layout="view"]');
+  const tree = row?.closest('[data-folder-layout="tree"]');
   if (!row || !view || !tree) return;
 
   // Next frame: the render that unfolds collapsed ancestors has landed.
   requestAnimationFrame(() => {
     view
-      .querySelectorAll('.folder-layout-row.located')
-      .forEach((located) => located.classList.remove('located'));
-    row.classList.add('located');
+      .querySelectorAll(`[${ROW_LOCATED}]`)
+      .forEach((located) => located.removeAttribute(ROW_LOCATED));
+    row.setAttribute(ROW_LOCATED, 'true');
 
-    const other = [...view.querySelectorAll('.folder-layout-tree')].find(
-      (candidate) => candidate !== tree,
-    );
+    const other = [
+      ...view.querySelectorAll('[data-folder-layout="tree"]'),
+    ].find((candidate) => candidate !== tree);
     if (!other) return;
     const targets = folderLayoutRowsLinkedTo(other, links);
-    targets.forEach((target) => target.classList.add('located'));
+    targets.forEach((target) => target.setAttribute(ROW_LOCATED, 'true'));
 
     const first = targets[0];
-    const list = first?.closest<HTMLElement>('.folder-layout-tree-list');
+    const list = first?.closest<HTMLElement>('[data-folder-layout="list"]');
     if (!first || !list) return;
     const listBox = list.getBoundingClientRect();
     const rowBox = first.getBoundingClientRect();

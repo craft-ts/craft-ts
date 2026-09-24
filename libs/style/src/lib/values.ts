@@ -143,22 +143,41 @@ export interface ImageValue {
  * `'#ff0000'` does not. The stops are spread evenly, which is what nearly
  * every gradient in an interface is.
  */
+/**
+ * One colour stop: a colour alone (spread evenly), or a colour with where it
+ * starts and, optionally, where it ends — `[ink, unit.pct(25)]`,
+ * `[ink, space(0), unit.pct(25)]`.
+ */
+export type GradientStop =
+  | ColorValue
+  | readonly [ColorValue, LengthPercentageValue]
+  | readonly [ColorValue, LengthPercentageValue, LengthPercentageValue];
+
+type Stops = readonly [GradientStop, GradientStop, ...GradientStop[]];
+
+const stopText = (stop: GradientStop): string =>
+  Array.isArray(stop)
+    ? (stop as readonly { readonly css: string }[])
+        .map((part) => part.css)
+        .join(' ')
+    : (stop as ColorValue).css;
+
+const image = (css: string): ImageValue =>
+  ({ css, unproven: '' }) as ImageValue;
+
+const list = (stops: Stops) => stops.map(stopText).join(', ');
+
 export const gradient = {
-  linear: (
-    angle: AngleValue,
-    stops: readonly [ColorValue, ColorValue, ...ColorValue[]],
-  ): ImageValue =>
-    ({
-      css: `linear-gradient(${angle.css}, ${stops.map((stop) => stop.css).join(', ')})`,
-      unproven: '',
-    }) as ImageValue,
-  radial: (
-    stops: readonly [ColorValue, ColorValue, ...ColorValue[]],
-  ): ImageValue =>
-    ({
-      css: `radial-gradient(${stops.map((stop) => stop.css).join(', ')})`,
-      unproven: '',
-    }) as ImageValue,
+  linear: (angle: AngleValue, stops: Stops): ImageValue =>
+    image(`linear-gradient(${angle.css}, ${list(stops)})`),
+  radial: (stops: Stops): ImageValue =>
+    image(`radial-gradient(${list(stops)})`),
+  /** Repeats its stops along the angle — stripes, rulers, tree guides. */
+  repeatingLinear: (angle: AngleValue, stops: Stops): ImageValue =>
+    image(`repeating-linear-gradient(${angle.css}, ${list(stops)})`),
+  /** Repeats its stops around a point — a checkerboard is two of its quarters. */
+  repeatingConic: (stops: Stops): ImageValue =>
+    image(`repeating-conic-gradient(${list(stops)})`),
 } as const;
 
 /**
@@ -168,5 +187,41 @@ export const gradient = {
  * Named apart from the generated `backgroundImage`, which takes a `url()`: one
  * name, one concept.
  */
-export const bgImage = (image: ImageValue): Declaration =>
-  declaration('background-image', image.css);
+export const bgImage = (
+  ...images: readonly [ImageValue, ...ImageValue[]]
+): Declaration =>
+  declaration('background-image', images.map((layer) => layer.css).join(', '));
+
+/** `background-size` as two lengths — what the generated helper cannot write. */
+export const bgSize = (
+  inline: LengthPercentageValue,
+  block: LengthPercentageValue,
+): Declaration => declaration('background-size', `${inline.css} ${block.css}`);
+
+/** `background-position` as two lengths. */
+export const bgPosition = (
+  inline: LengthPercentageValue,
+  block: LengthPercentageValue,
+): Declaration =>
+  declaration('background-position', `${inline.css} ${block.css}`);
+
+/** `backdrop-filter: blur(<length>)` — frosted glass behind an overlay. */
+export const backdropBlur = (radius: LengthValue): Declaration =>
+  declaration('backdrop-filter', `blur(${radius.css})`);
+
+/**
+ * `color-scheme` — which palette the user agent paints form controls and
+ * scrollbars in. The generated helper only knows `normal`; an app whose theme
+ * can be chosen explicitly has to say `light` or `dark` where the choice is.
+ */
+export const uaScheme = {
+  light: declaration('color-scheme', 'light'),
+  dark: declaration('color-scheme', 'dark'),
+} as const;
+
+/**
+ * `grid-column: 1 / -1` — an item that spans every column of its grid, the
+ * one line placement an interface keeps writing. The generated helper takes an
+ * identifier only.
+ */
+export const spanAllColumns = declaration('grid-column', '1 / -1');

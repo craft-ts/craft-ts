@@ -92,5 +92,11 @@ export const pseudo = {
     /** `counter(name)`. */
     counter: (name: IdentValue): ContentDeclaration =>
       contentOf(`counter(${name.css})`),
+    /**
+     * `attr(name)` — the text of one of the element's attributes, for a
+     * tooltip or a placeholder that the template writes as data.
+     */
+    attr: (name: IdentValue): ContentDeclaration =>
+      contentOf(`attr(${name.css})`),
   },
 } as const;

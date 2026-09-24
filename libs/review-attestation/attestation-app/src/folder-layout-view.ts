@@ -30,6 +30,8 @@ import {
   type FolderLayoutSide,
   type VisibleFolderLayoutRow,
 } from './folder-layout-tree';
+import { folderLayout, TREE_INDENT_PX, treeVars } from './folder-layout.style';
+import { assign, unit } from '@craft-ts/style';
 
 const statusLabel = (row: FolderLayoutRow): string =>
   row.kind === 'folder'
@@ -168,25 +170,34 @@ export const FolderLayoutView = craftComponent(
     sourceGraphHash,
     configHash,
   }) =>
-    section({ class: 'folder-layout-view' }, [
-      div({ class: 'folder-layout-summary' }, [
+    section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
+      div({ class: folderLayout.summary }, [
         strong('Folder layout proposal'),
-        small(summary),
+        small({ class: folderLayout.muted }, summary),
       ]),
-      div({ class: 'folder-layout-legend', 'aria-label': 'Change legend' }, [
-        span({ class: ['folder-layout-legend-item', 'moved'] }, '→ Moved'),
-        span({ class: ['folder-layout-legend-item', 'deleted'] }, '− Deleted'),
-        span({ class: ['folder-layout-legend-item', 'created'] }, '+ Created'),
+      div({ class: folderLayout.legend, 'aria-label': 'Change legend' }, [
         span(
-          { class: ['folder-layout-legend-item', 'collision'] },
+          { class: folderLayout.legendItem, 'data-legendTone': 'moved' },
+          '→ Moved',
+        ),
+        span(
+          { class: folderLayout.legendItem, 'data-legendTone': 'deleted' },
+          '− Deleted',
+        ),
+        span(
+          { class: folderLayout.legendItem, 'data-legendTone': 'created' },
+          '+ Created',
+        ),
+        span(
+          { class: folderLayout.legendItem, 'data-legendTone': 'collision' },
           '⚠ Collision',
         ),
         small(
-          { class: 'folder-layout-hint' },
+          { class: folderLayout.hint },
           '▾ folds a folder · click a file or folder to find it in the other tree',
         ),
       ]),
-      div({ class: 'folder-layout-trees' }, [
+      div({ class: folderLayout.trees, 'data-testid': 'folder-layout-trees' }, [
         tree('Current organisation', 'source', {
           root,
           trees,
@@ -202,7 +213,7 @@ export const FolderLayoutView = craftComponent(
           folderIds,
         }),
       ]),
-      p({ class: 'folder-layout-hash code' }, function* () {
+      p({ class: folderLayout.hash }, function* () {
         return `Graph ${yield* sourceGraphHash()} · configuration ${yield* configHash()}`;
       }),
     ]),
@@ -236,18 +247,18 @@ function tree(
   side: FolderLayoutSide,
   { root, trees, rows, collapsed, folderIds }: TreeBindings,
 ) {
-  return div({ class: ['folder-layout-tree', side] }, [
-    div({ class: 'folder-layout-tree-heading' }, [
-      div({ class: 'folder-layout-tree-title' }, [
-        strong(title),
-        small({ class: 'code' }, root),
+  return div({ class: folderLayout.tree, 'data-folder-layout': 'tree' }, [
+    div({ class: folderLayout.treeHeading }, [
+      div({ class: folderLayout.treeTitle }, [
+        strong({ class: folderLayout.treeName }, title),
+        small({ class: folderLayout.treeRoot }, root),
       ]),
-      div({ class: 'folder-layout-tree-actions' }, [
+      div({ class: folderLayout.treeActions }, [
         button(
           'CollapseAllFolders',
           {
             type: 'button',
-            class: 'folder-layout-tree-action',
+            class: folderLayout.treeAction,
             title: 'Collapse every folder',
             *click() {
               yield* collapsed.collapseSide(side, (yield* folderIds())[side]);
@@ -259,7 +270,7 @@ function tree(
           'ExpandAllFolders',
           {
             type: 'button',
-            class: 'folder-layout-tree-action',
+            class: folderLayout.treeAction,
             title: 'Expand every folder',
             *click() {
               yield* collapsed.expandSide(side);
@@ -270,22 +281,30 @@ function tree(
       ]),
     ]),
     ul(
-      { class: 'folder-layout-tree-list' },
+      { class: folderLayout.treeList, 'data-folder-layout': 'list' },
       forNode(rows, { track: (row) => row.key }, (row) =>
         li(
           'FolderLayoutRow',
           {
-            class: function* () {
-              const value = yield* row();
-              return [
-                'folder-layout-row',
-                value.kind,
-                value.status,
-                value.collisions > 1 ? 'collision' : '',
-              ];
+            class: folderLayout.row,
+            'data-folder-layout': 'row',
+            'data-rowKind': function* () {
+              return (yield* row()).kind;
+            },
+            'data-rowStatus': function* () {
+              return (yield* row()).status;
             },
             style: function* () {
-              return `--tree-depth:${(yield* row()).depth}`;
+              return {
+                ...assign(
+                  treeVars.indent,
+                  unit.px(8 + (yield* row()).depth * TREE_INDENT_PX),
+                ),
+                ...assign(
+                  treeVars.guides,
+                  unit.px((yield* row()).depth * TREE_INDENT_PX + 1),
+                ),
+              };
             },
             'data-link': function* () {
               return (yield* row()).link;
@@ -302,7 +321,13 @@ function tree(
               'ToggleFolder',
               {
                 type: 'button',
-                class: 'folder-layout-row-icon',
+                class: folderLayout.icon,
+                'data-rowKind': function* () {
+                  return (yield* row()).kind;
+                },
+                'data-rowStatus': function* () {
+                  return (yield* row()).status;
+                },
                 disabled: function* () {
                   return (yield* row()).kind === 'file';
                 },
@@ -333,7 +358,7 @@ function tree(
               'LocateInOtherTree',
               {
                 type: 'button',
-                class: 'folder-layout-row-button',
+                class: folderLayout.rowButton,
                 title: function* () {
                   return titleOf(yield* row(), side);
                 },
@@ -347,15 +372,37 @@ function tree(
                 },
               },
               [
-                span({ class: 'folder-layout-row-label' }, function* () {
-                  return (yield* row()).name;
-                }),
-                small({ class: 'folder-layout-row-status' }, function* () {
-                  const value = yield* row();
-                  return value.collisions > 1
-                    ? `⚠ ×${value.collisions}`
-                    : statusLabel(value);
-                }),
+                span(
+                  {
+                    class: folderLayout.label,
+                    'data-rowStatus': function* () {
+                      return (yield* row()).status;
+                    },
+                  },
+                  function* () {
+                    return (yield* row()).name;
+                  },
+                ),
+                small(
+                  {
+                    class: folderLayout.status,
+                    'data-rowKind': function* () {
+                      return (yield* row()).kind;
+                    },
+                    'data-rowStatus': function* () {
+                      return (yield* row()).status;
+                    },
+                    'data-rowCollision': function* () {
+                      return String((yield* row()).collisions > 1);
+                    },
+                  },
+                  function* () {
+                    const value = yield* row();
+                    return value.collisions > 1
+                      ? `⚠ ×${value.collisions}`
+                      : statusLabel(value);
+                  },
+                ),
               ],
             ),
           ],

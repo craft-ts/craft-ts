@@ -88,7 +88,9 @@ test('reviews independent scenarios and updates after persistence', async ({
   await page
     .getByRole('combobox', { name: 'Evidence zoom' })
     .selectOption('actual');
-  await expect(page.locator('.evidence-canvas:visible')).toHaveClass(/zoom-actual/);
+  await expect(
+    page.locator('[data-testid="evidence-canvas"]:visible img'),
+  ).toHaveAttribute('data-zoom', 'actual');
 
   await page.keyboard.press('r');
   await expect(
@@ -102,7 +104,7 @@ test('reviews independent scenarios and updates after persistence', async ({
     .fill('Dark mode text does not have enough contrast.');
   await page.getByRole('button', { name: /Reject R/ }).click();
   await expect(page.getByText('1 scenario · 1 decision')).toBeVisible();
-  await expect(page.locator('.review-card')).toBeVisible();
+  await expect(page.locator('[data-testid="review-card"]')).toBeVisible();
   expect(decisions).toHaveLength(2);
   expect(decisions[1]?.note).toBe(
     'Dark mode text does not have enough contrast.',

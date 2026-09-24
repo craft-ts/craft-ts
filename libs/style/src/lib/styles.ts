@@ -317,7 +317,11 @@ const atomicName = (
   const scope = scopeOf(conditions, pseudoElement);
   // An isolated atom is never shared with a layered one: sharing would drag
   // an application's class out of its layer and over its own variants.
-  const identity = `${isolated ? 'isolated|' : ''}${scope}{${property}:${value}}`;
+  // The point's name is not its condition: two sheets may each call a
+  // breakpoint `wide` at different widths, and `below(bp.wide)` keeps the name
+  // of `bp.wide`. Hashing the selector or query it opens keeps them apart.
+  const opens = conditions.map((point) => point.open).join('|');
+  const identity = `${isolated ? 'isolated|' : ''}${scope}[${opens}]{${property}:${value}}`;
   return `${isolated ? 'i-' : ''}${slugify(`${scope}-${property}-${value}`)}-${hash(identity)}`;
 };
 

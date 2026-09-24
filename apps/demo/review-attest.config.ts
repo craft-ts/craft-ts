@@ -10,7 +10,7 @@ export const reviewAttestConfig = defineReviewAttestConfig({
   visual: {
     app: defineVisualAppConfig({
       sourceFiles: [
-        'apps/demo/src/styles.css',
+        'apps/demo/src/app/demo-shell.style.ts',
         'apps/demo/src/index.html',
         'apps/demo/e2e/fixtures/Chivo.ttf',
         'apps/demo/e2e/fixtures/Chivo-Italic.ttf',

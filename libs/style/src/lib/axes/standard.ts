@@ -238,6 +238,12 @@ export const ariaCurrent = {
     name: 'aria-current',
     value: 'page',
   }) as AxisPoint<'ariaCurrent', 'page'>,
+  /** `aria-current="true"` — the current item of a list that is not a page. */
+  true: axisPoint('ariaCurrent', 'true', "&[aria-current='true']", {
+    kind: 'setAttribute',
+    name: 'aria-current',
+    value: 'true',
+  }) as AxisPoint<'ariaCurrent', 'true'>,
 } as const;
 
 /**
@@ -253,6 +259,18 @@ export const ariaPressed = {
   }) as AxisPoint<'ariaPressed', 'pressed'>,
 } as const;
 
+/**
+ * `aria-invalid="true"` — a field whose value was refused. Same reasoning as
+ * `ariaCurrent`: the error look follows the state a screen reader announces.
+ */
+export const ariaInvalid = {
+  true: axisPoint('ariaInvalid', 'true', "&[aria-invalid='true']", {
+    kind: 'setAttribute',
+    name: 'aria-invalid',
+    value: 'true',
+  }) as AxisPoint<'ariaInvalid', 'true'>,
+} as const;
+
 /** Every standard point, for the specs that assert each one has a driver. */
 export const STANDARD_AXES = [
   ...Object.values(scheme),
@@ -266,4 +284,5 @@ export const STANDARD_AXES = [
   ...Object.values(interaction),
   ...Object.values(ariaCurrent),
   ...Object.values(ariaPressed),
+  ...Object.values(ariaInvalid),
 ] as const;

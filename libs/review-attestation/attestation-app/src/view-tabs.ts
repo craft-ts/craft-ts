@@ -10,6 +10,7 @@ import {
 import { craftComputed } from '@craft-ts/core';
 import type { DevtoolView } from './devtool-view-state';
 import type { Messages } from './messages';
+import { viewTabs } from './view-tabs.style';
 
 /** The tabs that switch which devtool view is on screen. */
 export const ViewTabs = craftComponent(
@@ -74,17 +75,24 @@ export const ViewTabs = craftComponent(
       'ShowApplicationOverview',
       {
         type: 'button',
-        class: 'view-tab',
+        class: viewTabs.tab,
         'aria-pressed': applicationPressed,
         *click() {
           yield* chooseDevtoolView('application');
         },
       },
       [
-        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '▧'),
-        span({ class: 'view-tab-copy' }, [
-          strong('Aperçu de l’application'),
-          small('Pages, scénarios et formats'),
+        span(
+          {
+            class: viewTabs.icon,
+            'data-testid': 'view-tab-icon',
+            'aria-hidden': 'true',
+          },
+          '▧',
+        ),
+        span({ class: viewTabs.copy }, [
+          strong({ class: viewTabs.title }, 'Aperçu de l’application'),
+          small({ class: viewTabs.hint }, 'Pages, scénarios et formats'),
         ]),
       ],
     ),
@@ -92,82 +100,112 @@ export const ViewTabs = craftComponent(
       'ShowVisualTests',
       {
         type: 'button',
-        class: 'view-tab',
+        class: viewTabs.tab,
         'aria-pressed': visualPressed,
         *click() {
           yield* chooseDevtoolView('visual');
         },
       },
       [
-        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '✦'),
-        span({ class: 'view-tab-copy' }, [
-          strong(function* () {
+        span(
+          {
+            class: viewTabs.icon,
+            'data-testid': 'view-tab-icon',
+            'aria-hidden': 'true',
+          },
+          '✦',
+        ),
+        span({ class: viewTabs.copy }, [
+          strong({ class: viewTabs.title }, function* () {
             return (yield* t()).viewVisual;
           }),
-          small(function* () {
+          small({ class: viewTabs.hint }, function* () {
             return (yield* t()).viewVisualDescription;
           }),
         ]),
-        span({ class: 'view-tab-count' }, function* () {
-          return String(yield* visualTestsCount());
-        }),
+        span(
+          { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+          function* () {
+            return String(yield* visualTestsCount());
+          },
+        ),
       ],
     ),
     button(
       'ShowTemplateObligations',
       {
         type: 'button',
-        class: 'view-tab',
+        class: viewTabs.tab,
         'aria-pressed': templatePressed,
         *click() {
           yield* chooseDevtoolView('template');
         },
       },
       [
-        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '⌘'),
-        span({ class: 'view-tab-copy' }, [
-          strong(function* () {
+        span(
+          {
+            class: viewTabs.icon,
+            'data-testid': 'view-tab-icon',
+            'aria-hidden': 'true',
+          },
+          '⌘',
+        ),
+        span({ class: viewTabs.copy }, [
+          strong({ class: viewTabs.title }, function* () {
             return (yield* t()).viewTemplate;
           }),
-          small(function* () {
+          small({ class: viewTabs.hint }, function* () {
             return (yield* t()).viewTemplateDescription;
           }),
         ]),
-        span({ class: 'view-tab-count' }, function* () {
-          return String(yield* templateObligationsCount());
-        }),
+        span(
+          { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+          function* () {
+            return String(yield* templateObligationsCount());
+          },
+        ),
       ],
     ),
     button(
       'ShowReviewQueue',
       {
         type: 'button',
-        class: 'view-tab',
+        class: viewTabs.tab,
         'aria-pressed': reviewPressed,
         *click() {
           yield* chooseDevtoolView('review');
         },
       },
       [
-        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '✓'),
-        span({ class: 'view-tab-copy' }, [
-          strong(function* () {
+        span(
+          {
+            class: viewTabs.icon,
+            'data-testid': 'view-tab-icon',
+            'aria-hidden': 'true',
+          },
+          '✓',
+        ),
+        span({ class: viewTabs.copy }, [
+          strong({ class: viewTabs.title }, function* () {
             return (yield* t()).viewReview;
           }),
-          small(function* () {
+          small({ class: viewTabs.hint }, function* () {
             return (yield* t()).viewReviewDescription;
           }),
         ]),
-        span({ class: 'view-tab-count' }, function* () {
-          return String(yield* cardsCount());
-        }),
+        span(
+          { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+          function* () {
+            return String(yield* cardsCount());
+          },
+        ),
       ],
     ),
     button(
       'ShowFolderLayout',
       {
         type: 'button',
-        class: 'view-tab',
+        class: viewTabs.tab,
         'aria-pressed': function* () {
           return (yield* devtoolView()) === 'folder-layout' ? 'true' : 'false';
         },
@@ -176,25 +214,35 @@ export const ViewTabs = craftComponent(
         },
       },
       [
-        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '⇄'),
-        span({ class: 'view-tab-copy' }, [
-          strong(function* () {
+        span(
+          {
+            class: viewTabs.icon,
+            'data-testid': 'view-tab-icon',
+            'aria-hidden': 'true',
+          },
+          '⇄',
+        ),
+        span({ class: viewTabs.copy }, [
+          strong({ class: viewTabs.title }, function* () {
             return (yield* t()).viewFolderLayout;
           }),
-          small(function* () {
+          small({ class: viewTabs.hint }, function* () {
             return (yield* t()).viewFolderLayoutDescription;
           }),
         ]),
-        span({ class: 'view-tab-count' }, function* () {
-          return String(yield* folderLayoutCount());
-        }),
+        span(
+          { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+          function* () {
+            return String(yield* folderLayoutCount());
+          },
+        ),
       ],
     ),
     button(
       'ShowBypasses',
       {
         type: 'button',
-        class: 'view-tab',
+        class: viewTabs.tab,
         'aria-pressed': function* () {
           return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
         },
@@ -203,18 +251,28 @@ export const ViewTabs = craftComponent(
         },
       },
       [
-        span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '⚑'),
-        span({ class: 'view-tab-copy' }, [
-          strong(function* () {
+        span(
+          {
+            class: viewTabs.icon,
+            'data-testid': 'view-tab-icon',
+            'aria-hidden': 'true',
+          },
+          '⚑',
+        ),
+        span({ class: viewTabs.copy }, [
+          strong({ class: viewTabs.title }, function* () {
             return (yield* t()).viewBypasses;
           }),
-          small(function* () {
+          small({ class: viewTabs.hint }, function* () {
             return (yield* t()).viewBypassesDescription;
           }),
         ]),
-        span({ class: 'view-tab-count' }, function* () {
-          return String(yield* bypassesCount());
-        }),
+        span(
+          { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+          function* () {
+            return String(yield* bypassesCount());
+          },
+        ),
       ],
     ),
   ],

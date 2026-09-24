@@ -959,3 +959,51 @@ Migration des projets, dans l'ordre du plan.
   - `vite build` OK.
 
   e2e non lancés : le rendu routé est cassé en amont.
+- **attestation-app** : fait (choix de Romain : migration complète maintenant).
+  - Les 2 300 lignes de `styles.css` sont réparties en sheets par zone :
+    - `review-app.style.ts` : palette clair/sombre, ~38 variables de thème, globaux, et
+      le choix explicite du thème en axe `data-reviewTheme` sur le shell ;
+    - `review-shell`, `view-tabs`, `review-controls`, `review-inventory`,
+      `review-card`, `annotation`, `folder-layout`, `tier-legend`,
+      `application-overview`.
+  - Axes d'état : `data-reviewKind` (masque selon le type de carte),
+    `data-reviewAction`, `data-reviewNotice`, `data-zoom`, `data-reasonNote`, les états
+    de ligne du folder-layout (`rowKind`, `rowStatus`, `rowCollision`, `rowLinked`,
+    `rowLocated`). La bande de sélection et le pli passent par `assign` sur
+    `evidenceBox`. Les infobulles sont des `::after` avec `content: attr(...)`.
+  - `browser-adapter.ts` pose `data-rowLinked` et `data-rowLocated` avec
+    `setAttribute` : `dataset.rowLinked` écrirait `data-row-linked`, que l'axe ne lit pas.
+  - `template-review-group.ts` n'est importé nulle part, et ses erreurs tsc existent déjà
+    sur `HEAD`. Ses classes sans CSS sont retirées, et les `data-testid` sont posés là où
+    l'e2e visait une classe.
+  - Les e2e (`attestation-app/e2e`, `review-attestation/e2e`) visent maintenant des
+    `data-testid` et des attributs d'état. Sont exclues les classes de la page
+    rejouée (`.title`, `.body`…), qui appartiennent à la fixture.
+  - Écarts assumés avec le rendu de `HEAD` : dans `HEAD`, la feuille hors couche écrasait
+    `decisionStyles.primary`, et Accepter s'affichait en contour. Il est maintenant plein,
+    comme le dit la sheet qui porte la preuve de contraste. « Vues d'attestation » et
+    « Zoom » suivent le style que le CSS voulait, et que ses sélecteurs ratent.
+  - La dérogation `no-global-stylesheet`, celle de `style-only-design-system` et le bloc
+    `TODO(style-only)` d'ESLint sont retirés.
+- **Deux bugs de la lib trouvés en comparant avec `HEAD`** :
+  - Le nom d'un atome hachait `axe:point` sans la condition. Deux sheets avec chacune
+    un breakpoint `wide` (761 px et 901 px) obtenaient donc la même classe, et la
+    première enregistrée gagnait. `below(bp.x)` et `bp.x` étaient confondus eux aussi.
+    L'identité hachée inclut maintenant la condition ouverte. Spec ajoutée.
+  - `clipOverflow` pose `overflow: clip`, qui ne crée pas de conteneur de défilement.
+    Le minimum automatique d'un élément de grille ou de flex reste donc la largeur de son
+    texte, et l'ellipse ne tronque rien. Il faut `minWidth(0)` avec (fait dans les
+    helpers `ellipsis`).
+- **Vocabulaire** : `ariaInvalid.true` (anneau d'erreur du motif), `ariaCurrent.true`,
+  `gradient.repeatingLinear/Conic`, `bgImage` multi-couches, `bgSize`, `bgPosition`,
+  `backdropBlur`, `uaScheme`, `spanAllColumns`, `pseudo.content.attr`.
+- **Corrigé au passage** : `apps/demo/review-attest.config.ts` pointait encore vers
+  `apps/demo/src/styles.css`, supprimé au lot précédent.
+- Vérifications attestation-app :
+  - tsc et lint identiques à `HEAD` (les erreurs restantes sont préexistantes :
+    `bypasses-view`, liens `a()` de `review-app`) ;
+  - architecture : les 4 mêmes échecs que `HEAD` ;
+  - specs de l'app (13) et de contraste vertes ;
+  - `vite build` OK ;
+  - rendu comparé à `HEAD` dans le vrai serveur de revue (`startReviewServer`), en clair,
+    en sombre, à 800 et 1 100 px.

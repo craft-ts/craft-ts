@@ -104,6 +104,20 @@ describe('the emitted classes are atomic', () => {
     expect(classKeyOf(sheet.root)).toBe('named-root');
   });
 
+  it('keeps apart two breakpoints that share a name but not a width', () => {
+    const narrow = defineBreakpoints({ wide: at.minInlineSize(unit.px(761)) });
+    const broad = defineBreakpoints({ wide: at.minInlineSize(unit.px(901)) });
+    const first = craftStyles('shell', {
+      root: [when(narrow.wide, [display.grid])],
+    });
+    const second = craftStyles('tree', {
+      root: [when(broad.wide, [display.grid])],
+    });
+
+    expect(first.root).not.toBe(second.root);
+    expect(registeredAtoms()).toHaveLength(2);
+  });
+
   it('refuses two sheets sharing a prefix', () => {
     craftStyles('twice', { root: [display.block] });
 

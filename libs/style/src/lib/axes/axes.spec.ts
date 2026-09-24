@@ -37,6 +37,7 @@ import {
 import {
   STANDARD_AXES,
   ariaCurrent,
+  ariaInvalid,
   ariaPressed,
   contrast,
   descendant,
@@ -86,6 +87,7 @@ describe('the standard axes are closed sets', () => {
 
   it('reads the aria-current the router sets, not a second data attribute', () => {
     expect(ariaCurrent.page.open).toBe("&[aria-current='page']");
+    expect(ariaCurrent.true.open).toBe("&[aria-current='true']");
     expect(ariaCurrent.page.driver).toEqual({
       kind: 'setAttribute',
       name: 'aria-current',
@@ -98,6 +100,15 @@ describe('the standard axes are closed sets', () => {
     expect(ariaPressed.pressed.driver).toEqual({
       kind: 'setAttribute',
       name: 'aria-pressed',
+      value: 'true',
+    });
+  });
+
+  it('reads aria-invalid for a refused field', () => {
+    expect(ariaInvalid.true.open).toBe("&[aria-invalid='true']");
+    expect(ariaInvalid.true.driver).toEqual({
+      kind: 'setAttribute',
+      name: 'aria-invalid',
       value: 'true',
     });
   });

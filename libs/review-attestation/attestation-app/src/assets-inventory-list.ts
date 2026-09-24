@@ -8,6 +8,7 @@ import {
   type Input,
 } from '@craft-ts/component';
 import type { Messages } from './messages';
+import { inventory } from './review-inventory.style';
 
 export interface VisualAssetEntry {
   readonly evidence: string;
@@ -27,7 +28,7 @@ export const AssetsInventoryList = craftComponent(
   }),
   ({ assets, t }) =>
     ul(
-      { class: 'inventory-list' },
+      { class: inventory.list },
       forNode(
         assets,
         {
@@ -38,7 +39,7 @@ export const AssetsInventoryList = craftComponent(
             }),
         },
         (asset) =>
-          li([
+          li({ class: inventory.entry }, [
             strong(function* () {
               return (yield* asset()).evidence;
             }),

@@ -38,7 +38,7 @@ test('opens a review subject in the selected editor and remembers the choice', a
 
   try {
     await page.goto(`${running.url}?view=review`);
-    const source = page.locator('.review-heading .source-link');
+    const source = page.locator('[data-testid="review-heading"] [data-testid="source-link"]');
     await expect(source).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=vscode&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',
@@ -66,15 +66,15 @@ test('opens a review subject in the selected editor and remembers the choice', a
     await opened;
     await page.reload();
     await expect(page.locator('#review-ide')).toHaveValue('cursor');
-    await expect(page.locator('.review-heading .source-link')).toHaveAttribute(
+    await expect(page.locator('[data-testid="review-heading"] [data-testid="source-link"]')).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=cursor&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',
     );
     await page.goto(`${running.url}?view=template`);
     await expect(
-      page.locator('.inventory-panel:not([hidden]) .source-link'),
+      page.locator('[data-testid="inventory-panel"]:not([hidden]) [data-testid="source-link"]'),
     ).toHaveCount(2);
-    await expect(page.locator('.diagnostics .source-link')).toHaveAttribute(
+    await expect(page.locator('[data-testid="diagnostics"] [data-testid="source-link"]')).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=cursor&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts&line=42',
     );
@@ -127,21 +127,21 @@ test('shows render code and opens the exact template line', async ({ page }, tes
 
   try {
     await page.goto(`${running.url}?view=review`);
-    await expect(page.locator('.review-heading .subject')).toContainText(
+    await expect(page.locator('[data-testid="review-heading"] [data-testid="subject"]')).toContainText(
       'app.ts:App:225',
     );
-    await expect(page.locator('.review-heading .source-link')).toHaveAttribute(
+    await expect(page.locator('[data-testid="review-heading"] [data-testid="source-link"]')).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=vscode&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts&line=225',
     );
-    await expect(page.locator('.template-source-site')).toHaveCount(2);
-    await expect(page.locator('.template-source-site').first()).toContainText(
+    await expect(page.locator('[data-testid="template-source-site"]')).toHaveCount(2);
+    await expect(page.locator('[data-testid="template-source-site"]').first()).toContainText(
       "'aria-expanded': navOpen",
     );
-    await expect(page.locator('.template-source-site').nth(1)).toContainText(
+    await expect(page.locator('[data-testid="template-source-site"]').nth(1)).toContainText(
       'ifNode(navOpen',
     );
-    await expect(page.locator('.template-source-site').nth(1).locator('a')).toHaveAttribute(
+    await expect(page.locator('[data-testid="template-source-site"]').nth(1).locator('a')).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=vscode&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts&line=230',
     );

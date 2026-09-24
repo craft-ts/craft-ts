@@ -71,7 +71,16 @@ import {
   validateAtoms,
 } from './emit.ts';
 import { declaration } from '../lib/props/factory.ts';
-import { bgImage, gradient, math, shadow, tracks } from '../lib/values.ts';
+import {
+  backdropBlur,
+  bgImage,
+  bgPosition,
+  bgSize,
+  gradient,
+  math,
+  shadow,
+  tracks,
+} from '../lib/values.ts';
 
 const tone = defineStateAxis('tone', ['danger']);
 
@@ -365,6 +374,38 @@ describe('value constructors', () => {
     expect(
       bgImage(gradient.radial([palette.text.strong, palette.surface.page])),
     ).toMatchObject({ property: 'background-image' });
+    expect(
+      gradient.repeatingConic([
+        [palette.text.strong, unit.pct(0), unit.pct(25)],
+        [palette.surface.page, unit.pct(0), unit.pct(50)],
+      ]).css,
+    ).toMatch(
+      /^repeating-conic-gradient\(#[0-9a-f]{6} 0% 25%, #[0-9a-f]{6} 0% 50%\)$/,
+    );
+    expect(bgSize(unit.px(20), unit.px(20))).toMatchObject({
+      value: '20px 20px',
+    });
+    expect(bgPosition(unit.px(1), unit.px(0))).toMatchObject({
+      value: '1px 0px',
+    });
+    expect(backdropBlur(unit.px(4))).toMatchObject({
+      property: 'backdrop-filter',
+      value: 'blur(4px)',
+    });
+    craftStyles('canvas', {
+      root: [
+        bgImage(
+          gradient.repeatingConic([
+            [palette.text.strong, unit.pct(0), unit.pct(25)],
+            [palette.surface.page, unit.pct(0), unit.pct(50)],
+          ]),
+        ),
+        bgSize(unit.px(20), unit.px(20)),
+        bgPosition(unit.px(1), unit.px(0)),
+        backdropBlur(unit.px(4)),
+      ],
+    });
+    expect(() => validateAtoms(registeredAtoms())).not.toThrow();
     const _gradientIsNotAColor = () => {
       // @ts-expect-error a gradient is an image, not a colour
       color(gradient.radial([palette.text.strong, palette.surface.page]));
