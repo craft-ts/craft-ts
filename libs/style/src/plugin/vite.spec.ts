@@ -6,13 +6,14 @@
  * emitting are the same ones the browser will see, without the two sides
  * sharing any state.
  */
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   craftStyle,
   emitStyles,
+  findProjectStyleModules,
   findStyleModules,
   loadStyleDump,
 } from './vite.ts';
@@ -31,6 +32,26 @@ describe('the plugin evaluates the style modules and emits the sheet', () => {
       'back-to-top.style.ts',
       'badge.style.ts',
     ]);
+  });
+
+  it('finds a module once, whatever path reached it', async () => {
+    // pnpm installs a package behind a symlink; an explicit include of that
+    // path and the real directory are the same modules, evaluated once.
+    const scratch = await mkdtemp(join(tmpdir(), 'craft-style-link-'));
+    try {
+      const link = join(scratch, 'linked-example');
+      await symlink(root, link, 'dir');
+      const files = await findProjectStyleModules(scratch, {
+        include: [root, link],
+      });
+
+      expect(files.map((file) => file.split('/').pop())).toEqual([
+        'back-to-top.style.ts',
+        'badge.style.ts',
+      ]);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
   });
 
   it('emits one stylesheet for all of them, deduplicated', async () => {

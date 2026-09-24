@@ -351,7 +351,6 @@ type CreateArgs = {
   defaultLocale?: string;
   i18n?: 'strict' | 'loose' | 'none';
   designSystem?: 'basic' | 'none';
-  typedCss?: boolean;
   attest?: boolean;
   attestationMode?: CreateAttestationMode | 'none';
   viewports?: string;
@@ -466,7 +465,6 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       argument === '--no-effect' ||
       argument === '--no-i18n' ||
       argument === '--no-design-system' ||
-      argument === '--no-typed-css' ||
       argument === '--no-attest' ||
       argument === '--no-template-obligations' ||
       argument === '--no-visual-tests' ||
@@ -478,7 +476,6 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       else if (argument === '--no-i18n') setValue('i18n', 'none');
       else if (argument === '--no-design-system')
         setValue('design-system', 'none');
-      else if (argument === '--no-typed-css') result.typedCss = false;
       else if (argument === '--no-attest') result.attest = false;
       else if (argument === '--no-template-obligations')
         result.templateObligations = false;
@@ -511,8 +508,16 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       setValue(name, parts.join('='));
       continue;
     }
+    // @craft-ts/style is the only way to style a component: there is no
+    // plain-CSS starter left to opt into. `--typed-css` asked for what every
+    // project now gets and is accepted as a no-op; opting out is an error.
+    if (argument === '--typed-css') continue;
+    if (argument === '--no-typed-css') {
+      throw new Error(
+        '--no-typed-css is no longer supported: @craft-ts/style is the only way to style a component in a CraftTS project.',
+      );
+    }
     if (
-      argument === '--typed-css' ||
       argument === '--attest' ||
       argument === '--template-obligations' ||
       argument === '--visual-tests' ||
@@ -520,8 +525,7 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       argument === '--clone-effect-ts' ||
       argument === '--demos'
     ) {
-      if (argument === '--typed-css') result.typedCss = true;
-      else if (argument === '--attest') result.attest = true;
+      if (argument === '--attest') result.attest = true;
       else if (argument === '--template-obligations')
         result.templateObligations = true;
       else if (argument === '--visual-tests') result.visualTests = true;
@@ -811,16 +815,6 @@ async function runCreate(argv: string[]): Promise<number> {
             'basic',
           )
         : 'basic');
-    const typedCss =
-      parsed.typedCss ??
-      (interactive
-        ? (await selectCreateOption(
-            readline,
-            CREATE_BOOLEAN_OPTIONS,
-            'Enable typed CSS? (↑/↓ move, Enter confirm):',
-            'yes',
-          )) === 'yes'
-        : true);
     const workspace =
       parsed.workspace ??
       (interactive
@@ -947,7 +941,6 @@ async function runCreate(argv: string[]): Promise<number> {
       defaultLocale,
       i18n,
       designSystem,
-      typedCss,
       attest,
       attestation,
       workspace,
@@ -1118,7 +1111,6 @@ Options:
   --no-i18n                    Disable i18n and its files/scripts
   --design-system <basic|none>
   --no-design-system
-  --typed-css / --no-typed-css
   --attest / --no-attest      Generate the opt-in attestation workflow
   --attestation <manual|ai|none>
                               Choose manual or AI-assisted review

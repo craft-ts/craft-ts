@@ -144,6 +144,19 @@ describe('Craft route generators', () => {
     expect(tree.exists('apps/demo/src/app/created-page/demo-page.css')).toBe(
       false,
     );
+    // Its rules start in a sheet beside it, the only way to style a component.
+    expect(
+      tree.read('apps/demo/src/app/created-page/demo-page.style.ts', 'utf8'),
+    ).toContain("export const demoPageStyles = craftStyles('demoPage', {");
+    const page = tree.read(
+      'apps/demo/src/app/created-page/demo-page.ts',
+      'utf8',
+    );
+    expect(page).toContain(
+      "import { demoPageStyles } from './demo-page.style';",
+    );
+    expect(page).toContain('p({ class: demoPageStyles.root }, ');
+    expect(page).not.toContain('style:');
     // A Craft SFC carries its own contract, so the route has no componentDeps.
     const routes = tree.read(
       'apps/demo/src/app/created/created.routes.ts',

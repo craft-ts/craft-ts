@@ -16,7 +16,7 @@
  * directly: Vite 8 no longer ships esbuild, and a plugin that reaches for a
  * bundler its host does not have is a plugin that breaks on the next upgrade.
  */
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, realpathSync, statSync } from 'node:fs';
 import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -166,7 +166,12 @@ export async function findProjectStyleModules(
       );
     }
   }
-  return [...new Set([...own, ...included])].sort();
+  // By real path: a package reached both by default and through an explicit
+  // `include` — or through a symlink, as pnpm installs it — is one set of
+  // modules, and evaluating it twice would register its sheets twice.
+  return [
+    ...new Set([...own, ...included].map((file) => realpathSync(file))),
+  ].sort();
 }
 
 interface Registry {

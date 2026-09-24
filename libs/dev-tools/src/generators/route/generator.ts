@@ -443,19 +443,35 @@ async function generateComponent(
     ? requestedPath
     : `${requestedPath}.ts`;
   const exportName = toComponentExportName(target.name);
+  const sheetPath = filePath.replace(/\.ts$/, '.style.ts');
+  const sheetModule = `./${basename(sheetPath, '.ts')}`;
+  const sheetName = `${exportName[0].toLowerCase()}${exportName.slice(1)}Styles`;
+
+  // The page's visual rules start in a sheet beside it: @craft-ts/style is
+  // the only way to style a component, so there is no .css to create and no
+  // inline style to fill in.
+  tree.write(
+    sheetPath,
+    `import { craftStyles, display } from '@craft-ts/style';
+
+export const ${sheetName} = craftStyles('${sheetName.replace(/Styles$/, '')}', {
+  root: [display.block],
+});
+`,
+  );
 
   // Scaffolds a Craft SFC. This used to delegate to Angular's component
   // schematic and then read the class name back off the @Component decorator.
   tree.write(
     filePath,
-    `import { craftComponent } from '@craft-ts/component';
-import { p } from '@craft-ts/component';
+    `import { craftComponent, p } from '@craft-ts/component';
+import { ${sheetName} } from '${sheetModule}';
 
 export const ${exportName} = craftComponent(
   '${target.name}',
   {},
   () => ({}),
-  () => p('${target.name} works'),
+  () => p({ class: ${sheetName}.root }, '${target.name} works'),
 );
 
 export default ${exportName};
@@ -499,7 +515,8 @@ function printGeneratorPlan(
       names(component.name).fileName,
     );
     lines.push(
-      `  CREATE ${requestedPath}.ts (inline template and styles; filename normalized by Angular)`,
+      `  CREATE ${requestedPath}.ts (filename normalized)`,
+      `  CREATE ${requestedPath}.style.ts (its sheet)`,
     );
   }
   for (const filePath of result.plan?.files ?? []) {
