@@ -31,6 +31,7 @@ module.exports = {
   'craft-ts/style-file-boundary': 'error',
   'craft-ts/no-imperative-craft-resource-trigger': 'error',
   'craft-ts/no-imperative-craft-method-actions': 'error',
+  'craft-ts/no-external-state-transition': 'error',
   'craft-ts/no-event-only-craft-method': 'error',
   'craft-ts/no-remote-work-in-craft-method': 'error',
   'craft-ts/no-type-assertions-in-resource-loader': 'error',

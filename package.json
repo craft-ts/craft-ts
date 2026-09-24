@@ -17,7 +17,7 @@
     "attest:visual:status": "npx tsx libs/cli/src/bin/craft-ts.ts attest status --config apps/demo/review-attest.config.ts --kind visual --report ${CRAFT_VISUAL_REPORT:-.craft/runs/design-system.json} --tsconfig apps/demo/tsconfig.graph.json",
     "attest:visual:review": "npx tsx libs/cli/src/bin/craft-ts.ts attest review --config apps/demo/review-attest.config.ts --kind visual --report ${CRAFT_VISUAL_REPORT:-.craft/runs/design-system.json} --tsconfig apps/demo/tsconfig.graph.json --regenerate-script attest:visual:capture",
     "attest:folder-layout": "npx tsx libs/dev-tools/src/bin/craft.ts organize --project apps/demo/tsconfig.graph.json --graph craft-dependency-graph.json --out apps/demo/folder-layout",
-    "review:demo": "npx nx architecture demo && npm run attest:folder-layout && npm run attest:visual:capture && (npm run attest:visual:status || test $? -eq 1) && npm run attest:visual:review",
+    "review:demo": "npx nx run demo:review-generate && npx nx run demo:review",
     "attest:templates:status": "npx tsx libs/cli/src/bin/craft-ts.ts attest status --config apps/demo/review-attest.config.ts --kind template --tsconfig apps/demo/tsconfig.graph.json",
     "attest:devtools": "npx tsx libs/cli/src/bin/craft-ts.ts attest devtools --config apps/demo/review-attest.config.ts --report ${CRAFT_VISUAL_REPORT:-.craft/runs/design-system.json} --tsconfig apps/demo/tsconfig.graph.json --regenerate-script attest:visual:capture",
     "attest:review-app:capture": "CRAFT_REVIEW_APP_REPORT=${CRAFT_REVIEW_APP_REPORT:-.craft/runs/review-app.json} npx playwright test --config libs/review-attestation/attestation-app/playwright.config.ts --project chromium",

@@ -19,7 +19,12 @@ const PRIMITIVE_IMPORTS = new Map([
   ],
 ]);
 
-const HOSTS = new Set(['craftComponent', 'craftService', 'toCraftService']);
+const HOSTS = new Set([
+  'craftComponent',
+  'craftGen',
+  'craftService',
+  'toCraftService',
+]);
 
 const PIPE_BY_PRIMITIVE = {
   asyncProcess: 'insertAsyncProcessPipe',
@@ -405,6 +410,9 @@ function isEntityFactory(name, call, fn) {
   }
   if (name === 'craftComponent') {
     return call.arguments[2] === fn;
+  }
+  if (name === 'craftGen') {
+    return call.arguments[0] === fn;
   }
   return call.arguments.slice(1).includes(fn);
 }

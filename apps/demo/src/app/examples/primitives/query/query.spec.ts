@@ -176,7 +176,7 @@ describe('Query logic', () => {
         ApiService: { getItemById },
         CraftRouter: { navigate },
         StoragePersister: storage,
-      },
+      } as never,
     });
 
     await vi.waitFor(() =>

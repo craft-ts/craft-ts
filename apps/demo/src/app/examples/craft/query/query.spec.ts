@@ -164,7 +164,7 @@ describe('Craft query logic', () => {
         ConsoleService: 'notReached',
         StoragePersister: 'notReached',
         CraftRouter: { navigate },
-      },
+      } as never,
     });
 
     return { ...result, navigate, userQuery };
