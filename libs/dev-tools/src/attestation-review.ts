@@ -19,6 +19,7 @@ type FolderLayoutStatistics = {
 type FolderLayoutPlacement = {
   readonly sourcePath: string;
   readonly proposedPath: string | null;
+  readonly action?: 'move' | 'review' | 'keep-at-root' | 'delete';
   readonly scope: string;
   readonly confidence: number;
   readonly reasons: readonly string[];
@@ -259,11 +260,13 @@ const folderLayoutEntry = (
   sourcePath: placement.sourcePath,
   proposedPath: placement.proposedPath,
   status:
-    placement.proposedPath === null
-      ? 'unchanged'
-      : placement.proposedPath === placement.sourcePath
+    placement.action === 'delete'
+      ? 'deleted'
+      : placement.proposedPath === null
         ? 'unchanged'
-        : 'moved',
+        : placement.proposedPath === placement.sourcePath
+          ? 'unchanged'
+          : 'moved',
   scope: placement.scope,
   confidence: placement.confidence,
   reasons: placement.reasons,

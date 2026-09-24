@@ -131,7 +131,7 @@
     "review-generate": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx nx run demo:architecture && npm run attest:folder-layout && npm run attest:visual:capture && (npx tsx libs/cli/src/bin/craft-ts.ts attest status --config apps/demo/review-attest.config.ts --kind all --report ${CRAFT_VISUAL_REPORT:-.craft/runs/design-system.json} --tsconfig apps/demo/tsconfig.graph.json || test $? -eq 1)",
+        "command": "npx nx run demo:architecture && npm run attest:demo:folder-layout && npm run attest:visual:capture && (npx tsx libs/cli/src/bin/craft-ts.ts attest status --config apps/demo/review-attest.config.ts --kind all --report ${CRAFT_VISUAL_REPORT:-.craft/runs/design-system.json} --tsconfig apps/demo/tsconfig.graph.json || test $? -eq 1)",
         "cwd": "{workspaceRoot}"
       }
     },

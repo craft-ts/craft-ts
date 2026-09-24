@@ -212,6 +212,20 @@ const en = {
     'The unsaved reason on the current card is discarded when regeneration starts.',
   cancelRegeneration: 'Cancel',
   confirmRegeneration: 'Regenerate everything',
+  folderLayoutApplyTitle: 'Apply the approved folder layout?',
+  folderLayoutApplyDescription: (moves, deletions, reviews) =>
+    `Git will run ${moves} git mv command${moves === 1 ? '' : 's'} and ${deletions} git rm command${deletions === 1 ? '' : 's'}. It will also update affected TypeScript imports. ${reviews} file${reviews === 1 ? '' : 's'} marked for manual review will stay in place.`,
+  folderLayoutApplyStaged:
+    'Git will stage these renames and deletions so they are easy to review in the diff.',
+  folderLayoutApplyCommand: 'Command to run',
+  folderLayoutApplyCommands: 'Show the generated Git operations',
+  folderLayoutApplyCancel: 'Not now',
+  folderLayoutApplyCopy: 'Copy command',
+  folderLayoutApplyCopied: 'Command copied.',
+  folderLayoutApplyRun: 'Run reorganization',
+  folderLayoutApplyRunning: 'Applying with Git…',
+  folderLayoutApplyFailed:
+    'Git could not apply the proposal. Check the terminal output and resolve the reported conflict.',
   previous: '↑ Previous ',
   next: 'Next ↓ ',
 
@@ -536,6 +550,20 @@ const fr: Messages = {
     'Le motif non enregistré de la carte courante sera abandonné au démarrage.',
   cancelRegeneration: 'Annuler',
   confirmRegeneration: 'Tout régénérer',
+  folderLayoutApplyTitle: 'Appliquer l’organisation approuvée ?',
+  folderLayoutApplyDescription: (moves, deletions, reviews) =>
+    `Git va exécuter ${moves} commande${moves === 1 ? '' : 's'} git mv et ${deletions} commande${deletions === 1 ? '' : 's'} git rm. Les imports TypeScript concernés seront aussi mis à jour. Les ${reviews} fichier${reviews === 1 ? '' : 's'} à revoir manuellement resteront en place.`,
+  folderLayoutApplyStaged:
+    'Git indexera les renommages et suppressions pour les rendre faciles à examiner dans le diff.',
+  folderLayoutApplyCommand: 'Commande à lancer',
+  folderLayoutApplyCommands: 'Afficher les opérations Git générées',
+  folderLayoutApplyCancel: 'Pas maintenant',
+  folderLayoutApplyCopy: 'Copier la commande',
+  folderLayoutApplyCopied: 'Commande copiée.',
+  folderLayoutApplyRun: 'Lancer la réorganisation',
+  folderLayoutApplyRunning: 'Réorganisation avec Git…',
+  folderLayoutApplyFailed:
+    'Git n’a pas pu appliquer la proposition. Consulte la sortie du terminal et corrige le conflit indiqué.',
   previous: '↑ Précédent ',
   next: 'Suivant ↓ ',
 

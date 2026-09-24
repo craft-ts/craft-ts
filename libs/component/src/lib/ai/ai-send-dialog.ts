@@ -435,10 +435,7 @@ export const AiSendDialog: CraftComponent<{
               : captureAiDomStyles(currentPayload.captureElement)
             : undefined;
           const pageCapture = options.includePageDomStyles
-            ? captureAiDomStyles(document.documentElement, {
-                maxBytes: 1024 * 1024,
-                maxNodes: 10000,
-              })
+            ? captureAiDomStyles(document.documentElement)
             : undefined;
           const content = formatPrompt(
             { ...currentPayload, instruction: text },

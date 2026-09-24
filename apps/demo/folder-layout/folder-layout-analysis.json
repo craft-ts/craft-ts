@@ -31,7 +31,21 @@
       "hubFanIn": 6,
       "hubFanOut": 6
     },
-    "hash": "654e430eb38c6399"
+    "placementRules": [
+      {
+        "id": "app-start-services",
+        "when": {
+          "nodeKind": "service",
+          "nodeDetails": {
+            "appStart": true
+          }
+        },
+        "scope": "core",
+        "folder": "core/app-start",
+        "reason": "Service declares an onAppStart hook that runs during application bootstrap."
+      }
+    ],
+    "hash": "05beae0d5c308af4"
   },
   "inventory": [
     "apps/demo/src/app/app.config.ts",
@@ -6827,13 +6841,12 @@
         "file:apps/demo/src/app/my-route-load-error-screen.ts",
         "file:apps/demo/src/app/page-actor.ts",
         "file:apps/demo/src/app/query-params.utils.ts",
-        "file:apps/demo/src/app/run-on-app-start/run-on-app-start.ts",
         "file:apps/demo/src/app/template-trace-demo.ts",
         "file:apps/demo/src/demo-typecheck-indicator.ts",
         "file:apps/demo/src/main.ts"
       ],
       "depth": 0,
-      "cohesion": 0.08571428571428572
+      "cohesion": 0.09340659340659341
     },
     {
       "id": "community:b092a1d877808b57",
@@ -6914,6 +6927,16 @@
       "scope": "feature-local",
       "fileIds": [
         "file:apps/demo/src/app/examples/component/component-composition-demo.ts"
+      ],
+      "depth": 1,
+      "cohesion": 0
+    },
+    {
+      "id": "community:e9dbb530e3107468",
+      "name": "core/app-start",
+      "scope": "core",
+      "fileIds": [
+        "file:apps/demo/src/app/run-on-app-start/run-on-app-start.ts"
       ],
       "depth": 1,
       "cohesion": 0

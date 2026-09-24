@@ -13,6 +13,8 @@ import type {
   DependencyGraph,
   DependencyGraphEdge,
   DependencyGraphNode,
+  DependencyGraphNodeKind,
+  DependencyGraphNodeRegistry,
   DependencyGraphProof,
 } from './dependency-graph.js';
 
@@ -78,6 +80,49 @@ export type OrganizerThresholds = {
   maxDepth: number;
   hubFanIn: number;
   hubFanOut: number;
+};
+
+/** Details emitted by the built-in Craft service collector. */
+export type OrganizerServiceNodeDetails = {
+  scope?: string;
+  appStart?: boolean;
+  browserBoundary?: boolean;
+  outputProperties?: readonly string[];
+  helpers?: readonly string[];
+};
+
+type OrganizerNodeDetails<K extends DependencyGraphNodeKind> =
+  K extends 'service'
+    ? OrganizerServiceNodeDetails
+    : DependencyGraphNodeRegistry[K];
+
+export type OrganizerPlacementWhen<K extends DependencyGraphNodeKind> = {
+  nodeKind: K;
+  nodeDetails?: Readonly<Partial<OrganizerNodeDetails<K>>>;
+};
+
+/**
+ * A serializable, first-match placement rule. The node kind determines the
+ * accepted detail keys and values. A match overrides the file's normal scope
+ * and destination folder.
+ */
+export type OrganizerPlacementRuleFor<K extends DependencyGraphNodeKind> = {
+  id: string;
+  when: OrganizerPlacementWhen<K>;
+  scope: OrganizerScope;
+  folder: string;
+  reason: string;
+};
+
+export type OrganizerPlacementRule = {
+  [K in DependencyGraphNodeKind]: OrganizerPlacementRuleFor<K>;
+}[DependencyGraphNodeKind];
+
+export type OrganizerConfig = {
+  weights?: Partial<OrganizerWeights>;
+  thresholds?: Partial<OrganizerThresholds>;
+  /** Evaluated in order before the built-in ownership classification. */
+  placementRules?: readonly OrganizerPlacementRule[];
 };
 
 export const DEFAULT_ORGANIZER_THRESHOLDS: OrganizerThresholds = {
@@ -188,7 +233,7 @@ export type FilePlacement = {
   reasons: string[];
   relatedFiles: string[];
   alternatives: string[];
-  action: 'move' | 'review' | 'keep-at-root';
+  action: 'move' | 'review' | 'keep-at-root' | 'delete';
 };
 
 export type OrganizerCommunity = {
@@ -224,6 +269,7 @@ export type FolderLayoutAnalysis = {
     targetRoot: string;
     weights: OrganizerWeights;
     thresholds: OrganizerThresholds;
+    placementRules: readonly OrganizerPlacementRule[];
     hash: string;
   };
   inventory: string[];
@@ -270,6 +316,7 @@ export type OrganizeOptions = {
   targetRoot?: string;
   weights?: Partial<OrganizerWeights>;
   thresholds?: Partial<OrganizerThresholds>;
+  placementRules?: readonly OrganizerPlacementRule[];
 };
 
 export type OrganizeResult = {
@@ -868,6 +915,10 @@ type ScopeDecision = {
   /** Folder under `features/` for feature scopes. */
   featurePath: string[];
   reasons: string[];
+  /** Explicit target-root-relative folder from a custom placement rule. */
+  folder?: string;
+  /** User-authored placement policies are decisive rather than inferred. */
+  confidence?: number;
 };
 
 /**
@@ -980,12 +1031,147 @@ function folderFor(
   decision: ScopeDecision,
   thresholds: OrganizerThresholds,
 ): string | null {
+  if (decision.folder !== undefined) return decision.folder;
   if (decision.scope === 'unresolved') return null;
   if (decision.scope === 'core') return 'core';
   if (decision.scope === 'global-shared') return 'shared';
   return posix(
     join('features', ...decision.featurePath.slice(0, thresholds.maxDepth)),
   );
+}
+
+const ORGANIZER_SCOPES = new Set<OrganizerScope>([
+  'feature-local',
+  'parent-shared',
+  'global-shared',
+  'core',
+  'unresolved',
+]);
+
+function validatePlacementRules(
+  rules: readonly OrganizerPlacementRule[],
+): void {
+  const ids = new Set<string>();
+  for (const [index, rule] of rules.entries()) {
+    if (!rule || typeof rule !== 'object')
+      throw new Error(`craft organize: placement rule ${index + 1} is invalid.`);
+    if (typeof rule.id !== 'string' || !rule.id.trim() || ids.has(rule.id))
+      throw new Error(
+        `craft organize: placement rule ${index + 1} needs a unique, non-empty id.`,
+      );
+    ids.add(rule.id);
+    if (!rule.when || typeof rule.when !== 'object')
+      throw new Error(
+        `craft organize: placement rule "${rule.id}" needs a when matcher.`,
+      );
+    if (typeof rule.when.nodeKind !== 'string' || !rule.when.nodeKind.trim())
+      throw new Error(
+        `craft organize: placement rule "${rule.id}" nodeKind must be a non-empty string.`,
+      );
+    if (
+      rule.when.nodeDetails !== undefined &&
+      (!rule.when.nodeDetails ||
+        typeof rule.when.nodeDetails !== 'object' ||
+        Array.isArray(rule.when.nodeDetails))
+    )
+      throw new Error(
+        `craft organize: placement rule "${rule.id}" nodeDetails must be an object.`,
+      );
+    if (rule.when.nodeKind === 'service')
+      validateServiceNodeDetails(rule.id, rule.when.nodeDetails);
+    if (!ORGANIZER_SCOPES.has(rule.scope))
+      throw new Error(
+        `craft organize: placement rule "${rule.id}" has an unknown scope "${String(rule.scope)}".`,
+      );
+    if (typeof rule.reason !== 'string' || !rule.reason.trim())
+      throw new Error(
+        `craft organize: placement rule "${rule.id}" needs a non-empty reason.`,
+      );
+    const folder =
+      typeof rule.folder === 'string'
+        ? posix(rule.folder).replace(/\/+$/, '')
+        : '';
+    if (
+      !folder ||
+      folder.startsWith('/') ||
+      /^[A-Za-z]:/.test(folder) ||
+      folder
+        .split('/')
+        .some(
+          (segment) => !segment || segment === '.' || segment === '..',
+        )
+    )
+      throw new Error(
+        `craft organize: placement rule "${rule.id}" folder must be a safe relative folder.`,
+      );
+  }
+}
+
+function validateServiceNodeDetails(
+  ruleId: string,
+  details: object | undefined,
+): void {
+  const validators: Readonly<Record<string, (value: unknown) => boolean>> = {
+    scope: (value) => typeof value === 'string',
+    appStart: (value) => typeof value === 'boolean',
+    browserBoundary: (value) => typeof value === 'boolean',
+    outputProperties: isStringArray,
+    helpers: isStringArray,
+  };
+  for (const [key, value] of Object.entries(details ?? {})) {
+    const validate = validators[key];
+    if (!validate)
+      throw new Error(
+        `craft organize: placement rule "${ruleId}" has unknown service detail "${key}".`,
+      );
+    if (!validate(value))
+      throw new Error(
+        `craft organize: placement rule "${ruleId}" has an invalid value for service detail "${key}".`,
+      );
+  }
+}
+
+function isStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function placementRuleForFile(
+  file: InternalFile,
+  nodesById: ReadonlyMap<string, DependencyGraphNode>,
+  rules: readonly OrganizerPlacementRule[],
+): OrganizerPlacementRule | undefined {
+  for (const rule of rules) {
+    const matches = file.craftNodeIds.some((id) => {
+      const node = nodesById.get(id);
+      if (!node) return false;
+      if (node.kind !== rule.when.nodeKind)
+        return false;
+      return Object.entries(rule.when.nodeDetails ?? {}).every(
+        ([key, expected]) =>
+          node.details !== undefined &&
+          Object.hasOwn(node.details, key) &&
+          stableStringify(node.details[key]) === stableStringify(expected),
+      );
+    });
+    if (matches) return rule;
+  }
+  return undefined;
+}
+
+function classifyWithPlacementRules(
+  file: InternalFile,
+  nodesById: ReadonlyMap<string, DependencyGraphNode>,
+  rules: readonly OrganizerPlacementRule[],
+): ScopeDecision {
+  const rule = placementRuleForFile(file, nodesById, rules);
+  if (!rule) return classifyScope(file);
+  return {
+    scope: rule.scope,
+    featurePath: [],
+    folder: posix(rule.folder).replace(/\/+$/, ''),
+    confidence: 1,
+    reasons: [`placement rule "${rule.id}": ${rule.reason}`],
+  };
 }
 
 function slug(value: string): string {
@@ -1040,6 +1226,18 @@ function renderReport(
       );
     lines.push('');
   }
+  const deletions = proposal.placements.filter(
+    (placement) => placement.action === 'delete',
+  );
+  lines.push('## Orphaned files proposed for deletion', '');
+  if (deletions.length === 0) lines.push('No orphaned files.', '');
+  else {
+    for (const placement of deletions)
+      lines.push(
+        `- \`${placement.sourcePath}\` — ${placement.reasons.join('; ')}`,
+      );
+    lines.push('');
+  }
   lines.push('## File-by-file decisions', '');
   for (const placement of proposal.placements) {
     lines.push(
@@ -1083,6 +1281,7 @@ function renderReport(
     `- Medium: ${proposal.statistics.confidence.medium}`,
     `- Low: ${proposal.statistics.confidence.low}`,
     `- Moves: ${proposal.statistics.moves}`,
+    `- Deletions: ${deletions.length}`,
     `- Reviews: ${proposal.statistics.reviews}`,
     `- Unresolved: ${proposal.statistics.unresolved}`,
     '',
@@ -1100,6 +1299,8 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
     ...DEFAULT_ORGANIZER_THRESHOLDS,
     ...(options.thresholds ?? {}),
   };
+  const placementRules = [...(options.placementRules ?? [])];
+  validatePlacementRules(placementRules);
   const targetRoot = posix(
     options.targetRoot ??
       (() => {
@@ -1128,8 +1329,15 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
   }
   const projection = makeProjection(loaded.graph, rootDir, parsed, weights);
   const filesById = new Map(projection.files.map((file) => [file.id, file]));
+  const nodesById = new Map(loaded.graph.nodes.map((node) => [node.id, node]));
   const decisions = new Map(
-    projection.files.map((file) => [file.id, classifyScope(file)] as const),
+    projection.files.map(
+      (file) =>
+        [
+          file.id,
+          classifyWithPlacementRules(file, nodesById, placementRules),
+        ] as const,
+    ),
   );
   const folders = new Map<
     string,
@@ -1199,7 +1407,11 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
         reasons.push('hub');
       let action: FilePlacement['action'] = proposedPath
         ? 'move'
-        : 'keep-at-root';
+        : scope === 'unresolved'
+          ? 'delete'
+          : 'keep-at-root';
+      if (action === 'delete')
+        reasons.push('orphaned file proposed for deletion');
       const finalPath = proposedPath;
       if (finalPath) {
         const previous = occupied.get(finalPath);
@@ -1210,7 +1422,7 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
           );
         } else occupied.set(finalPath, file.id);
       }
-      const confidence = confidenceFor(scope, file);
+      const confidence = decision.confidence ?? confidenceFor(scope, file);
       if (confidence < 0.5 && action === 'move') action = 'review';
       return {
         sourcePath: file.sourcePath,
@@ -1250,6 +1462,7 @@ export function organizeProject(options: OrganizeOptions): OrganizeResult {
     targetRoot,
     weights,
     thresholds,
+    placementRules,
   };
   const configHash = shortHash(config);
   const analysis: FolderLayoutAnalysis = {

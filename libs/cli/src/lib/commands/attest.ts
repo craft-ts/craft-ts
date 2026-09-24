@@ -62,6 +62,10 @@ import type {
   FolderLayoutAnalysis,
   FolderLayoutProposal,
 } from '@craft-ts/dev-tools';
+import {
+  applyFolderLayoutProposal,
+  folderLayoutGitPlan,
+} from '@craft-ts/dev-tools';
 import type { LayoutDigest } from '@craft-ts/style-testing';
 import type { ReviewIterationOptions } from '@craft-ts/style-testing/review';
 import { parseArguments } from '../args.js';
@@ -906,6 +910,32 @@ export async function runAttestCommand(
           ...(regenerateScript ? { regenerationScript: regenerateScript } : {}),
           now,
         };
+        const folderLayoutPlan = observed.folderLayout
+          ? folderLayoutGitPlan(observed.folderLayout.proposal)
+          : undefined;
+        const folderLayoutApply =
+          observed.folderLayout &&
+          folderLayoutPlan &&
+          folderLayoutPlan.moves + folderLayoutPlan.deletions > 0
+            ? {
+                command: 'npm run apply:demo:folder-layout',
+                gitCommands: folderLayoutPlan.commands,
+                moves: folderLayoutPlan.moves,
+                deletions: folderLayoutPlan.deletions,
+                manualReviews: folderLayoutPlan.manualReviews,
+                run: async () => {
+                  if (!observed.folderLayout)
+                    throw new Error(
+                      'review: folder-layout proposal disappeared.',
+                    );
+                  applyFolderLayoutProposal({
+                    rootDir,
+                    project: parsed.values['tsconfig'] ?? 'tsconfig.json',
+                    proposal: observed.folderLayout.proposal,
+                  });
+                },
+              }
+            : undefined;
         return await review(
           io,
           ledger,
@@ -920,8 +950,9 @@ export async function runAttestCommand(
                 reloadObserved: observations,
                 run: async () =>
                   await runScript({ rootDir, script: regenerateScript }),
-              }
+            }
             : undefined,
+          folderLayoutApply,
         );
       }
       default:
@@ -1497,6 +1528,16 @@ async function review(
     | {
         readonly run: () => Promise<void>;
         readonly reloadObserved: () => Promise<ObservedRun>;
+    }
+    | undefined,
+  folderLayoutApply:
+    | {
+        readonly command: string;
+        readonly gitCommands: string;
+        readonly moves: number;
+        readonly deletions: number;
+        readonly manualReviews: number;
+        readonly run: () => Promise<void>;
       }
     | undefined,
 ): Promise<number> {
@@ -1821,11 +1862,13 @@ async function review(
                   sourcePath: placement.sourcePath,
                   proposedPath: placement.proposedPath,
                   status:
-                    placement.proposedPath === null
-                      ? ('unchanged' as const)
-                      : placement.proposedPath === placement.sourcePath
+                    placement.action === 'delete'
+                      ? ('deleted' as const)
+                      : placement.proposedPath === null
                         ? ('unchanged' as const)
-                        : ('moved' as const),
+                        : placement.proposedPath === placement.sourcePath
+                          ? ('unchanged' as const)
+                          : ('moved' as const),
                   scope: placement.scope,
                   confidence: placement.confidence,
                   reasons: placement.reasons,
@@ -1903,6 +1946,7 @@ async function review(
     templateDetailFor: (subject: string) =>
       observed.workspace.detailForTemplate?.(subject),
     iteration,
+    ...(folderLayoutApply ? { folderLayoutApply } : {}),
     onClose: async (handoff) => {
       io.write('Review application closed.');
       if (handoff) {

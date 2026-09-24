@@ -403,6 +403,8 @@ string.
 
 For adding a TypeScript backend with its own typed nodes and relations, see
 [Extensible architecture graph](/guide/testing/extensible-architecture-graph).
+To propose project-specific source folders, see the
+[folder layout organizer guide](/guide/testing/folder-layout).
 
 ## Built-in helpers
 

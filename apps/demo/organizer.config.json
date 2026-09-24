@@ -1,0 +1,16 @@
+{
+  "placementRules": [
+    {
+      "id": "app-start-services",
+      "when": {
+        "nodeKind": "service",
+        "nodeDetails": {
+          "appStart": true
+        }
+      },
+      "scope": "core",
+      "folder": "core/app-start",
+      "reason": "Service declares an onAppStart hook that runs during application bootstrap."
+    }
+  ]
+}

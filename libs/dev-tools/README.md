@@ -179,6 +179,10 @@ The command refuses an obsolete or invalid graph and never rebuilds it or moves
 files. It writes `folder-layout-analysis.json`,
 `folder-layout-proposal.json`, and `FOLDER_LAYOUT_REPORT.md`.
 
+Files with no route, shell, or importer reachability are marked `delete` in the
+proposal and shown in a separate orphaned-files section. This is a proposed
+deletion in the review output; `craft organize` does not remove source files.
+
 The layout is feature first. Each route anchors a feature folder on its full
 path (a collection loaded by a route nests under it; route params are not
 folders). A file belongs to the features that use it, following CraftTS
@@ -194,6 +198,80 @@ nothing about. A file then goes to:
 
 Existing directory names are not used as architectural evidence. Use `--target-root` when the
 proposed application root should not be inferred from the project tsconfig.
+
+### Customize an organizer run
+
+`organizeProject` is exported from `@craft-ts/dev-tools` and
+`@craft-ts/dev-tools/folder-layout`. Pass `weights` and `thresholds` to tune
+the scoring and feature depth. Add serializable `placementRules` to override
+the default placement for files whose Craft graph nodes match the rule:
+
+```ts
+import { organizeProject } from '@craft-ts/dev-tools/folder-layout';
+
+organizeProject({
+  project: 'apps/shop/tsconfig.graph.json',
+  graph: 'craft-dependency-graph.json',
+  out: 'apps/shop/folder-layout',
+  weights: { calls: 4 },
+  thresholds: { maxDepth: 2 },
+  placementRules: [
+    {
+      id: 'app-start-services',
+      when: { nodeKind: 'service', nodeDetails: { appStart: true } },
+      scope: 'core',
+      folder: 'core/app-start',
+      reason: 'Runs during application bootstrap.',
+    },
+  ],
+});
+```
+
+The same rules can be kept in a JSON file and loaded by the CLI:
+
+```json
+{
+  "weights": { "calls": 4 },
+  "thresholds": { "maxDepth": 2 },
+  "placementRules": [
+    {
+      "id": "app-start-services",
+      "when": { "nodeKind": "service", "nodeDetails": { "appStart": true } },
+      "scope": "core",
+      "folder": "core/app-start",
+      "reason": "Runs during application bootstrap."
+    }
+  ]
+}
+```
+
+```bash
+craft organize \
+  --project apps/shop/tsconfig.graph.json \
+  --graph craft-dependency-graph.json \
+  --config apps/shop/organizer.config.json \
+  --out apps/shop/folder-layout
+```
+
+Rules run in array order before the default ownership classification. The first
+rule matching any Craft node in a file chooses that file's scope and folder;
+the folder is relative to the organizer's target root. Since proposals move
+files, a matching rule applies to the whole file. Each rule needs a unique `id`,
+a `when` matcher (`nodeKind`, `nodeDetails`, or both), a scope, a relative
+folder, and a human-readable reason. Explicit rules have confidence `1`;
+destination collisions still require review. The resolved rules are included
+in the analysis and its config hash. The demo's
+`apps/demo/organizer.config.json` uses this to propose app-start services under
+`core/app-start/` without changing defaults for other projects.
+
+Every rule requires a `nodeKind`; `nodeDetails` is optional and matches exact
+values. In TypeScript, `nodeKind` is a discriminator for `nodeDetails`. Service
+metadata is typed, so `appStart` must be a boolean and misspelled service
+detail keys are rejected. JSON config receives runtime validation for the
+built-in service detail keys and value types.
+
+See the [folder layout guide](/guide/testing/folder-layout) for the full
+configuration reference.
 
 ## ESLint rules
 

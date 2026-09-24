@@ -7,6 +7,7 @@ import {
   craftAppConfig,
   provideCraftRouter,
   provideFnWrapper,
+  provideSendContextEventEnricher,
 } from '@craft-ts/core';
 import { ReviewApp } from './review-app';
 import { reviewDocument } from './browser-adapter';
@@ -20,7 +21,13 @@ import './styles.css';
 import 'virtual:craft-style.css';
 
 const developmentProviders = import.meta.env.DEV
-  ? [provideSendContextToAi()]
+  ? [
+      provideSendContextEventEnricher((event) => ({
+        ...event,
+        application: 'review-attestation',
+      })),
+      provideSendContextToAi(),
+    ]
   : [];
 
 // Before the app renders, not after. Reading the stored choice from inside the

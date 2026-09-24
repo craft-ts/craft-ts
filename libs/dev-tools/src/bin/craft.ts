@@ -2,6 +2,7 @@
 
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { resolve } from 'node:path';
 import {
   listAngularProjects,
   runRouteAdd,
@@ -35,7 +36,14 @@ import { runAgentSync } from '../scripts/create/sync-agents.js';
 import { runSecurityCheck } from '../scripts/security-check.js';
 import { runFormAdd } from '../scripts/forms/form-command.js';
 import { spawnSync } from 'node:child_process';
-import { organizeProject } from '../scripts/folder-layout.js';
+import { readFileSync } from 'node:fs';
+import {
+  organizeProject,
+  type OrganizerConfig,
+} from '../scripts/folder-layout.js';
+import {
+  applyFolderLayoutProposal,
+} from '../scripts/apply-folder-layout.js';
 
 type CommonOptions = {
   rootDir?: string;
@@ -69,6 +77,7 @@ async function main(argv: string[]): Promise<number> {
     });
   }
   if (argv[0] === 'organize') {
+    if (argv[1] === 'apply') return runOrganizeApply(argv.slice(2));
     return runOrganize(argv.slice(1));
   }
   if (argv[0] === 'security' && argv[1] === 'check') {
@@ -219,6 +228,7 @@ function runOrganize(argv: string[]): number {
   let out = 'folder-layout';
   let rootDir = process.cwd();
   let targetRoot: string | undefined;
+  let configPath: string | undefined;
   let json = false;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -228,15 +238,42 @@ function runOrganize(argv: string[]): number {
     else if (argument === '--out') out = argv[++index] ?? out;
     else if (argument === '--root') rootDir = argv[++index] ?? rootDir;
     else if (argument === '--target-root') targetRoot = argv[++index];
+    else if (argument === '--config') configPath = argv[++index];
     else if (argument === '--json') json = true;
     else if (argument === '--help' || argument === '-h') {
       console.log(
-        'Usage: craft organize --project <tsconfig> --graph <graph.json> [--out <directory>] [--target-root <directory>] [--root <directory>] [--json]',
+        'Usage: craft organize --project <tsconfig> --graph <graph.json> [--config <organizer.json>] [--out <directory>] [--target-root <directory>] [--root <directory>] [--json]',
       );
       return 0;
     } else throw new Error(`craft organize: unknown argument ${argument}`);
   }
+  let config: OrganizerConfig = {};
+  if (configPath) {
+    const absoluteConfigPath = resolve(rootDir, configPath);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(absoluteConfigPath, 'utf8')) as unknown;
+    } catch (error) {
+      throw new Error(
+        `craft organize: cannot read config ${absoluteConfigPath}: ${String(error)}`,
+      );
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      throw new Error(
+        `craft organize: config ${absoluteConfigPath} must contain a JSON object.`,
+      );
+    const rawConfig = parsed as Record<string, unknown>;
+    const unknownKeys = Object.keys(rawConfig).filter(
+      (key) => !['weights', 'thresholds', 'placementRules'].includes(key),
+    );
+    if (unknownKeys.length > 0)
+      throw new Error(
+        `craft organize: unknown config key(s): ${unknownKeys.join(', ')}.`,
+      );
+    config = rawConfig as OrganizerConfig;
+  }
   const result = organizeProject({
+    ...config,
     rootDir,
     project,
     graph,
@@ -244,10 +281,43 @@ function runOrganize(argv: string[]): number {
     ...(targetRoot ? { targetRoot } : {}),
   });
   if (json) console.log(JSON.stringify(result.proposal, null, 2));
-  else
+  else {
+    const deletionCount = result.proposal.placements.filter(
+      (placement) => placement.action === 'delete',
+    ).length;
     console.log(
-      `Craft folder layout written to ${result.outputDir} (${result.proposal.statistics.moves} move(s), ${result.proposal.statistics.reviews} review(s)).`,
+      `Craft folder layout written to ${result.outputDir} (${result.proposal.statistics.moves} move(s), ${deletionCount} proposed deletion(s), ${result.proposal.statistics.reviews} review(s)).`,
     );
+  }
+  return 0;
+}
+
+function runOrganizeApply(argv: string[]): number {
+  let proposalPath: string | undefined;
+  let project = 'tsconfig.graph.json';
+  let rootDir = process.cwd();
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--proposal') proposalPath = argv[++index];
+    else if (argument === '--project' || argument === '--tsconfig')
+      project = argv[++index] ?? project;
+    else if (argument === '--root') rootDir = argv[++index] ?? rootDir;
+    else if (argument === '--help' || argument === '-h') {
+      console.log(
+        'Usage: craft organize apply --proposal <folder-layout-proposal.json> --project <tsconfig> [--root <directory>]',
+      );
+      return 0;
+    } else throw new Error(`craft organize apply: unknown argument ${argument}`);
+  }
+  if (!proposalPath)
+    throw new Error('craft organize apply: --proposal is required.');
+  const proposal = JSON.parse(
+    readFileSync(resolve(rootDir, proposalPath), 'utf8'),
+  ) as import('../scripts/folder-layout.js').FolderLayoutProposal;
+  const plan = applyFolderLayoutProposal({ rootDir, project, proposal });
+  console.log(
+    `Applied folder layout with Git (${plan.moves} move(s), ${plan.deletions} deletion(s), ${plan.manualReviews} manual review(s) left unchanged).`,
+  );
   return 0;
 }
 
@@ -1099,6 +1169,7 @@ function printHelp(): void {
   craft i18n check|test
   craft graph [options]
   craft organize --project <tsconfig> --graph <graph.json> [options]
+  craft organize apply --proposal <folder-layout-proposal.json> --project <tsconfig>
   craft agents sync [--agents <list>] [--root <dir>] [--dry-run] [--json]
   craft security check [--strict] [--root <dir>]
   craft route add [path] [options]

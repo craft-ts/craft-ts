@@ -74,6 +74,15 @@ export interface ReviewApiQueue {
   readonly diagnostics: AttestationDevtoolModel['diagnostics'];
   /** Decisions accepted during this review session, in acceptance order. */
   readonly history: readonly ReviewSessionDecision[];
+  /** Git apply action, offered only after this session accepts a layout card. */
+  readonly folderLayoutApply?: {
+    readonly command: string;
+    readonly gitCommands: string;
+    readonly moves: number;
+    readonly deletions: number;
+    readonly manualReviews: number;
+    readonly applied: boolean;
+  };
   /** Present only when this server knows how to rebuild its source reports. */
   readonly regeneration?: {
     readonly previousDecisions: number;
@@ -147,6 +156,15 @@ export interface ReviewServerOptions {
     | void
     | readonly AttestationReviewCard[]
     | Promise<void | readonly AttestationReviewCard[]>;
+  /** Git-backed folder-layout command enabled only after accepting its card. */
+  readonly folderLayoutApply?: {
+    readonly command: string;
+    readonly gitCommands: string;
+    readonly moves: number;
+    readonly deletions: number;
+    readonly manualReviews: number;
+    readonly run: () => Promise<void>;
+  };
   /** Serves a stored screenshot by hash. */
   readonly imageFor?: (hash: string) => Promise<Uint8Array | undefined>;
   /**
@@ -228,6 +246,8 @@ const queueValue = (
   regeneration: { readonly previousDecisions: number } | undefined,
   iteration: ReviewServerOptions['iteration'],
   history: readonly ReviewSessionDecision[] = [],
+  folderLayoutApply: ReviewServerOptions['folderLayoutApply'],
+  folderLayoutApplied: boolean,
 ): ReviewApiQueue => ({
   ...(iteration ? { sourceLinksAvailable: true as const } : {}),
   items: cards.reduce((total, card) => total + card.cluster.length, 0),
@@ -247,6 +267,24 @@ const queueValue = (
   folderLayouts: model?.folderLayouts ?? [],
   diagnostics: model?.diagnostics ?? [],
   history,
+  ...(folderLayoutApply &&
+  history.some(
+    (entry) =>
+      entry.card.kind === 'folder-layout' &&
+      (entry.decision.verdict === 'ok' ||
+        entry.decision.verdict === 'ok-with-note'),
+  )
+    ? {
+        folderLayoutApply: {
+          command: folderLayoutApply.command,
+          gitCommands: folderLayoutApply.gitCommands,
+          moves: folderLayoutApply.moves,
+          deletions: folderLayoutApply.deletions,
+          manualReviews: folderLayoutApply.manualReviews,
+          applied: folderLayoutApplied,
+        },
+      }
+    : {}),
   ...(regeneration ? { regeneration } : {}),
   ...(iteration
     ? {
@@ -359,6 +397,8 @@ export async function startReviewServer(
   let model = options.model;
   let previousDecisions = options.previousDecisions ?? 0;
   let regenerationRunning = false;
+  let folderLayoutApplying = false;
+  let folderLayoutApplied = false;
   let closing = false;
   const stopServer: { current?: () => Promise<void> } = {};
   const port = options.port ?? 4320;
@@ -452,6 +492,8 @@ export async function startReviewServer(
               options.regenerate ? { previousDecisions } : undefined,
               options.iteration,
               history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
             ),
           );
         } catch (error) {
@@ -540,6 +582,8 @@ export async function startReviewServer(
               { previousDecisions },
               options.iteration,
               history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
             ),
           );
         } catch (error) {
@@ -649,12 +693,81 @@ export async function startReviewServer(
               options.regenerate ? { previousDecisions } : undefined,
               options.iteration,
               history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
             ),
           );
         } catch (error) {
           writeJson(response, 400, {
             error: error instanceof Error ? error.message : 'bad request',
           });
+        }
+      })();
+      return;
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/folder-layout/apply'
+    ) {
+      void (async () => {
+        if (!options.folderLayoutApply) {
+          writeJson(response, 404, {
+            error: 'review: Git folder-layout application is not configured.',
+          });
+          return;
+        }
+        if (folderLayoutApplying) {
+          writeJson(response, 409, {
+            error: 'review: folder-layout application is already running.',
+          });
+          return;
+        }
+        if (
+          !history.some(
+            (entry) =>
+              entry.card.kind === 'folder-layout' &&
+              (entry.decision.verdict === 'ok' ||
+                entry.decision.verdict === 'ok-with-note'),
+          )
+        ) {
+          writeJson(response, 409, {
+            error: 'review: accept the folder-layout proposal before applying it.',
+          });
+          return;
+        }
+        if (folderLayoutApplied) {
+          writeJson(response, 409, {
+            error: 'review: this folder-layout proposal was already applied.',
+          });
+          return;
+        }
+        folderLayoutApplying = true;
+        try {
+          await options.folderLayoutApply.run();
+          folderLayoutApplied = true;
+          writeJson(
+            response,
+            200,
+            queueValue(
+              cards,
+              model,
+              options.regenerate ? { previousDecisions } : undefined,
+              options.iteration,
+              history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
+            ),
+          );
+        } catch (error) {
+          writeJson(response, 500, {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Git folder-layout application failed.',
+          });
+        } finally {
+          folderLayoutApplying = false;
         }
       })();
       return;
@@ -685,6 +798,11 @@ export async function startReviewServer(
           const entry = history[historyIndex];
           if (!entry)
             throw new Error('review: that session decision is invalid.');
+          if (folderLayoutApplied && entry.card.kind === 'folder-layout') {
+            throw new Error(
+              'review: an applied folder layout cannot be reopened in this session.',
+            );
+          }
           const reopened = await options.onReopen?.(entry);
           if (reopened !== undefined) cards = [...reopened];
           else cards = [entry.card, ...cards];
@@ -698,6 +816,8 @@ export async function startReviewServer(
               options.regenerate ? { previousDecisions } : undefined,
               options.iteration,
               history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
             ),
           );
         } catch (error) {

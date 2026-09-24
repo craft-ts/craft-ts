@@ -11,6 +11,7 @@ import {
   isCraftNotSettled,
   provideCorrelationIdTracking,
   provideCraftRouter,
+  provideSendContextEventEnricher,
   provideGlobalPersisterHandlerService,
   provideLocalStoragePersister,
   provideSessionStoragePersister,
@@ -51,6 +52,10 @@ const developmentProviders = import.meta.env.DEV
       provideDemoTracing(),
       // eslint-disable-next-line craft-ts/prefer-browser-boundaries
       provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
+      provideSendContextEventEnricher((event) => ({
+        ...event,
+        application: 'demo',
+      })),
       provideSendContextToAi(),
       provideMcpExperimentation(),
     ]

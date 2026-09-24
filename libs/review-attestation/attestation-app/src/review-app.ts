@@ -221,6 +221,10 @@ export const ReviewApp = craftComponent(
     const iterationHandoffRequested$ = source$<number>(
       'iterationHandoffRequested$',
     );
+    let folderLayoutApplyRequest = 0;
+    const folderLayoutApplyRequested$ = source$<number>(
+      'folderLayoutApplyRequested$',
+    );
     const mentionEdited$ = source$<{
       readonly mentions: readonly Mention[];
       readonly note: string;
@@ -382,6 +386,27 @@ export const ReviewApp = craftComponent(
         openFromRequest: on$(iterationDialogRequested$, () => set(true)),
         closeFromCancel: on$(iterationDialogClosed$, () => set(false)),
       }),
+    );
+    const folderLayoutApplyDialogDismissed = yield* state(
+      'folderLayoutApplyDialogDismissed',
+      false,
+      ({ set }) => ({ dismiss: () => set(true) }),
+    );
+    const folderLayoutApplyCopied = yield* state(
+      'folderLayoutApplyCopied',
+      false,
+      ({ set }) => ({ markCopied: () => set(true) }),
+    );
+    const folderLayoutApplyDialogOpen = craftComputed(
+      'folderLayoutApplyDialogOpen',
+      function* () {
+        const apply = (yield* review.value())?.folderLayoutApply;
+        return Boolean(
+          apply &&
+            !apply.applied &&
+            !(yield* folderLayoutApplyDialogDismissed()),
+        );
+      },
     );
     const iterationPreparationStarted = yield* state(
       'iterationPreparationStarted',
@@ -682,6 +707,17 @@ export const ReviewApp = craftComponent(
       },
     });
 
+    const applyFolderLayout = yield* mutation('applyFolderLayout', {
+      method: folderLayoutApplyRequested$.value,
+      loader: function* () {
+        return yield* CraftHttpClient.post(({ response }) => ({
+          url: '/api/folder-layout/apply',
+          payload: {},
+          success: response<ReviewApiQueue>(),
+        }));
+      },
+    });
+
     const { closeReview, closeReviewSession, closeReviewFailed } =
       yield* CloseReview();
 
@@ -746,6 +782,20 @@ export const ReviewApp = craftComponent(
           // the attestation queue. Still react declaratively so this mutation
           // participates in the same resource graph as the other actions.
           update: ({ queryResource }) =>
+            queryResource.value() ?? {
+              items: 0,
+              decisions: 0,
+              cards: [],
+              visualAssets: [],
+              visualTests: [],
+              templateObligations: [],
+              diagnostics: [],
+              history: [],
+            },
+        }),
+        insertReactOnMutation(applyFolderLayout, {
+          update: ({ queryResource, mutationResource }) =>
+            mutationResource.value() ??
             queryResource.value() ?? {
               items: 0,
               decisions: 0,
@@ -1047,6 +1097,29 @@ export const ReviewApp = craftComponent(
           field.select();
         }
         yield* iterationPromptCopied.markCopied();
+      },
+    );
+    const dismissFolderLayoutApply = craftMethod(
+      'dismissFolderLayoutApply',
+      function* () {
+        yield* folderLayoutApplyDialogDismissed.dismiss();
+      },
+    );
+    const confirmFolderLayoutApply = craftMethod(
+      'confirmFolderLayoutApply',
+      function* () {
+        folderLayoutApplyRequested$.emit(++folderLayoutApplyRequest);
+      },
+    );
+    const copyFolderLayoutCommand = craftMethod(
+      'copyFolderLayoutCommand',
+      function* () {
+        const value = (yield* review.value())?.folderLayoutApply?.command;
+        if (!value) return;
+        const clipboard = reviewClipboard();
+        if (clipboard)
+          void clipboard.writeText(value).catch(() => undefined);
+        yield* folderLayoutApplyCopied.markCopied();
       },
     );
     const chooseDevtoolView = craftMethod(
@@ -1580,6 +1653,7 @@ export const ReviewApp = craftComponent(
       reopen,
       regenerate,
       iterationHandoff,
+      applyFolderLayout,
       closeReview,
       reviewCards,
       cards,
@@ -1612,6 +1686,8 @@ export const ReviewApp = craftComponent(
       closeReviewFailed,
       regenerationDialogOpen,
       iterationDialogOpen,
+      folderLayoutApplyDialogOpen,
+      folderLayoutApplyCopied,
       iterationPreparationStarted,
       iterationPromptCopied,
       previousRegenerationDecisions,
@@ -1624,6 +1700,9 @@ export const ReviewApp = craftComponent(
       confirmIterationHandoff,
       closeReviewSession,
       copyIterationPrompt,
+      dismissFolderLayoutApply,
+      confirmFolderLayoutApply,
+      copyFolderLayoutCommand,
       movePrevious,
       moveNext,
       selectCard,
@@ -1673,6 +1752,7 @@ export const ReviewApp = craftComponent(
     reopen,
     regenerate,
     iterationHandoff,
+    applyFolderLayout,
     closeReview,
     reviewCards,
     cards,
@@ -1701,6 +1781,8 @@ export const ReviewApp = craftComponent(
     closeReviewFailed,
     regenerationDialogOpen,
     iterationDialogOpen,
+    folderLayoutApplyDialogOpen,
+    folderLayoutApplyCopied,
     iterationPromptCopied,
     previousRegenerationDecisions,
     regenerationFailed,
@@ -1712,6 +1794,9 @@ export const ReviewApp = craftComponent(
     confirmIterationHandoff,
     closeReviewSession,
     copyIterationPrompt,
+    dismissFolderLayoutApply,
+    confirmFolderLayoutApply,
+    copyFolderLayoutCommand,
     movePrevious,
     moveNext,
     selectCard,
@@ -3887,6 +3972,115 @@ export const ReviewApp = craftComponent(
                   },
                   function* () {
                     return (yield* t()).confirmRegeneration;
+                  },
+                ),
+              ]),
+            ],
+          ),
+        ]),
+      ),
+      ifNode(folderLayoutApplyDialogOpen, () =>
+        div({ class: 'folder-layout-apply-backdrop' }, [
+          section(
+            'FolderLayoutApplyDialog',
+            {
+              class: 'folder-layout-apply-modal',
+              role: 'dialog',
+              'aria-modal': 'true',
+              'aria-labelledby': 'folder-layout-apply-title',
+              'aria-describedby': 'folder-layout-apply-description',
+            },
+            [
+              small({ class: 'eyebrow' }, 'Git'),
+              heading({ id: 'folder-layout-apply-title' }, function* () {
+                return (yield* t()).folderLayoutApplyTitle;
+              }),
+              p({ id: 'folder-layout-apply-description' }, function* () {
+                const apply = (yield* review.value())?.folderLayoutApply;
+                return apply
+                  ? (yield* t()).folderLayoutApplyDescription(
+                      apply.moves,
+                      apply.deletions,
+                      apply.manualReviews,
+                    )
+                  : '';
+              }),
+              p({ class: 'folder-layout-apply-staged' }, function* () {
+                return (yield* t()).folderLayoutApplyStaged;
+              }),
+              small({ class: 'folder-layout-apply-command-label' }, function* () {
+                return (yield* t()).folderLayoutApplyCommand;
+              }),
+              pre({ class: 'folder-layout-apply-command code' }, function* () {
+                return (
+                  (yield* review.value())?.folderLayoutApply?.command ?? ''
+                );
+              }),
+              details({ class: 'folder-layout-apply-commands' }, [
+                summary(function* () {
+                  return (yield* t()).folderLayoutApplyCommands;
+                }),
+                pre({ class: 'code' }, function* () {
+                  return (
+                    (yield* review.value())?.folderLayoutApply?.gitCommands ??
+                    ''
+                  );
+                }),
+              ]),
+              ifNode(applyFolderLayout.status, () =>
+                p(
+                  {
+                    class: 'folder-layout-apply-error',
+                    role: 'alert',
+                    hidden: function* () {
+                      return (yield* applyFolderLayout.status()) !== 'exception';
+                    },
+                  },
+                  function* () {
+                    return (yield* t()).folderLayoutApplyFailed;
+                  },
+                ),
+              ),
+              ifNode(folderLayoutApplyCopied, () =>
+                p(
+                  { class: 'folder-layout-apply-copied', 'aria-live': 'polite' },
+                  function* () {
+                    return (yield* t()).folderLayoutApplyCopied;
+                  },
+                ),
+              ),
+              div({ class: 'folder-layout-apply-actions' }, [
+                button(
+                  'CancelFolderLayoutApply',
+                  {
+                    type: 'button',
+                    'data-hotkey': 'escape',
+                    autofocus: true,
+                    click: dismissFolderLayoutApply,
+                  },
+                  function* () {
+                    return (yield* t()).folderLayoutApplyCancel;
+                  },
+                ),
+                button(
+                  'CopyFolderLayoutGitCommands',
+                  { type: 'button', click: copyFolderLayoutCommand },
+                  function* () {
+                    return (yield* t()).folderLayoutApplyCopy;
+                  },
+                ),
+                button(
+                  'RunFolderLayoutGitCommands',
+                  {
+                    type: 'button',
+                    class: 'primary',
+                    disabled: applyFolderLayout.isLoading,
+                    click: confirmFolderLayoutApply,
+                  },
+                  function* () {
+                    return (yield* applyFolderLayout.isLoading())
+                      ? (yield* t()).folderLayoutApplyRunning
+                      : (yield* t()).folderLayoutApplyRun;
                   },
                 ),
               ]),

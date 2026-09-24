@@ -137,7 +137,11 @@ export const FolderLayoutView = craftComponent(
     });
     const summary = craftComputed('summary', function* () {
       const { collisions } = yield* trees();
-      const counts = `${(yield* entries()).length} files · ${yield* moves()} moves · ${yield* reviews()} reviews`;
+      const currentEntries = yield* entries();
+      const deletions = currentEntries.filter(
+        (entry) => entry.status === 'deleted',
+      ).length;
+      const counts = `${currentEntries.length} files · ${yield* moves()} moves · ${deletions} deletions · ${yield* reviews()} reviews`;
       return collisions
         ? `${counts} · ${collisions} destination collisions`
         : counts;
