@@ -160,6 +160,17 @@ export const ai = cssVars('craft-ai', {
   'launcher-bottom': kind.length(unit.px(20), themed),
 });
 
+/**
+ * Where the launcher sits, for an application whose own floating controls use
+ * that corner: `craftGlobalStyles('app', { root: [set(craftAiLauncherPosition.right, space(8))] })`.
+ * The two variables inherit and the overlay never sets them itself, so a value
+ * on `:root` reaches the launcher. The rest of the overlay theme stays private.
+ */
+export const craftAiLauncherPosition = {
+  right: ai['launcher-right'],
+  bottom: ai['launcher-bottom'],
+} as const;
+
 /** Which sets each theme variable, in light and in dark. */
 const THEME = [
   [ai.bg, craftAi.surface.page],

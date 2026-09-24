@@ -879,3 +879,83 @@ Migration des projets, dans l'ordre du plan.
   sur `No provider for Craft token "CraftPendingComponentServiceToken"`. Seul le shell
   s'affiche. Vérification faite sur une page statique, avec les vraies classes et le
   CSS construit : clair et sombre en desktop, clair en mobile.
+- **demo-effect** : fait.
+  - Les sept exemples répétaient la même carte, chacun avec sa teinte. La carte est
+    écrite une fois dans `effect-demo.style.ts`. La teinte est un axe d'état
+    (`data-exampleTint`) qui pose les variables de thème de la carte ; la teinte neutre
+    en fournit les valeurs initiales. Trois autres axes : l'encadré
+    (`data-exampleNote`), les boutons carré ou fantôme (`data-exampleButton`) et le
+    todo terminé (`data-exampleTodo`, avec une table de correspondance plutôt qu'un
+    ternaire, interdit dans un template).
+  - Chivo passe par `defineFont` : le `<link>` de `index.html` et l'`@import` de
+    `styles.css` disparaissent, et le plugin injecte preconnect et preload. La
+    dérogation `no-global-stylesheet` sur `index.html` tombe aussi.
+  - Une spec visait `.shipping-spinner` : elle cible maintenant `[aria-hidden]`.
+- **Vocabulaire** : `ariaPressed.pressed` (bouton bascule), sur le modèle
+  d'`ariaCurrent`.
+- **Reset** : `[hidden]:not([hidden='until-found']) { display: none !important }`.
+  Sans cette règle, toute classe qui pose un `display` ré-affiche un élément `hidden`
+  (vu sur le « × » de l'indicateur de typecheck ; l'overlay IA du lot 4 bascule aussi
+  par `hidden`). Un `!important` dans la première couche est la seule chose qu'aucune
+  couche suivante ni aucune feuille hors couche ne peut battre.
+- Vérifications :
+  - erreurs tsc identiques à `HEAD`, fichier par fichier (script
+    `compare_head.py`) ;
+  - specs de l'app (15) et d'architecture (17) vertes ;
+  - shell vérifié dans le vrai serveur de dev, cartes sur une page statique.
+- **demo** : fait.
+  - Choix de Romain : une sheet d'exemple commune plutôt qu'une traduction fidèle, et
+    une réécriture des démos `css-vars-*` sur `@craft-ts/style`.
+  - `examples/shared/example.style.ts` contient :
+    - la carte (une variante sombre pose des variables que les enfants lisent), le
+      titre, le texte (tons), le code, les notes, les actions ;
+    - les boutons (tons), les champs (axe `wide`), le tableau, la pagination, la liste,
+      les alertes (tons) ;
+    - le héros, les tuiles, les définitions, etc.
+  - Les paires craft/primitives partagent cette sheet, et leurs 17 `.css` sont
+    supprimés. Ce qui n'appartient qu'à un exemple reste à côté de lui :
+    - `pixel.style.ts` : la couleur de cellule par `assign`, avec une table hex →
+      jeton de palette ;
+    - `editor.style.ts` : les étapes en axe `data-editorStep` ;
+    - `task-board.style.ts`, `debounced-web-search.style.ts` ;
+    - `view-transitions.style.ts` : le dégradé et le `view-transition-name` par
+      `assign`, et les données photo perdent leur chaîne CSS.
+  - Shell (`demo-shell.style.ts`) : Chivo par `defineFont`, et la position du
+    lanceur IA par `set(craftAiLauncherPosition.right, …)` sur `:root`.
+    `src/styles.css` et les deux liens Google Fonts de `index.html` disparaissent.
+  - `css-vars-*` est réécrit. La démo montre :
+    - la valeur par instance (axe de variante qui fait `set`, le reste gardant la
+      valeur initiale) ;
+    - `inherits: true` ;
+    - le transfert : le parent fait `set(enfant, parent)`, l'appelant surcharge
+      dans sa propre sheet ;
+    - `@property` : un pourcentage enregistré, écrit par `assign`, qui s'anime.
+
+    `contentStyles` et `allowContainerStyles` sont retirés de la démo de projection.
+    Le contrat de slot passe d'une classe à `data-projection` : une classe de sheet
+    est une liste d'atomes, pas un nom qu'un sélecteur peut exiger.
+  - La dérogation `--ds-surface` tombe : la racine du thème peint sa surface et son
+    encre.
+  - Tests : les sélecteurs de classe (`.pixel-cell`, `.demo-nav__toggle`,
+    `.action-btn`, `.design-system-host`…) passent à des `data-testid`, e2e compris.
+    Les pixels se lisent maintenant sur `--pixel-fill`.
+- **Ajouts à la lib** :
+  - `gradient.linear/radial`, `ImageValue`, `kind.image`, `bgImage` : `gradient`
+    était le dernier manque du vocabulaire ;
+  - `tracks.minmax` ;
+  - `@craft-ts/component/style` : un point d'entrée qui ne contient que des jetons
+    (`craftAiLauncherPosition`), autorisé par `style-file-boundary` ;
+  - `assign` ajouté aux appels de présentation de
+    `require-reactive-template-bindings`.
+- **Piège** : une valeur initiale `@property` en `rem` n'est pas indépendante du calcul,
+  et le navigateur abandonne tout l'enregistrement. L'architecture l'attrape ; donner
+  une valeur initiale en `px`.
+- Vérifications demo :
+  - lint à 0 ;
+  - architecture 19/19 ;
+  - tsc sans nouvelle erreur ;
+  - specs : les **mêmes 20 échecs** que `HEAD`, mesurés sur un extrait `git archive`
+    de `HEAD` dans `tmp/baseline`, supprimé depuis ;
+  - `vite build` OK.
+
+  e2e non lancés : le rendu routé est cassé en amont.

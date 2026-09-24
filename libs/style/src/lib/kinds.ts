@@ -32,6 +32,7 @@ import type {
   TimeValue,
   UrlValue,
 } from './tokens/units.ts';
+import type { ImageValue } from './values.ts';
 
 export type CssVarRole = ColorRole;
 
@@ -89,6 +90,8 @@ export const kind = {
   ident: kindOf<'<custom-ident>', IdentValue>('<custom-ident>'),
   string: kindOf<'<string>', CssStringValue>('<string>'),
   url: kindOf<'<url>', UrlValue>('<url>'),
+  /** A gradient that changes at runtime — a photo's colours, a chart fill. */
+  image: kindOf<'<image>', ImageValue>('<image>'),
 } as const;
 
 export type AnyKind = CssVarKind<string, any>;

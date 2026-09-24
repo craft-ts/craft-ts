@@ -66,6 +66,11 @@ export default defineConfig({
       alias: {
         '@craft-ts/style': path.resolve(root, '../../libs/style/src/index.ts'),
         '@craft-ts/core': path.resolve(root, '../../libs/core/src/index.ts'),
+        // Before the package itself: an alias matches by prefix.
+        '@craft-ts/component/style': path.resolve(
+          root,
+          '../../libs/component/src/style.ts',
+        ),
         '@craft-ts/component': path.resolve(
           root,
           '../../libs/component/src/index.ts',

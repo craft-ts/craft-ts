@@ -19,6 +19,7 @@ import {
   craftException,
 } from '@craft-ts/core';
 import { eventValue } from '../../event-value';
+import { example } from '../shared/example.style';
 
 type User = { id: string; name: string; email: string };
 const USERS: User[] = [
@@ -71,19 +72,6 @@ const CraftServiceUserDetailComponent = craftComponent(
   'CraftServiceUserDetailComponent',
   {
     providers: [provideUser()],
-    styles: `
-      :scope{display:flex;flex-direction:column;align-items:center;gap:20px;padding:32px;font-family:sans-serif}
-      .controls{display:flex;gap:12px;align-items:center}
-      select{padding:6px 12px;font-size:1rem;border:1px solid #ccc;border-radius:6px}
-      .card{min-width:280px;padding:24px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa}
-      dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin:0}
-      dt{font-weight:600;color:#374151}
-      dd{margin:0;color:#6b7280}
-      .loading{color:#6b7280;font-style:italic}
-      .error{color:#dc2626}
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
   },
   function* () {
     const userId = yield* state('userId', '1', ({ set }) => ({
@@ -103,11 +91,11 @@ const CraftServiceUserDetailComponent = craftComponent(
     return { userId, user, hasValue, userIdValue, userName, userEmail };
   },
   ({ userId, user, hasValue, userIdValue, userName, userEmail }) => {
-    return div([
-      heading('craftService User Detail (query)'),
-      div({ class: 'controls' }, [
+    return div({ class: example.centered }, [
+      heading({ class: example.title }, 'craftService User Detail (query)'),
+      div({ class: example.row, 'data-testid': 'user-controls' }, [
         select('user',
-          {
+          { class: example.select,
             'aria-label': 'User',
             value: userId,
             *change(event: Event) {
@@ -119,23 +107,23 @@ const CraftServiceUserDetailComponent = craftComponent(
           user.userIds.map((id) => option({ value: id }, `User ${id}`)),
         ),
       ]),
-      div({ class: 'card' }, [
+      div({ class: example.box, 'data-testid': 'user-card' }, [
         ifNode(
           hasValue,
           () =>
-            h('dl', [
-              h('dt', 'ID'),
-              h('dd', userIdValue),
-              h('dt', 'Name'),
-              h('dd', userName),
-              h('dt', 'Email'),
-              h('dd', userEmail),
+            h('dl', { class: example.definitions }, [
+              h('dt', { class: example.term }, 'ID'),
+              h('dd', { class: example.definition }, userIdValue),
+              h('dt', { class: example.term }, 'Name'),
+              h('dd', { class: example.definition }, userName),
+              h('dt', { class: example.term }, 'Email'),
+              h('dd', { class: example.definition }, userEmail),
             ]),
           () =>
             ifNode(
               user.hasException,
-              () => p({ class: 'error' }, 'Failed to load user.'),
-              () => p({ class: 'loading' }, 'Loading user…'),
+              () => p({ class: example.text, 'data-exampleText': 'error' }, 'Failed to load user.'),
+              () => p({ class: example.text, 'data-exampleText': 'muted' }, 'Loading user…'),
             ),
         ),
       ]),

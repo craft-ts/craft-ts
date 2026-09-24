@@ -66,7 +66,9 @@ function type(element: HTMLElement, name: string, value: string) {
 }
 
 function activeStep(element: HTMLElement) {
-  return element.querySelector('.step--active')?.textContent?.trim();
+  return element
+    .querySelector('[data-editorStep="active"]')
+    ?.textContent?.trim();
 }
 
 afterEach(() => {

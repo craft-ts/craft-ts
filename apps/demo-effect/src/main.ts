@@ -1,9 +1,7 @@
 import { bootstrapCraft } from '@craft-ts/component';
 import { appConfig } from './app/app.config';
 import { startDemoEffectTypecheckIndicator } from './demo-typecheck-indicator';
-import './styles.css';
-// The sheets of @craft-ts/component (AI overlay, pending indicator, skip
-// link). TODO(style-only): the only stylesheet left once the app migrates.
+// The whole stylesheet, emitted from the *.style.ts sheets and craft-ts' own.
 import 'virtual:craft-style.css';
 
 startDemoEffectTypecheckIndicator();

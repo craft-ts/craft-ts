@@ -1,19 +1,14 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import { button, craftComponent, div, p, heading } from '@craft-ts/component';
 import {
   craftComputed,
   CraftRouteLoadError,
   CraftRouteLoadRecovery,
 } from '@craft-ts/core';
+import { example } from './examples/shared/example.style';
 
 export const MyRouteLoadErrorScreen = craftComponent(
   'MyRouteLoadErrorScreen',
-  {
-    styles: `
-      :scope{padding:2rem;border:1px solid #f97316;border-radius:8px;background:#fff7ed;color:#9a3412}
-      .actions{display:flex;gap:.75rem;margin-top:1rem}
-    `,
-  },
+  {},
   function* () {
     const error = yield* CraftRouteLoadError();
     const message = craftComputed('message', () => {
@@ -29,18 +24,22 @@ export const MyRouteLoadErrorScreen = craftComponent(
     };
   },
   ({ message, recovery }) => {
-    return div([
-      heading('⚠️ Route chunk failed'),
+    return div({ class: example.alert, 'data-exampleAlert': 'warning' }, [
+      heading({ class: example.subtitle }, '⚠️ Route chunk failed'),
       p(message),
-      div({ class: 'actions' }, [
+      div({ class: example.row }, [
         button(
           'retry',
-          { type: 'button', click: () => void recovery.retry() },
+          {
+            class: example.button,
+            type: 'button',
+            click: () => void recovery.retry(),
+          },
           'Retry route load',
         ),
         button(
           'reload',
-          { type: 'button', click: recovery.reload },
+          { class: example.button, type: 'button', click: recovery.reload },
           'Reload app',
         ),
       ]),

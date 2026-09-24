@@ -70,15 +70,15 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/design-system');
     await applyScenario(page, scenario, {
-      target: '.design-system-host',
+      target: '[data-testid="design-system"]',
       height: 900,
     });
 
-    const root = page.locator('.design-system-host');
+    const root = page.locator('[data-testid="design-system"]');
     await expect(root).toBeVisible();
     const { digest, scope } = await collectCapture(page, {
-      root: '.design-system-host',
-      intrinsic: ['.design-system-host'],
+      root: '[data-testid="design-system"]',
+      intrinsic: ['[data-testid="design-system"]'],
     });
     expect(digest.nodes.length).toBeGreaterThan(10);
 
@@ -94,7 +94,9 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
 
     // The frozen document, beside the picture. It is what lets a reviewer
     // point at a node instead of at pixels, and it is checkable — see below.
-    const snapshot = await snapshotPage(page, { root: '.design-system-host' });
+    const snapshot = await snapshotPage(page, {
+      root: '[data-testid="design-system"]',
+    });
     const snapshotName = imageName.replace(/\.png$/, '.snapshot.html');
     await writeFile(
       imagePathFor(testInfo, reportPath, snapshotName),
@@ -117,7 +119,7 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
           name: browser.browserType().name(),
           version: browser.version(),
         },
-        target: '.design-system-host',
+        target: '[data-testid="design-system"]',
       },
     });
   }
@@ -145,7 +147,7 @@ test('writes CLI-ready visual evidence from a real demo route', async ({
       ),
     );
     const replayed = await collectCapture(auditor, {
-      root: '.design-system-host',
+      root: '[data-testid="design-system"]',
     });
     const fidelity = replayFidelity(replayed.digest, capture.digest);
     expect(fidelity.report.join('\n'), `replay of '${capture.scenario}'`).toBe(

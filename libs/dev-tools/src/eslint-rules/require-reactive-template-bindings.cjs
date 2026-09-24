@@ -64,6 +64,9 @@ const SAFE_TEMPLATE_CALLS = new Set([
   'safeUrl',
   'safeResourceUrl',
   'safeUrlList',
+  // `style:` writes typed variables through `assign(v.x, value)` from
+  // @craft-ts/style: a presentation call, not a business derivation.
+  'assign',
 ]);
 
 module.exports = {

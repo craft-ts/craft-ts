@@ -1,4 +1,3 @@
-import styles from './mutation.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -25,12 +24,11 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
+import { example } from '../../shared/example.style';
 
 const MutationDemoComponent = craftComponent(
   'MutationDemoComponent',
-  {
-    stylesUrl: styles,
-  },
+  {},
   function* (userId: Input<string>) {
     const updateUserName = yield* mutation('updateUserName', {
       method: (payload: { userName: string; user: User }) => ({
@@ -108,17 +106,21 @@ const MutationDemoComponent = craftComponent(
     };
   },
   ({ userQuery, updateUserName, update, goTo, nameInput, setName }) => {
-    return div([
-      heading('Update user'),
-      div([
+    return div({ class: example.card, 'data-exampleCard': 'dark' }, [
+      heading({ class: example.title }, 'Update user'),
+      div({ class: example.text }, [
         'User ',
         StatusComponent({ status: userQuery.status }),
         ifNode(userQuery.hasUser, () =>
-          pre('UserValue', {}, userQuery.userValueJson),
+          pre('UserValue', { class: example.code }, userQuery.userValueJson),
         ),
       ]),
-      p('Reload to see the cached result; update the name optimistically.'),
+      p(
+        { class: example.text, 'data-exampleText': 'muted' },
+        'Reload to see the cached result; update the name optimistically.',
+      ),
       input('NameInput', {
+        class: example.input,
         type: 'text',
         placeholder: 'New name',
         value: nameInput,
@@ -130,7 +132,8 @@ const MutationDemoComponent = craftComponent(
         'UpdateUserNameButton',
         {
           type: 'button',
-          class: 'update-user-name',
+          class: example.button,
+          'data-testid': 'update-user-name',
           disabled: updateUserName.isLoading,
           click: function* () {
             // This example intentionally demonstrates direct mutation wiring;
@@ -149,6 +152,7 @@ const MutationDemoComponent = craftComponent(
       button(
         'PreviousUser',
         {
+          class: example.button,
           type: 'button',
           click: function* () {
             yield* goTo(-1);
@@ -159,6 +163,7 @@ const MutationDemoComponent = craftComponent(
       button(
         'NextUser',
         {
+          class: example.button,
           type: 'button',
           click: function* () {
             yield* goTo(1);

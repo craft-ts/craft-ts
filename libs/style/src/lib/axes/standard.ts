@@ -240,6 +240,19 @@ export const ariaCurrent = {
   }) as AxisPoint<'ariaCurrent', 'page'>,
 } as const;
 
+/**
+ * `aria-pressed="true"` — a toggle button that is on. Same reasoning as
+ * `ariaCurrent`: the attribute a screen reader announces is the one the sheet
+ * reads, so the pressed look and the pressed state cannot disagree.
+ */
+export const ariaPressed = {
+  pressed: axisPoint('ariaPressed', 'pressed', "&[aria-pressed='true']", {
+    kind: 'setAttribute',
+    name: 'aria-pressed',
+    value: 'true',
+  }) as AxisPoint<'ariaPressed', 'pressed'>,
+} as const;
+
 /** Every standard point, for the specs that assert each one has a driver. */
 export const STANDARD_AXES = [
   ...Object.values(scheme),
@@ -252,4 +265,5 @@ export const STANDARD_AXES = [
   ...Object.values(descendant),
   ...Object.values(interaction),
   ...Object.values(ariaCurrent),
+  ...Object.values(ariaPressed),
 ] as const;

@@ -23,6 +23,11 @@ const catalogPath = join(import.meta.dirname, 'catalog.ts');
 const styleAlias = {
   '@craft-ts/style': join(workspaceRoot, 'libs/style/src/index.ts'),
   '@craft-ts/core': join(workspaceRoot, 'libs/core/src/index.ts'),
+  // Before the package itself: an alias matches by prefix.
+  '@craft-ts/component/style': join(
+    workspaceRoot,
+    'libs/component/src/style.ts',
+  ),
   '@craft-ts/component': join(workspaceRoot, 'libs/component/src/index.ts'),
 };
 

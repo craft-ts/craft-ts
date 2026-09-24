@@ -33,6 +33,10 @@
       "types": "./src/index.d.ts",
       "default": "./src/index.js"
     },
+    "./style": {
+      "types": "./src/style.d.ts",
+      "default": "./src/style.js"
+    },
     "./testing": {
       "types": "./testing/public-api.d.ts",
       "default": "./testing/public-api.js"

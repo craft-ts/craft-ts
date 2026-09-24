@@ -22,6 +22,7 @@ import {
   state,
   craftException,
 } from '@craft-ts/core';
+import { example } from '../shared/example.style';
 
 // -- Types --
 
@@ -29,6 +30,12 @@ type Todo = {
   id: number;
   title: string;
   completed: boolean;
+};
+
+/** `data-exampleText` of a todo title: struck through once it is done. */
+const TODO_STATE: Readonly<Record<string, 'done' | null>> = {
+  false: null,
+  true: 'done',
 };
 
 const TODO_ICONS: Readonly<Record<string, string>> = {
@@ -165,91 +172,7 @@ const { Playground } = craftService(
 
 const PlaygroundComponent = craftComponent(
   'PlaygroundComponent',
-  {
-    styles: `
-    .playground {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      padding: 32px;
-      font-family: sans-serif;
-    }
-    .subtitle {
-      color: #6b7280;
-      margin: 0;
-    }
-    .add-form {
-      display: flex;
-      gap: 8px;
-    }
-    input {
-      padding: 8px 12px;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      width: 260px;
-    }
-    button {
-      padding: 8px 16px;
-      font-size: 1rem;
-      cursor: pointer;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      background: #fff;
-    }
-    button:hover {
-      background: #f0f0f0;
-    }
-    .list {
-      width: 100%;
-      max-width: 420px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .todo-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      background: #fff;
-    }
-    .todo-item.completed .title {
-      text-decoration: line-through;
-      color: #9ca3af;
-    }
-    .title {
-      flex: 1;
-    }
-    .toggle,
-    .delete {
-      border: none;
-      background: none;
-      padding: 4px;
-      font-size: 1.1rem;
-    }
-    .reloading {
-      color: #f59e0b;
-      font-size: 0.875rem;
-      margin: 0;
-    }
-    .loading {
-      color: #6b7280;
-    }
-    .error {
-      color: #ef4444;
-    }
-    .empty {
-      color: #9ca3af;
-      font-style: italic;
-    }
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
-  },
+  {},
   function* () {
     const pg = yield* Playground();
     const titleInput = yield* state('titleInput', '', ({ set }) => ({
@@ -281,11 +204,12 @@ const PlaygroundComponent = craftComponent(
     };
   },
   ({ pg, add, isAdding, todos, titleInput, setTitle }) => {
-    return div({ class: 'playground' }, [
-      heading('Playground'),
-      p('Sandbox for testing @craft-ts — ready to share on StackBlitz'),
-      div({ class: 'add-form' }, [
+    return div({ class: example.centered }, [
+      heading({ class: example.title }, 'Playground'),
+      p({ class: example.text, 'data-exampleText': 'muted' }, 'Sandbox for testing @craft-ts — ready to share on StackBlitz'),
+      div({ class: example.row }, [
         input('title', {
+          class: example.input,
           type: 'text',
           placeholder: 'New todo title…',
           value: titleInput,
@@ -297,7 +221,7 @@ const PlaygroundComponent = craftComponent(
           },
         }),
         button('add',
-          { type: 'button',
+          { class: example.button, type: 'button',
             disabled: pg.addTodo.isLoading,
             click: add,
           },
@@ -309,21 +233,14 @@ const PlaygroundComponent = craftComponent(
         ),
       ]),
       div(
-        { class: 'list' },
+        { class: example.list },
         forNode(
           todos,
           { track: (todo) => todo.id, empty: () => p('No todos yet.') },
           (todo) =>
-            div({
-              class: function* () {
-                return {
-                  'todo-item': true,
-                  completed: (yield* todo()).completed,
-                };
-              },
-            }, [
+            div({ class: example.item }, [
               button('toggle',
-                { type: 'button',
+                { class: example.button, 'data-exampleButton': 'ghost', type: 'button',
                   *click() {
                     yield* pg.toggleTodo.mutate((yield* todo()).id);
                   },
@@ -332,11 +249,16 @@ const PlaygroundComponent = craftComponent(
                   return TODO_ICONS[String((yield* todo()).completed)];
                 },
               ),
-              span({ class: 'title' }, function* () {
+              span({
+                class: example.itemTitle,
+                'data-exampleText': function* () {
+                  return TODO_STATE[String((yield* todo()).completed)];
+                },
+              }, function* () {
                 return (yield* todo()).title;
               }),
               button('delete',
-                { type: 'button',
+                { class: example.button, 'data-exampleButton': 'ghost', type: 'button',
                   'aria-label': function* () {
                     return `Delete ${(yield* todo()).title}`;
                   },

@@ -1,4 +1,3 @@
-import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -25,14 +24,13 @@ import {
   type ValidatedFormValue,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
+import { example } from '../../shared/example.style';
 
 type Todo = { readonly id: number; readonly title: string };
 
 const FullDemo = craftComponent(
   'FullDemo',
-  {
-    stylesUrl: styles,
-  },
+  {},
   function* () {
     const nextId = yield* state('nextId', 3, ({ state, update }) => ({
       take: function* () {
@@ -95,15 +93,19 @@ const FullDemo = craftComponent(
     };
   },
   ({ todos, addTodo, removeTodo, titleForm }) => {
-    return div([
-      heading([
+    return div({ class: example.page }, [
+      heading({ class: example.title }, [
         'Full primitives demo ',
         StatusComponent({ status: todos.status }),
       ]),
-      p('Query, mutations, optimistic interaction and functional rendering.'),
+      p(
+        { class: example.text, 'data-exampleText': 'muted' },
+        'Query, mutations, optimistic interaction and functional rendering.',
+      ),
       form(
         'AddTodoForm',
         {
+          class: example.row,
           *submit(event) {
             event.preventDefault();
             yield* titleForm.form.submit();
@@ -111,32 +113,45 @@ const FullDemo = craftComponent(
         },
         [
           input('TodoNameToAddInput', {
+            class: example.input,
             type: 'text',
             placeholder: 'New todo',
           }).pipe(CraftFieldDirective(titleForm.form)),
           button(
             'AddTodoButton',
-            { type: 'submit', disabled: addTodo.isLoading },
+            {
+              class: example.button,
+              'data-exampleButton': 'primary',
+              type: 'submit',
+              disabled: addTodo.isLoading,
+            },
             'Add',
           ),
         ],
       ).pipe(
         fieldErrorNode.exhaustive({
-          required: () => p('A todo title is required.'),
+          required: () =>
+            p(
+              { class: example.text, 'data-exampleText': 'error' },
+              'A todo title is required.',
+            ),
         }),
       ),
       ul(
+        { class: example.list },
         forNode(
           todos.value,
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
-            li([
+            li({ class: example.item }, [
               span('TodoTitle', {}, function* () {
                 return (yield* todo()).title;
               }),
               button(
                 'RemoveTodoButton',
                 {
+                  class: example.button,
+                  'data-exampleButton': 'danger',
                   type: 'button',
                   disabled: removeTodo.isLoading,
                   *click() {

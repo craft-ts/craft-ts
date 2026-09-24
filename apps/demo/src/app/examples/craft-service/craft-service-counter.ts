@@ -6,6 +6,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import { craftService, state } from '@craft-ts/core';
+import { example } from '../shared/example.style';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
@@ -23,26 +24,18 @@ const CraftServiceCounterComponent = craftComponent(
   'CraftServiceCounterComponent',
   {
     providers: [provideCounter()],
-    styles: `
-      :scope{display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;font-family:sans-serif}
-      .value{font-size:3rem;font-weight:bold;margin:0}
-      .actions{display:flex;gap:8px}
-      button{padding:8px 20px;font-size:1.2rem;cursor:pointer;border:1px solid #ccc;border-radius:6px;background:#fff}
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
   },
   function* () {
     return { counter: yield* Counter() };
   },
   ({ counter }) =>
-    div([
-      heading('craftService Counter (toProvide scope)'),
-      p({ class: 'value' }, counter),
-      div({ class: 'actions' }, [
-        button('decrement', { type: 'button', click: counter.decrement }, '-'),
-        button('reset', { type: 'button', click: counter.reset }, 'Reset'),
-        button('increment', { type: 'button', click: counter.increment }, '+'),
+    div({ class: example.centered }, [
+      heading({ class: example.title }, 'craftService Counter (toProvide scope)'),
+      p({ class: example.bigValue }, counter),
+      div({ class: example.row }, [
+        button('decrement', { class: example.button, type: 'button', click: counter.decrement }, '-'),
+        button('reset', { class: example.button, type: 'button', click: counter.reset }, 'Reset'),
+        button('increment', { class: example.button, type: 'button', click: counter.increment }, '+'),
       ]),
     ]),
 );

@@ -1,6 +1,6 @@
 /**
  * The CSS functions a component needs and the generated table cannot close:
- * shadows, `min()`/`max()`/`clamp()`, grid track lists.
+ * shadows, `min()`/`max()`/`clamp()`, grid track lists, gradients.
  *
  * Each is a **typed constructor**, never a string. `math.min(unit.px(560),
  * unit.pct(100))` is a `<length-percentage>` because both arguments are; a
@@ -13,6 +13,7 @@
  */
 import { declaration, type Declaration } from './props/factory.ts';
 import type {
+  AngleValue,
   ColorValue,
   LengthPercentageValue,
   LengthValue,
@@ -122,3 +123,50 @@ export const tracks = {
         .join(' '),
     ),
 } as const;
+
+// ─── images ─────────────────────────────────────────────────────────────────
+
+declare const IMAGE: unique symbol;
+
+/**
+ * `<image>` — a gradient, built by `gradient.*`. Only `bgImage` and an image
+ * variable (`kind.image`) take it, so a gradient cannot land in `color`.
+ */
+export interface ImageValue {
+  readonly css: string;
+  readonly unproven: string;
+  readonly [IMAGE]: true;
+}
+
+/**
+ * Gradients from colour values: a palette token or a theme variable goes in,
+ * `'#ff0000'` does not. The stops are spread evenly, which is what nearly
+ * every gradient in an interface is.
+ */
+export const gradient = {
+  linear: (
+    angle: AngleValue,
+    stops: readonly [ColorValue, ColorValue, ...ColorValue[]],
+  ): ImageValue =>
+    ({
+      css: `linear-gradient(${angle.css}, ${stops.map((stop) => stop.css).join(', ')})`,
+      unproven: '',
+    }) as ImageValue,
+  radial: (
+    stops: readonly [ColorValue, ColorValue, ...ColorValue[]],
+  ): ImageValue =>
+    ({
+      css: `radial-gradient(${stops.map((stop) => stop.css).join(', ')})`,
+      unproven: '',
+    }) as ImageValue,
+} as const;
+
+/**
+ * `background-image` from a gradient, or from an image variable written at
+ * runtime with `assign(v.art, gradient.linear(...))`.
+ *
+ * Named apart from the generated `backgroundImage`, which takes a `url()`: one
+ * name, one concept.
+ */
+export const bgImage = (image: ImageValue): Declaration =>
+  declaration('background-image', image.css);

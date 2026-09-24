@@ -35,20 +35,6 @@ export default [
     },
   },
   {
-    // TODO(style-only): this project is not migrated to @craft-ts/style yet
-    // (lot 5 of the style-only plan). Its migration removes this block; the
-    // three rules stay `error` in `recommended`. Until then the rules that
-    // read component CSS text keep guarding the legacy `meta.styles`.
-    files: ['**/src/**/*.ts'],
-    plugins: { 'craft-ts': craftRules },
-    rules: {
-      ...craftRules.configs.legacyComponentCss.rules,
-      'craft-ts/no-raw-class': 'off',
-      'craft-ts/no-inline-style': 'off',
-      'craft-ts/no-component-css': 'off',
-    },
-  },
-  {
     // These Vite configs import local workspace tooling directly; Nx's
     // boundary fixer cannot resolve the source-only package aliases here.
     files: ['**/vite.config.ts', '**/vitest.config.ts'],

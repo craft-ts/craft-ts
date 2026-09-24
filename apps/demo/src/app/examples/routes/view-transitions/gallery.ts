@@ -11,49 +11,46 @@ import {
 } from '@craft-ts/component';
 import { CraftRouterLink } from '@craft-ts/core';
 import { PHOTOS } from './photos';
+import { assign } from '@craft-ts/style';
+import { photoArt, photoTransitionName, vt, vtPhoto } from './view-transitions.style';
+import { example } from '../../shared/example.style';
 
 const ViewTransitionsGalleryComponent = craftComponent(
   'ViewTransitionsGalleryComponent',
-  {
-    styles: `
-      .vt-intro{margin-bottom:1.75rem}.vt-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1.25rem}
-      .vt-tile{display:grid;gap:.75rem;text-decoration:none;color:inherit}.vt-art{display:grid;place-items:center;aspect-ratio:4/3;border-radius:16px;box-shadow:0 12px 30px #0f172a2e}
-      .vt-emoji{font-size:3rem}.vt-meta{display:grid;gap:.15rem}.vt-title{font-weight:700}.vt-subtitle{font-size:.85rem;color:#64748b}
-    `,
-  },
+  {},
   () => ({}),
   () => [
-    header({ class: 'vt-intro' }, [
-      heading('View Transitions'),
+    header({ class: vt.intro }, [
+      heading({ class: example.title }, 'View Transitions'),
       p('Click a tile to morph it into the detail hero.'),
     ]),
     ul(
-      { class: 'vt-grid' },
+      { class: vt.grid },
       forNode(PHOTOS, { track: (photo) => photo.id }, (photo) =>
         li(
           a(
             'photo',
-            { class: 'vt-tile' },
+            { class: vt.tile },
             [
               span(
                 {
-                  class: 'vt-art',
-                    style: function* () {
+                  class: vt.art,
+                  style: function* () {
                     return {
-                      background: (yield* photo()).gradient,
-                      viewTransitionName: `photo-${(yield* photo()).id}`,
+                      ...assign(vtPhoto.art, photoArt((yield* photo()).id)),
+                      ...assign(vtPhoto.name, photoTransitionName((yield* photo()).id)),
                     };
                   },
                 },
-                span({ class: 'vt-emoji' }, function* () {
+                span({ class: vt.emoji }, function* () {
                   return (yield* photo()).emoji;
                 }),
               ),
-              span({ class: 'vt-meta' }, [
-                span({ class: 'vt-title' }, function* () {
+              span({ class: vt.meta }, [
+                span({ class: vt.title }, function* () {
                   return (yield* photo()).title;
                 }),
-                span({ class: 'vt-subtitle' }, function* () {
+                span({ class: vt.subtitle }, function* () {
                   return (yield* photo()).subtitle;
                 }),
               ]),

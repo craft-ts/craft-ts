@@ -71,7 +71,7 @@ import {
   validateAtoms,
 } from './emit.ts';
 import { declaration } from '../lib/props/factory.ts';
-import { math, shadow, tracks } from '../lib/values.ts';
+import { bgImage, gradient, math, shadow, tracks } from '../lib/values.ts';
 
 const tone = defineStateAxis('tone', ['danger']);
 
@@ -101,6 +101,10 @@ describe('the foundation craft-ts ships', () => {
     expect(css).toContain('input,button,textarea,select{font:inherit}');
     expect(css).toContain('h1,h2,h3,h4,h5,h6{text-wrap:balance}');
     expect(css).toContain('html{-webkit-text-size-adjust:none}');
+    // A class that sets display must not un-hide a `hidden` element.
+    expect(css).toContain(
+      "[hidden]:not([hidden='until-found']){display:none !important}",
+    );
   });
 
   it('neutralises every animation under reduced motion, important', () => {
@@ -352,6 +356,20 @@ describe('value constructors', () => {
     expect(
       tracks.list(tracks.minmax(unit.px(0), tracks.fr(0.9)), 'auto').css,
     ).toBe('minmax(0px, 0.9fr) auto');
+    expect(
+      gradient.linear(unit.deg(135), [
+        palette.text.strong,
+        palette.surface.page,
+      ]).css,
+    ).toMatch(/^linear-gradient\(135deg, #[0-9a-f]{6}, #[0-9a-f]{6}\)$/);
+    expect(
+      bgImage(gradient.radial([palette.text.strong, palette.surface.page])),
+    ).toMatchObject({ property: 'background-image' });
+    const _gradientIsNotAColor = () => {
+      // @ts-expect-error a gradient is an image, not a colour
+      color(gradient.radial([palette.text.strong, palette.surface.page]));
+    };
+    expect(_gradientIsNotAColor).toBeTypeOf('function');
     const _rejected = () => {
       // @ts-expect-error a flex value is a track size, not a length
       maxInlineSize(tracks.fr(1));

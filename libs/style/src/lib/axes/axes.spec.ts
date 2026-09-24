@@ -37,6 +37,7 @@ import {
 import {
   STANDARD_AXES,
   ariaCurrent,
+  ariaPressed,
   contrast,
   descendant,
   forcedColors,
@@ -89,6 +90,15 @@ describe('the standard axes are closed sets', () => {
       kind: 'setAttribute',
       name: 'aria-current',
       value: 'page',
+    });
+  });
+
+  it('reads aria-pressed for a toggle button that is on', () => {
+    expect(ariaPressed.pressed.open).toBe("&[aria-pressed='true']");
+    expect(ariaPressed.pressed.driver).toEqual({
+      kind: 'setAttribute',
+      name: 'aria-pressed',
+      value: 'true',
     });
   });
 

@@ -27,7 +27,7 @@ describe('App navbar', () => {
     TestBed.tick();
 
     const toggle = () => {
-      element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+      element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
       TestBed.tick();
     };
     const clickNavLink = async (label: string) => {
@@ -52,18 +52,18 @@ describe('App navbar', () => {
     for (const label of destinations) {
       toggle();
       await vi.waitFor(() =>
-        expect(element.querySelector('.demo-nav__panel')).not.toBeNull(),
+        expect(element.querySelector('[data-testid="nav-panel"]')).not.toBeNull(),
       );
 
       await clickNavLink(label);
       await vi.waitFor(() =>
-        expect(element.querySelector('.demo-nav__panel')).toBeNull(),
+        expect(element.querySelector('[data-testid="nav-panel"]')).toBeNull(),
       );
     }
 
     toggle();
     await vi.waitFor(() =>
-      expect(element.querySelector('.demo-nav__panel')).not.toBeNull(),
+      expect(element.querySelector('[data-testid="nav-panel"]')).not.toBeNull(),
     );
 
     mounted.destroy();
@@ -85,7 +85,7 @@ describe('App navbar', () => {
     );
     TestBed.tick();
 
-    element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+    element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
     TestBed.tick();
     const link = Array.from(element.querySelectorAll<HTMLAnchorElement>('a'))
       .find((anchor) => anchor.textContent?.trim() === 'Reactive Composition');
@@ -114,7 +114,7 @@ describe('App navbar', () => {
     );
     TestBed.tick();
 
-    element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+    element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
     TestBed.tick();
 
     const labels = Array.from(element.querySelectorAll('a')).map((anchor) =>

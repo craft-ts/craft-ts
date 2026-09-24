@@ -1,7 +1,8 @@
 /**
  * Static artwork used by the view-transitions demo (`gallery` → `photo-detail`).
- * Pure CSS gradients so the demo needs no network — the point is the animated
- * shared-element morph between the two routes, not the imagery itself.
+ * Gradients (see `photoArt` in `view-transitions.style.ts`) so the demo needs no
+ * network — the point is the animated shared-element morph between the two
+ * routes, not the imagery itself.
  */
 export interface Photo {
   readonly id: string;
@@ -9,7 +10,6 @@ export interface Photo {
   readonly subtitle: string;
   readonly description: string;
   readonly emoji: string;
-  readonly gradient: string;
 }
 
 export const PHOTOS: readonly Photo[] = [
@@ -20,7 +20,6 @@ export const PHOTOS: readonly Photo[] = [
     description:
       'Ribbons of green and violet folding across a polar sky. Clicked from the grid, the tile morphs straight into this hero.',
     emoji: '🌌',
-    gradient: 'linear-gradient(135deg, #0f2027, #2c5364, #00c9a7)',
   },
   {
     id: 'ember',
@@ -29,7 +28,6 @@ export const PHOTOS: readonly Photo[] = [
     description:
       'Warm coals glowing under a darkening horizon. The same view-transition-name links the card and this panel.',
     emoji: '🔥',
-    gradient: 'linear-gradient(135deg, #ff512f, #dd2476, #ff8a00)',
   },
   {
     id: 'tide',
@@ -38,7 +36,6 @@ export const PHOTOS: readonly Photo[] = [
     description:
       'Cold blues sliding into teal. Navigate back and the hero morphs neatly back into its grid tile.',
     emoji: '🌊',
-    gradient: 'linear-gradient(135deg, #2193b0, #6dd5ed, #1a2980)',
   },
   {
     id: 'bloom',
@@ -47,7 +44,6 @@ export const PHOTOS: readonly Photo[] = [
     description:
       'Soft pinks over fresh green. Each card carries a unique transition name so only the clicked one animates.',
     emoji: '🌸',
-    gradient: 'linear-gradient(135deg, #f857a6, #ff5858, #b5ec8e)',
   },
   {
     id: 'dune',
@@ -56,7 +52,6 @@ export const PHOTOS: readonly Photo[] = [
     description:
       'Sun-baked sand under a pale sky. The browser View Transitions API does the cross-fade for free.',
     emoji: '🏜️',
-    gradient: 'linear-gradient(135deg, #f7971e, #ffd200, #f4a261)',
   },
   {
     id: 'nebula',
@@ -65,7 +60,6 @@ export const PHOTOS: readonly Photo[] = [
     description:
       'Dust and light far from anywhere. Angular runs the navigation inside document.startViewTransition().',
     emoji: '✨',
-    gradient: 'linear-gradient(135deg, #654ea3, #eaafc8, #7f7fd5)',
   },
 ];
 

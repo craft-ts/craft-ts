@@ -20,6 +20,7 @@ import { craftComputed, state } from '@craft-ts/core';
 import { card } from './content-projection-card';
 import { toolbarAction, userBadge } from './content-projection-actions';
 import { dialog, toolbar } from './content-projection-overlays';
+import { componentUi, projectionDemo } from './component-demos.style';
 
 interface DemoUser {
   readonly id: number;
@@ -31,7 +32,7 @@ const userRow = craftTemplate<{
   readonly $implicit: DemoUser;
   readonly index: number;
 }>(({ $implicit: user, index }) =>
-  li({ class: 'projection-demo__row' }, [
+  li({ class: projectionDemo.row }, [
     span(`${index + 1}. ${user.name}`),
     userBadge({
       role: function* () {
@@ -43,7 +44,7 @@ const userRow = craftTemplate<{
 
 export const contentProjectionDemo = craftComponent(
   'contentProjectionDemo',
-  { host: { class: 'component-demo-host' } },
+  { host: { class: componentUi.host } },
   function* () {
     const showToolbar = yield* state('showToolbar', true, ({ update }) => ({
       toggle: () => update((visible) => !visible),
@@ -102,7 +103,7 @@ export const contentProjectionDemo = craftComponent(
     recordDirect,
     recordConfirm,
   }) =>
-    section({ class: 'component-demo projection-demo' }, [
+    section({ class: componentUi.page, 'data-componentPage': 'wide' }, [
       heading('Content projection and logical contracts'),
       headingSection([
         p(
@@ -110,86 +111,88 @@ export const contentProjectionDemo = craftComponent(
         ),
         card({
           header: content(() => heading('Header slot provided by the page')),
-          body: content(
-            () => [
-              p(
-                { class: 'projection-demo__content' },
-                'The content follows the slot DOM contract.',
+          body: content(() => [
+            p(
+              { class: projectionDemo.content, 'data-projection': 'content' },
+              'The content follows the slot DOM contract.',
+            ),
+            ul(
+              { class: projectionDemo.list },
+              forNode(users, { track: (user) => user.id }, (user, index) =>
+                renderTemplate(userRow, {
+                  $implicit: user,
+                  index,
+                }),
               ),
-              ul(
-                { class: 'projection-demo__list' },
-                forNode(users, { track: (user) => user.id }, (user, index) =>
-                  renderTemplate(userRow, {
-                    $implicit: user,
-                    index,
-                  }),
-                ),
-              ),
-            ],
-            { allowContainerStyles: true },
-          ),
+            ),
+          ]),
         }),
         card({
           body: () =>
             p(
-              { class: 'projection-demo__content' },
-              'This second example uses normal content rendering without opting into styles.',
+              { class: projectionDemo.content, 'data-projection': 'content' },
+              'This second example projects a single paragraph into the same slot.',
             ),
         }),
-        section({ class: 'projection-demo__case' }, [
-          heading('Logical projection and a keyed collection'),
-          p(
-            'ToolbarAction exposes a contract. Toolbar receives an explicit collection, renders it with renderContent(), and reconciles it by key.',
-          ),
-          p({ class: 'projection-demo__status' }, lastActionLabel),
-          button(
-            'toggleToolbar',
-            {
-              class: 'projection-demo__toggle',
-              type: 'button',
-              click: toggleToolbar,
-            },
+        section(
+          { class: projectionDemo.case, 'data-testid': 'projection-case' },
+          [
+            heading('Logical projection and a keyed collection'),
+            p(
+              'ToolbarAction exposes a contract. Toolbar receives an explicit collection, renders it with renderContent(), and reconciles it by key.',
+            ),
+            p({ class: projectionDemo.status }, lastActionLabel),
+            button(
+              'toggleToolbar',
+              {
+                class: componentUi.button,
+                'data-componentButton': 'primary',
+                type: 'button',
+                click: toggleToolbar,
+              },
+              ifNode(
+                showToolbar,
+                () => 'Hide the toolbar',
+                () => 'Show the toolbar',
+              ),
+            ),
             ifNode(
               showToolbar,
-              () => 'Hide the toolbar',
-              () => 'Show the toolbar',
+              () =>
+                toolbar({
+                  actions: [
+                    toolbarAction({
+                      key: 'save',
+                      content: () => 'Save',
+                      trigger: recordSave,
+                    }),
+                    toolbarAction({
+                      key: 'cancel',
+                      content: () => 'Cancel',
+                      trigger: recordCancel,
+                    }),
+                  ],
+                }),
+              () => p('The conditional projection is hidden.'),
             ),
-          ),
-          ifNode(
-            showToolbar,
-            () =>
-              toolbar({
-                actions: [
-                  toolbarAction({
-                    key: 'save',
-                    content: () => 'Save',
-                    trigger: recordSave,
-                  }),
-                  toolbarAction({
-                    key: 'cancel',
-                    content: () => 'Cancel',
-                    trigger: recordCancel,
-                  }),
-                ],
-              }),
-            () => p('The conditional projection is hidden.'),
-          ),
-          p('The same component, rendered directly:'),
-          toolbarAction({
-            key: 'direct',
-            content: () => 'Direct action',
-            trigger: recordDirect,
-          }),
-          button(
-            'openDialog',
-            {
-              class: 'projection-demo__toggle',
-              type: 'button',
-              click: openDialog,
-            },
-            'Open the projected dialog',
-          ),
-        ]),
+            p('The same component, rendered directly:'),
+            toolbarAction({
+              key: 'direct',
+              content: () => 'Direct action',
+              trigger: recordDirect,
+            }),
+            button(
+              'openDialog',
+              {
+                class: componentUi.button,
+                'data-componentButton': 'primary',
+                type: 'button',
+                click: openDialog,
+              },
+              'Open the projected dialog',
+            ),
+          ],
+        ),
         ifNode(
           dialogOpen,
           () =>

@@ -176,7 +176,7 @@ describe('craft granular mutation template', () => {
 
     try {
       const button =
-        template.nativeElement.querySelector<HTMLButtonElement>('.action-btn');
+        template.nativeElement.querySelector<HTMLButtonElement>('[data-testid="update-user"]');
       expect(button).not.toBeNull();
 
       button!.click();
@@ -195,7 +195,7 @@ describe('craft granular mutation template', () => {
     );
 
     try {
-      expect(template.nativeElement.querySelector('.action-btn')).toBeNull();
+      expect(template.nativeElement.querySelector('[data-testid="update-user"]')).toBeNull();
     } finally {
       template.destroy();
     }
@@ -211,7 +211,7 @@ describe('craft granular mutation template', () => {
 
     try {
       const button =
-        template.nativeElement.querySelector<HTMLButtonElement>('.action-btn');
+        template.nativeElement.querySelector<HTMLButtonElement>('[data-testid="update-user"]');
       expect(button?.disabled).toBe(true);
     } finally {
       template.destroy();

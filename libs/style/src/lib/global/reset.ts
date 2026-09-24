@@ -22,7 +22,7 @@ import {
 } from '../props/generated.ts';
 import { space } from '../tokens/scales.ts';
 import { unit } from '../tokens/units.ts';
-import type { GlobalBlock } from './rules.ts';
+import { important, type GlobalBlock } from './rules.ts';
 
 /** Properties only the foundation writes; see the module comment. */
 export const FOUNDATION_PROPERTIES = [
@@ -60,4 +60,12 @@ export const CRAFT_RESET: readonly GlobalBlock[] = [
   { selector: 'p', items: [textWrap.pretty] },
   // A long URL wraps instead of widening the page.
   { selector: `p, ${HEADINGS}`, items: [overflowWrap.anywhere] },
+  // `hidden` hides, whatever display a class sets. The user-agent rule loses
+  // to any class; an important declaration in the first layer is the one
+  // thing every later layer — and every unlayered sheet — cannot override.
+  // `until-found` keeps its own, searchable, behaviour.
+  {
+    selector: "[hidden]:not([hidden='until-found'])",
+    items: [important(display.none)],
+  },
 ];
