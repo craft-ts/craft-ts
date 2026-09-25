@@ -3,6 +3,7 @@ import type {
   TemplateCondition,
   TemplateStatementParts,
 } from '@craft-ts/dev-tools/attestation-review';
+import type { PreviousDecision } from '@craft-ts/dev-tools/attestation-review';
 import type { FrameView } from '@craft-ts/style-testing/review/frame';
 import type { Messages } from './messages';
 import type { Locale } from './preferences';
@@ -13,6 +14,26 @@ export const scenarioOf = (subject: string): string =>
 export const componentOf = (subject: string): string => {
   const visual = subject.startsWith('visual:') ? subject.slice(7) : subject;
   return visual.slice(0, visual.lastIndexOf('#'));
+};
+
+export type ReviewVisualStatus = 'pending' | 'reviewed' | 'rejected';
+
+export const reviewVisualStatusOf = (
+  decision: PreviousDecision | undefined,
+): ReviewVisualStatus =>
+  !decision ? 'pending' : decision.verdict === 'rejected' ? 'rejected' : 'reviewed';
+
+export const componentLabelOf = (component: string): string => {
+  const label = component.slice(component.lastIndexOf(':') + 1);
+  return label.slice(label.lastIndexOf('/') + 1);
+};
+
+export const templateVariableStatementOf = (
+  parts: TemplateStatementParts | undefined,
+  statement: string,
+): string => {
+  const target = parts?.target ?? statement.replace(/[.!?]$/, '').split(/\s+/).at(-1);
+  return target ?? statement;
 };
 
 export const snapshotUrl = (hash: string): string =>

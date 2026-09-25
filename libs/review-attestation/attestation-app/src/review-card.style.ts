@@ -410,6 +410,35 @@ export const templateEvidence = craftStyles('reviewTemplateEvidence', {
   ],
 });
 
+/** The grouped template review keeps its controls visible while obligations scroll. */
+export const templateReviewGroup = craftStyles('templateReviewGroup', {
+  root: [display.grid, gap(unit.px(14)), minWidth(unit.px(0))],
+  header: [
+    position.sticky,
+    top(unit.px(0)),
+    zIndex(int(2)),
+    p(unit.px(12)),
+    radius(unit.px(10)),
+    bg(theme.surface),
+  ],
+  list: [
+    maxBlockSize(unit.vh(55)),
+    minBlockSize(unit.px(0)),
+    provides(scrollPort.block),
+    p(unit.px(10)),
+    ...hairline(theme.line),
+    radius(unit.px(10)),
+  ],
+  actions: [
+    position.sticky,
+    bottom(unit.px(0)),
+    zIndex(int(2)),
+    p(unit.px(12)),
+    radius(unit.px(10)),
+    bg(theme.surface),
+  ],
+});
+
 /** The visual evidence: toolbar, views, canvas, replay, picture, diff. */
 export const imageEvidence = craftStyles('reviewVisualEvidence', {
   toolbar: [

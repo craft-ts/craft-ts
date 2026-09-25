@@ -21,7 +21,7 @@ import {
   requires,
   scrollPort,
   space,
-} from '../src/index.ts';
+} from '@craft-ts/style';
 
 export const backToTop = craftStyles('backToTop', {
   /**

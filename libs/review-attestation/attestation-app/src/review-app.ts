@@ -82,6 +82,10 @@ import {
   type ApplicationVerdict,
 } from './application-overview';
 import { ViewTabs } from './view-tabs';
+import { TemplateReviewGroupView } from './template-review-group';
+import {
+  groupTemplateReviewCards,
+} from './template-review-groups';
 import { AssetsInventoryList } from './assets-inventory-list';
 import { FolderLayoutView } from './folder-layout-view';
 import { BypassCardEvidence, BypassesView } from './bypasses-view';
@@ -228,6 +232,9 @@ export const ReviewApp = craftComponent(
     const regenerationConfirmed$ = source$<'regenerate'>(
       'regenerationConfirmed$',
     );
+    const templateAgentRequested$ = source$<{
+      readonly cards: readonly { readonly id: string; readonly revision: string }[];
+    }>('templateAgentRequested$');
     const iterationDialogRequested$ = source$<void>(
       'iterationDialogRequested$',
     );
@@ -273,6 +280,9 @@ export const ReviewApp = craftComponent(
           return yield* patch({ view: value });
         },
         setScenarioForApplicationReview: function* (value: string) {
+          return yield* patch({ scenario: value });
+        },
+        setScenarioForTemplateGroup: function* (value: string) {
           return yield* patch({ scenario: value });
         },
         setViewForVisualReview: function* (value: DevtoolView) {
@@ -327,6 +337,8 @@ export const ReviewApp = craftComponent(
     }));
     const note = yield* state('note', '', ({ set }) => ({
       writeFromInput: (value: string) => set(value),
+      writeTemplateGroup: (value: string) => set(value),
+      clearForTemplateRejection: () => set(''),
       replaceFromMentionEdit: on$(mentionEdited$, ({ note: value }) =>
         set(value),
       ),
@@ -334,12 +346,31 @@ export const ReviewApp = craftComponent(
       clearFromDecision: on$(decisionSubmitted$, () => set('')),
       clearFromRegeneration: on$(regenerationConfirmed$, () => set('')),
     }));
+    const selectedTemplateIds = yield* state(
+      'selectedTemplateIds',
+      [] as readonly string[],
+      ({ set, update }) => ({
+        selectPending: (value: readonly string[]) => set(value),
+        selectHuman: (value: readonly string[]) => set(value),
+        toggle: (id: string) =>
+          update((selected) =>
+            selected.includes(id)
+              ? selected.filter((candidate) => candidate !== id)
+              : [...selected, id],
+          ),
+        clear: () => set([]),
+        clearFromNavigation: on$(navigation$, () => set([])),
+        clearFromDecision: on$(decisionSubmitted$, () => set([])),
+      }),
+    );
     const rejectionAttempted = yield* state(
       'rejectionAttempted',
       false,
       ({ set }) => ({
         showForRejectedDecision: () => set(true),
+        showForTemplateRejectedBatch: () => set(true),
         showForRetirement: () => set(true),
+        clear: () => set(false),
         clearFromDecision: on$(decisionSubmitted$, () => set(false)),
         clearFromRegeneration: on$(regenerationConfirmed$, () => set(false)),
       }),
@@ -741,6 +772,17 @@ export const ReviewApp = craftComponent(
       },
     });
 
+    const templateAgentReview = yield* mutation('templateAgentReview', {
+      method: templateAgentRequested$.value,
+      loader: function* ({ params }) {
+        return yield* CraftHttpClient.post(({ response }) => ({
+          url: '/api/template-agent',
+          payload: params,
+          success: response<ReviewApiQueue>(),
+        }));
+      },
+    });
+
     const { closeReview, closeReviewSession, closeReviewFailed } =
       yield* CloseReview();
 
@@ -817,6 +859,20 @@ export const ReviewApp = craftComponent(
             },
         }),
         insertReactOnMutation(applyFolderLayout, {
+          update: ({ queryResource, mutationResource }) =>
+            mutationResource.value() ??
+            queryResource.value() ?? {
+              items: 0,
+              decisions: 0,
+              cards: [],
+              visualAssets: [],
+              visualTests: [],
+              templateObligations: [],
+              diagnostics: [],
+              history: [],
+          },
+        }),
+        insertReactOnMutation(templateAgentReview, {
           update: ({ queryResource, mutationResource }) =>
             mutationResource.value() ??
             queryResource.value() ?? {
@@ -1023,6 +1079,54 @@ export const ReviewApp = craftComponent(
               `${obligation.subject} ${obligation.statement}`
                 .toLowerCase()
                 .includes(text)),
+        );
+      },
+    );
+    const templateReviewGroups = craftComputed(
+      'templateReviewGroups',
+      function* () {
+        return groupTemplateReviewCards(
+          ((yield* review.value())?.cards ?? []).filter(
+            (card) => card.kind === 'template',
+          ),
+        );
+      },
+    );
+    const activeTemplateGroupIndex = craftComputed(
+      'activeTemplateGroupIndex',
+      function* () {
+        const groups = yield* templateReviewGroups();
+        const selected = yield* navigationParams.scenario();
+        const index = groups.findIndex((group) =>
+          group.cards.some(
+            (card) => card.shape === selected || card.subject === selected,
+          ),
+        );
+        return index < 0 ? 0 : index;
+      },
+    );
+    const activeTemplateGroup = craftComputed(
+      'activeTemplateGroup',
+      function* () {
+        return (yield* templateReviewGroups())[yield* activeTemplateGroupIndex()];
+      },
+    );
+    const templateGroupCount = craftComputed('templateGroupCount', function* () {
+      return (yield* templateReviewGroups()).length;
+    });
+    const templateAgentAvailable = craftComputed(
+      'templateAgentAvailable',
+      function* () {
+        return (yield* review.value())?.templateAgentAvailable ?? false;
+      },
+    );
+    const templateGroupVisible = craftComputed(
+      'templateGroupVisible',
+      function* () {
+        return (
+          (yield* devtoolView()) === 'review' &&
+          (yield* current())?.kind === 'template' &&
+          Boolean(yield* activeTemplateGroup())
         );
       },
     );
@@ -1436,6 +1540,139 @@ export const ReviewApp = craftComponent(
         return (yield* rejectionAttempted()) && !(yield* hasNote());
       },
     );
+    const toggleTemplateCard = craftMethod(
+      'toggleTemplateCard',
+      function* (id: string) {
+        yield* selectedTemplateIds.toggle(id);
+      },
+    );
+    const selectAllTemplateCards = craftMethod(
+      'selectAllTemplateCards',
+      function* () {
+        const group = yield* activeTemplateGroup();
+        if (!group) return;
+        yield* selectedTemplateIds.selectPending(
+          group.cards
+            .filter((card) => card.state !== 'removed')
+            .map((card) => card.id),
+        );
+      },
+    );
+    const clearTemplateSelection = craftMethod(
+      'clearTemplateSelection',
+      function* () {
+        yield* selectedTemplateIds.clear();
+      },
+    );
+    const selectHumanTemplateCards = craftMethod(
+      'selectHumanTemplateCards',
+      function* () {
+        const group = yield* activeTemplateGroup();
+        if (!group) return;
+        const results =
+          (yield* review.value())?.templateAgentResults ??
+          (yield* templateAgentReview.value())?.templateAgentResults ??
+          [];
+        yield* selectedTemplateIds.selectHuman(
+          group.cards
+            .filter(
+              (card) =>
+                card.state !== 'removed' &&
+                (card.validationPolicy === 'human-required' ||
+                  results.some(
+                    (result) =>
+                      result.id === card.id &&
+                      result.revision === card.revision &&
+                      result.outcome === 'needs-human',
+                  )),
+            )
+            .map((card) => card.id),
+        );
+      },
+    );
+    const acceptTemplateSelection = craftMethod(
+      'acceptTemplateSelection',
+      function* () {
+        const group = yield* activeTemplateGroup();
+        const selected = new Set(yield* selectedTemplateIds());
+        if (!group) return;
+        const requests: ReviewDecisionRequest[] = group.cards
+          .filter((card) => selected.has(card.id) && card.state !== 'removed')
+          .map((card) => ({
+            shape: card.shape,
+            id: card.id,
+            revision: card.revision,
+            verdict: 'ok',
+          }));
+        if (requests.length) decisionSubmitted$.emit(requests);
+      },
+    );
+    const requestTemplateReject = craftMethod(
+      'requestTemplateReject',
+      function* () {
+        yield* rejectionAttempted.showForTemplateRejectedBatch();
+      },
+    );
+    const cancelTemplateReject = craftMethod(
+      'cancelTemplateReject',
+      function* () {
+        yield* rejectionAttempted.clear();
+        yield* note.clearForTemplateRejection();
+      },
+    );
+    const submitTemplateReject = craftMethod(
+      'submitTemplateReject',
+      function* () {
+        const group = yield* activeTemplateGroup();
+        const selected = new Set(yield* selectedTemplateIds());
+        const writtenNote = proseOf(yield* note());
+        if (!group || !writtenNote) return;
+        const requests: ReviewDecisionRequest[] = group.cards
+          .filter((card) => selected.has(card.id) && card.state !== 'removed')
+          .map((card) => ({
+            shape: card.shape,
+            id: card.id,
+            revision: card.revision,
+            verdict: 'rejected',
+            note: writtenNote,
+          }));
+        if (requests.length) decisionSubmitted$.emit(requests);
+      },
+    );
+    const navigateTemplateGroup = craftMethod(
+      'navigateTemplateGroup',
+      function* (offset: number) {
+        const groups = yield* templateReviewGroups();
+        const index = yield* activeTemplateGroupIndex();
+        const target = groups[index + offset];
+        const card = target?.cards.find((candidate) => candidate.state !== 'removed');
+        if (!card) return;
+        clearReason();
+        navigation$.emit(index + offset);
+        yield* navigationParams.setScenarioForTemplateGroup(card.shape);
+      },
+    );
+    const writeTemplateGroupNote = craftMethod(
+      'writeTemplateGroupNote',
+      function* (value: string) {
+        yield* note.writeTemplateGroup(value);
+      },
+    );
+    const delegateTemplateSelection = craftMethod(
+      'delegateTemplateSelection',
+      function* () {
+        const group = yield* activeTemplateGroup();
+        const selected = new Set(yield* selectedTemplateIds());
+        if (!group) return;
+        const cards = group.cards.filter(
+          (card) => selected.has(card.id) && card.state !== 'removed',
+        );
+        if (!cards.length) return;
+        templateAgentRequested$.emit({
+          cards: cards.map(({ id, revision }) => ({ id, revision })),
+        });
+      },
+    );
     const movePrevious = craftMethod('movePrevious', function* () {
       const index = yield* activeIndex();
       const nextIndex = Math.max(0, index - 1);
@@ -1699,6 +1936,25 @@ export const ReviewApp = craftComponent(
       selectedVisualAsset,
       visualReviewCard,
       templateObligations,
+      templateGroupCount,
+      activeTemplateGroupIndex,
+      activeTemplateGroup,
+      templateAgentAvailable,
+      templateGroupVisible,
+      selectedTemplateIds,
+      templateAgentReview,
+      toggleTemplateCard,
+      selectAllTemplateCards,
+      clearTemplateSelection,
+      selectHumanTemplateCards,
+      acceptTemplateSelection,
+      requestTemplateReject,
+      submitTemplateReject,
+      delegateTemplateSelection,
+      navigateTemplateGroup,
+      writeTemplateGroupNote,
+      rejectionAttempted,
+      cancelTemplateReject,
       folderLayouts,
       bypasses,
       styleAdoption,
@@ -1805,6 +2061,25 @@ export const ReviewApp = craftComponent(
     selectedVisualAsset,
     visualReviewCard,
     templateObligations,
+    templateGroupCount,
+    activeTemplateGroupIndex,
+    activeTemplateGroup,
+    templateAgentAvailable,
+    templateGroupVisible,
+    selectedTemplateIds,
+    templateAgentReview,
+    toggleTemplateCard,
+    selectAllTemplateCards,
+    clearTemplateSelection,
+    selectHumanTemplateCards,
+    acceptTemplateSelection,
+    requestTemplateReject,
+    submitTemplateReject,
+    delegateTemplateSelection,
+    navigateTemplateGroup,
+    writeTemplateGroupNote,
+    rejectionAttempted,
+    cancelTemplateReject,
     folderLayouts,
     bypasses,
     styleAdoption,
@@ -2324,7 +2599,7 @@ export const ReviewApp = craftComponent(
               ),
             ],
           ),
-          main(
+            main(
             {
               class: reviewCard.panel,
               hidden: function* () {
@@ -2332,13 +2607,55 @@ export const ReviewApp = craftComponent(
                 return view !== 'review' && view !== 'folder-layout';
               },
             },
+            [
             // Keep one review card in the DOM. Rendering the complete queue and
             // hiding all but the active article left stale scenario content in
             // the central panel while a queue click was settling.
+            ifNode(templateGroupVisible, () =>
+              TemplateReviewGroupView({
+                group: activeTemplateGroup,
+                selectedIds: selectedTemplateIds,
+                note,
+                rejectionOpen: rejectionAttempted,
+                busy: templateAgentReview.isLoading,
+                agentAvailable: templateAgentAvailable,
+                agentBusy: templateAgentReview.isLoading,
+                agentFailed: function* () {
+                  return (yield* templateAgentReview.status()) === 'exception';
+                },
+                agentResults: function* () {
+                  return (
+                    (yield* review.value())?.templateAgentResults ??
+                    (yield* templateAgentReview.value())?.templateAgentResults ??
+                    []
+                  );
+                },
+                groupIndex: activeTemplateGroupIndex,
+                groupTotal: templateGroupCount,
+                toggleCard: toggleTemplateCard,
+                selectAll: selectAllTemplateCards,
+                selectHuman: selectHumanTemplateCards,
+                clearSelection: clearTemplateSelection,
+                requestReject: requestTemplateReject,
+                cancelReject: cancelTemplateReject,
+                submitReject: submitTemplateReject,
+                accept: acceptTemplateSelection,
+                delegate: delegateTemplateSelection,
+                previousGroup: function* () {
+                  yield* navigateTemplateGroup(-1);
+                },
+                nextGroup: function* () {
+                  yield* navigateTemplateGroup(1);
+                },
+                writeNote: writeTemplateGroupNote,
+                locale,
+                t,
+              }),
+            ),
             forNode(
               function* () {
                 const card = yield* current();
-                return card ? [card] : [];
+                return card && !(yield* templateGroupVisible()) ? [card] : [];
               },
               { track: (card) => card.shape },
               (card) =>
@@ -3880,7 +4197,8 @@ export const ReviewApp = craftComponent(
                   ],
                 ),
             ),
-          ),
+          ],
+        ),
           main(
             {
               class: inventory.panel,

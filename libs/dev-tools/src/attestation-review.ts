@@ -52,6 +52,14 @@ export interface PreviousDecision {
   readonly by: string;
   readonly at: string;
   readonly note?: string;
+  /** Verified agent evidence attached by the local review server. */
+  readonly agentReview?: {
+    readonly kind: 'agent';
+    readonly name: string;
+    readonly contextHash: string;
+    readonly references: readonly string[];
+    readonly rationale: string;
+  };
   /** Nodes the reviewer pointed at when recording the decision. */
   readonly findings?: readonly {
     readonly path: string;
@@ -191,6 +199,9 @@ export interface TemplateReviewCard extends ReviewCardBase {
   readonly direction: 'render' | 'command';
   readonly statement: string;
   readonly statementParts?: TemplateStatementParts;
+  readonly validationPolicy: 'human-required' | 'agent-allowed';
+  /** Hash of the requirement context the agent must cite against. */
+  readonly contextHash: string;
   readonly effects?: readonly string[];
   readonly conditions?: readonly TemplateCondition[];
   readonly currentEvidence: TemplateEvidence;
@@ -691,6 +702,8 @@ export interface TemplateReviewCardInput {
   readonly component: string;
   readonly statement: string;
   readonly statementParts?: TemplateStatementParts;
+  readonly validationPolicy?: 'human-required' | 'agent-allowed';
+  readonly contextHash?: string;
   readonly effects?: readonly string[];
   readonly conditions?: readonly TemplateCondition[];
   readonly currentEvidence: TemplateEvidence;
@@ -734,6 +747,8 @@ export function buildTemplateReviewCard(
     component: input.component,
     direction: input.currentEvidence.direction,
     statement: input.statement,
+    validationPolicy: input.validationPolicy ?? 'human-required',
+    contextHash: input.contextHash ?? input.currentEvidenceHash,
     ...(input.statementParts ? { statementParts: input.statementParts } : {}),
     ...(input.effects?.length ? { effects: input.effects } : {}),
     ...(input.conditions && input.conditions.length > 0

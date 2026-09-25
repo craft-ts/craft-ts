@@ -6,6 +6,7 @@ import {
   div,
   forNode,
   heading,
+  headingSection,
   header,
   ifNode,
   input,
@@ -38,7 +39,7 @@ import {
   templateStatementOf,
   templateVariableStatementOf,
 } from './card-presentation';
-import { reviewBits } from './review-card.style';
+import { reviewBits, templateReviewGroup } from './review-card.style';
 
 export const TemplateReviewGroupView = craftComponent(
   'TemplateReviewGroupView',
@@ -172,11 +173,11 @@ export const TemplateReviewGroupView = craftComponent(
         );
         return {
           id: card.id,
-          selected: card.state !== 'current' && selected.has(card.id),
-          disabled: working || card.state === 'current',
+          selected: card.state !== 'removed' && selected.has(card.id),
+          disabled: working || card.state === 'removed',
           status:
-            card.state === 'current'
-              ? 'reviewed'
+            card.state === 'removed'
+              ? 'removed'
               : previous?.verdict === 'rejected'
                 ? 'rejected'
                 : 'pending',
@@ -271,13 +272,13 @@ export const TemplateReviewGroupView = craftComponent(
     showAgentFailed,
     noAgent,
   }) =>
-    article({ 'aria-busy': busy }, [
-      header({ 'data-testid': 'template-group-header' }, [
+    article({ class: templateReviewGroup.root, 'aria-busy': busy }, [
+      header({ class: templateReviewGroup.header, 'data-testid': 'template-group-header' }, [
         div([
           small({ class: reviewBits.eyebrow }, function* () {
             return (yield* t()).templateGroupEyebrow;
           }),
-          heading(viewTitle),
+          headingSection(heading(viewTitle)),
           p(function* () {
             return (yield* view()).context;
           }),
@@ -351,6 +352,7 @@ export const TemplateReviewGroupView = craftComponent(
       ]),
       ul(
         {
+          class: templateReviewGroup.list,
           'data-testid': 'template-obligation-list',
           'aria-label': 'Template obligations',
         },
@@ -437,7 +439,7 @@ export const TemplateReviewGroupView = craftComponent(
           ),
         ),
       ),
-      section([
+      section({ class: templateReviewGroup.actions }, [
         ifNode(showAgentBusy, () =>
           p({ role: 'status' }, function* () {
             return (yield* t()).templateAgentBusy;

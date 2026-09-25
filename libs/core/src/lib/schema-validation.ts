@@ -57,15 +57,17 @@ export type SchemaValidationPolicy = (
   context: SchemaValidationContext,
 ) => SchemaValidationDecision;
 
+const defaultSchemaValidationPolicy: SchemaValidationPolicy = (context) => {
+  // Invalid data is useful feedback during development. In production the
+  // application can keep running while the policy callback reports it.
+  void context;
+  return { action: isDevMode() ? 'reject' : 'accept' };
+};
+
 const craftSchemaValidationPolicyService = craftService(
   { name: 'CraftSchemaValidationPolicy', providedIn: 'toProvide' },
   (inputs: { $provided?: SchemaValidationPolicy }) =>
-    inputs.$provided ?? ((context: SchemaValidationContext) => {
-      // Invalid data is useful feedback during development. In production the
-      // application can keep running while the policy callback reports it.
-      void context;
-      return { action: isDevMode() ? 'reject' : 'accept' };
-    }),
+    inputs.$provided ?? defaultSchemaValidationPolicy,
 ) as unknown as {
   CraftSchemaValidationPolicy: () => Generator<unknown, SchemaValidationPolicy, unknown>;
   provideCraftSchemaValidationPolicy: (value: SchemaValidationPolicy) => CraftServiceProvider;
@@ -74,10 +76,25 @@ const craftSchemaValidationPolicyService = craftService(
 export const CraftSchemaValidationPolicy = craftSchemaValidationPolicyService.CraftSchemaValidationPolicy;
 export const ɵinjectCraftSchemaValidationPolicyIn = (
   injector: Injector,
-): SchemaValidationPolicy =>
-  runInInjectionContext(injector, () =>
-    craftSchemaValidationPolicyService.CRAFT_SCHEMA_VALIDATION_POLICY_META_DATA.inject(),
-  );
+): SchemaValidationPolicy => {
+  try {
+    return runInInjectionContext(injector, () =>
+      craftSchemaValidationPolicyService.CRAFT_SCHEMA_VALIDATION_POLICY_META_DATA.inject(),
+    );
+  } catch (error) {
+    // This service is provider-capable so apps can override the policy at a
+    // boundary. Most boundaries do not need an override, though; preserve the
+    // documented development/production default when none was provided.
+    if (
+      error instanceof Error &&
+      error.message ===
+        'No provider for Craft token "CraftSchemaValidationPolicyServiceToken".'
+    ) {
+      return defaultSchemaValidationPolicy;
+    }
+    throw error;
+  }
+};
 
 export function provideCraftSchemaValidationPolicy(
   policy: SchemaValidationPolicy,

@@ -8,6 +8,7 @@ useSnippetHarness();
 
 // #region card-2
 import { craftComponent, div, h2, type Input } from '@craft-ts/component';
+import { state } from '@craft-ts/core';
 import { cardSheet } from './card.style';
 import { titleSheet } from './card-2.style';
 
@@ -21,12 +22,15 @@ const CardTitle = craftComponent(
 const Card = craftComponent(
   'Card',
   {},
-  () => ({}),
-  () =>
+  function* () {
+    const title = yield* state('title', 'Card');
+    return { title };
+  },
+  ({ title }) =>
     // The card sets `data-cardActive`; its sheet writes the inherited
     // variable; the title, a separate component, reads it.
     div({ class: cardSheet.root, 'data-cardActive': 'true' }, [
-      CardTitle({ text: 'Card' }),
+      CardTitle({ text: title }),
     ]),
 );
 // #endregion card-2

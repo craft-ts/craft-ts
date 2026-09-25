@@ -103,42 +103,16 @@ secret. It must allow the application's origin through CORS and accept JSON
 `POST` requests. Put authentication and secret management in a protected
 same-origin proxy or agent gateway.
 
-## Customize the collected context with DI
+## Configure the webhook
 
-`provideSendContextToAi()` installs the default session, but the session reads
-its policy and extensions from injection tokens. These providers can be placed
-alongside it in `appConfig`:
+`provideSendContextToAi` currently accepts the browser-accessible `endpoint`.
+Omit it to keep the experience copy-only, or pass a URL to enable sending:
 
-<<< @/tests/snippets/guide/ai/send-context-webhook.spec.ts#session-customization
+<<< @/tests/snippets/guide/ai/send-context-webhook.spec.ts#endpoint-configuration
 
-### Retention, redaction, and serialization
-
-`SEND_CONTEXT_RETENTION_POLICY` limits the number and approximate size of
-events kept in memory. The default is 500 events and 2 MiB.
-
-`SEND_CONTEXT_REDACTOR` runs before values are serialized. Use it to remove
-application-specific secrets or personal data. The built-in redactor already
-redacts keys matching `password`, `secret`, `token`, `authorization`, and
-`cookie`; replacing it means taking responsibility for the complete policy.
-
-`SEND_CONTEXT_VALUE_SERIALIZER` converts values that are not naturally JSON
-friendly, such as `Date`, `Error`, `BigInt`, functions, or circular objects.
-Both hooks apply to event `payload`, `response`, and `state` values.
-
-### Add, enrich, or filter events
-
-Use the multi providers to extend the timeline without changing feature code:
-
-- `provideSendContextEventSource(...)` connects an application event bus to the
-  session. The source may return a cleanup function.
-- `provideSendContextEventEnricher(...)` adds common metadata such as a tenant,
-  release, route, or feature flag to every event.
-- `provideSendContextEventFilter(...)` drops noisy or sensitive events before
-  they enter the session.
-
-An event source emits through `session.capture(...)` or `session.emit(...)`.
-The `kind` can be one of the built-in kinds (`dom`, `http`, `navigation`,
-`primitive`, `snapshot`, `custom`) or an application-specific string.
+Treat that URL as public application configuration. Put authentication,
+redaction, and any tenant-specific policy in a protected same-origin proxy or
+agent gateway; never put credentials in the browser bundle.
 
 The session and its record controller are also injectable:
 

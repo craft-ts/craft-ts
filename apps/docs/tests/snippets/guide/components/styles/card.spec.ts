@@ -18,7 +18,7 @@ const UploadCard = craftComponent(
   function* () {
     const progress = yield* state('progress', 40);
     // The variant's point, or null for none: the attribute is then removed.
-    const tone = yield* state<'danger' | null>('tone', 'danger');
+    const tone = yield* state('tone', 'danger' as 'danger' | null);
     return { progress, tone };
   },
   ({ progress, tone }) =>

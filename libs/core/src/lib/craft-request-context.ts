@@ -55,13 +55,13 @@ export function craftRequestContext(
   const service = Context.Service<unknown, unknown>(
     `craft/request-context/${name}`,
   ) as CraftRequestContext<string, CraftSchema>;
-  Object.assign(service, {
+  const taggedService = Object.assign(service, {
     [CRAFT_REQUEST_CONTEXT]: true as const,
     handshake: name,
     schema: shape,
   });
-  contextsByHandshake.set(name, service);
-  return service;
+  contextsByHandshake.set(name, taggedService);
+  return taggedService;
 }
 
 export function isCraftRequestContext(

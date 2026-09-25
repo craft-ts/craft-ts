@@ -50,6 +50,25 @@ export interface ReviewDecisionRequest {
   readonly findings?: readonly ReviewFinding[];
   /** Set when the verdict was reached on the screenshot, not a faithful replay. */
   readonly degraded?: boolean;
+  /** Added by the server after validating an agent's response. */
+  readonly agentReview?: {
+    readonly kind: 'agent';
+    readonly name: string;
+    readonly contextHash: string;
+    readonly references: readonly string[];
+    readonly rationale: string;
+  };
+}
+
+export interface TemplateAgentResult {
+  readonly id: string;
+  readonly outcome: 'accepted' | 'contradiction' | 'needs-human';
+  readonly rationale: string;
+  readonly references: readonly string[];
+}
+
+export interface TemplateAgentDecision extends ReviewDecisionRequest {
+  readonly agentReview: NonNullable<ReviewDecisionRequest['agentReview']>;
 }
 
 export interface ReviewSessionDecision {
@@ -69,6 +88,15 @@ export interface ReviewApiQueue {
   readonly items: number;
   readonly decisions: number;
   readonly cards: readonly AttestationReviewCard[];
+  /** Validated agent findings for the exact card revision that was reviewed. */
+  readonly templateAgentResults?: readonly {
+    readonly id: string;
+    readonly revision: string;
+    readonly outcome: 'accepted' | 'contradiction' | 'needs-human';
+    readonly rationale: string;
+    readonly references: readonly string[];
+  }[];
+  readonly templateAgentAvailable?: boolean;
   readonly visualAssets: AttestationDevtoolModel['visualAssets'];
   readonly visualTests: AttestationDevtoolModel['visualTests'];
   readonly templateObligations: AttestationDevtoolModel['templateObligations'];
@@ -146,6 +174,20 @@ export interface ReviewServerOptions {
     | undefined;
   /** Re-derives cards from the authoritative ledger before reads/decisions. */
   readonly refreshCards?: () => Promise<readonly AttestationReviewCard[]>;
+  /** Optional service that judges only the explicitly submitted templates. */
+  readonly templateAgent?: {
+    readonly name: string;
+    readonly run: (
+      cards: readonly TemplateReviewCard[],
+    ) => Promise<readonly TemplateAgentResult[]>;
+  };
+  /** Persists server-validated agent decisions in the authoritative ledger. */
+  readonly onDecisions?: (
+    decisions: readonly TemplateAgentDecision[],
+  ) =>
+    | void
+    | readonly AttestationReviewCard[]
+    | Promise<void | readonly AttestationReviewCard[]>;
   /** Re-runs configured producers, then re-derives the complete review model. */
   readonly regenerate?: () => Promise<ReviewRegenerationResult>;
   /** Number shown in the confirmation before the first regeneration. */
@@ -256,11 +298,15 @@ const queueValue = (
   history: readonly ReviewSessionDecision[] = [],
   folderLayoutApply: ReviewServerOptions['folderLayoutApply'],
   folderLayoutApplied: boolean,
+  templateAgentAvailable = false,
+  templateAgentResults: ReviewApiQueue['templateAgentResults'] = [],
 ): ReviewApiQueue => ({
   ...(iteration ? { sourceLinksAvailable: true as const } : {}),
   items: cards.reduce((total, card) => total + card.cluster.length, 0),
   decisions: cards.length,
   cards,
+  templateAgentAvailable,
+  templateAgentResults,
   applicationCaptures: (model?.applicationCaptures ?? []).map((capture) => {
     const accepted = [...history]
       .reverse()
@@ -409,6 +455,8 @@ export async function startReviewServer(
   let regenerationRunning = false;
   let folderLayoutApplying = false;
   let folderLayoutApplied = false;
+  let templateAgentRunning = false;
+  let templateAgentResults: NonNullable<ReviewApiQueue['templateAgentResults']> = [];
   let closing = false;
   const stopServer: { current?: () => Promise<void> } = {};
   const port = options.port ?? 4320;
@@ -512,6 +560,8 @@ export async function startReviewServer(
               history,
               options.folderLayoutApply,
               folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {
@@ -559,6 +609,168 @@ export async function startReviewServer(
       return;
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/template-agent') {
+      void (async () => {
+        const agent = options.templateAgent;
+        if (!agent) {
+          writeJson(response, 404, {
+            error: 'review: template agent is not configured for this session.',
+          });
+          return;
+        }
+        if (templateAgentRunning) {
+          writeJson(response, 409, {
+            error: 'review: a template agent review is already running.',
+          });
+          return;
+        }
+        try {
+          if (
+            !request.headers['content-type']
+              ?.toLowerCase()
+              .startsWith('application/json')
+          ) {
+            throw new Error('review: template agent requests require application/json.');
+          }
+          const body = await readJson(request);
+          const submitted =
+            typeof body === 'object' && body !== null
+              ? (body as { cards?: unknown }).cards
+              : undefined;
+          if (
+            !Array.isArray(submitted) ||
+            submitted.length === 0 ||
+            !submitted.every(
+              (entry) =>
+                typeof entry === 'object' &&
+                entry !== null &&
+                typeof (entry as { id?: unknown }).id === 'string' &&
+                typeof (entry as { revision?: unknown }).revision === 'string',
+            )
+          ) {
+            throw new Error('review: expected template card ids and revisions.');
+          }
+          const references = submitted as {
+            readonly id: string;
+            readonly revision: string;
+          }[];
+          const ids = references.map(({ id }) => id);
+          if (new Set(ids).size !== ids.length) {
+            throw new Error('review: duplicate template cards were submitted.');
+          }
+          if (options.refreshCards) cards = [...(await options.refreshCards())];
+          const selected = references.map(({ id, revision }) => {
+            const card = cards.find((candidate) => candidate.id === id);
+            if (
+              !card ||
+              card.kind !== 'template' ||
+              card.revision !== revision ||
+              card.state === 'removed'
+            ) {
+              throw new Error('review: a template card changed; reload before delegating.');
+            }
+            return card;
+          });
+          templateAgentRunning = true;
+          const rawResults: readonly TemplateAgentResult[] =
+            await agent.run(selected);
+          if (!Array.isArray(rawResults) || rawResults.length !== selected.length) {
+            throw new Error('review: the template agent returned an incomplete batch.');
+          }
+          const resultsById = new Map<string, TemplateAgentResult>();
+          for (const result of rawResults) {
+            if (
+              !result ||
+              typeof result.id !== 'string' ||
+              !['accepted', 'contradiction', 'needs-human'].includes(result.outcome) ||
+              typeof result.rationale !== 'string' ||
+              result.rationale.trim().length === 0 ||
+              !Array.isArray(result.references) ||
+              !result.references.every(
+                (reference: unknown) => typeof reference === 'string',
+              ) ||
+              resultsById.has(result.id)
+            ) {
+              throw new Error('review: the template agent returned an invalid result.');
+            }
+            resultsById.set(result.id, result);
+          }
+          if (selected.some((card) => !resultsById.has(card.id))) {
+            throw new Error('review: the template agent returned mismatched cards.');
+          }
+          if (options.refreshCards) cards = [...(await options.refreshCards())];
+          const refreshed = selected.map((original) => {
+            const current = cards.find((candidate) => candidate.id === original.id);
+            if (
+              !current ||
+              current.kind !== 'template' ||
+              current.revision !== original.revision ||
+              current.contextHash !== original.contextHash
+            ) {
+              throw new Error('review: a template changed while the agent was reviewing it.');
+            }
+            return current;
+          });
+          const validatedResults = refreshed.flatMap((card) => {
+            const result = resultsById.get(card.id);
+            if (!result) return [];
+            return [{ ...result, id: card.id, revision: card.revision }];
+          });
+          const decisions: TemplateAgentDecision[] = refreshed.flatMap((card) => {
+            const result = resultsById.get(card.id);
+            if (
+              !result ||
+              result.outcome !== 'accepted' ||
+              card.validationPolicy !== 'agent-allowed'
+            ) {
+              return [];
+            }
+            return [{
+              shape: card.shape,
+              id: card.id,
+              revision: card.revision,
+              verdict: 'ok-with-note',
+              note: result.rationale,
+              agentReview: {
+                kind: 'agent',
+                name: agent.name,
+                contextHash: card.contextHash,
+                references: result.references,
+                rationale: result.rationale,
+              },
+            }];
+          });
+          if (decisions.length > 0 && options.onDecisions) {
+            const updated = await options.onDecisions(decisions);
+            if (updated) cards = [...updated];
+          }
+          templateAgentResults = validatedResults;
+          writeJson(
+            response,
+            200,
+            queueValue(
+              cards,
+              model,
+              options.regenerate ? { previousDecisions } : undefined,
+              options.iteration,
+              history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
+              true,
+              templateAgentResults,
+            ),
+          );
+        } catch (error) {
+          writeJson(response, 400, {
+            error: error instanceof Error ? error.message : 'bad request',
+          });
+        } finally {
+          templateAgentRunning = false;
+        }
+      })();
+      return;
+    }
+
     if (request.method === 'POST' && url.pathname === '/api/regenerate') {
       void (async () => {
         if (!options.regenerate) {
@@ -602,6 +814,8 @@ export async function startReviewServer(
               history,
               options.folderLayoutApply,
               folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {
@@ -631,6 +845,9 @@ export async function startReviewServer(
           const decision = await readJson(request);
           if (!isDecision(decision)) {
             throw new Error('review: expected a shape and a verdict.');
+          }
+          if (decision.agentReview !== undefined) {
+            throw new Error('review: agent authorship is assigned by the server.');
           }
           if (!REVIEW_VERDICTS.has(decision.verdict)) {
             throw new Error(`review: unknown verdict '${decision.verdict}'.`);
@@ -713,6 +930,8 @@ export async function startReviewServer(
               history,
               options.folderLayoutApply,
               folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {
@@ -775,6 +994,8 @@ export async function startReviewServer(
               history,
               options.folderLayoutApply,
               folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {
@@ -836,6 +1057,8 @@ export async function startReviewServer(
               history,
               options.folderLayoutApply,
               folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {

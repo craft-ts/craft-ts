@@ -78,10 +78,6 @@ import type {
   FolderLayoutAnalysis,
   FolderLayoutProposal,
 } from '@craft-ts/dev-tools';
-import {
-  applyFolderLayoutProposal,
-  folderLayoutGitPlan,
-} from '@craft-ts/dev-tools';
 import type { LayoutDigest } from '@craft-ts/style-testing';
 import type { ReviewIterationOptions } from '@craft-ts/style-testing/review';
 import { parseArguments } from '../args.js';
@@ -1053,6 +1049,9 @@ export async function runAttestCommand(
         return await unwatched(io, json, store, await slices());
       case 'review':
       case 'devtools': {
+        const { applyFolderLayoutProposal, folderLayoutGitPlan } = await import(
+          '@craft-ts/dev-tools'
+        );
         io.write('Preparing the review queue…');
         const observed = await observations();
         const regenerateScript = parsed.values['regenerate-script'];

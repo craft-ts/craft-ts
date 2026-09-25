@@ -82,6 +82,41 @@ const en = {
     target: string,
   ) =>
     `${element ?? 'interactive element'}${elementName ? ` '${elementName}'` : ''} in ${component}'s template invokes ${target}.`,
+  templateGroupNoConditions: 'No extra render conditions.',
+  templateGroupLead: (direction: 'render' | 'command') =>
+    direction === 'render'
+      ? 'These obligations describe what the component renders.'
+      : 'These obligations describe what the component commands.',
+  templateProgress: (current: number, total: number) =>
+    `Group ${current} of ${total}`,
+  templateRemaining: (count: number) =>
+    `${count} obligation${count === 1 ? '' : 's'} to review`,
+  templateGroupClear: 'Clear selection',
+  templateGroupSelect: 'Select all pending',
+  templateGroupSelected: (count: number) => `${count} selected`,
+  templateGroupAcceptSelected: (count: number) =>
+    `Accept ${count} selected`,
+  templateGroupRejectSelected: (count: number) =>
+    `Reject ${count} selected`,
+  templateGroupSelectObligation: 'Select obligation',
+  templateAgentAllowed: 'Agent review allowed',
+  templateHumanRequired: 'Human review required',
+  templateReviewedBy: (name: string, agent: boolean) =>
+    `Reviewed by ${name}${agent ? ' (agent)' : ''}`,
+  templateAgentAccepted: 'Agent: supported by context',
+  templateAgentContradiction: 'Agent: contradicts context',
+  templateAgentNeedsHuman: 'Agent: needs human review',
+  templateGroupEyebrow: 'Template promise group',
+  templatePreviousGroup: 'Previous group',
+  templateNextGroup: 'Next group',
+  templateSelectHuman: 'Select human-only obligations',
+  templateDetails: 'Details',
+  templateAgentBusy: 'The review agent is checking these obligations…',
+  templateAgentFailed: 'The agent review failed. No decisions were saved.',
+  templateGroupReason: 'Reason for rejection',
+  cancel: 'Cancel',
+  templateDelegate: 'Ask the review agent',
+  templateAgentUnavailable: 'No review agent is configured.',
   directionRender: 'Render',
   directionCommand: 'Command',
   stateCurrent: 'Current',
@@ -233,7 +268,11 @@ const en = {
   cancelRegeneration: 'Cancel',
   confirmRegeneration: 'Regenerate everything',
   folderLayoutApplyTitle: 'Apply the approved folder layout?',
-  folderLayoutApplyDescription: (moves, deletions, reviews) =>
+  folderLayoutApplyDescription: (
+    moves: number,
+    deletions: number,
+    reviews: number,
+  ) =>
     `Git will run ${moves} git mv command${moves === 1 ? '' : 's'} and ${deletions} git rm command${deletions === 1 ? '' : 's'}. It will also update affected TypeScript imports. ${reviews} file${reviews === 1 ? '' : 's'} marked for manual review will stay in place.`,
   folderLayoutApplyStaged:
     'Git will stage these renames and deletions so they are easy to review in the diff.',
@@ -439,6 +478,38 @@ const fr: Messages = {
     `Le template de ${component} affiche ${target}.`,
   templateStatementCommand: (element, elementName, component, target) =>
     `${element ?? 'élément interactif'}${elementName ? ` « ${elementName} »` : ''} dans le template de ${component} appelle ${target}.`,
+  templateGroupNoConditions: 'Aucune condition de rendu supplémentaire.',
+  templateGroupLead: (direction) =>
+    direction === 'render'
+      ? 'Le composant affiche les éléments décrits par ces obligations.'
+      : 'Ces obligations décrivent les actions du composant.',
+  templateProgress: (current, total) => `Groupe ${current} sur ${total}`,
+  templateRemaining: (count) =>
+    `${count} obligation${count === 1 ? '' : 's'} à revoir`,
+  templateGroupClear: 'Effacer la sélection',
+  templateGroupSelect: 'Tout sélectionner',
+  templateGroupSelected: (count) => `${count} sélectionnée${count === 1 ? '' : 's'}`,
+  templateGroupAcceptSelected: (count) => `Accepter les ${count} sélectionnées`,
+  templateGroupRejectSelected: (count) => `Refuser les ${count} sélectionnées`,
+  templateGroupSelectObligation: 'Sélectionner l’obligation',
+  templateAgentAllowed: 'Revue par agent autorisée',
+  templateHumanRequired: 'Revue humaine requise',
+  templateReviewedBy: (name, agent) =>
+    `Revu par ${name}${agent ? ' (agent)' : ''}`,
+  templateAgentAccepted: 'Agent : conforme au contexte',
+  templateAgentContradiction: 'Agent : contredit le contexte',
+  templateAgentNeedsHuman: 'Agent : à examiner par un humain',
+  templateGroupEyebrow: 'Groupe de promesses du template',
+  templatePreviousGroup: 'Groupe précédent',
+  templateNextGroup: 'Groupe suivant',
+  templateSelectHuman: 'Sélectionner les obligations réservées aux humains',
+  templateDetails: 'Détails',
+  templateAgentBusy: 'L’agent examine ces obligations…',
+  templateAgentFailed: 'La revue par agent a échoué. Aucune décision enregistrée.',
+  templateGroupReason: 'Motif du refus',
+  cancel: 'Annuler',
+  templateDelegate: 'Demander à l’agent de revue',
+  templateAgentUnavailable: 'Aucun agent de revue n’est configuré.',
   directionRender: 'Rendu',
   directionCommand: 'Commande',
   stateCurrent: 'Courant',

@@ -2,8 +2,10 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig, type ViteDevServer } from 'vite';
 import * as path from 'node:path';
+import { loadCraftStyle } from '../../tools/vite-craft-style-loader.mjs';
 import { craftProductionBuildOptions } from '../../tools/vite-production-options.mjs';
-import { craftStyle } from '../../libs/style/src/plugin/vite.ts';
+
+const craftStyle = await loadCraftStyle();
 
 const PAGE_PREFIXES = ['/src/', '/@', '/node_modules/', '/assets/', '/favicon'];
 const typecheckStatusPath = path.resolve(

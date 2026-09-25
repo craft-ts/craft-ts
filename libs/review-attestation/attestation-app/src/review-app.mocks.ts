@@ -30,6 +30,7 @@ export function createReviewAppMocks(
       },
       'GET /api/review': { response: queue },
       'POST /api/decisions': { response: queue },
+      'POST /api/template-agent': { response: queue },
       'POST /api/decisions/reopen': { response: queue },
       'POST /api/close-review': { response: close },
       'POST /api/iteration-handoff': { response: iteration },

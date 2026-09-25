@@ -8,6 +8,7 @@ useSnippetHarness();
 
 // #region card
 import { article, craftComponent, div, type Input } from '@craft-ts/component';
+import { state } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { card, meter, meterVars, panel } from './card.style';
 
@@ -30,12 +31,16 @@ const Card = craftComponent(
 const Page = craftComponent(
   'Page',
   {},
-  () => ({}),
-  () => [
+  function* () {
+    const alertProgress = yield* state('alertProgress', 20);
+    const panelProgress = yield* state('panelProgress', 80);
+    return { alertProgress, panelProgress };
+  },
+  ({ alertProgress, panelProgress }) => [
     // Per instance: a variant sets the variables it changes.
-    Card({ progress: 20, 'data-cardLook': 'alert' }),
+    Card({ progress: alertProgress, 'data-cardLook': 'alert' }),
     // Forwarded: the panel's variable becomes the card's ink.
-    div({ class: panel.root }, [Card({ progress: 80 })]),
+    div({ class: panel.root }, [Card({ progress: panelProgress })]),
   ],
 );
 // #endregion card
