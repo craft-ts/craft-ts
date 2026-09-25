@@ -1,10 +1,12 @@
 import {
-  inject,
   isSignal,
   runInInjectionContext,
   type Injector,
 } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import {
+  craftService,
+  type CraftServiceProvider,
+} from './craft-service';
 import { debounceTime, Subject, tap } from 'rxjs';
 import { provideFnWrapper } from './fn-wrapper';
 import { isCraftControlFlow } from './craft-control-flow';
@@ -132,9 +134,6 @@ export function provideTakeAppSnapshot(
     provideFnWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (factory, thisArg, args) {
-        if (ɵinjectCraftRuntimeMode() === 'production') {
-          return yield* factory.apply(thisArg, args);
-        }
         try {
           return yield* factory.apply(thisArg, args);
         } catch (error) {
@@ -144,7 +143,9 @@ export function provideTakeAppSnapshot(
           if (isCraftControlFlow(error)) {
             throw error;
           }
-          ɵinjectTakeAppSnapshot()?.();
+          if (ɵinjectCraftRuntimeMode() !== 'production') {
+            ɵinjectTakeAppSnapshot()?.();
+          }
           throw error;
         }
       },

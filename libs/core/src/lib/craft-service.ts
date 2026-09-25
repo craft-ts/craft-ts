@@ -3722,7 +3722,10 @@ function createProviders(
     },
   ];
 
-  if (definition.requirement) {
+  if (
+    definition.requirement &&
+    definition.requirement[SERVICE_REQUIREMENT_TOKEN] !== concreteToken
+  ) {
     concreteProviders.push({
       provide: definition.requirement[SERVICE_REQUIREMENT_TOKEN],
       useExisting: concreteToken,

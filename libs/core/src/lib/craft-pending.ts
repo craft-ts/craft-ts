@@ -327,5 +327,13 @@ export function withErrorComponent(
 export function provideCraftLoading(
   ...features: CraftLoadingFeature[]
 ): Provider[] {
-  return features.flatMap((feature) => feature.providers);
+  return [
+    loadingText.provide() as Provider,
+    pendingComponent.provide() as Provider,
+    stayMs.provide() as Provider,
+    blankMs.provide() as Provider,
+    pendingMinMs.provide() as Provider,
+    errorComponent.provide() as Provider,
+    ...features.flatMap((feature) => feature.providers),
+  ];
 }

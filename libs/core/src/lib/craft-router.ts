@@ -32,6 +32,7 @@ import {
 } from './craft-service';
 import type { Simplify } from './craft-service.shared';
 import {
+  ɵprovideCraftViewTransitionDefaults,
   CRAFT_VIEW_TRANSITION_STATE_KEY,
   type CraftViewTransitionInput,
   type ViewTransitionPayloadDef,
@@ -449,6 +450,7 @@ export function provideCraftRouter(
   return [
     ...getCraftRootDefaultProviders(),
     ...provideCraftRouterRuntime(configuredRoutes),
+    ...ɵprovideCraftViewTransitionDefaults(),
     ...provideCraftLoading(...loadingFeatures),
   ];
 }

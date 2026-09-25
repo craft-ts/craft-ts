@@ -1,4 +1,4 @@
-import { signal, type Signal } from './host/craft-compat';
+import { signal, type Provider, type Signal } from './host/craft-compat';
 import { craftService, type CraftServiceProvider } from './craft-service';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 
@@ -235,4 +235,14 @@ export function withCraftViewTransitions(options?: {
     provideCraftViewTransitionsEnabled(true),
     provideCraftViewTransitionSkipBlank(options?.skipBlank ?? false),
   ]);
+}
+
+/** Default router outlet dependencies, installed by provideCraftRouter. */
+export function ɵprovideCraftViewTransitionDefaults(): Provider[] {
+  return [
+    provideCraftViewTransition(signal<CraftViewTransitionInput>(null)) as Provider,
+    provideCraftViewTransitionsEnabled(false) as Provider,
+    provideCraftViewTransitionSkipBlank(false) as Provider,
+    provideCraftStartViewTransition(defaultStartViewTransition) as Provider,
+  ];
 }
