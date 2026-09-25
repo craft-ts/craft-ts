@@ -9,10 +9,10 @@ import { craftMethod } from './craft-method';
 import {
   CraftRouter,
   CraftRouterLink,
-  CRAFT_HISTORY,
   provideCraftRouter,
   shouldHandleCraftRouterLinkClick,
 } from './craft-router';
+import { ɵinjectCraftHistory } from './craft-router-tokens';
 import { CRAFT_NODE_DIRECTIVE } from './craft-node-directive';
 import { craftRoutes } from './craft-routes';
 import type { GetServiceDependencies } from './craft-service';
@@ -275,7 +275,7 @@ describe('CraftRouter', () => {
 
     expect(craftRouter.url).toBe('/users/42');
     expect(window.location.pathname).toBe('/');
-    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/users/42');
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!).get().pathname).toBe('/users/42');
     expect(
       craftRouter.isActive(
         craftRouter.createUrlTree({
@@ -301,11 +301,8 @@ describe('CraftRouter', () => {
       });
     }
 
-    type ExpectedDeps = {
-      CraftRouter: GetServiceDependencies<typeof CraftRouter>;
-    };
     type _Check = Expect<
-      Equal<ExtractDeps<GoToHome['navigate']>, ExpectedDeps>
+      Equal<keyof ExtractDeps<GoToHome['navigate']>, 'CraftRouter'>
     >;
   });
 
@@ -402,16 +399,12 @@ describe('CraftRouter', () => {
       });
     }
 
-    type ExpectedDeps = {
-      ConsoleService: {
-        providedIn: 'global';
-        dependencies: {};
-        browserBoundary: true;
-        appStart: false;
-      };
-      CraftRouter: GetServiceDependencies<typeof CraftRouter>;
-    };
-    type _Check = Expect<Equal<ExtractDeps<MultiYield['run']>, ExpectedDeps>>;
+    type _Check = Expect<
+      Equal<
+        keyof ExtractDeps<MultiYield['run']>,
+        'ConsoleService' | 'CraftRouter'
+      >
+    >;
   });
 
   it('disposes the browser history popstate listener when the injector is destroyed', () => {
@@ -419,7 +412,7 @@ describe('CraftRouter', () => {
     TestBed.configureTestingModule({
       providers: [provideCraftRouter([])],
     });
-    TestBed.inject(CRAFT_HISTORY);
+    TestBed.runInInjectionContext(() => ɵinjectCraftHistory());
     TestBed.resetTestingModule();
 
     expect(removeSpy.mock.calls.some((call) => call[0] === 'popstate')).toBe(

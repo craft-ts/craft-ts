@@ -138,7 +138,7 @@ describe('template agent boundary', () => {
     for (const templateReview of [
       { defaultPolicy: 'auto' },
       { agent: { name: 'a', command: [] } },
-      { rules: [{ policy: 'agent-allowed' }] },
+      { rules: [{ policy: 'auto' }] },
     ])
       expect(() =>
         defineReviewAttestConfig({ template: true, templateReview } as never),

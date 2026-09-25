@@ -239,7 +239,10 @@ export function isYieldableValue(value: unknown): value is NamedYieldableValue {
 
 /** Brands direct reactive members of a runtime value with their property names. */
 export function markNamedReactiveProperties<Value>(value: Value): Value {
-  if (typeof value !== 'object' && typeof value !== 'function') {
+  if (
+    value === null ||
+    (typeof value !== 'object' && typeof value !== 'function')
+  ) {
     return value;
   }
 

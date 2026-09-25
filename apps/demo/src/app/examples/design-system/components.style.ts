@@ -165,7 +165,7 @@ export const button = craftStyles(
   // a button — hover took it from 18 scenarios to 36, and that is the price
   // of the hovered state being provable at all rather than a state nobody
   // captures. The cost is a decision, recorded in `design-system.matrix.spec`.
-  { axes: [tone, size, interaction] },
+  { axes: [tone, size, { hover: interaction.hover }] },
 );
 
 // ─── card ───────────────────────────────────────────────────────────────────

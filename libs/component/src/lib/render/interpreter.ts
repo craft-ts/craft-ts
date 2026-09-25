@@ -58,6 +58,8 @@ import {
   ɵinjectCraftSecurityPolicy,
   ɵinjectCraftCspNonce,
   ɵinjectCraftMatch,
+  ɵinjectCraftChildMatch,
+  ɵrunInInjectionContext,
 } from '@craft-ts/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import {
@@ -566,9 +568,15 @@ interface RenderedNode {
 }
 
 function activeSsrRoute(context: RenderContext): string | undefined {
-  const match = ɵinjectCraftMatch();
+  const { childMatch, parentMatch } = ɵrunInInjectionContext(
+    context.injector,
+    () => ({
+      childMatch: ɵinjectCraftChildMatch(),
+      parentMatch: ɵinjectCraftMatch(),
+    }),
+  );
   try {
-    return match?.()?.route?.path;
+    return childMatch?.()?.route?.path ?? parentMatch?.()?.route?.path;
   } catch {
     return undefined;
   }

@@ -48,6 +48,17 @@ describe('require-effect-adapters', () => {
       ),
     ).toEqual([]);
   });
+
+  it('allows a Craft query whose loader owns a server-function invocation', async () => {
+    expect(
+      await lint(
+        'apps/demo-effect/src/app/home-page.ts',
+        `import { query } from '@craft-ts/core';
+         import { getStarterMessage } from '../starter.fn-client';
+         query('welcome', { params: () => true, loader: function* () { return yield* getStarterMessage({ filter: 'starter' }); } });`,
+      ),
+    ).toEqual([]);
+  });
 });
 
 async function lint(filename: string, source: string): Promise<string[]> {

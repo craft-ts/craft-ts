@@ -32,7 +32,7 @@ function configureStorageService() {
 }
 
 function rows(element: HTMLElement) {
-  return [...element.querySelectorAll<HTMLElement>('li.row')];
+  return [...element.querySelectorAll<HTMLElement>('ul > li')];
 }
 
 function click(row: HTMLElement, name: string) {

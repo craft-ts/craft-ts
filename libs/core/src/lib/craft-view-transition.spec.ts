@@ -13,12 +13,13 @@ import {
 } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import { isCraftLoadingFeature } from './craft-pending';
+import { provideCraftRouter } from './craft-router';
 import {
-  CRAFT_START_VIEW_TRANSITION,
-  CRAFT_VIEW_TRANSITION,
-  CRAFT_VIEW_TRANSITION_SKIP_BLANK,
-  CRAFT_VIEW_TRANSITIONS_ENABLED,
   injectCraftViewTransition,
+  provideCraftViewTransition,
+  ɵinjectCraftStartViewTransition,
+  ɵinjectCraftViewTransitionSkipBlank,
+  ɵinjectCraftViewTransitionsEnabled,
   viewTransitionPayload,
   withCraftViewTransitions,
   type CraftViewTransitionInput,
@@ -33,19 +34,21 @@ describe('withCraftViewTransitions', () => {
     expect(isCraftLoadingFeature(feature)).toBe(true);
 
     TestBed.configureTestingModule({ providers: feature.providers });
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITIONS_ENABLED)).toBe(true);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION_SKIP_BLANK)).toBe(false);
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionsEnabled())).toBe(true);
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionSkipBlank())).toBe(false);
   });
 
   it('forwards the skipBlank option', () => {
     const feature = withCraftViewTransitions({ skipBlank: true });
     TestBed.configureTestingModule({ providers: feature.providers });
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION_SKIP_BLANK)).toBe(true);
+    expect(
+      TestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionSkipBlank()),
+    ).toBe(true);
   });
 
   it('defaults the enabled token to false without the feature', () => {
-    TestBed.configureTestingModule({ providers: [] });
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITIONS_ENABLED)).toBe(false);
+    TestBed.configureTestingModule({ providers: [provideCraftRouter([])] });
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionsEnabled())).toBe(false);
   });
 });
 
@@ -74,7 +77,7 @@ describe('injectCraftViewTransition', () => {
   it('reads the payload published on CRAFT_VIEW_TRANSITION', () => {
     const sink = signal<CraftViewTransitionInput>(null);
     TestBed.configureTestingModule({
-      providers: [{ provide: CRAFT_VIEW_TRANSITION, useValue: sink }],
+      providers: [provideCraftViewTransition(sink)],
     });
 
     const payload = TestBed.runInInjectionContext(() =>
@@ -103,8 +106,10 @@ describe('CRAFT_START_VIEW_TRANSITION (default seam)', () => {
   });
 
   function start(): (cb: () => void) => void {
-    TestBed.configureTestingModule({ providers: [] });
-    return TestBed.inject(CRAFT_START_VIEW_TRANSITION);
+    TestBed.configureTestingModule({
+      providers: [provideCraftRouter([], withCraftViewTransitions())],
+    });
+    return TestBed.runInInjectionContext(() => ɵinjectCraftStartViewTransition());
   }
 
   it('wraps document.startViewTransition when available and motion is allowed', () => {

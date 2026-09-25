@@ -1,12 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
+import { CraftPrimitiveRegistry } from './craft-primitive-registry';
 import { craftService } from './craft-service';
+import { setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
-import {
-  CRAFT_PRIMITIVE_REGISTRY,
-  type CraftPrimitiveRegistry,
-} from './craft-primitive-registry';
 
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'function' },
@@ -19,15 +16,18 @@ const { Counter } = craftService(
 );
 
 describe('craft primitive registry', () => {
+  let injector: ReturnType<typeof setupCraftServiceTest>['injector'];
   let registry: CraftPrimitiveRegistry;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
-    registry = TestBed.inject(CRAFT_PRIMITIVE_REGISTRY);
+    ({ injector } = setupCraftServiceTest());
+    registry = injector.run(() =>
+      craftUse(CraftPrimitiveRegistry()),
+    );
   });
 
   it('addresses a primitive by its host chain and name', () => {
-    TestBed.runInInjectionContext(() => craftUse(Counter()));
+    injector.run(() => craftUse(Counter()));
 
     const entry = registry
       .list()
@@ -42,7 +42,7 @@ describe('craft primitive registry', () => {
   });
 
   it('writes a value back through the address', () => {
-    TestBed.runInInjectionContext(() => craftUse(Counter()));
+    injector.run(() => craftUse(Counter()));
 
     const entry = registry.list().find((c) => c.name === 'count');
     entry?.write(7);
@@ -51,7 +51,7 @@ describe('craft primitive registry', () => {
   });
 
   it('captures and restores a snapshot', () => {
-    const store = TestBed.runInInjectionContext(() => craftUse(Counter()));
+    const store = injector.run(() => craftUse(Counter()));
 
     const snapshot = registry.capture();
     craftUse(store.count.to(42));
@@ -71,7 +71,7 @@ describe('craft primitive registry', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    injector.run(() => {
       craftUse(Row());
       craftUse(Row());
     });
@@ -101,7 +101,7 @@ describe('craft primitive registry', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => craftUse(Settings()));
+    injector.run(() => craftUse(Settings()));
 
     const entry = registry.list().find((candidate) => candidate.name === 'theme');
 

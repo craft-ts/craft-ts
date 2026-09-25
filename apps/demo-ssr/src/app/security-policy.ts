@@ -14,7 +14,7 @@ export const DEMO_SECURITY_POLICY = {
     mode: 'allowlist',
     allow: [
       'component:SsrLabApp#1 / component:CraftRouterOutlet#9 / route:static#10 / component:SsrStaticPage#11 / state:counter / state:counter#1',
-      'component:SsrLabApp#1 / component:CraftRouterOutlet#9 / route:data#10 / component:SsrDataPage#11 / query:ssrData / query:ssrData#1',
+      'component:SsrLabApp#2 / component:CraftRouterOutlet#20 / route:data#32 / component:SsrDataPage#33 / query:ssrData / query:ssrData#1',
       'component:SsrLabApp#1 / component:CraftRouterOutlet#9 / route:fallback#10 / component:SsrFallbackPage#11 / query:deferredData / query:deferredData#1',
       'component:SsrLabApp#1 / component:CraftRouterOutlet#9 / route:client-only#10 / component:SsrClientOnlyPage#11 / query:clientOnlyData / query:clientOnlyData#1',
     ],

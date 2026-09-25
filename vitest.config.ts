@@ -18,6 +18,7 @@ export default defineConfig({
         'libs/component/src/index.ts',
       ),
       '@craft-ts/effect': path.join(workspaceRoot, 'libs/effect/src/index.ts'),
+      '@craft-ts/style': path.join(workspaceRoot, 'libs/style/src/index.ts'),
       'test-type': path.join(workspaceRoot, 'libs/test-type/src/index.ts'),
     },
   },

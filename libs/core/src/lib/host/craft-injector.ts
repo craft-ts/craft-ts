@@ -406,8 +406,7 @@ function createProviderRecord(
   let resolved = false;
   let resolving = false;
   let value: unknown;
-  let record: ProviderRecord;
-  record = {
+  const record: ProviderRecord = {
     collection: provider.multi === true || provider.collection === true,
     resolve() {
       if (!resolved) {

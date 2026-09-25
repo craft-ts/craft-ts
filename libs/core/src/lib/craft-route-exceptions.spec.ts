@@ -1,6 +1,3 @@
-import {
-  inject,
-} from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import {
   beforeAll,
@@ -13,10 +10,10 @@ import {
 import { craftException, type CraftException } from './craft-exception';
 import type { CraftGenExceptionMarker } from './craft-gen';
 import {
-  CRAFT_GLOBAL_ERROR,
   craftExceptionHandler,
   craftExceptionOutcomeApi,
   CraftGlobalError,
+  ɵinjectCraftGlobalError,
   type CraftExceptionHandler,
   type HandledExceptionsForUnion,
   type NoExtraExceptionHandlers,
@@ -198,7 +195,7 @@ describe('craft-route-exceptions (runtime)', () => {
   it('CraftGlobalError reads the CRAFT_GLOBAL_ERROR signal', () => {
     TestBed.configureTestingModule({});
     const { sink, read } = TestBed.runInInjectionContext(() => ({
-      sink: inject(CRAFT_GLOBAL_ERROR),
+      sink: ɵinjectCraftGlobalError(),
       read: craftUse(CraftGlobalError()),
     }));
 

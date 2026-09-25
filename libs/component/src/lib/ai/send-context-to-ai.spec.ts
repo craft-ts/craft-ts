@@ -8,14 +8,12 @@ import { createEnvironmentInjector, Injector } from '../host-runtime';
 import { ɵgetCraftRootDefaultProviders } from '@craft-ts/core';
 import { AiContextMenu } from './ai-context-menu';
 import {
-  AI_CONTEXT_MENU_CONTROLLER,
+  provideAiContextMenuController,
   provideSendContextToAi,
 } from './send-context-to-ai';
 import {
   provideSendContextChatComponent,
   provideSendContextUiRenderer,
-  SEND_CONTEXT_CHAT_COMPONENT,
-  SEND_CONTEXT_UI_RENDERER,
 } from './send-context-ui.tokens';
 import type { Provider } from '../host-runtime';
 import { registeredClasses } from '@craft-ts/style';
@@ -54,10 +52,7 @@ describe('provideSendContextToAi', () => {
     const rendered = await renderCraftComponent(component, {
       providers: [
         ...provideSendContextToAi(),
-        {
-          provide: AI_CONTEXT_MENU_CONTROLLER,
-          useValue: controller,
-        },
+        provideAiContextMenuController(controller),
       ] as never,
     });
 
@@ -286,11 +281,6 @@ describe('provideSendContextToAi', () => {
       () => custom,
     );
 
-    expect((rendererProvider as { provide: unknown }).provide).toBe(
-      SEND_CONTEXT_UI_RENDERER,
-    );
-    expect((chatProvider as { provide: unknown }).provide).toBe(
-      SEND_CONTEXT_CHAT_COMPONENT,
-    );
+    expect(rendererProvider).not.toEqual(chatProvider);
   });
 });

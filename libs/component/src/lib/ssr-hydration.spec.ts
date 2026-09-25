@@ -2,8 +2,8 @@
 import {
   CraftSsrTimeoutError,
   CraftUnhandledSsrResolutionError,
-  CRAFT_SSR_POLICY,
-  CRAFT_ROUTER,
+  provideCraftSsrPolicy,
+  ɵinjectCraftRouterRuntime,
   craftComputed,
   craftRoutes,
   provideCraftRouter,
@@ -265,10 +265,7 @@ describe('Craft SSR and hydration', () => {
     const config = {
       providers: [
         provideCraftRootComponent(app),
-        {
-          provide: CRAFT_SSR_POLICY,
-          useValue: { mode: 'block' as const, timeoutMs: 5 },
-        },
+        provideCraftSsrPolicy({ mode: 'block', timeoutMs: 5 }),
       ],
     };
 
@@ -317,7 +314,7 @@ describe('Craft SSR and hydration', () => {
       config: {
         providers: [
           provideCraftRootComponent(routeDefault),
-          { provide: CRAFT_SSR_POLICY, useValue: { mode: 'block' } },
+          provideCraftSsrPolicy({ mode: 'block' }),
         ],
       },
     });
@@ -354,7 +351,7 @@ describe('Craft SSR and hydration', () => {
       config: {
         providers: [
           provideCraftRootComponent(localClient),
-          { provide: CRAFT_SSR_POLICY, useValue: { mode: 'block' } },
+          provideCraftSsrPolicy({ mode: 'block' }),
         ],
       },
     });
@@ -476,7 +473,8 @@ describe('Craft SSR and hydration', () => {
     expect(host.textContent).toContain('hydrated lazy route');
     expect(hydrated.mismatches).toEqual([]);
 
-    const router = hydrated.injector.get(CRAFT_ROUTER);
+    const router = hydrated.injector.run(() => ɵinjectCraftRouterRuntime());
+    if (!router) throw new Error('CraftRouter runtime was not provided');
     await router.navigateByUrl('/next');
     await new Promise<void>((resolve) => setTimeout(resolve, 30));
 

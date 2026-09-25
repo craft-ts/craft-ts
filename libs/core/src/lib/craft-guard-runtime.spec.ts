@@ -5,7 +5,8 @@ import { craftGen, CraftGenShortCircuit } from './craft-gen';
 import { catchTag, retry } from './craft-program-operators';
 import { GUARD_AWAIT_REQUEST_MARKER } from './craft-generator-runtime';
 import { SERVICE_RUNTIME_OVERRIDES } from './craft-service';
-import { CRAFT_ROUTER, provideCraftRouter } from './craft-router';
+import { provideCraftRouter } from './craft-router';
+import { provideCraftRouterRuntimeValue } from './craft-router-tokens';
 import type { CraftRouterNavigationApi } from './craft-router-tokens';
 import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 
@@ -327,12 +328,7 @@ describe('runCraftRouteChainAsync', () => {
         // provideCraftRouter's type admits EnvironmentProviders, but with no
         // features it only returns plain providers — safe for Injector.create.
         ...provideCraftRouter([]),
-        {
-          provide: CRAFT_ROUTER,
-          // The fake only implements what the chain driver binds; the token
-          // asks for the full navigation API.
-          useValue: activeRouter as unknown as CraftRouterNavigationApi,
-        },
+        provideCraftRouterRuntimeValue(activeRouter as unknown as CraftRouterNavigationApi),
         { provide: SERVICE_RUNTIME_OVERRIDES, useValue: new Map() },
         { provide: FN_WRAPPER, useValue: [] },
         { provide: FN_WRAP_OBSERVER, useValue: [] },

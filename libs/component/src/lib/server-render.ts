@@ -21,6 +21,7 @@ import {
   ɵcreateCraftApplicationInjector,
   ɵrunCraftAppInitializers,
 } from './bootstrap';
+import { ɵrunInInjectionContext } from '@craft-ts/core';
 import {
   ɵinjectCraftRootComponent,
   provideCraftRootComponent,
@@ -100,9 +101,15 @@ export async function renderCraft(
   );
   let mounted: MountedCraftComponent<object> | undefined;
   try {
-    const securityPolicy = ɵinjectCraftSecurityPolicy();
+    const securityPolicy = ɵrunInInjectionContext(
+      injector,
+      () => ɵinjectCraftSecurityPolicy(),
+    );
     await Promise.all(ɵrunCraftAppInitializers(injector));
-    const root = ɵinjectCraftRootComponent() as CraftComponent<object>;
+    const root = ɵrunInInjectionContext(
+      injector,
+      () => ɵinjectCraftRootComponent() as CraftComponent<object>,
+    );
     if (!root) {
       throw new Error(
         'renderCraft found no root component. Add provideCraftRootComponent(App) to your app config.',
@@ -130,8 +137,9 @@ export async function renderCraft(
     await coordinator.untilSettled(timeoutMs, controller.signal);
 
     const styles = serverStyles.cssText();
+    const registry = ɵrunInInjectionContext(injector, () => ɵinjectCraftPrimitiveRegistry());
     const snapshot = captureCraftTransferSnapshot(
-      ɵinjectCraftPrimitiveRegistry(),
+      registry,
       { policy: securityPolicy.transfer },
     );
     const rootHtml = dom.serialize(host);
@@ -141,7 +149,7 @@ export async function renderCraft(
         `CRAFT_SSR_HTML_TOO_LARGE: generated HTML exceeds ${securityPolicy.ssr.maxHtmlBytes} bytes.`,
       );
     }
-    const nonce = ɵinjectCraftCspNonce();
+    const nonce = ɵrunInInjectionContext(injector, () => ɵinjectCraftCspNonce());
     const styleHtml =
       options.includeStyles === false || !styles
         ? ''

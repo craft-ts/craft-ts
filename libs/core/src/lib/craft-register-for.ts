@@ -27,6 +27,7 @@ import {
   assertInInjectionContext,
   inject,
   Injector,
+  runInInjectionContext,
   type Provider,
 } from './host/craft-compat';
 
@@ -320,6 +321,22 @@ function createCraftRegisterFor(
     }) as RegisterForDirectValue<Value, object>;
   }
 
+  const registryServiceName = `RegisterFor${capitalize(registryName)}Registry`;
+  const registryService = (() => {
+    const api = craftService(
+      { name: registryServiceName, providedIn: 'toProvide' },
+      (inputs: { $provided: RegisterForRegistry }) => inputs.$provided,
+    ) as unknown as Record<string, unknown>;
+    return {
+      provide: api[`provide${registryServiceName}`] as (value: RegisterForRegistry) => CraftServiceProvider,
+      meta: api[
+        `${registryServiceName
+          .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+          .toUpperCase()}_META_DATA`
+      ] as { inject(): RegisterForRegistry },
+    };
+  })();
+
   const provideRegisterFor = (): Provider[] => {
     const registry = createRegisterForRegistry(descriptors, { includeGlobal });
     const registryProvider = registryService.provide(registry) as Provider;
@@ -327,7 +344,10 @@ function createCraftRegisterFor(
     const targetWrapper = provideCraftTargetWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (context, next) {
-        const registry = registryService.meta.inject();
+        const registry = runInInjectionContext(
+          context.injector,
+          () => registryService.meta.inject(),
+        );
 
         const release = registry.registerTarget(
           context.target,
@@ -422,21 +442,6 @@ function createCraftRegisterFor(
     return registry;
   }
 
-  const registryServiceName = `RegisterFor${capitalize(registryName)}Registry`;
-  const registryService = (() => {
-    const api = craftService(
-      { name: registryServiceName, providedIn: 'toProvide' },
-      (inputs: { $provided: RegisterForRegistry }) => inputs.$provided,
-    ) as unknown as Record<string, unknown>;
-    return {
-      provide: api[`provide${registryServiceName}`] as (value: RegisterForRegistry) => CraftServiceProvider,
-      meta: api[
-        `${registryServiceName
-          .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-          .toUpperCase()}_META_DATA`
-      ] as { inject(): RegisterForRegistry },
-    };
-  })();
 }
 
 function toDescriptor(target: AnyRegisterTarget): RegisterForTargetDescriptor {

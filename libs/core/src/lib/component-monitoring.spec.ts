@@ -1,7 +1,6 @@
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
-  COMPONENT_MONITORING,
   componentMonitoring,
   provideComponentMonitoring,
 } from './component-monitoring';
@@ -58,9 +57,12 @@ describe('componentMonitoring', () => {
 });
 
 describe('provideComponentMonitoring', () => {
-  it('returns a Provider for the COMPONENT_MONITORING token', () => {
+  it('returns a provider accepted by the Angular host', () => {
     const fn = () => undefined;
     const provider = provideComponentMonitoring(fn);
-    expect(provider).toEqual({ provide: COMPONENT_MONITORING, useValue: fn });
+    TestBed.configureTestingModule({ providers: [provider] });
+    expect(() =>
+      TestBed.runInInjectionContext(() => componentMonitoring()),
+    ).not.toThrow();
   });
 });

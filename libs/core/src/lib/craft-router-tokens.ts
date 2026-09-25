@@ -6,7 +6,7 @@ import type {
   CraftMatch as RuntimeCraftMatch,
 } from './host/craft-router-runtime';
 import type { CraftSignal, CraftWritableSignal } from './host/craft-signal';
-import { craftSignal, craftWatch } from './host/craft-signal';
+import { craftSignal, craftWatch, isCraftSignal } from './host/craft-signal';
 import {
   findUnresolvedLoadChildrenRoute,
   matchCraftRoutes,
@@ -101,9 +101,15 @@ const craftCompiledRoutesService = craftService(
 const craftLocationService = craftService(
   { name: 'CraftLocation', providedIn: 'toProvide' },
   function* (inputs: {
-    $provided?: CraftWritableSignal<CraftLocation>;
+    $provided?:
+      | CraftWritableSignal<CraftLocation>
+      | (() => CraftWritableSignal<CraftLocation>);
   }) {
-    if (inputs.$provided) return inputs.$provided();
+    if (inputs.$provided) {
+      return isCraftSignal(inputs.$provided)
+        ? inputs.$provided
+        : (inputs.$provided as () => CraftWritableSignal<CraftLocation>)();
+    }
     const history = yield* CraftHistory();
     const location = craftSignal(history.get());
     const stop = history.listen((next: CraftLocation) => location.set(next));
@@ -116,7 +122,9 @@ const craftLocationService = craftService(
     unknown
   >;
   provideCraftLocation: (
-    value: CraftWritableSignal<CraftLocation>,
+    value:
+      | CraftWritableSignal<CraftLocation>
+      | (() => CraftWritableSignal<CraftLocation>),
   ) => unknown;
   CRAFT_LOCATION_META_DATA: {
     inject(): CraftWritableSignal<CraftLocation>;
@@ -129,9 +137,9 @@ const craftMatchService = craftService(
     $provided?: CraftSignal<CraftMatch | null> | (() => CraftSignal<CraftMatch | null>);
   }) {
     const provided = inputs.$provided
-      ? (typeof inputs.$provided === 'function'
-          ? inputs.$provided
-          : () => inputs.$provided)()
+      ? isCraftSignal(inputs.$provided)
+        ? inputs.$provided
+        : inputs.$provided()
       : undefined;
     if (provided) return provided;
 
@@ -144,12 +152,10 @@ const craftMatchService = craftService(
       const nextLocation = location();
       const current = ++generation;
       const syncMatch = matchCraftRoutes(compiled, nextLocation);
-      const pending = syncMatch
-        ? findUnresolvedLoadChildrenRoute(
-            compiled,
-            splitPath(nextLocation.pathname || '/'),
-          )
-        : undefined;
+      const pending = findUnresolvedLoadChildrenRoute(
+        compiled,
+        splitPath(syncMatch?.pathname || nextLocation.pathname || '/'),
+      );
       if (pending) {
         void matchCraftRoutesAsync(compiled, nextLocation).then((resolved) => {
           if (current === generation) match.set(resolved);
@@ -179,7 +185,7 @@ const craftMatchService = craftService(
 const craftChildMatchService = craftService(
   { name: 'CraftChildMatch', providedIn: 'toProvide' },
   function* (inputs: { $provided: CraftSignal<CraftMatch | null> }) {
-    return inputs.$provided();
+    return inputs.$provided;
   },
 ) as unknown as {
   CraftChildMatch: () => Generator<unknown, CraftSignal<CraftMatch | null>, unknown>;
@@ -220,7 +226,9 @@ export const ɵinjectCraftHistory = () => {
 
 export const CraftLocation = craftLocationService.CraftLocation;
 export const provideCraftLocation = (
-  value: CraftWritableSignal<CraftLocation>,
+  value:
+    | CraftWritableSignal<CraftLocation>
+    | (() => CraftWritableSignal<CraftLocation>),
 ): unknown => craftLocationService.provideCraftLocation(value);
 export const ɵinjectCraftLocation = () => {
   try {

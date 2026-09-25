@@ -27,7 +27,8 @@ import {
 import { provideCraftActivatedRoute } from './craft-activated-route';
 import {
   craftService,
-  type GetServiceYields,
+  type ServiceTrackingMetadata,
+  type ServiceYieldRequest,
   type SERVICE_HELPER_DEPENDENCIES,
 } from './craft-service';
 import type { Simplify } from './craft-service.shared';
@@ -64,7 +65,6 @@ import {
   type CraftWritableSignal,
 } from './host/craft-signal';
 import {
-  CraftCompiledRoutes,
   provideCraftCompiledRoutes,
   CraftHistory,
   provideCraftHistory,
@@ -81,7 +81,7 @@ import {
   type CraftRouterEvent,
   type CraftUrlTree,
 } from './craft-router-tokens';
-import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
+import { ɵinjectCraftPlatform } from './craft-platform';
 import {
   ɵinjectCraftHistory,
   ɵinjectCraftLocation,
@@ -109,6 +109,8 @@ export {
   type CraftUrlTree,
 } from './craft-router-tokens';
 
+// The registry is intentionally empty here and augmented by route declarations.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type, @typescript-eslint/no-empty-interface
 export interface CraftRouterRoutesRegistry {}
 
 type CraftRouterRoutesRegistryKey = Extract<
@@ -285,9 +287,6 @@ type WithInternalHelperDependencies<Helper> = {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: HelperDependencies<Helper>;
 };
 
-type GeneratorYield<GeneratorValue> =
-  GeneratorValue extends Generator<infer Yielded, any, any> ? Yielded : never;
-
 type CraftRouterInputWithOptionalQueryParams = {
   to: string;
   params?: Record<string, string>;
@@ -320,28 +319,22 @@ const CraftRouterInternal =
 // We can't reach the request type via `ReturnType<typeof CraftRouterInternal>`
 // because it picks the LAST overload (`<Exposed, Yielded>(...)`), whose
 // generator's yield collapses to `unknown` when the generics are unbound.
-// `GetServiceYields` extracts the proper `ServiceYieldRequest<...>` (and
-// `ExposureYield<...>`) union from the helper's tracked metadata directly.
-export type CraftRouterYieldRequest = unknown;
-
-type StructuralRouteParamsField<Path extends string> = [
-  PathParamNames<Path>,
-] extends [never]
-  ? { params?: never }
-  : { params: Simplify<{ [Key in PathParamNames<Path>]: string }> };
-
-type DerivedNavigationInput<Path extends string> = Simplify<
-  { to: Path } & StructuralRouteParamsField<Path> &
-    CraftNavigationExtras & {
-      queryParams?: Record<string, string> | null;
-    }
->;
-
-type DerivedUrlTreeInput<Path extends string> = Simplify<
-  { to: Path } & StructuralRouteParamsField<Path> &
-    Omit<CraftNavigationExtras, 'state'> & {
-      queryParams?: Record<string, string> | null;
-    }
+// Keep the public service request's literal name and result type here so
+// helper dependency extraction still records `CraftRouter`, without exposing
+// craftService's private runtime markers in this package's declaration output.
+export type CraftRouterYieldRequest = ServiceYieldRequest<
+  'toProvide',
+  CraftRouter,
+  ServiceTrackingMetadata<
+    'CraftRouter',
+    'toProvide',
+    CraftRouter,
+    never,
+    undefined,
+    never,
+    false,
+    false
+  >
 >;
 
 type RoutePathFromInput<Input extends { to: NavigableRoutePath }> = Extract<
@@ -400,7 +393,7 @@ type RouterPropertyShortcut<Value> = Value extends (
 type CraftRouterPropertyShortcuts = CraftRouterCraftMethodShortcuts & {
   [Key in Exclude<
     keyof CraftRouter,
-    keyof Function | 'then' | 'createUrlTree' | 'navigate' | 'navigateByUrl'
+    'then' | 'createUrlTree' | 'navigate' | 'navigateByUrl'
   >]: RouterPropertyShortcut<CraftRouter[Key]>;
 };
 
@@ -449,6 +442,7 @@ export function provideCraftRouter(
 
   return [
     ...getCraftRootDefaultProviders(),
+    routerService.provideCraftRouter() as unknown as Provider,
     ...provideCraftRouterRuntime(configuredRoutes),
     ...ɵprovideCraftViewTransitionDefaults(),
     ...provideCraftLoading(...loadingFeatures),
@@ -820,12 +814,10 @@ function provideCraftRouterRuntime(
           );
           return;
         }
-        const pending = syncMatch
-          ? findUnresolvedLoadChildrenRoute(
-              compiled,
-              splitPath(nextLocation.pathname || '/'),
-            )
-          : undefined;
+        const pending = findUnresolvedLoadChildrenRoute(
+          compiled,
+          splitPath(syncMatch?.pathname || nextLocation.pathname || '/'),
+        );
         if (pending) {
           void matchCraftRoutesAsync(compiled, {
             ...nextLocation,
@@ -833,6 +825,11 @@ function provideCraftRouterRuntime(
           }).then((resolved) => {
             if (current !== generation) return;
             commitCraftMatch(match, history, nextLocation, resolved, titleStrategy);
+          }).catch(() => {
+            // Keep the last committed match if a lazy route chunk fails. The
+            // navigation has already been recorded in history, but the outlet
+            // can still render the page it successfully mounted before this
+            // failed rematch.
           });
           return;
         }

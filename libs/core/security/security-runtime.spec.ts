@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CraftPrimitiveRegistry } from '../src/lib/craft-primitive-registry';
+import { craftUse } from '../src/lib/craft-use';
+import { setupCraftServiceTest } from '../src/lib/setup-craft-service-test';
 import {
   captureCraftTransferSnapshot,
   primeCraftTransferSnapshot,
@@ -31,7 +33,8 @@ function jsonRequest(body: unknown, headers: Record<string, string> = {}): Reque
 
 describe('core security runtime', () => {
   it('denies unlisted transfer entries and validates client snapshots', () => {
-    const registry = new CraftPrimitiveRegistry();
+    const registryInjector = setupCraftServiceTest().injector;
+    const registry = registryInjector.run(() => craftUse(CraftPrimitiveRegistry()));
     registry.register('state:public', {
       kind: 'state', name: 'public', hostTags: [], read: () => 'ok', write: () => undefined,
     });
@@ -50,7 +53,8 @@ describe('core security runtime', () => {
   });
 
   it('transfers nothing under the default policy', () => {
-    const registry = new CraftPrimitiveRegistry();
+    const registryInjector = setupCraftServiceTest().injector;
+    const registry = registryInjector.run(() => craftUse(CraftPrimitiveRegistry()));
     // Ce que pose le framework pour une primitive ordinaire.
     registry.register('state:userEmail', {
       kind: 'state', name: 'userEmail', hostTags: [], transfer: true,

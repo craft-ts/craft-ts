@@ -134,7 +134,7 @@ describe('createCraftProject', () => {
       'utf8',
     );
     expect(app).toContain(
-      "a('home', { class: shell.link }, 'Home').pipe(CraftRouterLink({ to: '' }))",
+      "a('home', { class: shell.link, 'aria-label': 'Home' }, 'Home').pipe(CraftRouterLink({ to: '' }))",
     );
     expect(app).toContain(
       "span({ class: shell.badge }, 'Experimental · feedback welcome')",
@@ -252,8 +252,12 @@ describe('createCraftProject', () => {
     expect(api).not.toContain('CraftHttpClient');
     expect(api).toContain('craftSleep');
     expect(api).toContain('title:');
-    expect(homePage).toContain('String((yield* welcomeQuery.value())?.title)');
-    expect(homePage).toContain('String((yield* welcomeQuery.value())?.body)');
+    expect(homePage).toContain(
+      "String((yield* welcomeQuery.value())?.title)",
+    );
+    expect(homePage).toContain(
+      "String((yield* welcomeQuery.value())?.body)",
+    );
 
     const effectResult = await createCraftProject({
       directory: 'effect-starter',
@@ -305,6 +309,7 @@ describe('createCraftProject', () => {
     ) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
+      overrides: Record<string, string>;
       scripts: Record<string, string>;
     };
 
@@ -315,6 +320,7 @@ describe('createCraftProject', () => {
     expect(packageJson.dependencies['effect']).toBeUndefined();
     expect(packageJson.devDependencies['effect']).toBeUndefined();
     expect(packageJson.devDependencies?.['typescript']).toBe('^6.0.3');
+    expect(packageJson.devDependencies['@vitest/browser-playwright']).toBe('^4.0.0');
     expect(packageJson.scripts).toMatchObject({
       lint: 'eslint .',
       architecture: expect.stringContaining('vitest'),
@@ -520,7 +526,7 @@ describe('createCraftProject', () => {
     // The label now comes from the catalogue; the class and the named id are
     // what this assertion is about.
     expect(components).toContain(
-      "button('continue', { class: surface.card, type: 'button' }, i18n.t('ui.components.continue'))",
+      "button('continue', { class: surface.card, type: 'button', 'aria-label': i18n.t('ui.components.continue') }, i18n.t('ui.components.continue'))",
     );
 
     // The variant travels as an attribute; the class stays constant. A starter
@@ -766,6 +772,8 @@ describe('createCraftProject', () => {
       'utf8',
     );
     expect(homePage).toContain('readWelcomeField');
+    expect(homePage).toContain('welcomeQuery.errorText');
+    expect(homePage).not.toContain('welcomeQuery.errorMessage()');
     expect(homePage).not.toContain('const welcome =');
     expect(
       await readFile(
@@ -837,9 +845,12 @@ describe('createCraftProject', () => {
         'utf8',
       ),
     ).toContain('runtimeLayer');
-    expect(
-      await readFile(join(result.directory, 'src/server/node-http.ts'), 'utf8'),
-    ).toContain('body: request as unknown as BodyInit');
+    const nodeHttp = await readFile(
+      join(result.directory, 'src/server/node-http.ts'),
+      'utf8',
+    );
+    expect(nodeHttp).toContain('new ReadableStream<Uint8Array>');
+    expect(nodeHttp).not.toMatch(/\bas\s+/);
     expect(
       await readFile(join(result.directory, 'src/server/server.ts'), 'utf8'),
     ).not.toContain('IncomingMessage');
@@ -877,6 +888,99 @@ describe('createCraftProject', () => {
     ).rejects.toThrow();
   });
 
+  it('uses the Craft query helper for an Effect frontend calling a server function', async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'craft-ts-create-effect-frontend-promise-backend-'),
+    );
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: [],
+      frontendRuntime: 'effect',
+      backendRuntime: 'promise',
+      i18n: 'strict',
+    });
+    const homePage = await readFile(
+      join(result.directory, 'src/app/home-page.ts'),
+      'utf8',
+    );
+
+    expect(homePage).toContain("import { query } from '@craft-ts/core';");
+    expect(homePage).toContain(
+      "import { getStarterMessage } from '../starter.fn-client';",
+    );
+    expect(homePage).toContain(
+      "function* () { return yield* getStarterMessage({ filter: 'starter' }); }",
+    );
+    expect(homePage).toContain('yield* welcomeQuery.value()');
+    expect(homePage).not.toContain('queryEffect');
+    expect(homePage).not.toContain('Effect.tryPromise');
+    expect(homePage).not.toContain("from './api'");
+    await expect(
+      readFile(join(result.directory, 'src/app/api.ts'), 'utf8'),
+    ).rejects.toThrow();
+    await expect(
+      readFile(join(result.directory, 'src/app/domain.ts'), 'utf8'),
+    ).rejects.toThrow();
+    expect(
+      await readFile(join(result.directory, 'src/app/app.config.ts'), 'utf8'),
+    ).not.toContain('WelcomeRepositoryLive');
+  });
+
+  it('generates the plain server client without a type assertion', async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'craft-ts-create-backend-promise-'),
+    );
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: [],
+      frontendRuntime: 'plain',
+      backendRuntime: 'promise',
+      i18n: 'none',
+      designSystem: 'none',
+    });
+
+    const client = await readFile(
+      join(result.directory, 'src/starter.fn-client.ts'),
+      'utf8',
+    );
+    expect(client).toContain(
+      'createServerFunctionClient<typeof ServerGetStarterMessage>',
+    );
+    expect(client).not.toContain(' as ServerFunctionClient');
+    const homePage = await readFile(
+      join(result.directory, 'src/app/home-page.ts'),
+      'utf8',
+    );
+    expect(homePage).toContain(
+      "function* () { return yield* getStarterMessage({ filter: 'starter' }); }",
+    );
+    expect(
+      await readFile(
+        join(result.directory, 'src/app/home-page.spec.ts'),
+        'utf8',
+      ),
+    ).toContain('vi.fn(function* ()');
+    expect(
+      await readFile(
+        join(result.directory, 'src/app/home-page.spec.ts'),
+        'utf8',
+      ),
+    ).toContain('yield* craftSleep(0)');
+    await expect(
+      readFile(join(result.directory, 'src/app/api.ts'), 'utf8'),
+    ).rejects.toThrow();
+    expect(
+      await readFile(
+        join(result.directory, 'src/starter.fn-serveur.ts'),
+        'utf8',
+      ),
+    ).not.toContain('type ServerFunctionSuccess');
+  });
+
   it('generates explicit locale parity and strict i18n scripts', async () => {
     const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-i18n-'));
     temporaryDirectories.push(root);
@@ -909,7 +1013,9 @@ describe('createCraftProject', () => {
     ).toContain('defineLocaleLike');
     expect(
       await readFile(join(result.directory, 'src/i18n/runtime.ts'), 'utf8'),
-    ).toContain('const locales = [enUS, frFR] as const;');
+    ).toContain(
+      'const locales = [enUS, frFR] satisfies readonly [typeof enUS, typeof frFR];',
+    );
     expect(
       await readFile(join(result.directory, 'src/i18n/runtime.ts'), 'utf8'),
     ).toContain('createI18nRuntime<typeof locales>({');

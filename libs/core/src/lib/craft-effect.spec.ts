@@ -7,6 +7,7 @@ import {
   signal,
   type EffectCleanupRegisterFn,
 } from './host/craft-compat';
+import { craftUse } from './craft-use';
 import { describe, expect, it } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
@@ -18,7 +19,6 @@ import {
 } from './craft-service';
 import { query } from './query';
 import {
-  APP_SNAPSHOT_REGISTRY,
   AppSnapshotRegistry,
   type ActiveEffectReport,
 } from './take-app-snapshot';
@@ -245,7 +245,7 @@ describe('craftEffect', () => {
     const reports: ActiveEffectReport[] = [];
     const { injector } = setupCraftServiceTest();
     lastInjector = injector;
-    const registry = injector.run(() => inject(APP_SNAPSHOT_REGISTRY));
+    const registry = injector.run(() => craftUse(AppSnapshotRegistry()));
     registry.allActiveEffects$.subscribe((r) => reports.push(r));
 
     injector.run(() => new Component());
@@ -258,11 +258,8 @@ describe('craftEffect', () => {
   });
 
   it('resolves the snapshot registry from the injector option', async () => {
-    const registry = new AppSnapshotRegistry();
-    const owner = createEnvironmentInjector(
-      [{ provide: APP_SNAPSHOT_REGISTRY, useValue: registry }],
-      hostEnvironmentInjector(),
-    );
+    const owner = setupCraftServiceTest().injector;
+    const registry = owner.run(() => craftUse(AppSnapshotRegistry()));
     const reports: ActiveEffectReport[] = [];
     registry.allActiveEffects$.subscribe((report) => reports.push(report));
 

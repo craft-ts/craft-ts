@@ -3,16 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RouteChainOutcome } from './craft-guard-runtime';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
 import {
-  CRAFT_ROUTE_CHAIN_RUNNER,
   createCraftRouterOutletController,
   type CraftRouterOutletController,
 } from './craft-router-outlet';
-import { CRAFT_PENDING_COMPONENT } from './craft-pending';
+import { withPendingComponent } from './craft-pending';
 import type {
   CraftCompiledRoute,
   CraftMatch,
 } from './host/craft-router-runtime';
-import { CRAFT_ROUTER, type CraftRouterNavigationApi } from './craft-router';
+import { provideCraftRouter, type CraftRouterNavigationApi } from './craft-router';
+import { provideCraftRouterRuntimeValue } from './craft-router-tokens';
+import {
+  SERVICE_RUNTIME_OVERRIDES,
+  type ServiceRuntimeOverride,
+} from './craft-service';
 import {
   createEnvironmentInjector,
   Injector,
@@ -99,11 +103,14 @@ describe('CraftRouterOutlet cancel', () => {
     const promise = new Promise<RouteChainOutcome>((r) => (resolve = r));
     const runner = vi.fn(() => promise);
     const router = stubRouter();
+    const overrides = new Map<string, ServiceRuntimeOverride>([
+      ['CraftRouteChainRunner', { kind: 'useValue', value: runner }],
+    ]);
     const injector = createEnvironmentInjector(
       [
-        { provide: CRAFT_ROUTER, useValue: router },
-        { provide: CRAFT_ROUTE_CHAIN_RUNNER, useValue: runner },
-        { provide: CRAFT_PENDING_COMPONENT, useValue: { component: TargetCmp } },
+        ...provideCraftRouter([], withPendingComponent(TargetCmp)),
+        provideCraftRouterRuntimeValue(router),
+        { provide: SERVICE_RUNTIME_OVERRIDES, useValue: overrides },
       ],
       Injector.NULL,
     );

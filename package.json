@@ -45,7 +45,7 @@
     "release:check": "npm run release:preflight && node --test tools/release.test.mjs tools/release-local.test.mjs tools/generated-starters-matrix.test.mjs",
     "generated-starters:check": "CRAFT_RELEASE_VERSION=0.0.0-check node tools/test-generated-starters.mjs --profile=smoke",
     "generated-starters:static": "node tools/test-generated-starters.mjs --profile=static",
-    "generated-starters:release": "node tools/test-generated-starters.mjs --profile=release",
+    "generated-starters:release": "CRAFT_RELEASE_VERSION=${CRAFT_RELEASE_VERSION:-0.0.0-release} node tools/test-generated-starters.mjs --profile=release",
     "generated-starters:full": "CRAFT_RELEASE_VERSION=${CRAFT_RELEASE_VERSION:-0.0.0-full} node tools/test-generated-starters.mjs --profile=full",
     "generated-starters:prepare": "node tools/prepare-generated-starter-packages.mjs",
     "release:local": "node tools/release-local.mjs"

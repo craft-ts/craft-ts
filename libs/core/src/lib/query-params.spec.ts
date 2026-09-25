@@ -20,10 +20,9 @@ import {
 } from './primitive-resource-runtime-context';
 import { craftUse } from './craft-use';
 import {
-  CRAFT_HISTORY,
-  CRAFT_ROUTER,
   provideCraftRouter,
 } from './craft-router';
+import { ɵinjectCraftHistory, ɵinjectCraftRouterRuntime } from './craft-router-tokens';
 import { Schema } from 'effect';
 
 let queryParamsResourceObserver:
@@ -545,7 +544,7 @@ describe('queryParams', () => {
 
   it('should remove query params from URL when reset to fallback values', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(CRAFT_ROUTER);
+      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
       const myQueryParams = craftUse(
         queryParams(
           'myQueryParams',
@@ -617,7 +616,7 @@ describe('queryParams codecs', () => {
 
   it('decodes and encodes values through a synchronous codec', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(CRAFT_ROUTER);
+      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
       const filters = craftUse(
         queryParams(
           'filters',
@@ -649,7 +648,7 @@ describe('queryParams codecs', () => {
 
   it('accepts synchronous Effect Schema decode and encode adapters', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(CRAFT_ROUTER);
+      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
       const filters = craftUse(
         queryParams(
           'filters',
@@ -678,8 +677,8 @@ describe('queryParams codecs', () => {
 
   it('skipLocationChange updates url without changing the address bar', async () => {
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(CRAFT_ROUTER);
-      const history = TestBed.inject(CRAFT_HISTORY);
+      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+      const history = TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
       const filters = craftUse(
         queryParams(
           'filters',
@@ -712,7 +711,7 @@ describe('queryParams codecs', () => {
     const nativeError = new Error('invalid page');
 
     await TestBed.runInInjectionContext(async () => {
-      const router = TestBed.inject(CRAFT_ROUTER);
+      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
       const filters = craftUse(
         queryParams('filters', {
           state: {
@@ -745,8 +744,8 @@ describe('queryParams codecs', () => {
 
   it('throws a QueryParamEncodeError before navigation', () => {
     TestBed.runInInjectionContext(() => {
-      const router = TestBed.inject(CRAFT_ROUTER);
-      const navigate = vi.spyOn(TestBed.inject(CRAFT_HISTORY), 'push');
+      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+      const navigate = vi.spyOn(TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!), 'push');
       const filters = craftUse(
         queryParams(
           'filters',

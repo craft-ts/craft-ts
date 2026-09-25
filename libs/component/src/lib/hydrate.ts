@@ -4,6 +4,7 @@ import {
   provideCraftPlatform,
   ɵinjectCraftCspNonce,
   ɵinjectCraftSecurityPolicy,
+  ɵrunInInjectionContext,
   createBrowserDomAdapter,
   createBrowserPlatform,
   createCraftRenderIdentity,
@@ -70,14 +71,17 @@ export function hydrateCraft(
       options.snapshot ?? readTransferSnapshot(host.ownerDocument);
     if (snapshot) {
       primeCraftTransferSnapshot(
-        ɵinjectCraftPrimitiveRegistry(),
+        ɵrunInInjectionContext(injector, () => ɵinjectCraftPrimitiveRegistry()),
         snapshot,
-        ɵinjectCraftSecurityPolicy().transfer,
+        ɵrunInInjectionContext(injector, () => ɵinjectCraftSecurityPolicy()).transfer,
       );
     }
     ɵrunCraftAppInitializers(injector);
 
-    const root = ɵinjectCraftRootComponent() as CraftComponent<object> | null;
+    const root = ɵrunInInjectionContext(
+      injector,
+      () => ɵinjectCraftRootComponent() as CraftComponent<object> | null,
+    );
     if (!root) {
       throw new Error(
         'hydrateCraft found no root component. Add provideCraftRootComponent(App) to your app config.',
@@ -94,9 +98,10 @@ export function hydrateCraft(
       (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
         ? (rootNode as Document | ShadowRoot)
         : host.ownerDocument;
-    const styles =
+    const styles = ɵrunInInjectionContext(injector, () =>
       ɵinjectCraftStyleRegistry() ??
-      createCraftStyleRegistry({ nonce: ɵinjectCraftCspNonce() ?? undefined });
+      createCraftStyleRegistry({ nonce: ɵinjectCraftCspNonce() ?? undefined }),
+    );
     mounted = mountInterpretedComponentWithOptions(
       root,
       host,

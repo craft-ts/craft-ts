@@ -31,9 +31,6 @@
     "tslib": "^2.3.0"
   },
   "peerDependenciesMeta": {
-    "effect": {
-      "optional": true
-    },
     "rxjs": {
       "optional": true
     }

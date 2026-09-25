@@ -845,6 +845,7 @@ function packageJson(context: TemplateContext): string {
       ...(hasEffect ? { effect: effectPackage } : {}),
       ...(hasAttest ? { '@craft-ts/style-testing': craftPackage() } : {}),
       '@playwright/test': '^1.52.0',
+      '@vitest/browser-playwright': '^4.0.0',
       '@types/node': '^22.0.0',
       'aria-query': '^5.3.2',
       jsdom: '^27.1.0',
@@ -1218,7 +1219,15 @@ import tseslint from 'typescript-eslint';
 import craftRules from '@craft-ts/dev-tools/eslint-rules';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', '**/architecture/catalog.ts'] },
+  {
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      '.references/**',
+      '**/.references/**',
+      '**/architecture/catalog.ts',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -1633,11 +1642,12 @@ export const typecheckIndicator = craftStyles('typecheck', {
 });
 `;
 
-const projectTokensTs = `import { dateLong, money, number } from '@craft-ts/i18n';
+const projectTokensTs = `import { dateLong, defineToken, money, number } from '@craft-ts/i18n';
 
 export const orderCount = number('count');
 export const orderAmount = money('amount', undefined, { currency: 'EUR', minimumFractionDigits: 2 });
 export const orderDate = dateLong('date');
+export const errorMessage = defineToken({ name: 'errorMessage', kind: 'text', format: (value: string) => value });
 `;
 
 const typographyTs = `export const typography = {
@@ -1650,7 +1660,7 @@ const typographyTs = `export const typography = {
     button: { fontSize: '.9375rem', lineHeight: '1.35', fontWeight: 600 },
     caption: { fontSize: '.75rem', lineHeight: '1.35', fontWeight: 400 },
   },
-} as const;
+};
 
 export type TypographyRole = keyof typeof typography.roles;
 `;
@@ -1704,6 +1714,9 @@ function starterUiCopy(context: TemplateContext, french: boolean) {
         homeTitleEffect: 'Bienvenue dans CraftTS + Effect v4',
         homeLoading: 'Chargement de l’API…',
         homeApiError: 'La requête API a échoué. Ouvrez l’onglet réseau.',
+        homeApiTitle: 'Titre API',
+        homeApiBody: 'Corps API',
+        homeApiErrorDetail: 'Erreur API : ',
         aboutTitle: 'À propos de ce starter',
         aboutBody:
           'Cette page prouve que le routage Craft et le chargement paresseux des composants sont câblés.',
@@ -1723,6 +1736,9 @@ function starterUiCopy(context: TemplateContext, french: boolean) {
         homeTitleEffect: 'Welcome to CraftTS + Effect v4',
         homeLoading: 'Loading API…',
         homeApiError: 'The API request failed. Check the network tab.',
+        homeApiTitle: 'API title',
+        homeApiBody: 'API body',
+        homeApiErrorDetail: 'API error: ',
         aboutTitle: 'About this starter',
         aboutBody:
           'This page proves that Craft routing and lazy component loading are wired.',
@@ -1752,6 +1768,9 @@ function i18nUiSectionTs(context: TemplateContext, french: boolean): string {
       titleEffect: msg\`${copy.homeTitleEffect}\`,
       loading: msg\`${copy.homeLoading}\`,
       apiError: msg\`${copy.homeApiError}\`,
+      apiTitle: msg\`${copy.homeApiTitle}\`,
+      apiBody: msg\`${copy.homeApiBody}\`,
+      apiErrorDetail: msg\`${copy.homeApiErrorDetail}\${errorMessage}\`,
     },
     about: {
       title: msg\`${copy.aboutTitle}\`,
@@ -1782,7 +1801,7 @@ function i18nCatalogTs(context: TemplateContext): string {
     )
     .join('\n');
   return `import { defineCatalog, msg, plural } from '@craft-ts/i18n';
-import { orderAmount, orderCount, orderDate } from './project-tokens';
+import { errorMessage, orderAmount, orderCount, orderDate } from './project-tokens';
 
 // Add application keys here. Every locale is checked against this shape.
 export const baseCatalog = defineCatalog({
@@ -1828,7 +1847,7 @@ export const ${locale.replace(/[^a-zA-Z0-9]/g, '')} = defineLocale('${locale}', 
     ? 'Le ${orderDate}, la commande contient ${orderCount} article(s) pour ${orderAmount}.'
     : 'Order ${orderAmount} on ${orderDate}: ${orderCount} item(s).';
   return `import { defineLocaleLike, msg, plural } from '@craft-ts/i18n';
-import { orderAmount, orderCount, orderDate } from '../project-tokens';
+import { errorMessage, orderAmount, orderCount, orderDate } from '../project-tokens';
 import { ${locales[0].replace(/[^a-zA-Z0-9]/g, '')} } from './${locales[0]}';
 
 export const ${locale.replace(/[^a-zA-Z0-9]/g, '')} = defineLocaleLike(${locales[0].replace(/[^a-zA-Z0-9]/g, '')}, '${locale}', {
@@ -1856,7 +1875,9 @@ function i18nRuntimeTs(context: TemplateContext): string {
   return `import { createI18nRuntime } from '@craft-ts/i18n';
 ${localeImports}
 
-export const locales = [${localeValues}] as const;
+export const locales = [${localeValues}] satisfies readonly [${context.locales
+    .map((locale) => `typeof ${locale.replace(/[^a-zA-Z0-9]/g, '')}`)
+    .join(', ')}];
 
 export const i18n = createI18nRuntime<typeof locales>({
   locales,
@@ -1872,9 +1893,15 @@ export function setLocale(locale: typeof i18n.locale extends () => infer Id ? Id
   }
 }
 
+type StarterLocaleId = Parameters<typeof setLocale>[0];
+
+function isLocale(value: string): value is StarterLocaleId {
+  return locales.some((locale) => locale.id === value);
+}
+
 const requestedLocale = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('locale') : null;
-if (requestedLocale && [${context.locales.map((locale) => `'${locale}'`).join(', ')}].includes(requestedLocale)) {
-  setLocale(requestedLocale as Parameters<typeof setLocale>[0]);
+if (requestedLocale && isLocale(requestedLocale)) {
+  setLocale(requestedLocale);
 }
 `;
 }
@@ -2078,17 +2105,13 @@ function uiComponentsTs(context: TemplateContext): string {
   const continueLabel = hasI18n
     ? "i18n.t('ui.components.continue')"
     : "'Continue'";
-  const alertLabel = hasI18n ? "i18n.t('ui.components.alert')" : "'Alert'";
-  return `import { a, button, craftComponent, div, p } from '@craft-ts/component';
+  return `import { a, button, craftComponent } from '@craft-ts/component';
 ${styleImport}${i18nImport}
 
-export const Stack = craftComponent('Stack', {}, () => ({}), () => div({ class: surface.card }, []));
-export const Card = craftComponent('Card', {}, () => ({}), () => div({ class: surface.card }, []));
-export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card, type: 'button' }, ${continueLabel}));
-export const Alert = craftComponent('Alert', {}, () => ({}), () => p({ class: surface.message, 'data-tone': 'danger' }, ${alertLabel}));
+export const Button = craftComponent('Button', {}, () => ({}), () => button('continue', { class: surface.card, type: 'button', 'aria-label': ${continueLabel} }, ${continueLabel}));
 // The hovered state is a variant of one class, not a second component. Its
 // colours are checked by \`npm run style:check\` without a browser.
-export const Link = craftComponent('Link', {}, () => ({}), () => a('more', { class: link.root, href: '#' }, ${continueLabel}));
+export const Link = craftComponent('Link', {}, () => ({}), () => a('more', { class: link.root, href: '#', 'aria-label': ${continueLabel} }, ${continueLabel}));
 `;
 }
 
@@ -2175,10 +2198,10 @@ function appTs(context: TemplateContext): string {
     ? `        span({ class: shell.badge }, ${text('ui.badge', 'Experimental · feedback welcome')}),`
     : '';
   const navigation = context.config.demoPages
-    ? `        a('home', { class: shell.link }, ${text('ui.nav.home', 'Home')}).pipe(CraftRouterLink({ to: '' })),
-        a('services', { class: shell.link }, ${text('ui.nav.services', 'Services')}).pipe(CraftRouterLink({ to: 'services' })),
-        a('about', { class: shell.link }, ${text('ui.nav.about', 'About')}).pipe(CraftRouterLink({ to: 'about' })),`
-    : `        a('${context.config.domain}', { class: shell.link }, ${text('ui.nav.domain', context.config.domain)}).pipe(CraftRouterLink({ to: '${context.config.domain}' })),`;
+    ? `        a('home', { class: shell.link, 'aria-label': ${text('ui.nav.home', 'Home')} }, ${text('ui.nav.home', 'Home')}).pipe(CraftRouterLink({ to: '' })),
+        a('services', { class: shell.link, 'aria-label': ${text('ui.nav.services', 'Services')} }, ${text('ui.nav.services', 'Services')}).pipe(CraftRouterLink({ to: 'services' })),
+        a('about', { class: shell.link, 'aria-label': ${text('ui.nav.about', 'About')} }, ${text('ui.nav.about', 'About')}).pipe(CraftRouterLink({ to: 'about' })),`
+    : `        a('${context.config.domain}', { class: shell.link, 'aria-label': ${text('ui.nav.domain', context.config.domain)} }, ${text('ui.nav.domain', context.config.domain)}).pipe(CraftRouterLink({ to: '${context.config.domain}' })),`;
   return `import {
   a,
   CraftRouterOutlet,
@@ -2210,21 +2233,21 @@ ${badge}
 function routesTs(context: TemplateContext): string {
   if (!context.config.demoPages) return domainRoutesTs(context);
   const httpErrorHandler =
-    context.config.frontendRuntime === 'plain'
+    context.config.backendRuntime !== 'none'
       ? `    HttpError: craftExceptionHandler(function* ({ globalError }) {
       return globalError();
     }),
 `
       : '';
   const welcomeErrorHandler =
-    context.config.frontendRuntime === 'effect'
-      ? `      ${context.config.backendRuntime === 'none' ? 'WelcomeApiError' : 'EffectFailure'}: craftExceptionHandler(function* ({ globalError }) {
+    context.config.frontendRuntime === 'effect' &&
+    context.config.backendRuntime === 'none'
+      ? `      WelcomeApiError: craftExceptionHandler(function* ({ globalError }) {
         return globalError();
       }),
 `
       : '';
   const backendEffectErrorHandler =
-    context.config.frontendRuntime === 'plain' &&
     context.config.backendRuntime === 'effect'
       ? `    StarterRepositoryError: craftExceptionHandler(function* ({ globalError }) {
       return globalError();
@@ -2435,7 +2458,7 @@ export const getStarterMessage = serverFunction(
 
 export type StarterResponse = ServerFunctionSuccess<typeof getStarterMessage>;
 `
-    : `import { flatMapContext, mapContext, portableServerFunction, type SchemaOutput, type ServerFunctionContractOutput, type ServerFunctionSuccess } from '@craft-ts/core';
+    : `import { flatMapContext, mapContext, portableServerFunction, type SchemaOutput, type ServerFunctionContractOutput } from '@craft-ts/core';
 import type { StandardSchemaV1 } from '@craft-ts/core';
 import { StarterRepository } from './server/repository';
 
@@ -2529,11 +2552,11 @@ export function createApplication(): Server {
 export const application = createApplication();
 `;
 
-  const nodeHttp = `/* eslint-disable craft-ts/no-async-await -- The Node adapter is an async platform boundary. */
+  const nodeHttp = `
 import { application } from './application';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-export async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
+export function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const abortController = new AbortController();
   const abort = () => abortController.abort();
   const close = () => {
@@ -2541,13 +2564,13 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
   };
   request.once('aborted', abort);
   request.once('close', close);
-  try {
-    const webResponse = await application.handle(toWebRequest(request, abortController.signal));
-    await writeWebResponse(webResponse, response, request.method === 'HEAD');
-  } finally {
+  return application
+    .handle(toWebRequest(request, abortController.signal))
+    .then((webResponse) => writeWebResponse(webResponse, response, request.method === 'HEAD'))
+    .finally(() => {
     request.off('aborted', abort);
     request.off('close', close);
-  }
+    });
 }
 
 function toWebRequest(request: IncomingMessage, signal: AbortSignal): Request {
@@ -2557,18 +2580,35 @@ function toWebRequest(request: IncomingMessage, signal: AbortSignal): Request {
   }
   const method = request.method ?? 'GET';
   const hasBody = method !== 'GET' && method !== 'HEAD';
+  const body = hasBody
+    ? new ReadableStream<Uint8Array>({
+        start(controller) {
+          request.on('data', (chunk) => {
+            controller.enqueue(
+              typeof chunk === 'string' ? new TextEncoder().encode(chunk) : new Uint8Array(chunk),
+            );
+          });
+          request.once('end', () => controller.close());
+          request.once('error', (cause) => controller.error(cause));
+        },
+        cancel() {
+          request.destroy();
+        },
+      })
+    : undefined;
+  const requestInit: RequestInit & { duplex?: 'half' } = {
+    method,
+    headers,
+    signal,
+    ...(body ? { body, duplex: 'half' } : {}),
+  };
   return new Request(
     'http://' + (request.headers.host ?? '127.0.0.1') + (request.url ?? '/'),
-    {
-      method,
-      headers,
-      signal,
-      ...(hasBody ? { body: request as unknown as BodyInit, duplex: 'half' } : {}),
-    } as RequestInit,
+    requestInit,
   );
 }
 
-async function writeWebResponse(
+function writeWebResponse(
   webResponse: Response,
   response: ServerResponse,
   head: boolean,
@@ -2577,18 +2617,19 @@ async function writeWebResponse(
   webResponse.headers.forEach((value, name) => response.setHeader(name, value));
   if (head || webResponse.body === null) {
     response.end();
-    return;
+    return Promise.resolve();
   }
-  response.end(Buffer.from(await webResponse.arrayBuffer()));
+  return webResponse.arrayBuffer().then((body) => {
+    response.end(Buffer.from(body));
+  });
 }
 `;
 
-  const client = `import { createServerFunctionClient, craftUnique, type ServerFunctionClient } from '@craft-ts/core';
+  const client = `import { createServerFunctionClient, craftUnique } from '@craft-ts/core';
 import type { getStarterMessage as ServerGetStarterMessage, StarterResponse } from './starter.fn-serveur';
 
 export type { StarterResponse };
-const starterMessageTransport = createServerFunctionClient<typeof ServerGetStarterMessage>(craftUnique('starter.welcome'));
-export const getStarterMessage = starterMessageTransport as ServerFunctionClient<typeof ServerGetStarterMessage, StarterResponse>;
+export const getStarterMessage = createServerFunctionClient<typeof ServerGetStarterMessage>(craftUnique('starter.welcome'));
 `;
   const compatibilityServer = `export { application, createApplication } from './application';
 ${effect ? "export { runtimeLayer } from './application';\n" : ''}export { handleRequest } from './node-http';
@@ -2763,7 +2804,7 @@ const subtreeSha = () => {
 if (execFileSync('git', ['status', '--short'], { cwd: gitRoot, encoding: 'utf8' }).trim()) {
   throw new Error('Working tree is not clean; commit or stash changes before updating vendored references.');
 }
-for (const [name, entry] of Object.entries(manifest).filter(([key, value]) => !metadataKeys.has(key) && value && value.path)) {
+for (const entry of Object.entries(manifest).filter(([key, value]) => !metadataKeys.has(key) && value && value.path).map(([, value]) => value)) {
   const path = resolve(projectRoot, entry.path);
   if (!existsSync(path)) throw new Error('Missing vendored reference: ' + path);
   if (existsSync(join(path, '.git'))) throw new Error('Nested Git clone found; migrate this reference to git subtree: ' + path);
@@ -2987,7 +3028,7 @@ function aboutPageTs(context: TemplateContext): string {
   const i18nImport = context.config.i18n.enabled
     ? "import { i18n } from '../i18n';\n"
     : '';
-  const children = [`heading(${title}),`, ...sample, `p(${body}),`].join(
+  const children = [`heading({ 'aria-label': ${title} }, ${title}),`, ...sample, `p(${body}),`].join(
     '\n      ',
   );
   return `import { craftComponent, div, heading, p } from '@craft-ts/component';
@@ -3027,7 +3068,7 @@ export const ${type}Page = craftComponent(
   {},
   () => ({}),
   () => div({ class: shell.content }, [
-    heading(${title}),
+    heading({ 'aria-label': ${title} }, ${title}),
     p(${body}),
   ]),
 );
@@ -3144,7 +3185,7 @@ export const ServicesPage = craftComponent(
   {},
   () => ({}),
   () => div(${card}[
-    heading(${title}),
+    heading({ 'aria-label': ${title} }, ${title}),
     ${body}
   ]),
 );
@@ -3174,24 +3215,29 @@ function plainHomePageTs(context: TemplateContext): string {
     : "p('A framework-independent starter with a typed API boundary.'),";
   const title = hasI18n ? "i18n.t('ui.home.title')" : "'Welcome to CraftTS'";
   const loading = hasI18n ? "i18n.t('ui.home.loading')" : "'Loading API…'";
+  const apiTitle = hasI18n ? "i18n.t('ui.home.apiTitle')" : "'API title'";
+  const apiBody = hasI18n ? "i18n.t('ui.home.apiBody')" : "'API body'";
   const apiError = hasI18n
     ? "i18n.t('ui.home.apiError')"
     : "'The API request failed. Check the network tab.'";
   const loadLoader =
     context.config.backendRuntime === 'none'
       ? 'function* () { return yield* loadWelcome(); }'
-      : '() => loadWelcome()';
+      : "function* () { return yield* getStarterMessage({ filter: 'starter' }); }";
+  const apiImport =
+    context.config.backendRuntime === 'none'
+      ? "import { loadWelcome } from './api';"
+      : "import { getStarterMessage } from '../starter.fn-client';";
   return `import {
   craftComponent,
   div,
   heading,
   ifNode,
   p,
-  span,
 } from '@craft-ts/component';
-import { craftComputed, query } from '@craft-ts/core';
+import { query } from '@craft-ts/core';
 ${i18n}${surfaceImport}
-import { loadWelcome } from './api';
+${apiImport}
 export const HomePage = craftComponent(
   'HomePage',
   {},
@@ -3202,32 +3248,23 @@ export const HomePage = craftComponent(
         params: () => true,
         loader: ${loadLoader},
       },
-      ({ resource }) => ({
-        hasWelcome: craftComputed('hasWelcome', () => resource.hasValue()),
-      }),
     );
     return { welcomeQuery };
   },
   ({ welcomeQuery }) =>
     div(${card}[
-      heading(${title}),
+      heading({ 'aria-label': ${title} }, ${title}),
       ${summary}
       ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
-      ifNode(welcomeQuery.hasWelcome, () =>
-        div([
-          p(function* () {
-            return 'API title: ' + String((yield* welcomeQuery.value())?.title);
-          }),
-          p(function* () {
-            return 'API body: ' + String((yield* welcomeQuery.value())?.body);
-          }),
-        ]),
-      ),
-      ifNode(welcomeQuery.hasException, () =>
-        p(${message}[
-          span(${apiError}),
-        ]),
-      ),
+      p(${apiTitle}),
+      p(function* () {
+        return String((yield* welcomeQuery.value())?.title);
+      }),
+      p(${apiBody}),
+      p(function* () {
+        return String((yield* welcomeQuery.value())?.body);
+      }),
+      ifNode(welcomeQuery.hasException, () => p(${message}${apiError})),
     ]),
 );
 
@@ -3255,7 +3292,11 @@ function effectDomainTs(context: TemplateContext): string {
       },
       catch: (cause) => new WelcomeApiError({ message: String(cause) }),
     }),`;
-  return `/* eslint-disable craft-ts/prefer-craft-http-transport, craft-ts/no-async-await, craft-ts/no-throw -- Effect owns this typed transport boundary. */
+  const transportLintBoundary =
+    context.config.backendRuntime === 'none'
+      ? ''
+      : '/* eslint-disable craft-ts/prefer-craft-http-transport, craft-ts/no-async-await, craft-ts/no-throw -- Effect owns this typed transport boundary. */\n';
+  return `${transportLintBoundary}
 import { Context, Data, Effect, Layer } from 'effect';
 
 export type WelcomeResponse = {
@@ -3310,6 +3351,8 @@ function effectHomePageTs(context: TemplateContext): string {
     ? "i18n.t('ui.home.titleEffect')"
     : "'Welcome to CraftTS + Effect v4'";
   const loading = hasI18n ? "i18n.t('ui.home.loading')" : "'Loading API…'";
+  const apiTitle = hasI18n ? "i18n.t('ui.home.apiTitle')" : "'API title'";
+  const apiBody = hasI18n ? "i18n.t('ui.home.apiBody')" : "'API body'";
   const effectLoader =
     context.config.backendRuntime === 'none'
       ? 'loadWelcome()'
@@ -3318,6 +3361,61 @@ function effectHomePageTs(context: TemplateContext): string {
     context.config.backendRuntime === 'none'
       ? 'WelcomeApiError'
       : 'EffectFailure';
+  const translatedError = hasI18n
+    ? "i18n.t('ui.home.apiErrorDetail', { errorMessage })"
+    : "'API error: ' + errorMessage";
+  if (context.config.backendRuntime !== 'none') {
+    const apiError = hasI18n
+      ? "i18n.t('ui.home.apiError')"
+      : "'The API request failed. Check the network tab.'";
+    const loadLoader =
+      "function* () { return yield* getStarterMessage({ filter: 'starter' }); }";
+    return `import {
+  craftComponent,
+  div,
+  heading,
+  ifNode,
+  p,
+} from '@craft-ts/component';
+import { query } from '@craft-ts/core';
+${i18nImports}${surfaceImport}
+import { getStarterMessage } from '../starter.fn-client';
+
+export const HomePage = craftComponent(
+  'HomePage',
+  {},
+  function* () {
+    const welcomeQuery = yield* query(
+      'welcomeQuery',
+      {
+        params: () => true,
+        loader: ${loadLoader},
+      },
+    );
+    return { welcomeQuery };
+  },
+  ({ welcomeQuery }) =>
+    div(${card}[
+      heading({ 'aria-label': ${title} }, ${title}),
+      ${summary}
+      ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
+      div([
+        p(${apiTitle}),
+        p(function* () {
+          return String((yield* welcomeQuery.value())?.title);
+        }),
+        p(${apiBody}),
+        p(function* () {
+          return String((yield* welcomeQuery.value())?.body);
+        }),
+      ]),
+      ifNode(welcomeQuery.hasException, () => p(${message}${apiError})),
+    ]),
+);
+
+export default HomePage;
+`;
+  }
   return `import {
   craftComponent,
   div,
@@ -3358,11 +3456,20 @@ export const HomePage = craftComponent(
           yield* SyncOp;
           return resource.hasValue();
         })),
-        errorMessage: computedEffect('errorMessage', function* () {
+        welcomeTitle: computedEffect('welcomeTitle', function* () {
+          const title = readWelcomeField(yield* resource.value(), 'title');
+          return Effect.flatMap(SyncOp, () => Effect.succeed(title));
+        }),
+        welcomeBody: computedEffect('welcomeBody', function* () {
+          const body = readWelcomeField(yield* resource.value(), 'body');
+          return Effect.flatMap(SyncOp, () => Effect.succeed(body));
+        }),
+        errorText: computedEffect('errorText', function* () {
           const loaderError = (yield* exceptions()).loader;
+          const errorMessage = loaderError?.${effectErrorTag}?.message ?? 'Unknown API error';
           return Effect.flatMap(
             SyncOp,
-            () => Effect.succeed(loaderError?.${effectErrorTag}?.message ?? 'Unknown API error'),
+            () => Effect.succeed(${translatedError}),
           );
         }),
       }),
@@ -3372,25 +3479,19 @@ export const HomePage = craftComponent(
   },
   ({ welcomeQuery }) =>
     div(${card}[
-      heading(${title}),
+      heading({ 'aria-label': ${title} }, ${title}),
       ${summary}
       ifNode(welcomeQuery.isLoading, () => p(${note}${loading})),
       ifNode(welcomeQuery.hasWelcome, () =>
         div([
-          p(function* () {
-            return 'API title: ' + readWelcomeField(yield* welcomeQuery.value(), 'title');
-          }),
-          p(function* () {
-            return 'API body: ' + readWelcomeField(yield* welcomeQuery.value(), 'body');
-          }),
+          p(${apiTitle}),
+          p(welcomeQuery.welcomeTitle),
+          p(${apiBody}),
+          p(welcomeQuery.welcomeBody),
         ]),
       ),
       ifNode(welcomeQuery.hasException, () =>
-        p(${message}[
-          span(function* () {
-            return 'API error: ' + (yield* welcomeQuery.errorMessage());
-          }),
-        ]),
+        p(${message}span(welcomeQuery.errorText)),
       ),
     ]),
 );
@@ -3403,6 +3504,14 @@ export default HomePage;
 
 function effectAppConfig(context: TemplateContext): string {
   const i18n = context.config.i18n.enabled;
+  const hasLocalEffectRepository = context.config.backendRuntime === 'none';
+  const effectLayer = hasLocalEffectRepository
+    ? i18n
+      ? 'Layer.mergeAll(WelcomeRepositoryLive, i18nLayer)'
+      : 'WelcomeRepositoryLive'
+    : i18n
+      ? 'i18nLayer'
+      : undefined;
   return `import { provideCraftRootComponent } from '@craft-ts/component';
 import {
   craftAppConfig,
@@ -3415,15 +3524,13 @@ import {
   installCraftEffectBridge,
   provideLayer,
 } from '@craft-ts/effect';
-${i18n ? "import { Layer } from 'effect';" : ''}
+${i18n && hasLocalEffectRepository ? "import { Layer } from 'effect';" : ''}
 import { App } from './app';
 import { appRoutes } from './app.routes';
 ${i18n ? "import { i18nLayer } from '../i18n/effect-layer';" : ''}
-import {
-  WelcomeRepositoryLive,
-} from './domain';
+${hasLocalEffectRepository ? "import { WelcomeRepositoryLive } from './domain';" : ''}
 
-const effectProviders = provideLayer(${i18n ? 'Layer.mergeAll(WelcomeRepositoryLive, i18nLayer)' : 'WelcomeRepositoryLive'});
+const effectProviders = ${effectLayer ? `provideLayer(${effectLayer})` : 'undefined'};
 const developmentProviders = import.meta.env.DEV ? provideCraftDevTools() : [];
 
 export const appConfig = craftAppConfig({
@@ -3432,7 +3539,7 @@ export const appConfig = craftAppConfig({
     provideCraftRootComponent(App),
     provideCraftRouter(appRoutes.toRoutes()),
 ${context.config.backendRuntime !== 'none' ? '    provideDefaultServerFunctionTransport(),\n' : ''}
-    effectProviders,
+    ...(effectProviders ? [effectProviders] : []),
     provideAppInitializer(() => installCraftEffectBridge()),
   ],
 });
@@ -3445,17 +3552,24 @@ ${context.config.backendRuntime !== 'none' ? '    provideDefaultServerFunctionTr
 function unitTestTs(context: TemplateContext): string {
   const effect = context.mode === 'effect';
   const hasServer = context.config.backendRuntime !== 'none';
+  const localEffectRepository = effect && !hasServer;
   const expectedTitle = hasServer ? 'Hello from the API' : 'Local welcome';
   const serverMock = hasServer
-    ? `vi.mock('../starter.fn-client', () => ({
-  getStarterMessage: vi.fn().mockResolvedValue({ title: 'Hello from the API', body: 'Server function works.' }),
-}));
+    ? `vi.mock('../starter.fn-client', async () => {
+  const { craftSleep } = await import('@craft-ts/core');
+  return {
+    getStarterMessage: vi.fn(function* () {
+      yield* craftSleep(0);
+      return { title: 'Hello from the API', body: 'Server function works.' };
+    }),
+  };
+});
 `
     : '';
   return `// @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
 import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
-${effect ? "import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';\nimport { WelcomeRepositoryLive } from './domain';" : ''}
+${effect ? `import { installCraftEffectBridge${localEffectRepository ? ', provideLayer' : ''} } from '@craft-ts/effect';\n` : ''}${localEffectRepository ? "import { WelcomeRepositoryLive } from './domain';\n" : ''}
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 ${serverMock}import { HomePage } from './home-page';
 
@@ -3476,7 +3590,7 @@ describe('HomePage', () => {
   it('renders the API result', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const injector = ${effect ? 'TestBed.rootInjector.createChild([provideLayer(WelcomeRepositoryLive)])' : 'TestBed.rootInjector'};
+    const injector = ${localEffectRepository ? 'TestBed.rootInjector.createChild([provideLayer(WelcomeRepositoryLive)])' : 'TestBed.rootInjector'};
     const mounted = mountCraftComponent(HomePage, host, injector as unknown as Injector);
     TestBed.tick();
     await vi.waitFor(() => expect(host.textContent).toContain('${expectedTitle}'));
@@ -4050,13 +4164,19 @@ function templates(context: TemplateContext): Record<string, string> {
     'src/app/app.routes.ts': routesTs(context),
     ...(demoPages
       ? {
-          'src/app/api.ts':
-            effect && !hasServer
-              ? "export { loadWelcome } from './domain';\nexport type { WelcomeResponse } from './domain';\n"
-              : apiTs(context),
+          ...(hasServer
+            ? {}
+            : {
+                'src/app/api.ts':
+                  effect
+                    ? "export { loadWelcome } from './domain';\nexport type { WelcomeResponse } from './domain';\n"
+                    : apiTs(context),
+              }),
           ...(effect
             ? {
-                'src/app/domain.ts': effectDomainTs(context),
+                ...(!hasServer
+                  ? { 'src/app/domain.ts': effectDomainTs(context) }
+                  : {}),
                 'src/app/home-page.ts': effectHomePageTs(context),
               }
             : { 'src/app/home-page.ts': plainHomePageTs(context) }),

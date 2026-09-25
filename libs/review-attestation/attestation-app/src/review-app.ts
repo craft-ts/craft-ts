@@ -39,6 +39,8 @@ import {
   craftGen,
   craftMethod,
   craftUntilSettled,
+  insertQueryParamsPipe,
+  insertStatePipe,
   insertQueryPipe,
   insertReactOnMutation,
   mutation,
@@ -272,7 +274,101 @@ export const ReviewApp = craftComponent(
           },
         },
       },
-      ({ patch }) => ({
+      insertQueryParamsPipe(
+        ({ state }) => ({
+          devtoolView: craftComputed('devtoolView', function* () {
+            const value = yield* state();
+            return value.view || initialDevtoolView();
+          }),
+          selectedVisualTest: craftComputed(
+            'selectedVisualTest',
+            function* () {
+              const list = yield* visualTests();
+              if (list.length === 0) return undefined;
+              const params = yield* state();
+              return (
+                list.find(
+                  (test) =>
+                    test.subject === params.scenario ||
+                    test.scenario === params.scenario,
+                ) ?? list[0]
+              );
+            },
+          ),
+          activeTemplateGroupIndex: craftComputed(
+            'activeTemplateGroupIndex',
+            function* () {
+              const groups = yield* templateReviewGroups();
+              const params = yield* state();
+              const index = groups.findIndex((group) =>
+                group.cards.some(
+                  (card) =>
+                    card.shape === params.scenario ||
+                    card.subject === params.scenario,
+                ),
+              );
+              return index < 0 ? 0 : index;
+            },
+          ),
+          activeIndex: craftComputed('activeIndex', function* () {
+            const params = yield* state();
+            const source = (yield* review.value())?.cards ?? [];
+            const view = params.view || initialDevtoolView();
+            let list = source;
+            if (view === 'review') {
+              list = source.filter((card) => card.kind !== 'folder-layout');
+            } else if (view === 'folder-layout') {
+              list = source.filter((card) => card.kind === 'folder-layout');
+            } else {
+              const component = (yield* componentFilter()).trim().toLowerCase();
+              const text = (yield* textFilter()).trim().toLowerCase();
+              const kind = yield* kindFilter();
+              const itemState = yield* stateFilter();
+              const direction = yield* directionFilter();
+              list = source.filter((card) => {
+                if (kind !== 'all' && card.kind !== kind) return false;
+                if (itemState !== 'all' && card.state !== itemState)
+                  return false;
+                if (direction !== 'all') {
+                  const cardDirection =
+                    card.kind === 'template'
+                      ? card.direction
+                      : card.kind === 'removal'
+                        ? card.previousEvidence?.direction
+                        : undefined;
+                  if (cardDirection !== direction) return false;
+                }
+                if (
+                  component &&
+                  !card.reviewMembers.some((member) =>
+                    member.label.toLowerCase().includes(component),
+                  )
+                ) {
+                  return false;
+                }
+                if (text) {
+                  const searchable = [
+                    card.subject,
+                    card.reason,
+                    ...card.changes,
+                    ...(card.kind === 'template' ? [card.statement] : []),
+                  ]
+                    .join(' ')
+                    .toLowerCase();
+                  if (!searchable.includes(text)) return false;
+                }
+                return true;
+              });
+            }
+            if (list.length === 0) return 0;
+            if (!params.scenario) return 0;
+            const index = list.findIndex(
+              (card) => card.shape === params.scenario,
+            );
+            return index >= 0 ? index : 0;
+          }),
+        }),
+        ({ patch }) => ({
         setViewForDevtoolChoice: function* (value: DevtoolView) {
           return yield* patch({ view: value });
         },
@@ -309,8 +405,14 @@ export const ReviewApp = craftComponent(
         setScenarioForReopenedDecision: function* (value: string) {
           return yield* patch({ scenario: value });
         },
-      }),
+        }),
+      ),
     );
+    const {
+      devtoolView,
+      selectedVisualTest,
+      activeTemplateGroupIndex,
+    } = navigationParams;
 
     // Read from the environment before the first paint, so nothing renders in
     // the wrong language or the wrong theme and then corrects itself.
@@ -319,10 +421,6 @@ export const ReviewApp = craftComponent(
     const themeAttribute = craftComputed('themeAttribute', function* () {
       const choice = yield* themePreference();
       return choice === 'system' ? null : choice;
-    });
-    const devtoolView = craftComputed('devtoolView', function* () {
-      const value = yield* navigationParams.view();
-      return value || initialDevtoolView();
     });
     const { retirementReason } = yield* RetirementReasonChoice();
     const {
@@ -335,17 +433,45 @@ export const ReviewApp = craftComponent(
     const zoom = yield* state('zoom', initialZoom(), ({ set }) => ({
       choose: (mode: ZoomMode) => set(mode),
     }));
-    const note = yield* state('note', '', ({ set }) => ({
-      writeFromInput: (value: string) => set(value),
-      writeTemplateGroup: (value: string) => set(value),
-      clearForTemplateRejection: () => set(''),
-      replaceFromMentionEdit: on$(mentionEdited$, ({ note: value }) =>
-        set(value),
+    const note = yield* state(
+      'note',
+      '',
+      insertStatePipe(
+        ({ state }) => ({
+          noteState: craftComputed('noteState', function* () {
+            return (yield* state()).length === 0 ? 'empty' : null;
+          }),
+          hasNote: craftComputed('hasNote', function* () {
+            return proseOf(yield* state()).length > 0;
+          }),
+          findings: craftComputed('findings', function* () {
+            const text = yield* state();
+            return (yield* mentions()).filter((mention) =>
+              mentionPattern(mention.id).test(text),
+            ).flatMap((mention) =>
+              mention.paths.map(
+                (path): Finding => ({
+                  path,
+                  note: noteForMention(text, mention.id),
+                }),
+              ),
+            );
+          }),
+        }),
+        ({ set }) => ({
+          writeFromInput: (value: string) => set(value),
+          writeTemplateGroup: (value: string) => set(value),
+          clearForTemplateRejection: () => set(''),
+          replaceFromMentionEdit: on$(mentionEdited$, ({ note: value }) =>
+            set(value),
+          ),
+          clearFromNavigation: on$(navigation$, () => set('')),
+          clearFromDecision: on$(decisionSubmitted$, () => set('')),
+          clearFromRegeneration: on$(regenerationConfirmed$, () => set('')),
+        }),
       ),
-      clearFromNavigation: on$(navigation$, () => set('')),
-      clearFromDecision: on$(decisionSubmitted$, () => set('')),
-      clearFromRegeneration: on$(regenerationConfirmed$, () => set('')),
-    }));
+    );
+    const { noteState, hasNote, findings } = note;
     const selectedTemplateIds = yield* state(
       'selectedTemplateIds',
       [] as readonly string[],
@@ -366,27 +492,62 @@ export const ReviewApp = craftComponent(
     const rejectionAttempted = yield* state(
       'rejectionAttempted',
       false,
-      ({ set }) => ({
+      insertStatePipe(
+        ({ state }) => ({
+          rejectionReasonMissing: craftComputed(
+            'rejectionReasonMissing',
+            function* () {
+              return (yield* state()) && !(yield* hasNote());
+            },
+          ),
+        }),
+        ({ set }) => ({
         showForRejectedDecision: () => set(true),
         showForTemplateRejectedBatch: () => set(true),
         showForRetirement: () => set(true),
         clear: () => set(false),
         clearFromDecision: on$(decisionSubmitted$, () => set(false)),
         clearFromRegeneration: on$(regenerationConfirmed$, () => set(false)),
-      }),
+        }),
+      ),
     );
+    const { rejectionReasonMissing } = rejectionAttempted;
     const evidenceView = yield* state(
       'evidenceView',
       initialEvidenceView(),
-      ({ set }) => ({
+      insertStatePipe(
+        ({ state }) => ({
+          showingReplay: craftComputed('showingReplay', function* () {
+            const card = yield* current();
+            if (card?.kind === 'visual' && card.evidenceMode === 'screenshot')
+              return false;
+            if (!(yield* canReplay())) return false;
+            const chosen = yield* state();
+            if (chosen !== 'auto') return chosen === 'replay';
+            const replayState = yield* replay();
+            return !replayState.loaded || replayState.faithful;
+          }),
+          fellBack: craftComputed('fellBack', function* () {
+            const replayState = yield* replay();
+            return (
+              (yield* canReplay()) &&
+              (yield* state()) === 'auto' &&
+              replayState.loaded &&
+              !replayState.faithful
+            );
+          }),
+        }),
+        ({ set }) => ({
         chooseReplay: () => set('replay'),
         chooseImage: () => set('image'),
         // Every card is judged on its own artefact: a pin taken on one card
         // must not decide what the next reviewer sees on the next one.
         releaseFromNavigation: on$(navigation$, () => set('auto')),
         releaseFromRegeneration: on$(regenerationConfirmed$, () => set('auto')),
-      }),
+        }),
+      ),
     );
+    const { showingReplay, fellBack } = evidenceView;
     /**
      * Every group the reviewer has ever named on this card.
      *
@@ -403,9 +564,20 @@ export const ReviewApp = craftComponent(
       clearFromRegeneration: on$(regenerationConfirmed$, () => set([])),
     }));
 
-    const hideChrome = yield* state('hideChrome', false, ({ set }) => ({
-      choose: (value: boolean) => set(value),
-    }));
+    const hideChrome = yield* state(
+      'hideChrome',
+      false,
+      insertStatePipe(
+        ({ state }) => ({
+          overlayLabel: craftComputed('overlayLabel', function* () {
+            const say = yield* t();
+            return (yield* state()) ? say.drop : say.lift;
+          }),
+        }),
+        ({ set }) => ({ choose: (value: boolean) => set(value) }),
+      ),
+    );
+    const { overlayLabel } = hideChrome;
     /**
      * The nodes a remark would be aimed at.
      *
@@ -444,32 +616,46 @@ export const ReviewApp = craftComponent(
     const folderLayoutApplyDialogDismissed = yield* state(
       'folderLayoutApplyDialogDismissed',
       false,
-      ({ set }) => ({ dismiss: () => set(true) }),
+      insertStatePipe(
+        ({ state }) => ({
+          folderLayoutApplyDialogOpen: craftComputed(
+            'folderLayoutApplyDialogOpen',
+            function* () {
+              const apply = (yield* review.value())?.folderLayoutApply;
+              return Boolean(
+                apply && !apply.applied && !(yield* state()),
+              );
+            },
+          ),
+        }),
+        ({ set }) => ({ dismiss: () => set(true) }),
+      ),
     );
+    const { folderLayoutApplyDialogOpen } = folderLayoutApplyDialogDismissed;
     const folderLayoutApplyCopied = yield* state(
       'folderLayoutApplyCopied',
       false,
       ({ set }) => ({ markCopied: () => set(true) }),
     );
-    const folderLayoutApplyDialogOpen = craftComputed(
-      'folderLayoutApplyDialogOpen',
-      function* () {
-        const apply = (yield* review.value())?.folderLayoutApply;
-        return Boolean(
-          apply &&
-            !apply.applied &&
-            !(yield* folderLayoutApplyDialogDismissed()),
-        );
-      },
-    );
     const iterationPreparationStarted = yield* state(
       'iterationPreparationStarted',
       false,
-      ({ set }) => ({
+      insertStatePipe(
+        ({ state }) => ({
+          iterationPreparationNotStarted: craftComputed(
+            'iterationPreparationNotStarted',
+            function* () {
+              return !(yield* state());
+            },
+          ),
+        }),
+        ({ set }) => ({
         beginFromConfirmation: on$(iterationHandoffRequested$, () => set(true)),
         resetFromDialog: on$(iterationDialogRequested$, () => set(false)),
-      }),
+        }),
+      ),
     );
+    const { iterationPreparationNotStarted } = iterationPreparationStarted;
     const iterationPromptCopied = yield* state(
       'iterationPromptCopied',
       false,
@@ -707,7 +893,24 @@ export const ReviewApp = craftComponent(
           chrome,
         };
       },
-    });
+    }, ({ state, hasException }) => ({
+      replay: craftComputed('replay', function* () {
+        return (
+          (yield* state()) ??
+          ({
+            loaded: false,
+            faithful: false,
+            reason: undefined,
+            report: [],
+            chrome: [],
+          } satisfies ReplayState)
+        );
+      }),
+      inspectFailed: craftComputed('inspectFailed', function* () {
+        return yield* hasException();
+      }),
+    }));
+    const { replay, inspectFailed } = inspect;
 
     const decision = yield* mutation('reviewDecision', {
       method: decisionSubmitted$.value,
@@ -726,7 +929,12 @@ export const ReviewApp = craftComponent(
         }
         return result;
       },
-    });
+    }, ({ hasException }) => ({
+      decisionFailed: craftComputed('decisionFailed', function* () {
+        return yield* hasException();
+      }),
+    }));
+    const { decisionFailed } = decision;
 
     const reopen = yield* mutation('reopenReviewDecision', {
       method: decisionReopened$.value,
@@ -737,7 +945,12 @@ export const ReviewApp = craftComponent(
           success: response<ReviewApiQueue>(),
         }));
       },
-    });
+    }, ({ hasException }) => ({
+      reopenFailed: craftComputed('reopenFailed', function* () {
+        return yield* hasException();
+      }),
+    }));
+    const { reopenFailed } = reopen;
 
     const regenerate = yield* mutation('regenerateEvidence', {
       method: regenerationConfirmed$.value,
@@ -748,7 +961,12 @@ export const ReviewApp = craftComponent(
           success: response<ReviewApiQueue>(),
         }));
       },
-    });
+    }, ({ hasException }) => ({
+      regenerationFailed: craftComputed('regenerationFailed', function* () {
+        return yield* hasException();
+      }),
+    }));
+    const { regenerationFailed } = regenerate;
 
     const iterationHandoff = yield* mutation('iterationHandoff', {
       method: iterationHandoffRequested$.value,
@@ -759,7 +977,15 @@ export const ReviewApp = craftComponent(
           success: response<ReviewIterationHandoffResponse>(),
         }));
       },
-    });
+    }, ({ hasException }) => ({
+      iterationHandoffFailed: craftComputed(
+        'iterationHandoffFailed',
+        function* () {
+          return yield* hasException();
+        },
+      ),
+    }));
+    const { iterationHandoffFailed } = iterationHandoff;
 
     const applyFolderLayout = yield* mutation('applyFolderLayout', {
       method: folderLayoutApplyRequested$.value,
@@ -922,9 +1148,6 @@ export const ReviewApp = craftComponent(
     const sessionHistory = craftComputed('sessionHistory', function* () {
       return (yield* review.value())?.history ?? [];
     });
-    const reopenFailed = craftComputed('reopenFailed', function* () {
-      return (yield* reopen.status()) === 'exception';
-    });
 
     const reviewCards = craftComputed('reviewCards', function* () {
       return ((yield* review.value())?.cards ?? []).filter(
@@ -982,6 +1205,7 @@ export const ReviewApp = craftComponent(
         return true;
       });
     });
+    const { activeIndex } = navigationParams;
     const folderLayouts = craftComputed('folderLayouts', function* () {
       return (yield* review.value())?.folderLayouts ?? [];
     });
@@ -1025,19 +1249,6 @@ export const ReviewApp = craftComponent(
             `${test.subject} ${test.scenario}`.toLowerCase().includes(text)),
       );
     });
-    const selectedVisualTest = craftComputed(
-      'selectedVisualTest',
-      function* () {
-        const list = yield* visualTests();
-        if (list.length === 0) return undefined;
-        const scenario = yield* navigationParams.scenario();
-        return (
-          list.find(
-            (test) => test.subject === scenario || test.scenario === scenario,
-          ) ?? list[0]
-        );
-      },
-    );
     const selectedVisualAsset = craftComputed(
       'selectedVisualAsset',
       function* () {
@@ -1092,19 +1303,6 @@ export const ReviewApp = craftComponent(
         );
       },
     );
-    const activeTemplateGroupIndex = craftComputed(
-      'activeTemplateGroupIndex',
-      function* () {
-        const groups = yield* templateReviewGroups();
-        const selected = yield* navigationParams.scenario();
-        const index = groups.findIndex((group) =>
-          group.cards.some(
-            (card) => card.shape === selected || card.subject === selected,
-          ),
-        );
-        return index < 0 ? 0 : index;
-      },
-    );
     const activeTemplateGroup = craftComputed(
       'activeTemplateGroup',
       function* () {
@@ -1130,14 +1328,6 @@ export const ReviewApp = craftComponent(
         );
       },
     );
-    const activeIndex = craftComputed('activeIndex', function* () {
-      const list = yield* cards();
-      if (list.length === 0) return 0;
-      const scenario = yield* navigationParams.scenario();
-      if (!scenario) return 0;
-      const index = list.findIndex((card) => card.shape === scenario);
-      return index >= 0 ? index : 0;
-    });
     const current = craftComputed('current', function* () {
       const list = yield* cards();
       return list[yield* activeIndex()];
@@ -1322,15 +1512,6 @@ export const ReviewApp = craftComponent(
       yield* navigationParams.setViewForVisualReview('review');
       yield* navigationParams.setScenarioForVisualReview(card.shape);
     });
-    /** Drives the field's placeholder: shown only while nothing is written. */
-    const noteState = craftComputed('noteState', function* () {
-      return (yield* note()).length === 0 ? 'empty' : null;
-    });
-    const hasNote = craftComputed('hasNote', function* () {
-      // The prose, not the raw field: a reason made only of group references
-      // names what is wrong with nothing and explains nothing.
-      return proseOf(yield* note()).length > 0;
-    });
     /**
      * The groups this reason actually points at.
      *
@@ -1344,17 +1525,6 @@ export const ReviewApp = craftComponent(
         mentionPattern(mention.id).test(text),
       );
     });
-    const findings = craftComputed('findings', function* () {
-      const text = yield* note();
-      return (yield* activeMentions()).flatMap((mention) =>
-        mention.paths.map(
-          (path): Finding => ({
-            path,
-            note: noteForMention(text, mention.id),
-          }),
-        ),
-      );
-    });
     const member = craftComputed('member', function* () {
       return (yield* current())?.members[0];
     });
@@ -1366,41 +1536,6 @@ export const ReviewApp = craftComponent(
       if (card?.kind === 'visual' && card.evidenceMode === 'screenshot')
         return false;
       return Boolean((yield* member())?.snapshot);
-    });
-    const replay = craftComputed('replay', function* () {
-      return (
-        (yield* inspect.value()) ??
-        ({
-          loaded: false,
-          faithful: false,
-          reason: undefined,
-          report: [],
-          chrome: [],
-        } satisfies ReplayState)
-      );
-    });
-    const showingReplay = craftComputed('showingReplay', function* () {
-      const card = yield* current();
-      if (card?.kind === 'visual' && card.evidenceMode === 'screenshot')
-        return false;
-      if (!(yield* canReplay())) return false;
-      const chosen = yield* evidenceView();
-      if (chosen !== 'auto') return chosen === 'replay';
-      // Unpinned: the page, unless it has already failed its own check. While
-      // the check is still running `loaded` is false and the page stays up, so
-      // the reviewer sees the render rather than a flash of photograph.
-      const state = yield* replay();
-      return !state.loaded || state.faithful;
-    });
-    /** Was this reviewer sent to the photograph rather than choosing it? */
-    const fellBack = craftComputed('fellBack', function* () {
-      const state = yield* replay();
-      return (
-        (yield* canReplay()) &&
-        (yield* evidenceView()) === 'auto' &&
-        state.loaded &&
-        !state.faithful
-      );
     });
     /**
      * Whether this verdict would be reached without a faithful replay.
@@ -1458,10 +1593,6 @@ export const ReviewApp = craftComponent(
      * replay either way — nothing here is specific to a project — but it
      * belongs in the sentence that explains the control, not in its label.
      */
-    const overlayLabel = craftComputed('overlayLabel', function* () {
-      const say = yield* t();
-      return (yield* hideChrome()) ? say.drop : say.lift;
-    });
     const overlayHint = craftComputed('overlayHint', function* () {
       const covering = yield* chrome();
       const say = yield* t();
@@ -1482,12 +1613,6 @@ export const ReviewApp = craftComponent(
     const reviewFailed = craftComputed('reviewFailed', function* () {
       return (yield* review.status()) === 'exception';
     });
-    const inspectFailed = craftComputed('inspectFailed', function* () {
-      return (yield* inspect.status()) === 'exception';
-    });
-    const decisionFailed = craftComputed('decisionFailed', function* () {
-      return (yield* decision.status()) === 'exception';
-    });
     const regenerationAvailable = craftComputed(
       'regenerationAvailable',
       function* () {
@@ -1498,18 +1623,6 @@ export const ReviewApp = craftComponent(
       'iterationHandoffAvailable',
       function* () {
         return (yield* review.value())?.iteration !== undefined;
-      },
-    );
-    const iterationHandoffFailed = craftComputed(
-      'iterationHandoffFailed',
-      function* () {
-        return (yield* iterationHandoff.status()) === 'exception';
-      },
-    );
-    const iterationPreparationNotStarted = craftComputed(
-      'iterationPreparationNotStarted',
-      function* () {
-        return !(yield* iterationPreparationStarted());
       },
     );
     const iterationHandoffReady = craftComputed(
@@ -1526,18 +1639,6 @@ export const ReviewApp = craftComponent(
       'previousRegenerationDecisions',
       function* () {
         return (yield* review.value())?.regeneration?.previousDecisions ?? 0;
-      },
-    );
-    const regenerationFailed = craftComputed(
-      'regenerationFailed',
-      function* () {
-        return (yield* regenerate.status()) === 'exception';
-      },
-    );
-    const rejectionReasonMissing = craftComputed(
-      'rejectionReasonMissing',
-      function* () {
-        return (yield* rejectionAttempted()) && !(yield* hasNote());
       },
     );
     const toggleTemplateCard = craftMethod(

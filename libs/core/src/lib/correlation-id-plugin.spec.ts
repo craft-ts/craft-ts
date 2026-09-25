@@ -2,10 +2,10 @@ import { Injector } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { provideCorrelationIdTracking } from './correlation-id-plugin';
-import { CorrelationId, CORRELATION_ID_SERVICE } from './correlation-id';
+import { CorrelationId, injectCorrelationIdService } from './correlation-id';
 import { craftWatch } from './host/craft-signal';
-import { CRAFT_DOM_EVENT_HOOK } from './dom-event-hook';
-import { FN_WRAPPER } from './fn-wrapper';
+import { ɵinjectCraftDomEventHooks } from './dom-event-hook';
+import { FN_WRAPPER, type FnWrapper } from './fn-wrapper';
 
 describe('provideCorrelationIdTracking', () => {
   beforeEach(() => {
@@ -17,10 +17,7 @@ describe('provideCorrelationIdTracking', () => {
       providers: [provideCorrelationIdTracking()],
     });
     const service = TestBed.runInInjectionContext(() =>
-      Injector.create({
-        providers: [],
-        parent: TestBed.inject(Injector),
-      }).get(CORRELATION_ID_SERVICE),
+      injectCorrelationIdService(),
     );
     expect(service).not.toBeNull();
     expect(typeof service?.generateAndSet).toBe('function');
@@ -31,7 +28,7 @@ describe('provideCorrelationIdTracking', () => {
       providers: [provideCorrelationIdTracking()],
     });
     const wrappers = TestBed.runInInjectionContext(() =>
-      TestBed.inject(FN_WRAPPER),
+      TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
     );
     expect(wrappers.length).toBe(1);
   });
@@ -41,7 +38,7 @@ describe('provideCorrelationIdTracking', () => {
       providers: [provideCorrelationIdTracking()],
     });
     const hooks = TestBed.runInInjectionContext(() =>
-      TestBed.inject(CRAFT_DOM_EVENT_HOOK),
+      ɵinjectCraftDomEventHooks(),
     );
     expect(hooks).toHaveLength(1);
   });
@@ -51,10 +48,10 @@ describe('provideCorrelationIdTracking', () => {
       providers: [provideCorrelationIdTracking()],
     });
     const [wrapper] = TestBed.runInInjectionContext(() =>
-      TestBed.inject(FN_WRAPPER),
+      TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
     );
     const service = TestBed.runInInjectionContext(() =>
-      TestBed.inject(CORRELATION_ID_SERVICE),
+      injectCorrelationIdService(),
     );
     service?.generateAndSet('click');
 
@@ -83,10 +80,10 @@ describe('provideCorrelationIdTracking', () => {
       providers: [provideCorrelationIdTracking()],
     });
     const [wrapper] = TestBed.runInInjectionContext(() =>
-      TestBed.inject(FN_WRAPPER),
+      TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
     );
     const service = TestBed.runInInjectionContext(() =>
-      TestBed.inject(CORRELATION_ID_SERVICE),
+      injectCorrelationIdService(),
     );
 
     function* inner(): Generator<unknown, string, unknown> {
@@ -118,7 +115,7 @@ describe('provideCorrelationIdTracking', () => {
       TestBed.inject(Injector),
     );
     const service = TestBed.runInInjectionContext(() =>
-      TestBed.inject(CORRELATION_ID_SERVICE),
+      injectCorrelationIdService(),
     );
 
     let runs = 0;

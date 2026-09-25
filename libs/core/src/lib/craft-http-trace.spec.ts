@@ -1,6 +1,9 @@
 import { Injector } from './host/craft-compat';
 import { describe, expect, it } from 'vitest';
-import { CRAFT_HTTP_TRACE, executeCraftHttpTrace } from './craft-http-trace';
+import {
+  executeCraftHttpTrace,
+  provideCraftHttpTrace,
+} from './craft-http-trace';
 import { provideCraftProduction } from './craft-runtime-mode';
 
 describe('craft http trace', () => {
@@ -9,14 +12,12 @@ describe('craft http trace', () => {
 
     const injector = Injector.create({
       providers: [
-        {
-          provide: CRAFT_HTTP_TRACE,
-          multi: true,
-          useValue: async (context: unknown, next: () => Promise<unknown>) => {
+        provideCraftHttpTrace(
+          async (context, next) => {
             calls.push(JSON.stringify(context));
             return next();
           },
-        },
+        ),
       ],
     });
 
@@ -36,14 +37,12 @@ describe('craft http trace', () => {
     const injector = Injector.create({
       providers: [
         provideCraftProduction(),
-        {
-          provide: CRAFT_HTTP_TRACE,
-          multi: true,
-          useValue: async (_context: unknown, next: () => Promise<unknown>) => {
+        provideCraftHttpTrace(
+          async (_context, next) => {
             calls.push('trace');
             return next();
           },
-        },
+        ),
       ],
     });
 

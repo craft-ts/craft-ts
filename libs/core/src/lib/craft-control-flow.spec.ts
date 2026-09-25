@@ -9,10 +9,11 @@ import { craftException } from './craft-exception';
 import { CraftNotSettled, isCraftNotSettled } from './craft-settled';
 import { isCraftControlFlow } from './craft-control-flow';
 import {
-  APP_SNAPSHOT_REGISTRY,
+  AppSnapshotRegistry,
   provideTakeAppSnapshot,
 } from './take-app-snapshot';
-import { FN_WRAPPER } from './fn-wrapper';
+import { craftUse } from './craft-use';
+import { FN_WRAPPER, type FnWrapper } from './fn-wrapper';
 
 afterEach(() => TestBed.resetTestingModule());
 
@@ -36,10 +37,12 @@ describe('isCraftControlFlow', () => {
     TestBed.configureTestingModule({
       providers: [provideTakeAppSnapshot(vi.fn())],
     });
-    const registry = TestBed.inject(APP_SNAPSHOT_REGISTRY);
+    const registry = TestBed.runInInjectionContext(() =>
+      craftUse(AppSnapshotRegistry()),
+    );
     const trigger = vi.fn();
     registry.triggerSnapshot$.subscribe(trigger);
-    const wrapper = TestBed.inject(FN_WRAPPER)[0];
+    const wrapper = (TestBed.inject(FN_WRAPPER) as readonly FnWrapper[])[0];
 
     function* throwExpected(): Generator<never, never, unknown> {
       throw new CraftNotSettled('issue');
@@ -57,10 +60,12 @@ describe('isCraftControlFlow', () => {
     TestBed.configureTestingModule({
       providers: [provideTakeAppSnapshot(vi.fn())],
     });
-    const registry = TestBed.inject(APP_SNAPSHOT_REGISTRY);
+    const registry = TestBed.runInInjectionContext(() =>
+      craftUse(AppSnapshotRegistry()),
+    );
     const trigger = vi.fn();
     registry.triggerSnapshot$.subscribe(trigger);
-    const wrapper = TestBed.inject(FN_WRAPPER)[0];
+    const wrapper = (TestBed.inject(FN_WRAPPER) as readonly FnWrapper[])[0];
 
     function* throwUnexpected(): Generator<never, never, unknown> {
       throw new Error('failure');

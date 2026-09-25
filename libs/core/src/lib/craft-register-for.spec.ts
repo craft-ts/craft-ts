@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CRAFT_REGISTRATION_TARGET,
   createRegisterForRegistry,
-  REGISTER_FOR_REGISTRY,
+  ɵinjectRegisterForRegistries,
   ɵregisterCraftTarget,
   type RegisterForSignal,
 } from './craft-register-for-runtime';
@@ -309,7 +309,7 @@ describe('craftRegisterFor runtime', () => {
       'component:Child#1',
       false,
     );
-    const registries = injector.get(REGISTER_FOR_REGISTRY);
+    const registries = ɵinjectRegisterForRegistries(injector);
     expect(registries).toHaveLength(2);
     expect(registries[0]!.signalFor('Child')()).toHaveLength(1);
     expect(registries[1]!.signalFor('Child')()).toHaveLength(1);
