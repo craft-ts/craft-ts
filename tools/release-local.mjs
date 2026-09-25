@@ -27,6 +27,12 @@ import {
 const scriptPath = fileURLToPath(import.meta.url);
 const workspaceRoot = resolve(dirname(scriptPath), '..');
 const supportedBumps = new Set(['patch', 'minor', 'major']);
+const releaseCheckArtifacts = [
+  '.craft/review-app-style-graph.json',
+  'apps/demo/architecture/catalog.ts',
+  'apps/demo-ssr/architecture/catalog.ts',
+  'libs/review-attestation/attestation-app/architecture/catalog.ts',
+];
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, {
@@ -655,6 +661,10 @@ async function main(args) {
     },
   });
   runAffectedReleaseTests();
+  // Release checks refresh tracked architecture/style snapshots. They are
+  // useful during validation, but are not release inputs and must not leak
+  // into the version commit when the source change did not update them.
+  run('git', ['restore', '--worktree', '--', ...releaseCheckArtifacts]);
   if (!dryRun) syncInternalDependencyRanges(release.version);
 
   process.stdout.write(
