@@ -6,6 +6,7 @@ import {
 } from '@craft-ts/component';
 import {
   Console,
+  CraftCircularDependencyError,
   craftAppConfig,
   isCraftGenShortCircuit,
   isCraftNotSettled,
@@ -114,6 +115,9 @@ export const appConfig = craftAppConfig({
           // them to an `UNEXPECTED_ERROR` strands them — the boundary never
           // sees them and the fabricated exception renders in their place.
           if (isCraftGenShortCircuit(error) || isCraftNotSettled(error)) {
+            throw error;
+          }
+          if (error instanceof CraftCircularDependencyError) {
             throw error;
           }
           yield* Console.error(error);

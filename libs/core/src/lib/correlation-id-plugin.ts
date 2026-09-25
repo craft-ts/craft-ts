@@ -22,6 +22,7 @@ import {
   type CraftDomEventHook,
 } from './dom-event-hook';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
+import { ɵHOST_TAG_LIST } from './craft-service';
 import { provideFnWrapper, type FnWrapper } from './fn-wrapper';
 import { ɵinjectCraftTemporalRuntime } from './temporal-runtime';
 
@@ -69,7 +70,20 @@ const correlationIdFnWrapper: FnWrapper = function* (factory, thisArg, args) {
   const service = (yield {
     [SERVICE_YIELD_REQUEST_MARKER]: true,
     providedIn: 'function' as const,
-    resolve: (injector: Injector) => ɵinjectCorrelationIdServiceIn(injector),
+    resolve: (injector: Injector) => {
+      const hostTags = injector.get(ɵHOST_TAG_LIST, []);
+      const hostName = hostTags[hostTags.length - 1] ?? '';
+      // Resolving CorrelationIdService also runs its factory through every
+      // FnWrapper. Resolving the service here while its own factory is in
+      // flight would recursively instantiate the same provider.
+      if (
+        hostName === 'service:CorrelationIdService' ||
+        hostName.startsWith('service:CorrelationIdService#')
+      ) {
+        return null;
+      }
+      return ɵinjectCorrelationIdServiceIn(injector);
+    },
   }) as ReturnType<typeof createCorrelationIdService> | null;
 
   // Untracked, and this is load-bearing: this wrapper runs inside EVERY craft

@@ -72,6 +72,26 @@ const browserInjectorStack: CraftInjector[] = [];
 const hostInjectors = new WeakMap<object, CraftInjector>();
 export const ɵNOT_FOUND = Symbol('CraftInjector.notFound');
 
+/** A provider factory requested the same provider while it was resolving. */
+export class CraftCircularDependencyError extends Error {
+  readonly dependencyPath: readonly string[];
+
+  constructor(dependencyPath: readonly string[]) {
+    super(
+      `Circular Craft provider dependency detected: ${dependencyPath.join(' → ')}`,
+    );
+    this.name = 'CraftCircularDependencyError';
+    this.dependencyPath = dependencyPath;
+  }
+}
+
+type ActiveProviderResolution = {
+  record: ProviderRecord;
+  token: object;
+};
+
+const activeProviderResolutions: ActiveProviderResolution[] = [];
+
 export function createCraftInjector(
   providers: readonly CraftProvider[],
 ): CraftInjector {
@@ -384,17 +404,45 @@ function createProviderRecord(
   }
 
   let resolved = false;
+  let resolving = false;
   let value: unknown;
-  return {
+  let record: ProviderRecord;
+  record = {
     collection: provider.multi === true || provider.collection === true,
     resolve() {
       if (!resolved) {
-        value = provider.useFactory(injector);
-        resolved = true;
+        if (resolving) {
+          const activeIndex = activeProviderResolutions.findIndex(
+            (active) => active.record === record,
+          );
+          const dependencyPath = [
+            ...activeProviderResolutions
+              .slice(Math.max(activeIndex, 0))
+              .map(({ token: activeToken }) => tokenName(activeToken)),
+            tokenName(provider.token),
+          ];
+          const error = new CraftCircularDependencyError(dependencyPath);
+          globalThis.console?.error(error);
+          throw error;
+        }
+
+        resolving = true;
+        activeProviderResolutions.push({
+          record,
+          token: provider.token,
+        });
+        try {
+          value = provider.useFactory(injector);
+          resolved = true;
+        } finally {
+          activeProviderResolutions.pop();
+          resolving = false;
+        }
       }
       return value;
     },
   };
+  return record;
 }
 
 function missingProviderError(token: object): Error {

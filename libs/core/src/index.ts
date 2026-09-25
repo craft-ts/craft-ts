@@ -112,6 +112,7 @@ export {
 } from './lib/component-register';
 export * from './lib/dev-tools';
 export {
+  CraftCircularDependencyError,
   createCraftInjector,
   getCurrentCraftInjector,
   ɵcreateCraftInjectorFromHost,
