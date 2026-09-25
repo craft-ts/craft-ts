@@ -151,8 +151,8 @@ test('keeps folder-layout cards out of the review queue when switching views', a
     );
 
     await expect(folderLayoutTab).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.review-card')).toHaveCount(1);
-    await expect(page.locator('.review-card')).toHaveAttribute(
+    await expect(page.locator('[data-testid="review-card"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="review-card"]')).toHaveAttribute(
       'data-kind',
       'folder-layout',
     );
@@ -160,12 +160,12 @@ test('keeps folder-layout cards out of the review queue when switching views', a
     await reviewTab.click();
     await expect(reviewTab).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.folder-layout-view')).toHaveCount(0);
-    await expect(page.locator('.review-card')).toHaveCount(0);
+    await expect(page.locator('[data-testid="review-card"]')).toHaveCount(0);
 
     await folderLayoutTab.click();
     await expect(folderLayoutTab).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.review-card')).toHaveCount(1);
-    await expect(page.locator('.review-card')).toHaveAttribute(
+    await expect(page.locator('[data-testid="review-card"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="review-card"]')).toHaveAttribute(
       'data-kind',
       'folder-layout',
     );

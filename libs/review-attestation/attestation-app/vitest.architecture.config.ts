@@ -14,6 +14,10 @@ export default defineConfig(() => ({
     watch: false,
     globals: true,
     environment: 'node',
+    // Every architecture spec builds the same large graph. Reuse the loader's
+    // module cache and keep generated catalog writes out of parallel workers.
+    fileParallelism: false,
+    isolate: false,
     testTimeout: 180_000,
     hookTimeout: 180_000,
     include: ['architecture/**/*.spec.ts'],

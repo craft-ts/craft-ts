@@ -6,6 +6,7 @@ import {
 import {
   craftAppConfig,
   provideCraftRouter,
+  provideCraftSchemaValidationPolicy,
   provideFnWrapper,
   provideSendContextEventEnricher,
 } from '@craft-ts/core';
@@ -38,6 +39,11 @@ applyLocale(initialLocale(), reviewDocument.documentElement);
 const config = craftAppConfig({
   providers: [
     ...developmentProviders,
+    // Async processes request a validation policy from the app injector even
+    // when they have no schema-specific override.
+    provideCraftSchemaValidationPolicy(() => ({
+      action: import.meta.env.DEV ? 'reject' : 'accept',
+    })),
     provideCraftRootComponent(ReviewApp),
     ...provideCraftRouter([]),
     provideFnWrapper(

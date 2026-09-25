@@ -12,7 +12,7 @@ import {
   ul,
   type Input,
 } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed, craftMethod, state } from '@craft-ts/core';
 import type { FolderLayoutEntry } from '@craft-ts/dev-tools/attestation-review';
 import {
   highlightFolderLayoutRow,
@@ -137,6 +137,27 @@ export const FolderLayoutView = craftComponent(
         proposed: idsOf('proposed', proposed),
       };
     });
+    const toggleFolder = craftMethod('toggleFolder', function* (id: string) {
+      yield* collapsed.toggle(id);
+    });
+    const collapseFolders = craftMethod(
+      'collapseFolders',
+      function* (side: FolderLayoutSide, ids: readonly string[]) {
+        yield* collapsed.collapseSide(side, ids);
+      },
+    );
+    const expandFolders = craftMethod(
+      'expandFolders',
+      function* (side: FolderLayoutSide) {
+        yield* collapsed.expandSide(side);
+      },
+    );
+    const revealFolders = craftMethod(
+      'revealFolders',
+      function* (side: FolderLayoutSide, links: readonly string[]) {
+        yield* collapsed.reveal(side, links);
+      },
+    );
     const summary = craftComputed('summary', function* () {
       const { collisions } = yield* trees();
       const currentEntries = yield* entries();
@@ -155,8 +176,11 @@ export const FolderLayoutView = craftComponent(
       trees,
       sourceRows,
       proposedRows,
-      collapsed,
       folderIds,
+      toggleFolder,
+      collapseFolders,
+      expandFolders,
+      revealFolders,
       summary,
       root,
       sourceGraphHash,
@@ -167,26 +191,17 @@ export const FolderLayoutView = craftComponent(
     trees,
     sourceRows,
     proposedRows,
-    collapsed,
     folderIds,
+    toggleFolder,
+    collapseFolders,
+    expandFolders,
+    revealFolders,
     summary,
     root,
     sourceGraphHash,
-    configHash,
-  }) => {
-    const toggleFolder = (id: string) => collapsed.toggle(id);
-    const collapseFolders = (
-      side: FolderLayoutSide,
-      ids: readonly string[],
-    ) => collapsed.collapseSide(side, ids);
-    const expandFolders = (side: FolderLayoutSide) =>
-      collapsed.expandSide(side);
-    const revealFolders = (
-      side: FolderLayoutSide,
-      links: readonly string[],
-    ) => collapsed.reveal(side, links);
-
-    return section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
+  configHash,
+  }) =>
+    section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
       div({ class: folderLayout.summary }, [
         strong('Folder layout proposal'),
         small({ class: folderLayout.muted }, summary),
@@ -238,8 +253,7 @@ export const FolderLayoutView = craftComponent(
       p({ class: folderLayout.hash }, function* () {
         return `Graph ${yield* sourceGraphHash()} · configuration ${yield* configHash()}`;
       }),
-    ]);
-  },
+    ]),
 );
 
 interface TreeBindings {

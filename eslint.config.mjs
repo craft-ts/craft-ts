@@ -32,6 +32,14 @@ export default [
     },
   },
   {
+    // Architecture graph loaders execute as Node build tooling and intentionally
+    // import the Vite plugin from source, as the workspace's Vite configs do.
+    files: ['**/architecture/load-graph.ts'],
+    rules: {
+      '@nx/enforce-module-boundaries': 'off',
+    },
+  },
+  {
     files: [
       '**/*.ts',
       '**/*.tsx',
