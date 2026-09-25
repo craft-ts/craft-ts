@@ -1,3 +1,31 @@
+## 0.8.8 (2026-09-25)
+
+### 🚀 Features
+
+- **dev-tools:** add deterministic architecture organizer ([b807f2dc4](https://github.com/craft-ts/craft-ts/commit/b807f2dc4))
+- **review:** attest folder layout proposals ([e2d04c9f2](https://github.com/craft-ts/craft-ts/commit/e2d04c9f2))
+- **style:** make the design system the only way to style a component ([d61cbe40d](https://github.com/craft-ts/craft-ts/commit/d61cbe40d))
+- **style:** migrate quickstart-effect, demo-ssr and the server-function demo ([94cf45a17](https://github.com/craft-ts/craft-ts/commit/94cf45a17))
+- **style:** migrate demo-effect and demo to the design system ([e653c6971](https://github.com/craft-ts/craft-ts/commit/e653c6971))
+- **style:** migrate the review app to the design system ([a068f2155](https://github.com/craft-ts/craft-ts/commit/a068f2155))
+- **style:** generate projects that style only through @craft-ts/style ([07c4e8bcc](https://github.com/craft-ts/craft-ts/commit/07c4e8bcc))
+
+### 🩹 Fixes
+
+- restore release checks and starter variants ([6b6ed8089](https://github.com/craft-ts/craft-ts/commit/6b6ed8089))
+- **release:** discard generated check snapshots ([a0da645f4](https://github.com/craft-ts/craft-ts/commit/a0da645f4))
+- **review:** break bootstrap service cycles ([a0e3e991e](https://github.com/craft-ts/craft-ts/commit/a0e3e991e))
+- **review:** do not pre-transform modules in the review server ([7f4327d26](https://github.com/craft-ts/craft-ts/commit/7f4327d26))
+- **review-app:** resolve architecture checks ([96ca70b39](https://github.com/craft-ts/craft-ts/commit/96ca70b39))
+- **review-app:** stabilize capture checks ([974b5364b](https://github.com/craft-ts/craft-ts/commit/974b5364b))
+- **style:** isolate example test dependency ([a3d60c734](https://github.com/craft-ts/craft-ts/commit/a3d60c734))
+- **style-testing:** omit app tests from package assets ([e764e970c](https://github.com/craft-ts/craft-ts/commit/e764e970c))
+
+### ❤️ Thank You
+
+- Claude Opus 5.5
+- Romain
+
 ## 0.8.7 (2026-09-16)
 
 ### 🚀 Features

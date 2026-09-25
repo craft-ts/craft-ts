@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/core",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "description": "Type-safe reactive TypeScript — signals, generators, typed errors. Declare. Yield. Derive. Compile — no surprises",
   "author": "Romain Geffrault",
   "license": "MIT",
