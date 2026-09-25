@@ -173,8 +173,20 @@ export const FolderLayoutView = craftComponent(
     root,
     sourceGraphHash,
     configHash,
-  }) =>
-    section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
+  }) => {
+    const toggleFolder = (id: string) => collapsed.toggle(id);
+    const collapseFolders = (
+      side: FolderLayoutSide,
+      ids: readonly string[],
+    ) => collapsed.collapseSide(side, ids);
+    const expandFolders = (side: FolderLayoutSide) =>
+      collapsed.expandSide(side);
+    const revealFolders = (
+      side: FolderLayoutSide,
+      links: readonly string[],
+    ) => collapsed.reveal(side, links);
+
+    return section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
       div({ class: folderLayout.summary }, [
         strong('Folder layout proposal'),
         small({ class: folderLayout.muted }, summary),
@@ -206,41 +218,46 @@ export const FolderLayoutView = craftComponent(
           root,
           trees,
           rows: sourceRows,
-          collapsed,
+          toggleFolder,
+          collapseFolders,
+          expandFolders,
+          revealFolders,
           folderIds,
         }),
         tree('Proposed organisation', 'proposed', {
           root,
           trees,
           rows: proposedRows,
-          collapsed,
+          toggleFolder,
+          collapseFolders,
+          expandFolders,
+          revealFolders,
           folderIds,
         }),
       ]),
       p({ class: folderLayout.hash }, function* () {
         return `Graph ${yield* sourceGraphHash()} · configuration ${yield* configHash()}`;
       }),
-    ]),
+    ]);
+  },
 );
 
 interface TreeBindings {
   readonly root: Input<string>;
   readonly trees: Input<FolderLayoutTrees>;
   readonly rows: Input<readonly VisibleFolderLayoutRow[]>;
-  readonly collapsed: {
-    readonly toggle: (id: string) => Generator<unknown, unknown, unknown>;
-    readonly collapseSide: (
-      side: FolderLayoutSide,
-      ids: readonly string[],
-    ) => Generator<unknown, unknown, unknown>;
-    readonly expandSide: (
-      side: FolderLayoutSide,
-    ) => Generator<unknown, unknown, unknown>;
-    readonly reveal: (
-      side: FolderLayoutSide,
-      links: readonly string[],
-    ) => Generator<unknown, unknown, unknown>;
-  };
+  readonly toggleFolder: (id: string) => Generator<unknown, unknown, unknown>;
+  readonly collapseFolders: (
+    side: FolderLayoutSide,
+    ids: readonly string[],
+  ) => Generator<unknown, unknown, unknown>;
+  readonly expandFolders: (
+    side: FolderLayoutSide,
+  ) => Generator<unknown, unknown, unknown>;
+  readonly revealFolders: (
+    side: FolderLayoutSide,
+    links: readonly string[],
+  ) => Generator<unknown, unknown, unknown>;
   readonly folderIds: Input<
     Readonly<Record<FolderLayoutSide, readonly string[]>>
   >;
@@ -249,7 +266,16 @@ interface TreeBindings {
 function tree(
   title: string,
   side: FolderLayoutSide,
-  { root, trees, rows, collapsed, folderIds }: TreeBindings,
+  {
+    root,
+    trees,
+    rows,
+    toggleFolder,
+    collapseFolders,
+    expandFolders,
+    revealFolders,
+    folderIds,
+  }: TreeBindings,
 ) {
   return div({ class: folderLayout.tree, 'data-folder-layout': 'tree' }, [
     div({ class: folderLayout.treeHeading }, [
@@ -265,7 +291,7 @@ function tree(
             class: folderLayout.treeAction,
             title: 'Collapse every folder',
             *click() {
-              yield* collapsed.collapseSide(side, (yield* folderIds())[side]);
+              yield* collapseFolders(side, (yield* folderIds())[side]);
             },
           },
           'Collapse all',
@@ -277,7 +303,7 @@ function tree(
             class: folderLayout.treeAction,
             title: 'Expand every folder',
             *click() {
-              yield* collapsed.expandSide(side);
+              yield* expandFolders(side);
             },
           },
           'Expand all',
@@ -350,7 +376,7 @@ function tree(
                 *click() {
                   const value = yield* row();
                   if (value.kind === 'folder') {
-                    yield* collapsed.toggle(folderId(side, value));
+                    yield* toggleFolder(folderId(side, value));
                   }
                 },
               },
@@ -371,7 +397,7 @@ function tree(
                     (yield* trees())[side],
                     yield* row(),
                   );
-                  yield* collapsed.reveal(otherFolderLayoutSide(side), links);
+                  yield* revealFolders(otherFolderLayoutSide(side), links);
                   locateFolderLayoutRows(event, links);
                 },
               },

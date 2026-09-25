@@ -7,7 +7,20 @@ describe('assertResourceParamsPreferQueryParams', () => {
   beforeAll(async () => {
     graph = await loadArchitectureGraph();
   }, 180_000);
-  it('keeps resource params URL-backed', () => {
-    assertResourceParamsPreferQueryParams(graph.graph);
+  it('allows only the intentional local filters in resource params', () => {
+    assertResourceParamsPreferQueryParams(graph.graph, {
+      // Inventory filters are intentionally local UI state: changing them
+      // changes the currently selected card and its source-detail request.
+      allow: [
+        'componentFilter',
+        'textFilter',
+        'kindFilter',
+        'stateFilter',
+        'directionFilter',
+      ].map((name) => ({
+        name,
+        file: 'libs/review-attestation/attestation-app/src/review-filters.service.ts',
+      })),
+    });
   });
 });

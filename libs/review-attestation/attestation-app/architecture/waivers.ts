@@ -9,12 +9,5 @@ import { architectureCatalog } from './catalog';
  */
 export const architectureWaiverList = defineArchitectureWaivers(
   architectureCatalog,
-  [
-    {
-      rule: 'no-unused-primitive-methods',
-      target: '*',
-      reason:
-        'Not a style finding: state:collapsedFolders.collapseSide is unused in folder-layout-view.ts. rules/no-unused-primitive-method.spec.ts keeps failing on it until it is fixed.',
-    },
-  ],
+  [],
 );
