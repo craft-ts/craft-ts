@@ -19,7 +19,6 @@ import {
   provideSendContextToAiBuffer,
   provideSendContextSession,
   ɵinjectAppSnapshotRegistry,
-  ɵinjectCraftTemporalRuntime,
   ɵinjectSendContextSession,
   ɵinjectTakeAppSnapshot,
   ɵinjectSendContextToAiBuffer,
@@ -28,7 +27,6 @@ import {
   type SendContextPayload,
   type SendContextSession,
   type SendContextSessionSnapshot,
-  type TemporalTaskHandle,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import type { Output } from '../types';
@@ -198,7 +196,8 @@ export const AiContextMenuController =
   aiContextMenuControllerService.AiContextMenuController;
 export const provideAiContextMenuController = (
   value: AiContextMenuController | (() => AiContextMenuController),
-): Provider => aiContextMenuControllerService.provideAiContextMenuController(value);
+): Provider =>
+  aiContextMenuControllerService.provideAiContextMenuController(value);
 export const ɵinjectAiContextMenuController =
   (): AiContextMenuController | null => {
     try {
@@ -212,7 +211,6 @@ export function createAiContextMenuController({
   injector,
   buffer,
   takeSnapshot,
-  temporalRuntime,
   destroyRef,
   session,
   renderer,
@@ -227,17 +225,6 @@ export function createAiContextMenuController({
   injector: Injector;
   buffer: SendContextToAiBuffer;
   takeSnapshot: () => void;
-  temporalRuntime: {
-    schedule(
-      callback: () => void,
-      delay: number,
-      options: {
-        kind: string;
-        owner: string;
-        destroyRef: DestroyRef;
-      },
-    ): TemporalTaskHandle;
-  };
   destroyRef: DestroyRef;
   session?: SendContextSession;
   renderer?: SendContextUiRenderer;
@@ -252,7 +239,6 @@ export function createAiContextMenuController({
   let menu: Overlay | null = null;
   let dialog: Overlay | null = null;
   let launcher: Overlay | null = null;
-  let dialogTimer: TemporalTaskHandle | null = null;
   // Long tasks are recorded from startup so a freeze that happens before the
   // chat is opened still shows up in the next exported prompt.
   const stopAiPerformance = observeAiPerformance();
@@ -331,9 +317,7 @@ export function createAiContextMenuController({
       const captured = capturedSignal();
       if (!captured) return undefined;
       const { captureElement: _captureElement, ...rest } = captured;
-      // Read lazily: the snapshot buffer debounces, so the reports are richer
-      // at copy time than they were when the chat opened.
-      return { ...rest, snapshot: buffer.latestReports };
+      return { ...rest, snapshot: buffer.snapshot() };
     },
     endpoint,
     get captureElement() {
@@ -405,8 +389,7 @@ export function createAiContextMenuController({
       // just picks the new element up — remounting it would throw away the
       // instruction the user is in the middle of typing.
       if (dialog) return;
-      // It also reads `buffer.latestReports` when the user copies, so there is
-      // nothing to wait for: open now and let the buffer fill behind it.
+      // The payload reads the registry when the user copies.
       takeSnapshot();
       openSessionDialog();
       return;
@@ -414,26 +397,12 @@ export function createAiContextMenuController({
 
     if (!ctx) return;
     closeDialog();
-    // Wait for the snapshot buffer's debounceTime(500ms) to settle: the legacy
-    // dialog freezes the reports it is opened with.
-    dialogTimer = temporalRuntime.schedule(
-      () => {
-        dialogTimer = null;
-        openLegacyDialog({ ...ctx, snapshot: buffer.latestReports });
-      },
-      550,
-      {
-        kind: 'ai-context-debounce',
-        owner: 'ai-context-menu',
-        destroyRef,
-      },
-    );
+    openLegacyDialog({ ...ctx, snapshot: buffer.snapshot() });
   }
 
   mountLauncher();
   destroyRef.onDestroy(() => {
     stopAiPerformance();
-    dialogTimer?.cancel();
     closeMenu();
     dialog = closeOverlay(dialog);
     closeLauncher();
@@ -442,8 +411,6 @@ export function createAiContextMenuController({
   return {
     open(ctx: CapturedContext): void {
       capturedSignal.set(ctx);
-      dialogTimer?.cancel();
-      dialogTimer = null;
       closeMenu();
       // The session chat survives a right-click and absorbs the new element;
       // the legacy dialog freezes its payload, so it has to be rebuilt.
@@ -451,8 +418,8 @@ export function createAiContextMenuController({
         dialog = closeOverlay(dialog);
         mountLauncher();
       }
-      // Trigger a snapshot collection now so the buffer is populated
-      // by the time the user submits the dialog.
+      // Keep the context menu's snapshot callback behavior. The dialog reads
+      // the current registry directly when it prepares its payload.
       takeSnapshot();
 
       menu = openOverlay(99998, 'none', (host) =>
@@ -492,27 +459,26 @@ export function provideSendContextToAi(
     provideSendContextChatSectionsDefault(),
     provideSendContextChatActionsDefault(),
     provideSendContextExportSectionsDefault(),
-    provideSendContextToAiBuffer(
-      () => createSendContextToAiBuffer(ɵinjectAppSnapshotRegistry()),
+    provideSendContextToAiBuffer(() =>
+      createSendContextToAiBuffer(ɵinjectAppSnapshotRegistry()),
     ) as Provider,
     provideAiContextMenuController(() =>
-        createAiContextMenuController({
-          injector: inject(Injector),
-          buffer: ɵinjectSendContextToAiBuffer()!,
-          takeSnapshot: ɵinjectTakeAppSnapshot() ?? (() => undefined),
-          temporalRuntime: ɵinjectCraftTemporalRuntime(),
-          destroyRef: inject(DestroyRef),
-          session: ɵinjectSendContextSession() ?? undefined,
-          renderer: ɵinjectSendContextUiRenderer() ?? undefined,
-          chatComponent: ɵinjectSendContextChatComponent() ?? undefined,
-          contextMenuComponent:
-            ɵinjectSendContextContextMenuComponent() ?? undefined,
-          launcherComponent: ɵinjectSendContextLauncherComponent() ?? undefined,
-          chatSections: ɵinjectSendContextChatSections(),
-          chatActions: ɵinjectSendContextChatActions(),
-          exportSections: ɵinjectSendContextExportSections(),
-          endpoint: options.endpoint,
-        }),
+      createAiContextMenuController({
+        injector: inject(Injector),
+        buffer: ɵinjectSendContextToAiBuffer()!,
+        takeSnapshot: ɵinjectTakeAppSnapshot() ?? (() => undefined),
+        destroyRef: inject(DestroyRef),
+        session: ɵinjectSendContextSession() ?? undefined,
+        renderer: ɵinjectSendContextUiRenderer() ?? undefined,
+        chatComponent: ɵinjectSendContextChatComponent() ?? undefined,
+        contextMenuComponent:
+          ɵinjectSendContextContextMenuComponent() ?? undefined,
+        launcherComponent: ɵinjectSendContextLauncherComponent() ?? undefined,
+        chatSections: ɵinjectSendContextChatSections(),
+        chatActions: ɵinjectSendContextChatActions(),
+        exportSections: ɵinjectSendContextExportSections(),
+        endpoint: options.endpoint,
+      }),
     ),
     provideFnWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
@@ -548,7 +514,7 @@ export function provideSendContextToAi(
       const injector = inject(Injector);
       const controller = ɵinjectAiContextMenuController()!;
       const destroyRef = inject(DestroyRef);
-      // Eagerly instantiate the buffer so snapshot reports start being collected.
+      // Resolve the direct snapshot reader before the overlay is opened.
       ɵinjectSendContextToAiBuffer();
 
       installAiContextMenuListener({

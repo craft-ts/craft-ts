@@ -19,7 +19,6 @@ import {
   providePrimitiveResourceRuntimeObserver,
   type PrimitiveResourceRuntimeContext,
 } from './primitive-resource-runtime-context';
-import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
 import { ɵinjectCorrelationIdService } from './correlation-id';
 
 export interface SendContextPayload {
@@ -221,16 +220,6 @@ const sendContextSessionService = craftService(
       enrichers: yield* SendContextEventEnrichers(),
       filters: yield* SendContextEventFilters(),
     });
-    const snapshots = ɵinjectAppSnapshotRegistry();
-    const snapshotSubscription = snapshots.allSnapShot$.subscribe((report) => {
-      session.capture('snapshot', 'emitted', {
-        name: report.source,
-        state: report,
-      });
-    });
-    (session as SendContextSessionWithInternals).addCleanup(() =>
-      snapshotSubscription.unsubscribe(),
-    );
     for (const source of yield* SendContextEventSources()) {
       const cleanup =
         typeof source === 'function' ? source(session) : source.connect(session);

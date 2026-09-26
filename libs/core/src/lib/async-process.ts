@@ -61,7 +61,6 @@ import {
   type CraftPrimitiveGen,
   type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
-import { takeUntilDestroyed } from './host/craft-compat';
 import {
   createSchemaValidationRuntime,
   type CraftSchema,
@@ -189,8 +188,8 @@ export type AsyncProcessRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  AsyncProcessExceptions extends
-    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  AsyncProcessExceptions extends AsyncProcessExceptionConstraints =
+    AsyncProcessExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
@@ -382,7 +381,7 @@ type AsyncProcessConfig<
             param: ResourceLoaderParams<
               NonNullable<NoInfer<StripCraftException<Params>>>
             >,
-            ) => Promise<ResourceState>,
+          ) => Promise<ResourceState>,
           LoaderYielded
         >;
         method?: never;
@@ -402,8 +401,8 @@ export type AsyncProcessExceptionConstraints = {
 };
 
 export type ResourceLikeAsyncProcessExceptions<
-  AsyncProcessException extends
-    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  AsyncProcessException extends AsyncProcessExceptionConstraints =
+    AsyncProcessExceptionConstraints,
   GroupIdentifier = unknown,
 > = {
   hasException: Signal<boolean>;
@@ -454,8 +453,8 @@ export type ResourceLikeAsyncProcessExceptions<
 };
 
 export type ResourceByIdLikeAsyncProcessExceptions<
-  AsyncProcessException extends
-    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  AsyncProcessException extends AsyncProcessExceptionConstraints =
+    AsyncProcessExceptionConstraints,
   GroupIdentifier extends string = string,
 > = {
   hasException: Signal<boolean>;
@@ -539,8 +538,9 @@ type SchemaAsyncProcessConfig<
   paramsSchema: ParamsSchema;
   loaderSchema: LoaderSchema;
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
-  loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-    Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  loader: (
+    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
 
@@ -608,8 +608,9 @@ export function asyncProcess<
   config: {
     paramsSchema: ParamsSchema;
     params: () => SchemaInput<ParamsSchema>;
-    loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-      Promise<ParamsState> | ParamsState;
+    loader: (
+      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+    ) => Promise<ParamsState> | ParamsState;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -638,8 +639,9 @@ export function asyncProcess<
   config: {
     loaderSchema: LoaderSchema;
     params: () => LoaderParams;
-    loader: (param: ResourceLoaderParams<LoaderParams>) =>
-      Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -1127,8 +1129,7 @@ function createAsyncProcessRef<
   const schemaPolicy = useSchemaValidationPolicy(
     getInjector(),
     AsyncProcessConfig.schemaValidationPolicy as
-      | SchemaValidationPolicy
-      | undefined,
+      SchemaValidationPolicy | undefined,
   );
   const schemaValidation = {
     method: createSchemaValidationRuntime({
@@ -1948,9 +1949,10 @@ function createAsyncProcessRef<
       })();
 
   if (snapshotRegistry && destroyRefAsync) {
-    snapshotRegistry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRefAsync))
-      .subscribe(() => {
+    snapshotRegistry.registerSnapshotReader(
+      'asyncProcess',
+      hostTagList,
+      () => {
         const insertionSnapshots = triggerAndCollectInsertions(
           insertionSnapshotRegistry,
         );
@@ -1982,12 +1984,10 @@ function createAsyncProcessRef<
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        snapshotRegistry.allSnapShot$.next({
-          source: 'asyncProcess',
-          from: hostTagList,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRefAsync,
+    );
   }
 
   if (!('resource' in asyncOutput)) {

@@ -9,7 +9,6 @@ import {
   signal,
   ValueEqualityFn,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import { SourceBranded } from './util/util';
 import { ɵinjectSendContextSession } from './send-context-to-ai.tokens';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
@@ -472,9 +471,10 @@ export function signalSource<T>(
   const registry = ɵinjectAppSnapshotRegistry();
   if (registry) {
     const from = sourceInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    registry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRef))
-      .subscribe(() => {
+    registry.registerSnapshotReader(
+      name,
+      from,
+      () => {
         let stateSnapshot: unknown;
         try {
           stateSnapshot = result();
@@ -483,12 +483,10 @@ export function signalSource<T>(
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        registry.allSnapShot$.next({
-          source: name,
-          from,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRef,
+    );
   }
 
   return Object.assign(

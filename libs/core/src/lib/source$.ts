@@ -7,7 +7,6 @@ import {
   Signal,
   signal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
 import type {
@@ -176,9 +175,10 @@ export function source$<T, Name extends string = string>(
   const registry = ɵinjectAppSnapshotRegistry();
   if (registry) {
     const from = sourceInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    registry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRef))
-      .subscribe(() => {
+    registry.registerSnapshotReader(
+      name,
+      from,
+      () => {
         let stateSnapshot: unknown;
         try {
           stateSnapshot = sourceAsSignal();
@@ -187,12 +187,10 @@ export function source$<T, Name extends string = string>(
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        registry.allSnapShot$.next({
-          source: name,
-          from,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRef,
+    );
   }
 
   const source = {

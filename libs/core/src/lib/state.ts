@@ -11,7 +11,6 @@ import {
   Signal,
   WritableSignal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 
 const UNSET_ANGULAR_STATE = Symbol('unset-angular-state');
 import {
@@ -123,11 +122,11 @@ export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
   MergeObject<
     IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
     {
-      [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
-        ? K
-        : never]: FilterSource<Insertions>[K] extends SourceDollarType<
-        infer SourceType
-      >
+      [
+        K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
+          ? K
+          : never
+      ]: FilterSource<Insertions>[K] extends SourceDollarType<infer SourceType>
         ? Source$Method<SourceType>
         : never;
     }
@@ -155,10 +154,9 @@ type StateDeepYieldablePropertyOutput<StateType, Insertions> =
   DeepYieldablePropertyOf<Insertions> extends infer Property extends string
     ? StateType extends Record<Property, infer Value>
       ? {
-          readonly [Name in `deepYieldable${Capitalize<Property>}`]: DeepYieldableReactiveValue<
-            Value,
-            Name
-          >;
+          readonly [
+            Name in `deepYieldable${Capitalize<Property>}`
+          ]: DeepYieldableReactiveValue<Value, Name>;
         }
       : {}
     : {};
@@ -641,8 +639,7 @@ function createStateRef<StateType>(
     !schema && isSignalState
       ? isWritableSignal(resolvedStateConfig) || isCraftWritableState
         ? (resolvedStateConfig as
-            | WritableSignal<StateType>
-            | CraftWritableSignal<StateType>)
+            WritableSignal<StateType> | CraftWritableSignal<StateType>)
         : isAngularSignalState
           ? wrapAngularReadonlyState()
           : craftLinkedSignal({
@@ -908,9 +905,10 @@ function createStateRef<StateType>(
   });
 
   if (snapshotRegistry && destroyRef) {
-    snapshotRegistry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRef))
-      .subscribe(() => {
+    snapshotRegistry.registerSnapshotReader(
+      'state',
+      hostTagList,
+      () => {
         const insertionSnapshots = triggerAndCollectInsertions(
           insertionSnapshotRegistry,
         );
@@ -925,12 +923,10 @@ function createStateRef<StateType>(
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        snapshotRegistry.allSnapShot$.next({
-          source: 'state',
-          from: hostTagList,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRef,
+    );
   }
 
   const publicState = createYieldableReactiveFacade(stateOutput, {

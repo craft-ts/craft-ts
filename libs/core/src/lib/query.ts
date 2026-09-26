@@ -15,7 +15,6 @@ import {
   untracked,
   WritableSignal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
@@ -235,7 +234,7 @@ type QueryConfig<
                   : NoInfer<StripCraftException<Params>>
               >
             >,
-            ) => Promise<ResourceState> | ResourceState,
+          ) => Promise<ResourceState> | ResourceState,
           LoaderYielded
         >;
         params?: never;
@@ -356,14 +355,13 @@ type QueryConfig<
      * For **query** that don't use 'identifier', the default value is 'default'
      */
     equalParams?: Params extends object
-      ?
-          | 'default'
-          | 'useIdentifier'
-          | ((
-              a: Params,
-              b: Params,
-              identifierFn: (params: Params) => GroupIdentifier,
-            ) => boolean)
+      ? | 'default'
+        | 'useIdentifier'
+        | ((
+            a: Params,
+            b: Params,
+            identifierFn: (params: Params) => GroupIdentifier,
+          ) => boolean)
       : never;
   };
 
@@ -653,7 +651,7 @@ export type QueryRef<
       HasSchema,
       MethodYielded,
       Name
-  >;
+    >;
 
 type HasDeepYieldableValueInsertion<Insertions> = Insertions extends {
   readonly [DEEP_YIELDABLE_VALUE_INSERTION]: true;
@@ -661,10 +659,7 @@ type HasDeepYieldableValueInsertion<Insertions> = Insertions extends {
   ? true
   : false;
 
-type DeepYieldableSelectedResource<
-  Selected,
-  State,
-> = Selected extends undefined
+type DeepYieldableSelectedResource<Selected, State> = Selected extends undefined
   ? undefined
   : Selected extends object
     ? Omit<YieldableReactiveProperties<Selected>, 'value'> & {
@@ -683,27 +678,31 @@ type QueryOutputWithDeepYieldableValue<
   State,
   GroupIdentifier,
   Insertions,
-> = HasDeepYieldableValueInsertion<Insertions> extends true
-  ? [unknown] extends [GroupIdentifier]
-    ? Omit<YieldableReactiveProperties<BaseRef>, 'value'> & {
-        readonly value: DeepYieldableReactiveValue<State | undefined, 'value'>;
-      }
-    : BaseRef extends {
-          select: infer Select;
-          selectOrCreate: infer SelectOrCreate;
-        }
-      ? Omit<
-          YieldableReactiveProperties<BaseRef>,
-          'select' | 'selectOrCreate'
-        > & {
-          readonly select: DeepYieldableSelectionMethod<Select, State>;
-          readonly selectOrCreate: DeepYieldableSelectionMethod<
-            SelectOrCreate,
-            State
+> =
+  HasDeepYieldableValueInsertion<Insertions> extends true
+    ? [unknown] extends [GroupIdentifier]
+      ? Omit<YieldableReactiveProperties<BaseRef>, 'value'> & {
+          readonly value: DeepYieldableReactiveValue<
+            State | undefined,
+            'value'
           >;
         }
-      : YieldableReactiveProperties<BaseRef>
-  : YieldableReactiveProperties<BaseRef>;
+      : BaseRef extends {
+            select: infer Select;
+            selectOrCreate: infer SelectOrCreate;
+          }
+        ? Omit<
+            YieldableReactiveProperties<BaseRef>,
+            'select' | 'selectOrCreate'
+          > & {
+            readonly select: DeepYieldableSelectionMethod<Select, State>;
+            readonly selectOrCreate: DeepYieldableSelectionMethod<
+              SelectOrCreate,
+              State
+            >;
+          }
+        : YieldableReactiveProperties<BaseRef>
+    : YieldableReactiveProperties<BaseRef>;
 
 export type QueryOutput<
   State,
@@ -746,8 +745,9 @@ type SchemaQueryConfig<
   paramsSchema: ParamsSchema;
   loaderSchema: LoaderSchema;
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
-  loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-    Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  loader: (
+    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
 
@@ -955,8 +955,9 @@ export function query<
   queryConfig: {
     paramsSchema: ParamsSchema;
     params: (...args: never[]) => unknown;
-    loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-      Promise<ParamsState> | ParamsState;
+    loader: (
+      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+    ) => Promise<ParamsState> | ParamsState;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -985,8 +986,9 @@ export function query<
   queryConfig: {
     loaderSchema: LoaderSchema;
     params: () => LoaderParams;
-    loader: (param: ResourceLoaderParams<LoaderParams>) =>
-      Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -2378,9 +2380,10 @@ function createQueryRef<
       })();
 
   if (snapshotRegistry && destroyRefQuery) {
-    snapshotRegistry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRefQuery))
-      .subscribe(() => {
+    snapshotRegistry.registerSnapshotReader(
+      'query',
+      hostTagList,
+      () => {
         const insertionSnapshots = triggerAndCollectInsertions(
           insertionSnapshotRegistry,
         );
@@ -2412,12 +2415,10 @@ function createQueryRef<
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        snapshotRegistry.allSnapShot$.next({
-          source: 'query',
-          from: hostTagList,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRefQuery,
+    );
   }
 
   const queryOutput = Object.assign(
@@ -2435,10 +2436,8 @@ function createQueryRef<
     if (!isUsingIdentifier) {
       Object.defineProperty(queryOutput, 'value', {
         value: createDeepYieldableReactiveValue(
-          (resourceTarget as CraftResourceRef<
-            QueryState,
-            QueryParams
-          >).value as Signal<QueryState | undefined>,
+          (resourceTarget as CraftResourceRef<QueryState, QueryParams>)
+            .value as Signal<QueryState | undefined>,
           'value',
           {
             primitive: 'query',

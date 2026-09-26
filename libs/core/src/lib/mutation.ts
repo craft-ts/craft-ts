@@ -17,7 +17,6 @@ import {
   untracked,
   WritableSignal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
@@ -690,8 +689,8 @@ export type MutationRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  MutationExceptions extends
-    ResourceExceptionConstraints = ResourceExceptionConstraints,
+  MutationExceptions extends ResourceExceptionConstraints =
+    ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
@@ -785,8 +784,9 @@ type SchemaMutationConfig<
   paramsSchema: ParamsSchema;
   loaderSchema: LoaderSchema;
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
-  loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-    Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  loader: (
+    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
 
@@ -829,8 +829,9 @@ export function mutation<
   mutationConfig: {
     paramsSchema: ParamsSchema;
     params: () => SchemaInput<ParamsSchema>;
-    loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-      Promise<ParamsState> | ParamsState;
+    loader: (
+      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+    ) => Promise<ParamsState> | ParamsState;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -860,8 +861,9 @@ export function mutation<
   mutationConfig: {
     loaderSchema: LoaderSchema;
     params: () => LoaderParams;
-    loader: (param: ResourceLoaderParams<LoaderParams>) =>
-      Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -2243,9 +2245,10 @@ function createMutationRef<
       })();
 
   if (snapshotRegistry && destroyRefMutation) {
-    snapshotRegistry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRefMutation))
-      .subscribe(() => {
+    snapshotRegistry.registerSnapshotReader(
+      'mutation',
+      hostTagList,
+      () => {
         const insertionSnapshots = triggerAndCollectInsertions(
           insertionSnapshotRegistry,
         );
@@ -2277,12 +2280,10 @@ function createMutationRef<
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        snapshotRegistry.allSnapShot$.next({
-          source: 'mutation',
-          from: hostTagList,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRefMutation,
+    );
   }
 
   if (!('resource' in output)) {

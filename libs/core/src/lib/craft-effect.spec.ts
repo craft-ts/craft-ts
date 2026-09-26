@@ -41,7 +41,6 @@ describe('craftEffect', () => {
     lastInjector = setupCraftServiceTest().injector;
   });
 
-
   it('should require an injection context', async () => {
     class OutsideInjectionContext {
       readonly fx = craftEffect('outside', () => {
@@ -228,29 +227,25 @@ describe('craftEffect', () => {
       });
     }
 
-    expect(() =>
-      runInInjectionContext(() => new InvalidComponent()),
-    ).toThrow(
+    expect(() => runInInjectionContext(() => new InvalidComponent())).toThrow(
       'craftEffect(...) does not support onAppStart(...). Use onAppStart(...) only inside craftService({ appStart: true }, ...) generators.',
     );
   });
 
-  it('should emit an active effect report on triggerSnapshot$ with the effect host tag', async () => {
+  it('reads active effect reports synchronously with the effect host tag', async () => {
     class Component {
       readonly fx = craftEffect('tracker', () => {
         /* noop */
       });
     }
 
-    const reports: ActiveEffectReport[] = [];
     const { injector } = setupCraftServiceTest();
     lastInjector = injector;
     const registry = injector.run(() => craftUse(AppSnapshotRegistry()));
-    registry.allActiveEffects$.subscribe((r) => reports.push(r));
 
     injector.run(() => new Component());
 
-    registry.triggerSnapshot$.next();
+    const reports: ActiveEffectReport[] = registry.activeEffects();
 
     expect(reports).toHaveLength(1);
     expect(reports[0].source).toBe('effect:tracker');
@@ -260,8 +255,6 @@ describe('craftEffect', () => {
   it('resolves the snapshot registry from the injector option', async () => {
     const owner = setupCraftServiceTest().injector;
     const registry = owner.run(() => craftUse(AppSnapshotRegistry()));
-    const reports: ActiveEffectReport[] = [];
-    registry.allActiveEffects$.subscribe((report) => reports.push(report));
 
     runInInjectionContext(() =>
       craftEffect(
@@ -274,11 +267,10 @@ describe('craftEffect', () => {
     );
     flushHost();
 
-    registry.triggerSnapshot$.next();
-
-    expect(reports).toHaveLength(1);
-    expect(reports[0].source).toBe('effect:custom-registry');
+    expect(registry.activeEffects()).toHaveLength(1);
+    expect(registry.activeEffects()[0].source).toBe('effect:custom-registry');
     owner.destroy();
+    expect(registry.activeEffects()).toEqual([]);
   });
 
   it('should expose craftEffect dependencies through ExtractDeps', async () => {

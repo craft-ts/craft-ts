@@ -1,13 +1,11 @@
 import {
+  type DestroyRef,
   isSignal,
   runInInjectionContext,
   type Injector,
 } from './host/craft-compat';
-import {
-  craftService,
-  type CraftServiceProvider,
-} from './craft-service';
-import { debounceTime, Subject, tap } from 'rxjs';
+import { craftService, type CraftServiceProvider } from './craft-service';
+import { Subject } from 'rxjs';
 import { provideFnWrapper } from './fn-wrapper';
 import { isCraftControlFlow } from './craft-control-flow';
 import { ɵinjectCraftRuntimeMode } from './craft-runtime-mode';
@@ -24,9 +22,64 @@ export interface ActiveEffectReport {
 }
 
 class AppSnapshotRegistryState {
-  readonly triggerSnapshot$ = new Subject<void>();
-  readonly allSnapShot$ = new Subject<SnapshotReport>();
-  readonly allActiveEffects$ = new Subject<ActiveEffectReport>();
+  private nextReaderId = 0;
+  private readonly snapshotReaders = new Map<
+    number,
+    {
+      source: string;
+      from: readonly string[];
+      read: () => unknown;
+    }
+  >();
+  private readonly activeEffectReaders = new Map<
+    number,
+    () => ActiveEffectReport
+  >();
+
+  registerSnapshotReader(
+    source: string,
+    from: readonly string[],
+    read: () => unknown,
+    destroyRef?: DestroyRef | null,
+  ): () => void {
+    const id = this.nextReaderId++;
+    this.snapshotReaders.set(id, { source, from, read });
+    const unregister = () => this.snapshotReaders.delete(id);
+    destroyRef?.onDestroy(unregister);
+    return unregister;
+  }
+
+  snapshot(): SnapshotReport[] {
+    return Array.from(
+      this.snapshotReaders.values(),
+      ({ source, from, read }) => {
+        let state: unknown;
+        try {
+          state = read();
+        } catch (error) {
+          state = {
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+        return { source, from, state };
+      },
+    );
+  }
+
+  registerActiveEffectReader(
+    read: () => ActiveEffectReport,
+    destroyRef?: DestroyRef | null,
+  ): () => void {
+    const id = this.nextReaderId++;
+    this.activeEffectReaders.set(id, read);
+    const unregister = () => this.activeEffectReaders.delete(id);
+    destroyRef?.onDestroy(unregister);
+    return unregister;
+  }
+
+  activeEffects(): ActiveEffectReport[] {
+    return Array.from(this.activeEffectReaders.values(), (read) => read());
+  }
 }
 
 export type AppSnapshotRegistry = AppSnapshotRegistryState;
@@ -49,7 +102,8 @@ const appSnapshotRegistryService = craftService(
   APP_SNAPSHOT_REGISTRY_META_DATA: { inject(): AppSnapshotRegistry };
 };
 
-export const AppSnapshotRegistry = appSnapshotRegistryService.AppSnapshotRegistry;
+export const AppSnapshotRegistry =
+  appSnapshotRegistryService.AppSnapshotRegistry;
 export const ɵinjectAppSnapshotRegistry = (): AppSnapshotRegistry =>
   appSnapshotRegistryService.APP_SNAPSHOT_REGISTRY_META_DATA.inject();
 export const ɵinjectAppSnapshotRegistryIn = (
@@ -88,7 +142,9 @@ const takeAppSnapshotService = craftService(
   function* (inputs: { $provided?: () => void }) {
     if (inputs.$provided) return inputs.$provided();
     const registry = yield* AppSnapshotRegistry();
-    return () => registry.triggerSnapshot$.next();
+    return () => {
+      registry.snapshot();
+    };
   },
 ) as unknown as {
   TakeAppSnapshot: () => Generator<unknown, () => void, unknown>;
@@ -114,23 +170,12 @@ export function provideTakeAppSnapshot(
 ): CraftServiceProvider[] {
   return [
     takeAppSnapshotService.provideTakeAppSnapshot(() => {
-        if (ɵinjectCraftRuntimeMode() === 'production') {
-          return () => undefined;
-        }
-        const registry = ɵinjectAppSnapshotRegistry();
-        const pending: SnapshotReport[] = [];
-        registry.allSnapShot$
-          .pipe(
-            tap((s) => pending.push(s)),
-            debounceTime(500),
-          )
-          .subscribe(() => {
-            const toProcess = [...pending];
-            pending.length = 0;
-            fn(toProcess);
-          });
-        return () => registry.triggerSnapshot$.next();
-      }) as CraftServiceProvider,
+      if (ɵinjectCraftRuntimeMode() === 'production') {
+        return () => undefined;
+      }
+      const registry = ɵinjectAppSnapshotRegistry();
+      return () => fn(registry.snapshot());
+    }) as CraftServiceProvider,
     provideFnWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (factory, thisArg, args) {
@@ -144,7 +189,11 @@ export function provideTakeAppSnapshot(
             throw error;
           }
           if (ɵinjectCraftRuntimeMode() !== 'production') {
-            ɵinjectTakeAppSnapshot()?.();
+            try {
+              ɵinjectTakeAppSnapshot()?.();
+            } catch {
+              // Snapshot callbacks must not replace the original error.
+            }
           }
           throw error;
         }

@@ -7,7 +7,6 @@ import {
   type CreateComputedOptions,
   type Signal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import { craftComputed as createCraftComputed } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -177,9 +176,10 @@ export function craftComputed<T>(
     const from = computedInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     const destroyRef = computedInjector.get(DestroyRef, null);
     if (destroyRef) {
-      registry.triggerSnapshot$
-        .pipe(takeUntilDestroyed(destroyRef))
-        .subscribe(() => {
+      registry.registerSnapshotReader(
+        name,
+        from,
+        () => {
           let stateSnapshot: unknown;
           try {
             stateSnapshot = sig();
@@ -188,12 +188,10 @@ export function craftComputed<T>(
               error: error instanceof Error ? error.message : String(error),
             };
           }
-          registry.allSnapShot$.next({
-            source: name,
-            from,
-            state: stateSnapshot,
-          });
-        });
+          return stateSnapshot;
+        },
+        destroyRef,
+      );
     }
   }
 
