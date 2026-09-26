@@ -2722,6 +2722,47 @@
       "violates": []
     },
     {
+      "key": "reviewDialog-command",
+      "className": "max-block-size-280px-clxmtl overflow-block-auto-1hcyu4 min-block-size-0-w98ipp overflow-inline-auto-g4guc2 min-inline-size-0-wnzhxf padding-12px-rmuuyr border-width-1px-ez4wnb border-style-solid-za5aks border-color-var-review-line-qn4c7o border-radius-7px-hqvy0x font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-dgv7eo white-space-pre-k94j4m color-var-review-text-n8tcqu background-color-var-review-surfaceSunken-6v3hrz",
+      "axes": {},
+      "atoms": [
+        "max-block-size-280px-clxmtl",
+        "overflow-block-auto-1hcyu4",
+        "min-block-size-0-w98ipp",
+        "overflow-inline-auto-g4guc2",
+        "min-inline-size-0-wnzhxf",
+        "padding-12px-rmuuyr",
+        "border-width-1px-ez4wnb",
+        "border-style-solid-za5aks",
+        "border-color-var-review-line-qn4c7o",
+        "border-radius-7px-hqvy0x",
+        "font-family-ui-monospace-SFMono-Regular-Menlo-Consolas-m-dgv7eo",
+        "white-space-pre-k94j4m",
+        "color-var-review-text-n8tcqu",
+        "background-color-var-review-surfaceSunken-6v3hrz"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [
+        "scrollPort.block",
+        "scrollPort.inline"
+      ],
+      "violates": []
+    },
+    {
+      "key": "reviewDialog-commandLabel",
+      "className": "display-block-kcaew2 color-var-review-textMuted-6e2qxl",
+      "axes": {},
+      "atoms": [
+        "display-block-kcaew2",
+        "color-var-review-textMuted-6e2qxl"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
       "key": "reviewDialog-consequences",
       "className": "display-grid-7zijv5 gap-9px-s0914e padding-inline-start-22px-40eslj color-var-review-textMuted-6e2qxl",
       "axes": {},
@@ -2750,6 +2791,44 @@
         "font-weight-650-397dpi",
         "color-var-review-accentText-dgv778",
         "background-color-var-review-surface-18g1tj"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewDialog-disclosure",
+      "className": "display-grid-7zijv5 gap-10px-y3vj0g",
+      "axes": {},
+      "atoms": [
+        "display-grid-7zijv5",
+        "gap-10px-y3vj0g"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewDialog-disclosureSummary",
+      "className": "cursor-pointer-9cdah2 color-var-review-accentLink-f2352j",
+      "axes": {},
+      "atoms": [
+        "cursor-pointer-9cdah2",
+        "color-var-review-accentLink-f2352j"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "reviewDialog-error",
+      "className": "color-var-review-dangerText-8gmnkd",
+      "axes": {},
+      "atoms": [
+        "color-var-review-dangerText-8gmnkd"
       ],
       "unproven": [],
       "requires": [],
@@ -2817,6 +2896,24 @@
       "provides": [
         "scrollPort.block"
       ],
+      "violates": []
+    },
+    {
+      "key": "reviewDialog-staged",
+      "className": "padding-block-10px-jt047l padding-inline-12px-g5oelb border-inline-start-width-3px-5tfjmo border-inline-start-style-solid-vnhmkt border-inline-start-color-var-review-accent-597y9z color-var-review-textMuted-6e2qxl background-color-var-review-surfaceSunken-6v3hrz",
+      "axes": {},
+      "atoms": [
+        "padding-block-10px-jt047l",
+        "padding-inline-12px-g5oelb",
+        "border-inline-start-width-3px-5tfjmo",
+        "border-inline-start-style-solid-vnhmkt",
+        "border-inline-start-color-var-review-accent-597y9z",
+        "color-var-review-textMuted-6e2qxl",
+        "background-color-var-review-surfaceSunken-6v3hrz"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
       "violates": []
     },
     {
@@ -4767,6 +4864,238 @@
       "violates": []
     },
     {
+      "key": "templateReviewGroup-actionButtons",
+      "className": "display-flex-kr444s flex-wrap-wrap-45u4yh justify-content-flex-end-rpy436 gap-8px-istfpf",
+      "axes": {},
+      "atoms": [
+        "display-flex-kr444s",
+        "flex-wrap-wrap-45u4yh",
+        "justify-content-flex-end-rpy436",
+        "gap-8px-istfpf"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-actions",
+      "className": "display-flex-kr444s flex-direction-column-13nmya align-items-end-6rk6ck gap-8px-istfpf position-sticky-2dnmm5 bottom-0px-q5o442 z-index-2-s2qhlk padding-12px-rmuuyr border-radius-10px-2dd0sb background-color-var-review-surface-18g1tj",
+      "axes": {},
+      "atoms": [
+        "display-flex-kr444s",
+        "flex-direction-column-13nmya",
+        "align-items-end-6rk6ck",
+        "gap-8px-istfpf",
+        "position-sticky-2dnmm5",
+        "bottom-0px-q5o442",
+        "z-index-2-s2qhlk",
+        "padding-12px-rmuuyr",
+        "border-radius-10px-2dd0sb",
+        "background-color-var-review-surface-18g1tj"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-agentResult",
+      "className": "display-grid-7zijv5 gap-4px-lq7khr",
+      "axes": {},
+      "atoms": [
+        "display-grid-7zijv5",
+        "gap-4px-lq7khr"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-header",
+      "className": "display-flex-kr444s flex-wrap-wrap-45u4yh align-items-center-isc6vs justify-content-space-between-ilm5ua gap-12px-j0xs3y position-sticky-2dnmm5 top-0px-tn1z92 z-index-2-s2qhlk padding-12px-rmuuyr border-radius-10px-2dd0sb background-color-var-review-surface-18g1tj",
+      "axes": {},
+      "atoms": [
+        "display-flex-kr444s",
+        "flex-wrap-wrap-45u4yh",
+        "align-items-center-isc6vs",
+        "justify-content-space-between-ilm5ua",
+        "gap-12px-j0xs3y",
+        "position-sticky-2dnmm5",
+        "top-0px-tn1z92",
+        "z-index-2-s2qhlk",
+        "padding-12px-rmuuyr",
+        "border-radius-10px-2dd0sb",
+        "background-color-var-review-surface-18g1tj"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-headerControls",
+      "className": "display-flex-kr444s flex-wrap-wrap-45u4yh align-items-center-isc6vs gap-8px-istfpf",
+      "axes": {},
+      "atoms": [
+        "display-flex-kr444s",
+        "flex-wrap-wrap-45u4yh",
+        "align-items-center-isc6vs",
+        "gap-8px-istfpf"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-headerCopy",
+      "className": "display-grid-7zijv5 flex-1-1v8j83 gap-4px-lq7khr min-width-0px-qsugt0",
+      "axes": {},
+      "atoms": [
+        "display-grid-7zijv5",
+        "flex-1-1v8j83",
+        "gap-4px-lq7khr",
+        "min-width-0px-qsugt0"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-list",
+      "className": "display-grid-7zijv5 gap-8px-istfpf max-block-size-55vh-agw4sv min-block-size-0-w98ipp overflow-block-auto-1hcyu4 padding-10px-8xrn0t list-style-type-none-jvywuy border-width-1px-ez4wnb border-style-solid-za5aks border-color-var-review-line-qn4c7o border-radius-10px-2dd0sb",
+      "axes": {},
+      "atoms": [
+        "display-grid-7zijv5",
+        "gap-8px-istfpf",
+        "max-block-size-55vh-agw4sv",
+        "min-block-size-0-w98ipp",
+        "overflow-block-auto-1hcyu4",
+        "padding-10px-8xrn0t",
+        "list-style-type-none-jvywuy",
+        "border-width-1px-ez4wnb",
+        "border-style-solid-za5aks",
+        "border-color-var-review-line-qn4c7o",
+        "border-radius-10px-2dd0sb"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [
+        "scrollPort.block"
+      ],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-obligation",
+      "className": "display-flex-kr444s align-items-start-vn87xz gap-10px-y3vj0g margin-block-0rem-4ipp1p padding-12px-rmuuyr min-width-0px-qsugt0 border-width-1px-ez4wnb border-style-solid-za5aks border-color-var-review-line-qn4c7o border-radius-8px-kb54za background-color-var-review-surface-18g1tj",
+      "axes": {},
+      "atoms": [
+        "display-flex-kr444s",
+        "align-items-start-vn87xz",
+        "gap-10px-y3vj0g",
+        "margin-block-0rem-4ipp1p",
+        "padding-12px-rmuuyr",
+        "min-width-0px-qsugt0",
+        "border-width-1px-ez4wnb",
+        "border-style-solid-za5aks",
+        "border-color-var-review-line-qn4c7o",
+        "border-radius-8px-kb54za",
+        "background-color-var-review-surface-18g1tj"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-obligationCheckbox",
+      "className": "margin-block-start-4px-hadfie",
+      "axes": {},
+      "atoms": [
+        "margin-block-start-4px-hadfie"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-obligationCopy",
+      "className": "display-grid-7zijv5 flex-1-1v8j83 gap-6px-3pvhc9 min-width-0px-qsugt0",
+      "axes": {},
+      "atoms": [
+        "display-grid-7zijv5",
+        "flex-1-1v8j83",
+        "gap-6px-3pvhc9",
+        "min-width-0px-qsugt0"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-obligationDetails",
+      "className": "display-grid-7zijv5 gap-4px-lq7khr margin-block-start-2px-7068xo",
+      "axes": {},
+      "atoms": [
+        "display-grid-7zijv5",
+        "gap-4px-lq7khr",
+        "margin-block-start-2px-7068xo"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-obligationMeta",
+      "className": "display-flex-kr444s flex-wrap-wrap-45u4yh align-items-center-isc6vs gap-6px-3pvhc9",
+      "axes": {},
+      "atoms": [
+        "display-flex-kr444s",
+        "flex-wrap-wrap-45u4yh",
+        "align-items-center-isc6vs",
+        "gap-6px-3pvhc9"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-root",
+      "className": "display-grid-7zijv5 gap-14px-1q101w min-width-0px-qsugt0",
+      "axes": {},
+      "atoms": [
+        "display-grid-7zijv5",
+        "gap-14px-1q101w",
+        "min-width-0px-qsugt0"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
+      "key": "templateReviewGroup-selection",
+      "className": "display-flex-kr444s flex-wrap-wrap-45u4yh align-items-center-isc6vs gap-8px-istfpf",
+      "axes": {},
+      "atoms": [
+        "display-flex-kr444s",
+        "flex-wrap-wrap-45u4yh",
+        "align-items-center-isc6vs",
+        "gap-8px-istfpf"
+      ],
+      "unproven": [],
+      "requires": [],
+      "provides": [],
+      "violates": []
+    },
+    {
       "key": "tierLegend-entry",
       "className": "display-flex-kr444s align-items-center-isc6vs gap-7px-ape97g",
       "axes": {},
@@ -6139,6 +6468,14 @@
       "selectorConditions": 0
     },
     {
+      "className": "border-inline-start-width-3px-5tfjmo",
+      "property": "border-inline-start-width",
+      "value": "3px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
       "className": "border-inline-start-width-4px-yvq2qv",
       "property": "border-inline-start-width",
       "value": "4px",
@@ -6294,6 +6631,14 @@
       "className": "border-width-2px-o9wvpg",
       "property": "border-width",
       "value": "2px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "bottom-0px-q5o442",
+      "property": "bottom",
+      "value": "0px",
       "conditions": [],
       "unproven": "",
       "selectorConditions": 0
@@ -10181,6 +10526,14 @@
       "selectorConditions": 0
     },
     {
+      "className": "margin-block-start-2px-7068xo",
+      "property": "margin-block-start",
+      "value": "2px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
       "className": "margin-block-start-3px-00nh2h",
       "property": "margin-block-start",
       "value": "3px",
@@ -10293,6 +10646,22 @@
       "selectorConditions": 0
     },
     {
+      "className": "max-block-size-280px-clxmtl",
+      "property": "max-block-size",
+      "value": "280px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "max-block-size-55vh-agw4sv",
+      "property": "max-block-size",
+      "value": "55vh",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
       "className": "max-block-size-68vh-it2ebj",
       "property": "max-block-size",
       "value": "68vh",
@@ -10368,6 +10737,14 @@
       "className": "min-block-size-0-w98ipp",
       "property": "min-block-size",
       "value": "0",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
+    },
+    {
+      "className": "min-block-size-0px-dkznvp",
+      "property": "min-block-size",
+      "value": "0px",
       "conditions": [],
       "unproven": "",
       "selectorConditions": 0
@@ -14876,6 +15253,14 @@
         "dark": "#1570ef",
         "side": "light"
       }
+    },
+    {
+      "className": "top-0px-tn1z92",
+      "property": "top",
+      "value": "0px",
+      "conditions": [],
+      "unproven": "",
+      "selectorConditions": 0
     },
     {
       "className": "top-var-evidenceBox-top-pje7pq",

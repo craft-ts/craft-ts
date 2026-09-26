@@ -42,7 +42,6 @@ import {
   minWidth,
   monospaceStack,
   num,
-  opacity,
   px,
   py,
   radius,
@@ -243,7 +242,7 @@ craftGlobalStyles('review', {
     button: [
       cursor.pointer,
       color(theme.text),
-      when(interaction.disabled, [cursor.notAllowed, opacity(num(0.45))]),
+      when(interaction.disabled, [cursor.notAllowed]),
     ],
     select: [
       py(unit.px(8)),

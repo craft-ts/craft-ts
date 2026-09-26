@@ -273,83 +273,102 @@ export const TemplateReviewGroupView = craftComponent(
     noAgent,
   }) =>
     article({ class: templateReviewGroup.root, 'aria-busy': busy }, [
-      header({ class: templateReviewGroup.header, 'data-testid': 'template-group-header' }, [
-        div([
-          small({ class: reviewBits.eyebrow }, function* () {
-            return (yield* t()).templateGroupEyebrow;
-          }),
-          headingSection(heading(viewTitle)),
-          p(function* () {
-            return (yield* view()).context;
-          }),
-          strong(function* () {
-            return (yield* view()).lead;
-          }),
-        ]),
-        div([
-          small(function* () {
-            return (yield* view()).progress;
-          }),
-          button(
-            'PreviousTemplateGroup',
-            {
-              type: 'button',
-              click: previousGroup,
-              disabled: function* () {
-                return (yield* view()).previousDisabled;
+      header(
+        {
+          class: templateReviewGroup.header,
+          'data-testid': 'template-group-header',
+        },
+        [
+          div({ class: templateReviewGroup.headerCopy }, [
+            small({ class: reviewBits.eyebrow }, function* () {
+              return (yield* t()).templateGroupEyebrow;
+            }),
+            headingSection(heading(viewTitle)),
+            p(function* () {
+              return (yield* view()).context;
+            }),
+            strong(function* () {
+              return (yield* view()).lead;
+            }),
+          ]),
+          div({ class: templateReviewGroup.headerControls }, [
+            small(function* () {
+              return (yield* view()).progress;
+            }),
+            button(
+              'PreviousTemplateGroup',
+              {
+                class: reviewBits.button,
+                type: 'button',
+                click: previousGroup,
+                disabled: function* () {
+                  return (yield* view()).previousDisabled;
+                },
               },
+              function* () {
+                return (yield* t()).templatePreviousGroup;
+              },
+            ),
+            button(
+              'NextTemplateGroup',
+              {
+                class: reviewBits.button,
+                type: 'button',
+                click: nextGroup,
+                disabled: function* () {
+                  return (yield* view()).nextDisabled;
+                },
+              },
+              function* () {
+                return (yield* t()).templateNextGroup;
+              },
+            ),
+            span({ class: reviewBits.chip }, function* () {
+              return (yield* view()).remaining;
+            }),
+          ]),
+        ],
+      ),
+      section(
+        {
+          class: templateReviewGroup.selection,
+          'aria-label': 'Group selection',
+        },
+        [
+          label([
+            input('SelectTemplateGroup', {
+              type: 'checkbox',
+              checked: allSelected,
+              disabled: busy,
+              'aria-label': function* () {
+                return (yield* t()).templateGroupSelect;
+              },
+              *change() {
+                if (yield* allSelected()) yield* clearSelection();
+                else yield* selectAll();
+              },
+            }),
+            span(function* () {
+              return (yield* view()).selectLabel;
+            }),
+          ]),
+          button(
+            'SelectHumanTemplateObligations',
+            {
+              class: reviewBits.button,
+              type: 'button',
+              click: selectHuman,
+              disabled: busy,
             },
             function* () {
-              return (yield* t()).templatePreviousGroup;
+              return (yield* t()).templateSelectHuman;
             },
           ),
-          button(
-            'NextTemplateGroup',
-            {
-              type: 'button',
-              click: nextGroup,
-              disabled: function* () {
-                return (yield* view()).nextDisabled;
-              },
-            },
-            function* () {
-              return (yield* t()).templateNextGroup;
-            },
-          ),
-          span({ class: reviewBits.chip }, function* () {
-            return (yield* view()).remaining;
+          small({ 'aria-live': 'polite' }, function* () {
+            return (yield* view()).selected;
           }),
-        ]),
-      ]),
-      section({ 'aria-label': 'Group selection' }, [
-        label([
-          input('SelectTemplateGroup', {
-            type: 'checkbox',
-            checked: allSelected,
-            disabled: busy,
-            'aria-label': function* () {
-              return (yield* t()).templateGroupSelect;
-            },
-            *change() {
-              if (yield* allSelected()) yield* clearSelection();
-              else yield* selectAll();
-            },
-          }),
-          span(function* () {
-            return (yield* view()).selectLabel;
-          }),
-        ]),
-        button(
-          'SelectHumanTemplateObligations',
-          { type: 'button', click: selectHuman, disabled: busy },
-          function* () {
-            return (yield* t()).templateSelectHuman;
-          },
-        ),
-        small({ 'aria-live': 'polite' }, function* () {
-          return (yield* view()).selected;
-        }),
-      ]),
+        ],
+      ),
       ul(
         {
           class: templateReviewGroup.list,
@@ -359,12 +378,14 @@ export const TemplateReviewGroupView = craftComponent(
         forNode(rows, { track: (row) => row.id }, (row) =>
           li(
             {
+              class: templateReviewGroup.obligation,
               'data-review-status': function* () {
                 return (yield* row()).status;
               },
             },
             [
               input('SelectTemplateObligation', {
+                class: templateReviewGroup.obligationCheckbox,
                 type: 'checkbox',
                 checked: function* () {
                   return (yield* row()).selected;
@@ -379,62 +400,69 @@ export const TemplateReviewGroupView = craftComponent(
                   yield* toggleCard((yield* row()).id);
                 },
               }),
-              div({ 'data-testid': 'template-obligation-copy' }, [
-                strong(function* () {
-                  return (yield* row()).variable;
-                }),
-                div([
-                  span({ class: reviewBits.chip }, function* () {
-                    return (yield* row()).policy;
+              div(
+                {
+                  class: templateReviewGroup.obligationCopy,
+                  'data-testid': 'template-obligation-copy',
+                },
+                [
+                  strong(function* () {
+                    return (yield* row()).variable;
                   }),
-                  span({ class: reviewBits.chip }, function* () {
-                    return (yield* row()).state;
-                  }),
-                  small(function* () {
-                    return (yield* row()).author;
-                  }),
-                ]),
-                div(
-                  {
-                    'data-testid': 'template-agent-result',
-                    'aria-live': 'polite',
-                    hidden: function* () {
-                      return (yield* row()).hideResult;
-                    },
-                  },
-                  [
-                    strong(function* () {
-                      return (yield* row()).resultLabel;
+                  div({ class: templateReviewGroup.obligationMeta }, [
+                    span({ class: reviewBits.chip }, function* () {
+                      return (yield* row()).policy;
                     }),
-                    p(function* () {
-                      return (yield* row()).rationale;
+                    span({ class: reviewBits.chip }, function* () {
+                      return (yield* row()).state;
                     }),
                     small(function* () {
-                      return (yield* row()).references;
+                      return (yield* row()).author;
                     }),
-                  ],
-                ),
-                details([
-                  summary(function* () {
-                    return (yield* t()).templateDetails;
-                  }),
-                  p(function* () {
-                    return (yield* row()).statement;
-                  }),
-                  small({ class: reviewBits.code }, function* () {
-                    return (yield* row()).subject;
-                  }),
-                  p(function* () {
-                    return (yield* row()).changes;
-                  }),
-                  p(function* () {
-                    return (yield* row()).previousNote;
-                  }),
-                  small(function* () {
-                    return (yield* row()).previousReferences;
-                  }),
-                ]),
-              ]),
+                  ]),
+                  div(
+                    {
+                      class: templateReviewGroup.agentResult,
+                      'data-testid': 'template-agent-result',
+                      'aria-live': 'polite',
+                      hidden: function* () {
+                        return (yield* row()).hideResult;
+                      },
+                    },
+                    [
+                      strong(function* () {
+                        return (yield* row()).resultLabel;
+                      }),
+                      p(function* () {
+                        return (yield* row()).rationale;
+                      }),
+                      small(function* () {
+                        return (yield* row()).references;
+                      }),
+                    ],
+                  ),
+                  details({ class: templateReviewGroup.obligationDetails }, [
+                    summary(function* () {
+                      return (yield* t()).templateDetails;
+                    }),
+                    p(function* () {
+                      return (yield* row()).statement;
+                    }),
+                    small({ class: reviewBits.code }, function* () {
+                      return (yield* row()).subject;
+                    }),
+                    p(function* () {
+                      return (yield* row()).changes;
+                    }),
+                    p(function* () {
+                      return (yield* row()).previousNote;
+                    }),
+                    small(function* () {
+                      return (yield* row()).previousReferences;
+                    }),
+                  ]),
+                ],
+              ),
             ],
           ),
         ),
@@ -491,10 +519,11 @@ export const TemplateReviewGroupView = craftComponent(
           ]),
         ),
         ifNode(showActions, () =>
-          div([
+          div({ class: templateReviewGroup.actionButtons }, [
             button(
               'DelegateTemplateGroup',
               {
+                class: reviewBits.button,
                 type: 'button',
                 click: delegate,
                 disabled: function* () {
@@ -531,7 +560,7 @@ export const TemplateReviewGroupView = craftComponent(
                 function* () {
                   return (yield* view()).acceptLabel;
                 },
-                span({ class: reviewBits.key }, 'A'),
+                span({ class: reviewBits.key, 'data-testid': 'key' }, 'A'),
               ],
             ),
           ]),

@@ -37,8 +37,12 @@ test('opens a review subject in the selected editor and remembers the choice', a
   });
 
   try {
-    await page.goto(`${running.url}?view=review`);
-    const source = page.locator('[data-testid="review-heading"] [data-testid="source-link"]');
+    await page.goto(`${running.url}?view=template`);
+    const source = page
+      .locator(
+        '[data-testid="inventory-panel"]:not([hidden]) [data-testid="source-link"]',
+      )
+      .first();
     await expect(source).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=vscode&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',
@@ -66,15 +70,19 @@ test('opens a review subject in the selected editor and remembers the choice', a
     await opened;
     await page.reload();
     await expect(page.locator('#review-ide')).toHaveValue('cursor');
-    await expect(page.locator('[data-testid="review-heading"] [data-testid="source-link"]')).toHaveAttribute(
+    await expect(source).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=cursor&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',
     );
     await page.goto(`${running.url}?view=template`);
     await expect(
-      page.locator('[data-testid="inventory-panel"]:not([hidden]) [data-testid="source-link"]'),
+      page.locator(
+        '[data-testid="inventory-panel"]:not([hidden]) [data-testid="source-link"]',
+      ),
     ).toHaveCount(2);
-    await expect(page.locator('[data-testid="diagnostics"] [data-testid="source-link"]')).toHaveAttribute(
+    await expect(
+      page.locator('[data-testid="diagnostics"] [data-testid="source-link"]'),
+    ).toHaveAttribute(
       'href',
       '/api/open-in-ide?ide=cursor&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts&line=42',
     );
@@ -91,7 +99,9 @@ test('opens a review subject in the selected editor and remembers the choice', a
   }
 });
 
-test('shows render code and opens the exact template line', async ({ page }, testInfo) => {
+test('opens the source for a render obligation from the template view', async ({
+  page,
+}) => {
   const subject =
     'template:component:apps/demo/src/app/app.ts:App#render:primitive:apps/demo/src/app/app.ts';
   const running = await startReviewServer({
@@ -103,47 +113,19 @@ test('shows render code and opens the exact template line', async ({ page }, tes
         (obligation) => ({ ...obligation, subject }),
       ),
     },
-    templateDetailFor: () => ({
-      subject,
-      renderSites: [
-        {
-          file: 'apps/demo/src/app/app.ts',
-          line: 225,
-          code: "button('navToggle', {\n  'aria-expanded': navOpen,\n}, navOpen.navToggleLabel)",
-        },
-        {
-          file: 'apps/demo/src/app/app.ts',
-          line: 230,
-          code: 'ifNode(navOpen, () => div(...))',
-        },
-      ],
-    }),
-    iteration: {
-      rootDir: resolve('.'),
-      ledgerPath: testInfo.outputPath('attestations.jsonl'),
-      evidenceDirectory: testInfo.outputPath('evidence'),
-    },
+    iteration: { rootDir: resolve('.') },
   });
 
   try {
-    await page.goto(`${running.url}?view=review`);
-    await expect(page.locator('[data-testid="review-heading"] [data-testid="subject"]')).toContainText(
-      'app.ts:App:225',
-    );
-    await expect(page.locator('[data-testid="review-heading"] [data-testid="source-link"]')).toHaveAttribute(
+    await page.goto(`${running.url}?view=template`);
+    const source = page
+      .locator(
+        '[data-testid="inventory-panel"]:not([hidden]) [data-testid="source-link"]',
+      )
+      .first();
+    await expect(source).toHaveAttribute(
       'href',
-      '/api/open-in-ide?ide=vscode&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts&line=225',
-    );
-    await expect(page.locator('[data-testid="template-source-site"]')).toHaveCount(2);
-    await expect(page.locator('[data-testid="template-source-site"]').first()).toContainText(
-      "'aria-expanded': navOpen",
-    );
-    await expect(page.locator('[data-testid="template-source-site"]').nth(1)).toContainText(
-      'ifNode(navOpen',
-    );
-    await expect(page.locator('[data-testid="template-source-site"]').nth(1).locator('a')).toHaveAttribute(
-      'href',
-      '/api/open-in-ide?ide=vscode&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts&line=230',
+      '/api/open-in-ide?ide=vscode&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',
     );
   } finally {
     await running.close();

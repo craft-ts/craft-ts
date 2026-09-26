@@ -907,7 +907,10 @@ export const ReviewApp = craftComponent(
         );
       }),
       inspectFailed: craftComputed('inspectFailed', function* () {
-        return yield* hasException();
+        return (
+          (yield* inspect.status()) === 'exception' ||
+          (yield* hasException())
+        );
       }),
     }));
     const { replay, inspectFailed } = inspect;
@@ -931,7 +934,10 @@ export const ReviewApp = craftComponent(
       },
     }, ({ hasException }) => ({
       decisionFailed: craftComputed('decisionFailed', function* () {
-        return yield* hasException();
+        return (
+          (yield* decision.status()) === 'exception' ||
+          (yield* hasException())
+        );
       }),
     }));
     const { decisionFailed } = decision;
@@ -947,7 +953,10 @@ export const ReviewApp = craftComponent(
       },
     }, ({ hasException }) => ({
       reopenFailed: craftComputed('reopenFailed', function* () {
-        return yield* hasException();
+        return (
+          (yield* reopen.status()) === 'exception' ||
+          (yield* hasException())
+        );
       }),
     }));
     const { reopenFailed } = reopen;
@@ -963,7 +972,10 @@ export const ReviewApp = craftComponent(
       },
     }, ({ hasException }) => ({
       regenerationFailed: craftComputed('regenerationFailed', function* () {
-        return yield* hasException();
+        return (
+          (yield* regenerate.status()) === 'exception' ||
+          (yield* hasException())
+        );
       }),
     }));
     const { regenerationFailed } = regenerate;
@@ -981,7 +993,10 @@ export const ReviewApp = craftComponent(
       iterationHandoffFailed: craftComputed(
         'iterationHandoffFailed',
         function* () {
-          return yield* hasException();
+          return (
+            (yield* iterationHandoff.status()) === 'exception' ||
+            (yield* hasException())
+          );
         },
       ),
     }));

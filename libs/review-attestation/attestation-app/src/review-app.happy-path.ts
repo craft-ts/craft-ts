@@ -283,7 +283,7 @@ export const reviewAppVisualTestConfig = defineVisualAppConfig({
               action: 'capture',
               id: 'review',
               expect: [
-                { kind: 'visible', target: { name: 'AcceptReviewCard' } },
+                { kind: 'visible', target: { name: 'AcceptTemplateGroup' } },
               ],
             },
             { action: 'click', target: { name: 'OpenRegenerationDialog' } },
