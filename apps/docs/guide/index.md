@@ -65,6 +65,7 @@ non-interactive starters, configuration options, and first checks
 [Exception handling](/guide/routing/exception-handling) ·
 [Pending UI](/guide/routing/pending-ui) ·
 [Route load errors](/guide/routing/route-load-errors) ·
+[Fixed URL routing with hashes](/guide/routing/hash-location) ·
 [Scaling routes](/guide/routing/scaling)
 
 ### Components and templates

@@ -5,12 +5,14 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { Console } from './browser-boundaries';
+import { createBrowserPlatform, provideCraftPlatform } from './craft-platform';
 import { craftMethod } from './craft-method';
 import {
   CraftRouter,
   CraftRouterLink,
   provideCraftRouter,
   shouldHandleCraftRouterLinkClick,
+  withHashLocation,
 } from './craft-router';
 import { ɵinjectCraftHistory } from './craft-router-tokens';
 import { CRAFT_NODE_DIRECTIVE } from './craft-node-directive';
@@ -259,6 +261,38 @@ describe('CraftRouter', () => {
       },
     });
     expect(craftRouter.url).toBe('/query-params?page=3');
+  });
+
+  it('uses hash URLs for links, navigation and active checks', async () => {
+    window.history.replaceState(null, '', '/');
+    const platform = createBrowserPlatform(window);
+    await TestBed.configureTestingModule({
+      providers: [
+        provideCraftPlatform(platform),
+        provideCraftRouter(
+          craftRouterTestRoutes.toRoutes(),
+          withHashLocation(),
+        ),
+      ],
+    }).compileComponents();
+
+    const router = TestBed.runInInjectionContext(() => craftUse(CraftRouter()));
+    const userTree = router.createUrlTree({
+      to: 'users/:userId',
+      params: { userId: '42' },
+    });
+
+    expect(router.serializeUrl(userTree)).toBe('/#/users/42');
+    await router.navigateByUrl('/#/users/42?page=2#profile');
+    expect(router.url).toBe('/users/42?page=2#profile');
+    expect(window.location.hash).toBe('#/users/42?page=2#profile');
+    expect(router.isActive('/#/users/42?page=2')).toBe(true);
+
+    await router.navigateByUrl('/users/7', { replaceUrl: true });
+    expect(window.location.hash).toBe('#/users/7');
+    expect(window.location.pathname).toBe('/');
+    platform.history.dispose();
+    window.history.replaceState(null, '', '/');
   });
 
   it('skipLocationChange updates url without changing the address bar', async () => {
