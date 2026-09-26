@@ -55,6 +55,8 @@ import {
   parseSearchParams,
   serializeLocation,
   splitPath,
+  toCraftRouterUrl,
+  toExternalCraftRouterUrl,
   type CraftCompiledRoute,
   type CraftLocation as RuntimeCraftLocation,
 } from './host/craft-router-runtime';
@@ -430,6 +432,7 @@ export function provideCraftRouter(
 ): (Provider | EnvironmentProviders)[] {
   const loadingFeatures: CraftLoadingFeature[] = [];
   const configuredRoutes = [...(routes as readonly CraftCompiledRoute[])];
+  const useHashLocation = features.some(isCraftHashLocationFeature);
 
   for (const feature of features) {
     if (isCraftLoadingFeature(feature)) {
@@ -443,10 +446,37 @@ export function provideCraftRouter(
   return [
     ...getCraftRootDefaultProviders(),
     routerService.provideCraftRouter() as unknown as Provider,
-    ...provideCraftRouterRuntime(configuredRoutes),
+    ...provideCraftRouterRuntime(configuredRoutes, useHashLocation),
     ...ɵprovideCraftViewTransitionDefaults(),
     ...provideCraftLoading(...loadingFeatures),
   ];
+}
+
+const CRAFT_HASH_LOCATION_FEATURE = Symbol('craft-hash-location-feature');
+
+/** Router feature that stores the Craft URL after `#`, for static client apps. */
+export interface CraftHashLocationFeature {
+  readonly [CRAFT_HASH_LOCATION_FEATURE]: true;
+}
+
+/**
+ * Use hash URLs such as `/#/products/42?page=2`. The server cannot select a
+ * route from a fragment, so this strategy is intended for client rendered apps.
+ */
+export function withHashLocation(): CraftHashLocationFeature {
+  return { [CRAFT_HASH_LOCATION_FEATURE]: true };
+}
+
+function isCraftHashLocationFeature(
+  value: unknown,
+): value is CraftHashLocationFeature {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { [CRAFT_HASH_LOCATION_FEATURE]?: unknown })[
+      CRAFT_HASH_LOCATION_FEATURE
+    ] === true
+  );
 }
 
 /**
@@ -770,6 +800,7 @@ function toAbsoluteRedirectUrl(url: string): string {
 
 function provideCraftRouterRuntime(
   routes: readonly CraftCompiledRoute[] = [],
+  useHashLocation = false,
   ..._features: unknown[]
 ): Provider[] {
   const navigation: { current: CraftNavigation | null } = { current: null };
@@ -778,7 +809,18 @@ function provideCraftRouterRuntime(
     provideCraftCompiledRoutes(routes) as unknown as Provider,
     provideCraftHistory((() => {
       const platform = ɵinjectCraftPlatform();
-      const history = platform?.history ?? createBrowserHistory(globalThis.window);
+      // Browser platforms build their default path history before router
+      // features are instantiated. Recreate it from the platform window when
+      // hash mode is selected so the strategy is active from the first read.
+      const history = (() => {
+        if (platform?.kind === 'browser' && useHashLocation) {
+          platform.history.dispose();
+          return createBrowserHistory(platform.window ?? globalThis.window, {
+            useHashLocation,
+          });
+        }
+        return platform?.history ?? createBrowserHistory(globalThis.window);
+      })();
       inject(DestroyRef).onDestroy(() => history.dispose());
       return history;
     }) as unknown as CraftHistory) as unknown as Provider,
@@ -869,6 +911,7 @@ function provideCraftRouterRuntime(
         injectCraftHistory(),
         injectCraftLocation(),
         navigation,
+        useHashLocation,
       )) as unknown as CraftRouterNavigationApi) as unknown as Provider,
   ];
 }
@@ -885,6 +928,7 @@ function createNativeCraftRouter(
   history: CraftHistory,
   location: CraftWritableSignal<CraftLocation>,
   navigation: { current: CraftNavigation | null },
+  useHashLocation = false,
 ): CraftRouter {
   const listeners = new Set<(event: CraftRouterEvent) => void>();
 
@@ -917,9 +961,10 @@ function createNativeCraftRouter(
   };
 
   const commit = (
-    url: string,
+    inputUrl: string,
     extras?: CraftNavigationExtras,
   ): Promise<boolean> => {
+    const url = toCraftRouterUrl(inputUrl, useHashLocation);
     const withVt = extras
       ? {
           ...extras,
@@ -970,9 +1015,13 @@ function createNativeCraftRouter(
       }
       return commit(String(input), extras);
     }) as CraftRouter['navigateByUrl'],
-    serializeUrl: (tree) => tree.toString(),
+    serializeUrl: (tree) =>
+      toExternalCraftRouterUrl(tree.toString(), useHashLocation),
     isActive: (tree, extras) => {
-      const target = String(tree).split('?')[0]?.split('#')[0] ?? '';
+      const target =
+        toCraftRouterUrl(String(tree), useHashLocation)
+          .split('?')[0]
+          ?.split('#')[0] ?? '';
       const current = location().pathname;
       if (extras?.paths === 'subset') {
         return current === target || current.startsWith(`${target}/`);

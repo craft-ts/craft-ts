@@ -94,6 +94,62 @@ describe('createBrowserHistory', () => {
 
     expect(seen).toEqual([]);
   });
+
+  it('reads and writes the route inside the hash while preserving query and fragment', () => {
+    window.history.replaceState(null, '', '/#/products/42?page=2#details');
+    const history = createBrowserHistory(window, { useHashLocation: true });
+
+    expect(history.get()).toEqual({
+      pathname: '/products/42',
+      search: '?page=2',
+      hash: '#details',
+    });
+
+    history.push('/users/7?tab=posts#top');
+
+    expect(window.location.pathname).toBe('/');
+    expect(window.location.hash).toBe('#/users/7?tab=posts#top');
+    expect(history.get()).toEqual({
+      pathname: '/users/7',
+      search: '?tab=posts',
+      hash: '#top',
+    });
+    history.dispose();
+  });
+
+  it('follows external hash changes and browser back/forward navigation', async () => {
+    window.history.replaceState(null, '', '/#/first');
+    const history = createBrowserHistory(window, { useHashLocation: true });
+    const nextLocation = () =>
+      new Promise<void>((resolve) => {
+        const stop = history.listen(() => {
+          stop();
+          resolve();
+        });
+      });
+
+    history.push('/second');
+    history.push('/third');
+    const back = nextLocation();
+    window.history.back();
+    await back;
+    expect(history.get().pathname).toBe('/second');
+
+    const forward = nextLocation();
+    window.history.forward();
+    await forward;
+    expect(history.get().pathname).toBe('/third');
+
+    const external = nextLocation();
+    window.location.hash = '/external?page=4#section';
+    await external;
+    expect(history.get()).toEqual({
+      pathname: '/external',
+      search: '?page=4',
+      hash: '#section',
+    });
+    history.dispose();
+  });
 });
 
 describe('matchCraftRoutes', () => {
