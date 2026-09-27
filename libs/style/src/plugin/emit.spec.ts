@@ -20,7 +20,7 @@ import {
 } from '../lib/styles.ts';
 import { cssVars, resetCssVarRegistry } from '../lib/css-vars.ts';
 import { kind } from '../lib/kinds.ts';
-import { provides, scrollPort } from '../lib/obligations.ts';
+import { clipOverflow, provides, scrollPort } from '../lib/obligations.ts';
 import { bg, display, p, px } from '../lib/props/index.ts';
 import { palette } from '../lib/tokens/palette.ts';
 import { space } from '../lib/tokens/scales.ts';
@@ -60,8 +60,8 @@ describe('the layers are ordered by the emitter, not by import order', () => {
 
     const css = renderCss(registeredAtoms(), []);
     expect(css.startsWith(`@layer ${LAYERS.join(', ')};`)).toBe(true);
-    expect(css.indexOf('@layer components')).toBeLessThan(
-      css.indexOf('@layer variants'),
+    expect(css.indexOf('@layer craft.components{')).toBeLessThan(
+      css.indexOf('@layer craft.variants{'),
     );
   });
 
@@ -87,7 +87,7 @@ describe('the layers are ordered by the emitter, not by import order', () => {
     const v = cssVars('card', { ink: kind.color(palette.text.strong) });
     const css = renderCss([], [v.ink.declaration]);
 
-    expect(css).toContain('@layer tokens{@property --card-ink');
+    expect(css).toContain('@layer craft.tokens{@property --card-ink');
   });
 });
 
@@ -119,6 +119,14 @@ describe('the last net under the escape hatches', () => {
     expect(() =>
       validateAtoms(registeredAtoms(), 'shell.style.ts'),
     ).not.toThrow();
+  });
+
+  it('lays down the clip a class declares, not only the violation', () => {
+    craftStyles('truncated', { name: [clipOverflow.inline] });
+
+    expect(
+      registeredAtoms().map((atom) => [atom.property, atom.value]),
+    ).toContainEqual(['overflow-inline', 'clip']);
   });
 
   it('fails the build on a property the vocabulary does not own', () => {

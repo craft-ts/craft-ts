@@ -6,6 +6,7 @@ import {
   ɵInjector as Injector,
 } from '@craft-ts/core';
 import {
+  CraftCircularDependencyError,
   Console,
   craftException,
   executeGeneratorCompatibleFactory,
@@ -82,7 +83,11 @@ function logTemplateTrace(context: TemplateTraceContext): void {
  * the fabricated exception renders in their place.
  */
 function isCraftControlFlow(error: unknown): boolean {
-  return isCraftGenShortCircuit(error) || isCraftNotSettled(error);
+  return (
+    error instanceof CraftCircularDependencyError ||
+    isCraftGenShortCircuit(error) ||
+    isCraftNotSettled(error)
+  );
 }
 
 const demoFnTrace: FnWrapper = function* (factory, thisArg, args) {

@@ -179,6 +179,8 @@ const guideSidebar = [
       { text: 'Typed styles', link: '/guide/style/' },
       { text: 'Defining a design system', link: '/guide/style/define' },
       { text: 'Tokens and variables', link: '/guide/style/tokens' },
+      { text: 'Global foundation and fonts', link: '/guide/style/foundation' },
+      { text: 'Pseudo-elements and animations', link: '/guide/style/pseudo-elements' },
       { text: 'Axes and the matrix', link: '/guide/style/variants' },
       { text: 'Context obligations', link: '/guide/style/obligations' },
       { text: 'Testing visual states', link: '/guide/style/testing' },
@@ -189,7 +191,7 @@ const guideSidebar = [
         link: '/guide/style/template-obligations',
       },
       {
-        text: 'Component CSS variables',
+        text: 'Typed CSS variables',
         link: '/guide/components/css-variables',
       },
       {
@@ -214,7 +216,7 @@ const guideSidebar = [
         text: 'Content projection',
         link: '/guide/components/content-projection',
       },
-      { text: 'Encapsulated styles', link: '/guide/components/styles' },
+      { text: 'Styling a component', link: '/guide/components/styles' },
       {
         text: 'Template migrator',
         link: '/guide/components/template-migrator',

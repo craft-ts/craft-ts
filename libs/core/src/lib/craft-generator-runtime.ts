@@ -1,4 +1,4 @@
-import { Injector, InjectionToken, type Provider } from './host/craft-compat';
+import { Injector, type Provider } from './host/craft-compat';
 import type { Observable } from 'rxjs';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
@@ -8,7 +8,7 @@ import {
 } from './temporal-runtime';
 import {
   isReactiveReadRequest,
-  REACTIVE_READ_OBSERVERS,
+  ɵinjectReactiveReadObservers,
   ɵwithActiveReactiveReader,
   type ReactiveReadIdentity,
 } from './reactive-read';
@@ -113,13 +113,9 @@ export type ServiceYieldWrapper = (
   next: () => Generator<unknown, unknown, unknown>,
 ) => Generator<unknown, unknown, unknown>;
 
-export const SERVICE_YIELD_WRAPPER = new InjectionToken<
-  readonly ServiceYieldWrapper[]
->('SERVICE_YIELD_WRAPPER', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+// This optional multi-provider is read by the generator runtime while core is
+// bootstrapping, so it cannot be declared through craftService itself.
+export const SERVICE_YIELD_WRAPPER = Object.freeze({});
 
 /** Registers a wrapper around every Craft service yield below the provider. */
 export function provideServiceYieldWrapper(
@@ -280,7 +276,7 @@ export function runCraftGenerator({
     const yielded = current.value;
 
     if (isReactiveReadRequest(yielded)) {
-      for (const observer of injector.get(REACTIVE_READ_OBSERVERS, [])) {
+      for (const observer of ɵinjectReactiveReadObservers()) {
         observer({ reader: reactiveReader, dependency: yielded.identity });
       }
       current = iterator.next(
@@ -437,7 +433,7 @@ export function resolveCraftGeneratorYield(
   hostScope: ConcreteServiceScope,
 ): { handled: true; value: unknown } | { handled: false } {
   if (isReactiveReadRequest(yielded)) {
-    for (const observer of injector.get(REACTIVE_READ_OBSERVERS, [])) {
+    for (const observer of ɵinjectReactiveReadObservers()) {
       observer({ dependency: yielded.identity });
     }
     return {
@@ -474,7 +470,10 @@ function resolveServiceYield(
   injector: Injector,
   hostScope: ConcreteServiceScope,
 ): unknown {
-  const wrappers = injector.get(SERVICE_YIELD_WRAPPER, []);
+  const wrappers = injector.get(
+    SERVICE_YIELD_WRAPPER as never,
+    [] as readonly ServiceYieldWrapper[],
+  );
   const context: ServiceYieldContext = {
     name: request.name,
     providedIn: request.providedIn,

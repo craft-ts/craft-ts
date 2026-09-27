@@ -208,6 +208,35 @@ describe('colour and background on the same element', () => {
     expect(result.ratio).toBeLessThan(4.5);
     expect(result.ratio).toBeGreaterThan(4.4);
   });
+
+  it('does not take a ::before background for the element background', () => {
+    const dump = dumpOf({
+      's-root': [
+        ...BODY,
+        ['a-color', 'color', '#111318'],
+        ['a-bg', 'background-color', '#ffffff'],
+        // Sorted after `a-bg`: read as the element's own, it would win.
+        ['z-dot', 'background-color', '#111318'],
+      ],
+    });
+    const withPseudo: StyleDump = {
+      ...dump,
+      atoms: dump.atoms.map((atom) =>
+        atom.className === 'z-dot' ? { ...atom, pseudoElement: 'before' } : atom,
+      ),
+    };
+    const result = only(
+      analyzeTextContrast(
+        graphOf(
+          ['Label'],
+          [{ id: 'e:1', label: 'p.label', component: 'Label', classes: ['s-root'], text: true }],
+        ),
+        withPseudo,
+      ),
+    ) as ResolvedTextContrast;
+    expect(result.background.value).toBe('#ffffff');
+    expect(result.verdict).toBe('pass');
+  });
 });
 
 describe('inheritance and the background walk', () => {

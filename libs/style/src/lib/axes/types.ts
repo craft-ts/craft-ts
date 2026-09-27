@@ -49,7 +49,10 @@ export type Driver =
    * what makes `interaction.hover` an axis the matrix can enumerate rather
    * than a `:hover` written by hand, which nothing can find.
    */
-  | { readonly kind: 'selfState'; readonly state: 'hover' };
+  | {
+      readonly kind: 'selfState';
+      readonly state: 'hover' | 'focus' | 'active';
+    };
 
 export interface AxisPoint<Axis extends string, Point extends string> {
   readonly axis: Axis;

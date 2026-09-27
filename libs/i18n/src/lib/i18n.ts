@@ -150,7 +150,6 @@ export type Message<
 > = {
   readonly kind: 'message';
   // The erased token union is intentionally bivariant; concrete tokens keep their value type in Params.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly parts: readonly (string | I18nToken<string, any, string>)[];
   readonly params: Params;
   readonly dependencies?: Dependencies;
@@ -204,7 +203,6 @@ export function defineCatalog<const T extends Catalog>(catalog: T): T {
   return catalog;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function msg<const Parts extends readonly I18nToken<string, any, string>[]>(
   strings: TemplateStringsArray,
   ...tokens: Parts
@@ -402,9 +400,7 @@ export function defineToken<
   TokenInputOf<Schema, Value>
 >;
 export function defineToken(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   definition: TokenDefinition<string, any, string, any, any>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): I18nToken<string, any, string, any, any> {
   return {
     __i18nToken: true,
@@ -799,7 +795,6 @@ export function assertValidCatalog(catalog: Catalog, locale: string): void {
  * service in one locale and not in the other renders through a different path,
  * and one that parses its input changes what the call site must pass.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function tokenSignature(token: I18nToken<string, any, string>): string {
   return [
     token.name,
@@ -868,7 +863,6 @@ function nodeAt(catalog: Catalog, key: string): Message<unknown> | PluralMessage
  * one, then guarded. The schema runs first on purpose — it is allowed to turn
  * the call-site input into the value the formatter expects.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function tokenValue(token: I18nToken<string, any, string>, params: Record<string, unknown>): unknown {
   const raw = params[token.name];
   if (raw === undefined) throw new I18nRuntimeError('MISSING_PARAM', `Missing parameter ${token.name}.`);
@@ -883,7 +877,6 @@ function tokenValue(token: I18nToken<string, any, string>, params: Record<string
  * token whose dependency map is empty renders here, one that yields a service
  * request does not.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatterSync(token: I18nToken<string, any, string>): TokenFormatter<unknown> {
   if (!token.resolveFormatter) return token.format;
   const step = token.resolveFormatter().next();

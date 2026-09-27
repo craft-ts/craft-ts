@@ -1,0 +1,16 @@
+{
+  "name": "craft-ts-style-example",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/style/example",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/style/example/vitest.config.mts",
+        "forwardAllArgs": true
+      }
+    }
+  }
+}

@@ -1,0 +1,293 @@
+{
+  "version": 1,
+  "graphHash": "f88fd7ef32285dd5",
+  "summary": {
+    "nodes": 1827,
+    "edges": 2356,
+    "nodesByKind": {
+      "app-config": 1,
+      "component": 79,
+      "effect-operation": 1,
+      "effect-service": 1,
+      "http-endpoint": 2,
+      "primitive": 224,
+      "property": 257,
+      "route": 88,
+      "route-check": 183,
+      "route-hook": 7,
+      "service": 140,
+      "source": 13,
+      "styled-element": 681,
+      "template-element": 138,
+      "unique": 12
+    },
+    "edgesByKind": {
+      "calls": 85,
+      "checks": 185,
+      "contains": 1405,
+      "depends-on": 187,
+      "loads": 92,
+      "provides": 10,
+      "reads": 1,
+      "renders": 87,
+      "requires-service": 1,
+      "styled-by": 32,
+      "triggers": 14,
+      "uses-property": 257
+    },
+    "diagnostics": {
+      "CRAFT_GRAPH_METRICS_UNKNOWN": 7,
+      "styled-element-class-unresolved": 290
+    }
+  },
+  "godNodes": [
+    {
+      "id": "component:apps/demo/src/app/ui/status.component.ts:StatusComponent",
+      "kind": "component",
+      "label": "StatusComponent",
+      "location": "apps/demo/src/app/ui/status.component.ts:29",
+      "fanIn": 29,
+      "fanOut": 1,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "component:apps/demo/src/app/examples/component/css-vars-demo.shared.ts:CssVarsPageNav",
+      "kind": "component",
+      "label": "CssVarsPageNav",
+      "location": "apps/demo/src/app/examples/component/css-vars-demo.shared.ts:12",
+      "fanIn": 10,
+      "fanOut": 0,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "primitive:apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts#DebouncedWebSearch/craftComponent(DebouncedWebSearch)/searchInput/state:searchInput/0",
+      "kind": "primitive",
+      "label": "state:searchInput",
+      "location": "apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts:150",
+      "fanIn": 5,
+      "fanOut": 0,
+      "cyclomaticTotal": 2
+    },
+    {
+      "id": "service:apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts:User",
+      "kind": "service",
+      "label": "User",
+      "location": "apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts:51",
+      "fanIn": 5,
+      "fanOut": 1,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "component:apps/demo/src/app/examples/component/css-vars-required-demo.ts:TokenCard",
+      "kind": "component",
+      "label": "TokenCard",
+      "location": "apps/demo/src/app/examples/component/css-vars-required-demo.ts:13",
+      "fanIn": 4,
+      "fanOut": 0,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "component:libs/component/src/lib/craft-router-outlet.ts:CraftRouterOutlet",
+      "kind": "component",
+      "label": "CraftRouterOutlet",
+      "location": "libs/component/src/lib/craft-router-outlet.ts:20",
+      "fanIn": 4,
+      "fanOut": 0,
+      "cyclomaticTotal": 2
+    },
+    {
+      "id": "primitive:apps/demo/src/app/examples/craft/mutation/mutation.ts#craftService()/user/query:user/0",
+      "kind": "primitive",
+      "label": "query:user",
+      "location": "apps/demo/src/app/examples/craft/mutation/mutation.ts:44",
+      "fanIn": 4,
+      "fanOut": 3,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "primitive:apps/demo/src/app/examples/playground/playground.ts#craftService()/todos/query:todos/0",
+      "kind": "primitive",
+      "label": "query:todos",
+      "location": "apps/demo/src/app/examples/playground/playground.ts:139",
+      "fanIn": 4,
+      "fanOut": 0,
+      "cyclomaticTotal": 1
+    },
+    {
+      "id": "property:service:apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts:User:value",
+      "kind": "property",
+      "label": "User.value",
+      "location": "apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts:51",
+      "fanIn": 4,
+      "fanOut": 0
+    },
+    {
+      "id": "service:apps/demo/src/app/examples/craft/mutation/mutation.ts:UserMutation",
+      "kind": "service",
+      "label": "UserMutation",
+      "location": "apps/demo/src/app/examples/craft/mutation/mutation.ts:31",
+      "fanIn": 4,
+      "fanOut": 1,
+      "cyclomaticTotal": 1
+    }
+  ],
+  "hotspots": {
+    "churnMeasured": false,
+    "entries": [
+      {
+        "id": "component:libs/component/src/lib/ai/ai-send-context-chat.ts:AiSendContextChat",
+        "kind": "component",
+        "label": "AiSendContextChat",
+        "location": "libs/component/src/lib/ai/ai-send-context-chat.ts:161",
+        "fanIn": 0,
+        "fanOut": 6,
+        "cyclomaticTotal": 62,
+        "churn": 0,
+        "score": 62
+      },
+      {
+        "id": "component:apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:ProfileEditorStateMachine",
+        "kind": "component",
+        "label": "ProfileEditorStateMachine",
+        "location": "apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:62",
+        "fanIn": 2,
+        "fanOut": 22,
+        "cyclomaticTotal": 18,
+        "churn": 0,
+        "score": 54
+      },
+      {
+        "id": "primitive:apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts#DebouncedWebSearch/craftComponent(DebouncedWebSearch)/searchQuery/query:openLibrarySearch/0",
+        "kind": "primitive",
+        "label": "query:openLibrarySearch",
+        "location": "apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts:193",
+        "fanIn": 3,
+        "fanOut": 1,
+        "cyclomaticTotal": 10,
+        "churn": 0,
+        "score": 40
+      },
+      {
+        "id": "component:apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts:DebouncedWebSearch",
+        "kind": "component",
+        "label": "DebouncedWebSearch",
+        "location": "apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts:146",
+        "fanIn": 2,
+        "fanOut": 6,
+        "cyclomaticTotal": 13,
+        "churn": 0,
+        "score": 39
+      },
+      {
+        "id": "primitive:apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts#ProfileEditorStateMachine/craftComponent(ProfileEditorStateMachine)/machine/craftStateMachine:profileEditor/0",
+        "kind": "primitive",
+        "label": "craftStateMachine:profileEditor",
+        "location": "apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts:68",
+        "fanIn": 1,
+        "fanOut": 3,
+        "cyclomaticTotal": 18,
+        "churn": 0,
+        "score": 36
+      },
+      {
+        "id": "component:apps/demo/src/app/ui/status.component.ts:StatusComponent",
+        "kind": "component",
+        "label": "StatusComponent",
+        "location": "apps/demo/src/app/ui/status.component.ts:29",
+        "fanIn": 29,
+        "fanOut": 1,
+        "cyclomaticTotal": 1,
+        "churn": 0,
+        "score": 30
+      },
+      {
+        "id": "component:apps/demo/src/app/examples/primitives/exceptions/exceptions.ts:ExceptionsComponent",
+        "kind": "component",
+        "label": "ExceptionsComponent",
+        "location": "apps/demo/src/app/examples/primitives/exceptions/exceptions.ts:22",
+        "fanIn": 2,
+        "fanOut": 5,
+        "cyclomaticTotal": 8,
+        "churn": 0,
+        "score": 24
+      },
+      {
+        "id": "component:apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts:PixelArtMatrix",
+        "kind": "component",
+        "label": "PixelArtMatrix",
+        "location": "apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts:39",
+        "fanIn": 2,
+        "fanOut": 7,
+        "cyclomaticTotal": 8,
+        "churn": 0,
+        "score": 24
+      },
+      {
+        "id": "primitive:apps/demo/src/app/examples/primitives/exceptions/exceptions.ts#ExceptionsComponent/craftComponent(ExceptionsComponent)/userQuery/query:userQuery/0",
+        "kind": "primitive",
+        "label": "query:userQuery",
+        "location": "apps/demo/src/app/examples/primitives/exceptions/exceptions.ts:79",
+        "fanIn": 2,
+        "fanOut": 0,
+        "cyclomaticTotal": 8,
+        "churn": 0,
+        "score": 24
+      },
+      {
+        "id": "service:apps/demo/src/app/examples/craft/granular-mutation/api.service.ts:ApiService",
+        "kind": "service",
+        "label": "ApiService",
+        "location": "apps/demo/src/app/examples/craft/granular-mutation/api.service.ts:14",
+        "fanIn": 3,
+        "fanOut": 3,
+        "cyclomaticTotal": 5,
+        "churn": 0,
+        "score": 20
+      }
+    ]
+  },
+  "cycles": [],
+  "unusedMethods": [],
+  "documentation": [
+    {
+      "kind": "service",
+      "nodes": 140,
+      "measured": 139,
+      "withJsDoc": 25,
+      "withDocPage": 0
+    },
+    {
+      "kind": "component",
+      "nodes": 79,
+      "measured": 79,
+      "withJsDoc": 15,
+      "withDocPage": 0
+    },
+    {
+      "kind": "route",
+      "nodes": 88,
+      "measured": 88,
+      "withJsDoc": 0,
+      "withDocPage": 0
+    },
+    {
+      "kind": "primitive",
+      "nodes": 224,
+      "measured": 224,
+      "withJsDoc": 0,
+      "withDocPage": 0
+    }
+  ],
+  "violations": [
+    {
+      "rule": "mutation-react-on",
+      "messages": [
+        "Mutation addTodo has no query reacting to it (apps/demo/src/app/examples/primitives/full-demo/full-demo.ts:65).",
+        "Mutation issue has no query reacting to it (apps/demo/src/app/examples/component/pending-node-exception-demo.ts:81).",
+        "Mutation removeTodo has no query reacting to it (apps/demo/src/app/examples/primitives/full-demo/full-demo.ts:74).",
+        "Mutation sendContextToAi has no query reacting to it (libs/component/src/lib/ai/ai-send-context-chat.ts:505).",
+        "Mutation submitted has no query reacting to it (apps/demo/src/app/examples/primitives/forms/login-form.ts:45)."
+      ]
+    }
+  ]
+}

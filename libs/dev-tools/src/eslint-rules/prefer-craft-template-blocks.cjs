@@ -185,7 +185,14 @@ module.exports = {
           return;
         }
 
-        if (node.type === 'LogicalExpression') {
+        // Nullish fallback selects a value without using a boolean condition
+        // to shape the rendered tree. Keep the block rule focused on boolean
+        // control flow (`&&` / `||`); callers can still move richer derivation
+        // into the logic factory.
+        if (
+          node.type === 'LogicalExpression' &&
+          node.operator !== '??'
+        ) {
           context.report({ node, messageId: 'logical' });
           return;
         }

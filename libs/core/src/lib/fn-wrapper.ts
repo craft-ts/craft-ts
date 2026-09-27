@@ -1,4 +1,4 @@
-import { inject, InjectionToken, type Provider } from './host/craft-compat';
+import { inject, type InjectionToken, type Provider } from './host/craft-compat';
 import { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
 
 export { isGenerator, isGeneratorFunction } from './craft-generator-runtime';
@@ -20,23 +20,10 @@ export type FnWrapObserver = (factory: AnyFactory) => void;
 const IDENTITY_ADAPTER: FnFactoryAdapter = ((factory) =>
   factory) as FnFactoryAdapter;
 
-export const FN_WRAPPER = new InjectionToken<readonly FnWrapper[]>(
-  'FN_WRAPPER',
-  {
-    providedIn: 'root',
-    factory: () => [],
-    multi: true,
-  },
-);
-
-export const FN_WRAP_OBSERVER = new InjectionToken<readonly FnWrapObserver[]>(
-  'FN_WRAP_OBSERVER',
-  {
-    providedIn: 'root',
-    factory: () => [],
-    multi: true,
-  },
-);
+// These are optional multi-provider keys. Plain objects deliberately avoid
+// constructing a Craft token while the generator runtime is still loading.
+export const FN_WRAPPER = Object.freeze({});
+export const FN_WRAP_OBSERVER = Object.freeze({});
 
 // The warning literal is part of the public API to make the runtime DI risk
 // explicit at every call site.
@@ -52,8 +39,16 @@ export function provideFnWrapObserver(observer: FnWrapObserver): Provider {
 }
 
 export function injectFnWrapper(): FnFactoryAdapter {
-  const wrappers = inject(FN_WRAPPER);
-  const observers = inject(FN_WRAP_OBSERVER);
+  const wrappers =
+    inject(
+      FN_WRAPPER as InjectionToken<readonly FnWrapper[]>,
+      { optional: true },
+    ) ?? [];
+  const observers =
+    inject(
+      FN_WRAP_OBSERVER as InjectionToken<readonly FnWrapObserver[]>,
+      { optional: true },
+    ) ?? [];
   if (wrappers.length === 0 && observers.length === 0) {
     return IDENTITY_ADAPTER;
   }

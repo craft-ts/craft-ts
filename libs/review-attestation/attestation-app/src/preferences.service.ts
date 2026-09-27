@@ -1,5 +1,6 @@
 import { craftMethod, craftService, state } from '@craft-ts/core';
 import { reviewDocument } from './browser-adapter';
+import { initialIde, isIde, storeIde, type Ide } from './ide-links';
 import {
   applyLocale,
   applyTheme,
@@ -27,26 +28,30 @@ export const { ReviewPreferences } = craftService(
     const theme = yield* state('theme', initialTheme(), ({ set }) => ({
       choose: (value: ThemeChoice) => set(value),
     }));
+    const ide = yield* state('ide', initialIde(), ({ set }) => ({
+      choose: (value: Ide) => set(value),
+    }));
 
     // Take the raw select value and no-op on anything unexpected, so the
     // template's change handler stays a single yield with no local guard.
-    const chooseLocale = craftMethod('chooseLocale', function* (
-      value: string,
-    ) {
+    const chooseLocale = craftMethod('chooseLocale', function* (value: string) {
       if (!isLocale(value)) return;
       yield* locale.choose(value);
       storeLocale(value);
       applyLocale(value, reviewDocument.documentElement);
     });
-    const chooseTheme = craftMethod('chooseTheme', function* (
-      value: string,
-    ) {
+    const chooseTheme = craftMethod('chooseTheme', function* (value: string) {
       if (!isThemeChoice(value)) return;
       yield* theme.choose(value);
       storeTheme(value);
       applyTheme(value, reviewDocument.documentElement);
     });
+    const chooseIde = craftMethod('chooseIde', function* (value: string) {
+      if (!isIde(value)) return;
+      yield* ide.choose(value);
+      storeIde(value);
+    });
 
-    return { locale, theme, chooseLocale, chooseTheme };
+    return { locale, theme, ide, chooseLocale, chooseTheme, chooseIde };
   },
 );

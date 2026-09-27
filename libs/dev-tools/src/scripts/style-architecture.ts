@@ -157,10 +157,16 @@ export function danglingVars(graph: DependencyGraph): {
   readonly unread: readonly string[];
   readonly undeclared: readonly string[];
 } {
-  const declared = new Set(nodesOf(graph, 'css-var').map((node) => node.label));
+  const variables = nodesOf(graph, 'css-var');
+  const declared = new Set(variables.map((node) => node.label));
   const read = new Set(
     edgesOf(graph, 'reads-var').map((edge) => edge.to.replace(/^css-var:/, '')),
   );
+  // Read by the global layers (the base's focus ring, an app's global
+  // rules): no sheet class reads them, and they are read all the same.
+  for (const node of variables) {
+    if (node.details?.['readByGlobal']) read.add(node.label);
+  }
   return {
     unread: [...declared].filter((name) => !read.has(name)).sort(),
     undeclared: [...read].filter((name) => !declared.has(name)).sort(),

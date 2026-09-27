@@ -68,7 +68,7 @@ describe('no-ephemeral-template-form-state', () => {
     ]);
   });
 
-  it('reports a const inside each and binding generators', async () => {
+  it('reports derived locals but permits yielded item snapshots', async () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}
       declare const todos: unknown[];
@@ -88,7 +88,6 @@ describe('no-ephemeral-template-form-state', () => {
 
     expect(result.messages).toEqual([
       declareMessage('title', 'const'),
-      declareMessage('completed', 'const'),
     ]);
   });
 

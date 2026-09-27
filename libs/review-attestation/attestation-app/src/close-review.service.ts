@@ -41,12 +41,9 @@ export const { CloseReview } = craftService(
       }),
     );
 
-    const closeReviewSession = craftMethod(
-      'closeReviewSession',
-      function* () {
-        closeReviewRequested$.emit(++closeReviewRequest);
-      },
-    );
+    const closeReviewSession = craftMethod('closeReviewSession', function* () {
+      closeReviewRequested$.emit(++closeReviewRequest);
+    });
 
     return {
       closeReview,

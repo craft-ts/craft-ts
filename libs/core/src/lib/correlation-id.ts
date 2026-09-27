@@ -2,7 +2,7 @@ import {
   computed,
   inject,
   Injector,
-  InjectionToken,
+  runInInjectionContext,
   signal,
   untracked,
   type Signal,
@@ -14,6 +14,7 @@ import {
   type CraftTemporalRuntime,
   type TemporalTaskHandle,
 } from './temporal-runtime';
+import { craftService, type CraftServiceProvider } from './craft-service';
 
 /** A human-readable prefix describing the operation that started a flow. */
 export type CorrelationIdPrefix =
@@ -37,11 +38,35 @@ export interface CorrelationIdServiceApi {
   endOperation(id: string): void;
 }
 
-export const CORRELATION_ID_SERVICE =
-  new InjectionToken<CorrelationIdServiceApi | null>('CORRELATION_ID_SERVICE', {
-    providedIn: 'root',
-    factory: () => null,
-  });
+const correlationIdService = craftService(
+  { name: 'CorrelationIdService', providedIn: 'toProvide' },
+  (inputs: { $provided?: CorrelationIdServiceApi | null }) =>
+    inputs.$provided ?? null,
+) as unknown as {
+  CorrelationIdService: () => Generator<unknown, CorrelationIdServiceApi | null, unknown>;
+  provideCorrelationIdService: (
+    value: CorrelationIdServiceApi,
+  ) => CraftServiceProvider;
+  CORRELATION_ID_SERVICE_META_DATA: {
+    inject(): CorrelationIdServiceApi | null;
+  };
+};
+
+export const CorrelationIdService = correlationIdService.CorrelationIdService;
+export const provideCorrelationIdService = (
+  value: CorrelationIdServiceApi,
+): CraftServiceProvider => correlationIdService.provideCorrelationIdService(value);
+export const ɵinjectCorrelationIdService = (): CorrelationIdServiceApi | null => {
+  try {
+    return correlationIdService.CORRELATION_ID_SERVICE_META_DATA.inject();
+  } catch {
+    return null;
+  }
+};
+export const ɵinjectCorrelationIdServiceIn = (
+  injector: Injector,
+): CorrelationIdServiceApi | null =>
+  runInInjectionContext(injector, () => ɵinjectCorrelationIdService());
 
 export function createCorrelationIdService(
   temporalRuntime?: CraftTemporalRuntime,
@@ -133,7 +158,7 @@ export function* CorrelationId(): Generator<
     [SERVICE_YIELD_REQUEST_MARKER]: true,
     providedIn: 'function' as const,
     resolve: (injector: Injector) => {
-      const service = injector.get(CORRELATION_ID_SERVICE, null);
+      const service = ɵinjectCorrelationIdServiceIn(injector);
       // Untracked for the same reason as the correlation-id fn wrapper: this
       // metadata is read from inside whatever computation is logging, and it
       // changes on every interaction. Tracking it would make every logging
@@ -148,5 +173,5 @@ export function* CorrelationId(): Generator<
 }
 
 export function injectCorrelationIdService(): CorrelationIdServiceApi | null {
-  return inject(CORRELATION_ID_SERVICE);
+  return ɵinjectCorrelationIdService();
 }

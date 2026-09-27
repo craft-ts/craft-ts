@@ -1,0 +1,2060 @@
+{
+  "version": 1,
+  "sourceGraphHash": "f7bcd3d9530dee51",
+  "configHash": "05beae0d5c308af4",
+  "placements": [
+    {
+      "sourcePath": "apps/demo/src/app/app.config.ts",
+      "proposedPath": "apps/demo/src/core/app.config.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.95,
+      "reasons": [
+        "application shell file (main/app.*)",
+        "CraftTS kinds: app-config, route-check",
+        "hub"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.ts",
+        "apps/demo/src/app/my-global-error-screen.ts",
+        "apps/demo/src/app/my-route-load-error-screen.ts",
+        "apps/demo/src/app/function-registry-entry.ts",
+        "apps/demo/src/app/log-forwarder.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/app.routes.ts",
+      "proposedPath": "apps/demo/src/core/app.routes.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [
+        "component-composition",
+        "content-projection",
+        "craft-service/counter",
+        "craft-service/register-for",
+        "craft-service/user-detail",
+        "craft/full-demo",
+        "craft/granular-mutation",
+        "craft/lazy-layout",
+        "craft/list-with-pagination",
+        "craft/mutation",
+        "craft/query",
+        "css-vars",
+        "css-vars/forwarding",
+        "css-vars/inheritance",
+        "css-vars/property",
+        "css-vars/required",
+        "debounced-web-search",
+        "demo-send-context",
+        "design-system",
+        "design-system/scroll",
+        "exception-query-params",
+        "exceptions",
+        "full-demo",
+        "granular-mutation",
+        "guard-demo",
+        "home",
+        "i18n",
+        "list-with-pagination",
+        "login-form",
+        "mutation",
+        "pending-node",
+        "pending-node/exception",
+        "pixel-art",
+        "pixel-art-matrix",
+        "playground",
+        "query",
+        "query-params",
+        "slow-page",
+        "state-machine",
+        "state-machine-list",
+        "state-machine-text",
+        "view-transitions"
+      ],
+      "confidence": 0.95,
+      "reasons": [
+        "application shell file (main/app.*)",
+        "CraftTS kinds: route, route-check, route-hook",
+        "hub"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts",
+        "apps/demo/src/app/examples/component/component-composition-demo.ts",
+        "apps/demo/src/app/examples/component/component-demo.ts",
+        "apps/demo/src/app/examples/component/content-projection-demo.ts",
+        "apps/demo/src/app/examples/component/css-vars-demo.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/app.ts",
+      "proposedPath": "apps/demo/src/core/app.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.95,
+      "reasons": [
+        "root component (provideCraftRootComponent)",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.config.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/event-value.ts",
+      "proposedPath": "apps/demo/src/shared/event-value.ts",
+      "scope": "global-shared",
+      "communityId": "community:cb73c0b07e8ce264",
+      "routeAnchors": [
+        "craft-service/user-detail",
+        "craft/granular-mutation",
+        "craft/list-with-pagination",
+        "craft/mutation",
+        "debounced-web-search",
+        "granular-mutation",
+        "i18n",
+        "list-with-pagination",
+        "mutation",
+        "query-params",
+        "state-machine",
+        "state-machine-list"
+      ],
+      "confidence": 0.25,
+      "reasons": [
+        "used across top-level features craft, craft-service, debounced-web-search, granular-mutation, i18n, list-with-pagination, mutation, query-params, state-machine, state-machine-list",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only",
+        "hub"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts",
+        "apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts",
+        "apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts",
+        "apps/demo/src/app/examples/craft/mutation/mutation.ts",
+        "apps/demo/src/app/examples/i18n/i18n-runtime.service.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/component-composition-demo.ts",
+      "proposedPath": "apps/demo/src/features/component-composition/component-composition-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:e8171c5e772f778c",
+      "routeAnchors": [
+        "component-composition"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature component-composition only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/component-demo.ts",
+      "proposedPath": "apps/demo/src/features/home/component-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:a7ce4a7d6dd37e46",
+      "routeAnchors": [
+        "home"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature home only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/component/lazy-message.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/content-projection-actions.ts",
+      "proposedPath": "apps/demo/src/features/content-projection/content-projection-actions.ts",
+      "scope": "feature-local",
+      "communityId": "community:754c99c597c89414",
+      "routeAnchors": [
+        "content-projection"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature content-projection only",
+        "CraftTS kinds: component, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/content-projection-demo.ts",
+        "apps/demo/src/app/examples/component/content-projection-overlays.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/content-projection-card.ts",
+      "proposedPath": "apps/demo/src/features/content-projection/content-projection-card.ts",
+      "scope": "feature-local",
+      "communityId": "community:754c99c597c89414",
+      "routeAnchors": [
+        "content-projection"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature content-projection only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/content-projection-demo.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/content-projection-demo.ts",
+      "proposedPath": "apps/demo/src/features/content-projection/content-projection-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:754c99c597c89414",
+      "routeAnchors": [
+        "content-projection"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature content-projection only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/content-projection-overlays.ts",
+        "apps/demo/src/app/examples/component/content-projection-actions.ts",
+        "apps/demo/src/app/examples/component/content-projection-card.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/content-projection-overlays.ts",
+      "proposedPath": "apps/demo/src/features/content-projection/content-projection-overlays.ts",
+      "scope": "feature-local",
+      "communityId": "community:754c99c597c89414",
+      "routeAnchors": [
+        "content-projection"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature content-projection only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/content-projection-demo.ts",
+        "apps/demo/src/app/examples/component/content-projection-actions.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/css-vars-demo.shared.ts",
+      "proposedPath": "apps/demo/src/features/css-vars/css-vars-demo.shared.ts",
+      "scope": "parent-shared",
+      "communityId": "community:12619d7d2b1a3aaa",
+      "routeAnchors": [
+        "css-vars",
+        "css-vars/forwarding",
+        "css-vars/inheritance",
+        "css-vars/property",
+        "css-vars/required"
+      ],
+      "confidence": 0.85,
+      "reasons": [
+        "common ancestor feature css-vars of css-vars, css-vars/forwarding, css-vars/inheritance, css-vars/property, css-vars/required",
+        "CraftTS kinds: component, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/css-vars-demo.ts",
+        "apps/demo/src/app/examples/component/css-vars-forwarding-demo.ts",
+        "apps/demo/src/app/examples/component/css-vars-inheritance-demo.ts",
+        "apps/demo/src/app/examples/component/css-vars-property-demo.ts",
+        "apps/demo/src/app/examples/component/css-vars-required-demo.ts"
+      ],
+      "alternatives": [
+        "apps/demo/src/features/css-vars/shared/css-vars-demo.shared.ts"
+      ],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/css-vars-demo.ts",
+      "proposedPath": "apps/demo/src/features/css-vars/css-vars-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:12619d7d2b1a3aaa",
+      "routeAnchors": [
+        "css-vars"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature css-vars only",
+        "CraftTS kinds: component, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/css-vars-demo.shared.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/css-vars-forwarding-demo.ts",
+      "proposedPath": "apps/demo/src/features/css-vars/forwarding/css-vars-forwarding-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:053cd11848f14b59",
+      "routeAnchors": [
+        "css-vars/forwarding"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature css-vars/forwarding only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/css-vars-demo.shared.ts",
+        "apps/demo/src/app/examples/component/css-vars-required-demo.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/css-vars-inheritance-demo.ts",
+      "proposedPath": "apps/demo/src/features/css-vars/inheritance/css-vars-inheritance-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:f121debe3595021c",
+      "routeAnchors": [
+        "css-vars/inheritance"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature css-vars/inheritance only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/css-vars-demo.shared.ts",
+        "apps/demo/src/app/examples/component/css-vars-inheritance.shared.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/css-vars-inheritance.shared.ts",
+      "proposedPath": "apps/demo/src/features/css-vars/inheritance/css-vars-inheritance.shared.ts",
+      "scope": "feature-local",
+      "communityId": "community:f121debe3595021c",
+      "routeAnchors": [
+        "css-vars/inheritance"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature css-vars/inheritance only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/css-vars-inheritance-demo.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/css-vars-property-demo.ts",
+      "proposedPath": "apps/demo/src/features/css-vars/property/css-vars-property-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:d037cae92126847f",
+      "routeAnchors": [
+        "css-vars/property"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature css-vars/property only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/css-vars-demo.shared.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/css-vars-required-demo.ts",
+      "proposedPath": "apps/demo/src/features/css-vars/css-vars-required-demo.ts",
+      "scope": "parent-shared",
+      "communityId": "community:12619d7d2b1a3aaa",
+      "routeAnchors": [
+        "css-vars/forwarding",
+        "css-vars/required"
+      ],
+      "confidence": 0.85,
+      "reasons": [
+        "common ancestor feature css-vars of css-vars/forwarding, css-vars/required",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/css-vars-forwarding-demo.ts",
+        "apps/demo/src/app/examples/component/css-vars-demo.shared.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [
+        "apps/demo/src/features/css-vars/shared/css-vars-required-demo.ts"
+      ],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/lazy-message.ts",
+      "proposedPath": "apps/demo/src/features/home/lazy-message.ts",
+      "scope": "feature-local",
+      "communityId": "community:a7ce4a7d6dd37e46",
+      "routeAnchors": [
+        "home"
+      ],
+      "confidence": 0.45,
+      "reasons": [
+        "used by feature home only",
+        "ownership inferred from importers only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/component/component-demo.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/pending-node-demo.ts",
+      "proposedPath": "apps/demo/src/features/pending-node/pending-node-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:b092a1d877808b57",
+      "routeAnchors": [
+        "pending-node"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature pending-node only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/component/pending-node-exception-demo.ts",
+      "proposedPath": "apps/demo/src/features/pending-node/exception/pending-node-exception-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:5337630b50b15af3",
+      "routeAnchors": [
+        "pending-node/exception"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature pending-node/exception only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft-service/craft-service-counter.ts",
+      "proposedPath": "apps/demo/src/features/craft-service/counter/craft-service-counter.ts",
+      "scope": "feature-local",
+      "communityId": "community:f81647901bddbf32",
+      "routeAnchors": [
+        "craft-service/counter"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft-service/counter only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft-service/craft-service-user-detail.ts",
+      "proposedPath": "apps/demo/src/features/craft-service/user-detail/craft-service-user-detail.ts",
+      "scope": "feature-local",
+      "communityId": "community:a88919fe7ee1b4ae",
+      "routeAnchors": [
+        "craft-service/user-detail"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft-service/user-detail only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft-service/register-for.ts",
+      "proposedPath": "apps/demo/src/features/craft-service/register-for/register-for.ts",
+      "scope": "feature-local",
+      "communityId": "community:6cde2f0256462d3b",
+      "routeAnchors": [
+        "craft-service/register-for"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft-service/register-for only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/full-demo/api.service.ts",
+      "proposedPath": null,
+      "scope": "unresolved",
+      "communityId": null,
+      "routeAnchors": [],
+      "confidence": 0.2,
+      "reasons": [
+        "no route, shell or importer reaches this file",
+        "no CraftTS node; import evidence only",
+        "orphaned file proposed for deletion"
+      ],
+      "relatedFiles": [],
+      "alternatives": [],
+      "action": "delete"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/full-demo/full-demo.ts",
+      "proposedPath": "apps/demo/src/features/craft/full-demo/full-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:da4efe50408cd60d",
+      "routeAnchors": [
+        "craft/full-demo"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/full-demo only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/granular-mutation/api.service.ts",
+      "proposedPath": "apps/demo/src/features/craft/granular-mutation/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:9320034b92393a6e",
+      "routeAnchors": [
+        "craft/granular-mutation"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/granular-mutation only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts",
+      "proposedPath": "apps/demo/src/features/craft/granular-mutation/granular-mutation.ts",
+      "scope": "feature-local",
+      "communityId": "community:9320034b92393a6e",
+      "routeAnchors": [
+        "craft/granular-mutation"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/granular-mutation only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/granular-mutation/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts",
+        "apps/demo/src/app/query-params.utils.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/lazy-layout/lazy-layout-child.ts",
+      "proposedPath": "apps/demo/src/features/craft/lazy-layout/users/lazy-layout-child.ts",
+      "scope": "feature-local",
+      "communityId": "community:02a7ba026f3a71d0",
+      "routeAnchors": [
+        "craft/lazy-layout",
+        "craft/lazy-layout/users"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/lazy-layout/users and its ancestors craft/lazy-layout",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/lazy-layout/lazy-layout.routes.ts",
+        "apps/demo/src/app/examples/craft/lazy-layout/other.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/lazy-layout/lazy-layout.routes.ts",
+      "proposedPath": "apps/demo/src/features/craft/lazy-layout/lazy-layout.routes.ts",
+      "scope": "parent-shared",
+      "communityId": "community:4b613c3a7f7236af",
+      "routeAnchors": [
+        "craft/lazy-layout",
+        "craft/lazy-layout/users"
+      ],
+      "confidence": 0.85,
+      "reasons": [
+        "common ancestor feature craft/lazy-layout of craft/lazy-layout, craft/lazy-layout/users",
+        "CraftTS kinds: route, route-check"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/craft/lazy-layout/lazy-layout-child.ts"
+      ],
+      "alternatives": [
+        "apps/demo/src/features/craft/lazy-layout/shared/lazy-layout.routes.ts"
+      ],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/lazy-layout/lazy-layout.ts",
+      "proposedPath": "apps/demo/src/features/craft/lazy-layout/lazy-layout.ts",
+      "scope": "feature-local",
+      "communityId": "community:4b613c3a7f7236af",
+      "routeAnchors": [
+        "craft/lazy-layout"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/lazy-layout only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/lazy-layout/other.ts",
+      "proposedPath": "apps/demo/src/features/craft/lazy-layout/users/other.ts",
+      "scope": "feature-local",
+      "communityId": "community:02a7ba026f3a71d0",
+      "routeAnchors": [
+        "craft/lazy-layout",
+        "craft/lazy-layout/users"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/lazy-layout/users and its ancestors craft/lazy-layout",
+        "CraftTS kinds: component, http-endpoint, primitive, property, service, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/lazy-layout/to-provide.service.ts",
+        "apps/demo/src/app/examples/craft/lazy-layout/lazy-layout-child.ts",
+        "apps/demo/src/app/examples/craft/query/api.service.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/lazy-layout/to-provide.service.ts",
+      "proposedPath": "apps/demo/src/features/craft/lazy-layout/users/to-provide.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:02a7ba026f3a71d0",
+      "routeAnchors": [
+        "craft/lazy-layout",
+        "craft/lazy-layout/users"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/lazy-layout/users and its ancestors craft/lazy-layout",
+        "CraftTS kinds: property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/lazy-layout/other.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts",
+      "proposedPath": "apps/demo/src/features/craft/list-with-pagination/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:1e7cbbcea7839741",
+      "routeAnchors": [
+        "craft/list-with-pagination"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/list-with-pagination only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts",
+      "proposedPath": "apps/demo/src/features/craft/list-with-pagination/list-with-pagination.ts",
+      "scope": "feature-local",
+      "communityId": "community:1e7cbbcea7839741",
+      "routeAnchors": [
+        "craft/list-with-pagination"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/list-with-pagination only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/list-with-pagination/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts",
+        "apps/demo/src/app/query-params.utils.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/mutation/api.service.ts",
+      "proposedPath": "apps/demo/src/features/craft/mutation/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:904388cffd594735",
+      "routeAnchors": [
+        "craft/mutation"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/mutation only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/mutation/mutation.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/mutation/mutation.ts",
+      "proposedPath": "apps/demo/src/features/craft/mutation/mutation.ts",
+      "scope": "feature-local",
+      "communityId": "community:904388cffd594735",
+      "routeAnchors": [
+        "craft/mutation"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/mutation only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/mutation/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/query/api.service.ts",
+      "proposedPath": "apps/demo/src/features/craft/query/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:f6ce98f0e1a4a58f",
+      "routeAnchors": [
+        "craft/query"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/query only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/query/query.ts",
+        "apps/demo/src/app/examples/craft/lazy-layout/other.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/craft/query/query.ts",
+      "proposedPath": "apps/demo/src/features/craft/query/query.ts",
+      "scope": "feature-local",
+      "communityId": "community:f6ce98f0e1a4a58f",
+      "routeAnchors": [
+        "craft/query"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature craft/query only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/query/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/design-system/components.style.ts",
+      "proposedPath": "apps/demo/src/features/design-system/scroll/components.style.ts",
+      "scope": "feature-local",
+      "communityId": "community:62ef896b368f681a",
+      "routeAnchors": [
+        "design-system",
+        "design-system/scroll"
+      ],
+      "confidence": 0.25,
+      "reasons": [
+        "used by feature design-system/scroll and its ancestors design-system",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/design-system/foundation.style.ts",
+        "apps/demo/src/app/examples/design-system/design-system-demo.ts",
+        "apps/demo/src/app/examples/design-system/ds-components.alert-meter.ts",
+        "apps/demo/src/app/examples/design-system/ds-components.ts",
+        "apps/demo/src/app/examples/design-system/scroll.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/design-system/design-system-demo.ts",
+      "proposedPath": "apps/demo/src/features/design-system/design-system-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:353c5072c51ebd9b",
+      "routeAnchors": [
+        "design-system"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature design-system only",
+        "CraftTS kinds: component, primitive, property, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/design-system/ds-components.ts",
+        "apps/demo/src/app/examples/design-system/ds-components.alert-meter.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/design-system/components.style.ts",
+        "apps/demo/src/app/examples/design-system/foundation.style.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/design-system/ds-components.alert-meter.ts",
+      "proposedPath": "apps/demo/src/features/design-system/ds-components.alert-meter.ts",
+      "scope": "feature-local",
+      "communityId": "community:353c5072c51ebd9b",
+      "routeAnchors": [
+        "design-system"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature design-system only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/design-system/design-system-demo.ts",
+        "apps/demo/src/app/examples/design-system/components.style.ts",
+        "apps/demo/src/app/examples/design-system/ds-components.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/design-system/ds-components.ts",
+      "proposedPath": "apps/demo/src/features/design-system/ds-components.ts",
+      "scope": "feature-local",
+      "communityId": "community:353c5072c51ebd9b",
+      "routeAnchors": [
+        "design-system"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature design-system only",
+        "CraftTS kinds: component"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/design-system/design-system-demo.ts",
+        "apps/demo/src/app/examples/design-system/components.style.ts",
+        "apps/demo/src/app/examples/design-system/ds-components.alert-meter.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/design-system/foundation.style.ts",
+      "proposedPath": "apps/demo/src/features/design-system/scroll/foundation.style.ts",
+      "scope": "feature-local",
+      "communityId": "community:62ef896b368f681a",
+      "routeAnchors": [
+        "design-system",
+        "design-system/scroll"
+      ],
+      "confidence": 0.25,
+      "reasons": [
+        "used by feature design-system/scroll and its ancestors design-system",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/design-system/components.style.ts",
+        "apps/demo/src/app/examples/design-system/design-system-demo.ts",
+        "apps/demo/src/app/examples/design-system/scroll.style.ts",
+        "apps/demo/src/app/examples/design-system/scroll.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/design-system/scroll.style.ts",
+      "proposedPath": "apps/demo/src/features/design-system/scroll/scroll.style.ts",
+      "scope": "feature-local",
+      "communityId": "community:62ef896b368f681a",
+      "routeAnchors": [
+        "design-system/scroll"
+      ],
+      "confidence": 0.25,
+      "reasons": [
+        "used by feature design-system/scroll only",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/design-system/foundation.style.ts",
+        "apps/demo/src/app/examples/design-system/scroll.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/design-system/scroll.ts",
+      "proposedPath": "apps/demo/src/features/design-system/scroll/scroll.ts",
+      "scope": "feature-local",
+      "communityId": "community:62ef896b368f681a",
+      "routeAnchors": [
+        "design-system/scroll"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature design-system/scroll only",
+        "CraftTS kinds: component, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/design-system/components.style.ts",
+        "apps/demo/src/app/examples/design-system/foundation.style.ts",
+        "apps/demo/src/app/examples/design-system/scroll.style.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/i18n/i18n-runtime.service.ts",
+      "proposedPath": "apps/demo/src/features/i18n/i18n-runtime.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:960ec05a40f7d51f",
+      "routeAnchors": [
+        "i18n"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature i18n only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/i18n/type-safe-i18n-demo.ts",
+        "apps/demo/src/app/event-value.ts",
+        "apps/demo/src/app/examples/i18n/i18n.service.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/i18n/i18n.service.ts",
+      "proposedPath": "apps/demo/src/features/i18n/i18n.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:960ec05a40f7d51f",
+      "routeAnchors": [
+        "i18n"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature i18n only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/i18n/type-safe-i18n-demo.ts",
+        "apps/demo/src/app/examples/i18n/i18n-runtime.service.ts",
+        "apps/demo/src/app/examples/i18n/type-safe-i18n-demo.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/i18n/type-safe-i18n-demo.ts",
+      "proposedPath": "apps/demo/src/features/i18n/type-safe-i18n-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:960ec05a40f7d51f",
+      "routeAnchors": [
+        "i18n"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature i18n only",
+        "CraftTS kinds: component, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/i18n/i18n.service.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/i18n/i18n-runtime.service.ts",
+        "apps/demo/src/app/event-value.ts",
+        "apps/demo/src/app/examples/i18n/i18n.service.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/ia/demo-send-context/counter.ts",
+      "proposedPath": "apps/demo/src/features/demo-send-context/counter.ts",
+      "scope": "feature-local",
+      "communityId": "community:484142e90e8c3468",
+      "routeAnchors": [
+        "demo-send-context"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature demo-send-context only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/ia/demo-send-context/demo-send-context.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/ia/demo-send-context/demo-send-context.ts",
+      "proposedPath": "apps/demo/src/features/demo-send-context/demo-send-context.ts",
+      "scope": "feature-local",
+      "communityId": "community:484142e90e8c3468",
+      "routeAnchors": [
+        "demo-send-context"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature demo-send-context only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/ia/demo-send-context/counter.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/playground/playground.ts",
+      "proposedPath": "apps/demo/src/features/playground/playground.ts",
+      "scope": "feature-local",
+      "communityId": "community:2d8847b6c4b99950",
+      "routeAnchors": [
+        "playground"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature playground only",
+        "CraftTS kinds: component, primitive, property, service, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts",
+      "proposedPath": "apps/demo/src/features/debounced-web-search/debounced-web-search.ts",
+      "scope": "feature-local",
+      "communityId": "community:06643ecf2a78100d",
+      "routeAnchors": [
+        "debounced-web-search"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature debounced-web-search only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts",
+      "proposedPath": "apps/demo/src/features/exception-query-params/exception-query-params.ts",
+      "scope": "feature-local",
+      "communityId": "community:b7d3da74f3fbf574",
+      "routeAnchors": [
+        "exception-query-params"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature exception-query-params only",
+        "CraftTS kinds: component, primitive, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/exceptions/exceptions.ts",
+      "proposedPath": "apps/demo/src/features/exceptions/exceptions.ts",
+      "scope": "feature-local",
+      "communityId": "community:25a0f65121ff7ecd",
+      "routeAnchors": [
+        "exceptions"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature exceptions only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/forms/login-form.ts",
+      "proposedPath": "apps/demo/src/features/login-form/login-form.ts",
+      "scope": "feature-local",
+      "communityId": "community:94d78beb030e854f",
+      "routeAnchors": [
+        "login-form"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature login-form only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/full-demo/api.service.ts",
+      "proposedPath": null,
+      "scope": "unresolved",
+      "communityId": null,
+      "routeAnchors": [],
+      "confidence": 0.2,
+      "reasons": [
+        "no route, shell or importer reaches this file",
+        "no CraftTS node; import evidence only",
+        "orphaned file proposed for deletion"
+      ],
+      "relatedFiles": [],
+      "alternatives": [],
+      "action": "delete"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/full-demo/full-demo.ts",
+      "proposedPath": "apps/demo/src/features/full-demo/full-demo.ts",
+      "scope": "feature-local",
+      "communityId": "community:ac7fae8cf0f7d00f",
+      "routeAnchors": [
+        "full-demo"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature full-demo only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts",
+      "proposedPath": "apps/demo/src/features/granular-mutation/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:c4a00ae2faf93afd",
+      "routeAnchors": [
+        "granular-mutation"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature granular-mutation only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts",
+      "proposedPath": "apps/demo/src/features/granular-mutation/granular-mutation.ts",
+      "scope": "feature-local",
+      "communityId": "community:c4a00ae2faf93afd",
+      "routeAnchors": [
+        "granular-mutation"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature granular-mutation only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/granular-mutation/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts",
+        "apps/demo/src/app/query-params.utils.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts",
+      "proposedPath": "apps/demo/src/features/list-with-pagination/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:532cb511f7a8bbb3",
+      "routeAnchors": [
+        "list-with-pagination"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature list-with-pagination only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts",
+      "proposedPath": "apps/demo/src/features/list-with-pagination/list-with-pagination.ts",
+      "scope": "feature-local",
+      "communityId": "community:532cb511f7a8bbb3",
+      "routeAnchors": [
+        "list-with-pagination"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature list-with-pagination only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/list-with-pagination/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts",
+        "apps/demo/src/app/query-params.utils.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/mutation/api.service.ts",
+      "proposedPath": "apps/demo/src/features/mutation/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:acd1e242a7618421",
+      "routeAnchors": [
+        "mutation"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature mutation only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/mutation/mutation.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/mutation/mutation.ts",
+      "proposedPath": "apps/demo/src/features/mutation/mutation.ts",
+      "scope": "feature-local",
+      "communityId": "community:acd1e242a7618421",
+      "routeAnchors": [
+        "mutation"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature mutation only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/mutation/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/pixel-art-matrix/long-press.directive.ts",
+      "proposedPath": "apps/demo/src/features/pixel-art-matrix/long-press.directive.ts",
+      "scope": "feature-local",
+      "communityId": "community:4b0c293dabc05986",
+      "routeAnchors": [
+        "pixel-art-matrix"
+      ],
+      "confidence": 0.25,
+      "reasons": [
+        "used by feature pixel-art-matrix only",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/pixel-art-matrix/pixel-art-matrix.ts",
+      "proposedPath": "apps/demo/src/features/pixel-art-matrix/pixel-art-matrix.ts",
+      "scope": "feature-local",
+      "communityId": "community:4b0c293dabc05986",
+      "routeAnchors": [
+        "pixel-art-matrix"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature pixel-art-matrix only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/primitives/pixel-art-matrix/long-press.directive.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/pixel-art/pixel-art.ts",
+      "proposedPath": "apps/demo/src/features/pixel-art/pixel-art.ts",
+      "scope": "feature-local",
+      "communityId": "community:54d530ac858885de",
+      "routeAnchors": [
+        "pixel-art"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature pixel-art only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/query/api.service.ts",
+      "proposedPath": "apps/demo/src/features/query/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:1494fc934033a59d",
+      "routeAnchors": [
+        "query"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature query only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/query/query.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/query/query.ts",
+      "proposedPath": "apps/demo/src/features/query/query.ts",
+      "scope": "feature-local",
+      "communityId": "community:1494fc934033a59d",
+      "routeAnchors": [
+        "query"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature query only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/primitives/query/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/state-machine-list/task-board.ts",
+      "proposedPath": "apps/demo/src/features/state-machine-list/task-board.ts",
+      "scope": "feature-local",
+      "communityId": "community:e4fb35bb7ec0e362",
+      "routeAnchors": [
+        "state-machine-list"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature state-machine-list only",
+        "CraftTS kinds: component, primitive, property, source, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts",
+      "proposedPath": "apps/demo/src/features/state-machine/profile-editor.ts",
+      "scope": "feature-local",
+      "communityId": "community:97cdcb3ad6172ec8",
+      "routeAnchors": [
+        "state-machine"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature state-machine only",
+        "CraftTS kinds: component, primitive, property, service, source, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
+        "apps/demo/src/app/event-value.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/primitives/state-machine/text-editor.ts",
+      "proposedPath": "apps/demo/src/features/state-machine-text/text-editor.ts",
+      "scope": "feature-local",
+      "communityId": "community:1d5045ac8b951344",
+      "routeAnchors": [
+        "state-machine-text"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature state-machine-text only",
+        "CraftTS kinds: component, primitive, property, source, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/primitives/state-machine/profile-editor.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/guard-demo/GuardDemo.ts",
+      "proposedPath": "apps/demo/src/features/guard-demo/GuardDemo.ts",
+      "scope": "feature-local",
+      "communityId": "community:29184dcdce8e9d54",
+      "routeAnchors": [
+        "guard-demo"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature guard-demo only",
+        "CraftTS kinds: component"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts",
+      "proposedPath": "apps/demo/src/features/query-params/api.service.ts",
+      "scope": "feature-local",
+      "communityId": "community:2aed6e4008a26b7e",
+      "routeAnchors": [
+        "query-params"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature query-params only",
+        "CraftTS kinds: primitive, property, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/list-with-pagination/qp-list-with-pagination.ts",
+      "proposedPath": "apps/demo/src/features/query-params/qp-list-with-pagination.ts",
+      "scope": "feature-local",
+      "communityId": "community:2aed6e4008a26b7e",
+      "routeAnchors": [
+        "query-params"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature query-params only",
+        "CraftTS kinds: component, primitive, property, styled-element, template-element, unique"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/list-with-pagination/api.service.ts",
+        "apps/demo/src/app/ui/status.component.ts",
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/event-value.ts",
+        "apps/demo/src/app/query-params.utils.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/slow-page/slow-page.routes.ts",
+      "proposedPath": "apps/demo/src/features/slow-page/slow-page.routes.ts",
+      "scope": "feature-local",
+      "communityId": "community:51f298d32b97a081",
+      "routeAnchors": [
+        "slow-page"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature slow-page only",
+        "CraftTS kinds: primitive, route, route-check, route-hook, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/slow-page/slow-page.ts",
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/slow-page/slow-page.ts",
+      "proposedPath": "apps/demo/src/features/slow-page/slow-page.ts",
+      "scope": "feature-local",
+      "communityId": "community:51f298d32b97a081",
+      "routeAnchors": [
+        "slow-page"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature slow-page only",
+        "CraftTS kinds: component, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/slow-page/slow-page.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/view-transitions/gallery.ts",
+      "proposedPath": "apps/demo/src/features/view-transitions/gallery.ts",
+      "scope": "feature-local",
+      "communityId": "community:25fd6ee6b0955b92",
+      "routeAnchors": [
+        "view-transitions"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature view-transitions only",
+        "CraftTS kinds: component, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/photos.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/view-transitions/photo-detail.ts",
+      "proposedPath": "apps/demo/src/features/view-transitions/photo-detail.ts",
+      "scope": "feature-local",
+      "communityId": "community:25fd6ee6b0955b92",
+      "routeAnchors": [
+        "view-transitions"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature view-transitions only",
+        "CraftTS kinds: component, primitive, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/photos.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/view-transitions/photo-skeleton.ts",
+      "proposedPath": "apps/demo/src/features/view-transitions/photo-skeleton.ts",
+      "scope": "feature-local",
+      "communityId": "community:25fd6ee6b0955b92",
+      "routeAnchors": [
+        "view-transitions"
+      ],
+      "confidence": 0.45,
+      "reasons": [
+        "used by feature view-transitions only",
+        "ownership inferred from importers only",
+        "CraftTS kinds: component, primitive, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/view-transitions/photos.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/view-transitions/photos.ts",
+      "proposedPath": "apps/demo/src/features/view-transitions/photos.ts",
+      "scope": "feature-local",
+      "communityId": "community:25fd6ee6b0955b92",
+      "routeAnchors": [
+        "view-transitions"
+      ],
+      "confidence": 0.25,
+      "reasons": [
+        "used by feature view-transitions only",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/routes/view-transitions/gallery.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/photo-detail.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/photo-skeleton.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/examples/routes/view-transitions/view-transitions.routes.ts",
+      "proposedPath": "apps/demo/src/features/view-transitions/view-transitions.routes.ts",
+      "scope": "feature-local",
+      "communityId": "community:25fd6ee6b0955b92",
+      "routeAnchors": [
+        "view-transitions"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature view-transitions only",
+        "CraftTS kinds: primitive, route, route-check, route-hook, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/gallery.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/photo-detail.ts",
+        "apps/demo/src/app/examples/routes/view-transitions/photo-skeleton.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/function-registry-bridge.ts",
+      "proposedPath": "apps/demo/src/core/function-registry-bridge.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.45,
+      "reasons": [
+        "reached from the application shell only",
+        "ownership inferred from importers only",
+        "CraftTS kinds: service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/function-registry.ts",
+        "apps/demo/src/app/page-actor.ts",
+        "apps/demo/src/app/function-registry-entry.ts",
+        "apps/demo/src/app/log-forwarder.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/function-registry-entry.ts",
+      "proposedPath": "apps/demo/src/core/function-registry-entry.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.25,
+      "reasons": [
+        "reached from the application shell only",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/function-registry.ts",
+        "apps/demo/src/app/app.config.ts",
+        "apps/demo/src/app/function-registry-bridge.ts",
+        "apps/demo/src/app/page-actor.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/function-registry.ts",
+      "proposedPath": "apps/demo/src/core/function-registry.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.25,
+      "reasons": [
+        "reached from the application shell only",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/function-registry-entry.ts",
+        "apps/demo/src/app/function-registry-bridge.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/guard/auth.guard.ts",
+      "proposedPath": "apps/demo/src/features/guard-demo/auth.guard.ts",
+      "scope": "feature-local",
+      "communityId": "community:29184dcdce8e9d54",
+      "routeAnchors": [
+        "guard-demo"
+      ],
+      "confidence": 0.92,
+      "reasons": [
+        "used by feature guard-demo only",
+        "CraftTS kinds: primitive, service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/log-forwarder.ts",
+      "proposedPath": "apps/demo/src/core/log-forwarder.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.45,
+      "reasons": [
+        "reached from the application shell only",
+        "ownership inferred from importers only",
+        "CraftTS kinds: service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.config.ts",
+        "apps/demo/src/app/function-registry-bridge.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/my-global-error-screen.ts",
+      "proposedPath": "apps/demo/src/core/my-global-error-screen.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.95,
+      "reasons": [
+        "global error screen of the app config",
+        "CraftTS kinds: component, primitive, styled-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.config.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/my-route-load-error-screen.ts",
+      "proposedPath": "apps/demo/src/core/my-route-load-error-screen.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.95,
+      "reasons": [
+        "route load error screen of the app config",
+        "CraftTS kinds: component, primitive, styled-element, template-element"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.config.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/page-actor.ts",
+      "proposedPath": "apps/demo/src/core/page-actor.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.25,
+      "reasons": [
+        "reached from the application shell only",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/function-registry-bridge.ts",
+        "apps/demo/src/app/function-registry-entry.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/query-params.utils.ts",
+      "proposedPath": "apps/demo/src/core/query-params.utils.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [
+        "craft/granular-mutation",
+        "craft/list-with-pagination",
+        "granular-mutation",
+        "list-with-pagination",
+        "query-params"
+      ],
+      "confidence": 0.25,
+      "reasons": [
+        "used by the application shell and by craft/granular-mutation, craft/list-with-pagination, granular-mutation, list-with-pagination, query-params",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only",
+        "hub"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.routes.ts",
+        "apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts",
+        "apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts",
+        "apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts",
+        "apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/run-on-app-start/run-on-app-start.ts",
+      "proposedPath": "apps/demo/src/core/app-start/run-on-app-start.ts",
+      "scope": "core",
+      "communityId": "community:e9dbb530e3107468",
+      "routeAnchors": [],
+      "confidence": 1,
+      "reasons": [
+        "placement rule \"app-start-services\": Service declares an onAppStart hook that runs during application bootstrap.",
+        "ownership inferred from importers only",
+        "CraftTS kinds: service"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.config.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/template-trace-demo.ts",
+      "proposedPath": "apps/demo/src/core/template-trace-demo.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.25,
+      "reasons": [
+        "reached from the application shell only",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.config.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/ui/status.component.ts",
+      "proposedPath": "apps/demo/src/shared/status.component.ts",
+      "scope": "global-shared",
+      "communityId": "community:cb73c0b07e8ce264",
+      "routeAnchors": [
+        "craft/full-demo",
+        "craft/granular-mutation",
+        "craft/list-with-pagination",
+        "craft/mutation",
+        "craft/query",
+        "debounced-web-search",
+        "full-demo",
+        "granular-mutation",
+        "list-with-pagination",
+        "mutation",
+        "query",
+        "query-params"
+      ],
+      "confidence": 0.78,
+      "reasons": [
+        "used across top-level features craft, debounced-web-search, full-demo, granular-mutation, list-with-pagination, mutation, query, query-params",
+        "CraftTS kinds: component, primitive, styled-element",
+        "hub"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts",
+        "apps/demo/src/app/examples/craft/mutation/mutation.ts",
+        "apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts",
+        "apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts",
+        "apps/demo/src/app/examples/primitives/mutation/mutation.ts"
+      ],
+      "alternatives": [],
+      "action": "move"
+    },
+    {
+      "sourcePath": "apps/demo/src/app/ui/status.style.ts",
+      "proposedPath": "apps/demo/src/shared/status.style.ts",
+      "scope": "global-shared",
+      "communityId": "community:cb73c0b07e8ce264",
+      "routeAnchors": [
+        "craft/full-demo",
+        "craft/granular-mutation",
+        "craft/list-with-pagination",
+        "craft/mutation",
+        "craft/query",
+        "debounced-web-search",
+        "full-demo",
+        "granular-mutation",
+        "list-with-pagination",
+        "mutation",
+        "query",
+        "query-params"
+      ],
+      "confidence": 0.25,
+      "reasons": [
+        "used across top-level features craft, debounced-web-search, full-demo, granular-mutation, list-with-pagination, mutation, query, query-params",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/ui/status.component.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/demo-typecheck-indicator.ts",
+      "proposedPath": "apps/demo/src/core/demo-typecheck-indicator.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.25,
+      "reasons": [
+        "reached from the application shell only",
+        "ownership inferred from importers only",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/main.ts"
+      ],
+      "alternatives": [],
+      "action": "review"
+    },
+    {
+      "sourcePath": "apps/demo/src/main.ts",
+      "proposedPath": "apps/demo/src/main.ts",
+      "scope": "core",
+      "communityId": "community:ae6e9157995bdbca",
+      "routeAnchors": [],
+      "confidence": 0.95,
+      "reasons": [
+        "application shell file (main/app.*)",
+        "bundler entry point stays in place",
+        "no CraftTS node; import evidence only"
+      ],
+      "relatedFiles": [
+        "apps/demo/src/app/app.config.ts",
+        "apps/demo/src/demo-typecheck-indicator.ts"
+      ],
+      "alternatives": [],
+      "action": "keep-at-root"
+    }
+  ],
+  "statistics": {
+    "files": 96,
+    "moves": 76,
+    "reviews": 17,
+    "unresolved": 2,
+    "confidence": {
+      "high": 76,
+      "medium": 1,
+      "low": 19
+    }
+  }
+}

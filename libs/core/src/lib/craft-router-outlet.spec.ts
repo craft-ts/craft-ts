@@ -19,13 +19,15 @@ import {
 } from 'vitest';
 import { craftException } from './craft-exception';
 import type { RouteChainOutcome } from './craft-guard-runtime';
-import { CRAFT_GLOBAL_ERROR } from './craft-route-exceptions';
+import { ɵinjectCraftGlobalError } from './craft-route-exceptions';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
-import { CRAFT_ROUTE_TARGET, craftRouteTarget } from './craft-route-target';
-import { craftService } from './craft-service';
+import { craftRouteTarget, provideCraftRouteTarget } from './craft-route-target';
 import {
-  CRAFT_ROUTE_CHAIN_RUNNER,
-  CRAFT_SYNC_TEMPLATE_FLUSH,
+  SERVICE_RUNTIME_OVERRIDES,
+  type ServiceRuntimeOverride,
+  craftService,
+} from './craft-service';
+import {
   collectMatchProps,
   createCraftRouterOutletController,
   type CraftRouterOutletController,
@@ -36,20 +38,37 @@ import type {
   CraftMatch,
 } from './host/craft-router-runtime';
 import {
-  CRAFT_HISTORY,
-  CRAFT_MATCH,
-  CRAFT_ROUTER,
   provideCraftRouter,
   type CraftRouterNavigationApi,
 } from './craft-router';
+import {
+  ɵinjectCraftHistory,
+  ɵinjectCraftMatch,
+  ɵinjectCraftRouterRuntime,
+  provideCraftRouterRuntimeValue,
+} from './craft-router-tokens';
 import { craftWatch } from './host/craft-signal';
 import {
-  CRAFT_START_VIEW_TRANSITION,
-  CRAFT_VIEW_TRANSITION,
-  CRAFT_VIEW_TRANSITION_SKIP_BLANK,
   CRAFT_VIEW_TRANSITION_STATE_KEY,
-  CRAFT_VIEW_TRANSITIONS_ENABLED,
+  ɵinjectCraftViewTransition,
 } from './craft-view-transition';
+
+function craftHistory() {
+  return TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
+}
+
+function craftRouter() {
+  return TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+}
+
+function serviceRuntimeOverrides(
+  values: Readonly<Record<string, unknown>>,
+) {
+  const overrides = new Map<string, ServiceRuntimeOverride>(
+    Object.entries(values).map(([name, value]) => [name, { kind: 'useValue', value }]),
+  );
+  return { provide: SERVICE_RUNTIME_OVERRIDES, useValue: overrides };
+}
 
 // The outlet only ever stores and compares the component it is given — core
 // has no renderer — so these are plain identities. They used to carry
@@ -157,8 +176,9 @@ describe('CraftRouterOutlet', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        { provide: CRAFT_ROUTER, useValue: router },
-        { provide: CRAFT_ROUTE_CHAIN_RUNNER, useValue: runner },
+        ...provideCraftRouter([]),
+        provideCraftRouterRuntimeValue(router),
+        serviceRuntimeOverrides({ CraftRouteChainRunner: runner }),
       ],
     });
 
@@ -224,7 +244,7 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    TestBed.inject(CRAFT_HISTORY).push('/a');
+    craftHistory().push('/a');
     expect(outlet.state()).toBe('loaded');
     expect(outlet.targetComponent()).toBe(TargetCmp);
   });
@@ -243,7 +263,7 @@ describe('CraftRouterOutlet', () => {
       createCraftRouterOutletController(),
     );
 
-    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
+    expect(craftHistory().get().pathname).toBe('/home');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.state()).toBe('loaded');
     window.history.replaceState(null, '', '/');
@@ -276,7 +296,7 @@ describe('CraftRouterOutlet', () => {
     );
     await flush();
 
-    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/admin');
+    expect(craftHistory().get().pathname).toBe('/admin');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.state()).toBe('loaded');
     window.history.replaceState(null, '', '/');
@@ -302,7 +322,7 @@ describe('CraftRouterOutlet', () => {
     );
     await flush();
 
-    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
+    expect(craftHistory().get().pathname).toBe('/home');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.state()).toBe('loaded');
     window.history.replaceState(null, '', '/');
@@ -328,11 +348,11 @@ describe('CraftRouterOutlet', () => {
     );
     expect(outlet.targetComponent()).toBe(ErrCmp);
 
-    TestBed.inject(CRAFT_HISTORY).push('/');
+    craftHistory().push('/');
     resolveHome({ default: TargetCmp });
     await flush();
 
-    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
+    expect(craftHistory().get().pathname).toBe('/home');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.state()).toBe('loaded');
     window.history.replaceState(null, '', '/');
@@ -379,7 +399,7 @@ describe('CraftRouterOutlet', () => {
     expect(outlet.targetComponent()).toBeNull();
   });
 
-  it('loads redirected loadChildren before activating the target', async () => {
+  it('waits for redirected loadChildren before activating its target', async () => {
     let resolveChildren!: (routes: CraftCompiledRoute[]) => void;
     const pending = new Promise<CraftCompiledRoute[]>((resolve) => {
       resolveChildren = resolve;
@@ -403,7 +423,7 @@ describe('CraftRouterOutlet', () => {
     resolveChildren([{ path: '', component: TargetCmp }]);
     await flush();
 
-    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/home');
+    expect(craftHistory().get().pathname).toBe('/home');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.state()).toBe('loaded');
     window.history.replaceState(null, '', '/');
@@ -428,7 +448,7 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    const router = TestBed.inject(CRAFT_ROUTER);
+    const router = craftRouter();
     const payload = { name: 'photo-1', image: null };
 
     await router.navigateByUrl('/view-transitions/42', {
@@ -450,7 +470,7 @@ describe('CraftRouterOutlet', () => {
     await flush();
 
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
     window.history.replaceState(null, '', '/');
   });
 
@@ -467,18 +487,18 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    const router = TestBed.inject(CRAFT_ROUTER);
+    const router = craftRouter();
     const payload = { name: 'photo-1', image: null };
 
     await router.navigateByUrl('/photos', {
       state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
     });
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
 
     await router.navigateByUrl('/about');
     expect(outlet.targetComponent()).toBe(ParentCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
     window.history.replaceState(null, '', '/');
   });
 
@@ -495,18 +515,18 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    const router = TestBed.inject(CRAFT_ROUTER);
+    const router = craftRouter();
     const payload = { name: 'photo-1', image: null };
 
     await router.navigateByUrl('/photos', {
       state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
     });
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
 
     await router.navigateByUrl('/about', { skipLocationChange: true });
     expect(outlet.targetComponent()).toBe(ParentCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
     expect(window.location.pathname).toBe('/photos');
     window.history.replaceState(null, '', '/');
   });
@@ -521,18 +541,18 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    const router = TestBed.inject(CRAFT_ROUTER);
+    const router = craftRouter();
     const payload = { name: 'photo-1', image: null };
 
     await router.navigateByUrl('/photos', {
       state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
     });
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
 
     await router.navigateByUrl('/photos?tab=info');
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
     window.history.replaceState(null, '', '/');
   });
 
@@ -549,7 +569,7 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    const router = TestBed.inject(CRAFT_ROUTER);
+    const router = craftRouter();
     const payload = { name: 'photo-1', image: null };
 
     await router.navigateByUrl('/about');
@@ -557,15 +577,15 @@ describe('CraftRouterOutlet', () => {
       state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
     });
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toEqual(payload);
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
 
     window.history.replaceState(null, '', '/about');
     window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
     await flush();
 
-    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/about');
+    expect(craftHistory().get().pathname).toBe('/about');
     expect(outlet.targetComponent()).toBe(ParentCmp);
-    expect(TestBed.inject(CRAFT_VIEW_TRANSITION)()).toBeNull();
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
     window.history.replaceState(null, '', '/');
   });
 
@@ -584,7 +604,7 @@ describe('CraftRouterOutlet', () => {
       createCraftRouterOutletController(),
     );
 
-    TestBed.inject(CRAFT_HISTORY).push('/slow-page');
+    craftHistory().push('/slow-page');
     await flush();
 
     expect(outlet.state()).toBe('loaded');
@@ -609,7 +629,7 @@ describe('CraftRouterOutlet', () => {
       createCraftRouterOutletController(),
     );
 
-    TestBed.inject(CRAFT_HISTORY).push('/view-transitions/42');
+    craftHistory().push('/view-transitions/42');
     await flush();
 
     expect(outlet.state()).toBe('loaded');
@@ -623,12 +643,12 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    TestBed.inject(CRAFT_HISTORY).push('/a');
+    craftHistory().push('/a');
     expect(outlet.state()).toBe('loaded');
     const injector = outlet.displayedInjector();
-    const matchSignal = injector?.get(CRAFT_MATCH);
+    const matchSignal = injector ? runInInjectionContext(injector, () => ɵinjectCraftMatch()) : undefined;
 
-    TestBed.inject(CRAFT_HISTORY).push('/a?tab=info');
+    craftHistory().push('/a?tab=info');
 
     expect(outlet.displayedInjector()).toBe(injector);
     expect(outlet.displayedProps()).toEqual({ tab: 'info' });
@@ -658,11 +678,11 @@ describe('CraftRouterOutlet', () => {
       createCraftRouterOutletController(),
     );
 
-    TestBed.inject(CRAFT_HISTORY).push('/a');
+    craftHistory().push('/a');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     const injector = outlet.displayedInjector();
 
-    TestBed.inject(CRAFT_HISTORY).push('/slow-page');
+    craftHistory().push('/slow-page');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.displayedInjector()).toBe(injector);
     expect(outlet.state()).toBe('loaded');
@@ -694,10 +714,10 @@ describe('CraftRouterOutlet', () => {
       createCraftRouterOutletController(),
     );
 
-    TestBed.inject(CRAFT_HISTORY).push('/a');
+    craftHistory().push('/a');
     expect(outlet.targetComponent()).toBe(TargetCmp);
 
-    TestBed.inject(CRAFT_HISTORY).push('/view-transitions/42');
+    craftHistory().push('/view-transitions/42');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     expect(outlet.state()).toBe('loaded');
 
@@ -733,11 +753,11 @@ describe('CraftRouterOutlet', () => {
       createCraftRouterOutletController(),
     );
 
-    TestBed.inject(CRAFT_HISTORY).push('/a');
+    craftHistory().push('/a');
     expect(outlet.targetComponent()).toBe(TargetCmp);
     const injector = outlet.displayedInjector();
 
-    TestBed.inject(CRAFT_HISTORY).push('/slow-page');
+    craftHistory().push('/slow-page');
     await flush();
 
     expect(outlet.targetComponent()).toBe(TargetCmp);
@@ -762,7 +782,7 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    TestBed.inject(CRAFT_HISTORY).push('/parent/child');
+    craftHistory().push('/parent/child');
 
     expect(outlet.targetComponent()).toBe(ParentCmp);
 
@@ -789,7 +809,7 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    TestBed.inject(CRAFT_HISTORY).push('/layout');
+    craftHistory().push('/layout');
 
     expect(outlet.targetComponent()).toBe(ParentCmp);
 
@@ -816,7 +836,7 @@ describe('CraftRouterOutlet', () => {
       createCraftRouterOutletController(),
     );
 
-    TestBed.inject(CRAFT_HISTORY).push('/layout');
+    craftHistory().push('/layout');
     await flush();
 
     expect(outlet.targetComponent()).toBe(ParentCmp);
@@ -843,7 +863,7 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    TestBed.inject(CRAFT_HISTORY).push('/layout/t1/users/1');
+    craftHistory().push('/layout/t1/users/1');
 
     expect(outlet.targetComponent()).toBe(ParentCmp);
     const injector = outlet.displayedInjector();
@@ -852,7 +872,7 @@ describe('CraftRouterOutlet', () => {
     );
     expect(nested.targetComponent()).toBe(ChildCmp);
 
-    TestBed.inject(CRAFT_HISTORY).push('/layout/t1/users/2');
+    craftHistory().push('/layout/t1/users/2');
 
     expect(outlet.displayedInjector()).toBe(injector);
     expect(outlet.targetComponent()).toBe(ParentCmp);
@@ -875,7 +895,7 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    TestBed.inject(CRAFT_HISTORY).push('/query/1');
+    craftHistory().push('/query/1');
 
     const injector = outlet.displayedInjector();
     expect(injector).toBeDefined();
@@ -883,7 +903,7 @@ describe('CraftRouterOutlet', () => {
       expect.objectContaining({ userId: '1' }),
     );
 
-    TestBed.inject(CRAFT_HISTORY).push('/query/2');
+    craftHistory().push('/query/2');
 
     // Same injector === same mounted component: the interpreter only reuses a
     // component node when the injector is identical.
@@ -908,13 +928,13 @@ describe('CraftRouterOutlet', () => {
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
-    TestBed.inject(CRAFT_HISTORY).push('/query/1');
+    craftHistory().push('/query/1');
     await flushChain();
 
     const injector = outlet.displayedInjector();
     expect(injector).toBeDefined();
 
-    TestBed.inject(CRAFT_HISTORY).push('/query/2');
+    craftHistory().push('/query/2');
     await flushChain();
 
     // `meta.resolve` runs once, in the 'enter' phase, and nothing re-runs it
@@ -926,7 +946,7 @@ describe('CraftRouterOutlet', () => {
     const { outlet } = setup();
     const component = { name: 'FunctionalRoute' };
     const routeInjector = createEnvironmentInjector(
-      [{ provide: CRAFT_ROUTE_TARGET, useValue: craftRouteTarget(component) }],
+      [provideCraftRouteTarget(craftRouteTarget(component))],
       TestBed.inject(EnvironmentInjector),
     );
 
@@ -1182,7 +1202,7 @@ describe('CraftRouterOutlet', () => {
     );
     deferred.resolve({ kind: 'global', exception });
     await flush();
-    expect(TestBed.inject(CRAFT_GLOBAL_ERROR)()).toBe(exception);
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftGlobalError()())).toBe(exception);
     expect(outlet.errorComponent()).toBe(ErrCmp);
     expect(outlet.state()).toBe('error');
     expect(outlet.targetComponent()).toBeNull();
@@ -1236,7 +1256,10 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
   } {
     const router = stubRouter();
     TestBed.configureTestingModule({
-      providers: [{ provide: CRAFT_ROUTER, useValue: router }],
+      providers: [
+        ...provideCraftRouter([]),
+        provideCraftRouterRuntimeValue(router),
+      ],
     });
     return {
       outlet: TestBed.runInInjectionContext(() =>
@@ -1310,7 +1333,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
         ]),
       ],
     });
-    const router = TestBed.inject(CRAFT_ROUTER);
+    const router = craftRouter();
     const navigate = vi.spyOn(router, 'navigateByUrl');
     const outlet = TestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
@@ -1424,23 +1447,20 @@ describe('CraftRouterOutlet (view transitions)', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        { provide: CRAFT_ROUTER, useValue: stubRouter() },
-        { provide: CRAFT_ROUTE_CHAIN_RUNNER, useValue: () => deferred.promise },
-        { provide: CRAFT_VIEW_TRANSITIONS_ENABLED, useValue: true },
-        {
-          provide: CRAFT_VIEW_TRANSITION_SKIP_BLANK,
-          useValue: opts.skipBlank ?? false,
-        },
-        {
+        ...provideCraftRouter([]),
+        provideCraftRouterRuntimeValue(stubRouter()),
+        serviceRuntimeOverrides({
+          CraftRouteChainRunner: () => deferred.promise,
+          CraftViewTransitionsEnabled: true,
+          CraftViewTransitionSkipBlank: opts.skipBlank ?? false,
           // Capture the swap callback, then run it (so the DOM still updates).
-          provide: CRAFT_START_VIEW_TRANSITION,
-          useValue: (cb: () => void) => {
+          CraftStartViewTransition: (cb: () => void) => {
             vtCalls.push(cb);
             if (!opts.delayTransitions) {
               cb();
             }
           },
-        },
+        }),
       ],
     });
 
@@ -1547,21 +1567,18 @@ describe('CraftRouterOutlet (view transitions)', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        { provide: CRAFT_ROUTER, useValue: stubRouter() },
-        { provide: CRAFT_VIEW_TRANSITIONS_ENABLED, useValue: true },
-        {
-          provide: CRAFT_SYNC_TEMPLATE_FLUSH,
-          useValue: () => {
+        ...provideCraftRouter([]),
+        provideCraftRouterRuntimeValue(stubRouter()),
+        serviceRuntimeOverrides({
+          CraftViewTransitionsEnabled: true,
+          CraftSyncTemplateFlush: () => {
             host.textContent = outlet.displayedComponent() ? 'target' : '';
           },
-        },
-        {
-          provide: CRAFT_START_VIEW_TRANSITION,
-          useValue: (cb: () => void) => {
+          CraftStartViewTransition: (cb: () => void) => {
             cb();
             expect(host.textContent).toBe('target');
           },
-        },
+        }),
       ],
     });
 

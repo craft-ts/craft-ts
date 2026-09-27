@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { realpathSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   createCraftProject,
@@ -48,7 +48,6 @@ describe('createCraftProject', () => {
         defaultLocale: 'en-US',
       },
       designSystem: 'basic',
-      typedCss: true,
     });
     expect(
       normalizeCreateOptions({
@@ -57,7 +56,6 @@ describe('createCraftProject', () => {
         backendRuntime: 'effect',
         i18n: 'none',
         designSystem: 'none',
-        typedCss: false,
       }),
     ).toMatchObject({ frontendRuntime: 'plain', backendRuntime: 'effect' });
     expect(
@@ -97,7 +95,6 @@ describe('createCraftProject', () => {
       referenceMode: 'context',
       cloneCraftTs: true,
       i18n: 'none',
-      typedCss: true,
       force: true,
     });
     const packageJson = JSON.parse(
@@ -137,15 +134,15 @@ describe('createCraftProject', () => {
       'utf8',
     );
     expect(app).toContain(
-      "a('home', {}, 'Home').pipe(CraftRouterLink({ to: '' }))",
+      "a('home', { class: shell.link, 'aria-label': 'Home' }, 'Home').pipe(CraftRouterLink({ to: '' }))",
     );
     expect(app).toContain(
-      "span({ class: 'starter-experimental-badge' }, 'Experimental · feedback welcome')",
+      "span({ class: shell.badge }, 'Experimental · feedback welcome')",
     );
     expect(app).not.toContain('craftRouterLink:');
     expect(
-      await readFile(join(result.directory, 'src/styles.css'), 'utf8'),
-    ).toContain('.starter-experimental-badge');
+      await readFile(join(result.directory, 'src/app/app.style.ts'), 'utf8'),
+    ).toContain('badge: [');
   });
 
   it('keeps npm dependencies when both CraftTS and EffectTS references are vendored', async () => {
@@ -166,7 +163,6 @@ describe('createCraftProject', () => {
       cloneCraftTs: true,
       cloneEffectTs: true,
       i18n: 'none',
-      typedCss: false,
       force: true,
     });
     const packageJson = JSON.parse(
@@ -209,7 +205,6 @@ describe('createCraftProject', () => {
       agents: [],
       i18n: 'none',
       designSystem: 'none',
-      typedCss: false,
     });
     expect(result.frontendRuntime).toBe('plain');
     expect(result.backendRuntime).toBe('none');
@@ -257,8 +252,12 @@ describe('createCraftProject', () => {
     expect(api).not.toContain('CraftHttpClient');
     expect(api).toContain('craftSleep');
     expect(api).toContain('title:');
-    expect(homePage).toContain('String((yield* welcomeQuery.value())?.title)');
-    expect(homePage).toContain('String((yield* welcomeQuery.value())?.body)');
+    expect(homePage).toContain(
+      "String((yield* welcomeQuery.value())?.title)",
+    );
+    expect(homePage).toContain(
+      "String((yield* welcomeQuery.value())?.body)",
+    );
 
     const effectResult = await createCraftProject({
       directory: 'effect-starter',
@@ -310,6 +309,7 @@ describe('createCraftProject', () => {
     ) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
+      overrides: Record<string, string>;
       scripts: Record<string, string>;
     };
 
@@ -320,6 +320,7 @@ describe('createCraftProject', () => {
     expect(packageJson.dependencies['effect']).toBeUndefined();
     expect(packageJson.devDependencies['effect']).toBeUndefined();
     expect(packageJson.devDependencies?.['typescript']).toBe('^6.0.3');
+    expect(packageJson.devDependencies['@vitest/browser-playwright']).toBe('^4.0.0');
     expect(packageJson.scripts).toMatchObject({
       lint: 'eslint .',
       architecture: expect.stringContaining('vitest'),
@@ -377,9 +378,20 @@ describe('createCraftProject', () => {
         'utf8',
       ),
     ).toContain('Dismiss type-check warning');
+    // The indicator is built imperatively, but still styled by a sheet: its
+    // failed state is an axis the script sets, not a class it assembles.
     expect(
-      await readFile(join(result.directory, 'src/styles.css'), 'utf8'),
-    ).toContain(".craft-typecheck-indicator[data-status='failed']");
+      await readFile(
+        join(result.directory, 'src/dev-typecheck-indicator.style.ts'),
+        'utf8',
+      ),
+    ).toContain("defineStateAxis('typecheck', ['failed'])");
+    expect(
+      await readFile(
+        join(result.directory, 'src/dev-typecheck-indicator.ts'),
+        'utf8',
+      ),
+    ).toContain("indicator.setAttribute('data-typecheck', 'failed')");
     expect(
       await readFile(join(result.directory, 'src/app/app.routes.ts'), 'utf8'),
     ).toContain('craftRoutes');
@@ -514,7 +526,7 @@ describe('createCraftProject', () => {
     // The label now comes from the catalogue; the class and the named id are
     // what this assertion is about.
     expect(components).toContain(
-      "button('continue', { class: surface.card, type: 'button' }, i18n.t('ui.components.continue'))",
+      "button('continue', { class: surface.card, type: 'button', 'aria-label': i18n.t('ui.components.continue') }, i18n.t('ui.components.continue'))",
     );
 
     // The variant travels as an attribute; the class stays constant. A starter
@@ -527,14 +539,18 @@ describe('createCraftProject', () => {
     expect(homePage).toContain("'data-tone': 'danger'");
     expect(homePage).not.toContain("class: '");
 
-    // The three moved rules must not also survive as global CSS.
-    const styles = await readFile(
-      join(result.directory, 'src/styles.css'),
+    // No global stylesheet at all: the element defaults and the shell are a
+    // sheet too, and main.ts imports only the generated CSS.
+    expect(existsSync(join(result.directory, 'src/styles.css'))).toBe(false);
+    const appSheet = await readFile(
+      join(result.directory, 'src/app/app.style.ts'),
       'utf8',
     );
-    expect(styles).not.toContain('.card {');
-    expect(styles).not.toContain('.muted {');
-    expect(styles).not.toContain('.error {');
+    expect(appSheet).toContain("craftGlobalStyles('page'");
+    expect(appSheet).toContain("craftStyles('appShell'");
+    expect(
+      await readFile(join(result.directory, 'src/main.ts'), 'utf8'),
+    ).not.toContain('styles.css');
 
     expect(
       await readFile(
@@ -696,7 +712,6 @@ describe('createCraftProject', () => {
       agents: [],
       i18n: 'none',
       designSystem: 'basic',
-      typedCss: true,
       attest: true,
       force: true,
     });
@@ -757,6 +772,8 @@ describe('createCraftProject', () => {
       'utf8',
     );
     expect(homePage).toContain('readWelcomeField');
+    expect(homePage).toContain('welcomeQuery.errorText');
+    expect(homePage).not.toContain('welcomeQuery.errorMessage()');
     expect(homePage).not.toContain('const welcome =');
     expect(
       await readFile(
@@ -828,9 +845,12 @@ describe('createCraftProject', () => {
         'utf8',
       ),
     ).toContain('runtimeLayer');
-    expect(
-      await readFile(join(result.directory, 'src/server/node-http.ts'), 'utf8'),
-    ).toContain('body: request as unknown as BodyInit');
+    const nodeHttp = await readFile(
+      join(result.directory, 'src/server/node-http.ts'),
+      'utf8',
+    );
+    expect(nodeHttp).toContain('new ReadableStream<Uint8Array>');
+    expect(nodeHttp).not.toMatch(/\bas\s+/);
     expect(
       await readFile(join(result.directory, 'src/server/server.ts'), 'utf8'),
     ).not.toContain('IncomingMessage');
@@ -868,6 +888,99 @@ describe('createCraftProject', () => {
     ).rejects.toThrow();
   });
 
+  it('uses the Craft query helper for an Effect frontend calling a server function', async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'craft-ts-create-effect-frontend-promise-backend-'),
+    );
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: [],
+      frontendRuntime: 'effect',
+      backendRuntime: 'promise',
+      i18n: 'strict',
+    });
+    const homePage = await readFile(
+      join(result.directory, 'src/app/home-page.ts'),
+      'utf8',
+    );
+
+    expect(homePage).toContain("import { query } from '@craft-ts/core';");
+    expect(homePage).toContain(
+      "import { getStarterMessage } from '../starter.fn-client';",
+    );
+    expect(homePage).toContain(
+      "function* () { return yield* getStarterMessage({ filter: 'starter' }); }",
+    );
+    expect(homePage).toContain('yield* welcomeQuery.value()');
+    expect(homePage).not.toContain('queryEffect');
+    expect(homePage).not.toContain('Effect.tryPromise');
+    expect(homePage).not.toContain("from './api'");
+    await expect(
+      readFile(join(result.directory, 'src/app/api.ts'), 'utf8'),
+    ).rejects.toThrow();
+    await expect(
+      readFile(join(result.directory, 'src/app/domain.ts'), 'utf8'),
+    ).rejects.toThrow();
+    expect(
+      await readFile(join(result.directory, 'src/app/app.config.ts'), 'utf8'),
+    ).not.toContain('WelcomeRepositoryLive');
+  });
+
+  it('generates the plain server client without a type assertion', async () => {
+    const root = await mkdtemp(
+      join(tmpdir(), 'craft-ts-create-backend-promise-'),
+    );
+    temporaryDirectories.push(root);
+    const result = await createCraftProject({
+      directory: 'starter',
+      rootDir: root,
+      agents: [],
+      frontendRuntime: 'plain',
+      backendRuntime: 'promise',
+      i18n: 'none',
+      designSystem: 'none',
+    });
+
+    const client = await readFile(
+      join(result.directory, 'src/starter.fn-client.ts'),
+      'utf8',
+    );
+    expect(client).toContain(
+      'createServerFunctionClient<typeof ServerGetStarterMessage>',
+    );
+    expect(client).not.toContain(' as ServerFunctionClient');
+    const homePage = await readFile(
+      join(result.directory, 'src/app/home-page.ts'),
+      'utf8',
+    );
+    expect(homePage).toContain(
+      "function* () { return yield* getStarterMessage({ filter: 'starter' }); }",
+    );
+    expect(
+      await readFile(
+        join(result.directory, 'src/app/home-page.spec.ts'),
+        'utf8',
+      ),
+    ).toContain('vi.fn(function* ()');
+    expect(
+      await readFile(
+        join(result.directory, 'src/app/home-page.spec.ts'),
+        'utf8',
+      ),
+    ).toContain('yield* craftSleep(0)');
+    await expect(
+      readFile(join(result.directory, 'src/app/api.ts'), 'utf8'),
+    ).rejects.toThrow();
+    expect(
+      await readFile(
+        join(result.directory, 'src/starter.fn-serveur.ts'),
+        'utf8',
+      ),
+    ).not.toContain('type ServerFunctionSuccess');
+  });
+
   it('generates explicit locale parity and strict i18n scripts', async () => {
     const root = await mkdtemp(join(tmpdir(), 'craft-ts-create-i18n-'));
     temporaryDirectories.push(root);
@@ -900,7 +1013,9 @@ describe('createCraftProject', () => {
     ).toContain('defineLocaleLike');
     expect(
       await readFile(join(result.directory, 'src/i18n/runtime.ts'), 'utf8'),
-    ).toContain('const locales = [enUS, frFR] as const;');
+    ).toContain(
+      'const locales = [enUS, frFR] satisfies readonly [typeof enUS, typeof frFR];',
+    );
     expect(
       await readFile(join(result.directory, 'src/i18n/runtime.ts'), 'utf8'),
     ).toContain('createI18nRuntime<typeof locales>({');
@@ -920,7 +1035,6 @@ describe('createCraftProject', () => {
       rootDir: root,
       agents: [],
       i18n: 'none',
-      typedCss: false,
       attest: true,
     });
     const packageJson = JSON.parse(
@@ -964,7 +1078,6 @@ describe('createCraftProject', () => {
       rootDir: root,
       agents: [],
       i18n: 'none',
-      typedCss: false,
       attest: true,
       attestation: {
         mode: 'ai',
@@ -1007,7 +1120,6 @@ describe('createCraftProject', () => {
       rootDir: root,
       agents: [],
       i18n: 'none',
-      typedCss: false,
       attest: true,
       attestation: { viewports: {}, template: true },
     });
@@ -1035,7 +1147,6 @@ describe('createCraftProject', () => {
       domain: 'animal',
       i18n: 'none',
       designSystem: 'none',
-      typedCss: false,
     });
 
     expect(result.config.demoPages).toBe(false);
@@ -1072,7 +1183,6 @@ describe('createCraftProject', () => {
       agents: [],
       i18n: 'none',
       designSystem: 'none',
-      typedCss: false,
     });
     const packageJson = JSON.parse(
       await readFile(join(result.directory, 'package.json'), 'utf8'),
@@ -1146,7 +1256,6 @@ describe('the contrast guarantee in a generated project', () => {
       agents: [],
       i18n: 'none',
       designSystem: 'basic',
-      typedCss: true,
       force: true,
     });
   };
@@ -1195,27 +1304,11 @@ describe('the contrast guarantee in a generated project', () => {
     expect(script).not.toContain('Typed CSS configuration present');
   });
 
-  it('switches on the typedCss lint preset, and only with typed CSS', async () => {
+  it('switches on the typedCss lint preset', async () => {
     const withTypedCss = await typedCssStarter('standalone', 'plain');
     expect(
       await readFile(join(withTypedCss.directory, 'eslint.config.mjs'), 'utf8'),
     ).toContain('craftRules.configs.typedCss.rules');
-
-    const root = await mkdtemp(join(tmpdir(), 'craft-ts-plain-css-'));
-    temporaryDirectories.push(root);
-    const plainCss = await createCraftProject({
-      directory: 'starter',
-      rootDir: root,
-      agents: [],
-      i18n: 'none',
-      typedCss: false,
-      force: true,
-    });
-    // A plain-CSS project writes its colours in raw CSS by design and makes
-    // no contrast claim, so the rules that protect that claim stay off.
-    expect(
-      await readFile(join(plainCss.directory, 'eslint.config.mjs'), 'utf8'),
-    ).not.toContain('typedCss');
   });
 
   it('writes the dump where style:check looks for it', async () => {
@@ -1235,24 +1328,60 @@ describe('the contrast guarantee in a generated project', () => {
     ).toContain('npm run style:check');
   });
 
-  it('leaves a project without typed CSS alone', async () => {
-    // The guarantee is conditioned on `typedCss: true`. A plain-CSS project
-    // has no dump and nothing to analyse, and generating a script that would
-    // fail is worse than generating none.
-    const root = await mkdtemp(join(tmpdir(), 'craft-ts-contrast-off-'));
+  it('keeps the guarantee without the starter design system', async () => {
+    // There is no plain-CSS starter any more: without the design system the
+    // project still styles through @craft-ts/style, so the dump, the check
+    // and the lint preset are all there.
+    const root = await mkdtemp(join(tmpdir(), 'craft-ts-no-design-system-'));
     temporaryDirectories.push(root);
     const result = await createCraftProject({
       directory: 'starter',
       rootDir: root,
       agents: [],
       i18n: 'none',
-      typedCss: false,
+      designSystem: 'none',
       force: true,
     });
     const packageJson = JSON.parse(
       await readFile(join(result.directory, 'package.json'), 'utf8'),
-    ) as { scripts: Record<string, string> };
-    expect(packageJson.scripts['style:check']).toBeUndefined();
+    ) as {
+      dependencies: Record<string, string>;
+      scripts: Record<string, string>;
+    };
+    expect(packageJson.scripts['style:check']).toBe(
+      'node scripts/style-check.mjs',
+    );
+    expect(packageJson.dependencies['@craft-ts/style']).toBeDefined();
+    expect(
+      await readFile(join(result.directory, 'eslint.config.mjs'), 'utf8'),
+    ).toContain('craftRules.configs.typedCss.rules');
+    expect(existsSync(join(result.directory, 'src/app/ui'))).toBe(false);
+    expect(existsSync(join(result.directory, 'src/app/app.style.ts'))).toBe(
+      true,
+    );
+  });
+
+  it('emits an architecture suite that reads the style dump', async () => {
+    const result = await typedCssStarter('standalone', 'plain');
+    const loadGraph = await readFile(
+      join(result.directory, 'architecture/load-graph.ts'),
+      'utf8',
+    );
+    expect(loadGraph).toContain(
+      'export async function loadArchitectureGraph()',
+    );
+    expect(loadGraph).toContain('mergeStyleDump(graph, styleDump)');
+    expect(
+      await readFile(
+        join(result.directory, 'architecture/architecture.spec.ts'),
+        'utf8',
+      ),
+    ).toContain(
+      'assertArchitecture(graph.graph, { waivers: architectureWaiverList })',
+    );
+    expect(existsSync(join(result.directory, 'architecture/waivers.ts'))).toBe(
+      true,
+    );
   });
 });
 

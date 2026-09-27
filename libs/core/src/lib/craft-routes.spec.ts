@@ -89,12 +89,14 @@ import { craftExceptionHandler } from './craft-route-exceptions';
 import { GetDeps } from './branded-component/branded-component';
 import { HOST_TAG_LIST, HostName, provideHostName } from './host-tag';
 import { craftUse } from './craft-use';
+import { provideCraftActivatedRoute } from './craft-activated-route';
+import { provideCraftMatch, ɵinjectCraftRouterRuntime } from './craft-router-tokens';
+import { provideCraftSsrPolicy, ɵinjectCraftSsrPolicy } from './craft-ssr';
 import { craftUntilSettled } from './craft-until-settled';
 import {
-  CRAFT_MATCH,
-  CRAFT_ROUTER,
   matchCraftRoutes,
   provideCraftRouter,
+  type CraftRouterNavigationApi,
   type CraftCompiledRoute,
   type CraftMatch,
 } from './craft-router';
@@ -102,7 +104,6 @@ import { createCraftRouterOutletController } from './craft-router-outlet';
 import { CRAFT_ROUTE_META, getCraftRouteMeta } from './craft-route-meta';
 import { craftSignal, type CraftWritableSignal } from './host/craft-signal';
 import { withTransitionTimings } from './craft-pending';
-import { CRAFT_SSR_POLICY } from './craft-ssr';
 
 const flushChain = async () => {
   for (let i = 0; i < 20; i += 1) {
@@ -340,10 +341,7 @@ function createRouteInjector(
   return Injector.create({
     parent,
     providers: [
-      {
-        provide: ActivatedRoute,
-        useValue: activatedRoute,
-      },
+      provideCraftActivatedRoute(activatedRoute),
       ...(parent
         ? []
         : [
@@ -392,9 +390,7 @@ function createRouteInjector(
         provide: SERVICE_YIELD_WRAPPER,
         useValue: [],
       },
-      {
-        provide: CRAFT_MATCH,
-        useValue: (() => {
+      provideCraftMatch(() => {
           const hostRoute = activatedRoute as ActivatedRouteWithCraftMatch;
           const matchSignal =
             hostRoute.__craftMatch ??
@@ -402,8 +398,7 @@ function createRouteInjector(
           matchSignal.set(buildStubMatch(activatedRoute, routePath));
           hostRoute.__craftMatch = matchSignal;
           return matchSignal;
-        })(),
-      },
+        }),
       ...flattenProviders(providers),
     ] as never[],
   });
@@ -415,10 +410,7 @@ function configureRouteTestingModule(
 ) {
   TestBed.configureTestingModule({
     providers: [
-      {
-        provide: ActivatedRoute,
-        useValue: activatedRoute,
-      },
+      provideCraftActivatedRoute(activatedRoute),
       {
         provide: SERVICE_RUNTIME_OVERRIDES,
         useValue: new Map(),
@@ -492,10 +484,10 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    expect(appRoutes.toRoutes()[0].providers).toContainEqual({
-      provide: CRAFT_SSR_POLICY,
-      useValue: policy,
-    });
+    const route = appRoutes.toRoutes()[0];
+    expect(route.providers).toBeDefined();
+    const injector = createRouteInjector(route.providers, createActivatedRouteStub().route);
+    expect(runInInjectionContext(injector, () => ɵinjectCraftSsrPolicy())).toEqual(policy);
   });
 
   it('should expose a yieldable service helper for params', () => {
@@ -648,7 +640,7 @@ describe('craftRoutes', () => {
         providers: [provideCraftRouter(compiledRoutes)],
       }).compileComponents();
 
-      const router = TestBed.inject(CRAFT_ROUTER);
+      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()! as CraftRouterNavigationApi);
       const routeConfig = compiledRoutes[0];
 
       await router.navigateByUrl('/list?page=2');
@@ -753,7 +745,7 @@ describe('craftRoutes', () => {
         providers: [provideCraftRouter(parentCompiledRoutes)],
       }).compileComponents();
 
-      const router = TestBed.inject(CRAFT_ROUTER);
+      const router = TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()! as CraftRouterNavigationApi);
 
       await router.navigateByUrl('/layout/details?page=4');
       await vi.runAllTimersAsync();

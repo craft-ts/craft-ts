@@ -7,9 +7,8 @@ import {
   Signal,
   signal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
-import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencies,
@@ -20,7 +19,7 @@ import {
 } from './craft-primitive-gen';
 import { yieldableInvocation } from './yieldable';
 import { SourceBranded } from './util/util';
-import { SEND_CONTEXT_SESSION } from './send-context-to-ai.tokens';
+import { ɵinjectSendContextSession } from './send-context-to-ai.tokens';
 
 export type SourceDependency<Name extends string> = {
   [K in Name]: ServiceDependencies<'function', {}>;
@@ -171,14 +170,15 @@ export function source$<T, Name extends string = string>(
   const destroyRef = inject(DestroyRef);
 
   const sourceAsSignal = signal<T | undefined>(undefined);
-  const sendContextSession = inject(SEND_CONTEXT_SESSION, { optional: true });
+  const sendContextSession = ɵinjectSendContextSession();
 
-  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+  const registry = ɵinjectAppSnapshotRegistry();
   if (registry) {
     const from = sourceInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    registry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRef))
-      .subscribe(() => {
+    registry.registerSnapshotReader(
+      name,
+      from,
+      () => {
         let stateSnapshot: unknown;
         try {
           stateSnapshot = sourceAsSignal();
@@ -187,12 +187,10 @@ export function source$<T, Name extends string = string>(
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        registry.allSnapShot$.next({
-          source: name,
-          from,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRef,
+    );
   }
 
   const source = {

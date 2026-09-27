@@ -1,5 +1,5 @@
 import { isCraftSignal, type CraftSignal as Signal } from './host/craft-signal';
-import { craftToken } from './host/craft-injector';
+import { inject, type InjectionToken, type Provider } from './host/craft-compat';
 import type { SourceBranded } from './util/util';
 
 function isCallableSignal(value: unknown): boolean {
@@ -448,21 +448,35 @@ export function ɵwithActiveReactiveReader<T>(
 }
 
 /** Observability hook notified whenever a Craft generator resolves a reactive read. */
-export const REACTIVE_READ_OBSERVERS = Object.assign(
-  craftToken<readonly ReactiveReadObserver[]>('REACTIVE_READ_OBSERVERS'),
-  {
-    ɵfactory: (): readonly ReactiveReadObserver[] => [],
-  },
-);
+export const REACTIVE_READ_OBSERVERS = Object.freeze({});
+
+export function* ReactiveReadObservers(): Generator<
+  unknown,
+  readonly ReactiveReadObserver[],
+  unknown
+> {
+  return ɵinjectReactiveReadObservers();
+}
 
 export function provideReactiveReadObserver(
   observer: ReactiveReadObserver,
-): {
-  provide: typeof REACTIVE_READ_OBSERVERS;
-  useValue: ReactiveReadObserver;
-  multi: true;
-} {
+): Provider {
   return { provide: REACTIVE_READ_OBSERVERS, useValue: observer, multi: true };
+}
+
+export function ɵinjectReactiveReadObservers(): readonly ReactiveReadObserver[] {
+  try {
+    return (
+      inject(
+        REACTIVE_READ_OBSERVERS as InjectionToken<
+          readonly ReactiveReadObserver[]
+        >,
+        { optional: true },
+      ) ?? []
+    );
+  } catch {
+    return [];
+  }
 }
 
 export function isReactiveReadRequest(

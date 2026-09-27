@@ -1,4 +1,3 @@
-import { craftService } from '@craft-ts/core';
 import {
   craftComponent,
   forNode,
@@ -9,6 +8,7 @@ import {
   type Input,
 } from '@craft-ts/component';
 import type { Messages } from './messages';
+import { inventory } from './review-inventory.style';
 
 export interface VisualAssetEntry {
   readonly evidence: string;
@@ -19,31 +19,18 @@ const scenarioCountText = (value: VisualAssetEntry): string =>
   `${value.scenarios.length} scenario${value.scenarios.length === 1 ? '' : 's'}`;
 
 /** The flat list of visual-evidence assets, one row per screenshot family. */
-export const { AssetsInventoryListView, provideAssetsInventoryListView } =
-  craftService(
-    { name: 'assetsInventoryListView', providedIn: 'toProvide' },
-    (inputs: {
-      readonly assets: Input<readonly VisualAssetEntry[]>;
-      readonly t: Input<Messages>;
-    }) => {
-      const { assets, t } = inputs;
-      return {
-        assets,
-        t,
-      };
-    },
-  );
-
 export const AssetsInventoryList = craftComponent(
   'AssetsInventoryList',
-  { providers: [provideAssetsInventoryListView()] },
-  function* (inputs: {
+  {},
+  function* ({
+    assets,
+    t,
+  }: {
     readonly assets: Input<readonly VisualAssetEntry[]>;
     readonly t: Input<Messages>;
   }) {
-    const { assets, t } = yield* AssetsInventoryListView(inputs);
     return ul(
-      { class: 'inventory-list' },
+      { class: inventory.list },
       forNode(
         assets,
         {
@@ -54,7 +41,7 @@ export const AssetsInventoryList = craftComponent(
             }),
         },
         (asset) =>
-          li([
+          li({ class: inventory.entry }, [
             strong(function* () {
               return (yield* asset()).evidence;
             }),

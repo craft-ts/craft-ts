@@ -1,9 +1,9 @@
 import {
-  InjectionToken,
   Injector,
   runInInjectionContext,
   type Provider,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import { isCraftDevelopment } from './craft-runtime-mode';
 
 export type CraftHttpTraceContext = Readonly<{
@@ -18,22 +18,33 @@ export type CraftHttpTraceWrapper = (
   next: () => Promise<unknown>,
 ) => Promise<unknown>;
 
-export const CRAFT_HTTP_TRACE = new InjectionToken<
-  readonly CraftHttpTraceWrapper[]
->('CRAFT_HTTP_TRACE', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+const craftHttpTraceService = craftService(
+  { name: 'CraftHttpTraces', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: CraftHttpTraceWrapper }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  provideCraftHttpTraces: (value?: CraftHttpTraceWrapper) => unknown;
+  CRAFT_HTTP_TRACES_META_DATA: { inject(): readonly CraftHttpTraceWrapper[] };
+};
+
+export const ɵinjectCraftHttpTraces = (
+  injector?: Injector,
+): readonly CraftHttpTraceWrapper[] => {
+  try {
+    return injector
+      ? runInInjectionContext(injector, () =>
+          craftHttpTraceService.CRAFT_HTTP_TRACES_META_DATA.inject(),
+        )
+      : craftHttpTraceService.CRAFT_HTTP_TRACES_META_DATA.inject();
+  } catch {
+    return [];
+  }
+};
 
 export function provideCraftHttpTrace(
   wrapper: CraftHttpTraceWrapper,
 ): Provider {
-  return {
-    provide: CRAFT_HTTP_TRACE,
-    useValue: wrapper,
-    multi: true,
-  };
+  return craftHttpTraceService.provideCraftHttpTraces(wrapper) as Provider;
 }
 
 export function executeCraftHttpTrace<Value>(
@@ -44,7 +55,7 @@ export function executeCraftHttpTrace<Value>(
   if (!isCraftDevelopment(injector)) {
     return next();
   }
-  const wrappers = injector.get(CRAFT_HTTP_TRACE, []);
+  const wrappers = ɵinjectCraftHttpTraces(injector);
   if (wrappers.length === 0) {
     return next();
   }

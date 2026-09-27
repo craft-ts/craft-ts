@@ -29,6 +29,11 @@ import type {
   InputValue,
 } from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
+import {
+  EVENT_ACTION,
+  isEventActionDirective,
+  type EventActionOptions,
+} from '../event-action';
 import type { CssVarContract, EmptyCssVarContract } from '../css-vars.type';
 import {
   CATCH_NODE_DIRECTIVE,
@@ -230,7 +235,10 @@ type MergedCraftNodeChildrenDependencies<Value> = {
  * provider would surface as a runtime injection failure.
  */
 type CraftNodePropsDependencySources<Props> = [Props] extends [object]
-  ? Props[keyof Props]
+  ? // A string prop carries nothing, and a branded class (`string & {…}`)
+    // must not reach the check below: `string extends` holds for it, and
+    // would erase the dependencies of the children it is merged with.
+    Exclude<Props[keyof Props], string>
   : never;
 
 export type CraftNodeDependencies<Props, Children> =
@@ -1537,6 +1545,10 @@ export function pipeCraftNode(
     | ScheduleForDirective
     | CraftHostType<unknown>,
 ): CraftNode {
+  if (isEventActionDirective(directive)) {
+    return applyEventAction(node, directive[EVENT_ACTION]);
+  }
+
   if (isScheduleForDirective(directive)) {
     if (node.kind !== 'for') {
       throw new TypeError(
@@ -1635,6 +1647,45 @@ export function pipeCraftNode(
     node,
     directives: [directive],
   });
+}
+
+function applyEventAction(
+  node: CraftNode,
+  actions: Readonly<Record<string, EventActionOptions<any> | undefined>>,
+): CraftNode {
+  if (node.kind === 'directive') {
+    return withPipe({ ...node, node: applyEventAction(node.node, actions) });
+  }
+  if (node.kind !== 'element') {
+    throw new TypeError('eventAction(...) can only be piped onto an element.');
+  }
+
+  const props: Record<string, unknown> = { ...node.props };
+  for (const [eventName, options] of Object.entries(actions)) {
+    if (!options) continue;
+    const onName = `on${eventName[0]?.toUpperCase()}${eventName.slice(1)}`;
+    if (props[eventName] !== undefined || props[onName] !== undefined) {
+      throw new TypeError(
+        `eventAction(...) cannot bind ${eventName} because the element already has a ${eventName} handler.`,
+      );
+    }
+    props[eventName] = function* (event: Event) {
+      if (options.preventDefault) event.preventDefault();
+      if (options.stopPropagation) event.stopPropagation();
+      if (options.stopImmediatePropagation) event.stopImmediatePropagation();
+      const result: unknown = options.action(event);
+      if (
+        result !== null &&
+        typeof result === 'object' &&
+        Symbol.iterator in result &&
+        'next' in result
+      ) {
+        return yield* result as Generator<unknown, unknown, unknown>;
+      }
+      return result;
+    };
+  }
+  return withPipe({ ...node, props });
 }
 
 function applyCraftNodeDirective(

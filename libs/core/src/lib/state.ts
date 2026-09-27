@@ -11,7 +11,6 @@ import {
   Signal,
   WritableSignal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 
 const UNSET_ANGULAR_STATE = Symbol('unset-angular-state');
 import {
@@ -43,9 +42,10 @@ import type {
   ServiceDependencyMapFromYielded,
 } from './craft-service';
 import {
-  APP_SNAPSHOT_REGISTRY,
-  INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
+  provideInsertionSnapshotRegistry,
+  ɵinjectAppSnapshotRegistry,
+  ɵinjectAppSnapshotRegistryIn,
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import { Source$ as SourceDollarType } from './source$';
@@ -122,11 +122,11 @@ export type ExposedStateInsertions<Insertions> = YieldableInsertionMethods<
   MergeObject<
     IsEmptyObject<Insertions> extends true ? {} : FilterSource<Insertions>,
     {
-      [K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
-        ? K
-        : never]: FilterSource<Insertions>[K] extends SourceDollarType<
-        infer SourceType
-      >
+      [
+        K in keyof FilterSource<Insertions> as FilterSource<Insertions>[K] extends SourceDollarType<any>
+          ? K
+          : never
+      ]: FilterSource<Insertions>[K] extends SourceDollarType<infer SourceType>
         ? Source$Method<SourceType>
         : never;
     }
@@ -154,10 +154,9 @@ type StateDeepYieldablePropertyOutput<StateType, Insertions> =
   DeepYieldablePropertyOf<Insertions> extends infer Property extends string
     ? StateType extends Record<Property, infer Value>
       ? {
-          readonly [Name in `deepYieldable${Capitalize<Property>}`]: DeepYieldableReactiveValue<
-            Value,
-            Name
-          >;
+          readonly [
+            Name in `deepYieldable${Capitalize<Property>}`
+          ]: DeepYieldableReactiveValue<Value, Name>;
         }
       : {}
     : {};
@@ -551,10 +550,7 @@ function createStateRef<StateType>(
   let injector: Injector | undefined;
   const getInjector = () => {
     injector ??= ɵcreateHostTaggedInjector(getBaseInjector(), `state:${name}`, [
-      {
-        provide: INSERTION_SNAPSHOT_REGISTRY,
-        useValue: insertionSnapshotRegistry,
-      },
+      provideInsertionSnapshotRegistry(insertionSnapshotRegistry),
       ...extraProviders,
     ]);
     return injector;
@@ -643,8 +639,7 @@ function createStateRef<StateType>(
     !schema && isSignalState
       ? isWritableSignal(resolvedStateConfig) || isCraftWritableState
         ? (resolvedStateConfig as
-            | WritableSignal<StateType>
-            | CraftWritableSignal<StateType>)
+            WritableSignal<StateType> | CraftWritableSignal<StateType>)
         : isAngularSignalState
           ? wrapAngularReadonlyState()
           : craftLinkedSignal({
@@ -871,10 +866,10 @@ function createStateRef<StateType>(
   }
 
   const snapshotRegistry = injector
-    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    ? ɵinjectAppSnapshotRegistryIn(injector)
     : (() => {
         try {
-          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+          return ɵinjectAppSnapshotRegistry();
         } catch {
           return null;
         }
@@ -910,9 +905,10 @@ function createStateRef<StateType>(
   });
 
   if (snapshotRegistry && destroyRef) {
-    snapshotRegistry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRef))
-      .subscribe(() => {
+    snapshotRegistry.registerSnapshotReader(
+      'state',
+      hostTagList,
+      () => {
         const insertionSnapshots = triggerAndCollectInsertions(
           insertionSnapshotRegistry,
         );
@@ -927,12 +923,10 @@ function createStateRef<StateType>(
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        snapshotRegistry.allSnapShot$.next({
-          source: 'state',
-          from: hostTagList,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRef,
+    );
   }
 
   const publicState = createYieldableReactiveFacade(stateOutput, {

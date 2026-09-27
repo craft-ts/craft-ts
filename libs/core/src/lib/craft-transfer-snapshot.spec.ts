@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { craftUse } from './craft-use';
 import { CraftPrimitiveRegistry } from './craft-primitive-registry';
+import { setupCraftServiceTest } from './setup-craft-service-test';
 import {
   captureCraftTransferSnapshot,
   primeCraftTransferSnapshot,
@@ -8,7 +10,8 @@ import {
 
 describe('Craft transfer snapshots', () => {
   it('captures state and query metadata and serializes script text safely', () => {
-    const registry = new CraftPrimitiveRegistry();
+    const { injector } = setupCraftServiceTest();
+    const registry = injector.run(() => craftUse(CraftPrimitiveRegistry()));
     registry.register('component:App / state:message', {
       kind: 'state',
       name: 'message',
@@ -47,7 +50,8 @@ describe('Craft transfer snapshots', () => {
   });
 
   it('primes primitives that register after the browser reads the snapshot', () => {
-    const registry = new CraftPrimitiveRegistry();
+    const { injector } = setupCraftServiceTest();
+    const registry = injector.run(() => craftUse(CraftPrimitiveRegistry()));
     let restored: unknown;
     primeCraftTransferSnapshot(registry, {
       version: 1,
@@ -71,7 +75,10 @@ describe('Craft transfer snapshots', () => {
   it('rejects cycles and non-plain transferable values', () => {
     const cycle: { self?: unknown } = {};
     cycle.self = cycle;
-    const cyclicRegistry = new CraftPrimitiveRegistry();
+    const { injector } = setupCraftServiceTest();
+    const cyclicRegistry = injector.run(() =>
+      craftUse(CraftPrimitiveRegistry()),
+    );
     cyclicRegistry.register('state:cycle', {
       kind: 'state',
       name: 'cycle',
@@ -84,7 +91,10 @@ describe('Craft transfer snapshots', () => {
       'contains a cycle',
     );
 
-    const classRegistry = new CraftPrimitiveRegistry();
+    const { injector: classRegistryInjector } = setupCraftServiceTest();
+    const classRegistry = classRegistryInjector.run(() =>
+      craftUse(CraftPrimitiveRegistry()),
+    );
     classRegistry.register('state:date', {
       kind: 'state',
       name: 'date',

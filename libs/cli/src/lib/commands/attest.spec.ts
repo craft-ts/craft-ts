@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -489,6 +496,94 @@ describe('craft-ts attest', () => {
     );
     expect(code).toBe(1);
     expect(err.join('\n')).toContain('template must be a boolean');
+  });
+
+  it('lists eslint-disable directives, and re-asks only when the bypass changes', async () => {
+    const { root, io, out } = await workspace();
+    const card = (prefix: string, reason: string) =>
+      `${prefix}// eslint-disable-next-line craft-ts/no-raw-class -- ${reason}\ndiv({ class: 'prose' }, html);\n`;
+    await writeFile(join(root, 'article.ts'), card('', 'markdown output'));
+
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'eslint-disable'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(1);
+    expect(out.join('\n')).toContain(
+      'missing  eslint-disable:article.ts:craft-ts/no-raw-class:1',
+    );
+
+    await runAttestCommand(
+      ['renew', '--all', '--kind', 'eslint-disable'],
+      io,
+      dependencies(),
+    );
+    // Code added above the directive: same subject, same evidence.
+    await writeFile(
+      join(root, 'article.ts'),
+      card("import { a } from 'a';\n\n", 'markdown output'),
+    );
+    out.length = 0;
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'eslint-disable'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(0);
+    expect(out[0]).toBe('current 1  renewed 0  review 0  missing 0');
+
+    // A new reason is a new decision.
+    await writeFile(join(root, 'article.ts'), card('', 'vendor widget'));
+    out.length = 0;
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'eslint-disable'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(1);
+    expect(out[0]).toBe('current 0  renewed 0  review 1  missing 0');
+  });
+
+  it('lists the architecture waivers every project declares', async () => {
+    const { root, io, out } = await workspace();
+    await mkdir(join(root, 'apps/shop/architecture'), { recursive: true });
+    await writeFile(
+      join(root, 'apps/shop/architecture/waivers.ts'),
+      `export const list = defineArchitectureWaivers(catalog, [
+  { rule: 'style-only-design-system', target: 'Markdown', reason: 'Rendered markdown.' },
+]);
+`,
+    );
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'architecture-waiver'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(1);
+    expect(out.join('\n')).toContain(
+      'missing  architecture-waiver:apps/shop:style-only-design-system:Markdown',
+    );
+  });
+
+  it('refuses a bypass kind when the config turned bypasses off', async () => {
+    const { root, io, err } = await workspace();
+    await writeFile(
+      join(root, 'review-attest.config.ts'),
+      'export default { bypasses: false };\n',
+    );
+    expect(
+      await runAttestCommand(
+        ['status', '--kind', 'eslint-disable'],
+        io,
+        dependencies(),
+      ),
+    ).toBe(1);
+    expect(err.join('\n')).toContain('bypasses: false');
   });
 
   it('derives template subjects without a report', async () => {

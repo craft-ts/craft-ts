@@ -1,8 +1,10 @@
 # Attestation application
 
 The attestation application is the unified review surface for visual captures
-and template obligations. It follows the same CraftTS constraints as the
-applications it reviews: the recommended ESLint rules, a dedicated graph
+and historical template obligations. The production CLI currently leaves
+template-obligation generation disabled; the app keeps fixture data to verify
+that older records remain reviewable. It follows the same CraftTS constraints
+as the applications it reviews: the recommended ESLint rules, a dedicated graph
 configuration, and executable architecture checks.
 
 It also reviews itself. This requires two successive sessions rather than one
@@ -10,12 +12,29 @@ self-referential live session:
 
 1. the capture session starts the review application with a deterministic
    fixture queue and freezes its representative states;
-2. the review session starts a new instance with that visual report and the
-   template obligations derived from the review application's own graph.
+2. the review session starts a new instance with that visual report and
+   historical template-obligation fixtures.
 
 The separation is intentional. A server cannot reliably review a queue that it
 is still changing while capturing itself. The frozen, script-free artefacts
 make the second session reproducible and avoid an infinite recursion.
+
+## Review a folder layout
+
+The unified DevTool can also attest a deterministic `folder-layout` proposal
+produced by `craft organize`. Add the proposal to the review configuration:
+
+```ts
+folderLayout: {
+  proposal: 'apps/demo/folder-layout/folder-layout-proposal.json',
+  analysis: 'apps/demo/folder-layout/folder-layout-analysis.json',
+}
+```
+
+The **Folder layout** view presents the original and proposed trees side by
+side. Moved, deleted, created and unchanged files receive distinct visual
+states. The same Accept, Accept with note, Reject and history actions are used
+by the attestation queue, so the result is written to the normal ledger.
 
 ## Run the self-attestation
 
@@ -121,8 +140,9 @@ npx craft-ts attest devtools \
 ```
 
 The script must rebuild the report passed to `--report`. After it completes,
-the DevTool re-reads that report, rebuilds the CraftTS graph and template
-obligations, persists the new evidence, and refreshes the complete queue.
+the DevTool re-reads that report, rebuilds the CraftTS graph, persists the new
+visual evidence, and refreshes the queue. Template-obligation generation stays
+disabled.
 
 After changing the review application's TypeScript, template, styles, messages,
 API dataset, or fixture scenarios, run the three commands again. Change the fixture version

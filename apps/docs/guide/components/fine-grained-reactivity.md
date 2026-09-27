@@ -5,10 +5,11 @@ Craft updates the text node, DOM property, class, style, or host binding that
 read it. It does not need to execute the surrounding component template again.
 
 ```ts
+// `counterSheet` is the component's sheet, from counter.style.ts.
 ({ counter }) =>
   div([
     h2('Counter'),
-    p({ class: 'value' }, counter),
+    p({ class: counterSheet.value }, counter),
     button({ click: counter.increment }, '+'),
   ]);
 ```

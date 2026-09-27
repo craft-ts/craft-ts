@@ -1,20 +1,21 @@
 import {
   effect,
-  InjectionToken,
   Injector,
   isDevMode,
   Renderer2,
+  runInInjectionContext,
   type Signal,
   untracked,
 } from '../host/craft-compat';
 import type { GetDeps } from '../branded-component/branded-component';
 import { REACTIVE_VALUE_TYPE, rawReactiveFacade } from '../reactive-read';
 import {
-  CRAFT_NODE_EFFECT_FACTORY,
+  ɵinjectCraftNodeEffectFactoryIn,
   craftNodeDirective,
   type CraftNodeDirective,
   type CraftNodeEffectFactory,
 } from '../craft-node-directive';
+import { abstract, craftService, type CraftServiceProvider } from '../craft-service';
 import type { CraftDomAdapter } from '../host/craft-dom';
 import {
   ControlSyncer,
@@ -24,7 +25,7 @@ import {
   isCraftField,
 } from './craft-field';
 import {
-  CRAFT_FIELD_EXCEPTION_BOUNDARY,
+  ɵinjectCraftFieldExceptionBoundaryIn,
   CRAFT_FIELD_EXCEPTION_SOURCE,
   type CraftFieldExceptionSourceCarrier,
   type CraftFieldValidationCasesCarrier,
@@ -43,15 +44,77 @@ import {
  *   readonly value = model<string>('');
  * }
  */
-export const CRAFT_FIELD_VALUE_CONTROL = new InjectionToken<
-  CraftValueControl<unknown>
->('CRAFT_FIELD_VALUE_CONTROL');
+const craftFieldValueControlService = craftService(
+  {
+    name: 'CraftFieldValueControl',
+    providedIn: 'abstract',
+  },
+  abstract<CraftValueControl<unknown>>(),
+) as unknown as {
+  CraftFieldValueControl: unknown;
+  CraftFieldValueControlRequirement: unknown;
+  provideCraftFieldValueControl: (
+    factory: () => CraftValueControl<unknown>,
+  ) => CraftServiceProvider;
+  CRAFT_FIELD_VALUE_CONTROL_META_DATA: {
+    inject(): CraftValueControl<unknown>;
+  };
+};
+export const CraftFieldValueControl = craftFieldValueControlService.CraftFieldValueControl;
+export const CraftFieldValueControlRequirement =
+  craftFieldValueControlService.CraftFieldValueControlRequirement;
+export const provideCraftFieldValueControl = (
+  factory: () => CraftValueControl<unknown>,
+): CraftServiceProvider =>
+  craftFieldValueControlService.provideCraftFieldValueControl(factory);
+const injectCraftFieldValueControlIn = (
+  injector: Injector,
+): CraftValueControl<unknown> | null => {
+  try {
+    return runInInjectionContext(injector, () =>
+      craftFieldValueControlService.CRAFT_FIELD_VALUE_CONTROL_META_DATA.inject(),
+    );
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Token used by custom checkbox-style controls to declare themselves as Craft form checkbox controls.
  */
-export const CRAFT_FIELD_CHECKBOX_CONTROL =
-  new InjectionToken<CraftCheckboxControl>('CRAFT_FIELD_CHECKBOX_CONTROL');
+const craftFieldCheckboxControlService = craftService(
+  {
+    name: 'CraftFieldCheckboxControl',
+    providedIn: 'abstract',
+  },
+  abstract<CraftCheckboxControl>(),
+) as unknown as {
+  CraftFieldCheckboxControl: unknown;
+  CraftFieldCheckboxControlRequirement: unknown;
+  provideCraftFieldCheckboxControl: (
+    factory: () => CraftCheckboxControl,
+  ) => CraftServiceProvider;
+  CRAFT_FIELD_CHECKBOX_CONTROL_META_DATA: { inject(): CraftCheckboxControl };
+};
+export const CraftFieldCheckboxControl =
+  craftFieldCheckboxControlService.CraftFieldCheckboxControl;
+export const CraftFieldCheckboxControlRequirement =
+  craftFieldCheckboxControlService.CraftFieldCheckboxControlRequirement;
+export const provideCraftFieldCheckboxControl = (
+  factory: () => CraftCheckboxControl,
+): CraftServiceProvider =>
+  craftFieldCheckboxControlService.provideCraftFieldCheckboxControl(factory);
+const injectCraftFieldCheckboxControlIn = (
+  injector: Injector,
+): CraftCheckboxControl | null => {
+  try {
+    return runInInjectionContext(injector, () =>
+      craftFieldCheckboxControlService.CRAFT_FIELD_CHECKBOX_CONTROL_META_DATA.inject(),
+    );
+  } catch {
+    return null;
+  }
+};
 
 type Strategy =
   | 'text'
@@ -689,17 +752,14 @@ export function CraftFieldDirective<
         field as unknown as CraftField<CraftFieldValueOf<Field>>,
         context.renderer,
         context.injector,
-        context.injector.get(CRAFT_FIELD_VALUE_CONTROL, null),
-        context.injector.get(CRAFT_FIELD_CHECKBOX_CONTROL, null),
-        context.injector.get(CRAFT_NODE_EFFECT_FACTORY),
+        injectCraftFieldValueControlIn(context.injector),
+        injectCraftFieldCheckboxControlIn(context.injector),
+        ɵinjectCraftNodeEffectFactoryIn(context.injector),
       );
       const source = (field as Field & CraftFieldExceptionSourceCarrier)[
         CRAFT_FIELD_EXCEPTION_SOURCE
       ];
-      const boundary = context.injector.get(
-        CRAFT_FIELD_EXCEPTION_BOUNDARY,
-        null,
-      );
+      const boundary = ɵinjectCraftFieldExceptionBoundaryIn(context.injector);
       const releaseBoundary =
         source && boundary
           ? boundary.register(source, context.element)
@@ -720,8 +780,8 @@ export type GenDeps_LegacyCraftFieldDirective = GetDeps<{
   missingProvider: {
     Renderer2: Renderer2;
     Injector: Injector;
-    CRAFT_FIELD_VALUE_CONTROL: typeof CRAFT_FIELD_VALUE_CONTROL;
-    CRAFT_FIELD_CHECKBOX_CONTROL: typeof CRAFT_FIELD_CHECKBOX_CONTROL;
+    CraftFieldValueControl: typeof CraftFieldValueControl;
+    CraftFieldCheckboxControl: typeof CraftFieldCheckboxControl;
   };
 }>;
 

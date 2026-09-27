@@ -1,4 +1,5 @@
-import { InjectionToken, type Provider } from './host/craft-compat';
+import { runInInjectionContext, type Injector, type Provider } from './host/craft-compat';
+import { craftService } from './craft-service';
 
 /** Metadata describing a DOM event bound from a Craft template. */
 export interface CraftDomEvent {
@@ -30,19 +31,32 @@ export type CraftDomEventHook = (
 ) => unknown;
 
 /** All DOM hooks active in the current component injector. */
-export const CRAFT_DOM_EVENT_HOOK = new InjectionToken<
-  readonly CraftDomEventHook[]
->('CRAFT_DOM_EVENT_HOOK', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+const craftDomEventHookService = craftService(
+  { name: 'CraftDomEventHooks', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: CraftDomEventHook }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  provideCraftDomEventHooks: (value?: CraftDomEventHook) => unknown;
+  CRAFT_DOM_EVENT_HOOKS_META_DATA: {
+    inject(): readonly CraftDomEventHook[];
+  };
+};
+
+export const ɵinjectCraftDomEventHooks = (
+  injector?: Injector,
+): readonly CraftDomEventHook[] => {
+  try {
+    return injector
+      ? runInInjectionContext(injector, () =>
+          craftDomEventHookService.CRAFT_DOM_EVENT_HOOKS_META_DATA.inject(),
+        )
+      : craftDomEventHookService.CRAFT_DOM_EVENT_HOOKS_META_DATA.inject();
+  } catch {
+    return [];
+  }
+};
 
 /** Register one composable DOM event hook. */
 export function provideCraftDomEventHook(hook: CraftDomEventHook): Provider {
-  return {
-    provide: CRAFT_DOM_EVENT_HOOK,
-    useValue: hook,
-    multi: true,
-  };
+  return craftDomEventHookService.provideCraftDomEventHooks(hook) as Provider;
 }

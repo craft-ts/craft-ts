@@ -7,30 +7,34 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftService, craftComputed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import type { DevtoolView } from './devtool-view-state';
 import type { Messages } from './messages';
+import { viewTabs } from './view-tabs.style';
 
 /** The tabs that switch which devtool view is on screen. */
-export const { ViewTabsView, provideViewTabsView } = craftService(
-  { name: 'viewTabsView', providedIn: 'toProvide' },
-  (inputs: {
+export const ViewTabs = craftComponent(
+  'ViewTabs',
+  {},
+  function* ({
+    devtoolView,
+    chooseDevtoolView,
+    visualTestsCount,
+    templateObligationsCount,
+    folderLayoutCount,
+    bypassesCount,
+    cardsCount,
+    t,
+  }: {
     readonly devtoolView: Input<DevtoolView>;
     readonly chooseDevtoolView: Output<(view: DevtoolView) => void>;
     readonly visualTestsCount: Input<number>;
     readonly templateObligationsCount: Input<number>;
+    readonly folderLayoutCount: Input<number>;
+    readonly bypassesCount: Input<number>;
     readonly cardsCount: Input<number>;
     readonly t: Input<Messages>;
-  }) => {
-    const {
-      devtoolView,
-      chooseDevtoolView,
-      visualTestsCount,
-      templateObligationsCount,
-      cardsCount,
-      t,
-    } = inputs;
-
+  }) {
     const applicationPressed = craftComputed(
       'applicationPressed',
       function* () {
@@ -46,59 +50,38 @@ export const { ViewTabsView, provideViewTabsView } = craftService(
     const reviewPressed = craftComputed('reviewPressed', function* () {
       return (yield* devtoolView()) === 'review' ? 'true' : 'false';
     });
-
-    return {
-      chooseDevtoolView,
-      visualTestsCount,
-      templateObligationsCount,
-      cardsCount,
-      t,
-      applicationPressed,
-      visualPressed,
-      templatePressed,
-      reviewPressed,
-    };
-  },
-);
-
-export const ViewTabs = craftComponent(
-  'ViewTabs',
-  { providers: [provideViewTabsView()] },
-  function* (inputs: {
-    readonly devtoolView: Input<DevtoolView>;
-    readonly chooseDevtoolView: Output<(view: DevtoolView) => void>;
-    readonly visualTestsCount: Input<number>;
-    readonly templateObligationsCount: Input<number>;
-    readonly cardsCount: Input<number>;
-    readonly t: Input<Messages>;
-  }) {
-    const {
-      chooseDevtoolView,
-      visualTestsCount,
-      templateObligationsCount,
-      cardsCount,
-      t,
-      applicationPressed,
-      visualPressed,
-      templatePressed,
-      reviewPressed,
-    } = yield* ViewTabsView(inputs);
+    const folderLayoutPressed = craftComputed(
+      'folderLayoutPressed',
+      function* () {
+        return (yield* devtoolView()) === 'folder-layout' ? 'true' : 'false';
+      },
+    );
+    const bypassesPressed = craftComputed('bypassesPressed', function* () {
+      return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
+    });
     return [
       button(
         'ShowApplicationOverview',
         {
           type: 'button',
-          class: 'view-tab',
+          class: viewTabs.tab,
           'aria-pressed': applicationPressed,
           *click() {
-chooseDevtoolView('application');
+            chooseDevtoolView('application');
           },
         },
         [
-          span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '▧'),
-          span({ class: 'view-tab-copy' }, [
-            strong('Aperçu de l’application'),
-            small('Pages, scénarios et formats'),
+          span(
+            {
+              class: viewTabs.icon,
+              'data-testid': 'view-tab-icon',
+              'aria-hidden': 'true',
+            },
+            '▧',
+          ),
+          span({ class: viewTabs.copy }, [
+            strong({ class: viewTabs.title }, 'Aperçu de l’application'),
+            small({ class: viewTabs.hint }, 'Pages, scénarios et formats'),
           ]),
         ],
       ),
@@ -106,75 +89,175 @@ chooseDevtoolView('application');
         'ShowVisualTests',
         {
           type: 'button',
-          class: 'view-tab',
+          class: viewTabs.tab,
           'aria-pressed': visualPressed,
           *click() {
-chooseDevtoolView('visual');
+            chooseDevtoolView('visual');
           },
         },
         [
-          span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '✦'),
-          span({ class: 'view-tab-copy' }, [
-            strong(function* () {
+          span(
+            {
+              class: viewTabs.icon,
+              'data-testid': 'view-tab-icon',
+              'aria-hidden': 'true',
+            },
+            '✦',
+          ),
+          span({ class: viewTabs.copy }, [
+            strong({ class: viewTabs.title }, function* () {
               return (yield* t()).viewVisual;
             }),
-            small(function* () {
+            small({ class: viewTabs.hint }, function* () {
               return (yield* t()).viewVisualDescription;
             }),
           ]),
-          span({ class: 'view-tab-count' }, function* () {
-            return String(yield* visualTestsCount());
-          }),
+          span(
+            { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+            function* () {
+              return String(yield* visualTestsCount());
+            },
+          ),
         ],
       ),
       button(
         'ShowTemplateObligations',
         {
           type: 'button',
-          class: 'view-tab',
+          class: viewTabs.tab,
           'aria-pressed': templatePressed,
           *click() {
-chooseDevtoolView('template');
+            chooseDevtoolView('template');
           },
         },
         [
-          span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '⌘'),
-          span({ class: 'view-tab-copy' }, [
-            strong(function* () {
+          span(
+            {
+              class: viewTabs.icon,
+              'data-testid': 'view-tab-icon',
+              'aria-hidden': 'true',
+            },
+            '⌘',
+          ),
+          span({ class: viewTabs.copy }, [
+            strong({ class: viewTabs.title }, function* () {
               return (yield* t()).viewTemplate;
             }),
-            small(function* () {
+            small({ class: viewTabs.hint }, function* () {
               return (yield* t()).viewTemplateDescription;
             }),
           ]),
-          span({ class: 'view-tab-count' }, function* () {
-            return String(yield* templateObligationsCount());
-          }),
+          span(
+            { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+            function* () {
+              return String(yield* templateObligationsCount());
+            },
+          ),
         ],
       ),
       button(
         'ShowReviewQueue',
         {
           type: 'button',
-          class: 'view-tab',
+          class: viewTabs.tab,
           'aria-pressed': reviewPressed,
           *click() {
-chooseDevtoolView('review');
+            chooseDevtoolView('review');
           },
         },
         [
-          span({ class: 'view-tab-icon', 'aria-hidden': 'true' }, '✓'),
-          span({ class: 'view-tab-copy' }, [
-            strong(function* () {
+          span(
+            {
+              class: viewTabs.icon,
+              'data-testid': 'view-tab-icon',
+              'aria-hidden': 'true',
+            },
+            '✓',
+          ),
+          span({ class: viewTabs.copy }, [
+            strong({ class: viewTabs.title }, function* () {
               return (yield* t()).viewReview;
             }),
-            small(function* () {
+            small({ class: viewTabs.hint }, function* () {
               return (yield* t()).viewReviewDescription;
             }),
           ]),
-          span({ class: 'view-tab-count' }, function* () {
-            return String(yield* cardsCount());
-          }),
+          span(
+            { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+            function* () {
+              return String(yield* cardsCount());
+            },
+          ),
+        ],
+      ),
+      button(
+        'ShowFolderLayout',
+        {
+          type: 'button',
+          class: viewTabs.tab,
+          'aria-pressed': folderLayoutPressed,
+          *click() {
+            chooseDevtoolView('folder-layout');
+          },
+        },
+        [
+          span(
+            {
+              class: viewTabs.icon,
+              'data-testid': 'view-tab-icon',
+              'aria-hidden': 'true',
+            },
+            '⇄',
+          ),
+          span({ class: viewTabs.copy }, [
+            strong({ class: viewTabs.title }, function* () {
+              return (yield* t()).viewFolderLayout;
+            }),
+            small({ class: viewTabs.hint }, function* () {
+              return (yield* t()).viewFolderLayoutDescription;
+            }),
+          ]),
+          span(
+            { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+            function* () {
+              return String(yield* folderLayoutCount());
+            },
+          ),
+        ],
+      ),
+      button(
+        'ShowBypasses',
+        {
+          type: 'button',
+          class: viewTabs.tab,
+          'aria-pressed': bypassesPressed,
+          *click() {
+            chooseDevtoolView('bypasses');
+          },
+        },
+        [
+          span(
+            {
+              class: viewTabs.icon,
+              'data-testid': 'view-tab-icon',
+              'aria-hidden': 'true',
+            },
+            '⚑',
+          ),
+          span({ class: viewTabs.copy }, [
+            strong({ class: viewTabs.title }, function* () {
+              return (yield* t()).viewBypasses;
+            }),
+            small({ class: viewTabs.hint }, function* () {
+              return (yield* t()).viewBypassesDescription;
+            }),
+          ]),
+          span(
+            { class: viewTabs.count, 'data-testid': 'view-tab-count' },
+            function* () {
+              return String(yield* bypassesCount());
+            },
+          ),
         ],
       ),
     ];

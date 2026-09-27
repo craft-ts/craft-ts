@@ -8,13 +8,14 @@ import {
   type ContentSlot,
   type RequiredContent,
 } from '@craft-ts/component';
+import { projectionDemo } from './component-demos.style';
 
 type CardInput = {
   readonly header?: ContentSlot;
   readonly body: RequiredContent<{
     readonly selector: {
       readonly tag: 'p';
-      readonly class: 'projection-demo__content';
+      readonly 'data-projection': 'content';
     };
   }>;
 };
@@ -26,7 +27,7 @@ export const { CardView, provideCardView } = craftService(
       header:
         input.header ??
         content(() =>
-          heading({ class: 'projection-demo__fallback' }, 'Default title'),
+          heading({ class: projectionDemo.fallback }, 'Default title'),
         ),
       body: input.body,
     };
@@ -35,18 +36,12 @@ export const { CardView, provideCardView } = craftService(
 
 export const card = craftComponent(
   'card',
-  {
-    providers: [provideCardView()],
-    contentStyles: {
-      header: ':scope { display: block; margin-block-end: 0.5rem; }',
-      body: ':scope { display: block; color: #334155; }',
-    },
-  },
+  { providers: [provideCardView()] },
   function* (input: CardInput) {
     const { header, body } = yield* CardView(input);
-    return section({ class: 'projection-demo__card' }, [
+    return section({ class: projectionDemo.card }, [
       renderContent('header', header),
-      section({ class: 'projection-demo__body' }, renderContent('body', body)),
+      section({ class: projectionDemo.body }, renderContent('body', body)),
     ]);
   },
 );

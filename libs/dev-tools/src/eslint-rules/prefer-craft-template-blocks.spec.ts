@@ -41,6 +41,17 @@ describe('prefer-craft-template-blocks', () => {
     expect(messages).toEqual([]);
   });
 
+  it('accepts nullish fallback expressions in a Craft template', async () => {
+    const messages = await lintText(`
+      const Demo = craftComponent('Demo', {}, function* () {
+        const { label } = yield* DemoView();
+        return p(label ?? 'Untitled');
+      });
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('allows imperative control flow inside DOM event handlers', async () => {
     const messages = await lintText(`
       const Demo = craftComponent(

@@ -27,6 +27,9 @@ export default [
     rules: {
       ...craftRules.configs.recommended.rules,
       'craft-ts/no-effect-import-in-frontend': 'error',
+      // A size violation must fail lint: this application is validated through
+      // the same gate as every other consumer of the Craft recommendations.
+      'craft-ts/max-craft-component-lines': 'error',
     },
   },
   {
@@ -38,15 +41,20 @@ export default [
     },
   },
   {
-    // This legacy review surface keeps its template-local derivations together
-    // for the frozen-document workflow. The smaller components follow the
-    // stricter rules above; this exception avoids a 3,000-line mechanical
-    // rewrite with no runtime benefit.
-    files: ['**/src/review-app.ts'],
+    // These supporting review projections intentionally prioritise a compact
+    // inspector template over a deep-yieldable presentation adapter.
+    files: ['**/src/application-overview.ts', '**/src/template-review-group.ts'],
     rules: {
-      'craft-ts/prefer-craft-template-blocks': 'off',
-      'craft-ts/no-ephemeral-template-form-state': 'off',
-      'craft-ts/require-reactive-template-bindings': 'off',
+      'craft-ts/prefer-deep-yieldable-for-item': 'off',
+    },
+  },
+  {
+    // The filter count is derived from a query-parameter primitive. Its
+    // insertion surface does not expose a derived-property slot, so keeping
+    // the projection beside the filter service is the narrowest ownership.
+    files: ['**/src/review-filters.service.ts'],
+    rules: {
+      'craft-ts/require-primitive-derived-property': 'off',
     },
   },
 ];

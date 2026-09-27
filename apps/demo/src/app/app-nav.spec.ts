@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
-import { CRAFT_ROUTER, provideCraftRouter } from '@craft-ts/core';
+import {
+  ɵinjectCraftRouterRuntime,
+  ɵrunInInjectionContext,
+  provideCraftRouter,
+} from '@craft-ts/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './app';
 import { demoRoutes } from './app.routes';
@@ -23,7 +27,7 @@ describe('App navbar', () => {
     TestBed.tick();
 
     const toggle = () => {
-      element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+      element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
       TestBed.tick();
     };
     const clickNavLink = async (label: string) => {
@@ -48,18 +52,18 @@ describe('App navbar', () => {
     for (const label of destinations) {
       toggle();
       await vi.waitFor(() =>
-        expect(element.querySelector('.demo-nav__panel')).not.toBeNull(),
+        expect(element.querySelector('[data-testid="nav-panel"]')).not.toBeNull(),
       );
 
       await clickNavLink(label);
       await vi.waitFor(() =>
-        expect(element.querySelector('.demo-nav__panel')).toBeNull(),
+        expect(element.querySelector('[data-testid="nav-panel"]')).toBeNull(),
       );
     }
 
     toggle();
     await vi.waitFor(() =>
-      expect(element.querySelector('.demo-nav__panel')).not.toBeNull(),
+      expect(element.querySelector('[data-testid="nav-panel"]')).not.toBeNull(),
     );
 
     mounted.destroy();
@@ -70,14 +74,17 @@ describe('App navbar', () => {
       providers: [provideCraftRouter(demoRoutes.toRoutes())],
     });
 
-    const router = TestBed.inject(CRAFT_ROUTER);
+    const router = ɵrunInInjectionContext(TestBed.inject(Injector), () =>
+      ɵinjectCraftRouterRuntime(),
+    );
+    if (router === null) throw new Error('Craft router was not provided');
     const navigateByUrl = vi.spyOn(router, 'navigateByUrl');
     const element = document.createElement('div');
     document.body.append(element);
     const mounted = mountCraftComponent(App, element, TestBed.inject(Injector));
     TestBed.tick();
 
-    element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+    element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
     TestBed.tick();
     const link = Array.from(
       element.querySelectorAll<HTMLAnchorElement>('a'),
@@ -103,7 +110,7 @@ describe('App navbar', () => {
     const mounted = mountCraftComponent(App, element, TestBed.inject(Injector));
     TestBed.tick();
 
-    element.querySelector<HTMLButtonElement>('.demo-nav__toggle')?.click();
+    element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
     TestBed.tick();
 
     const labels = Array.from(element.querySelectorAll('a')).map((anchor) =>

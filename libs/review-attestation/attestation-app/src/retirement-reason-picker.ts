@@ -1,8 +1,9 @@
 import { craftComponent, label, option, select } from '@craft-ts/component';
-import { craftService, craftComputed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
 import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
+import { decisionColumn } from './review-card.style';
 import { RetirementReasonChoice } from './retirement-reason.service';
 
 /**
@@ -10,37 +11,30 @@ import { RetirementReasonChoice } from './retirement-reason.service';
  * both `RetirementReasonChoice` and `ReviewPreferences` (for the language
  * the labels render in) are global services — no Input needed.
  */
-export const { RetirementReasonPickerView, provideRetirementReasonPickerView } =
-  craftService(
-    { name: 'retirementReasonPickerView', providedIn: 'toProvide' },
-    function* () {
-      const { retirementReason, chooseRetirementReason } =
-        yield* RetirementReasonChoice();
-      const { locale } = yield* ReviewPreferences();
-      const t = craftComputed('t', function* () {
-        return MESSAGES[yield* locale()];
-      });
-      return { retirementReason, chooseRetirementReason, t };
-    },
-  );
-
 export const RetirementReasonPicker = craftComponent(
   'RetirementReasonPicker',
-  { providers: [provideRetirementReasonPickerView()] },
+  {},
   function* () {
-    const { retirementReason, chooseRetirementReason, t } =
-      yield* RetirementReasonPickerView();
+    const { retirementReason, chooseRetirementReason } =
+      yield* RetirementReasonChoice();
+    const { locale } = yield* ReviewPreferences();
+    const t = craftComputed('t', function* () {
+      return MESSAGES[yield* locale()];
+    });
     return [
-      label({ htmlFor: 'retirement-reason' }, function* () {
-        return (yield* t()).retirementReason;
-      }),
+      label(
+        { class: decisionColumn.retirementLabel, htmlFor: 'retirement-reason' },
+        function* () {
+          return (yield* t()).retirementReason;
+        },
+      ),
       select(
         'RetirementReason',
         {
           id: 'retirement-reason',
           value: retirementReason,
           *change(event: Event) {
-chooseRetirementReason(eventValue(event));
+            chooseRetirementReason(eventValue(event));
           },
         },
         [

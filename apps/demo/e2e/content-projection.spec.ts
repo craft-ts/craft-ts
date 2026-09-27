@@ -3,9 +3,7 @@ import { expect, test } from '@playwright/test';
 test('keeps projected action buttons styled before hover', async ({ page }) => {
   await page.goto('/content-projection');
 
-  const buttons = page.locator(
-    '.projection-demo__case .projection-demo__action, .projection-demo__case .projection-demo__toggle',
-  );
+  const buttons = page.getByTestId('projection-case').locator('button');
 
   await expect(buttons).toHaveCount(5);
   await expect

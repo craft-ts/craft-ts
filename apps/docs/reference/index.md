@@ -104,6 +104,7 @@ already receive those methods as arguments — see
 | `.withParent`, `ParentRoutes`, `assertChildRouteMounts`                                                                                  | Pins a child collection to its mount                                       | [Scaling routes](/guide/routing/scaling)              |
 | `withRetry`                                                                                                                              | Retryable lazy `loadComponent` / `loadChildren`                            | [Setup](/guide/routing/setup)                         |
 | `provideCraftRouter`, `provideCraftLoading`                                                                                              | Router with craft loading features                                         | [Pending UI](/guide/routing/pending-ui)               |
+| `withHashLocation`                                                                                                                       | Keep client routes after `#` for fixed-path static hosting                 | [Hash location](/guide/routing/hash-location)         |
 | `withA11yNavigationFocus`, `CraftTitleStrategy`                                                                                          | Focus after nav; route `title` → document                                  | [Accessibility](/guide/components/accessibility)      |
 | `heading`, `headingSection`, `headingRoot`, `skipLink`, `liveRegion`, `fieldControl`, `disclosureControl`, `buttonControl`, `clickFocus` | Relative outline, skip link, live regions, accessible control props, focus | [Accessibility](/guide/components/accessibility)      |
 | `withErrorComponent`, `withRouteLoadError`, `withTransitionTimings`                                                                      | Router features                                                            | [Route load errors](/guide/routing/route-load-errors) |
@@ -119,7 +120,7 @@ already receive those methods as arguments — see
 | `startCraft`                                               | Hydrates an SSR host or mounts a fresh client application automatically | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `hydrateCraft`                                             | Restores transferred state and claims the existing browser DOM          | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `pendingNode({ ssr })`                                     | Declares `block`, `fallback`, or `client` behavior for suspended data   | [SSR and hydration](/guide/advanced/ssr-hydration) |
-| `CRAFT_SSR_POLICY`                                         | Route-level default SSR policy                                          | [SSR and hydration](/guide/advanced/ssr-hydration) |
+| `CraftSsrPolicy`, `provideCraftSsrPolicy`                  | Route-level default SSR policy                                          | [SSR and hydration](/guide/advanced/ssr-hydration) |
 | `CraftUnhandledSsrResolutionError`, `CraftSsrTimeoutError` | Reports missing policies and timed-out blocking sources                 | [SSR and hydration](/guide/advanced/ssr-hydration) |
 
 ## Exceptions

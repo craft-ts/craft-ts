@@ -32,7 +32,7 @@ function configureStorageService() {
 }
 
 function rows(element: HTMLElement) {
-  return [...element.querySelectorAll<HTMLElement>('li.row')];
+  return [...element.querySelectorAll<HTMLElement>('ul > li')];
 }
 
 function click(row: HTMLElement, name: string) {
@@ -45,7 +45,7 @@ function click(row: HTMLElement, name: string) {
 }
 
 function badge(row: HTMLElement) {
-  return row.querySelector('.badge')?.textContent?.trim();
+  return row.querySelector('[data-testid="task-step"]')?.textContent?.trim();
 }
 
 function note(row: HTMLElement) {

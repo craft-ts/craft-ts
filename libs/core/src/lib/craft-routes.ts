@@ -43,7 +43,7 @@ import {
   type CraftRouteMeta,
   type CraftRouteStepFactory,
 } from './craft-route-meta';
-import { CRAFT_VIEW_TRANSITION } from './craft-view-transition';
+import { ɵinjectCraftViewTransition } from './craft-view-transition';
 import type { ViewTransitionPayloadDef } from './craft-view-transition';
 import type {
   CraftExceptionComponentInput,
@@ -76,9 +76,9 @@ import type {
   CraftCompiledRoute,
   CraftMatch,
 } from './host/craft-router-runtime';
-import { CRAFT_MATCH, type CraftUrlTree } from './craft-router-tokens';
+import { ɵinjectCraftMatch, type CraftUrlTree } from './craft-router-tokens';
 import { craftComputed } from './host/craft-signal';
-import { CRAFT_SSR_POLICY, type CraftSsrPolicy } from './craft-ssr';
+import { provideCraftSsrPolicy, type CraftSsrPolicy } from './craft-ssr';
 
 type MaybeAsync<T> = T | Promise<T> | Observable<T>;
 
@@ -2331,7 +2331,7 @@ function toExceptionInjectHelperName(
 function injectRouteParamsSignal(
   routePath: string,
 ): Signal<Record<string, string>> {
-  const matchSignal = inject(CRAFT_MATCH);
+  const matchSignal = ɵinjectCraftMatch() as Signal<CraftMatch | null>;
   const names = extractRouteParamNames(routePath);
   let last: Record<string, string> = pickParams(matchSignal(), names);
   return craftComputed(() => {
@@ -2367,7 +2367,7 @@ function pickParams(
 function injectRouteDataSignal<RouteData extends Data>(
   routePath: string,
 ): Signal<RouteData> {
-  const matchSignal = inject(CRAFT_MATCH);
+  const matchSignal = ɵinjectCraftMatch() as Signal<CraftMatch | null>;
   let last = (matchSignal()?.routes.find((route) => route.path === routePath)
     ?.data ?? {}) as RouteData;
   return craftComputed(() => {
@@ -2904,7 +2904,7 @@ export function craftRoutes<
         // narrows it to the route's declared `Signal<T | null>`.
         autoProviders.push(
           provideRouteValueService(serviceName, routeService, () =>
-            inject(CRAFT_VIEW_TRANSITION),
+            ɵinjectCraftViewTransition(),
           ),
         );
       }
@@ -3001,7 +3001,7 @@ export function craftRoutes<
       : [];
     const resolvedRouteProviders = [
       ...(route.ssr
-        ? [{ provide: CRAFT_SSR_POLICY, useValue: route.ssr }]
+        ? [provideCraftSsrPolicy(route.ssr)]
         : []),
       ...(routeProviders ?? []),
       ...factoryProviders,

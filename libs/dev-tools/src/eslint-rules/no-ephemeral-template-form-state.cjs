@@ -1,6 +1,15 @@
 const { templateRegions } = require('./craft-template-region.cjs');
 
 const TEMPLATE_HOSTS = new Set(['craftComponent', 'craftDirective']);
+const DOM_EVENT_NAMES = new Set([
+  'change',
+  'click',
+  'input',
+  'keydown',
+  'keyup',
+  'paste',
+  'submit',
+]);
 
 /**
  * The component's own scope is where it declares what it renders from: the
@@ -144,6 +153,20 @@ module.exports = {
           return 'skip';
         }
 
+        // Reading a value yielded by a reactive item is a snapshot alias, not
+        // local form state or a derivation. Keep declarations of derived
+        // values and mutable bindings out of the template, but allow this
+        // ordinary way to name the current item before rendering its fields.
+        if (
+          node.kind === 'const' &&
+          !isInsideEventHandler(node) &&
+          node.declarations.every(
+            (declarator) => declarator.init?.type === 'YieldExpression',
+          )
+        ) {
+          return;
+        }
+
         reportDeclaration(node);
         return undefined;
       };
@@ -186,6 +209,21 @@ module.exports = {
         const init = declarator.init;
         return Boolean(init) && !STATE_SHAPED_INITIALIZERS.has(init.type);
       });
+    }
+
+    function isInsideEventHandler(node) {
+      let current = node.parent;
+      while (current) {
+        if (
+          (current.type === 'Property' || current.type === 'MethodDefinition') &&
+          current.key?.type === 'Identifier' &&
+          DOM_EVENT_NAMES.has(current.key.name)
+        ) {
+          return true;
+        }
+        current = current.parent;
+      }
+      return false;
     }
 
     function walk(node, visit) {

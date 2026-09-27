@@ -65,6 +65,24 @@ export function serializeLocation(location: CraftLocation): string {
   return `${location.pathname}${location.search}${location.hash}`;
 }
 
+/** Converts a browser URL into the router's normalized path/query/fragment URL. */
+export function toCraftRouterUrl(url: string, useHashLocation = false): string {
+  if (!useHashLocation) return url;
+  if (url.startsWith('/#')) return url.slice(url.indexOf('#') + 1) || '/';
+  if (url.startsWith('#')) return url.slice(1) || '/';
+  return url;
+}
+
+/** Converts a normalized router URL to the browser URL selected by the strategy. */
+export function toExternalCraftRouterUrl(
+  url: string,
+  useHashLocation = false,
+): string {
+  if (!useHashLocation) return url;
+  const internalUrl = toCraftRouterUrl(url, true);
+  return `/#${internalUrl.startsWith('/') ? internalUrl : `/${internalUrl}`}`;
+}
+
 export function parseSearchParams(search: string): CraftQueryParams {
   const params: CraftQueryParams = {};
   const raw = search.startsWith('?') ? search.slice(1) : search;
@@ -98,7 +116,13 @@ export function serializeSearchParams(params: CraftQueryParams): string {
     .join('&')}`;
 }
 
-export function readWindowLocation(win: Window): CraftLocation {
+export function readWindowLocation(
+  win: Window,
+  useHashLocation = false,
+): CraftLocation {
+  if (useHashLocation) {
+    return parseUrl(toCraftRouterUrl(win.location.hash, true));
+  }
   return {
     pathname: win.location.pathname || '/',
     search: win.location.search,
@@ -106,10 +130,14 @@ export function readWindowLocation(win: Window): CraftLocation {
   };
 }
 
-export function createBrowserHistory(win: Window): CraftHistory {
+export function createBrowserHistory(
+  win: Window,
+  options: { useHashLocation?: boolean } = {},
+): CraftHistory {
+  const useHashLocation = options.useHashLocation ?? false;
   const listeners = new Set<(location: CraftLocation) => void>();
   let disposed = false;
-  let current = readWindowLocation(win);
+  let current = readWindowLocation(win, useHashLocation);
   let currentState: unknown = win.history.state ?? null;
 
   const notify = (): void => {
@@ -128,21 +156,37 @@ export function createBrowserHistory(win: Window): CraftHistory {
   ): void => {
     const nextState = state === undefined ? null : state;
     if (mode === 'push') {
-      win.history.pushState(nextState, '', url);
+      win.history.pushState(
+        nextState,
+        '',
+        toExternalCraftRouterUrl(url, useHashLocation),
+      );
     } else {
-      win.history.replaceState(nextState, '', url);
+      win.history.replaceState(
+        nextState,
+        '',
+        toExternalCraftRouterUrl(url, useHashLocation),
+      );
     }
     currentState = nextState;
-    current = readWindowLocation(win);
+    current = readWindowLocation(win, useHashLocation);
     notify();
   };
 
   const onPopState = (event: PopStateEvent): void => {
-    current = readWindowLocation(win);
+    current = readWindowLocation(win, useHashLocation);
     currentState = event.state ?? win.history.state ?? null;
     notify();
   };
   win.addEventListener('popstate', onPopState);
+  const onHashChange = (): void => {
+    const next = readWindowLocation(win, useHashLocation);
+    if (serializeLocation(next) === serializeLocation(current)) return;
+    current = next;
+    currentState = win.history.state ?? null;
+    notify();
+  };
+  if (useHashLocation) win.addEventListener('hashchange', onHashChange);
 
   return {
     get: () => current,
@@ -170,6 +214,7 @@ export function createBrowserHistory(win: Window): CraftHistory {
       }
       disposed = true;
       win.removeEventListener('popstate', onPopState);
+      if (useHashLocation) win.removeEventListener('hashchange', onHashChange);
       listeners.clear();
     },
   };

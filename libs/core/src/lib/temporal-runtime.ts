@@ -1,7 +1,7 @@
 import {
   DestroyRef,
-  InjectionToken,
   inject,
+  InjectionToken,
   type Provider,
 } from './host/craft-compat';
 
@@ -193,12 +193,10 @@ function normalizeMaxAttempts(value: number | undefined): number {
   return maxAttempts;
 }
 
+// This optional runtime must be available while the generator runtime starts.
+// A host injection token keeps it separate from Craft's generator-based services.
 export const CRAFT_TEMPORAL_RUNTIME = new InjectionToken<CraftTemporalRuntime>(
   'CRAFT_TEMPORAL_RUNTIME',
-  {
-    providedIn: 'root',
-    factory: () => new RealCraftTemporalRuntime(),
-  },
 );
 
 export function provideCraftTemporalRuntime(
@@ -206,6 +204,22 @@ export function provideCraftTemporalRuntime(
 ): Provider {
   return { provide: CRAFT_TEMPORAL_RUNTIME, useValue: runtime };
 }
+
+export function* CraftTemporalRuntime(): Generator<
+  unknown,
+  CraftTemporalRuntime,
+  unknown
+> {
+  return ɵinjectCraftTemporalRuntime();
+}
+
+export const ɵinjectCraftTemporalRuntime = (): CraftTemporalRuntime => {
+  try {
+    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? new RealCraftTemporalRuntime();
+  } catch {
+    return new RealCraftTemporalRuntime();
+  }
+};
 
 export class CraftTimeoutError extends Error {
   readonly timeoutMs: number;

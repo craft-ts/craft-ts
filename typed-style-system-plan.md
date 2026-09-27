@@ -569,3 +569,547 @@ craft-graph --style-debt     → 0 dette, 0 obligation ouverte, 2 variables non 
 - Un typecheck de `apps/demo` dans un worktree neuf demande d'abord
   `npx tsc -b libs/component/tsconfig.lib.json` : sans `dist/out-tsc`, les project
   references sortent des TS6305 qui n'ont rien à voir avec le code.
+
+## Style uniquement par le design system — lot 0 (2026-09-23)
+
+Branche `feat/style-only-design-system`. Objectif : que plus aucun `.css` ne soit
+nécessaire. Le lot 0 ajoute au vocabulaire ce que les `styles.css` des apps portaient
+encore.
+
+### Ajouté
+
+- **Couches `craft.*`** fixées par l'émetteur :
+  `craft.reset, craft.base, craft.tokens, craft.global, craft.components, craft.variants, craft.overrides`.
+  Écart avec le plan : il listait 4 couches. Les 3 couches existantes (`tokens`,
+  `variants`, `overrides`) sont conservées sous le préfixe `craft.`, parce que le
+  solveur de contraste et la spécificité des variantes en dépendent.
+- **Reset** (`lib/global/reset.ts`) et **base** (`lib/global/base.ts`), écrits avec le
+  vocabulaire typé, actifs par défaut (`craftStyle({ reset, base })`). La base porte
+  `color-scheme` par l'axe `scheme`, `:focus-visible`, `accent-color`, `::selection`,
+  `scroll-behavior`, et la neutralisation en `!important` sous `motion.reduced` : un
+  important dans la couche la plus précoce bat toutes les couches suivantes. Le
+  drapeau `important` est interne, aucun helper public ne le pose.
+- **Variables du socle** `craftBase.*` : construites par `defineVarTokens`, la moitié
+  pure de `cssVars` (sans registre). Leurs `@property` sont émis par le socle
+  lui-même, sinon les dumps et les specs qui réinitialisent le registre
+  dépendraient de l'ordre d'import.
+- **`craftGlobalStyles(prefix, { root, elements })`**, couche `craft.global` ; les
+  sélecteurs sont fermés sur `keyof HTMLElementTagNameMap`.
+- **`defineFont`** + `googleFont` / `localFont`. Liens `<head>` via
+  `transformIndexHtml` et `virtual:craft-style-head` pour le SSR, `@font-face` pour
+  les fichiers locaux. `adjustFallback` est **calculé à partir de métriques
+  fournies** (format capsize) : aucun parseur de police dans les dépendances, donc
+  Arial est livré et une autre face se passe avec ses métriques.
+- **`pseudo.*`** (`before/after/placeholder/marker/selection/backdrop`) et
+  `pseudo.content.*`. Un `::before`/`::after` sans `content` au niveau supérieur est
+  une erreur de type. Le dump porte `pseudoElement`, et le solveur de contraste
+  écarte ces atomes de la peinture de l'élément.
+- **`keyframes` / `animate` / `transitions` / `easing`**. Écart de nom avec le plan
+  (`animation`/`transition`) : ces deux noms appartiennent déjà aux helpers générés,
+  on applique la règle de collision par namespace.
+
+### Inventaire 0.c
+
+Relevé par `rg` sur les 23 `.css` hors docs (5 792 lignes).
+
+| Fonctionnalité | Occurrences | Décision |
+|---|---|---|
+| `::before` / `::after` / `::placeholder` / `::marker` | 10 / 9 / 3 / 1 | couverts par `pseudo.*` |
+| `@keyframes` | 25 | couvert par `keyframes` + `animate` |
+| `@import` (polices) | 3 | couvert par `defineFont` |
+| `@media` | 23 | axes existants (points de rupture, `scheme`, `motion`) |
+| `:hover` | 58 | axe `interaction.hover` existant |
+| `:focus-visible` / `:focus` / `:disabled` / `:active` | 33 / 11 / 23 / 1 | **manque**. Axes d'état à ajouter dans `interaction` (driver `selfState`), avec leurs drivers dans `style-testing`. À faire en tête du lot 5, quand la migration les consomme. Beaucoup de `:focus-visible` disparaissent : le socle les couvre |
+| `:last-child` / `:first-child` / `:empty` / `:not(` | 15 / 2 / 2 / 7 | pas de helper. Bordures et marges de fin de liste → `gap` ; `:empty` → rendu conditionnel. Un sélecteur structurel libre n'est pas un axe énumérable |
+| `scale(` / `rotate(` (transform) | 21 / 14 | propriétés individuelles `scale`, `rotate`, `translate` déjà dans la table |
+| `box-shadow` | — | **manque** : table rétrécie à `none`. Échelle `shadow.*` à ajouter |
+| `linear-/radial-/repeating-linear-gradient(` | 13 | **manque** : `backgroundImage` n'accepte que `url`. Constructeur `gradient.*` typé à ajouter |
+| `calc(` / `min(` / `clamp(` / `minmax(` / `repeat(` | 15 / 13 / 12 / 16 / 3 | **manque** : fonctions de longueur typées (`clamp(a, b, c)` sur `LengthValue`) et pistes de grille |
+| `rgba(` / `rgb(` / `color-mix(` | 25 / 14 / 4 | tokens de palette. Une transparence devient un token, pas une fonction à l'usage |
+| `attr(` / `url(` | 3 / 3 | `pseudo.content` et `url()` existants |
+
+Les quatre **manques** (états `interaction`, `shadow`, `gradient`, fonctions de
+longueur et de grille) bloquent les apps qui les utilisent. Ils sont à combler avant
+leur migration au lot 5, sur le même patron (namespace, valeur brandée, pas de
+`string`).
+
+## Style uniquement par le design system — lot 1 (2026-09-23)
+
+Règles ESLint obligatoires, `error` dans `recommended`.
+
+- **`no-raw-class` inconditionnelle.** Plus de garde sur l'import. Elle trace la
+  valeur jusqu'à sa source, sans typage (`style-binding-utils.cjs`) : import d'un
+  module `*.style`, paramètre ou membre de paramètre (entrée typée), `const`, tableau,
+  fonction dont tous les `return` sont acceptables. Trois messages : `rawClass`,
+  `computedClass`, et `untracedClass`. Ce dernier couvre notamment une sheet déclarée
+  hors `*.style.ts` : le plugin ne l'évalue jamais, donc sa classe n'a pas de CSS.
+- **`no-inline-style`.** Seuls les props hyperscript et `host` sont lus, parce que
+  `style:` apparaît ailleurs dans le code (`Intl.NumberFormat`). `assign` doit venir
+  de `@craft-ts/style` : un `assign` homonyme est refusé.
+- **`no-component-css`.** Refuse `styles` / `stylesUrl` / `contentStyles` du meta et
+  les imports `.css`, y compris `?inline` et `import()`.
+- **Raison obligatoire** : ajoutée à `no-forbidden-eslint-disable`, qui passe dans
+  `recommended`. Liste par défaut : les six règles de style ; extensible par options
+  ou par `reasonRequiredRules` dans la politique. **Limite trouvée** : un
+  `eslint-disable` global désactive aussi cette règle, et son rapport est avalé.
+  C'est le lot 3 (Review Attest) qui doit lister les directives globales.
+- **Preset `legacyComponentCss`** : il reçoit les 8 règles qui lisent le CSS de meta.
+  Chaque app non migrée le réactive dans son bloc `TODO(style-only)`, pour ne rien
+  perdre pendant la transition. Dans `demo-with-server-function`, les deux `off`
+  (`require-focus-visible` / `require-reduced-motion`) ont été déplacés dans ce bloc.
+- `ComponentMeta.styles/stylesUrl/cssVars/contentStyles` et `DirectiveMeta.styles/stylesUrl`
+  sont marqués `@deprecated`.
+
+Relevé des trois règles avant les overrides (hors specs) : quickstart-effect 3,
+demo-ssr 60, demo-with-server-function 181, demo-effect 100, demo 317,
+attestation-app 259, libs/component 77.
+
+À reprendre au lot 5 : **`demo-ssr` et `libs/component` ne prennent pas
+`recommended`**. Les règles ne s'y appliquent donc pas du tout, et leur migration
+doit ajouter le preset.
+
+## Style uniquement par le design system — lot 2 (2026-09-23)
+
+Règles d'architecture obligatoires et dérogations.
+
+- **Violations ciblées.** `architectureReport(graph, { waivers })` renvoie les
+  violations et ce qui a été dérogé. `architectureViolations` et
+  `assertDeclarativeArchitecture` passent par lui. Les règles historiques sont des
+  assertions sur tout le graphe, qui lèvent un texte unique : elles ne portent pas de
+  cible, et seule une dérogation `'*'` peut les excuser. Une dérogation ciblée sur
+  l'une d'elles est refusée, avec un message qui le dit.
+- **Quatre règles** (`architecture-style-rules.ts`), ajoutées à la liste de base :
+  - `style-only-design-system` : classe non résolue (sauf entrée typée `CraftClass`),
+    sheet déclarée hors `*.style.ts`, classe absente du dump, dump non fusionné,
+    `meta.styles/stylesUrl/contentStyles`, import `.css` dans un fichier de
+    composant ;
+  - `style-obligations-discharged` ;
+  - `no-dangling-css-vars` : lecture non déclarée, et déclaration jamais lue, où une
+    lecture globale compte ;
+  - `no-global-stylesheet` : import `.css` depuis un fichier d'entrée, ou
+    `<link rel="stylesheet">` dans `index.html` / `src/index.html`.
+
+  **Écart** : le plan disait de réutiliser `extractionGaps`. Mais cette fonction
+  contient `component-without-style-class`, qui aurait mis en faute un composant de
+  pure composition. Seule la partie « classe absente du dump » est reprise.
+- **Extracteur** : `styled-element` gagne `sheetOutsideStyleModule` et
+  `classTypedAsSheetClass`. La classe est reconnue par le nom d'alias `CraftClass`, ou
+  par le type de retour d'une fonction ou d'un générateur.
+- **Dump** : champ `globalReads` (variables lues par les styles globaux et les
+  keyframes) ; les `craftBase.*` sont listées dans `vars` quand la base est active.
+  `loadStyleDump(rootDir)` est extrait du plugin.
+- **Dérogations** : `ArchitectureWaiver { rule, target, reason }`, typées contre le
+  catalog par `defineArchitectureWaivers(catalog, [...])`. Une raison vide est
+  refusée, une dérogation périmée devient une violation. `architectureWaivers(dir)`
+  lit `architecture/waivers.ts` **statiquement**, pour la CLI, le MCP et bientôt
+  l'attestation.
+- **CLI** `craft-architecture-check` : `--style-dump`, `--project-dir`, et lecture
+  des dérogations. Testée à la main sur quickstart-effect : il ne reste que
+  `mutation-react-on` (`sendContextToAi`), parce que la CLI n'a pas d'option `allow`.
+  Probablement déjà le cas sur `main`, mais pas vérifié.
+- **MCP** `graph.violations` : applique les dérogations du projet et renvoie `waived`.
+- **Apps** : les 6 loaders fusionnent le dump et deviennent `async`. Le catalog reste
+  construit **sans** le dump, pour que son hash ne bouge pas. Chaque app a un
+  `architecture/waivers.ts`. Les dérogations `TODO(style-only)` sont ciblées quand
+  c'est possible (fichier d'entrée, `index.html`, `css-var:--ds-surface`).
+  Les `catalog.ts` versionnés ont été régénérés : ils étaient déjà périmés (services
+  de `libs/component` manquants).
+- **attestation-app** : 4 specs `rules/` échouent sur du code que cette branche n'a pas
+  touché (nommage interactif, méthode `collapseSide` inutilisée, params de ressource,
+  parcours visuels). Je n'ai pas comparé avec `main`. Sa spec globale déroge à
+  `no-unused-primitive-methods` avec cette raison explicite.
+
+À reprendre au lot 5 : le générateur `create-project` émet encore des loaders
+synchrones, sans dump ni `waivers.ts`.
+
+## Style uniquement par le design system — lot 3 (2026-09-23)
+
+Review Attest : chaque contournement est un sujet à décider.
+
+- **Sujets** `eslint-disable` et `architecture-waiver` dans `@craft-ts/attest`.
+  - L'id d'une directive devient `eslint-disable:<file>:<rule>:<ordinal>`. Celui d'une
+    dérogation est `architecture-waiver:<project>:<rule>:<target>`.
+  - L'evidence d'une directive se limite à la directive, sa raison et l'extrait des
+    lignes qu'elle neutralise. Elle ne contient ni numéro de ligne ni le reste du
+    fichier : une modification ailleurs dans le fichier ne renvoie pas le sujet en
+    revue ; une nouvelle raison ou un changement du code neutralisé, si. Même
+    principe pour une dérogation, dont l'evidence est règle + cible + raison.
+  - Il n'y a pas de tranche de code à rejouer : l'empreinte est l'evidence elle-même.
+- **Écart** : le scanner de `dev-tools` n'importe pas `EslintDisableInput` depuis
+  `@craft-ts/attest`, car `dev-tools` est la racine du graphe nx. C'est la CLI, qui
+  importe les deux, qui garantit par typage que les deux formes s'accordent.
+- **Scanner** : il lit désormais le fichier **parsé**. Un simple scan de tokens perd sa
+  position après un `${` et prenait une directive écrite dans un template literal de
+  spec pour un vrai commentaire. Vu en conditions réelles, le test est rouge sur
+  l'ancien scanner. Sur ce dépôt : 120 directives, dont les `eslint-disable` globaux,
+  que la règle ESLint ne peut pas voir (limite du lot 1).
+- **CLI** : `--kind eslint-disable | architecture-waiver`, et inclusion dans `all` et
+  `devtools`. La config `review-attest` gagne `bypasses: false | { styleDump }`. Les
+  dérogations de tous les `architecture/waivers.ts` du dépôt sont collectées.
+- **App de revue** :
+  - onglet **Contournements** (`bypasses-view.ts`), avec filtre par règle, extrait et
+    raison ; une raison absente est mise en avant ;
+  - **indicateur d'adoption** (`styleAdoption`, calculé à partir des violations de
+    `style-only-design-system`, pour que l'indicateur et la vérification ne puissent
+    pas diverger). Chaque composant restant affiche la raison de sa dérogation ;
+  - dans la file de revue, les cartes de contournement ont leur propre présentateur.
+
+  La vue est écrite avec une sheet `bypasses-view.style.ts`, sans classe brute.
+  Constaté dans le navigateur : l'app de revue affiche 2 composants adoptés sur 12
+  (les deux nouveaux) ; accepter une carte écrit bien l'attestation dans le ledger.
+- **Deux trouvailles** :
+  - Une entrée de composant nommée `title` est avalée comme attribut HTML de l'hôte, et
+    **toutes les entrées suivantes se décalent**, sans aucune erreur. Contourné en
+    renommant l'entrée ; à signaler au framework.
+  - La table générée n'a pas de famille générique `monospace` (seulement
+    `ui-monospace`, que seul Safari résout). Ajout de `systemFontStack` et
+    `monospaceStack` dans `font.ts`. C'est un **5e manque** du vocabulaire, pour la
+    liste du lot 5.
+- **Vérifications** : e2e de l'app de revue, 12 tests verts sur 16. Les 4 échecs ne
+  touchent pas aux contournements : `template-agent` vise une API absente de `HEAD`,
+  et la capture visuelle bute sur une requête `/api/template-detail` que le parcours
+  ne simule pas (même cause que `visual-happy-paths`).
+- Hors périmètre, comme prévu : l'éditeur de politique (`eslint-applied-rules.ts`).
+
+## Style uniquement par le design system — lot 4 (2026-09-23)
+
+Les composants internes de `@craft-ts/component` passent sur des sheets.
+
+- **Migrés** : l'overlay IA (menu contextuel, lanceur, boîte de dialogue, chat), le
+  pending par défaut (`craft-defaults`) et le skip-link. `ai-overlay-theme.ts` (le
+  thème en texte CSS) est supprimé. Les variables de thème **gardent leurs noms**
+  (`--craft-ai-bg`, `--craft-ai-launcher-right`…) : une app qui les surcharge continue
+  de fonctionner.
+- **Classes calculées devenues des axes** : état « copié », ton des boutons, phase de la
+  timeline. Les bascules de visibilité passent par l'attribut `hidden`, et la position
+  (menu, glisser du chat) par `cssVars` + `assign`. Le code de comportement retrouve le
+  panneau par un attribut stable (`data-ai-chat`), plus par une classe de style. Les
+  attributs `data-craft-*` sont réservés au moteur de rendu.
+- **Vocabulaire comblé** (4 manques de l'inventaire sur 5) :
+  - `interaction.focus` / `active` / `disabled`, avec leurs drivers (`holdPointer`
+    optionnel sur le harnais) ;
+  - `shadow(...)`, `math.min/max/clamp`, `tracks.autoFit/autoFill/equal` ;
+  - `systemFontStack`, qui sait maintenant écrire `system-ui` et `-apple-system` sans
+    guillemets, et `systemUiStack`.
+
+  Reste `gradient`.
+- **Plugin** : option `include` (nom de paquet ou chemin) ; `@craft-ts/component` est
+  inclus par défaut dès qu'il est résolvable, et les `*.style.js` publiés sont reconnus.
+  Dans le monorepo, les apps listent `libs/component/src` par chemin, et les loaders
+  d'architecture aussi.
+- **Trouvaille majeure, `isolated`** : un style mis en couche perd face à **n'importe
+  quelle** feuille non mise en couche. Vu en vrai : le `button, select { color:
+  inherit }` hérité de l'app de revue repeignait le texte du lanceur en sombre sur fond
+  bleu. Le chrome qu'une lib monte chez un hôte inconnu doit y résister, comme le
+  faisait son ancien CSS scopé. `craftStyles(..., { isolated: true })` émet donc la
+  sheet **hors couche**, après les couches, avec des atomes jamais partagés (préfixe
+  `i-`). Sinon, un atome partagé sortirait la classe d'une app de sa couche, par-dessus
+  ses propres variantes. Toutes les sheets du chrome du framework sont isolées. Vérifié
+  dans le navigateur : texte blanc, police système, 13 px, en clair comme en sombre.
+- **Même piège, entre deux classes du même élément** : deux atomes non conditionnels sur
+  la même propriété se départagent par le nom de classe, pas par l'intention. Le thème
+  de l'overlay ne porte donc plus que des variables ; couleur et police vont dans la
+  classe de chaque racine. À surveiller : une règle qui détecte ces conflits entre
+  classes d'un même élément serait utile.
+- **Apps** : les quatre apps qui n'avaient pas le plugin l'ont reçu, avec
+  `reset: false, base: false` et un `TODO(style-only)`, plus l'import de
+  `virtual:craft-style.css`, pour que leur overlay garde son style.
+- `component` dépend de `@craft-ts/style` (peerDependency, référence tsconfig, alias
+  vitest). La référence inverse `style` → `component` est retirée : elle ne servait à
+  rien et aurait créé un cycle.
+- **Vérifications** :
+  - `component` a été comparé à `HEAD` dans un worktree jetable, supprimé depuis : les
+    **25 mêmes échecs**, déjà présents ;
+  - les 7 tests qui lisaient le CSS de meta sont réécrits sur le registre des sheets ;
+  - les specs d'architecture des 5 apps passent ;
+  - `quickstart-effect` ne démarre pas, et c'est aussi le cas sur `HEAD` (« no root
+    component »).
+- Restent dans `libs/component`, sans être du style : les deux `styles` de
+  `testing.ts`, qui recopient le meta d'un composant.
+
+## Style uniquement par le design system — lot 5 (en cours, 2026-09-23)
+
+Migration des projets, dans l'ordre du plan.
+
+- **quickstart-effect** : fait. `foundation.style.ts` porte une palette, le thème du
+  document (`craftGlobalStyles`) et la classe d'erreur. `styles.css` est supprimé, le
+  socle (reset + base) est actif, il n'y a plus de dérogation ni de bloc
+  `TODO(style-only)`.
+- **demo-ssr** : fait.
+  - Le vrai design était le `styles:` inline d'`App`. `styles.css` était en grande
+    partie mort : classes sans usage, `html[data-navigation]` que personne ne pose.
+    Tout tient maintenant dans `ssr-lab.style.ts` : une palette, un thème en variables
+    (clair par défaut, sombre en un seul bloc sur `:root`), les sheets `shell`, `page`
+    et `pipeline`. Deux axes d'état : `data-ssrCard`, `data-ssrBadge`.
+  - L'indicateur de typecheck, en DOM brut, a sa propre sheet ; `data-status` devient
+    `data-typecheck`.
+  - Polices système au lieu de Manrope et DM Mono : la CSP de production
+    (`font-src 'self'`) bloquait déjà l'`@import` Google Fonts.
+  - En dev, le HTML serveur lie `/@id/__x00__virtual:craft-style.css?direct` : le plugin
+    accepte désormais une query sur l'id virtuel.
+  - Preset ESLint `style` (les règles de style de `recommended`, seules) : demo-ssr le
+    prend, sans prendre tout `recommended`.
+- **Vocabulaire ajouté** :
+  - `ariaCurrent.page`, axe standard qui lit l'`aria-current` posé par le routeur ;
+  - `tracks.fr` / `tracks.list`, des pistes en `fr` que seul un track list accepte ;
+  - `tracks` rejoint les espaces de noms de constructeurs de `no-raw-css-value`, et
+    `systemFontStack` ses fonctions à primitives.
+- **Bloquant en amont, hors de ce lot** : le rendu SSR échoue sur `HEAD`. Dans
+  `server-render.ts` et `hydrate.ts`, `ɵinjectCraftRootComponent()` est appelé hors du
+  contexte d'injection (`a0e3e991e` n'a corrigé que `bootstrap.ts`). Derrière, les
+  services `toProvide` non fournis lèvent au lieu de prendre leur valeur par défaut.
+  demo-ssr a donc été vérifié sur une page statique qui reprend son balisage avec les
+  vraies classes et le CSS construit, en clair, en sombre et en mobile.
+- **demo-with-server-function** : fait.
+  - Chacun des cinq écrans recopiait le même CSS : un thème sombre, puis un thème clair
+    écrit après lui qui gagnait partout. Le rendu réel était le clair, avec la bande
+    `.flow` masquée. Tout tient maintenant dans une seule `demo.style.ts` :
+    - une palette, avec le clair par défaut et l'ancien sombre en `scheme.dark` ;
+    - les sheets `demoNav`, `demoPage` et `statusPage` ;
+    - deux axes d'état : `data-demoButton`, `data-statusLink`.
+  - La bande `.flow` (morte) et ses `flowStep` sont retirés.
+  - Les quatre `eslint-disable no-hardcoded-design-values` disparaissent avec le CSS.
+- **Bug de la lib corrigé** : `clipOverflow` (canal `violates`) enregistrait la
+  violation sans **émettre** son `overflow-*: clip`. La troncature ne s'appliquait donc
+  jamais, y compris dans le chat IA du lot 4. Spec ajoutée.
+- **`tracks.minmax`** : sans `minmax(0, …)`, une piste `fr` ou la colonne implicite
+  `auto` d'une grille prend la largeur min-content d'un contenu insécable (ellipses,
+  `nowrap`) et déborde. Vu en vrai en mobile.
+- **Même blocage en amont, côté client** : sans SSR, le contenu routé échoue lui aussi
+  sur `No provider for Craft token "CraftPendingComponentServiceToken"`. Seul le shell
+  s'affiche. Vérification faite sur une page statique, avec les vraies classes et le
+  CSS construit : clair et sombre en desktop, clair en mobile.
+- **demo-effect** : fait.
+  - Les sept exemples répétaient la même carte, chacun avec sa teinte. La carte est
+    écrite une fois dans `effect-demo.style.ts`. La teinte est un axe d'état
+    (`data-exampleTint`) qui pose les variables de thème de la carte ; la teinte neutre
+    en fournit les valeurs initiales. Trois autres axes : l'encadré
+    (`data-exampleNote`), les boutons carré ou fantôme (`data-exampleButton`) et le
+    todo terminé (`data-exampleTodo`, avec une table de correspondance plutôt qu'un
+    ternaire, interdit dans un template).
+  - Chivo passe par `defineFont` : le `<link>` de `index.html` et l'`@import` de
+    `styles.css` disparaissent, et le plugin injecte preconnect et preload. La
+    dérogation `no-global-stylesheet` sur `index.html` tombe aussi.
+  - Une spec visait `.shipping-spinner` : elle cible maintenant `[aria-hidden]`.
+- **Vocabulaire** : `ariaPressed.pressed` (bouton bascule), sur le modèle
+  d'`ariaCurrent`.
+- **Reset** : `[hidden]:not([hidden='until-found']) { display: none !important }`.
+  Sans cette règle, toute classe qui pose un `display` ré-affiche un élément `hidden`
+  (vu sur le « × » de l'indicateur de typecheck ; l'overlay IA du lot 4 bascule aussi
+  par `hidden`). Un `!important` dans la première couche est la seule chose qu'aucune
+  couche suivante ni aucune feuille hors couche ne peut battre.
+- Vérifications :
+  - erreurs tsc identiques à `HEAD`, fichier par fichier (script
+    `compare_head.py`) ;
+  - specs de l'app (15) et d'architecture (17) vertes ;
+  - shell vérifié dans le vrai serveur de dev, cartes sur une page statique.
+- **demo** : fait.
+  - Choix de Romain : une sheet d'exemple commune plutôt qu'une traduction fidèle, et
+    une réécriture des démos `css-vars-*` sur `@craft-ts/style`.
+  - `examples/shared/example.style.ts` contient :
+    - la carte (une variante sombre pose des variables que les enfants lisent), le
+      titre, le texte (tons), le code, les notes, les actions ;
+    - les boutons (tons), les champs (axe `wide`), le tableau, la pagination, la liste,
+      les alertes (tons) ;
+    - le héros, les tuiles, les définitions, etc.
+  - Les paires craft/primitives partagent cette sheet, et leurs 17 `.css` sont
+    supprimés. Ce qui n'appartient qu'à un exemple reste à côté de lui :
+    - `pixel.style.ts` : la couleur de cellule par `assign`, avec une table hex →
+      jeton de palette ;
+    - `editor.style.ts` : les étapes en axe `data-editorStep` ;
+    - `task-board.style.ts`, `debounced-web-search.style.ts` ;
+    - `view-transitions.style.ts` : le dégradé et le `view-transition-name` par
+      `assign`, et les données photo perdent leur chaîne CSS.
+  - Shell (`demo-shell.style.ts`) : Chivo par `defineFont`, et la position du
+    lanceur IA par `set(craftAiLauncherPosition.right, …)` sur `:root`.
+    `src/styles.css` et les deux liens Google Fonts de `index.html` disparaissent.
+  - `css-vars-*` est réécrit. La démo montre :
+    - la valeur par instance (axe de variante qui fait `set`, le reste gardant la
+      valeur initiale) ;
+    - `inherits: true` ;
+    - le transfert : le parent fait `set(enfant, parent)`, l'appelant surcharge
+      dans sa propre sheet ;
+    - `@property` : un pourcentage enregistré, écrit par `assign`, qui s'anime.
+
+    `contentStyles` et `allowContainerStyles` sont retirés de la démo de projection.
+    Le contrat de slot passe d'une classe à `data-projection` : une classe de sheet
+    est une liste d'atomes, pas un nom qu'un sélecteur peut exiger.
+  - La dérogation `--ds-surface` tombe : la racine du thème peint sa surface et son
+    encre.
+  - Tests : les sélecteurs de classe (`.pixel-cell`, `.demo-nav__toggle`,
+    `.action-btn`, `.design-system-host`…) passent à des `data-testid`, e2e compris.
+    Les pixels se lisent maintenant sur `--pixel-fill`.
+- **Ajouts à la lib** :
+  - `gradient.linear/radial`, `ImageValue`, `kind.image`, `bgImage` : `gradient`
+    était le dernier manque du vocabulaire ;
+  - `tracks.minmax` ;
+  - `@craft-ts/component/style` : un point d'entrée qui ne contient que des jetons
+    (`craftAiLauncherPosition`), autorisé par `style-file-boundary` ;
+  - `assign` ajouté aux appels de présentation de
+    `require-reactive-template-bindings`.
+- **Piège** : une valeur initiale `@property` en `rem` n'est pas indépendante du calcul,
+  et le navigateur abandonne tout l'enregistrement. L'architecture l'attrape ; donner
+  une valeur initiale en `px`.
+- Vérifications demo :
+  - lint à 0 ;
+  - architecture 19/19 ;
+  - tsc sans nouvelle erreur ;
+  - specs : les **mêmes 20 échecs** que `HEAD`, mesurés sur un extrait `git archive`
+    de `HEAD` dans `tmp/baseline`, supprimé depuis ;
+  - `vite build` OK.
+
+  e2e non lancés : le rendu routé est cassé en amont.
+- **attestation-app** : fait (choix de Romain : migration complète maintenant).
+  - Les 2 300 lignes de `styles.css` sont réparties en sheets par zone :
+    - `review-app.style.ts` : palette clair/sombre, ~38 variables de thème, globaux, et
+      le choix explicite du thème en axe `data-reviewTheme` sur le shell ;
+    - `review-shell`, `view-tabs`, `review-controls`, `review-inventory`,
+      `review-card`, `annotation`, `folder-layout`, `tier-legend`,
+      `application-overview`.
+  - Axes d'état : `data-reviewKind` (masque selon le type de carte),
+    `data-reviewAction`, `data-reviewNotice`, `data-zoom`, `data-reasonNote`, les états
+    de ligne du folder-layout (`rowKind`, `rowStatus`, `rowCollision`, `rowLinked`,
+    `rowLocated`). La bande de sélection et le pli passent par `assign` sur
+    `evidenceBox`. Les infobulles sont des `::after` avec `content: attr(...)`.
+  - `browser-adapter.ts` pose `data-rowLinked` et `data-rowLocated` avec
+    `setAttribute` : `dataset.rowLinked` écrirait `data-row-linked`, que l'axe ne lit pas.
+  - `template-review-group.ts` n'est importé nulle part, et ses erreurs tsc existent déjà
+    sur `HEAD`. Ses classes sans CSS sont retirées, et les `data-testid` sont posés là où
+    l'e2e visait une classe.
+  - Les e2e (`attestation-app/e2e`, `review-attestation/e2e`) visent maintenant des
+    `data-testid` et des attributs d'état. Sont exclues les classes de la page
+    rejouée (`.title`, `.body`…), qui appartiennent à la fixture.
+  - Écarts assumés avec le rendu de `HEAD` : dans `HEAD`, la feuille hors couche écrasait
+    `decisionStyles.primary`, et Accepter s'affichait en contour. Il est maintenant plein,
+    comme le dit la sheet qui porte la preuve de contraste. « Vues d'attestation » et
+    « Zoom » suivent le style que le CSS voulait, et que ses sélecteurs ratent.
+  - La dérogation `no-global-stylesheet`, celle de `style-only-design-system` et le bloc
+    `TODO(style-only)` d'ESLint sont retirés.
+- **Deux bugs de la lib trouvés en comparant avec `HEAD`** :
+  - Le nom d'un atome hachait `axe:point` sans la condition. Deux sheets avec chacune
+    un breakpoint `wide` (761 px et 901 px) obtenaient donc la même classe, et la
+    première enregistrée gagnait. `below(bp.x)` et `bp.x` étaient confondus eux aussi.
+    L'identité hachée inclut maintenant la condition ouverte. Spec ajoutée.
+  - `clipOverflow` pose `overflow: clip`, qui ne crée pas de conteneur de défilement.
+    Le minimum automatique d'un élément de grille ou de flex reste donc la largeur de son
+    texte, et l'ellipse ne tronque rien. Il faut `minWidth(0)` avec (fait dans les
+    helpers `ellipsis`).
+- **Vocabulaire** : `ariaInvalid.true` (anneau d'erreur du motif), `ariaCurrent.true`,
+  `gradient.repeatingLinear/Conic`, `bgImage` multi-couches, `bgSize`, `bgPosition`,
+  `backdropBlur`, `uaScheme`, `spanAllColumns`, `pseudo.content.attr`.
+- **Corrigé au passage** : `apps/demo/review-attest.config.ts` pointait encore vers
+  `apps/demo/src/styles.css`, supprimé au lot précédent.
+- Vérifications attestation-app :
+  - tsc et lint identiques à `HEAD` (les erreurs restantes sont préexistantes :
+    `bypasses-view`, liens `a()` de `review-app`) ;
+  - architecture : les 4 mêmes échecs que `HEAD` ;
+  - specs de l'app (13) et de contraste vertes ;
+  - `vite build` OK ;
+  - rendu comparé à `HEAD` dans le vrai serveur de revue (`startReviewServer`), en clair,
+    en sombre, à 800 et 1 100 px.
+- **Scaffold `create-project`** : fait.
+  - Plus de `src/styles.css` ni de chemin `typedCss` : l'option disparaît de la config,
+    du CLI (`--typed-css` est accepté sans effet, `--no-typed-css` lève une erreur qui
+    explique pourquoi) et de la question interactive. `@craft-ts/style`,
+    `style:check`, le preset ESLint `typedCss` et le plugin sont toujours là, avec ou
+    sans design system.
+  - `src/app/app.style.ts` remplace la feuille globale :
+    - `craftGlobalStyles('page')` pour `body`, `a` et `label` ;
+    - la sheet `shell` : `root`, `link`, `content`, `nav`, `main` et `badge` (le badge
+      expérimental passe par une classe au lieu de `'starter-experimental-badge'`).
+  - L'indicateur de typecheck a sa sheet. Son état d'échec est l'axe
+    `data-typecheck`. Au passage, son `as` et un `eslint-disable` inutile sont retirés.
+  - Couleurs sur les classes, et pas seulement sur `body` : le solveur de contraste
+    ignore les règles globales. Liens de la nav, `main` et, sans design system, les
+    pages routées (analysées seules) étaient « indéterminés ». `style:check` échouait
+    donc sur le starter généré. Le shell porte maintenant ses couleurs, et les pages
+    sans design system passent par `shell.content`.
+  - Suite d'architecture émise par `migrate-architecture` quand le projet dépend de
+    `@craft-ts/style` : loader asynchrone qui fusionne le dump (`loadStyleDump`,
+    alias résolu par `createRequire`, `@craft-ts/component` inclus par défaut),
+    `waivers.ts` (jamais écrasé par une nouvelle exécution) et `architecture.spec.ts`
+    qui appelle `assertArchitecture` avec les dérogations.
+- **Bug de la lib** : `findProjectStyleModules` dédoublonnait par chemin, pas par
+  chemin réel. Un paquet atteint à la fois par défaut et par un `include` explicite,
+  ou derrière un lien symbolique (pnpm), était évalué deux fois : `cssVars: prefix
+  'craft-ai' is already declared`. Spec ajoutée.
+- Vérification sur des projets **générés pour de vrai**. Les paquets locaux sont
+  construits par `tsc` et liés dans `node_modules/@craft-ts` (harnais
+  `scaffold-harness.mjs` du scratchpad) :
+  - starter standard : `vite build` OK, contraste 16/16 prouvé, architecture 17/17 ;
+  - sans design system : lint à 0 erreur, build OK, contraste 18/18, architecture
+    17/17 ;
+  - domain-first : build OK, contraste 6/6.
+  - Défauts préexistants, sans rapport avec le style (tâche proposée à part) :
+    - `components.ts` du starter déclare 5 composants (`max-craft-declarations-per-file`) ;
+    - les routes domain-first n'ont pas `assertExhaustiveRouteExceptions` ;
+    - erreurs tsc de `app.config.ts`/`app.routes.ts`, les mêmes que sur les apps du
+      dépôt.
+- **Générateur de route** : fait. Il n'émettait déjà ni `.css` ni `styles`. Le
+  composant qu'il crée a maintenant sa sheet `<nom>.style.ts` (`craftStyles` avec une
+  classe `root`) et la pose sur son élément. Vérifié : spec 9/9, et les deux fichiers
+  émis passent le lint et le typecheck d'un starter généré.
+- **Docs (`apps/docs`)** : fait.
+  - `guide/components/styles.md` devient « Styling a component: the only way » :
+    - la forme : une sheet, puis un composant avec un axe `data-*` et `assign` ;
+    - où va chaque chose ;
+    - ce qui refuse les autres voies (règles ESLint et d'architecture) ;
+    - l'unique contournement, raisonné et attesté (vue Bypasses).
+  - `css-variables.md` est réécrite sur `cssVars` de `@craft-ts/style` : valeur par
+    instance par variante, héritage, transfert parent → enfant, `assign`,
+    `@property` émis. `meta.cssVars` est présenté comme déprécié.
+  - `customization.md` : la classe de host vient d'une sheet, les directives
+    ajoutent leur classe, et « How a parent reaches a child » passe par une
+    variable héritée. La section `@scope` est retirée.
+  - `content-projection.md` : le contrat de slot passe par `data-slot` au lieu
+    d'une classe, et le cadre est stylé par sa sheet ; `contentStyles` et
+    `allowContainerStyles` sont retirés de la page, `example-12` est supprimé.
+  - `components/index.md`, `learn/01`, `fine-grained-reactivity`,
+    `pagination-placeholder`, `route-load-errors`, `testing/components` : plus de
+    `styles:` ni de classe littérale.
+  - Axes ARIA documentés dans `style/define.md`, constructeurs de valeurs (dégradés,
+    `bgImage`, `uaScheme`, `spanAllColumns`, `pseudo.content.attr`) dans
+    `style/tokens.md`. `variants.md` disait encore « no-raw-class dans les fichiers
+    qui importent le paquet » ; c'est corrigé.
+  - Snippets : le bloc `TODO(style-only)` d'ESLint est retiré. Les 9 snippets
+    fautifs sont migrés : de vraies sheets `*.style.ts` à côté, et des specs qui
+    montent le composant et vérifient classe, attribut et variable (lint 0).
+    Suite docs : 173 tests verts. Un seul fichier échoue, préexistant et hors
+    sujet : `send-context-webhook` importe `provideSendContextEventEnricher`, que
+    `libs/core` n'exporte pas.
+  - `require-reactive-template-bindings` accepte `unit.*(...)` dans un binding :
+    c'est la valeur typée qu'écrit `assign`, de la présentation au même titre.
+    Spec ajoutée.
+  - `TODO(style-only)` ne subsiste plus que dans ce journal (commentaires et
+    raisons de specs reformulés, `APPLICATION-CAPTURES.md` corrigé).
+- **Vérification finale** (en cours) :
+  - `git grep "TODO(style-only)"` ne trouve plus que ce journal.
+  - `craft-graph --style-debt` a été lancé sur les 6 apps, avec un dump produit par
+    `loadStyleDump`, comme dans les loaders d'architecture. Résultat : 0 obligation
+    non déchargée, 0 variable non lue ou non déclarée, 0 trou d'extraction.
+    La seule dette est l'échappatoire motivée du skip-link (hors écran, pas
+    caché, pour rester focalisable).
+  - Bug corrigé au passage : `danglingVars`, qu'utilise le rapport de dette,
+    comptait comme « non lues » les variables que le socle lit depuis une règle
+    globale (`--craft-focusRing`…), alors que la règle `no-dangling-css-vars` les
+    excluait. Le filtre vit maintenant dans `danglingVars` ; les deux s'accordent,
+    et une spec a été ajoutée.
+  - ESLint sur les 8 projets touchés par le style : 0 erreur partout.
+    attestation-app avait 51 erreurs qui existaient déjà sur `HEAD` ; elles sont
+    corrigées :
+    - `bypasses-view.ts` (écrit au lot 4) : les textes dérivés quittent le template ;
+      `rules` et `shown` passent dans l'insertion du filtre `ruleFilter` ; le
+      comptage n'utilise plus `Map.set`, et le `as const` de sa sheet est retiré ;
+    - `view-tabs.ts` : `aria-pressed` des deux derniers onglets passe par des
+      `craftComputed`, comme les autres ;
+    - `review-app.ts` : les 7 liens vers l'IDE reçoivent un nom local unique,
+      `data-navigation="external"`, et `safeUrl` sur leur `href` (une URL relative
+      `/api/open-in-ide?…`, que `safeUrl` accepte).
+  - Specs d'architecture : quickstart-effect 4/4, demo-ssr 18/18,
+    demo-with-server-function 24/24, demo-effect 17/17, demo 19/19. attestation-app
+    passe de 4 échecs à 3 (le nommage des liens corrige
+    `interactive-element-named`). Les 3 restants existaient déjà et n'ont pas de
+    lien avec le style : `collapseSide` et ses voisines sont appelées depuis un
+    helper `tree()` que l'analyseur ne suit pas, un paramètre de ressource vient
+    d'un state, et un mock `/api/template-detail` manque. Tâche proposée à part.
+  - **Lot 5 terminé** côté style.

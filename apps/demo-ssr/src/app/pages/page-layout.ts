@@ -5,6 +5,7 @@ import {
   section,
   type CraftNodeChildren,
 } from '@craft-ts/component';
+import { page as pageStyle } from '../ssr-lab.style';
 
 export function page(
   eyebrow: string,
@@ -12,11 +13,11 @@ export function page(
   intro: string,
   content: CraftNodeChildren,
 ) {
-  return section({ class: 'route-page' }, [
-    div({ class: 'hero' }, [
-      p({ class: 'eyebrow' }, eyebrow),
-      h1(title),
-      p({ class: 'intro' }, intro),
+  return section({ class: pageStyle.root }, [
+    div({ class: pageStyle.hero }, [
+      p({ class: pageStyle.eyebrow }, eyebrow),
+      h1({ class: pageStyle.title }, title),
+      p({ class: pageStyle.intro }, intro),
     ]),
     content,
   ]);

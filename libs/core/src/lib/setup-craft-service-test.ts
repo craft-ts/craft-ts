@@ -21,7 +21,6 @@ import {
   type CraftInjector,
   type CraftProvider,
 } from './host/craft-injector';
-import { APP_SNAPSHOT_REGISTRY, AppSnapshotRegistry } from './take-app-snapshot';
 import type {
   BrandedServiceProvider,
   CraftServiceProvider,
@@ -424,7 +423,6 @@ function createAngularHostCraftInjector(
       ...getCraftRootDefaultProviders(),
       { provide: ɵINJECTOR_SCOPE, useValue: 'root' },
       { provide: ErrorHandler, useClass: ErrorHandler },
-      { provide: APP_SNAPSHOT_REGISTRY, useValue: new AppSnapshotRegistry() },
       ...extraProviders,
     ],
     Injector.NULL as EnvironmentInjector,

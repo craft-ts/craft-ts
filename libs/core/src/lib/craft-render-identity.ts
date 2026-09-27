@@ -1,4 +1,4 @@
-import { craftToken } from './host/craft-injector';
+import { craftService } from './craft-service';
 
 /** A deterministic address for one node in a Craft render tree. */
 export type CraftRenderIdentity = Readonly<{
@@ -13,8 +13,23 @@ export type CraftRenderIdentity = Readonly<{
  * remain runtime/debug identities while hydration identities must be stable
  * across two different processes.
  */
-export const CRAFT_HYDRATION_ID =
-  craftToken<CraftRenderIdentity>('CraftHydrationId');
+type CraftRenderIdentityHelper = () =>
+  Generator<unknown, CraftRenderIdentity, unknown>;
+const craftRenderIdentityService = craftService(
+  { name: 'CraftRenderIdentity', providedIn: 'manuallyProvidedAtRoot' },
+  (inputs: { $provided: CraftRenderIdentity }) => inputs.$provided,
+) as unknown as {
+  CraftRenderIdentity: CraftRenderIdentityHelper;
+  provideCraftRenderIdentity: (value: CraftRenderIdentity) => unknown;
+  CRAFT_RENDER_IDENTITY_META_DATA: { inject(): CraftRenderIdentity };
+};
+
+export const CraftRenderIdentity = craftRenderIdentityService.CraftRenderIdentity;
+export const provideCraftRenderIdentity =
+  (value: CraftRenderIdentity): unknown =>
+    craftRenderIdentityService.provideCraftRenderIdentity(value);
+export const ɵinjectCraftRenderIdentity =
+  craftRenderIdentityService.CRAFT_RENDER_IDENTITY_META_DATA.inject;
 
 export function createCraftRenderIdentity(
   path: readonly (string | number)[],

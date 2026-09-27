@@ -92,10 +92,10 @@ describe('what the colour-scheme axis is allowed to touch', () => {
 });
 
 describe('what the graph finds that nobody was looking for', () => {
-  it('reports the theme variables nothing reads', () => {
-    // Real dead weight in this design system: declared by the theme, read by
-    // no component. Not an error — but a reader takes them for a real hook.
-    expect(danglingVars(graph()).unread).toEqual(['--ds-surface']);
+  it('reports no theme variable that nothing reads', () => {
+    // `--ds-surface` used to be declared and never painted; the theme root now
+    // paints its own surface, so every theme variable has a reader.
+    expect(danglingVars(graph()).unread).toEqual([]);
     expect(danglingVars(graph()).undeclared).toEqual([]);
   });
 

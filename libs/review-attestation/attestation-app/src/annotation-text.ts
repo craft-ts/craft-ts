@@ -8,6 +8,7 @@
  * to survive: deleting a token deletes its reference, with no second list to
  * keep in step.
  */
+import { annotation } from './annotation.style';
 export interface Mention {
   readonly id: number;
   readonly paths: readonly string[];
@@ -56,7 +57,7 @@ export const chipFor = (
   paths: readonly string[],
 ): HTMLElement => {
   const chip = document.createElement('span');
-  chip.className = 'mention-chip';
+  chip.className = annotation.chip;
   chip.setAttribute(MENTION_ID, String(id));
   chip.setAttribute('data-count', String(paths.length));
   // Not `title`: a native tooltip waits a second, cannot be styled, and would

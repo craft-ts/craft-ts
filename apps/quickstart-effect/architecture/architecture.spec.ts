@@ -9,12 +9,13 @@ import {
   assertPrimitiveLoaderRequirements,
 } from '@craft-ts/dev-tools/architecture-graph';
 import { loadArchitectureGraph } from './load-graph';
+import { architectureWaiverList } from './waivers';
 
 describe('quickstart architecture', () => {
-  let graph: ReturnType<typeof loadArchitectureGraph>;
+  let graph: Awaited<ReturnType<typeof loadArchitectureGraph>>;
 
-  beforeAll(() => {
-    graph = loadArchitectureGraph();
+  beforeAll(async () => {
+    graph = await loadArchitectureGraph();
   }, 180_000);
 
   it('contains the Effect operation, service and Layer', () => {
@@ -70,6 +71,9 @@ describe('quickstart architecture', () => {
     assertCraftEffectNoImperativeSync(graph.graph);
     assertInteractiveElementNamed(graph.graph);
     assertNoDependencyCycles(graph.graph);
-    assertDeclarativeArchitecture(graph.graph, { allow: ['sendContextToAi'] });
+    assertDeclarativeArchitecture(graph.graph, {
+      waivers: architectureWaiverList,
+      allow: ['sendContextToAi'],
+    });
   });
 });

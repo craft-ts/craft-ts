@@ -1,5 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import styles from './profile-editor.css' with { loader: 'text' };
 import { eventValue } from '../../../event-value';
 import {
   button,
@@ -34,6 +32,8 @@ import {
   withBackNavigation,
   withStateMachineHistory,
 } from '@craft-ts/core';
+import { example } from '../../shared/example.style';
+import { editor } from './editor.style';
 
 type Profile = {
   name: string;
@@ -216,11 +216,9 @@ export const {
           withBackNavigation(),
         ),
         ({ context, currentStep, currentStepWithContext, insertions }) => {
-          const stepClass = (step: string) =>
-            craftComputed(`${step}Class`, function* () {
-              return (yield* currentStep()) === step
-                ? 'step step--active'
-                : 'step';
+          const stepState = (step: string) =>
+            craftComputed(`${step}Step`, function* () {
+              return (yield* currentStep()) === step ? 'active' : null;
             });
 
           return {
@@ -238,9 +236,9 @@ export const {
             draftEmail: craftComputed('draftEmail', function* () {
               return (yield* context.draft()).email;
             }),
-            readingClass: stepClass('reading'),
-            editingClass: stepClass('editing'),
-            savingClass: stepClass('saving'),
+            readingStep: stepState('reading'),
+            editingStep: stepState('editing'),
+            savingStep: stepState('saving'),
             isReading: craftComputed('isReading', function* () {
               return (yield* currentStepWithContext()).step === 'reading';
             }),
@@ -311,24 +309,32 @@ const ProfileEditorStateMachine = craftComponent(
   'ProfileEditorStateMachine',
   {
     providers: [provideProfileEditorStateMachineView()],
-    stylesUrl: styles,
   },
   function* () {
     const { machine, permissions } = yield* ProfileEditorStateMachineView();
-    return section([
-      heading('State machine — profile editor'),
+    return section({ class: example.card }, [
+      heading({ class: example.title }, 'State machine — profile editor'),
       p(
-        { class: 'intro' },
+        { class: example.text, 'data-exampleText': 'muted' },
         'reading → editing → saving → reading. Every move goes through transit(), while the save is driven by reactive sources.',
       ),
 
-      div({ class: 'steps' }, [
-        span({ class: machine.readingClass }, 'reading'),
-        span({ class: machine.editingClass }, 'editing'),
-        span({ class: machine.savingClass }, 'saving'),
+      div({ class: editor.steps }, [
+        span(
+          { class: editor.step, 'data-editorStep': machine.readingStep },
+          'reading',
+        ),
+        span(
+          { class: editor.step, 'data-editorStep': machine.editingStep },
+          'editing',
+        ),
+        span(
+          { class: editor.step, 'data-editorStep': machine.savingStep },
+          'saving',
+        ),
       ]),
 
-      p({ class: 'hint' }, machine.stepHint),
+      p({ class: editor.hint }, machine.stepHint),
 
       ifNode(
         machine.isReading,
@@ -336,17 +342,19 @@ const ProfileEditorStateMachine = craftComponent(
           ifNode(
             machine.profileIsLoading,
             () =>
-              div({ class: 'panel loading-panel' }, [
-                span({ class: 'spinner', 'aria-hidden': 'true' }),
+              div({ class: editor.loadingPanel }, [
+                span({ class: example.spinner, 'aria-hidden': 'true' }),
                 p('Loading profile…'),
               ]),
             () =>
-              div({ class: 'panel' }, [
+              div({ class: editor.panel }, [
                 p(['Saved profile: ', machine.profileLabel]),
-                div({ class: 'actions' }, [
+                div({ class: example.row }, [
                   button(
                     'edit',
                     {
+                      class: example.button,
+                      'data-exampleButton': 'primary',
                       type: 'button',
                       click: machine.requestEdit,
                     },
@@ -359,10 +367,16 @@ const ProfileEditorStateMachine = craftComponent(
           ifNode(
             machine.isEditing,
             () =>
-              div({ class: 'panel' }, [
-                div({ class: 'field' }, [
-                  label('profile-name-label', { for: 'profile-name' }, 'Name'),
+              div({ class: editor.panel }, [
+                div({ class: editor.field }, [
+                  label(
+                    'profile-name-label',
+                    { class: editor.label, for: 'profile-name' },
+                    'Name',
+                  ),
                   input('profile-name', {
+                    class: example.input,
+                    'data-exampleField': 'wide',
                     id: 'profile-name',
                     type: 'text',
                     value: machine.draftName,
@@ -371,13 +385,15 @@ const ProfileEditorStateMachine = craftComponent(
                     },
                   }),
                 ]),
-                div({ class: 'field' }, [
+                div({ class: editor.field }, [
                   label(
                     'profile-email-label',
-                    { for: 'profile-email' },
+                    { class: editor.label, for: 'profile-email' },
                     'Email',
                   ),
                   input('profile-email', {
+                    class: example.input,
+                    'data-exampleField': 'wide',
                     id: 'profile-email',
                     type: 'email',
                     value: machine.draftEmail,
@@ -388,14 +404,16 @@ const ProfileEditorStateMachine = craftComponent(
                 ]),
                 ifNode(machine.submitBlocked, () =>
                   p(
-                    { class: 'blocked' },
+                    { class: example.text, 'data-exampleText': 'error' },
                     'Save is blocked: the draft is invalid, or the profile is read-only.',
                   ),
                 ),
-                div({ class: 'actions' }, [
+                div({ class: example.row }, [
                   button(
                     'save',
                     {
+                      class: example.button,
+                      'data-exampleButton': 'primary',
                       type: 'button',
                       click: machine.requestSubmit,
                     },
@@ -405,23 +423,23 @@ const ProfileEditorStateMachine = craftComponent(
                     'cancel',
                     {
                       type: 'button',
-                      class: 'secondary',
+                      class: example.button,
                       click: machine.requestCancel,
                     },
                     'Cancel',
                   ),
                 ]),
               ]),
-            () => div({ class: 'panel' }, [p('Saving…')]),
+            () => div({ class: editor.panel }, [p('Saving…')]),
           ),
       ),
 
-      div({ class: 'history' }, [
+      div({ class: editor.toolbar }, [
         button(
           'history-back',
           {
             type: 'button',
-            class: 'secondary',
+            class: example.button,
             disabled: machine.backDisabled,
             click: machine.back,
           },
@@ -431,7 +449,7 @@ const ProfileEditorStateMachine = craftComponent(
           'history-forward',
           {
             type: 'button',
-            class: 'secondary',
+            class: example.button,
             disabled: machine.forwardDisabled,
             click: machine.forward,
           },
@@ -440,12 +458,12 @@ const ProfileEditorStateMachine = craftComponent(
         span(machine.historyLabel),
       ]),
 
-      div({ class: 'read-only' }, [
+      div({ class: editor.toolbar }, [
         button(
           'toggle-read-only',
           {
             type: 'button',
-            class: 'secondary',
+            class: example.button,
             click: permissions.readOnly.toggle,
           },
           'Toggle read-only',

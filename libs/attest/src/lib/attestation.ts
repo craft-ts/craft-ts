@@ -27,7 +27,10 @@ export type SubjectKind =
   | 'visual'
   | 'doc-example'
   | 'api-surface'
-  | 'template';
+  | 'template'
+  | 'folder-layout'
+  | 'eslint-disable'
+  | 'architecture-waiver';
 
 export type Verdict =
   | 'ok'

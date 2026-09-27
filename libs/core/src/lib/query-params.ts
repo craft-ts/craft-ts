@@ -10,7 +10,6 @@ import {
   signal,
   WritableSignal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import {
   InsertionsQueryParamsFactory,
   InsertionQueryParamsFactoryContext,
@@ -37,9 +36,9 @@ import type {
   ServiceDependencyMapFromYieldedAndValues,
 } from './craft-service';
 import {
-  APP_SNAPSHOT_REGISTRY,
-  INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
+  provideInsertionSnapshotRegistry,
+  ɵinjectAppSnapshotRegistryIn,
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import { ɵprovidePrimitiveMethodRuntimeContext } from './primitive-method-runtime-context';
@@ -52,7 +51,10 @@ import {
   isNonYieldableInsertionMethod,
   yieldableInvocation,
 } from './yieldable';
-import { CRAFT_HISTORY, CRAFT_LOCATION } from './craft-router-tokens';
+import {
+  ɵinjectCraftHistory,
+  ɵinjectCraftLocation,
+} from './craft-router-tokens';
 import {
   parseSearchParams,
   serializeSearchParams,
@@ -467,15 +469,10 @@ function createQueryParamsRef<
   const injector = ɵcreateHostTaggedInjector(
     inject(Injector),
     `queryParams:${name}`,
-    [
-      {
-        provide: INSERTION_SNAPSHOT_REGISTRY,
-        useValue: insertionSnapshotRegistry,
-      },
-    ],
+    [provideInsertionSnapshotRegistry(insertionSnapshotRegistry)],
   );
-  const history = inject(CRAFT_HISTORY);
-  const location = inject(CRAFT_LOCATION);
+  const history = ɵinjectCraftHistory()!;
+  const location = ɵinjectCraftLocation()!;
 
   const { state: queryParamsConfig, ...options } = config;
 
@@ -674,15 +671,13 @@ function createQueryParamsRef<
     set: (
       params: QueryParamsToState<QueryParamsType>,
       navOptions?: QueryParamsNavigationOptions,
-    ) =>
-      yieldableInvocation(methods.set(params, navOptions)),
+    ) => yieldableInvocation(methods.set(params, navOptions)),
     update: (
       updateFn: (
         currentParams: QueryParamsToState<QueryParamsType>,
       ) => QueryParamsToState<QueryParamsType>,
       navOptions?: QueryParamsNavigationOptions,
-    ) =>
-      yieldableInvocation(methods.update(updateFn, navOptions)),
+    ) => yieldableInvocation(methods.update(updateFn, navOptions)),
     patch: (
       paramsOrPatchFn:
         | Partial<QueryParamsToState<QueryParamsType>>
@@ -690,8 +685,7 @@ function createQueryParamsRef<
             currentParams: QueryParamsToState<QueryParamsType>,
           ) => Partial<QueryParamsToState<QueryParamsType>>),
       navOptions?: QueryParamsNavigationOptions,
-    ) =>
-      yieldableInvocation(methods.patch(paramsOrPatchFn, navOptions)),
+    ) => yieldableInvocation(methods.patch(paramsOrPatchFn, navOptions)),
     reset: (navOptions?: QueryParamsNavigationOptions) =>
       yieldableInvocation(methods.reset(navOptions)),
   } as unknown as QueryParamsMethods<QueryParamsToState<QueryParamsType>>;
@@ -833,16 +827,17 @@ function createQueryParamsRef<
     { hasException, exceptions, _config: config },
   ) as unknown as QueryParamsOutput<QueryParamsType, {}, QueryParamsState>;
 
-  const snapshotRegistry = injector.get(APP_SNAPSHOT_REGISTRY, null);
+  const snapshotRegistry = ɵinjectAppSnapshotRegistryIn(injector);
   const hostTagList: readonly string[] =
     injector.get(ɵHOST_TAG_LIST, null) ?? [];
 
   const destroyRefParam = injector.get(DestroyRef, null);
 
   if (snapshotRegistry && destroyRefParam) {
-    snapshotRegistry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRefParam))
-      .subscribe(() => {
+    snapshotRegistry.registerSnapshotReader(
+      'queryParams',
+      hostTagList,
+      () => {
         const insertionSnapshots = triggerAndCollectInsertions(
           insertionSnapshotRegistry,
         );
@@ -857,12 +852,10 @@ function createQueryParamsRef<
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        snapshotRegistry.allSnapShot$.next({
-          source: 'queryParams',
-          from: hostTagList,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRefParam,
+    );
   }
 
   const publicQueryParams = createYieldableReactiveFacade(queryParamsOutput, {
@@ -870,7 +863,9 @@ function createQueryParamsRef<
     primitive: 'queryParams',
     path: name,
   });
-  return (hasDeepYieldableInsertion(insertions)
-    ? deepYieldable(publicQueryParams)
-    : publicQueryParams) as QueryParamsOutput<QueryParamsType, {}, QueryParamsState>;
+  return (
+    hasDeepYieldableInsertion(insertions)
+      ? deepYieldable(publicQueryParams)
+      : publicQueryParams
+  ) as QueryParamsOutput<QueryParamsType, {}, QueryParamsState>;
 }

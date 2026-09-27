@@ -236,6 +236,10 @@ test('release preflight runs the generated starter gate', () => {
     /test-generated-starters.*--profile=release/,
   );
   assert.match(
+    packageJson.scripts['generated-starters:release'],
+    /CRAFT_RELEASE_VERSION=\$\{CRAFT_RELEASE_VERSION:-0\.0\.0-release\}/,
+  );
+  assert.match(
     packageJson.scripts['generated-starters:static'],
     /test-generated-starters.*--profile=static/,
   );

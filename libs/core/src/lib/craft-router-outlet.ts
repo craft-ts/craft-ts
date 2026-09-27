@@ -3,12 +3,12 @@ import {
   EnvironmentInjector,
   inject,
   Injector,
-  InjectionToken,
   runInInjectionContext,
   type Type,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import { DOCUMENT } from './host/craft-compat';
-import { CRAFT_A11Y_NAVIGATION_FOCUS } from './craft-a11y';
+import { ɵinjectCraftA11yNavigationFocus } from './craft-a11y';
 import { isCraftException, type AnyCraftException } from './craft-exception';
 import {
   evaluateCraftGuardSync,
@@ -16,14 +16,14 @@ import {
   type RouteChainOutcome,
 } from './craft-guard-runtime';
 import {
-  CRAFT_BLANK_MS,
-  CRAFT_ERROR_COMPONENT,
-  CRAFT_PENDING_COMPONENT,
-  CRAFT_PENDING_MIN_MS,
-  CRAFT_STAY_MS,
+  ɵinjectCraftBlankMs,
+  ɵinjectCraftErrorComponent,
+  ɵinjectCraftPendingComponent,
+  ɵinjectCraftPendingMinMs,
+  ɵinjectCraftStayMs,
 } from './craft-pending';
 import {
-  CRAFT_GLOBAL_ERROR,
+  ɵinjectCraftGlobalErrorIn,
   type CraftExceptionComponentInput,
   type CraftPendingComponentInput,
 } from './craft-route-exceptions';
@@ -38,20 +38,20 @@ import {
   type CraftRouteStepFactory,
 } from './craft-route-meta';
 import {
-  CRAFT_START_VIEW_TRANSITION,
-  CRAFT_VIEW_TRANSITION,
-  CRAFT_VIEW_TRANSITION_SKIP_BLANK,
   CRAFT_VIEW_TRANSITION_STATE_KEY,
-  CRAFT_VIEW_TRANSITIONS_ENABLED,
+  ɵinjectCraftStartViewTransition,
+  ɵinjectCraftViewTransition,
+  ɵinjectCraftViewTransitionSkipBlank,
+  ɵinjectCraftViewTransitionsEnabled,
   type CraftViewTransitionInput,
 } from './craft-view-transition';
 import {
-  CRAFT_TEMPORAL_RUNTIME,
+  ɵinjectCraftTemporalRuntime,
   type TemporalTaskHandle,
 } from './temporal-runtime';
 import {
   craftRouteTarget,
-  CRAFT_ROUTE_TARGET,
+  ɵinjectCraftRouteTargetIn,
   isCraftRouteTarget,
   normalizeCraftRouteTarget,
   type CraftRouteTarget,
@@ -69,15 +69,17 @@ import {
   type CraftMatch,
 } from './host/craft-router-runtime';
 import {
-  CRAFT_CHILD_MATCH,
-  CRAFT_HISTORY,
-  CRAFT_MATCH,
-  CRAFT_ROUTER,
+  provideCraftChildMatch,
+  provideCraftMatch,
+  ɵinjectCraftChildMatch,
+  ɵinjectCraftHistory,
+  ɵinjectCraftMatch,
+  ɵinjectCraftRouterRuntime,
   type CraftRouterNavigationApi,
 } from './craft-router-tokens';
-import { CRAFT_SSR_RUNTIME } from './craft-ssr';
-import { CRAFT_PLATFORM } from './craft-platform';
-import { CRAFT_HYDRATION_RUNTIME } from './craft-hydration';
+import { ɵinjectCraftSsrRuntime } from './craft-ssr';
+import { ɵinjectCraftPlatform } from './craft-platform';
+import { ɵinjectCraftHydrationRuntime } from './craft-hydration';
 
 const ROUTE_PROP_SKIP = new Set(['craftComponent', 'craftPendingComponent']);
 
@@ -125,12 +127,22 @@ export type CraftOutletState =
   | 'loaded'
   | 'error';
 
-export const CRAFT_ROUTE_CHAIN_RUNNER = new InjectionToken<
-  typeof runCraftRouteChainAsync
->('CRAFT_ROUTE_CHAIN_RUNNER', {
-  providedIn: 'root',
-  factory: () => runCraftRouteChainAsync,
-});
+const craftRouteChainRunnerService = craftService(
+  { name: 'CraftRouteChainRunner', providedIn: 'global' },
+  () => runCraftRouteChainAsync,
+) as unknown as {
+  CraftRouteChainRunner: () => Generator<
+    unknown,
+    typeof runCraftRouteChainAsync,
+    unknown
+  >;
+  CRAFT_ROUTE_CHAIN_RUNNER_META_DATA: {
+    inject(): typeof runCraftRouteChainAsync;
+  };
+};
+export const CraftRouteChainRunner = craftRouteChainRunnerService.CraftRouteChainRunner;
+export const ɵinjectCraftRouteChainRunner = (): typeof runCraftRouteChainAsync =>
+  craftRouteChainRunnerService.CRAFT_ROUTE_CHAIN_RUNNER_META_DATA.inject();
 
 const syncTemplateFlushers = new Set<() => void>();
 
@@ -153,13 +165,16 @@ function runRegisteredSyncTemplateFlush(): void {
  * the displayed DOM is patched before the callback returns. Templates driven by
  * `craftEffect` otherwise bump an Angular signal asynchronously.
  */
-export const CRAFT_SYNC_TEMPLATE_FLUSH = new InjectionToken<() => void>(
-  'CRAFT_SYNC_TEMPLATE_FLUSH',
-  {
-    providedIn: 'root',
-    factory: () => runRegisteredSyncTemplateFlush,
-  },
-);
+const craftSyncTemplateFlushService = craftService(
+  { name: 'CraftSyncTemplateFlush', providedIn: 'global' },
+  () => runRegisteredSyncTemplateFlush,
+) as unknown as {
+  CraftSyncTemplateFlush: () => Generator<unknown, () => void, unknown>;
+  CRAFT_SYNC_TEMPLATE_FLUSH_META_DATA: { inject(): () => void };
+};
+export const CraftSyncTemplateFlush = craftSyncTemplateFlushService.CraftSyncTemplateFlush;
+export const ɵinjectCraftSyncTemplateFlush = (): (() => void) =>
+  craftSyncTemplateFlushService.CRAFT_SYNC_TEMPLATE_FLUSH_META_DATA.inject();
 
 /**
  * A non-blocking replacement for `<router-outlet>`. The URL commits immediately
@@ -171,38 +186,30 @@ export class CraftRouterOutletController {
 
   private readonly rootInjector = inject(EnvironmentInjector);
   private readonly router =
-    inject(CRAFT_ROUTER, { optional: true }) ?? silentRouter();
-  private readonly history = inject(CRAFT_HISTORY, { optional: true });
+    ɵinjectCraftRouterRuntime() ?? silentRouter();
+  private readonly history = ɵinjectCraftHistory();
   private readonly destroyRef = inject(DestroyRef);
-  private readonly temporalRuntime = inject(CRAFT_TEMPORAL_RUNTIME);
+  private readonly temporalRuntime = ɵinjectCraftTemporalRuntime();
 
-  private readonly defaultPendingComponent = inject(CRAFT_PENDING_COMPONENT);
-  private readonly defaultErrorComponent = inject(CRAFT_ERROR_COMPONENT);
-  private readonly defaultStayMs = inject(CRAFT_STAY_MS);
-  private readonly defaultBlankMs = inject(CRAFT_BLANK_MS);
-  private readonly defaultPendingMinMs = inject(CRAFT_PENDING_MIN_MS);
-  private readonly chainRunner = inject(CRAFT_ROUTE_CHAIN_RUNNER);
+  private readonly defaultPendingComponent = ɵinjectCraftPendingComponent();
+  private readonly defaultErrorComponent = ɵinjectCraftErrorComponent();
+  private readonly defaultStayMs = ɵinjectCraftStayMs();
+  private readonly defaultBlankMs = ɵinjectCraftBlankMs();
+  private readonly defaultPendingMinMs = ɵinjectCraftPendingMinMs();
+  private readonly chainRunner = ɵinjectCraftRouteChainRunner();
 
-  private readonly viewTransitionsEnabled = inject(
-    CRAFT_VIEW_TRANSITIONS_ENABLED,
-  );
-  private readonly viewTransitionSkipBlank = inject(
-    CRAFT_VIEW_TRANSITION_SKIP_BLANK,
-  );
-  private readonly startViewTransition = inject(CRAFT_START_VIEW_TRANSITION);
-  private readonly syncTemplateFlush = inject(CRAFT_SYNC_TEMPLATE_FLUSH);
-  private readonly viewTransitionSink = inject(
-    CRAFT_VIEW_TRANSITION,
-  ) as unknown as {
+  private readonly viewTransitionsEnabled = ɵinjectCraftViewTransitionsEnabled();
+  private readonly viewTransitionSkipBlank = ɵinjectCraftViewTransitionSkipBlank();
+  private readonly startViewTransition = ɵinjectCraftStartViewTransition();
+  private readonly syncTemplateFlush = ɵinjectCraftSyncTemplateFlush();
+  private readonly viewTransitionSink = ɵinjectCraftViewTransition() as unknown as {
     set(value: CraftViewTransitionInput): void;
   };
-  private readonly a11yNavigationFocus = inject(CRAFT_A11Y_NAVIGATION_FOCUS);
-  private readonly platform = inject(CRAFT_PLATFORM, { optional: true });
-  private readonly hydrationRuntime = inject(CRAFT_HYDRATION_RUNTIME, {
-    optional: true,
-  });
+  private readonly a11yNavigationFocus = ɵinjectCraftA11yNavigationFocus();
+  private readonly platform = ɵinjectCraftPlatform();
+  private readonly hydrationRuntime = ɵinjectCraftHydrationRuntime();
   private readonly document = this.platform?.document ?? inject(DOCUMENT);
-  private readonly ssrRuntime = inject(CRAFT_SSR_RUNTIME, { optional: true });
+  private readonly ssrRuntime = ɵinjectCraftSsrRuntime();
   private a11yHasCompletedInitialActivation = false;
 
   readonly displayedComponent: CraftWritableSignal<Type<unknown> | null> =
@@ -257,9 +264,7 @@ export class CraftRouterOutletController {
   }
 
   constructor() {
-    const matchSignal =
-      inject(CRAFT_CHILD_MATCH, { optional: true }) ??
-      inject(CRAFT_MATCH, { optional: true });
+    const matchSignal = ɵinjectCraftChildMatch() ?? ɵinjectCraftMatch();
     if (matchSignal) {
       this._matchWatch = craftWatch(() => {
         const match = matchSignal();
@@ -333,8 +338,8 @@ export class CraftRouterOutletController {
     const routeProviders = activated.route.providers;
     this._activeRouteInjector = Injector.create({
       providers: [
-        { provide: CRAFT_MATCH, useValue: this._liveMatch },
-        { provide: CRAFT_CHILD_MATCH, useValue: this._childMatch },
+        provideCraftMatch(this._liveMatch),
+        provideCraftChildMatch(this._childMatch),
         ...(Array.isArray(routeProviders) ? (routeProviders as never[]) : []),
       ],
       parent: environmentInjector ?? this.rootInjector,
@@ -788,10 +793,7 @@ export class CraftRouterOutletController {
   }
 
   private publishGlobalError(exception: AnyCraftException | null): void {
-    const sink = this.rootInjector.get(CRAFT_GLOBAL_ERROR) as unknown as {
-      set(value: AnyCraftException | null): void;
-    };
-    sink.set(exception);
+    ɵinjectCraftGlobalErrorIn(this.rootInjector).set(exception);
   }
 
   private async resolvePendingComponent(meta: CraftRouteMeta): Promise<void> {
@@ -813,7 +815,9 @@ export class CraftRouterOutletController {
     component: Type<unknown> | null,
   ): CraftRouteTarget | null {
     return (
-      this._activeRouteInjector?.get(CRAFT_ROUTE_TARGET, null) ??
+      (this._activeRouteInjector
+        ? ɵinjectCraftRouteTargetIn(this._activeRouteInjector)
+        : null) ??
       (component ? craftRouteTarget(component) : null)
     );
   }

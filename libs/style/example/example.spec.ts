@@ -22,8 +22,8 @@ import {
   space,
   unit,
   unsafeLength,
-} from '../src/index.ts';
-import type { Obligation, VariantsOf } from '../src/index.ts';
+} from '@craft-ts/style';
+import type { Obligation, VariantsOf } from '@craft-ts/style';
 import { badge, bp, tone, v } from './badge.style.ts';
 import { backToTop, shell } from './back-to-top.style.ts';
 

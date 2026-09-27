@@ -1,5 +1,5 @@
 import {
-  CRAFT_TEMPORAL_RUNTIME,
+  CraftTemporalRuntime,
   CraftHttpClient,
   craftMethod,
   craftUse,
@@ -10,10 +10,7 @@ import {
   type SendContextEvent,
   type TemporalTaskHandle,
 } from '@craft-ts/core';
-import {
-  craftService,
-  ɵtoCraftService as toCraftService,
-} from '@craft-ts/core';
+import { craftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import { DestroyRef, inject } from '../host-runtime';
@@ -37,7 +34,10 @@ import {
 } from '../hyperscript';
 import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
-import { AI_OVERLAY_THEME } from './ai-overlay-theme';
+import { measureAi, writeAiClipboard } from './ai-performance';
+import { assign, unit } from '@craft-ts/style';
+import { aiTheme } from './ai-overlay.style';
+import { aiChat, chatOffset } from './ai-send-context-chat.style';
 import {
   buildSendContextWebhookPayload,
   DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
@@ -48,18 +48,6 @@ import {
   type SendContextPromptOptions,
 } from './send-context-prompt';
 import type { SendContextUiContext } from './send-context-ui.tokens';
-
-const { CraftTemporalRuntime } = toCraftService({
-  name: 'CraftTemporalRuntime',
-  providedIn: 'global',
-  token: CRAFT_TEMPORAL_RUNTIME,
-}) as unknown as {
-  CraftTemporalRuntime: () => Generator<
-    never,
-    CraftTemporalRuntimeApi,
-    unknown
-  >;
-};
 
 /** The timeline is a debugging view, not a log: only the tail is readable. */
 const VISIBLE_EVENTS = 100;
@@ -354,7 +342,7 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
       if (event.button !== 0) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
-      if (target.closest('.craft-ai-chat')) return;
+      if (target.closest('[data-ai-chat]')) return;
       // The context menu lives in its own overlay: pressing "Add to AI
       // context" is outside the panel but must not close it either.
       if (target.closest('[data-craft-ai-overlay]')) return;
@@ -402,7 +390,7 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
       if (event.target instanceof Element && event.target.closest('button')) {
         return;
       }
-      const panel = handle.closest<HTMLElement>('.craft-ai-chat');
+      const panel = handle.closest<HTMLElement>('[data-ai-chat]');
       if (!panel) return;
       const rect = panel.getBoundingClientRect();
       const current = craftUse(panelOffset());
@@ -466,8 +454,7 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
         setError('Clipboard access is unavailable in this browser.');
         return;
       }
-      void clipboard
-        .writeText(text)
+      void writeAiClipboard(text)
         .then(() => flashStatus(message))
         .catch(() => setError('Could not write to the clipboard.'));
     };
@@ -483,10 +470,7 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
           ? captureAiDomStyles(ui.captureElement)
           : undefined;
       const pageCapture = options.includePageDomStyles
-        ? captureAiDomStyles(document.documentElement, {
-            maxBytes: 1024 * 1024,
-            maxNodes: 10000,
-          })
+        ? captureAiDomStyles(document.documentElement)
         : undefined;
       return buildSendContextWebhookPayload(
         {
@@ -514,7 +498,7 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
       setTimeout(() => {
         try {
           copyToClipboard(
-            preparePayload().prompt,
+            measureAi('prompt.build', preparePayload).prompt,
             'Prompt copied to the clipboard ✓',
           );
         } catch (caught) {
@@ -654,248 +638,6 @@ export const AiSendContextChat = craftComponent(
   'AiSendContextChat',
   {
     providers: [provideAiSendContextChatState()],
-    styles: `${AI_OVERLAY_THEME}
-      :scope {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-end;
-        padding: 20px;
-        pointer-events: none;
-        font-family: system-ui, -apple-system, sans-serif;
-        font-size: 13px;
-        color: var(--craft-ai-text);
-      }
-      :scope .craft-ai-chat {
-        pointer-events: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        width: min(460px, 100%);
-        max-height: min(760px, 88vh);
-        overflow: auto;
-        background: var(--craft-ai-bg);
-        border: 1px solid var(--craft-ai-border-subtle);
-        border-radius: 12px;
-        box-shadow: 0 20px 60px var(--craft-ai-shadow);
-        padding: 16px;
-      }
-      :scope .craft-ai-chat-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        cursor: grab;
-        /* Let the pointer handlers own touch drags instead of scrolling. */
-        touch-action: none;
-        user-select: none;
-      }
-      :scope .craft-ai-chat-header:active {
-        cursor: grabbing;
-      }
-      :scope .craft-ai-title {
-        font-size: 14px;
-        font-weight: 600;
-      }
-      :scope .craft-ai-chat-close {
-        background: transparent;
-        border: none;
-        font-size: 20px;
-        line-height: 1;
-        padding: 0 4px;
-        color: var(--craft-ai-text-muted);
-        cursor: pointer;
-      }
-      :scope .craft-ai-section {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      :scope .craft-ai-section-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--craft-ai-text-muted);
-      }
-      :scope .craft-ai-targets {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      :scope .craft-ai-target {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        max-width: 100%;
-        background: var(--craft-ai-surface-accent);
-        color: var(--craft-ai-accent-text);
-        border-radius: 999px;
-        padding: 3px 4px 3px 10px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 11px;
-      }
-      :scope .craft-ai-target-label {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      :scope .craft-ai-target-remove {
-        border: none;
-        background: transparent;
-        color: inherit;
-        cursor: pointer;
-        font-size: 13px;
-        line-height: 1;
-        padding: 2px 4px;
-        border-radius: 999px;
-      }
-      :scope .craft-ai-target-remove:hover {
-        background: var(--craft-ai-accent-soft);
-      }
-      :scope .craft-ai-empty {
-        margin: 0;
-        color: var(--craft-ai-text-muted);
-        font-size: 12px;
-      }
-      :scope .craft-ai-timeline {
-        margin: 0;
-        padding: 6px 8px;
-        list-style: none;
-        max-height: 190px;
-        overflow: auto;
-        background: var(--craft-ai-surface);
-        border: 1px solid var(--craft-ai-border-subtle);
-        border-radius: 6px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 11px;
-        line-height: 1.6;
-      }
-      :scope .craft-ai-timeline li {
-        display: flex;
-        gap: 6px;
-        white-space: nowrap;
-      }
-      :scope .craft-ai-event-time {
-        color: var(--craft-ai-text-muted);
-      }
-      :scope .craft-ai-event-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      :scope .craft-ai-phase {
-        text-transform: uppercase;
-        font-size: 10px;
-        letter-spacing: 0.03em;
-      }
-      :scope .craft-ai-phase--failed { color: var(--craft-ai-phase-failed); }
-      :scope .craft-ai-phase--succeeded { color: var(--craft-ai-phase-succeeded); }
-      :scope .craft-ai-phase--started { color: var(--craft-ai-phase-started); }
-      :scope .craft-ai-phase--emitted { color: var(--craft-ai-phase-emitted); }
-      :scope .craft-ai-textarea {
-        width: 100%;
-        box-sizing: border-box;
-        resize: vertical;
-        font: inherit;
-        border: 1px solid var(--craft-ai-border);
-        border-radius: 6px;
-        padding: 8px 10px;
-        color: var(--craft-ai-text);
-        background: var(--craft-ai-control-bg);
-        caret-color: var(--craft-ai-text);
-      }
-      :scope .craft-ai-textarea::placeholder {
-        color: var(--craft-ai-text-muted);
-        opacity: 1;
-      }
-      :scope .craft-ai-option input[type='checkbox'] {
-        accent-color: var(--craft-ai-accent);
-      }
-      :scope .craft-ai-textarea:focus-visible {
-        outline: 2px solid var(--craft-ai-focus);
-        outline-offset: -1px;
-      }
-      :scope .craft-ai-options {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 6px 12px;
-        margin: 0;
-        padding: 10px;
-        border: 1px solid var(--craft-ai-border-subtle);
-        border-radius: 6px;
-      }
-      :scope .craft-ai-options legend {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--craft-ai-text-muted);
-        padding: 0 4px;
-      }
-      :scope .craft-ai-option {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-      }
-      :scope .craft-ai-chat-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        align-items: center;
-      }
-      :scope .craft-ai-chat-actions .spacer {
-        flex: 1;
-      }
-      :scope button {
-        font: inherit;
-        font-size: 12px;
-        border: 1px solid var(--craft-ai-border);
-        background: var(--craft-ai-control-bg);
-        color: var(--craft-ai-text);
-        border-radius: 6px;
-        padding: 7px 11px;
-        cursor: pointer;
-      }
-      :scope button:hover:not(:disabled) {
-        background: var(--craft-ai-surface);
-      }
-      :scope button:disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-      }
-      :scope button.primary {
-        background: var(--craft-ai-accent);
-        border-color: var(--craft-ai-accent);
-        color: #ffffff;
-      }
-      :scope button.primary:hover:not(:disabled) {
-        background: var(--craft-ai-accent-hover);
-      }
-      :scope button.recording {
-        background: var(--craft-ai-danger);
-        border-color: var(--craft-ai-danger);
-        color: #ffffff;
-      }
-      :scope .craft-ai-success {
-        margin: 0;
-        color: var(--craft-ai-success);
-        font-size: 12px;
-      }
-      :scope .craft-ai-warning {
-        margin: 0;
-        color: var(--craft-ai-warning);
-        font-size: 12px;
-      }
-    `,
   },
   function* (inputs: {
     readonly context: Input<SendContextUiContext>;
@@ -927,36 +669,41 @@ export const AiSendContextChat = craftComponent(
       retrySend,
       copyPayload,
     } = yield* AiSendContextChatState(inputs);
-    return div({ class: 'craft-ai-chat-overlay' }, [
+    return div({ class: [aiTheme.root, aiChat.overlay] }, [
       div(
         {
-          class: 'craft-ai-chat',
+          class: aiChat.panel,
+          // A behaviour hook, not a style: outside-press and drag find the
+          // panel by it, whatever its classes are.
+          'data-ai-chat': '',
           role: 'dialog',
           'aria-label': 'Send context to AI',
           contextmenu: (event: MouseEvent) => event.stopPropagation(),
+          // Where the panel was dragged: typed variables, read by the sheet.
           style: () => {
             const offset = panelOffset();
-            return offset.x === 0 && offset.y === 0
-              ? null
-              : { transform: `translate(${offset.x}px, ${offset.y}px)` };
+            return {
+              ...assign(chatOffset.x, unit.px(offset.x)),
+              ...assign(chatOffset.y, unit.px(offset.y)),
+            };
           },
         },
         [
           header(
             {
-              class: 'craft-ai-chat-header',
+              class: aiChat.header,
               // Drag the panel out of the way to reach what it covers.
               title: 'Drag to move · double-click to reset',
               pointerdown: startDrag,
               dblclick: resetPanelOffset,
             },
             [
-              strong({ class: 'craft-ai-title' }, '✨ Send context to AI'),
+              strong({ class: aiChat.title }, '✨ Send context to AI'),
               button(
                 'aiChatClose',
                 {
                   type: 'button',
-                  class: 'craft-ai-chat-close',
+                  class: aiChat.close,
                   'aria-label': 'Close',
                   click: () => onClose(),
                 },
@@ -965,27 +712,27 @@ export const AiSendContextChat = craftComponent(
             ],
           ),
 
-          section({ class: 'craft-ai-section' }, [
-            div({ class: 'craft-ai-section-head' }, [
+          section({ class: aiChat.section }, [
+            div({ class: aiChat.sectionHead }, [
               span(() => `Selected elements (${targets().length})`),
             ]),
             ol(
-              { class: 'craft-ai-targets', 'aria-label': 'Selected elements' },
+              { class: aiChat.targets, 'aria-label': 'Selected elements' },
               forNode(
                 () => targets(),
                 {
                   track: (target: SendContextTargetRow) => target.key,
                   empty: () =>
                     p(
-                      { class: 'craft-ai-empty' },
+                      { class: aiChat.empty },
                       'Right-click a component to capture it.',
                     ),
                 },
                 (target) =>
-                  li({ class: 'craft-ai-target' }, [
+                  li({ class: aiChat.target }, [
                     span(
                       {
-                        class: 'craft-ai-target-label',
+                        class: aiChat.targetLabel,
                         title: function* () {
                           return (yield* target()).label;
                         },
@@ -998,7 +745,7 @@ export const AiSendContextChat = craftComponent(
                       'aiRemoveTarget',
                       {
                         type: 'button',
-                        class: 'craft-ai-target-remove',
+                        class: aiChat.targetRemove,
                         'aria-label': 'Remove this element',
                         click: () => removeTarget(craftUse(target()).index),
                       },
@@ -1009,15 +756,17 @@ export const AiSendContextChat = craftComponent(
             ),
           ]),
 
-          section({ class: 'craft-ai-section' }, [
-            div({ class: 'craft-ai-section-head' }, [
+          section({ class: aiChat.section }, [
+            div({ class: aiChat.sectionHead }, [
               span(() => `Timeline (${eventCount()})`),
-              span({ class: 'craft-ai-chat-actions' }, [
+              span({ class: aiChat.actions }, [
                 button(
                   'aiToggleRecord',
                   {
                     type: 'button',
-                    class: () => (recording() ? 'recording' : ''),
+                    class: aiChat.button,
+                    'data-craftAiButton': () =>
+                      recording() ? 'recording' : null,
                     'aria-pressed': () => recording(),
                     click: toggleRecord,
                   },
@@ -1025,45 +774,51 @@ export const AiSendContextChat = craftComponent(
                 ),
                 button(
                   'aiClearTimeline',
-                  { type: 'button', click: clearTimeline },
+                  {
+                    type: 'button',
+                    class: aiChat.button,
+                    click: clearTimeline,
+                  },
                   'Clear',
                 ),
               ]),
             ]),
             ol(
-              { class: 'craft-ai-timeline', 'aria-label': 'Recorded events' },
+              { class: aiChat.timeline, 'aria-label': 'Recorded events' },
               forNode(
                 () => visibleEvents(),
                 {
                   track: (event: SendContextTimelineRow) => event.id,
                   empty: () =>
                     p(
-                      { class: 'craft-ai-empty' },
+                      { class: aiChat.empty },
                       'No event recorded yet — interact with the app.',
                     ),
                 },
                 (event) =>
                   li(
                     {
+                      class: aiChat.event,
                       title: function* () {
                         return (yield* event()).title;
                       },
                     },
                     [
-                      span({ class: 'craft-ai-event-time' }, function* () {
+                      span({ class: aiChat.eventTime }, function* () {
                         return (yield* event()).time;
                       }),
                       span(
                         {
-                          class: function* () {
-                            return `craft-ai-phase craft-ai-phase--${(yield* event()).phase}`;
+                          class: aiChat.phase,
+                          'data-craftAiPhase': function* () {
+                            return (yield* event()).phase;
                           },
                         },
                         function* () {
                           return (yield* event()).phase;
                         },
                       ),
-                      span({ class: 'craft-ai-event-name' }, function* () {
+                      span({ class: aiChat.eventName }, function* () {
                         return (yield* event()).label;
                       }),
                     ],
@@ -1072,17 +827,17 @@ export const AiSendContextChat = craftComponent(
             ),
           ]),
 
-          section({ class: 'craft-ai-section' }, [
+          section({ class: aiChat.section }, [
             label(
               {
-                class: 'craft-ai-section-head',
+                class: aiChat.sectionHead,
                 htmlFor: 'craft-ai-chat-instruction',
               },
               'Instruction',
             ),
             textarea('aiChatInstruction', {
               id: 'craft-ai-chat-instruction',
-              class: 'craft-ai-textarea',
+              class: aiChat.textarea,
               rows: 4,
               value: instruction,
               placeholder: 'Describe what you want the AI to do…',
@@ -1094,8 +849,8 @@ export const AiSendContextChat = craftComponent(
             }),
           ]),
 
-          fieldset({ class: 'craft-ai-options' }, [
-            legend('What to copy'),
+          fieldset({ class: aiChat.options }, [
+            legend({ class: aiChat.legend }, 'What to copy'),
             promptOption(
               'aiIncludeTargets',
               'Selected elements',
@@ -1147,15 +902,13 @@ export const AiSendContextChat = craftComponent(
             ),
           ]),
 
-          // Toggled by style rather than `ifNode`, which needs a *named* craft
-          // value and would leak internal symbols into the exported type.
+          // Toggled by `hidden` rather than `ifNode`, which needs a *named*
+          // craft value and would leak internal symbols into the exported type.
           div(
             {
-              class: 'craft-ai-warning',
-              style: () =>
-                options().includeDomStyles || options().includePageDomStyles
-                  ? null
-                  : { display: 'none' },
+              class: aiChat.warning,
+              hidden: () =>
+                !(options().includeDomStyles || options().includePageDomStyles),
             },
             'The DOM capture can take a moment, freeze the page and produce a very large prompt.',
           ),
@@ -1163,8 +916,8 @@ export const AiSendContextChat = craftComponent(
             { politeness: 'polite' },
             div(
               {
-                class: 'craft-ai-success',
-                style: () => (status() ? null : { display: 'none' }),
+                class: aiChat.success,
+                hidden: () => !status(),
               },
               status,
             ),
@@ -1173,23 +926,23 @@ export const AiSendContextChat = craftComponent(
             { politeness: 'assertive' },
             div(
               {
-                class: 'craft-ai-warning',
-                style: () => (error() ? null : { display: 'none' }),
+                class: aiChat.warning,
+                hidden: () => !error(),
               },
               error,
             ),
           ),
 
-          footer({ class: 'craft-ai-chat-actions' }, [
+          footer({ class: aiChat.actions }, [
             button(
               'aiChatCancel',
-              { type: 'button', click: () => onClose() },
+              { type: 'button', class: aiChat.button, click: () => onClose() },
               'Close',
             ),
-            span({ class: 'spacer' }),
+            span({ class: aiChat.spacer }),
             button(
               'aiExportJson',
-              { type: 'button', click: exportJson },
+              { type: 'button', class: aiChat.button, click: exportJson },
               'Copy JSON',
             ),
             ...(endpoint
@@ -1198,6 +951,7 @@ export const AiSendContextChat = craftComponent(
                     'aiCopyWebhookPrompt',
                     {
                       type: 'button',
+                      class: aiChat.button,
                       disabled: busy,
                       click: copyPrompt,
                     },
@@ -1207,7 +961,8 @@ export const AiSendContextChat = craftComponent(
                     'aiRetrySend',
                     {
                       type: 'button',
-                      style: () => (error() ? null : { display: 'none' }),
+                      class: aiChat.button,
+                      hidden: () => !error(),
                       disabled: busy,
                       click: retrySend,
                     },
@@ -1217,7 +972,8 @@ export const AiSendContextChat = craftComponent(
                     'aiCopyPayload',
                     {
                       type: 'button',
-                      style: () => (error() ? null : { display: 'none' }),
+                      class: aiChat.button,
+                      hidden: () => !error(),
                       disabled: busy,
                       click: copyPayload,
                     },
@@ -1227,7 +983,8 @@ export const AiSendContextChat = craftComponent(
                     'aiSendContext',
                     {
                       type: 'button',
-                      class: 'primary',
+                      class: aiChat.button,
+                      'data-craftAiButton': 'primary',
                       disabled: busy,
                       click: sendPayload,
                     },
@@ -1239,7 +996,8 @@ export const AiSendContextChat = craftComponent(
                     'aiCopyPrompt',
                     {
                       type: 'button',
-                      class: 'primary',
+                      class: aiChat.button,
+                      'data-craftAiButton': 'primary',
                       disabled: busy,
                       click: copyPrompt,
                     },
@@ -1279,9 +1037,10 @@ function promptOption(
   ) => Generator<unknown, unknown, unknown>,
   key: keyof SendContextPromptOptions,
 ) {
-  return label({ class: 'craft-ai-option' }, [
+  return label({ class: aiChat.option }, [
     input(name, {
       type: 'checkbox',
+      class: aiChat.checkbox,
       checked: () => options()[key],
       *change(event) {
         yield* writeOptions({

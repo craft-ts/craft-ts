@@ -18,6 +18,17 @@ export default [
     },
   },
   {
+    // The design system is the only way to style the lab: the same style
+    // rules as `recommended`, which this app does not take as a whole.
+    files: ['**/src/**/*.ts'],
+    plugins: {
+      'craft-ts': craftRules,
+    },
+    rules: {
+      ...craftRules.configs.style.rules,
+    },
+  },
+  {
     files: ['**/src/**/*.ts'],
     plugins: {
       'craft-ts': craftRules,
@@ -29,6 +40,7 @@ export default [
       'craft-ts/no-explicit-craft-template-return-type': 'error',
       'craft-ts/no-craft-primitive-type-assertion': 'error',
       'craft-ts/prefer-insert-deep-yieldable': 'error',
+      'craft-ts/no-external-state-transition': 'error',
       'craft-ts/no-type-assertions-in-craft-code': 'error',
     },
   },

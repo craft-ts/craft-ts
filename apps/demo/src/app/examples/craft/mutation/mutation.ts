@@ -1,5 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import styles from './mutation.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -28,6 +26,7 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
+import { example } from '../../shared/example.style';
 
 export const { provideUserMutation, UserMutation } = craftService(
   { name: 'UserMutation', providedIn: 'toProvide' },
@@ -127,7 +126,6 @@ export const { MutationCraftView, provideMutationCraftView } = craftService(
 const MutationCraft = craftComponent(
   'MutationCraft',
   {
-    stylesUrl: styles,
     providers: [provideMutationCraftView(), provideUserMutation()],
   },
   function* (inputs: { readonly userId: Input<string> }) {
@@ -141,15 +139,21 @@ const MutationCraft = craftComponent(
       navigate,
     } = yield* MutationCraftView(inputs);
 
-    return div([
-      heading('Update user'),
-      div([
+    return div({ class: example.card, 'data-exampleCard': 'dark' }, [
+      heading({ class: example.title }, 'Update user'),
+      div({ class: example.text }, [
         'User ',
         StatusComponent({ status: store.user.status }),
-        ifNode(hasUser, () => pre('UserValue', {}, userValueJson)),
+        ifNode(hasUser, () =>
+          pre('UserValue', { class: example.code }, userValueJson),
+        ),
       ]),
-      p('Reload to see the cached result; update the name optimistically.'),
+      p(
+        { class: example.text, 'data-exampleText': 'muted' },
+        'Reload to see the cached result; update the name optimistically.',
+      ),
       input('NameInput', {
+        class: example.input,
         type: 'text',
         placeholder: 'New name',
         value: nameInput,
@@ -161,7 +165,8 @@ const MutationCraft = craftComponent(
         'UpdateUserNameButton',
         {
           type: 'button',
-          class: 'update-user-name',
+          class: example.button,
+          'data-testid': 'update-user-name',
           disabled: store.updateUserName.isLoading,
           *click() {
             // This example intentionally demonstrates direct mutation wiring;
@@ -180,6 +185,7 @@ const MutationCraft = craftComponent(
       button(
         'PreviousUser',
         {
+          class: example.button,
           type: 'button',
           *click() {
             navigate(-1);
@@ -190,6 +196,7 @@ const MutationCraft = craftComponent(
       button(
         'NextUser',
         {
+          class: example.button,
           type: 'button',
           *click() {
             navigate(1);

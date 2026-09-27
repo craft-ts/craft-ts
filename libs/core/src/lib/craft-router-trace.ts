@@ -1,15 +1,15 @@
 import {
   inject,
-  InjectionToken,
   Injector,
   provideAppInitializer,
   runInInjectionContext,
   type EnvironmentProviders,
   type Provider,
 } from './host/craft-compat';
+import { craftService } from './craft-service';
 import type { CraftRoutePhase } from './craft-route-exceptions';
 import { isCraftDevelopment } from './craft-runtime-mode';
-import { CRAFT_ROUTER, type CraftRouterEvent } from './craft-router-tokens';
+import { ɵinjectCraftRouterRuntime, type CraftRouterEvent } from './craft-router-tokens';
 
 export type CraftRouterTraceStage =
   | 'match'
@@ -32,13 +32,28 @@ export type CraftRouterTraceWrapper = (
   next: () => unknown,
 ) => unknown;
 
-export const CRAFT_ROUTER_TRACE = new InjectionToken<
-  readonly CraftRouterTraceWrapper[]
->('CRAFT_ROUTER_TRACE', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+const craftRouterTraceService = craftService(
+  { name: 'CraftRouterTraces', providedIn: 'toProvide', collection: true },
+  (inputs: { $provided?: CraftRouterTraceWrapper }) =>
+    inputs.$provided ? [inputs.$provided] : [],
+) as unknown as {
+  provideCraftRouterTraces: (value?: CraftRouterTraceWrapper) => unknown;
+  CRAFT_ROUTER_TRACES_META_DATA: { inject(): readonly CraftRouterTraceWrapper[] };
+};
+
+export const ɵinjectCraftRouterTraces = (
+  injector?: Injector,
+): readonly CraftRouterTraceWrapper[] => {
+  try {
+    return injector
+      ? runInInjectionContext(injector, () =>
+          craftRouterTraceService.CRAFT_ROUTER_TRACES_META_DATA.inject(),
+        )
+      : craftRouterTraceService.CRAFT_ROUTER_TRACES_META_DATA.inject();
+  } catch {
+    return [];
+  }
+};
 
 const routerTraceListeners = new WeakSet<Injector>();
 
@@ -55,17 +70,13 @@ export function provideCraftRouterTrace(
   wrapper: CraftRouterTraceWrapper,
 ): (Provider | EnvironmentProviders)[] {
   return [
-    {
-      provide: CRAFT_ROUTER_TRACE,
-      useValue: wrapper,
-      multi: true,
-    },
+    craftRouterTraceService.provideCraftRouterTraces(wrapper) as Provider,
     provideAppInitializer(() => {
       const injector = inject(Injector);
       if (!isCraftDevelopment(injector)) {
         return;
       }
-      const router = inject(CRAFT_ROUTER, { optional: true });
+      const router = ɵinjectCraftRouterRuntime();
       const events = router ? craftRouterEvents(router) : undefined;
 
       if (!events || routerTraceListeners.has(injector)) {
@@ -98,7 +109,7 @@ export function executeCraftRouterTrace<Value>(
   if (!isCraftDevelopment(injector)) {
     return next();
   }
-  const wrappers = injector.get(CRAFT_ROUTER_TRACE, []);
+  const wrappers = ɵinjectCraftRouterTraces(injector);
   if (wrappers.length === 0) {
     return next();
   }

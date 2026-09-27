@@ -26,7 +26,7 @@ craftComponent(name, meta, template);
 | Argument   | What it is                                                        |
 | ---------- | ----------------------------------------------------------------- |
 | `name`     | the component's name — used for host tags, snapshots, diagnostics |
-| `meta`     | `providers`, `styles`, `host`, `contentStyles`                    |
+| `meta`     | `providers`, `host`                                               |
 | `template` | the component: it declares what it takes, then returns nodes      |
 
 <<< @/tests/snippets/guide/components/index/tasks.spec.ts#tasks
@@ -124,23 +124,26 @@ ternary is the wrong tool for **structure**, is in
 ## The meta
 
 ```typescript
+import { card } from './card.style';
+
 craftComponent(
   'Card',
   {
     providers: [provideCardStore()],
-    styles: ':scope { padding: 1rem } .title { font-weight: 700 }',
-    host: { class: 'card-host' },
+    host: { class: card.root },
   },
   /* … */
 );
 ```
 
 - **`providers`** — the component's own DI scope, mounted before the function runs.
-- **`styles`** — scoped with CSS `@scope`; `:scope` is this component's root. See
-  [Encapsulated styles](/guide/components/styles).
-- **`host`** — default properties for the root element.
-- **`contentStyles`** — styles offered to projected content, per slot. See
-  [Content projection](/guide/components/content-projection).
+- **`host`** — default properties for the root element. Its `class` comes from
+  a sheet, like every class.
+
+The meta carries no CSS. A component's look lives in a `*.style.ts` sheet beside
+it — see [Styling a component: the only way](/guide/components/styles).
+`styles`, `stylesUrl` and `contentStyles` still exist on the type, deprecated,
+and `craft-ts/no-component-css` refuses them.
 
 ## Composing behaviour
 

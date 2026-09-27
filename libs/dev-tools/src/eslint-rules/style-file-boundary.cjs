@@ -1,4 +1,6 @@
-const ALLOWED_MODULES = ['@craft-ts/style'];
+// `@craft-ts/component/style` carries only tokens declared in the framework's
+// own sheets (the AI launcher's position), so it is safe to evaluate in Node.
+const ALLOWED_MODULES = ['@craft-ts/style', '@craft-ts/component/style'];
 
 /**
  * A `*.style.ts` may import style vocabulary and nothing else.

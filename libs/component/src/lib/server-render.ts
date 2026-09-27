@@ -1,14 +1,15 @@
 import {
-  CRAFT_PLATFORM,
-  CRAFT_PRIMITIVE_REGISTRY,
-  CRAFT_SECURITY_POLICY,
-  CRAFT_SSR_RUNTIME,
-  CraftCspNonce,
+  ɵinjectCraftPrimitiveRegistry,
+  provideCraftPlatform,
+  provideCraftSecurityPolicy,
+  provideCraftCspNonce,
+  provideCraftSsrRuntime,
+  ɵinjectCraftSecurityPolicy,
+  ɵinjectCraftCspNonce,
   captureCraftTransferSnapshot,
   createCraftSecurityPolicy,
   createCraftRenderIdentity,
   createServerPlatform,
-  assertCraftCspNonce,
   serializeCraftTransferSnapshot,
   type CraftInjector,
   type CraftSecurityPolicy,
@@ -20,8 +21,11 @@ import {
   ɵcreateCraftApplicationInjector,
   ɵrunCraftAppInitializers,
 } from './bootstrap';
-import { CRAFT_ROOT_COMPONENT } from './craft-host-tokens';
-import { provideCraftRootComponent } from './bridge';
+import { ɵrunInInjectionContext } from '@craft-ts/core';
+import {
+  ɵinjectCraftRootComponent,
+  provideCraftRootComponent,
+} from './craft-host-tokens';
 import {
   mountInterpretedComponentWithOptions,
   type MountedCraftComponent,
@@ -65,14 +69,6 @@ export async function renderCraft(
     ? createCraftSecurityPolicy(options.securityPolicy)
     : undefined;
   const defaultPolicy = requestedPolicy ?? createCraftSecurityPolicy();
-  const hasConfiguredPolicy = options.config.providers.some(
-    (provider) =>
-      typeof provider === 'object' &&
-      provider !== null &&
-      ('provide' in provider
-        ? provider.provide === CRAFT_SECURITY_POLICY
-        : 'token' in provider && provider.token === CRAFT_SECURITY_POLICY),
-  );
   const controller = new AbortController();
   const removeExternalAbort = forwardAbort(options.signal, controller);
   const timeoutMs = options.timeoutMs ?? defaultPolicy.ssr.timeoutMs;
@@ -94,35 +90,24 @@ export async function renderCraft(
   const injector = ɵcreateCraftApplicationInjector(
     options.config,
     [
-      { provide: CRAFT_PLATFORM, useValue: platform },
-      { provide: CRAFT_SSR_RUNTIME, useValue: coordinator },
-      ...(requestedPolicy || !hasConfiguredPolicy
-        ? [
-            {
-              provide: CRAFT_SECURITY_POLICY,
-              useValue: requestedPolicy ?? defaultPolicy,
-            },
-          ]
-        : []),
-      ...(options.cspNonce
-        ? [
-            {
-              provide: CraftCspNonce,
-              useValue: assertCraftCspNonce(options.cspNonce),
-            },
-          ]
-        : []),
+      provideCraftPlatform(platform),
+      provideCraftSsrRuntime(coordinator),
+      ...(requestedPolicy ? [provideCraftSecurityPolicy(requestedPolicy)] : []),
+      ...(options.cspNonce ? [provideCraftCspNonce(options.cspNonce)] : []),
     ],
     options.mode,
   );
   let mounted: MountedCraftComponent<object> | undefined;
   try {
-    const securityPolicy = injector.get(
-      CRAFT_SECURITY_POLICY,
-      defaultPolicy,
-    ) as CraftSecurityPolicy;
+    const securityPolicy = ɵrunInInjectionContext(
+      injector,
+      () => ɵinjectCraftSecurityPolicy(),
+    );
     await Promise.all(ɵrunCraftAppInitializers(injector));
-    const root = injector.get(CRAFT_ROOT_COMPONENT) as CraftComponent<object>;
+    const root = ɵrunInInjectionContext(
+      injector,
+      () => ɵinjectCraftRootComponent() as CraftComponent<object>,
+    );
     if (!root) {
       throw new Error(
         'renderCraft found no root component. Add provideCraftRootComponent(App) to your app config.',
@@ -150,8 +135,9 @@ export async function renderCraft(
     await coordinator.untilSettled(timeoutMs, controller.signal);
 
     const styles = serverStyles.cssText();
+    const registry = ɵrunInInjectionContext(injector, () => ɵinjectCraftPrimitiveRegistry());
     const snapshot = captureCraftTransferSnapshot(
-      injector.get(CRAFT_PRIMITIVE_REGISTRY),
+      registry,
       { policy: securityPolicy.transfer },
     );
     const rootHtml = dom.serialize(host);
@@ -161,7 +147,7 @@ export async function renderCraft(
         `CRAFT_SSR_HTML_TOO_LARGE: generated HTML exceeds ${securityPolicy.ssr.maxHtmlBytes} bytes.`,
       );
     }
-    const nonce = injector.get(CraftCspNonce, null);
+    const nonce = ɵrunInInjectionContext(injector, () => ɵinjectCraftCspNonce());
     const styleHtml =
       options.includeStyles === false || !styles
         ? ''

@@ -1,6 +1,7 @@
-import type { InjectionToken } from './host/craft-compat';
-
-export type ServerFunctionToken<Value> = InjectionToken<Value>;
+/** Opaque dependency handle used by the server-function transport. */
+export type ServerFunctionDependency<Value> = object & {
+  readonly __serverFunctionDependencyValue?: Value;
+};
 
 export type ServerPermissionRequirement = {
   readonly kind: 'server-permission';

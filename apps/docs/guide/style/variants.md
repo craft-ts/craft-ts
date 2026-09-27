@@ -27,7 +27,7 @@ export const badge = craftStyles('badge', {
 
 The template sets **one static class** and a `data-tone` attribute. Nothing
 concatenates a class at render time, which is what makes the set of states
-enumerable. The `no-raw-class` rule enforces it in files that use the package.
+enumerable. The `no-raw-class` rule enforces it in every file.
 
 Conjunction is nesting, and only nesting:
 

@@ -55,13 +55,12 @@ import {
   StripCraftException,
   isCraftException,
 } from './craft-exception';
-import { CORRELATION_ID_SERVICE } from './correlation-id';
+import { ɵinjectCorrelationIdServiceIn } from './correlation-id';
 import {
   createNamedPrimitiveGen,
   type CraftPrimitiveGen,
   type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
-import { takeUntilDestroyed } from './host/craft-compat';
 import {
   createSchemaValidationRuntime,
   type CraftSchema,
@@ -72,10 +71,11 @@ import {
   useSchemaValidationPolicy,
 } from './schema-validation';
 import {
-  APP_SNAPSHOT_REGISTRY,
-  INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
-  TAKE_APP_SNAPSHOT,
+  provideInsertionSnapshotRegistry,
+  ɵinjectAppSnapshotRegistry,
+  ɵinjectAppSnapshotRegistryIn,
+  ɵinjectTakeAppSnapshotIn,
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import {
@@ -188,8 +188,8 @@ export type AsyncProcessRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  AsyncProcessExceptions extends
-    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  AsyncProcessExceptions extends AsyncProcessExceptionConstraints =
+    AsyncProcessExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
@@ -381,7 +381,7 @@ type AsyncProcessConfig<
             param: ResourceLoaderParams<
               NonNullable<NoInfer<StripCraftException<Params>>>
             >,
-            ) => Promise<ResourceState>,
+          ) => Promise<ResourceState>,
           LoaderYielded
         >;
         method?: never;
@@ -401,8 +401,8 @@ export type AsyncProcessExceptionConstraints = {
 };
 
 export type ResourceLikeAsyncProcessExceptions<
-  AsyncProcessException extends
-    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  AsyncProcessException extends AsyncProcessExceptionConstraints =
+    AsyncProcessExceptionConstraints,
   GroupIdentifier = unknown,
 > = {
   hasException: Signal<boolean>;
@@ -453,8 +453,8 @@ export type ResourceLikeAsyncProcessExceptions<
 };
 
 export type ResourceByIdLikeAsyncProcessExceptions<
-  AsyncProcessException extends
-    AsyncProcessExceptionConstraints = AsyncProcessExceptionConstraints,
+  AsyncProcessException extends AsyncProcessExceptionConstraints =
+    AsyncProcessExceptionConstraints,
   GroupIdentifier extends string = string,
 > = {
   hasException: Signal<boolean>;
@@ -538,8 +538,9 @@ type SchemaAsyncProcessConfig<
   paramsSchema: ParamsSchema;
   loaderSchema: LoaderSchema;
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
-  loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-    Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  loader: (
+    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
 
@@ -607,8 +608,9 @@ export function asyncProcess<
   config: {
     paramsSchema: ParamsSchema;
     params: () => SchemaInput<ParamsSchema>;
-    loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-      Promise<ParamsState> | ParamsState;
+    loader: (
+      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+    ) => Promise<ParamsState> | ParamsState;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -637,8 +639,9 @@ export function asyncProcess<
   config: {
     loaderSchema: LoaderSchema;
     params: () => LoaderParams;
-    loader: (param: ResourceLoaderParams<LoaderParams>) =>
-      Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -1045,10 +1048,7 @@ function createAsyncProcessRef<
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const asyncExtraProviders = [
-    {
-      provide: INSERTION_SNAPSHOT_REGISTRY,
-      useValue: insertionSnapshotRegistry,
-    },
+    provideInsertionSnapshotRegistry(insertionSnapshotRegistry),
     ...(AsyncProcessConfig.providers ?? []),
   ];
   let injector: Injector | undefined;
@@ -1129,8 +1129,7 @@ function createAsyncProcessRef<
   const schemaPolicy = useSchemaValidationPolicy(
     getInjector(),
     AsyncProcessConfig.schemaValidationPolicy as
-      | SchemaValidationPolicy
-      | undefined,
+      SchemaValidationPolicy | undefined,
   );
   const schemaValidation = {
     method: createSchemaValidationRuntime({
@@ -1292,7 +1291,7 @@ function createAsyncProcessRef<
     'loader' in AsyncProcessConfig && AsyncProcessConfig.loader
       ? ((async (param: ResourceLoaderParams<any>) => {
           const injector = getInjector();
-          const correlationSvc = injector.get(CORRELATION_ID_SERVICE, null);
+          const correlationSvc = ɵinjectCorrelationIdServiceIn(injector);
           const operationId = correlationSvc?.lastCorrelationId() ?? null;
           if (operationId) correlationSvc?.startOperation(operationId);
 
@@ -1368,7 +1367,7 @@ function createAsyncProcessRef<
             return validatedResult;
           } catch (error) {
             if (!isCraftException(error)) {
-              injector.get(TAKE_APP_SNAPSHOT, null)?.();
+              ɵinjectTakeAppSnapshotIn(injector)?.();
             }
             throw error;
           } finally {
@@ -1920,10 +1919,10 @@ function createAsyncProcessRef<
   Object.assign(asyncOutput, insertionsResult);
 
   const snapshotRegistry = injector
-    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    ? ɵinjectAppSnapshotRegistryIn(injector)
     : (() => {
         try {
-          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+          return ɵinjectAppSnapshotRegistry();
         } catch {
           return null;
         }
@@ -1950,9 +1949,10 @@ function createAsyncProcessRef<
       })();
 
   if (snapshotRegistry && destroyRefAsync) {
-    snapshotRegistry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRefAsync))
-      .subscribe(() => {
+    snapshotRegistry.registerSnapshotReader(
+      'asyncProcess',
+      hostTagList,
+      () => {
         const insertionSnapshots = triggerAndCollectInsertions(
           insertionSnapshotRegistry,
         );
@@ -1984,12 +1984,10 @@ function createAsyncProcessRef<
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        snapshotRegistry.allSnapShot$.next({
-          source: 'asyncProcess',
-          from: hostTagList,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRefAsync,
+    );
   }
 
   if (!('resource' in asyncOutput)) {

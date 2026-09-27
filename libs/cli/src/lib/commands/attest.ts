@@ -15,10 +15,11 @@
  * who attests gets a sentence telling them what to install rather than a
  * module-not-found stack.
  */
+import { readFileSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import {
   applyRenewals,
   canonicalJson,
@@ -27,6 +28,15 @@ import {
   evidenceHash,
   isAccepted,
   isVisualRunReport,
+  loadArchitectureWaiverEvidence,
+  loadEslintDisableEvidence,
+  observeArchitectureWaivers,
+  observeEslintDisables,
+  storeArchitectureWaiverEvidence,
+  storeEslintDisableEvidence,
+  eslintDisableExcerpt,
+  eslintDisableExcerptRange,
+  architectureWaiverSubjectId,
   observeTemplateObligations,
   observeVisualRun,
   observeTests,
@@ -42,6 +52,8 @@ import {
   testSubjectId,
   withAttestations,
   type Attestation,
+  type ArchitectureWaiverInput,
+  type EslintDisableInput,
   type Ledger,
   type Retirement,
   type SubjectKind,
@@ -51,12 +63,21 @@ import {
   type Verdict,
 } from '@craft-ts/attest';
 import type {
+  ArchitectureWaiverReviewCard,
+  BypassInventoryItem,
+  EslintDisableReviewCard,
+  FolderLayoutReviewCard,
   PreviousDecision,
+  StyleAdoption,
   ReviewCard as AttestationReviewCard,
   AttestationDevtoolModel,
   TemplateDiagnostic,
   TemplateReviewCard,
 } from '@craft-ts/dev-tools/attestation-review';
+import type {
+  FolderLayoutAnalysis,
+  FolderLayoutProposal,
+} from '@craft-ts/dev-tools';
 import type { LayoutDigest } from '@craft-ts/style-testing';
 import type { ReviewIterationOptions } from '@craft-ts/style-testing/review';
 import { parseArguments } from '../args.js';
@@ -161,7 +182,8 @@ Options:
   --ledger <path>      Ledger file (default: .craft/attestations.jsonl)
   --evidence <dir>     Evidence store (default: .craft/evidence)
   --report <path>      Vitest JSON or craft-ts visual report
-  --kind <kind>        test | visual | template | all; template needs no report
+  --kind <kind>        test | visual | template | eslint-disable |
+                       architecture-waiver | all; only test and visual need a report
   --port <number>      Local review application port (default: 4320)
   --regenerate-script <name>
                        npm script the review application may rerun on demand
@@ -206,14 +228,26 @@ const VERDICTS: readonly Verdict[] = [
   'blocked',
 ];
 type RequestedKind =
-  | Extract<SubjectKind, 'test' | 'visual' | 'template'>
+  | Extract<
+      SubjectKind,
+      | 'test'
+      | 'visual'
+      | 'template'
+      | 'folder-layout'
+      | 'eslint-disable'
+      | 'architecture-waiver'
+    >
   | 'all';
 const SUBJECT_KINDS: readonly RequestedKind[] = [
   'test',
   'visual',
   'template',
+  'folder-layout',
+  'eslint-disable',
+  'architecture-waiver',
   'all',
 ];
+type ObservedKind = RequestedKind;
 const RETIREMENT_REASONS: readonly Retirement['reason'][] = [
   'derivation',
   'superseded',
@@ -261,8 +295,33 @@ export interface WorkspaceSlices {
   }[];
   fingerprintForTemplate(subject: string): string;
   leavesForTemplate(subject: string): Readonly<Record<string, string>>;
+  detailForTemplate?(subject: string): {
+    readonly subject: string;
+    readonly renderSites?: readonly {
+      readonly file: string;
+      readonly line: number;
+      readonly code: string;
+    }[];
+    readonly element?: {
+      readonly file: string;
+      readonly line: number;
+      readonly code: string;
+    };
+    readonly method?: {
+      readonly file: string;
+      readonly line: number;
+      readonly code: string;
+    };
+  };
   /** `nodeId → hash` for every node in the graph. */
   nodeHashes(): Readonly<Record<string, string>>;
+  /**
+   * How far the design system has reached in the project, excused
+   * components included. Absent when the graph half cannot say.
+   */
+  styleAdoption?(options: {
+    readonly styleDumpPath?: string;
+  }): StyleAdoption | undefined;
 }
 
 const defaultLoadSlices = async (options: {
@@ -287,6 +346,15 @@ const defaultLoadSlices = async (options: {
   );
   const templateModule = await import(
     '@craft-ts/dev-tools/scripts/template-obligations.js'
+  );
+  const adoptionModule = await import(
+    '@craft-ts/dev-tools/scripts/style-adoption.js'
+  );
+  const styleGraphModule = await import(
+    '@craft-ts/dev-tools/scripts/style-graph.js'
+  );
+  const waiversModule = await import(
+    '@craft-ts/dev-tools/scripts/architecture-waivers.js'
   );
   let templateIndex:
     | ReturnType<typeof templateModule.createTemplateObligationIndex>
@@ -321,6 +389,22 @@ const defaultLoadSlices = async (options: {
     fingerprintForTemplate: (subject) =>
       prepareTemplateIndex().fingerprintFor(subject),
     leavesForTemplate: (subject) => prepareTemplateIndex().leavesFor(subject),
+    detailForTemplate: (subject) => prepareTemplateIndex().detailFor(subject),
+    styleAdoption: ({ styleDumpPath }) => {
+      const graph = styleDumpPath
+        ? styleGraphModule.mergeStyleDump(
+            index.graph,
+            JSON.parse(readFileSync(styleDumpPath, 'utf8')),
+          )
+        : index.graph;
+      const projectDir = dirname(
+        resolve(options.rootDir, options.tsConfigFilePath),
+      );
+      return adoptionModule.styleAdoption(graph, {
+        projectDir,
+        waivers: waiversModule.architectureWaivers(projectDir),
+      });
+    },
     nodeHashes: () =>
       Object.fromEntries(
         [...index.slices.hashes].map(([id, hash]) => [
@@ -344,7 +428,17 @@ interface ObservedRun {
   readonly visuals: ReadonlyMap<string, VisualArtifact>;
   readonly templates: ReadonlyMap<string, TemplateObligationInput>;
   readonly diagnostics: readonly TemplateDiagnostic[];
-  readonly kind: 'test' | 'visual' | 'template' | 'all';
+  readonly folderLayout?: {
+    readonly analysis: FolderLayoutAnalysis;
+    readonly proposal: FolderLayoutProposal;
+  };
+  /** Deliberate bypasses: `eslint-disable` directives and architecture waivers. */
+  readonly bypasses?: {
+    readonly disables: ReadonlyMap<string, EslintDisableInput>;
+    readonly waivers: ReadonlyMap<string, ArchitectureWaiverInput>;
+    readonly adoption?: StyleAdoption;
+  };
+  readonly kind: ObservedKind;
 }
 
 export async function runAttestCommand(
@@ -415,6 +509,141 @@ export async function runAttestCommand(
     const workspace = await slices();
     const { reviewAttestHasVisualTargets, reviewAttestVisualSubjects } =
       await import('@craft-ts/style-testing/review-attest');
+    const folderLayoutRun = async (): Promise<ObservedRun | undefined> => {
+      const configured = reviewConfig?.folderLayout;
+      if (!configured) return undefined;
+      const proposalPath = resolve(rootDir, configured.proposal);
+      const analysisPath = resolve(
+        rootDir,
+        configured.analysis ??
+          configured.proposal.replace(/proposal/i, 'analysis'),
+      );
+      const proposal = JSON.parse(
+        await readFile(proposalPath, 'utf8'),
+      ) as FolderLayoutProposal;
+      const analysis = JSON.parse(
+        await readFile(analysisPath, 'utf8'),
+      ) as FolderLayoutAnalysis;
+      if (
+        proposal.version !== 1 ||
+        !Array.isArray(proposal.placements) ||
+        analysis.version !== 1
+      ) {
+        throw new Error(
+          `craft-ts attest: invalid folder-layout artifacts at ${proposalPath}.`,
+        );
+      }
+      const subject = `folder-layout:${proposal.sourceGraphHash}:${proposal.configHash}`;
+      return {
+        list: [
+          {
+            subject,
+            kind: 'folder-layout',
+            fingerprint: proposal.configHash,
+            evidence: evidenceHash(canonicalJson(proposal)),
+            assumptions: [],
+          },
+        ],
+        workspace,
+        leaves: new Map(),
+        visuals: new Map(),
+        templates: new Map(),
+        diagnostics: [],
+        folderLayout: { analysis, proposal },
+        kind: 'folder-layout',
+      };
+    };
+    const folderLayout = await folderLayoutRun();
+    const bypassRun = async (): Promise<ObservedRun | undefined> => {
+      const configured = reviewConfig?.bypasses;
+      if (configured === false) return undefined;
+      const { scanEslintDisables, sourceFilesUnder } = await import(
+        '@craft-ts/dev-tools/scripts/eslint-disables.js'
+      );
+      const { architectureWaivers } = await import(
+        '@craft-ts/dev-tools/scripts/architecture-waivers.js'
+      );
+      // The two shapes are declared separately (dev-tools depends on no
+      // library); this assignment is where the compiler checks they agree.
+      const scanned: readonly EslintDisableInput[] = scanEslintDisables({
+        rootDir,
+      });
+      const disables = requestedKind === 'architecture-waiver' ? [] : scanned;
+      const waivers: ArchitectureWaiverInput[] =
+        requestedKind === 'eslint-disable'
+          ? []
+          : sourceFilesUnder(rootDir)
+              .filter((file) => file.endsWith('architecture/waivers.ts'))
+              .flatMap((file) => {
+                const project = dirname(dirname(file));
+                return architectureWaivers(resolve(rootDir, project)).map(
+                  (waiver) => ({
+                    project,
+                    rule: waiver.rule,
+                    target: waiver.target,
+                    reason: waiver.reason,
+                    filePath: relative(rootDir, waiver.filePath),
+                    line: waiver.line,
+                  }),
+                );
+              });
+      await Promise.all([
+        ...disables.map((input) => storeEslintDisableEvidence(store, input)),
+        ...waivers.map((input) =>
+          storeArchitectureWaiverEvidence(store, input),
+        ),
+      ]);
+      const styleDumpPath =
+        typeof configured === 'object' && configured.styleDump
+          ? resolve(rootDir, configured.styleDump)
+          : undefined;
+      const adoption = workspace.styleAdoption?.({
+        ...(styleDumpPath ? { styleDumpPath } : {}),
+      });
+      return {
+        list: [
+          ...observeEslintDisables(disables),
+          ...observeArchitectureWaivers(waivers),
+        ],
+        workspace,
+        leaves: new Map(),
+        visuals: new Map(),
+        templates: new Map(),
+        diagnostics: [],
+        bypasses: {
+          disables: new Map(disables.map((input) => [input.subject, input])),
+          waivers: new Map(
+            waivers.map((input) => [architectureWaiverSubjectId(input), input]),
+          ),
+          ...(adoption ? { adoption } : {}),
+        },
+        kind:
+          requestedKind === 'eslint-disable' ||
+          requestedKind === 'architecture-waiver'
+            ? requestedKind
+            : 'all',
+      };
+    };
+    if (
+      requestedKind === 'eslint-disable' ||
+      requestedKind === 'architecture-waiver'
+    ) {
+      const bypass = await bypassRun();
+      if (!bypass) {
+        throw new Error(
+          'craft-ts attest: bypasses are disabled in review-attest.config (bypasses: false).',
+        );
+      }
+      return bypass;
+    }
+    const bypass = requestedKind === 'all' ? await bypassRun() : undefined;
+    if (requestedKind === 'folder-layout') {
+      if (!folderLayout)
+        throw new Error(
+          'craft-ts attest: no folder-layout proposal is configured.',
+        );
+      return folderLayout;
+    }
     const templateRun = async (): Promise<ObservedRun> => {
       const templateEnabled =
         reviewConfig?.template ?? reviewConfig === undefined;
@@ -467,6 +696,9 @@ export async function runAttestCommand(
           obligations.map((obligation) => [obligation.subject, obligation]),
         ),
         diagnostics,
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         kind: 'template',
       };
     };
@@ -488,6 +720,12 @@ export async function runAttestCommand(
         visuals: new Map(),
         templates: new Map(),
         diagnostics: [],
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
+        ...(requestedKind === 'all' && bypass
+          ? { list: bypass.list, bypasses: bypass.bypasses }
+          : {}),
         kind: requestedKind === 'all' ? 'all' : 'visual',
       };
     }
@@ -504,8 +742,11 @@ export async function runAttestCommand(
       return {
         ...templates,
         applicationTargets,
+        ...(bypass?.bypasses ? { bypasses: bypass.bypasses } : {}),
         list: [
           ...templates.list,
+          ...(folderLayout?.list ?? []),
+          ...(bypass?.list ?? []),
           ...applicationTargets.map((target) => ({
             subject: target.subject,
             kind: 'visual' as const,
@@ -515,6 +756,9 @@ export async function runAttestCommand(
             unavailable: 'No application capture report supplied.',
           })),
         ],
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         kind: 'all',
       };
     }
@@ -711,18 +955,30 @@ export async function runAttestCommand(
         visuals,
         templates: new Map(),
         diagnostics,
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         applicationTargets: expected,
         kind: 'visual',
       };
       if (requestedKind !== 'all') return visual;
       const templates = await templateRun();
       return {
-        list: [...visual.list, ...templates.list],
+        list: [
+          ...visual.list,
+          ...templates.list,
+          ...(folderLayout?.list ?? []),
+          ...(bypass?.list ?? []),
+        ],
+        ...(bypass?.bypasses ? { bypasses: bypass.bypasses } : {}),
         workspace,
         leaves: new Map([...visual.leaves, ...templates.leaves]),
         visuals,
         templates: templates.templates,
         diagnostics: [...visual.diagnostics, ...templates.diagnostics],
+        ...(folderLayout?.folderLayout
+          ? { folderLayout: folderLayout.folderLayout }
+          : {}),
         applicationTargets: expected,
         kind: 'all',
       };
@@ -755,6 +1011,9 @@ export async function runAttestCommand(
       visuals: new Map(),
       templates: new Map(),
       diagnostics: [],
+      ...(folderLayout?.folderLayout
+        ? { folderLayout: folderLayout.folderLayout }
+        : {}),
       kind: 'test',
     };
   };
@@ -790,6 +1049,9 @@ export async function runAttestCommand(
         return await unwatched(io, json, store, await slices());
       case 'review':
       case 'devtools': {
+        const { applyFolderLayoutProposal, folderLayoutGitPlan } = await import(
+          '@craft-ts/dev-tools'
+        );
         io.write('Preparing the review queue…');
         const observed = await observations();
         const regenerateScript = parsed.values['regenerate-script'];
@@ -802,6 +1064,32 @@ export async function runAttestCommand(
           ...(regenerateScript ? { regenerationScript: regenerateScript } : {}),
           now,
         };
+        const folderLayoutPlan = observed.folderLayout
+          ? folderLayoutGitPlan(observed.folderLayout.proposal)
+          : undefined;
+        const folderLayoutApply =
+          observed.folderLayout &&
+          folderLayoutPlan &&
+          folderLayoutPlan.moves + folderLayoutPlan.deletions > 0
+            ? {
+                command: 'npm run apply:demo:folder-layout',
+                gitCommands: folderLayoutPlan.commands,
+                moves: folderLayoutPlan.moves,
+                deletions: folderLayoutPlan.deletions,
+                manualReviews: folderLayoutPlan.manualReviews,
+                run: async () => {
+                  if (!observed.folderLayout)
+                    throw new Error(
+                      'review: folder-layout proposal disappeared.',
+                    );
+                  applyFolderLayoutProposal({
+                    rootDir,
+                    project: parsed.values['tsconfig'] ?? 'tsconfig.json',
+                    proposal: observed.folderLayout.proposal,
+                  });
+                },
+              }
+            : undefined;
         return await review(
           io,
           ledger,
@@ -816,8 +1104,9 @@ export async function runAttestCommand(
                 reloadObserved: observations,
                 run: async () =>
                   await runScript({ rootDir, script: regenerateScript }),
-              }
+            }
             : undefined,
+          folderLayoutApply,
         );
       }
       default:
@@ -966,7 +1255,7 @@ async function status(
   ledger: Ledger,
   observed: {
     readonly list: readonly SubjectObservation[];
-    readonly kind: 'test' | 'visual' | 'template' | 'all';
+    readonly kind: ObservedKind;
   },
 ): Promise<number> {
   const report = reportOn(ledger, observed.list, { toolVersion: TOOL_VERSION });
@@ -1393,10 +1682,23 @@ async function review(
     | {
         readonly run: () => Promise<void>;
         readonly reloadObserved: () => Promise<ObservedRun>;
+    }
+    | undefined,
+  folderLayoutApply:
+    | {
+        readonly command: string;
+        readonly gitCommands: string;
+        readonly moves: number;
+        readonly deletions: number;
+        readonly manualReviews: number;
+        readonly run: () => Promise<void>;
       }
     | undefined,
 ): Promise<number> {
   const {
+    buildArchitectureWaiverReviewCard,
+    buildEslintDisableReviewCard,
+    buildFolderLayoutReviewCard,
     buildRemovalReviewCard,
     buildTemplateReviewCard,
     clusterTemplateReviewCards,
@@ -1475,6 +1777,11 @@ async function review(
     const visualItems: import('@craft-ts/style-testing/review').ReviewItem[] =
       [];
     const templateCards: TemplateReviewCard[] = [];
+    const folderLayoutCards: FolderLayoutReviewCard[] = [];
+    const bypassCards: (
+      | EslintDisableReviewCard
+      | ArchitectureWaiverReviewCard
+    )[] = [];
 
     for (const status of report.statuses) {
       if (
@@ -1530,7 +1837,77 @@ async function review(
         continue;
       }
 
+      const disable = observed.bypasses?.disables.get(status.subject);
+      if (disable) {
+        const acceptedReference = acceptedReferenceOf(status.attestation);
+        const previous = acceptedReference
+          ? await loadEslintDisableEvidence(store, acceptedReference.evidence)
+          : undefined;
+        const previousDecision = previousDecisionOf(status.attestation);
+        const range = eslintDisableExcerptRange(disable);
+        bypassCards.push(
+          buildEslintDisableReviewCard({
+            subject: status.subject,
+            state: status.state,
+            rule: disable.rule,
+            directive: disable.directive,
+            reason: disable.reason ?? null,
+            filePath: disable.filePath,
+            excerpt: {
+              startLine: range.start,
+              lines: eslintDisableExcerpt(disable),
+              highlightLine: disable.highlightLine,
+            },
+            ...(previous ? { previousReason: previous.reason } : {}),
+            ...(previousDecision ? { previousDecision } : {}),
+          }),
+        );
+        continue;
+      }
+      const waiver = observed.bypasses?.waivers.get(status.subject);
+      if (waiver) {
+        const acceptedReference = acceptedReferenceOf(status.attestation);
+        const previous = acceptedReference
+          ? await loadArchitectureWaiverEvidence(
+              store,
+              acceptedReference.evidence,
+            )
+          : undefined;
+        const previousDecision = previousDecisionOf(status.attestation);
+        bypassCards.push(
+          buildArchitectureWaiverReviewCard({
+            subject: status.subject,
+            state: status.state,
+            project: waiver.project,
+            rule: waiver.rule,
+            target: waiver.target,
+            reason: waiver.reason,
+            filePath: waiver.filePath,
+            line: waiver.line,
+            ...(previous ? { previousReason: previous.reason } : {}),
+            ...(previousDecision ? { previousDecision } : {}),
+          }),
+        );
+        continue;
+      }
       const obligation = observed.templates.get(status.subject);
+      if (
+        observed.folderLayout &&
+        status.subject.startsWith('folder-layout:')
+      ) {
+        const previousDecision = previousDecisionOf(status.attestation);
+        if (status.state === 'review' || status.state === 'missing') {
+          folderLayoutCards.push(
+            buildFolderLayoutReviewCard({
+              analysis: observed.folderLayout.analysis,
+              proposal: observed.folderLayout.proposal,
+              state: status.state,
+              ...(previousDecision ? { previousDecision } : {}),
+            }),
+          );
+        }
+        continue;
+      }
       if (!obligation) continue;
       const acceptedReference = acceptedReferenceOf(status.attestation);
       const previousEvidence = acceptedReference
@@ -1552,6 +1929,7 @@ async function review(
           component: obligation.component,
           statement: obligation.statement,
           statementParts: obligation.statementParts,
+          effects: obligation.effects,
           conditions: obligation.conditions,
           currentEvidence: templateEvidenceValue(obligation),
           ...(previousEvidence ? { previousEvidence } : {}),
@@ -1595,12 +1973,58 @@ async function review(
     return [
       ...module.buildReviewQueue(visualItems).cards,
       ...clusterTemplateReviewCards(templateCards),
+      ...folderLayoutCards,
+      ...bypassCards,
       ...removals,
     ];
   };
 
   let currentLedger = applyRenewals(ledger, initialReport);
   let activeCards = await buildCards(currentLedger);
+  const bypassInventory = (
+    statuses: ReadonlyMap<
+      string,
+      { readonly state: BypassInventoryItem['state'] }
+    >,
+  ): BypassInventoryItem[] =>
+    [
+      ...[
+        ...(observed.bypasses?.disables ??
+          new Map<string, EslintDisableInput>()),
+      ].map(([subject, input]): BypassInventoryItem => {
+        const range = eslintDisableExcerptRange(input);
+        return {
+          subject,
+          kind: 'eslint-disable',
+          rule: input.rule,
+          reason: input.reason ?? null,
+          filePath: input.filePath,
+          line: input.line,
+          excerpt: {
+            startLine: range.start,
+            lines: eslintDisableExcerpt(input),
+            highlightLine: input.highlightLine,
+          },
+          state: statuses.get(subject)?.state ?? 'missing',
+        };
+      }),
+      ...[
+        ...(observed.bypasses?.waivers ??
+          new Map<string, ArchitectureWaiverInput>()),
+      ].map(
+        ([subject, input]): BypassInventoryItem => ({
+          subject,
+          kind: 'architecture-waiver',
+          rule: input.rule,
+          target: input.target,
+          project: input.project,
+          reason: input.reason,
+          filePath: input.filePath,
+          line: input.line,
+          state: statuses.get(subject)?.state ?? 'missing',
+        }),
+      ),
+    ].sort((left, right) => left.subject.localeCompare(right.subject));
   const buildModel = (
     current: Ledger,
     cards: readonly AttestationReviewCard[],
@@ -1666,6 +2090,9 @@ async function review(
           direction: obligation.direction,
           statement: obligation.statement,
           statementParts: obligation.statementParts,
+          ...(obligation.effects?.length
+            ? { effects: obligation.effects }
+            : {}),
           ...(obligation.conditions && obligation.conditions.length > 0
             ? { conditions: obligation.conditions }
             : {}),
@@ -1673,6 +2100,46 @@ async function review(
           evidence: templateEvidenceValue(obligation),
         }))
         .sort((left, right) => left.subject.localeCompare(right.subject)),
+      folderLayouts: observed.folderLayout
+        ? [
+            {
+              subject:
+                observed.list.find((item) =>
+                  item.subject.startsWith('folder-layout:'),
+                )?.subject ?? '',
+              sourceGraphHash: observed.folderLayout.proposal.sourceGraphHash,
+              configHash: observed.folderLayout.proposal.configHash,
+              state:
+                statuses.get(
+                  observed.list.find((item) =>
+                    item.subject.startsWith('folder-layout:'),
+                  )?.subject ?? '',
+                )?.state ?? 'missing',
+              entries: observed.folderLayout.proposal.placements.map(
+                (placement) => ({
+                  sourcePath: placement.sourcePath,
+                  proposedPath: placement.proposedPath,
+                  status:
+                    placement.action === 'delete'
+                      ? ('deleted' as const)
+                      : placement.proposedPath === null
+                        ? ('unchanged' as const)
+                        : placement.proposedPath === placement.sourcePath
+                          ? ('unchanged' as const)
+                          : ('moved' as const),
+                  scope: placement.scope,
+                  confidence: placement.confidence,
+                  reasons: placement.reasons,
+                }),
+              ),
+              statistics: observed.folderLayout.proposal.statistics,
+            },
+          ]
+        : [],
+      bypasses: bypassInventory(statuses),
+      ...(observed.bypasses?.adoption
+        ? { styleAdoption: observed.bypasses.adoption }
+        : {}),
       diagnostics: observed.diagnostics,
       applicationCaptures: (observed.applicationTargets ?? []).map((target) => {
         const status = statuses.get(target.subject);
@@ -1709,6 +2176,7 @@ async function review(
     model.visualAssets.length === 0 &&
     model.visualTests.length === 0 &&
     model.templateObligations.length === 0 &&
+    (model.bypasses?.length ?? 0) === 0 &&
     model.diagnostics.length === 0
   ) {
     io.write('Aucune attestation à traiter. Nothing to review or explore.');
@@ -1738,7 +2206,10 @@ async function review(
     port: Number(port ?? 4320),
     cards: activeCards,
     model,
+    templateDetailFor: (subject: string) =>
+      observed.workspace.detailForTemplate?.(subject),
     iteration,
+    ...(folderLayoutApply ? { folderLayoutApply } : {}),
     onClose: async (handoff) => {
       io.write('Review application closed.');
       if (handoff) {

@@ -30,7 +30,7 @@ import {
   text,
   unit,
   when,
-} from '../src/index.ts';
+} from '@craft-ts/style';
 
 export const bp = defineBreakpoints({
   sm: at.minInlineSize(unit.rem(40)),

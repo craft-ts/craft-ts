@@ -18,6 +18,8 @@
  */
 import {
   at,
+  bg,
+  color,
   craftStyles,
   cssVars,
   darkOf,
@@ -165,5 +167,8 @@ export const dsTheme = craftStyles('dsTheme', {
     set(theme.gutter, space(4)),
     when(bp.md, [set(theme.gutter, space(6))]),
     when(scheme.dark, darkTheme),
+    // The wrapper paints the page it declares: its own surface and ink.
+    bg(theme.surface),
+    color(theme.ink),
   ],
 });

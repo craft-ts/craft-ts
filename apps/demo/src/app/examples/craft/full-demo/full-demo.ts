@@ -1,5 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import styles from './full-demo.css' with { loader: 'text' };
 import {
   button,
   catchNode,
@@ -32,6 +30,7 @@ import {
   type ValidatedFormValue,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
+import { example } from '../../shared/example.style';
 
 export type Todo = { readonly id: number; readonly title: string };
 
@@ -133,52 +132,68 @@ const FullDemoCraft = craftComponent(
   'FullDemoCraft',
   {
     providers: [provideFullDemoCraftView(), provideTodoStore()],
-    stylesUrl: styles,
   },
   function* () {
     const { store, titleForm } = yield* FullDemoCraftView();
 
-    return div([
-      heading([
+    return div({ class: example.page }, [
+      heading({ class: example.title }, [
         'Full craftService demo ',
         StatusComponent({ status: store.todos.status }),
       ]),
-      p('A toProvide service composed from a query and two mutations.'),
+      p(
+        { class: example.text, 'data-exampleText': 'muted' },
+        'A toProvide service composed from a query and two mutations.',
+      ),
       form(
         'AddTodoForm',
         {
+          class: example.row,
           *submit(event) {
             event.preventDefault();
             yield* titleForm.form.submit();
           },
         },
         [
-          input('TodoNameToAddInput', { placeholder: 'New todo' }).pipe(
-            CraftFieldDirective(titleForm.form),
-          ),
+          input('TodoNameToAddInput', {
+            class: example.input,
+            placeholder: 'New todo',
+          }).pipe(CraftFieldDirective(titleForm.form)),
           button(
             'AddTodoButton',
-            { type: 'submit', disabled: store.add.isLoading },
+            {
+              class: example.button,
+              'data-exampleButton': 'primary',
+              type: 'submit',
+              disabled: store.add.isLoading,
+            },
             'Add',
           ),
         ],
       ).pipe(
         fieldErrorNode.exhaustive({
-          required: () => p('A todo title is required.'),
+          required: () =>
+            p(
+              { class: example.text, 'data-exampleText': 'error' },
+              'A todo title is required.',
+            ),
         }),
       ),
       ul(
+        { class: example.list },
         forNode(
           store.todos.value,
           { track: (todo) => todo.id, empty: () => p('No todos.') },
           (todo) =>
-            li([
+            li({ class: example.item }, [
               span('TodoTitle', {}, function* () {
                 return (yield* todo()).title;
               }),
               button(
                 'RemoveTodoButton',
                 {
+                  class: example.button,
+                  'data-exampleButton': 'danger',
                   type: 'button',
                   disabled: store.remove.isLoading,
                   *click() {
@@ -195,7 +210,11 @@ const FullDemoCraft = craftComponent(
 ).pipe(
   catchNode.exhaustive({
     FAILED_TO_LOAD: {
-      render: () => p('⚠️ FAILED_TO_LOAD (handled by catchNode.exhaustive)'),
+      render: () =>
+        p(
+          { class: example.text, 'data-exampleText': 'error' },
+          '⚠️ FAILED_TO_LOAD (handled by catchNode.exhaustive)',
+        ),
       showSource: true,
       position: 'after',
     },

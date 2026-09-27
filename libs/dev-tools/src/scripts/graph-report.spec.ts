@@ -57,7 +57,7 @@ function edge(
 const graph: DependencyGraph = {
   version: 1,
   rootDir: root,
-  tsConfigFilePath: `${root}/tsconfig.json`,
+  tsConfigFilePath: `${process.cwd()}/tests/fixtures/empty-tsconfig.json`,
   nodes: [panel, cart, user, items, reset],
   edges: [
     edge(panel, 'depends-on', cart),

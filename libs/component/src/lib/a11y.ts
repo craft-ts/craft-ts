@@ -8,6 +8,7 @@ import {
   type HeadingNode,
   type HeadingSectionNode,
 } from './render/vnode';
+import { craftSkipLink } from './craft-defaults.style';
 
 type HeadingProps = {
   readonly class?: unknown;
@@ -142,8 +143,11 @@ export function headingRoot<const Children extends CraftNodeChildren>(
 /**
  * Skip link for the application shell. Pair with `main({ id: targetId }, …)`.
  */
-export function skipLink(targetId = 'main', label = 'Skip to main content') {
-  return a({ href: `#${targetId}`, class: 'skip-link' }, label);
+export function skipLink(
+  targetId = 'main',
+  label = 'Skip to main content',
+) {
+  return a({ href: `#${targetId}`, class: craftSkipLink.link }, label);
 }
 
 /**

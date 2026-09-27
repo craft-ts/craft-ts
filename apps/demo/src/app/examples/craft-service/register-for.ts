@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -15,6 +14,7 @@ import {
   craftService,
   state,
 } from '@craft-ts/core';
+import { example } from '../shared/example.style';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
@@ -40,38 +40,14 @@ const CounterChild = craftComponent(
   'CounterChild',
   {
     providers: [provideCounterChildView(), provideCounter()],
-    styles: `
-      :scope{display:grid;gap:.35rem;padding:.8rem;border:1px solid #cbd5e1;border-radius:.6rem;background:#f8fafc}
-      .value{font-size:1.6rem;font-weight:700}
-      .actions{display:flex;gap:.4rem}
-      button{padding:.35rem .65rem;border:1px solid #cbd5e1;border-radius:.35rem;background:#fff;cursor:pointer}
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
   },
   function* () {
     const { counter } = yield* CounterChildView();
-    return div([
-      span({ class: 'value' }, counter),
-      div({ class: 'actions' }, [
-        button(
-          'decrement',
-          {
-            type: 'button',
-            'aria-label': 'Decrement',
-            click: counter.decrement,
-          },
-          '-',
-        ),
-        button(
-          'increment',
-          {
-            type: 'button',
-            'aria-label': 'Increment',
-            click: counter.increment,
-          },
-          '+',
-        ),
+    return div({ class: example.box }, [
+      span({ class: example.subtitle }, counter),
+      div({ class: example.row }, [
+        button('decrement', { class: example.button, type: 'button', 'aria-label': 'Decrement', click: counter.decrement }, '-'),
+        button('increment', { class: example.button, type: 'button', 'aria-label': 'Increment', click: counter.increment }, '+'),
       ]),
     ]);
   },
@@ -143,51 +119,35 @@ const RegisterForDemo = craftComponent(
       provideRegisterForCounterChild(),
       provideRegisterForCounter(),
     ],
-    styles: `
-      :scope{display:grid;gap:1rem;padding:1.5rem;font-family:sans-serif}
-      .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
-      .toolbar button{padding:.55rem .8rem;border:1px solid #94a3b8;border-radius:.4rem;background:#fff;cursor:pointer}
-      .children{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:.75rem}
-      .meta{color:#475569}
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
   },
   function* () {
     const { counterChildIds, counters, childTotal, serviceTotal } =
       yield* RegisterForDemoView();
-    return section([
-      heading('craftRegisterFor: control child counters'),
+    return section({ class: example.card }, [
+      heading({ class: example.title }, 'craftRegisterFor: control child counters'),
       p(
         'The parent observes the Counter instances created in its children. Removing a child also removes its registration.',
       ),
-      div({ class: 'toolbar' }, [
-        button(
-          'incrementAll',
-          { type: 'button', click: counters.incrementAllChildCounter },
+      div({ class: example.row }, [
+        button('incrementAll',
+          { class: example.button, type: 'button', click: counters.incrementAllChildCounter },
           'Increment all',
         ),
-        button(
-          'decrementAll',
-          { type: 'button', click: counters.decrementAllChildCounter },
+        button('decrementAll',
+          { class: example.button, type: 'button', click: counters.decrementAllChildCounter },
           'Decrement all',
         ),
-        button(
-          'addChild',
-          { type: 'button', click: counterChildIds.addChild },
-          'Add a child',
+        button('addChild', { class: example.button, type: 'button', click: counterChildIds.addChild }, 'Add a child'),
+        button('removeChild', { class: example.button, type: 'button', click: counterChildIds.removeChild }, 'Remove a child'),
+        span(
+          { class: example.hint },
+          function* () {
+            return `services: ${yield* serviceTotal()} · components: ${yield* childTotal()}`;
+          },
         ),
-        button(
-          'removeChild',
-          { type: 'button', click: counterChildIds.removeChild },
-          'Remove a child',
-        ),
-        span({ class: 'meta' }, function* () {
-          return `services: ${yield* serviceTotal()} · components: ${yield* childTotal()}`;
-        }),
       ]),
       div(
-        { class: 'children' },
+        { class: example.tiles },
         forNode(counterChildIds, { track: (id) => id }, () => CounterChild({})),
       ),
     ]);

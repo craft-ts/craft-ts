@@ -14,32 +14,33 @@ import {
   type CraftLoadingFeature,
 } from './craft-pending';
 import {
-  CRAFT_TITLE_STRATEGY,
   createCraftTitleStrategy,
   type CraftTitleStrategy,
 } from './craft-a11y';
 import {
-  ActivatedRoute,
+  type ActivatedRoute,
   type ActivatedRouteSnapshot,
   type Data,
   type ParamMap,
   type RouterStateSnapshot,
 } from './host/craft-router-types';
+import { provideCraftActivatedRoute } from './craft-activated-route';
 import {
-  ɵtoCraftService as toCraftService,
-  type GetServiceYields,
-  type SERVICE_HELPER_DEPENDENCIES,
+  craftService,
   type ServiceTrackingMetadata,
+  type ServiceYieldRequest,
+  type SERVICE_HELPER_DEPENDENCIES,
 } from './craft-service';
 import type { Simplify } from './craft-service.shared';
 import {
+  ɵprovideCraftViewTransitionDefaults,
   CRAFT_VIEW_TRANSITION_STATE_KEY,
   type CraftViewTransitionInput,
   type ViewTransitionPayloadDef,
 } from './craft-view-transition';
 import {
-  CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
+  ɵinjectCraftNodeEffectFactoryIn,
   type CraftNodeDirective,
 } from './craft-node-directive';
 import { executeYieldable } from './yieldable';
@@ -54,28 +55,40 @@ import {
   parseSearchParams,
   serializeLocation,
   splitPath,
+  toCraftRouterUrl,
+  toExternalCraftRouterUrl,
   type CraftCompiledRoute,
-  type CraftHistory,
-  type CraftLocation,
-  type CraftMatch,
+  type CraftLocation as RuntimeCraftLocation,
 } from './host/craft-router-runtime';
 import {
   craftSignal,
   craftWatch,
+  type CraftSignal,
   type CraftWritableSignal,
 } from './host/craft-signal';
 import {
-  CRAFT_COMPILED_ROUTES,
-  CRAFT_HISTORY,
-  CRAFT_LOCATION,
-  CRAFT_MATCH,
-  CRAFT_ROUTER,
+  provideCraftCompiledRoutes,
+  CraftHistory,
+  provideCraftHistory,
+  CraftLocation,
+  provideCraftLocation,
+  CraftMatch,
+  provideCraftMatch,
+  CraftRouterRuntime,
+  provideCraftRouterRuntimeValue,
+  ɵinjectCraftRouterRuntime,
   type CraftNavigation,
   type CraftNavigationExtras,
+  type CraftRouterNavigationApi,
   type CraftRouterEvent,
   type CraftUrlTree,
 } from './craft-router-tokens';
-import { CRAFT_PLATFORM, type CraftPlatform } from './craft-platform';
+import { ɵinjectCraftPlatform } from './craft-platform';
+import {
+  ɵinjectCraftHistory,
+  ɵinjectCraftLocation,
+  ɵinjectCraftCompiledRoutes,
+} from './craft-router-tokens';
 
 export {
   createBrowserHistory,
@@ -83,21 +96,23 @@ export {
   matchCraftRoutes,
   matchCraftRoutesAsync,
   type CraftCompiledRoute,
-  type CraftHistory,
-  type CraftLocation,
-  type CraftMatch,
 } from './host/craft-router-runtime';
 export {
-  CRAFT_COMPILED_ROUTES,
-  CRAFT_HISTORY,
-  CRAFT_LOCATION,
-  CRAFT_MATCH,
-  CRAFT_ROUTER,
+  CraftCompiledRoutes,
+  provideCraftCompiledRoutes,
+  CraftHistory,
+  provideCraftHistory,
+  CraftLocation,
+  provideCraftLocation,
+  CraftMatch,
+  provideCraftMatch,
   type CraftNavigationExtras,
   type CraftRouterNavigationApi,
   type CraftUrlTree,
 } from './craft-router-tokens';
 
+// The registry is intentionally empty here and augmented by route declarations.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type, @typescript-eslint/no-empty-interface
 export interface CraftRouterRoutesRegistry {}
 
 type CraftRouterRoutesRegistryKey = Extract<
@@ -274,9 +289,6 @@ type WithInternalHelperDependencies<Helper> = {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: HelperDependencies<Helper>;
 };
 
-type GeneratorYield<GeneratorValue> =
-  GeneratorValue extends Generator<infer Yielded, any, any> ? Yielded : never;
-
 type CraftRouterInputWithOptionalQueryParams = {
   to: string;
   params?: Record<string, string>;
@@ -288,70 +300,43 @@ type CraftRouterInputWithOptionalQueryParams = {
 type CraftRouterInputExtras = CraftRouterInputWithOptionalQueryParams &
   CraftNavigationExtras;
 
-// The `toCraftService` return type references internal Angular symbols
-// (`SIGNAL`, `[iterator]`, `[unscopables]`) that ng-packagr cannot serialize to
-// `.d.ts` (TS4023/TS4118). Cast through `unknown` and re-shape the destructured
-// locals as opaque `Function` so declaration emit only sees a serializable
-// shape. The exported `CraftRouter` below re-casts
-// through `as unknown as ...`, so the lost typing here doesn't reach consumers.
-const _routerService = toCraftService(
-  {
-    name: 'CraftRouter',
-    providedIn: 'manuallyProvidedAtRoot',
-    token: CRAFT_ROUTER,
-    provide: provideCraftRouterRuntime,
+const routerService = craftService(
+  { name: 'CraftRouter', providedIn: 'toProvide' },
+  function* () {
+    return (yield* CraftRouterRuntime()) as CraftRouter;
   },
-  (router): CraftRouter => router as CraftRouter,
-) as unknown as {
-  provideCraftRouter: Function;
-  CraftRouter: Function & CraftRouterTrackedHelper;
+);
+
+type GeneratedCraftRouterHelper = {
+  (): Generator<unknown, CraftRouter, unknown>;
+  <Exposed extends object>(
+    bindings: undefined,
+    expose: (router: CraftRouter) => Exposed,
+  ): Generator<unknown, Exposed, unknown>;
 };
 
-type CraftRouterTrackingMetadata = ServiceTrackingMetadata<
-  'CraftRouter',
-  'manuallyProvidedAtRoot',
-  CraftRouter,
-  never,
-  undefined,
-  [routes: readonly CraftCompiledRoute[], ...features: unknown[]],
-  false,
-  false
->;
-
-type CraftRouterTrackedHelper = {
-  readonly [SERVICE_HELPER_DEPENDENCIES]?: CraftRouterTrackingMetadata;
-};
-
-const provideCraftRouterInternal = _routerService.provideCraftRouter;
-const CraftRouterInternal = _routerService.CraftRouter;
+const CraftRouterInternal =
+  routerService.CraftRouter as unknown as GeneratedCraftRouterHelper;
 
 // We can't reach the request type via `ReturnType<typeof CraftRouterInternal>`
 // because it picks the LAST overload (`<Exposed, Yielded>(...)`), whose
 // generator's yield collapses to `unknown` when the generics are unbound.
-// `GetServiceYields` extracts the proper `ServiceYieldRequest<...>` (and
-// `ExposureYield<...>`) union from the helper's tracked metadata directly.
-export type CraftRouterYieldRequest = GetServiceYields<
-  typeof CraftRouterInternal
->;
-
-type StructuralRouteParamsField<Path extends string> = [
-  PathParamNames<Path>,
-] extends [never]
-  ? { params?: never }
-  : { params: Simplify<{ [Key in PathParamNames<Path>]: string }> };
-
-type DerivedNavigationInput<Path extends string> = Simplify<
-  { to: Path } & StructuralRouteParamsField<Path> &
-    CraftNavigationExtras & {
-      queryParams?: Record<string, string> | null;
-    }
->;
-
-type DerivedUrlTreeInput<Path extends string> = Simplify<
-  { to: Path } & StructuralRouteParamsField<Path> &
-    Omit<CraftNavigationExtras, 'state'> & {
-      queryParams?: Record<string, string> | null;
-    }
+// Keep the public service request's literal name and result type here so
+// helper dependency extraction still records `CraftRouter`, without exposing
+// craftService's private runtime markers in this package's declaration output.
+export type CraftRouterYieldRequest = ServiceYieldRequest<
+  'toProvide',
+  CraftRouter,
+  ServiceTrackingMetadata<
+    'CraftRouter',
+    'toProvide',
+    CraftRouter,
+    never,
+    undefined,
+    never,
+    false,
+    false
+  >
 >;
 
 type RoutePathFromInput<Input extends { to: NavigableRoutePath }> = Extract<
@@ -410,7 +395,7 @@ type RouterPropertyShortcut<Value> = Value extends (
 type CraftRouterPropertyShortcuts = CraftRouterCraftMethodShortcuts & {
   [Key in Exclude<
     keyof CraftRouter,
-    keyof Function | 'then' | 'createUrlTree' | 'navigate' | 'navigateByUrl'
+    'then' | 'createUrlTree' | 'navigate' | 'navigateByUrl'
   >]: RouterPropertyShortcut<CraftRouter[Key]>;
 };
 
@@ -447,6 +432,7 @@ export function provideCraftRouter(
 ): (Provider | EnvironmentProviders)[] {
   const loadingFeatures: CraftLoadingFeature[] = [];
   const configuredRoutes = [...(routes as readonly CraftCompiledRoute[])];
+  const useHashLocation = features.some(isCraftHashLocationFeature);
 
   for (const feature of features) {
     if (isCraftLoadingFeature(feature)) {
@@ -459,9 +445,38 @@ export function provideCraftRouter(
 
   return [
     ...getCraftRootDefaultProviders(),
-    provideCraftRouterInternal(configuredRoutes),
+    routerService.provideCraftRouter() as unknown as Provider,
+    ...provideCraftRouterRuntime(configuredRoutes, useHashLocation),
+    ...ɵprovideCraftViewTransitionDefaults(),
     ...provideCraftLoading(...loadingFeatures),
   ];
+}
+
+const CRAFT_HASH_LOCATION_FEATURE = Symbol('craft-hash-location-feature');
+
+/** Router feature that stores the Craft URL after `#`, for static client apps. */
+export interface CraftHashLocationFeature {
+  readonly [CRAFT_HASH_LOCATION_FEATURE]: true;
+}
+
+/**
+ * Use hash URLs such as `/#/products/42?page=2`. The server cannot select a
+ * route from a fragment, so this strategy is intended for client rendered apps.
+ */
+export function withHashLocation(): CraftHashLocationFeature {
+  return { [CRAFT_HASH_LOCATION_FEATURE]: true };
+}
+
+function isCraftHashLocationFeature(
+  value: unknown,
+): value is CraftHashLocationFeature {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { [CRAFT_HASH_LOCATION_FEATURE]?: unknown })[
+      CRAFT_HASH_LOCATION_FEATURE
+    ] === true
+  );
 }
 
 /**
@@ -531,7 +546,7 @@ export function CraftRouterLink(
     'CraftRouterLink',
     [],
     (context) => {
-      const router = context.injector.get(CRAFT_ROUTER) as CraftRouter;
+      const router = ɵinjectCraftRouterRuntime() as CraftRouter;
       let currentInput: CraftRouterLinkInput | null | undefined;
       let currentUrlTree: CraftUrlTree | undefined;
 
@@ -557,7 +572,7 @@ export function CraftRouterLink(
         }
       };
 
-      const hrefEffect = context.injector.get(CRAFT_NODE_EFFECT_FACTORY)(
+      const hrefEffect = ɵinjectCraftNodeEffectFactoryIn(context.injector)(
         'router-link-href',
         () => {
           const candidate = link;
@@ -785,28 +800,96 @@ function toAbsoluteRedirectUrl(url: string): string {
 
 function provideCraftRouterRuntime(
   routes: readonly CraftCompiledRoute[] = [],
+  useHashLocation = false,
   ..._features: unknown[]
 ): Provider[] {
   const navigation: { current: CraftNavigation | null } = { current: null };
+  let currentMatch: (() => CraftMatch | null) | null = null;
   return [
-    { provide: CRAFT_COMPILED_ROUTES, useValue: routes },
-    {
-      provide: CRAFT_TITLE_STRATEGY,
-      useFactory: () => createCraftTitleStrategy(),
-    },
-    {
-      // The Angular island used to bridge this token onto Angular's own
-      // ActivatedRoute. The Craft router owns it now: it is the leaf of the
-      // snapshot built from the current match, and empty before the first one.
-      provide: ActivatedRoute,
-      useFactory: (match: () => CraftMatch | null): ActivatedRoute => {
+    provideCraftCompiledRoutes(routes) as unknown as Provider,
+    provideCraftHistory((() => {
+      const platform = ɵinjectCraftPlatform();
+      // Browser platforms build their default path history before router
+      // features are instantiated. Recreate it from the platform window when
+      // hash mode is selected so the strategy is active from the first read.
+      const history = (() => {
+        if (platform?.kind === 'browser' && useHashLocation) {
+          platform.history.dispose();
+          return createBrowserHistory(platform.window ?? globalThis.window, {
+            useHashLocation,
+          });
+        }
+        return platform?.history ?? createBrowserHistory(globalThis.window);
+      })();
+      inject(DestroyRef).onDestroy(() => history.dispose());
+      return history;
+    }) as unknown as CraftHistory) as unknown as Provider,
+    provideCraftLocation((() => {
+      const history = injectCraftHistory();
+      const location = craftSignal(history.get());
+      const stop = history.listen((next) => location.set(next));
+      inject(DestroyRef).onDestroy(stop);
+      return location;
+    }) as unknown as CraftWritableSignal<RuntimeCraftLocation>) as unknown as Provider,
+    provideCraftMatch((() => {
+      const location = injectCraftLocation();
+      const compiled = injectCraftCompiledRoutes();
+      const history = injectCraftHistory();
+      const environmentInjector = inject(EnvironmentInjector);
+      const titleStrategy = createCraftTitleStrategy();
+      const match = craftSignal<CraftMatch | null>(null);
+      currentMatch = match;
+      let generation = 0;
+      craftWatch(() => {
+        const nextLocation = location();
+        const current = ++generation;
+        const syncMatch = matchCraftRoutes(compiled, nextLocation);
+        if (typeof syncMatch?.route.redirectTo === 'function') {
+          void resolveFunctionRedirectTo(syncMatch, environmentInjector).then(
+            (redirectUrl) => {
+              if (current !== generation || !redirectUrl) return;
+              const target = toAbsoluteRedirectUrl(redirectUrl);
+              if (target !== serializeLocation(nextLocation)) {
+                history.replace(target, history.getState());
+              }
+            },
+          );
+          return;
+        }
+        const pending = findUnresolvedLoadChildrenRoute(
+          compiled,
+          splitPath(syncMatch?.pathname || nextLocation.pathname || '/'),
+        );
+        if (pending) {
+          void matchCraftRoutesAsync(compiled, {
+            ...nextLocation,
+            pathname: nextLocation.pathname || '/',
+          }).then((resolved) => {
+            if (current !== generation) return;
+            commitCraftMatch(match, history, nextLocation, resolved, titleStrategy);
+          }).catch(() => {
+            // Keep the last committed match if a lazy route chunk fails. The
+            // navigation has already been recorded in history, but the outlet
+            // can still render the page it successfully mounted before this
+            // failed rematch.
+          });
+          return;
+        }
+        commitCraftMatch(match, history, nextLocation, syncMatch, titleStrategy);
+        navigation.current = null;
+      });
+      return match;
+    }) as unknown as CraftSignal<CraftMatch | null>) as unknown as Provider,
+    // The Craft router owns the activated route: it is the leaf of the
+    // snapshot built from the current match, and empty before the first one.
+    provideCraftActivatedRoute((): ActivatedRoute => {
         const leafOf = (snapshot: ActivatedRouteSnapshot) => {
           let node = snapshot;
           while (node.firstChild) node = node.firstChild;
           return node;
         };
         const snapshot = () => {
-          const current = match();
+          const current = currentMatch?.() ?? null;
           return current
             ? leafOf(matchToRouterStateSnapshot(current).root)
             : emptyActivatedRouteSnapshot();
@@ -822,126 +905,30 @@ function provideCraftRouterRuntime(
             }));
           },
         };
-      },
-      deps: [CRAFT_MATCH],
-    },
-    {
-      provide: CRAFT_HISTORY,
-      useFactory: () => {
-        const platform = inject(Injector).get(
-          CRAFT_PLATFORM,
-          null,
-        ) as CraftPlatform | null;
-        const history =
-          platform?.history ?? createBrowserHistory(globalThis.window);
-        inject(DestroyRef).onDestroy(() => history.dispose());
-        return history;
-      },
-    },
-    {
-      provide: CRAFT_LOCATION,
-      useFactory: (history: CraftHistory) => {
-        const location = craftSignal(history.get());
-        const stop = history.listen((next) => location.set(next));
-        inject(DestroyRef).onDestroy(stop);
-        return location;
-      },
-      deps: [CRAFT_HISTORY],
-    },
-    {
-      provide: CRAFT_MATCH,
-      useFactory: (
-        location: CraftWritableSignal<CraftLocation>,
-        compiled: readonly CraftCompiledRoute[],
-        history: CraftHistory,
-      ) => {
-        const environmentInjector = inject(EnvironmentInjector);
-        const titleStrategy =
-          inject(CRAFT_TITLE_STRATEGY, { optional: true }) ??
-          createCraftTitleStrategy();
-        const match = craftSignal<CraftMatch | null>(null);
-        let generation = 0;
-        craftWatch(() => {
-          const nextLocation = location();
-          const current = ++generation;
-          const syncMatch = matchCraftRoutes(compiled, nextLocation);
-          if (typeof syncMatch?.route.redirectTo === 'function') {
-            void resolveFunctionRedirectTo(syncMatch, environmentInjector)
-              .then((redirectUrl) => {
-                if (current !== generation || !redirectUrl) {
-                  return;
-                }
-                const target = toAbsoluteRedirectUrl(redirectUrl);
-                if (target === serializeLocation(nextLocation)) {
-                  return;
-                }
-                history.replace(target, history.getState());
-              })
-              .catch(() => {
-                // Keep the previous match instead of mounting the redirect route.
-              });
-            return;
-          }
-          const pendingLocation = syncMatch ?? nextLocation;
-          const pending = findUnresolvedLoadChildrenRoute(
-            compiled,
-            splitPath(pendingLocation.pathname || '/'),
-          );
-          if (pending) {
-            void matchCraftRoutesAsync(compiled, {
-              ...nextLocation,
-              pathname: pendingLocation.pathname || '/',
-              search: pendingLocation.search,
-              hash: pendingLocation.hash,
-            }).then(
-              (resolved) => {
-                if (current !== generation) {
-                  return;
-                }
-                commitCraftMatch(
-                  match,
-                  history,
-                  nextLocation,
-                  resolved,
-                  titleStrategy,
-                );
-                navigation.current = null;
-              },
-              () => {
-                // Keep the previous match. Inflight is cleared in
-                // ensureChildrenLoaded so a later navigation can retry.
-              },
-            );
-            return;
-          }
-          commitCraftMatch(
-            match,
-            history,
-            nextLocation,
-            syncMatch,
-            titleStrategy,
-          );
-          navigation.current = null;
-        });
-        return match;
-      },
-      deps: [CRAFT_LOCATION, CRAFT_COMPILED_ROUTES, CRAFT_HISTORY],
-    },
-    {
-      provide: CRAFT_ROUTER,
-      useFactory: (
-        history: CraftHistory,
-        location: CraftWritableSignal<CraftLocation>,
-      ) => createNativeCraftRouter(history, location, navigation),
-      deps: [CRAFT_HISTORY, CRAFT_LOCATION],
-    },
+      }),
+    provideCraftRouterRuntimeValue((() =>
+      createNativeCraftRouter(
+        injectCraftHistory(),
+        injectCraftLocation(),
+        navigation,
+        useHashLocation,
+      )) as unknown as CraftRouterNavigationApi) as unknown as Provider,
   ];
 }
+
+const injectCraftHistory = () => {
+  return ɵinjectCraftHistory() as CraftHistory;
+};
+const injectCraftLocation = () =>
+  ɵinjectCraftLocation() as CraftWritableSignal<CraftLocation>;
+const injectCraftCompiledRoutes = () =>
+  ɵinjectCraftCompiledRoutes() as readonly CraftCompiledRoute[];
 
 function createNativeCraftRouter(
   history: CraftHistory,
   location: CraftWritableSignal<CraftLocation>,
   navigation: { current: CraftNavigation | null },
+  useHashLocation = false,
 ): CraftRouter {
   const listeners = new Set<(event: CraftRouterEvent) => void>();
 
@@ -974,9 +961,10 @@ function createNativeCraftRouter(
   };
 
   const commit = (
-    url: string,
+    inputUrl: string,
     extras?: CraftNavigationExtras,
   ): Promise<boolean> => {
+    const url = toCraftRouterUrl(inputUrl, useHashLocation);
     const withVt = extras
       ? {
           ...extras,
@@ -1027,9 +1015,13 @@ function createNativeCraftRouter(
       }
       return commit(String(input), extras);
     }) as CraftRouter['navigateByUrl'],
-    serializeUrl: (tree) => tree.toString(),
+    serializeUrl: (tree) =>
+      toExternalCraftRouterUrl(tree.toString(), useHashLocation),
     isActive: (tree, extras) => {
-      const target = String(tree).split('?')[0]?.split('#')[0] ?? '';
+      const target =
+        toCraftRouterUrl(String(tree), useHashLocation)
+          .split('?')[0]
+          ?.split('#')[0] ?? '';
       const current = location().pathname;
       if (extras?.paths === 'subset') {
         return current === target || current.startsWith(`${target}/`);

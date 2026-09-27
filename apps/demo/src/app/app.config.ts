@@ -6,11 +6,13 @@ import {
 } from '@craft-ts/component';
 import {
   Console,
+  CraftCircularDependencyError,
   craftAppConfig,
   isCraftGenShortCircuit,
   isCraftNotSettled,
   provideCorrelationIdTracking,
   provideCraftRouter,
+  provideSendContextEventEnricher,
   provideGlobalPersisterHandlerService,
   provideLocalStoragePersister,
   provideSessionStoragePersister,
@@ -51,6 +53,10 @@ const developmentProviders = import.meta.env.DEV
       provideDemoTracing(),
       // eslint-disable-next-line craft-ts/prefer-browser-boundaries
       provideTakeAppSnapshot((data) => console.warn('App snapshot:', data)),
+      provideSendContextEventEnricher((event) => ({
+        ...event,
+        application: 'demo',
+      })),
       provideSendContextToAi(),
       provideMcpExperimentation(),
     ]
@@ -109,6 +115,9 @@ export const appConfig = craftAppConfig({
           // them to an `UNEXPECTED_ERROR` strands them — the boundary never
           // sees them and the fabricated exception renders in their place.
           if (isCraftGenShortCircuit(error) || isCraftNotSettled(error)) {
+            throw error;
+          }
+          if (error instanceof CraftCircularDependencyError) {
             throw error;
           }
           yield* Console.error(error);

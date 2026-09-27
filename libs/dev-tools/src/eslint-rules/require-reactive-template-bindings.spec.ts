@@ -99,6 +99,9 @@ describe('require-reactive-template-bindings', () => {
       type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
       declare const value: CraftValue<number>;
       declare function safeResourceUrl(value: unknown): string;
+      declare function assign(token: unknown, value: unknown): object;
+      declare const fill: unknown;
+      declare const unit: { pct(value: number): unknown };
       declare function craftComponent(...args: unknown[]): unknown;
 
       craftComponent('Demo', {}, () => [
@@ -112,7 +115,36 @@ describe('require-reactive-template-bindings', () => {
             return safeResourceUrl(yield* value());
           },
         }),
+        div({
+          style: function* () {
+            return assign(fill, yield* value());
+          },
+        }),
+        div({
+          style: function* () {
+            return assign(fill, unit.pct(yield* value()));
+          },
+        }),
       ]);
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
+  it('allows message interpolation helpers around reactive reads', async () => {
+    const messages = await lintFixture(`
+      declare const YIELDABLE_VALUE: unique symbol;
+      type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
+      type Messages = { queueSummary(items: number): string };
+      declare const t: CraftValue<Messages>;
+      declare const count: CraftValue<number>;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () =>
+        p({ title: function* () {
+          return (yield* t()).queueSummary(yield* count());
+        }}, 'Queue'),
+      );
     `);
 
     expect(messages).toEqual([]);

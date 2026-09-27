@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/dev-tools",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "description": "Development tools for craft-ts: ESLint configs, ESLint rules, and codemods",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -48,6 +48,10 @@
     "./dependency-graph": {
       "types": "./src/scripts/dependency-graph.d.ts",
       "default": "./src/scripts/dependency-graph.js"
+    },
+    "./folder-layout": {
+      "types": "./src/scripts/folder-layout.d.ts",
+      "default": "./src/scripts/folder-layout.js"
     },
     "./architecture-graph": {
       "types": "./src/scripts/architecture-graph.d.ts",
@@ -112,7 +116,7 @@
     "tslib": "^2.3.0",
     "ts-morph": "^24.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "7.0.2"
+    "typescript": "6.0.3"
   },
   "peerDependencies": {
     "@angular-eslint/eslint-plugin": ">=21.0.0",

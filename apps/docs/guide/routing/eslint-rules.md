@@ -68,6 +68,7 @@ export default [
       'craft-ts/require-form-for-input-action': 'error',
       'craft-ts/template-element-name-unique': 'error',
       'craft-ts/no-craft-computed-side-effects': 'error',
+      'craft-ts/no-external-state-transition': 'error',
       'craft-ts/require-craft-method-for-yieldable-callback': 'error',
       'craft-ts/prefer-direct-yieldable-callback': 'error',
       'craft-ts/prefer-deep-yieldable-for-item': 'warn',
@@ -110,10 +111,11 @@ export default [
 
 What each rule does:
 
-- `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, logical expressions, negations, and imperative control flow; use `ifNode(...)`, `matchNode.exhaustive(...)`, `forNode(...)`, or `deferNode(...)`
+- `craft-ts/prefer-craft-template-blocks`: keeps `craftComponent(...)` templates declarative by rejecting ternaries, boolean logical expressions, negations, and imperative control flow; nullish value fallbacks remain valid. Use `ifNode(...)`, `matchNode.exhaustive(...)`, `forNode(...)`, or `deferNode(...)` for render control flow
 - `craft-ts/require-craft-computed-for-dynamic-template-lookup`: rejects dynamic object or array lookups in a Craft template when the lookup key comes from a reactive member; move the lookup to a named `craftComputed()` in the component's service and bind that value directly
 - `craft-ts/no-render-writes`: rejects detectable `set()`, `update()`, and `mutate()` calls in component templates and render bindings while allowing DOM event and `onXxx` output callbacks
-- `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values remain valid
+- `craft-ts/no-external-state-transition`: rejects generic `replace`, `set`, `update`, or `patch` calls on a value returned by Craft `state(...)` outside its state insertion. Put the transition behind a named state method that accepts intent and computes the next value internally.
+- `craft-ts/require-reactive-template-bindings`: requires signals, named Craft values, and component inputs to be read inside granular binding callbacks instead of during VNode construction; static values and message-catalog interpolation helpers remain valid
 - `craft-ts/no-craft-use`: forbids the synchronous `craftUse(...)` escape hatch in Craft TypeScript files; use a generator and delegate the reader with `yield*` instead
 - `craft-ts/require-craft-component-for-exported-node-factory`: requires an exported function that directly returns a Craft node, such as `button(...)`, to be declared with `craftComponent(...)` so Craft directives and composition remain available
 
@@ -201,7 +203,7 @@ checks exported arrow functions.
   direct callback is usually the simplest form, because `craftComponent(...)`
   can contextually type it.
 
-- `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the template a `craftComponent(...)` or `craftDirective(...)` returns (inline or a same-file identifier). What the component declares in its own scope — its service, its primitives, its inputs — is fine; a plain local is not, because the body reruns. Declare that state with `state()` or `craftComputed()`
+- `craft-ts/no-ephemeral-template-form-state`: forbids `let` / `const` / `var` in the template a `craftComponent(...)` or `craftDirective(...)` returns (inline or a same-file identifier). What the component declares in its own scope — its service, its primitives, its inputs — is fine; a plain local is not, because the body reruns. Immutable aliases that directly read a yielded value outside event handlers are allowed too. Declare that state with `state()` or `craftComputed()`
 - `craft-ts/require-form-for-input-action`: rejects a button's direct `mutate(...)` or `method(...)` call when it consumes an input-bound value, including through a local record or variable; use `insertForm`, `insertFormAttributes`, and `insertFormSubmit` for mutation-backed forms, then submit a native `form(...)` with a `type: 'submit'` button
 - `craft-ts/template-element-name-unique`: requires named HTML helpers to use a static, unique local name within a component; use the object-first helper form for unnamed elements such as `p({ id: 'hint' }, ...)`
 - `craft-ts/no-craft-computed-side-effects`: forbids writes and asynchronous work inside `craftComputed`; only reactive reads and `settled(...)` are allowed. The graph-wide counterpart is [`assertCraftComputedPure`](/guide/testing/architecture#assertcraftcomputedpure).
@@ -280,6 +282,7 @@ checks exported arrow functions.
 - `craft-ts/no-throw`: forbids `throw` in Craft code because it bypasses the typed resource exception channel, and offers a Quick Fix that returns `craftException({ _tag: 'UNEXPECTED_ERROR' }, { error: ... })`; keep technical boundaries and tests outside this rule when their contracts require thrown errors
 - `craft-ts/no-imperative-craft-resource-trigger`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` in a `craftEffect` dependency graph, including through `craftGen(...)`. The graph-wide counterpart, including `state` / `source$` writes, is [`assertCraftEffectNoImperativeSync`](/guide/testing/architecture#assertcrafteffectnoimperativesync).
 - `craft-ts/no-imperative-craft-method-actions`: forbids composing multiple imperative actions in a `craftMethod`; emit a `source$` event and let the affected query react with `insertReactOnMutation(...)` instead. A handler such as `event.preventDefault()` followed by one `mutation.mutate(...)` remains valid.
+- `craft-ts/no-event-only-craft-method`: errors by default when a `craftMethod` only calls `preventDefault()`, `stopPropagation()`, or `stopImmediatePropagation()` and then delegates to one action. Bind the action with [`eventAction(...)`](/guide/components/directives#event-actions-and-dom-modifiers) on the element. The default architecture check enforces the same rule across files.
 - `craft-ts/no-remote-work-in-craft-method`: forbids `CraftHttpClient.*(...)` inside `craftMethod` because that action boundary does not own request loading, cancellation, exceptions, or graph dependencies; define the request directly in the `query` or `mutation` loader.
 - `craft-ts/no-type-assertions-in-resource-loader`: forbids `as ...` and angle-bracket assertions inside `query`, `mutation`, and `asyncProcess` loaders because assertions only silence TypeScript and can hide Promise, response, or transport mismatches; repair the request or adapter typing instead.
 - `craft-ts/no-type-assertions-in-craft-code`: forbids TypeScript type assertions in authored Craft code, including `as const` and angle-bracket assertions; the narrow `undefined as T | undefined` seed is allowed for intentionally optional state values. Use correct API typing or `satisfies` for shape validation. Low-level technical adapters may disable this rule locally when an explicit runtime boundary cast is unavoidable.
@@ -302,11 +305,14 @@ checks exported arrow functions.
 - `craft-ts/require-craft-exception-handler`: enforces `craftExceptionHandler(function* (...) {})`; simple handlers are autofixed and ambiguous raw redirects are reported for manual migration
 - `craft-ts/require-exception-component-di-check`: generates O(1) `RouteExceptionComponentCheckedDI` checks for `renderComponent`, route-level `errorComponent`, `withErrorComponent`, `withRouteLoadError`, and route-local `provideRouteLoadErrorComponent`
 - `craft-ts/require-pending-component-di-check`: generates the independent `RouteCheckedDI` check for each `pendingComponent`
-- `craft-ts/no-raw-class`: forbids a `class:` binding that is a string, a template literal or a function, in any file that imports `@craft-ts/style`. A class assembled at render time is a visual state nothing recorded, so the [visual matrix](/guide/style/testing) would enumerate what the sheets declare while the DOM shows something else. Move the rule into the sheet and bind the class it returns; make the variation an axis and set a `data-*` attribute
+- `craft-ts/no-raw-class`: requires every `class:` binding — on an element, in `attrs`, on a component `host` — to trace back to a sheet imported from a `*.style` module: `sheet.key`, a `const` bound to one, an array of them, a typed input (a parameter or a member of one), or a function that only returns one. A string, a template literal, a conditional or an object of booleans is refused. A class assembled at render time is a visual state nothing recorded, so the [visual matrix](/guide/style/testing) would enumerate what the sheets declare while the DOM shows something else; and a sheet declared outside a `*.style.ts` is never evaluated by the build, so its class has no CSS. Make the variation an axis and set a `data-*` attribute
+- `craft-ts/no-inline-style`: restricts `style:` to `assign(...)` from `@craft-ts/style` — or an array of them, an object spreading only them, a conditional whose branches are all of them, or a function that only returns them. What varies at runtime is a typed variable (`cssVars` + `assign`), read by a sheet; `attrs.style` is always refused
+- `craft-ts/no-component-css`: forbids `meta.styles`, `meta.stylesUrl` and `meta.contentStyles` on `craftComponent` / `craftDirective`, and every `.css` import except `virtual:craft-style.css`. Global rules go in [`craftGlobalStyles`](/guide/style/foundation), fonts in `defineFont`
+- `craft-ts/no-forbidden-eslint-disable`: requires a reason on every directive that disables a design-system rule — `// eslint-disable-next-line craft-ts/no-raw-class -- markdown output carries its own classes`. The reason is what the reviewer decides on in Review Attest. It also forbids disabling the rules listed in `.craft/eslint-disable-policy.json`. A blanket `eslint-disable` silences this rule too, so it cannot be reported here; Review Attest lists it
 - `craft-ts/no-raw-css-value`: forbids a string or number literal as an argument to a `@craft-ts/style` helper — `p('12px')`, `bg('red')`. If the scale is missing the step, add it to the scale; if the value genuinely cannot be proven, `unsafeLength('13px', reason)` compiles and makes the debt countable in the [graph](/guide/style/testing#what-the-graph-adds)
 - `craft-ts/no-free-has`: forbids a hand-written `:has()` in styles. It reaches across the component boundary, so what a component looks like depends on markup it does not own — a state the matrix cannot enumerate. Use the `descendant` axis, which is a closed set and carries its own test driver
 - `craft-ts/style-file-boundary`: restricts a `*.style.ts` to style-vocabulary imports. The [build plugin](/guide/style/setup) imports the file in Node to read what it registered, so an application import would run application code at build time
-- `craft-ts/craft-css-token-registry`: reports a custom property registered with `@property` by two different components. A custom property may have only one owner; two silently fight over its syntax and initial value
+- `craft-ts/craft-css-token-registry`: reports a custom property registered with `@property` by two different components. A custom property may have only one owner; two silently fight over its syntax and initial value. Part of the `legacyComponentCss` preset (see below)
 - `craft-ts/require-effect-adapters`: requires the Effect-aware adapters — `queryEffect`, `mutationEffect`, `asyncProcessEffect`, and `transitionGuardEffect` — instead of the plain primitives and `transitionGuard` in an Effect application. See [Choose the right adapter](/guide/advanced/effect#choose-the-right-adapter)
 - `craft-ts/craft-signal-source-name-match`: requires `signalSource(name, ...)` to take a string literal matching the variable, class property or object property it is assigned to, so the name in a trace is the name in the source. A computed name defeats the [architecture graph](/guide/testing/architecture), which reads these names statically
 - `craft-ts/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
@@ -456,7 +462,9 @@ extracted factories, `h('tag')`), not only `craftComponent` argument 3.
 - `valid-aria`, `role-has-required-aria`, `target-blank-noopener`
 - `prefer-relative-heading`, `require-route-heading-outline`,
   `require-outlet-heading-section`, `no-heading-level-skip`
-- `require-focus-visible`, `require-reduced-motion` (CSS of `craftComponent`)
+- `require-focus-visible`, `require-reduced-motion` (CSS of `craftComponent`) —
+  superseded by the `craft.base` layer of [`@craft-ts/style`](/guide/style/foundation),
+  which lays both once for the document; they are no longer in `recommended`
 
 See [Accessibility](/guide/components/accessibility).
 
@@ -713,13 +721,39 @@ On an existing codebase, enable them in waves rather than all at once:
    `require-yieldable-template-method`, `require-yieldable-insertion-write`.
    These ask for real refactors.
 
-The four style rules — `no-raw-class`, `no-raw-css-value`, `no-free-has`,
-`style-file-boundary` — are in `craftRules.configs.recommended` at `'error'`,
-and they are **gated on the import**: they fire only in files that import
-`@craft-ts/style`. A component you have not migrated is not claiming the
-guarantee, so nothing reports it. The day a file starts using the design system
-is the day it starts being held to it — which is why enabling them on an
-unmigrated codebase costs nothing.
+The design system is the only way to style a component. The style rules —
+`no-raw-class`, `no-inline-style`, `no-component-css`, `no-raw-css-value`,
+`no-free-has`, `style-file-boundary` — are in `craftRules.configs.recommended`
+at `'error'`, in **every** file: none of them waits for a file to import
+`@craft-ts/style`.
+
+To migrate a project in steps, turn the three binding rules off in **its own**
+ESLint config, with a `TODO` comment the migration removes, and keep
+the rules that read the legacy component CSS on in the meantime:
+
+```js
+{
+  // TODO: remove once this project is migrated to @craft-ts/style.
+  files: ['**/src/**/*.ts'],
+  rules: {
+    ...craftRules.configs.legacyComponentCss.rules,
+    'craft-ts/no-raw-class': 'off',
+    'craft-ts/no-inline-style': 'off',
+    'craft-ts/no-component-css': 'off',
+  },
+},
+```
+
+`legacyComponentCss` groups the rules that read a component's CSS text —
+`craft-css-vars-contract`, `craft-styles-scope-safe`, `craft-css-var-naming`,
+`craft-css-token-registry`, `no-hardcoded-design-values`,
+`no-important-in-component-styles`, `require-focus-visible`,
+`require-reduced-motion`. They left `recommended` because `no-component-css`
+leaves them nothing to read.
+
+A genuine bypass — a third-party widget that ships its own CSS, HTML rendered
+from markdown — stays possible, one line at a time, with a reason:
+`// eslint-disable-next-line craft-ts/no-component-css -- vendor date picker ships its stylesheet`.
 
 The two migration rules also expose a VS Code quick fix that inserts a temporary
 local disable comment with the intended migration note, so you can unblock a

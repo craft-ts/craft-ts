@@ -1,5 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import styles from './query.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -23,6 +21,7 @@ import {
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
+import { example } from '../../shared/example.style';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', providedIn: 'global' },
@@ -80,33 +79,28 @@ const CraftGlobalQuery = craftComponent(
   'CraftGlobalQuery',
   {
     providers: [provideCraftGlobalQueryView()],
-    stylesUrl: styles,
-    cssVars: {
-      '--query-ink': '#172033',
-      '--query-muted': '#64748b',
-      '--query-border': '#dce4ef',
-      '--query-accent': '#2563eb',
-      '--query-accent-dark': '#1d4ed8',
-    },
   },
   function* (inputs: { readonly userId: Input<string> }) {
     const { user, hasUser, userValueJson, navigate } =
       yield* CraftGlobalQueryView(inputs);
-    return div({ class: 'query-shell' }, [
-      heading('User query'),
-      div({ class: 'query-result' }, [
+    return div({ class: example.card }, [
+      heading({ class: example.title }, 'User query'),
+      div({ class: example.result }, [
         'User ',
         StatusComponent({ status: user.status }),
-        ifNode(hasUser, () => pre('QueryValue', {}, userValueJson)),
+        ifNode(hasUser, () =>
+          pre('QueryValue', { class: example.code }, userValueJson),
+        ),
       ]),
       p(
-        { class: 'query-note' },
+        { class: example.note },
         'Reload the page to retrieve the query result from the cache.',
       ),
-      div({ class: 'query-actions' }, [
+      div({ class: example.actions, 'data-testid': 'query-actions' }, [
         button(
           'GoToPreviousUser',
           {
+            class: example.button,
             type: 'button',
             *click() {
               navigate(-1);
@@ -117,6 +111,8 @@ const CraftGlobalQuery = craftComponent(
         button(
           'GoToNextUser',
           {
+            class: example.button,
+            'data-exampleButton': 'primary',
             type: 'button',
             *click() {
               navigate(1);

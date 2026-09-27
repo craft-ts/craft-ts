@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { craftUse } from './craft-use';
 import { craftService } from './craft-service';
 import {
-  craftToken,
   getCurrentCraftInjector,
   type CraftInjector,
 } from './host/craft-injector';
@@ -38,7 +37,7 @@ describe('setupCraftServiceTest without TestBed', () => {
   });
 
   it('creates a native CraftInjector from Craft providers', () => {
-    const Answer = craftToken<number>('Answer');
+    const Answer = { debugName: 'Answer' };
 
     const { injector } = setupCraftServiceTest({
       providers: [{ token: Answer, useValue: 42 }],

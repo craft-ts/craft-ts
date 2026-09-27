@@ -89,6 +89,42 @@ yield* counter.isOdd(); // true
 Each function receives the same context and contributes its own slice. See
 [Insertions](/guide/concepts/insertions).
 
+## Keep transitions with their state
+
+Pass an intent to the state that owns a value. Do not read the value in a
+caller, calculate a replacement there, and pass the replacement back through
+a generic method such as `replace` or `update`.
+
+```typescript
+const todos = yield* state('todos', initialTodos, ({ update }) => ({
+  move: (todoId: string, direction: 'up' | 'down') => update((current) => {
+    const from = current.findIndex((todo) => todo.id === todoId);
+    const to = from + (direction === 'up' ? -1 : 1);
+    if (from < 0 || to < 0 || to >= current.length) return current;
+    const next = [...current];
+    const [todo] = next.splice(from, 1);
+    if (!todo) return current;
+    next.splice(to, 0, todo);
+    return next;
+  }),
+}));
+
+// The caller supplies only the intent.
+yield* todos.move(todoId, 'up');
+```
+
+The recommended and Effect ESLint presets enable
+`craft-ts/no-external-state-transition`. It flags calls such as
+`todos.replace(nextTodos)` or `todos.update(transition)` outside the state
+insertion. Named state commands remain available to callers; simple values
+such as an input's `setValue(value)` are allowed. Prefer not to expose generic
+whole-state mutators from domain states.
+
+The rule checks generic mutator method names on values created by Craft's
+`state(...)` primitive. It does not infer whether an arbitrarily named method
+such as `replaceTodos(nextTodos)` is a generic replacement; the state interface
+should make its command semantics clear.
+
 ## Driving it from events
 
 Bind a method to a [`source$`](/guide/reactivity/source) with

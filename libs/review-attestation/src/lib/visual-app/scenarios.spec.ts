@@ -149,4 +149,20 @@ describe('application capture contract', () => {
       matchesVisualHttpRequest(endpoint, { ...request, method: 'GET' }),
     ).toBe(false);
   });
+  it('matches wildcards in query values after URL encoding', () => {
+    expect(
+      matchesVisualHttpRequest(
+        {
+          method: 'GET',
+          url: '/api/template-detail?subject=*',
+          mode: 'unused',
+          reason: 'unused',
+        },
+        {
+          method: 'GET',
+          url: '/api/template-detail?subject=template%3Acomponent%3AProfile',
+        },
+      ),
+    ).toBe(true);
+  });
 });

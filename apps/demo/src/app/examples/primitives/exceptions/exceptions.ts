@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   catchTag,
@@ -19,6 +18,7 @@ import {
   query,
   craftComputed,
 } from '@craft-ts/core';
+import { example } from '../../shared/example.style';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 export const { ExceptionsView, provideExceptionsView } = craftService(
@@ -89,103 +89,43 @@ const ExceptionsComponent = craftComponent(
   'ExceptionsComponent',
   {
     providers: [provideExceptionsView()],
-    styles: `
-      :scope {
-        display: block;
-        max-width: 760px;
-        margin: 2rem auto;
-        padding: 1.5rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        color: #1e293b;
-        background: #f8fafc;
-      }
-      :scope h3 { margin: 0 0 1rem; color: #0f172a; }
-      :scope .exception-actions {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-      }
-      :scope .exception-actions button {
-        padding: 0.5rem 1rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        color: #334155;
-        background: #fff;
-        cursor: pointer;
-      }
-      :scope .exception-actions button:hover { background: #f1f5f9; }
-      :scope .exception-loading {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        min-height: 1.25rem;
-        margin: 0 0 1rem;
-        color: #475569;
-        font-size: 0.875rem;
-      }
-      :scope .exception-spinner {
-        width: 0.8rem;
-        height: 0.8rem;
-        border: 2px solid #cbd5e1;
-        border-top-color: #2563eb;
-        border-radius: 50%;
-        animation: ExceptionsComponent-exception-spin 0.7s linear infinite;
-      }
-      @keyframes ExceptionsComponent-exception-spin { to { transform: rotate(360deg); } }
-      @media (prefers-reduced-motion: reduce) {
-        :scope .exception-spinner { animation: none; }
-      }
-      :scope p { margin: 0.5rem 0; }
-    
-      button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid currentColor;outline-offset:2px}
-    `,
   },
   function* () {
     const { userQuery } = yield* ExceptionsView();
 
-    return div([
-      heading([
+    return div({ class: example.card }, [
+      heading({ class: example.title }, [
         'Query user with business exceptions (',
         userQuery.userStatusLabel,
         ')',
       ]),
-      div({ class: 'exception-actions' }, [
-        button(
-          'success',
-          {
-            type: 'button',
+      div({ class: example.row }, [
+        button('success',
+          { class: example.button, type: 'button',
             *click() {
               yield* userQuery.call('success');
             },
           },
           'Success',
         ),
-        button(
-          'notFound',
-          {
-            type: 'button',
+        button('notFound',
+          { class: example.button, type: 'button',
             *click() {
               yield* userQuery.call('not-found');
             },
           },
           'User not found',
         ),
-        button(
-          'consentMissing',
-          {
-            type: 'button',
+        button('consentMissing',
+          { class: example.button, type: 'button',
             *click() {
               yield* userQuery.call('consent-missing');
             },
           },
           'Consent missing',
         ),
-        button(
-          'forbidden',
-          {
-            type: 'button',
+        button('forbidden',
+          { class: example.button, type: 'button',
             *click() {
               yield* userQuery.call('forbidden');
             },
@@ -193,18 +133,20 @@ const ExceptionsComponent = craftComponent(
           'Access forbidden',
         ),
       ]),
-      ifNode(userQuery.userIsLoading, () =>
-        div(
-          {
-            class: 'exception-loading',
-            role: 'status',
-            'aria-live': 'polite',
-          },
-          [
-            span({ class: 'exception-spinner', 'aria-hidden': 'true' }),
-            span('Loading user…'),
-          ],
-        ),
+      ifNode(
+        userQuery.userIsLoading,
+        () =>
+          div(
+            {
+              class: example.row,
+              role: 'status',
+              'aria-live': 'polite',
+            },
+            [
+              span({ class: example.spinner, 'aria-hidden': 'true' }),
+              span('Loading user…'),
+            ],
+          ),
       ),
       ifNode(
         userQuery.hasUser,

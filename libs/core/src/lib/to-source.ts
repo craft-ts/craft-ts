@@ -106,22 +106,20 @@ import { SourceBranded } from './util/util';
  *   // Convert signal to source
  *   userIdSource = toSource(this.userIdSignal);
  *
- *   // Use source in query
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftQuery('user', () =>
- *       query({
+ *   // Use the source in a named service
+ *   const { UserQuery } = craftService(
+ *     { name: 'UserQuery', providedIn: 'global' },
+ *     function* () {
+ *       return yield* query('user', {
  *         method: afterRecomputation(this.userIdSource, (id) => id),
  *         loader: async ({ params }) => {
  *           if (!params) return null;
  *           const response = await fetch(`/api/users/${params}`);
  *           return response.json();
  *         },
- *       })
- *     )
+ *       });
+ *     },
  *   );
- *
- *   store = this.injectCraft();
  *
  *   // Query automatically updates when route changes
  * }
@@ -223,21 +221,19 @@ import { SourceBranded } from './util/util';
  *   // Convert signal to source
  *   searchSource = toSource(this.searchSignal);
  *
- *   // Use in store
- *   { injectCraft } = craft(
- *     { name: '', providedIn: 'root' },
- *     craftQuery('results', () =>
- *       query({
+ *   // Use in a named service
+ *   const { SearchQuery } = craftService(
+ *     { name: 'SearchQuery', providedIn: 'global' },
+ *     function* () {
+ *       return yield* query('results', {
  *         method: afterRecomputation(this.searchSource, (term) => term),
  *         loader: async ({ params }) => {
  *           const response = await fetch(`/api/search?q=${params}`);
  *           return response.json();
  *         },
- *       })
- *     )
+ *       });
+ *     },
  *   );
- *
- *   store = this.injectCraft();
  * }
  * ```
  *

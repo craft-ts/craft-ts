@@ -146,7 +146,7 @@ export const { injectUserService } = craftService(/* … */, function* () {
 ```
 
 - `summary` and `tags` come from the JSDoc of the declaration, or of the
-  statement around it (`export const x = craftQuery(…)`).
+  statement around it (`export const x = query(…)`).
 - `rationale` collects the `// WHY:`, `// NOTE:` and `// HACK:` comments, each
   credited to the innermost node that contains it: the comment above `user`
   belongs to the query, not to the service.

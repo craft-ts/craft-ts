@@ -1,6 +1,7 @@
 import { bootstrapCraft } from '@craft-ts/component';
 import { appConfig } from './app/app.config';
-import './styles.css';
+// The whole stylesheet, emitted from the *.style.ts sheets and craft-ts' own.
+import 'virtual:craft-style.css';
 
 bootstrapCraft({
   config: appConfig,

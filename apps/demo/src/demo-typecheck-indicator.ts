@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { typecheckIndicator } from './demo-typecheck-indicator.style';
 
 /* eslint-disable craft-ts/prefer-browser-boundaries, craft-ts/prefer-craft-http-transport, craft-ts/no-async-await -- Dev-server bootstrap adapter, intentionally outside the Craft component tree. */
 /*
@@ -12,12 +13,12 @@ export function startDemoTypecheckIndicator(): void {
   const message = document.createElement('span');
   const dismiss = document.createElement('button');
 
-  indicator.className = 'demo-typecheck-indicator';
+  indicator.className = typecheckIndicator.root;
   indicator.setAttribute('role', 'status');
   indicator.setAttribute('aria-live', 'polite');
   message.textContent = 'Type checking in progress…';
   dismiss.type = 'button';
-  dismiss.className = 'demo-typecheck-indicator__dismiss';
+  dismiss.className = typecheckIndicator.dismiss;
   dismiss.setAttribute('aria-label', 'Dismiss type-check warning');
   dismiss.title = 'Dismiss';
   dismiss.textContent = '×';
@@ -47,7 +48,7 @@ export function startDemoTypecheckIndicator(): void {
         message.textContent = 'Type checking passed';
       } else if (payload.status === 'failed') {
         indicator.hidden = false;
-        indicator.dataset['status'] = 'failed';
+        indicator.dataset['typecheck'] = 'failed';
         message.textContent = 'Type checking failed — app is still running';
         dismiss.hidden = false;
       } else {

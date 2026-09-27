@@ -17,6 +17,7 @@ import {
   deepYieldable,
   state,
 } from '@craft-ts/core';
+import { componentUi } from './component-demos.style';
 
 interface DemoUser {
   readonly id: number;
@@ -47,7 +48,7 @@ const userCard = craftComponent(
     const { user, onRemove } = yield* UserCardView(inputs);
     return div(
       {
-        class: 'component-demo__user',
+        class: componentUi.user,
         'data-user-id': user.id,
       },
       [
@@ -56,7 +57,7 @@ const userCard = craftComponent(
           'removeUser',
           {
             type: 'button',
-            class: 'component-demo__remove',
+            class: componentUi.button,
             *click() {
               onRemove(yield* user());
             },
@@ -108,11 +109,11 @@ export const componentDemo = craftComponent(
   'componentDemo',
   {
     providers: [provideComponentDemoView()],
-    host: { class: 'component-demo-host' },
+    host: { class: componentUi.host },
   },
   function* () {
     const users = yield* ComponentDemoView();
-    return section({ class: 'component-demo' }, [
+    return section({ class: componentUi.page }, [
       heading('Functional SFC components'),
       p(
         'Runtime rendering, inline signals, keyed list, and a selectorless child.',
@@ -121,19 +122,20 @@ export const componentDemo = craftComponent(
         'addUser',
         {
           type: 'button',
-          class: 'component-demo__add',
+          class: componentUi.button,
+          'data-componentButton': 'primary',
           click: users.addUser,
           'data-testid': 'add-user',
         },
         'Add a user',
       ),
       div(
-        { class: 'component-demo__list' },
+        { class: componentUi.list },
         forNode(
           users.items,
           {
             track: (user) => user.id,
-            empty: () => p({ class: 'component-demo__empty' }, 'No users'),
+            empty: () => p({ class: componentUi.error }, 'No users'),
           },
           (user) =>
             userCard({
@@ -154,14 +156,15 @@ export const componentDemo = craftComponent(
               'loadDeferred',
               {
                 type: 'button',
-                class: 'component-demo__defer-trigger',
+                class: componentUi.button,
+                'data-componentButton': 'primary',
                 'data-testid': 'load-deferred',
               },
               'Load the deferred component',
             ),
           loading: () => p('Loading…'),
           error: () =>
-            p({ class: 'component-demo__error' }, 'The load failed.'),
+            p({ class: componentUi.error }, 'The load failed.'),
         },
       ),
     ]);

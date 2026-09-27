@@ -195,6 +195,80 @@ export const interaction = {
     kind: 'selfState',
     state: 'hover',
   }) as AxisPoint<'interaction.hover', 'active'>,
+  /**
+   * `:focus` on the element itself — for what must *appear* on focus (a skip
+   * link), not for the focus ring: the ring is the foundation's, on every
+   * `:focus-visible`, and a component does not redraw it.
+   */
+  focus: axisPoint('interaction.focus', 'active', '&:focus', {
+    kind: 'selfState',
+    state: 'focus',
+  }) as AxisPoint<'interaction.focus', 'active'>,
+  /** `:active` — pressed. Reached by holding a real pointer down. */
+  active: axisPoint('interaction.active', 'active', '&:active', {
+    kind: 'selfState',
+    state: 'active',
+  }) as AxisPoint<'interaction.active', 'active'>,
+  /**
+   * `:disabled` — a form control that cannot be used. Reached by setting the
+   * attribute, which is exactly what produces the pseudo-class.
+   */
+  disabled: axisPoint('interaction.disabled', 'active', '&:disabled', {
+    kind: 'setAttribute',
+    name: 'disabled',
+    value: '',
+  }) as AxisPoint<'interaction.disabled', 'active'>,
+} as const;
+
+// ─── current item ────────────────────────────────────────────────────────────
+
+/**
+ * `aria-current`, as an axis — the one attribute a sheet may read that it did
+ * not define itself.
+ *
+ * The router sets `aria-current="page"` on the link to the active route; a
+ * `data-*` state axis would have to be set a second time by hand, and the two
+ * would drift. Reading the ARIA attribute keeps one source of truth, and it is
+ * the attribute assistive technology announces, so the highlighted link is the
+ * announced one by construction.
+ */
+export const ariaCurrent = {
+  page: axisPoint('ariaCurrent', 'page', "&[aria-current='page']", {
+    kind: 'setAttribute',
+    name: 'aria-current',
+    value: 'page',
+  }) as AxisPoint<'ariaCurrent', 'page'>,
+  /** `aria-current="true"` — the current item of a list that is not a page. */
+  true: axisPoint('ariaCurrent', 'true', "&[aria-current='true']", {
+    kind: 'setAttribute',
+    name: 'aria-current',
+    value: 'true',
+  }) as AxisPoint<'ariaCurrent', 'true'>,
+} as const;
+
+/**
+ * `aria-pressed="true"` — a toggle button that is on. Same reasoning as
+ * `ariaCurrent`: the attribute a screen reader announces is the one the sheet
+ * reads, so the pressed look and the pressed state cannot disagree.
+ */
+export const ariaPressed = {
+  pressed: axisPoint('ariaPressed', 'pressed', "&[aria-pressed='true']", {
+    kind: 'setAttribute',
+    name: 'aria-pressed',
+    value: 'true',
+  }) as AxisPoint<'ariaPressed', 'pressed'>,
+} as const;
+
+/**
+ * `aria-invalid="true"` — a field whose value was refused. Same reasoning as
+ * `ariaCurrent`: the error look follows the state a screen reader announces.
+ */
+export const ariaInvalid = {
+  true: axisPoint('ariaInvalid', 'true', "&[aria-invalid='true']", {
+    kind: 'setAttribute',
+    name: 'aria-invalid',
+    value: 'true',
+  }) as AxisPoint<'ariaInvalid', 'true'>,
 } as const;
 
 /** Every standard point, for the specs that assert each one has a driver. */
@@ -208,4 +282,7 @@ export const STANDARD_AXES = [
   ...Object.values(scrollState.scrollable),
   ...Object.values(descendant),
   ...Object.values(interaction),
+  ...Object.values(ariaCurrent),
+  ...Object.values(ariaPressed),
+  ...Object.values(ariaInvalid),
 ] as const;

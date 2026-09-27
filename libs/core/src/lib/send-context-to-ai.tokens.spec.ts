@@ -3,6 +3,10 @@ import {
   createSendContextSession,
   defaultSendContextRedactor,
 } from './send-context-to-ai.tokens';
+import { createSendContextToAiBuffer } from './send-context-to-ai';
+import { craftUse } from './craft-use';
+import { setupCraftServiceTest } from './setup-craft-service-test';
+import { AppSnapshotRegistry } from './take-app-snapshot';
 
 describe('send context session', () => {
   it('keeps an ordered circular timeline and marks evicted clips', () => {
@@ -67,5 +71,17 @@ describe('send context session', () => {
     ).toEqual({
       nested: { password: '[REDACTED]', ok: 1 },
     });
+  });
+
+  it('reads the current app snapshot when the AI payload asks for it', () => {
+    const { injector } = setupCraftServiceTest();
+    const registry = injector.run(() => craftUse(AppSnapshotRegistry()));
+    const buffer = createSendContextToAiBuffer(registry);
+    registry.registerSnapshotReader('state', ['component:root'], () => 1);
+
+    expect(buffer.snapshot()).toEqual([
+      { source: 'state', from: ['component:root'], state: 1 },
+    ]);
+    injector.destroy();
   });
 });

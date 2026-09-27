@@ -12,9 +12,6 @@
   "exclude": ["**/*.spec.ts", "**/*.test.ts"],
   "references": [
     {
-      "path": "../component/tsconfig.lib.json"
-    },
-    {
       "path": "../core/tsconfig.lib.json"
     },
     {

@@ -26,7 +26,10 @@ export type RenderMetadata = Readonly<{
 
 const DEVELOPMENT_ASSETS: RenderAssets = {
   scriptSrc: '/src/main.ts',
-  styleHref: '/src/styles.css',
+  // The emitted stylesheet, served as CSS (`?direct`) rather than as the JS
+  // module `main.ts` imports, so the server-rendered HTML is styled before any
+  // script runs. `\0` is how Vite spells a virtual module id in a URL.
+  styleHref: '/@id/__x00__virtual:craft-style.css?direct',
 };
 
 

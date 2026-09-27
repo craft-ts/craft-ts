@@ -2,6 +2,7 @@
 
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import { resolve } from 'node:path';
 import {
   listAngularProjects,
   runRouteAdd,
@@ -35,6 +36,14 @@ import { runAgentSync } from '../scripts/create/sync-agents.js';
 import { runSecurityCheck } from '../scripts/security-check.js';
 import { runFormAdd } from '../scripts/forms/form-command.js';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import {
+  organizeProject,
+  type OrganizerConfig,
+} from '../scripts/folder-layout.js';
+import {
+  applyFolderLayoutProposal,
+} from '../scripts/apply-folder-layout.js';
 
 type CommonOptions = {
   rootDir?: string;
@@ -66,6 +75,10 @@ async function main(argv: string[]): Promise<number> {
       child.on('exit', (code) => resolve(code ?? 1));
       child.on('error', () => resolve(1));
     });
+  }
+  if (argv[0] === 'organize') {
+    if (argv[1] === 'apply') return runOrganizeApply(argv.slice(2));
+    return runOrganize(argv.slice(1));
   }
   if (argv[0] === 'security' && argv[1] === 'check') {
     const rootIndex = argv.indexOf('--root');
@@ -209,6 +222,105 @@ async function main(argv: string[]): Promise<number> {
   }
 }
 
+function runOrganize(argv: string[]): number {
+  let project = 'tsconfig.graph.json';
+  let graph = 'craft-dependency-graph.json';
+  let out = 'folder-layout';
+  let rootDir = process.cwd();
+  let targetRoot: string | undefined;
+  let configPath: string | undefined;
+  let json = false;
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--project' || argument === '--tsconfig')
+      project = argv[++index] ?? project;
+    else if (argument === '--graph') graph = argv[++index] ?? graph;
+    else if (argument === '--out') out = argv[++index] ?? out;
+    else if (argument === '--root') rootDir = argv[++index] ?? rootDir;
+    else if (argument === '--target-root') targetRoot = argv[++index];
+    else if (argument === '--config') configPath = argv[++index];
+    else if (argument === '--json') json = true;
+    else if (argument === '--help' || argument === '-h') {
+      console.log(
+        'Usage: craft organize --project <tsconfig> --graph <graph.json> [--config <organizer.json>] [--out <directory>] [--target-root <directory>] [--root <directory>] [--json]',
+      );
+      return 0;
+    } else throw new Error(`craft organize: unknown argument ${argument}`);
+  }
+  let config: OrganizerConfig = {};
+  if (configPath) {
+    const absoluteConfigPath = resolve(rootDir, configPath);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(absoluteConfigPath, 'utf8')) as unknown;
+    } catch (error) {
+      throw new Error(
+        `craft organize: cannot read config ${absoluteConfigPath}: ${String(error)}`,
+      );
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+      throw new Error(
+        `craft organize: config ${absoluteConfigPath} must contain a JSON object.`,
+      );
+    const rawConfig = parsed as Record<string, unknown>;
+    const unknownKeys = Object.keys(rawConfig).filter(
+      (key) => !['weights', 'thresholds', 'placementRules'].includes(key),
+    );
+    if (unknownKeys.length > 0)
+      throw new Error(
+        `craft organize: unknown config key(s): ${unknownKeys.join(', ')}.`,
+      );
+    config = rawConfig as OrganizerConfig;
+  }
+  const result = organizeProject({
+    ...config,
+    rootDir,
+    project,
+    graph,
+    out,
+    ...(targetRoot ? { targetRoot } : {}),
+  });
+  if (json) console.log(JSON.stringify(result.proposal, null, 2));
+  else {
+    const deletionCount = result.proposal.placements.filter(
+      (placement) => placement.action === 'delete',
+    ).length;
+    console.log(
+      `Craft folder layout written to ${result.outputDir} (${result.proposal.statistics.moves} move(s), ${deletionCount} proposed deletion(s), ${result.proposal.statistics.reviews} review(s)).`,
+    );
+  }
+  return 0;
+}
+
+function runOrganizeApply(argv: string[]): number {
+  let proposalPath: string | undefined;
+  let project = 'tsconfig.graph.json';
+  let rootDir = process.cwd();
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--proposal') proposalPath = argv[++index];
+    else if (argument === '--project' || argument === '--tsconfig')
+      project = argv[++index] ?? project;
+    else if (argument === '--root') rootDir = argv[++index] ?? rootDir;
+    else if (argument === '--help' || argument === '-h') {
+      console.log(
+        'Usage: craft organize apply --proposal <folder-layout-proposal.json> --project <tsconfig> [--root <directory>]',
+      );
+      return 0;
+    } else throw new Error(`craft organize apply: unknown argument ${argument}`);
+  }
+  if (!proposalPath)
+    throw new Error('craft organize apply: --proposal is required.');
+  const proposal = JSON.parse(
+    readFileSync(resolve(rootDir, proposalPath), 'utf8'),
+  ) as import('../scripts/folder-layout.js').FolderLayoutProposal;
+  const plan = applyFolderLayoutProposal({ rootDir, project, proposal });
+  console.log(
+    `Applied folder layout with Git (${plan.moves} move(s), ${plan.deletions} deletion(s), ${plan.manualReviews} manual review(s) left unchanged).`,
+  );
+  return 0;
+}
+
 async function runForm(argv: string[]): Promise<number> {
   let name: string | undefined;
   let rootDir: string | undefined;
@@ -309,7 +421,6 @@ type CreateArgs = {
   defaultLocale?: string;
   i18n?: 'strict' | 'loose' | 'none';
   designSystem?: 'basic' | 'none';
-  typedCss?: boolean;
   attest?: boolean;
   attestationMode?: CreateAttestationMode | 'none';
   viewports?: string;
@@ -424,7 +535,6 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       argument === '--no-effect' ||
       argument === '--no-i18n' ||
       argument === '--no-design-system' ||
-      argument === '--no-typed-css' ||
       argument === '--no-attest' ||
       argument === '--no-template-obligations' ||
       argument === '--no-visual-tests' ||
@@ -436,7 +546,6 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       else if (argument === '--no-i18n') setValue('i18n', 'none');
       else if (argument === '--no-design-system')
         setValue('design-system', 'none');
-      else if (argument === '--no-typed-css') result.typedCss = false;
       else if (argument === '--no-attest') result.attest = false;
       else if (argument === '--no-template-obligations')
         result.templateObligations = false;
@@ -469,8 +578,16 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       setValue(name, parts.join('='));
       continue;
     }
+    // @craft-ts/style is the only way to style a component: there is no
+    // plain-CSS starter left to opt into. `--typed-css` asked for what every
+    // project now gets and is accepted as a no-op; opting out is an error.
+    if (argument === '--typed-css') continue;
+    if (argument === '--no-typed-css') {
+      throw new Error(
+        '--no-typed-css is no longer supported: @craft-ts/style is the only way to style a component in a CraftTS project.',
+      );
+    }
     if (
-      argument === '--typed-css' ||
       argument === '--attest' ||
       argument === '--template-obligations' ||
       argument === '--visual-tests' ||
@@ -478,8 +595,7 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       argument === '--clone-effect-ts' ||
       argument === '--demos'
     ) {
-      if (argument === '--typed-css') result.typedCss = true;
-      else if (argument === '--attest') result.attest = true;
+      if (argument === '--attest') result.attest = true;
       else if (argument === '--template-obligations')
         result.templateObligations = true;
       else if (argument === '--visual-tests') result.visualTests = true;
@@ -769,16 +885,6 @@ async function runCreate(argv: string[]): Promise<number> {
             'basic',
           )
         : 'basic');
-    const typedCss =
-      parsed.typedCss ??
-      (interactive
-        ? (await selectCreateOption(
-            readline,
-            CREATE_BOOLEAN_OPTIONS,
-            'Enable typed CSS? (↑/↓ move, Enter confirm):',
-            'yes',
-          )) === 'yes'
-        : true);
     const workspace =
       parsed.workspace ??
       (interactive
@@ -905,7 +1011,6 @@ async function runCreate(argv: string[]): Promise<number> {
       defaultLocale,
       i18n,
       designSystem,
-      typedCss,
       attest,
       attestation,
       workspace,
@@ -1056,6 +1161,8 @@ function printHelp(): void {
   craft add form <name> [--advanced] [--force]
   craft i18n check|test
   craft graph [options]
+  craft organize --project <tsconfig> --graph <graph.json> [options]
+  craft organize apply --proposal <folder-layout-proposal.json> --project <tsconfig>
   craft agents sync [--agents <list>] [--root <dir>] [--dry-run] [--json]
   craft security check [--strict] [--root <dir>]
   craft route add [path] [options]
@@ -1075,7 +1182,6 @@ Options:
   --no-i18n                    Disable i18n and its files/scripts
   --design-system <basic|none>
   --no-design-system
-  --typed-css / --no-typed-css
   --attest / --no-attest      Generate the opt-in attestation workflow
   --attestation <manual|ai|none>
                               Choose manual or AI-assisted review

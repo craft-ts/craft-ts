@@ -64,7 +64,13 @@ const SAFE_TEMPLATE_CALLS = new Set([
   'safeUrl',
   'safeResourceUrl',
   'safeUrlList',
+  // `style:` writes typed variables through `assign(v.x, value)` from
+  // @craft-ts/style: a presentation call, not a business derivation.
+  'assign',
 ]);
+// `unit.px(...)`, `unit.pct(...)`: the typed value an `assign` writes, built
+// from @craft-ts/style's unit constructors. Presentation, like `assign`.
+const STYLE_VALUE_NAMESPACES = new Set(['unit']);
 
 const { templateRegions } = require('./craft-template-region.cjs');
 
@@ -170,11 +176,33 @@ module.exports = {
     }
 
     function isPresentationCall(node) {
+      // Message catalogs often expose interpolation helpers (for example
+      // `t().queueSummary(count)`). These format already-derived values for
+      // display and do not belong in the business-derivation rule.
+      if (
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.object.type === 'YieldExpression' &&
+        node.callee.object.argument.type === 'CallExpression' &&
+        node.callee.object.argument.callee.type === 'Identifier' &&
+        node.callee.object.argument.callee.name === 't' &&
+        node.callee.object.argument.arguments.length === 0
+      ) {
+        return true;
+      }
       if (node.callee.type === 'Identifier') {
         return (
           PRESENTATION_FUNCTIONS.has(node.callee.name) ||
           SAFE_TEMPLATE_CALLS.has(node.callee.name)
         );
+      }
+      if (
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.object.type === 'Identifier' &&
+        STYLE_VALUE_NAMESPACES.has(node.callee.object.name)
+      ) {
+        return true;
       }
       return (
         node.callee.type === 'MemberExpression' &&

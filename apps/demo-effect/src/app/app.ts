@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Dedicated demo shell styles. */
 import {
   a,
   CraftRouterOutlet,
@@ -15,6 +14,7 @@ import {
   CraftRouterLink,
   type CraftRouterLinkInput,
 } from '@craft-ts/core';
+import { shell } from './effect-demo.style';
 
 const EXAMPLE_LINKS = [
   ['View a profile', { to: '' }],
@@ -37,34 +37,26 @@ export const App = craftComponent(
   'App',
   {
     providers: [provideAppView()],
-    styles: `
-      :scope { display: block; min-height: 100vh; }
-      .app-header { padding: 1.5rem 2rem 0; }
-      .app-header h1 { margin: 0; color: #0f172a; font-size: 1.35rem; }
-      .app-header p { margin: 0.35rem 0 0; color: #64748b; font-size: 0.9rem; }
-      .app-nav { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 1rem 2rem; }
-      .app-nav a { padding: 0.45rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 999px; color: #475569; background: #fff; font-size: 0.85rem; text-decoration: none; }
-      .app-nav a:hover { color: #0f172a; background: #f1f5f9; }
-      .app-nav a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-      .app-content { padding: 0 1rem 2rem; }
-    `,
   },
   function* () {
     yield* AppView();
-    return div([
-      div({ class: 'app-header' }, [
-        heading('Users & access — EffectTS + CraftTS'),
+    return div({ class: shell.root }, [
+      div({ class: shell.header }, [
+        heading({ class: shell.title }, 'Users & access — EffectTS + CraftTS'),
         p(
+          { class: shell.tagline },
           'A small business flow showing where Effect fits into a CraftTS application.',
         ),
       ]),
       nav(
-        { class: 'app-nav', 'aria-label': 'EffectTS examples' },
+        { class: shell.nav, 'aria-label': 'EffectTS examples' },
         EXAMPLE_LINKS.map(([label, link]) =>
-          a('exampleLink', {}, label).pipe(CraftRouterLink(link)),
+          a('exampleLink', { class: shell.navLink }, label).pipe(
+            CraftRouterLink(link),
+          ),
         ),
       ),
-      main({ class: 'app-content' }, headingSection(CraftRouterOutlet())),
+      main({ class: shell.content }, headingSection(CraftRouterOutlet())),
     ]);
   },
 );

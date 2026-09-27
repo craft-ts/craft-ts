@@ -1,10 +1,10 @@
 import {
-  CRAFT_HYDRATION_RUNTIME,
-  CRAFT_PLATFORM,
-  CRAFT_PRIMITIVE_REGISTRY,
-  CRAFT_SECURITY_POLICY,
-  CraftCspNonce,
-  createCraftSecurityPolicy,
+  ɵinjectCraftPrimitiveRegistry,
+  provideCraftHydrationRuntime,
+  provideCraftPlatform,
+  ɵinjectCraftCspNonce,
+  ɵinjectCraftSecurityPolicy,
+  ɵrunInInjectionContext,
   createBrowserDomAdapter,
   createBrowserPlatform,
   createCraftRenderIdentity,
@@ -17,10 +17,10 @@ import {
   ɵcreateCraftApplicationInjector,
   ɵrunCraftAppInitializers,
 } from './bootstrap';
-import { CRAFT_ROOT_COMPONENT } from './craft-host-tokens';
+import { ɵinjectCraftRootComponent } from './craft-host-tokens';
 import {
-  CRAFT_STYLE_REGISTRY,
   createCraftStyleRegistry,
+  ɵinjectCraftStyleRegistry,
   type CraftStyleRegistry,
 } from './render/style-registry';
 import {
@@ -59,8 +59,8 @@ export function hydrateCraft(
   const injector = ɵcreateCraftApplicationInjector(
     options.config,
     [
-      { provide: CRAFT_PLATFORM, useValue: platform },
-      { provide: CRAFT_HYDRATION_RUNTIME, useValue: hydrationRuntime },
+      provideCraftPlatform(platform),
+      provideCraftHydrationRuntime(hydrationRuntime),
     ],
     options.mode,
   );
@@ -71,15 +71,17 @@ export function hydrateCraft(
       options.snapshot ?? readTransferSnapshot(host.ownerDocument);
     if (snapshot) {
       primeCraftTransferSnapshot(
-        injector.get(CRAFT_PRIMITIVE_REGISTRY),
+        ɵrunInInjectionContext(injector, () => ɵinjectCraftPrimitiveRegistry()),
         snapshot,
-        injector.get(CRAFT_SECURITY_POLICY, createCraftSecurityPolicy())
-          .transfer,
+        ɵrunInInjectionContext(injector, () => ɵinjectCraftSecurityPolicy()).transfer,
       );
     }
     ɵrunCraftAppInitializers(injector);
 
-    const root = injector.get(CRAFT_ROOT_COMPONENT) as CraftComponent<object>;
+    const root = ɵrunInInjectionContext(
+      injector,
+      () => ɵinjectCraftRootComponent() as CraftComponent<object> | null,
+    );
     if (!root) {
       throw new Error(
         'hydrateCraft found no root component. Add provideCraftRootComponent(App) to your app config.',
@@ -96,12 +98,10 @@ export function hydrateCraft(
       (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
         ? (rootNode as Document | ShadowRoot)
         : host.ownerDocument;
-    const styles = injector.get(
-      CRAFT_STYLE_REGISTRY,
-      createCraftStyleRegistry({
-        nonce: injector.get(CraftCspNonce, null) ?? undefined,
-      }),
-    ) as CraftStyleRegistry;
+    const styles = ɵrunInInjectionContext(injector, () =>
+      ɵinjectCraftStyleRegistry() ??
+      createCraftStyleRegistry({ nonce: ɵinjectCraftCspNonce() ?? undefined }),
+    );
     mounted = mountInterpretedComponentWithOptions(
       root,
       host,

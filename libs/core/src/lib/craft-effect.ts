@@ -11,7 +11,6 @@ import {
   type EffectCleanupRegisterFn,
   type EffectRef,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import { craftWatch } from './host/craft-signal';
 import type {
@@ -23,7 +22,7 @@ import {
   isGeneratorFunction,
   runCraftGenerator,
 } from './craft-generator-runtime';
-import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { ɵinjectAppSnapshotRegistryIn } from './take-app-snapshot';
 
 type CraftEffectFn = (onCleanup: EffectCleanupRegisterFn) => void;
 
@@ -78,8 +77,7 @@ export function craftEffect(
     | ((this: unknown, onCleanup: EffectCleanupRegisterFn) => void)
     | CraftEffectGenerator<unknown, unknown>;
   const options = (hasHost ? maybeOptions : fnOrOptions) as
-    | CreateEffectOptions
-    | undefined;
+    CreateEffectOptions | undefined;
 
   assertInInjectionContext(craftEffect);
   const parentInjector = inject(Injector);
@@ -162,17 +160,16 @@ export function craftEffect(
     ownerDestroyRef.onDestroy(() => ref.destroy());
   }
 
-  const registry = ownerInjector.get(APP_SNAPSHOT_REGISTRY, null);
+  const registry = ɵinjectAppSnapshotRegistryIn(ownerInjector);
   if (registry) {
     const from = effectInjector.get(ɵHOST_TAG_LIST, null) ?? [];
-    registry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(ownerDestroyRef))
-      .subscribe(() => {
-        registry.allActiveEffects$.next({
-          source: `effect:${name}`,
-          from,
-        });
-      });
+    registry.registerActiveEffectReader(
+      () => ({
+        source: `effect:${name}`,
+        from,
+      }),
+      ownerDestroyRef,
+    );
   }
 
   return ref;

@@ -1,6 +1,5 @@
 import {
   DestroyRef,
-  InjectionToken,
   type Injector,
   type Provider,
 } from './host/craft-compat';
@@ -30,24 +29,14 @@ export type CraftTargetWrapper = (
   ) => Generator<unknown, CraftTargetRelease, unknown>,
 ) => Generator<unknown, CraftTargetRelease, unknown>;
 
-export const CRAFT_TARGET_WRAPPER = new InjectionToken<
-  readonly CraftTargetWrapper[]
->('CRAFT_TARGET_WRAPPER', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+export const CRAFT_TARGET_WRAPPER = Object.freeze({});
 
 /** Adds a wrapper around the lifecycle registration of Craft targets. */
 export function provideCraftTargetWrapper(
   _warning: string,
   wrapper: CraftTargetWrapper,
 ): Provider {
-  return {
-    provide: CRAFT_TARGET_WRAPPER,
-    useValue: wrapper,
-    multi: true,
-  };
+  return { provide: CRAFT_TARGET_WRAPPER, useValue: wrapper, multi: true };
 }
 
 const EMPTY_RELEASE: CraftTargetRelease = () => undefined;
@@ -60,7 +49,10 @@ export function ɵrunCraftTargetWrappers(
   context: CraftTargetContext,
   autoCleanup: boolean,
 ): CraftTargetRelease {
-  const wrappers = injector.get(CRAFT_TARGET_WRAPPER, []);
+  const wrappers = injector.get(
+    CRAFT_TARGET_WRAPPER as never,
+    [] as readonly CraftTargetWrapper[],
+  );
   let next: CraftTargetWrapperRunner = function* () {
     return EMPTY_RELEASE;
   };

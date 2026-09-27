@@ -1,5 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import styles from './granular-mutation.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -34,6 +32,7 @@ import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
+import { example } from '../../shared/example.style';
 
 export const { GranularMutationView, provideGranularMutationView } =
   craftService(
@@ -117,7 +116,6 @@ const GranularMutation = craftComponent(
   'GranularMutation',
   {
     providers: [provideGranularMutationView()],
-    stylesUrl: styles,
   },
   function* () {
     const {
@@ -127,11 +125,11 @@ const GranularMutation = craftComponent(
       usersQuery,
       isUpdatePending,
     } = yield* GranularMutationView();
-    return div({ class: 'container' }, [
-      main({ class: 'content' }, [
-        div({ class: 'content-wrapper' }, [
-          div({ class: 'card' }, [
-            heading({ class: 'card-title' }, [
+    return div({ class: example.page }, [
+      main([
+        div([
+          div({ class: example.panel }, [
+            heading({ class: example.title }, [
               'User Management: ',
               // `currentPageStatus` is a settled read: it suspends whenever the
               // page on screen has no value of its own. Its own boundary keeps
@@ -143,27 +141,29 @@ const GranularMutation = craftComponent(
                 }),
               ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
             ]),
-            div({ class: 'table-container' }, [
-              table({ class: 'table' }, [
-                thead([tr([th('ID'), th('Name'), th('Action')])]),
+            div([
+              table({ class: example.table }, [
+                thead( [
+                  tr({ class: example.tableRow }, [th({ class: example.th }, 'ID'), th({ class: example.th }, 'Name'), th({ class: example.th }, 'Action')]),
+                ]),
                 tbody(
                   forNode(
                     usersQuery.currentPageData,
                     { track: (user) => user.id },
                     (user) =>
-                      tr([
-                        td(function* () {
+                      tr({ class: example.tableRow }, [
+                        td({ class: example.td }, function* () {
                           return (yield* user()).id;
                         }),
-                        td(function* () {
+                        td({ class: example.td }, function* () {
                           return (yield* user()).name;
                         }),
-                        td(
-                          button(
+                        td({ class: example.td }, button(
                             'UpdateUserName',
-                            {
-                              type: 'button',
-                              class: 'action-btn',
+                            { type: 'button',
+                              class: example.button,
+                              'data-exampleButton': 'subtle',
+                              'data-testid': 'update-user',
                               disabled: function* () {
                                 // `isLoading()` is a reactive read: without
                                 // `yield*` it returns the generator itself,
@@ -192,10 +192,11 @@ const GranularMutation = craftComponent(
                 ),
               ]),
             ]),
-            div({ class: 'pagination' }, [
+            div({ class: example.pagination, 'data-testid': 'pagination' }, [
               select(
                 'PageSize',
                 {
+                  class: example.select,
                   'aria-label': 'Page size',
                   value: function* () {
                     return String((yield* pagination()).pageSize);
@@ -216,19 +217,19 @@ const GranularMutation = craftComponent(
               ),
               button(
                 'PreviousPage',
-                {
-                  type: 'button',
-                  class: 'btn',
-                  click: pagination.previousPage,
-                },
+                { type: 'button', class: example.button, click: pagination.previousPage },
                 'Previous',
               ),
-              span('CurrentPage', { class: 'current-page' }, function* () {
-                return (yield* pagination()).page;
-              }),
+              span(
+                'CurrentPage',
+                { class: example.currentPage, 'data-testid': 'current-page' },
+                function* () {
+                  return (yield* pagination()).page;
+                },
+              ),
               button(
                 'NextPage',
-                { type: 'button', class: 'btn', click: pagination.nextPage },
+                { type: 'button', class: example.button, click: pagination.nextPage },
                 'Next',
               ),
             ]),

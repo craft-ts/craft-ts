@@ -21,7 +21,28 @@ const en = {
   viewAssets: 'Visual assets',
   viewVisual: 'Visual tests',
   viewTemplate: 'Template obligations',
+  viewFolderLayout: 'Folder layout',
   viewReview: 'Review queue',
+  viewBypasses: 'Bypasses',
+  viewBypassesDescription:
+    'Disabled rules and architecture waivers, with their reasons',
+  bypassAllRules: 'All rules',
+  bypassNoReason: 'No reason given',
+  bypassEslintDisable: 'eslint-disable',
+  bypassWaiver: 'Architecture waiver',
+  bypassWaivedTarget: (target: string) => `Waives ${target}`,
+  bypassPreviousReason: (reason: string) =>
+    `Previously accepted reason: ${reason}`,
+  adoptionTitle: 'Design system adoption',
+  adoptionSummary: (adopted: number, styling: number) =>
+    `${adopted} of ${styling} styling components use @craft-ts/style only`,
+  adoptionComposition: (count: number) =>
+    `${count} composition component${count === 1 ? '' : 's'}, with no class of ${count === 1 ? 'its' : 'their'} own, not counted`,
+  adoptionUnavailable:
+    'The code graph could not say how far the design system has reached.',
+  adoptionRemaining: 'Still off the design system',
+  adoptionWaivedBy: (reason: string) => `Waived: ${reason}`,
+  adoptionNotWaived: 'Not waived: the architecture check fails on it',
   viewNavigation: 'Attestation views',
   viewNavigationDescription:
     'Browse evidence, checks, contracts, and decisions.',
@@ -30,10 +51,15 @@ const en = {
   visualDetail: 'Visual evidence',
   openVisualReview: 'Open in review queue',
   viewTemplateDescription: 'Contracts emitted by templates',
+  viewFolderLayoutDescription: 'Before and proposed file trees',
   viewReviewDescription: 'Decisions waiting for review',
   noInventory: 'Nothing to show in this view.',
   extractionDiagnostics: 'Extraction diagnostics',
   currentPromise: 'Current promise',
+  templateEffects: 'Direct effects, in order',
+  templateRenderSource: 'Where the template reads this value',
+  templateElementSource: 'Button in the template',
+  templateMethodSource: 'Craft method',
   templateWhen: (conditions: string) => `When ${conditions}, `,
   templateConditionJoiner: ' and ',
   templateCondition: (
@@ -56,6 +82,39 @@ const en = {
     target: string,
   ) =>
     `${element ?? 'interactive element'}${elementName ? ` '${elementName}'` : ''} in ${component}'s template invokes ${target}.`,
+  templateGroupNoConditions: 'No extra render conditions.',
+  templateGroupLead: (direction: 'render' | 'command') =>
+    direction === 'render'
+      ? 'These obligations describe what the component renders.'
+      : 'These obligations describe what the component commands.',
+  templateProgress: (current: number, total: number) =>
+    `Group ${current} of ${total}`,
+  templateRemaining: (count: number) =>
+    `${count} obligation${count === 1 ? '' : 's'} to review`,
+  templateGroupClear: 'Clear selection',
+  templateGroupSelect: 'Select all pending',
+  templateGroupSelected: (count: number) => `${count} selected`,
+  templateGroupAcceptSelected: (count: number) => `Accept ${count} selected`,
+  templateGroupRejectSelected: (count: number) => `Reject ${count} selected`,
+  templateGroupSelectObligation: 'Select obligation',
+  templateAgentAllowed: 'Agent review allowed',
+  templateHumanRequired: 'Human review required',
+  templateReviewedBy: (name: string, agent: boolean) =>
+    `Reviewed by ${name}${agent ? ' (agent)' : ''}`,
+  templateAgentAccepted: 'Agent: supported by context',
+  templateAgentContradiction: 'Agent: contradicts context',
+  templateAgentNeedsHuman: 'Agent: needs human review',
+  templateGroupEyebrow: 'Template promise group',
+  templatePreviousGroup: 'Previous group',
+  templateNextGroup: 'Next group',
+  templateSelectHuman: 'Select human-only obligations',
+  templateDetails: 'Details',
+  templateAgentBusy: 'The review agent is checking these obligations…',
+  templateAgentFailed: 'The agent review failed. No decisions were saved.',
+  templateGroupReason: 'Reason for rejection',
+  cancel: 'Cancel',
+  templateDelegate: 'Ask the review agent',
+  templateAgentUnavailable: 'No review agent is configured.',
   directionRender: 'Render',
   directionCommand: 'Command',
   stateCurrent: 'Current',
@@ -93,8 +152,7 @@ const en = {
   reasonOutputChanged: 'The output changed since the last accepted evidence.',
   reasonTemplateChanged:
     'The template promise changed since the last accepted evidence.',
-  reasonAssumptionsChanged:
-    'The reductions behind the decision changed.',
+  reasonAssumptionsChanged: 'The reductions behind the decision changed.',
   reasonTemplateRemoved: 'The template no longer produces this promise.',
   reasonLastVerdict: (verdict: string) => `The last verdict was ${verdict}.`,
   rawEnglish: 'English source text',
@@ -141,22 +199,31 @@ const en = {
   queueLabel: 'Review queue',
   reviewComplete: 'Review complete',
   reviewCompleteBody: 'Every decision in this session has been recorded.',
+  queueErrorTitle: 'Review queue unavailable',
   queueFailed:
     'The review queue could not be loaded. Reload the page to retry.',
+  decisionErrorTitle: 'Decision not saved',
   decisionFailed:
     'The decision was not saved. The scenario remains in the queue.',
+  reopenErrorTitle: 'Decision could not be reopened',
   reopenFailed:
     'The accepted decision could not be reopened. The queue was not changed.',
   regenerateEvidence: 'Regenerate all evidence',
   regeneratingEvidence: 'Regenerating evidence…',
+  regenerationErrorTitle: 'Evidence regeneration failed',
   regenerationFailed:
     'Evidence regeneration failed. The existing queue and decisions were preserved.',
   iterationHandoff: 'Prepare Codex iteration',
   iterationHandoffGenerating: 'Preparing Codex handoff…',
+  iterationHandoffErrorTitle: 'Codex handoff unavailable',
   iterationHandoffFailed:
     'The Codex handoff could not be generated. Review comments were not changed.',
+  closeReviewErrorTitle: 'Review could not be closed',
   closeReviewFailed:
     'The review application could not be closed. The prompt is still available here.',
+  evidenceErrorTitle: 'Evidence verification unavailable',
+  evidenceError:
+    'The captured page could not be checked against its digest. Review the screenshot and decide only if you can verify it manually.',
   iterationModalEyebrow: 'Next code iteration',
   iterationModalTitle: 'Prepare the Codex iteration?',
   iterationModalDescription: (rejected: number) =>
@@ -198,11 +265,31 @@ const en = {
     'The unsaved reason on the current card is discarded when regeneration starts.',
   cancelRegeneration: 'Cancel',
   confirmRegeneration: 'Regenerate everything',
+  folderLayoutApplyTitle: 'Apply the approved folder layout?',
+  folderLayoutApplyDescription: (
+    moves: number,
+    deletions: number,
+    reviews: number,
+  ) =>
+    `Git will run ${moves} git mv command${moves === 1 ? '' : 's'} and ${deletions} git rm command${deletions === 1 ? '' : 's'}. It will also update affected TypeScript imports. ${reviews} file${reviews === 1 ? '' : 's'} marked for manual review will stay in place.`,
+  folderLayoutApplyStaged:
+    'Git will stage these renames and deletions so they are easy to review in the diff.',
+  folderLayoutApplyCommand: 'Command to run',
+  folderLayoutApplyCommands: 'Show the generated Git operations',
+  folderLayoutApplyCancel: 'Not now',
+  folderLayoutApplyCopy: 'Copy command',
+  folderLayoutApplyCopied: 'Command copied.',
+  folderLayoutApplyRun: 'Run reorganization',
+  folderLayoutApplyRunning: 'Applying with Git…',
+  folderLayoutApplyFailed:
+    'Git could not apply the proposal. Check the terminal output and resolve the reported conflict.',
   previous: '↑ Previous ',
   next: 'Next ↓ ',
 
   language: 'Language',
   theme: 'Theme',
+  ide: 'Editor',
+  openInIde: 'Open source in editor ↗',
   themeSystem: 'System',
   themeLight: 'Light',
   themeDark: 'Dark',
@@ -336,7 +423,28 @@ const fr: Messages = {
   viewAssets: 'Assets visuels',
   viewVisual: 'Tests visuels',
   viewTemplate: 'Obligations de template',
+  viewFolderLayout: 'Disposition des dossiers',
   viewReview: 'File de revue',
+  viewBypasses: 'Contournements',
+  viewBypassesDescription:
+    'Règles désactivées et dérogations d’architecture, avec leurs raisons',
+  bypassAllRules: 'Toutes les règles',
+  bypassNoReason: 'Aucune raison donnée',
+  bypassEslintDisable: 'eslint-disable',
+  bypassWaiver: 'Dérogation d’architecture',
+  bypassWaivedTarget: (target: string) => `Déroge pour ${target}`,
+  bypassPreviousReason: (reason: string) =>
+    `Raison acceptée précédemment : ${reason}`,
+  adoptionTitle: 'Adoption du design system',
+  adoptionSummary: (adopted: number, styling: number) =>
+    `${adopted} composants sur ${styling} qui stylent n’utilisent que @craft-ts/style`,
+  adoptionComposition: (count: number) =>
+    `${count} composant${count === 1 ? '' : 's'} de composition, sans classe propre, non compté${count === 1 ? '' : 's'}`,
+  adoptionUnavailable:
+    'Le graphe de code n’a pas pu mesurer l’adoption du design system.',
+  adoptionRemaining: 'Encore hors du design system',
+  adoptionWaivedBy: (reason: string) => `Dérogé : ${reason}`,
+  adoptionNotWaived: 'Non dérogé : le contrôle d’architecture échoue dessus',
   viewNavigation: "Vues d'attestation",
   viewNavigationDescription:
     'Parcourez preuves, contrôles, contrats et décisions.',
@@ -345,10 +453,15 @@ const fr: Messages = {
   visualDetail: 'Preuve visuelle',
   openVisualReview: 'Ouvrir dans la file de revue',
   viewTemplateDescription: 'Contrats produits par les templates',
+  viewFolderLayoutDescription: 'Arborescences actuelle et proposée',
   viewReviewDescription: 'Décisions qui attendent une revue',
   noInventory: 'Aucun élément dans cette vue.',
   extractionDiagnostics: "Diagnostics d'extraction",
   currentPromise: 'Promesse courante',
+  templateEffects: 'Effets directs, dans l’ordre',
+  templateRenderSource: 'Où le template lit cette valeur',
+  templateElementSource: 'Bouton dans le template',
+  templateMethodSource: 'Méthode Craft',
   templateWhen: (conditions) => `Lorsque ${conditions}, `,
   templateConditionJoiner: ' et ',
   templateCondition: (name, expectation) =>
@@ -363,6 +476,40 @@ const fr: Messages = {
     `Le template de ${component} affiche ${target}.`,
   templateStatementCommand: (element, elementName, component, target) =>
     `${element ?? 'élément interactif'}${elementName ? ` « ${elementName} »` : ''} dans le template de ${component} appelle ${target}.`,
+  templateGroupNoConditions: 'Aucune condition de rendu supplémentaire.',
+  templateGroupLead: (direction) =>
+    direction === 'render'
+      ? 'Le composant affiche les éléments décrits par ces obligations.'
+      : 'Ces obligations décrivent les actions du composant.',
+  templateProgress: (current, total) => `Groupe ${current} sur ${total}`,
+  templateRemaining: (count) =>
+    `${count} obligation${count === 1 ? '' : 's'} à revoir`,
+  templateGroupClear: 'Effacer la sélection',
+  templateGroupSelect: 'Tout sélectionner',
+  templateGroupSelected: (count) =>
+    `${count} sélectionnée${count === 1 ? '' : 's'}`,
+  templateGroupAcceptSelected: (count) => `Accepter les ${count} sélectionnées`,
+  templateGroupRejectSelected: (count) => `Refuser les ${count} sélectionnées`,
+  templateGroupSelectObligation: 'Sélectionner l’obligation',
+  templateAgentAllowed: 'Revue par agent autorisée',
+  templateHumanRequired: 'Revue humaine requise',
+  templateReviewedBy: (name, agent) =>
+    `Revu par ${name}${agent ? ' (agent)' : ''}`,
+  templateAgentAccepted: 'Agent : conforme au contexte',
+  templateAgentContradiction: 'Agent : contredit le contexte',
+  templateAgentNeedsHuman: 'Agent : à examiner par un humain',
+  templateGroupEyebrow: 'Groupe de promesses du template',
+  templatePreviousGroup: 'Groupe précédent',
+  templateNextGroup: 'Groupe suivant',
+  templateSelectHuman: 'Sélectionner les obligations réservées aux humains',
+  templateDetails: 'Détails',
+  templateAgentBusy: 'L’agent examine ces obligations…',
+  templateAgentFailed:
+    'La revue par agent a échoué. Aucune décision enregistrée.',
+  templateGroupReason: 'Motif du refus',
+  cancel: 'Annuler',
+  templateDelegate: 'Demander à l’agent de revue',
+  templateAgentUnavailable: 'Aucun agent de revue n’est configuré.',
   directionRender: 'Rendu',
   directionCommand: 'Commande',
   stateCurrent: 'Courant',
@@ -403,8 +550,7 @@ const fr: Messages = {
     'La promesse du template a changé depuis la dernière attestation acceptée.',
   reasonAssumptionsChanged:
     'Les réductions sur lesquelles reposait la décision ont changé.',
-  reasonTemplateRemoved:
-    'Le template ne produit plus cette promesse.',
+  reasonTemplateRemoved: 'Le template ne produit plus cette promesse.',
   reasonLastVerdict: (verdict) => `Le dernier verdict était ${verdict}.`,
   rawEnglish: 'Texte anglais de référence',
   diagnosticRaw: 'Diagnostic anglais',
@@ -453,22 +599,31 @@ const fr: Messages = {
   reviewComplete: 'Revue terminée',
   reviewCompleteBody:
     'Toutes les décisions de cette session ont été enregistrées.',
+  queueErrorTitle: "File d'attente indisponible",
   queueFailed:
     "La file d'attente n'a pas pu être chargée. Rechargez la page pour réessayer.",
+  decisionErrorTitle: 'Décision non enregistrée',
   decisionFailed:
     "La décision n'a pas été enregistrée. Le scénario reste dans la file.",
+  reopenErrorTitle: 'Réouverture impossible',
   reopenFailed:
     "La décision acceptée n'a pas pu être rouverte. La file n'a pas changé.",
   regenerateEvidence: 'Tout régénérer',
   regeneratingEvidence: 'Régénération en cours…',
+  regenerationErrorTitle: 'Échec de la régénération des preuves',
   regenerationFailed:
     'La régénération des preuves a échoué. La file existante et les décisions ont été conservées.',
   iterationHandoff: "Préparer l'itération Codex",
   iterationHandoffGenerating: 'Préparation du handoff Codex…',
+  iterationHandoffErrorTitle: 'Handoff Codex indisponible',
   iterationHandoffFailed:
     "Le handoff Codex n'a pas pu être généré. Les commentaires de review n'ont pas été modifiés.",
+  closeReviewErrorTitle: 'Fermeture de la review impossible',
   closeReviewFailed:
     "L'application de review n'a pas pu être fermée. Le prompt reste disponible ici.",
+  evidenceErrorTitle: 'Vérification de la preuve indisponible',
+  evidenceError:
+    "La page capturée n'a pas pu être comparée à son digest. Vérifiez la capture et ne décidez que si vous pouvez la contrôler manuellement.",
   iterationModalEyebrow: 'Prochaine itération du code',
   iterationModalTitle: "Préparer l'itération Codex ?",
   iterationModalDescription: (rejected) =>
@@ -506,11 +661,27 @@ const fr: Messages = {
     'Le motif non enregistré de la carte courante sera abandonné au démarrage.',
   cancelRegeneration: 'Annuler',
   confirmRegeneration: 'Tout régénérer',
+  folderLayoutApplyTitle: 'Appliquer l’organisation approuvée ?',
+  folderLayoutApplyDescription: (moves, deletions, reviews) =>
+    `Git va exécuter ${moves} commande${moves === 1 ? '' : 's'} git mv et ${deletions} commande${deletions === 1 ? '' : 's'} git rm. Les imports TypeScript concernés seront aussi mis à jour. Les ${reviews} fichier${reviews === 1 ? '' : 's'} à revoir manuellement resteront en place.`,
+  folderLayoutApplyStaged:
+    'Git indexera les renommages et suppressions pour les rendre faciles à examiner dans le diff.',
+  folderLayoutApplyCommand: 'Commande à lancer',
+  folderLayoutApplyCommands: 'Afficher les opérations Git générées',
+  folderLayoutApplyCancel: 'Pas maintenant',
+  folderLayoutApplyCopy: 'Copier la commande',
+  folderLayoutApplyCopied: 'Commande copiée.',
+  folderLayoutApplyRun: 'Lancer la réorganisation',
+  folderLayoutApplyRunning: 'Réorganisation avec Git…',
+  folderLayoutApplyFailed:
+    'Git n’a pas pu appliquer la proposition. Consulte la sortie du terminal et corrige le conflit indiqué.',
   previous: '↑ Précédent ',
   next: 'Suivant ↓ ',
 
   language: 'Langue',
   theme: 'Thème',
+  ide: 'Éditeur',
+  openInIde: 'Ouvrir le code dans l’éditeur ↗',
   themeSystem: 'Système',
   themeLight: 'Clair',
   themeDark: 'Sombre',

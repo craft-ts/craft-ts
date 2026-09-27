@@ -17,7 +17,6 @@ import {
   untracked,
   WritableSignal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import {
   InsertionsResourcesFactory,
   ResourceExceptionConstraints,
@@ -72,17 +71,18 @@ import {
   type SchemaOutput,
   useSchemaValidationPolicy,
 } from './schema-validation';
-import { CORRELATION_ID_SERVICE } from './correlation-id';
+import { ɵinjectCorrelationIdServiceIn } from './correlation-id';
 import {
   createNamedPrimitiveGen,
   type CraftPrimitiveGen,
   type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
 import {
-  APP_SNAPSHOT_REGISTRY,
-  INSERTION_SNAPSHOT_REGISTRY,
   InsertionSnapshotRegistry,
-  TAKE_APP_SNAPSHOT,
+  provideInsertionSnapshotRegistry,
+  ɵinjectAppSnapshotRegistry,
+  ɵinjectAppSnapshotRegistryIn,
+  ɵinjectTakeAppSnapshotIn,
   triggerAndCollectInsertions,
 } from './take-app-snapshot';
 import type {
@@ -689,8 +689,8 @@ export type MutationRef<
   IsMethod,
   SourceParams,
   GroupIdentifier,
-  MutationExceptions extends
-    ResourceExceptionConstraints = ResourceExceptionConstraints,
+  MutationExceptions extends ResourceExceptionConstraints =
+    ResourceExceptionConstraints,
   Dependencies = {},
   HasSchema extends boolean = false,
   MethodYielded = never,
@@ -784,8 +784,9 @@ type SchemaMutationConfig<
   paramsSchema: ParamsSchema;
   loaderSchema: LoaderSchema;
   method: (args: SchemaOutput<MethodSchema>) => SchemaInput<ParamsSchema>;
-  loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-    Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+  loader: (
+    param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+  ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
   [key: string]: unknown;
 };
 
@@ -828,8 +829,9 @@ export function mutation<
   mutationConfig: {
     paramsSchema: ParamsSchema;
     params: () => SchemaInput<ParamsSchema>;
-    loader: (param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>) =>
-      Promise<ParamsState> | ParamsState;
+    loader: (
+      param: ResourceLoaderParams<SchemaOutput<ParamsSchema>>,
+    ) => Promise<ParamsState> | ParamsState;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -859,8 +861,9 @@ export function mutation<
   mutationConfig: {
     loaderSchema: LoaderSchema;
     params: () => LoaderParams;
-    loader: (param: ResourceLoaderParams<LoaderParams>) =>
-      Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
+    loader: (
+      param: ResourceLoaderParams<LoaderParams>,
+    ) => Promise<SchemaInput<LoaderSchema>> | SchemaInput<LoaderSchema>;
     [key: string]: unknown;
   },
 ): NamedCraftPrimitiveGen<
@@ -1353,10 +1356,7 @@ function createMutationRef<
 > {
   const insertionSnapshotRegistry = new InsertionSnapshotRegistry();
   const mutationExtraProviders = [
-    {
-      provide: INSERTION_SNAPSHOT_REGISTRY,
-      useValue: insertionSnapshotRegistry,
-    },
+    provideInsertionSnapshotRegistry(insertionSnapshotRegistry),
     ...(mutationConfig.providers ?? []),
   ];
 
@@ -1601,7 +1601,7 @@ function createMutationRef<
     'loader' in mutationConfig && mutationConfig.loader
       ? ((async (param: ResourceLoaderParams<any>) => {
           const injector = getInjector();
-          const correlationSvc = injector.get(CORRELATION_ID_SERVICE, null);
+          const correlationSvc = ɵinjectCorrelationIdServiceIn(injector);
           const operationId = correlationSvc?.lastCorrelationId() ?? null;
           if (operationId) correlationSvc?.startOperation(operationId);
 
@@ -1679,7 +1679,7 @@ function createMutationRef<
             return validatedResult;
           } catch (error) {
             if (!isCraftException(error)) {
-              injector.get(TAKE_APP_SNAPSHOT, null)?.();
+              ɵinjectTakeAppSnapshotIn(injector)?.();
             }
             throw error;
           } finally {
@@ -2215,10 +2215,10 @@ function createMutationRef<
   Object.assign(output, insertionsResult);
 
   const snapshotRegistry = injector
-    ? injector.get(APP_SNAPSHOT_REGISTRY, null)
+    ? ɵinjectAppSnapshotRegistryIn(injector)
     : (() => {
         try {
-          return inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+          return ɵinjectAppSnapshotRegistry();
         } catch {
           return null;
         }
@@ -2245,9 +2245,10 @@ function createMutationRef<
       })();
 
   if (snapshotRegistry && destroyRefMutation) {
-    snapshotRegistry.triggerSnapshot$
-      .pipe(takeUntilDestroyed(destroyRefMutation))
-      .subscribe(() => {
+    snapshotRegistry.registerSnapshotReader(
+      'mutation',
+      hostTagList,
+      () => {
         const insertionSnapshots = triggerAndCollectInsertions(
           insertionSnapshotRegistry,
         );
@@ -2279,12 +2280,10 @@ function createMutationRef<
             error: error instanceof Error ? error.message : String(error),
           };
         }
-        snapshotRegistry.allSnapShot$.next({
-          source: 'mutation',
-          from: hostTagList,
-          state: stateSnapshot,
-        });
-      });
+        return stateSnapshot;
+      },
+      destroyRefMutation,
+    );
   }
 
   if (!('resource' in output)) {

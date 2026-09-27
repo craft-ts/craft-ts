@@ -1,4 +1,4 @@
-import { craftToken } from './host/craft-injector';
+import { craftService } from './craft-service';
 import {
   createBrowserHistory,
   createMemoryHistory,
@@ -38,7 +38,26 @@ export type CraftServerResourceController = Readonly<{
   decide(source: string, mode: SsrMode): void;
 }>;
 
-export const CRAFT_PLATFORM = craftToken<CraftPlatform>('CraftPlatform');
+type CraftPlatformHelper = () => Generator<unknown, CraftPlatform, unknown>;
+const craftPlatformService = craftService(
+  { name: 'CraftPlatform', providedIn: 'manuallyProvidedAtRoot' },
+  (inputs: { $provided: CraftPlatform }) => inputs.$provided,
+) as unknown as {
+  CraftPlatform: CraftPlatformHelper;
+  provideCraftPlatform: (value: CraftPlatform) => unknown;
+  CRAFT_PLATFORM_META_DATA: { inject(): CraftPlatform };
+};
+
+export const CraftPlatform = craftPlatformService.CraftPlatform;
+export const provideCraftPlatform = (value: CraftPlatform): unknown =>
+  craftPlatformService.provideCraftPlatform(value);
+export const ɵinjectCraftPlatform = (): CraftPlatform | null => {
+  try {
+    return craftPlatformService.CRAFT_PLATFORM_META_DATA.inject();
+  } catch {
+    return null;
+  }
+};
 
 export function createMemoryStorage(): CraftStorage {
   const values = new Map<string, string>();

@@ -5,11 +5,11 @@ import {
 import { TestBed } from './host/craft-test-bed';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  CORRELATION_ID_SERVICE,
   CorrelationId,
   createCorrelationIdService,
   getCurrentStartCorrelationId,
   injectCorrelationIdService,
+  provideCorrelationIdService,
   setCurrentStartCorrelationId,
   type CorrelationIdYield,
 } from './correlation-id';
@@ -95,6 +95,10 @@ describe('setCurrentStartCorrelationId / getCurrentStartCorrelationId', () => {
 });
 
 describe('CorrelationId', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+  });
+
   afterEach(() => {
     setCurrentStartCorrelationId(null);
   });
@@ -102,9 +106,10 @@ describe('CorrelationId', () => {
   it('yields a service request and resolves metadata from the injected service', () => {
     const service = createCorrelationIdService();
     service.generateAndSet('click');
-    const injector = Injector.create({
-      providers: [{ provide: CORRELATION_ID_SERVICE, useValue: service }],
+    TestBed.configureTestingModule({
+      providers: [provideCorrelationIdService(service)],
     });
+    const injector = TestBed.inject(Injector);
 
     setCurrentStartCorrelationId('nav-forward:start');
 
@@ -151,10 +156,10 @@ describe('injectCorrelationIdService', () => {
 
   it('returns the registered service', () => {
     const service = createCorrelationIdService();
-    const injector = Injector.create({
-      providers: [{ provide: CORRELATION_ID_SERVICE, useValue: service }],
+    TestBed.configureTestingModule({
+      providers: [provideCorrelationIdService(service)],
     });
-    const result = runInInjectionContext(injector, () =>
+    const result = TestBed.runInInjectionContext(() =>
       injectCorrelationIdService(),
     );
     expect(result).toBe(service);

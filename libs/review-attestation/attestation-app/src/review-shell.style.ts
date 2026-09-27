@@ -1,0 +1,298 @@
+/**
+ * The workspace: the sidebar with the queue, and the panel beside it.
+ *
+ * Narrow, the sidebar becomes one compact bar above the review: name and
+ * count on a line, the two action buttons sharing a row, the queue scrolling
+ * sideways.
+ */
+import {
+  alignItems,
+  ariaCurrent,
+  at,
+  bg,
+  borderBlockEndColor,
+  borderBlockEndStyle,
+  borderBlockEndWidth,
+  borderBlockStartColor,
+  borderBlockStartStyle,
+  borderBlockStartWidth,
+  borderColor,
+  borderInlineEndColor,
+  borderInlineEndStyle,
+  borderInlineEndWidth,
+  borderStyle,
+  borderWidth,
+  clipOverflow,
+  color,
+  craftStyles,
+  defineBreakpoints,
+  display,
+  flex,
+  flexBasis,
+  flexDirection,
+  flexWrap,
+  fontSize,
+  fontWeight,
+  gap,
+  gridTemplateColumns,
+  inlineSize,
+  interaction,
+  justifyContent,
+  lineWidth,
+  listStyleType,
+  marginBlock,
+  marginBlockStart,
+  marginInline,
+  minBlockSize,
+  minWidth,
+  num,
+  overflowWrap,
+  p,
+  paddingBlockStart,
+  provides,
+  px,
+  py,
+  radii,
+  radius,
+  scrollPort,
+  shadow,
+  space,
+  textAlign,
+  textOverflow,
+  tracks,
+  unit,
+  when,
+  whiteSpace,
+  spanAllColumns,
+} from '@craft-ts/style';
+import { reviewUi, theme } from './review-app.style';
+
+const bp = defineBreakpoints({ wide: at.minInlineSize(unit.px(761)) });
+const transparent = reviewUi.surface.transparent;
+
+const hairline = (tint: Parameters<typeof borderColor>[0]) => [
+  borderWidth(lineWidth.hairline),
+  borderStyle.solid,
+  borderColor(tint),
+];
+
+const ellipsis = [
+  clipOverflow.inline,
+  textOverflow.ellipsis,
+  whiteSpace.nowrap,
+  // A clipped box is not a scroll container: without this its automatic
+  // minimum is its whole text, and a grid or flex parent lets it overflow.
+  minWidth(unit.px(0)),
+];
+
+/** A trigger in the brand header: regenerate, or hand the rejections off. */
+const trigger = [
+  display.flex,
+  alignItems.center,
+  justifyContent.center,
+  gap(unit.px(7)),
+  flex(num(1)),
+  flexBasis(unit.px(150)),
+  marginBlockStart(unit.px(8)),
+  py(unit.px(6)),
+  px(unit.px(10)),
+  radius(unit.px(7)),
+  fontSize(unit.px(13)),
+  fontWeight(num(650)),
+  when(bp.wide, [
+    inlineSize(unit.pct(100)),
+    flexBasis.auto,
+    marginBlockStart(unit.px(10)),
+    py(unit.px(8)),
+    fontSize(unit.px(14)),
+  ]),
+];
+
+export const shell = craftStyles('reviewShell', {
+  workspace: [
+    display.block,
+    minBlockSize(unit.vh(100)),
+    when(bp.wide, [
+      display.grid,
+      gridTemplateColumns(
+        tracks.list(unit.px(280), tracks.minmax(unit.px(0), tracks.fr(1))),
+      ),
+    ]),
+  ],
+  queuePanel: [
+    minWidth(unit.px(0)),
+    display.flex,
+    flexDirection.column,
+    borderBlockEndWidth(lineWidth.hairline),
+    borderBlockEndStyle.solid,
+    borderBlockEndColor(theme.line),
+    bg(theme.surface),
+    when(bp.wide, [
+      borderBlockEndStyle.none,
+      borderInlineEndWidth(lineWidth.hairline),
+      borderInlineEndStyle.solid,
+      borderInlineEndColor(theme.line),
+    ]),
+  ],
+  /** A section heading of the sidebar. */
+  panelHeading: [
+    py(unit.px(12)),
+    px(unit.px(16)),
+    borderBlockEndWidth(lineWidth.hairline),
+    borderBlockEndStyle.solid,
+    borderBlockEndColor(theme.line),
+    when(bp.wide, [p(unit.px(18))]),
+  ],
+  panelHint: [color(theme.textDim)],
+  /** The brand header: one wrapped bar when narrow, a column when wide. */
+  brand: [
+    display.flex,
+    flexWrap.wrap,
+    alignItems.baseline,
+    gap(unit.px(4)),
+    py(unit.px(12)),
+    px(unit.px(16)),
+    borderBlockEndWidth(lineWidth.hairline),
+    borderBlockEndStyle.solid,
+    borderBlockEndColor(theme.line),
+    when(bp.wide, [display.block, p(unit.px(18))]),
+  ],
+  brandEyebrow: [display.none, when(bp.wide, [display.block])],
+  brandTitle: [fontSize(unit.px(17)), when(bp.wide, [fontSize(unit.px(19))])],
+  queueSummary: [
+    display.inlineBlock,
+    py(unit.px(8)),
+    px(unit.px(12)),
+    ...hairline(theme.lineStrong),
+    radius(unit.px(8)),
+    fontSize(unit.px(12)),
+    color(theme.textMuted),
+    bg(theme.surfaceSunken),
+    when(bp.wide, [marginBlockStart(unit.px(10)), radius(radii.full)]),
+  ],
+  regenerate: [
+    ...trigger,
+    ...hairline(theme.accentBorder),
+    color(theme.accentText),
+    bg(theme.accentBg),
+    when(interaction.hover, [
+      borderColor(theme.accent),
+      bg(theme.surfaceSunken),
+    ]),
+  ],
+  iterate: [
+    ...trigger,
+    ...hairline(theme.lineStrong),
+    color(theme.textMuted),
+    bg(transparent),
+    when(interaction.hover, [
+      borderColor(theme.accentBorder),
+      color(theme.accentText),
+      bg(theme.accentBg),
+    ]),
+  ],
+  /** The preferences span the whole bar when it wraps. */
+  preferences: [flexBasis(unit.pct(100))],
+  queueList: [
+    display.flex,
+    provides(scrollPort.inline),
+    p(unit.px(10)),
+    when(bp.wide, [display.block, flex(num(1)), provides(scrollPort.block)]),
+  ],
+  queueItem: [
+    display.grid,
+    gap(unit.px(3)),
+    inlineSize(unit.pct(100)),
+    minWidth(unit.px(210)),
+    p(unit.px(12)),
+    ...hairline(transparent),
+    radius(unit.px(8)),
+    textAlign.start,
+    bg(transparent),
+    when(interaction.hover, [bg(theme.surfaceSunken)]),
+    when(ariaCurrent.true, [
+      borderColor(theme.accent),
+      bg(theme.accentBg),
+      shadow({
+        x: unit.px(3),
+        y: unit.px(0),
+        blur: unit.px(0),
+        color: theme.accentHover,
+        inset: true,
+      }),
+    ]),
+    when(bp.wide, [minWidth(unit.px(0))]),
+  ],
+  scenarioName: [fontWeight(num(700)), overflowWrap.anywhere],
+  queueItemHint: [...ellipsis, color(theme.textDim)],
+  emptyQueue: [
+    marginInline(unit.px(12)),
+    marginBlock(unit.px(12)),
+    p(unit.px(18)),
+    borderWidth(lineWidth.hairline),
+    borderStyle.dashed,
+    borderColor(theme.lineStrong),
+    radius(unit.px(9)),
+    textAlign.center,
+    color(theme.textMuted),
+  ],
+  emptyQueueBody: [marginBlockStart(unit.px(6))],
+  history: [
+    marginBlockStart(unit.px(18)),
+    marginInline(unit.px(12)),
+    paddingBlockStart(unit.px(16)),
+    borderBlockStartWidth(lineWidth.hairline),
+    borderBlockStartStyle.solid,
+    borderBlockStartColor(theme.line),
+  ],
+  historyHint: [
+    display.block,
+    marginBlockStart(unit.px(4)),
+    color(theme.textDim),
+  ],
+  historyList: [
+    display.grid,
+    gap(unit.px(6)),
+    marginBlockStart(unit.px(12)),
+    p(space(0)),
+    listStyleType.none,
+  ],
+  historyItem: [
+    display.grid,
+    inlineSize(unit.pct(100)),
+    gridTemplateColumns(
+      tracks.list(tracks.minmax(unit.px(0), tracks.fr(1)), 'auto'),
+    ),
+    gap(unit.px(3)),
+    py(unit.px(9)),
+    px(unit.px(10)),
+    ...hairline(theme.line),
+    radius(unit.px(7)),
+    textAlign.start,
+    color(theme.text),
+    bg(theme.surface),
+    when(interaction.hover, [
+      borderColor(theme.accentBorder),
+      bg(theme.accentBg),
+    ]),
+  ],
+  historyTitle: [minWidth(unit.px(0)), ...ellipsis],
+  historyVerdict: [color(theme.textDim)],
+  historyAction: [
+    spanAllColumns,
+    fontSize(unit.px(12)),
+    color(theme.accentText),
+  ],
+  navigation: [
+    display.none,
+    when(bp.wide, [
+      display.grid,
+      gridTemplateColumns(tracks.equal(2)),
+      gap(unit.px(8)),
+      p(unit.px(10)),
+      borderBlockStartWidth(lineWidth.hairline),
+      borderBlockStartStyle.solid,
+      borderBlockStartColor(theme.line),
+    ]),
+  ],
+});

@@ -1,5 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import styles from './list-with-pagination.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -31,6 +29,7 @@ import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
+import { example } from '../../shared/example.style';
 
 export const { ListWithPaginationView, provideListWithPaginationView } =
   craftService(
@@ -97,7 +96,6 @@ const ListWithPagination = craftComponent(
   'ListWithPagination',
   {
     providers: [provideListWithPaginationView()],
-    stylesUrl: styles,
   },
   function* () {
     const { pagination, usersQuery, updatePageSize } =
@@ -118,8 +116,7 @@ const ListWithPagination = craftComponent(
           }),
         ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
       ]),
-      table(
-        { class: 'table' },
+      table({ class: example.table },
         tbody(
           forNode(
             usersQuery.currentPageData,
@@ -127,8 +124,7 @@ const ListWithPagination = craftComponent(
               track: (user) => user.id,
               empty: () =>
                 tr(
-                  td(
-                    ifNode(
+                  td({ class: example.td }, ifNode(
                       usersQuery.isCurrentPageResolved,
                       () => 'No users found',
                       () => 'Loading…',
@@ -137,11 +133,11 @@ const ListWithPagination = craftComponent(
                 ),
             },
             (user) =>
-              tr([
-                td(function* () {
+              tr({ class: example.tableRow }, [
+                td({ class: example.td }, function* () {
                   return (yield* user()).id;
                 }),
-                td(function* () {
+                td({ class: example.td }, function* () {
                   return (yield* user()).name;
                 }),
               ]),
@@ -151,10 +147,11 @@ const ListWithPagination = craftComponent(
         // placeholder keeps `currentPageData` non-empty, so the empty slot (and
         // the settled read inside it) never runs again.
       ).pipe(pendingNode({ fallback: () => div('⏳ Loading users…') })),
-      div({ class: 'pagination' }, [
+      div({ class: example.pagination, 'data-testid': 'pagination' }, [
         select(
           'PageSize',
           {
+            class: example.select,
             'aria-label': 'Page size',
             value: function* () {
               return String((yield* pagination()).pageSize);
@@ -175,15 +172,19 @@ const ListWithPagination = craftComponent(
         ),
         button(
           'PreviousPage',
-          { type: 'button', class: 'btn', click: pagination.previousPage },
+          { type: 'button', class: example.button, click: pagination.previousPage },
           'Previous',
         ),
-        span('CurrentPage', { class: 'current-page' }, function* () {
-          return (yield* pagination()).page;
-        }),
+        span(
+          'CurrentPage',
+          { class: example.currentPage, 'data-testid': 'current-page' },
+          function* () {
+            return (yield* pagination()).page;
+          },
+        ),
         button(
           'NextPage',
-          { type: 'button', class: 'btn', click: pagination.nextPage },
+          { type: 'button', class: example.button, click: pagination.nextPage },
           'Next',
         ),
       ]),

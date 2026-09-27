@@ -8,11 +8,12 @@ import {
   select,
   small,
 } from '@craft-ts/component';
-import { craftService, craftComputed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
 import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
 import { ReviewFilters } from './review-filters.service';
+import { filters } from './review-controls.style';
 
 /**
  * The filter status and the button that clears every filter at once.
@@ -22,8 +23,9 @@ import { ReviewFilters } from './review-filters.service';
  * document outline at the type level — has to stay a direct call in
  * `review-app.ts` rather than move behind a component boundary).
  */
-export const { FilterBarActionsView, provideFilterBarActionsView } = craftService(
-  { name: 'filterBarActionsView', providedIn: 'toProvide' },
+export const FilterBarActions = craftComponent(
+  'FilterBarActions',
+  {},
   function* () {
     const { clearFilters, activeFilterCount } = yield* ReviewFilters();
     const { locale } = yield* ReviewPreferences();
@@ -36,23 +38,13 @@ export const { FilterBarActionsView, provideFilterBarActionsView } = craftServic
     const noFiltersActive = craftComputed('noFiltersActive', function* () {
       return (yield* activeFilterCount()) === 0;
     });
-    return { clearFilters, statusText, noFiltersActive, t };
-  },
-);
-
-export const FilterBarActions = craftComponent(
-  'FilterBarActions',
-  { providers: [provideFilterBarActionsView()] },
-  function* () {
-    const { clearFilters, statusText, noFiltersActive, t } =
-      yield* FilterBarActionsView();
-    return div({ class: 'filter-heading-actions' }, [
-      small({ class: 'filter-status', 'aria-live': 'polite' }, statusText),
+    return div({ class: filters.actions }, [
+      small({ class: filters.status, 'aria-live': 'polite' }, statusText),
       button(
         'ClearFilters',
         {
           type: 'button',
-          class: 'clear-filters',
+          class: filters.clear,
           disabled: noFiltersActive,
           click: clearFilters,
         },
@@ -65,12 +57,14 @@ export const FilterBarActions = craftComponent(
 );
 
 /** The five independent fields of the queue's filter bar. */
-export const { FilterBarFieldsView, provideFilterBarFieldsView } = craftService(
-  { name: 'filterBarFieldsView', providedIn: 'toProvide' },
+export const FilterBarFields = craftComponent(
+  'FilterBarFields',
+  {},
   function* () {
     const {
       componentFilter,
       textFilter,
+      writeTextFilter,
       kindFilter,
       stateFilter,
       directionFilter,
@@ -79,35 +73,16 @@ export const { FilterBarFieldsView, provideFilterBarFieldsView } = craftService(
     const t = craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
-    return {
-      componentFilter,
-      textFilter,
-      kindFilter,
-      stateFilter,
-      directionFilter,
-      t,
-    };
-  },
-);
-
-export const FilterBarFields = craftComponent(
-  'FilterBarFields',
-  { providers: [provideFilterBarFieldsView()] },
-  function* () {
-    const {
-      componentFilter,
-      textFilter,
-      kindFilter,
-      stateFilter,
-      directionFilter,
-      t,
-    } = yield* FilterBarFieldsView();
     return [
-      div({ class: 'filter-field' }, [
-        label({ htmlFor: 'component-filter' }, function* () {
-          return (yield* t()).filterComponent;
-        }),
+      div({ class: filters.field }, [
+        label(
+          { class: filters.label, htmlFor: 'component-filter' },
+          function* () {
+            return (yield* t()).filterComponent;
+          },
+        ),
         input('ComponentFilter', {
+          class: filters.control,
           id: 'component-filter',
           value: componentFilter,
           placeholder: 'UserCard',
@@ -116,13 +91,14 @@ export const FilterBarFields = craftComponent(
           },
         }),
       ]),
-      div({ class: 'filter-field' }, [
-        label({ htmlFor: 'kind-filter' }, function* () {
+      div({ class: filters.field }, [
+        label({ class: filters.label, htmlFor: 'kind-filter' }, function* () {
           return (yield* t()).filterType;
         }),
         select(
           'KindFilter',
           {
+            class: filters.control,
             id: 'kind-filter',
             value: kindFilter,
             *change(event: Event) {
@@ -145,13 +121,14 @@ export const FilterBarFields = craftComponent(
           ],
         ),
       ]),
-      div({ class: 'filter-field' }, [
-        label({ htmlFor: 'state-filter' }, function* () {
+      div({ class: filters.field }, [
+        label({ class: filters.label, htmlFor: 'state-filter' }, function* () {
           return (yield* t()).filterState;
         }),
         select(
           'StateFilter',
           {
+            class: filters.control,
             id: 'state-filter',
             value: stateFilter,
             *change(event: Event) {
@@ -180,13 +157,17 @@ export const FilterBarFields = craftComponent(
           ],
         ),
       ]),
-      div({ class: 'filter-field' }, [
-        label({ htmlFor: 'direction-filter' }, function* () {
-          return (yield* t()).filterDirection;
-        }),
+      div({ class: filters.field }, [
+        label(
+          { class: filters.label, htmlFor: 'direction-filter' },
+          function* () {
+            return (yield* t()).filterDirection;
+          },
+        ),
         select(
           'DirectionFilter',
           {
+            class: filters.control,
             id: 'direction-filter',
             value: directionFilter,
             *change(event: Event) {
@@ -206,16 +187,17 @@ export const FilterBarFields = craftComponent(
           ],
         ),
       ]),
-      div({ class: 'filter-field' }, [
-        label({ htmlFor: 'text-filter' }, function* () {
+      div({ class: filters.field }, [
+        label({ class: filters.label, htmlFor: 'text-filter' }, function* () {
           return (yield* t()).filterText;
         }),
         input('TextFilter', {
+          class: filters.control,
           id: 'text-filter',
           value: textFilter,
           placeholder: 'save',
           *input(event: Event) {
-            yield* textFilter.writeFromInput(eventValue(event));
+            yield* writeTextFilter(eventValue(event));
           },
         }),
       ]),

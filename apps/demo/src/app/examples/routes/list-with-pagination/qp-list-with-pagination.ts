@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   button,
   craftComponent,
@@ -28,7 +27,7 @@ import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
-import styles from './list-with-pagination.css' with { loader: 'text' };
+import { example } from '../../shared/example.style';
 
 export const { QpListWithPaginationView, provideQpListWithPaginationView } =
   craftService(
@@ -85,7 +84,6 @@ const QpListWithPagination = craftComponent(
   'QpListWithPagination',
   {
     providers: [provideQpListWithPaginationView()],
-    stylesUrl: styles,
   },
   function* () {
     const { pagination, updatePageSize, usersQuery } =
@@ -101,27 +99,25 @@ const QpListWithPagination = craftComponent(
           fallback: () => heading('Route QueryParams pagination: Loading…'),
         }),
       ),
-      table(
-        { class: 'table' },
+      table({ class: example.table },
         tbody(
           forNode(
             usersQuery.currentPageData,
             { track: (user) => user.id },
-            (user) =>
-              tr([
-                td(function* () {
-                  return (yield* user()).id;
-                }),
-                td(function* () {
-                  return (yield* user()).name;
-                }),
-              ]),
+                    (user) =>
+                      tr({ class: example.tableRow }, [
+                        td({ class: example.td }, function* () {
+                          return (yield* user()).id;
+                        }),
+                        td({ class: example.td }, function* () {
+                          return (yield* user()).name;
+                        }),
+                      ]),
           ),
         ),
       ),
-      div({ class: 'pagination' }, [
-        select(
-          'pageSize',
+      div({ class: example.pagination, 'data-testid': 'pagination' }, [
+        select('pageSize',
           {
             'aria-label': 'Page size',
             value: pagination.pageSize,
@@ -129,17 +125,9 @@ const QpListWithPagination = craftComponent(
           },
           [2, 4, 8, 16].map((size) => option({ value: size }, size)),
         ),
-        button(
-          'previousPage',
-          { type: 'button', click: pagination.previousPage },
-          'Previous',
-        ),
-        span({ class: 'current-page' }, pagination.page),
-        button(
-          'nextPage',
-          { type: 'button', click: pagination.nextPage },
-          'Next',
-        ),
+        button('previousPage', { type: 'button', click: pagination.previousPage }, 'Previous'),
+        span({ class: example.currentPage, 'data-testid': 'current-page' }, pagination.page),
+        button('nextPage', { type: 'button', click: pagination.nextPage }, 'Next'),
       ]),
     ]);
   },

@@ -1,7 +1,8 @@
-import { inject, InjectionToken, type Type } from './host/craft-compat';
+import { type Type } from './host/craft-compat';
+import { craftService, type CraftServiceProvider } from './craft-service';
 import {
-  CRAFT_TEMPORAL_RUNTIME,
   RealCraftTemporalRuntime,
+  ɵinjectCraftTemporalRuntime,
   type CraftTemporalRuntime,
 } from './temporal-runtime';
 
@@ -12,7 +13,7 @@ import {
 // craft-route-load-error.ts) and imperative service lazy loading (`craftLazy`,
 // see craft-lazy.ts). It provides:
 //
-// - `CRAFT_DYNAMIC_IMPORT` — the injectable `import(url)` used for cache-busting
+// - `CraftDynamicImport` — the service used for cache-busting `import(url)`
 //   a chunk whose first fetch failed (a stale hashed URL after a redeploy).
 // - `retryFailedDynamicImport` — re-imports a failed chunk with a cache-busting
 //   query param, deduplicating concurrent retries of the same URL.
@@ -34,15 +35,19 @@ export interface CraftLazyLoadHelpers {
 }
 
 /**
- * The injectable dynamic `import(url)`. Overridable in tests to observe the
+ * The service-backed dynamic `import(url)`. Overridable in tests to observe the
  * cache-busting URL {@link retryFailedDynamicImport} computes.
  */
-export const CRAFT_DYNAMIC_IMPORT = new InjectionToken<
-  (url: string) => Promise<unknown>
->('CRAFT_DYNAMIC_IMPORT', {
-  providedIn: 'root',
-  factory: () => (url) => import(/* @vite-ignore */ url),
-});
+const craftDynamicImportService = craftService(
+  { name: 'CraftDynamicImport', providedIn: 'global' },
+  () => (url: string) => import(/* @vite-ignore */ url),
+) as unknown as {
+  CraftDynamicImport: () => Generator<unknown, (url: string) => Promise<unknown>, unknown>;
+  CRAFT_DYNAMIC_IMPORT_META_DATA: { inject(): (url: string) => Promise<unknown> };
+};
+export const CraftDynamicImport = craftDynamicImportService.CraftDynamicImport;
+export const ɵinjectCraftDynamicImport = (): ((url: string) => Promise<unknown>) =>
+  craftDynamicImportService.CRAFT_DYNAMIC_IMPORT_META_DATA.inject();
 
 /** The base fields the retry loop itself reads and advances on every attempt. */
 export interface CraftLoadRetryContextBase {
@@ -145,11 +150,7 @@ export function createCraftLoadRetry<
 }
 
 function tryInjectTemporalRuntime(): CraftTemporalRuntime | undefined {
-  try {
-    return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? undefined;
-  } catch {
-    return undefined;
-  }
+  return ɵinjectCraftTemporalRuntime();
 }
 
 /**
@@ -157,23 +158,31 @@ function tryInjectTemporalRuntime(): CraftTemporalRuntime | undefined {
  * the shared attempts/delay loop; override it to tune attempts, back-off, or
  * `shouldRetry` for `craftLazy` loads specifically.
  */
-export const CRAFT_LAZY_LOAD_RETRY = new InjectionToken<CraftLoadRetry>(
-  'CRAFT_LAZY_LOAD_RETRY',
-  { providedIn: 'root', factory: () => createCraftLoadRetry() },
-);
+const craftLazyLoadRetryService = craftService(
+  { name: 'CraftLazyLoadRetry', providedIn: 'toProvide' },
+  (inputs: { $provided?: CraftLoadRetry }) =>
+    inputs.$provided ?? createCraftLoadRetry(),
+) as unknown as {
+  CraftLazyLoadRetry: () => Generator<unknown, CraftLoadRetry, unknown>;
+  provideCraftLazyLoadRetry: (value: CraftLoadRetry) => CraftServiceProvider;
+  CRAFT_LAZY_LOAD_RETRY_META_DATA: { inject(): CraftLoadRetry };
+};
+export const CraftLazyLoadRetry = craftLazyLoadRetryService.CraftLazyLoadRetry;
+export const provideCraftLazyLoadRetryService = (
+  value: CraftLoadRetry,
+): CraftServiceProvider => craftLazyLoadRetryService.provideCraftLazyLoadRetry(value);
+export const ɵinjectCraftLazyLoadRetry = (): CraftLoadRetry =>
+  craftLazyLoadRetryService.CRAFT_LAZY_LOAD_RETRY_META_DATA.inject();
 
 export function provideCraftLazyLoadRetry(
   retry: CraftLoadRetryConfig,
-):
-  | { provide: typeof CRAFT_LAZY_LOAD_RETRY; useValue: CraftLoadRetry }
-  | { provide: typeof CRAFT_LAZY_LOAD_RETRY; useClass: Type<CraftLoadRetry> } {
-  if (isCraftLoadRetryType(retry)) {
-    return { provide: CRAFT_LAZY_LOAD_RETRY, useClass: retry };
-  }
-  return {
-    provide: CRAFT_LAZY_LOAD_RETRY,
-    useValue: isCraftLoadRetry(retry) ? retry : createCraftLoadRetry(retry),
-  };
+): CraftServiceProvider {
+  const value = isCraftLoadRetryType(retry)
+    ? new retry()
+    : isCraftLoadRetry(retry)
+      ? retry
+      : createCraftLoadRetry(retry);
+  return provideCraftLazyLoadRetryService(value);
 }
 
 export function isCraftLoadRetry<Context extends CraftLoadRetryContextBase>(

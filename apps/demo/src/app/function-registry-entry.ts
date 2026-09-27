@@ -97,11 +97,8 @@ export function ensureResourceRegistryEntry(
 }
 
 export const provideMcpExperimentation = () => [
-  provideFunctionRegistryBridgeUrl(
-    () =>
-       
-      globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ??
-      'ws://127.0.0.1:3333',
+  provideFunctionRegistryBridgeUrl(() =>
+    globalThis.__CRAFT_FUNCTION_REGISTRY_BRIDGE_URL__ ?? 'ws://127.0.0.1:3333',
   ),
   provideFunctionRegistryClientId(() =>
     createFunctionRegistryClientId(
@@ -152,6 +149,9 @@ export const provideMcpExperimentation = () => [
     destroyRef.onDestroy(stopBridge);
   }),
   provideFnWrapObserver((factory) => {
+    if (isPrimitiveMethodRuntimeContextResolving()) {
+      return;
+    }
     const runtimeContext = injectPrimitiveMethodRuntimeContext();
     if (runtimeContext !== undefined) {
       ensureFunctionRegistryEntry(factory, undefined, runtimeContext);
@@ -164,6 +164,9 @@ export const provideMcpExperimentation = () => [
   provideFnWrapper(
     'Warning: dependency injection here is not type-safe and may fail at runtime',
     function* (factory, thisArg, args) {
+      if (isPrimitiveMethodRuntimeContextResolving()) {
+        return yield* factory.apply(thisArg, args);
+      }
       const runtimeContext = injectPrimitiveMethodRuntimeContext();
       const key = ensureFunctionRegistryEntry(factory, thisArg, runtimeContext);
       const override = functionRegistry.executeOverride(
@@ -178,3 +181,12 @@ export const provideMcpExperimentation = () => [
     },
   ),
 ];
+
+function isPrimitiveMethodRuntimeContextResolving(): boolean {
+  const hostTags = ɵinject(Injector).get(HOST_TAG_LIST, []);
+  const currentHost = hostTags[hostTags.length - 1] ?? '';
+  return (
+    currentHost === 'service:PrimitiveMethodRuntimeContext' ||
+    currentHost.startsWith('service:PrimitiveMethodRuntimeContext#')
+  );
+}

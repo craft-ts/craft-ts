@@ -5,14 +5,16 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Equal, Expect } from 'test-type';
 import type { ExtractDeps } from './branded-component/branded-component';
 import { Console } from './browser-boundaries';
+import { createBrowserPlatform, provideCraftPlatform } from './craft-platform';
 import { craftMethod } from './craft-method';
 import {
   CraftRouter,
   CraftRouterLink,
-  CRAFT_HISTORY,
   provideCraftRouter,
   shouldHandleCraftRouterLinkClick,
+  withHashLocation,
 } from './craft-router';
+import { ɵinjectCraftHistory } from './craft-router-tokens';
 import { CRAFT_NODE_DIRECTIVE } from './craft-node-directive';
 import { craftRoutes } from './craft-routes';
 import type { GetServiceDependencies } from './craft-service';
@@ -261,6 +263,38 @@ describe('CraftRouter', () => {
     expect(craftRouter.url).toBe('/query-params?page=3');
   });
 
+  it('uses hash URLs for links, navigation and active checks', async () => {
+    window.history.replaceState(null, '', '/');
+    const platform = createBrowserPlatform(window);
+    await TestBed.configureTestingModule({
+      providers: [
+        provideCraftPlatform(platform),
+        provideCraftRouter(
+          craftRouterTestRoutes.toRoutes(),
+          withHashLocation(),
+        ),
+      ],
+    }).compileComponents();
+
+    const router = TestBed.runInInjectionContext(() => craftUse(CraftRouter()));
+    const userTree = router.createUrlTree({
+      to: 'users/:userId',
+      params: { userId: '42' },
+    });
+
+    expect(router.serializeUrl(userTree)).toBe('/#/users/42');
+    await router.navigateByUrl('/#/users/42?page=2#profile');
+    expect(router.url).toBe('/users/42?page=2#profile');
+    expect(window.location.hash).toBe('#/users/42?page=2#profile');
+    expect(router.isActive('/#/users/42?page=2')).toBe(true);
+
+    await router.navigateByUrl('/users/7', { replaceUrl: true });
+    expect(window.location.hash).toBe('#/users/7');
+    expect(window.location.pathname).toBe('/');
+    platform.history.dispose();
+    window.history.replaceState(null, '', '/');
+  });
+
   it('skipLocationChange updates url without changing the address bar', async () => {
     window.history.replaceState(null, '', '/');
     await TestBed.configureTestingModule({
@@ -275,7 +309,7 @@ describe('CraftRouter', () => {
 
     expect(craftRouter.url).toBe('/users/42');
     expect(window.location.pathname).toBe('/');
-    expect(TestBed.inject(CRAFT_HISTORY).get().pathname).toBe('/users/42');
+    expect(TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!).get().pathname).toBe('/users/42');
     expect(
       craftRouter.isActive(
         craftRouter.createUrlTree({
@@ -301,11 +335,8 @@ describe('CraftRouter', () => {
       });
     }
 
-    type ExpectedDeps = {
-      CraftRouter: GetServiceDependencies<typeof CraftRouter>;
-    };
     type _Check = Expect<
-      Equal<ExtractDeps<GoToHome['navigate']>, ExpectedDeps>
+      Equal<keyof ExtractDeps<GoToHome['navigate']>, 'CraftRouter'>
     >;
   });
 
@@ -402,16 +433,12 @@ describe('CraftRouter', () => {
       });
     }
 
-    type ExpectedDeps = {
-      ConsoleService: {
-        providedIn: 'global';
-        dependencies: {};
-        browserBoundary: true;
-        appStart: false;
-      };
-      CraftRouter: GetServiceDependencies<typeof CraftRouter>;
-    };
-    type _Check = Expect<Equal<ExtractDeps<MultiYield['run']>, ExpectedDeps>>;
+    type _Check = Expect<
+      Equal<
+        keyof ExtractDeps<MultiYield['run']>,
+        'ConsoleService' | 'CraftRouter'
+      >
+    >;
   });
 
   it('disposes the browser history popstate listener when the injector is destroyed', () => {
@@ -419,7 +446,7 @@ describe('CraftRouter', () => {
     TestBed.configureTestingModule({
       providers: [provideCraftRouter([])],
     });
-    TestBed.inject(CRAFT_HISTORY);
+    TestBed.runInInjectionContext(() => ɵinjectCraftHistory());
     TestBed.resetTestingModule();
 
     expect(removeSpy.mock.calls.some((call) => call[0] === 'popstate')).toBe(

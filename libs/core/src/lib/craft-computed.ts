@@ -7,7 +7,6 @@ import {
   type CreateComputedOptions,
   type Signal,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
 import { craftComputed as createCraftComputed } from './host/craft-signal';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
@@ -23,7 +22,7 @@ import type {
   CraftSettledBrand,
   ExtractCraftPendingSources,
 } from './craft-settled';
-import { APP_SNAPSHOT_REGISTRY } from './take-app-snapshot';
+import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
 import {
   createYieldableReactiveValue,
   REACTIVE_DEPENDENCIES,
@@ -171,15 +170,16 @@ export function craftComputed<T>(
   // there is nothing to capture, mirror or re-publish.
   const result = createComputedWithOptions(evaluate, options) as Signal<T>;
 
-  const registry = inject(APP_SNAPSHOT_REGISTRY, { optional: true });
+  const registry = ɵinjectAppSnapshotRegistry();
   if (registry) {
     const sig = result;
     const from = computedInjector.get(ɵHOST_TAG_LIST, null) ?? [];
     const destroyRef = computedInjector.get(DestroyRef, null);
     if (destroyRef) {
-      registry.triggerSnapshot$
-        .pipe(takeUntilDestroyed(destroyRef))
-        .subscribe(() => {
+      registry.registerSnapshotReader(
+        name,
+        from,
+        () => {
           let stateSnapshot: unknown;
           try {
             stateSnapshot = sig();
@@ -188,12 +188,10 @@ export function craftComputed<T>(
               error: error instanceof Error ? error.message : String(error),
             };
           }
-          registry.allSnapShot$.next({
-            source: name,
-            from,
-            state: stateSnapshot,
-          });
-        });
+          return stateSnapshot;
+        },
+        destroyRef,
+      );
     }
   }
 

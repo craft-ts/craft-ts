@@ -4,7 +4,6 @@ import {
   ElementRef,
   EnvironmentInjector,
   inject,
-  InjectionToken,
   Injector,
   createEnvironmentInjector,
   signal,
@@ -14,7 +13,6 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   craftComputed,
-  CRAFT_NODE_EFFECT_FACTORY,
   craftNodeDirective,
   craftException,
   craftMethod,
@@ -29,7 +27,8 @@ import {
   provideCraftLazyLoadRetry,
   provideCorrelationIdTracking,
   provideTemplateTrace,
-  CORRELATION_ID_SERVICE,
+  injectCorrelationIdService,
+  ɵinjectCraftNodeEffectFactoryIn,
   query,
   state,
   type CraftDomEvent,
@@ -38,11 +37,12 @@ import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
 import { craftDirective } from '../directive';
 import { withHostProps } from '../composition';
+import { eventAction } from '../event-action';
 import { content, renderContent } from '../project';
 import { deferNode } from '../defer-node';
 import { forNode } from '../for-node';
 import {
-  FOR_SCHEDULER,
+  provideForScheduler,
   scheduleFor,
   type ForScheduler,
 } from '../for-scheduling';
@@ -584,6 +584,71 @@ describe('functional component interpreter', () => {
     expect(element.textContent).toBe('');
   });
 
+  it('runs event modifiers before the piped action through the normal click listener', async () => {
+    const seen: string[] = [];
+    const widget = craftComponent('eventActionWidget', {}, function* () {
+      const navOpen = yield* state('navOpen', false, ({ update }) => ({
+        toggle: () => update((open) => !open),
+      }));
+      return div({ click: () => seen.push('parent') }, [
+        button('navToggle', { type: 'button' }, 'Browse').pipe(
+          eventAction({
+            click: {
+              action: (event) => {
+                seen.push(
+                  `action:${event.defaultPrevented}:${event.cancelBubble}`,
+                );
+                return navOpen.toggle();
+              },
+              preventDefault: true,
+              stopPropagation: true,
+            },
+          }),
+        ),
+        span(navOpen),
+      ]);
+    });
+    const { nativeElement, flush, destroy } =
+      await renderCraftComponent(widget);
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    nativeElement.querySelector('button')!.dispatchEvent(click);
+    await flush();
+    expect(seen).toEqual(['action:true:true']);
+    expect(click.defaultPrevented).toBe(true);
+    expect(nativeElement.querySelector('span')?.textContent).toBe('true');
+    destroy();
+  });
+
+  it('stops later same-element listeners while still running a generator action', async () => {
+    const seen: string[] = [];
+    const widget = craftComponent('immediateEventActionWidget', {}, () =>
+      button('action', { type: 'button' }, 'Act').pipe(
+        eventAction({
+          click: {
+            action: function* () {
+              seen.push('action');
+            },
+            stopImmediatePropagation: true,
+          },
+        }),
+      ),
+    );
+    const { nativeElement, destroy } = await renderCraftComponent(widget);
+    const buttonElement = nativeElement.querySelector('button')!;
+    buttonElement.addEventListener('click', () => seen.push('later'));
+    buttonElement.click();
+    expect(seen).toEqual(['action']);
+    destroy();
+  });
+
+  it('rejects a duplicate event handler, including onClick', () => {
+    expect(() =>
+      button('action', { onClick: () => undefined }, 'Act').pipe(
+        eventAction({ click: { action: () => undefined } }),
+      ),
+    ).toThrow(/already has a click handler/);
+  });
+
   it('keeps an inline click handler after the parent template re-renders', async () => {
     const revision = signal(0);
     const {
@@ -704,7 +769,7 @@ describe('functional component interpreter', () => {
   });
 
   it('runs DOM event hooks in the component injector and exposes the binding location', async () => {
-    const marker = new InjectionToken<string>('dom-event-hook-marker');
+    const marker = { debugName: 'dom-event-hook-marker' };
     const seen: string[] = [];
     const interactionNames: string[] = [];
     const interactionHook = (
@@ -785,7 +850,7 @@ describe('functional component interpreter', () => {
   });
 
   it('projects named slots without a wrapper and keeps the declarative injector', async () => {
-    const label = new InjectionToken<string>('projection-label');
+    const label = { debugName: 'projection-label' };
     type CardInput = {
       readonly header?: ContentSlot;
       readonly body: ContentSlot;
@@ -1108,10 +1173,10 @@ describe('functional component interpreter', () => {
     const { RuntimeProjectedChildView, provideRuntimeProjectedChildView } =
       craftService(
         { name: 'runtimeProjectedChildView', providedIn: 'toProvide' },
-        () => ({ label: inject(label) }),
+        () => ({ label: inject<string>(label) }),
       );
 
-    const label = new InjectionToken<string>('projected-child-label');
+    const label = { debugName: 'projected-child-label' };
     const projectedChild = craftComponent(
       'runtimeProjectedChild',
       { providers: [provideRuntimeProjectedChildView()] },
@@ -2139,7 +2204,7 @@ describe('functional component interpreter', () => {
         // Craft directives render through `context.renderer` (the DOM adapter);
         // there is no Angular Renderer2 anywhere on this path any more.
         inject(DestroyRef).onDestroy(destroyRefCleanups);
-        context.injector.get(CRAFT_NODE_EFFECT_FACTORY)('marker', () => {
+        ɵinjectCraftNodeEffectFactoryIn(context.injector)('marker', () => {
           context.renderer.setAttribute(
             context.element,
             'data-marker',
@@ -2285,7 +2350,7 @@ describe('functional component interpreter', () => {
   });
 
   it('resolves yield* craftService dependencies in the child injector', async () => {
-    const PREFIX = new InjectionToken<string>('component-prefix');
+    const PREFIX = { debugName: 'component-prefix' };
     const { Greeting } = craftService(
       { name: 'Greeting', providedIn: 'function' },
       () => ({ prefix: inject(PREFIX) }),
@@ -2335,10 +2400,10 @@ describe('functional component interpreter', () => {
   it('preserves an intermediate parent injector for nested Craft components', async () => {
     const { InjectorRoutedView, provideInjectorRoutedView } = craftService(
       { name: 'injectorRoutedView', providedIn: 'toProvide' },
-      () => ({ routeMarker: inject(routeMarker) }),
+      () => ({ routeMarker: inject<string>(routeMarker) }),
     );
 
-    const routeMarker = new InjectionToken<string>('route-marker');
+    const routeMarker = { debugName: 'route-marker' };
     const injectorRouted = craftComponent(
       'injectorRouted',
       { providers: [provideInjectorRoutedView()] },
@@ -2528,7 +2593,7 @@ describe('functional component interpreter', () => {
       flush,
       destroy,
     } = await renderCraftComponent(list, {
-      providers: [{ provide: FOR_SCHEDULER, useValue: scheduler }],
+      providers: [provideForScheduler(scheduler)],
     });
 
     expect(element.querySelectorAll('[data-value]')).toHaveLength(0);
@@ -2659,7 +2724,7 @@ describe('functional component interpreter', () => {
       flush,
       destroy,
     } = await renderCraftComponent(list, {
-      providers: [{ provide: FOR_SCHEDULER, useValue: scheduler }],
+      providers: [provideForScheduler(scheduler)],
     });
 
     expect(scheduler.pendingCount).toBe(3);
@@ -3033,7 +3098,7 @@ describe('binding isolation under the application provider set', () => {
     expect(constantBinding).toHaveBeenCalledTimes(1);
 
     // What every DOM interaction does through the craft dom event hook.
-    injector.get(CORRELATION_ID_SERVICE)?.generateAndSet('click');
+    injector.run(() => injectCorrelationIdService())?.generateAndSet('click');
     await flush();
 
     expect(firstBinding).toHaveBeenCalledTimes(1);

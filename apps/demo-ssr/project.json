@@ -75,6 +75,21 @@
       ],
       "cache": true
     },
+    "review-generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx nx run demo-ssr:architecture && npx tsx libs/dev-tools/src/bin/craft.ts organize --project apps/demo-ssr/tsconfig.graph.json --graph craft-dependency-graph.json --out apps/demo-ssr/folder-layout && (npx tsx libs/cli/src/bin/craft-ts.ts attest status --config apps/demo-ssr/review-attest.config.ts --kind all --tsconfig apps/demo-ssr/tsconfig.graph.json || test $? -eq 1)",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "review": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx libs/cli/src/bin/craft-ts.ts attest devtools --config apps/demo-ssr/review-attest.config.ts --tsconfig apps/demo-ssr/tsconfig.graph.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "typecheck-architecture": {
       "executor": "nx:run-commands",
       "options": {

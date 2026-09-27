@@ -1,7 +1,6 @@
 import { InjectionToken, Injector } from './craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
-  craftToken,
   createCraftInjector,
   getCurrentCraftInjector,
 } from './craft-injector';
@@ -9,8 +8,8 @@ import { ɵcraftInjectorFromHost } from './craft-injector-host';
 
 describe('CraftInjector', () => {
   it('resolves a factory provider from the same injector', () => {
-    const Name = craftToken<string>('Name');
-    const Greeting = craftToken<string>('Greeting');
+    const Name = { debugName: 'Name' };
+    const Greeting = { debugName: 'Greeting' };
     const injector = createCraftInjector([
       { token: Name, useValue: 'Craft' },
       {
@@ -23,14 +22,14 @@ describe('CraftInjector', () => {
   });
 
   it('returns null for an optional token that is not provided', () => {
-    const Missing = craftToken<string>('Missing');
+    const Missing = { debugName: 'Missing' };
     const injector = createCraftInjector([]);
 
     expect(injector.getOptional(Missing)).toBeNull();
   });
 
   it('requires tokens to be explicitly provided', () => {
-    const Missing = craftToken<string>('Missing');
+    const Missing = { debugName: 'Missing' };
     const injector = createCraftInjector([]);
 
     expect(() => injector.get(Missing)).toThrowError(
@@ -39,7 +38,7 @@ describe('CraftInjector', () => {
   });
 
   it('lets a child override a parent token without changing the parent', () => {
-    const Name = craftToken<string>('Name');
+    const Name = { debugName: 'Name' };
     const root = createCraftInjector([{ token: Name, useValue: 'root' }]);
     const child = root.createChild([{ token: Name, useValue: 'child' }]);
 
@@ -48,7 +47,7 @@ describe('CraftInjector', () => {
   });
 
   it('resolves a value in a child without leaking to the parent', () => {
-    const Name = craftToken<string>('Name');
+    const Name = { debugName: 'Name' };
     const root = createCraftInjector([]);
     const child = root.createChild([{ token: Name, useValue: 'craft' }]);
     expect(child.get(Name)).toBe('craft');

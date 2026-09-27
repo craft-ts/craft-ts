@@ -1,123 +1,1045 @@
 graph TD
   n0[/"appConfig"/]
   n1["App"]
-  n2["EffectLayerScopeComponent"]
-  n3["EffectSharedServiceComponent"]
-  n4["EffectYieldComponent"]
-  n5["AiContextMenu"]
-  n6["AiSendDialog"]
-  n7["craftPending"]
-  n8["CraftRouterOutlet"]
-  n9["AnonymousComponent@800"]
-  n10["craftComputed:globalLabel"]
-  n11["craftComputed:routeLabel"]
-  n12["craftComputed:greeting"]
-  n13["state:request — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
-  n14["craftComputed:hasUser"]
-  n15["craftComputed:userExceptionLoader"]
-  n16["craftComputed:userIsLoading"]
-  n17["craftComputed:userName"]
-  n18["state:request — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
-  n19["craftMethod:setInstruction"]
-  n20["craftMethod:setCopied"]
-  n21["state:instruction"]
-  n22["state:copied"]
-  n23["state:request.greet"]
-  n24["state:request.run"]
-  n25[["CanRun _CanRunEffectLayerScope"]]
-  n26[["CanRun _CanRunEffectSharedService"]]
-  n27[["CanRun _CanRunEffectYield"]]
-  n28[["RouteCheckedDI _CheckEffectLayerScopeDI"]]
-  n29[["RouteCheckedDI _CheckEffectSharedServiceDI"]]
-  n30[["RouteCheckedDI _CheckEffectYieldDI"]]
-  n31[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:demoEffectRoutes"]]
-  n32["demo-effect:.handleExceptions"]
-  n33{{"demo-effect:"}}
-  n34{{"demo-effect:layer-scope"}}
-  n35{{"demo-effect:shared-service"}}
-  n36(["BrowserCryptoService"])
-  n37(["BrowserDocumentService"])
-  n38(["BrowserHistoryService"])
-  n39(["BrowserLocationService"])
-  n40(["BrowserNavigatorService"])
-  n41(["BrowserPerformanceService"])
-  n42(["BrowserWindowService"])
-  n43(["ConsoleService"])
-  n44(["CookiesService"])
-  n45(["LocalStorageService"])
-  n46(["SessionStorageService"])
-  n47(["api"])
-  n48(["HostName"])
-  n49(["GlobalPersisterHandlerService"])
-  n50(["ServerFunctionTransport"])
-  n51(["LocalStoragePersister"])
-  n52(["SessionStoragePersister"])
-  n53(["StoragePersister"])
-  n54(["GlobalLayerService"])
-  n55(["GreetingService"])
-  n56(["RouteLayerService"])
-  n57["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
-  n58["source$ (source$) — libs/core/src/lib/insert-select.ts"]
-  n59["signalSource (signalSource)"]
-  n60["exampleLink"]
-  n61["adaButton"]
-  n62["graceButton"]
-  n63["linusButton"]
-  n64["successButton"]
-  n65["notFoundButton"]
-  n66["unauthorizedButton"]
-  n67["defectButton"]
-  n68["aiContextMenu"]
-  n69["aiSendToIa"]
-  n70["aiDialogClose"]
-  n71["aiDialogInstruction"]
-  n72["aiDialogCancel"]
-  n73["aiDialogCopy"]
-  n1 -->|contains| n60
-  n1 -->|renders| n8
-  n2 -->|contains| n10
-  n2 -->|contains| n11
-  n2 -->|uses-property| n10
-  n2 -->|uses-property| n11
-  n3 -->|calls| n23
-  n3 -->|contains| n12
-  n3 -->|contains| n13
-  n3 -->|contains| n61
-  n3 -->|contains| n62
-  n3 -->|contains| n63
-  n3 -->|uses-property| n12
-  n4 -->|calls| n24
-  n4 -->|contains| n14
-  n4 -->|contains| n15
-  n4 -->|contains| n16
-  n4 -->|contains| n17
-  n4 -->|contains| n18
-  n4 -->|contains| n64
-  n4 -->|contains| n65
-  n4 -->|contains| n66
-  n4 -->|contains| n67
-  n5 -->|contains| n68
-  n5 -->|contains| n69
-  n6 -->|contains| n19
-  n6 -->|contains| n20
-  n6 -->|contains| n21
-  n6 -->|contains| n22
-  n6 -->|contains| n70
-  n6 -->|contains| n71
-  n6 -->|contains| n72
-  n6 -->|contains| n73
-  n13 -->|contains| n23
-  n18 -->|contains| n24
-  n25 -->|contains| n28
-  n26 -->|contains| n29
-  n27 -->|contains| n30
-  n28 -->|checks| n34
-  n29 -->|checks| n35
-  n30 -->|checks| n33
-  n31 -->|checks| n33
-  n31 -->|checks| n34
-  n31 -->|checks| n35
-  n33 -->|contains| n32
-  n33 -->|loads| n4
-  n34 -->|loads| n2
-  n35 -->|loads| n3
+  n2["EffectSharedServiceComponent"]
+  n3["EffectFunctionComponent"]
+  n4["EffectI18nComponent"]
+  n5["EffectPlaygroundComponent"]
+  n6["EffectYieldComponent"]
+  n7["EffectSyncMembersComponent"]
+  n8["EffectLayerScopeComponent"]
+  n9["AiContextMenu"]
+  n10["AiSendContextChat"]
+  n11["AiSendContextLauncher"]
+  n12["AiSendDialog"]
+  n13["craftPending"]
+  n14["CraftRouterOutlet"]
+  n15["AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic"]
+  n16["appConfig"]
+  n17["InMemoryDatabaseLive"]
+  n18["TodoStoreLive"]
+  n19["CartPricingLive"]
+  n20["AccessPolicyLive"]
+  n21["SessionLive"]
+  n22["SupportTeamLive"]
+  n23["getData"]
+  n24["addTodo"]
+  n25["removeTodoMutation"]
+  n26["todosQuery"]
+  n27["toggleTodoMutation"]
+  n28["cartTotalLabel"]
+  n29["quoteShipping"]
+  n30["checkUserAccess"]
+  n31["loadTeamOverview"]
+  n32["makeBuilder"]
+  n33["translateEffectUntraced"]
+  n34["AccessPolicyService"]
+  n35["CartPricing"]
+  n36["Database"]
+  n37["I18nEffectService"]
+  n38["MiddlewareExecutionScope"]
+  n39["SessionService"]
+  n40["TeamContextService"]
+  n41["TodoStore"]
+  n42["POST <unresolved:ai-send-context-chat.ts:508>"]
+  n43["queryEffect:accessQuery"]
+  n44["craftComputed:accessLabel"]
+  n45["craftComputed:accessReason"]
+  n46["craftComputed:hasDecision"]
+  n47["craftComputed:showUnknown"]
+  n48["craftComputed:userName"]
+  n49["queryEffect:effectFunctionQuery"]
+  n50["craftComputed:hasData"]
+  n51["craftComputed:summary"]
+  n52["state:locale"]
+  n53["craftComputed:englishPressed"]
+  n54["craftComputed:frenchPressed"]
+  n55["queryEffect:receiptQuery"]
+  n56["craftComputed:heading"]
+  n57["craftComputed:lines — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n58["craftComputed:placed"]
+  n59["craftComputed:total"]
+  n60["craftMethod:add"]
+  n61["mutationEffect:addTodo"]
+  n62["mutationEffect:removeTodo"]
+  n63["state:titleInput"]
+  n64["queryEffect:todos"]
+  n65["mutationEffect:toggleTodo"]
+  n66["queryEffect:profileQuery"]
+  n67["craftComputed:hasProfile"]
+  n68["craftComputed:headingText"]
+  n69["craftComputed:profileName"]
+  n70["state:formattedPreview"]
+  n71["state:qty"]
+  n72["craftComputed:lines — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n73["computedEffect:totalLabel"]
+  n74["computedEffect:weightLabel"]
+  n75["queryEffect:shippingQuery"]
+  n76["craftComputed:quoteLabel"]
+  n77["queryEffect:teamOverviewQuery"]
+  n78["craftComputed:memberNames"]
+  n79["craftComputed:teamName"]
+  n80["craftComputed:viewerAccess"]
+  n81["craftComputed:viewerName"]
+  n82["state:busy"]
+  n83["state:error"]
+  n84["state:instruction — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n85["state:panelOffset"]
+  n86["state:promptOptions — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n87["mutation:sendContextToAi"]
+  n88["craftMethod:setBusy"]
+  n89["craftMethod:setError"]
+  n90["craftMethod:setPanelOffset"]
+  n91["craftMethod:setStatus"]
+  n92["state:status"]
+  n93["state:captureError"]
+  n94["state:captureInProgress"]
+  n95["state:copied"]
+  n96["state:instruction — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n97["state:promptOptions — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n98["craftMethod:setCaptureError"]
+  n99["craftMethod:setCaptureInProgress"]
+  n100["craftMethod:setCopied"]
+  n101["queryEffect:accessQuery.call"]
+  n102["queryEffect:accessQuery.hasValue"]
+  n103["queryEffect:accessQuery.isLoading"]
+  n104["queryEffect:accessQuery.value"]
+  n105["queryEffect:effectFunctionQuery.exceptions"]
+  n106["queryEffect:effectFunctionQuery.hasValue"]
+  n107["state:locale.chooseEnglish"]
+  n108["state:locale.chooseFrench"]
+  n109["mutationEffect:addTodo.isLoading"]
+  n110["mutationEffect:addTodo.mutate"]
+  n111["mutationEffect:removeTodo.isLoading"]
+  n112["mutationEffect:removeTodo.mutate"]
+  n113["state:titleInput.clearTitle"]
+  n114["state:titleInput.setTitle"]
+  n115["mutationEffect:toggleTodo.isLoading"]
+  n116["mutationEffect:toggleTodo.mutate"]
+  n117["queryEffect:profileQuery.call"]
+  n118["queryEffect:profileQuery.exceptions"]
+  n119["queryEffect:profileQuery.hasValue"]
+  n120["queryEffect:profileQuery.status"]
+  n121["queryEffect:profileQuery.value"]
+  n122["state:formattedPreview.setPreview"]
+  n123["state:qty.decrement"]
+  n124["state:qty.increment"]
+  n125["queryEffect:teamOverviewQuery.value"]
+  n126["state:busy.setBusy"]
+  n127["state:error.setError"]
+  n128["state:instruction.setInstruction — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n129["state:panelOffset.setPanelOffset"]
+  n130["state:promptOptions.setOptions"]
+  n131["state:status.setStatus"]
+  n132["state:captureError.setCaptureError"]
+  n133["state:captureInProgress.setCaptureInProgress"]
+  n134["state:copied.setCopied"]
+  n135["state:instruction.setInstruction — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n136["state:promptOptions.setPromptOptions"]
+  n137[["CanRun _CanRunAccessQueryRequirements"]]
+  n138[["CanRun _CanRunCartPricingRequirements"]]
+  n139[["CanRun _CanRunEffectFunction"]]
+  n140[["CanRun _CanRunEffectFunctionRequirements"]]
+  n141[["CanRun _CanRunEffectI18n"]]
+  n142[["CanRun _CanRunEffectLayerScope"]]
+  n143[["CanRun _CanRunEffectPlayground"]]
+  n144[["CanRun _CanRunEffectSharedService"]]
+  n145[["CanRun _CanRunEffectSyncMembers"]]
+  n146[["CanRun _CanRunEffectYield"]]
+  n147[["CanRun _CanRunReceiptRequirements"]]
+  n148[["CanRun _CanRunTeamOverviewRequirements"]]
+  n149[["CanRun _CanRunTodoPlaygroundRequirements"]]
+  n150[["RouteCheckedDI _CheckEffectFunctionDI"]]
+  n151[["RouteCheckedDI _CheckEffectI18nDI"]]
+  n152[["RouteCheckedDI _CheckEffectLayerScopeDI"]]
+  n153[["RouteCheckedDI _CheckEffectPlaygroundDI"]]
+  n154[["RouteCheckedDI _CheckEffectSharedServiceDI"]]
+  n155[["RouteCheckedDI _CheckEffectSyncMembersDI"]]
+  n156[["RouteCheckedDI _CheckEffectYieldDI"]]
+  n157[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:demoEffectRoutes"]]
+  n158["demo-effect:.handleExceptions"]
+  n159["demo-effect:access.handleExceptions"]
+  n160["demo-effect:effect-function.handleExceptions"]
+  n161["demo-effect:playground.handleExceptions"]
+  n162{{"demo-effect:"}}
+  n163{{"demo-effect:access"}}
+  n164{{"demo-effect:effect-function"}}
+  n165{{"demo-effect:i18n"}}
+  n166{{"demo-effect:playground"}}
+  n167{{"demo-effect:sync-members"}}
+  n168{{"demo-effect:team"}}
+  n169(["AiContextMenuController"])
+  n170(["SendContextChatActions"])
+  n171(["SendContextChatComponent"])
+  n172(["SendContextChatSections"])
+  n173(["SendContextContextMenuComponent"])
+  n174(["SendContextExportSections"])
+  n175(["SendContextLauncherComponent"])
+  n176(["SendContextUiRenderer"])
+  n177(["CraftGlobalErrorComponent"])
+  n178(["CraftPendingComponent — libs/component/src/lib/craft-host-tokens.ts"])
+  n179(["CraftRootComponent"])
+  n180(["CraftRoutedComponent"])
+  n181(["CraftRouteLoadErrorComponent"])
+  n182(["ForScheduler"])
+  n183(["CraftStyleRegistry"])
+  n184(["BrowserCryptoService"])
+  n185(["BrowserDocumentService"])
+  n186(["BrowserHistoryService"])
+  n187(["BrowserLocationService"])
+  n188(["BrowserNavigatorService"])
+  n189(["BrowserPerformanceService"])
+  n190(["BrowserWindowService"])
+  n191(["ConsoleService"])
+  n192(["CookiesService"])
+  n193(["LocalStorageService"])
+  n194(["SessionStorageService"])
+  n195(["StorageService"])
+  n196(["ComponentMonitoring"])
+  n197(["CorrelationIdService"])
+  n198(["CraftA11yNavigationFocus"])
+  n199(["CraftTitleStrategy"])
+  n200(["CraftActivatedRoute"])
+  n201(["CraftHttpTraces"])
+  n202(["CraftHydrationRuntime"])
+  n203(["CraftDynamicImport"])
+  n204(["CraftLazyLoadRetry"])
+  n205(["CraftNodeEffectFactory"])
+  n206(["CraftBlankMs"])
+  n207(["CraftErrorComponent"])
+  n208(["CraftLoadingText"])
+  n209(["CraftPendingComponent — libs/core/src/lib/craft-pending.ts"])
+  n210(["CraftPendingMinMs"])
+  n211(["CraftStayMs"])
+  n212(["CraftPlatform"])
+  n213(["CraftPrimitiveRegistry"])
+  n214(["api — libs/core/src/lib/craft-register-for.ts"])
+  n215(["CraftRenderIdentity"])
+  n216(["CraftGlobalError"])
+  n217(["CraftActiveRouteLoadError"])
+  n218(["CraftRouteLoadError"])
+  n219(["CraftRouteLoadErrorConfig"])
+  n220(["CraftRouteLoadRecovery"])
+  n221(["CraftRouteLoadRetry"])
+  n222(["CraftRouteTarget"])
+  n223(["CraftRouteChainRunner"])
+  n224(["CraftSyncTemplateFlush"])
+  n225(["CraftChildMatch"])
+  n226(["CraftCompiledRoutes"])
+  n227(["CraftHistory"])
+  n228(["CraftLocation"])
+  n229(["CraftMatch"])
+  n230(["CraftRouterRuntime"])
+  n231(["CraftRouterTraces"])
+  n232(["CraftRouter"])
+  n233(["CraftRuntimeMode"])
+  n234(["CraftCspNonce"])
+  n235(["CraftSecurityPolicy"])
+  n236(["api — libs/core/src/lib/craft-service.ts"])
+  n237(["HostName"])
+  n238(["CraftSsrPolicy"])
+  n239(["CraftSsrRuntime"])
+  n240(["CraftStartViewTransition"])
+  n241(["CraftViewTransition"])
+  n242(["CraftViewTransitionsEnabled"])
+  n243(["CraftViewTransitionSkipBlank"])
+  n244(["CraftLogServerUrl"])
+  n245(["CraftDomEventHooks"])
+  n246(["CraftFieldCheckboxControl"])
+  n247(["CraftFieldValueControl"])
+  n248(["CraftFieldExceptionBoundary"])
+  n249(["GlobalPersisterHandlerService"])
+  n250(["PrimitiveMethodRuntimeContext"])
+  n251(["PrimitiveResourceRuntimeObservers"])
+  n252(["DynamicResourceInstance"])
+  n253(["CraftSchemaValidationPolicy"])
+  n254(["SendContextEventEnrichers"])
+  n255(["SendContextEventFilters"])
+  n256(["SendContextEventSources"])
+  n257(["SendContextRecordController"])
+  n258(["SendContextRedactor"])
+  n259(["SendContextRetentionPolicy"])
+  n260(["SendContextSession"])
+  n261(["SendContextValueSerializer"])
+  n262(["SendContextToAiBuffer"])
+  n263(["ServerFunctionTransport"])
+  n264(["LocalStoragePersister"])
+  n265(["SessionStoragePersister"])
+  n266(["StoragePersister"])
+  n267(["AppSnapshotRegistry"])
+  n268(["InsertionSnapshotRegistry"])
+  n269(["TakeAppSnapshot"])
+  n270(["TemplateTraces"])
+  n271(["DynamicEffectRefInstance"])
+  n272(["AccessPolicyService"])
+  n273(["CartPricing"])
+  n274(["Database"])
+  n275(["I18nEffectService"])
+  n276(["MiddlewareExecutionScope"])
+  n277(["SessionService"])
+  n278(["TeamContextService"])
+  n279(["TodoStore"])
+  n280["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
+  n281["source$ (source$) — libs/core/src/lib/insert-select.ts"]
+  n282["signalSource (signalSource)"]
+  n283["div — apps/demo-effect/src/app/app.ts"]
+  n284["div — apps/demo-effect/src/app/app.ts"]
+  n285["p — apps/demo-effect/src/app/app.ts"]
+  n286["main"]
+  n287["nav"]
+  n288["a.exampleLink"]
+  n289["div — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n290["div — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n291["div — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n292["button.adaButton"]
+  n293["button.graceButton"]
+  n294["button.linusButton"]
+  n295["p — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n296["p — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n297["p — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n298["p — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n299["p — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n300["strong — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n301["strong — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n302["strong — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n303["p — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n304["p — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n305["p — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n306["span — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n307["span — apps/demo-effect/src/app/examples/effect/effect-access-check-shared-service.ts"]
+  n308["div — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n309["div — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n310["p — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n311["p — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n312["strong — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n313["p — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n314["p — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n315["p — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n316["p — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n317["span — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n318["span — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n319["span — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n320["span — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n321["p — apps/demo-effect/src/app/examples/effect/effect-function.ts"]
+  n322["div — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n323["div — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n324["div — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n325["button.chooseEnglish"]
+  n326["button.chooseFrench"]
+  n327["p — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n328["p — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n329["p — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n330["p — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n331["p — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n332["span — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n333["p — apps/demo-effect/src/app/examples/effect/effect-i18n.ts"]
+  n334["div — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n335["div — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n336["div — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n337["button.add"]
+  n338["div — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n339["button.delete"]
+  n340["button.toggle"]
+  n341["span — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n342["p — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n343["input.title"]
+  n344["p — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n345["p — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n346["p — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n347["p — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n348["span — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n349["span — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n350["span — apps/demo-effect/src/app/examples/effect/effect-playground.ts"]
+  n351["div — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n352["div — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n353["div — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n354["div — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n355["button.databaseButton"]
+  n356["button.expiredButton"]
+  n357["button.notFoundButton"]
+  n358["button.profileButton"]
+  n359["p — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n360["p — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n361["strong — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n362["p — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n363["span — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n364["strong — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n365["p — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n366["span — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n367["strong — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n368["p — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n369["span — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n370["span — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n371["strong — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n372["p — apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"]
+  n373["div — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n374["div — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n375["div — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n376["button.decreaseQty"]
+  n377["button.increaseQty"]
+  n378["div — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n379["div — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n380["div — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n381["button.formatCurrentCart"]
+  n382["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n383["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n384["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n385["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n386["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n387["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n388["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n389["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n390["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n391["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n392["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n393["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n394["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n395["div — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n396["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n397["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n398["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n399["strong — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n400["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n401["p — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n402["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n403["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n404["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n405["span — apps/demo-effect/src/app/examples/effect/effect-sync-members.ts"]
+  n406["div — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n407["div — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n408["p — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n409["p — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n410["p — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n411["p — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n412["p — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n413["p — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n414["strong — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n415["strong — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n416["strong — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n417["strong — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n418["p — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n419["p — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n420["span — apps/demo-effect/src/app/examples/effect/effect-team-overview-layer-scope.ts"]
+  n421["div.aiContextMenu"]
+  n422["button.aiSendToIa"]
+  n423["span — libs/component/src/lib/ai/ai-context-menu.ts"]
+  n424["span — libs/component/src/lib/ai/ai-context-menu.ts"]
+  n425["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n426["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n427["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n428["fieldset — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n429["legend — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n430["footer — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n431["button.aiChatCancel"]
+  n432["button.aiCopyPayload"]
+  n433["button.aiCopyPrompt"]
+  n434["button.aiCopyWebhookPrompt"]
+  n435["button.aiExportJson"]
+  n436["button.aiRetrySend"]
+  n437["button.aiSendContext"]
+  n438["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n439["header — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n440["button.aiChatClose"]
+  n441["strong — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n442["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n443["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n444["section — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n445["section — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n446["section — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n447["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n448["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n449["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n450["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n451["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n452["button.aiClearTimeline"]
+  n453["button.aiToggleRecord"]
+  n454["label — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n455["ol — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n456["ol — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n457["p — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n458["p — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n459["li — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n460["li — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n461["button.aiRemoveTarget"]
+  n462["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n463["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n464["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n465["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n466["textarea.aiChatInstruction"]
+  n467["button.aiContextLauncher"]
+  n468["span — libs/component/src/lib/ai/ai-send-context-launcher.ts"]
+  n469["span — libs/component/src/lib/ai/ai-send-context-launcher.ts"]
+  n470["dialog"]
+  n471["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n472["fieldset — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n473["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n474["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n475["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n476["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n477["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n478["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n479["input.aiIncludeAppSnapshot"]
+  n480["input.aiIncludeClickedElement"]
+  n481["input.aiIncludeComponent"]
+  n482["input.aiIncludeDomStyles"]
+  n483["input.aiIncludePageDomStyles"]
+  n484["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n485["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n486["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n487["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n488["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n489["legend — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n490["footer — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n491["button.aiDialogCancel"]
+  n492["button.aiDialogCopy"]
+  n493["header — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n494["button.aiDialogClose"]
+  n495["strong — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n496["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n497["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n498["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n499["section — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n500["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n501["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n502["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n503["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n504["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n505["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n506["textarea.aiDialogInstruction"]
+  n507["div — libs/component/src/lib/craft-defaults.ts"]
+  n508["exampleLink"]
+  n509["adaButton"]
+  n510["graceButton"]
+  n511["linusButton"]
+  n512["chooseEnglish"]
+  n513["chooseFrench"]
+  n514["add"]
+  n515["delete"]
+  n516["toggle"]
+  n517["title"]
+  n518["databaseButton"]
+  n519["expiredButton"]
+  n520["notFoundButton"]
+  n521["profileButton"]
+  n522["decreaseQty"]
+  n523["increaseQty"]
+  n524["formatCurrentCart"]
+  n525["aiContextMenu"]
+  n526["aiSendToIa"]
+  n527["aiChatCancel"]
+  n528["aiCopyPayload"]
+  n529["aiCopyPrompt"]
+  n530["aiCopyWebhookPrompt"]
+  n531["aiExportJson"]
+  n532["aiRetrySend"]
+  n533["aiSendContext"]
+  n534["aiChatClose"]
+  n535["aiClearTimeline"]
+  n536["aiToggleRecord"]
+  n537["aiRemoveTarget"]
+  n538["aiChatInstruction"]
+  n539["aiContextLauncher"]
+  n540["aiIncludeAppSnapshot"]
+  n541["aiIncludeClickedElement"]
+  n542["aiIncludeComponent"]
+  n543["aiIncludeDomStyles"]
+  n544["aiIncludePageDomStyles"]
+  n545["aiDialogCancel"]
+  n546["aiDialogCopy"]
+  n547["aiDialogClose"]
+  n548["aiDialogInstruction"]
+  n0 -->|renders| n1
+  n1 -->|contains| n283
+  n1 -->|contains| n508
+  n1 -->|renders| n14
+  n2 -->|calls| n101
+  n2 -->|contains| n43
+  n2 -->|contains| n289
+  n2 -->|contains| n509
+  n2 -->|contains| n510
+  n2 -->|contains| n511
+  n2 -->|uses-property| n44
+  n2 -->|uses-property| n45
+  n2 -->|uses-property| n48
+  n3 -->|contains| n49
+  n3 -->|contains| n308
+  n3 -->|uses-property| n51
+  n3 -->|uses-property| n105
+  n4 -->|calls| n56
+  n4 -->|contains| n52
+  n4 -->|contains| n55
+  n4 -->|contains| n322
+  n4 -->|contains| n512
+  n4 -->|contains| n513
+  n4 -->|uses-property| n53
+  n4 -->|uses-property| n54
+  n4 -->|uses-property| n107
+  n4 -->|uses-property| n108
+  n5 -->|calls| n60
+  n5 -->|calls| n112
+  n5 -->|calls| n116
+  n5 -->|contains| n60
+  n5 -->|contains| n61
+  n5 -->|contains| n62
+  n5 -->|contains| n63
+  n5 -->|contains| n64
+  n5 -->|contains| n65
+  n5 -->|contains| n334
+  n5 -->|contains| n514
+  n5 -->|contains| n515
+  n5 -->|contains| n516
+  n5 -->|contains| n517
+  n5 -->|uses-property| n63
+  n5 -->|uses-property| n109
+  n5 -->|uses-property| n111
+  n5 -->|uses-property| n113
+  n5 -->|uses-property| n114
+  n5 -->|uses-property| n115
+  n6 -->|calls| n117
+  n6 -->|contains| n66
+  n6 -->|contains| n351
+  n6 -->|contains| n518
+  n6 -->|contains| n519
+  n6 -->|contains| n520
+  n6 -->|contains| n521
+  n6 -->|uses-property| n69
+  n6 -->|uses-property| n118
+  n7 -->|calls| n122
+  n7 -->|calls| n123
+  n7 -->|calls| n124
+  n7 -->|contains| n70
+  n7 -->|contains| n71
+  n7 -->|contains| n75
+  n7 -->|contains| n373
+  n7 -->|contains| n522
+  n7 -->|contains| n523
+  n7 -->|contains| n524
+  n7 -->|uses-property| n74
+  n7 -->|uses-property| n122
+  n7 -->|uses-property| n123
+  n7 -->|uses-property| n124
+  n8 -->|contains| n77
+  n8 -->|contains| n406
+  n8 -->|uses-property| n78
+  n8 -->|uses-property| n79
+  n8 -->|uses-property| n80
+  n8 -->|uses-property| n81
+  n9 -->|contains| n421
+  n9 -->|contains| n525
+  n9 -->|contains| n526
+  n10 -->|contains| n82
+  n10 -->|contains| n83
+  n10 -->|contains| n84
+  n10 -->|contains| n85
+  n10 -->|contains| n86
+  n10 -->|contains| n87
+  n10 -->|contains| n88
+  n10 -->|contains| n89
+  n10 -->|contains| n90
+  n10 -->|contains| n91
+  n10 -->|contains| n92
+  n10 -->|contains| n425
+  n10 -->|contains| n527
+  n10 -->|contains| n528
+  n10 -->|contains| n529
+  n10 -->|contains| n530
+  n10 -->|contains| n531
+  n10 -->|contains| n532
+  n10 -->|contains| n533
+  n10 -->|contains| n534
+  n10 -->|contains| n535
+  n10 -->|contains| n536
+  n10 -->|contains| n537
+  n10 -->|contains| n538
+  n10 -->|uses-property| n126
+  n10 -->|uses-property| n127
+  n10 -->|uses-property| n128
+  n10 -->|uses-property| n129
+  n10 -->|uses-property| n130
+  n10 -->|uses-property| n131
+  n11 -->|contains| n467
+  n11 -->|contains| n539
+  n12 -->|contains| n93
+  n12 -->|contains| n94
+  n12 -->|contains| n95
+  n12 -->|contains| n96
+  n12 -->|contains| n97
+  n12 -->|contains| n98
+  n12 -->|contains| n99
+  n12 -->|contains| n100
+  n12 -->|contains| n470
+  n12 -->|contains| n540
+  n12 -->|contains| n541
+  n12 -->|contains| n542
+  n12 -->|contains| n543
+  n12 -->|contains| n544
+  n12 -->|contains| n545
+  n12 -->|contains| n546
+  n12 -->|contains| n547
+  n12 -->|contains| n548
+  n12 -->|uses-property| n132
+  n12 -->|uses-property| n133
+  n12 -->|uses-property| n134
+  n12 -->|uses-property| n135
+  n12 -->|uses-property| n136
+  n13 -->|contains| n507
+  n23 -->|requires-service| n36
+  n28 -->|requires-service| n35
+  n29 -->|requires-service| n35
+  n30 -->|requires-service| n34
+  n31 -->|requires-service| n39
+  n31 -->|requires-service| n40
+  n32 -->|requires-service| n38
+  n33 -->|requires-service| n37
+  n34 -->|provided-by-layer| n20
+  n35 -->|provided-by-layer| n19
+  n36 -->|provided-by-layer| n17
+  n39 -->|provided-by-layer| n21
+  n40 -->|provided-by-layer| n22
+  n41 -->|provided-by-layer| n18
+  n43 -->|contains| n44
+  n43 -->|contains| n45
+  n43 -->|contains| n46
+  n43 -->|contains| n47
+  n43 -->|contains| n48
+  n43 -->|contains| n101
+  n43 -->|contains| n102
+  n43 -->|contains| n103
+  n43 -->|contains| n104
+  n43 -->|depends-on| n272
+  n44 -->|depends-on| n104
+  n45 -->|depends-on| n104
+  n46 -->|depends-on| n102
+  n47 -->|depends-on| n102
+  n47 -->|depends-on| n103
+  n48 -->|depends-on| n104
+  n49 -->|contains| n50
+  n49 -->|contains| n51
+  n49 -->|contains| n105
+  n49 -->|contains| n106
+  n49 -->|depends-on| n274
+  n50 -->|depends-on| n106
+  n51 -->|depends-on| n49
+  n52 -->|contains| n53
+  n52 -->|contains| n54
+  n52 -->|contains| n107
+  n52 -->|contains| n108
+  n55 -->|contains| n56
+  n55 -->|contains| n57
+  n55 -->|contains| n58
+  n55 -->|contains| n59
+  n55 -->|depends-on| n52
+  n55 -->|depends-on| n275
+  n56 -->|depends-on| n55
+  n57 -->|depends-on| n55
+  n58 -->|depends-on| n55
+  n59 -->|depends-on| n55
+  n60 -->|calls| n110
+  n60 -->|calls| n113
+  n60 -->|depends-on| n63
+  n61 -->|contains| n109
+  n61 -->|contains| n110
+  n61 -->|depends-on| n279
+  n61 -->|requires-service| n41
+  n62 -->|contains| n111
+  n62 -->|contains| n112
+  n62 -->|depends-on| n279
+  n62 -->|requires-service| n41
+  n63 -->|contains| n113
+  n63 -->|contains| n114
+  n64 -->|depends-on| n279
+  n64 -->|requires-service| n41
+  n65 -->|contains| n115
+  n65 -->|contains| n116
+  n65 -->|depends-on| n279
+  n65 -->|requires-service| n41
+  n66 -->|contains| n67
+  n66 -->|contains| n68
+  n66 -->|contains| n69
+  n66 -->|contains| n117
+  n66 -->|contains| n118
+  n66 -->|contains| n119
+  n66 -->|contains| n120
+  n66 -->|contains| n121
+  n67 -->|depends-on| n119
+  n68 -->|depends-on| n120
+  n69 -->|depends-on| n121
+  n70 -->|contains| n122
+  n71 -->|contains| n72
+  n71 -->|contains| n73
+  n71 -->|contains| n74
+  n71 -->|contains| n123
+  n71 -->|contains| n124
+  n73 -->|depends-on| n273
+  n75 -->|contains| n76
+  n75 -->|depends-on| n72
+  n75 -->|depends-on| n273
+  n76 -->|depends-on| n75
+  n77 -->|contains| n78
+  n77 -->|contains| n79
+  n77 -->|contains| n80
+  n77 -->|contains| n81
+  n77 -->|contains| n125
+  n77 -->|depends-on| n277
+  n77 -->|depends-on| n278
+  n78 -->|depends-on| n125
+  n79 -->|depends-on| n125
+  n80 -->|depends-on| n125
+  n81 -->|depends-on| n125
+  n82 -->|contains| n126
+  n83 -->|contains| n127
+  n84 -->|contains| n128
+  n85 -->|contains| n129
+  n86 -->|contains| n130
+  n87 -->|calls| n42
+  n92 -->|contains| n131
+  n93 -->|contains| n132
+  n94 -->|contains| n133
+  n95 -->|contains| n134
+  n96 -->|contains| n135
+  n97 -->|contains| n136
+  n139 -->|contains| n150
+  n141 -->|contains| n151
+  n142 -->|contains| n152
+  n143 -->|contains| n153
+  n144 -->|contains| n154
+  n145 -->|contains| n155
+  n146 -->|contains| n156
+  n150 -->|checks| n164
+  n151 -->|checks| n165
+  n152 -->|checks| n168
+  n153 -->|checks| n166
+  n154 -->|checks| n163
+  n155 -->|checks| n167
+  n156 -->|checks| n162
+  n157 -->|checks| n162
+  n157 -->|checks| n163
+  n157 -->|checks| n164
+  n157 -->|checks| n165
+  n157 -->|checks| n166
+  n157 -->|checks| n167
+  n157 -->|checks| n168
+  n162 -->|contains| n158
+  n162 -->|loads| n6
+  n163 -->|contains| n159
+  n163 -->|loads| n2
+  n164 -->|contains| n160
+  n164 -->|loads| n3
+  n165 -->|loads| n4
+  n166 -->|contains| n161
+  n166 -->|loads| n5
+  n167 -->|loads| n7
+  n168 -->|loads| n8
+  n283 -->|contains| n284
+  n283 -->|contains| n286
+  n283 -->|contains| n287
+  n284 -->|contains| n285
+  n286 -->|renders| n14
+  n287 -->|contains| n288
+  n289 -->|contains| n290
+  n289 -->|contains| n291
+  n289 -->|contains| n304
+  n289 -->|contains| n305
+  n290 -->|contains| n292
+  n290 -->|contains| n293
+  n290 -->|contains| n294
+  n291 -->|contains| n295
+  n291 -->|contains| n296
+  n291 -->|contains| n297
+  n291 -->|contains| n298
+  n291 -->|contains| n299
+  n291 -->|contains| n303
+  n296 -->|contains| n300
+  n297 -->|contains| n301
+  n298 -->|contains| n302
+  n305 -->|contains| n306
+  n305 -->|contains| n307
+  n308 -->|contains| n309
+  n308 -->|contains| n315
+  n308 -->|contains| n316
+  n308 -->|contains| n321
+  n309 -->|contains| n310
+  n309 -->|contains| n311
+  n309 -->|contains| n313
+  n309 -->|contains| n314
+  n311 -->|contains| n312
+  n316 -->|contains| n317
+  n316 -->|contains| n318
+  n316 -->|contains| n319
+  n316 -->|contains| n320
+  n322 -->|contains| n323
+  n322 -->|contains| n324
+  n322 -->|contains| n330
+  n322 -->|contains| n331
+  n322 -->|contains| n333
+  n323 -->|contains| n325
+  n323 -->|contains| n326
+  n324 -->|contains| n327
+  n324 -->|contains| n328
+  n324 -->|contains| n329
+  n331 -->|contains| n332
+  n334 -->|contains| n335
+  n334 -->|contains| n336
+  n334 -->|contains| n344
+  n334 -->|contains| n345
+  n334 -->|contains| n346
+  n334 -->|contains| n347
+  n335 -->|contains| n337
+  n335 -->|contains| n343
+  n336 -->|contains| n338
+  n336 -->|contains| n342
+  n338 -->|contains| n339
+  n338 -->|contains| n340
+  n338 -->|contains| n341
+  n347 -->|contains| n348
+  n347 -->|contains| n349
+  n347 -->|contains| n350
+  n351 -->|contains| n352
+  n351 -->|contains| n353
+  n351 -->|contains| n354
+  n351 -->|contains| n372
+  n352 -->|contains| n355
+  n352 -->|contains| n356
+  n352 -->|contains| n357
+  n352 -->|contains| n358
+  n353 -->|contains| n359
+  n353 -->|contains| n360
+  n353 -->|contains| n362
+  n353 -->|contains| n365
+  n353 -->|contains| n368
+  n354 -->|contains| n369
+  n354 -->|contains| n370
+  n354 -->|contains| n371
+  n360 -->|contains| n361
+  n362 -->|contains| n363
+  n362 -->|contains| n364
+  n365 -->|contains| n366
+  n365 -->|contains| n367
+  n373 -->|contains| n374
+  n373 -->|contains| n375
+  n373 -->|contains| n400
+  n373 -->|contains| n401
+  n374 -->|contains| n376
+  n374 -->|contains| n377
+  n374 -->|contains| n398
+  n375 -->|contains| n378
+  n375 -->|contains| n379
+  n375 -->|contains| n380
+  n375 -->|contains| n395
+  n378 -->|contains| n381
+  n378 -->|contains| n382
+  n378 -->|contains| n383
+  n378 -->|contains| n384
+  n379 -->|contains| n385
+  n379 -->|contains| n386
+  n379 -->|contains| n387
+  n380 -->|contains| n388
+  n380 -->|contains| n389
+  n380 -->|contains| n390
+  n384 -->|contains| n391
+  n387 -->|contains| n392
+  n387 -->|contains| n393
+  n390 -->|contains| n394
+  n395 -->|contains| n396
+  n395 -->|contains| n397
+  n398 -->|contains| n399
+  n401 -->|contains| n402
+  n401 -->|contains| n403
+  n401 -->|contains| n404
+  n401 -->|contains| n405
+  n406 -->|contains| n407
+  n406 -->|contains| n418
+  n406 -->|contains| n419
+  n407 -->|contains| n408
+  n407 -->|contains| n409
+  n407 -->|contains| n410
+  n407 -->|contains| n411
+  n407 -->|contains| n412
+  n407 -->|contains| n413
+  n410 -->|contains| n414
+  n411 -->|contains| n415
+  n412 -->|contains| n416
+  n413 -->|contains| n417
+  n419 -->|contains| n420
+  n421 -->|contains| n422
+  n422 -->|contains| n423
+  n422 -->|contains| n424
+  n425 -->|contains| n426
+  n426 -->|contains| n427
+  n426 -->|contains| n428
+  n426 -->|contains| n430
+  n426 -->|contains| n439
+  n426 -->|contains| n442
+  n426 -->|contains| n443
+  n426 -->|contains| n444
+  n426 -->|contains| n445
+  n426 -->|contains| n446
+  n428 -->|contains| n429
+  n430 -->|contains| n431
+  n430 -->|contains| n432
+  n430 -->|contains| n433
+  n430 -->|contains| n434
+  n430 -->|contains| n435
+  n430 -->|contains| n436
+  n430 -->|contains| n437
+  n430 -->|contains| n438
+  n439 -->|contains| n440
+  n439 -->|contains| n441
+  n444 -->|contains| n447
+  n444 -->|contains| n455
+  n445 -->|contains| n448
+  n445 -->|contains| n456
+  n446 -->|contains| n454
+  n446 -->|contains| n466
+  n447 -->|contains| n449
+  n448 -->|contains| n450
+  n448 -->|contains| n451
+  n451 -->|contains| n452
+  n451 -->|contains| n453
+  n455 -->|contains| n457
+  n455 -->|contains| n459
+  n456 -->|contains| n458
+  n456 -->|contains| n460
+  n459 -->|contains| n461
+  n459 -->|contains| n462
+  n460 -->|contains| n463
+  n460 -->|contains| n464
+  n460 -->|contains| n465
+  n467 -->|contains| n468
+  n467 -->|contains| n469
+  n470 -->|contains| n471
+  n471 -->|contains| n472
+  n471 -->|contains| n490
+  n471 -->|contains| n493
+  n471 -->|contains| n496
+  n471 -->|contains| n497
+  n471 -->|contains| n498
+  n471 -->|contains| n499
+  n471 -->|contains| n506
+  n472 -->|contains| n473
+  n472 -->|contains| n474
+  n472 -->|contains| n475
+  n472 -->|contains| n476
+  n472 -->|contains| n477
+  n472 -->|contains| n478
+  n472 -->|contains| n489
+  n474 -->|contains| n480
+  n474 -->|contains| n484
+  n475 -->|contains| n481
+  n475 -->|contains| n485
+  n476 -->|contains| n479
+  n476 -->|contains| n486
+  n477 -->|contains| n482
+  n477 -->|contains| n487
+  n478 -->|contains| n483
+  n478 -->|contains| n488
+  n490 -->|contains| n491
+  n490 -->|contains| n492
+  n493 -->|contains| n494
+  n493 -->|contains| n495
+  n499 -->|contains| n500
+  n499 -->|contains| n501
+  n499 -->|contains| n502
+  n500 -->|contains| n503
+  n501 -->|contains| n504
+  n502 -->|contains| n505

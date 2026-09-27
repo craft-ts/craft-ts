@@ -5,7 +5,6 @@ import { Subject } from 'rxjs';
 import { Console, ConsoleService } from './browser-boundaries';
 import {
   abstract,
-  craftRequirement,
   craftService,
   getServiceMetaData,
   onAppStart,
@@ -483,7 +482,7 @@ describe('scope', () => {
   it('should enable to create a manuallyProvidedAtRoot craftService by passing a name/scope', () => {
     // for services that need to be provided at root but with some specific configuration (like inputs) that make it impossible to provide them with the provideService helper (or for external services like HttpClient)
     // the aim of this scope is to enable to inject it in global services while still exposing a public token for manual root providers
-    const { Counter, provideCounter, CounterToProvide } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
         const counter = yield* state('counter', 0, ({ update }) => ({
@@ -492,8 +491,6 @@ describe('scope', () => {
         return counter;
       },
     );
-
-    expect(CounterToProvide).toBeInstanceOf(InjectionToken);
 
     TestBed.configureTestingModule({
       providers: [provideCounter()],
@@ -508,7 +505,7 @@ describe('scope', () => {
   });
 
   it('should expose provider config through $provided for a manuallyProvidedAtRoot craftService', () => {
-    const { Counter, provideCounter, CounterToProvide } = craftService(
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* (inputs: { $provided: { initialValue: number } }) {
         const counter = yield* state(
@@ -529,7 +526,7 @@ describe('scope', () => {
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      const providedCounter = inject(CounterToProvide);
+      const providedCounter = craftUse(Counter());
 
       expect(counter).toBe(providedCounter);
       expect(craftUse(counter())).toBe(7);
@@ -537,8 +534,8 @@ describe('scope', () => {
     });
   });
 
-  it('should enable to manually provide a manuallyProvidedAtRoot craftService through CounterToProvide', () => {
-    const { Counter, CounterToProvide } = craftService(
+  it('should provide a manuallyProvidedAtRoot craftService through its generated helper', () => {
+    const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
         const counter = yield* state('counter', 0, ({ update }) => ({
@@ -549,24 +546,14 @@ describe('scope', () => {
     );
 
     TestBed.configureTestingModule({
-      providers: [
-        {
-          provide: CounterToProvide,
-          useFactory: () =>
-            craftUse(
-              state('manualCounter', 10, ({ update }) => ({
-                increment: () => update((v) => v + 1),
-              })),
-            ),
-        },
-      ],
+      providers: [provideCounter()],
     });
 
     TestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
-      expect(craftUse(counter())).toBe(10);
+      expect(craftUse(counter())).toBe(0);
       counter.increment();
-      expect(craftUse(counter())).toBe(11);
+      expect(craftUse(counter())).toBe(1);
     });
   });
 
@@ -755,11 +742,15 @@ describe('scope', () => {
       increment(): void;
     }
 
+    const { CounterRequirement } = craftService(
+      { name: 'Counter', providedIn: 'abstract' },
+      abstract<Counter>(),
+    );
     const { CounterImpl, provideCounterImpl } = craftService(
       {
         name: 'CounterImpl',
         providedIn: 'toProvide',
-        requirement: craftRequirement<Counter>(),
+        requirement: CounterRequirement,
       },
       function* () {
         const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
@@ -781,17 +772,21 @@ describe('scope', () => {
     });
   });
 
-  it('should allow an inline craftRequirement with a named interface contract', () => {
+  it('should allow a named abstract service with an interface contract', () => {
     interface Counter {
       increment(): void;
     }
 
+    const { CounterRequirement } = craftService(
+      { name: 'Counter', providedIn: 'abstract' },
+      abstract<Counter>(),
+    );
     const increment = vi.fn();
     const { CounterImpl, provideCounterImpl } = craftService(
       {
         name: 'CounterImpl',
         providedIn: 'toProvide',
-        requirement: craftRequirement<Counter>(),
+        requirement: CounterRequirement,
       },
       () => ({
         increment,
@@ -809,13 +804,16 @@ describe('scope', () => {
     });
   });
 
-  it('should expose a token on craftRequirement that aliases the concrete instance', () => {
+  it('should expose an abstract helper that resolves to its concrete implementation', () => {
     interface Counter {
       (): number;
       increment(): void;
     }
 
-    const CounterRequirement = craftRequirement<Counter>();
+    const { Counter, CounterRequirement } = craftService(
+      { name: 'Counter', providedIn: 'abstract' },
+      abstract<Counter>(),
+    );
     const { CounterImpl, provideCounterImpl } = craftService(
       {
         name: 'CounterImpl',
@@ -830,15 +828,13 @@ describe('scope', () => {
       },
     );
 
-    expect(CounterRequirement.token).toBeInstanceOf(InjectionToken);
-
     TestBed.configureTestingModule({
       providers: [provideCounterImpl()],
     });
 
     TestBed.runInInjectionContext(() => {
       const counterImpl = craftUse(CounterImpl());
-      const counter = inject(CounterRequirement.token);
+      const counter = craftUse(Counter());
 
       expect(counter).toBe(counterImpl);
       counter.increment();
@@ -901,7 +897,7 @@ describe('scope', () => {
           name: 'CounterImpl',
           providedIn: 'global',
           //@ts-expect-error it should not be possible to create a global craftService from craftRequirement, it should force to provide an implementation
-          requirement: craftRequirement<{
+          requirement: abstract<{
             increment(): void;
           }>(),
         },
@@ -919,7 +915,7 @@ describe('scope', () => {
           name: 'CounterImpl',
           providedIn: 'toProvide',
           //@ts-expect-error it should not be possible to create a craftService if the craftRequirement contract is not satisfied
-          requirement: craftRequirement<{
+          requirement: abstract<{
             increment(): void;
           }>(),
         },

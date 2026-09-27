@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { CRAFT_HISTORY, CRAFT_MATCH, provideCraftRouter } from './craft-router';
-import {
-  createEnvironmentInjector,
-  Injector,
-} from './host/craft-compat';
+import { TestBed } from './host/craft-test-bed';
+import { provideCraftRouter } from './craft-router';
+import { ɵinjectCraftHistory, ɵinjectCraftMatch } from './craft-router-tokens';
 
 describe('provideCraftRouter title', () => {
   afterEach(() => {
@@ -14,14 +12,13 @@ describe('provideCraftRouter title', () => {
 
   it('writes document.title from the matched route title', () => {
     document.title = 'before';
-    const injector = createEnvironmentInjector(
-      provideCraftRouter([
+    TestBed.configureTestingModule({
+      providers: [provideCraftRouter([
         { path: 'hello', title: 'Hello page', component: {} },
-      ]),
-      Injector.NULL,
-    );
-    const history = injector.get(CRAFT_HISTORY);
-    injector.get(CRAFT_MATCH);
+      ])],
+    });
+    const history = TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
+    TestBed.runInInjectionContext(() => ɵinjectCraftMatch());
     history.push('/hello');
     expect(document.title).toBe('Hello page');
   });

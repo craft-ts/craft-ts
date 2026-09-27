@@ -1,5 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import styles from './task-board.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -27,6 +25,8 @@ import {
   withBackNavigation,
   withStateMachineHistory,
 } from '@craft-ts/core';
+import { example } from '../../shared/example.style';
+import { taskBoard } from './task-board.style';
 
 type Task = {
   readonly id: string;
@@ -154,19 +154,22 @@ const TaskRow = craftComponent(
   'TaskRow',
   {
     providers: [provideTaskRowView()],
-    stylesUrl: styles,
   },
   function* (inputs: { readonly task: Input<Task> }) {
     const { machine, title } = yield* TaskRowView(inputs);
-    return li({ class: 'row' }, [
-      div({ class: 'row__head' }, [
-        span({ class: 'row__title' }, title),
-        span({ class: 'badge' }, machine.step),
+    return li({ class: taskBoard.row }, [
+      div({ class: taskBoard.head }, [
+        span({ class: taskBoard.title }, title),
+        span(
+          { class: example.badge, 'data-testid': 'task-step' },
+          machine.step,
+        ),
       ]),
 
       input('task-note', {
         type: 'text',
-        class: 'row__note',
+        class: example.input,
+        'data-exampleField': 'wide',
         placeholder: 'Note recorded with each move…',
         value: machine.note,
         *input(event) {
@@ -174,10 +177,12 @@ const TaskRow = craftComponent(
         },
       }),
 
-      div({ class: 'row__actions' }, [
+      div({ class: example.row }, [
         button(
           'task-start',
           {
+            class: example.button,
+            'data-exampleButton': 'primary',
             type: 'button',
             disabled: machine.startDisabled,
             click: machine.start,
@@ -187,6 +192,8 @@ const TaskRow = craftComponent(
         button(
           'task-finish',
           {
+            class: example.button,
+            'data-exampleButton': 'primary',
             type: 'button',
             disabled: machine.finishDisabled,
             click: machine.finish,
@@ -197,7 +204,7 @@ const TaskRow = craftComponent(
           'task-reopen',
           {
             type: 'button',
-            class: 'secondary',
+            class: example.button,
             disabled: machine.reopenDisabled,
             click: machine.reopen,
           },
@@ -205,12 +212,12 @@ const TaskRow = craftComponent(
         ),
       ]),
 
-      div({ class: 'row__actions' }, [
+      div({ class: example.row }, [
         button(
           'task-back',
           {
             type: 'button',
-            class: 'secondary',
+            class: example.button,
             disabled: machine.backDisabled,
             click: machine.back,
           },
@@ -220,13 +227,13 @@ const TaskRow = craftComponent(
           'task-forward',
           {
             type: 'button',
-            class: 'secondary',
+            class: example.button,
             disabled: machine.forwardDisabled,
             click: machine.forward,
           },
           'Forward →',
         ),
-        span({ class: 'row__history' }, machine.historyLabel),
+        span({ class: example.hint }, machine.historyLabel),
       ]),
     ]);
   },
@@ -246,18 +253,17 @@ const TaskBoardStateMachineList = craftComponent(
   'TaskBoardStateMachineList',
   {
     providers: [provideTaskBoardStateMachineListView()],
-    stylesUrl: styles,
   },
   function* () {
     yield* TaskBoardStateMachineListView();
-    return section([
-      heading('State machine — one per row'),
+    return section({ class: example.card }, [
+      heading({ class: example.title }, 'State machine — one per row'),
       p(
-        { class: 'intro' },
+        { class: example.text, 'data-exampleText': 'muted' },
         'Three rows, three machines, three histories. Rewinding one row leaves the others alone, and each history is anchored on the task id — so it survives a reload and a reorder.',
       ),
       ul(
-        { class: 'rows' },
+        { class: example.list },
         forNode(TASKS, { track: (task) => task.id }, (task) =>
           TaskRow({
             task: task,

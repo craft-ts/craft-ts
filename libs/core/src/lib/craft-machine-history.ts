@@ -1,10 +1,9 @@
-import { inject } from './host/craft-compat';
 import { craftComputed as createCraftComputed, craftSignal } from './host/craft-signal';
 import { StorageService } from './browser-boundaries';
 import type { CraftUnique } from './craft-unique';
 import type { GetServiceYields } from './craft-service';
 import {
-  CRAFT_PRIMITIVE_REGISTRY,
+  ɵinjectCraftPrimitiveRegistry,
   type CraftPrimitiveEntry,
   type CraftPrimitiveSnapshot,
 } from './craft-primitive-registry';
@@ -241,7 +240,7 @@ export function withStateMachineHistory(
 
   return function* ({ currentStep, machine }) {
     const storage = yield* StorageService();
-    const registry = inject(CRAFT_PRIMITIVE_REGISTRY);
+    const registry = ɵinjectCraftPrimitiveRegistry();
     const persistence = options.persist;
     const storageKey = persistence
       ? `craft-ts-${persistence.storeName}-history-${

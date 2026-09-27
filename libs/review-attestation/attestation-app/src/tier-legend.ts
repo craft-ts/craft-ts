@@ -1,7 +1,8 @@
 import { craftComponent, li, span, ul, type Input } from '@craft-ts/component';
-import { craftService, craftComputed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { TIERS } from '@craft-ts/style-testing/review/frame';
 import type { Messages } from './messages';
+import { tierLegend } from './tier-legend.style';
 
 /**
  * One line of the legend, drawn from the same object that paints the frame.
@@ -13,7 +14,7 @@ import type { Messages } from './messages';
  * that for a factory private to its file.
  */
 const legendEntry = (
-  tier: (typeof TIERS)[keyof typeof TIERS],
+  name: keyof typeof TIERS,
   options: {
     readonly hidden?: () => Generator<unknown, boolean>;
     /** Overrides the tier's wording when the card knows something better. */
@@ -22,16 +23,16 @@ const legendEntry = (
 ) =>
   li(
     {
-      class: 'tier-legend-entry',
+      class: tierLegend.entry,
       ...(options.hidden ? { hidden: options.hidden } : {}),
     },
     [
       span({
-        class: 'tier-swatch',
+        class: tierLegend.swatch,
+        'data-tier': name,
         'aria-hidden': 'true',
-        style: `border-color:${tier.colour};border-style:${tier.style}`,
       }),
-      options.label ?? tier.label,
+      options.label ?? TIERS[name].label,
     ],
   );
 
@@ -40,17 +41,22 @@ const legendEntry = (
  * meets a dotted orange box around a button they never touched and has no
  * way to find out what it is telling them.
  */
-export const { TierLegendView, provideTierLegendView } = craftService(
-  { name: 'tierLegendView', providedIn: 'toProvide' },
-  (inputs: {
+export const TierLegend = craftComponent(
+  'TierLegend',
+  {},
+  function* ({
+    showing,
+    changedCount,
+    coveredCount,
+    chromeNames,
+    t,
+  }: {
     readonly showing: Input<boolean>;
     readonly changedCount: Input<number>;
     readonly coveredCount: Input<number>;
     readonly chromeNames: Input<readonly string[]>;
     readonly t: Input<Messages>;
-  }) => {
-    const { showing, changedCount, coveredCount, chromeNames, t } = inputs;
-
+  }) {
     const hiddenLegend = craftComputed('hiddenLegend', function* () {
       return !(yield* showing());
     });
@@ -82,49 +88,17 @@ export const { TierLegendView, provideTierLegendView } = craftService(
     const pickedLabel = craftComputed('pickedLabel', function* () {
       return (yield* t()).tierPicked;
     });
-
-    return {
-      hiddenLegend,
-      subjectLabel,
-      changedHidden,
-      changedLabel,
-      occludedHidden,
-      occludedLabel,
-      pickedLabel,
-    };
-  },
-);
-
-export const TierLegend = craftComponent(
-  'TierLegend',
-  { providers: [provideTierLegendView()] },
-  function* (inputs: {
-    readonly showing: Input<boolean>;
-    readonly changedCount: Input<number>;
-    readonly coveredCount: Input<number>;
-    readonly chromeNames: Input<readonly string[]>;
-    readonly t: Input<Messages>;
-  }) {
-    const {
-      hiddenLegend,
-      subjectLabel,
-      changedHidden,
-      changedLabel,
-      occludedHidden,
-      occludedLabel,
-      pickedLabel,
-    } = yield* TierLegendView(inputs);
-    return ul({ class: 'tier-legend', hidden: hiddenLegend }, [
-      legendEntry(TIERS.subject, { label: subjectLabel }),
-      legendEntry(TIERS.changed, {
+    return ul({ class: tierLegend.root, hidden: hiddenLegend }, [
+      legendEntry('subject', { label: subjectLabel }),
+      legendEntry('changed', {
         hidden: changedHidden,
         label: changedLabel,
       }),
-      legendEntry(TIERS.occluded, {
+      legendEntry('occluded', {
         hidden: occludedHidden,
         label: occludedLabel,
       }),
-      legendEntry(TIERS.picked, { label: pickedLabel }),
+      legendEntry('picked', { label: pickedLabel }),
     ]);
   },
 );

@@ -140,9 +140,24 @@ describe('architecture migration', () => {
       join(root, 'architecture/load-graph.ts'),
       'utf8',
     );
-    expect(loadGraph).toContain('export function loadArchitectureGraph()');
+    expect(loadGraph).toContain(
+      'export async function loadArchitectureGraph()',
+    );
     expect(loadGraph).toContain("tsConfigFilePath: 'tsconfig.graph.json'");
     expect(loadGraph).not.toContain('nxViteTsPaths');
+    // No @craft-ts/style in the project: nothing to evaluate, no dump.
+    expect(loadGraph).not.toContain('loadStyleDump');
+
+    const spec = await readFile(
+      join(root, 'architecture/architecture.spec.ts'),
+      'utf8',
+    );
+    expect(spec).toContain(
+      'assertArchitecture(graph.graph, { waivers: architectureWaiverList })',
+    );
+    expect(
+      await readFile(join(root, 'architecture/waivers.ts'), 'utf8'),
+    ).toContain('defineArchitectureWaivers(');
 
     const vitestConfig = await readFile(
       join(root, 'vitest.architecture.config.ts'),
@@ -287,9 +302,9 @@ describe('architecture migration', () => {
 import { loadArchitectureGraph } from './load-graph';
 
 describe('architecture', () => {
-  let graph: ReturnType<typeof loadArchitectureGraph>;
-  beforeAll(() => {
-    graph = loadArchitectureGraph();
+  let graph: Awaited<ReturnType<typeof loadArchitectureGraph>>;
+  beforeAll(async () => {
+    graph = await loadArchitectureGraph();
   }, 180_000);
   it('indexes a feature route', () => {
     expect(graph.graph.nodes.length).toBeGreaterThanOrEqual(0);
@@ -304,6 +319,57 @@ describe('architecture', () => {
       rootDir: join(root, 'src'),
       check: true,
       log: () => undefined,
+    });
+    expect(checked.exitCode).toBe(0);
+  });
+
+  it('merges the style dump when the project styles with @craft-ts/style', async () => {
+    const files = cliAppFiles();
+    const root = await fixture({
+      ...files,
+      'package.json': JSON.stringify({
+        name: 'my-app',
+        dependencies: { '@craft-ts/style': '^0.8.7' },
+      }),
+    });
+
+    await runArchitectureMigration({
+      tsConfigFilePath: join(root, 'tsconfig.app.json'),
+      rootDir: join(root, 'src'),
+      write: true,
+      log: () => undefined,
+    });
+
+    const loadGraph = await readFile(
+      join(root, 'architecture/load-graph.ts'),
+      'utf8',
+    );
+    expect(loadGraph).toContain(
+      "import { loadStyleDump } from '@craft-ts/style/vite'",
+    );
+    expect(loadGraph).toContain('mergeStyleDump(graph, styleDump)');
+    expect(loadGraph).toContain("resolve(import.meta.dirname, '../src')");
+  });
+
+  it('never overwrites the waivers a project wrote', async () => {
+    const root = await fixture(cliAppFiles());
+    const options = {
+      tsConfigFilePath: join(root, 'tsconfig.app.json'),
+      rootDir: join(root, 'src'),
+      write: true,
+      log: () => undefined,
+    };
+
+    await runArchitectureMigration(options);
+    const waivers = join(root, 'architecture/waivers.ts');
+    await writeFile(waivers, '// reasoned bypasses\n', 'utf8');
+    await runArchitectureMigration(options);
+
+    expect(await readFile(waivers, 'utf8')).toBe('// reasoned bypasses\n');
+    const checked = await runArchitectureMigration({
+      ...options,
+      write: false,
+      check: true,
     });
     expect(checked.exitCode).toBe(0);
   });

@@ -1,104 +1,1322 @@
 graph TD
   n0[/"appConfig"/]
-  n1["ServerFunctionDemo"]
-  n2["AiContextMenu"]
-  n3["AiSendDialog"]
-  n4["craftPending"]
-  n5["CraftRouterOutlet"]
-  n6["AnonymousComponent@800"]
-  n7["craftComputed:isAdmin"]
-  n8["craftComputed:accessDenied"]
-  n9["craftComputed:hasUsers"]
-  n10["craftComputed:isEmpty"]
-  n11["craftComputed:requestTitle"]
-  n12["craftComputed:requestDetail"]
-  n13["craftComputed:resultCount"]
-  n14["craftComputed:currentUser"]
-  n15["craftMethod:submitSearch"]
-  n16["state:searchInput"]
-  n17["state:searchTerm"]
-  n18["craftMethod:setInstruction"]
-  n19["craftMethod:setCopied"]
-  n20["state:instruction"]
-  n21["state:copied"]
-  n22["state:searchTerm.submit"]
-  n23["demo.users.authenticated-list"]
-  n24["demo.users.list"]
-  n25["demo.users.authenticated-list"]
-  n26["demo.users.list"]
-  n27["demo.users.authenticated-list"]
-  n28["demo.users.list"]
-  n29(["BrowserCryptoService"])
-  n30(["BrowserDocumentService"])
-  n31(["BrowserHistoryService"])
-  n32(["BrowserLocationService"])
-  n33(["BrowserNavigatorService"])
-  n34(["BrowserPerformanceService"])
-  n35(["BrowserWindowService"])
-  n36(["ConsoleService"])
-  n37(["CookiesService"])
-  n38(["LocalStorageService"])
-  n39(["SessionStorageService"])
-  n40(["api"])
-  n41(["HostName"])
-  n42(["GlobalPersisterHandlerService"])
-  n43(["ServerFunctionTransport"])
-  n44(["LocalStoragePersister"])
-  n45(["SessionStoragePersister"])
-  n46(["StoragePersister"])
-  n47(["CurrentUser"])
-  n48(["UserRepository"])
-  n49["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
-  n50["source$ (source$) — libs/core/src/lib/insert-select.ts"]
-  n51["signalSource (signalSource)"]
-  n52["searchForm"]
-  n53["filterInput"]
-  n54["searchButton"]
-  n55["aiContextMenu"]
-  n56["aiSendToIa"]
-  n57["aiDialogClose"]
-  n58["aiDialogInstruction"]
-  n59["aiDialogCancel"]
-  n60["aiDialogCopy"]
-  n61["\"demo.users.authenticated-list\""]
-  n62["\"demo.users.list\""]
-  n1 -->|calls| n15
-  n1 -->|contains| n7
-  n1 -->|contains| n8
-  n1 -->|contains| n9
-  n1 -->|contains| n10
-  n1 -->|contains| n11
-  n1 -->|contains| n12
-  n1 -->|contains| n13
-  n1 -->|contains| n14
-  n1 -->|contains| n15
-  n1 -->|contains| n16
-  n1 -->|contains| n17
-  n1 -->|contains| n52
-  n1 -->|contains| n53
-  n1 -->|contains| n54
-  n1 -->|uses-property| n14
-  n1 -->|uses-property| n16
-  n2 -->|contains| n55
-  n2 -->|contains| n56
-  n3 -->|contains| n18
-  n3 -->|contains| n19
-  n3 -->|contains| n20
-  n3 -->|contains| n21
-  n3 -->|contains| n57
-  n3 -->|contains| n58
-  n3 -->|contains| n59
-  n3 -->|contains| n60
-  n7 -->|depends-on| n14
-  n8 -->|depends-on| n14
-  n10 -->|depends-on| n14
-  n11 -->|depends-on| n14
-  n12 -->|depends-on| n14
-  n15 -->|calls| n22
-  n15 -->|depends-on| n7
-  n15 -->|depends-on| n16
-  n17 -->|contains| n22
-  n23 -->|contains| n25
-  n23 -->|contains| n27
-  n24 -->|contains| n26
-  n24 -->|contains| n28
+  n1["demo.claimed-user"]
+  n2["demo.request-context"]
+  n3["demo.requested-by"]
+  n4["AppShell"]
+  n5["EffectServerMiddlewareDemo"]
+  n6["PortableServerFunctionDemo"]
+  n7["PublicProductsDemo"]
+  n8["ServerFunctionDemo"]
+  n9["AnonymousComponent@statusPage"]
+  n10["SimpleListDemo"]
+  n11["AiContextMenu"]
+  n12["AiSendContextChat"]
+  n13["AiSendContextLauncher"]
+  n14["AiSendDialog"]
+  n15["craftPending"]
+  n16["CraftRouterOutlet"]
+  n17["AnonymousComponent@setupCraftDirectiveTemplateTestImpl/synthetic"]
+  n18["UserEmail [personal-data]"]
+  n19["ClientCurrentUserLive"]
+  n20["requireAdmin"]
+  n21["requireAdminSession"]
+  n22["getAuthenticatedUsers"]
+  n23["effectMiddlewareListUsers"]
+  n24["listUsers"]
+  n25["makeBuilder"]
+  n26["CurrentSession"]
+  n27["CurrentUser"]
+  n28["MiddlewareExecutionScope"]
+  n29["UserRepository"]
+  n30["demo.products.list response"]
+  n31["server-function response"]
+  n32["demo.users.effect-middleware-list response"]
+  n33["demo.users.list response"]
+  n34["demo.users.authenticated-list"]
+  n35["demo.claimed-user"]
+  n36["demo.requested-by"]
+  n37["demo.request-locale"]
+  n38["POST <unresolved:ai-send-context-chat.ts:508>"]
+  n39["state:effectMiddlewareFilter"]
+  n40["craftComputed:effectMiddlewareHasServerError"]
+  n41["craftComputed:effectMiddlewareHasUsers"]
+  n42["craftComputed:effectMiddlewareIsEmpty"]
+  n43["craftComputed:effectMiddlewareServerErrorText"]
+  n44["query:effectMiddlewareUsersQuery"]
+  n45["craftComputed:effectMiddlewareServerError"]
+  n46["craftComputed:portableAuditId"]
+  n47["craftComputed:portableHasUsers"]
+  n48["craftComputed:portableIsEmpty"]
+  n49["craftComputed:portableNormalizedFilter"]
+  n50["craftComputed:portableUsers"]
+  n51["craftComputed:portableResultCount"]
+  n52["craftComputed:portableScannedCount"]
+  n53["state:portableSearchInput"]
+  n54["craftMethod:submitPortableSearch"]
+  n55["query:portableUsersQuery"]
+  n56["query:publicProductsQuery"]
+  n57["craftComputed:hasProducts"]
+  n58["craftComputed:productsIsEmpty"]
+  n59["craftComputed:productsRequestDetail"]
+  n60["craftComputed:productsRequestTitle"]
+  n61["craftComputed:productsResultCount"]
+  n62["craftComputed:currentUser"]
+  n63["query:currentUserQuery"]
+  n64["craftComputed:isAdmin"]
+  n65["state:searchInput — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n66["craftMethod:submitSearch — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n67["query:usersQuery — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n68["craftComputed:craftComputed"]
+  n69["craftComputed:hasUsers"]
+  n70["craftComputed:isEmpty"]
+  n71["craftComputed:notFound — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n72["craftComputed:notFoundMessage"]
+  n73["craftComputed:requestDetail — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n74["craftComputed:requestTitle — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n75["craftComputed:resultCount — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n76["state:searchInput — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n77["craftMethod:submitSearch — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n78["craftComputed:users"]
+  n79["queryParams:usersFilter"]
+  n80["query:usersQuery — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n81["craftComputed:notFound — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n82["craftComputed:requestDetail — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n83["craftComputed:requestTitle — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n84["craftComputed:resultCount — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n85["state:busy"]
+  n86["state:error"]
+  n87["state:instruction — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n88["state:panelOffset"]
+  n89["state:promptOptions — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n90["mutation:sendContextToAi"]
+  n91["craftMethod:setBusy"]
+  n92["craftMethod:setError"]
+  n93["craftMethod:setPanelOffset"]
+  n94["craftMethod:setStatus"]
+  n95["state:status"]
+  n96["state:captureError"]
+  n97["state:captureInProgress"]
+  n98["state:copied"]
+  n99["state:instruction — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n100["state:promptOptions — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n101["craftMethod:setCaptureError"]
+  n102["craftMethod:setCaptureInProgress"]
+  n103["craftMethod:setCopied"]
+  n104["state:effectMiddlewareFilter.setEffectMiddlewareFilter"]
+  n105["query:effectMiddlewareUsersQuery.hasValue"]
+  n106["query:effectMiddlewareUsersQuery.isLoading"]
+  n107["state:portableSearchInput.setPortableSearchInput"]
+  n108["query:portableUsersQuery.call"]
+  n109["query:portableUsersQuery.isLoading"]
+  n110["query:portableUsersQuery.value"]
+  n111["query:publicProductsQuery.hasValue"]
+  n112["query:publicProductsQuery.length"]
+  n113["query:publicProductsQuery.length.toString"]
+  n114["query:publicProductsQuery.status"]
+  n115["query:publicProductsQuery.value"]
+  n116["query:currentUserQuery.value"]
+  n117["state:searchInput.setSearchInput — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n118["query:usersQuery.call"]
+  n119["query:usersQuery.hasValue"]
+  n120["query:usersQuery.isLoading — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n121["query:usersQuery.length — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n122["query:usersQuery.length.toString — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n123["query:usersQuery.status — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n124["query:usersQuery.value — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n125["state:searchInput.setSearchInput — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n126["queryParams:usersFilter.filter"]
+  n127["queryParams:usersFilter.patch"]
+  n128["query:usersQuery.isLoading — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n129["query:usersQuery.length — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n130["query:usersQuery.length.toString — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n131["query:usersQuery.status — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n132["query:usersQuery.value — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n133["state:busy.setBusy"]
+  n134["state:error.setError"]
+  n135["state:instruction.setInstruction — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n136["state:panelOffset.setPanelOffset"]
+  n137["state:promptOptions.setOptions"]
+  n138["state:status.setStatus"]
+  n139["state:captureError.setCaptureError"]
+  n140["state:captureInProgress.setCaptureInProgress"]
+  n141["state:copied.setCopied"]
+  n142["state:instruction.setInstruction — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n143["state:promptOptions.setPromptOptions"]
+  n144[["CanRun _CanRunAccessDeniedPage"]]
+  n145[["CanRun _CanRunEffectServerMiddlewareDemo"]]
+  n146[["CanRun _CanRunPortableServerFunctionDemo"]]
+  n147[["CanRun _CanRunPublicProductsDemo"]]
+  n148[["CanRun _CanRunServerFunctionDemo"]]
+  n149[["CanRun _CanRunSessionRequiredPage"]]
+  n150[["CanRun _CanRunSessionRevokedPage"]]
+  n151[["CanRun _CanRunSimpleListDemo"]]
+  n152[["CanRun _CanRunUsersNotFoundPage"]]
+  n153[["RouteCheckedDI _CheckAccessDeniedPageDI"]]
+  n154[["RouteCheckedDI _CheckEffectServerMiddlewareDemoDI"]]
+  n155[["RouteCheckedDI _CheckPortableServerFunctionDemoDI"]]
+  n156[["RouteCheckedDI _CheckPublicProductsDemoDI"]]
+  n157[["RouteCheckedDI _CheckServerFunctionDemoDI"]]
+  n158[["RouteCheckedDI _CheckSessionRequiredPageDI"]]
+  n159[["RouteCheckedDI _CheckSessionRevokedPageDI"]]
+  n160[["RouteCheckedDI _CheckSimpleListDemoDI"]]
+  n161[["RouteCheckedDI _CheckUsersNotFoundPageDI"]]
+  n162[["assertExhaustiveRouteExceptions assertExhaustiveRouteExceptions:appRoutes"]]
+  n163{{"app:"}}
+  n164{{"app:access-denied"}}
+  n165{{"app:authenticated-list"}}
+  n166{{"app:effect-middleware"}}
+  n167{{"app:portable"}}
+  n168{{"app:session-required"}}
+  n169{{"app:session-revoked"}}
+  n170{{"app:simple-list"}}
+  n171{{"app:users-not-found"}}
+  n172["demo.products.list"]
+  n173["demo.users.authenticated-list"]
+  n174["demo.users.effect-middleware-list"]
+  n175["demo.users.list"]
+  n176["demo.users.portable-list"]
+  n177["demo.admin-only"]
+  n178["demo.matching-user"]
+  n179["demo.effect-audit"]
+  n180["demo.portable-audit"]
+  n181["demo.request-audit"]
+  n182["demo.products.list"]
+  n183["demo.users.authenticated-list"]
+  n184["demo.users.effect-middleware-list"]
+  n185["demo.users.list"]
+  n186["demo.users.portable-list"]
+  n187["demo.products.list"]
+  n188["demo.users.authenticated-list"]
+  n189["demo.users.effect-middleware-list"]
+  n190["demo.users.list"]
+  n191["demo.users.portable-list"]
+  n192(["ClientSession"])
+  n193(["ClaimedUserId"])
+  n194(["AiContextMenuController"])
+  n195(["SendContextChatActions"])
+  n196(["SendContextChatComponent"])
+  n197(["SendContextChatSections"])
+  n198(["SendContextContextMenuComponent"])
+  n199(["SendContextExportSections"])
+  n200(["SendContextLauncherComponent"])
+  n201(["SendContextUiRenderer"])
+  n202(["CraftGlobalErrorComponent"])
+  n203(["CraftPendingComponent — libs/component/src/lib/craft-host-tokens.ts"])
+  n204(["CraftRootComponent"])
+  n205(["CraftRoutedComponent"])
+  n206(["CraftRouteLoadErrorComponent"])
+  n207(["ForScheduler"])
+  n208(["CraftStyleRegistry"])
+  n209(["BrowserCryptoService"])
+  n210(["BrowserDocumentService"])
+  n211(["BrowserHistoryService"])
+  n212(["BrowserLocationService"])
+  n213(["BrowserNavigatorService"])
+  n214(["BrowserPerformanceService"])
+  n215(["BrowserWindowService"])
+  n216(["ConsoleService"])
+  n217(["CookiesService"])
+  n218(["LocalStorageService"])
+  n219(["SessionStorageService"])
+  n220(["StorageService"])
+  n221(["ComponentMonitoring"])
+  n222(["CorrelationIdService"])
+  n223(["CraftA11yNavigationFocus"])
+  n224(["CraftTitleStrategy"])
+  n225(["CraftActivatedRoute"])
+  n226(["CraftHttpTraces"])
+  n227(["CraftHydrationRuntime"])
+  n228(["CraftDynamicImport"])
+  n229(["CraftLazyLoadRetry"])
+  n230(["CraftNodeEffectFactory"])
+  n231(["CraftBlankMs"])
+  n232(["CraftErrorComponent"])
+  n233(["CraftLoadingText"])
+  n234(["CraftPendingComponent — libs/core/src/lib/craft-pending.ts"])
+  n235(["CraftPendingMinMs"])
+  n236(["CraftStayMs"])
+  n237(["CraftPlatform"])
+  n238(["CraftPrimitiveRegistry"])
+  n239(["api — libs/core/src/lib/craft-register-for.ts"])
+  n240(["CraftRenderIdentity"])
+  n241(["CraftGlobalError"])
+  n242(["CraftActiveRouteLoadError"])
+  n243(["CraftRouteLoadError"])
+  n244(["CraftRouteLoadErrorConfig"])
+  n245(["CraftRouteLoadRecovery"])
+  n246(["CraftRouteLoadRetry"])
+  n247(["CraftRouteTarget"])
+  n248(["CraftRouteChainRunner"])
+  n249(["CraftSyncTemplateFlush"])
+  n250(["CraftChildMatch"])
+  n251(["CraftCompiledRoutes"])
+  n252(["CraftHistory"])
+  n253(["CraftLocation"])
+  n254(["CraftMatch"])
+  n255(["CraftRouterRuntime"])
+  n256(["CraftRouterTraces"])
+  n257(["CraftRouter"])
+  n258(["CraftRuntimeMode"])
+  n259(["CraftCspNonce"])
+  n260(["CraftSecurityPolicy"])
+  n261(["api — libs/core/src/lib/craft-service.ts"])
+  n262(["HostName"])
+  n263(["CraftSsrPolicy"])
+  n264(["CraftSsrRuntime"])
+  n265(["CraftStartViewTransition"])
+  n266(["CraftViewTransition"])
+  n267(["CraftViewTransitionsEnabled"])
+  n268(["CraftViewTransitionSkipBlank"])
+  n269(["CraftLogServerUrl"])
+  n270(["CraftDomEventHooks"])
+  n271(["CraftFieldCheckboxControl"])
+  n272(["CraftFieldValueControl"])
+  n273(["CraftFieldExceptionBoundary"])
+  n274(["GlobalPersisterHandlerService"])
+  n275(["PrimitiveMethodRuntimeContext"])
+  n276(["PrimitiveResourceRuntimeObservers"])
+  n277(["DynamicResourceInstance"])
+  n278(["CraftSchemaValidationPolicy"])
+  n279(["SendContextEventEnrichers"])
+  n280(["SendContextEventFilters"])
+  n281(["SendContextEventSources"])
+  n282(["SendContextRecordController"])
+  n283(["SendContextRedactor"])
+  n284(["SendContextRetentionPolicy"])
+  n285(["SendContextSession"])
+  n286(["SendContextValueSerializer"])
+  n287(["SendContextToAiBuffer"])
+  n288(["ServerFunctionTransport"])
+  n289(["LocalStoragePersister"])
+  n290(["SessionStoragePersister"])
+  n291(["StoragePersister"])
+  n292(["AppSnapshotRegistry"])
+  n293(["InsertionSnapshotRegistry"])
+  n294(["TakeAppSnapshot"])
+  n295(["TemplateTraces"])
+  n296(["DynamicEffectRefInstance"])
+  n297(["CurrentSession"])
+  n298(["CurrentUser"])
+  n299(["MiddlewareExecutionScope"])
+  n300(["UserRepository"])
+  n301["source$ (source$) — libs/core/src/lib/from-event-to-source$.ts"]
+  n302["source$ (source$) — libs/core/src/lib/insert-select.ts"]
+  n303["signalSource (signalSource)"]
+  n304["div — apps/demo-with-server-function/src/client/app-shell.ts"]
+  n305["main — apps/demo-with-server-function/src/client/app-shell.ts"]
+  n306["nav"]
+  n307["a.navLinkAuthenticatedList"]
+  n308["a.navLinkEffectMiddleware"]
+  n309["a.navLinkPortable"]
+  n310["a.navLinkPublicProducts"]
+  n311["a.navLinkSimpleUsers"]
+  n312["main — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n313["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n314["p — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n315["section — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n316["section — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n317["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n318["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n319["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n320["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n321["button.effectHandlerErrorButton"]
+  n322["button.effectMiddlewareErrorButton"]
+  n323["form.effectMiddlewareSearchForm"]
+  n324["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n325["button.effectMiddlewareSearchButton"]
+  n326["input.effectMiddlewareFilterInput"]
+  n327["label — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n328["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n329["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n330["span — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n331["span — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n332["strong — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n333["strong — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n334["p — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n335["ul — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n336["article — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n337["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n338["div — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n339["span — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n340["strong — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n341["span — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n342["p — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n343["span — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n344["span — apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"]
+  n345["main — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n346["footer — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n347["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n348["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n349["header — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n350["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n351["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n352["p — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n353["section — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n354["section — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n355["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n356["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n357["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n358["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n359["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n360["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n361["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n362["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n363["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n364["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n365["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n366["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n367["small — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n368["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n369["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n370["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n371["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n372["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n373["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n374["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n375["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n376["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n377["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n378["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n379["strong — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n380["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n381["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n382["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n383["form.portableSearchForm"]
+  n384["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n385["button.portableSearchButton"]
+  n386["input.portableFilterInput"]
+  n387["label — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n388["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n389["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n390["strong — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n391["p — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n392["ul — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n393["article — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n394["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n395["div — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n396["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n397["strong — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n398["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n399["p — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n400["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n401["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n402["span — apps/demo-with-server-function/src/client/portable-server-function-demo.ts"]
+  n403["main — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n404["footer — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n405["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n406["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n407["header — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n408["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n409["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n410["p — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n411["section — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n412["section — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n413["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n414["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n415["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n416["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n417["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n418["small — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n419["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n420["strong — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n421["small — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n422["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n423["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n424["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n425["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n426["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n427["strong — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n428["p — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n429["ul — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n430["article — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n431["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n432["div — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n433["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n434["strong — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n435["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n436["p — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n437["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n438["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n439["span — apps/demo-with-server-function/src/client/public-products-demo.ts"]
+  n440["main — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n441["footer — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n442["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n443["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n444["header — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n445["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n446["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n447["p — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n448["section — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n449["section — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n450["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n451["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n452["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n453["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n454["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n455["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n456["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n457["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n458["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n459["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n460["small — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n461["small — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n462["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n463["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n464["strong — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n465["strong — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n466["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n467["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n468["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n469["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n470["form.searchForm"]
+  n471["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n472["button.searchButton"]
+  n473["input.filterInput"]
+  n474["label — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n475["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n476["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n477["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n478["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n479["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n480["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n481["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n482["strong — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n483["strong — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n484["strong — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n485["p — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n486["ul — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n487["article — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n488["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n489["div — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n490["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n491["strong — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n492["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n493["p — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n494["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n495["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n496["span — apps/demo-with-server-function/src/client/server-function-demo.ts"]
+  n497["main — apps/demo-with-server-function/src/client/server-function-status-pages.ts"]
+  n498["section — apps/demo-with-server-function/src/client/server-function-status-pages.ts"]
+  n499["p — apps/demo-with-server-function/src/client/server-function-status-pages.ts"]
+  n500["p — apps/demo-with-server-function/src/client/server-function-status-pages.ts"]
+  n501["p — apps/demo-with-server-function/src/client/server-function-status-pages.ts"]
+  n502["main — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n503["footer — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n504["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n505["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n506["header — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n507["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n508["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n509["p — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n510["section — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n511["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n512["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n513["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n514["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n515["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n516["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n517["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n518["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n519["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n520["small — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n521["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n522["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n523["strong — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n524["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n525["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n526["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n527["ul — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n528["article — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n529["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n530["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n531["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n532["strong — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n533["span — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n534["form.simpleSearchForm"]
+  n535["div — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n536["button.simpleSearchButton"]
+  n537["input.simpleFilterInput"]
+  n538["label — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n539["p — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n540["p — apps/demo-with-server-function/src/client/simple-list-demo.ts"]
+  n541["div.aiContextMenu"]
+  n542["button.aiSendToIa"]
+  n543["span — libs/component/src/lib/ai/ai-context-menu.ts"]
+  n544["span — libs/component/src/lib/ai/ai-context-menu.ts"]
+  n545["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n546["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n547["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n548["fieldset — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n549["legend — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n550["footer — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n551["button.aiChatCancel"]
+  n552["button.aiCopyPayload"]
+  n553["button.aiCopyPrompt"]
+  n554["button.aiCopyWebhookPrompt"]
+  n555["button.aiExportJson"]
+  n556["button.aiRetrySend"]
+  n557["button.aiSendContext"]
+  n558["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n559["header — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n560["button.aiChatClose"]
+  n561["strong — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n562["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n563["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n564["section — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n565["section — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n566["section — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n567["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n568["div — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n569["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n570["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n571["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n572["button.aiClearTimeline"]
+  n573["button.aiToggleRecord"]
+  n574["label — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n575["ol — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n576["ol — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n577["p — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n578["p — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n579["li — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n580["li — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n581["button.aiRemoveTarget"]
+  n582["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n583["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n584["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n585["span — libs/component/src/lib/ai/ai-send-context-chat.ts"]
+  n586["textarea.aiChatInstruction"]
+  n587["button.aiContextLauncher"]
+  n588["span — libs/component/src/lib/ai/ai-send-context-launcher.ts"]
+  n589["span — libs/component/src/lib/ai/ai-send-context-launcher.ts"]
+  n590["dialog"]
+  n591["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n592["fieldset — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n593["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n594["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n595["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n596["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n597["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n598["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n599["input.aiIncludeAppSnapshot"]
+  n600["input.aiIncludeClickedElement"]
+  n601["input.aiIncludeComponent"]
+  n602["input.aiIncludeDomStyles"]
+  n603["input.aiIncludePageDomStyles"]
+  n604["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n605["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n606["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n607["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n608["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n609["legend — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n610["footer — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n611["button.aiDialogCancel"]
+  n612["button.aiDialogCopy"]
+  n613["header — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n614["button.aiDialogClose"]
+  n615["strong — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n616["label — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n617["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n618["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n619["section — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n620["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n621["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n622["div — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n623["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n624["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n625["span — libs/component/src/lib/ai/ai-send-dialog.ts"]
+  n626["textarea.aiDialogInstruction"]
+  n627["div — libs/component/src/lib/craft-defaults.ts"]
+  n628["navLinkAuthenticatedList"]
+  n629["navLinkEffectMiddleware"]
+  n630["navLinkPortable"]
+  n631["navLinkPublicProducts"]
+  n632["navLinkSimpleUsers"]
+  n633["effectHandlerErrorButton"]
+  n634["effectMiddlewareErrorButton"]
+  n635["effectMiddlewareSearchForm"]
+  n636["effectMiddlewareSearchButton"]
+  n637["effectMiddlewareFilterInput"]
+  n638["portableSearchForm"]
+  n639["portableSearchButton"]
+  n640["portableFilterInput"]
+  n641["searchForm"]
+  n642["searchButton"]
+  n643["filterInput"]
+  n644["simpleSearchForm"]
+  n645["simpleSearchButton"]
+  n646["simpleFilterInput"]
+  n647["aiContextMenu"]
+  n648["aiSendToIa"]
+  n649["aiChatCancel"]
+  n650["aiCopyPayload"]
+  n651["aiCopyPrompt"]
+  n652["aiCopyWebhookPrompt"]
+  n653["aiExportJson"]
+  n654["aiRetrySend"]
+  n655["aiSendContext"]
+  n656["aiChatClose"]
+  n657["aiClearTimeline"]
+  n658["aiToggleRecord"]
+  n659["aiRemoveTarget"]
+  n660["aiChatInstruction"]
+  n661["aiContextLauncher"]
+  n662["aiIncludeAppSnapshot"]
+  n663["aiIncludeClickedElement"]
+  n664["aiIncludeComponent"]
+  n665["aiIncludeDomStyles"]
+  n666["aiIncludePageDomStyles"]
+  n667["aiDialogCancel"]
+  n668["aiDialogCopy"]
+  n669["aiDialogClose"]
+  n670["aiDialogInstruction"]
+  n671["\"demo.users.portable-list\""]
+  n672["\"demo.users.list\""]
+  n673["\"demo.users.effect-middleware-list\""]
+  n674["\"demo.products.list\""]
+  n0 -->|renders| n4
+  n2 -->|depends-on| n3
+  n4 -->|contains| n304
+  n4 -->|contains| n628
+  n4 -->|contains| n629
+  n4 -->|contains| n630
+  n4 -->|contains| n631
+  n4 -->|contains| n632
+  n4 -->|renders| n16
+  n5 -->|contains| n39
+  n5 -->|contains| n40
+  n5 -->|contains| n41
+  n5 -->|contains| n42
+  n5 -->|contains| n43
+  n5 -->|contains| n44
+  n5 -->|contains| n312
+  n5 -->|contains| n633
+  n5 -->|contains| n634
+  n5 -->|contains| n635
+  n5 -->|contains| n636
+  n5 -->|contains| n637
+  n5 -->|uses-property| n39
+  n5 -->|uses-property| n104
+  n5 -->|uses-property| n106
+  n6 -->|calls| n54
+  n6 -->|contains| n46
+  n6 -->|contains| n47
+  n6 -->|contains| n48
+  n6 -->|contains| n49
+  n6 -->|contains| n50
+  n6 -->|contains| n51
+  n6 -->|contains| n52
+  n6 -->|contains| n53
+  n6 -->|contains| n54
+  n6 -->|contains| n55
+  n6 -->|contains| n345
+  n6 -->|contains| n638
+  n6 -->|contains| n639
+  n6 -->|contains| n640
+  n6 -->|uses-property| n53
+  n6 -->|uses-property| n107
+  n6 -->|uses-property| n109
+  n7 -->|contains| n56
+  n7 -->|contains| n403
+  n7 -->|uses-property| n59
+  n7 -->|uses-property| n60
+  n7 -->|uses-property| n61
+  n8 -->|calls| n66
+  n8 -->|contains| n62
+  n8 -->|contains| n63
+  n8 -->|contains| n64
+  n8 -->|contains| n65
+  n8 -->|contains| n66
+  n8 -->|contains| n67
+  n8 -->|contains| n440
+  n8 -->|contains| n641
+  n8 -->|contains| n642
+  n8 -->|contains| n643
+  n8 -->|uses-property| n62
+  n8 -->|uses-property| n65
+  n8 -->|uses-property| n73
+  n8 -->|uses-property| n74
+  n8 -->|uses-property| n75
+  n8 -->|uses-property| n117
+  n8 -->|uses-property| n120
+  n9 -->|contains| n497
+  n10 -->|calls| n77
+  n10 -->|contains| n76
+  n10 -->|contains| n77
+  n10 -->|contains| n78
+  n10 -->|contains| n79
+  n10 -->|contains| n80
+  n10 -->|contains| n502
+  n10 -->|contains| n644
+  n10 -->|contains| n645
+  n10 -->|contains| n646
+  n10 -->|uses-property| n76
+  n10 -->|uses-property| n82
+  n10 -->|uses-property| n83
+  n10 -->|uses-property| n84
+  n10 -->|uses-property| n125
+  n10 -->|uses-property| n128
+  n11 -->|contains| n541
+  n11 -->|contains| n647
+  n11 -->|contains| n648
+  n12 -->|contains| n85
+  n12 -->|contains| n86
+  n12 -->|contains| n87
+  n12 -->|contains| n88
+  n12 -->|contains| n89
+  n12 -->|contains| n90
+  n12 -->|contains| n91
+  n12 -->|contains| n92
+  n12 -->|contains| n93
+  n12 -->|contains| n94
+  n12 -->|contains| n95
+  n12 -->|contains| n545
+  n12 -->|contains| n649
+  n12 -->|contains| n650
+  n12 -->|contains| n651
+  n12 -->|contains| n652
+  n12 -->|contains| n653
+  n12 -->|contains| n654
+  n12 -->|contains| n655
+  n12 -->|contains| n656
+  n12 -->|contains| n657
+  n12 -->|contains| n658
+  n12 -->|contains| n659
+  n12 -->|contains| n660
+  n12 -->|uses-property| n133
+  n12 -->|uses-property| n134
+  n12 -->|uses-property| n135
+  n12 -->|uses-property| n136
+  n12 -->|uses-property| n137
+  n12 -->|uses-property| n138
+  n13 -->|contains| n587
+  n13 -->|contains| n661
+  n14 -->|contains| n96
+  n14 -->|contains| n97
+  n14 -->|contains| n98
+  n14 -->|contains| n99
+  n14 -->|contains| n100
+  n14 -->|contains| n101
+  n14 -->|contains| n102
+  n14 -->|contains| n103
+  n14 -->|contains| n590
+  n14 -->|contains| n662
+  n14 -->|contains| n663
+  n14 -->|contains| n664
+  n14 -->|contains| n665
+  n14 -->|contains| n666
+  n14 -->|contains| n667
+  n14 -->|contains| n668
+  n14 -->|contains| n669
+  n14 -->|contains| n670
+  n14 -->|uses-property| n139
+  n14 -->|uses-property| n140
+  n14 -->|uses-property| n141
+  n14 -->|uses-property| n142
+  n14 -->|uses-property| n143
+  n15 -->|contains| n627
+  n18 -->|exposes-data| n31
+  n18 -->|exposes-data| n32
+  n18 -->|exposes-data| n33
+  n20 -->|requires-service| n27
+  n21 -->|requires-service| n26
+  n25 -->|requires-service| n28
+  n27 -->|provided-by-layer| n19
+  n39 -->|contains| n104
+  n40 -->|depends-on| n45
+  n41 -->|depends-on| n105
+  n42 -->|depends-on| n40
+  n42 -->|depends-on| n41
+  n42 -->|depends-on| n106
+  n43 -->|depends-on| n45
+  n44 -->|calls| n174
+  n44 -->|contains| n45
+  n44 -->|contains| n105
+  n44 -->|contains| n106
+  n44 -->|depends-on| n39
+  n45 -->|depends-on| n44
+  n46 -->|depends-on| n110
+  n47 -->|depends-on| n50
+  n48 -->|depends-on| n47
+  n48 -->|depends-on| n109
+  n49 -->|depends-on| n110
+  n50 -->|depends-on| n110
+  n51 -->|depends-on| n110
+  n52 -->|depends-on| n110
+  n53 -->|contains| n107
+  n54 -->|calls| n108
+  n54 -->|depends-on| n53
+  n55 -->|calls| n176
+  n55 -->|contains| n108
+  n55 -->|contains| n109
+  n55 -->|contains| n110
+  n56 -->|calls| n172
+  n56 -->|contains| n57
+  n56 -->|contains| n58
+  n56 -->|contains| n59
+  n56 -->|contains| n60
+  n56 -->|contains| n61
+  n56 -->|contains| n111
+  n56 -->|contains| n112
+  n56 -->|contains| n113
+  n56 -->|contains| n114
+  n56 -->|contains| n115
+  n57 -->|depends-on| n111
+  n58 -->|depends-on| n111
+  n58 -->|depends-on| n114
+  n59 -->|depends-on| n114
+  n60 -->|depends-on| n114
+  n61 -->|depends-on| n112
+  n61 -->|depends-on| n113
+  n61 -->|depends-on| n115
+  n62 -->|depends-on| n116
+  n63 -->|contains| n116
+  n63 -->|requires-service| n27
+  n64 -->|depends-on| n62
+  n65 -->|contains| n117
+  n66 -->|calls| n118
+  n66 -->|depends-on| n64
+  n66 -->|depends-on| n65
+  n67 -->|calls| n173
+  n67 -->|contains| n68
+  n67 -->|contains| n69
+  n67 -->|contains| n70
+  n67 -->|contains| n71
+  n67 -->|contains| n72
+  n67 -->|contains| n73
+  n67 -->|contains| n74
+  n67 -->|contains| n75
+  n67 -->|contains| n118
+  n67 -->|contains| n119
+  n67 -->|contains| n120
+  n67 -->|contains| n121
+  n67 -->|contains| n122
+  n67 -->|contains| n123
+  n67 -->|contains| n124
+  n68 -->|depends-on| n62
+  n69 -->|depends-on| n119
+  n70 -->|depends-on| n62
+  n70 -->|depends-on| n119
+  n70 -->|depends-on| n123
+  n71 -->|depends-on| n67
+  n72 -->|depends-on| n67
+  n73 -->|depends-on| n62
+  n73 -->|depends-on| n123
+  n74 -->|depends-on| n62
+  n74 -->|depends-on| n123
+  n75 -->|depends-on| n121
+  n75 -->|depends-on| n122
+  n75 -->|depends-on| n124
+  n76 -->|contains| n125
+  n77 -->|calls| n127
+  n77 -->|depends-on| n76
+  n78 -->|depends-on| n132
+  n79 -->|contains| n126
+  n79 -->|contains| n127
+  n80 -->|calls| n175
+  n80 -->|contains| n81
+  n80 -->|contains| n82
+  n80 -->|contains| n83
+  n80 -->|contains| n84
+  n80 -->|contains| n128
+  n80 -->|contains| n129
+  n80 -->|contains| n130
+  n80 -->|contains| n131
+  n80 -->|contains| n132
+  n80 -->|depends-on| n126
+  n81 -->|depends-on| n80
+  n82 -->|depends-on| n80
+  n82 -->|depends-on| n131
+  n83 -->|depends-on| n131
+  n84 -->|depends-on| n129
+  n84 -->|depends-on| n130
+  n84 -->|depends-on| n132
+  n85 -->|contains| n133
+  n86 -->|contains| n134
+  n87 -->|contains| n135
+  n88 -->|contains| n136
+  n89 -->|contains| n137
+  n90 -->|calls| n38
+  n95 -->|contains| n138
+  n96 -->|contains| n139
+  n97 -->|contains| n140
+  n98 -->|contains| n141
+  n99 -->|contains| n142
+  n100 -->|contains| n143
+  n144 -->|contains| n153
+  n145 -->|contains| n154
+  n146 -->|contains| n155
+  n147 -->|contains| n156
+  n148 -->|contains| n157
+  n149 -->|contains| n158
+  n150 -->|contains| n159
+  n151 -->|contains| n160
+  n152 -->|contains| n161
+  n153 -->|checks| n164
+  n153 -->|checks| n168
+  n153 -->|checks| n169
+  n153 -->|checks| n171
+  n154 -->|checks| n166
+  n155 -->|checks| n167
+  n156 -->|checks| n163
+  n157 -->|checks| n165
+  n158 -->|checks| n164
+  n158 -->|checks| n168
+  n158 -->|checks| n169
+  n158 -->|checks| n171
+  n159 -->|checks| n164
+  n159 -->|checks| n168
+  n159 -->|checks| n169
+  n159 -->|checks| n171
+  n160 -->|checks| n170
+  n161 -->|checks| n164
+  n161 -->|checks| n168
+  n161 -->|checks| n169
+  n161 -->|checks| n171
+  n162 -->|checks| n163
+  n162 -->|checks| n164
+  n162 -->|checks| n165
+  n162 -->|checks| n166
+  n162 -->|checks| n167
+  n162 -->|checks| n168
+  n162 -->|checks| n169
+  n162 -->|checks| n170
+  n162 -->|checks| n171
+  n163 -->|loads| n7
+  n165 -->|loads| n8
+  n166 -->|loads| n5
+  n167 -->|loads| n6
+  n170 -->|loads| n10
+  n172 -->|contains| n182
+  n172 -->|contains| n187
+  n173 -->|contains| n183
+  n173 -->|contains| n188
+  n174 -->|contains| n184
+  n174 -->|contains| n189
+  n175 -->|contains| n185
+  n175 -->|contains| n190
+  n176 -->|contains| n186
+  n176 -->|contains| n191
+  n178 -->|depends-on| n177
+  n183 -->|depends-on| n1
+  n183 -->|depends-on| n2
+  n188 -->|depends-on| n178
+  n188 -->|depends-on| n181
+  n188 -->|requires-service| n29
+  n189 -->|depends-on| n179
+  n189 -->|requires-service| n29
+  n190 -->|requires-service| n29
+  n191 -->|depends-on| n180
+  n304 -->|contains| n305
+  n304 -->|contains| n306
+  n305 -->|renders| n16
+  n306 -->|contains| n307
+  n306 -->|contains| n308
+  n306 -->|contains| n309
+  n306 -->|contains| n310
+  n306 -->|contains| n311
+  n312 -->|contains| n313
+  n312 -->|contains| n314
+  n312 -->|contains| n315
+  n312 -->|contains| n316
+  n316 -->|contains| n317
+  n316 -->|contains| n318
+  n317 -->|contains| n319
+  n317 -->|contains| n320
+  n317 -->|contains| n323
+  n317 -->|contains| n342
+  n317 -->|contains| n343
+  n318 -->|contains| n328
+  n318 -->|contains| n329
+  n318 -->|contains| n334
+  n318 -->|contains| n335
+  n318 -->|contains| n344
+  n319 -->|contains| n321
+  n319 -->|contains| n322
+  n323 -->|contains| n324
+  n323 -->|contains| n327
+  n324 -->|contains| n325
+  n324 -->|contains| n326
+  n328 -->|contains| n330
+  n328 -->|contains| n332
+  n329 -->|contains| n331
+  n329 -->|contains| n333
+  n335 -->|contains| n336
+  n336 -->|contains| n337
+  n336 -->|contains| n338
+  n336 -->|contains| n341
+  n338 -->|contains| n339
+  n338 -->|contains| n340
+  n345 -->|contains| n346
+  n345 -->|contains| n349
+  n345 -->|contains| n353
+  n345 -->|contains| n354
+  n346 -->|contains| n347
+  n346 -->|contains| n348
+  n349 -->|contains| n350
+  n349 -->|contains| n352
+  n350 -->|contains| n351
+  n353 -->|contains| n400
+  n353 -->|contains| n401
+  n353 -->|contains| n402
+  n354 -->|contains| n355
+  n354 -->|contains| n356
+  n355 -->|contains| n357
+  n355 -->|contains| n358
+  n355 -->|contains| n383
+  n355 -->|contains| n399
+  n356 -->|contains| n359
+  n356 -->|contains| n360
+  n356 -->|contains| n388
+  n356 -->|contains| n391
+  n356 -->|contains| n392
+  n357 -->|contains| n361
+  n357 -->|contains| n380
+  n358 -->|contains| n362
+  n358 -->|contains| n381
+  n359 -->|contains| n363
+  n359 -->|contains| n382
+  n360 -->|contains| n364
+  n360 -->|contains| n365
+  n360 -->|contains| n366
+  n361 -->|contains| n368
+  n362 -->|contains| n367
+  n362 -->|contains| n379
+  n363 -->|contains| n369
+  n364 -->|contains| n371
+  n364 -->|contains| n372
+  n364 -->|contains| n373
+  n365 -->|contains| n374
+  n365 -->|contains| n375
+  n365 -->|contains| n376
+  n366 -->|contains| n370
+  n366 -->|contains| n377
+  n366 -->|contains| n378
+  n383 -->|contains| n384
+  n383 -->|contains| n387
+  n384 -->|contains| n385
+  n384 -->|contains| n386
+  n388 -->|contains| n389
+  n388 -->|contains| n390
+  n392 -->|contains| n393
+  n393 -->|contains| n394
+  n393 -->|contains| n395
+  n393 -->|contains| n398
+  n395 -->|contains| n396
+  n395 -->|contains| n397
+  n403 -->|contains| n404
+  n403 -->|contains| n407
+  n403 -->|contains| n411
+  n403 -->|contains| n412
+  n404 -->|contains| n405
+  n404 -->|contains| n406
+  n407 -->|contains| n408
+  n407 -->|contains| n410
+  n408 -->|contains| n409
+  n411 -->|contains| n437
+  n411 -->|contains| n438
+  n411 -->|contains| n439
+  n412 -->|contains| n413
+  n412 -->|contains| n414
+  n412 -->|contains| n415
+  n412 -->|contains| n425
+  n412 -->|contains| n428
+  n412 -->|contains| n429
+  n412 -->|contains| n436
+  n413 -->|contains| n416
+  n413 -->|contains| n422
+  n414 -->|contains| n417
+  n414 -->|contains| n423
+  n415 -->|contains| n421
+  n415 -->|contains| n424
+  n416 -->|contains| n419
+  n417 -->|contains| n418
+  n417 -->|contains| n420
+  n425 -->|contains| n426
+  n425 -->|contains| n427
+  n429 -->|contains| n430
+  n430 -->|contains| n431
+  n430 -->|contains| n432
+  n430 -->|contains| n435
+  n432 -->|contains| n433
+  n432 -->|contains| n434
+  n440 -->|contains| n441
+  n440 -->|contains| n444
+  n440 -->|contains| n448
+  n440 -->|contains| n449
+  n441 -->|contains| n442
+  n441 -->|contains| n443
+  n444 -->|contains| n445
+  n444 -->|contains| n447
+  n445 -->|contains| n446
+  n448 -->|contains| n494
+  n448 -->|contains| n495
+  n448 -->|contains| n496
+  n449 -->|contains| n450
+  n449 -->|contains| n451
+  n450 -->|contains| n452
+  n450 -->|contains| n453
+  n450 -->|contains| n454
+  n450 -->|contains| n470
+  n450 -->|contains| n493
+  n451 -->|contains| n455
+  n451 -->|contains| n475
+  n451 -->|contains| n476
+  n451 -->|contains| n477
+  n451 -->|contains| n485
+  n451 -->|contains| n486
+  n452 -->|contains| n456
+  n452 -->|contains| n466
+  n453 -->|contains| n457
+  n453 -->|contains| n467
+  n454 -->|contains| n458
+  n454 -->|contains| n468
+  n455 -->|contains| n459
+  n455 -->|contains| n469
+  n456 -->|contains| n462
+  n457 -->|contains| n460
+  n457 -->|contains| n464
+  n458 -->|contains| n461
+  n458 -->|contains| n465
+  n459 -->|contains| n463
+  n470 -->|contains| n471
+  n470 -->|contains| n474
+  n471 -->|contains| n472
+  n471 -->|contains| n473
+  n475 -->|contains| n478
+  n475 -->|contains| n482
+  n476 -->|contains| n479
+  n476 -->|contains| n480
+  n476 -->|contains| n483
+  n477 -->|contains| n481
+  n477 -->|contains| n484
+  n486 -->|contains| n487
+  n487 -->|contains| n488
+  n487 -->|contains| n489
+  n487 -->|contains| n492
+  n489 -->|contains| n490
+  n489 -->|contains| n491
+  n497 -->|contains| n498
+  n498 -->|contains| n499
+  n498 -->|contains| n500
+  n498 -->|contains| n501
+  n502 -->|contains| n503
+  n502 -->|contains| n506
+  n502 -->|contains| n510
+  n503 -->|contains| n504
+  n503 -->|contains| n505
+  n506 -->|contains| n507
+  n506 -->|contains| n509
+  n507 -->|contains| n508
+  n510 -->|contains| n511
+  n510 -->|contains| n512
+  n511 -->|contains| n513
+  n511 -->|contains| n514
+  n511 -->|contains| n534
+  n511 -->|contains| n539
+  n512 -->|contains| n515
+  n512 -->|contains| n516
+  n512 -->|contains| n540
+  n513 -->|contains| n517
+  n513 -->|contains| n524
+  n514 -->|contains| n518
+  n514 -->|contains| n525
+  n515 -->|contains| n519
+  n515 -->|contains| n526
+  n516 -->|contains| n527
+  n517 -->|contains| n521
+  n518 -->|contains| n520
+  n518 -->|contains| n523
+  n519 -->|contains| n522
+  n527 -->|contains| n528
+  n528 -->|contains| n529
+  n528 -->|contains| n530
+  n528 -->|contains| n533
+  n530 -->|contains| n531
+  n530 -->|contains| n532
+  n534 -->|contains| n535
+  n534 -->|contains| n538
+  n535 -->|contains| n536
+  n535 -->|contains| n537
+  n541 -->|contains| n542
+  n542 -->|contains| n543
+  n542 -->|contains| n544
+  n545 -->|contains| n546
+  n546 -->|contains| n547
+  n546 -->|contains| n548
+  n546 -->|contains| n550
+  n546 -->|contains| n559
+  n546 -->|contains| n562
+  n546 -->|contains| n563
+  n546 -->|contains| n564
+  n546 -->|contains| n565
+  n546 -->|contains| n566
+  n548 -->|contains| n549
+  n550 -->|contains| n551
+  n550 -->|contains| n552
+  n550 -->|contains| n553
+  n550 -->|contains| n554
+  n550 -->|contains| n555
+  n550 -->|contains| n556
+  n550 -->|contains| n557
+  n550 -->|contains| n558
+  n559 -->|contains| n560
+  n559 -->|contains| n561
+  n564 -->|contains| n567
+  n564 -->|contains| n575
+  n565 -->|contains| n568
+  n565 -->|contains| n576
+  n566 -->|contains| n574
+  n566 -->|contains| n586
+  n567 -->|contains| n569
+  n568 -->|contains| n570
+  n568 -->|contains| n571
+  n571 -->|contains| n572
+  n571 -->|contains| n573
+  n575 -->|contains| n577
+  n575 -->|contains| n579
+  n576 -->|contains| n578
+  n576 -->|contains| n580
+  n579 -->|contains| n581
+  n579 -->|contains| n582
+  n580 -->|contains| n583
+  n580 -->|contains| n584
+  n580 -->|contains| n585
+  n587 -->|contains| n588
+  n587 -->|contains| n589
+  n590 -->|contains| n591
+  n591 -->|contains| n592
+  n591 -->|contains| n610
+  n591 -->|contains| n613
+  n591 -->|contains| n616
+  n591 -->|contains| n617
+  n591 -->|contains| n618
+  n591 -->|contains| n619
+  n591 -->|contains| n626
+  n592 -->|contains| n593
+  n592 -->|contains| n594
+  n592 -->|contains| n595
+  n592 -->|contains| n596
+  n592 -->|contains| n597
+  n592 -->|contains| n598
+  n592 -->|contains| n609
+  n594 -->|contains| n600
+  n594 -->|contains| n604
+  n595 -->|contains| n601
+  n595 -->|contains| n605
+  n596 -->|contains| n599
+  n596 -->|contains| n606
+  n597 -->|contains| n602
+  n597 -->|contains| n607
+  n598 -->|contains| n603
+  n598 -->|contains| n608
+  n610 -->|contains| n611
+  n610 -->|contains| n612
+  n613 -->|contains| n614
+  n613 -->|contains| n615
+  n619 -->|contains| n620
+  n619 -->|contains| n621
+  n619 -->|contains| n622
+  n620 -->|contains| n623
+  n621 -->|contains| n624
+  n622 -->|contains| n625

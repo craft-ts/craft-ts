@@ -7,7 +7,6 @@ import {
   type CraftInjector,
   type CraftInjectToken,
   type CraftProvider,
-  type CraftToken,
 } from './craft-injector';
 import {
   craftBatch,
@@ -53,18 +52,21 @@ export type ValueProvider = {
   provide: object;
   useValue: unknown;
   multi?: boolean;
+  ɵcraftCollection?: boolean;
 };
 export type FactoryProvider = {
   provide: object;
   useFactory: (...args: any[]) => unknown;
   deps?: unknown[];
   multi?: boolean;
+  ɵcraftCollection?: boolean;
 };
 export type ClassProvider = {
   provide: object;
   useClass: Type<unknown>;
   deps?: unknown[];
   multi?: boolean;
+  ɵcraftCollection?: boolean;
 };
 export type ExistingProvider = {
   provide: object;
@@ -146,7 +148,6 @@ export type CreateEffectOptions = {
 
 export type ProviderToken<T> =
   | InjectionToken<T>
-  | CraftToken<T>
   | Type<T>
   | AbstractType<T>
   | CraftInjectToken<T>;
@@ -400,7 +401,6 @@ export function ɵsetCraftInjectFallback(
 }
 
 export function inject<T>(token: InjectionToken<T>): T;
-export function inject<T>(token: CraftToken<T>): T;
 export function inject<T>(token: Type<T>): T;
 export function inject<T>(token: AbstractType<T>): T;
 export function inject<T>(token: ProviderToken<T>): T;
@@ -505,6 +505,7 @@ function flattenProviders(providers: readonly unknown[]): Array<{
   useClass?: Type<unknown>;
   deps?: unknown[];
   multi?: boolean;
+  ɵcraftCollection?: boolean;
 }> {
   const flattened: Array<{
     provide: object;
@@ -514,6 +515,7 @@ function flattenProviders(providers: readonly unknown[]): Array<{
     useClass?: Type<unknown>;
     deps?: unknown[];
     multi?: boolean;
+    ɵcraftCollection?: boolean;
   }> = [];
   for (const provider of providers) {
     if (Array.isArray(provider)) {
@@ -545,6 +547,7 @@ function flattenProviders(providers: readonly unknown[]): Array<{
           useClass?: Type<unknown>;
           deps?: unknown[];
           multi?: boolean;
+          ɵcraftCollection?: boolean;
         },
       );
     }
@@ -558,14 +561,16 @@ export function toCraftProviders(
   return flattenProviders(providers).map((provider) => {
     const token = provider.provide;
     const multi = provider.multi === true;
+    const collection = provider.ɵcraftCollection === true;
     if ('useValue' in provider) {
-      return { token, useValue: provider.useValue, multi };
+      return { token, useValue: provider.useValue, multi, collection };
     }
     if (provider.useExisting) {
       const existing = provider.useExisting;
       return {
         token,
         multi,
+        collection,
         useFactory: (injector) => injector.get(existing),
       };
     }
@@ -574,6 +579,7 @@ export function toCraftProviders(
       return {
         token,
         multi,
+        collection,
         useFactory: (injector) =>
           injector.run(() => new (type as new () => unknown)()),
       };
@@ -581,8 +587,9 @@ export function toCraftProviders(
     const factory = provider.useFactory ?? (() => undefined);
     const deps = provider.deps ?? [];
     return {
-      token,
-      multi,
+        token,
+        multi,
+        collection,
       useFactory: (injector) =>
         injector.run(() =>
           factory(...deps.map((dep) => injector.get(dep as object))),

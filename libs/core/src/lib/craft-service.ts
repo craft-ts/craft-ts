@@ -43,7 +43,7 @@ import {
   type CRAFT_SERVICE_PROVIDER_TYPE_BRAND,
 } from './craft-service.shared';
 import {
-  COMPONENT_REGISTER,
+  ɵinjectComponentRegister,
   ComponentRegister,
   ɵfallbackComponentRegister,
 } from './component-register';
@@ -67,11 +67,6 @@ import {
   type Yieldable,
 } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
-import {
-  craftToken,
-  type CraftToken,
-  ɵregisterCraftTokenHostToken,
-} from './host/craft-injector';
 import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
@@ -213,6 +208,7 @@ type GetServiceMetaDataProvidedInput<MetaData> =
 
 const ABSTRACT_SERVICE_MARKER = Symbol('abstract-service-marker');
 const SERVICE_REQUIREMENT_MARKER = Symbol('service-requirement-marker');
+const SERVICE_REQUIREMENT_TOKEN = Symbol('service-requirement-token');
 
 const PROVIDED_ELSEWHERE =
   'Provided elsewhere #warn-check-docs:inputs' as const;
@@ -320,9 +316,7 @@ export type ServiceMetaData<
   } & (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
     ? { readonly provide: (...args: ProvideArgs) => CraftServiceProvider }
     : {}) &
-    (Scope extends 'manuallyProvidedAtRoot'
-      ? { readonly token: InjectionToken<Output> }
-      : {})
+    {}
 >;
 
 type AnyServiceMetaData = {
@@ -333,7 +327,6 @@ type AnyServiceMetaData = {
   readonly appStart: boolean;
   readonly inject: (...args: any[]) => unknown;
   readonly provide?: (...args: any[]) => CraftServiceProvider;
-  readonly token?: InjectionToken<unknown>;
   readonly [SERVICE_META_DATA_TYPE]?: {
     inputs: any;
     output: any;
@@ -1288,8 +1281,8 @@ type RequirementContract<Requirement> =
 
 export type ServiceRequirement<Contract, Name extends string = string> = {
   readonly [SERVICE_REQUIREMENT_MARKER]: true;
-  readonly token: InjectionToken<Contract>;
   readonly name: Name;
+  readonly [SERVICE_REQUIREMENT_TOKEN]: object;
 };
 
 type ServiceRuntimeMetaDefinition<
@@ -1957,10 +1950,6 @@ type ProvideHelper<
   ) => NamedBrandedServiceProvider<Name, Scope, Output, Yielded>;
 };
 
-type ToProvideTokenHelper<Name extends string, Output> = {
-  [Key in `${Capitalize<Name>}ToProvide`]: InjectionToken<Output>;
-};
-
 type RequirementHelper<Name extends string, Contract> = {
   [Key in `${Capitalize<Name>}Requirement`]: ServiceRequirement<Contract, Name>;
 };
@@ -2019,9 +2008,7 @@ type ConcreteServiceApi<
         ExtractServiceTrackingYielded<Metadata>
       >
     : {}) &
-  (Scope extends 'manuallyProvidedAtRoot'
-    ? ToProvideTokenHelper<Name, Output>
-    : {});
+  {};
 
 export type CraftServiceApi<
   Name extends string,
@@ -2123,9 +2110,7 @@ export type DependencyApi<
         ExtractServiceTrackingYielded<Metadata>
       >
     : {}) &
-  (Scope extends 'manuallyProvidedAtRoot'
-    ? ToProvideTokenHelper<Name, Output>
-    : {});
+  {};
 
 type GlobalTokenDependencyOptions<
   Name extends string,
@@ -2251,8 +2236,8 @@ type ConcreteRuntimeDefinition = {
   browserBoundary: boolean;
   appStart: boolean;
   providers?: readonly Provider[];
-  token?: InjectionToken<unknown>;
-  craftToken?: CraftToken<unknown>;
+  collection: boolean;
+  token?: object;
   requirement?: ServiceRequirement<unknown>;
   initialBindings?: Record<string, unknown>;
   hasPublicInput: boolean;
@@ -2460,19 +2445,12 @@ export function abstract<Contract>(): AbstractMarker<Contract> {
   } as AbstractMarker<Contract>;
 }
 
-export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
-  return createServiceRequirement(
-    'AnonymousCraftRequirement',
-    new InjectionToken<Contract>('CraftRequirementToken'),
-  );
-}
-
 /**
  * Adapts an external Angular dependency so it can participate in the `craftService`
  * ecosystem.
  *
- * `toCraftService` is useful for services such as `Router`, `HttpClient`,
- * `ActivatedRoute`, custom `InjectionToken`s, or any dependency resolved through
+ * `toCraftService` is useful for external services such as `Router`,
+ * `HttpClient`, `ActivatedRoute`, or any dependency resolved through
  * `inject(...)` that you want to:
  *
  * - expose through the generated `Router()` helper
@@ -2483,9 +2461,9 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * External instance methods are automatically bound to their source instance so
  * exposing `navigateByUrl`, `get`, or similar methods is safe.
  *
- * Use the token form when the dependency should support provider-capable scopes
- * such as `toProvide` or `manuallyProvidedAtRoot`. Use the callback form only for
- * `global` dependencies resolved through custom `inject(...)` logic.
+ * Use it only at an external integration boundary. Authored application
+ * contracts should use `craftService` directly, with `abstract<Contract>()`
+ * for requirements and the generated `X()` / `provideX()` helpers.
  *
  * @example
  * Adapt `Router` as a global dependency
@@ -2501,18 +2479,15 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * ```
  *
  * @example
- * Adapt an injected token through the callback form
+ * Define an authored requirement with generated helpers
  * ```ts
- * import { inject, InjectionToken } from './host/craft-compat';
- * import { toCraftService } from '@craft-ts/angular';
+ * import { abstract, craftService } from '@craft-ts/core';
  *
- * const CURRENT_ROUTE = new InjectionToken<{ path: string }>('CurrentRoute');
- *
- * const { CurrentRoute } = toCraftService({
- *   name: 'CurrentRoute',
- *   providedIn: 'global',
- *   inject: () => inject(CURRENT_ROUTE),
- * });
+ * const { CurrentRoute, CurrentRouteRequirement, provideCurrentRoute } =
+ *   craftService(
+ *     { name: 'CurrentRoute', providedIn: 'abstract' },
+ *     abstract<{ path: string }>(),
+ *   );
  * ```
  *
  * @example
@@ -2521,7 +2496,7 @@ export function craftRequirement<Contract>(): ServiceRequirement<Contract> {
  * import { Router, provideRouter } from './host/craft-router-types';
  * import { toCraftService } from '@craft-ts/angular';
  *
- * const { provideAppRouter, AppRouterToProvide } = toCraftService({
+ * const { provideAppRouter } = toCraftService({
  *   name: 'AppRouter',
  *   providedIn: 'manuallyProvidedAtRoot',
  *   token: Router,
@@ -2952,7 +2927,7 @@ export function ɵtoCraftService(
  *
  * - `Counter(...)`
  * - `provideCounter()` for provider-capable scopes
- * - `CounterToProvide` for `manuallyProvidedAtRoot`
+ * - `provideCounter()` for `manuallyProvidedAtRoot`
  * - `COUNTER_META_DATA`
  *
  * When a service yields other crafted services, its dependency tree becomes
@@ -2967,7 +2942,7 @@ export function ɵtoCraftService(
  *
  * - `global`: singleton provided at root
  * - `toProvide`: explicit provider helper required
- * - `manuallyProvidedAtRoot`: explicit provider helper plus public token
+ * - `manuallyProvidedAtRoot`: explicit provider helper mounted at the root
  * - `function`: new instance on each injection
  * - `abstract`: typed contract only, with no concrete implementation
  *
@@ -3101,6 +3076,7 @@ export function craftService<
     browserBoundary?: BrowserBoundary;
     appStart: true;
     providers?: readonly Provider[];
+    collection?: boolean;
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -3129,6 +3105,7 @@ export function craftService<
     browserBoundary?: BrowserBoundary;
     appStart?: false;
     providers?: readonly Provider[];
+    collection?: boolean;
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -3154,6 +3131,7 @@ export function craftService<
     browserBoundary?: BrowserBoundary;
     appStart: true;
     providers?: readonly Provider[];
+    collection?: boolean;
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -3179,6 +3157,7 @@ export function craftService<
     browserBoundary?: BrowserBoundary;
     appStart?: false;
     providers?: readonly Provider[];
+    collection?: boolean;
   },
   factory: Factory &
     ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
@@ -3199,6 +3178,7 @@ export function craftService(
     browserBoundary?: boolean;
     appStart?: boolean;
     providers?: readonly Provider[];
+    collection?: boolean;
   },
   factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
 ): unknown {
@@ -3206,16 +3186,13 @@ export function craftService(
   const provideName = `provide${capitalizedName}`;
   const serviceName = capitalizedName;
   const requirementName = `${capitalizedName}Requirement`;
-  const toProvideName = `${capitalizedName}ToProvide`;
   const metaDataName = toMetaDataPropertyName(options.name);
 
   if (options.providedIn === 'abstract') {
     assertAbstractMarker(factoryOrMarker);
-    const token = new InjectionToken(`${capitalizedName}AbstractServiceToken`);
-    const nativeToken = craftToken<unknown>(
+    const token = new InjectionToken<unknown>(
       `${capitalizedName}AbstractServiceToken`,
     );
-    ɵregisterCraftTokenHostToken(nativeToken, token);
     const requirement = createServiceRequirement(options.name, token);
 
     // A minimal definition so `X()` resolves the requirement token (the
@@ -3228,8 +3205,8 @@ export function craftService(
       providedIn: 'toProvide',
       browserBoundary: false,
       appStart: false,
+      collection: false,
       token,
-      craftToken: nativeToken,
       requirement,
       hasPublicInput: false,
       hasProvidedInput: false,
@@ -3260,18 +3237,14 @@ export function craftService(
           providedIn: 'toProvide',
           browserBoundary: false,
           appStart: false,
-          token: new InjectionToken(`${capitalizedName}ServiceToken`),
-          craftToken: craftToken(`${capitalizedName}ServiceToken`),
+          collection: false,
+          token,
           requirement,
           hasPublicInput: factoryUsesPublicInput(factory),
           hasProvidedInput: factoryUsesProvidedInput(factory),
           appStartHooks: new Map(),
           startedAppStartServices: new Set(),
         };
-        ɵregisterCraftTokenHostToken(
-          abstractRuntimeDefinition.craftToken!,
-          abstractRuntimeDefinition.token!,
-        );
         return createProviders(abstractRuntimeDefinition);
       },
     };
@@ -3302,6 +3275,7 @@ export function craftService(
     providedIn: options.providedIn,
     browserBoundary: options.browserBoundary ?? false,
     appStart: options.appStart ?? false,
+    collection: options.collection ?? false,
     providers: options.providers,
     requirement: options.requirement,
     hasPublicInput: factoryUsesPublicInput(concreteFactory),
@@ -3320,24 +3294,9 @@ export function craftService(
       : options.providedIn === 'function'
         ? undefined
         : new InjectionToken(
-            options.providedIn === 'manuallyProvidedAtRoot'
-              ? `${capitalizedName}ToProvide`
-              : `${capitalizedName}ServiceToken`,
+            `${capitalizedName}ServiceToken`,
           );
-  const nativeToken =
-    options.providedIn === 'function'
-      ? undefined
-      : craftToken<unknown>(
-          options.providedIn === 'manuallyProvidedAtRoot'
-            ? `${capitalizedName}ToProvide`
-            : `${capitalizedName}ServiceToken`,
-        );
-
   runtimeDefinition.token = token;
-  runtimeDefinition.craftToken = nativeToken;
-  if (token && nativeToken) {
-    ɵregisterCraftTokenHostToken(nativeToken, token);
-  }
 
   // The helper closes over metadata that is initialized immediately below.
   // eslint-disable-next-line prefer-const
@@ -3361,10 +3320,6 @@ export function craftService(
       createProviders(runtimeDefinition, provided);
   }
 
-  if (options.providedIn === 'manuallyProvidedAtRoot' && token) {
-    api[toProvideName] = token;
-  }
-
   serviceMetaData = createServiceMetaData({
     name: options.name,
     providedIn: options.providedIn,
@@ -3375,10 +3330,6 @@ export function craftService(
         ? (api[provideName] as
             | ((...args: any[]) => CraftServiceProvider)
             | undefined)
-        : undefined,
-    token:
-      options.providedIn === 'manuallyProvidedAtRoot'
-        ? (token as InjectionToken<unknown>)
         : undefined,
     runtimeDefinition,
   });
@@ -3657,12 +3608,12 @@ function createHelper(
 
 function createServiceRequirement<Contract, Name extends string>(
   name: Name,
-  token: InjectionToken<Contract>,
+  token: object,
 ): ServiceRequirement<Contract, Name> {
   return {
     [SERVICE_REQUIREMENT_MARKER]: true,
-    token,
     name,
+    [SERVICE_REQUIREMENT_TOKEN]: token,
   };
 }
 
@@ -3671,7 +3622,6 @@ function createServiceMetaData(config: {
   providedIn: ConcreteServiceScope;
   inject: (...args: any[]) => unknown;
   provide?: (...args: any[]) => CraftServiceProvider;
-  token?: InjectionToken<unknown>;
   runtimeDefinition: ConcreteRuntimeDefinition;
 }): InternalServiceMetaData {
   const metaData: Record<string, unknown> = {
@@ -3686,10 +3636,6 @@ function createServiceMetaData(config: {
 
   if (config.provide) {
     metaData['provide'] = config.provide;
-  }
-
-  if (config.token) {
-    metaData['token'] = config.token;
   }
 
   Object.defineProperty(metaData, SERVICE_RUNTIME_DEFINITION, {
@@ -3744,7 +3690,9 @@ export function ɵgetServiceInjectionToken(
   target: unknown,
 ): InjectionToken<unknown> | undefined {
   const metaData = getServiceMetaData(target) as InternalServiceMetaData;
-  return metaData[SERVICE_RUNTIME_DEFINITION]?.token;
+  return metaData[SERVICE_RUNTIME_DEFINITION]?.token as
+    | InjectionToken<unknown>
+    | undefined;
 }
 
 export function getServiceMetaData(target: unknown): AnyServiceMetaData {
@@ -3799,6 +3747,7 @@ function createProviders(
   const concreteProviders: Provider[] = [
     {
       provide: concreteToken,
+      ɵcraftCollection: definition.collection,
       useFactory: () =>
         createConcreteServiceInstance(
           definition,
@@ -3809,16 +3758,12 @@ function createProviders(
     },
   ];
 
-  if (definition.craftToken && definition.craftToken !== concreteToken) {
+  if (
+    definition.requirement &&
+    definition.requirement[SERVICE_REQUIREMENT_TOKEN] !== concreteToken
+  ) {
     concreteProviders.push({
-      provide: definition.craftToken,
-      useExisting: concreteToken,
-    });
-  }
-
-  if (definition.requirement) {
-    concreteProviders.push({
-      provide: definition.requirement.token,
+      provide: definition.requirement[SERVICE_REQUIREMENT_TOKEN],
       useExisting: concreteToken,
     });
   }
@@ -4001,7 +3946,7 @@ function resolveConcreteService(
           : (bindings as Record<string, unknown> | undefined),
         () =>
           ɵcraftInjectorFromHost(injector).get(
-            (definition.token ?? definition.craftToken) as object,
+            definition.token as object,
           ),
       ),
     ),
@@ -4179,7 +4124,7 @@ function createInputProxy(
       }
 
       if (!Object.prototype.hasOwnProperty.call(resolvedBindings, property)) {
-        if (allowMissing) {
+        if (allowMissing || property === SERVICE_PROVIDED_INPUT_KEY) {
           return undefined;
         }
         throw new Error(`Inputs Error, ${property} is not provided`);
@@ -4189,6 +4134,13 @@ function createInputProxy(
 
       if (value === PROVIDED_ELSEWHERE) {
         throw new Error(`Inputs Error, ${property} is not provided`);
+      }
+
+      // `$provided` is service configuration, not a reactive service input.
+      // In particular, host components are callable values and must reach
+      // their provider factory unchanged.
+      if (property === SERVICE_PROVIDED_INPUT_KEY) {
+        return value;
       }
 
       return isReactiveServiceInput(value)
@@ -4669,7 +4621,6 @@ const hostNameApi = craftService(
 
 export const ɵinjectHostName = hostNameApi.HOST_NAME_META_DATA.inject;
 export const ɵHostName = hostNameApi.HostName;
-export const ɵHostNameToProvide = hostNameApi.HostNameToProvide;
 export const ɵHOST_NAME_META_DATA = hostNameApi.HOST_NAME_META_DATA;
 
 const ɵprovideHostNameProvider = hostNameApi.provideHostName;
@@ -4685,12 +4636,7 @@ export function ɵprovideHostName(name: string): Provider[] {
             optional: true,
             skipSelf: true,
           }) ?? [];
-        const id = (
-          inject(
-            COMPONENT_REGISTER as unknown as InjectionToken<ComponentRegister>,
-            { optional: true },
-          ) ?? ɵfallbackComponentRegister
-        ).next();
+        const id = (ɵinjectComponentRegister() ?? ɵfallbackComponentRegister).next();
 
         return [...parentTags, `${name}#${id}`] as readonly string[];
       },
@@ -4799,12 +4745,7 @@ export function ɵcreateHostTaggedInjector(
   // there is exactly one of reads as noise, and would change every log line and
   // snapshot for nothing.
   const taggedHostName = options.instanced
-    ? `${hostName}#${(
-        injector.get(
-          COMPONENT_REGISTER as unknown as InjectionToken<ComponentRegister>,
-          null,
-        ) ?? ɵfallbackComponentRegister
-      ).next()}`
+    ? `${hostName}#${(ɵinjectComponentRegister() ?? ɵfallbackComponentRegister).next()}`
     : hostName;
 
   const mergedTags: readonly string[] =

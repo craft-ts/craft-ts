@@ -1,9 +1,7 @@
 export const frontends = ['plain', 'effect'];
 export const backends = ['none', 'promise', 'effect'];
 export const features = ['none', 'strict'].flatMap((i18n) =>
-  ['none', 'basic'].flatMap((designSystem) =>
-    [false, true].map((typedCss) => ({ i18n, designSystem, typedCss })),
-  ),
+  ['none', 'basic'].map((designSystem) => ({ i18n, designSystem })),
 );
 
 export const cells = frontends.flatMap((frontendRuntime) =>
@@ -19,10 +17,9 @@ export const cells = frontends.flatMap((frontendRuntime) =>
 const completeFeatures = {
   i18n: 'strict',
   designSystem: 'basic',
-  typedCss: true,
 };
 
-// Six runtime combinations plus the eight feature combinations on the minimal
+// Six runtime combinations plus the four feature combinations on the minimal
 // plain starter, with the fully-enabled cell shared by both groups.
 export const releaseCells = [
   ...frontends.flatMap((frontendRuntime) =>

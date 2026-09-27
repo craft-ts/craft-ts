@@ -109,6 +109,21 @@
       ],
       "cache": true
     },
+    "review-generate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx nx run quickstart-effect:architecture && npx tsx libs/dev-tools/src/bin/craft.ts organize --project apps/quickstart-effect/tsconfig.graph.json --graph craft-dependency-graph.json --out apps/quickstart-effect/folder-layout && (npx tsx libs/cli/src/bin/craft-ts.ts attest status --config apps/quickstart-effect/review-attest.config.ts --kind all --tsconfig apps/quickstart-effect/tsconfig.graph.json || test $? -eq 1)",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "review": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsx libs/cli/src/bin/craft-ts.ts attest devtools --config apps/quickstart-effect/review-attest.config.ts --tsconfig apps/quickstart-effect/tsconfig.graph.json",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "typecheck-architecture": {
       "executor": "nx:run-commands",
       "options": {

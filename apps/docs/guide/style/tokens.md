@@ -62,6 +62,17 @@ Two consequences worth knowing:
   form CSS would accept. It can never produce CSS a browser rejects. The list is
   exported as `NARROWED_PROPERTIES`.
 
+A few values the table cannot type on its own have constructors:
+
+- `gradient.linear`, `.radial`, `.repeatingLinear`, `.repeatingConic`, written
+  with `bgImage(...)` — several images make several layers, and `bgSize` /
+  `bgPosition` take one inline and one block value;
+- `uaScheme.light` / `.dark` for `color-scheme`, so native controls follow the
+  theme;
+- `spanAllColumns` for `grid-column: 1 / -1`;
+- `pseudo.content.attr(ident('data-x'))` for a `::before` / `::after` whose text
+  is an attribute the template writes.
+
 ## Typed custom properties
 
 ```ts

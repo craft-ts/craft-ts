@@ -37,11 +37,55 @@ export type ReviewAttestConfigInput = {
   };
   /** Global v1 switch for template obligations. */
   readonly template?: boolean;
+  /**
+   * Deliberate bypasses — `eslint-disable` directives and architecture waivers
+   * — listed for a decision. On by default: a bypass is allowed, never silent.
+   * `styleDump` points at the dump the build writes (`craftStyle({ dumpPath })`)
+   * so the design-system adoption indicator sees what the sheets emit.
+   */
+  readonly bypasses?: false | { readonly styleDump?: string };
+  readonly templateReview?: TemplateReviewConfig;
+  /** Deterministic folder-layout proposal to include in the review queue. */
+  readonly folderLayout?:
+    | string
+    | {
+        readonly proposal: string;
+        readonly analysis?: string;
+      };
 };
 
 export type ReviewAttestConfig = {
   readonly visual?: ReviewAttestVisualConfig;
   readonly template: boolean;
+  /**
+   * Deliberate bypasses — `eslint-disable` directives and architecture waivers
+   * — listed for a decision. On by default: a bypass is allowed, never silent.
+   * `styleDump` points at the dump the build writes (`craftStyle({ dumpPath })`)
+   * so the design-system adoption indicator sees what the sheets emit.
+   */
+  readonly bypasses?: false | { readonly styleDump?: string };
+  readonly templateReview?: TemplateReviewConfig;
+  readonly folderLayout?: {
+    readonly proposal: string;
+    readonly analysis?: string;
+  };
+};
+
+export type TemplateReviewPolicy = 'human-required' | 'agent-allowed';
+
+export type TemplateReviewConfig = {
+  readonly defaultPolicy?: TemplateReviewPolicy;
+  readonly contextFiles?: readonly string[];
+  readonly rules?: readonly {
+    readonly subject?: string;
+    readonly component?: string;
+    readonly direction?: string;
+    readonly policy: TemplateReviewPolicy;
+  }[];
+  readonly agent?: {
+    readonly name: string;
+    readonly command: readonly [string, ...string[]];
+  };
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -49,6 +93,45 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const invalid = (message: string): never => {
   throw new TypeError(`review-attest.config: ${message}`);
+};
+
+const validateTemplateReview = (value: unknown): TemplateReviewConfig => {
+  const config = isRecord(value)
+    ? value
+    : invalid('templateReview must be an object.');
+  const validPolicy = (policy: unknown): policy is TemplateReviewPolicy =>
+    policy === 'human-required' || policy === 'agent-allowed';
+  if (config['defaultPolicy'] !== undefined && !validPolicy(config['defaultPolicy']))
+    invalid('templateReview.defaultPolicy is invalid.');
+  if (
+    config['contextFiles'] !== undefined &&
+    (!Array.isArray(config['contextFiles']) ||
+      !config['contextFiles'].every((path) => typeof path === 'string'))
+  ) invalid('templateReview.contextFiles must be an array of paths.');
+  if (config['rules'] !== undefined) {
+    const rules = Array.isArray(config['rules'])
+      ? config['rules']
+      : invalid('templateReview.rules must be an array.');
+    for (const rule of rules) {
+      if (!isRecord(rule) || !validPolicy(rule['policy']))
+        invalid('templateReview.rules entries need a valid policy.');
+      for (const key of ['subject', 'component', 'direction']) {
+        if (rule[key] !== undefined && typeof rule[key] !== 'string')
+          invalid(`templateReview.rules.${key} must be a string.`);
+      }
+    }
+  }
+  if (config['agent'] !== undefined) {
+    const agent = config['agent'];
+    if (
+      !isRecord(agent) ||
+      typeof agent['name'] !== 'string' ||
+      !Array.isArray(agent['command']) ||
+      agent['command'].length === 0 ||
+      !agent['command'].every((part) => typeof part === 'string')
+    ) invalid('templateReview.agent needs a name and a non-empty command.');
+  }
+  return config as TemplateReviewConfig;
 };
 
 const validateApp = (value: unknown): VisualAppConfig => {
@@ -105,6 +188,34 @@ export function defineReviewAttestConfig<
   if (!isRecord(input)) invalid('the root value must be an object.');
   if (input.template !== undefined && typeof input.template !== 'boolean')
     invalid('template must be a boolean.');
+  const templateReview = input.templateReview === undefined
+    ? undefined
+    : validateTemplateReview(input.templateReview);
+  const folderLayout = input.folderLayout;
+  if (
+    folderLayout !== undefined &&
+    typeof folderLayout !== 'string' &&
+    (!isRecord(folderLayout) || typeof folderLayout['proposal'] !== 'string')
+  ) {
+    invalid('folderLayout must be a proposal path or an object with proposal.');
+  }
+  const normalizedFolderLayout =
+    typeof folderLayout === 'string'
+      ? { proposal: folderLayout }
+      : folderLayout;
+  const bypasses = input.bypasses;
+  if (
+    bypasses !== undefined &&
+    bypasses !== false &&
+    (!isRecord(bypasses) ||
+      (bypasses['styleDump'] !== undefined &&
+        typeof bypasses['styleDump'] !== 'string'))
+  ) {
+    invalid(
+      'bypasses must be false or an object with an optional styleDump path.',
+    );
+  }
+  const bypassesOption = bypasses === undefined ? {} : { bypasses };
   const visual = input.visual;
   if (visual !== undefined) {
     if (!isRecord(visual)) invalid('visual must be an object.');
@@ -118,12 +229,22 @@ export function defineReviewAttestConfig<
         matrices,
       },
       template: input.template === true,
+      ...bypassesOption,
+      ...(templateReview ? { templateReview } : {}),
+      ...(normalizedFolderLayout
+        ? { folderLayout: normalizedFolderLayout }
+        : {}),
     };
   }
   if (input.template !== undefined && typeof input.template !== 'boolean') {
     invalid('template must be a boolean.');
   }
-  return { template: input.template === true };
+  return {
+    template: input.template === true,
+    ...bypassesOption,
+    ...(templateReview ? { templateReview } : {}),
+    ...(normalizedFolderLayout ? { folderLayout: normalizedFolderLayout } : {}),
+  };
 }
 
 /** Runtime guard for config values loaded from JavaScript or transpiled TS. */

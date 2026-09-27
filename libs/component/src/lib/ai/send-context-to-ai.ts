@@ -5,46 +5,42 @@ import {
   Injector,
   runInInjectionContext,
   type Provider,
-  type ProviderToken,
 } from '../host-runtime';
 import {
-  APP_SNAPSHOT_REGISTRY,
   craftSignal,
-  craftToken,
+  craftService,
   createSendContextToAiBuffer,
-  CRAFT_TEMPORAL_RUNTIME,
+  type SendContextToAiBuffer,
   HostTag,
   HOST_TAG_LIST,
   injectHostName,
   provideComponentMonitoring,
   provideFnWrapper,
-  SEND_CONTEXT_TO_AI_BUFFER,
-  SendContextToAiBuffer,
-  SEND_CONTEXT_SESSION,
+  provideSendContextToAiBuffer,
   provideSendContextSession,
+  ɵinjectAppSnapshotRegistry,
+  ɵinjectSendContextSession,
+  ɵinjectTakeAppSnapshot,
+  ɵinjectSendContextToAiBuffer,
   type SendContextTarget,
-  TAKE_APP_SNAPSHOT,
-  type CraftToken,
   type GetDeps,
   type SendContextPayload,
   type SendContextSession,
   type SendContextSessionSnapshot,
-  type TemporalTaskHandle,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import type { Output } from '../types';
 import { AiContextMenu } from './ai-context-menu';
+import { observeAiPerformance } from './ai-performance';
 import { AiSendDialog } from './ai-send-dialog';
 import { AiSendContextChat } from './ai-send-context-chat';
 import { AiSendContextLauncher } from './ai-send-context-launcher';
 import {
-  SEND_CONTEXT_CHAT_COMPONENT,
-  SEND_CONTEXT_CHAT_ACTION,
-  SEND_CONTEXT_CHAT_SECTION,
-  SEND_CONTEXT_CONTEXT_MENU_COMPONENT,
-  SEND_CONTEXT_EXPORT_SECTION,
-  SEND_CONTEXT_LAUNCHER_COMPONENT,
-  SEND_CONTEXT_UI_RENDERER,
+  provideSendContextChatActionsDefault,
+  provideSendContextChatSectionsDefault,
+  provideSendContextContextMenuComponent,
+  provideSendContextExportSectionsDefault,
+  provideSendContextLauncherComponent,
   type SendContextChatComponent,
   type SendContextContextMenuComponent,
   type SendContextLauncherComponent,
@@ -54,6 +50,13 @@ import {
   type SendContextChatAction,
   type SendContextExportSection,
   provideSendContextChatComponent,
+  ɵinjectSendContextChatActions,
+  ɵinjectSendContextChatComponent,
+  ɵinjectSendContextChatSections,
+  ɵinjectSendContextContextMenuComponent,
+  ɵinjectSendContextExportSections,
+  ɵinjectSendContextLauncherComponent,
+  ɵinjectSendContextUiRenderer,
 } from './send-context-ui.tokens';
 
 const HANDLED_FLAG = Symbol('craft-ai-contextmenu-handled');
@@ -167,15 +170,47 @@ export type AiContextMenuController = {
   open(ctx: CapturedContext): void;
 };
 
-export const AI_CONTEXT_MENU_CONTROLLER = craftToken<AiContextMenuController>(
-  'AiContextMenuController',
-);
+const aiContextMenuControllerService = craftService(
+  { name: 'AiContextMenuController', providedIn: 'toProvide' },
+  (inputs: {
+    $provided: AiContextMenuController | (() => AiContextMenuController);
+  }) =>
+    typeof inputs.$provided === 'function'
+      ? inputs.$provided()
+      : inputs.$provided,
+) as unknown as {
+  AiContextMenuController: () => Generator<
+    unknown,
+    AiContextMenuController,
+    unknown
+  >;
+  provideAiContextMenuController: (
+    value: AiContextMenuController | (() => AiContextMenuController),
+  ) => Provider;
+  AI_CONTEXT_MENU_CONTROLLER_META_DATA: {
+    inject(): AiContextMenuController;
+  };
+};
+
+export const AiContextMenuController =
+  aiContextMenuControllerService.AiContextMenuController;
+export const provideAiContextMenuController = (
+  value: AiContextMenuController | (() => AiContextMenuController),
+): Provider =>
+  aiContextMenuControllerService.provideAiContextMenuController(value);
+export const ɵinjectAiContextMenuController =
+  (): AiContextMenuController | null => {
+    try {
+      return aiContextMenuControllerService.AI_CONTEXT_MENU_CONTROLLER_META_DATA.inject();
+    } catch {
+      return null;
+    }
+  };
 
 export function createAiContextMenuController({
   injector,
   buffer,
   takeSnapshot,
-  temporalRuntime,
   destroyRef,
   session,
   renderer,
@@ -190,17 +225,6 @@ export function createAiContextMenuController({
   injector: Injector;
   buffer: SendContextToAiBuffer;
   takeSnapshot: () => void;
-  temporalRuntime: {
-    schedule(
-      callback: () => void,
-      delay: number,
-      options: {
-        kind: string;
-        owner: string;
-        destroyRef: DestroyRef;
-      },
-    ): TemporalTaskHandle;
-  };
   destroyRef: DestroyRef;
   session?: SendContextSession;
   renderer?: SendContextUiRenderer;
@@ -215,7 +239,9 @@ export function createAiContextMenuController({
   let menu: Overlay | null = null;
   let dialog: Overlay | null = null;
   let launcher: Overlay | null = null;
-  let dialogTimer: TemporalTaskHandle | null = null;
+  // Long tasks are recorded from startup so a freeze that happens before the
+  // chat is opened still shows up in the next exported prompt.
+  const stopAiPerformance = observeAiPerformance();
 
   // The captured context and the element list are the two things a renderer
   // reads and the controller writes, so they live in signals: a template that
@@ -291,9 +317,7 @@ export function createAiContextMenuController({
       const captured = capturedSignal();
       if (!captured) return undefined;
       const { captureElement: _captureElement, ...rest } = captured;
-      // Read lazily: the snapshot buffer debounces, so the reports are richer
-      // at copy time than they were when the chat opened.
-      return { ...rest, snapshot: buffer.latestReports };
+      return { ...rest, snapshot: buffer.snapshot() };
     },
     endpoint,
     get captureElement() {
@@ -365,8 +389,7 @@ export function createAiContextMenuController({
       // just picks the new element up — remounting it would throw away the
       // instruction the user is in the middle of typing.
       if (dialog) return;
-      // It also reads `buffer.latestReports` when the user copies, so there is
-      // nothing to wait for: open now and let the buffer fill behind it.
+      // The payload reads the registry when the user copies.
       takeSnapshot();
       openSessionDialog();
       return;
@@ -374,25 +397,12 @@ export function createAiContextMenuController({
 
     if (!ctx) return;
     closeDialog();
-    // Wait for the snapshot buffer's debounceTime(500ms) to settle: the legacy
-    // dialog freezes the reports it is opened with.
-    dialogTimer = temporalRuntime.schedule(
-      () => {
-        dialogTimer = null;
-        openLegacyDialog({ ...ctx, snapshot: buffer.latestReports });
-      },
-      550,
-      {
-        kind: 'ai-context-debounce',
-        owner: 'ai-context-menu',
-        destroyRef,
-      },
-    );
+    openLegacyDialog({ ...ctx, snapshot: buffer.snapshot() });
   }
 
   mountLauncher();
   destroyRef.onDestroy(() => {
-    dialogTimer?.cancel();
+    stopAiPerformance();
     closeMenu();
     dialog = closeOverlay(dialog);
     closeLauncher();
@@ -401,8 +411,6 @@ export function createAiContextMenuController({
   return {
     open(ctx: CapturedContext): void {
       capturedSignal.set(ctx);
-      dialogTimer?.cancel();
-      dialogTimer = null;
       closeMenu();
       // The session chat survives a right-click and absorbs the new element;
       // the legacy dialog freezes its payload, so it has to be rebuilt.
@@ -410,8 +418,8 @@ export function createAiContextMenuController({
         dialog = closeOverlay(dialog);
         mountLauncher();
       }
-      // Trigger a snapshot collection now so the buffer is populated
-      // by the time the user submits the dialog.
+      // Keep the context menu's snapshot callback behavior. The dialog reads
+      // the current registry directly when it prepares its payload.
       takeSnapshot();
 
       menu = openOverlay(99998, 'none', (host) =>
@@ -435,10 +443,6 @@ export function createAiContextMenuController({
   };
 }
 
-function asAngularToken<T>(token: CraftToken<T>): ProviderToken<T> {
-  return token as unknown as ProviderToken<T>;
-}
-
 export interface SendContextToAiOptions {
   /** Browser-accessible webhook URL. Omit it to keep the copy-only behavior. */
   readonly endpoint?: string;
@@ -450,43 +454,32 @@ export function provideSendContextToAi(
   return [
     ...provideSendContextSession(),
     provideSendContextChatComponent(() => AiSendContextChat),
-    {
-      provide: SEND_CONTEXT_CONTEXT_MENU_COMPONENT,
-      useValue: AiContextMenu,
-    },
-    {
-      provide: SEND_CONTEXT_LAUNCHER_COMPONENT,
-      useValue: AiSendContextLauncher,
-    },
-    {
-      provide: asAngularToken(SEND_CONTEXT_TO_AI_BUFFER),
-      useFactory: () =>
-        createSendContextToAiBuffer(inject(APP_SNAPSHOT_REGISTRY)),
-    },
-    {
-      provide: asAngularToken(AI_CONTEXT_MENU_CONTROLLER),
-      useFactory: () =>
-        createAiContextMenuController({
-          injector: inject(Injector),
-          buffer: inject(asAngularToken(SEND_CONTEXT_TO_AI_BUFFER)),
-          takeSnapshot: inject(TAKE_APP_SNAPSHOT),
-          temporalRuntime: inject(CRAFT_TEMPORAL_RUNTIME),
-          destroyRef: inject(DestroyRef),
-          session: inject(SEND_CONTEXT_SESSION),
-          renderer:
-            inject(SEND_CONTEXT_UI_RENDERER, { optional: true }) ?? undefined,
-          chatComponent: inject(SEND_CONTEXT_CHAT_COMPONENT),
-          contextMenuComponent: inject(SEND_CONTEXT_CONTEXT_MENU_COMPONENT),
-          launcherComponent: inject(SEND_CONTEXT_LAUNCHER_COMPONENT),
-          chatSections:
-            inject(SEND_CONTEXT_CHAT_SECTION, { optional: true }) ?? [],
-          chatActions:
-            inject(SEND_CONTEXT_CHAT_ACTION, { optional: true }) ?? [],
-          exportSections:
-            inject(SEND_CONTEXT_EXPORT_SECTION, { optional: true }) ?? [],
-          endpoint: options.endpoint,
-        }),
-    },
+    provideSendContextContextMenuComponent(() => AiContextMenu),
+    provideSendContextLauncherComponent(() => AiSendContextLauncher),
+    provideSendContextChatSectionsDefault(),
+    provideSendContextChatActionsDefault(),
+    provideSendContextExportSectionsDefault(),
+    provideSendContextToAiBuffer(() =>
+      createSendContextToAiBuffer(ɵinjectAppSnapshotRegistry()),
+    ) as Provider,
+    provideAiContextMenuController(() =>
+      createAiContextMenuController({
+        injector: inject(Injector),
+        buffer: ɵinjectSendContextToAiBuffer()!,
+        takeSnapshot: ɵinjectTakeAppSnapshot() ?? (() => undefined),
+        destroyRef: inject(DestroyRef),
+        session: ɵinjectSendContextSession() ?? undefined,
+        renderer: ɵinjectSendContextUiRenderer() ?? undefined,
+        chatComponent: ɵinjectSendContextChatComponent() ?? undefined,
+        contextMenuComponent:
+          ɵinjectSendContextContextMenuComponent() ?? undefined,
+        launcherComponent: ɵinjectSendContextLauncherComponent() ?? undefined,
+        chatSections: ɵinjectSendContextChatSections(),
+        chatActions: ɵinjectSendContextChatActions(),
+        exportSections: ɵinjectSendContextExportSections(),
+        endpoint: options.endpoint,
+      }),
+    ),
     provideFnWrapper(
       'Warning: dependency injection here is not type-safe and may fail at runtime',
       function* (factory, thisArg, args) {
@@ -508,7 +501,7 @@ export function provideSendContextToAi(
           hostName: componentHostNameFromTags(hostTags),
           tagList: hostTags,
           injector: inject(Injector),
-          controller: inject(asAngularToken(AI_CONTEXT_MENU_CONTROLLER)),
+          controller: ɵinjectAiContextMenuController()!,
           destroyRef: inject(DestroyRef),
         });
 
@@ -519,10 +512,10 @@ export function provideSendContextToAi(
       const el = inject(ElementRef).nativeElement as HTMLElement;
       const tagList = inject(HOST_TAG_LIST);
       const injector = inject(Injector);
-      const controller = inject(asAngularToken(AI_CONTEXT_MENU_CONTROLLER));
+      const controller = ɵinjectAiContextMenuController()!;
       const destroyRef = inject(DestroyRef);
-      // Eagerly instantiate the buffer so snapshot reports start being collected.
-      inject(asAngularToken(SEND_CONTEXT_TO_AI_BUFFER));
+      // Resolve the direct snapshot reader before the overlay is opened.
+      ɵinjectSendContextToAiBuffer();
 
       installAiContextMenuListener({
         element: el,
@@ -541,6 +534,6 @@ export type GenDeps_AiContextMenuController = GetDeps<{
   provided: {};
   missingProvider: {
     Injector: Injector;
-    TAKE_APP_SNAPSHOT: typeof TAKE_APP_SNAPSHOT;
+    TakeAppSnapshot: typeof ɵinjectTakeAppSnapshot;
   };
 }>;

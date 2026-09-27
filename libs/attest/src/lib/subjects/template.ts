@@ -25,6 +25,7 @@ export interface TemplateObligationInput {
   readonly elementName?: string;
   readonly conditions?: readonly TemplateObligationCondition[];
   readonly statement: string;
+  readonly effects?: readonly string[];
   /** Presentation-only ingredients for localized review rendering. */
   readonly statementParts?: {
     readonly direction: TemplateObligationDirection;
@@ -42,6 +43,7 @@ export interface TemplateEvidence {
   readonly elementName: string | null;
   readonly target: string;
   readonly targetKind: string;
+  readonly effects?: readonly string[];
 }
 
 export const templateEvidenceValue = (
@@ -52,6 +54,7 @@ export const templateEvidenceValue = (
   elementName: obligation.elementName ?? null,
   target: obligation.target,
   targetKind: obligation.targetKind,
+  ...(obligation.effects?.length ? { effects: obligation.effects } : {}),
 });
 
 export const serialiseTemplateEvidence = (evidence: TemplateEvidence): string =>
@@ -66,7 +69,10 @@ export function isTemplateEvidence(value: unknown): value is TemplateEvidence {
     (candidate.elementName === null ||
       typeof candidate.elementName === 'string') &&
     typeof candidate.target === 'string' &&
-    typeof candidate.targetKind === 'string'
+    typeof candidate.targetKind === 'string' &&
+    (candidate.effects === undefined ||
+      (Array.isArray(candidate.effects) &&
+        candidate.effects.every((effect) => typeof effect === 'string')))
   );
 }
 

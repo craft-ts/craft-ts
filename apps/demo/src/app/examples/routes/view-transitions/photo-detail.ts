@@ -1,4 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
 import {
   a,
   article,
@@ -10,8 +9,16 @@ import {
   type Input,
   heading,
 } from '@craft-ts/component';
-import { craftService, craftComputed, CraftRouterLink } from '@craft-ts/core';
+import { craftComputed, CraftRouterLink } from '@craft-ts/core';
 import { findPhoto, type Photo } from './photos';
+import { assign } from '@craft-ts/style';
+import {
+  photoArt,
+  photoTransitionName,
+  vt,
+  vtPhoto,
+} from './view-transitions.style';
+import { example } from '../../shared/example.style';
 
 const MISSING_PHOTO: Photo = {
   id: '__missing__',
@@ -19,76 +26,62 @@ const MISSING_PHOTO: Photo = {
   subtitle: '',
   description: '',
   emoji: '',
-  gradient: 'transparent',
 };
-
-export const { ViewTransitionsDetailView, provideViewTransitionsDetailView } =
-  craftService(
-    { name: 'viewTransitionsDetailView', providedIn: 'toProvide' },
-    function* (inputs: { readonly photoId: Input<string> }) {
-      const { photoId } = inputs;
-
-      const currentPhoto = craftComputed('currentPhoto', function* () {
-        return findPhoto(yield* photoId()) ?? MISSING_PHOTO;
-      });
-      const hasPhoto = craftComputed('hasPhoto', function* () {
-        return (yield* currentPhoto()).id !== MISSING_PHOTO.id;
-      });
-      const currentPhotoTitle = craftComputed(
-        'currentPhotoTitle',
-        function* () {
-          return (yield* currentPhoto()).title;
-        },
-      );
-      return { photoId, currentPhoto, currentPhotoTitle, hasPhoto };
-    },
-  );
 
 const ViewTransitionsDetailComponent = craftComponent(
   'ViewTransitionsDetailComponent',
-  {
-    providers: [provideViewTransitionsDetailView()],
-    styles: `
-      .vt-back{display:inline-block;margin-bottom:1.5rem;color:#2563eb;text-decoration:none;font-weight:600}.vt-detail{display:grid;gap:1.75rem}
-      .vt-hero{display:grid;place-items:center;aspect-ratio:4/3;border-radius:24px;box-shadow:0 24px 60px #0f172a40}.vt-hero .emoji{font-size:6rem}
-      @media(min-width:720px){.vt-detail{grid-template-columns:minmax(0,380px) 1fr;align-items:center}}
-    `,
-  },
-  function* (inputs: { readonly photoId: Input<string> }) {
-    const { photoId, currentPhoto, currentPhotoTitle, hasPhoto } =
-      yield* ViewTransitionsDetailView(inputs);
-
+  {},
+  ({ photoId }: { readonly photoId: Input<string> }) => {
+    const currentPhoto = craftComputed('currentPhoto', function* () {
+      return findPhoto(yield* photoId()) ?? MISSING_PHOTO;
+    });
+    const hasPhoto = craftComputed('hasPhoto', function* () {
+      return (yield* currentPhoto()).id !== MISSING_PHOTO.id;
+    });
+    const currentPhotoTitle = craftComputed('currentPhotoTitle', function* () {
+      return (yield* currentPhoto()).title;
+    });
+    const currentArt = craftComputed('currentArt', function* () {
+      return photoArt((yield* currentPhoto()).id);
+    });
+    const currentTransitionName = craftComputed(
+      'currentTransitionName',
+      function* () {
+        return photoTransitionName((yield* currentPhoto()).id);
+      },
+    );
     return [
       a(
         'back',
         {
-          class: 'vt-back',
+          class: vt.back,
+          'data-testid': 'vt-back',
         },
         '← Back to gallery',
       ).pipe(CraftRouterLink({ to: 'view-transitions' })),
       ifNode(
         hasPhoto,
         () =>
-          article({ class: 'vt-detail' }, [
+          article({ class: vt.detail }, [
             span(
               {
-                class: 'vt-hero',
+                class: vt.hero,
                 style: function* () {
                   return {
-                    background: (yield* currentPhoto()).gradient,
-                    viewTransitionName: `photo-${(yield* currentPhoto()).id}`,
+                    ...assign(vtPhoto.art, yield* currentArt()),
+                    ...assign(vtPhoto.name, yield* currentTransitionName()),
                   };
                 },
               },
-              span({ class: 'emoji' }, function* () {
+              span({ class: vt.heroEmoji }, function* () {
                 return (yield* currentPhoto()).emoji;
               }),
             ),
-            div([
-              p(function* () {
+            div({ class: vt.body }, [
+              p({ class: vt.subtitle }, function* () {
                 return (yield* currentPhoto()).subtitle;
               }),
-              heading(currentPhotoTitle),
+              heading({ class: example.title }, currentPhotoTitle),
               p(function* () {
                 return (yield* currentPhoto()).description;
               }),

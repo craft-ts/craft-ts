@@ -9,13 +9,14 @@ import {
 } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { CRAFT_ROUTER, provideCraftRouter } from './craft-router';
+import { CraftRouter, provideCraftRouter } from './craft-router';
+import { ɵinjectCraftRouterRuntime, provideCraftRouterRuntimeValue } from './craft-router-tokens';
 import {
-  CRAFT_ROUTER_TRACE,
   executeCraftRouterTrace,
   provideCraftRouterTrace,
   type CraftRouterTraceContext,
 } from './craft-router-trace';
+import { craftUse } from './craft-use';
 
 const context: CraftRouterTraceContext = {
   kind: 'routeStage',
@@ -36,30 +37,20 @@ describe('craft router trace', () => {
   it('composes router trace wrappers in registration order', () => {
     const calls: string[] = [];
 
-    const injector = Injector.create({
-      providers: [
-        {
-          provide: CRAFT_ROUTER_TRACE,
-          multi: true,
-          useValue: (_trace: CraftRouterTraceContext, next: () => unknown) => {
+    const injector = createEnvironmentInjector([
+        provideCraftRouterTrace((_trace: CraftRouterTraceContext, next: () => unknown) => {
             calls.push('outer:start');
             const result = next();
             calls.push('outer:end');
             return result;
-          },
-        },
-        {
-          provide: CRAFT_ROUTER_TRACE,
-          multi: true,
-          useValue: (_trace: CraftRouterTraceContext, next: () => unknown) => {
+          }),
+        provideCraftRouterTrace((_trace: CraftRouterTraceContext, next: () => unknown) => {
             calls.push('inner:start');
             const result = next();
             calls.push('inner:end');
             return result;
-          },
-        },
-      ],
-    });
+          }),
+      ], createCraftInjector([]));
 
     const result = executeCraftRouterTrace(injector, context, () => 'rendered');
 
@@ -87,7 +78,7 @@ describe('craft router trace', () => {
 
     expect(() => runAppInitializers(injector)).not.toThrow();
 
-    const router = injector.get(CRAFT_ROUTER);
+    const router = runInInjectionContext(injector, () => craftUse(CraftRouter()));
     await router.navigateByUrl('/home');
 
     const events = traces.filter((trace) => trace.kind === 'routerEvent');

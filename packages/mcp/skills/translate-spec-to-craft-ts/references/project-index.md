@@ -48,5 +48,5 @@ MCP `find_examples` searches the same Learn + examples corpus.
 - Favor symbol names from the installed package over older or shorter doc titles.
 - The public insertion name is `insertLocalStoragePersister`.
 - Reach for advanced exports such as `toSource`, `computedSource`, `signalSource`,
-  `linkedSource`, `resourceById`, and `toInject` only when the request is
+  `linkedSource`, and `resourceById` only when the request is
   explicitly about infrastructure or source plumbing.

@@ -2,6 +2,13 @@ import ts from 'typescript';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
+import { STYLE_ARCHITECTURE_RULES } from './architecture-style-rules.ts';
+import {
+  applyArchitectureWaivers,
+  type ArchitectureRuleName,
+  type ArchitectureWaiver,
+  type WaivableFinding,
+} from './architecture-waivers.ts';
 import type {
   DependencyGraph,
   DependencyGraphEdge,
@@ -4108,7 +4115,10 @@ export type ArchitectureCheckTarget = 'development' | 'production';
 
 export function assertArchitecture(
   graph: DependencyGraph,
-  options: { readonly target?: ArchitectureCheckTarget } = {},
+  options: {
+    readonly target?: ArchitectureCheckTarget;
+    readonly waivers?: readonly ArchitectureWaiver<any>[];
+  } = {},
 ): void {
   const target = options.target ?? 'development';
   // Keep the target explicit even while development and production share the
@@ -4117,18 +4127,176 @@ export function assertArchitecture(
   if (target !== 'development' && target !== 'production') {
     throw new Error(`Unknown architecture check target "${target}".`);
   }
-  assertDeclarativeArchitecture(graph);
+  assertDeclarativeArchitecture(graph, { waivers: options.waivers });
 }
+
+export type DeclarativeArchitectureOptions = MutationReactOnOptions & {
+  /** Deliberate, reasoned bypasses — see `architecture/waivers.ts`. */
+  readonly waivers?: readonly ArchitectureWaiver<any>[];
+};
 
 export function assertDeclarativeArchitecture(
   graph: DependencyGraph,
-  options: MutationReactOnOptions = {},
+  options: DeclarativeArchitectureOptions = {},
 ): void {
+  const { waivers, ...mutationReactOn } = options;
   const messages = architectureViolations(graph, {
-    mutationReactOn: options,
+    mutationReactOn,
+    waivers,
   }).flatMap((violation) => violation.messages);
   if (messages.length === 0) return;
   throw new Error(messages.join('\n'));
+}
+
+const EVENT_MODIFIER_METHODS = new Set([
+  'preventDefault',
+  'stopPropagation',
+  'stopImmediatePropagation',
+]);
+
+/** Catches event-only craftMethod wrappers across every file in the graph. */
+export function assertNoEventOnlyCraftMethods(graph: DependencyGraph): void {
+  const config = ts.readConfigFile(graph.tsConfigFilePath, ts.sys.readFile);
+  if (config.error) {
+    throw new Error(
+      ts.flattenDiagnosticMessageText(config.error.messageText, '\n'),
+    );
+  }
+  const files = ts.parseJsonConfigFileContent(
+    config.config,
+    ts.sys,
+    dirname(graph.tsConfigFilePath),
+  ).fileNames;
+  const messages: string[] = [];
+  for (const filePath of files) {
+    if (filePath.endsWith('.d.ts')) continue;
+    const source = ts.createSourceFile(
+      filePath,
+      readFileSync(filePath, 'utf8'),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+    const methodNames = new Set(['craftMethod']);
+    for (const statement of source.statements) {
+      if (
+        !ts.isImportDeclaration(statement) ||
+        !ts.isStringLiteral(statement.moduleSpecifier) ||
+        statement.moduleSpecifier.text !== '@craft-ts/core'
+      )
+        continue;
+      for (const specifier of statement.importClause?.namedBindings &&
+      ts.isNamedImports(statement.importClause.namedBindings)
+        ? statement.importClause.namedBindings.elements
+        : []) {
+        if ((specifier.propertyName ?? specifier.name).text === 'craftMethod') {
+          methodNames.add(specifier.name.text);
+        }
+      }
+    }
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        methodNames.has(node.expression.text) &&
+        isEventOnlyCraftMethod(node)
+      ) {
+        const line =
+          source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+        messages.push(
+          `${relativeGraphPath(graph, filePath)}:${line}: craftMethod only modifies a DOM event and delegates to one action; use eventAction(...) on the element.`,
+        );
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  if (messages.length > 0) throw new Error(messages.join('\n'));
+}
+
+function isEventOnlyCraftMethod(call: ts.CallExpression): boolean {
+  const callback = [...call.arguments]
+    .reverse()
+    .find(
+      (argument): argument is ts.FunctionExpression | ts.ArrowFunction =>
+        ts.isFunctionExpression(argument) || ts.isArrowFunction(argument),
+    );
+  if (!callback || !ts.isBlock(callback.body)) return false;
+  const parameter = callback.parameters[0]?.name;
+  if (!parameter || !ts.isIdentifier(parameter)) return false;
+  const statements = callback.body.statements;
+  if (statements.length < 2) return false;
+  if (
+    !statements
+      .slice(0, -1)
+      .every((statement) => isEventModifierStatement(statement, parameter.text))
+  ) {
+    return false;
+  }
+  const lastStatement = statements[statements.length - 1];
+  return lastStatement
+    ? isDelegatingStatement(lastStatement, parameter.text)
+    : false;
+}
+
+function isEventModifierStatement(
+  statement: ts.Statement,
+  eventName: string,
+): boolean {
+  if (!ts.isExpressionStatement(statement)) return false;
+  const call = statement.expression;
+  if (!ts.isCallExpression(call) || call.arguments.length !== 0) return false;
+  const member = call.expression;
+  return (
+    ts.isPropertyAccessExpression(member) &&
+    ts.isIdentifier(member.expression) &&
+    member.expression.text === eventName &&
+    EVENT_MODIFIER_METHODS.has(member.name.text)
+  );
+}
+
+function isDelegatingStatement(
+  statement: ts.Statement,
+  eventName: string,
+): boolean {
+  let expression: ts.Expression | undefined;
+  if (ts.isExpressionStatement(statement)) expression = statement.expression;
+  else if (ts.isReturnStatement(statement)) expression = statement.expression;
+  if (expression && ts.isYieldExpression(expression))
+    expression = expression.expression;
+  if (
+    !expression ||
+    !ts.isCallExpression(expression) ||
+    !isForwardingTsArguments(expression.arguments, eventName)
+  ) {
+    return false;
+  }
+  const callee = expression.expression;
+  return (
+    (ts.isIdentifier(callee) || ts.isPropertyAccessExpression(callee)) &&
+    !containsTsIdentifier(callee, eventName)
+  );
+}
+
+function isForwardingTsArguments(
+  args: ts.NodeArray<ts.Expression>,
+  eventName: string,
+): boolean {
+  const first = args[0];
+  return (
+    args.length === 0 ||
+    (args.length === 1 &&
+      first !== undefined &&
+      ts.isIdentifier(first) &&
+      first.text === eventName)
+  );
+}
+
+function containsTsIdentifier(node: ts.Node, name: string): boolean {
+  if (ts.isIdentifier(node)) return node.text === name;
+  if (ts.isPropertyAccessExpression(node)) {
+    return containsTsIdentifier(node.expression, name);
+  }
+  return false;
 }
 
 export type ArchitectureRuleViolations = {
@@ -4139,6 +4307,14 @@ export type ArchitectureRuleViolations = {
 export type ArchitectureViolationsOptions = {
   target?: ArchitectureCheckTarget;
   mutationReactOn?: MutationReactOnOptions;
+  waivers?: readonly ArchitectureWaiver<any>[];
+};
+
+export type ArchitectureReport = {
+  /** What fails, grouped by rule — waiver problems under `architecture-waivers`. */
+  violations: ArchitectureRuleViolations[];
+  /** What a waiver excused, with the reason the waiver gave. */
+  waived: (WaivableFinding & { reason: string })[];
 };
 
 /**
@@ -4151,27 +4327,45 @@ export function architectureViolations(
   graph: DependencyGraph,
   options: ArchitectureViolationsOptions = {},
 ): ArchitectureRuleViolations[] {
+  return architectureReport(graph, options).violations;
+}
+
+/**
+ * The full outcome: violations, and what the waivers excused.
+ *
+ * The rules that reason per target (the style rules) report one finding per
+ * component, file, obligation or variable, and a waiver can excuse one of
+ * them. The older rules assert on the whole graph and report one message:
+ * only a `'*'` waiver can excuse them.
+ */
+export function architectureReport(
+  graph: DependencyGraph,
+  options: ArchitectureViolationsOptions = {},
+): ArchitectureReport {
   const target = options.target ?? 'development';
   if (target !== 'development' && target !== 'production') {
     throw new Error(`Unknown architecture check target "${target}".`);
   }
-  const rules: readonly (readonly [string, (graph: DependencyGraph) => void])[] =
+  const rules: readonly (readonly [
+    ArchitectureRuleName,
+    (graph: DependencyGraph) => void,
+  ])[] = [
+    ['craft-unique', assertCraftUnique],
+    ['http-endpoint-unique', assertHttpEndpointUnique],
+    ['craft-computed-pure', assertCraftComputedPure],
+    ['primitive-methods-used-once', assertPrimitiveMethodsUsedOnce],
+    ['no-unused-primitive-methods', assertNoUnusedPrimitiveMethods],
+    ['no-dependency-cycles', assertNoDependencyCycles],
+    ['no-event-only-craft-method', assertNoEventOnlyCraftMethods],
+    ['server-function-architecture', assertServerFunctionArchitecture],
+    ['input-action-forms', assertInputActionForms],
     [
-      ['craft-unique', assertCraftUnique],
-      ['http-endpoint-unique', assertHttpEndpointUnique],
-      ['craft-computed-pure', assertCraftComputedPure],
-      ['primitive-methods-used-once', assertPrimitiveMethodsUsedOnce],
-      ['no-unused-primitive-methods', assertNoUnusedPrimitiveMethods],
-      ['no-dependency-cycles', assertNoDependencyCycles],
-      ['server-function-architecture', assertServerFunctionArchitecture],
-      ['input-action-forms', assertInputActionForms],
-      [
-        'mutation-react-on',
-        (checked) =>
-          assertMutationHasReactOn(checked, options.mutationReactOn ?? {}),
-      ],
-    ];
-  return rules.flatMap(([rule, assert]) => {
+      'mutation-react-on',
+      (checked) =>
+        assertMutationHasReactOn(checked, options.mutationReactOn ?? {}),
+    ],
+  ];
+  const findings: WaivableFinding[] = rules.flatMap(([rule, assert]) => {
     try {
       assert(graph);
       return [];
@@ -4179,11 +4373,46 @@ export function architectureViolations(
       return [
         {
           rule,
-          messages: [error instanceof Error ? error.message : String(error)],
+          target: '*',
+          message: error instanceof Error ? error.message : String(error),
         },
       ];
     }
   });
+  for (const [rule, find] of STYLE_ARCHITECTURE_RULES) {
+    for (const finding of find(graph)) findings.push({ rule, ...finding });
+  }
+
+  // A rule that asserts on the whole graph names no target, so a waiver can
+  // only excuse it wholesale; a targeted waiver would otherwise read as stale.
+  const wholeGraphRules = new Set<string>(rules.map(([rule]) => rule));
+  const untargetable = (options.waivers ?? []).filter(
+    (waiver) => wholeGraphRules.has(waiver.rule) && waiver.target !== '*',
+  );
+  const outcome = applyArchitectureWaivers(
+    findings,
+    (options.waivers ?? []).filter((waiver) => !untargetable.includes(waiver)),
+  );
+  const problems = [
+    ...untargetable.map(
+      (waiver) =>
+        `waiver ${waiver.rule} → ${waiver.target}: '${waiver.rule}' checks the whole graph and reports no target; only target '*' can waive it.`,
+    ),
+    ...outcome.problems,
+  ];
+  const byRule = new Map<string, string[]>();
+  for (const finding of outcome.violations) {
+    const messages = byRule.get(finding.rule) ?? [];
+    messages.push(finding.message);
+    byRule.set(finding.rule, messages);
+  }
+  if (problems.length > 0) {
+    byRule.set('architecture-waivers', problems);
+  }
+  return {
+    violations: [...byRule].map(([rule, messages]) => ({ rule, messages })),
+    waived: [...outcome.waived],
+  };
 }
 
 function escapeRegex(value: string): string {
@@ -4517,3 +4746,14 @@ function uniqueNode<C extends ArchitectureCatalog>(
     `Ambiguous ${kind} '${name}'. Disambiguate with file: ${files}`,
   );
 }
+
+export {
+  architectureWaivers,
+  defineArchitectureWaivers,
+  type ArchitectureRuleName,
+  type ArchitectureWaiver,
+  type ArchitectureWaiverTarget,
+  type DeclaredArchitectureWaiver,
+} from './architecture-waivers.ts';
+
+export { mergeStyleDump, type StyleDump } from './style-graph.ts';

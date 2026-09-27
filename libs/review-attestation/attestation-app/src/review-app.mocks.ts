@@ -1,4 +1,7 @@
-import { defineHappyPathHttpMocks } from '@craft-ts/style-testing';
+import {
+  defineHappyPathHttpMocks,
+  defineVisualHttpMocks,
+} from '@craft-ts/style-testing';
 
 /** Local Vite development runtime fixture: keep CSS injection, disable hot reload transport. */
 const viteClient = `
@@ -14,7 +17,7 @@ export function createReviewAppMocks(
   iteration: unknown,
   digest: unknown,
 ) {
-  return defineHappyPathHttpMocks(
+  const happyPath = defineHappyPathHttpMocks(
     'libs/review-attestation/attestation-app/src/review-app.mocks.ts',
     {
       'GET /@vite/client': {
@@ -27,11 +30,41 @@ export function createReviewAppMocks(
       },
       'GET /api/review': { response: queue },
       'POST /api/decisions': { response: queue },
+      'POST /api/template-agent': { response: queue },
       'POST /api/decisions/reopen': { response: queue },
       'POST /api/close-review': { response: close },
       'POST /api/iteration-handoff': { response: iteration },
       'POST /api/regenerate': { response: queue },
       'GET /api/digest/*': { response: digest },
     },
+  );
+  return defineVisualHttpMocks(
+    'libs/review-attestation/attestation-app/src/review-app.mocks.ts',
+    [
+      {
+        endpoint: 'POST /api/folder-layout/apply',
+        method: 'POST',
+        url: '/api/folder-layout/apply',
+        mode: 'mock',
+        response: {
+          kind: 'success',
+          body: queue,
+        },
+      },
+      {
+        endpoint: 'GET /api/template-detail?subject=*',
+        method: 'GET',
+        url: '/api/template-detail?subject=*',
+        mode: 'mock',
+        response: {
+          kind: 'success',
+          body: {
+            subject:
+              'template:component:fixture.ts:ProfileCard#command:profile.commit',
+          },
+        },
+      },
+    ],
+    happyPath,
   );
 }

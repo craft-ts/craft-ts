@@ -7,6 +7,7 @@ export default defineConfig({
   root,
   resolve: {
     alias: {
+      '@craft-ts/style/vite': path.join(root, 'libs/style/src/plugin/vite.ts'),
       '@craft-ts/core': path.join(root, 'libs/core/src/index.ts'),
       '@craft-ts/component': path.join(root, 'libs/component/src/index.ts'),
       '@craft-ts/style': path.join(root, 'libs/style/src/index.ts'),

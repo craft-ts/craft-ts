@@ -6,9 +6,15 @@ import {
 import {
   craftAppConfig,
   provideCraftRouter,
+  provideCraftSchemaValidationPolicy,
   provideFnWrapper,
+  provideSendContextEventEnricher,
+  withHashLocation,
 } from '@craft-ts/core';
 import { ReviewApp } from './review-app';
+import { provideReviewAppModel } from './review-app.model';
+import { provideReviewNavigation } from './review-navigation.service';
+import { reviewRoutes } from './review.routes';
 import { reviewDocument } from './browser-adapter';
 import {
   applyLocale,
@@ -16,10 +22,16 @@ import {
   initialLocale,
   initialTheme,
 } from './preferences';
-import './styles.css';
+import 'virtual:craft-style.css';
 
 const developmentProviders = import.meta.env.DEV
-  ? [provideSendContextToAi()]
+  ? [
+      provideSendContextEventEnricher((event) => ({
+        ...event,
+        application: 'review-attestation',
+      })),
+      provideSendContextToAi(),
+    ]
   : [];
 
 // Before the app renders, not after. Reading the stored choice from inside the
@@ -31,8 +43,15 @@ applyLocale(initialLocale(), reviewDocument.documentElement);
 const config = craftAppConfig({
   providers: [
     ...developmentProviders,
+    // Async processes request a validation policy from the app injector even
+    // when they have no schema-specific override.
+    provideCraftSchemaValidationPolicy(() => ({
+      action: import.meta.env.DEV ? 'reject' : 'accept',
+    })),
     provideCraftRootComponent(ReviewApp),
-    ...provideCraftRouter([]),
+    ...provideCraftRouter(reviewRoutes.toRoutes(), withHashLocation()),
+    provideReviewAppModel(),
+    provideReviewNavigation(),
     provideFnWrapper(
       'Review app function boundary',
       function* (factory, thisArg, args) {

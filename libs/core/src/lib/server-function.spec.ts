@@ -60,7 +60,7 @@ describe('server functions', () => {
     });
     const implementation = serverFunction(contract)
       .pipe(requireServerPermission('users:read'))
-      .handler(({ input, required }) => `${required(CurrentUser).id}:${input}`)
+      .handler(({ input, required }) => `${(required(CurrentUser) as { id: string }).id}:${input}`)
       .exposeErrors({});
     const requests: ServerFunctionRequest[] = [];
     TestBed.configureTestingModule({

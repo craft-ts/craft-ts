@@ -84,7 +84,7 @@ pages:
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app \
   --yes --no-demos --domain app \
   --frontend-runtime=plain --backend-runtime=effect \
-  --i18n=strict --design-system=basic --typed-css \
+  --i18n=strict --design-system=basic \
   --references=all --agents=codex
 ```
 
@@ -143,7 +143,7 @@ For a minimal plain starter:
 
 ```bash
 npx --yes --package @craft-ts/dev-tools@beta craft create my-app \
-  --yes --effect=none --i18n=none --design-system=none --no-typed-css \
+  --yes --effect=none --i18n=none --design-system=none \
   --agents=none
 ```
 
@@ -166,13 +166,18 @@ The main configuration options are:
 | `--agents`           | comma-separated names or `none`       | Add editor-specific agent integrations; `AGENTS.md` is always generated   |
 | `--i18n`             | `strict`, `loose`, `none`             | Configure type-safe i18n                                                  |
 | `--design-system`    | `basic`, `none`                       | Include the design-system starter                                         |
-| `--typed-css`        | flag / `--no-typed-css`               | Enable or disable typed CSS                                               |
 | `--workspace`        | `standalone`, `nx`                    | Choose the workspace layout                                               |
 | `--references`       | `none`, `craft-ts`, `all`             | Include source references (default: CraftTS, plus EffectTS when selected) |
 | `--no-demos`         | flag                                  | Generate a domain feature without explanatory demo pages                  |
 | `--domain`           | slug                                  | Name the first domain feature when using `--no-demos`                     |
 | `--force`            | flag                                  | Allow an existing non-empty destination                                   |
 | `--json`             | flag                                  | Print the effective configuration as JSON                                 |
+
+Every project styles through `@craft-ts/style`, whatever the options: there is
+no plain-CSS starter and no `src/styles.css`. The element defaults and the app
+shell live in `src/app/app.style.ts`; `--design-system=basic` adds the starter
+design system in `src/app/ui/ui.style.ts`. `--no-typed-css` is no longer
+accepted.
 
 Use `craft create --help` to see the complete list:
 

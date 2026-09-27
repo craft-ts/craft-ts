@@ -10,6 +10,7 @@ import {
 import { craftService, craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadTask } from './task-domain';
+import { taskPage } from './foundation.style';
 
 export const { QuickstartTaskPageView, provideQuickstartTaskPageView } = craftService(
   { name: 'quickstartTaskPageView', providedIn: 'toProvide' },
@@ -48,7 +49,7 @@ const QuickstartTaskPage = craftComponent(
   function* () {
     const { taskQuery } = yield* QuickstartTaskPageView();
     return [
-      div({ class: 'quickstart' }, [
+      div([
         heading(function* () {
           // Structural helpers are the reactive binding boundary for their content.
           // eslint-disable-next-line craft-ts/require-reactive-template-bindings
@@ -64,7 +65,7 @@ const QuickstartTaskPage = craftComponent(
         ifNode(taskQuery.hasTaskException, () =>
           p([
             'Business error: ',
-            span({ class: 'error' }, taskQuery.exceptionTag),
+            span({ class: taskPage.error }, taskQuery.exceptionTag),
           ]),
         ),
         button(

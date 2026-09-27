@@ -7,11 +7,14 @@
  */
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildReviewQueue, type ReviewCard, type ReviewItem } from './queue.js';
 import type {
+  ArchitectureWaiverReviewCard,
   AttestationDevtoolModel,
+  EslintDisableReviewCard,
+  FolderLayoutReviewCard,
   RemovalReviewCard,
   TemplateReviewCard,
 } from '@craft-ts/dev-tools/attestation-review';
@@ -21,11 +24,15 @@ import {
   type ReviewIterationOptions,
   type ReviewIterationResult,
 } from './handoff.js';
+import { craftStyle } from '@craft-ts/style/vite';
 
 export type AttestationReviewCard =
   | ReviewCard
   | TemplateReviewCard
-  | RemovalReviewCard;
+  | RemovalReviewCard
+  | FolderLayoutReviewCard
+  | EslintDisableReviewCard
+  | ArchitectureWaiverReviewCard;
 
 export interface ReviewFinding {
   readonly path: string;
@@ -43,6 +50,25 @@ export interface ReviewDecisionRequest {
   readonly findings?: readonly ReviewFinding[];
   /** Set when the verdict was reached on the screenshot, not a faithful replay. */
   readonly degraded?: boolean;
+  /** Added by the server after validating an agent's response. */
+  readonly agentReview?: {
+    readonly kind: 'agent';
+    readonly name: string;
+    readonly contextHash: string;
+    readonly references: readonly string[];
+    readonly rationale: string;
+  };
+}
+
+export interface TemplateAgentResult {
+  readonly id: string;
+  readonly outcome: 'accepted' | 'contradiction' | 'needs-human';
+  readonly rationale: string;
+  readonly references: readonly string[];
+}
+
+export interface TemplateAgentDecision extends ReviewDecisionRequest {
+  readonly agentReview: NonNullable<ReviewDecisionRequest['agentReview']>;
 }
 
 export interface ReviewSessionDecision {
@@ -56,16 +82,43 @@ export interface ReviewDecisionReopenRequest {
 }
 
 export interface ReviewApiQueue {
+  /** This local review server can resolve source references for IDE links. */
+  readonly sourceLinksAvailable?: true;
   readonly applicationCaptures?: AttestationDevtoolModel['applicationCaptures'];
   readonly items: number;
   readonly decisions: number;
   readonly cards: readonly AttestationReviewCard[];
+  /** Validated agent findings for the exact card revision that was reviewed. */
+  readonly templateAgentResults?: readonly {
+    readonly id: string;
+    readonly revision: string;
+    readonly outcome: 'accepted' | 'contradiction' | 'needs-human';
+    readonly rationale: string;
+    readonly references: readonly string[];
+  }[];
+  readonly templateAgentAvailable?: boolean;
   readonly visualAssets: AttestationDevtoolModel['visualAssets'];
   readonly visualTests: AttestationDevtoolModel['visualTests'];
   readonly templateObligations: AttestationDevtoolModel['templateObligations'];
+  readonly folderLayouts?: NonNullable<
+    AttestationDevtoolModel['folderLayouts']
+  >;
+  /** Every deliberate bypass — directives and waivers — whatever its state. */
+  readonly bypasses?: NonNullable<AttestationDevtoolModel['bypasses']>;
+  /** How far the design system has reached; absent when nothing could say. */
+  readonly styleAdoption?: AttestationDevtoolModel['styleAdoption'];
   readonly diagnostics: AttestationDevtoolModel['diagnostics'];
   /** Decisions accepted during this review session, in acceptance order. */
   readonly history: readonly ReviewSessionDecision[];
+  /** Git apply action, offered only after this session accepts a layout card. */
+  readonly folderLayoutApply?: {
+    readonly command: string;
+    readonly gitCommands: string;
+    readonly moves: number;
+    readonly deletions: number;
+    readonly manualReviews: number;
+    readonly applied: boolean;
+  };
   /** Present only when this server knows how to rebuild its source reports. */
   readonly regeneration?: {
     readonly previousDecisions: number;
@@ -98,8 +151,43 @@ export interface ReviewServerOptions {
   /** Pre-built mixed cards for the unified DevTool. */
   readonly cards?: readonly AttestationReviewCard[];
   readonly model?: Omit<AttestationDevtoolModel, 'cards'>;
+  /** Source excerpts are resolved only when a reviewer opens one obligation. */
+  readonly templateDetailFor?: (subject: string) =>
+    | {
+        readonly subject: string;
+        readonly renderSites?: readonly {
+          readonly file: string;
+          readonly line: number;
+          readonly code: string;
+        }[];
+        readonly element?: {
+          readonly file: string;
+          readonly line: number;
+          readonly code: string;
+        };
+        readonly method?: {
+          readonly file: string;
+          readonly line: number;
+          readonly code: string;
+        };
+      }
+    | undefined;
   /** Re-derives cards from the authoritative ledger before reads/decisions. */
   readonly refreshCards?: () => Promise<readonly AttestationReviewCard[]>;
+  /** Optional service that judges only the explicitly submitted templates. */
+  readonly templateAgent?: {
+    readonly name: string;
+    readonly run: (
+      cards: readonly TemplateReviewCard[],
+    ) => Promise<readonly TemplateAgentResult[]>;
+  };
+  /** Persists server-validated agent decisions in the authoritative ledger. */
+  readonly onDecisions?: (
+    decisions: readonly TemplateAgentDecision[],
+  ) =>
+    | void
+    | readonly AttestationReviewCard[]
+    | Promise<void | readonly AttestationReviewCard[]>;
   /** Re-runs configured producers, then re-derives the complete review model. */
   readonly regenerate?: () => Promise<ReviewRegenerationResult>;
   /** Number shown in the confirmation before the first regeneration. */
@@ -118,6 +206,15 @@ export interface ReviewServerOptions {
     | void
     | readonly AttestationReviewCard[]
     | Promise<void | readonly AttestationReviewCard[]>;
+  /** Git-backed folder-layout command enabled only after accepting its card. */
+  readonly folderLayoutApply?: {
+    readonly command: string;
+    readonly gitCommands: string;
+    readonly moves: number;
+    readonly deletions: number;
+    readonly manualReviews: number;
+    readonly run: () => Promise<void>;
+  };
   /** Serves a stored screenshot by hash. */
   readonly imageFor?: (hash: string) => Promise<Uint8Array | undefined>;
   /**
@@ -199,10 +296,17 @@ const queueValue = (
   regeneration: { readonly previousDecisions: number } | undefined,
   iteration: ReviewServerOptions['iteration'],
   history: readonly ReviewSessionDecision[] = [],
+  folderLayoutApply: ReviewServerOptions['folderLayoutApply'],
+  folderLayoutApplied: boolean,
+  templateAgentAvailable = false,
+  templateAgentResults: ReviewApiQueue['templateAgentResults'] = [],
 ): ReviewApiQueue => ({
+  ...(iteration ? { sourceLinksAvailable: true as const } : {}),
   items: cards.reduce((total, card) => total + card.cluster.length, 0),
   decisions: cards.length,
   cards,
+  templateAgentAvailable,
+  templateAgentResults,
   applicationCaptures: (model?.applicationCaptures ?? []).map((capture) => {
     const accepted = [...history]
       .reverse()
@@ -214,8 +318,29 @@ const queueValue = (
   visualAssets: model?.visualAssets ?? [],
   visualTests: model?.visualTests ?? [],
   templateObligations: model?.templateObligations ?? [],
+  folderLayouts: model?.folderLayouts ?? [],
+  bypasses: model?.bypasses ?? [],
+  ...(model?.styleAdoption ? { styleAdoption: model.styleAdoption } : {}),
   diagnostics: model?.diagnostics ?? [],
   history,
+  ...(folderLayoutApply &&
+  history.some(
+    (entry) =>
+      entry.card.kind === 'folder-layout' &&
+      (entry.decision.verdict === 'ok' ||
+        entry.decision.verdict === 'ok-with-note'),
+  )
+    ? {
+        folderLayoutApply: {
+          command: folderLayoutApply.command,
+          gitCommands: folderLayoutApply.gitCommands,
+          moves: folderLayoutApply.moves,
+          deletions: folderLayoutApply.deletions,
+          manualReviews: folderLayoutApply.manualReviews,
+          applied: folderLayoutApplied,
+        },
+      }
+    : {}),
   ...(regeneration ? { regeneration } : {}),
   ...(iteration
     ? {
@@ -328,6 +453,10 @@ export async function startReviewServer(
   let model = options.model;
   let previousDecisions = options.previousDecisions ?? 0;
   let regenerationRunning = false;
+  let folderLayoutApplying = false;
+  let folderLayoutApplied = false;
+  let templateAgentRunning = false;
+  let templateAgentResults: NonNullable<ReviewApiQueue['templateAgentResults']> = [];
   let closing = false;
   const stopServer: { current?: () => Promise<void> } = {};
   const port = options.port ?? 4320;
@@ -344,16 +473,68 @@ export async function startReviewServer(
   const vite = await createViteServer({
     root: appRoot,
     appType: 'spa',
+    plugins: [craftStyle({ alias: workspaceAliases })],
     // The review server is a standalone, deterministic HTTP boundary. Vite's
     // middleware-mode default creates a second HMR WebSocket listener on
     // port 24678, which can collide with a developer's running app and leak
     // a spurious browser error into review-server tests.
-    server: { middlewareMode: true, hmr: false, ws: false },
+    // Nothing is transformed ahead of a request: serving index.html would
+    // otherwise start loading `virtual:craft-style.css` in the background —
+    // an evaluation of every sheet — and `close()` waits for it.
+    server: {
+      middlewareMode: true,
+      hmr: false,
+      ws: false,
+      preTransformRequests: false,
+    },
     resolve: { alias: aliases, tsconfigPaths: true },
   });
 
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost');
+
+    if (request.method === 'GET' && url.pathname === '/api/open-in-ide') {
+      const root = options.iteration?.rootDir;
+      const ide = url.searchParams.get('ide');
+      const file = url.searchParams.get('file');
+      const line = url.searchParams.get('line');
+      if (
+        !root ||
+        !file ||
+        isAbsolute(file) ||
+        !['vscode', 'cursor', 'zed'].includes(ide ?? '') ||
+        (line !== null && !/^[1-9]\d*$/.test(line))
+      ) {
+        response.writeHead(400).end();
+        return;
+      }
+      const absolute = resolve(root, file);
+      const withinRoot = relative(resolve(root), absolute);
+      if (
+        !withinRoot ||
+        withinRoot === '..' ||
+        withinRoot.startsWith(`..${sep}`) ||
+        isAbsolute(withinRoot)
+      ) {
+        response.writeHead(400).end();
+        return;
+      }
+      const encoded = absolute
+        .replace(/\\/g, '/')
+        .split('/')
+        .map((segment, index) =>
+          index === 0 && /^[A-Za-z]:$/.test(segment)
+            ? segment.toLowerCase()
+            : encodeURIComponent(segment),
+        )
+        .join('/');
+      response.writeHead(302, {
+        location: `${ide}://file/${encoded}${line ? `:${line}` : ''}`,
+        'cache-control': 'no-store',
+      });
+      response.end();
+      return;
+    }
 
     if (request.method === 'GET' && url.pathname === '/@vite/client') {
       response.writeHead(200, {
@@ -377,6 +558,10 @@ export async function startReviewServer(
               options.regenerate ? { previousDecisions } : undefined,
               options.iteration,
               history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {
@@ -384,6 +569,203 @@ export async function startReviewServer(
             error:
               error instanceof Error ? error.message : 'review refresh failed',
           });
+        }
+      })();
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/template-detail') {
+      const subject = url.searchParams.get('subject');
+      if (
+        !subject ||
+        subject.length > 2048 ||
+        !subject.startsWith('template:')
+      ) {
+        writeJson(response, 400, {
+          error: 'review: invalid template subject.',
+        });
+        return;
+      }
+      if (
+        !model?.templateObligations.some((item) => item.subject === subject)
+      ) {
+        writeJson(response, 404, {
+          error: 'review: unknown template subject.',
+        });
+        return;
+      }
+      try {
+        const detail = options.templateDetailFor?.(subject);
+        if (!detail) {
+          writeJson(response, 200, { subject });
+          return;
+        }
+        writeJson(response, 200, detail);
+      } catch {
+        writeJson(response, 404, {
+          error: 'review: template source is unavailable.',
+        });
+      }
+      return;
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/template-agent') {
+      void (async () => {
+        const agent = options.templateAgent;
+        if (!agent) {
+          writeJson(response, 404, {
+            error: 'review: template agent is not configured for this session.',
+          });
+          return;
+        }
+        if (templateAgentRunning) {
+          writeJson(response, 409, {
+            error: 'review: a template agent review is already running.',
+          });
+          return;
+        }
+        try {
+          if (
+            !request.headers['content-type']
+              ?.toLowerCase()
+              .startsWith('application/json')
+          ) {
+            throw new Error('review: template agent requests require application/json.');
+          }
+          const body = await readJson(request);
+          const submitted =
+            typeof body === 'object' && body !== null
+              ? (body as { cards?: unknown }).cards
+              : undefined;
+          if (
+            !Array.isArray(submitted) ||
+            submitted.length === 0 ||
+            !submitted.every(
+              (entry) =>
+                typeof entry === 'object' &&
+                entry !== null &&
+                typeof (entry as { id?: unknown }).id === 'string' &&
+                typeof (entry as { revision?: unknown }).revision === 'string',
+            )
+          ) {
+            throw new Error('review: expected template card ids and revisions.');
+          }
+          const references = submitted as {
+            readonly id: string;
+            readonly revision: string;
+          }[];
+          const ids = references.map(({ id }) => id);
+          if (new Set(ids).size !== ids.length) {
+            throw new Error('review: duplicate template cards were submitted.');
+          }
+          if (options.refreshCards) cards = [...(await options.refreshCards())];
+          const selected = references.map(({ id, revision }) => {
+            const card = cards.find((candidate) => candidate.id === id);
+            if (
+              !card ||
+              card.kind !== 'template' ||
+              card.revision !== revision ||
+              card.state === 'removed'
+            ) {
+              throw new Error('review: a template card changed; reload before delegating.');
+            }
+            return card;
+          });
+          templateAgentRunning = true;
+          const rawResults: readonly TemplateAgentResult[] =
+            await agent.run(selected);
+          if (!Array.isArray(rawResults) || rawResults.length !== selected.length) {
+            throw new Error('review: the template agent returned an incomplete batch.');
+          }
+          const resultsById = new Map<string, TemplateAgentResult>();
+          for (const result of rawResults) {
+            if (
+              !result ||
+              typeof result.id !== 'string' ||
+              !['accepted', 'contradiction', 'needs-human'].includes(result.outcome) ||
+              typeof result.rationale !== 'string' ||
+              result.rationale.trim().length === 0 ||
+              !Array.isArray(result.references) ||
+              !result.references.every(
+                (reference: unknown) => typeof reference === 'string',
+              ) ||
+              resultsById.has(result.id)
+            ) {
+              throw new Error('review: the template agent returned an invalid result.');
+            }
+            resultsById.set(result.id, result);
+          }
+          if (selected.some((card) => !resultsById.has(card.id))) {
+            throw new Error('review: the template agent returned mismatched cards.');
+          }
+          if (options.refreshCards) cards = [...(await options.refreshCards())];
+          const refreshed = selected.map((original) => {
+            const current = cards.find((candidate) => candidate.id === original.id);
+            if (
+              !current ||
+              current.kind !== 'template' ||
+              current.revision !== original.revision ||
+              current.contextHash !== original.contextHash
+            ) {
+              throw new Error('review: a template changed while the agent was reviewing it.');
+            }
+            return current;
+          });
+          const validatedResults = refreshed.flatMap((card) => {
+            const result = resultsById.get(card.id);
+            if (!result) return [];
+            return [{ ...result, id: card.id, revision: card.revision }];
+          });
+          const decisions: TemplateAgentDecision[] = refreshed.flatMap((card) => {
+            const result = resultsById.get(card.id);
+            if (
+              !result ||
+              result.outcome !== 'accepted' ||
+              card.validationPolicy !== 'agent-allowed'
+            ) {
+              return [];
+            }
+            return [{
+              shape: card.shape,
+              id: card.id,
+              revision: card.revision,
+              verdict: 'ok-with-note',
+              note: result.rationale,
+              agentReview: {
+                kind: 'agent',
+                name: agent.name,
+                contextHash: card.contextHash,
+                references: result.references,
+                rationale: result.rationale,
+              },
+            }];
+          });
+          if (decisions.length > 0 && options.onDecisions) {
+            const updated = await options.onDecisions(decisions);
+            if (updated) cards = [...updated];
+          }
+          templateAgentResults = validatedResults;
+          writeJson(
+            response,
+            200,
+            queueValue(
+              cards,
+              model,
+              options.regenerate ? { previousDecisions } : undefined,
+              options.iteration,
+              history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
+              true,
+              templateAgentResults,
+            ),
+          );
+        } catch (error) {
+          writeJson(response, 400, {
+            error: error instanceof Error ? error.message : 'bad request',
+          });
+        } finally {
+          templateAgentRunning = false;
         }
       })();
       return;
@@ -430,6 +812,10 @@ export async function startReviewServer(
               { previousDecisions },
               options.iteration,
               history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {
@@ -459,6 +845,9 @@ export async function startReviewServer(
           const decision = await readJson(request);
           if (!isDecision(decision)) {
             throw new Error('review: expected a shape and a verdict.');
+          }
+          if (decision.agentReview !== undefined) {
+            throw new Error('review: agent authorship is assigned by the server.');
           }
           if (!REVIEW_VERDICTS.has(decision.verdict)) {
             throw new Error(`review: unknown verdict '${decision.verdict}'.`);
@@ -539,12 +928,85 @@ export async function startReviewServer(
               options.regenerate ? { previousDecisions } : undefined,
               options.iteration,
               history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {
           writeJson(response, 400, {
             error: error instanceof Error ? error.message : 'bad request',
           });
+        }
+      })();
+      return;
+    }
+
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/folder-layout/apply'
+    ) {
+      void (async () => {
+        if (!options.folderLayoutApply) {
+          writeJson(response, 404, {
+            error: 'review: Git folder-layout application is not configured.',
+          });
+          return;
+        }
+        if (folderLayoutApplying) {
+          writeJson(response, 409, {
+            error: 'review: folder-layout application is already running.',
+          });
+          return;
+        }
+        if (
+          !history.some(
+            (entry) =>
+              entry.card.kind === 'folder-layout' &&
+              (entry.decision.verdict === 'ok' ||
+                entry.decision.verdict === 'ok-with-note'),
+          )
+        ) {
+          writeJson(response, 409, {
+            error: 'review: accept the folder-layout proposal before applying it.',
+          });
+          return;
+        }
+        if (folderLayoutApplied) {
+          writeJson(response, 409, {
+            error: 'review: this folder-layout proposal was already applied.',
+          });
+          return;
+        }
+        folderLayoutApplying = true;
+        try {
+          await options.folderLayoutApply.run();
+          folderLayoutApplied = true;
+          writeJson(
+            response,
+            200,
+            queueValue(
+              cards,
+              model,
+              options.regenerate ? { previousDecisions } : undefined,
+              options.iteration,
+              history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
+            ),
+          );
+        } catch (error) {
+          writeJson(response, 500, {
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Git folder-layout application failed.',
+          });
+        } finally {
+          folderLayoutApplying = false;
         }
       })();
       return;
@@ -575,6 +1037,11 @@ export async function startReviewServer(
           const entry = history[historyIndex];
           if (!entry)
             throw new Error('review: that session decision is invalid.');
+          if (folderLayoutApplied && entry.card.kind === 'folder-layout') {
+            throw new Error(
+              'review: an applied folder layout cannot be reopened in this session.',
+            );
+          }
           const reopened = await options.onReopen?.(entry);
           if (reopened !== undefined) cards = [...reopened];
           else cards = [entry.card, ...cards];
@@ -588,6 +1055,10 @@ export async function startReviewServer(
               options.regenerate ? { previousDecisions } : undefined,
               options.iteration,
               history,
+              options.folderLayoutApply,
+              folderLayoutApplied,
+              options.templateAgent !== undefined,
+              templateAgentResults,
             ),
           );
         } catch (error) {

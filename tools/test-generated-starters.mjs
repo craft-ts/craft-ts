@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFile, execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
@@ -10,7 +10,6 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { promisify } from 'node:util';
 
 import { appendJsExtensions, releasePackages } from './release.mjs';
 import {
@@ -49,9 +48,9 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
       'Usage: node tools/test-generated-starters.mjs [--profile=static|smoke|release|full]',
       '       [--jobs=N] [--keep-fixtures]',
       '',
-      'Profiles: static validates all 48 generated surfaces, smoke runs 13 full cells,',
-      'release validates all 48 surfaces and runs the 13-cell release smoke, and',
-      'full runs the complete 48-cell executable matrix.',
+      'Profiles: static validates all 24 generated surfaces, smoke runs 9 full cells,',
+      'release validates all 24 surfaces and runs the 9-cell release smoke, and',
+      'full runs the complete 24-cell executable matrix.',
     ].join('\n'),
   );
   process.exit(0);
@@ -82,8 +81,6 @@ const requestedJobs = Number.parseInt(
 if (!Number.isInteger(requestedJobs) || requestedJobs < 1) {
   throw new Error('Generated starter jobs must be a positive integer.');
 }
-const execFileAsync = promisify(execFile);
-
 function run(command, args, cwd = root) {
   execFileSync(command, args, {
     cwd,
@@ -97,15 +94,29 @@ function run(command, args, cwd = root) {
 }
 
 function runAsync(command, args, cwd = root, extraEnv = {}) {
-  return execFileAsync(command, args, {
-    cwd,
-    env: {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(command, args, {
+      cwd,
+      stdio: 'inherit',
+      env: {
       ...process.env,
       NX_DAEMON: 'false',
       ...extraEnv,
       ...(releaseVersion ? { CRAFT_RELEASE_VERSION: releaseVersion } : {}),
-    },
-    stdio: 'inherit',
+      },
+    });
+    child.once('error', rejectPromise);
+    child.once('close', (code, signal) => {
+      if (code === 0) {
+        resolvePromise();
+        return;
+      }
+      rejectPromise(
+        new Error(
+          `Command failed: ${command} ${args.join(' ')} (${signal ?? `exit ${code}`})`,
+        ),
+      );
+    });
   });
 }
 
@@ -194,16 +205,11 @@ function assertStaticStarter(cell, directory, name) {
   assertFile(
     directory,
     'src/app/ui/ui.style.ts',
-    cell.designSystem === 'basic' && cell.typedCss,
+    cell.designSystem === 'basic',
     name,
   );
-  assertFile(
-    directory,
-    'src/app/ui/ui.ts',
-    cell.designSystem === 'basic' && !cell.typedCss,
-    name,
-  );
-  assertFile(directory, 'scripts/style-check.mjs', cell.typedCss, name);
+  assertFile(directory, 'src/app/ui/ui.ts', false, name);
+  assertFile(directory, 'scripts/style-check.mjs', true, name);
   assertFile(directory, 'tsconfig.effect.json', hasEffect, name);
   assertFile(directory, 'tsconfig.server.json', hasServer, name);
   assertFile(directory, 'src/server/server.ts', hasServer, name);
@@ -231,7 +237,7 @@ function assertStaticStarter(cell, directory, name) {
   assertFile(
     directory,
     'src/app/domain.ts',
-    cell.frontendRuntime === 'effect',
+    cell.frontendRuntime === 'effect' && cell.backendRuntime === 'none',
     name,
   );
 
@@ -257,8 +263,11 @@ function assertStaticStarter(cell, directory, name) {
   if (!hasEffect && manifest.dependencies?.effect) {
     throw new Error(`${name}: Effect dependency present in disabled variant`);
   }
-  if (cell.typedCss && !manifest.scripts?.['style:check']) {
-    throw new Error(`${name}: typed CSS script missing in enabled variant`);
+  if (!manifest.scripts?.['style:check']) {
+    throw new Error(`${name}: required style check script missing`);
+  }
+  if (manifest.devDependencies?.['@vitest/browser-playwright'] !== '^4.0.0') {
+    throw new Error(`${name}: Vitest browser peer must stay on Vitest 4`);
   }
   if (hasServer && !manifest.scripts?.['server:test']) {
     throw new Error(`${name}: server test script missing in enabled variant`);
@@ -293,8 +302,7 @@ async function runExecutableStarter(cell, directory, name, localRelease, port) {
     await runAsync('npm', ['run', 'effect-check'], directory, environment);
   if (cell.backendRuntime !== 'none')
     await runAsync('npm', ['run', 'server:test'], directory, environment);
-  if (cell.typedCss)
-    await runAsync('npm', ['run', 'style:check'], directory, environment);
+  await runAsync('npm', ['run', 'style:check'], directory, environment);
 }
 
 async function runWithConcurrency(items, worker, concurrency) {
@@ -342,7 +350,6 @@ async function runCell(cell, localRelease) {
     cell.i18n,
     '--design-system',
     cell.designSystem,
-    cell.typedCss ? '--typed-css' : '--no-typed-css',
   ];
   await runAsync('npx', args);
   assertStaticStarter(cell, directory, name);

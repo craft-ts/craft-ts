@@ -19,7 +19,7 @@ import type {
 } from './client-function-middleware';
 import { createClientMiddlewareYieldable } from './client-function-middleware';
 import type { CraftSchema } from './schema-validation';
-import type { ServerFunctionToken } from './client-di-requirement';
+import type { ServerFunctionDependency } from './client-di-requirement';
 
 export {
   assertMiddlewareId,
@@ -147,7 +147,7 @@ export type MiddlewareRunContext<
 > = {
   readonly input: MergeSchemaOutputs<Schemas>;
   readonly context: ContextIn;
-  readonly resolve: <Value>(token: ServerFunctionToken<Value>) => Value;
+  readonly resolve: <Value>(dependency: ServerFunctionDependency<Value>) => Value;
 };
 
 type ServerMiddlewareProgram<
@@ -572,7 +572,7 @@ export class MiddlewareExecutionScope extends Context.Service<
 
 function createMiddlewareExecutionScope(
   input: unknown,
-  resolve: <Value>(token: ServerFunctionToken<Value>) => Value,
+  resolve: <Value>(dependency: ServerFunctionDependency<Value>) => Value,
 ): MiddlewareExecutionScopeShape {
   const cache = new Map<string, MiddlewareCacheEntry>();
   const running = new Set<string>();
@@ -618,7 +618,7 @@ export function runMiddlewareChain(
   input: unknown,
   handler: MiddlewareChainHandler,
   _clientContext: MiddlewareContext = {},
-  resolve: <Value>(token: ServerFunctionToken<Value>) => Value = () => {
+  resolve: <Value>(dependency: ServerFunctionDependency<Value>) => Value = () => {
     throw new Error('This server middleware requires DI, but no server runtime resolver was provided.');
   },
 ): Effect.Effect<unknown, unknown, unknown> {

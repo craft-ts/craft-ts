@@ -8,6 +8,7 @@ import {
   buildTemplateReviewCard,
   type ApplicationCaptureInventoryItem,
   type AttestationDevtoolModel,
+  type FolderLayoutReviewCard,
   type TemplateEvidence,
 } from '@craft-ts/dev-tools/attestation-review';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
@@ -55,6 +56,70 @@ export const reviewAppTemplateCard = buildTemplateReviewCard({
     note: 'The former command was intentional.',
   },
 });
+
+export const reviewAppFolderLayoutCard: FolderLayoutReviewCard = {
+  kind: 'folder-layout',
+  presenter: 'folder-layout',
+  id: 'folder-layout:review-app-fixture',
+  shape: 'folder-layout:review-app-fixture',
+  revision: 'review-app-folder-layout-revision',
+  state: 'review',
+  subject: 'folder-layout:review-app-fixture',
+  reason: 'the folder layout proposal changed',
+  cluster: ['folder-layout:review-app-fixture'],
+  reviewMembers: [
+    { subject: 'folder-layout:review-app-fixture', label: 'folder-layout' },
+  ],
+  members: [
+    {
+      subject: 'folder-layout:review-app-fixture',
+      attested: [],
+      changed: [],
+    },
+  ],
+  changes: ['2 moved', '1 deleted', '1 created', '2 unchanged'],
+  sourceGraphHash: 'graph-fixture',
+  configHash: 'config-fixture',
+  entries: [
+    {
+      sourcePath: 'src/app/orders/order-page.ts',
+      proposedPath: 'src/features/orders/order-page.ts',
+      status: 'moved',
+      scope: 'feature-local',
+      confidence: 0.96,
+      reasons: ['route anchor orders'],
+    },
+    {
+      sourcePath: 'src/app/shared/date.ts',
+      proposedPath: 'src/shared/date.ts',
+      status: 'moved',
+      scope: 'global-shared',
+      confidence: 0.91,
+      reasons: ['shared by two routes'],
+    },
+    {
+      sourcePath: 'src/app/legacy.ts',
+      proposedPath: null,
+      status: 'deleted',
+      reasons: ['outside the frontend inventory'],
+    },
+    {
+      sourcePath: null,
+      proposedPath: 'src/core/bootstrap.ts',
+      status: 'created',
+      scope: 'core',
+      confidence: 0.88,
+      reasons: ['bootstrap dependency'],
+    },
+  ],
+  statistics: {
+    files: 4,
+    moves: 2,
+    reviews: 1,
+    unresolved: 0,
+    confidence: { high: 2, medium: 2, low: 0 },
+  },
+};
 
 const reviewAppViewports: readonly {
   readonly name: string;
@@ -115,6 +180,16 @@ export const reviewAppHappyPathModel: Omit<AttestationDevtoolModel, 'cards'> = {
       statementParts: reviewAppTemplateCard.statementParts,
       state: 'review',
       evidence: currentEvidence,
+    },
+  ],
+  folderLayouts: [
+    {
+      subject: reviewAppFolderLayoutCard.subject,
+      sourceGraphHash: reviewAppFolderLayoutCard.sourceGraphHash,
+      configHash: reviewAppFolderLayoutCard.configHash,
+      state: 'review',
+      entries: reviewAppFolderLayoutCard.entries,
+      statistics: reviewAppFolderLayoutCard.statistics,
     },
   ],
   diagnostics: [
@@ -181,7 +256,9 @@ export const reviewAppHappyPathMocks = createReviewAppMocks(
 );
 
 export const reviewAppVisualTestConfig = defineVisualAppConfig({
-  sourceFiles: ['libs/review-attestation/attestation-app/src/styles.css'],
+  sourceFiles: [
+    'libs/review-attestation/attestation-app/src/review-app.style.ts',
+  ],
   pages: [
     {
       id: 'review-app',
@@ -206,7 +283,7 @@ export const reviewAppVisualTestConfig = defineVisualAppConfig({
               action: 'capture',
               id: 'review',
               expect: [
-                { kind: 'visible', target: { name: 'AcceptReviewCard' } },
+                { kind: 'visible', target: { name: 'AcceptTemplateGroup' } },
               ],
             },
             { action: 'click', target: { name: 'OpenRegenerationDialog' } },
@@ -230,6 +307,167 @@ export const reviewAppVisualTestConfig = defineVisualAppConfig({
                   target: { name: 'SelectApplicationCapture' },
                   count: 4,
                 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-application',
+      route: '/application',
+      url: '/#/application?view=application',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'application',
+          label: 'Review application section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'application',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-assets',
+      route: '/assets',
+      url: '/#/assets?view=assets',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'assets',
+          label: 'Review assets section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'assets',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-bypasses',
+      route: '/bypasses',
+      url: '/#/bypasses?view=bypasses',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'bypasses',
+          label: 'Review bypasses section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'bypasses',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-folder-layout',
+      route: '/folder-layout',
+      url: '/#/folder-layout?view=folder-layout',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'folder-layout',
+          label: 'Review folder-layout section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'folder-layout',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-review',
+      route: '/review',
+      url: '/#/review?view=review',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'review',
+          label: 'Review queue section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'review',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-template',
+      route: '/template',
+      url: '/#/template?view=template',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'template',
+          label: 'Review template section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'template',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-visual',
+      route: '/visual',
+      url: '/#/visual?view=visual',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'visual',
+          label: 'Review visual section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'visual',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
               ],
             },
           ],

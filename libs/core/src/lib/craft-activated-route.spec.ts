@@ -1,33 +1,31 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { CraftActivatedRoute } from './craft-activated-route';
 import {
-  createEnvironmentInjector,
-  inject,
-  Injector,
-} from './host/craft-compat';
-import { ActivatedRoute } from './host/craft-router-types';
+  CraftActivatedRoute,
+  provideCraftActivatedRoute,
+} from './craft-activated-route';
+import type { ActivatedRoute } from './host/craft-router-types';
+import { craftService } from './craft-service';
+import { setupCraftServiceTest } from './setup-craft-service-test';
 
 describe('CraftActivatedRoute', () => {
-  it('exposes a runtime DI token', () => {
-    expect(ActivatedRoute).toBeDefined();
-    expect(typeof ActivatedRoute).not.toBe('undefined');
-    expect(
-      (ActivatedRoute as { debugName?: string }).debugName,
-    ).toBe('ActivatedRoute');
-  });
-
-  it('resolves the provided route through inject()', () => {
+  it('resolves the provided route through its Craft service helper', () => {
     const route = {
       snapshot: { params: { id: '1' } },
       pathFromRoot: [],
     } as unknown as ActivatedRoute;
-    const injector = createEnvironmentInjector(
-      [{ provide: ActivatedRoute, useValue: route }],
-      Injector.NULL,
+    const { RouteProbe } = craftService(
+      { name: 'RouteProbe', providedIn: 'function' },
+      function* () {
+        return { route: yield* CraftActivatedRoute() };
+      },
     );
-    const resolved = injector.run(() => inject(ActivatedRoute));
-    expect(resolved).toBe(route);
+    const { sut } = setupCraftServiceTest(
+      RouteProbe,
+      {},
+      { providers: [provideCraftActivatedRoute(route)] },
+    );
+    expect(sut.route).toBe(route);
   });
 
   it('is a yieldable helper', () => {

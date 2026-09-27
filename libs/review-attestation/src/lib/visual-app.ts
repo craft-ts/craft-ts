@@ -605,15 +605,21 @@ export function matchesVisualHttpRequest(
   const actual = new URL(request.url, 'http://craft-ts.local');
   if (/^https?:\/\//.test(endpoint.url) && expected.origin !== actual.origin)
     return false;
-  const pattern = new RegExp(
-    `^${expected.pathname
-      .split('*')
-      .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      .join('[^/]+')}$`,
-  );
+  const matchesPattern = (
+    pattern: string,
+    value: string,
+    wildcard: string,
+  ): boolean =>
+    new RegExp(
+      `^${pattern
+        .split('*')
+        .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join(wildcard)}$`,
+    ).test(value);
   return (
-    pattern.test(actual.pathname) &&
-    (!expected.search || expected.search === actual.search) &&
+    matchesPattern(expected.pathname, actual.pathname, '[^/]+') &&
+    (!expected.search ||
+      matchesPattern(expected.search, actual.search, '[^&]+')) &&
     Object.entries(endpoint.query ?? {}).every(
       ([key, value]) => actual.searchParams.get(key) === value,
     ) &&

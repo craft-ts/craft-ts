@@ -9,6 +9,7 @@ import {
   type ProjectionContractOf,
   type ProjectionSlot,
 } from '@craft-ts/component';
+import { componentUi, projectionDemo } from './component-demos.style';
 
 export const { UserBadgeView, provideUserBadgeView } = craftService(
   { name: 'userBadgeView', providedIn: 'toProvide' },
@@ -23,7 +24,7 @@ export const userBadge = craftComponent(
   { providers: [provideUserBadgeView()] },
   function* (inputs: { readonly role: Input<string> }) {
     const { role } = yield* UserBadgeView(inputs);
-    return span({ class: 'projection-demo__badge' }, role);
+    return span({ class: projectionDemo.badge }, role);
   },
 );
 
@@ -66,7 +67,8 @@ export const toolbarAction = craftComponent(
     return button(
       'action',
       {
-        class: 'projection-demo__action',
+        class: componentUi.button,
+        'data-componentButton': 'primary',
         type: 'button',
         disabled: contract.disabled,
         click: contract.trigger,

@@ -124,8 +124,8 @@ test('replays the frozen page, checks it, and marks the three tiers', async ({
 
   // The replay measures like the evidence, so no warning and no degraded mark
   // once the check has run.
-  await expect(page.locator('.notice.warning')).toBeHidden();
-  await expect(page.locator('.notice.degraded')).toBeHidden();
+  await expect(page.locator('[data-reviewNotice="warning"]')).toBeHidden();
+  await expect(page.locator('[data-reviewNotice="degraded"]')).toBeHidden();
 
   // What the verdict covers against what anybody could look at.
   await expect(
@@ -188,8 +188,12 @@ test('a dark-scheme capture replays without a scheme being imposed', async ({
       page.frameLocator('#craft-replay-frame').locator('.title'),
     ).toBeVisible();
 
-    await expect(page.locator('.notice.warning:not([hidden])')).toHaveCount(0);
-    await expect(page.locator('.notice.degraded:not([hidden])')).toHaveCount(0);
+    await expect(
+      page.locator('[data-reviewNotice="warning"]:not([hidden])'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-reviewNotice="degraded"]:not([hidden])'),
+    ).toHaveCount(0);
     await page.close();
   } finally {
     await dark.close();
@@ -206,7 +210,7 @@ test('lifting the page chrome reveals what it covered', async ({ page }) => {
   // into a control every application generated with CraftTS gets — the name is
   // still read from the replay, it just belongs in the sentence.
   // Located by role, not by its label: the label is what changes.
-  const lift = page.locator('.overlay-toggle');
+  const lift = page.locator('[data-testid="overlay-toggle"]');
   await expect(lift).toHaveText('Lift what covers this');
   await expect(lift).toHaveAttribute(
     'data-hint',
@@ -226,8 +230,12 @@ test('lifting the page chrome reveals what it covered', async ({ page }) => {
   // not while the marking left a `color-scheme` behind it: the first pass
   // measured a bare document and every pass after it measured one carrying a
   // rule the capture never had, so four nodes "moved" on the second look.
-  await expect(page.locator('.notice.warning:not([hidden])')).toHaveCount(0);
-  await expect(page.locator('.notice.degraded:not([hidden])')).toHaveCount(0);
+  await expect(
+    page.locator('[data-reviewNotice="warning"]:not([hidden])'),
+  ).toHaveCount(0);
+  await expect(
+    page.locator('[data-reviewNotice="degraded"]:not([hidden])'),
+  ).toHaveCount(0);
 });
 
 test('the lift is not offered when nothing is covering the subject', async ({
@@ -273,7 +281,9 @@ test('the lift is not offered when nothing is covering the subject', async ({
     await expect(
       page.frameLocator('#craft-replay-frame').locator('.title'),
     ).toBeVisible();
-    await expect(page.locator('.overlay-toggle:not([hidden])')).toHaveCount(0);
+    await expect(
+      page.locator('[data-testid="overlay-toggle"]:not([hidden])'),
+    ).toHaveCount(0);
     await page.close();
   } finally {
     await uncovered.close();
@@ -286,13 +296,15 @@ test('switching to the screenshot marks the decision as degraded', async ({
   await page.goto(running.url);
   // Until the replay has been checked, a decision *would* be degraded; the
   // mark clears once it is verified.
-  await expect(page.locator('.notice.degraded')).toBeHidden();
+  await expect(page.locator('[data-reviewNotice="degraded"]')).toBeHidden();
 
   await page.getByRole('button', { name: 'Screenshot' }).click();
   // A verdict reached on a picture is a different claim from one reached on
   // the document, and the ledger has to be able to tell them apart.
-  await expect(page.locator('.notice.degraded')).toBeVisible();
-  await expect(page.locator('.image-holder .fold')).toBeVisible();
+  await expect(page.locator('[data-reviewNotice="degraded"]')).toBeVisible();
+  await expect(
+    page.locator('[data-testid="image-holder"] [data-testid="fold"]'),
+  ).toBeVisible();
 });
 
 test('an unfaithful replay says what went wrong in one sentence', async ({
@@ -328,30 +340,30 @@ test('an unfaithful replay says what went wrong in one sentence', async ({
     const page = await browser.newPage();
     await page.goto(stale.url);
 
-    const notice = page.locator('.notice.warning');
+    const notice = page.locator('[data-reviewNotice="warning"]');
     await expect(notice).toBeVisible();
     await expect(notice).toContainText("no '.host' in it");
     // No wall of addresses, and no dump of the document's own structure.
     await expect(notice).not.toContainText('html/head');
-    await expect(page.locator('.fidelity-detail')).toBeHidden();
+    await expect(page.locator('[data-testid="fidelity-detail"]')).toBeHidden();
 
     // The reviewer is put in front of the artefact that is still worth
     // judging, rather than left staring at a page the check has already
     // rejected — and told, in the same sentence, why they were moved.
     await expect(notice).toContainText('Showing the screenshot');
-    await expect(page.locator('.replay-holder')).toBeHidden();
+    await expect(page.locator('[data-testid="replay-holder"]')).toBeHidden();
     await expect(
       page.getByRole('button', { name: 'Screenshot' }),
     ).toHaveAttribute('aria-pressed', 'true');
 
     // Asking for the page anyway still works, and the warning stays.
     await page.getByRole('button', { name: 'Page', exact: true }).click();
-    await expect(page.locator('.replay-holder')).toBeVisible();
+    await expect(page.locator('[data-testid="replay-holder"]')).toBeVisible();
     await expect(notice).toBeVisible();
 
     // What it costs the decision is said once, beside the buttons it applies
     // to — not a second time inside the warning, where it was.
-    await expect(page.locator('.notice.degraded')).toBeVisible();
+    await expect(page.locator('[data-reviewNotice="degraded"]')).toBeVisible();
     await page.close();
   } finally {
     await stale.close();
@@ -435,8 +447,12 @@ test('the check measures the card on screen, not the first one', async ({
     // Nothing to warn about: the card on screen replays faithfully.
     // Every card renders a panel, so the claim is that none of them is
     // showing a warning — not that a particular one is hidden.
-    await expect(page.locator('.notice.warning:not([hidden])')).toHaveCount(0);
-    await expect(page.locator('.notice.degraded:not([hidden])')).toHaveCount(0);
+    await expect(
+      page.locator('[data-reviewNotice="warning"]:not([hidden])'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('[data-reviewNotice="degraded"]:not([hidden])'),
+    ).toHaveCount(0);
     await page.close();
   } finally {
     await two.close();
@@ -484,8 +500,8 @@ test('fitting to the window fits the whole picture, not just its width', async (
     const page = await browser.newPage();
     await page.goto(tall.url);
 
-    const canvas = page.locator('.evidence-canvas:visible');
-    const picture = page.locator('.image-holder img');
+    const canvas = page.locator('[data-testid="evidence-canvas"]:visible');
+    const picture = page.locator('[data-testid="image-holder"] img');
     await expect(picture).toBeVisible();
 
     const fitted = await picture.boundingBox();
@@ -515,14 +531,14 @@ test('refining a selection edits its reference instead of adding one', async ({
   const frame = page.frameLocator('#craft-replay-frame');
 
   await frame.locator('.title').click();
-  await expect(page.locator('.mention-chip')).toHaveText(['[#1: 1 node]']);
+  await expect(page.locator('[data-mention-id]')).toHaveText(['[#1: 1 node]']);
 
   await frame.locator('.body').click({ modifiers: ['ControlOrMeta'] });
-  await expect(page.locator('.mention-chip')).toHaveText(['[#1: 2 nodes]']);
+  await expect(page.locator('[data-mention-id]')).toHaveText(['[#1: 2 nodes]']);
 
   // Pointing at a reference paints the nodes it stands for, without touching
   // the selection: the two are different claims.
-  await page.locator('.mention-chip').first().hover();
+  await page.locator('[data-mention-id]').first().hover();
   await expect(frame.locator('[data-craft-highlight]')).toHaveCount(2);
   await page.getByLabel('Decision note').hover();
   await expect(frame.locator('[data-craft-highlight]')).toHaveCount(0);
@@ -531,7 +547,7 @@ test('refining a selection edits its reference instead of adding one', async ({
   // nothing is worse than none.
   await frame.locator('.body').click({ modifiers: ['ControlOrMeta'] });
   await frame.locator('.title').click({ modifiers: ['ControlOrMeta'] });
-  await expect(page.locator('.mention-chip')).toHaveCount(0);
+  await expect(page.locator('[data-mention-id]')).toHaveCount(0);
 });
 
 test('a drag selects every node the box touches', async ({ page }) => {
@@ -550,16 +566,16 @@ test('a drag selects every node the box touches', async ({ page }) => {
   await page.mouse.move(box.x + 300, box.y + 150, { steps: 8 });
   // Drawn beside the frame, never inside it: adding an element to the frozen
   // page would break the only claim it makes.
-  await expect(page.locator('.selection-band')).toBeVisible();
-  await expect(frame.locator('.selection-band')).toHaveCount(0);
+  await expect(page.locator('[data-testid="selection-band"]')).toBeVisible();
+  await expect(frame.locator('[data-testid="selection-band"]')).toHaveCount(0);
   await page.mouse.up();
 
-  await expect(page.locator('.selection-band')).toBeHidden();
+  await expect(page.locator('[data-testid="selection-band"]')).toBeHidden();
   await expect(frame.locator('[data-craft-picked]')).toHaveCount(3);
   // The count is stated next to the field, and the reference is already in it:
   // selecting is referencing, with no second gesture to remember.
-  await expect(page.locator('.mention-chip')).toHaveText(['[#1: 3 nodes]']);
-  await expect(page.locator('.selection-tag')).toHaveText(
+  await expect(page.locator('[data-mention-id]')).toHaveText(['[#1: 3 nodes]']);
+  await expect(page.locator('[data-testid="selection-tag"]')).toHaveText(
     '3 elements selected',
   );
 
@@ -679,11 +695,11 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
 
   // Selecting *is* referencing: there is no second gesture to remember.
   await frame.locator('.title').click();
-  await expect(page.locator('.mention-chip')).toHaveCount(1);
-  await expect(page.locator('.mention-chip').first()).toHaveText(
+  await expect(page.locator('[data-mention-id]')).toHaveCount(1);
+  await expect(page.locator('[data-mention-id]').first()).toHaveText(
     '[#1: 1 node]',
   );
-  await expect(page.locator('.mention-chip').first()).toHaveAttribute(
+  await expect(page.locator('[data-mention-id]').first()).toHaveAttribute(
     'data-paths',
     /div/,
   );
@@ -691,12 +707,12 @@ test('two complaints in one reason keep their own groups', async ({ page }) => {
   // Typing ends that reference: the next selection starts its own.
   await reason.pressSequentially('And the body overflows its box. ');
   await frame.locator('.body').click();
-  await expect(page.locator('.mention-chip')).toHaveCount(2);
+  await expect(page.locator('[data-mention-id]')).toHaveCount(2);
 
   await page.getByRole('button', { name: /Reject R/ }).click();
   // A rejection is not a completed review: it remains visible until the
   // underlying subject changes and receives an accepted verdict.
-  await expect(page.locator('.review-card')).toBeVisible();
+  await expect(page.locator('[data-testid="review-card"]')).toBeVisible();
 
   expect(decisions).toHaveLength(1);
   const decision = decisions[0] as {

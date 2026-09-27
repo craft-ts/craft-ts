@@ -16,23 +16,63 @@
  * directly: Vite 8 no longer ships esbuild, and a plugin that reaches for a
  * bundler its host does not have is a plugin that breaks on the next upgrade.
  */
+import { existsSync, realpathSync, statSync } from 'node:fs';
 import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { AtomicRule, RegisteredClass } from '../lib/styles.ts';
 import type { CssVarDeclaration } from '../lib/css-vars.ts';
-import { renderCss, styleDump, validateAtoms, type StyleDump } from './emit.ts';
+import type { RegisteredKeyframes } from '../lib/animation.ts';
+import type { RegisteredFont } from '../lib/font.ts';
+import { CRAFT_BASE_VARS, type GlobalRule } from '../lib/global/index.ts';
+import {
+  fontHeadTags,
+  globalVarReads,
+  renderCss,
+  renderHeadTags,
+  styleDump,
+  validateAtoms,
+  validateFoundation,
+  type HeadTag,
+  type StyleDump,
+} from './emit.ts';
 
 /**
  * Re-exported so a consumer can build the graph dump without running a build —
  * a test that already imported the sheets has the registry in hand.
  */
-export { renderCss, styleDump, validateAtoms, type StyleDump } from './emit.ts';
+export {
+  fontFaces,
+  fontHeadTags,
+  renderCss,
+  renderHeadTags,
+  styleDump,
+  validateAtoms,
+  validateFoundation,
+  type FoundationInput,
+  type HeadTag,
+  type StyleDump,
+} from './emit.ts';
 
 export const VIRTUAL_CSS_ID = 'virtual:craft-style.css';
 const RESOLVED_CSS_ID = '\0' + VIRTUAL_CSS_ID;
+
+/** `id?query` → `[id, '?query']`, the query kept whole. */
+const splitQuery = (id: string): readonly [string, string] => {
+  const at = id.indexOf('?');
+  return at === -1 ? [id, ''] : [id.slice(0, at), id.slice(at)];
+};
+
+/**
+ * `import head from 'virtual:craft-style-head'` — the font `<link>` tags as an
+ * HTML string, for a server renderer that writes `<head>` itself. A
+ * client-rendered app needs nothing: the plugin injects the same tags into
+ * `index.html`.
+ */
+export const VIRTUAL_HEAD_ID = 'virtual:craft-style-head';
+const RESOLVED_HEAD_ID = '\0' + VIRTUAL_HEAD_ID;
 
 const DEFAULT_IGNORED = ['node_modules', 'dist', '.git', '.nx', 'tmp'];
 
@@ -45,12 +85,102 @@ export interface CraftStyleOptions {
   readonly dumpPath?: string;
   /** Module aliases for the Node evaluation, e.g. a workspace source path. */
   readonly alias?: Readonly<Record<string, string>>;
+  /**
+   * The craft-ts reset, in `craft.reset`. On by default: an app does not write
+   * its own. `false` is a deliberate opt-out.
+   */
+  readonly reset?: boolean;
+  /**
+   * The craft-ts good defaults in `craft.base` — colour scheme, focus ring,
+   * reduced motion, selection. On by default.
+   */
+  readonly base?: boolean;
+  /**
+   * Style modules to evaluate from outside the project root: package names
+   * (`'@craft-ts/component'`, resolved from the root) or directories.
+   *
+   * A library that ships components ships their sheets too — the AI overlay,
+   * the pending indicator. They live in `node_modules`, which the walk of the
+   * project never enters, so without this their classes would reach the DOM
+   * with no CSS behind them. `@craft-ts/component` is included by default
+   * whenever it resolves; list it by path inside a monorepo, where it does not.
+   */
+  readonly include?: readonly string[];
+}
+
+/** Always looked for; a project that does not use it simply does not resolve it. */
+export const DEFAULT_STYLE_PACKAGES = ['@craft-ts/component'] as const;
+
+/**
+ * Directories to walk for an `include` entry: the directory itself, or the
+ * package's root when the entry is a package name. Undefined when a package
+ * does not resolve — for a default entry that is fine, for an explicit one the
+ * caller reports it.
+ */
+export function resolveStyleInclude(
+  root: string,
+  entry: string,
+): string | undefined {
+  const asPath = isAbsolute(entry) ? entry : resolve(root, entry);
+  if (
+    (entry.startsWith('.') || isAbsolute(entry)) &&
+    existsSync(asPath) &&
+    statSync(asPath).isDirectory()
+  ) {
+    return asPath;
+  }
+  try {
+    const manifest = createRequire(join(root, 'package.json')).resolve(
+      `${entry}/package.json`,
+    );
+    return dirname(manifest);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Every style module the project emits: its own, and those of the included
+ * packages. Published packages ship `*.style.js`, sources ship `*.style.ts`.
+ */
+export async function findProjectStyleModules(
+  root: string,
+  options: Pick<CraftStyleOptions, 'suffix' | 'ignore' | 'include'> = {},
+): Promise<readonly string[]> {
+  const own = await findStyleModules(root, options.suffix, options.ignore);
+  const included: string[] = [];
+  const explicit = options.include ?? [];
+  for (const entry of [...DEFAULT_STYLE_PACKAGES, ...explicit]) {
+    const directory = resolveStyleInclude(root, entry);
+    if (!directory) {
+      if (explicit.includes(entry)) {
+        throw new Error(
+          `craft-style: '${entry}' in include resolves to no directory and no package. Pass a directory path, or a package installed from ${root}.`,
+        );
+      }
+      continue;
+    }
+    for (const suffix of ['.style.ts', '.style.js']) {
+      included.push(
+        ...(await findStyleModules(directory, suffix, options.ignore)),
+      );
+    }
+  }
+  // By real path: a package reached both by default and through an explicit
+  // `include` — or through a symlink, as pnpm installs it — is one set of
+  // modules, and evaluating it twice would register its sheets twice.
+  return [
+    ...new Set([...own, ...included].map((file) => realpathSync(file))),
+  ].sort();
 }
 
 interface Registry {
   readonly classes: readonly RegisteredClass[];
   readonly atoms: readonly AtomicRule[];
   readonly vars: readonly CssVarDeclaration[];
+  readonly globals: readonly GlobalRule[];
+  readonly keyframes: readonly RegisteredKeyframes[];
+  readonly fonts: readonly RegisteredFont[];
 }
 
 /** Sorted, so that two runs on the same tree evaluate in the same order. */
@@ -100,7 +230,7 @@ export async function evaluateStyleModules(
     const held = sorted.map((_, index) => `module${index}`).join(', ');
     await writeFile(
       entry,
-      `${imports}\nexport const evaluated = [${held}];\nexport { registeredAtoms, registeredClasses, registeredVars } from '@craft-ts/style';\n`,
+      `${imports}\nexport const evaluated = [${held}];\nexport { registeredAtoms, registeredClasses, registeredVars, registeredGlobalRules, registeredKeyframes, registeredFonts } from '@craft-ts/style';\n`,
     );
 
     await build({
@@ -132,11 +262,17 @@ export async function evaluateStyleModules(
       registeredClasses(): readonly RegisteredClass[];
       registeredAtoms(): readonly AtomicRule[];
       registeredVars(): readonly CssVarDeclaration[];
+      registeredGlobalRules(): readonly GlobalRule[];
+      registeredKeyframes(): readonly RegisteredKeyframes[];
+      registeredFonts(): readonly RegisteredFont[];
     };
     return {
       classes: module.registeredClasses(),
       atoms: module.registeredAtoms(),
       vars: module.registeredVars(),
+      globals: module.registeredGlobalRules(),
+      keyframes: module.registeredKeyframes(),
+      fonts: module.registeredFonts(),
     };
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -146,18 +282,71 @@ export async function evaluateStyleModules(
 export interface EmitResult {
   readonly css: string;
   readonly dump: StyleDump;
+  /** The font `<link>` tags for `<head>`. */
+  readonly head: readonly HeadTag[];
+}
+
+export interface EmitOptions {
+  readonly reset?: boolean;
+  readonly base?: boolean;
 }
 
 export async function emitStyles(
   files: readonly string[],
   alias?: Readonly<Record<string, string>>,
+  options: EmitOptions = {},
 ): Promise<EmitResult> {
   const registry = await evaluateStyleModules(files, alias);
-  validateAtoms(registry.atoms, files.join(', '));
-  return {
-    css: renderCss(registry.atoms, registry.vars),
-    dump: styleDump(registry.classes, registry.atoms, registry.vars),
+  const source = files.join(', ');
+  const foundation = {
+    reset: options.reset ?? true,
+    base: options.base ?? true,
+    globals: registry.globals,
+    keyframes: registry.keyframes,
+    fonts: registry.fonts,
   };
+  validateAtoms(registry.atoms, source);
+  validateFoundation(foundation, source);
+  // The foundation's variables are declared by the emitter, not by a sheet;
+  // the dump lists them so that a sheet reading `craftBase.accent` does not
+  // look like it reads an undeclared variable.
+  const vars = foundation.base
+    ? [...registry.vars, ...CRAFT_BASE_VARS]
+    : registry.vars;
+  return {
+    css: renderCss(registry.atoms, registry.vars, foundation),
+    dump: {
+      ...styleDump(registry.classes, registry.atoms, vars),
+      globalReads: globalVarReads(foundation),
+    },
+    head: fontHeadTags(registry.fonts),
+  };
+}
+
+/**
+ * The style dump of a project, without a Vite server: every `*.style.ts`
+ * under `rootDir`, evaluated in Node.
+ *
+ * What an architecture spec merges into its graph
+ * (`mergeStyleDump(graph, await loadStyleDump(appDir))`), so the style rules
+ * read the same picture the build emits.
+ */
+export async function loadStyleDump(
+  rootDir: string,
+  options: Pick<
+    CraftStyleOptions,
+    'suffix' | 'ignore' | 'alias' | 'reset' | 'base' | 'include'
+  > = {},
+): Promise<StyleDump> {
+  const files = await findProjectStyleModules(rootDir, options);
+  if (files.length === 0) {
+    return { version: 2, classes: [], atoms: [], vars: [], globalReads: [] };
+  }
+  const { dump } = await emitStyles(files, options.alias, {
+    reset: options.reset,
+    base: options.base,
+  });
+  return dump;
 }
 
 /**
@@ -172,6 +361,7 @@ export interface CraftStylePlugin {
   configResolved?(config: { readonly root: string }): void;
   resolveId?(id: string): string | undefined;
   load?(id: string): Promise<string | undefined>;
+  transformIndexHtml?(): Promise<HeadTag[]>;
   handleHotUpdate?(context: {
     readonly file: string;
     readonly server: {
@@ -194,6 +384,22 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
   let root = process.cwd();
   let cached: EmitResult | undefined;
 
+  const emitted = async (): Promise<EmitResult> => {
+    if (cached) return cached;
+    const files = await findProjectStyleModules(root, options);
+    cached = await emitStyles(files, options.alias, {
+      reset: options.reset,
+      base: options.base,
+    });
+    if (options.dumpPath) {
+      await writeFile(
+        options.dumpPath,
+        JSON.stringify(cached.dump, null, 2) + '\n',
+      );
+    }
+    return cached;
+  };
+
   return {
     name: 'craft-style',
     enforce: 'pre',
@@ -201,23 +407,23 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
       root = config.root;
     },
     resolveId(id) {
-      return id === VIRTUAL_CSS_ID ? RESOLVED_CSS_ID : undefined;
+      // The query is kept: `virtual:craft-style.css?direct` is how a server
+      // renderer links the sheet in dev (`<link href="/@id/__x00__…?direct">`),
+      // and Vite serves it as CSS rather than as the JS module an import gets.
+      const [bare, query] = splitQuery(id);
+      if (bare === VIRTUAL_CSS_ID) return RESOLVED_CSS_ID + query;
+      if (bare === VIRTUAL_HEAD_ID) return RESOLVED_HEAD_ID;
+      return undefined;
     },
     async load(id) {
-      if (id !== RESOLVED_CSS_ID) return undefined;
-      const files = await findStyleModules(
-        root,
-        options.suffix,
-        options.ignore,
-      );
-      cached ??= await emitStyles(files, options.alias);
-      if (options.dumpPath) {
-        await writeFile(
-          options.dumpPath,
-          JSON.stringify(cached.dump, null, 2) + '\n',
-        );
+      if (splitQuery(id)[0] === RESOLVED_CSS_ID) return (await emitted()).css;
+      if (id === RESOLVED_HEAD_ID) {
+        return `export default ${JSON.stringify(renderHeadTags((await emitted()).head))};\n`;
       }
-      return cached.css;
+      return undefined;
+    },
+    async transformIndexHtml() {
+      return [...(await emitted()).head];
     },
     handleHotUpdate(context) {
       // A style module changed: the whole sheet is re-derived rather than

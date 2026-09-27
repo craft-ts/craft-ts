@@ -1,7 +1,4 @@
-import {
-  Injector,
-  runInInjectionContext,
-} from './host/craft-compat';
+import { Injector, runInInjectionContext } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CraftGenShortCircuit } from './craft-gen';
@@ -9,10 +6,11 @@ import { craftException } from './craft-exception';
 import { CraftNotSettled, isCraftNotSettled } from './craft-settled';
 import { isCraftControlFlow } from './craft-control-flow';
 import {
-  APP_SNAPSHOT_REGISTRY,
+  AppSnapshotRegistry,
   provideTakeAppSnapshot,
 } from './take-app-snapshot';
-import { FN_WRAPPER } from './fn-wrapper';
+import { craftUse } from './craft-use';
+import { FN_WRAPPER, type FnWrapper } from './fn-wrapper';
 
 afterEach(() => TestBed.resetTestingModule());
 
@@ -32,14 +30,12 @@ describe('isCraftControlFlow', () => {
     expect(isCraftNotSettled(new Error('failure'))).toBe(false);
   });
 
-  it('does not trigger app snapshots for expected control-flow throws', () => {
+  it('does not take app snapshots for expected control-flow throws', () => {
+    const callback = vi.fn();
     TestBed.configureTestingModule({
-      providers: [provideTakeAppSnapshot(vi.fn())],
+      providers: [provideTakeAppSnapshot(callback)],
     });
-    const registry = TestBed.inject(APP_SNAPSHOT_REGISTRY);
-    const trigger = vi.fn();
-    registry.triggerSnapshot$.subscribe(trigger);
-    const wrapper = TestBed.inject(FN_WRAPPER)[0];
+    const wrapper = (TestBed.inject(FN_WRAPPER) as readonly FnWrapper[])[0];
 
     function* throwExpected(): Generator<never, never, unknown> {
       throw new CraftNotSettled('issue');
@@ -50,17 +46,19 @@ describe('isCraftControlFlow', () => {
         wrapper(throwExpected, undefined, []).next(),
       ),
     ).toThrow(CraftNotSettled);
-    expect(trigger).not.toHaveBeenCalled();
+    expect(callback).not.toHaveBeenCalled();
   });
 
-  it('triggers an app snapshot for an ordinary error', () => {
+  it('passes a direct app snapshot to the callback for an ordinary error', () => {
+    const reports = vi.fn();
     TestBed.configureTestingModule({
-      providers: [provideTakeAppSnapshot(vi.fn())],
+      providers: [provideTakeAppSnapshot(reports)],
     });
-    const registry = TestBed.inject(APP_SNAPSHOT_REGISTRY);
-    const trigger = vi.fn();
-    registry.triggerSnapshot$.subscribe(trigger);
-    const wrapper = TestBed.inject(FN_WRAPPER)[0];
+    const registry = TestBed.runInInjectionContext(() =>
+      craftUse(AppSnapshotRegistry()),
+    );
+    registry.registerSnapshotReader('test', ['component:test'], () => 1);
+    const wrapper = (TestBed.inject(FN_WRAPPER) as readonly FnWrapper[])[0];
 
     function* throwUnexpected(): Generator<never, never, unknown> {
       throw new Error('failure');
@@ -71,6 +69,9 @@ describe('isCraftControlFlow', () => {
         wrapper(throwUnexpected, undefined, []).next(),
       ),
     ).toThrow('failure');
-    expect(trigger).toHaveBeenCalledOnce();
+    expect(reports).toHaveBeenCalledOnce();
+    expect(reports).toHaveBeenCalledWith([
+      { source: 'test', from: ['component:test'], state: 1 },
+    ]);
   });
 });

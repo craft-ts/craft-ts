@@ -10,7 +10,7 @@ import { CraftRouterOutlet, craftComponent, main } from '@craft-ts/component';
 export const App = craftComponent(
   'App',
   {},
-  () => main({ class: 'content' }, CraftRouterOutlet()),
+  () => main(CraftRouterOutlet()),
 );
 // #endregion app
 

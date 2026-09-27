@@ -65,6 +65,7 @@ non-interactive starters, configuration options, and first checks
 [Exception handling](/guide/routing/exception-handling) ·
 [Pending UI](/guide/routing/pending-ui) ·
 [Route load errors](/guide/routing/route-load-errors) ·
+[Fixed URL routing with hashes](/guide/routing/hash-location) ·
 [Scaling routes](/guide/routing/scaling)
 
 ### Components and templates
@@ -75,7 +76,7 @@ non-interactive starters, configuration options, and first checks
 [Directives and `.pipe(...)`](/guide/components/directives) ·
 [Customization](/guide/components/customization) ·
 [Content projection](/guide/components/content-projection) ·
-[Encapsulated styles](/guide/components/styles) ·
+[Styling a component](/guide/components/styles) ·
 [Accessibility](/guide/components/accessibility)
 
 ### Forms

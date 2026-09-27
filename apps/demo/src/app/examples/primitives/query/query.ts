@@ -1,5 +1,3 @@
-/* eslint-disable craft-ts/no-hardcoded-design-values -- Demo UI colours are intentionally local to this example. */
-import styles from './query.css' with { loader: 'text' };
 import {
   button,
   craftComponent,
@@ -22,6 +20,7 @@ import {
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
+import { example } from '../../shared/example.style';
 
 export const { GlobalQueryView, provideGlobalQueryView } = craftService(
   { name: 'globalQueryView', providedIn: 'toProvide' },
@@ -79,40 +78,37 @@ const GlobalQuery = craftComponent(
   'GlobalQuery',
   {
     providers: [provideGlobalQueryView()],
-    stylesUrl: styles,
-    cssVars: {
-      '--query-ink': '#172033',
-      '--query-muted': '#64748b',
-      '--query-border': '#dce4ef',
-      '--query-accent': '#2563eb',
-      '--query-accent-dark': '#1d4ed8',
-    },
   },
   function* (inputs: { readonly userId: Input<string> }) {
     const { userQuery, navigateNext, navigatePrevious } =
       yield* GlobalQueryView(inputs);
-    return div({ class: 'query-shell' }, [
-      heading('User query'),
-      div({ class: 'query-result' }, [
+    return div({ class: example.card }, [
+      heading({ class: example.title }, 'User query'),
+      div({ class: example.result }, [
         'User ',
         StatusComponent({ status: userQuery.status }),
         ifNode(userQuery.hasUser, () =>
-          pre('QueryValue', {}, userQuery.userValueJson),
+          pre('QueryValue', { class: example.code }, userQuery.userValueJson),
         ),
       ]),
       p(
-        { class: 'query-note' },
+        { class: example.note },
         'Reload the page to retrieve the query result from the cache.',
       ),
-      div({ class: 'query-actions' }, [
+      div({ class: example.actions, 'data-testid': 'query-actions' }, [
         button(
           'GoToPreviousUser',
-          { type: 'button', click: navigatePrevious },
+          { class: example.button, type: 'button', click: navigatePrevious },
           'Previous user',
         ),
         button(
           'GoToNextUser',
-          { type: 'button', click: navigateNext },
+          {
+            class: example.button,
+            'data-exampleButton': 'primary',
+            type: 'button',
+            click: navigateNext,
+          },
           'Next user',
         ),
       ]),

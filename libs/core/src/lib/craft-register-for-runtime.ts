@@ -1,8 +1,8 @@
 import {
   DestroyRef,
-  InjectionToken,
   signal,
   type Injector,
+  type Provider,
   type Signal,
 } from './host/craft-compat';
 import type { ConcreteServiceScope } from './craft-service.shared';
@@ -56,13 +56,18 @@ export type RegisterForRegistry = Readonly<{
 
 const EMPTY_CLEANUP = () => undefined;
 
-export const REGISTER_FOR_REGISTRY = new InjectionToken<
-  readonly RegisterForRegistry[]
->('REGISTER_FOR_REGISTRY', {
-  providedIn: 'root',
-  factory: () => [],
-  multi: true,
-});
+export const REGISTER_FOR_REGISTRIES = Object.freeze({});
+export function provideRegisterForRegistry(value: RegisterForRegistry): Provider {
+  return { provide: REGISTER_FOR_REGISTRIES, useValue: value, multi: true };
+}
+export function ɵinjectRegisterForRegistries(
+  injector: Injector,
+): readonly RegisterForRegistry[] {
+  return injector.get(
+    REGISTER_FOR_REGISTRIES as never,
+    [] as readonly RegisterForRegistry[],
+  );
+}
 
 export function createRegisterForRegistry(
   descriptors: readonly RegisterForTargetDescriptor[],
@@ -158,7 +163,7 @@ export function registerResolvedService(
   hostName: string,
   scope: ConcreteServiceScope,
 ): void {
-  const registries = injector.get(REGISTER_FOR_REGISTRY, []);
+  const registries = ɵinjectRegisterForRegistries(injector);
   for (const registry of registries) {
     attachCleanup(
       injector,

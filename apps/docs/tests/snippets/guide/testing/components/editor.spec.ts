@@ -15,10 +15,7 @@ const Editor = craftComponent(
     div([
       button(
         'save',
-        { type: 'button',
-          class: 'save',
-          'data-testid': 'save',
-        },
+        { type: 'button', 'data-testid': 'save' },
         'Save',
       ),
     ]),
@@ -30,10 +27,7 @@ it('finds the save button', async () => {
     register: {},
   });
 
-  const saveButton = test.locator('button', {
-    class: 'save',
-    'data-testid': 'save',
-  });
+  const saveButton = test.locator('button', { 'data-testid': 'save' });
 
   expect(saveButton?.textContent).toBe('Save');
   saveButton?.click();

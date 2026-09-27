@@ -44,18 +44,18 @@ Use this example for:
 - `insertPaginationPlaceholderData`
 - `insertLocalStoragePersister`
 
-### Full User Management With Craft Store
+### Full User Management With Services And Primitives
 
 - `apps/demo/src/app/examples/craft/full-demo/full-demo.ts`
 
 Use this example for:
 
-- `craft`
-- `craftQueryParams`
-- `craftQuery`
-- `craftMutations`
-- `craftAsyncProcesses`
-- `craftState`
+- `craftService`
+- `queryParams`
+- `query`
+- `mutation`
+- `asyncProcess`
+- `state`
 - `craftPipe` composition
 - `insertReactOnMutation`
 - `removeOne`
@@ -78,6 +78,4 @@ Use this example for:
 
 - Favor the symbol names from `libs/core/src/index.ts` over older or shorter doc page titles.
 - The public insertion name is `insertLocalStoragePersister`.
-- The public store computed utility name is `craftComputedStates`.
-- The public async store utility name is `craftAsyncProcesses`.
-- Reach for advanced exports such as `toSource`, `computedSource`, `signalSource`, `linkedSource`, `resourceById`, and `toInject` only when the request is explicitly about infrastructure or source plumbing.
+- Reach for advanced exports such as `toSource`, `computedSource`, `signalSource`, `linkedSource`, and `resourceById` only when the request is explicitly about infrastructure or source plumbing.

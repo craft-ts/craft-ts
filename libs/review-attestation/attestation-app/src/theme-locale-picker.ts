@@ -5,45 +5,38 @@ import {
   option,
   select,
 } from '@craft-ts/component';
-import { craftService, craftComputed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { eventValue } from './annotation-text';
 import { MESSAGES } from './messages';
 import { ReviewPreferences } from './preferences.service';
+import { preferences } from './review-controls.style';
 
 /**
  * The two choices the reviewer makes about the tool rather than about a
  * render: language and theme. Self-contained because `ReviewPreferences` is
  * a global service — this component needs no Input to reach it.
  */
-export const { ThemeLocalePickerView, provideThemeLocalePickerView } = craftService(
-  { name: 'themeLocalePickerView', providedIn: 'toProvide' },
+export const ThemeLocalePicker = craftComponent(
+  'ThemeLocalePicker',
+  {},
   function* () {
-    const { locale, theme, chooseLocale, chooseTheme } =
+    const { locale, theme, ide, chooseLocale, chooseTheme, chooseIde } =
       yield* ReviewPreferences();
     const t = craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
-    return { locale, theme, chooseLocale, chooseTheme, t };
-  },
-);
-
-export const ThemeLocalePicker = craftComponent(
-  'ThemeLocalePicker',
-  { providers: [provideThemeLocalePickerView()] },
-  function* () {
-    const { locale, theme, chooseLocale, chooseTheme, t } =
-      yield* ThemeLocalePickerView();
-    return div({ class: 'preferences' }, [
-      label({ class: 'field-label', htmlFor: 'review-locale' }, function* () {
+    return div({ class: preferences.root }, [
+      label({ htmlFor: 'review-locale' }, function* () {
         return (yield* t()).language;
       }),
       select(
         'ReviewLocale',
         {
+          class: preferences.control,
           id: 'review-locale',
           value: locale,
           *change(event: Event) {
-chooseLocale(eventValue(event));
+            chooseLocale(eventValue(event));
           },
         },
         [
@@ -51,16 +44,17 @@ chooseLocale(eventValue(event));
           option({ value: 'fr' }, 'Français'),
         ],
       ),
-      label({ class: 'field-label', htmlFor: 'review-theme' }, function* () {
+      label({ htmlFor: 'review-theme' }, function* () {
         return (yield* t()).theme;
       }),
       select(
         'ReviewTheme',
         {
+          class: preferences.control,
           id: 'review-theme',
           value: theme,
           *change(event: Event) {
-chooseTheme(eventValue(event));
+            chooseTheme(eventValue(event));
           },
         },
         [
@@ -76,6 +70,25 @@ chooseTheme(eventValue(event));
           option({ value: 'dark' }, function* () {
             return (yield* t()).themeDark;
           }),
+        ],
+      ),
+      label({ htmlFor: 'review-ide' }, function* () {
+        return (yield* t()).ide;
+      }),
+      select(
+        'ReviewIde',
+        {
+          class: preferences.control,
+          id: 'review-ide',
+          value: ide,
+          *change(event: Event) {
+            chooseIde(eventValue(event));
+          },
+        },
+        [
+          option({ value: 'vscode' }, 'VS Code'),
+          option({ value: 'cursor' }, 'Cursor'),
+          option({ value: 'zed' }, 'Zed'),
         ],
       ),
     ]);
