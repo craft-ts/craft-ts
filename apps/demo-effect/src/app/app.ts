@@ -9,7 +9,11 @@ import {
   nav,
   p,
 } from '@craft-ts/component';
-import { CraftRouterLink, type CraftRouterLinkInput } from '@craft-ts/core';
+import {
+  craftService,
+  CraftRouterLink,
+  type CraftRouterLinkInput,
+} from '@craft-ts/core';
 import { shell } from './effect-demo.style';
 
 const EXAMPLE_LINKS = [
@@ -22,14 +26,20 @@ const EXAMPLE_LINKS = [
   ['Translate in an Effect', { to: 'i18n' }],
 ] satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
+export const { AppView, provideAppView } = craftService(
+  { name: 'appView', providedIn: 'toProvide' },
+  function* () {
+  },
+);
+
 export const App = craftComponent(
   'App',
-  {},
-  function* () {
-    return {};
+  {
+    providers: [provideAppView()],
   },
-  () =>
-    div({ class: shell.root }, [
+  function* () {
+    yield* AppView();
+    return div({ class: shell.root }, [
       div({ class: shell.header }, [
         heading({ class: shell.title }, 'Users & access — EffectTS + CraftTS'),
         p(
@@ -46,5 +56,6 @@ export const App = craftComponent(
         ),
       ),
       main({ class: shell.content }, headingSection(CraftRouterOutlet())),
-    ]),
+    ]);
+  },
 );

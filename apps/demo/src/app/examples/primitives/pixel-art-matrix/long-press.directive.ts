@@ -1,6 +1,4 @@
-import {
-  DestroyRef,
-} from '@craft-ts/core';
+import { DestroyRef } from '@craft-ts/core';
 import {
   CRAFT_TEMPORAL_RUNTIME,
   craftNodeDirective,

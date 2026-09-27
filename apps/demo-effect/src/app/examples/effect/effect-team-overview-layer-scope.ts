@@ -7,7 +7,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, craftUse } from '@craft-ts/core';
+import { craftService, craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadTeamOverview } from '../../shared/access-domain';
 import { example } from '../../effect-demo.style';
@@ -17,11 +17,10 @@ import { example } from '../../effect-demo.style';
  * The query returns a team overview; it never exposes the services used to
  * produce that overview as if they were server-state data.
  */
-const EffectLayerScopeComponent = craftComponent(
-  'EffectLayerScopeComponent',
-  {},
+export const { EffectLayerScopeView, provideEffectLayerScopeView } = craftService(
+  { name: 'effectLayerScopeView', providedIn: 'toProvide' },
   function* () {
-    const teamOverviewQuery = yield* queryEffect(
+    yield* queryEffect(
       'teamOverviewQuery',
       {
         params: () => 'support',
@@ -47,10 +46,17 @@ const EffectLayerScopeComponent = craftComponent(
       }),
     );
 
-    return { teamOverviewQuery };
   },
-  ({ teamOverviewQuery }) =>
-    div({ class: example.card, 'data-exampleTint': 'green' }, [
+);
+
+const EffectLayerScopeComponent = craftComponent(
+  'EffectLayerScopeComponent',
+  {
+    providers: [provideEffectLayerScopeView()],
+  },
+  function* () {
+    const { teamOverviewQuery } = yield* EffectLayerScopeView();
+    return div({ class: example.card, 'data-exampleTint': 'green' }, [
       heading({ class: example.title }, 'Team overview'),
       p(
         { class: example.intro },
@@ -81,7 +87,8 @@ const EffectLayerScopeComponent = craftComponent(
         span({ class: example.mono }, 'TeamOverview'),
         '. This data depends on two Effect services, but the services themselves remain internal dependencies of the business operation.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectLayerScopeComponent;

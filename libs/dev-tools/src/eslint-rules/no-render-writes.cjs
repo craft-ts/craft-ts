@@ -38,12 +38,12 @@ module.exports = {
         if (
           node.callee.type !== 'Identifier' ||
           node.callee.name !== 'craftComponent' ||
-          node.arguments.length < 4 ||
-          !isFunctionNode(node.arguments[3])
+          node.arguments.length < 3 ||
+          !isFunctionNode(node.arguments[2])
         ) {
           return;
         }
-        inspect(node.arguments[3].body);
+        inspect(node.arguments[2].body);
       },
     };
 

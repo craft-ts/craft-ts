@@ -11,7 +11,13 @@ import {
   type Output,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, deepYieldable, state, craftUse } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  deepYieldable,
+  state,
+  craftUse,
+  craftExpose, type CraftServiceInput } from '@craft-ts/core';
 import { componentUi } from './component-demos.style';
 
 interface DemoUser {
@@ -19,39 +25,56 @@ interface DemoUser {
   readonly name: string;
 }
 
-const userCard = craftComponent(
-  'userCard',
-  {},
-  (user: Input<DemoUser>, onRemove: Output<(user: DemoUser) => void>) => ({
-    user: deepYieldable(user),
-    onRemove,
-  }),
-  ({ user, onRemove }) =>
-    div({
-      class: componentUi.user,
-      'data-user-id': user.id,
-    }, [
-      span(user.name),
-      button('removeUser',
-        { type: 'button',
-          class: componentUi.button,
-          *click() {
-            yield* onRemove(yield* user());
-          },
-          'aria-label': function* () {
-            return `Remove ${(yield* user()).name}`;
-          },
-        },
-        'Remove',
-      ),
-    ]),
+export const { UserCardView, provideUserCardView } = craftService(
+  { name: 'userCardView', providedIn: 'toProvide' },
+  function* (inputs: {
+      readonly user: CraftServiceInput<DemoUser>;
+      readonly onRemove: Output<(user: DemoUser) => void>;
+    }) {
+    const { user, onRemove } = inputs;
+    yield* craftExpose('user', deepYieldable(user));
+    yield* craftExpose('onRemove', onRemove);
+  },
 );
 
-export const componentDemo = craftComponent(
-  'componentDemo',
-  { host: { class: componentUi.host } },
-  () =>
-    state(
+const userCard = craftComponent(
+  'userCard',
+  { providers: [provideUserCardView()] },
+  function* (inputs: {
+    readonly user: Input<DemoUser>;
+    readonly onRemove: Output<(user: DemoUser) => void>;
+  }) {
+    const { user, onRemove } = yield* UserCardView(inputs);
+    return div(
+      {
+        class: componentUi.user,
+        'data-user-id': user.id,
+      },
+      [
+        span(user.name),
+        button(
+          'removeUser',
+          {
+            type: 'button',
+            class: componentUi.button,
+            *click() {
+              onRemove(yield* user());
+            },
+            'aria-label': function* () {
+              return `Remove ${(yield* user()).name}`;
+            },
+          },
+          'Remove',
+        ),
+      ],
+    );
+  },
+);
+
+export const { ComponentDemoView, provideComponentDemoView } = craftService(
+  { name: 'componentDemoView', providedIn: 'toProvide' },
+  function* () {
+    yield* state(
       'users',
       {
         nextId: 3,
@@ -78,13 +101,27 @@ export const componentDemo = craftComponent(
             items: current.items.filter((user) => user.id !== removed.id),
           })),
       }),
-    ),
-  (users) =>
-    section({ class: componentUi.page }, [
+    );
+  },
+);
+
+export const componentDemo = craftComponent(
+  'componentDemo',
+  {
+    providers: [provideComponentDemoView()],
+    host: { class: componentUi.host },
+  },
+  function* () {
+    const { users } = yield* ComponentDemoView();
+    return section({ class: componentUi.page }, [
       heading('Functional SFC components'),
-      p('Runtime rendering, inline signals, keyed list, and a selectorless child.'),
-      button('addUser',
-        { type: 'button',
+      p(
+        'Runtime rendering, inline signals, keyed list, and a selectorless child.',
+      ),
+      button(
+        'addUser',
+        {
+          type: 'button',
           class: componentUi.button,
           'data-componentButton': 'primary',
           click: users.addUser,
@@ -98,14 +135,13 @@ export const componentDemo = craftComponent(
           users.items,
           {
             track: (user) => user.id,
-            empty: () =>
-              p({ class: componentUi.error }, 'No users'),
-            },
-            (user) =>
-              userCard({
-                user,
-                onRemove: users.remove,
-              }),
+            empty: () => p({ class: componentUi.error }, 'No users'),
+          },
+          (user) =>
+            userCard({
+              user,
+              onRemove: users.remove,
+            }),
         ),
       ),
       deferNode(
@@ -116,8 +152,10 @@ export const componentDemo = craftComponent(
         {
           trigger: 'interaction',
           placeholder: () =>
-            button('loadDeferred',
-              { type: 'button',
+            button(
+              'loadDeferred',
+              {
+                type: 'button',
                 class: componentUi.button,
                 'data-componentButton': 'primary',
                 'data-testid': 'load-deferred',
@@ -129,5 +167,6 @@ export const componentDemo = craftComponent(
             p({ class: componentUi.error }, 'The load failed.'),
         },
       ),
-    ]),
+    ]);
+  },
 );

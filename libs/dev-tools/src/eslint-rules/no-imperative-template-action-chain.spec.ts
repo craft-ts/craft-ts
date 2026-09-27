@@ -16,7 +16,7 @@ describe('no-imperative-template-action-chain', () => {
       declare const setTitle: (value: string) => Generator;
       declare function button(...args: unknown[]): unknown;
 
-      craftComponent('TodoPage', {}, () => ({}), () => button({
+      craftComponent('TodoPage', {}, () => button({
         *click() {
           yield* createMutation.mutate('todo');
           yield* setTitle('');
@@ -38,7 +38,7 @@ describe('no-imperative-template-action-chain', () => {
       declare function button(...args: unknown[]): unknown;
       declare function span(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () => button({
+      craftComponent('Demo', {}, () => button({
         *click() { yield* mutation.mutate('todo'); },
         'aria-pressed': function* () {
           yield* mutation.mutate('not-an-event');

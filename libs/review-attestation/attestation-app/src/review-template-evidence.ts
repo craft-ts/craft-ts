@@ -1,4 +1,22 @@
-import { a, craftComponent, div, forNode, heading, li, ol, p, pre, safeUrl, section, small, span, strong, ul, type Input, type Output } from '@craft-ts/component';
+import {
+  a,
+  craftComponent,
+  div,
+  forNode,
+  heading,
+  li,
+  ol,
+  p,
+  pre,
+  safeUrl,
+  section,
+  small,
+  span,
+  strong,
+  ul,
+  type Input,
+  type Output,
+} from '@craft-ts/component';
 import { craftComputed, deepYieldable } from '@craft-ts/core';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
 import { conditionText, templateStatementOf } from './card-presentation';
@@ -9,9 +27,21 @@ import { reviewBits, templateEvidence } from './review-card.style';
 type ReviewCard = ReviewApiQueue['cards'][number];
 type TemplateSourceDetail = {
   readonly subject: string;
-  readonly renderSites?: readonly { readonly file: string; readonly line: number; readonly code: string }[];
-  readonly element?: { readonly file: string; readonly line: number; readonly code: string };
-  readonly method?: { readonly file: string; readonly line: number; readonly code: string };
+  readonly renderSites?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  }[];
+  readonly element?: {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  };
+  readonly method?: {
+    readonly file: string;
+    readonly line: number;
+    readonly code: string;
+  };
 };
 type Inputs = {
   card: Input<ReviewCard>;
@@ -25,45 +55,48 @@ type Inputs = {
 export const ReviewTemplateEvidence = craftComponent(
   'ReviewTemplateEvidence',
   {},
-  (inputs: Inputs) => {
-    const effects = craftComputed('effects', function* () {
+  function* (inputs: Inputs) {
+    const { card, sourceDetail, fileUrl, t } = inputs;
+    const effects = yield* craftComputed('effects', function* () {
       const card = yield* inputs.card();
       return card.kind === 'template' ? (card.effects ?? []) : [];
     });
-    const renderSites = deepYieldable(craftComputed('renderSites', function* () {
-      return (yield* inputs.sourceDetail())?.renderSites ?? [];
-    }));
-    const elementSource = craftComputed('elementSource', function* () {
+    const renderSites = deepYieldable(
+      yield* craftComputed('renderSites', function* () {
+        return (yield* inputs.sourceDetail())?.renderSites ?? [];
+      }),
+    );
+    const elementSource = yield* craftComputed('elementSource', function* () {
       return (yield* inputs.sourceDetail())?.element;
     });
-    const methodSource = craftComputed('methodSource', function* () {
+    const methodSource = yield* craftComputed('methodSource', function* () {
       return (yield* inputs.sourceDetail())?.method;
     });
-    return {
-      ...inputs,
-      effects,
-    evidenceHidden: craftComputed('evidenceHidden', function* () {
+    const evidenceHidden = yield* craftComputed('evidenceHidden', function* () {
       const kind = (yield* inputs.card()).kind;
       return kind !== 'template' && kind !== 'removal';
-    }),
-    promiseHeading: craftComputed('promiseHeading', function* () {
+    });
+    const promiseHeading = yield* craftComputed('promiseHeading', function* () {
       return (yield* inputs.card()).kind === 'removal'
         ? (yield* inputs.t()).removedPromise
         : (yield* inputs.t()).currentPromise;
-    }),
-    templateWhenHidden: craftComputed('templateWhenHidden', function* () {
-      const card = yield* inputs.card();
-      return card.kind !== 'template' || !card.conditions?.length;
-    }),
-    templateWhenText: craftComputed('templateWhenText', function* () {
+    });
+    const templateWhenHidden = yield* craftComputed(
+      'templateWhenHidden',
+      function* () {
+        const card = yield* inputs.card();
+        return card.kind !== 'template' || !card.conditions?.length;
+      },
+    );
+    const templateWhenText = yield* craftComputed('templateWhenText', function* () {
       const card = yield* inputs.card();
       return card.kind === 'template'
         ? (yield* inputs.t()).templateWhen(
             conditionText(card.conditions ?? [], yield* inputs.t()),
           )
         : '';
-    }),
-    statementText: craftComputed('statementText', function* () {
+    });
+    const statementText = yield* craftComputed('statementText', function* () {
       const card = yield* inputs.card();
       if (card.kind === 'template') {
         return templateStatementOf(
@@ -80,61 +113,78 @@ export const ReviewTemplateEvidence = craftComponent(
           : (yield* inputs.t()).previousUnavailable;
       }
       return '';
-    }),
-    effectsHidden: craftComputed('effectsHidden', function* () {
+    });
+    const effectsHidden = yield* craftComputed('effectsHidden', function* () {
       return (yield* effects()).length === 0;
-    }),
-    templateSourceHidden: craftComputed('templateSourceHidden', function* () {
-      const card = yield* inputs.card();
-      const detail = yield* inputs.sourceDetail();
-      return card.kind !== 'template' || detail?.subject !== card.subject ||
-        !(detail.element || detail.method || detail.renderSites?.length);
-    }),
-      renderSitesHidden: craftComputed('renderSitesHidden', function* () {
-        return (yield* renderSites()).length === 0;
-      }),
-      renderSites,
-      elementSource,
-    elementSourceHidden: craftComputed('elementSourceHidden', function* () {
-      return !(yield* elementSource());
-    }),
-    elementLocation: craftComputed('elementLocation', function* () {
+    });
+    const templateSourceHidden = yield* craftComputed(
+      'templateSourceHidden',
+      function* () {
+        const card = yield* inputs.card();
+        const detail = yield* inputs.sourceDetail();
+        return (
+          card.kind !== 'template' ||
+          detail?.subject !== card.subject ||
+          !(detail.element || detail.method || detail.renderSites?.length)
+        );
+      },
+    );
+    const renderSitesHidden = yield* craftComputed('renderSitesHidden', function* () {
+      return (yield* renderSites()).length === 0;
+    });
+    const elementSourceHidden = yield* craftComputed(
+      'elementSourceHidden',
+      function* () {
+        return !(yield* elementSource());
+      },
+    );
+    const elementLocation = yield* craftComputed('elementLocation', function* () {
       const value = yield* elementSource();
       return value ? `${value.file}:${value.line}` : '';
-    }),
-      methodSourceHidden: craftComputed('methodSourceHidden', function* () {
+    });
+    const methodSourceHidden = yield* craftComputed(
+      'methodSourceHidden',
+      function* () {
         return !(yield* methodSource());
-      }),
-      methodSource,
-    methodLocation: craftComputed('methodLocation', function* () {
+      },
+    );
+    const methodLocation = yield* craftComputed('methodLocation', function* () {
       const value = yield* methodSource();
       return value ? `${value.file}:${value.line}` : '';
-    }),
-    semanticDiff: deepYieldable(craftComputed('semanticDiff', function* () {
-      const card = yield* inputs.card();
-      return card.kind === 'template' ? card.semanticDiff : [];
-    })),
-    codeDiff: craftComputed('codeDiff', function* () {
+    });
+    const semanticDiff = deepYieldable(
+      yield* craftComputed('semanticDiff', function* () {
+        const card = yield* inputs.card();
+        return card.kind === 'template' ? card.semanticDiff : [];
+      }),
+    );
+    const codeDiff = yield* craftComputed('codeDiff', function* () {
       const card = yield* inputs.card();
       if (card.kind !== 'template') return [];
       return [
-        ...card.codeDiff.removed.map((change) => ({ line: `− ${change.leaf}` })),
+        ...card.codeDiff.removed.map((change) => ({
+          line: `− ${change.leaf}`,
+        })),
         ...card.codeDiff.added.map((change) => ({ line: `+ ${change.leaf}` })),
-        ...card.codeDiff.changed.map((change) => ({ line: `~ ${change.leaf}` })),
+        ...card.codeDiff.changed.map((change) => ({
+          line: `~ ${change.leaf}`,
+        })),
       ];
-    }),
-    previousEvidenceUnavailable: craftComputed(
+    });
+    const previousEvidenceUnavailable = yield* craftComputed(
       'previousEvidenceUnavailable',
       function* () {
         const card = yield* inputs.card();
-        return (card.kind === 'template' || card.kind === 'removal') &&
-          card.previousEvidenceUnavailable;
+        return (
+          (card.kind === 'template' || card.kind === 'removal') &&
+          card.previousEvidenceUnavailable
+        );
       },
-    ),
-    previousDecision: craftComputed('previousDecision', function* () {
+    );
+    const previousDecision = yield* craftComputed('previousDecision', function* () {
       return (yield* inputs.card()).previousDecision;
-    }),
-    previousDecisionText: craftComputed(
+    });
+    const previousDecisionText = yield* craftComputed(
       'previousDecisionText',
       function* () {
         const previous = (yield* inputs.card()).previousDecision;
@@ -142,287 +192,250 @@ export const ReviewTemplateEvidence = craftComponent(
         const note = previous.note ? ` — ${previous.note}` : '';
         return `${(yield* inputs.t()).previousVerdict(previous.verdict)} · ${previous.by} · ${previous.at}${note}`;
       },
-    ),
-    };
-  },
-  ({ card, sourceDetail, fileUrl, t, evidenceHidden, promiseHeading, templateWhenHidden, templateWhenText, statementText, effects, effectsHidden, templateSourceHidden, renderSites, renderSitesHidden, elementSource, elementSourceHidden, elementLocation, methodSource, methodSourceHidden, methodLocation, semanticDiff, codeDiff, previousEvidenceUnavailable, previousDecisionText }) =>
-section(
-                        {
-                          class: templateEvidence.root,
-                          'data-reviewKind': function* () {
-                            return (yield* card()).kind;
+    );
+    return section(
+      {
+        class: templateEvidence.root,
+        'data-reviewKind': function* () {
+          return (yield* card()).kind;
+        },
+        hidden: evidenceHidden,
+      },
+      [
+        heading(promiseHeading),
+        p(
+          {
+            class: templateEvidence.statement,
+            'data-testid': 'template-statement',
+          },
+          [
+            span(
+              {
+                class: reviewBits.dim,
+                'data-testid': 'template-when',
+                hidden: templateWhenHidden,
+              },
+              templateWhenText,
+            ),
+            strong(statementText),
+          ],
+        ),
+        section(
+          {
+            class: reviewBits.dim,
+            'data-testid': 'template-effects',
+            hidden: effectsHidden,
+          },
+          [
+            strong(function* () {
+              return (yield* t()).templateEffects;
+            }),
+            ol(
+              { class: templateEvidence.effects },
+              forNode(
+                effects,
+                {
+                  track: (effect, index) => `${index}:${effect}`,
+                },
+                (effect) => li({ class: reviewBits.code }, effect),
+              ),
+            ),
+          ],
+        ),
+        section(
+          {
+            class: templateEvidence.source,
+            'data-testid': 'template-source',
+            hidden: templateSourceHidden,
+          },
+          [
+            section(
+              {
+                class: templateEvidence.sourceSection,
+                hidden: renderSitesHidden,
+              },
+              [
+                strong(function* () {
+                  return (yield* t()).templateRenderSource;
+                }),
+                forNode(
+                  renderSites,
+                  {
+                    track: (site) => `${site.file}:${site.line}`,
+                  },
+                  (site) =>
+                    div(
+                      {
+                        class: templateEvidence.sourceSection,
+                        'data-testid': 'template-source-site',
+                      },
+                      [
+                        small(
+                          {
+                            class: templateEvidence.sourceLocation,
                           },
-                          hidden: evidenceHidden,
-                        },
-                        [
-                          heading(promiseHeading),
-                          p(
-                            {
-                              class: templateEvidence.statement,
-                              'data-testid': 'template-statement',
+                          function* () {
+                            return `${yield* site.file()}:${yield* site.line()}`;
+                          },
+                        ),
+                        a(
+                          'renderSite',
+                          {
+                            class: reviewBits.sourceLink,
+                            'data-navigation': 'external',
+                            'data-testid': 'source-link',
+                            href: function* () {
+                              return safeUrl(
+                                fileUrl(
+                                  yield* site.file(),
+                                  yield* site.line(),
+                                ) ?? '',
+                              );
                             },
-                            [
-                              span(
-                                {
-                                  class: reviewBits.dim,
-                                  'data-testid': 'template-when',
-                                  hidden: templateWhenHidden,
-                                },
-                                templateWhenText,
-                              ),
-                              strong(statementText),
-                            ],
-                          ),
-                          section(
-                            {
-                              class: reviewBits.dim,
-                              'data-testid': 'template-effects',
-                              hidden: effectsHidden,
+                            hidden: function* () {
+                              return (
+                                fileUrl(
+                                  yield* site.file(),
+                                  yield* site.line(),
+                                ) === undefined
+                              );
                             },
-                            [
-                              strong(function* () {
-                                return (yield* t()).templateEffects;
-                              }),
-                              ol(
-                                { class: templateEvidence.effects },
-                                forNode(
-                                  effects,
-                                  {
-                                    track: (effect, index) =>
-                                      `${index}:${effect}`,
-                                  },
-                                  (effect) =>
-                                    li(
-                                      { class: reviewBits.code },
-                                      effect,
-                                    ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          section(
-                            {
-                              class: templateEvidence.source,
-                              'data-testid': 'template-source',
-                              hidden: templateSourceHidden,
-                            },
-                            [
-                              section(
-                                {
-                                  class: templateEvidence.sourceSection,
-                                  hidden: renderSitesHidden,
-                                },
-                                [
-                                  strong(function* () {
-                                    return (yield* t()).templateRenderSource;
-                                  }),
-                                  forNode(
-                                    renderSites,
-                                    {
-                                      track: (site) =>
-                                        `${site.file}:${site.line}`,
-                                    },
-                                    (site) =>
-                                      div(
-                                        {
-                                          class: templateEvidence.sourceSection,
-                                          'data-testid': 'template-source-site',
-                                        },
-                                        [
-                                          small(
-                                            {
-                                              class:
-                                                templateEvidence.sourceLocation,
-                                            },
-                                            function* () {
-                                              return `${yield* site.file()}:${yield* site.line()}`;
-                                            },
-                                          ),
-                                          a(
-                                            'renderSite',
-                                            {
-                                              class: reviewBits.sourceLink,
-                                              'data-navigation': 'external',
-                                              'data-testid': 'source-link',
-                                              href: function* () {
-
-                                                return safeUrl(
-                                                  (yield* fileUrl(
-                                                    yield* site.file(),
-                                                    yield* site.line(),
-                                                  )) ?? '',
-                                                );
-                                              },
-                                              hidden: function* () {
-
-                                                return (yield* fileUrl(
-                                                  yield* site.file(),
-                                                  yield* site.line(),
-                                                )) === undefined;
-                                              },
-                                            },
-                                            function* () {
-                                              return (yield* t()).openInIde;
-                                            },
-                                          ),
-                                          pre(
-                                            {
-                                              class:
-                                                templateEvidence.sourceCode,
-                                            },
-                                            function* () {
-                                              return (yield* site()).code;
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                  ),
-                                ],
-                              ),
-                              section(
-                                {
-                                  class: templateEvidence.sourceSection,
-                                  hidden: elementSourceHidden,
-                                },
-                                [
-                                  strong(function* () {
-                                    return (yield* t()).templateElementSource;
-                                  }),
-                                  small(
-                                    { class: templateEvidence.sourceLocation },
-                                    elementLocation,
-                                  ),
-                                  a(
-                                    'elementSource',
-                                    {
-                                      class: reviewBits.sourceLink,
-                                      'data-navigation': 'external',
-                                      'data-testid': 'source-link',
-                                      href: function* () {
-                                        const value = yield* elementSource();
-                                        return safeUrl(
-                                          (yield* fileUrl(
-                                            value?.file,
-                                            value?.line,
-                                          )) ?? '',
-                                        );
-                                      },
-                                      hidden: function* () {
-                                        const value = yield* elementSource();
-                                        return (yield* fileUrl(
-                                          value?.file,
-                                          value?.line,
-                                        )) === undefined;
-                                      },
-                                    },
-                                    function* () {
-                                      return (yield* t()).openInIde;
-                                    },
-                                  ),
-                                  pre(
-                                    { class: templateEvidence.sourceCode },
-                                    function* () {
-                                      return (
-                                        (yield* sourceDetail())?.element
-                                          ?.code ?? ''
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                              section(
-                                {
-                                  class: templateEvidence.sourceSection,
-                                  hidden: methodSourceHidden,
-                                },
-                                [
-                                  strong(function* () {
-                                    return (yield* t()).templateMethodSource;
-                                  }),
-                                  small(
-                                    { class: templateEvidence.sourceLocation },
-                                    methodLocation,
-                                  ),
-                                  a(
-                                    'methodSource',
-                                    {
-                                      class: reviewBits.sourceLink,
-                                      'data-navigation': 'external',
-                                      'data-testid': 'source-link',
-                                      href: function* () {
-                                        const value = yield* methodSource();
-                                        return safeUrl(
-                                          (yield* fileUrl(
-                                            value?.file,
-                                            value?.line,
-                                          )) ?? '',
-                                        );
-                                      },
-                                      hidden: function* () {
-                                        const value = yield* methodSource();
-                                        return (yield* fileUrl(
-                                          value?.file,
-                                          value?.line,
-                                        )) === undefined;
-                                      },
-                                    },
-                                    function* () {
-                                      return (yield* t()).openInIde;
-                                    },
-                                  ),
-                                  pre(
-                                    { class: templateEvidence.sourceCode },
-                                    function* () {
-                                      return (
-                                        (yield* sourceDetail())?.method
-                                          ?.code ?? ''
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          ul(
-                            {
-                              class: reviewBits.list,
-                              'data-testid': 'template-diff',
-                            },
-                              forNode(
-                              semanticDiff,
-                              { track: (change) => change.field },
-                              (change) =>
-                                li({ class: reviewBits.code }, function* () {
-                                  const messages = yield* t();
-                                  const field = yield* change.field();
-                                  const before = yield* change.before();
-                                  const after = yield* change.after();
-                                  return `${messages.templateDiffField(field)}: ${before ?? messages.templateValueMissing} → ${after ?? messages.templateValueMissing}`;
-                                }),
-                            ),
-                          ),
-                          p(
-                            { class: reviewBits.dim, hidden: function* () { return (yield* previousEvidenceUnavailable()) === false; } },
-                            function* () { return (yield* t()).previousUnavailable; },
-                          ),
-                          heading(function* () {
-                            return (yield* t()).previousDecisionLabel;
-                          }),
-                          p(previousDecisionText),
-                          heading(function* () {
-                            return (yield* t()).codeChange;
-                          }),
-                          ul(
-                            { class: reviewBits.list },
-                            forNode(
-                              codeDiff,
-                              { track: (change) => change.line },
-                              (change) =>
-                                li({ class: reviewBits.code }, function* () {
-                                  return (yield* change()).line;
-                                }),
-                            ),
-                          ),
-                        ],
-                      ),
+                          },
+                          function* () {
+                            return (yield* t()).openInIde;
+                          },
+                        ),
+                        pre(
+                          {
+                            class: templateEvidence.sourceCode,
+                          },
+                          function* () {
+                            return (yield* site()).code;
+                          },
+                        ),
+                      ],
+                    ),
+                ),
+              ],
+            ),
+            section(
+              {
+                class: templateEvidence.sourceSection,
+                hidden: elementSourceHidden,
+              },
+              [
+                strong(function* () {
+                  return (yield* t()).templateElementSource;
+                }),
+                small(
+                  { class: templateEvidence.sourceLocation },
+                  elementLocation,
+                ),
+                a(
+                  'elementSource',
+                  {
+                    class: reviewBits.sourceLink,
+                    'data-navigation': 'external',
+                    'data-testid': 'source-link',
+                    href: function* () {
+                      const value = yield* elementSource();
+                      return safeUrl(fileUrl(value?.file, value?.line) ?? '');
+                    },
+                    hidden: function* () {
+                      const value = yield* elementSource();
+                      return fileUrl(value?.file, value?.line) === undefined;
+                    },
+                  },
+                  function* () {
+                    return (yield* t()).openInIde;
+                  },
+                ),
+                pre({ class: templateEvidence.sourceCode }, function* () {
+                  return (yield* sourceDetail())?.element?.code ?? '';
+                }),
+              ],
+            ),
+            section(
+              {
+                class: templateEvidence.sourceSection,
+                hidden: methodSourceHidden,
+              },
+              [
+                strong(function* () {
+                  return (yield* t()).templateMethodSource;
+                }),
+                small(
+                  { class: templateEvidence.sourceLocation },
+                  methodLocation,
+                ),
+                a(
+                  'methodSource',
+                  {
+                    class: reviewBits.sourceLink,
+                    'data-navigation': 'external',
+                    'data-testid': 'source-link',
+                    href: function* () {
+                      const value = yield* methodSource();
+                      return safeUrl(fileUrl(value?.file, value?.line) ?? '');
+                    },
+                    hidden: function* () {
+                      const value = yield* methodSource();
+                      return fileUrl(value?.file, value?.line) === undefined;
+                    },
+                  },
+                  function* () {
+                    return (yield* t()).openInIde;
+                  },
+                ),
+                pre({ class: templateEvidence.sourceCode }, function* () {
+                  return (yield* sourceDetail())?.method?.code ?? '';
+                }),
+              ],
+            ),
+          ],
+        ),
+        ul(
+          {
+            class: reviewBits.list,
+            'data-testid': 'template-diff',
+          },
+          forNode(semanticDiff, { track: (change) => change.field }, (change) =>
+            li({ class: reviewBits.code }, function* () {
+              const messages = yield* t();
+              const field = yield* change.field();
+              const before = yield* change.before();
+              const after = yield* change.after();
+              return `${messages.templateDiffField(field)}: ${before ?? messages.templateValueMissing} → ${after ?? messages.templateValueMissing}`;
+            }),
+          ),
+        ),
+        p(
+          {
+            class: reviewBits.dim,
+            hidden: function* () {
+              return (yield* previousEvidenceUnavailable()) === false;
+            },
+          },
+          function* () {
+            return (yield* t()).previousUnavailable;
+          },
+        ),
+        heading(function* () {
+          return (yield* t()).previousDecisionLabel;
+        }),
+        p(previousDecisionText),
+        heading(function* () {
+          return (yield* t()).codeChange;
+        }),
+        ul(
+          { class: reviewBits.list },
+          forNode(codeDiff, { track: (change) => change.line }, (change) =>
+            li({ class: reviewBits.code }, function* () {
+              return (yield* change()).line;
+            }),
+          ),
+        ),
+      ],
+    );
+  },
 );

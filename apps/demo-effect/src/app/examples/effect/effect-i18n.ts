@@ -7,7 +7,7 @@ import {
   pendingNode,
   span,
 } from '@craft-ts/component';
-import { craftComputed, settled, state, craftUse } from '@craft-ts/core';
+import { craftService, craftComputed, settled, state, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   i18nRuntime,
@@ -34,9 +34,8 @@ const ORDER = {
  * calls `setLocale` on the shared runtime and re-runs the program, so every
  * string on screen changes together.
  */
-const EffectI18nComponent = craftComponent(
-  'EffectI18nComponent',
-  {},
+export const { EffectI18nView, provideEffectI18nView } = craftService(
+  { name: 'effectI18nView', providedIn: 'toProvide' },
   function* () {
     const locale = yield* state('locale', 'en-US', ({ set, state: read }) => {
       // One active locale for the process: the Effect side reads the same
@@ -59,7 +58,7 @@ const EffectI18nComponent = craftComponent(
       };
     });
 
-    const receiptQuery = yield* queryEffect(
+    yield* queryEffect(
       'receiptQuery',
       {
         params: function* () {
@@ -83,10 +82,17 @@ const EffectI18nComponent = craftComponent(
       }),
     );
 
-    return { locale, receiptQuery };
   },
-  ({ locale, receiptQuery }) =>
-    div({ class: example.card, 'data-exampleTint': 'violet' }, [
+);
+
+const EffectI18nComponent = craftComponent(
+  'EffectI18nComponent',
+  {
+    providers: [provideEffectI18nView()],
+  },
+  function* () {
+    const { locale, receiptQuery } = yield* EffectI18nView();
+    return div({ class: example.card, 'data-exampleTint': 'violet' }, [
       heading({ class: example.title }, 'Translating inside an Effect program'),
       p(
         { class: example.intro },
@@ -133,7 +139,8 @@ const EffectI18nComponent = craftComponent(
         span({ class: example.mono }, 'defineLocaleLike'),
         ' accepts the French catalogue. Drop a key from it and the build fails on the catalogue, before any French speaker sees an English string.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectI18nComponent;

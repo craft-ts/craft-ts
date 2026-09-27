@@ -1,6 +1,11 @@
 'use strict';
 
-const { parseHyperscriptCall, hasProp, staticPropString, walk } = require('./hyperscript-walk.cjs');
+const {
+  parseHyperscriptCall,
+  hasProp,
+  staticPropString,
+  walk,
+} = require('./hyperscript-walk.cjs');
 
 function isControlTag(tag) {
   return tag === 'input' || tag === 'textarea' || tag === 'select';
@@ -27,7 +32,8 @@ module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Require every label to be associated with a form control via htmlFor or wrapping.',
+      description:
+        'Require every label to be associated with a form control via htmlFor or wrapping.',
     },
     schema: [],
     messages: {
@@ -53,7 +59,9 @@ module.exports = {
       'Program:exit'() {
         for (const label of labels) {
           if (wrapsControl(label.children, sourceCode)) continue;
-          const htmlFor = staticPropString(label.props, 'htmlFor') ?? staticPropString(label.props, 'for');
+          const htmlFor =
+            staticPropString(label.props, 'htmlFor') ??
+            staticPropString(label.props, 'for');
           if (htmlFor && controlIds.has(htmlFor)) continue;
           if (hasProp(label.props, 'htmlFor') || hasProp(label.props, 'for')) {
             // Dynamic htmlFor — give the author the benefit of the doubt.

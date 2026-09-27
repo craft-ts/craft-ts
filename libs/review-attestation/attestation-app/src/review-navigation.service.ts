@@ -1,4 +1,4 @@
-import { CraftRouter, craftService } from '@craft-ts/core';
+import { CraftRouter, craftService, craftExpose } from '@craft-ts/core';
 import type { DevtoolView } from './devtool-view-state';
 
 export const { ReviewNavigation, provideReviewNavigation } = craftService(
@@ -6,9 +6,7 @@ export const { ReviewNavigation, provideReviewNavigation } = craftService(
   function* () {
     const router = yield* CraftRouter();
 
-    return {
-      navigateToView: (value: DevtoolView) =>
-        router.navigateByUrl(`/${value}?view=${value}`),
-    };
+    yield* craftExpose('navigateToView', (value: DevtoolView) =>
+      router.navigateByUrl(`/${value}?view=${value}`));
   },
 );

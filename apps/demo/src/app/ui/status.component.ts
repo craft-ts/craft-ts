@@ -1,5 +1,8 @@
 import { craftComponent, span, type Input } from '@craft-ts/component';
-import { craftComputed, type CraftResourceStatus, craftUse } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  type CraftResourceStatus, type CraftServiceInput } from '@craft-ts/core';
 import { status as styles, TONE_OF_STATUS } from './status.style';
 
 const STATUS_VIEW = {
@@ -26,22 +29,28 @@ const STATUS_VIEW = {
  *   attribute, and the five tones are five rules the emitter already knows
  *   about — which is what will let the matrix count them in wave 2.
  */
+export const { StatusView, provideStatusView } = craftService(
+  { name: 'statusView', providedIn: 'toProvide' },
+  function* (inputs: { readonly status: CraftServiceInput<CraftResourceStatus> }) {
+    const { status } = inputs;
+    yield* craftComputed('statusEmoji', function* () {
+      return STATUS_VIEW[yield* status()][0];
+    });
+    yield* craftComputed('statusTone', function* () {
+      return TONE_OF_STATUS[yield* status()];
+    });
+    yield* craftComputed('statusLabel', function* () {
+      return STATUS_VIEW[yield* status()][1];
+    });
+  },
+);
+
 export const StatusComponent = craftComponent(
   'StatusComponent',
-  {},
-  (status: Input<CraftResourceStatus>) => ({
-    statusEmoji: craftUse(craftComputed('statusEmoji', function* () {
-      return STATUS_VIEW[yield* status()][0];
-    })),
-    statusTone: craftUse(craftComputed('statusTone', function* () {
-      return TONE_OF_STATUS[yield* status()];
-    })),
-    statusLabel: craftUse(craftComputed('statusLabel', function* () {
-      return STATUS_VIEW[yield* status()][1];
-    })),
-  }),
-  ({ statusEmoji, statusTone, statusLabel }) =>
-    span({ class: styles.container }, [
+  { providers: [provideStatusView()] },
+  function* (inputs: { readonly status: Input<CraftResourceStatus> }) {
+    const { statusEmoji, statusTone, statusLabel } = yield* StatusView(inputs);
+    return span({ class: styles.container }, [
       span({ class: styles.emoji }, statusEmoji),
       span(
         {
@@ -50,7 +59,8 @@ export const StatusComponent = craftComponent(
         },
         statusLabel,
       ),
-    ]),
+    ]);
+  },
 );
 
 export type StatusComponent = typeof StatusComponent;

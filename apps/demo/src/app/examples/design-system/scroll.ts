@@ -42,26 +42,22 @@ import { dsTheme } from './foundation.style.ts';
 import { backToTop, shell } from './scroll.style.ts';
 
 /** Asks for a scroll port. Cannot provide one. Does not pretend to. */
-export const BackToTop = craftComponent(
-  'BackToTop',
-  {},
-  () => ({}),
-  () =>
-    div({ class: backToTop.anchor }, [
-      button(
-        'backToTop',
-        {
-          type: 'button',
-          class: backToTop.button,
-          *click() {
-            document
-              .querySelector('[data-scroll-port] > *')
-              ?.scrollTo({ top: 0 });
-          },
+export const BackToTop = craftComponent('BackToTop', {}, () =>
+  div({ class: backToTop.anchor }, [
+    button(
+      'backToTop',
+      {
+        type: 'button',
+        class: backToTop.button,
+        *click() {
+          document
+            .querySelector('[data-scroll-port] > *')
+            ?.scrollTo({ top: 0 });
         },
-        'Back to top',
-      ),
-    ]),
+      },
+      'Back to top',
+    ),
+  ]),
 );
 
 export type BackToTop = typeof BackToTop;
@@ -92,8 +88,9 @@ const filler = (count: number) =>
  */
 export const ScrollDemo = craftComponent(
   'ScrollDemo',
-  { seals: [true] },
-  () => ({}),
+  {
+    seals: [true],
+  },
   () =>
     div({ class: dsTheme.root }, [
       section({ class: stack.column }, [

@@ -5,7 +5,7 @@ import {
   state,
   craftException,
   craftPrivate,
-  craftExpose
+  craftExpose,
 } from '@craft-ts/core';
 
 export type User = {
@@ -33,19 +33,17 @@ export const { ApiService } = craftService(
       ({ state, update }) => ({
         addItem: (newItem: User) => update((items) => [newItem, ...items]),
         deleteItem: function* (itemId: User['id']) {
-            const _state = yield* state();
-                  const deletedItem = _state.find(
-                    (item) => item.id === itemId,
-                  );
-                  if (!deletedItem) {
-                    return craftException(
-                      { _tag: 'UNEXPECTED_ERROR' },
-                      { error: new Error('Item not found') },
-                    );
-                  }
-                  yield* update((items) => items.filter((item) => item.id !== itemId));
-                  return deletedItem;
-                },
+          const _state = yield* state();
+          const deletedItem = _state.find((item) => item.id === itemId);
+          if (!deletedItem) {
+            return craftException(
+              { _tag: 'UNEXPECTED_ERROR' },
+              { error: new Error('Item not found') },
+            );
+          }
+          yield* update((items) => items.filter((item) => item.id !== itemId));
+          return deletedItem;
+        },
         updateItem: (updatedItem: User) =>
           update((items) =>
             items.map((item) =>
@@ -61,7 +59,7 @@ export const { ApiService } = craftService(
       page: number;
       pageSize: number;
     }) {
-        const _dataList = yield* dataList();
+      const _dataList = yield* dataList();
       const list = _dataList;
       const result = list.slice(
         (data.page - 1) * data.pageSize,
@@ -71,7 +69,7 @@ export const { ApiService } = craftService(
       return result;
     }));
     yield* craftExpose('getItemById', craftGen(function* (itemId: User['id']) {
-        const _dataList = yield* dataList();
+      const _dataList = yield* dataList();
       const list = _dataList;
       const item = list.find((dataItem) => dataItem.id === itemId);
       if (!item) {
@@ -94,7 +92,7 @@ export const { ApiService } = craftService(
       return deletedItem;
     }));
     yield* craftExpose('updateItem', craftGen(function* (updatedItem: User) {
-        const _updateError = yield* updateError();
+      const _updateError = yield* updateError();
       if (_updateError) {
         yield* craftSleep(5000);
         return craftException(

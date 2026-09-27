@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-import { provideCraftRouter as provideRouter } from '@craft-ts/core';
+import {
+  setupCraftServiceTestingByRegister,
+  provideCraftRouter as provideRouter,
+  type GetServiceOutput,
+} from '@craft-ts/core';
 import {
   deepYieldable,
   markYieldableMethod,
   markYieldableValue,
 } from '@craft-ts/core';
-import {
-  ComponentLogicOutputOf,
-  setupCraftComponentLogicTest,
-  setupCraftComponentTemplateTest,
-} from '@craft-ts/component';
+import { setupCraftComponentTemplateTest } from '@craft-ts/component';
 import type {
   ExtractDeps,
   GetServiceDependencies,
@@ -18,12 +18,14 @@ import type {
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
 import GranularMutationCraft, {
+  GranularMutationCraftView,
+  provideGranularMutationCraftView,
   GranularMutation,
   provideGranularMutation,
 } from './granular-mutation';
 import { ApiService, type User } from './api.service';
 
-type GranularLogic = ComponentLogicOutputOf<typeof GranularMutationCraft>;
+type GranularLogic = GetServiceOutput<typeof GranularMutationCraftView>;
 type GranularServiceOutput = ResolvedServiceOutput<
   typeof GranularMutation,
   Record<never, never>
@@ -120,21 +122,27 @@ function createTemplateContext(
   loadingUserIds = new Set<string>(),
 ) {
   const paginationState = { page: 1, pageSize: 4 };
-  const pagination = deepYieldable(Object.assign(
-    vi.fn(function* () {
-      return { ...paginationState };
+  const pagination = deepYieldable(
+    Object.assign(
+      vi.fn(function* () {
+        return { ...paginationState };
+      }),
+      {
+        previousPage: markYieldableMethod(vi.fn()),
+        nextPage: markYieldableMethod(vi.fn()),
+        updatePageSize: markYieldableMethod(
+          vi.fn((pageSize: number) => {
+            paginationState.pageSize = pageSize;
+          }),
+        ),
+      },
+    ),
+  );
+  const mutate = markYieldableMethod(
+    vi.fn(function* (user: User) {
+      return user;
     }),
-    {
-      previousPage: markYieldableMethod(vi.fn()),
-      nextPage: markYieldableMethod(vi.fn()),
-      updatePageSize: markYieldableMethod(vi.fn((pageSize: number) => {
-        paginationState.pageSize = pageSize;
-      })),
-    },
-  ));
-  const mutate = markYieldableMethod(vi.fn(function* (user: User) {
-    return user;
-  }));
+  );
   const selectOrCreate = vi.fn((userId: string) => ({
     isLoading: function* () {
       return loadingUserIds.has(userId);
@@ -145,7 +153,10 @@ function createTemplateContext(
   }));
   const updateUserName = { mutate, selectOrCreate };
   const usersStore = {
-    currentPageData: markYieldableValue(vi.fn(() => users), 'currentPageData'),
+    currentPageData: markYieldableValue(
+      vi.fn(() => users),
+      'currentPageData',
+    ),
     currentPageStatus: markYieldableValue(
       vi.fn(() => 'resolved' as const),
       'currentPageStatus',
@@ -171,7 +182,16 @@ describe('craft granular mutation template', () => {
     const result = createTemplateContext([user]);
     const template = await setupCraftComponentTemplateTest.byRegister(
       GranularMutationCraft,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          GranularMutation: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          granularMutationCraftView: result.context,
+        },
+      },
     );
 
     try {
@@ -191,7 +211,16 @@ describe('craft granular mutation template', () => {
     const result = createTemplateContext([]);
     const template = await setupCraftComponentTemplateTest.byRegister(
       GranularMutationCraft,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          GranularMutation: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          granularMutationCraftView: result.context,
+        },
+      },
     );
 
     try {
@@ -206,7 +235,16 @@ describe('craft granular mutation template', () => {
     const result = createTemplateContext([user], new Set([user.id]));
     const template = await setupCraftComponentTemplateTest.byRegister(
       GranularMutationCraft,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          GranularMutation: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          granularMutationCraftView: result.context,
+        },
+      },
     );
 
     try {
@@ -240,17 +278,16 @@ describe('craft granular mutation logic', () => {
       return user;
     });
     const storage = createStorageMock();
-    const result = await setupCraftComponentLogicTest.byRegister(
-      GranularMutationCraft,
+    const result = await setupCraftServiceTestingByRegister(
+      GranularMutationCraftView,
       {
-        register: {
-          GranularMutation: provideGranularMutation(),
-          ApiService: { getDataList, updateItem },
-          StoragePersister: storage,
-          Router: 'real',
-        } as never,
-        providers: [provideRouter([])],
-      },
+        granularMutationCraftView: provideGranularMutationCraftView(),
+        GranularMutation: provideGranularMutation(),
+        ApiService: { getDataList, updateItem },
+        StoragePersister: storage,
+        Router: 'real',
+      } as never,
+      { providers: [provideRouter([])] } as never,
     );
 
     await vi.waitFor(() =>
@@ -261,10 +298,10 @@ describe('craft granular mutation logic', () => {
   }
 
   it('updates pagination through the updatePageSize craftMethod', async () => {
-    const { context, getDataList, destroy } = await setupLogic();
+    const { sut, getDataList, injector } = await setupLogic();
 
     try {
-      context.updatePageSize({
+      sut.updatePageSize({
         target: { value: '8' },
       } as unknown as Event);
 
@@ -272,7 +309,7 @@ describe('craft granular mutation logic', () => {
         expect(getDataList).toHaveBeenCalledWith({ page: 1, pageSize: 8 }),
       );
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 });

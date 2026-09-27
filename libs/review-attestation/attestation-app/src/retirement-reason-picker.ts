@@ -21,35 +21,34 @@ export const RetirementReasonPicker = craftComponent(
     const t = yield* craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
-    return { retirementReason, chooseRetirementReason, t };
-  },
-  ({ retirementReason, chooseRetirementReason, t }) => [
-    label(
-      { class: decisionColumn.retirementLabel, htmlFor: 'retirement-reason' },
-      function* () {
-        return (yield* t()).retirementReason;
-      },
-    ),
-    select(
-      'RetirementReason',
-      {
-        id: 'retirement-reason',
-        value: retirementReason,
-        *change(event: Event) {
-          yield* chooseRetirementReason(eventValue(event));
+    return [
+      label(
+        { class: decisionColumn.retirementLabel, htmlFor: 'retirement-reason' },
+        function* () {
+          return (yield* t()).retirementReason;
         },
-      },
-      [
-        option({ value: 'superseded' }, function* () {
-          return (yield* t()).superseded;
-        }),
-        option({ value: 'defect' }, function* () {
-          return (yield* t()).defect;
-        }),
-        option({ value: 'derivation' }, function* () {
-          return (yield* t()).derivation;
-        }),
-      ],
-    ),
-  ],
+      ),
+      select(
+        'RetirementReason',
+        {
+          id: 'retirement-reason',
+          value: retirementReason,
+          *change(event: Event) {
+            chooseRetirementReason(eventValue(event));
+          },
+        },
+        [
+          option({ value: 'superseded' }, function* () {
+            return (yield* t()).superseded;
+          }),
+          option({ value: 'defect' }, function* () {
+            return (yield* t()).defect;
+          }),
+          option({ value: 'derivation' }, function* () {
+            return (yield* t()).derivation;
+          }),
+        ],
+      ),
+    ];
+  },
 );

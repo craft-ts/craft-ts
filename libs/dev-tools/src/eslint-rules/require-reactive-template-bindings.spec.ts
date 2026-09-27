@@ -27,7 +27,7 @@ describe('require-reactive-template-bindings', () => {
       declare const disabled: Signal<boolean>;
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         div({ class: { disabled: disabled() } }, [
           p(\`Count: \${count()}\`),
         ]),
@@ -47,7 +47,7 @@ describe('require-reactive-template-bindings', () => {
       declare const value: CraftValue<string>;
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         div({
           title: () => value(),
           click: () => console.log(value()),
@@ -75,7 +75,7 @@ describe('require-reactive-template-bindings', () => {
       ): boolean;
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         button({
           'data-selected': function* () {
             return isChoiceSelected(
@@ -104,7 +104,7 @@ describe('require-reactive-template-bindings', () => {
       declare const unit: { pct(value: number): unknown };
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () => [
         p({
           'data-value': function* () {
             return String(yield* value());
@@ -125,7 +125,7 @@ describe('require-reactive-template-bindings', () => {
             return assign(fill, unit.pct(yield* value()));
           },
         }),
-      );
+      ]);
     `);
 
     expect(messages).toEqual([]);
@@ -140,7 +140,7 @@ describe('require-reactive-template-bindings', () => {
       declare const count: CraftValue<number>;
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         p({ title: function* () {
           return (yield* t()).queueSummary(yield* count());
         }}, 'Queue'),
@@ -157,7 +157,7 @@ describe('require-reactive-template-bindings', () => {
       declare const value: Input<string>;
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () =>
+      craftComponent('Demo', {}, () =>
         ifNode(condition,
           () => p(value()),
           () => p(() => value()),
@@ -177,7 +177,7 @@ describe('require-reactive-template-bindings', () => {
       declare const value: Signal<string>;
       declare function craftComponent(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () => [
+      craftComponent('Demo', {}, () => [
         [1].map((item) => option({ selected: item === value() }, item)),
         matchNode.exhaustive(() => value(), 'code', {
           failure: () => p(value()),

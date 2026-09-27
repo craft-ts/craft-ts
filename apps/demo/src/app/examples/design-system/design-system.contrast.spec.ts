@@ -104,7 +104,8 @@ function graphOf(elements: readonly Element[]): DependencyGraph {
   };
 }
 
-const dump = () => styleDump(registeredClasses(), registeredAtoms(), registeredVars());
+const dump = () =>
+  styleDump(registeredClasses(), registeredAtoms(), registeredVars());
 
 const analyse = (elements: readonly Element[]) => {
   const styles = dump();

@@ -108,18 +108,13 @@ import { button, craftComponent, p } from '@craft-ts/component';
 import { queryEffect } from '@craft-ts/effect';
 import { loadUserProfile } from './profile-domain';
 
-export const Profile = craftComponent(
-  'Profile',
-  {},
-  function* () {
-    const profile = yield* queryEffect('profile', {
-      params: () => 'user-ada',
-      loader: ({ params }) => loadUserProfile(params),
-    });
+export const Profile = craftComponent('Profile', {}, function* () {
+  const profile = yield* queryEffect('profile', {
+    params: () => 'user-ada',
+    loader: ({ params }) => loadUserProfile(params),
+  });
 
-    return { profile };
-  },
-  ({ profile }) => [
+  return [
     p(function* () {
       const user = yield* profile.value();
       return user?.name ?? 'Loading…';
@@ -133,8 +128,8 @@ export const Profile = craftComponent(
       },
       'Reload',
     ),
-  ],
-);
+  ];
+});
 ```
 
 The template consumes Craft readers. It does not subscribe to an Effect, call

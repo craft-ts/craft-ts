@@ -20,36 +20,38 @@ import {
   ul,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftComputed,
   craftMethod,
   isCraftException,
   query,
   state,
   craftUse,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import { CurrentUser, requireAdmin } from '../shared/authenticated-user';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-client';
 import { demoPage } from './demo.style';
 
-const ServerFunctionDemo = craftComponent(
-  'ServerFunctionDemo',
-  {},
+export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftService(
+  { name: 'serverFunctionDemoView', providedIn: 'toProvide' },
   function* () {
     const searchInput = yield* state('searchInput', '', ({ set }) => ({
       setSearchInput: (value: string) => set(value),
     }));
-    const currentUserQuery = yield* query('currentUserQuery', {
+    const currentUserQuery = yield* craftPrivate(query('currentUserQuery', {
       params: () => true,
       loader: function* () {
         return yield* CurrentUser;
       },
-    });
+    }));
     const currentUser = yield* craftComputed('currentUser', function* () {
       return yield* currentUserQuery.value();
     });
-    const isAdmin = yield* craftComputed('isAdmin', function* () {
+    const isAdmin = yield* craftPrivate(craftComputed('isAdmin', function* () {
       return (yield* currentUser())?.role === 'admin';
-    });
+    }));
     // todo removeImporve and remove all the coments
     const usersQuery = yield* query(
       'usersQuery',
@@ -131,32 +133,34 @@ const ServerFunctionDemo = craftComponent(
       },
     );
     yield* usersQuery.call(''); // trigger first call
-    const submitSearch = yield* craftMethod('submitSearch', function* (event?: Event) {
+    yield* craftMethod('submitSearch', function* (event?: Event) {
       event?.preventDefault();
       if (!(yield* isAdmin())) return; // todo remove
       yield* usersQuery.call((yield* searchInput()).trim());
     });
 
-    return {
-      searchInput,
-      setSearchInput: searchInput.setSearchInput,
-      usersQuery,
-      notFound: usersQuery.notFound,
-      notFoundMessage: usersQuery.notFoundMessage,
-      currentUser,
-      submitSearch,
-    };
+    yield* craftExpose('setSearchInput', searchInput.setSearchInput);
+    yield* craftExpose('notFound', usersQuery.notFound);
+    yield* craftExpose('notFoundMessage', usersQuery.notFoundMessage);
   },
-  ({
-    searchInput,
-    setSearchInput,
-    usersQuery,
-    currentUser,
-    notFound,
-    notFoundMessage,
-    submitSearch,
-  }) =>
-    main({ class: demoPage.shell }, [
+);
+
+const ServerFunctionDemo = craftComponent(
+  'ServerFunctionDemo',
+  {
+    providers: [provideServerFunctionDemoView()],
+  },
+  function* () {
+    const {
+      searchInput,
+      setSearchInput,
+      usersQuery,
+      currentUser,
+      notFound,
+      notFoundMessage,
+      submitSearch,
+    } = yield* ServerFunctionDemoView();
+    return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
           span({ class: demoPage.pulse }),
@@ -304,7 +308,8 @@ const ServerFunctionDemo = craftComponent(
         span('Same Effect service, two instances: client and server.'),
         span({ class: demoPage.footerFile }, 'apps/demo-with-server-function'),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export { ServerFunctionDemo };

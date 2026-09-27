@@ -18,19 +18,14 @@ const Card = craftComponent(
       attrs: { role: 'article' },
     },
   },
-  () => ({}),
   () => div([h2('A card')]),
 );
 
-const FeaturedCard = craftComponent(
-  'FeaturedCard',
-  {},
-  () => ({}),
-  () =>
-    // `class` merges with the host's; `attrs` would replace the host's
-    // `attrs` as a whole, so a single attribute is passed as a property.
-    Card({ class: cardSheet.featured, 'data-testid': 'featured-card' }),
-);
+const FeaturedCard = craftComponent('FeaturedCard', {}, () => {
+  // `class` merges with the host's; `attrs` would replace the host's
+  // `attrs` as a whole, so a single attribute is passed as a property.
+  return Card({ class: cardSheet.featured, 'data-testid': 'featured-card' });
+});
 // #endregion card
 
 describe('guide/components/customization.md #card', () => {

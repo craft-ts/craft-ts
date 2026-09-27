@@ -4,13 +4,10 @@ module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description:
-        'Require craftComponent logic factories and templates to remain inline.',
+      description: 'Require craftComponent templates to remain inline.',
     },
     schema: [],
     messages: {
-      logic:
-        'Keep the craftComponent logic factory inline; do not extract it into "{{name}}".',
       template:
         'Keep the craftComponent template inline; do not extract it into "{{name}}".',
     },
@@ -23,8 +20,7 @@ module.exports = {
       CallExpression(node) {
         if (!isCraftComponentCall(node, sourceCode)) return;
 
-        reportIdentifier(node.arguments[2], 'logic');
-        reportIdentifier(node.arguments[3], 'template');
+        reportIdentifier(node.arguments[2], 'template');
       },
     };
 

@@ -56,11 +56,15 @@ const excerptText = (item: BypassInventoryItem): string => {
 export const BypassesView = craftComponent(
   'BypassesView',
   {},
-  function* (
-    bypasses: Input<readonly BypassInventoryItem[]>,
-    adoption: Input<StyleAdoption | undefined>,
-    t: Input<Messages>,
-  ) {
+  function* ({
+    bypasses,
+    adoption,
+    t,
+  }: {
+    readonly bypasses: Input<readonly BypassInventoryItem[]>;
+    readonly adoption: Input<StyleAdoption | undefined>;
+    readonly t: Input<Messages>;
+  }) {
     // The filter owns what it filters: the rule list with its counts, and the
     // rows it lets through. Everything the template shows is derived here,
     // so the template reads fields and never decides between two texts.
@@ -128,37 +132,18 @@ export const BypassesView = craftComponent(
         return value ? (yield* t()).adoptionComposition(value.composition) : '';
       },
     );
-    const adoptionRemaining = deepYieldable(yield* craftComputed('adoptionRemaining', function* () {
-      const say = yield* t();
-      return ((yield* adoption())?.remaining ?? []).map((entry) => ({
-        component: entry.component,
-        note: entry.waivedBy
-          ? say.adoptionWaivedBy(entry.waivedBy)
-          : say.adoptionNotWaived,
-      }));
-    }));
-    return {
-      t,
-      rules,
-      shown,
-      chooseRule,
-      adoptionKnown,
-      adoptionSummary,
-      adoptionComposition,
-      adoptionRemaining,
-    };
-  },
-  ({
-    t,
-    rules,
-    shown,
-    chooseRule,
-    adoptionKnown,
-    adoptionSummary,
-    adoptionComposition,
-    adoptionRemaining,
-  }) =>
-    section({ class: bypassesView.root }, [
+    const adoptionRemaining = deepYieldable(
+      yield* craftComputed('adoptionRemaining', function* () {
+        const say = yield* t();
+        return ((yield* adoption())?.remaining ?? []).map((entry) => ({
+          component: entry.component,
+          note: entry.waivedBy
+            ? say.adoptionWaivedBy(entry.waivedBy)
+            : say.adoptionNotWaived,
+        }));
+      }),
+    );
+    return section({ class: bypassesView.root }, [
       div({ class: bypassesView.adoption }, [
         strong({ class: bypassesView.heading }, function* () {
           return (yield* t()).adoptionTitle;
@@ -198,7 +183,7 @@ export const BypassesView = craftComponent(
               'data-bypassFilter': entry.filterState,
               'aria-pressed': entry.pressed,
               *click() {
-                yield* chooseRule(yield* entry.rule());
+                chooseRule(yield* entry.rule());
               },
             },
             entry.text,
@@ -231,7 +216,8 @@ export const BypassesView = craftComponent(
             ]),
         ),
       ),
-    ]),
+    ]);
+  },
 );
 
 /**
@@ -241,14 +227,21 @@ export const BypassesView = craftComponent(
 export const BypassCardEvidence = craftComponent(
   'BypassCardEvidence',
   {},
-  function* (
-    label: Input<string>,
-    location: Input<string>,
-    reason: Input<string | null>,
-    code: Input<string>,
-    previousReason: Input<string | null>,
-    t: Input<Messages>,
-  ) {
+  function* ({
+    label,
+    location,
+    reason,
+    code,
+    previousReason,
+    t,
+  }: {
+    readonly label: Input<string>;
+    readonly location: Input<string>;
+    readonly reason: Input<string | null>;
+    readonly code: Input<string>;
+    readonly previousReason: Input<string | null>;
+    readonly t: Input<Messages>;
+  }) {
     const reasonState = yield* craftComputed('reasonState', function* () {
       return (yield* reason()) ? null : 'missing';
     });
@@ -259,10 +252,7 @@ export const BypassCardEvidence = craftComponent(
       const previous = yield* previousReason();
       return previous ? (yield* t()).bypassPreviousReason(previous) : '';
     });
-    return { label, location, code, reasonState, reasonText, previousText };
-  },
-  ({ label, location, code, reasonState, reasonText, previousText }) =>
-    section({ class: bypassesView.item }, [
+    return section({ class: bypassesView.item }, [
       strong({ class: bypassesView.heading }, label),
       small({ class: bypassesView.meta }, location),
       span(
@@ -271,5 +261,6 @@ export const BypassCardEvidence = craftComponent(
       ),
       small({ class: bypassesView.meta }, previousText),
       pre({ class: bypassesView.excerpt }, code),
-    ]),
+    ]);
+  },
 );

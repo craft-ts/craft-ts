@@ -1,4 +1,10 @@
-import { craftComponent, div, heading, p, type Input } from '@craft-ts/component';
+import {
+  craftComponent,
+  div,
+  heading,
+  p,
+  type Input,
+} from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { TokenCard } from './css-vars-required-demo';
 import { cssVarsDemo, forwarding } from './css-vars.style';
@@ -11,8 +17,7 @@ import { cssVarsDemo, forwarding } from './css-vars.style';
 const ForwardingExample = craftComponent(
   'ForwardingExample',
   {},
-  (label: Input<string>) => ({ label }),
-  ({ label }) =>
+  ({ label }: { readonly label: Input<string> }) =>
     div({ class: forwarding.root }, [
       TokenCard({
         label,
@@ -30,7 +35,6 @@ const ForwardingExample = craftComponent(
 export const CssVarsForwardingDemo = craftComponent(
   'CssVarsForwardingDemo',
   {},
-  () => ({}),
   () =>
     div({ class: cssVarsDemo.page }, [
       CssVarsPageNav(),

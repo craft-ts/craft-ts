@@ -94,10 +94,8 @@ const en = {
   templateGroupClear: 'Clear selection',
   templateGroupSelect: 'Select all pending',
   templateGroupSelected: (count: number) => `${count} selected`,
-  templateGroupAcceptSelected: (count: number) =>
-    `Accept ${count} selected`,
-  templateGroupRejectSelected: (count: number) =>
-    `Reject ${count} selected`,
+  templateGroupAcceptSelected: (count: number) => `Accept ${count} selected`,
+  templateGroupRejectSelected: (count: number) => `Reject ${count} selected`,
   templateGroupSelectObligation: 'Select obligation',
   templateAgentAllowed: 'Agent review allowed',
   templateHumanRequired: 'Human review required',
@@ -488,7 +486,8 @@ const fr: Messages = {
     `${count} obligation${count === 1 ? '' : 's'} à revoir`,
   templateGroupClear: 'Effacer la sélection',
   templateGroupSelect: 'Tout sélectionner',
-  templateGroupSelected: (count) => `${count} sélectionnée${count === 1 ? '' : 's'}`,
+  templateGroupSelected: (count) =>
+    `${count} sélectionnée${count === 1 ? '' : 's'}`,
   templateGroupAcceptSelected: (count) => `Accepter les ${count} sélectionnées`,
   templateGroupRejectSelected: (count) => `Refuser les ${count} sélectionnées`,
   templateGroupSelectObligation: 'Sélectionner l’obligation',
@@ -505,7 +504,8 @@ const fr: Messages = {
   templateSelectHuman: 'Sélectionner les obligations réservées aux humains',
   templateDetails: 'Détails',
   templateAgentBusy: 'L’agent examine ces obligations…',
-  templateAgentFailed: 'La revue par agent a échoué. Aucune décision enregistrée.',
+  templateAgentFailed:
+    'La revue par agent a échoué. Aucune décision enregistrée.',
   templateGroupReason: 'Motif du refus',
   cancel: 'Annuler',
   templateDelegate: 'Demander à l’agent de revue',

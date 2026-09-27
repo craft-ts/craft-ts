@@ -32,6 +32,7 @@ import {
   withBackNavigation,
   withStateMachineHistory,
   craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 import { editor } from './editor.style';
@@ -60,14 +61,16 @@ const { ProfilePermissions } = craftService(
   },
 );
 
-const ProfileEditorStateMachine = craftComponent(
-  'ProfileEditorStateMachine',
-  {},
+export const {
+  ProfileEditorStateMachineView,
+  provideProfileEditorStateMachineView,
+} = craftService(
+  { name: 'profileEditorStateMachineView', providedIn: 'toProvide' },
   function* () {
     const permissions = yield* ProfilePermissions();
 
-    const machine = yield* craftStateMachine(
-      'profileEditor',
+    yield* craftStateMachine(
+      'machine',
 
       // 1. The machine's context: every primitive its steps and workflows use.
       function* () {
@@ -206,7 +209,10 @@ const ProfileEditorStateMachine = craftComponent(
       insertStateMachinePipe(
         withStateMachineHistory(
           {
-            persist: craftUnique({ storeName: 'demo', key: 'profile-editor' }),
+            persist: craftUnique({
+              storeName: 'demo',
+              key: 'profile-editor',
+            }),
           },
           withBackNavigation(),
         ),
@@ -296,10 +302,18 @@ const ProfileEditorStateMachine = craftComponent(
       ),
     );
 
-    return { machine, permissions };
+    yield* craftExpose('permissions', permissions);
   },
-  ({ machine, permissions }) =>
-    section({ class: example.card }, [
+);
+
+const ProfileEditorStateMachine = craftComponent(
+  'ProfileEditorStateMachine',
+  {
+    providers: [provideProfileEditorStateMachineView()],
+  },
+  function* () {
+    const { machine, permissions } = yield* ProfileEditorStateMachineView();
+    return section({ class: example.card }, [
       heading({ class: example.title }, 'State machine — profile editor'),
       p(
         { class: example.text, 'data-exampleText': 'muted' },
@@ -461,7 +475,8 @@ const ProfileEditorStateMachine = craftComponent(
           () => span('read-only: off'),
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default ProfileEditorStateMachine;

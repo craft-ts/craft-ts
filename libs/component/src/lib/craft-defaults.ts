@@ -22,8 +22,7 @@ import { craftPending } from './craft-defaults.style';
 const DefaultCraftPendingComponent = craftComponent(
   'craftPending',
   {},
-  () => ({ loading: ɵinjectCraftLoadingText() }),
-  ({ loading }) => div({ class: craftPending.root }, loading),
+  () => div({ class: craftPending.root }, ɵinjectCraftLoadingText()),
 );
 
 ɵregisterDefaultCraftPendingComponent(

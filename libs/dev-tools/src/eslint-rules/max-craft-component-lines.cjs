@@ -100,7 +100,11 @@ function isCraftComponentCall(node, sourceCode) {
     callee.property.type === 'Identifier' &&
     callee.property.name === 'craftComponent'
   ) {
-    return resolvesToNamespaceImport(callee.object, sourceCode, COMPONENT_MODULE);
+    return resolvesToNamespaceImport(
+      callee.object,
+      sourceCode,
+      COMPONENT_MODULE,
+    );
   }
 
   return false;

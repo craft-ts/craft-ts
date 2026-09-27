@@ -9,7 +9,6 @@ import { cssVarsDemo } from './css-vars.style';
 export const CssVarsInheritanceDemo = craftComponent(
   'CssVarsInheritanceDemo',
   {},
-  () => ({}),
   () =>
     div({ class: cssVarsDemo.page }, [
       CssVarsPageNav(),

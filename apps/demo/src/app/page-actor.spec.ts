@@ -39,10 +39,12 @@ describe('page actor', () => {
         enabled: true,
         index: 0,
       });
-      expect(controls.find((control) => control.id === 'submit')).toMatchObject({
-        role: 'button',
-        name: 'Sign in',
-      });
+      expect(controls.find((control) => control.id === 'submit')).toMatchObject(
+        {
+          role: 'button',
+          name: 'Sign in',
+        },
+      );
       expect(JSON.stringify(controls)).not.toContain('"tag"');
       expect(JSON.stringify(controls)).not.toContain('children');
     } finally {
@@ -70,18 +72,14 @@ describe('page actor', () => {
 
   it('fills a controlled input with a single input event', () => {
     const typed: string[] = [];
-    const Search = craftComponent(
-      'Search',
-      {},
-      () => ({}),
-      () =>
-        input('search', {
-          type: 'search',
-          'aria-label': 'Search',
-          *input(event) {
-            typed.push((event.target as HTMLInputElement).value);
-          },
-        }),
+    const Search = craftComponent('Search', {}, () =>
+      input('search', {
+        type: 'search',
+        'aria-label': 'Search',
+        *input(event) {
+          typed.push((event.target as HTMLInputElement).value);
+        },
+      }),
     );
     const { element, destroy } = mount(Search);
     try {
@@ -99,21 +97,17 @@ describe('page actor', () => {
 
   it('clicks a named button', () => {
     const clicks: number[] = [];
-    const Counter = craftComponent(
-      'Counter',
-      {},
-      () => ({}),
-      () =>
-        button(
-          'increment',
-          {
-            type: 'button',
-            *click() {
-              clicks.push(1);
-            },
+    const Counter = craftComponent('Counter', {}, () =>
+      button(
+        'increment',
+        {
+          type: 'button',
+          *click() {
+            clicks.push(1);
           },
-          'Increment',
-        ),
+        },
+        'Increment',
+      ),
     );
     const { element, destroy } = mount(Counter);
     try {
@@ -127,24 +121,19 @@ describe('page actor', () => {
 
   it('stops a batch on the first error and still returns controls', () => {
     const clicks: string[] = [];
-    const Form = craftComponent(
-      'Form',
-      {},
-      () => ({}),
-      () => [
-        input('email', { type: 'email', 'aria-label': 'Email' }),
-        button(
-          'save',
-          {
-            type: 'button',
-            *click() {
-              clicks.push('save');
-            },
+    const Form = craftComponent('Form', {}, () => [
+      input('email', { type: 'email', 'aria-label': 'Email' }),
+      button(
+        'save',
+        {
+          type: 'button',
+          *click() {
+            clicks.push('save');
           },
-          'Save',
-        ),
-      ],
-    );
+        },
+        'Save',
+      ),
+    ]);
     const { element, destroy } = mount(Form);
     try {
       const result = applyPageActions(element, [
@@ -164,32 +153,27 @@ describe('page actor', () => {
 
   it('rejects an ambiguous each control unless match.index is passed', () => {
     const removed: string[] = [];
-    const List = craftComponent(
-      'List',
-      {},
-      () => ({
-        items: [
-          { id: 'a', label: 'Ada' },
-          { id: 'b', label: 'Ben' },
-          { id: 'c', label: 'Cyd' },
-        ],
-      }),
-      ({ items }) =>
-        forNode(items, { track: (item) => item.id }, (item) =>
-          button(
-            'remove',
-            {
-              type: 'button',
-              *click() {
-                removed.push((yield* item()).id);
-              },
+    const List = craftComponent('List', {}, () => {
+      const items = [
+        { id: 'a', label: 'Ada' },
+        { id: 'b', label: 'Ben' },
+        { id: 'c', label: 'Cyd' },
+      ];
+      return forNode(items, { track: (item) => item.id }, (item) =>
+        button(
+          'remove',
+          {
+            type: 'button',
+            *click() {
+              removed.push((yield* item()).id);
             },
-            function* () {
-              return `Remove ${(yield* item()).label}`;
-            },
-          ),
+          },
+          function* () {
+            return `Remove ${(yield* item()).label}`;
+          },
         ),
-    );
+      );
+    });
     const { element, destroy } = mount(List);
     try {
       const collected = collectPageControls(element);
@@ -210,19 +194,14 @@ describe('page actor', () => {
   });
 
   it('rejects fill on a button and a disabled control', () => {
-    const DisabledForm = craftComponent(
-      'DisabledForm',
-      {},
-      () => ({}),
-      () => [
-        button('save', { type: 'button' }, 'Save'),
-        input('email', {
-          type: 'email',
-          disabled: true,
-          'aria-label': 'Email',
-        }),
-      ],
-    );
+    const DisabledForm = craftComponent('DisabledForm', {}, () => [
+      button('save', { type: 'button' }, 'Save'),
+      input('email', {
+        type: 'email',
+        disabled: true,
+        'aria-label': 'Email',
+      }),
+    ]);
     const { element, destroy } = mount(DisabledForm);
     try {
       expect(applyPageActions(element, [{ id: 'save', fill: 'x' }]).error).toBe(
@@ -276,7 +255,9 @@ describe('page actor', () => {
   it('does not apply goto to the DOM', () => {
     const host = document.createElement('div');
     const result = applyPageActions(host, [{ goto: '/login-form' }]);
-    expect(result.error).toBe('goto "/login-form" cannot be applied to the DOM');
+    expect(result.error).toBe(
+      'goto "/login-form" cannot be applied to the DOM',
+    );
   });
 
   it('normalizes goto targets to an in-app path', () => {

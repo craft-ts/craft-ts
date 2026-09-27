@@ -3,7 +3,7 @@ import {
   type CraftDirective,
   type ComponentOperatorDefinition,
   type DirectiveMeta,
-  type LogicDecorator,
+  type DirectiveTransforms,
   type TemplateDependencies,
   type TemplateDecorator,
 } from './types';
@@ -16,29 +16,51 @@ type DirectiveTemplateDependencies<Template> = Template extends (
   ? TemplateDependencies<DecoratedTemplate>
   : {};
 
+type DirectiveTemplateOf<Transforms> = Transforms extends {
+  readonly template: infer Template;
+}
+  ? Template
+  : TemplateDecorator;
+
 /**
- * Decorates a Craft component's factory and template as one reusable unit.
- * Directives are applied from left to right by a component's `.pipe(...)`.
+ * A reusable transformation of a component: what a service does, what the
+ * component renders, or both.
+ *
+ * Directives are applied from left to right by `.pipe(...)`, on a component (the
+ * component's own scope) or on a node (that subtree only).
  */
 export function craftDirective<
   const Name extends string,
   const Meta extends DirectiveMeta,
-  Logic extends LogicDecorator,
-  const Template extends TemplateDecorator,
+  const Transforms extends DirectiveTransforms,
 >(
   name: Name,
   meta: Meta,
-  logic: Logic,
-  template: Template,
+  transforms: Transforms,
   componentOperator?: ComponentOperatorDefinition,
-): CraftDirective<Logic, Template, DirectiveTemplateDependencies<Template>> {
-  const directive = (() => undefined) as unknown as CraftDirective<
-    Logic,
-    Template,
-    DirectiveTemplateDependencies<Template>
+): CraftDirective<
+  DirectiveTemplateOf<Transforms> & ((base: any) => any),
+  DirectiveTemplateDependencies<DirectiveTemplateOf<Transforms>>
+> {
+  type Directive = CraftDirective<
+    DirectiveTemplateOf<Transforms> & ((base: any) => any),
+    DirectiveTemplateDependencies<DirectiveTemplateOf<Transforms>>
   >;
+  const directive = (() => undefined) as unknown as Directive;
 
-  const definition = { name, meta, logic, template, componentOperator };
+  const service = transforms.service
+    ? Array.isArray(transforms.service)
+      ? [...transforms.service]
+      : [transforms.service]
+    : [];
+
+  const definition = {
+    name,
+    meta,
+    service,
+    template: transforms.template,
+    componentOperator,
+  };
   Object.defineProperty(directive, CRAFT_DIRECTIVE, {
     value: definition,
     enumerable: false,

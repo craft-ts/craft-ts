@@ -1,5 +1,4 @@
-import { craftService, CraftHttpClient } from '../craft-runtime';
-import { craftExpose } from '@craft-ts/core';
+import { craftExpose, craftService, CraftHttpClient } from '../craft-runtime';
 
 export const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global', browserBoundary: true },

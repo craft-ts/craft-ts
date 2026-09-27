@@ -231,7 +231,8 @@ function ensureImports(text) {
 
 function readExistingCheckDeps(text) {
   const deps = new Set();
-  const regex = /RouteExceptionComponentCheckedDI<\s*([\s\S]*?),\s*(?:'[^']*'|never)/g;
+  const regex =
+    /RouteExceptionComponentCheckedDI<\s*([\s\S]*?),\s*(?:'[^']*'|never)/g;
   let match;
   while ((match = regex.exec(text))) {
     deps.add(normalizeTypeText(match[1]));
@@ -249,7 +250,8 @@ function readProperty(node, name, source) {
 }
 
 function readTypeText(node, source) {
-  if (node?.type === 'TSAsExpression') return source.getText(node.typeAnnotation);
+  if (node?.type === 'TSAsExpression')
+    return source.getText(node.typeAnnotation);
   return source.getText(node);
 }
 

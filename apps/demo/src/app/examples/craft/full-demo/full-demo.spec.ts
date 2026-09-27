@@ -1,18 +1,17 @@
 // @vitest-environment jsdom
 import {
-  ComponentLogicOutputOf,
   ComponentTemplateOf,
   TemplateNamedElementDelegatesToContext,
   TemplateNamedElementRendersStateWhen,
   TemplateRendersNamedElementWhen,
 } from '@craft-ts/component';
-import type { ResolvedServiceOutput } from '@craft-ts/core';
+import type { GetServiceOutput, ResolvedServiceOutput } from '@craft-ts/core';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it } from 'vitest';
-import FullDemoCraft, { TodoStore } from './full-demo';
+import FullDemoCraft, { FullDemoCraftView, TodoStore } from './full-demo';
 
 describe('Full demo template', () => {
-  type FullDemoLogic = ComponentLogicOutputOf<typeof FullDemoCraft>;
+  type FullDemoLogic = GetServiceOutput<typeof FullDemoCraftView>;
   type FullDemoTemplate = ComponentTemplateOf<typeof FullDemoCraft>;
   type TodoStoreOutput = ResolvedServiceOutput<
     typeof TodoStore,
@@ -48,7 +47,7 @@ describe('Full demo template', () => {
       TemplateRendersNamedElementWhen<
         FullDemoTemplate,
         'FullDemoCraft:button:RemoveTodoButton',
-        { when: { 'store.todos.value': 'nonEmpty' } }
+        { when: { value: 'nonEmpty' } }
       >,
       true
     >
@@ -59,7 +58,7 @@ describe('Full demo template', () => {
       TemplateRendersNamedElementWhen<
         FullDemoTemplate,
         'FullDemoCraft:button:RemoveTodoButton',
-        { when: { 'store.todos.value': 'empty' } }
+        { when: { value: 'empty' } }
       >,
       false
     >
@@ -71,7 +70,7 @@ describe('Full demo template', () => {
         FullDemoTemplate,
         'FullDemoCraft:button:AddTodoButton',
         'disabled',
-        'store.add.isLoading'
+        'isLoading'
       >,
       true
     >
@@ -83,8 +82,8 @@ describe('Full demo template', () => {
         FullDemoTemplate,
         'FullDemoCraft:button:RemoveTodoButton',
         'disabled',
-        'store.remove.isLoading',
-        { when: { 'store.todos.value': 'nonEmpty' } }
+        'isLoading',
+        { when: { value: 'nonEmpty' } }
       >,
       true
     >
@@ -107,7 +106,7 @@ describe('Full demo template', () => {
       TemplateRendersNamedElementWhen<
         FullDemoTemplate,
         'FullDemoCraft:span:TodoTitle',
-        { when: { 'store.todos.value': 'nonEmpty' } }
+        { when: { value: 'nonEmpty' } }
       >,
       true
     >

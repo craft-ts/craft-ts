@@ -15,6 +15,7 @@ import type {
   ExtractCraftGenExceptions,
   ExtractCraftPendingSources,
   FieldValidationCasesOf,
+  ServiceHelperDependencyMapOf,
   SsrMode,
 } from '@craft-ts/core';
 import { CRAFT_NODE_DIRECTIVE, isCraftNodeDirective } from '@craft-ts/core';
@@ -213,7 +214,11 @@ type CraftNodeChildrenDependenciesOf<Value> =
                   ? {}
                   : Dependencies
                 : {}
-              : {}
+              : // A `Service.member` shortcut bound here is a dependency of the
+                // component, exactly like the `yield*` it replaces: without
+                // this, the binding would resolve at runtime against a provider
+                // nobody checked.
+                ServiceHelperDependencyMapOf<Value>
           : {};
 
 type MergedCraftNodeChildrenDependencies<Value> = {
@@ -230,7 +235,10 @@ type MergedCraftNodeChildrenDependencies<Value> = {
  * provider would surface as a runtime injection failure.
  */
 type CraftNodePropsDependencySources<Props> = [Props] extends [object]
-  ? Props[keyof Props]
+  ? // A string prop carries nothing, and a branded class (`string & {…}`)
+    // must not reach the check below: `string extends` holds for it, and
+    // would erase the dependencies of the children it is merged with.
+    Exclude<Props[keyof Props], string>
   : never;
 
 export type CraftNodeDependencies<Props, Children> =
@@ -383,7 +391,17 @@ export type CraftTextValue = string | number | bigint | boolean;
  */
 export type CraftTextBinding =
   | (() => CraftTextValue | null | undefined)
-  | (() => Generator<any, CraftTextValue | null | undefined, any>);
+  | (() => Generator<any, CraftTextValue | null | undefined, any>)
+  // A `Service.member` shortcut: driving it resolves the member, and the
+  // member is itself the reader the renderer then binds.
+  | (() => Generator<
+      any,
+      | (() => CraftTextValue | null | undefined)
+      | CraftTextValue
+      | null
+      | undefined,
+      any
+    >);
 
 type ElementNodeExceptions<
   Children extends CraftNodeChildren,
@@ -1251,7 +1269,9 @@ export type ContentHeadingNeedFromProps<Props extends object> =
 export type ComponentTemplateChannels<Template> = Template extends (
   ...args: any[]
 ) => infer Output
-  ? CraftNodeChildrenChannels<Output>
+  ? CraftNodeChildrenChannels<
+      Output extends Generator<any, infer Children, any> ? Children : Output
+    >
   : EmptyChannels;
 
 /**
@@ -1269,7 +1289,9 @@ type ComponentNodeChannels<
 export type ComponentHeadingNeedOf<Component> =
   Component extends CraftComponent<any, any, any, any, any, any, infer Template>
     ? Template extends (...args: any[]) => infer Output
-      ? CraftNodeChildrenHeadingNeed<Output>
+      ? CraftNodeChildrenHeadingNeed<
+          Output extends Generator<any, infer Children, any> ? Children : Output
+        >
       : never
     : never;
 

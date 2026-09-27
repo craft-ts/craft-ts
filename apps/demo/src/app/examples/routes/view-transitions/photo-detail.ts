@@ -9,7 +9,7 @@ import {
   type Input,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, CraftRouterLink } from '@craft-ts/core';
+import { craftComputed, CraftRouterLink, craftUse } from '@craft-ts/core';
 import { findPhoto, type Photo } from './photos';
 import { assign } from '@craft-ts/style';
 import {
@@ -31,42 +31,25 @@ const MISSING_PHOTO: Photo = {
 const ViewTransitionsDetailComponent = craftComponent(
   'ViewTransitionsDetailComponent',
   {},
-  function* (photoId: Input<string>) {
-    const currentPhoto = yield* craftComputed('currentPhoto', function* () {
+  ({ photoId }: { readonly photoId: Input<string> }) => {
+    const currentPhoto = craftUse(craftComputed('currentPhoto', function* () {
       return findPhoto(yield* photoId()) ?? MISSING_PHOTO;
-    });
-    const hasPhoto = yield* craftComputed('hasPhoto', function* () {
+    }));
+    const hasPhoto = craftUse(craftComputed('hasPhoto', function* () {
       return (yield* currentPhoto()).id !== MISSING_PHOTO.id;
-    });
-    const currentPhotoTitle = yield* craftComputed('currentPhotoTitle', function* () {
+    }));
+    const currentPhotoTitle = craftUse(craftComputed('currentPhotoTitle', function* () {
       return (yield* currentPhoto()).title;
-    });
-    const currentArt = yield* craftComputed('currentArt', function* () {
+    }));
+    const currentArt = craftUse(craftComputed('currentArt', function* () {
       return photoArt((yield* currentPhoto()).id);
-    });
-    const currentTransitionName = yield* craftComputed(
+    }));
+    const currentTransitionName = craftUse(craftComputed(
       'currentTransitionName',
       function* () {
         return photoTransitionName((yield* currentPhoto()).id);
       },
-    );
-    return {
-      photoId,
-      currentPhoto,
-      currentPhotoTitle,
-      hasPhoto,
-      currentArt,
-      currentTransitionName,
-    };
-  },
-  ({
-    photoId,
-    currentPhoto,
-    currentPhotoTitle,
-    hasPhoto,
-    currentArt,
-    currentTransitionName,
-  }) => {
+    ));
     return [
       a(
         'back',

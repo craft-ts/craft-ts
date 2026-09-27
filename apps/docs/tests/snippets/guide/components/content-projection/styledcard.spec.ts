@@ -20,18 +20,14 @@ import { noteSheet, styledCard } from './styledcard.style';
 const StyledCard = craftComponent(
   'StyledCard',
   {},
-  (input: { readonly body: ContentSlot }) => input,
-  ({ body }) => div({ class: styledCard.body }, renderContent('body', body)),
+  ({ body }: { readonly body: ContentSlot }) =>
+    div({ class: styledCard.body }, renderContent('body', body)),
 );
 
-const Page = craftComponent(
-  'Page',
-  {},
-  () => ({}),
-  () =>
-    StyledCard({
-      body: content(() => p({ class: noteSheet.root }, 'Styled by its caller')),
-    }),
+const Page = craftComponent('Page', {}, () =>
+  StyledCard({
+    body: content(() => p({ class: noteSheet.root }, 'Styled by its caller')),
+  }),
 );
 // #endregion styledcard
 

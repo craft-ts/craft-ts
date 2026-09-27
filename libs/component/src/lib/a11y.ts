@@ -52,7 +52,12 @@ function looksLikeChildren(value: unknown): boolean {
  */
 export function heading<const Children extends CraftNodeChildren>(
   children?: Children,
-): HeadingNode<CraftNodeChildrenDependencies<Children>, Children, HeadingProps, 'heading'>;
+): HeadingNode<
+  CraftNodeChildrenDependencies<Children>,
+  Children,
+  HeadingProps,
+  'heading'
+>;
 export function heading<const Children extends CraftNodeChildren>(
   props: HeadingProps | null,
   children?: Children,
@@ -158,7 +163,11 @@ export function liveRegion<const Children extends CraftNodeChildren>(
 ): ElementNode<
   CraftNodeChildrenDependencies<Children>,
   'span',
-  { readonly 'aria-live': 'polite'; readonly 'aria-atomic': 'true'; readonly role: 'status' },
+  {
+    readonly 'aria-live': 'polite';
+    readonly 'aria-atomic': 'true';
+    readonly role: 'status';
+  },
   Children
 >;
 export function liveRegion<const Children extends CraftNodeChildren>(
@@ -171,10 +180,7 @@ export function liveRegion<const Children extends CraftNodeChildren>(
   Children
 >;
 export function liveRegion(
-  propsOrChildren?:
-    | LiveRegionProps
-    | CraftNodeChildren
-    | null,
+  propsOrChildren?: LiveRegionProps | CraftNodeChildren | null,
   maybeChildren?: CraftNodeChildren,
 ): unknown {
   const props = looksLikeChildren(propsOrChildren)

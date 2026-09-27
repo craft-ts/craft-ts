@@ -83,7 +83,8 @@ module.exports = {
 
 function isGeneratorFunction(node, craftGenBindings) {
   if (
-    (node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration') &&
+    (node.type === 'FunctionExpression' ||
+      node.type === 'FunctionDeclaration') &&
     node.generator === true
   ) {
     return true;
@@ -113,7 +114,5 @@ function getIdentifierName(node) {
 }
 
 function isExemptFile(filename) {
-  return /(?:^|[/\\])(?:[^/\\]+\.)?(?:spec|test)\.[cm]?[jt]sx?$/.test(
-    filename,
-  );
+  return /(?:^|[/\\])(?:[^/\\]+\.)?(?:spec|test)\.[cm]?[jt]sx?$/.test(filename);
 }

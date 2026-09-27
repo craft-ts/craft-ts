@@ -13,14 +13,14 @@ describe('no-type-assertions-in-template', () => {
       declare function button(...args: unknown[]): unknown;
       declare const machine: { stepState: unknown };
 
-      craftComponent('Demo', {}, () => ({}), () => button(
+      craftComponent('Demo', {}, () => button(
         {},
         machine.stepState as unknown as () => { step: 'ready' },
       ));
     `);
 
     expect(result.messages).toEqual([
-      'Do not use type assertions in a Craft template. Fix the type in the component logic or expose a correctly typed derived value.',
+      'Do not use type assertions in a Craft template. Fix the type where the component declares it, or expose a correctly typed derived value.',
     ]);
   });
 
@@ -30,11 +30,11 @@ describe('no-type-assertions-in-template', () => {
       declare function p(...args: unknown[]): unknown;
       declare const value: unknown;
 
-      craftComponent('Demo', {}, () => ({}), () => p(<string>value));
+      craftComponent('Demo', {}, () => p(<string>value));
     `);
 
     expect(result.messages).toEqual([
-      'Do not use type assertions in a Craft template. Fix the type in the component logic or expose a correctly typed derived value.',
+      'Do not use type assertions in a Craft template. Fix the type where the component declares it, or expose a correctly typed derived value.',
     ]);
   });
 
@@ -43,7 +43,7 @@ describe('no-type-assertions-in-template', () => {
       declare function craftComponent(...args: unknown[]): unknown;
       declare function button(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, () => ({}), () => button({
+      craftComponent('Demo', {}, () => button({
         *input(event: Event) {
           (event.target as HTMLInputElement).dispatchEvent(new Event('change'));
         },

@@ -334,7 +334,9 @@ function handlerCallsGlobalError(handlerNode) {
     .getDescendantsOfKind(SyntaxKind.CallExpression)
     .some((call) => {
       const expression = call.getExpression();
-      return Node.isIdentifier(expression) && expression.getText() === 'globalError';
+      return (
+        Node.isIdentifier(expression) && expression.getText() === 'globalError'
+      );
     });
 }
 

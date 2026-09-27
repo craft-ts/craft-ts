@@ -22,18 +22,19 @@ import {
 const userCard = craftComponent(
   'userCard',
   {},
-  (user: Input<User>, onPick: Output<(user: User) => void>) => ({
+  ({
     user,
     onPick,
-  }),
-  ({ user, onPick }) => button({ click: () => onPick(user()) }, user().name),
+  }: {
+    readonly user: Input<User>;
+    readonly onPick: Output<(user: User) => void>;
+  }) => button({ click: () => onPick(user()) }, user().name),
 );
 
 export const userList = craftComponent(
   'userList',
   {},
-  (users: Input<User[]>) => ({ users }),
-  ({ users }) =>
+  ({ users }: { readonly users: Input<User[]> }) =>
     div(
       forNode(
         users,
@@ -80,10 +81,8 @@ mutations, or explicit business effects. The optional
 
 `Input<T>` values are yieldable reactive readers. `Output<T>` values are
 yieldable callbacks.
-Call-site props are inferred from branded values returned in the factory
-context. Because TypeScript does not expose function parameter names at
-runtime, positional factory arguments follow the key order of the props object;
-keep that order aligned with the factory parameters.
+Call-site props are inferred from the branded members of the object the
+component's function takes: one parameter, one prop per key.
 
 Mount a root component imperatively with `mountCraftComponent`, or use the
 standalone `[craftComponentHost]` bridge directive from a host template.

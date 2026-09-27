@@ -5,7 +5,8 @@
 1. primitive migration points
 2. service composition
 3. typed route collections and dependency checks
-4. legacy `component(...)` factories to `craftComponent(name, ...)`
+4. legacy `component(...)` factories to `craftComponent(name, meta, template)`,
+   folding a logic factory into the template generator
 5. baseline architecture tests
 
 The migration is intentionally conservative. Deterministic transformations are
@@ -85,7 +86,7 @@ converter:
 printf '<section><h2>Hello</h2></section>' | npx craft-migrate-template
 ```
 
-The generated callback can be pasted as the fourth argument of
+The generated callback can be pasted as the third argument of
 `craftComponent(...)`. The interactive [template converter](/guide/components/template-migrator)
 uses the same converter.
 

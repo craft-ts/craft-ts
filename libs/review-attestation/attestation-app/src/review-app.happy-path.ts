@@ -374,7 +374,9 @@ export const reviewAppVisualTestConfig = defineVisualAppConfig({
             {
               action: 'capture',
               id: 'bypasses',
-              expect: [{ kind: 'visible', target: { name: 'ShowReviewQueue' } }],
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
             },
           ],
         },

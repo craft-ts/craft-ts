@@ -12,7 +12,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, craftUse } from '@craft-ts/core';
+import { craftService, craftComputed, craftUse, craftExpose } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   loadUserProfile,
@@ -20,9 +20,8 @@ import {
 } from '../../shared/access-domain';
 import { example } from '../../effect-demo.style';
 
-const EffectYieldComponent = craftComponent(
-  'EffectYieldComponent',
-  {},
+export const { EffectYieldView, provideEffectYieldView } = craftService(
+  { name: 'effectYieldView', providedIn: 'toProvide' },
   function* () {
     const profileQuery = yield* queryEffect(
       'profileQuery',
@@ -43,10 +42,18 @@ const EffectYieldComponent = craftComponent(
 
     yield* profileQuery.call('success'); // trigger first call
 
-    return { headingText: profileQuery.headingText, profileQuery };
+    yield* craftExpose('headingText', profileQuery.headingText);
   },
-  ({ headingText, profileQuery }) =>
-    div({ class: example.card }, [
+);
+
+const EffectYieldComponent = craftComponent(
+  'EffectYieldComponent',
+  {
+    providers: [provideEffectYieldView()],
+  },
+  function* () {
+    const { headingText, profileQuery } = yield* EffectYieldView();
+    return div({ class: example.card }, [
       heading({ class: example.title }, headingText),
       p(
         { class: example.intro },
@@ -135,7 +142,8 @@ const EffectYieldComponent = craftComponent(
         span({ class: example.mono }, 'Effect.die'),
         ' remains a technical error and does not go through business handlers.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectYieldComponent;

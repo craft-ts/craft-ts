@@ -13,6 +13,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   cRequired,
   CraftFieldDirective,
   insertForm,
@@ -22,25 +23,25 @@ import {
   query,
   state,
   type ValidatedFormValue,
+  craftPrivate,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { example } from '../../shared/example.style';
 
 type Todo = { readonly id: number; readonly title: string };
 
-const FullDemo = craftComponent(
-  'FullDemo',
-  {},
+export const { FullDemoView, provideFullDemoView } = craftService(
+  { name: 'fullDemoView', providedIn: 'toProvide' },
   function* () {
-    const nextId = yield* state('nextId', 3, ({ state, update }) => ({
+    const nextId = yield* craftPrivate(state('nextId', 3, ({ state, update }) => ({
       take: function* () {
         const _state = yield* state();
         const id = _state;
         yield* update((value) => value + 1);
         return id;
       },
-    }));
-    const records = yield* state(
+    })));
+    const records = yield* craftPrivate(state(
       'records',
       [
         { id: 1, title: 'Learn Craft primitives' },
@@ -51,7 +52,7 @@ const FullDemo = craftComponent(
         remove: (id: number) =>
           update((current) => current.filter((todo) => todo.id !== id)),
       }),
-    );
+    ));
     const todos = yield* query('todos', {
       method: (_: undefined) => undefined,
       loader: function* () {
@@ -69,7 +70,7 @@ const FullDemo = craftComponent(
         return todo;
       },
     });
-    const removeTodo = yield* mutation('removeTodo', {
+    yield* mutation('removeTodo', {
       method: (id: number) => id,
       loader: function* ({ params: id }) {
         yield* records.remove(id);
@@ -77,7 +78,7 @@ const FullDemo = craftComponent(
         return id;
       },
     });
-    const titleForm = yield* state(
+    yield* state(
       'titleForm',
       '',
       insertForm(
@@ -85,14 +86,17 @@ const FullDemo = craftComponent(
         insertFormSubmit(addTodo),
       ),
     );
-    return {
-      todos,
-      addTodo,
-      removeTodo,
-      titleForm,
-    };
   },
-  ({ todos, addTodo, removeTodo, titleForm }) => {
+);
+
+const FullDemo = craftComponent(
+  'FullDemo',
+  {
+    providers: [provideFullDemoView()],
+  },
+  function* () {
+    const { todos, addTodo, removeTodo, titleForm } = yield* FullDemoView();
+
     return div({ class: example.page }, [
       heading({ class: example.title }, [
         'Full primitives demo ',

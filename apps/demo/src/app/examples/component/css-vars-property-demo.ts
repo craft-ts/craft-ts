@@ -8,12 +8,11 @@ import { example } from '../shared/example.style';
 export const CssVarsPropertyDemo = craftComponent(
   'CssVarsPropertyDemo',
   {},
-  () =>
-    state('meterValue', 78, ({ update }) => ({
+  function* () {
+    const meterValue = yield* state('meterValue', 78, ({ update }) => ({
       nudge: () => update((current) => (current >= 100 ? 10 : current + 10)),
-    })),
-  (meterValue) =>
-    div({ class: cssVarsDemo.page }, [
+    }));
+    return div({ class: cssVarsDemo.page }, [
       CssVarsPageNav(),
       div({ class: cssVarsDemo.intro }, [
         heading('Registered variables (@property)'),
@@ -36,7 +35,8 @@ export const CssVarsPropertyDemo = craftComponent(
         },
         'Move the second meter',
       ),
-    ]),
+    ]);
+  },
 );
 
 export default CssVarsPropertyDemo;

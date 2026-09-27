@@ -1,11 +1,6 @@
-import {
-  craftComponent,
-  heading,
-} from '@craft-ts/component';
+import { craftComponent, heading } from '@craft-ts/component';
 
-export const GuardDemo = craftComponent(
-  'GuardDemo',
-  {},
-  () => ({}),
-  () => [heading('Guard demo'), 'Should not be displayed'],
-);
+export const GuardDemo = craftComponent('GuardDemo', {}, () => [
+  heading('Guard demo'),
+  'Should not be displayed',
+]);

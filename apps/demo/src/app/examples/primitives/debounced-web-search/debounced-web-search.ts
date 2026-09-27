@@ -18,6 +18,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   asyncProcess,
   CraftHttpClient,
   craftComputed,
@@ -29,6 +30,7 @@ import {
   state,
   insertStatePipe,
   craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { eventValue } from '../../../event-value';
@@ -145,133 +147,136 @@ const searchBooks = craftGen(function* (term: string) {
   }));
 });
 
+export const { DebouncedWebSearchView, provideDebouncedWebSearchView } =
+  craftService(
+    { name: 'debouncedWebSearchView', providedIn: 'toProvide' },
+    function* () {
+      const searchInput = yield* state(
+        'searchInput',
+        '',
+        insertStatePipe(
+          ({ set }) => ({
+            setSearchInput: (value: string) => set(value),
+          }),
+          ({ state }) => ({
+            currentTerm: craftUse(craftComputed('currentTerm', function* () {
+              return (yield* state())?.trim() ?? '';
+            })),
+            tooShort: craftUse(craftComputed('tooShort', function* () {
+              return (yield* state()).trim().length < 2;
+            })),
+          }),
+        ),
+      );
+
+      // asyncProcess owns the debounce. The new temporal runtime makes the wait
+      // cancellable and replaceable by a virtual clock in tests.
+      const debouncedSearch = yield* asyncProcess(
+        'debouncedSearch',
+        {
+          params: function* () {
+            const _searchInput = yield* searchInput();
+            return _searchInput.trim();
+          },
+          loader: function* ({ params }) {
+            if (!params) return { term: '' };
+
+            yield* craftSleep(350, { owner: 'open-library-search-debounce' });
+            return { term: params };
+          },
+        },
+        ({ resource }) => ({
+          isDebouncing: craftUse(craftComputed('isDebouncing', function* () {
+            return yield* resource.isLoading();
+          })),
+        }),
+      );
+
+      // query owns the server state. It only sees values emitted after the
+      // debounce and retries transient CraftHttpClient failures.
+      yield* query(
+        'searchQuery',
+        {
+          params: function* () {
+            const _debouncedSearchvalue = yield* debouncedSearch.value();
+            return _debouncedSearchvalue?.term;
+          },
+          loader: function* ({ params }) {
+            if (!params) return EMPTY_RESULTS;
+
+            return yield* searchBooks(params).pipe(
+              retry({
+                times: 3,
+                while: ['TransientHttpError'],
+                backoff: 'exponential',
+                delayMs: 250,
+              }),
+            );
+          },
+        },
+        ({ resource, hasException }) => {
+          const hasResults = craftUse(craftComputed('hasResults', function* () {
+            const value = yield* resource.value();
+            return isSearchResults(value) && value.books.length > 0;
+          }));
+
+          return {
+            hasResults,
+            resultCount: craftUse(craftComputed('resultCount', function* () {
+              const value = yield* resource.value();
+              return String(isSearchResults(value) ? value.total : 0);
+            })),
+            resultBooks: craftUse(craftComputed('resultBooks', function* () {
+              const value = yield* resource.value();
+              return isSearchResults(value) ? value.books : [];
+            })),
+            hasSearchError: craftUse(craftComputed('hasSearchError', function* () {
+              return yield* hasException();
+            })),
+            showResults: craftUse(craftComputed('showResults', function* () {
+              return (
+                !(yield* resource.isLoading()) &&
+                !(yield* hasException()) &&
+                (yield* hasResults())
+              );
+            })),
+            showEmpty: craftUse(craftComputed('showEmpty', function* () {
+              return (
+                (yield* searchInput.currentTerm()).length >= 2 &&
+                !(yield* resource.isLoading()) &&
+                !(yield* hasException()) &&
+                !(yield* hasResults())
+              );
+            })),
+          };
+        },
+      );
+
+      yield* craftComputed('showDebouncing', function* () {
+        const _debouncedSearchisDebouncing =
+          yield* debouncedSearch.isDebouncing();
+        const _searchInput = yield* searchInput();
+        return _searchInput.trim().length >= 2 && _debouncedSearchisDebouncing;
+      });
+
+      yield* craftExpose('setSearchInput', searchInput.setSearchInput);
+    },
+  );
+
 const DebouncedWebSearch = craftComponent(
   'DebouncedWebSearch',
-  {},
+  {
+    providers: [provideDebouncedWebSearchView()],
+  },
   function* () {
-    const searchInput = yield* state(
-      'searchInput',
-      '',
-      insertStatePipe(
-        ({ set }) => ({
-          setSearchInput: (value: string) => set(value),
-        }),
-        ({ state }) => ({
-          currentTerm: craftUse(craftComputed('currentTerm', function* () {
-            return (yield* state())?.trim() ?? '';
-          })),
-          tooShort: craftUse(craftComputed('tooShort', function* () {
-            return (yield* state()).trim().length < 2;
-          })),
-        }),
-      ),
-    );
-
-    // asyncProcess owns the debounce. The new temporal runtime makes the wait
-    // cancellable and replaceable by a virtual clock in tests.
-    const debouncedSearch = yield* asyncProcess(
-      'debouncedSearch',
-      {
-        params: function* () {
-          const _searchInput = yield* searchInput();
-          return _searchInput.trim();
-        },
-        loader: function* ({ params }) {
-          if (!params) return { term: '' };
-
-          yield* craftSleep(350, { owner: 'open-library-search-debounce' });
-          return { term: params };
-        },
-      },
-      ({ resource }) => ({
-        isDebouncing: craftUse(craftComputed('isDebouncing', function* () {
-          return yield* resource.isLoading();
-        })),
-      }),
-    );
-
-    // query owns the server state. It only sees values emitted after the
-    // debounce and retries transient CraftHttpClient failures.
-    const searchQuery = yield* query(
-      'openLibrarySearch',
-      {
-        params: function* () {
-          const _debouncedSearchvalue = yield* debouncedSearch.value();
-          return _debouncedSearchvalue?.term;
-        },
-        loader: function* ({ params }) {
-          if (!params) return EMPTY_RESULTS;
-
-          return yield* searchBooks(params).pipe(
-            retry({
-              times: 3,
-              while: ['TransientHttpError'],
-              backoff: 'exponential',
-              delayMs: 250,
-            }),
-          );
-        },
-      },
-      ({ resource, hasException }) => {
-        const hasResults = craftUse(craftComputed('hasResults', function* () {
-          const value = yield* resource.value();
-          return isSearchResults(value) && value.books.length > 0;
-        }));
-
-        return {
-          hasResults,
-          resultCount: craftUse(craftComputed('resultCount', function* () {
-            const value = yield* resource.value();
-            return String(isSearchResults(value) ? value.total : 0);
-          })),
-          resultBooks: craftUse(craftComputed('resultBooks', function* () {
-            const value = yield* resource.value();
-            return isSearchResults(value) ? value.books : [];
-          })),
-          hasSearchError: craftUse(craftComputed('hasSearchError', function* () {
-            return yield* hasException();
-          })),
-          showResults: craftUse(craftComputed('showResults', function* () {
-            return (
-              !(yield* resource.isLoading()) &&
-              !(yield* hasException()) &&
-              (yield* hasResults())
-            );
-          })),
-          showEmpty: craftUse(craftComputed('showEmpty', function* () {
-            return (
-              (yield* searchInput.currentTerm()).length >= 2 &&
-              !(yield* resource.isLoading()) &&
-              !(yield* hasException()) &&
-              !(yield* hasResults())
-            );
-          })),
-        };
-      },
-    );
-
-    const showDebouncing = yield* craftComputed('showDebouncing', function* () {
-      const _debouncedSearchisDebouncing =
-        yield* debouncedSearch.isDebouncing();
-      const _searchInput = yield* searchInput();
-      return _searchInput.trim().length >= 2 && _debouncedSearchisDebouncing;
-    });
-
-    return {
+    const {
       searchInput,
-      setSearchInput: searchInput.setSearchInput,
       debouncedSearch,
       searchQuery,
       showDebouncing,
-    };
-  },
-  ({
-    searchInput,
-    debouncedSearch,
-    searchQuery,
-    showDebouncing,
-    setSearchInput,
-  }) => {
+      setSearchInput,
+    } = yield* DebouncedWebSearchView();
+
     return section({ class: example.card }, [
       heading({ class: example.title }, 'Debounced web search'),
       p(

@@ -15,7 +15,7 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, query, craftUse } from '@craft-ts/core';
+import { craftService, craftComputed, query, craftUse } from '@craft-ts/core';
 import { getPublicProducts } from '../products/public-products.fn-client';
 import { demoPage } from './demo.style';
 
@@ -24,12 +24,11 @@ import { demoPage } from './demo.style';
  * server-function path before any middleware, context, or authorization is
  * introduced by the other examples.
  */
-const PublicProductsDemo = craftComponent(
-  'PublicProductsDemo',
-  {},
+export const { PublicProductsDemoView, providePublicProductsDemoView } = craftService(
+  { name: 'publicProductsDemoView', providedIn: 'toProvide' },
   function* () {
-    const productsQuery = yield* query(
-      'publicProductsQuery',
+    yield* query(
+      'productsQuery',
       {
         params: () => true,
         loader: function* () {
@@ -65,10 +64,17 @@ const PublicProductsDemo = craftComponent(
       }),
     );
 
-    return { productsQuery };
   },
-  ({ productsQuery }) =>
-    main({ class: demoPage.shell }, [
+);
+
+const PublicProductsDemo = craftComponent(
+  'PublicProductsDemo',
+  {
+    providers: [providePublicProductsDemoView()],
+  },
+  function* () {
+    const { productsQuery } = yield* PublicProductsDemoView();
+    return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
           span({ class: demoPage.pulse }),
@@ -160,7 +166,8 @@ const PublicProductsDemo = craftComponent(
           'products/public-products.fn-serveur.ts',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export { PublicProductsDemo };

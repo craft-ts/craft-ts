@@ -12,8 +12,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ ready: state, kind: query }),
-        ({ ready, kind }) => div([
+        () => div([
           ifNode(ready, () => p('ready'), () => p('not ready')),
           matchNode.exhaustive(kind, 'code', {
             OK: () => p('ok'),
@@ -27,14 +26,27 @@ describe('prefer-craft-template-blocks', () => {
     expect(messages).toEqual([]);
   });
 
+  it('spares the derivations a component declares before it renders', async () => {
+    const messages = await lintText(`
+      const Demo = craftComponent('Demo', {}, function* () {
+        const count = yield* state('count', 0);
+        const label = craftComputed('label', function* () {
+          return (yield* count()) || 'none';
+        });
+
+        return p(label);
+      });
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('accepts nullish fallback expressions in a Craft template', async () => {
     const messages = await lintText(`
-      const Demo = craftComponent(
-        'Demo',
-        {},
-        () => ({}),
-        ({ label }) => p(label ?? 'Untitled'),
-      );
+      const Demo = craftComponent('Demo', {}, function* () {
+        const { label } = yield* DemoView();
+        return p(label ?? 'Untitled');
+      });
     `);
 
     expect(messages).toEqual([]);
@@ -45,8 +57,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ store }),
-        ({ store }) => button(
+        () => button(
           {
             disabled: store.add.isLoading(),
             click: () => {
@@ -68,8 +79,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ canReadRestrictedData, noAccess, lastHandledException }),
-        ({ restrictedContent }) => restrictedContent.pipe(
+        () => restrictedContent.pipe(
           withProviders([
             provideRestrictedData(() =>
               canReadRestrictedData() ? 'accessible' : noAccess,
@@ -92,7 +102,6 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({}),
         ({ ready, label }) => {
           if (ready()) {
             return p(label);
@@ -115,8 +124,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ canGoBack }),
-        ({ canGoBack }) => button({
+        () => button({
           disabled: function* () {
             return !(yield* canGoBack());
           },
@@ -134,8 +142,7 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({ store }),
-        ({ store }) => button({
+        () => button({
           click: function* () {
             if (!store.isReady()) {
               yield* store.retry();
@@ -153,13 +160,11 @@ describe('prefer-craft-template-blocks', () => {
       const Child = craftComponent(
         'Child',
         {},
-        () => ({}),
         () => p(ready ? 'yes' : 'no'),
       );
       const Parent = craftComponent(
         'Parent',
         {},
-        () => ({}),
         () => Child(),
       );
     `);
@@ -172,7 +177,6 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({}),
         ({ ready }) => div([
           button({}, () => ready() ? 'Ready' : 'Waiting'),
           ready() ? p('Ready') : p('Waiting'),
@@ -194,7 +198,6 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({}),
         ({ result }) => {
           switch (result().code) {
             case 'OK': return p('ok');
@@ -204,9 +207,7 @@ describe('prefer-craft-template-blocks', () => {
       );
     `);
 
-    expect(fixed).toContain(
-      "import { matchNode } from '@craft-ts/component';",
-    );
+    expect(fixed).toContain("import { matchNode } from '@craft-ts/component';");
     expect(fixed).toContain(
       "return matchNode.exhaustive(() => result(), \"code\", { OK: () => p('ok'), ERROR: () => p('error') });",
     );
@@ -217,7 +218,6 @@ describe('prefer-craft-template-blocks', () => {
       const Demo = craftComponent(
         'Demo',
         {},
-        () => ({}),
         ({ value }) => div([value ? p('yes') : p('no')]),
       );
     `;

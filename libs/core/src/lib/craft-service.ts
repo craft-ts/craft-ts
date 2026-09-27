@@ -991,6 +991,19 @@ export type ExtractServiceHelperDependencyMap<ServiceHelper> =
       }
     : never;
 
+/**
+ * The dependency a value carries because it *is* a service helper — the
+ * shortcut `Service.member` handed to a template binding.
+ *
+ * The carrier is optional, so `extends { [SERVICE_HELPER_DEPENDENCIES]?: … }`
+ * alone would match every type and answer with the constraint. The `keyof`
+ * guard is what makes the question "does this value carry the brand?".
+ */
+export type ServiceHelperDependencyMapOf<Value> =
+  typeof SERVICE_HELPER_DEPENDENCIES extends keyof Value
+    ? ExtractServiceHelperDependencyMap<Value>
+    : {};
+
 export type ServiceDependencyMapFromYielded<Yielded> = BuildDependencyMap<
   DependencyRequests<Yielded>
 >;
@@ -2352,7 +2365,10 @@ export type GetMergedServiceDependencyNodeMap<
 export type ServiceBindings<Reference extends ServiceReference> = Partial<
   InputBindings<
     GetServiceInputs<Reference>,
-    Extract<GetServiceReferenceMeta<Reference>['providedIn'], ConcreteServiceScope>
+    Extract<
+      GetServiceReferenceMeta<Reference>['providedIn'],
+      ConcreteServiceScope
+    >
   >
 >;
 
@@ -3459,7 +3475,12 @@ function createInjectHelper(
     const injector = inject(Injector);
     const serviceValue = resolveConcreteService(definition, injector, bindings);
     return expose
-      ? resolveExposedService(serviceValue, expose, injector, definition.providedIn)
+      ? resolveExposedService(
+          serviceValue,
+          expose,
+          injector,
+          definition.providedIn,
+        )
       : serviceValue;
   };
 
@@ -3758,6 +3779,21 @@ function attachServiceRuntimeMeta(
   });
 }
 
+/**
+ * The injection token a concrete service is stored under, when it has one.
+ *
+ * Scopes that never reach the injector (a `function` service, a global one)
+ * answer `undefined`: there is nothing to re-provide for them.
+ */
+export function ɵgetServiceInjectionToken(
+  target: unknown,
+): InjectionToken<unknown> | undefined {
+  const metaData = getServiceMetaData(target) as InternalServiceMetaData;
+  return metaData[SERVICE_RUNTIME_DEFINITION]?.token as
+    | InjectionToken<unknown>
+    | undefined;
+}
+
 export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   if (isServiceMetaData(target)) {
     return target;
@@ -3994,15 +4030,50 @@ function resolveConcreteService(
     definition.initialBindings = bindings;
   }
 
+  // The instance is built by the provider, which knows nothing of this call
+  // site. Hand it this call's inputs for the length of the resolution: two
+  // scopes that provide the same service each get their own inputs, instead of
+  // every one of them inheriting whichever scope resolved it first.
   return trackResolvedService(
     definition,
     injector,
     markNamedReactiveProperties(
-      ɵcraftInjectorFromHost(injector).get(
-        definition.token as object,
+      withPendingServiceBindings(
+        definition.name,
+        bindings === OMIT_INPUTS_BINDINGS
+          ? undefined
+          : (bindings as Record<string, unknown> | undefined),
+        () =>
+          ɵcraftInjectorFromHost(injector).get(
+            definition.token as object,
+          ),
       ),
     ),
   );
+}
+
+const PENDING_SERVICE_BINDINGS = new Map<string, Record<string, unknown>>();
+
+function withPendingServiceBindings<Result>(
+  name: string,
+  bindings: Record<string, unknown> | undefined,
+  resolve: () => Result,
+): Result {
+  if (bindings === undefined) {
+    return resolve();
+  }
+
+  const previous = PENDING_SERVICE_BINDINGS.get(name);
+  PENDING_SERVICE_BINDINGS.set(name, bindings);
+  try {
+    return resolve();
+  } finally {
+    if (previous === undefined) {
+      PENDING_SERVICE_BINDINGS.delete(name);
+    } else {
+      PENDING_SERVICE_BINDINGS.set(name, previous);
+    }
+  }
 }
 
 function trackResolvedService(
@@ -4050,7 +4121,10 @@ function createConcreteServiceInstance(
       const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
       const bindings = omitInputs
         ? {}
-        : (bindingsOverride ?? definition.initialBindings ?? {});
+        : (bindingsOverride ??
+          PENDING_SERVICE_BINDINGS.get(definition.name) ??
+          definition.initialBindings ??
+          {});
       const inputs = createInputProxy(
         bindings,
         providedConfig,
@@ -4194,7 +4268,24 @@ function createInputProxy(
   });
 }
 
+const CONTENT_DECLARATION_CONTEXT = Symbol.for(
+  'craft-content-declaration-context',
+);
+
+/** Projected content is a renderer, never a value to read: leave it alone. */
+function isProjectedContent(value: unknown): boolean {
+  return (
+    (typeof value === 'function' || typeof value === 'object') &&
+    value !== null &&
+    CONTENT_DECLARATION_CONTEXT in (value as object)
+  );
+}
+
 function isReactiveServiceInput(value: unknown): boolean {
+  if (isProjectedContent(value)) {
+    return false;
+  }
+
   return (
     isSignal(value) ||
     isYieldableReactiveValue(value) ||

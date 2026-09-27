@@ -23,7 +23,9 @@ import {
   GlobalPersisterHandlerService,
   type CraftRouterLinkInput,
   state,
+  craftService,
   craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import { demoEnabledRoutePaths } from './app.routes';
 import { demoShell } from './demo-shell.style';
@@ -135,9 +137,8 @@ export function isEnabledDemoRoute(to: string): boolean {
   return false;
 }
 
-export const App = craftComponent(
-  'App',
-  {},
+export const { AppView, provideAppView } = craftService(
+  { name: 'appView', providedIn: 'toProvide' },
   function* () {
     const navOpen = yield* state(
       'navOpen',
@@ -150,22 +151,26 @@ export const App = craftComponent(
         })),
       }),
     );
-    const clearCache = yield* craftMethod('clearCache', function* () {
+    yield* craftMethod('clearCache', function* () {
       yield* GlobalPersisterHandlerService.clearAllCache();
       yield* BrowserWindow.alert('Cache cleared! The page will reload.');
       // This button is an explicit development reset action; reload after the
       // confirmation so every demo resource starts from the cleared cache.
-      // eslint-disable-next-line craft-ts/no-imperative-storage-in-craft-method
+       
       yield* BrowserLocation.reload();
     });
-    return {
-      clearCache,
-      navOpen,
-      closeNav: navOpen.close,
-    };
+    yield* craftExpose('closeNav', navOpen.close);
   },
-  ({ clearCache, navOpen, closeNav }) =>
-    div({ class: demoShell.root }, [
+);
+
+export const App = craftComponent(
+  'App',
+  {
+    providers: [provideAppView()],
+  },
+  function* () {
+    const { clearCache, navOpen, closeNav } = yield* AppView();
+    return div({ class: demoShell.root }, [
       skipLink('main', 'Skip to content'),
       div(
         'demo-banner',
@@ -278,5 +283,6 @@ export const App = craftComponent(
         },
         '🗑️ Clear Cache',
       ),
-    ]),
+    ]);
+  },
 );

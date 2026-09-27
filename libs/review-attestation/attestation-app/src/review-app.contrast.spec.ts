@@ -95,9 +95,10 @@ describe('review decision controls', () => {
       expect(entry.verdict, `${entry.element} in ${entry.scenario.id}`).toBe(
         'pass',
       );
-      expect(entry.ratio, `${entry.element} in ${entry.scenario.id}`).toBeGreaterThanOrEqual(
-        4.5,
-      );
+      expect(
+        entry.ratio,
+        `${entry.element} in ${entry.scenario.id}`,
+      ).toBeGreaterThanOrEqual(4.5);
     }
   });
 });

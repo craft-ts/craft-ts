@@ -21,7 +21,11 @@ export type ReviewVisualStatus = 'pending' | 'reviewed' | 'rejected';
 export const reviewVisualStatusOf = (
   decision: PreviousDecision | undefined,
 ): ReviewVisualStatus =>
-  !decision ? 'pending' : decision.verdict === 'rejected' ? 'rejected' : 'reviewed';
+  !decision
+    ? 'pending'
+    : decision.verdict === 'rejected'
+      ? 'rejected'
+      : 'reviewed';
 
 export const componentLabelOf = (component: string): string => {
   const label = component.slice(component.lastIndexOf(':') + 1);
@@ -32,7 +36,12 @@ export const templateVariableStatementOf = (
   parts: TemplateStatementParts | undefined,
   statement: string,
 ): string => {
-  const target = parts?.target ?? statement.replace(/[.!?]$/, '').split(/\s+/).at(-1);
+  const target =
+    parts?.target ??
+    statement
+      .replace(/[.!?]$/, '')
+      .split(/\s+/)
+      .at(-1);
   return target ?? statement;
 };
 

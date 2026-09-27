@@ -78,10 +78,13 @@ function edgesFrom(
   kind?: string,
 ) {
   const fromIds = new Set(
-    graph.nodes.filter((node) => node.label === fromLabel).map((node) => node.id),
+    graph.nodes
+      .filter((node) => node.label === fromLabel)
+      .map((node) => node.id),
   );
   return graph.edges.filter(
-    (edge) => fromIds.has(edge.from) && (kind === undefined || edge.kind === kind),
+    (edge) =>
+      fromIds.has(edge.from) && (kind === undefined || edge.kind === kind),
   );
 }
 
@@ -153,9 +156,9 @@ describe('analyzeDependencyGraph reactive granularity', () => {
       tsConfigFilePath: 'tsconfig.json',
     });
 
-    expect(edgeLabels(graph, 'craftComputed:replay', 'depends-on')).not.toContain(
-      'depends-on->craftComputed:chrome',
-    );
+    expect(
+      edgeLabels(graph, 'craftComputed:replay', 'depends-on'),
+    ).not.toContain('depends-on->craftComputed:chrome');
   });
 
   it('resolves yield* state() to the enclosing state when several states exist', async () => {
@@ -163,24 +166,18 @@ describe('analyzeDependencyGraph reactive granularity', () => {
       'pixels.ts': `
         ${CRAFT_STUBS}
 
-        const PixelArt = craftComponent(
-          'PixelArt',
-          {},
-          function* () {
-            const ui = yield* state('ui', { color: '#000' });
-            const cells = yield* state('cells', [], ({ state }) => ({
-              paintedCount: craftComputed('paintedCount', function* () {
-                return (yield* state()).length;
-              }),
-            }));
-            return { ui, cells };
-          },
-          ({ ui, cells }) =>
-            div([
-              span(function* () { return yield* cells.paintedCount(); }),
-              span(function* () { return yield* ui(); }),
-            ]),
-        );
+        const PixelArt = craftComponent('PixelArt', {}, function* () {
+          const ui = yield* state('ui', { color: '#000' });
+          const cells = yield* state('cells', [], ({ state }) => ({
+            paintedCount: craftComputed('paintedCount', function* () {
+              return (yield* state()).length;
+            }),
+          }));
+          return div([
+            span(function* () { return yield* cells.paintedCount(); }),
+            span(function* () { return yield* ui(); }),
+          ]);
+        });
       `,
     });
 
@@ -190,12 +187,12 @@ describe('analyzeDependencyGraph reactive granularity', () => {
     });
 
     expect(nodeByLabel(graph, 'state:state')).toHaveLength(0);
-    expect(edgeLabels(graph, 'craftComputed:paintedCount', 'depends-on')).toContain(
-      'depends-on->state:cells',
-    );
-    expect(edgeLabels(graph, 'craftComputed:paintedCount', 'depends-on')).not.toContain(
-      'depends-on->state:ui',
-    );
+    expect(
+      edgeLabels(graph, 'craftComputed:paintedCount', 'depends-on'),
+    ).toContain('depends-on->state:cells');
+    expect(
+      edgeLabels(graph, 'craftComputed:paintedCount', 'depends-on'),
+    ).not.toContain('depends-on->state:ui');
   });
 
   it('links craftComputed yield* state() to the enclosing state, not a new state primitive', async () => {
@@ -271,9 +268,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
       ]),
     );
     expect(edgeLabels(graph, 'craftComputed:hasResults')).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/depends-on->.*value/),
-      ]),
+      expect.arrayContaining([expect.stringMatching(/depends-on->.*value/)]),
     );
     expect(edgeLabels(graph, 'craftComputed:showEmpty', 'depends-on')).toEqual(
       expect.arrayContaining([
@@ -301,27 +296,21 @@ describe('analyzeDependencyGraph reactive granularity', () => {
           },
         );
 
-        const CounterView = craftComponent(
-          'CounterView',
-          {},
-          function* () {
-            const { count } = yield* Counter();
-            const label = craftComputed('label', function* () {
-              return \`n=\${yield* count()}\`;
-            });
-            const bump = craftMethod('bump', function* () {
-              yield* count.increment();
-            });
-            return { count, label, bump };
-          },
-          ({ count, label, bump }) =>
-            div([
-              ifNode(label, () => span(function* () { return yield* label(); })),
-              span(function* () { return yield* count.doubled(); }),
-              button({ *click() { yield* bump(); } }, ['+']),
-              button({ *click() { yield* count.increment(); } }, ['inc']),
-            ]),
-        );
+        const CounterView = craftComponent('CounterView', {}, function* () {
+          const { count } = yield* Counter();
+          const label = craftComputed('label', function* () {
+            return \`n=\${yield* count()}\`;
+          });
+          const bump = craftMethod('bump', function* () {
+            yield* count.increment();
+          });
+          return div([
+            ifNode(label, () => span(function* () { return yield* label(); })),
+            span(function* () { return yield* count.doubled(); }),
+            button({ *click() { yield* bump(); } }, ['+']),
+            button({ *click() { yield* count.increment(); } }, ['inc']),
+          ]);
+        });
       `,
     });
 
@@ -357,10 +346,7 @@ describe('analyzeDependencyGraph reactive granularity', () => {
     });
 
     expect(readLabels).toEqual(
-      expect.arrayContaining([
-        'craftComputed:label',
-        'craftComputed:doubled',
-      ]),
+      expect.arrayContaining(['craftComputed:label', 'craftComputed:doubled']),
     );
     expect(callLabels).toEqual(
       expect.arrayContaining([
@@ -394,9 +380,9 @@ describe('analyzeDependencyGraph architecture facts', () => {
       tsConfigFilePath: 'tsconfig.json',
     });
 
-    expect(nodeByLabel(graph, 'LocalStore')[0]?.details?.['browserBoundary']).toBe(
-      true,
-    );
+    expect(
+      nodeByLabel(graph, 'LocalStore')[0]?.details?.['browserBoundary'],
+    ).toBe(true);
     expect(nodeByLabel(graph, 'Counter')[0]?.details?.['browserBoundary']).toBe(
       false,
     );
@@ -422,7 +408,6 @@ describe('analyzeDependencyGraph architecture facts', () => {
         const Checkout = craftComponent(
           'Checkout',
           { providers: [provideCart()] },
-          () => ({}),
           () => div([]),
         );
 
@@ -440,7 +425,9 @@ describe('analyzeDependencyGraph architecture facts', () => {
     expect(edgeLabels(graph, 'appRoutes:/admin', 'provides')).toContain(
       'provides->User',
     );
-    expect(edgeLabels(graph, 'Checkout', 'provides')).toContain('provides->Cart');
+    expect(edgeLabels(graph, 'Checkout', 'provides')).toContain(
+      'provides->Cart',
+    );
   });
 
   it('promotes Craft HTTP client usages to http-endpoint nodes', async () => {
@@ -484,7 +471,10 @@ describe('analyzeDependencyGraph architecture facts', () => {
     expect(endpoint?.line).toEqual(expect.any(Number));
     expect(endpoint?.details?.['callSites']).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ filePath: 'api.ts', line: expect.any(Number) }),
+        expect.objectContaining({
+          filePath: 'api.ts',
+          line: expect.any(Number),
+        }),
       ]),
     );
     expect(edgeLabels(graph, 'UsersApi', 'calls')).toEqual(
@@ -619,15 +609,10 @@ describe('analyzeDependencyGraph architecture facts', () => {
         declare function craftRoutes(...args: unknown[]): unknown;
         declare function craftRoute(...args: unknown[]): unknown;
 
-        const Admin = craftComponent(
-          'Admin',
-          {},
-          function* () {
-            yield* UserList();
-            return {};
-          },
-          () => div([]),
-        );
+        const Admin = craftComponent('Admin', {}, function* () {
+          yield* UserList();
+          return div([]);
+        });
 
         export const appRoutes = craftRoutes('appRoutes', [
           craftRoute('/admin', {
@@ -647,19 +632,21 @@ describe('analyzeDependencyGraph architecture facts', () => {
     const missing = graph.nodes.filter((node) => !node.filePath);
     expect(missing.map((node) => `${node.kind}:${node.label}`)).toEqual([]);
     expect(
-      graph.nodes.find((node) => node.kind === 'service' && node.label === 'UsersApi')
-        ?.filePath,
+      graph.nodes.find(
+        (node) => node.kind === 'service' && node.label === 'UsersApi',
+      )?.filePath,
     ).toContain('users-api.ts');
     expect(
-      graph.nodes.find((node) => node.kind === 'component' && node.label === 'Admin')
-        ?.filePath,
+      graph.nodes.find(
+        (node) => node.kind === 'component' && node.label === 'Admin',
+      )?.filePath,
     ).toContain('admin.ts');
-    expect(graph.nodes.find((node) => node.kind === 'route')?.filePath).toContain(
-      'admin.ts',
-    );
-    expect(graph.nodes.find((node) => node.kind === 'unique')?.filePath).toContain(
-      'user-list.ts',
-    );
+    expect(
+      graph.nodes.find((node) => node.kind === 'route')?.filePath,
+    ).toContain('admin.ts');
+    expect(
+      graph.nodes.find((node) => node.kind === 'unique')?.filePath,
+    ).toContain('user-list.ts');
     expect(
       graph.nodes.find((node) => node.kind === 'http-endpoint')?.filePath,
     ).toContain('users-api.ts');
@@ -680,20 +667,15 @@ describe('analyzeDependencyGraph insertions', () => {
           },
         );
 
-        const ReviewApp = craftComponent(
-          'ReviewApp',
-          {},
-          function* () {
-            const { close } = yield* Review();
-            const queue = yield* query(
-              'reviewQueue',
-              {},
-              insertReactOnMutation(close, {}),
-            );
-            return { close, queue };
-          },
-          () => div([]),
-        );
+        const ReviewApp = craftComponent('ReviewApp', {}, function* () {
+          const { close } = yield* Review();
+          const queue = yield* query(
+            'reviewQueue',
+            {},
+            insertReactOnMutation(close, {}),
+          );
+          return div([String(queue), String(close)]);
+        });
       `,
     });
 
@@ -898,9 +880,7 @@ describe('analyzeDependencyGraph insertions', () => {
 
     expect(nodeByLabel(graph, 'insertSelect:cell')).toHaveLength(2);
     expect(edgeLabels(graph, 'state:cells', 'contains')).toEqual(
-      expect.arrayContaining([
-        'contains->insertSelect:cell',
-      ]),
+      expect.arrayContaining(['contains->insertSelect:cell']),
     );
   });
 
@@ -909,10 +889,7 @@ describe('analyzeDependencyGraph insertions', () => {
       'editor.ts': `
         ${CRAFT_STUBS}
 
-        const Editor = craftComponent(
-          'Editor',
-          {},
-          function* () {
+        const Editor = craftComponent('Editor', {}, function* () {
             const machine = yield* craftStateMachine(
               'editor',
               function* () {
@@ -936,10 +913,8 @@ describe('analyzeDependencyGraph insertions', () => {
                 };
               },
             );
-            return { machine };
-          },
-          () => div([]),
-        );
+            return div([String(machine)]);
+        });
       `,
     });
 
@@ -974,10 +949,7 @@ describe('analyzeDependencyGraph insertions', () => {
       'editor.ts': `
         ${CRAFT_STUBS}
 
-        const Editor = craftComponent(
-          'Editor',
-          {},
-          function* () {
+        const Editor = craftComponent('Editor', {}, function* () {
             const machine = yield* craftStateMachine(
               'editor',
               function* () {
@@ -998,15 +970,12 @@ describe('analyzeDependencyGraph insertions', () => {
                 return { change$: context.change$ };
               },
             );
-            return { machine };
-          },
-          ({ machine }) =>
-            button({
+            return button({
               *click() {
                 yield* machine.change$.emit('next');
               },
-            }, ['change']),
-        );
+            }, ['change']);
+        });
       `,
     });
 

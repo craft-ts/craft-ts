@@ -12,13 +12,17 @@ import {
 import { CraftRouterLink } from '@craft-ts/core';
 import { PHOTOS } from './photos';
 import { assign } from '@craft-ts/style';
-import { photoArt, photoTransitionName, vt, vtPhoto } from './view-transitions.style';
+import {
+  photoArt,
+  photoTransitionName,
+  vt,
+  vtPhoto,
+} from './view-transitions.style';
 import { example } from '../../shared/example.style';
 
 const ViewTransitionsGalleryComponent = craftComponent(
   'ViewTransitionsGalleryComponent',
   {},
-  () => ({}),
   () => [
     header({ class: vt.intro }, [
       heading({ class: example.title }, 'View Transitions'),
@@ -28,34 +32,33 @@ const ViewTransitionsGalleryComponent = craftComponent(
       { class: vt.grid },
       forNode(PHOTOS, { track: (photo) => photo.id }, (photo) =>
         li(
-          a(
-            'photo',
-            { class: vt.tile },
-            [
-              span(
-                {
-                  class: vt.art,
-                  style: function* () {
-                    return {
-                      ...assign(vtPhoto.art, photoArt((yield* photo()).id)),
-                      ...assign(vtPhoto.name, photoTransitionName((yield* photo()).id)),
-                    };
-                  },
+          a('photo', { class: vt.tile }, [
+            span(
+              {
+                class: vt.art,
+                style: function* () {
+                  return {
+                    ...assign(vtPhoto.art, photoArt((yield* photo()).id)),
+                    ...assign(
+                      vtPhoto.name,
+                      photoTransitionName((yield* photo()).id),
+                    ),
+                  };
                 },
-                span({ class: vt.emoji }, function* () {
-                  return (yield* photo()).emoji;
-                }),
-              ),
-              span({ class: vt.meta }, [
-                span({ class: vt.title }, function* () {
-                  return (yield* photo()).title;
-                }),
-                span({ class: vt.subtitle }, function* () {
-                  return (yield* photo()).subtitle;
-                }),
-              ]),
-            ],
-          ).pipe(
+              },
+              span({ class: vt.emoji }, function* () {
+                return (yield* photo()).emoji;
+              }),
+            ),
+            span({ class: vt.meta }, [
+              span({ class: vt.title }, function* () {
+                return (yield* photo()).title;
+              }),
+              span({ class: vt.subtitle }, function* () {
+                return (yield* photo()).subtitle;
+              }),
+            ]),
+          ]).pipe(
             CraftRouterLink(function* () {
               return {
                 to: 'view-transitions/:photoId',

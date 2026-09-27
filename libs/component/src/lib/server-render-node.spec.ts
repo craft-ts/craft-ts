@@ -1,5 +1,12 @@
 // @vitest-environment node
-import { craftComputed, query, settled, state } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  query,
+  settled,
+  state,
+  craftPrivate,
+} from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import {
   craftComponent,
@@ -13,27 +20,35 @@ import {
 
 describe('Craft server renderer without browser globals', () => {
   it('renders state, styles and a blocking query in a Node environment', async () => {
-    const app = craftComponent(
-      'NodeSsrApp',
-      { styles: ':scope { display: block; }' },
+    const { NodeSsrAppView, provideNodeSsrAppView } = craftService(
+      { name: 'nodeSsrAppView', providedIn: 'toProvide' },
       function* () {
-        const title = yield* state('title', 'server');
-        const result = yield* query('nodeQuery', {
+        yield* state('title', 'server');
+        const result = yield* craftPrivate(query('nodeQuery', {
           params: () => true,
           loader: async () => 'resolved in node',
-        });
-        const resolved = yield* craftComputed('resolved', function* () {
+        }));
+        yield* craftComputed('resolved', function* () {
           return yield* settled(result);
         });
-        return { title, resolved };
       },
-      ({ title, resolved }) =>
-        div([
+    );
+
+    const app = craftComponent(
+      'NodeSsrApp',
+      {
+        providers: [provideNodeSsrAppView()],
+        styles: ':scope { display: block; }',
+      },
+      function* () {
+        const { title, resolved } = yield* NodeSsrAppView();
+        return div([
           p(title),
           span(function* () {
             return String(yield* resolved());
           }),
-        ]).pipe(pendingNode({ ssr: 'block', fallback: () => p('pending') })),
+        ]).pipe(pendingNode({ ssr: 'block', fallback: () => p('pending') }));
+      },
     );
 
     expect(globalThis.document).toBeUndefined();

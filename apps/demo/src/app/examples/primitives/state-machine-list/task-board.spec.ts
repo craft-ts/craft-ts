@@ -49,7 +49,9 @@ function badge(row: HTMLElement) {
 }
 
 function note(row: HTMLElement) {
-  return row.querySelector<HTMLInputElement>('input[data-craft-name="task-note"]');
+  return row.querySelector<HTMLInputElement>(
+    'input[data-craft-name="task-note"]',
+  );
 }
 
 function type(row: HTMLElement, value: string) {
@@ -80,7 +82,11 @@ describe('TaskBoardStateMachineList', () => {
     click(second, 'task-start');
 
     // Only the row that was acted on moved.
-    expect([first, second, third].map(badge)).toEqual(['todo', 'doing', 'todo']);
+    expect([first, second, third].map(badge)).toEqual([
+      'todo',
+      'doing',
+      'todo',
+    ]);
 
     mounted.destroy();
   });

@@ -49,12 +49,12 @@ module.exports = {
         if (
           node.callee.type !== 'Identifier' ||
           !componentNames.has(node.callee.name) ||
-          node.arguments.length < 4
+          node.arguments.length < 3
         ) {
           return;
         }
 
-        inspectTemplate(node.arguments[3]);
+        inspectTemplate(node.arguments[2]);
       },
     };
 

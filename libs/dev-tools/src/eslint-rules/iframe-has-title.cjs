@@ -10,7 +10,8 @@ module.exports = {
     },
     schema: [],
     messages: {
-      missingTitle: '<iframe> must have a title that describes the framed content.',
+      missingTitle:
+        '<iframe> must have a title that describes the framed content.',
     },
   },
   create(context) {

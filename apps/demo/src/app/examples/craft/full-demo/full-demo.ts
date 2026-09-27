@@ -29,6 +29,7 @@ import {
   state,
   type ValidatedFormValue,
   craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { example } from '../../shared/example.style';
@@ -112,14 +113,11 @@ export const { provideTodoStore, TodoStore } = craftService(
   },
 );
 
-const FullDemoCraft = craftComponent(
-  'FullDemoCraft',
-  {
-    providers: [provideTodoStore()],
-  },
+export const { FullDemoCraftView, provideFullDemoCraftView } = craftService(
+  { name: 'fullDemoCraftView', providedIn: 'toProvide' },
   function* () {
     const store = yield* TodoStore();
-    const titleForm = yield* state(
+    yield* state(
       'titleForm',
       '',
       insertForm(
@@ -127,9 +125,18 @@ const FullDemoCraft = craftComponent(
         insertFormSubmit(store.add),
       ),
     );
-    return { store, titleForm };
+    yield* craftExpose('store', store);
   },
-  ({ store, titleForm }) => {
+);
+
+const FullDemoCraft = craftComponent(
+  'FullDemoCraft',
+  {
+    providers: [provideFullDemoCraftView(), provideTodoStore()],
+  },
+  function* () {
+    const { store, titleForm } = yield* FullDemoCraftView();
+
     return div({ class: example.page }, [
       heading({ class: example.title }, [
         'Full craftService demo ',

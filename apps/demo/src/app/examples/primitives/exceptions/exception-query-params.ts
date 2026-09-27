@@ -9,6 +9,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftMethod,
   CraftRouter,
   queryParams,
@@ -25,71 +26,76 @@ function formatParseException(exception: {
   return `${exception._tag}: ${exception.payload.error}`;
 }
 
-const ExceptionQueryParamsComponent = craftComponent(
-  'ExceptionQueryParamsComponent',
-  {},
-  function* () {
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
-    const modeQueryParams = yield* queryParams(
-      'modeQueryParams',
-      {
-        state: {
-          mode: {
-            fallbackValue: 'fallbackValue',
-            codec: {
-              // The runtime accepts a CraftException as a decode result and
-              // records it in `exceptions().parse`; the cast keeps the public
-              // decoded state limited to the successful domain value.
-              decode: (value: string) => {
-                if (value !== 'success') {
-                  return craftException(
-                    { _tag: 'UNEXPECTED_ERROR' },
-                    { error: new Error(`Invalid mode: ${value}`) },
-                  );
-                }
-                return 'success';
+export const { ExceptionQueryParamsView, provideExceptionQueryParamsView } =
+  craftService(
+    { name: 'exceptionQueryParamsView', providedIn: 'toProvide' },
+    function* () {
+      const router = yield* CraftRouter(undefined, ({ navigate }) => ({
+        navigate,
+      }));
+      yield* queryParams(
+        'modeQueryParams',
+        {
+          state: {
+            mode: {
+              fallbackValue: 'fallbackValue',
+              codec: {
+                // The runtime accepts a CraftException as a decode result and
+                // records it in `exceptions().parse`; the cast keeps the public
+                // decoded state limited to the successful domain value.
+                decode: (value: string) => {
+                  if (value !== 'success') {
+                    return craftException(
+                      { _tag: 'UNEXPECTED_ERROR' },
+                      { error: new Error(`Invalid mode: ${value}`) },
+                    );
+                  }
+                  return 'success';
+                },
+                encode: String,
               },
-              encode: String,
             },
           },
         },
-      },
-      ({ exceptions }) => ({
-        hasParseException: craftUse(craftComputed(
-          'hasParseException',
-          function* () {
+        ({ exceptions }) => ({
+          hasParseException: craftUse(craftComputed('hasParseException', function* () {
             return (yield* exceptions()).parse.mode !== undefined;
-          },
-        )),
-        parseExceptionMessage: craftUse(craftComputed(
-          'parseExceptionMessage',
-          function* () {
-            const exception = (yield* exceptions()).parse.mode;
-            return exception ? formatParseException(exception) : '';
-          },
-        )),
-      }),
-    );
-    const navigate = yield* craftMethod('navigate', function* (mode: string) {
-      void router.navigate({
-        to: 'exception-query-params',
-        //@ts-expect-error intentional to demonstrate the example
-        queryParams: { mode },
-        queryParamsHandling: 'merge',
+          })),
+          parseExceptionMessage: craftUse(craftComputed(
+            'parseExceptionMessage',
+            function* () {
+              const exception = (yield* exceptions()).parse.mode;
+              return exception ? formatParseException(exception) : '';
+            },
+          )),
+        }),
+      );
+      const navigate = yield* craftMethod('navigate', function* (mode: string) {
+        void router.navigate({
+          to: 'exception-query-params',
+          //@ts-expect-error intentional to demonstrate the example
+          queryParams: { mode },
+          queryParamsHandling: 'merge',
+        });
       });
-    });
-    return { modeQueryParams, navigate };
+    },
+  );
+
+const ExceptionQueryParamsComponent = craftComponent(
+  'ExceptionQueryParamsComponent',
+  {
+    providers: [provideExceptionQueryParamsView()],
   },
-  ({ modeQueryParams, navigate }) => {
+  function* () {
+    const { modeQueryParams, navigate } = yield* ExceptionQueryParamsView();
+
     return section({ class: example.card }, [
       heading({ class: example.subtitle }, 'QueryParams decode exception'),
       div({ class: example.row }, [
         button('success',
           { class: example.button, type: 'button',
             *click() {
-              yield* navigate('success');
+              navigate('success');
             },
           },
           'Navigate success',
@@ -97,7 +103,7 @@ const ExceptionQueryParamsComponent = craftComponent(
         button('exception',
           { class: example.button, type: 'button',
             *click() {
-              yield* navigate('exception');
+              navigate('exception');
             },
           },
           'Navigate exception',
@@ -111,11 +117,7 @@ const ExceptionQueryParamsComponent = craftComponent(
       ]),
       ifNode(
         modeQueryParams.hasParseException,
-        () =>
-          p([
-            strong('Exception: '),
-            modeQueryParams.parseExceptionMessage,
-          ]),
+        () => p([strong('Exception: '), modeQueryParams.parseExceptionMessage]),
         () => p([strong('Exception: '), 'none']),
       ),
     ]);

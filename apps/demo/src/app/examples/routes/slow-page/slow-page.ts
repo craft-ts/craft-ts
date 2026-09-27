@@ -1,15 +1,9 @@
-import {
-  craftComponent,
-  div,
-  p,
-  heading,
-} from '@craft-ts/component';
+import { craftComponent, div, p, heading } from '@craft-ts/component';
 import { example } from '../../shared/example.style';
 
 const SlowPageComponent = craftComponent(
   'SlowPageComponent',
   {},
-  () => ({}),
   () =>
     div({ class: example.alert, 'data-exampleAlert': 'success' }, [
       heading({ class: example.subtitle }, '✅ Slow page loaded'),

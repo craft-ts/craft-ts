@@ -25,7 +25,7 @@ one label, and the tooling cannot tell them apart.
 ## Driving it with `yield*`
 
 A primitive does not run itself. Inside any generator host — a `craftComponent`
-logic factory, a `craftService` factory, a `craftComputed`, a `craftMethod`,
+function, a `craftService` factory, a `craftComputed`, a `craftMethod`,
 `craftGen`, a route helper — `yield*` is the driver. The entity that yields
 records the dependency on **its** graph:
 

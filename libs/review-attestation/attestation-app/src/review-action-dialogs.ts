@@ -1,6 +1,26 @@
-import { button, craftComponent, details, div, heading, ifNode, li, p, pre, section, small, summary, textarea, ul, type Input, type Output } from '@craft-ts/component';
+import {
+  button,
+  craftComponent,
+  details,
+  div,
+  heading,
+  ifNode,
+  li,
+  p,
+  pre,
+  section,
+  small,
+  summary,
+  textarea,
+  ul,
+  type Input,
+  type Output,
+} from '@craft-ts/component';
 import { craftComputed } from '@craft-ts/core';
-import type { ReviewApiQueue, ReviewIterationHandoffResponse } from '@craft-ts/style-testing/review';
+import type {
+  ReviewApiQueue,
+  ReviewIterationHandoffResponse,
+} from '@craft-ts/style-testing/review';
 import type { Messages } from './messages';
 import { dialog, reviewBits } from './review-card.style';
 
@@ -36,41 +56,87 @@ type Inputs = {
 export const ReviewActionDialogs = craftComponent(
   'ReviewActionDialogs',
   {},
-  (inputs: Inputs) => ({
-    ...inputs,
-    isRegenerationOpen: craftComputed('isRegenerationOpen', function* () { return yield* inputs.regenerationDialogOpen(); }),
-    isFolderApplyOpen: craftComputed('isFolderApplyOpen', function* () { return yield* inputs.folderLayoutApplyDialogOpen(); }),
-    isIterationOpen: craftComputed('isIterationOpen', function* () { return yield* inputs.iterationDialogOpen(); }),
-    isIterationSetup: craftComputed('isIterationSetup', function* () { return yield* inputs.iterationPreparationNotStarted(); }),
-    isHandoffReady: craftComputed('isHandoffReady', function* () { return yield* inputs.iterationHandoffReady(); }),
-    isHandoffBusy: craftComputed('isHandoffBusy', function* () { return yield* inputs.handoffBusy(); }),
-    isRegenerating: craftComputed('isRegenerating', function* () { return yield* inputs.regenerating(); }),
-    isApplyCopied: craftComputed('isApplyCopied', function* () { return yield* inputs.folderLayoutApplyCopied(); }),
-    isHandoffCopied: craftComputed('isHandoffCopied', function* () { return yield* inputs.iterationPromptCopied(); }),
-    isApplyError: craftComputed('isApplyError', function* () { return (yield* inputs.applyStatus()) === 'exception'; }),
-    regenerationHistoryText: craftComputed('regenerationHistoryText', function* () {
-      const count = yield* inputs.previousRegenerationDecisions();
-      const messages = yield* inputs.t();
-      return count > 0
-        ? messages.regenerationPreservesHistory(count)
-        : messages.regenerationFirstGeneration;
-    }),
-    folderApplyDescription: craftComputed('folderApplyDescription', function* () {
-      const apply = (yield* inputs.queueValue())?.folderLayoutApply;
-      if (!apply) return '';
-      return (yield* inputs.t()).folderLayoutApplyDescription(
-        apply.moves,
-        apply.deletions,
-        apply.manualReviews,
-      );
-    }),
-    folderApplyLabel: craftComputed('folderApplyLabel', function* () {
+  function* (inputs: Inputs) {
+    const {
+      queueValue,
+      t,
+      regenerating,
+      closeRegenerationDialog,
+      confirmRegeneration,
+      applyingLayout,
+      dismissFolderLayoutApply,
+      copyFolderLayoutCommand,
+      confirmFolderLayoutApply,
+      closeIterationDialog,
+      confirmIterationHandoff,
+      handoffBusy,
+      handoffValue,
+      copyIterationPrompt,
+      closing,
+      closeReviewSession,
+    } = inputs;
+    const isRegenerationOpen = yield* craftComputed(
+      'isRegenerationOpen',
+      function* () {
+        return yield* inputs.regenerationDialogOpen();
+      },
+    );
+    const isFolderApplyOpen = yield* craftComputed('isFolderApplyOpen', function* () {
+      return yield* inputs.folderLayoutApplyDialogOpen();
+    });
+    const isIterationOpen = yield* craftComputed('isIterationOpen', function* () {
+      return yield* inputs.iterationDialogOpen();
+    });
+    const isIterationSetup = yield* craftComputed('isIterationSetup', function* () {
+      return yield* inputs.iterationPreparationNotStarted();
+    });
+    const isHandoffReady = yield* craftComputed('isHandoffReady', function* () {
+      return yield* inputs.iterationHandoffReady();
+    });
+    const isHandoffBusy = yield* craftComputed('isHandoffBusy', function* () {
+      return yield* inputs.handoffBusy();
+    });
+    const isRegenerating = yield* craftComputed('isRegenerating', function* () {
+      return yield* inputs.regenerating();
+    });
+    const isApplyCopied = yield* craftComputed('isApplyCopied', function* () {
+      return yield* inputs.folderLayoutApplyCopied();
+    });
+    const isHandoffCopied = yield* craftComputed('isHandoffCopied', function* () {
+      return yield* inputs.iterationPromptCopied();
+    });
+    const isApplyError = yield* craftComputed('isApplyError', function* () {
+      return (yield* inputs.applyStatus()) === 'exception';
+    });
+    const regenerationHistoryText = yield* craftComputed(
+      'regenerationHistoryText',
+      function* () {
+        const count = yield* inputs.previousRegenerationDecisions();
+        const messages = yield* inputs.t();
+        return count > 0
+          ? messages.regenerationPreservesHistory(count)
+          : messages.regenerationFirstGeneration;
+      },
+    );
+    const folderApplyDescription = yield* craftComputed(
+      'folderApplyDescription',
+      function* () {
+        const apply = (yield* inputs.queueValue())?.folderLayoutApply;
+        if (!apply) return '';
+        return (yield* inputs.t()).folderLayoutApplyDescription(
+          apply.moves,
+          apply.deletions,
+          apply.manualReviews,
+        );
+      },
+    );
+    const folderApplyLabel = yield* craftComputed('folderApplyLabel', function* () {
       const messages = yield* inputs.t();
       return (yield* inputs.applyingLayout())
         ? messages.folderLayoutApplyRunning
         : messages.folderLayoutApplyRun;
-    }),
-    rejectedIterationDescription: craftComputed(
+    });
+    const rejectedIterationDescription = yield* craftComputed(
       'rejectedIterationDescription',
       function* () {
         const rejected =
@@ -79,8 +145,8 @@ export const ReviewActionDialogs = craftComponent(
           ).length ?? 0;
         return (yield* inputs.t()).iterationModalDescription(rejected);
       },
-    ),
-    handoffFilesDescription: craftComputed(
+    );
+    const handoffFilesDescription = yield* craftComputed(
       'handoffFilesDescription',
       function* () {
         const value = yield* inputs.handoffValue();
@@ -91,17 +157,15 @@ export const ReviewActionDialogs = craftComponent(
           value.promptPath,
         );
       },
-    ),
-    closeReviewLabel: craftComputed('closeReviewLabel', function* () {
+    );
+    const closeReviewLabel = yield* craftComputed('closeReviewLabel', function* () {
       const messages = yield* inputs.t();
       return (yield* inputs.closing())
         ? messages.iterationModalClosing
         : messages.closeReview;
-    }),
-  }),
-  ({ queueValue, t, regenerating, closeRegenerationDialog, confirmRegeneration, applyingLayout, dismissFolderLayoutApply, copyFolderLayoutCommand, confirmFolderLayoutApply, closeIterationDialog, confirmIterationHandoff, handoffBusy, handoffValue, copyIterationPrompt, closing, closeReviewSession, isRegenerationOpen, isFolderApplyOpen, isIterationOpen, isIterationSetup, isHandoffReady, isHandoffBusy, isApplyCopied, isHandoffCopied, isApplyError, regenerationHistoryText, folderApplyDescription, folderApplyLabel, rejectedIterationDescription, handoffFilesDescription, closeReviewLabel }) =>
-    [
-ifNode(isRegenerationOpen, () =>
+    });
+    return [
+      ifNode(isRegenerationOpen, () =>
         div({ class: dialog.backdrop }, [
           section(
             'RegenerationDialog',
@@ -176,7 +240,7 @@ ifNode(isRegenerationOpen, () =>
           ),
         ]),
       ),
-ifNode(isFolderApplyOpen, () =>
+      ifNode(isFolderApplyOpen, () =>
         div({ class: dialog.backdrop }, [
           section(
             'FolderLayoutApplyDialog',
@@ -206,9 +270,7 @@ ifNode(isFolderApplyOpen, () =>
                 return (yield* t()).folderLayoutApplyCommand;
               }),
               pre({ class: dialog.command }, function* () {
-                return (
-                  (yield* queueValue())?.folderLayoutApply?.command ?? ''
-                );
+                return (yield* queueValue())?.folderLayoutApply?.command ?? '';
               }),
               details({ class: dialog.disclosure }, [
                 summary({ class: dialog.disclosureSummary }, function* () {
@@ -216,8 +278,7 @@ ifNode(isFolderApplyOpen, () =>
                 }),
                 pre({ class: dialog.command }, function* () {
                   return (
-                    (yield* queueValue())?.folderLayoutApply?.gitCommands ??
-                    ''
+                    (yield* queueValue())?.folderLayoutApply?.gitCommands ?? ''
                   );
                 }),
               ]),
@@ -281,7 +342,7 @@ ifNode(isFolderApplyOpen, () =>
           ),
         ]),
       ),
-ifNode(isIterationOpen, () =>
+      ifNode(isIterationOpen, () =>
         div({ class: dialog.backdrop }, [
           section(
             {
@@ -415,6 +476,7 @@ ifNode(isIterationOpen, () =>
             ],
           ),
         ]),
-      )
-    ],
+      ),
+    ];
+  },
 );

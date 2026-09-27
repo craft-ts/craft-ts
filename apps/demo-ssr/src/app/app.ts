@@ -26,7 +26,6 @@ const SCENARIOS = [
 export const App = craftComponent(
   'SsrLabApp',
   {},
-  () => ({}),
   () =>
     div({ class: shell.root }, [
       header({ class: shell.masthead }, [

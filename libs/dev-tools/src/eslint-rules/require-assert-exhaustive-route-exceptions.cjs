@@ -101,9 +101,7 @@ function collectRouteCollections(sourceFile) {
       continue;
     }
 
-    const statement = call.getFirstAncestorByKind(
-      SyntaxKind.VariableStatement,
-    );
+    const statement = call.getFirstAncestorByKind(SyntaxKind.VariableStatement);
     if (!statement || statement.getParent() !== sourceFile) {
       // Only top-level `const { xRoutes } = craftRoutes(...)` declarations can
       // be safely followed by a sibling assert statement.

@@ -1,17 +1,13 @@
 // @vitest-environment jsdom
-import { craftSignal as signal } from '@craft-ts/core';
-import {
-  beforeEach,
-  describe,
-  expect,
-  expectTypeOf,
-  it,
-} from 'vitest';
+import { craftSignal as signal, craftExpose } from '@craft-ts/core';
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import {
   abstract,
   craftException,
   craftService,
-  query, craftUse } from '@craft-ts/core';
+  query,
+  craftUse,
+} from '@craft-ts/core';
 import {
   catchNode,
   catchTag,
@@ -25,6 +21,7 @@ import type {
   ComponentInitializationExceptionsOf,
   ComponentTemplateOf,
   ProviderExceptions,
+  TemplateChildren,
 } from './types';
 import type {
   CraftNodeChildrenExceptions,
@@ -70,14 +67,21 @@ describe('component composition', () => {
       abstract<string | typeof noAccess>(),
     );
 
-    const base = craftComponent(
-      'restricted',
-      {},
+    const { RestrictedView, provideRestrictedView } = craftService(
+      { name: 'restrictedView', providedIn: 'toProvide' },
       function* () {
         factoryCalls += 1;
-        return yield* Data();
+        yield* Data();
       },
-      () => p('Content'),
+    );
+
+    const base = craftComponent(
+      'restricted',
+      { providers: [provideRestrictedView()] },
+      function* () {
+        yield* RestrictedView();
+        return p('Content');
+      },
     );
     const restricted = base.pipe(
       withProviders([
@@ -89,9 +93,11 @@ describe('component composition', () => {
         },
       }),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      restricted,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(restricted);
     expect(element.textContent).toBe('Content');
     expect(factoryCalls).toBe(1);
 
@@ -110,22 +116,42 @@ describe('component composition', () => {
   });
 
   it('does not register a style scope for a styleless operator recreated by a template', async () => {
+    const { StylelessOperatorBaseView, provideStylelessOperatorBaseView } =
+      craftService(
+        { name: 'stylelessOperatorBaseView', providedIn: 'toProvide' },
+        function* () {
+        },
+      );
+
     const renderVersion = signal(0);
     const base = craftComponent(
       'stylelessOperatorBase',
-      {},
-      () => ({}),
-      () => p('Content'),
+      { providers: [provideStylelessOperatorBaseView()] },
+      function* () {
+        yield* StylelessOperatorBaseView();
+        return p('Content');
+      },
     );
+    const { StylelessOperatorPageView, provideStylelessOperatorPageView } =
+      craftService(
+        { name: 'stylelessOperatorPageView', providedIn: 'toProvide' },
+        function* () {
+        },
+      );
+
     const page = craftComponent(
       'stylelessOperatorPage',
-      {},
-      () => ({}),
-      () => [p(String(renderVersion())), base.pipe(withProviders([]))({})],
+      { providers: [provideStylelessOperatorPageView()] },
+      function* () {
+        yield* StylelessOperatorPageView();
+        return [p(String(renderVersion())), base.pipe(withProviders([]))({})];
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      page,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(page);
 
     renderVersion.set(1);
     await expect(flush()).resolves.toBeUndefined();
@@ -136,20 +162,25 @@ describe('component composition', () => {
 
   it('does not bubble a query exception already handled by matchNode', async () => {
     const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
+    const { QueryCatchRuntimeView, provideQueryCatchRuntimeView } =
+      craftService(
+        { name: 'queryCatchRuntimeView', providedIn: 'toProvide' },
+        function* () {
+          factoryRuns += 1;
+          yield* query('value', {
+            params: () => 0,
+            loader: async () => failed,
+          });
+        },
+      );
+
     let factoryRuns = 0;
     const source = craftComponent(
       'queryCatchRuntime',
-      {},
+      { providers: [provideQueryCatchRuntimeView()] },
       function* () {
-        factoryRuns += 1;
-        const value = yield* query('value', {
-          params: () => 0,
-          loader: async () => failed,
-        });
-        return { value };
-      },
-      ({ value }) =>
-        section([
+        const { value } = yield* QueryCatchRuntimeView();
+        return section([
           p('source'),
           matchNode.exhaustive(
             () => craftUse(value.exceptions()).loader,
@@ -158,11 +189,12 @@ describe('component composition', () => {
               FAILED_TO_LOAD: () => p('match fallback'),
             },
           ),
-        ]),
+        ]);
+      },
     );
     expectTypeOf<
       CraftNodeChildrenHandledExceptionCodes<
-        ReturnType<ComponentTemplateOf<typeof source>>
+        TemplateChildren<ComponentTemplateOf<typeof source>>
       >
     >().toEqualTypeOf<'FAILED_TO_LOAD'>();
     const caughtWithSource = source.pipe(
@@ -177,9 +209,11 @@ describe('component composition', () => {
         { position: 'after' },
       ),
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      caughtWithSource,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(caughtWithSource);
     await new Promise((resolve) => setTimeout(resolve, 10));
     await flush();
 
@@ -192,20 +226,25 @@ describe('component composition', () => {
 
   it('does not treat an empty query exception bucket as an exception', async () => {
     const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
+    const { QueryMatchEmptyBucketView, provideQueryMatchEmptyBucketView } =
+      craftService(
+        { name: 'queryMatchEmptyBucketView', providedIn: 'toProvide' },
+        function* () {
+          yield* query('value', {
+            params: shouldFail,
+            loader: async ({ params }) =>
+              params ? failed : { id: 'loaded' as const },
+          });
+        },
+      );
+
     const shouldFail = signal(false);
     const source = craftComponent(
       'queryMatchEmptyBucket',
-      {},
+      { providers: [provideQueryMatchEmptyBucketView()] },
       function* () {
-        const value = yield* query('value', {
-          params: shouldFail,
-          loader: async ({ params }) =>
-            params ? failed : { id: 'loaded' as const },
-        });
-        return { value };
-      },
-      ({ value }) =>
-        section([
+        const { value } = yield* QueryMatchEmptyBucketView();
+        return section([
           p(() => craftUse(value.value())?.id ?? ''),
           matchNode.exhaustive(
             () => craftUse(value.exceptions()).loader,
@@ -214,11 +253,14 @@ describe('component composition', () => {
               FAILED_TO_LOAD: () => p('fallback'),
             },
           ),
-        ]),
+        ]);
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      source,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(source);
     await new Promise((resolve) => setTimeout(resolve, 10));
     await flush();
 
@@ -240,13 +282,21 @@ describe('component composition', () => {
       { name: 'data', providedIn: 'abstract' },
       abstract<string | typeof noAccess>(),
     );
+    const { UncaughtRestrictedView, provideUncaughtRestrictedView } =
+      craftService(
+        { name: 'uncaughtRestrictedView', providedIn: 'toProvide' },
+        function* () {
+          yield* Data();
+        },
+      );
+
     const restricted = craftComponent(
       'uncaughtRestricted',
-      {},
+      { providers: [provideUncaughtRestrictedView()] },
       function* () {
-        return yield* Data();
+        yield* UncaughtRestrictedView();
+        return p('Content');
       },
-      () => p('Content'),
     ).pipe(withProviders([provideData(() => noAccess)]));
 
     const provider = provideData(() => noAccess);
@@ -277,13 +327,25 @@ describe('component composition', () => {
           });
         },
       );
+    const { QueryExceptionView, provideQueryExceptionView } = craftService(
+      { name: 'queryExceptionView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('store', yield* TodoStoreWithQueryException());
+      },
+    );
+
     const component = craftComponent(
       'queryExceptionComponent',
-      { providers: [provideTodoStoreWithQueryException()] },
-      function* () {
-        return { store: yield* TodoStoreWithQueryException() };
+      {
+        providers: [
+          provideQueryExceptionView(),
+          provideTodoStoreWithQueryException(),
+        ],
       },
-      () => p('Todos'),
+      function* () {
+        yield* QueryExceptionView();
+        return p('Todos');
+      },
     );
 
     expectTypeOf<
@@ -319,18 +381,25 @@ describe('component composition', () => {
 
   it('advertises direct query loader exceptions on a component', async () => {
     const failed = craftException({ _tag: 'FAILED_TO_LOAD' as const });
+    const { DirectQueryExceptionView, provideDirectQueryExceptionView } =
+      craftService(
+        { name: 'directQueryExceptionView', providedIn: 'toProvide' },
+        function* () {
+          yield* query('todos', {
+            params: refresh,
+            loader: async () => (refresh() < 0 ? failed : []),
+          });
+        },
+      );
+
     const refresh = signal(0);
     const component = craftComponent(
       'directQueryExceptionComponent',
-      {},
+      { providers: [provideDirectQueryExceptionView()] },
       function* () {
-        const todos = yield* query('todos', {
-          params: refresh,
-          loader: async () => (refresh() < 0 ? failed : []),
-        });
-        return { todos };
+        yield* DirectQueryExceptionView();
+        return p('Todos');
       },
-      () => p('Todos'),
     );
 
     expectTypeOf<

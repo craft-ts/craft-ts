@@ -9,7 +9,9 @@ import {
   type CraftTemporalRuntime as CraftTemporalRuntimeApi,
   type SendContextEvent,
   type TemporalTaskHandle,
-} from '@craft-ts/core';
+  craftPrivate,
+  craftExpose, type CraftServiceInput } from '@craft-ts/core';
+import { craftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import { DestroyRef, inject } from '../host-runtime';
@@ -31,7 +33,7 @@ import {
   strong,
   textarea,
 } from '../hyperscript';
-import type { CraftComponent, Input, Output } from '../types';
+import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
 import { measureAi, writeAiClipboard } from './ai-performance';
 import { assign, unit } from '@craft-ts/style';
@@ -127,11 +129,11 @@ type ChatContext = {
   recording: () => boolean;
   removeTarget: (index: number) => void;
   instruction: () => string;
-  writeInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+  writeInstruction: (value: string) => Generator<never, unknown, unknown>;
   options: () => SendContextPromptOptions;
   writeOptions: (
     value: SendContextPromptOptions,
-  ) => Generator<unknown, unknown, unknown>;
+  ) => Generator<never, unknown, unknown>;
   status: () => string;
   error: () => string;
   busy: () => boolean;
@@ -157,94 +159,99 @@ type ChatFactoryContext = Omit<ChatContext, 'onClose'> & {
  * recorded event timeline, an instruction box, and the per-section switches
  * that decide what the copied prompt actually carries.
  */
-export const AiSendContextChat: CraftComponent<{
-  context: Input<SendContextUiContext>;
-  onClose: Output<() => void>;
-}> = craftComponent(
-  'AiSendContextChat',
-  {},
-  function* (
-    context: Input<SendContextUiContext>,
-    onClose: Output<() => void>,
-  ): Generator<unknown, ChatFactoryContext, unknown> {
+/**
+ * The chat's own memory: captured targets, the recorded timeline, the draft
+ * instruction and the send in flight. A rerender must find all of it again.
+ */
+const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
+  { name: 'aiSendContextChatState', providedIn: 'toProvide' },
+  function* (input: {
+      readonly context: CraftServiceInput<SendContextUiContext>;
+      readonly onClose: Output<() => void>;
+    }) {
+    const { context, onClose } = input;
     const temporalRuntime = yield* CraftTemporalRuntime();
 
     // Reactive values carry `unique symbol`s that declaration emit cannot name
     // (TS4023), so — as in `AiSendDialog` — the signals stay local and the
     // template context exposes plain accessors only.
     type InstructionState = (() => string) & {
-      setInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+      setInstruction: (value: string) => Generator<never, unknown, unknown>;
     };
     type OptionsState = (() => SendContextPromptOptions) & {
       setOptions: (
         value: SendContextPromptOptions,
-      ) => Generator<unknown, unknown, unknown>;
+      ) => Generator<never, unknown, unknown>;
     };
     type StatusState = (() => string) & {
-      setStatus: (value: string) => Generator<unknown, unknown, unknown>;
+      setStatus: (value: string) => Generator<never, unknown, unknown>;
     };
     type ErrorState = (() => string) & {
-      setError: (value: string) => Generator<unknown, unknown, unknown>;
+      setError: (value: string) => Generator<never, unknown, unknown>;
     };
     type BusyState = (() => boolean) & {
-      setBusy: (value: boolean) => Generator<unknown, unknown, unknown>;
+      setBusy: (value: boolean) => Generator<never, unknown, unknown>;
     };
     type PanelOffsetState = (() => PanelOffset) & {
       setPanelOffset: (
         value: PanelOffset,
-      ) => Generator<unknown, unknown, unknown>;
+      ) => Generator<never, unknown, unknown>;
     };
 
-    const instruction = yield* state('instruction', '', ({ set }) => ({
-      setInstruction: (value: string) => set(value),
-    })) as unknown as Generator<never, InstructionState, unknown>;
-    const promptOptions = yield* state(
-      'promptOptions',
-      DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
-      ({ set }) => ({
-        setOptions: (value: SendContextPromptOptions) => set(value),
-      }),
-    ) as unknown as Generator<never, OptionsState, unknown>;
-    const status = yield* state('status', '', ({ set }) => ({
-      setStatus: (value: string) => set(value),
-    })) as unknown as Generator<never, StatusState, unknown>;
-    const error = yield* state('error', '', ({ set }) => ({
-      setError: (value: string) => set(value),
-    })) as unknown as Generator<never, ErrorState, unknown>;
-    const busy = yield* state('busy', false, ({ set }) => ({
-      setBusy: (value: boolean) => set(value),
-    })) as unknown as Generator<never, BusyState, unknown>;
-    const panelOffset = yield* state(
-      'panelOffset',
-      { x: 0, y: 0 } as PanelOffset,
-      ({ set }) => ({
+    const instruction = (yield* craftPrivate(
+      state('instruction', '', ({ set }) => ({
+        setInstruction: (value: string) => set(value),
+      })),
+    )) as unknown as InstructionState;
+    const promptOptions = (yield* craftPrivate(
+      state(
+        'promptOptions',
+        DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
+        ({ set }) => ({
+          setOptions: (value: SendContextPromptOptions) => set(value),
+        }),
+      ),
+    )) as unknown as OptionsState;
+    const status = (yield* craftPrivate(
+      state('status', '', ({ set }) => ({
+        setStatus: (value: string) => set(value),
+      })),
+    )) as unknown as StatusState;
+    const error = (yield* craftPrivate(
+      state('error', '', ({ set }) => ({
+        setError: (value: string) => set(value),
+      })),
+    )) as unknown as ErrorState;
+    const busy = (yield* craftPrivate(
+      state('busy', false, ({ set }) => ({
+        setBusy: (value: boolean) => set(value),
+      })),
+    )) as unknown as BusyState;
+    const panelOffset = (yield* craftPrivate(
+      state('panelOffset', { x: 0, y: 0 } as PanelOffset, ({ set }) => ({
         setPanelOffset: (value: PanelOffset) => set(value),
-      }),
-    ) as unknown as Generator<never, PanelOffsetState, unknown>;
+      })),
+    )) as unknown as PanelOffsetState;
 
-    const setStatus: (value: string) => void = yield* craftMethod(
-      'setStatus',
-      function* (value: string) {
+    const setStatus: (value: string) => void = yield* craftPrivate(
+      craftMethod('setStatus', function* (value: string) {
         yield* status.setStatus(value);
-      },
+      }),
     );
-    const setError: (value: string) => void = yield* craftMethod(
-      'setError',
-      function* (value: string) {
+    const setError: (value: string) => void = yield* craftPrivate(
+      craftMethod('setError', function* (value: string) {
         yield* error.setError(value);
-      },
+      }),
     );
-    const setBusy: (value: boolean) => void = yield* craftMethod(
-      'setBusy',
-      function* (value: boolean) {
+    const setBusy: (value: boolean) => void = yield* craftPrivate(
+      craftMethod('setBusy', function* (value: boolean) {
         yield* busy.setBusy(value);
-      },
+      }),
     );
-    const setPanelOffset: (value: PanelOffset) => void = yield* craftMethod(
-      'setPanelOffset',
-      function* (value: PanelOffset) {
+    const setPanelOffset: (value: PanelOffset) => void = yield* craftPrivate(
+      craftMethod('setPanelOffset', function* (value: PanelOffset) {
         yield* panelOffset.setPanelOffset(value);
-      },
+      }),
     );
 
     let statusTimer: TemporalTaskHandle | null = null;
@@ -585,78 +592,88 @@ export const AiSendContextChat: CraftComponent<{
       flashStatus('Timeline cleared.');
     };
 
-    return {
+    yield* craftExpose('onClose', onClose);
+    yield* craftExpose('visibleEvents', () => {
+      const events = appEvents();
+      const tail =
+        events.length > VISIBLE_EVENTS
+          ? events.slice(events.length - VISIBLE_EVENTS)
+          : events;
+      return tail.map(toTimelineRow);
+    });
+    yield* craftExpose('eventCount', () => appEvents().length);
+    yield* craftExpose('targets', () =>
+      readContext().targets.map((target, index) => ({
+        // Two right-clicks can capture the same markup, so the position is
+        // part of the key: `forNode` rejects duplicates.
+        key: `${index}:${target.outerHTML ?? target.tagName}`,
+        label: describeTarget(target),
+        index,
+      })),
+    );
+    yield* craftExpose('recording', () => readContext().recording);
+    yield* craftExpose('removeTarget', (index: number) => {
+      const ui = readContext();
+      const target = ui.targets[index];
+      if (target) ui.removeTarget(target);
+    });
+    yield* craftExpose('instruction', readInstruction);
+    yield* craftExpose('writeInstruction', instruction.setInstruction);
+    yield* craftExpose('options', readOptions);
+    yield* craftExpose('writeOptions', promptOptions.setOptions);
+    yield* craftExpose('status', () => craftUse(status()));
+    yield* craftExpose('error', () => craftUse(error()));
+    yield* craftExpose('busy', () => craftUse(busy()));
+    yield* craftExpose('panelOffset', () => craftUse(panelOffset()));
+    yield* craftExpose('startDrag', startDrag);
+    yield* craftExpose('resetPanelOffset', resetPanelOffset);
+    yield* craftExpose('toggleRecord', toggleRecord);
+    yield* craftExpose('clearTimeline', clearTimeline);
+    yield* craftExpose('copyPrompt', copyPrompt);
+    yield* craftExpose('exportJson', exportJson);
+    yield* craftExpose('endpoint', configuredEndpoint);
+    yield* craftExpose('sendPayload', sendPayload);
+    yield* craftExpose('retrySend', retrySend);
+    yield* craftExpose('copyPayload', copyPayload);
+  },
+);
+
+export const AiSendContextChat = craftComponent(
+  'AiSendContextChat',
+  {
+    providers: [provideAiSendContextChatState()],
+  },
+  function* (inputs: {
+    readonly context: Input<SendContextUiContext>;
+    readonly onClose: Output<() => void>;
+  }) {
+    const {
       onClose,
-      visibleEvents: () => {
-        const events = appEvents();
-        const tail =
-          events.length > VISIBLE_EVENTS
-            ? events.slice(events.length - VISIBLE_EVENTS)
-            : events;
-        return tail.map(toTimelineRow);
-      },
-      eventCount: () => appEvents().length,
-      targets: () =>
-        readContext().targets.map((target, index) => ({
-          // Two right-clicks can capture the same markup, so the position is
-          // part of the key: `forNode` rejects duplicates.
-          key: `${index}:${target.outerHTML ?? target.tagName}`,
-          label: describeTarget(target),
-          index,
-        })),
-      recording: () => readContext().recording,
-      removeTarget: (index: number) => {
-        const ui = readContext();
-        const target = ui.targets[index];
-        if (target) ui.removeTarget(target);
-      },
-      instruction: readInstruction,
-      writeInstruction: instruction.setInstruction,
-      options: readOptions,
-      writeOptions: promptOptions.setOptions,
-      status: () => craftUse(status()),
-      error: () => craftUse(error()),
-      busy: () => craftUse(busy()),
-      panelOffset: () => craftUse(panelOffset()),
+      visibleEvents,
+      eventCount,
+      targets,
+      recording,
+      removeTarget,
+      instruction,
+      writeInstruction,
+      options,
+      writeOptions,
+      status,
+      error,
+      busy,
+      panelOffset,
       startDrag,
       resetPanelOffset,
       toggleRecord,
       clearTimeline,
       copyPrompt,
       exportJson,
-      endpoint: configuredEndpoint,
+      endpoint,
       sendPayload,
       retrySend,
       copyPayload,
-    };
-  },
-  ({
-    onClose,
-    visibleEvents,
-    eventCount,
-    targets,
-    recording,
-    removeTarget,
-    instruction,
-    writeInstruction,
-    options,
-    writeOptions,
-    status,
-    error,
-    busy,
-    panelOffset,
-    startDrag,
-    resetPanelOffset,
-    toggleRecord,
-    clearTimeline,
-    copyPrompt,
-    exportJson,
-    endpoint,
-    sendPayload,
-    retrySend,
-    copyPayload,
-  }: ChatContext) =>
-    div({ class: [aiTheme.root, aiChat.overlay] }, [
+    } = yield* AiSendContextChatState(inputs);
+    return div({ class: [aiTheme.root, aiChat.overlay] }, [
       div(
         {
           class: aiChat.panel,
@@ -994,8 +1011,15 @@ export const AiSendContextChat: CraftComponent<{
           ] as never),
         ],
       ),
-    ]),
-);
+    ]);
+  },
+) as unknown as CraftComponent<
+  {
+    readonly context: InputValue<SendContextUiContext>;
+    readonly onClose: () => void;
+  },
+  any
+>;
 
 function toTimelineRow(event: SendContextEvent): SendContextTimelineRow {
   return {

@@ -27,6 +27,7 @@ import {
   mutation,
   query,
   queryParams,
+  craftExpose,
 } from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -97,25 +98,34 @@ export const { provideGranularMutation, GranularMutation } = craftService(
   },
 );
 
+export const { GranularMutationCraftView, provideGranularMutationCraftView } =
+  craftService(
+    { name: 'granularMutationCraftView', providedIn: 'toProvide' },
+    function* () {
+      const store = yield* GranularMutation();
+      yield* craftMethod(
+        'updatePageSize',
+        function* (event: Event) {
+          (yield* GranularMutation()).pagination.updatePageSize(
+            Number(eventValue(event)),
+          );
+        },
+      );
+      yield* craftExpose('store', store);
+    },
+  );
+
 const GranularMutationCraft = craftComponent(
   'GranularMutationCraft',
   {
-    providers: [provideGranularMutation()],
+    providers: [provideGranularMutationCraftView(), provideGranularMutation()],
   },
   function* () {
-    const store = yield* GranularMutation();
-    const updatePageSize = yield* craftMethod(
-      'updatePageSize',
-      function* (event: Event) {
-        (yield* GranularMutation()).pagination.updatePageSize(
-          Number(eventValue(event)),
-        );
-      },
-    );
-    return { store, updatePageSize };
-  },
-  ({ store: { users, updateUserName, pagination }, updatePageSize }) =>
-    div({ class: example.page }, [
+    const {
+      store: { users, updateUserName, pagination },
+      updatePageSize,
+    } = yield* GranularMutationCraftView();
+    return div({ class: example.page }, [
       main([
         div([
           div({ class: example.panel }, [
@@ -197,7 +207,7 @@ const GranularMutationCraft = craftComponent(
                     return String((yield* pagination()).pageSize);
                   },
                   *change(event) {
-                    yield* updatePageSize(event);
+                    updatePageSize(event);
                   },
                 },
                 [2, 4, 8, 16].map((size) =>
@@ -241,7 +251,8 @@ const GranularMutationCraft = craftComponent(
           ]),
         ]),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default GranularMutationCraft;

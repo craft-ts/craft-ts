@@ -12,7 +12,7 @@ module.exports = {
     schema: [],
     messages: {
       missingAlt:
-        '<{{tag}}> must have an alt attribute (use alt: \'\' for decorative images).',
+        "<{{tag}}> must have an alt attribute (use alt: '' for decorative images).",
     },
   },
   create(context) {
@@ -21,7 +21,11 @@ module.exports = {
         const call = parseHyperscriptCall(node);
         if (!call || (call.tag !== 'img' && call.tag !== 'area')) return;
         if (hasProp(call.props, 'alt')) return;
-        context.report({ node, messageId: 'missingAlt', data: { tag: call.tag } });
+        context.report({
+          node,
+          messageId: 'missingAlt',
+          data: { tag: call.tag },
+        });
       },
     };
   },

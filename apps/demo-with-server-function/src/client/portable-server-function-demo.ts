@@ -19,18 +19,27 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, query, state } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  craftMethod,
+  query,
+  state,
+  craftExpose,
+} from '@craft-ts/core';
 import { getPortableUsers } from '../users/portable-list.fn-client';
 import { demoPage } from './demo.style';
 
-const PortableServerFunctionDemo = craftComponent(
-  'PortableServerFunctionDemo',
-  {},
+export const {
+  PortableServerFunctionDemoView,
+  providePortableServerFunctionDemoView,
+} = craftService(
+  { name: 'portableServerFunctionDemoView', providedIn: 'toProvide' },
   function* () {
-    const searchInput = yield* state('portableSearchInput', '', ({ set }) => ({
+    const searchInput = yield* state('searchInput', '', ({ set }) => ({
       setPortableSearchInput: (value: string) => set(value),
     }));
-    const usersQuery = yield* query('portableUsersQuery', {
+    const usersQuery = yield* query('usersQuery', {
       method: (term: string) => term,
       loader: function* ({ params }) {
         return yield* getPortableUsers({ filter: params });
@@ -42,42 +51,52 @@ const PortableServerFunctionDemo = craftComponent(
     const portableUsers = yield* craftComputed('portableUsers', function* () {
       return (yield* usersQuery.value())?.users ?? [];
     });
-    const hasUsers = yield* craftComputed('portableHasUsers', function* () {
+    const hasUsers = yield* craftComputed('hasUsers', function* () {
       return (yield* portableUsers()).length > 0;
     });
-    const isEmpty = yield* craftComputed('portableIsEmpty', function* () {
+    yield* craftComputed('isEmpty', function* () {
       return !usersQuery.isLoading && !(yield* hasUsers());
     });
-    const auditId = yield* craftComputed('portableAuditId', function* () {
+    yield* craftComputed('auditId', function* () {
       return (yield* usersQuery.value())?.auditId ?? '—';
     });
-    const normalizedFilter = yield* craftComputed(
-      'portableNormalizedFilter',
+    yield* craftComputed(
+      'normalizedFilter',
       function* () {
         const value = (yield* usersQuery.value())?.filter ?? '';
         return value.length === 0 ? '(empty)' : value;
       },
     );
-    const scannedCount = yield* craftComputed('portableScannedCount', function* () {
+    yield* craftComputed('scannedCount', function* () {
       const value = yield* usersQuery.value();
       return value === undefined ? '—' : value.scanned.toString();
     });
 
-    const submitSearch = yield* craftMethod(
-      'submitPortableSearch',
+    yield* craftMethod(
+      'submitSearch',
       function* (event?: Event) {
         event?.preventDefault();
         yield* usersQuery.call((yield* searchInput()).trim());
       },
     );
-    const resultCount = yield* craftComputed('portableResultCount', function* () {
+    yield* craftComputed('resultCount', function* () {
       const value = yield* usersQuery.value();
       return value === undefined ? '—' : value.users.length.toString();
     });
 
-    return {
+    yield* craftExpose('setSearchInput', searchInput.setPortableSearchInput);
+  },
+);
+
+const PortableServerFunctionDemo = craftComponent(
+  'PortableServerFunctionDemo',
+  {
+    providers: [providePortableServerFunctionDemoView()],
+  },
+  function* () {
+    const {
       searchInput,
-      setSearchInput: searchInput.setPortableSearchInput,
+      setSearchInput,
       usersQuery,
       submitSearch,
       resultCount,
@@ -87,22 +106,8 @@ const PortableServerFunctionDemo = craftComponent(
       auditId,
       normalizedFilter,
       scannedCount,
-    };
-  },
-  ({
-    searchInput,
-    setSearchInput,
-    usersQuery,
-    submitSearch,
-    resultCount,
-    hasUsers,
-    isEmpty,
-    portableUsers,
-    auditId,
-    normalizedFilter,
-    scannedCount,
-  }) =>
-    main({ class: demoPage.shell }, [
+    } = yield* PortableServerFunctionDemoView();
+    return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
           span({ class: demoPage.pulse }),
@@ -245,7 +250,8 @@ const PortableServerFunctionDemo = craftComponent(
           'users/portable-list.fn-serveur.ts',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export { PortableServerFunctionDemo };

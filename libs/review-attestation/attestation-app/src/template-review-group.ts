@@ -23,7 +23,7 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed, craftUse } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
 import type { Messages } from './messages';
 import { eventValue } from './annotation-text';
@@ -44,7 +44,7 @@ import { reviewBits, templateReviewGroup } from './review-card.style';
 export const TemplateReviewGroupView = craftComponent(
   'TemplateReviewGroupView',
   {},
-  ({
+  function* ({
     group,
     selectedIds,
     note,
@@ -96,39 +96,39 @@ export const TemplateReviewGroupView = craftComponent(
     writeNote: Output<(value: string) => void>;
     locale: Input<Locale>;
     t: Input<Messages>;
-  }) => {
-    const selectedCount = craftUse(craftComputed('selectedCount', function* () {
+  }) {
+    const selectedCount = yield* craftComputed('selectedCount', function* () {
       const ids = new Set(yield* selectedIds());
       return pendingTemplateCards(yield* group()).filter((card) =>
         ids.has(card.id),
       ).length;
-    }));
-    const allSelected = craftUse(craftComputed('allSelected', function* () {
+    });
+    const allSelected = yield* craftComputed('allSelected', function* () {
       const pending = pendingTemplateCards(yield* group());
       const ids = yield* selectedIds();
       return (
         pending.length > 0 && pending.every((card) => ids.includes(card.id))
       );
-    }));
-    const actionDisabled = craftUse(craftComputed('actionDisabled', function* () {
+    });
+    const actionDisabled = yield* craftComputed('actionDisabled', function* () {
       return (yield* busy()) || (yield* selectedCount()) === 0;
-    }));
-    const showReject = craftUse(craftComputed('showReject', function* () {
+    });
+    const showReject = yield* craftComputed('showReject', function* () {
       return yield* rejectionOpen();
-    }));
-    const showActions = craftUse(craftComputed('showActions', function* () {
+    });
+    const showActions = yield* craftComputed('showActions', function* () {
       return !(yield* rejectionOpen());
-    }));
-    const showAgentBusy = craftUse(craftComputed('showAgentBusy', function* () {
+    });
+    const showAgentBusy = yield* craftComputed('showAgentBusy', function* () {
       return yield* agentBusy();
-    }));
-    const showAgentFailed = craftUse(craftComputed('showAgentFailed', function* () {
+    });
+    const showAgentFailed = yield* craftComputed('showAgentFailed', function* () {
       return yield* agentFailed();
-    }));
-    const noAgent = craftUse(craftComputed('noAgent', function* () {
+    });
+    const noAgent = yield* craftComputed('noAgent', function* () {
       return !(yield* agentAvailable());
-    }));
-    const view = craftUse(craftComputed('view', function* () {
+    });
+    const view = yield* craftComputed('view', function* () {
       const value = yield* group();
       const say = yield* t();
       const count = yield* selectedCount();
@@ -154,11 +154,11 @@ export const TemplateReviewGroupView = craftComponent(
         delegateDisabled:
           (yield* actionDisabled()) || !(yield* agentAvailable()),
       };
-    }));
-    const viewTitle = craftUse(craftComputed('viewTitle', function* () {
+    });
+    const viewTitle = yield* craftComputed('viewTitle', function* () {
       return (yield* view()).title;
-    }));
-    const rows = craftUse(craftComputed('rows', function* () {
+    });
+    const rows = yield* craftComputed('rows', function* () {
       const value = yield* group();
       const say = yield* t();
       const language = yield* locale();
@@ -216,63 +216,8 @@ export const TemplateReviewGroupView = craftComponent(
             previous?.agentReview?.references.join(' · ') ?? '',
         };
       });
-    }));
-    return {
-      view,
-      viewTitle,
-      rows,
-      note,
-      busy,
-      toggleCard,
-      selectAll,
-      selectHuman,
-      clearSelection,
-      requestReject,
-      cancelReject,
-      submitReject,
-      accept,
-      delegate,
-      previousGroup,
-      nextGroup,
-      writeNote,
-      t,
-      allSelected,
-      actionDisabled,
-      showReject,
-      showActions,
-      showAgentBusy,
-      showAgentFailed,
-      noAgent,
-    };
-  },
-  ({
-    view,
-    viewTitle,
-    rows,
-    note,
-    busy,
-    toggleCard,
-    selectAll,
-    selectHuman,
-    clearSelection,
-    requestReject,
-    cancelReject,
-    submitReject,
-    accept,
-    delegate,
-    previousGroup,
-    nextGroup,
-    writeNote,
-    t,
-    allSelected,
-    actionDisabled,
-    showReject,
-    showActions,
-    showAgentBusy,
-    showAgentFailed,
-    noAgent,
-  }) =>
-    article({ class: templateReviewGroup.root, 'aria-busy': busy }, [
+    });
+    return article({ class: templateReviewGroup.root, 'aria-busy': busy }, [
       header(
         {
           class: templateReviewGroup.header,
@@ -344,8 +289,8 @@ export const TemplateReviewGroupView = craftComponent(
                 return (yield* t()).templateGroupSelect;
               },
               *change() {
-                if (yield* allSelected()) yield* clearSelection();
-                else yield* selectAll();
+                if (yield* allSelected()) clearSelection();
+                else selectAll();
               },
             }),
             span(function* () {
@@ -397,7 +342,7 @@ export const TemplateReviewGroupView = craftComponent(
                   return (yield* row()).selectionLabel;
                 },
                 *change() {
-                  yield* toggleCard((yield* row()).id);
+                  toggleCard((yield* row()).id);
                 },
               }),
               div(
@@ -491,7 +436,7 @@ export const TemplateReviewGroupView = craftComponent(
                 return (yield* t()).templateGroupReason;
               },
               *input(event: Event) {
-                yield* writeNote(eventValue(event));
+                writeNote(eventValue(event));
               },
             }),
             div([
@@ -571,5 +516,6 @@ export const TemplateReviewGroupView = craftComponent(
           }),
         ),
       ]),
-    ]),
+    ]);
+  },
 );

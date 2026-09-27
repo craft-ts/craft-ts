@@ -1,3 +1,4 @@
+import { craftService, craftExpose } from '@craft-ts/core';
 import {
   craftComponent,
   div,
@@ -28,19 +29,30 @@ function eventClientId(event: Event): DemoClientId {
 const ORDER_DATE = new Date('2026-08-25T14:30:00Z');
 const LAST_SYNC_DAYS = -2;
 
+export const { TypeSafeI18nDemoView, provideTypeSafeI18nDemoView } =
+  craftService(
+    { name: 'typeSafeI18nDemoView', providedIn: 'toProvide' },
+    function* () {
+      const { language, translate } = yield* I18n();
+      yield* craftExpose('language', language);
+      yield* craftExpose('translate', translate);
+      yield* craftExpose('clientCurrency', yield* ClientCurrency());
+    },
+  );
+
 export const TypeSafeI18nDemo = craftComponent(
   'TypeSafeI18nDemo',
   {
-    providers: [provideClientCurrency(), provideClientUnits()],
+    providers: [
+      provideTypeSafeI18nDemoView(),
+      provideClientCurrency(),
+      provideClientUnits(),
+    ],
   },
   function* () {
-    return {
-      ...(yield* I18n()),
-      clientCurrency: yield* ClientCurrency(),
-    };
-  },
-  ({ language, translate, clientCurrency }) =>
-    section({ class: example.stack, 'aria-labelledby': 'i18n-title' }, [
+    const { language, translate, clientCurrency } =
+      yield* TypeSafeI18nDemoView();
+    return section({ class: example.stack, 'aria-labelledby': 'i18n-title' }, [
       div({ class: example.stack }, [
         heading(
           { class: example.title, id: 'i18n-title' },
@@ -136,7 +148,8 @@ export const TypeSafeI18nDemo = craftComponent(
         ]),
       ]),
       div({ class: example.note }, [span(translate('page.custom'))]),
-    ]),
+    ]);
+  },
 );
 
 export default TypeSafeI18nDemo;

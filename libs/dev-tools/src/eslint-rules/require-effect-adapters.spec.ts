@@ -21,11 +21,23 @@ describe('require-effect-adapters', () => {
     );
 
     expect(messages).toHaveLength(8);
-    expect(messages.filter((message) => message.includes('queryEffect'))).toHaveLength(2);
-    expect(messages.filter((message) => message.includes('mutationEffect'))).toHaveLength(2);
-    expect(messages.filter((message) => message.includes('asyncProcessEffect'))).toHaveLength(2);
-    expect(messages.filter((message) => message.includes('transitionGuardEffect'))).toHaveLength(2);
-    expect(messages.every((message) => message.includes('Effect-aware CraftTS adapters'))).toBe(true);
+    expect(
+      messages.filter((message) => message.includes('queryEffect')),
+    ).toHaveLength(2);
+    expect(
+      messages.filter((message) => message.includes('mutationEffect')),
+    ).toHaveLength(2);
+    expect(
+      messages.filter((message) => message.includes('asyncProcessEffect')),
+    ).toHaveLength(2);
+    expect(
+      messages.filter((message) => message.includes('transitionGuardEffect')),
+    ).toHaveLength(2);
+    expect(
+      messages.every((message) =>
+        message.includes('Effect-aware CraftTS adapters'),
+      ),
+    ).toBe(true);
   });
 
   it('allows adapters, state, tests, and the effect library itself', async () => {

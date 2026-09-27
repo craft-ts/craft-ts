@@ -51,7 +51,6 @@ import { panel } from './panel.style';
 const Panel = craftComponent(
   'Panel',
   {},
-  () => ({}),
   () =>
     div({ class: panel.root }, [
       h2({ class: panel.title }, 'Panel'),
@@ -130,9 +129,9 @@ const MyRestrictedCraftComponent = craftComponent(
   'MyRestrictedCraftComponent',
   {},
   function* () {
-    return { value: yield* RestrictedData() };
+    const value = yield* RestrictedData();
+    return p(`Private data: ${value}`);
   },
-  ({ value }) => p(`Private data: ${value}`),
 );
 
 const Restricted = MyRestrictedCraftComponent.pipe(
@@ -236,8 +235,8 @@ With `showSource: true`, the source and fallback are both rendered. Use
 `showSource: false` to hide the source explicitly. `position` can be set on
 each handler (`before` or `after`); the second argument remains available as a
 default for handlers that do not specify their own position. Existing function
-handlers keep their previous behavior. If the component factory or a provider
-fails before the template is created, there is no source block to preserve, so
+handlers keep their previous behavior. If the component fails while it declares
+what it takes, or one of its providers does, there are no nodes to preserve, so
 the fallback is rendered alone.
 
 ### `matchNode.exhaustive`: render a resource exception
@@ -261,8 +260,8 @@ the host component or directive:
 
 - a Craft directive can add its own classes to the root of the component using
   it, without a wrapper;
-- multiple directives can compose their logic, template and host classes
-  through `.pipe(...)`;
+- multiple directives can compose their service transforms, template and host
+  classes through `.pipe(...)`;
 - the CSS itself is emitted once, at build time, by the `@craft-ts/style`
   plugin: nothing is injected or reference-counted at runtime.
 
@@ -272,7 +271,7 @@ the host component or directive:
 - a `*.style.ts` sheet: the component's appearance, its variants as axes, its
   runtime values as typed variables;
 - `craftDirective`: behavior or customization reusable across components;
-- the factory: component-specific state and dependencies.
+- the component's own service: component-specific state and dependencies.
 
 ### How a parent reaches a child
 

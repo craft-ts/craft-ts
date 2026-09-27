@@ -22,7 +22,7 @@ describe('no-ephemeral-template-form-state', () => {
       declare const nameInput: () => string;
       declare function update(value: string): unknown;
 
-      craftComponent('Demo', {}, function* () { return {}; }, () =>
+      craftComponent('Demo', {}, () =>
         button({
           *click() {
             const currentName = yield* nameInput();
@@ -32,16 +32,14 @@ describe('no-ephemeral-template-form-state', () => {
       );
     `);
 
-    expect(result.messages).toEqual([
-      declareMessage('currentName', 'const'),
-    ]);
+    expect(result.messages).toEqual([declareMessage('currentName', 'const')]);
   });
 
   it('reports a let at the template root', async () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}
 
-      craftComponent('Demo', {}, function* () { return {}; }, () => {
+      craftComponent('Demo', {}, () => {
         let field;
         return div([
           input({ input: (event) => { field = event.target; } }),
@@ -57,7 +55,7 @@ describe('no-ephemeral-template-form-state', () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}
 
-      craftComponent('Demo', {}, function* () { return {}; }, () => {
+      craftComponent('Demo', {}, () => {
         var count = 0;
         const label = 'todos';
         return div([label, count]);
@@ -75,7 +73,7 @@ describe('no-ephemeral-template-form-state', () => {
       ${DECLARE_HOSTS}
       declare const todos: unknown[];
 
-      craftComponent('Demo', {}, function* () { return {}; }, () =>
+      craftComponent('Demo', {}, () =>
         div(
           forNode(todos, { track: (todo) => todo.id }, (todo) => {
             const title = todo.title;
@@ -97,30 +95,84 @@ describe('no-ephemeral-template-form-state', () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}
 
-      craftComponent('Demo', {}, function* () { return {}; }, () => {
+      craftComponent('Demo', {}, () => {
         const { title } = { title: 'x' };
         return div(title);
       });
     `);
 
     expect(result.messages).toEqual([
-      'Do not declare const bindings in a Craft template. Move them to the logic factory as state() or craftComputed().',
+      "Do not declare const bindings in a Craft template. Move them to the component's service as state() or craftComputed().",
     ]);
   });
 
-  it('does not report declarations in the logic factory', async () => {
+  it('does not report declarations in the service the component reads', async () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}
+      declare function craftService(...args: unknown[]): unknown;
       declare function state(...args: unknown[]): unknown;
 
-      craftComponent('Demo', {}, function* () {
+      craftService({ name: 'demoView', providedIn: 'toProvide' }, function* () {
         const nameInput = state('nameInput');
         let scratch = 0;
         return { nameInput, scratch };
-      }, ({ nameInput, setName }) => div([
-        input({ input: (event) => setName(event.target.value) }),
-        button({ click: () => nameInput() }),
-      ]));
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('accepts the service, primitives and inputs a component declares', async () => {
+    const result = await lintFixture(`
+      ${DECLARE_HOSTS}
+      declare function state(...args: unknown[]): unknown;
+      declare function craftMethod(...args: unknown[]): unknown;
+      declare function DemoView(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, function* (inputs) {
+        const { todos } = inputs;
+        const { title } = yield* DemoView(inputs);
+        const draft = yield* state('draft', '');
+        const submit = craftMethod('submit', function* () {});
+        return div([title, draft, todos, submit]);
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('still reports a plain local in the component scope', async () => {
+    const result = await lintFixture(`
+      ${DECLARE_HOSTS}
+      declare function DemoView(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, function* () {
+        const { title } = yield* DemoView();
+        const label = 'todos';
+        return div([title, label]);
+      });
+    `);
+
+    expect(result.messages).toEqual([declareMessage('label', 'const')]);
+  });
+
+  it('spares what a provider factory declares', async () => {
+    const result = await lintFixture(`
+      ${DECLARE_HOSTS}
+      declare function provideRestrictedData(...args: unknown[]): unknown;
+      declare function withProviders(...args: unknown[]): unknown;
+      declare const View: any;
+
+      craftComponent('Demo', {}, () =>
+        div([]).pipe(
+          withProviders([
+            provideRestrictedData(function* () {
+              const restriction = yield* View.restriction();
+              return yield* restriction();
+            }),
+          ]),
+        ),
+      );
     `);
 
     expect(result.messages).toEqual([]);
@@ -130,18 +182,12 @@ describe('no-ephemeral-template-form-state', () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}
 
-      craftDirective(
-        'Highlight',
-        {},
-        (baseLogic) => () => {
-          const extra = 1;
-          return { ...baseLogic(), extra };
-        },
-        (baseTemplate) => (context) => {
-          const node = baseTemplate(context);
+      craftDirective('Highlight', {}, {
+        template: (baseTemplate) => (inputs) => {
+          const node = baseTemplate(inputs);
           return node;
         },
-      );
+      });
     `);
 
     expect(result.messages).toEqual([declareMessage('node', 'const')]);
@@ -156,7 +202,7 @@ describe('no-ephemeral-template-form-state', () => {
         return div(field);
       };
 
-      craftComponent('Demo', {}, function* () { return {}; }, render);
+      craftComponent('Demo', {}, render);
     `);
 
     expect(result.messages).toEqual([declareMessage('field', 'let')]);
@@ -171,7 +217,7 @@ describe('no-ephemeral-template-form-state', () => {
         return div(title);
       }
 
-      craftComponent('Demo', {}, function* () { return {}; }, render);
+      craftComponent('Demo', {}, render);
     `);
 
     expect(result.messages).toEqual([declareMessage('title', 'const')]);
@@ -182,7 +228,7 @@ describe('no-ephemeral-template-form-state', () => {
       import { render } from './render';
       ${DECLARE_HOSTS}
 
-      craftComponent('Demo', {}, function* () { return {}; }, render);
+      craftComponent('Demo', {}, render);
     `);
 
     expect(result.messages).toEqual([]);
@@ -192,8 +238,8 @@ describe('no-ephemeral-template-form-state', () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}
 
-      craftComponent('Parent', {}, function* () { return {}; }, () =>
-        craftComponent('Child', {}, function* () { return {}; }, () => {
+      craftComponent('Parent', {}, () =>
+        craftComponent('Child', {}, () => {
           const title = 'child';
           return div(title);
         }),
@@ -207,7 +253,7 @@ describe('no-ephemeral-template-form-state', () => {
     const result = await lintFixture(`
       ${DECLARE_HOSTS}
 
-      craftComponent('Demo', {}, function* () { return {}; }, ({ todos }) =>
+      craftComponent('Demo', {}, ({ todos }) =>
         div(forNode(todos, { track: (todo) => todo.id }, (todo) => div(todo.title))),
       );
     `);
@@ -217,7 +263,7 @@ describe('no-ephemeral-template-form-state', () => {
 });
 
 function declareMessage(name: string, kind: string) {
-  return `Do not declare '${name}' with ${kind} in a Craft template. Move it to the logic factory as state() or craftComputed().`;
+  return `Do not declare '${name}' with ${kind} in a Craft template. Move it to the component's service as state() or craftComputed().`;
 }
 
 async function lintFixture(source: string) {

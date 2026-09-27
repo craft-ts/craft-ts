@@ -7,7 +7,8 @@ module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Reject unknown aria-* attributes on Craft hyperscript nodes.',
+      description:
+        'Reject unknown aria-* attributes on Craft hyperscript nodes.',
     },
     schema: [],
     messages: {
@@ -29,7 +30,11 @@ module.exports = {
                 : '';
           if (!name.startsWith('aria-')) continue;
           if (!ariaQuery.aria.has(name)) {
-            context.report({ node: entry.key, messageId: 'unknown', data: { name } });
+            context.report({
+              node: entry.key,
+              messageId: 'unknown',
+              data: { name },
+            });
           }
         }
       },

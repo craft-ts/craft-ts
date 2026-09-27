@@ -22,12 +22,14 @@ const scenarioCountText = (value: VisualAssetEntry): string =>
 export const AssetsInventoryList = craftComponent(
   'AssetsInventoryList',
   {},
-  (assets: Input<readonly VisualAssetEntry[]>, t: Input<Messages>) => ({
+  function* ({
     assets,
     t,
-  }),
-  ({ assets, t }) =>
-    ul(
+  }: {
+    readonly assets: Input<readonly VisualAssetEntry[]>;
+    readonly t: Input<Messages>;
+  }) {
+    return ul(
       { class: inventory.list },
       forNode(
         assets,
@@ -48,5 +50,6 @@ export const AssetsInventoryList = craftComponent(
             }),
           ]),
       ),
-    ),
+    );
+  },
 );

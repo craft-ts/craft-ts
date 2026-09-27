@@ -1,6 +1,10 @@
 'use strict';
 
-const { parseHyperscriptCall, property, stringLiteralValue } = require('./hyperscript-walk.cjs');
+const {
+  parseHyperscriptCall,
+  property,
+  stringLiteralValue,
+} = require('./hyperscript-walk.cjs');
 
 function tabIndexValue(props) {
   const entry = property(props, 'tabIndex') ?? property(props, 'tabindex');
@@ -8,8 +12,12 @@ function tabIndexValue(props) {
   if (entry.value.type === 'Literal' && typeof entry.value.value === 'number') {
     return entry.value.value;
   }
-  if (entry.value.type === 'UnaryExpression' && entry.value.operator === '-' &&
-      entry.value.argument.type === 'Literal' && typeof entry.value.argument.value === 'number') {
+  if (
+    entry.value.type === 'UnaryExpression' &&
+    entry.value.operator === '-' &&
+    entry.value.argument.type === 'Literal' &&
+    typeof entry.value.argument.value === 'number'
+  ) {
     return -entry.value.argument.value;
   }
   const asString = stringLiteralValue(entry.value);

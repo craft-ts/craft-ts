@@ -1,4 +1,4 @@
-import { ɵcomputed as computed, craftExpose } from '@craft-ts/core';
+import { ɵcomputed as computed, craftExpose, type CraftServiceInput } from '@craft-ts/core';
 import { Context, Effect, Layer } from 'effect';
 import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
@@ -28,7 +28,9 @@ import {
   transitionGuardEffect,
 } from '@craft-ts/effect';
 import { loadCraftComponent } from './bridge';
+import { overrideService } from '@craft-ts/core';
 import { craftComponent } from './component';
+import { projection } from './types';
 import { craftDirective } from './directive';
 import { deferNode } from './defer-node';
 import { ifNode } from './if-node';
@@ -37,7 +39,7 @@ import { button, div, h2, input, li, p, section, span } from './hyperscript';
 import { content, renderContent } from './project';
 import { craftTemplate, renderTemplate } from './template';
 import type { ComponentNode } from './render/vnode';
-import type { ComponentTemplateOf } from './types';
+import type { ComponentTemplateOf, TemplateChildren } from './types';
 import type {
   SetupTestComponentTemplate,
   TemplateHasElement,
@@ -103,11 +105,20 @@ it('types named elements without children as empty', () => {
 });
 
 it('derives named element identities for editor completion', () => {
+  const { NamedIdentityCompletionView, provideNamedIdentityCompletionView } =
+    craftService(
+      { name: 'namedIdentityCompletionView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const component = craftComponent(
     'namedIdentityCompletionComponent',
-    {},
-    () => ({}),
-    () => input('queryInput', {}),
+    { providers: [provideNamedIdentityCompletionView()] },
+    function* () {
+      yield* NamedIdentityCompletionView();
+      return input('queryInput', {});
+    },
   );
 
   type _NamedElementIdentity = Expect<
@@ -119,24 +130,37 @@ it('derives named element identities for editor completion', () => {
 });
 
 it('infers component input and output props from the branded context', () => {
+  const { UserCardView, provideUserCardView } = craftService(
+    { name: 'userCardView', providedIn: 'toProvide' },
+    function* (inputs: {
+          readonly user: CraftServiceInput<User>;
+          readonly onPick: Output<(user: User) => void>;
+        }) {
+      const { user, onPick } = inputs;
+      yield* craftExpose('user', user);
+      yield* craftExpose('onPick', onPick);
+    },
+  );
+
   const userCard = craftComponent(
     'userCard',
-    {},
-    (user: Input<User>, onPick: Output<(user: User) => void>) => ({
-      user,
-      onPick,
-    }),
-    ({ user, onPick }) =>
-      p(
+    { providers: [provideUserCardView()] },
+    function* (inputs: {
+      readonly user: Input<User>;
+      readonly onPick: Output<(user: User) => void>;
+    }) {
+      const { user, onPick } = yield* UserCardView(inputs);
+      return p(
         {
           *click() {
-            yield* onPick(yield* user());
+            onPick(yield* user());
           },
         },
         function* () {
           return (yield* user()).name;
         },
-      ),
+      );
+    },
   );
 
   type _UserCardProps = Expect<
@@ -164,17 +188,15 @@ it('infers component input and output props from the branded context', () => {
   userCard({ user: { id: 1, name: 'Ada' }, onPick: () => undefined });
 });
 
-it('requires object-shaped component inputs to use reactive Input readers', () => {
+it('requires component inputs to use reactive Input readers', () => {
   const objectInput = craftComponent(
     'objectInput',
     {},
-    function* ({ value }: { value: Input<string> }) {
-      return { value };
-    },
-    ({ value }) =>
-      p(function* () {
+    function* ({ value }: { readonly value: Input<string> }) {
+      return p(function* () {
         return yield* value();
-      }),
+      });
+    },
   );
 
   type _ObjectInputProps = Expect<
@@ -194,33 +216,31 @@ it('requires object-shaped component inputs to use reactive Input readers', () =
     'invalidObjectInput',
     {},
     // @ts-expect-error A plain scalar is not a reactive component input.
-    function* ({ value }: { value: string }) {
-      return { value };
+    function* ({ value }: { readonly value: string }) {
+      return p(value);
     },
-    ({ value }) => p(value),
-  );
-
-  craftComponent(
-    'invalidPositionalInput',
-    {},
-    // @ts-expect-error A plain scalar is not a reactive component input.
-    (categorySlug: string) => ({ categorySlug }),
-    ({ categorySlug }) => p(categorySlug),
   );
 });
 
 it('does not expose ordinary context callbacks as component outputs', () => {
+  const { InternalActionView, provideInternalActionView } = craftService(
+    { name: 'internalActionView', providedIn: 'toProvide' },
+    function* (inputs: { readonly name: CraftServiceInput<string> }) {
+      const { name } = inputs;
+      yield* craftExpose('name', name);
+      yield* craftExpose('reset', () => undefined);
+    },
+  );
+
   const internalAction = craftComponent(
     'internalAction',
-    {},
-    (name: Input<string>) => ({
-      name,
-      reset: () => undefined,
-    }),
-    ({ name }) =>
-      p(function* () {
+    { providers: [provideInternalActionView()] },
+    function* (inputs: { readonly name: Input<string> }) {
+      const { name } = yield* InternalActionView(inputs);
+      return p(function* () {
         return yield* name();
-      }),
+      });
+    },
   );
 
   type _InternalActionProps = Expect<
@@ -246,26 +266,43 @@ it('extracts projection contracts and propagates projected dependencies', () => 
       yield* craftExpose('label', 'badge');
     },
   );
-  const badge = craftComponent(
-    'projectedBadge',
-    {},
+  const { ProjectedBadgeView, provideProjectedBadgeView } = craftService(
+    { name: 'projectedBadgeView', providedIn: 'toProvide' },
     function* () {
       const service = yield* BadgeService();
-      return { service };
+      yield* craftExpose('service', service);
     },
-    ({ service }) => p(service.label),
   );
-  const action = craftComponent(
-    'typedAction',
-    {},
-    (input: { readonly key: string; readonly trigger: () => void }) => ({
-      key: input.key,
-      contract: {
+
+  const badge = craftComponent(
+    'projectedBadge',
+    { providers: [provideProjectedBadgeView()] },
+    function* () {
+      const { service } = yield* ProjectedBadgeView();
+      return p(service.label);
+    },
+  );
+  const { TypedActionView, provideTypedActionView } = craftService(
+    { name: 'typedActionView', providedIn: 'toProvide' },
+    function* (input: { readonly key: string; readonly trigger: () => void }) {
+      yield* craftExpose('key', input.key);
+      yield* craftExpose('contract', {
         kind: 'action',
         trigger: input.trigger,
-      } satisfies ActionContract,
-    }),
-    ({ contract }) => button({ click: contract.trigger }, 'action'),
+      } satisfies ActionContract);
+    },
+  );
+
+  const action = craftComponent(
+    'typedAction',
+    {
+      providers: [provideTypedActionView()],
+      projection: projection<ActionContract>(),
+    },
+    function* (input: { readonly key: string; readonly trigger: () => void }) {
+      const { contract } = yield* TypedActionView(input);
+      return button({ click: contract.trigger }, 'action');
+    },
   );
   type _Contract = Expect<
     Expect<
@@ -283,24 +320,33 @@ it('extracts projection contracts and propagates projected dependencies', () => 
     {
       contentStyles: { body: ':scope { color: red; }' },
     },
-    (input: {
+    function* (input: {
       readonly body: RequiredContent<{
         readonly selector: {
           readonly tag: 'div';
           readonly class: 'card-body';
         };
       }>;
-    }) => input,
-    ({ body }) => section(renderContent('body', body)),
+    }) {
+      const { body } = input;
+      return section(renderContent('body', body));
+    },
   );
+  const { ProjectingParentView, provideProjectingParentView } = craftService(
+    { name: 'projectingParentView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const parent = craftComponent(
     'projectingParent',
-    {},
-    () => ({}),
-    () =>
-      card({
+    { providers: [provideProjectingParentView()] },
+    function* () {
+      yield* ProjectingParentView();
+      return card({
         body: content(() => [div({ class: 'card-body' }), badge({})]),
-      }),
+      });
+    },
   );
 
   type ParentDependencies = ComponentDepsOf<typeof parent>;
@@ -311,14 +357,24 @@ it('extracts projection contracts and propagates projected dependencies', () => 
   // @ts-expect-error the required body slot is missing.
   card({});
 
+  const { ProvidedProjectingParentView, provideProvidedProjectingParentView } =
+    craftService(
+      { name: 'providedProjectingParentView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const providedParent = craftComponent(
     'providedProjectingParent',
-    { providers: [provideBadgeService()] },
-    () => ({}),
-    () =>
-      card({
+    {
+      providers: [provideProvidedProjectingParentView(), provideBadgeService()],
+    },
+    function* () {
+      yield* ProvidedProjectingParentView();
+      return card({
         body: () => [div({ class: 'card-body' }), badge({})],
-      }),
+      });
+    },
   );
   type ProvidedDependencies = ComponentDepsOf<typeof providedParent>;
   type _ProvidedProjectedDependencyWasResolved = Expect<
@@ -328,17 +384,29 @@ it('extracts projection contracts and propagates projected dependencies', () => 
   const consumerProvidedCard = craftComponent(
     'consumerProvidedTypedCard',
     { providers: [provideBadgeService()] },
-    (input: { readonly body: ContentSlot }) => input,
-    ({ body }) => section(renderContent('body', body)),
+    function* (input: { readonly body: ContentSlot }) {
+      const { body } = input;
+      return section(renderContent('body', body));
+    },
   );
+  const {
+    ParentWithoutProjectedProviderView,
+    provideParentWithoutProjectedProviderView,
+  } = craftService(
+    { name: 'parentWithoutProjectedProviderView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const parentWithoutProvider = craftComponent(
     'parentWithoutProjectedProvider',
-    {},
-    () => ({}),
-    () =>
-      consumerProvidedCard({
+    { providers: [provideParentWithoutProjectedProviderView()] },
+    function* () {
+      yield* ParentWithoutProjectedProviderView();
+      return consumerProvidedCard({
         body: () => badge({}),
-      }),
+      });
+    },
   );
   type ConsumerOnlyDependencies = ComponentDepsOf<typeof parentWithoutProvider>;
   type _ConsumerProviderDoesNotSatisfyProjection = Expect<
@@ -350,7 +418,7 @@ it('checks the declared selector contract for projected content', () => {
   const card = craftComponent(
     'selectorContractCard',
     { contentStyles: { body: ':scope { display: block; }' } },
-    (input: {
+    function* (input: {
       readonly body: RequiredContent<{
         readonly selector: {
           readonly tag: 'div';
@@ -358,31 +426,53 @@ it('checks the declared selector contract for projected content', () => {
           readonly 'data-slot': 'body';
         };
       }>;
-    }) => input,
-    ({ body }) => renderContent('body', body),
+    }) {
+      const { body } = input;
+      return renderContent('body', body);
+    },
+  );
+
+  const {
+    SelectorContractValidParentView,
+    provideSelectorContractValidParentView,
+  } = craftService(
+    { name: 'selectorContractValidParentView', providedIn: 'toProvide' },
+    function* () {
+    },
   );
 
   const validParent = craftComponent(
     'selectorContractValidParent',
-    {},
-    () => ({}),
-    () =>
-      card({
+    { providers: [provideSelectorContractValidParentView()] },
+    function* () {
+      yield* SelectorContractValidParentView();
+      return card({
         body: content(() => div({ class: 'card-body', 'data-slot': 'body' })),
-      }),
+      });
+    },
   );
 
   expectTypeOf(validParent).toBeFunction();
 
+  const {
+    SelectorContractInvalidParentView,
+    provideSelectorContractInvalidParentView,
+  } = craftService(
+    { name: 'selectorContractInvalidParentView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const invalidParent = craftComponent(
     'selectorContractInvalidParent',
-    {},
-    () => ({}),
-    () =>
-      card({
+    { providers: [provideSelectorContractInvalidParentView()] },
+    function* () {
+      yield* SelectorContractInvalidParentView();
+      return card({
         // @ts-expect-error the projected content must contain div.card-body[data-slot="body"].
         body: content(() => div({ class: 'wrong-class' })),
-      }),
+      });
+    },
   );
 
   expectTypeOf(invalidParent).toBeFunction();
@@ -424,14 +514,24 @@ it('carries inferred dependencies from the component through the lazy route frag
     },
   );
 
+  const { TrackedView, provideTrackedView } = craftService(
+    { name: 'trackedView', providedIn: 'toProvide' },
+    function* (inputs: { readonly label: CraftServiceInput<string> }) {
+      const { label } = inputs;
+
+      const service = yield* TypeSpecService();
+      yield* craftExpose('label', label);
+      yield* craftExpose('service', service);
+    },
+  );
+
   const trackedComponent = craftComponent(
     'trackedComponent',
-    {},
-    function* (label: Input<string>) {
-      const service = yield* TypeSpecService();
-      return { label, service };
+    { providers: [provideTrackedView()] },
+    function* (inputs: { readonly label: Input<string> }) {
+      const { label, service } = yield* TrackedView(inputs);
+      return p(`${label()}: ${service.value}`);
     },
-    ({ label, service }) => p(`${label()}: ${service.value}`),
   );
 
   const lazyFragment = loadCraftComponent(async () => trackedComponent);
@@ -445,11 +545,15 @@ it('carries inferred dependencies from the component through the lazy route frag
     (typeof typeSpecRoutes._routes)[0]
   >;
 
+  // The logic is a service now, so the component depends on that service — and
+  // the service it needs in turn hangs under it.
   type _DependencyWasInferred = Expect<
-    'TypeSpecService' extends keyof ComponentDependencies['deps'] ? true : false
+    'TypeSpecService' extends keyof ComponentDependencies['deps']['trackedView']['dependencies']
+      ? true
+      : false
   >;
   type _OnlyExpectedDependencyWasInferred = Expect<
-    Equal<keyof ComponentDependencies['deps'], 'TypeSpecService'>
+    Equal<keyof ComponentDependencies['deps'], 'trackedView'>
   >;
   type _PublicInputWasInferred = Expect<
     Equal<keyof ComponentDependencies['publicProperties'], 'label'>
@@ -458,16 +562,16 @@ it('carries inferred dependencies from the component through the lazy route frag
     Equal<LazyDependencies, ComponentDependencies>
   >;
   type _RawRoutePreservesDependencies = Expect<
-    'TypeSpecService' extends keyof RawRouteDependencies['deps'] ? true : false
+    'trackedView' extends keyof RawRouteDependencies['deps'] ? true : false
   >;
   type _DependencyScopeWasPreserved = Expect<
     Equal<
-      ComponentDependencies['deps']['TypeSpecService']['providedIn'],
+      ComponentDependencies['deps']['trackedView']['dependencies']['TypeSpecService']['providedIn'],
       'toProvide'
     >
   >;
-  type _NoProvidersWereInferred = Expect<
-    Equal<keyof ComponentDependencies['provided'], never>
+  type _OwnServiceWasProvided = Expect<
+    Equal<keyof ComponentDependencies['provided'], 'trackedView'>
   >;
   type _MissingProviderWasDetected = Expect<
     Equal<
@@ -507,17 +611,35 @@ it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
   expectTypeOf<ComponentDepsOf<never>>().toBeNever();
   expectTypeOf<ComponentDepsOf<any>>().toEqualTypeOf<object | {}>();
 
+  const { ComponentDepsUnionFirstView, provideComponentDepsUnionFirstView } =
+    craftService(
+      { name: 'componentDepsUnionFirstView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const first = craftComponent(
     'componentDepsUnionFirst',
-    {},
-    () => ({}),
-    () => p('first'),
+    { providers: [provideComponentDepsUnionFirstView()] },
+    function* () {
+      yield* ComponentDepsUnionFirstView();
+      return p('first');
+    },
   );
+  const { ComponentDepsUnionSecondView, provideComponentDepsUnionSecondView } =
+    craftService(
+      { name: 'componentDepsUnionSecondView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const second = craftComponent(
     'componentDepsUnionSecond',
-    {},
-    () => ({}),
-    () => p('second'),
+    { providers: [provideComponentDepsUnionSecondView()] },
+    function* () {
+      yield* ComponentDepsUnionSecondView();
+      return p('second');
+    },
   );
 
   type FirstDeps = ComponentDepsOf<typeof first>;
@@ -539,12 +661,14 @@ it('propagates a service used by state-machine transitions into the component DI
     },
   );
 
-  const component = craftComponent(
-    'stateMachineTransitionDependency',
-    {},
+  const {
+    StateMachineTransitionDependencyView,
+    provideStateMachineTransitionDependencyView,
+  } = craftService(
+    { name: 'stateMachineTransitionDependencyView', providedIn: 'toProvide' },
     function* () {
-      const machine = yield* craftStateMachine(
-        function* () {
+      yield* craftStateMachine(
+        'machine', function* () {
           return {};
         },
         function* (_, transit) {
@@ -553,9 +677,7 @@ it('propagates a service used by state-machine transitions into the component DI
           return {
             idle: transitionStep(function* () {
               yield* initStateMachine(() =>
-                transit().pipe(
-                  transitionGuard(() => policy.canEnter()),
-                ),
+                transit().pipe(transitionGuard(() => policy.canEnter())),
               );
             }),
           };
@@ -565,18 +687,31 @@ it('propagates a service used by state-machine transitions into the component DI
         },
       );
 
-      return { machine };
     },
-    () => p('machine'),
+  );
+
+  const component = craftComponent(
+    'stateMachineTransitionDependency',
+    { providers: [provideStateMachineTransitionDependencyView()] },
+    function* () {
+      yield* StateMachineTransitionDependencyView();
+      return p('machine');
+    },
   );
 
   type ComponentDependencies = ComponentDepsOf<typeof component>;
 
   type _DependencyWasInferred = Expect<
-    Equal<keyof ComponentDependencies['deps'], 'TransitionPolicy'>
+    Equal<
+      keyof ComponentDependencies['deps']['stateMachineTransitionDependencyView']['dependencies'],
+      'TransitionPolicy'
+    >
   >;
-  type _NoProvidersWereInferred = Expect<
-    Equal<keyof ComponentDependencies['provided'], never>
+  type _OwnServiceWasProvided = Expect<
+    Equal<
+      keyof ComponentDependencies['provided'],
+      'stateMachineTransitionDependencyView'
+    >
   >;
   type _MissingProviderKeyWasDetected = Expect<
     Equal<keyof ComponentDependencies['missingProvider'], 'TransitionPolicy'>
@@ -645,12 +780,17 @@ it('propagates an Effect service used by transitionGuardEffect into the route DI
       }),
   });
 
-  const component = craftComponent(
-    'effectStateMachineTransitionDependency',
-    {},
+  const {
+    EffectStateMachineTransitionDependencyView,
+    provideEffectStateMachineTransitionDependencyView,
+  } = craftService(
+    {
+      name: 'effectStateMachineTransitionDependencyView',
+      providedIn: 'toProvide',
+    },
     function* () {
-      const machine = yield* craftStateMachine(
-        function* () {
+      yield* craftStateMachine(
+        'machine', function* () {
           return {};
         },
         function* (_, transit) {
@@ -675,15 +815,22 @@ it('propagates an Effect service used by transitionGuardEffect into the route DI
         },
       );
 
-      return { machine };
     },
-    () => p('machine'),
+  );
+
+  const component = craftComponent(
+    'effectStateMachineTransitionDependency',
+    { providers: [provideEffectStateMachineTransitionDependencyView()] },
+    function* () {
+      yield* EffectStateMachineTransitionDependencyView();
+      return p('machine');
+    },
   );
 
   type ComponentDependencies = ComponentDepsOf<typeof component>;
   type _EffectDependencyWasInferred = Expect<
     Equal<
-      keyof ComponentDependencies['deps'],
+      keyof ComponentDependencies['deps']['effectStateMachineTransitionDependencyView']['dependencies'],
       'types-spec/EffectTransitionPolicy'
     >
   >;
@@ -724,10 +871,9 @@ it('propagates an Effect service used by transitionGuardEffect into the route DI
   const providedRoutes = craftRoutes('effectGuardProvided', [
     {
       path: 'checkout',
-      ...loadCraftComponent(
-        async () => component,
-        [provideLayer(policyLayer)] as const,
-      ),
+      ...loadCraftComponent(async () => component, [
+        provideLayer(policyLayer),
+      ] as const),
     },
   ]);
   type ProvidedEffectServices = ProvidedEffectServicesOfRoute<
@@ -751,14 +897,26 @@ it('does not treat unbranded Angular providers as Craft service providers', () =
     },
   );
 
-  const component = craftComponent(
-    'unbrandedProviderComponent',
-    { providers: [provideHostName('component:unbrandedProviderComponent')] },
+  const { UnbrandedProviderView, provideUnbrandedProviderView } = craftService(
+    { name: 'unbrandedProviderView', providedIn: 'toProvide' },
     function* () {
       const service = yield* MissingProvider();
-      return { service };
+      yield* craftExpose('service', service);
     },
-    ({ service }) => p(service.value),
+  );
+
+  const component = craftComponent(
+    'unbrandedProviderComponent',
+    {
+      providers: [
+        provideUnbrandedProviderView(),
+        provideHostName('component:unbrandedProviderComponent'),
+      ],
+    },
+    function* () {
+      const { service } = yield* UnbrandedProviderView();
+      return p(service.value);
+    },
   );
 
   type ComponentDependencies = ComponentDepsOf<typeof component>;
@@ -781,14 +939,22 @@ it('includes dependencies of Craft components rendered in nested templates', () 
     },
   );
 
+  const { TemplateDependencyChildView, provideTemplateDependencyChildView } =
+    craftService(
+      { name: 'templateDependencyChildView', providedIn: 'toProvide' },
+      function* () {
+        const service = yield* TemplateDependency();
+        yield* craftExpose('service', service);
+      },
+    );
+
   const child = craftComponent(
     'templateDependencyChild',
-    {},
+    { providers: [provideTemplateDependencyChildView()] },
     function* () {
-      const service = yield* TemplateDependency();
-      return { service };
+      const { service } = yield* TemplateDependencyChildView();
+      return p(service.value);
     },
-    ({ service }) => p(service.value),
   );
 
   const nestedNode = div([p('before'), child({}), p('after')]);
@@ -799,11 +965,20 @@ it('includes dependencies of Craft components rendered in nested templates', () 
     Equal<keyof NestedNodeDependencies['missingProvider'], 'TemplateDependency'>
   >;
 
+  const { TemplateDependencyParentView, provideTemplateDependencyParentView } =
+    craftService(
+      { name: 'templateDependencyParentView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const parent = craftComponent(
     'templateDependencyParent',
-    {},
-    () => ({}),
-    () => nestedNode,
+    { providers: [provideTemplateDependencyParentView()] },
+    function* () {
+      yield* TemplateDependencyParentView();
+      return nestedNode;
+    },
   );
 
   type ParentDependencies = ComponentDepsOf<typeof parent>;
@@ -812,45 +987,56 @@ it('includes dependencies of Craft components rendered in nested templates', () 
   >;
 });
 
-it('infers public inputs added by a piped directive', () => {
-  const withPermission = craftDirective(
-    'withPermission',
-    {},
-    (baseLogic: HostRequiredLogic<{ user: Input<User> }>) =>
-      (user: Input<User>, permission: Input<string>) => ({
-        ...baseLogic(user),
-        permission,
-      }),
-    (
-      baseTemplate: HostTemplate<{
-        user: Input<User>;
-        permission: Input<string>;
-      }>,
-    ) => baseTemplate,
+it('keeps the component props untouched when a directive is piped', () => {
+  const { CardView, provideCardView } = craftService(
+    { name: 'cardView', providedIn: 'toProvide' },
+    function* (inputs: { readonly user: CraftServiceInput<User> }) {
+      const { user } = inputs;
+      yield* craftExpose('user', user);
+      yield* craftExpose('label', 'card');
+    },
   );
 
   const card = craftComponent(
     'card',
-    {},
-    (user: Input<User>) => ({ user }),
-    ({ user }) =>
-      p(function* () {
+    { providers: [provideCardView()] },
+    function* (inputs: { readonly user: Input<User> }) {
+      const { user } = yield* CardView(inputs);
+      return p(function* () {
         return (yield* user()).name;
-      }),
-  ).pipe(withPermission);
+      });
+    },
+  ).pipe(
+    craftDirective(
+      'withPermission',
+      {},
+      {
+        service: overrideService(CardView, (base) => ({
+          ...base,
+          label: `${base.label} (restricted)`,
+        })),
+      },
+    ),
+  );
 
+  // A directive enriches or restricts a service façade; it never adds a prop.
   expectTypeOf<PropsOf<typeof card>>().toEqualTypeOf<{
     user: () => Generator<unknown, User, unknown>;
-    permission: () => Generator<unknown, string, unknown>;
   }>();
   card({
     user: function* () {
       return { id: 1, name: 'Ada' };
     },
-    permission: function* () {
-      return 'edit';
-    },
   });
+
+  craftDirective(
+    'takesAMemberAway',
+    {},
+    {
+      // @ts-expect-error a directive may not drop a member of the contract.
+      service: overrideService(CardView, () => ({ label: 'only a label' })),
+    },
+  );
 });
 
 it('preserves template dependencies when Craft directives are applied', () => {
@@ -861,35 +1047,74 @@ it('preserves template dependencies when Craft directives are applied', () => {
     },
   );
 
-  const child = craftComponent(
-    'directiveTemplateDependencyChild',
-    {},
+  const {
+    DirectiveTemplateDependencyChildView,
+    provideDirectiveTemplateDependencyChildView,
+  } = craftService(
+    { name: 'directiveTemplateDependencyChildView', providedIn: 'toProvide' },
     function* () {
       const service = yield* DirectiveTemplateDependency();
-      return { service };
+      yield* craftExpose('service', service);
     },
-    ({ service }) => p(service.value),
+  );
+
+  const child = craftComponent(
+    'directiveTemplateDependencyChild',
+    { providers: [provideDirectiveTemplateDependencyChildView()] },
+    function* () {
+      const { service } = yield* DirectiveTemplateDependencyChildView();
+      return p(service.value);
+    },
   );
 
   const withTemplate = craftDirective(
     'withTemplate',
     {},
-    (baseLogic) => baseLogic,
-    (baseTemplate) => (context) => baseTemplate(context),
+    {
+      template: (baseTemplate) =>
+        function* () {
+          return yield* baseTemplate();
+        },
+    },
+  );
+
+  const {
+    DirectiveTemplateDependencyParentView,
+    provideDirectiveTemplateDependencyParentView,
+  } = craftService(
+    { name: 'directiveTemplateDependencyParentView', providedIn: 'toProvide' },
+    function* () {
+    },
   );
 
   const piped = craftComponent(
     'directiveTemplateDependencyParent',
-    {},
-    () => ({}),
-    () => div([child({})]),
+    { providers: [provideDirectiveTemplateDependencyParentView()] },
+    function* () {
+      yield* DirectiveTemplateDependencyParentView();
+      return div([child({})]);
+    },
   ).pipe(withTemplate);
+
+  const {
+    NodeDirectiveTemplateDependencyParentView,
+    provideNodeDirectiveTemplateDependencyParentView,
+  } = craftService(
+    {
+      name: 'nodeDirectiveTemplateDependencyParentView',
+      providedIn: 'toProvide',
+    },
+    function* () {
+    },
+  );
 
   const nodePiped = craftComponent(
     'nodeDirectiveTemplateDependencyParent',
-    {},
-    () => ({}),
-    () => div([child({})]).pipe(withTemplate),
+    { providers: [provideNodeDirectiveTemplateDependencyParentView()] },
+    function* () {
+      yield* NodeDirectiveTemplateDependencyParentView();
+      return div([child({})]).pipe(withTemplate);
+    },
   );
 
   type PipedDependencies = ComponentDepsOf<typeof piped>;
@@ -920,11 +1145,22 @@ it('propagates component-carried dependencies from a reader used as text', () =>
     function* () {
       return 'translated';
     }) as unknown as TranslationReader;
+  const {
+    TranslationReaderDependencyView,
+    provideTranslationReaderDependencyView,
+  } = craftService(
+    { name: 'translationReaderDependencyView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const component = craftComponent(
     'translationReaderDependency',
-    {},
-    () => ({}),
-    () => p(reader),
+    { providers: [provideTranslationReaderDependencyView()] },
+    function* () {
+      yield* TranslationReaderDependencyView();
+      return p(reader);
+    },
   );
 
   const paragraph = p(reader);
@@ -961,41 +1197,77 @@ it('accepts manually described element children without a pipe method', () => {
 });
 
 it('resolves registered child templates without a runtime test harness', () => {
+  const { ContractIconView, provideContractIconView } = craftService(
+    { name: 'contractIconView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const icon = craftComponent(
     'contractIcon',
-    {},
-    () => ({}),
-    () => p('icon'),
+    { providers: [provideContractIconView()] },
+    function* () {
+      yield* ContractIconView();
+      return p('icon');
+    },
   );
+  const { ContractParentView, provideContractParentView } = craftService(
+    { name: 'contractParentView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const parent = craftComponent(
     'contractParent',
-    {},
-    () => ({}),
-    () => div([icon()]),
+    { providers: [provideContractParentView()] },
+    function* () {
+      yield* ContractParentView();
+      return div([icon()]);
+    },
   );
 
   type Contract = SetupTestComponentTemplate<typeof parent, [typeof icon]>;
   type _ContractIsValid = Expect<Equal<Contract['valid'], true>>;
   type _RootElementIsFound = Expect<
     Equal<
-      TemplateHasElement<ReturnType<ComponentTemplateOf<typeof parent>>, 'div'>,
+      TemplateHasElement<
+        TemplateChildren<ComponentTemplateOf<typeof parent>>,
+        'div'
+      >,
       true
     >
   >;
 });
 
 it('reports a missing child component in the type-only template contract', () => {
+  const { ContractMissingView, provideContractMissingView } = craftService(
+    { name: 'contractMissingView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const missing = craftComponent(
     'contractMissing',
-    {},
-    () => ({}),
-    () => p('missing'),
+    { providers: [provideContractMissingView()] },
+    function* () {
+      yield* ContractMissingView();
+      return p('missing');
+    },
   );
+  const { ContractMissingParentView, provideContractMissingParentView } =
+    craftService(
+      { name: 'contractMissingParentView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const parent = craftComponent(
     'contractMissingParent',
-    {},
-    () => ({}),
-    () => div([missing()]),
+    { providers: [provideContractMissingParentView()] },
+    function* () {
+      yield* ContractMissingParentView();
+      return div([missing()]);
+    },
   );
 
   type Contract = SetupTestComponentTemplate<typeof parent, []>;
@@ -1005,25 +1277,44 @@ it('reports a missing child component in the type-only template contract', () =>
 });
 
 it('keeps exact child component references and validates their props', () => {
+  const { ContractPropsChildView, provideContractPropsChildView } =
+    craftService(
+      { name: 'contractPropsChildView', providedIn: 'toProvide' },
+      function* (inputs: { readonly value: CraftServiceInput<number> }) {
+        const { value } = inputs;
+        yield* craftExpose('value', value);
+      },
+    );
+
   const child = craftComponent(
     'contractPropsChild',
-    {},
-    (value: Input<number>) => ({ value }),
-    ({ value }) =>
-      p(function* () {
+    { providers: [provideContractPropsChildView()] },
+    function* (inputs: { readonly value: Input<number> }) {
+      const { value } = yield* ContractPropsChildView(inputs);
+      return p(function* () {
         return String(yield* value());
-      }),
+      });
+    },
   );
   const node = child({
     value: function* () {
       return 1;
     },
   });
+  const { ContractPropsParentView, provideContractPropsParentView } =
+    craftService(
+      { name: 'contractPropsParentView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const parent = craftComponent(
     'contractPropsParent',
-    {},
-    () => ({}),
-    () => node,
+    { providers: [provideContractPropsParentView()] },
+    function* () {
+      yield* ContractPropsParentView();
+      return node;
+    },
   );
 
   type _ReferenceIsExact = Expect<
@@ -1034,7 +1325,7 @@ it('keeps exact child component references and validates their props', () => {
   type _UsesExactChild = Expect<
     Equal<
       TemplateUsesComponent<
-        ReturnType<ComponentTemplateOf<typeof parent>>,
+        TemplateChildren<ComponentTemplateOf<typeof parent>>,
         typeof child
       >,
       true
@@ -1058,11 +1349,22 @@ it('keeps exact child component references and validates their props', () => {
     component: child,
     props: {},
   } as ComponentNode<{}, {}, typeof child>;
+  const {
+    ContractInvalidPropsParentView,
+    provideContractInvalidPropsParentView,
+  } = craftService(
+    { name: 'contractInvalidPropsParentView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const invalidParent = craftComponent(
     'contractInvalidPropsParent',
-    {},
-    () => ({}),
-    () => invalidNode,
+    { providers: [provideContractInvalidPropsParentView()] },
+    function* () {
+      yield* ContractInvalidPropsParentView();
+      return invalidNode;
+    },
   );
   type InvalidContract = SetupTestComponentTemplate<
     typeof invalidParent,
@@ -1091,29 +1393,29 @@ it('keeps event arguments and yieldable callback shapes in template assertions',
 });
 
 it('keeps yieldable primitive properties in template VNodes', () => {
+  const { ContextPropertyBindingView, provideContextPropertyBindingView } =
+    craftService(
+      { name: 'contextPropertyBindingView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftMethod('disabled', function* () {
+          return true;
+        });
+        yield* craftMethod('enabled', function* () {
+          return true;
+        });
+      },
+    );
+
   const component = craftComponent(
     'contextPropertyBinding',
-    {},
-    () => ({
-      disabled: craftUse(craftMethod('disabled', function* () {
-        return true;
-      })),
-      enabled: craftUse(craftMethod('enabled', function* () {
-        return true;
-      })),
-    }),
-    ({ disabled }) =>
-      button(
-        {
-          *disabled() {
-            return yield* disabled();
-          },
-        },
-        '+',
-      ),
+    { providers: [provideContextPropertyBindingView()] },
+    function* () {
+      const { disabled } = yield* ContextPropertyBindingView();
+      return button({ disabled }, '+');
+    },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _PropertyDelegatesToContext = Expect<
     Equal<
       TemplateDelegatesToContext<Template, 'button', 'disabled', 'disabled'>,
@@ -1127,75 +1429,88 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     >
   >;
 
+  const {
+    NestedContextPropertyBindingView,
+    provideNestedContextPropertyBindingView,
+  } = craftService(
+    { name: 'nestedContextPropertyBindingView', providedIn: 'toProvide' },
+    function* () {
+      yield* craftExpose('counter', {
+        disabled: yield* craftMethod('disabled', function* () {
+          return true;
+        }),
+      });
+    },
+  );
+
   const nestedComponent = craftComponent(
     'nestedContextPropertyBinding',
-    {},
-    () => ({
-      counter: {
-        disabled: craftUse(craftMethod('disabled', function* () {
-          return true;
-        })),
-      },
-    }),
-    ({ counter }) =>
-      button(
-        {
-          *disabled() {
-            return yield* counter.disabled();
-          },
-        },
-        '+',
-      ),
+    { providers: [provideNestedContextPropertyBindingView()] },
+    function* () {
+      const { counter } = yield* NestedContextPropertyBindingView();
+      return button({ disabled: counter.disabled }, '+');
+    },
   );
-  type NestedTemplate = ReturnType<ComponentTemplateOf<typeof nestedComponent>>;
+  type NestedTemplate = TemplateChildren<
+    ComponentTemplateOf<typeof nestedComponent>
+  >;
   type _NestedPropertyDelegatesToContext = Expect<
     Equal<
       TemplateDelegatesToContext<
         NestedTemplate,
         'button',
         'disabled',
-        'counter.disabled'
+        'disabled'
       >,
       true
     >
   >;
 
-  const derivedStateComponent = craftComponent(
-    'derivedStatePropertyBinding',
-    {},
+  const {
+    DerivedStatePropertyBindingView,
+    provideDerivedStatePropertyBindingView,
+  } = craftService(
+    { name: 'derivedStatePropertyBindingView', providedIn: 'toProvide' },
     function* () {
-      const counter = yield* state('counter', 0, ({ state }) => ({
+      yield* state('counter', 0, ({ state }) => ({
         disabled: craftUse(craftComputed('disabled', function* () {
           return (yield* state()) % 2 === 0;
         })),
       }));
-      return { counter };
     },
-    ({ counter }) =>
-      button(
-        {
-          *disabled() {
-            return yield* counter.disabled();
-          },
-        },
-        '+',
-      ),
   );
-  type DerivedTemplate = ReturnType<
+
+  const derivedStateComponent = craftComponent(
+    'derivedStatePropertyBinding',
+    { providers: [provideDerivedStatePropertyBindingView()] },
+    function* () {
+      const { counter } = yield* DerivedStatePropertyBindingView();
+      return button({ disabled: counter.disabled }, '+');
+    },
+  );
+  type DerivedTemplate = TemplateChildren<
     ComponentTemplateOf<typeof derivedStateComponent>
   >;
   type _DerivedStateUsesContextValue = Expect<
-    Equal<TemplateRendersStateWhen<DerivedTemplate, 'counter.disabled'>, true>
+    Equal<TemplateRendersStateWhen<DerivedTemplate, 'disabled'>, true>
   >;
+
+  const { DirectStateContextView, provideDirectStateContextView } =
+    craftService(
+      { name: 'directStateContextView', providedIn: 'toProvide' },
+      function* () {
+        yield* state('counter', 0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
+        }));
+      },
+    );
 
   const directStateComponent = craftComponent(
     'directStateContext',
-    {},
-    () =>
-      state('counter', 0, ({ update }) => ({
-        increment: () => update((value) => value + 1),
-      })),
-    (counter) => {
+    { providers: [provideDirectStateContextView()] },
+    function* () {
+      const { counter } = yield* DirectStateContextView();
+
       const current: number = craftUse(counter());
       return button({ click: counter.increment }, `${current}`);
     },
@@ -1203,12 +1518,23 @@ it('keeps yieldable primitive properties in template VNodes', () => {
 });
 
 it('diagnoses imperative callbacks when the template contract is requested', () => {
+  const {
+    ContractImperativeCallbackParentView,
+    provideContractImperativeCallbackParentView,
+  } = craftService(
+    { name: 'contractImperativeCallbackParentView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const imperative = div({ click: () => undefined }, 'click');
   const parent = craftComponent(
     'contractImperativeCallbackParent',
-    {},
-    () => ({}),
-    () => imperative,
+    { providers: [provideContractImperativeCallbackParentView()] },
+    function* () {
+      yield* ContractImperativeCallbackParentView();
+      return imperative;
+    },
   );
 
   type Contract = SetupTestComponentTemplate<typeof parent>;
@@ -1218,26 +1544,46 @@ it('diagnoses imperative callbacks when the template contract is requested', () 
 });
 
 it('checks output callback arguments on a child component', () => {
+  const { ContractOutputChildView, provideContractOutputChildView } =
+    craftService(
+      { name: 'contractOutputChildView', providedIn: 'toProvide' },
+      function* (inputs: { readonly onSelected: Output<(id: number) => void> }) {
+        const { onSelected } = inputs;
+        yield* craftExpose('onSelected', onSelected);
+      },
+    );
+
   const child = craftComponent(
     'contractOutputChild',
-    {},
-    (onSelected: Output<(id: number) => void>) => ({ onSelected }),
-    ({ onSelected }) => p('child'),
+    { providers: [provideContractOutputChildView()] },
+    function* (inputs: { readonly onSelected: Output<(id: number) => void> }) {
+      const { onSelected } = yield* ContractOutputChildView(inputs);
+      return p('child');
+    },
   );
   const onSelected = function* (id: number) {
     return id;
   };
+  const { ContractOutputParentView, provideContractOutputParentView } =
+    craftService(
+      { name: 'contractOutputParentView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const parent = craftComponent(
     'contractOutputParent',
-    {},
-    () => ({}),
-    () => child({ onSelected }),
+    { providers: [provideContractOutputParentView()] },
+    function* () {
+      yield* ContractOutputParentView();
+      return child({ onSelected });
+    },
   );
 
   type _OutputSignature = Expect<
     Equal<
       TemplateHasOutput<
-        ReturnType<ComponentTemplateOf<typeof parent>>,
+        TemplateChildren<ComponentTemplateOf<typeof parent>>,
         typeof child,
         'onSelected',
         typeof onSelected
@@ -1248,38 +1594,82 @@ it('checks output callback arguments on a child component', () => {
 });
 
 it('diagnoses imperative output callbacks in the template contract', () => {
+  const {
+    ContractImperativeOutputChildView,
+    provideContractImperativeOutputChildView,
+  } = craftService(
+    { name: 'contractImperativeOutputChildView', providedIn: 'toProvide' },
+    function* (inputs: { readonly onSelected: Output<(id: number) => void> }) {
+      const { onSelected } = inputs;
+      yield* craftExpose('onSelected', onSelected);
+    },
+  );
+
   const child = craftComponent(
     'contractImperativeOutputChild',
-    {},
-    (onSelected: Output<(id: number) => void>) => ({ onSelected }),
-    () => p('child'),
+    { providers: [provideContractImperativeOutputChildView()] },
+    function* (inputs: { readonly onSelected: Output<(id: number) => void> }) {
+      yield* ContractImperativeOutputChildView(inputs);
+      return p('child');
+    },
   );
+  const {
+    ContractImperativeOutputParentView,
+    provideContractImperativeOutputParentView,
+  } = craftService(
+    { name: 'contractImperativeOutputParentView', providedIn: 'toProvide' },
+    function* () {
+    },
+  );
+
   const parent = craftComponent(
     'contractImperativeOutputParent',
-    {},
-    () => ({}),
-    () => child({ onSelected: (id: number) => id }),
+    { providers: [provideContractImperativeOutputParentView()] },
+    function* () {
+      yield* ContractImperativeOutputParentView();
+      return child({ onSelected: (id: number) => id });
+    },
   );
 
   type Contract = SetupTestComponentTemplate<typeof parent, [typeof child]>;
-  type _ImperativeOutputIsDiagnosed = Expect<
-    Contract extends { readonly error: string } ? true : false
+  // An output is a plain callback now: the parent's own template is the
+  // generator, so nothing forces the handler to be one.
+  type _ImperativeOutputIsAccepted = Expect<
+    Contract extends { readonly error: string } ? false : true
   >;
 });
 
 it('resolves the component loaded by defer in the type-only contract', () => {
+  const { ContractDeferredChildView, provideContractDeferredChildView } =
+    craftService(
+      { name: 'contractDeferredChildView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const child = craftComponent(
     'contractDeferredChild',
-    {},
-    () => ({}),
-    () => p('deferred'),
+    { providers: [provideContractDeferredChildView()] },
+    function* () {
+      yield* ContractDeferredChildView();
+      return p('deferred');
+    },
   );
+  const { ContractDeferredParentView, provideContractDeferredParentView } =
+    craftService(
+      { name: 'contractDeferredParentView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const deferred = deferNode(async () => child);
   const parent = craftComponent(
     'contractDeferredParent',
-    {},
-    () => ({}),
-    () => deferred,
+    { providers: [provideContractDeferredParentView()] },
+    function* () {
+      yield* ContractDeferredParentView();
+      return deferred;
+    },
   );
 
   type Missing = SetupTestComponentTemplate<typeof parent>;
@@ -1293,17 +1683,35 @@ it('resolves the component loaded by defer in the type-only contract', () => {
 });
 
 it('reports dynamic component unions and conditional branch failures', () => {
+  const { ContractDynamicFirstView, provideContractDynamicFirstView } =
+    craftService(
+      { name: 'contractDynamicFirstView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const first = craftComponent(
     'contractDynamicFirst',
-    {},
-    () => ({}),
-    () => p('first'),
+    { providers: [provideContractDynamicFirstView()] },
+    function* () {
+      yield* ContractDynamicFirstView();
+      return p('first');
+    },
   );
+  const { ContractDynamicSecondView, provideContractDynamicSecondView } =
+    craftService(
+      { name: 'contractDynamicSecondView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const second = craftComponent(
     'contractDynamicSecond',
-    {},
-    () => ({}),
-    () => p('second'),
+    { providers: [provideContractDynamicSecondView()] },
+    function* () {
+      yield* ContractDynamicSecondView();
+      return p('second');
+    },
   );
   const dynamic = {
     kind: 'component',
@@ -1311,11 +1719,20 @@ it('reports dynamic component unions and conditional branch failures', () => {
     component: (true ? first : second) as typeof first | typeof second,
     props: {},
   } as ComponentNode<{}, {}, typeof first | typeof second>;
+  const { ContractDynamicParentView, provideContractDynamicParentView } =
+    craftService(
+      { name: 'contractDynamicParentView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const dynamicParent = craftComponent(
     'contractDynamicParent',
-    {},
-    () => ({}),
-    () => dynamic,
+    { providers: [provideContractDynamicParentView()] },
+    function* () {
+      yield* ContractDynamicParentView();
+      return dynamic;
+    },
   );
 
   type DynamicContract = SetupTestComponentTemplate<
@@ -1326,16 +1743,24 @@ it('reports dynamic component unions and conditional branch failures', () => {
     DynamicContract extends { readonly error: string } ? true : false
   >;
 
+  const { ContractBranchMissingView, provideContractBranchMissingView } =
+    craftService(
+      { name: 'contractBranchMissingView', providedIn: 'toProvide' },
+      function* () {
+      },
+    );
+
   const missingBranch = craftComponent(
     'contractBranchMissing',
-    {},
-    () => ({}),
-    () => p('missing branch'),
+    { providers: [provideContractBranchMissingView()] },
+    function* () {
+      yield* ContractBranchMissingView();
+      return p('missing branch');
+    },
   );
   const branchParent = craftComponent(
     'contractBranchParent',
     {},
-    () => ({}),
     // eslint-disable-next-line no-constant-condition -- this fixture checks conditional branch diagnostics.
     () => (true ? p('ok') : missingBranch()),
   );
@@ -1346,18 +1771,22 @@ it('reports dynamic component unions and conditional branch failures', () => {
 });
 
 it('tracks named elements through conditional template branches', () => {
-  const component = craftComponent(
-    'namedContractComponent',
-    {},
+  const { NamedContractView, provideNamedContractView } = craftService(
+    { name: 'namedContractView', providedIn: 'toProvide' },
     function* () {
-      const isAuth = yield* state(
+      yield* state(
         'isAuth',
         computed(() => true),
       );
-      return { isAuth };
     },
-    ({ isAuth }) =>
-      ifNode(
+  );
+
+  const component = craftComponent(
+    'namedContractComponent',
+    { providers: [provideNamedContractView()] },
+    function* () {
+      const { isAuth } = yield* NamedContractView();
+      return ifNode(
         isAuth,
         () =>
           button(
@@ -1370,10 +1799,11 @@ it('tracks named elements through conditional template branches', () => {
             '+',
           ),
         () => p('signed out'),
-      ),
+      );
+    },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _VisibleElement = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
@@ -1397,26 +1827,29 @@ it('tracks named elements through conditional template branches', () => {
 });
 
 it('tracks rendered state reads through conditional template branches', () => {
+  const { RenderedStateContractView, provideRenderedStateContractView } =
+    craftService(
+      { name: 'renderedStateContractView', providedIn: 'toProvide' },
+      function* () {
+        yield* state('isAdult', true);
+        yield* state('isAuth', true);
+      },
+    );
+
   const component = craftComponent(
     'renderedStateContractComponent',
-    {},
+    { providers: [provideRenderedStateContractView()] },
     function* () {
-      const isAdult = yield* state('isAdult', true);
-      const isAuth = yield* state('isAuth', true);
-      return { isAdult, isAuth };
-    },
-    ({ isAdult, isAuth }) =>
-      ifNode(
+      const { isAdult, isAuth } = yield* RenderedStateContractView();
+      return ifNode(
         isAuth,
-        () =>
-          button('increment', {}, function* () {
-            return yield* isAdult();
-          }),
+        () => button('increment', {}, isAdult),
         () => p('signed out'),
-      ),
+      );
+    },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _RenderedState = Expect<
     Equal<
       TemplateRendersStateWhen<Template, 'isAdult', { when: { isAuth: true } }>,
@@ -1436,22 +1869,27 @@ it('tracks rendered state reads through conditional template branches', () => {
 });
 
 it('tracks list visibility paths for named elements', () => {
+  const { NamedListContractView, provideNamedListContractView } = craftService(
+    { name: 'namedListContractView', providedIn: 'toProvide' },
+    function* () {
+      yield* state('counterList', [1, 2]);
+    },
+  );
+
   const component = craftComponent(
     'namedListContractComponent',
-    {},
+    { providers: [provideNamedListContractView()] },
     function* () {
-      const counterList = yield* state('counterList', [1, 2]);
-      return { counterList };
-    },
-    ({ counterList }) =>
-      forNode(
+      const { counterList } = yield* NamedListContractView();
+      return forNode(
         counterList,
         { track: (item) => item, empty: () => p('empty') },
         () => button('item', {}, 'item'),
-      ),
+      );
+    },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _ItemVisibility = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
@@ -1484,34 +1922,47 @@ it('tracks list visibility paths for named elements', () => {
 });
 
 it('tracks translated labels exposed from nested insertSelect state', () => {
-  const component = craftComponent(
-    'nestedTranslatedLabelsContractComponent',
-    {},
+  const {
+    NestedTranslatedLabelsContractView,
+    provideNestedTranslatedLabelsContractView,
+  } = craftService(
+    { name: 'nestedTranslatedLabelsContractView', providedIn: 'toProvide' },
     function* () {
-      const items = yield* state(
+      yield* state(
         'items',
         [{ key: 'first' }, { key: 'second' }],
         insertSelect('item', ({ state: selectedItem }) => ({
-          translatedLabel: computed(
-            () => `translated:${craftUse(selectedItem()).key}`,
-          ),
+          // Named, because a template contract identifies a member by the name
+          // its primitive carries.
+          translatedLabel: craftUse(craftComputed('translatedLabel', function* () {
+            return `translated:${(yield* selectedItem()).key}`;
+          })),
         })),
       );
-      return { items };
     },
-    ({ items }) =>
-      forNode(items, { track: (item) => item.key }, (_item, index) =>
+  );
+
+  const component = craftComponent(
+    'nestedTranslatedLabelsContractComponent',
+    { providers: [provideNestedTranslatedLabelsContractView()] },
+    function* () {
+      const { items } = yield* NestedTranslatedLabelsContractView();
+      return forNode(items, { track: (item) => item.key }, (_item, index) =>
         span(
           'itemLabel',
           {
             'aria-label': items.selectItem(index)?.translatedLabel,
           },
-          () => items.selectItem(index)?.translatedLabel() ?? '',
+          function* () {
+            const label = items.selectItem(index)?.translatedLabel;
+            return label ? yield* label() : '';
+          },
         ),
-      ),
+      );
+    },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _TranslatedLabelIsRenderedForNonEmptyItems = Expect<
     Equal<
       TemplateRendersNamedElementWhen<
@@ -1526,7 +1977,7 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
     Equal<
       TemplateRendersStateWhen<
         Template,
-        'items.selectItem.translatedLabel',
+        'translatedLabel',
         { when: { items: 'nonEmpty' } }
       >,
       true
@@ -1535,30 +1986,34 @@ it('tracks translated labels exposed from nested insertSelect state', () => {
 });
 
 it('tracks available actions through conditional template branches', () => {
+  const { AvailableActionContractView, provideAvailableActionContractView } =
+    craftService(
+      { name: 'availableActionContractView', providedIn: 'toProvide' },
+      function* () {
+        yield* state(
+          'isAuth',
+          computed(() => true),
+        );
+        yield* craftMethod('increment', function* () {
+          return undefined;
+        });
+      },
+    );
+
   const component = craftComponent(
     'availableActionContractComponent',
-    {},
+    { providers: [provideAvailableActionContractView()] },
     function* () {
-      const isAuth = yield* state(
-        'isAuth',
-        computed(() => true),
-      );
-      return {
-        isAuth,
-        increment: yield* craftMethod('increment', function* () {
-          return undefined;
-        }),
-      };
-    },
-    ({ isAuth, increment }) =>
-      ifNode(
+      const { isAuth, increment } = yield* AvailableActionContractView();
+      return ifNode(
         isAuth,
         () => button('increment', { click: increment }, '+'),
         () => p('signed out'),
-      ),
+      );
+    },
   );
 
-  type Template = ReturnType<ComponentTemplateOf<typeof component>>;
+  type Template = TemplateChildren<ComponentTemplateOf<typeof component>>;
   type _AvailableAction = Expect<
     Equal<
       TemplateRenderAvailableActionWhen<
@@ -1585,21 +2040,30 @@ it('tracks available actions through conditional template branches', () => {
 });
 
 it('keeps reactive signal reads synchronous and infers each items', () => {
+  const {
+    SynchronousReactiveTemplateReadsView,
+    provideSynchronousReactiveTemplateReadsView,
+  } = craftService(
+    { name: 'synchronousReactiveTemplateReadsView', providedIn: 'toProvide' },
+    function* () {
+      yield* state('users', [{ id: 1, name: 'Ada' }]);
+    },
+  );
+
   const component = craftComponent(
     'synchronousReactiveTemplateReads',
-    {},
+    { providers: [provideSynchronousReactiveTemplateReadsView()] },
     function* () {
-      const users = yield* state('users', [{ id: 1, name: 'Ada' }]);
-      return { users };
+      const { users } = yield* SynchronousReactiveTemplateReadsView();
+      return [
+        span(String(craftUse(users()).length)),
+        forNode(
+          () => craftUse(users()),
+          { track: (user) => user.id },
+          (user) => p(user.name),
+        ),
+      ];
     },
-    ({ users }) => [
-      span(String(craftUse(users()).length)),
-      forNode(
-        () => craftUse(users()),
-        { track: (user) => user.id },
-        (user) => p(user.name),
-      ),
-    ],
   );
 
   void component;

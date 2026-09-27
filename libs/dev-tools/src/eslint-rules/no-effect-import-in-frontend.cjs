@@ -8,8 +8,8 @@ const EFFECT_IMPORT_PREFIXES = [
 ];
 
 function isEffectImport(source) {
-  return EFFECT_IMPORT_PREFIXES.some(
-    (prefix) => prefix.endsWith('/')
+  return EFFECT_IMPORT_PREFIXES.some((prefix) =>
+    prefix.endsWith('/')
       ? source.startsWith(prefix)
       : source === prefix || source.startsWith(prefix + '/'),
   );
@@ -43,7 +43,11 @@ module.exports = {
       ExportNamedDeclaration: reportIfEffectImport,
       ImportExpression(node) {
         const source = node.source;
-        if (source?.type === 'Literal' && typeof source.value === 'string' && isEffectImport(source.value)) {
+        if (
+          source?.type === 'Literal' &&
+          typeof source.value === 'string' &&
+          isEffectImport(source.value)
+        ) {
           context.report({ node: source, messageId: 'forbidden' });
         }
       },

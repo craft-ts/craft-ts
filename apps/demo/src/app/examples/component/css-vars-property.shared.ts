@@ -4,15 +4,11 @@ import { assign, unit } from '@craft-ts/style';
 import { meter, meterVars } from './css-vars.style';
 
 /** Reads the registered `<percentage>` and never writes it: 35%, its initial value. */
-export const RegisteredMeter = craftComponent(
-  'RegisteredMeter',
-  {},
-  () => ({}),
-  () =>
-    div({ class: meter.root }, [
-      span('Initial value: 35%'),
-      div({ class: meter.track }, div({ class: meter.fill })),
-    ]),
+export const RegisteredMeter = craftComponent('RegisteredMeter', {}, () =>
+  div({ class: meter.root }, [
+    span('Initial value: 35%'),
+    div({ class: meter.track }, div({ class: meter.fill })),
+  ]),
 );
 
 /**
@@ -22,14 +18,11 @@ export const RegisteredMeter = craftComponent(
 export const AssignedMeter = craftComponent(
   'AssignedMeter',
   {},
-  (value: Input<number>) => ({
-    value,
-    label: craftUse(craftComputed('label', function* () {
+  ({ value }: { readonly value: Input<number> }) => {
+    const label = craftUse(craftComputed('label', function* () {
       return `Assigned value: ${yield* value()}%`;
-    })),
-  }),
-  ({ value, label }) =>
-    div({ class: meter.root }, [
+    }));
+    return div({ class: meter.root }, [
       span(label),
       div(
         { class: meter.track },
@@ -40,5 +33,6 @@ export const AssignedMeter = craftComponent(
           },
         }),
       ),
-    ]),
+    ]);
+  },
 );

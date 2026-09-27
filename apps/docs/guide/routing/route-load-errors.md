@@ -121,12 +121,6 @@ export const MyRouteLoadErrorScreen = craftComponent(
   {
     providers: [provideHostName('component:MyRouteLoadErrorScreen')],
   },
-  function* () {
-    return {
-      error: yield* CraftRouteLoadError(),
-      recovery: yield* CraftRouteLoadRecovery(),
-    };
-  },
   ({ error, recovery }) => {
     const current = error();
 

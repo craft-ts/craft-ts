@@ -11,6 +11,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   insertStoragePersister,
   craftUnique,
   insertSelect,
@@ -19,6 +20,7 @@ import {
   craftMethod,
   state,
   craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import { assign } from '@craft-ts/style';
 import { example } from '../../shared/example.style';
@@ -42,9 +44,8 @@ const INDEXES = Array.from({ length: CELL_COUNT }, (_, index) => index);
 const cellColor = (cell: { color: string } | undefined) =>
   cell?.color ?? EMPTY_COLOR;
 
-const PixelArt = craftComponent(
-  'PixelArt',
-  {},
+export const { PixelArtView, providePixelArtView } = craftService(
+  { name: 'pixelArtView', providedIn: 'toProvide' },
   function* () {
     const ui = yield* state(
       'ui',
@@ -145,9 +146,17 @@ const PixelArt = craftComponent(
           )
         : pixelGrid;
 
-    return { ui, cells, paintCell, renderedPixelGrid };
+    yield* craftExpose('renderedPixelGrid', renderedPixelGrid);
   },
-  ({ ui, cells, renderedPixelGrid }) => {
+);
+
+const PixelArt = craftComponent(
+  'PixelArt',
+  {
+    providers: [providePixelArtView()],
+  },
+  function* () {
+    const { ui, cells, renderedPixelGrid } = yield* PixelArtView();
 
     return section({ class: example.card }, [
       header({ class: example.stack }, [

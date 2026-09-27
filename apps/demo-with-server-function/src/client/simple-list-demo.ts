@@ -20,6 +20,7 @@ import {
   ul,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftComputed,
   craftMethod,
   isCraftException,
@@ -27,6 +28,7 @@ import {
   queryParams,
   state,
   craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import { getUsers } from '../users/list.fn-client';
 import { demoPage } from './demo.style';
@@ -37,9 +39,8 @@ import { demoPage } from './demo.style';
  * shows the server function pipeline (client → HTTP → Effect handler → DB)
  * stripped down to its simplest form.
  */
-const SimpleListDemo = craftComponent(
-  'SimpleListDemo',
-  {},
+export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
+  { name: 'simpleListDemoView', providedIn: 'toProvide' },
   function* () {
     const usersFilter = yield* queryParams(
       'usersFilter',
@@ -96,7 +97,7 @@ const SimpleListDemo = craftComponent(
         };
       },
     );
-    const users = yield* craftComputed('users', function* () {
+    yield* craftComputed('users', function* () {
       const value = yield* usersQuery.value();
       return Array.isArray(value) ? value : [];
     });
@@ -107,22 +108,24 @@ const SimpleListDemo = craftComponent(
         setSearchInput: (value: string) => set(value),
       }),
     );
-    const submitSearch = yield* craftMethod('submitSearch', function* (event?: Event) {
+    yield* craftMethod('submitSearch', function* (event?: Event) {
       event?.preventDefault();
       yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
     });
 
-    return {
-      searchInput,
-      setSearchInput: searchInput.setSearchInput,
-      usersFilter,
-      usersQuery,
-      users,
-      submitSearch,
-    };
+    yield* craftExpose('setSearchInput', searchInput.setSearchInput);
   },
-  ({ searchInput, setSearchInput, usersQuery, users, submitSearch }) =>
-    main({ class: demoPage.shell }, [
+);
+
+const SimpleListDemo = craftComponent(
+  'SimpleListDemo',
+  {
+    providers: [provideSimpleListDemoView()],
+  },
+  function* () {
+    const { searchInput, setSearchInput, usersQuery, users, submitSearch } =
+      yield* SimpleListDemoView();
+    return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
           span({ class: demoPage.pulse }),
@@ -237,7 +240,8 @@ const SimpleListDemo = craftComponent(
         span('Same Effect service, two instances: client and server.'),
         span({ class: demoPage.footerFile }, 'apps/demo-with-server-function'),
       ]),
-    ]),
+    ]);
+  },
 );
 
 function exceptionMessage(error: unknown, fallback: string): string {

@@ -2,13 +2,13 @@
 
 **Goal:** turn your task state into a service other components can use.
 
-## From component factory to `craftService`
+## From the component to `craftService`
 
 The factory body moves out almost unchanged — it was already a generator:
 
 <<< @/tests/snippets/learn/03-service/task-list.spec.ts#task-list
 
-A service is the same shape as a component's logic factory: a generator that
+A service is the same shape as a component, minus the nodes: a generator that
 yields what it needs. The differences: a **name**, a **scope** — and no
 `return`. A service exposes every named primitive it yields, under its name, so
 `TaskList` exposes `tasks`.
@@ -18,17 +18,13 @@ yields what it needs. The differences: a **name**, a **scope** — and no
 The component now yields the service instead of declaring the state:
 
 ```typescript
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    const { tasks } = yield* TaskList();
-    return { tasks };
-  },
-  ({ tasks }) => [
+export const Tasks = craftComponent('Tasks', {}, function* () {
+  const { tasks } = yield* TaskList();
+
+  return [
     /* unchanged */
-  ],
-);
+  ];
+});
 ```
 
 `craftService` returns a helper named after the service — here `TaskList`. There
@@ -55,11 +51,11 @@ export const Tasks = craftComponent(
   { providers: [provideTaskList()] },
   function* () {
     const { tasks } = yield* TaskList();
-    return { tasks };
+
+    return [
+      /* … */
+    ];
   },
-  ({ tasks }) => [
-    /* … */
-  ],
 );
 ```
 

@@ -10,20 +10,25 @@ import {
   section,
   span,
 } from '@craft-ts/component';
-import { BrowserLocation } from '@craft-ts/core';
+import { craftService, BrowserLocation, craftExpose } from '@craft-ts/core';
 import { page } from './page-layout';
 import { page as pageStyle } from '../ssr-lab.style';
 
-export const RequestPage = craftComponent(
-  'SsrRequestPage',
-  {},
+export const { SsrRequestPageView, provideSsrRequestPageView } = craftService(
+  { name: 'ssrRequestPageView', providedIn: 'toProvide' },
   function* () {
     const search = yield* BrowserLocation.search();
     const name = new URLSearchParams(search).get('name') || 'visiteur';
-    return { name };
+    yield* craftExpose('name', name);
   },
-  ({ name }) =>
-    page(
+);
+
+export const RequestPage = craftComponent(
+  'SsrRequestPage',
+  { providers: [provideSsrRequestPageView()] },
+  function* () {
+    const { name } = yield* SsrRequestPageView();
+    return page(
       'Données de la requête disponibles au SSR',
       'Personnalisation par URL',
       'Le serveur et le navigateur utilisent la même route Craft. La première réponse lit la query string, puis les navigations suivantes restent côté client.',
@@ -58,5 +63,6 @@ export const RequestPage = craftComponent(
           ),
         ]),
       ]),
-    ),
+    );
+  },
 );

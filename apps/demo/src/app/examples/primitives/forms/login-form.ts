@@ -12,6 +12,7 @@ import {
   heading,
 } from '@craft-ts/component';
 import {
+  craftService,
   cEmail,
   cMinLength,
   cRequired,
@@ -26,6 +27,8 @@ import {
   state,
   type ValidatedFormValue,
   craftUse,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 
@@ -34,17 +37,16 @@ type LoginData = {
   password: string;
 };
 
-const LoginFormComponent = craftComponent(
-  'LoginFormComponent',
-  {},
+export const { LoginFormView, provideLoginFormView } = craftService(
+  { name: 'loginFormView', providedIn: 'toProvide' },
   function* () {
-    const submitted = yield* mutation('submitted', {
+    const submitted = yield* craftPrivate(mutation('submitted', {
       method: (value: NonNullable<ValidatedFormValue<LoginData>>) => value,
       loader: function* ({ params }) {
         return params;
       },
-    });
-    const loginForm = yield* state(
+    }));
+    yield* state(
       'loginForm',
       { email: '', password: '' } satisfies LoginData,
       insertForm(
@@ -71,16 +73,23 @@ const LoginFormComponent = craftComponent(
         }),
       ),
     );
-    return {
-      loginForm,
-      email: fieldControl('email'),
-      password: fieldControl('password'),
-    };
+    yield* craftExpose('email', fieldControl('email'));
+    yield* craftExpose('password', fieldControl('password'));
   },
-  ({ loginForm, email, password }) => {
+);
+
+const LoginFormComponent = craftComponent(
+  'LoginFormComponent',
+  {
+    providers: [provideLoginFormView()],
+  },
+  function* () {
+    const { loginForm, email, password } = yield* LoginFormView();
+
     return (
       // exceptions are volontary handled at different place for demo reasons
-      form('login',
+      form(
+        'login',
         {
           class: example.card,
           *submit(event) {

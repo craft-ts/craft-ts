@@ -8,11 +8,8 @@ import {
   section,
   heading,
 } from '@craft-ts/component';
-import { state } from '@craft-ts/core';
-import {
-  LONG_PRESS_DURATION_MS,
-  longPress,
-} from './long-press.directive';
+import { craftService, state } from '@craft-ts/core';
+import { LONG_PRESS_DURATION_MS, longPress } from './long-press.directive';
 import { assign } from '@craft-ts/style';
 import { example } from '../../shared/example.style';
 import { pixel, pixelColor, pixelVars } from '../pixel-art/pixel.style';
@@ -38,14 +35,13 @@ const makeGrid = (): Cell[][] =>
     })),
   );
 
-const PixelArtMatrix = craftComponent(
-  'PixelArtMatrix',
-  {},
+export const { PixelArtMatrixView, providePixelArtMatrixView } = craftService(
+  { name: 'pixelArtMatrixView', providedIn: 'toProvide' },
   function* () {
     const activeColor = yield* state('activeColor', COLORS[0], ({ set }) => ({
       setColor: (color: string) => set(color),
     }));
-    const grid = yield* state('grid', makeGrid(), ({ set, update }) => ({
+    yield* state('grid', makeGrid(), ({ set, update }) => ({
       paint: function* (rowIndex: number, columnIndex: number) {
         const activeColorValue = yield* activeColor();
         return yield* update((rows) =>
@@ -112,10 +108,17 @@ const PixelArtMatrix = craftComponent(
         ),
       reset: () => set(makeGrid()),
     }));
-    return { activeColor, grid };
   },
-  ({ activeColor, grid }) =>
-    section({ class: example.card }, [
+);
+
+const PixelArtMatrix = craftComponent(
+  'PixelArtMatrix',
+  {
+    providers: [providePixelArtMatrixView()],
+  },
+  function* () {
+    const { activeColor, grid } = yield* PixelArtMatrixView();
+    return section({ class: example.card }, [
       header({ class: example.stack }, [
         heading({ class: example.title }, 'Pixel Art Workshop (Matrix)'),
         p(
@@ -181,7 +184,8 @@ const PixelArtMatrix = craftComponent(
         ),
       ),
       button('addRow', { type: 'button', class: example.button, click: grid.addRow }, 'Add row'),
-    ]),
+    ]);
+  },
 );
 
 export default PixelArtMatrix;

@@ -29,7 +29,7 @@ import {
   span,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, state, craftUse } from '@craft-ts/core';
+import { craftService, craftComputed, state, craftUse } from '@craft-ts/core';
 import { card, stack } from './components.style';
 import { dsTheme } from './foundation.style';
 import {
@@ -67,11 +67,9 @@ const constant = <Value>(value: Value) =>
     return value;
   };
 
-export const designSystemDemo = craftComponent(
-  'designSystemDemo',
-  {},
-  () =>
-    state('showcase', initialShowcase(), ({ state: showcase, update }) => ({
+export const { DesignSystemDemoView, provideDesignSystemDemoView } =
+  craftService({ name: 'designSystemDemoView', providedIn: 'toProvide' }, function* () {
+    yield* state('showcase', initialShowcase(), ({ state: showcase, update }) => ({
       tone: craftUse(craftComputed('tone', function* () {
         return (yield* showcase()).tone;
       })),
@@ -88,17 +86,23 @@ export const designSystemDemo = craftComponent(
           ...current,
           progress: current.progress >= 100 ? 0 : current.progress + 10,
         })),
-    })),
-  (showcase) =>
+    }));
+  },
+  );
+
+export const designSystemDemo = craftComponent(
+  'designSystemDemo',
+  {
+    providers: [provideDesignSystemDemoView()],
+  },
+  function* () {
+    const { showcase } = yield* DesignSystemDemoView();
     // One class on the wrapper, and the whole subtree is themed. Remove it and
     // every colour below falls back to the `@property` initial value — which
     // is a defined behaviour, not an unstyled page.
-    div(
+    return div(
       'DesignSystemOverview',
-      {
-        class: dsTheme.root,
-        'data-testid': 'design-system',
-      },
+      { class: dsTheme.root, 'data-testid': 'design-system' },
       [
         section({ class: stack.column }, [
           heading('A mini design system'),
@@ -193,7 +197,8 @@ export const designSystemDemo = craftComponent(
           ]),
         ]),
       ],
-    ),
+    );
+  },
 );
 
 export default designSystemDemo;

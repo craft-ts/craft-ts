@@ -7,14 +7,13 @@ import {
   p,
   span,
 } from '@craft-ts/component';
-import { craftComputed, craftUse } from '@craft-ts/core';
+import { craftService, craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadTask } from './task-domain';
 import { taskPage } from './foundation.style';
 
-const QuickstartTaskPage = craftComponent(
-  'QuickstartTaskPage',
-  {},
+export const { QuickstartTaskPageView, provideQuickstartTaskPageView } = craftService(
+  { name: 'quickstartTaskPageView', providedIn: 'toProvide' },
   function* () {
     const taskQuery = yield* queryEffect(
       'taskQuery',
@@ -40,40 +39,47 @@ const QuickstartTaskPage = craftComponent(
     );
 
     yield* taskQuery.call('task-1');
-    return { taskQuery };
   },
-  ({ taskQuery }) => [
-    div([
-      heading(function* () {
-        // Structural helpers are the reactive binding boundary for their content.
-        // eslint-disable-next-line craft-ts/require-reactive-template-bindings
-        return `EffectTS + CraftTS (${yield* taskQuery.status()})`;
-      }),
-      p('One Effect domain operation, one Layer, one Craft query.'),
-      ifNode(taskQuery.isLoading, () => p('Loading task…')),
-      ifNode(taskQuery.hasTask, () =>
-        p(function* () {
-          return `Task: ${yield* taskQuery.title()}`;
+);
+
+const QuickstartTaskPage = craftComponent(
+  'QuickstartTaskPage',
+  { providers: [provideQuickstartTaskPageView()] },
+  function* () {
+    const { taskQuery } = yield* QuickstartTaskPageView();
+    return [
+      div([
+        heading(function* () {
+          // Structural helpers are the reactive binding boundary for their content.
+          // eslint-disable-next-line craft-ts/require-reactive-template-bindings
+          return `EffectTS + CraftTS (${yield* taskQuery.status()})`;
         }),
-      ),
-      ifNode(taskQuery.hasTaskException, () =>
-        p([
-          'Business error: ',
-          span({ class: taskPage.error }, taskQuery.exceptionTag),
-        ]),
-      ),
-      button(
-        'reloadTask',
-        {
-          type: 'button',
-          *click() {
-            yield* taskQuery.call('task-1');
+        p('One Effect domain operation, one Layer, one Craft query.'),
+        ifNode(taskQuery.isLoading, () => p('Loading task…')),
+        ifNode(taskQuery.hasTask, () =>
+          p(function* () {
+            return `Task: ${yield* taskQuery.title()}`;
+          }),
+        ),
+        ifNode(taskQuery.hasTaskException, () =>
+          p([
+            'Business error: ',
+            span({ class: taskPage.error }, taskQuery.exceptionTag),
+          ]),
+        ),
+        button(
+          'reloadTask',
+          {
+            type: 'button',
+            *click() {
+              yield* taskQuery.call('task-1');
+            },
           },
-        },
-        'Reload task',
-      ),
-    ]),
-  ],
+          'Reload task',
+        ),
+      ]),
+    ];
+  },
 );
 
 export default QuickstartTaskPage;

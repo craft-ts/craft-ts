@@ -10,10 +10,12 @@ import {
   span,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftPipe,
   craftMethod,
   insertReactOnMutation,
   state,
+  craftExpose,
 } from '@craft-ts/core';
 import { mutationEffect, queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
@@ -35,9 +37,8 @@ const TODO_STATE: Readonly<Record<string, 'done' | null>> = {
   true: 'done',
 };
 
-const EffectPlaygroundComponent = craftComponent(
-  'EffectPlaygroundComponent',
-  {},
+export const { EffectPlaygroundView, provideEffectPlaygroundView } = craftService(
+  { name: 'effectPlaygroundView', providedIn: 'toProvide' },
   function* () {
     const addTodo = yield* mutationEffect<
       'addTodo',
@@ -55,13 +56,13 @@ const EffectPlaygroundComponent = craftComponent(
         }),
     });
     const toggleTodoMutation = yield* mutationEffect<
-      'toggleTodo',
+      'toggleTodoMutation',
       number,
       number,
       EffectTodo,
       TodoNotFound,
       TodoStore
-    >('toggleTodo', {
+    >('toggleTodoMutation', {
       method: (id: number) => id,
       loader: ({ params }) =>
         Effect.gen(function* () {
@@ -70,13 +71,13 @@ const EffectPlaygroundComponent = craftComponent(
         }),
     });
     const removeTodoMutation = yield* mutationEffect<
-      'removeTodo',
+      'removeTodoMutation',
       number,
       number,
       EffectTodo,
       TodoNotFound,
       TodoStore
-    >('removeTodo', {
+    >('removeTodoMutation', {
       method: (id: number) => id,
       loader: ({ params }) =>
         Effect.gen(function* () {
@@ -84,8 +85,8 @@ const EffectPlaygroundComponent = craftComponent(
           return yield* remove(params);
         }),
     });
-    const todosQuery = yield* queryEffect(
-      'todos',
+    yield* queryEffect(
+      'todosQuery',
       {
         params: () => 'all',
         loader: () =>
@@ -124,26 +125,26 @@ const EffectPlaygroundComponent = craftComponent(
       yield* titleInput.clearTitle();
     });
 
-    return {
+    yield* craftExpose('setTitle', titleInput.setTitle);
+  },
+);
+
+const EffectPlaygroundComponent = craftComponent(
+  'EffectPlaygroundComponent',
+  {
+    providers: [provideEffectPlaygroundView()],
+  },
+  function* () {
+    const {
       add,
       addTodo,
       removeTodoMutation,
       titleInput,
       toggleTodoMutation,
       todosQuery,
-      setTitle: titleInput.setTitle,
-    };
-  },
-  ({
-    add,
-    addTodo,
-    removeTodoMutation,
-    titleInput,
-    toggleTodoMutation,
-    todosQuery,
-    setTitle,
-  }) =>
-    div({ class: example.card, 'data-exampleTint': 'sky' }, [
+      setTitle,
+    } = yield* EffectPlaygroundView();
+    return div({ class: example.card, 'data-exampleTint': 'sky' }, [
       heading({ class: example.title }, 'Effect Playground'),
       p(
         { class: example.intro },
@@ -159,7 +160,7 @@ const EffectPlaygroundComponent = craftComponent(
             yield* setTitle(event.target.value);
           },
           *keydown(event) {
-            if (event.key === 'Enter') yield* add();
+            if (event.key === 'Enter') add();
           },
         }),
         button(
@@ -252,7 +253,8 @@ const EffectPlaygroundComponent = craftComponent(
         span({ class: example.mono }, 'TodoStore'),
         ' Layer. Craft invalidates the list after each successful Effect mutation.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectPlaygroundComponent;

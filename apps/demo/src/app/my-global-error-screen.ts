@@ -1,11 +1,5 @@
-import {
-  craftComponent,
-  div,
-  ifNode,
-  p,
-  heading,
-} from '@craft-ts/component';
-import { craftComputed, CraftGlobalError } from '@craft-ts/core';
+import { craftComponent, div, ifNode, p, heading } from '@craft-ts/component';
+import { craftService, craftComputed, CraftGlobalError, craftExpose } from '@craft-ts/core';
 import { example } from './examples/shared/example.style';
 
 function isDisabledError(value: unknown): boolean {
@@ -17,29 +11,40 @@ function isDisabledError(value: unknown): boolean {
   );
 }
 
+export const { MyGlobalErrorScreenView, provideMyGlobalErrorScreenView } =
+  craftService(
+    { name: 'myGlobalErrorScreenView', providedIn: 'toProvide' },
+    function* () {
+      const error = yield* CraftGlobalError();
+      yield* craftComputed('disabled', () => {
+        return isDisabledError(error());
+      });
+      yield* craftExpose('error', error);
+    },
+  );
+
 export const MyGlobalErrorScreen = craftComponent(
   'MyGlobalErrorScreen',
-  {},
-  function* () {
-    const error = yield* CraftGlobalError();
-    const disabled = yield* craftComputed(
-      'disabled',
-      () => {
-        return isDisabledError(error());
-      },
-    );
-    return { error, disabled };
+  {
+    providers: [provideMyGlobalErrorScreenView()],
   },
-  ({ disabled }) => {
+  function* () {
+    const { disabled } = yield* MyGlobalErrorScreenView();
+
     return div({ class: example.alert, 'data-exampleAlert': 'danger' }, [
       heading({ class: example.subtitle }, [
         '⚠️ ',
-        ifNode(disabled, () => 'Account disabled', () => 'Something went wrong'),
+        ifNode(
+          disabled,
+          () => 'Account disabled',
+          () => 'Something went wrong',
+        ),
       ]),
       p(
         ifNode(
           disabled,
-          () => 'This account has been disabled. Contact support to restore access.',
+          () =>
+            'This account has been disabled. Contact support to restore access.',
           () => 'An unexpected error occurred while loading this page.',
         ),
       ),

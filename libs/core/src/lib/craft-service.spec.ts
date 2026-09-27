@@ -1,8 +1,4 @@
-import {
-  inject,
-  InjectionToken,
-  signal,
-} from './host/craft-compat';
+import { inject, InjectionToken, signal } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { state } from './state';
 import { Subject } from 'rxjs';

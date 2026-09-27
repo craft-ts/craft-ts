@@ -74,9 +74,7 @@ describe('require-pending-component-di-check', () => {
     ]);
 
     const { output } = await lintFixture(source, { fix: true });
-    expect(output).toContain(
-      "import('./skeleton').GenDeps_SkeletonComponent",
-    );
+    expect(output).toContain("import('./skeleton').GenDeps_SkeletonComponent");
     // path param + view-transition payload service names, derived from the route:
     expect(output).toContain(
       "'GalleryPhotoIdParams' | 'GalleryPhotoIdViewTransition'",
@@ -134,7 +132,9 @@ async function lintFixture(
           parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
         },
         plugins: {
-          local: { rules: { 'require-pending-component-di-check': rule as never } },
+          local: {
+            rules: { 'require-pending-component-di-check': rule as never },
+          },
         },
         rules: { 'local/require-pending-component-di-check': 'error' },
       },

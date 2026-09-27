@@ -91,7 +91,6 @@ const card = craftStyles('dsCard', {
 export const Card = craftComponent(
   'Card',
   {},
-  () => ({}),
   () =>
     div('card', { class: card.root }, [
       p('title', { class: card.title }, 'Account settings'),
@@ -146,7 +145,7 @@ describe('one node per element, with its class', () => {
       await fixture({
         'two.ts': `
 const sheet = craftStyles('two', { a: [], b: [] });
-export const Two = craftComponent('Two', {}, () => ({}), () =>
+export const Two = craftComponent('Two', {}, () =>
   div({ class: sheet.a }, div({ class: sheet.b }, 'text')),
 );
 `,
@@ -182,7 +181,7 @@ describe('branches', () => {
       await fixture({
         'toggle.ts': `
 const sheet = craftStyles('toggle', { on: [], off: [] });
-export const Toggle = craftComponent('Toggle', {}, () => ({}), () =>
+export const Toggle = craftComponent('Toggle', {}, () =>
   div({}, ifNode(open, () => span('on', { class: sheet.on }, 'on'),
                        () => span('off', { class: sheet.off }, 'off'))),
 );
@@ -203,7 +202,7 @@ export const Toggle = craftComponent('Toggle', {}, () => ({}), () =>
       await fixture({
         'list.ts': `
 const sheet = craftStyles('list', { item: [] });
-export const List = craftComponent('List', {}, () => ({}), () =>
+export const List = craftComponent('List', {}, () =>
   div({}, forNode(open, () => span('item', { class: sheet.item }, label))),
 );
 `,
@@ -221,7 +220,7 @@ describe('what the pass cannot prove', () => {
       await fixture({
         'dynamic.ts': `
 declare const tone: string;
-export const Dynamic = craftComponent('Dynamic', {}, () => ({}), () =>
+export const Dynamic = craftComponent('Dynamic', {}, () =>
   div({ class: 'btn ' + tone }, label),
 );
 `,

@@ -30,11 +30,15 @@ const initialSelection = (): readonly string[] => [];
 export const ApplicationOverview = craftComponent(
   'ApplicationOverview',
   {},
-  function* (
-    captures: Input<readonly ApplicationCaptureInventoryItem[]>,
-    decide: Output<(value: ApplicationVerdict) => void>,
-    inspect: Output<(subject: string) => void>,
-  ) {
+  function* ({
+    captures,
+    decide,
+    inspect,
+  }: {
+    readonly captures: Input<readonly ApplicationCaptureInventoryItem[]>;
+    readonly decide: Output<(value: ApplicationVerdict) => void>;
+    readonly inspect: Output<(subject: string) => void>;
+  }) {
     const category = yield* state(
       'applicationCategory',
       'happy-path',
@@ -185,53 +189,7 @@ export const ApplicationOverview = craftComponent(
       );
       if (capture) inspect(capture.subject);
     });
-    return {
-      captures,
-      decide,
-      inspect,
-      category,
-      pageFilter,
-      scenarioFilter,
-      viewportFilter,
-      statusFilter,
-      zoom,
-      imageKind,
-      note,
-      selected,
-      pages,
-      scenarios,
-      viewports,
-      visible,
-      progress,
-      actions,
-      pageProgress,
-      rows,
-      submit,
-      next,
-    };
-  },
-  ({
-    inspect,
-    category,
-    pageFilter,
-    scenarioFilter,
-    viewportFilter,
-    statusFilter,
-    zoom,
-    imageKind,
-    note,
-    selected,
-    pages,
-    scenarios,
-    viewports,
-    progress,
-    actions,
-    pageProgress,
-    rows,
-    submit,
-    next,
-  }) =>
-    div([
+    return div([
       p(
         {
           class: applicationOverview.progress,
@@ -404,7 +362,7 @@ export const ApplicationOverview = craftComponent(
               return (yield* actions()).disableAccept;
             },
             *click() {
-              yield* submit('ok');
+              submit('ok');
             },
           },
           'Accepter la sélection affichée',
@@ -418,7 +376,7 @@ export const ApplicationOverview = craftComponent(
               return (yield* actions()).disableReject;
             },
             *click() {
-              yield* submit('rejected');
+              submit('rejected');
             },
           },
           'Rejeter la sélection',
@@ -490,7 +448,7 @@ export const ApplicationOverview = craftComponent(
                     return (yield* row()).disabled;
                   },
                   *click() {
-                    yield* inspect((yield* row()).subject);
+                    inspect((yield* row()).subject);
                   },
                 },
                 'Examiner et donner un verdict',
@@ -499,5 +457,6 @@ export const ApplicationOverview = craftComponent(
           ),
         ),
       ),
-    ]),
+    ]);
+  },
 );

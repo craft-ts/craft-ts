@@ -14,6 +14,7 @@ export declare function insertSelect(...args: unknown[]): unknown;
 export declare function craftComputed(...args: unknown[]): unknown;
 export declare function craftMethod(...args: unknown[]): unknown;
 export declare function craftEffect(...args: unknown[]): unknown;
+export declare function craftExpose(...args: unknown[]): unknown;
 export declare function source$<T>(name: string): {
   emit: (value?: T) => void;
   set: (value: T) => void;

@@ -40,27 +40,22 @@ ternary chain reads fine — just remember it makes the branch invisible to the
 ```typescript
 import { craftComponent, forNode, li, p, ul } from '@craft-ts/component';
 
-export const Tasks = craftComponent(
-  'Tasks',
-  {},
-  function* () {
-    // The service exposes its query under its name.
-    const { tasksQuery: tasks } = yield* TaskList();
-    return { tasks };
-  },
-  ({ tasks }) =>
-    tasks.isLoading()
-      ? p('Loading…')
-      : tasks.hasException()
-        ? p('Could not load tasks.')
-        : ul(
-            forNode(
-              () => tasks.value() ?? [],
-              { track: (task) => task.id },
-              (task) => li(task.title),
-            ),
+export const Tasks = craftComponent('Tasks', {}, function* () {
+  // The service exposes its query under its name.
+  const { tasksQuery: tasks } = yield* TaskList();
+
+  return tasks.isLoading()
+    ? p('Loading…')
+    : tasks.hasException()
+      ? p('Could not load tasks.')
+      : ul(
+          forNode(
+            () => tasks.value() ?? [],
+            { track: (task) => task.id },
+            (task) => li(task.title),
           ),
-);
+        );
+});
 ```
 
 When the branches depend on an exception **code** rather than a boolean, reach
