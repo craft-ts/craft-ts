@@ -242,7 +242,13 @@ function needsYieldParens(node) {
 
 function skipParens(node) {
   let current = node;
-  while (current && current.type === 'ParenthesizedExpression') {
+  while (
+    current &&
+    (current.type === 'ParenthesizedExpression' ||
+      current.type === 'TSAsExpression' ||
+      current.type === 'TSSatisfiesExpression' ||
+      current.type === 'TSNonNullExpression')
+  ) {
     current = current.parent;
   }
   return current;
