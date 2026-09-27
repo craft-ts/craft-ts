@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-3
-import { craftService, state } from '@craft-ts/core';
+import { craftExpose, craftService, state } from '@craft-ts/core';
 
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'global' },
@@ -20,9 +20,10 @@ const { Counter } = craftService(
 const { CounterConsumer } = craftService(
   { name: 'CounterConsumer', providedIn: 'global' },
   function* () {
-    const counter = (yield* Counter()).counter;
+    const { counter } = yield* Counter();
     yield* counter.increment();
-    return counter;
+    // An injected service is not exposed; re-expose what consumers need.
+    yield* craftExpose('counter', counter);
   },
 );
 // #endregion example-3

@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { setupCraftServiceTestingByRegister } from '@craft-ts/core';
-import { craftUse } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
@@ -15,7 +14,7 @@ const newTask = (title: string): Task => ({
 });
 
 // #region task-list
-import { craftComputed, craftService, state } from '@craft-ts/core';
+import { craftComputed, craftService, craftUse, state } from '@craft-ts/core';
 
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
@@ -30,7 +29,6 @@ export const { TaskList } = craftService(
         return (yield* state()).filter((t) => !t.done).length;
       })),
     }));
-
   },
 );
 // #endregion task-list
@@ -41,10 +39,10 @@ describe('Learn 03 TaskList service', () => {
       TaskList: 'real',
     });
 
-    sut.add('Move logic out');
-    const id = craftUse(sut())[0]?.id;
+    sut.tasks.add('Move logic out');
+    const id = craftUse(sut.tasks())[0]?.id;
     expect(id).toBeDefined();
-    sut.toggle(id as string);
-    expect(craftUse(sut.remaining())).toBe(0);
+    sut.tasks.toggle(id as string);
+    expect(craftUse(sut.tasks.remaining())).toBe(0);
   });
 });

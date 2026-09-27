@@ -1,7 +1,9 @@
 # Shaping a service's public API
 
-A service returns whatever should be public. These are the ways to consume less
-than everything a dependency exposes — which keeps the dependency graph precise,
+A service exposes every named primitive it yields (see
+[craftService](/guide/app/craft-service#what-a-service-exposes)); what should
+stay internal is wrapped in `craftPrivate(...)`. These are the ways to consume
+less than everything a dependency exposes — which keeps the dependency graph precise,
 and therefore keeps inference and test registers small.
 
 ## Single Property Shortcut

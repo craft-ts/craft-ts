@@ -84,9 +84,9 @@ that owner and derive its own view:
 
 ```typescript
 const users = yield* UsersApi();
-const admins = craftComputed('admins', function* () {
+const admins = craftUse(craftComputed('admins', function* () {
   return (yield* users.list()).filter((user) => user.role === 'admin');
-});
+}));
 ```
 
 See [HTTP endpoint ownership](./http-endpoint-ownership).
@@ -96,19 +96,19 @@ See [HTTP endpoint ownership](./http-endpoint-ownership).
 The purpose of `craftComputed` is to derive a value:
 
 ```typescript
-const remaining = craftComputed('remaining', function* () {
+const remaining = craftUse(craftComputed('remaining', function* () {
   return (yield* tasks()).filter((task) => !task.done).length;
-});
+}));
 ```
 
 This version changes the meaning of a read:
 
 ```typescript
-const remaining = craftComputed('remaining', function* () {
+const remaining = craftUse(craftComputed('remaining', function* () {
   yield* audit.log('recomputed');
   yield* tasks.set(normalizeTasks(yield* tasks()));
   return (yield* tasks()).filter((task) => !task.done).length;
-});
+}));
 ```
 
 Now a template read can write state, call a method or trigger another graph

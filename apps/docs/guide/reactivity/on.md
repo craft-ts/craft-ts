@@ -206,10 +206,10 @@ console.log(filters()); // []
 ### Using on$ in a craft service
 
 ```typescript
-import { craftService, state, source$ } from '@craft-ts/core';
+import { craftService, state, source$, craftExpose } from '@craft-ts/core';
 import { on$ } from '@craft-ts/core';
 
-const { Filters } = craftService({ name: 'Filters', providedIn: 'global' }, () => {
+const { Filters } = craftService({ name: 'Filters', providedIn: 'global' }, function* () {
   const reset = source$<void>('reset');
   const { search } = state('search', '', ({ set }) => ({
     set,
@@ -222,11 +222,9 @@ const { Filters } = craftService({ name: 'Filters', providedIn: 'global' }, () =
     handleReset: on$(reset, () => set('all')),
   }));
 
-  return {
-    search,
-    category,
-    resetFilters: () => reset.emit(),
-  };
+  yield* craftExpose('search', search);
+  yield* craftExpose('category', category);
+  yield* craftExpose('resetFilters', () => reset.emit());
 });
 
 const filters = Filters();

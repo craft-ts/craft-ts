@@ -44,7 +44,8 @@ export const Tasks = craftComponent(
   'Tasks',
   {},
   function* () {
-    const tasks = yield* TaskList();
+    // The service exposes its query under its name.
+    const { tasksQuery: tasks } = yield* TaskList();
     return { tasks };
   },
   ({ tasks }) =>
@@ -95,12 +96,12 @@ const { tasksQuery } =
       /* … */
     },
     ({ value, isLoading }) => ({
-      count: craftComputed(function* () {
+      count: craftUse(craftComputed('count', function* () {
         return (yield* value())?.length ?? 0;
-      }),
-      isEmpty: craftComputed(function* () {
+      })),
+      isEmpty: craftUse(craftComputed('isEmpty', function* () {
         return !(yield* isLoading()) && (yield* value())?.length === 0;
-      }),
+      })),
     }),
   );
 

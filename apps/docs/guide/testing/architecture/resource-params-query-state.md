@@ -15,9 +15,9 @@ This shape loses the active filters on reload:
 const search = yield* state('search', '');
 const page = yield* state('page', 1);
 
-const params = craftComputed('usersParams', function* () {
+const params = craftUse(craftComputed('usersParams', function* () {
   return { search: yield* search(), page: yield* page() };
-});
+}));
 
 const users = yield* query('users', {
   params,

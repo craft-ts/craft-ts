@@ -167,9 +167,9 @@ const counter = yield* state(
       reset: () => set(0),
     }),
     ({ state }) => ({
-      isOdd: craftComputed(function* () {
+      isOdd: craftUse(craftComputed('isOdd', function* () {
         return (yield* state()) % 2 === 1;
-      }),
+      })),
     }),
   ),
 );
@@ -216,9 +216,9 @@ const board = yield* state(
         gridContext,
         ({ state, update }) => ({
           addRow: () => update((grid) => [...grid, createNextRow(grid)]),
-          rowIndexes: craftComputed(function* () {
+          rowIndexes: craftUse(craftComputed('rowIndexes', function* () {
             return (yield* state()).map((_row, index) => index);
-          }),
+          })),
         }),
         insertSelect('row', ({ update }) => ({
           /* … */

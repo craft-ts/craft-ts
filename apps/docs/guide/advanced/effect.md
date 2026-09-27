@@ -446,10 +446,10 @@ declaring it in the shape is enough, the implementation needs no ceremony. Where
 Run it with `syncEffect(...)`, which resolves in place instead of suspending:
 
 ```typescript
-const totalLabel = craftComputed('totalLabel', function* () {
+const totalLabel = craftUse(craftComputed('totalLabel', function* () {
   const cents = yield* syncEffect(cartTotal(yield* lines()));
   return yield* syncEffect(formatPrice(cents));
-});
+}));
 ```
 
 Requirements other than `SyncOp` travel through untouched — the level in force

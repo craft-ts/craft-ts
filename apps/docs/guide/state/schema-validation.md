@@ -123,9 +123,9 @@ const price = yield* state('price', 10);
 const quantity = yield* state('quantity', 2, ({ set }) => ({ set }));
 
 const total = yield* state('total', {
-  $self: craftComputed('totalSelf', function* () {
+  $self: craftUse(craftComputed('totalSelf', function* () {
     return (yield* price()) * (yield* quantity());
-  }),
+  })),
   schema: NonNegativeNumberSchema,
 });
 

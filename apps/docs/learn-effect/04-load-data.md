@@ -63,7 +63,7 @@ import {
   matchNode,
   p,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadUserProfile, type ProfileScenario } from './profile-domain';
 
@@ -78,10 +78,10 @@ const Profile = craftComponent(
         loader: ({ params }) => loadUserProfile(params),
       },
       ({ resource, exceptions }) => ({
-        hasProfile: craftComputed('hasProfile', () => resource.hasValue()),
-        currentError: craftComputed('currentError', function* () {
+        hasProfile: craftUse(craftComputed('hasProfile', () => resource.hasValue())),
+        currentError: craftUse(craftComputed('currentError', function* () {
           return (yield* exceptions()).loader;
-        }),
+        })),
       }),
     );
 

@@ -93,9 +93,9 @@ unavailable, propagates query exceptions to a `catchNode`, and keeps the
 previous value during a reload.
 
 ```typescript
-const userName = craftComputed('userName', function* () {
+const userName = craftUse(craftComputed('userName', function* () {
   return (yield* settled(userQuery)).name;
-});
+}));
 
 const user = craftUse(userQuery.settledValue());
 ```
@@ -145,12 +145,12 @@ const { todosQuery } =
         (await fetch(`/api/todos?completed=${params.completed}`)).json(),
     },
     ({ value, isLoading }) => ({
-      count: craftComputed(function* () {
+      count: craftUse(craftComputed('count', function* () {
         return (yield* value())?.length ?? 0;
-      }),
-      isEmpty: craftComputed(function* () {
+      })),
+      isEmpty: craftUse(craftComputed('isEmpty', function* () {
         return !(yield* isLoading()) && (yield* value())?.length === 0;
-      }),
+      })),
     }),
   );
 

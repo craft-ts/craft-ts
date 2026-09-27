@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { setupCraftServiceTestingByRegister } from '@craft-ts/core';
-import { craftUse } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
@@ -15,7 +14,7 @@ const newTask = (title: string): Task => ({
 });
 
 // #region insert-state-pipe
-import { insertStatePipe, craftComputed, craftService, state } from '@craft-ts/core';
+import { insertStatePipe, craftComputed, craftService, state, craftUse } from '@craft-ts/core';
 
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
@@ -37,7 +36,6 @@ export const { TaskList } = craftService(
         }),
       ),
     );
-
   },
 );
 // #endregion insert-state-pipe
@@ -48,9 +46,9 @@ describe('Learn 02 insertStatePipe', () => {
       TaskList: 'real',
     });
 
-    expect(craftUse(sut.isEmpty())).toBe(true);
-    sut.add('Split insertions');
-    expect(craftUse(sut.remaining())).toBe(1);
-    expect(craftUse(sut.isEmpty())).toBe(false);
+    expect(craftUse(sut.tasks.isEmpty())).toBe(true);
+    sut.tasks.add('Split insertions');
+    expect(craftUse(sut.tasks.remaining())).toBe(1);
+    expect(craftUse(sut.tasks.isEmpty())).toBe(false);
   });
 });

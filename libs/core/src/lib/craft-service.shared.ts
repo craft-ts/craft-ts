@@ -43,6 +43,18 @@ export type CallableShell<Value> =
       ? (...args: Args) => Result
       : never;
 
+/**
+ * What a mock may give for one exposed member: the member itself, or — for a
+ * callable one such as a state or a computed — its call shape plus any of its
+ * own members (`Object.assign(vi.fn(() => 41), { increment: vi.fn() })`).
+ */
+export type MockMember<Value> = Value extends (...args: any[]) => any
+  ?
+      | Value
+      | (CallableShell<Value> &
+          Partial<{ [Key in Extract<keyof Value, string>]: Value[Key] }>)
+  : Value;
+
 export type RootExposureKey = typeof SERVICE_ROOT_EXPOSURE_KEY;
 export type ProvidedInputKey = typeof SERVICE_PROVIDED_INPUT_KEY;
 

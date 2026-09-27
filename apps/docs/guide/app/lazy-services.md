@@ -133,7 +133,7 @@ import {
   on$,
 } from '@craft-ts/core';
 
-const { Search } = craftService({ name: 'Search', scope: 'component' }, () => {
+const { Search } = craftService({ name: 'Search', scope: 'component' }, function* () {
   // prefetch the module at the first emission of the source
   const searchModule = yield* asyncProcess('searchModule', {
     method: on$(searchFocused$, () => undefined),
@@ -145,7 +145,7 @@ const { Search } = craftService({ name: 'Search', scope: 'component' }, () => {
   });
 
   // run a search on a user action — triggerSearch(q) sets the params
-  const searchResult = yield* asyncProcess('searchResult', {
+  yield* asyncProcess('searchResult', {
     method: (q: string) => q,
     loader: function* ({ params: q }) {
       const { search } = yield* craftUntilSettled(searchModule); // wait for the chunk
@@ -153,7 +153,6 @@ const { Search } = craftService({ name: 'Search', scope: 'component' }, () => {
     },
   });
 
-  return { searchModule, searchResult };
 });
 ```
 

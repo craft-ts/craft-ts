@@ -40,14 +40,14 @@ service, a sibling method, an input, a nested resource reader — is yielded.
 ```typescript
 const counter = yield* state('counter', 0, ({ state, update }) => ({
   increment: () => update((value) => value + 1),
-  doubled: craftComputed(function* () {
+  doubled: craftUse(craftComputed('doubled', function* () {
     return (yield* state()) * 2;
-  }),
+  })),
 }));
 
-const stats = craftComputed('stats', function* () {
+const stats = craftUse(craftComputed('stats', function* () {
   return (yield* counter()) + (yield* counter.doubled());
-});
+}));
 ```
 
 `increment` may return `update(...)` directly: it is not a generator, and the

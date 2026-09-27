@@ -57,32 +57,30 @@ import {
   craftUse,
   setupCraftServiceTestingByRegister,
   state,
+  craftExpose,
 } from '@craft-ts/core';
 import { vi } from 'vitest';
 
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'global' },
   function* () {
-    const counter = yield* state('counter', 10, ({ update }) => ({
+    yield* state('counter', 10, ({ update }) => ({
       increment: () => update((value) => value + 1),
     }));
-    return counter;
   },
 );
 
 const { CounterConsumer, provideCounterConsumer } = craftService(
   { name: 'CounterConsumer', providedIn: 'toProvide' },
   function* () {
-    const counter = yield* Counter();
+    const { counter } = yield* Counter();
 
-    return {
-      read: function* () {
-        return yield* counter();
-      },
-      increment: function* () {
-        return yield* counter.increment();
-      },
-    };
+    yield* craftExpose('read', function* () {
+      return yield* counter();
+    });
+    yield* craftExpose('increment', function* () {
+      return yield* counter.increment();
+    });
   },
 );
 
@@ -91,15 +89,15 @@ const { sut, mocks } = await setupCraftServiceTestingByRegister(
   {
     CounterConsumer: provideCounterConsumer(),
     Counter: {
-      $self: vi.fn(() => 41),
-      increment: vi.fn(),
+      // A mock of the exposed `counter` state: callable, with its method.
+      counter: Object.assign(vi.fn(() => 41), { increment: vi.fn() }),
     },
   },
 );
 
 expect(craftUse(sut.read())).toBe(41);
 craftUse(sut.increment());
-expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+expect(mocks.Counter.counter.increment).toHaveBeenCalledTimes(1);
 ```
 
 

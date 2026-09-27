@@ -80,12 +80,12 @@ const { usersQuery } = query(
     { initialValue: [] as Data[] },
     ({ state, settledState, set }) => ({
       // a computed derived from the current page
-      totalOfUnCompletedData: craftComputed(function* () {
+      totalOfUnCompletedData: craftUse(craftComputed('totalOfUnCompletedData', function* () {
         return (yield* state()).filter((d) => !d.completed).length;
-      }),
-      settledCount: craftComputed(function* () {
+      })),
+      settledCount: craftUse(craftComputed('settledCount', function* () {
         return (yield* settledState()).length;
-      }),
+      })),
       markAsCompleted: function* (id: string) {
         const current = yield* state();
         return yield* set(
@@ -117,7 +117,7 @@ The pagination outputs (`currentPageData`, `currentPageStatus`, `isPlaceHolderDa
 
 ```typescript
 import { button, craftComponent, div, forNode, ifNode, span } from '@craft-ts/component';
-import { craftComputed, query, state } from '@craft-ts/core';
+import { craftComputed, query, state, craftUse } from '@craft-ts/core';
 
 export const UsersList = craftComponent(
   'UsersList',
@@ -129,12 +129,12 @@ export const UsersList = craftComponent(
         const current = yield* state();
         return yield* set(Math.max(1, current - 1));
       },
-      isFirst: craftComputed(function* () {
+      isFirst: craftUse(craftComputed('isFirst', function* () {
         return (yield* state()) === 1;
-      }),
-      label: craftComputed(function* () {
+      })),
+      label: craftUse(craftComputed('label', function* () {
         return `Page ${yield* state()}`;
-      }),
+      })),
     }));
 
     const userQuery = yield* query(

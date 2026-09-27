@@ -130,7 +130,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       {
         CounterConsumer: provideCounterConsumer(),
         Counter: {
-          counter: Object.assign(rootCallable, { increment }) as never,
+          counter: Object.assign(rootCallable, { increment }),
         },
       },
     );
@@ -176,7 +176,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       {
         CounterFeature: provideCounterFeature(),
         Counter: {
-          counter: rootCallable as never,
+          counter: rootCallable,
           increment,
         },
       },
@@ -320,7 +320,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       {
         CounterConsumer: provideCounterConsumer(),
         Counter: {
-          counter: rootCallable as never,
+          counter: rootCallable,
           increment,
           decrement,
         },

@@ -42,7 +42,8 @@ already receive those methods as arguments — see
 | Symbol                   | What it does                                    | Page                                                     |
 | ------------------------ | ----------------------------------------------- | -------------------------------------------------------- |
 | `craftPipe`              | Composes several insertions into one            | [Insertions](/guide/concepts/insertions)                 |
-| `craftYieldRecord`       | Resolves a record of primitive generators       | [craftService](/guide/app/craft-service)                 |
+| `craftPrivate`           | Keeps a primitive internal to a craftService    | [craftService](/guide/app/craft-service)                 |
+| `craftExpose`            | Exposes any value on a craftService             | [craftService](/guide/app/craft-service)                 |
 | `insertStatePipe`        | Composes several `state` insertions             | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
 | `insertQueryPipe`        | Composes several `query` insertions             | [Typed insertion pipes](/guide/concepts/insertion-pipes) |
 | `insertMutationPipe`     | Composes several `mutation` insertions          | [Typed insertion pipes](/guide/concepts/insertion-pipes) |

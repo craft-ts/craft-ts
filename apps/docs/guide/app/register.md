@@ -33,16 +33,16 @@ const { RegisterForCounter } = craftRegisterFor(
   'Counter',
   Counter,
   ({ Counter }) => ({
-    total: craftComputed('total', function* () {
+    total: craftUse(craftComputed('total', function* () {
       return (yield* Counter())?.length ?? 0;
-    }),
+    })),
   }),
 );
 
 const counters = yield* RegisterForCounter();
-const total = craftComputed('total', function* () {
+const total = craftUse(craftComputed('total', function* () {
   return (yield* counters())?.length ?? 0;
-});
+}));
 ```
 
 If a projection uses several groups, every target must be declared:
@@ -52,9 +52,9 @@ craftRegisterFor(
   'Counter',
   [Counter, CounterChild],
   ({ Counter, CounterChild }) => ({
-    total: craftComputed('total', function* () {
+    total: craftUse(craftComputed('total', function* () {
       return (yield* Counter())?.length ?? 0;
-    }),
+    })),
     incrementAll: function* () {
       for (const { ref } of (yield* CounterChild()) ?? []) {
         yield* ref.increment();
@@ -135,7 +135,7 @@ const CounterBoard = craftComponent(
           yield* ref.increment();
         }
       },
-      childCount: craftComputed('childCount', function* () {
+      childCount: yield* craftComputed('childCount', function* () {
         return (yield* children())?.length ?? 0;
       }),
     };
@@ -189,9 +189,9 @@ first argument stays `undefined` to keep the yieldable-helper syntax, and
 const childComponents = yield* RegisterForCounter.CounterChild(
   undefined,
   ({ $self }) => ({
-    total: craftComputed(function* () {
+    total: craftUse(craftComputed('total', function* () {
       return (yield* $self())?.length ?? 0;
-    }),
+    })),
     incrementAll: function* () {
       for (const { ref } of (yield* $self()) ?? []) {
         yield* ref.increment();
@@ -220,9 +220,9 @@ const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   'Counter',
   [Counter, CounterChild],
   ({ Counter, CounterChild }) => ({
-    totalCounter: craftComputed('totalCounter', function* () {
+    totalCounter: craftUse(craftComputed('totalCounter', function* () {
       return (yield* Counter())?.length ?? 0;
-    }),
+    })),
     incrementAllCounterChild: function* () {
       for (const { ref } of (yield* CounterChild()) ?? []) {
         yield* ref.increment();

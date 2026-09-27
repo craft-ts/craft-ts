@@ -9,8 +9,9 @@ The factory body moves out almost unchanged — it was already a generator:
 <<< @/tests/snippets/learn/03-service/task-list.spec.ts#task-list
 
 A service is the same shape as a component's logic factory: a generator that
-yields what it needs and returns a context. The only additions are a **name** and
-a **scope**.
+yields what it needs. The differences: a **name**, a **scope** — and no
+`return`. A service exposes every named primitive it yields, under its name, so
+`TaskList` exposes `tasks`.
 
 ## Using it
 
@@ -21,7 +22,7 @@ export const Tasks = craftComponent(
   'Tasks',
   {},
   function* () {
-    const tasks = yield* TaskList();
+    const { tasks } = yield* TaskList();
     return { tasks };
   },
   ({ tasks }) => [
@@ -53,7 +54,7 @@ export const Tasks = craftComponent(
   'Tasks',
   { providers: [provideTaskList()] },
   function* () {
-    const tasks = yield* TaskList();
+    const { tasks } = yield* TaskList();
     return { tasks };
   },
   ({ tasks }) => [
@@ -82,15 +83,14 @@ the graph:
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* (inputs: { projectId: CraftServiceInput<string> }) {
-    const tasks = yield* state('tasks', [] as Task[] /* … */);
     const projectId = yield* inputs.projectId();
-    return tasks;
+    yield* state('tasks', [] as Task[] /* … */);
   },
 );
 ```
 
 ```typescript
-const tasks = yield* TaskList({ projectId: currentProjectId });
+const { tasks } = yield* TaskList({ projectId: currentProjectId });
 ```
 
 Inputs are how you get several configured instances out of one `function`-scoped
@@ -131,14 +131,15 @@ API](/guide/app/expose-api) — come back once the tutorial is done.
 
 ## Exposing less than everything
 
-A service returns whatever it wants to be public. Here `TaskList` returns the
-whole `tasks` ref. If a consumer only needs one property, it can say so:
+A service's API is what it yields; wrap what should stay internal in
+`craftPrivate(...)`. If a consumer only needs one exposed property, it can say
+so:
 
 ```typescript
-const remaining = yield* TaskList.remaining();
+const tasks = yield* TaskList.tasks();
 ```
 
-The dependency graph then records that only `remaining` was used — which makes
+The dependency graph then records that only `tasks` was used — which makes
 tests smaller, and is why [step 10](/learn/10-testing) is short.
 
 ## What you gained

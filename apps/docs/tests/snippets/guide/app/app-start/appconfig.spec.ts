@@ -23,8 +23,6 @@ const { AppStartLog } = craftService(
       yield* Console.log('startup log');
       return Promise.resolve();
     });
-
-    return true;
   },
 );
 

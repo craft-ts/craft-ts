@@ -416,7 +416,7 @@ const Counter = craftComponent(
   function* () {
     const isAuth = yield* state('isAuth', true);
     const isAdult = yield* state('isAdult', true);
-    const increment = craftMethod('increment', function* () {
+    const increment = yield* craftMethod('increment', function* () {
       return undefined;
     });
 

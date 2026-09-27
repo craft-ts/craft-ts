@@ -15,6 +15,7 @@ import {
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
+import type { MockMember } from './craft-service.shared';
 import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import {
   createCraftInjector,
@@ -80,13 +81,13 @@ type RequiredUsedMockImplementation<UsedProperties extends object> = Simplify<{
     ? UsedProperties[Key] extends (...args: any[]) => any
       ? CallableShell<UsedProperties[Key]>
       : never
-    : UsedProperties[Key];
+    : MockMember<UsedProperties[Key]>;
 }>;
 
 type MockImplementation<Output> = Simplify<
   (Output extends object
     ? Partial<{
-        [Key in Extract<keyof Output, string>]: Output[Key];
+        [Key in Extract<keyof Output, string>]: MockMember<Output[Key]>;
       }>
     : {}) &
     (Output extends (...args: any[]) => any

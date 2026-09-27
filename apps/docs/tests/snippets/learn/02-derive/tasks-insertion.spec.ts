@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
 import { setupCraftServiceTestingByRegister } from '@craft-ts/core';
-import { craftUse } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
 useSnippetHarness();
 
 // #region tasks-insertion
-import { craftComputed, craftService, state } from '@craft-ts/core';
+import { craftComputed, craftService, state, craftUse } from '@craft-ts/core';
 
 type Task = { id: string; title: string; done: boolean };
 
@@ -37,7 +36,6 @@ export const { TaskList } = craftService(
         return (yield* state()).filter((task) => !task.done).length;
       })),
     }));
-
   },
 );
 // #endregion tasks-insertion
@@ -48,11 +46,11 @@ describe('Learn 02 tasks insertion', () => {
       TaskList: 'real',
     });
 
-    expect(craftUse(sut())).toEqual([]);
-    sut.add('Learn insertions');
-    expect(craftUse(sut())).toEqual([
+    expect(craftUse(sut.tasks())).toEqual([]);
+    sut.tasks.add('Learn insertions');
+    expect(craftUse(sut.tasks())).toEqual([
       expect.objectContaining({ title: 'Learn insertions', done: false }),
     ]);
-    expect(craftUse(sut.remaining())).toBe(1);
+    expect(craftUse(sut.tasks.remaining())).toBe(1);
   });
 });

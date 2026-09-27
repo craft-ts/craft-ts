@@ -23,7 +23,6 @@ export const { TaskList } = craftService(
         }));
       },
     });
-
   },
 );
 // #endregion task-list-query
@@ -35,6 +34,6 @@ describe('Learn 05 TaskList query', () => {
     });
 
     expect(sut).toBeDefined();
-    expect(typeof sut.isLoading).toBe('function');
+    expect(typeof sut.tasksQuery.isLoading).toBe('function');
   });
 });

@@ -46,9 +46,9 @@ dependency is invisible on the computed, even if the surrounding factory
 already yielded it:
 
 ```typescript
-const doneCount = craftComputed('doneCount', function* () {
+const doneCount = craftUse(craftComputed('doneCount', function* () {
   return (yield* tasks()).filter((task) => task.done).length;
-});
+}));
 ```
 
 `tasks` does not belong to `doneCount`. Closing over `tasks()` would read the
@@ -170,7 +170,7 @@ const { UserProfile } = craftService(
       },
     });
 
-    const user = yield* query(
+    yield* query(
       'user',
       {
         params: userId,
@@ -184,7 +184,6 @@ const { UserProfile } = craftService(
       }),
     );
 
-    return { userId, user, updateEmail };
   },
 );
 ```

@@ -26,7 +26,7 @@ mirrors that exactly:
 <<< @/tests/snippets/learn/10-testing/task-stats.spec.ts#task-stats-test
 
 `sut` is the service under test; `mocks` gives you back the mocks you supplied,
-already typed, so `mocks.TaskList.$self` is assertable.
+already typed, so `mocks.TaskList.tasks` is assertable.
 
 ::: tip Which register entry to use
 `provideX()` for a `toProvide` or `manuallyProvidedAtRoot` service, `'real'` for

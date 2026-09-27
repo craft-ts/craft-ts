@@ -297,9 +297,9 @@ const machine =
       }),
       withBackNavigation(),
       ({ currentStep }) => ({
-        isReading: craftComputed('isReading', function* () {
+        isReading: craftUse(craftComputed('isReading', function* () {
           return (yield* currentStep()) === 'reading';
-        }),
+        })),
       }),
     ),
   );

@@ -16,6 +16,7 @@ import {
   SERVICE_RUNTIME_OVERRIDES,
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
+import type { MockMember } from './craft-service.shared';
 import type {
   BrandedServiceProvider,
   CraftServiceProvider,
@@ -160,14 +161,14 @@ type RequiredUsedMockImplementation<UsedProperties extends object> = Simplify<{
       ? CallableShell<UsedProperties[Key]>
       : never
     : UsedProperties[Key] extends (...args: any[]) => any
-      ? UsedProperties[Key]
+      ? MockMember<UsedProperties[Key]>
       : Simplify<UsedProperties[Key]>;
 }>;
 
 type MockImplementation<Output> = Simplify<
   (Output extends object
     ? Partial<{
-        [Key in Extract<keyof Output, string>]: Output[Key];
+        [Key in Extract<keyof Output, string>]: MockMember<Output[Key]>;
       }>
     : {}) &
     (Output extends (...args: any[]) => any
@@ -178,7 +179,7 @@ type MockImplementation<Output> = Simplify<
 type CompleteMockImplementation<Output> = Simplify<
   (Output extends object
     ? {
-        [Key in Extract<keyof Output, string>]-?: Output[Key];
+        [Key in Extract<keyof Output, string>]-?: MockMember<Output[Key]>;
       }
     : {}) &
     (Output extends (...args: any[]) => any
@@ -198,8 +199,8 @@ type PartialMockOutputWithUsedOverrides<
 > = Output extends object
   ? Partial<{
       [Key in Extract<keyof Output, string>]: Key extends keyof Used
-        ? Used[Key]
-        : Output[Key];
+        ? MockMember<Used[Key]>
+        : MockMember<Output[Key]>;
     }>
   : {};
 

@@ -242,8 +242,8 @@ checks exported arrow functions.
     'ReviewApp',
     {},
     (subjects: Input<Subject[]>) => {
-      const filtered = craftComputed(() => /* 80 lines of filtering */ []);
-      const diff = craftComputed(() => /* 150 lines of diffing */ null);
+      const filtered = craftUse(craftComputed('filtered', () => /* 80 lines of filtering */ []));
+      const diff = craftUse(craftComputed('diff', () => /* 150 lines of diffing */ null));
       // …dozens more computeds and craftMethods…
       return { subjects, filtered, diff /* … */ };
     },
@@ -260,9 +260,9 @@ checks exported arrow functions.
   // on its own.
   export const ReviewFilters = craftService(
     { name: 'ReviewFilters', scope: 'global' },
-    () => ({
-      filter: (subjects: Subject[], criteria: FilterCriteria) => /* … */ [],
-    }),
+    function* () {
+      yield* craftExpose('filter', (subjects: Subject[], criteria: FilterCriteria) => /* … */ []);
+    },
   );
 
   export const SubjectDiffViewport = craftComponent(
@@ -277,9 +277,9 @@ checks exported arrow functions.
     {},
     (subjects: Input<Subject[]>) => {
       const filters = injectX(ReviewFilters);
-      const filtered = craftComputed(() =>
+      const filtered = craftUse(craftComputed('filtered', () =>
         filters.filter(subjects(), criteria()),
-      );
+      ));
       return { filtered /* … */ };
     },
     ({ filtered }) =>
@@ -425,7 +425,7 @@ the boundary:
 // ❌ craft-ts/no-explicit-craft-insertion-type
 insertQueryPipe(
   ({ resource }): SpaceQueryView => ({
-    items: craftComputed(() => resource.value()),
+    items: craftUse(craftComputed('items', () => resource.value())),
   }),
 );
 
@@ -441,7 +441,7 @@ const generator = query(
   'spaceItems',
   config,
   insertQueryPipe(({ resource }) => ({
-    items: craftComputed(() => resource.value()),
+    items: craftUse(craftComputed('items', () => resource.value())),
   })),
 );
 ```
@@ -535,9 +535,9 @@ button(
 );
 
 // Correct: derive it in the logic factory and bind the result.
-const backDisabled = craftComputed('backDisabled', function* () {
+const backDisabled = craftUse(craftComputed('backDisabled', function* () {
   return !(yield* history.canGoBack());
-});
+}));
 return { backDisabled };
 ```
 
@@ -554,9 +554,9 @@ boundaries name the actual source:
 const users =
   yield *
   query('users', config, ({ resource }) => ({
-    total: craftComputed('total', function* () {
+    total: craftUse(craftComputed('total', function* () {
       return (yield* settled(resource)).length;
-    }),
+    })),
   }));
 ```
 

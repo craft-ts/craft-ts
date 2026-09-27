@@ -98,7 +98,8 @@ type ReadonlySource$<T> = {
 ### Source services and dependency tracking
 
 Use a `craftService` as the dependency handle when a source is shared by
-multiple consumers:
+multiple consumers. The service exposes its source under its name, and
+`on$(Service, ...)` subscribes to the one source a service exposes:
 
 <<< @/tests/snippets/guide/reactivity/source/example-6.spec.ts#example-6
 
@@ -129,9 +130,9 @@ message$.emit('Hello');
 console.log(message$.value()); // 'Hello'
 
 // Use in templates or craftComputed
-const uppercased = craftComputed('uppercased', function* () {
+const uppercased = craftUse(craftComputed('uppercased', function* () {
   return (yield* message$.value())?.toUpperCase();
-});
+}));
 ```
 
 ### Last Value Preservation

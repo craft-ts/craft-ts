@@ -10,7 +10,9 @@ import { craftService, on$, source$, state, craftExpose } from '@craft-ts/core';
 const { Reset } = craftService(
   { name: 'Reset', providedIn: 'global' },
   function* () {
-    yield* source$<void>('reset$');
+    // With an explicit value type, repeat the name as a type argument:
+    // TypeScript cannot infer the one while you give the other.
+    yield* source$<void, 'reset$'>('reset$');
   },
 );
 
@@ -21,8 +23,8 @@ const { Counter } = craftService(
       reset: on$(Reset, () => set(0)),
     }));
 
-    const reset = (yield* Reset()).reset$;
-    yield* craftExpose('reset', reset);
+    const { reset$ } = yield* Reset();
+    yield* craftExpose('reset$', reset$);
   },
 );
 // #endregion example-6

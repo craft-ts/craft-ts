@@ -294,8 +294,7 @@ describe('setupCraftServiceTest', () => {
 
     const { sut, mocks } = setupCraftServiceTest(CounterExtended, {
       Counter: mock({
-        // A mocked root stands in for the whole state the derivation reads.
-        counter: rootCallable as never,
+        counter: rootCallable,
         increment,
         decrement,
       }),

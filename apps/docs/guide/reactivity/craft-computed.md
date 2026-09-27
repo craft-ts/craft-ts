@@ -22,9 +22,9 @@ is recorded on **that** computed:
 
 ```typescript
 const counter = yield* state('counter', 1, ({ state }) => ({
-  doubled: craftComputed(function* () {
+  doubled: craftUse(craftComputed('doubled', function* () {
     return (yield* state()) * 2;
-  }),
+  })),
 }));
 
 const doubled = yield* counter.doubled();
@@ -70,9 +70,9 @@ computed.
 
 ```typescript
 const counter = yield* state('counter', 1, ({ state }) => ({
-  doubled: craftComputed(function* () {
+  doubled: craftUse(craftComputed('doubled', function* () {
     return (yield* state()) * 2;
-  }),
+  })),
 }));
 
 const doubled = yield* counter.doubled();
@@ -82,17 +82,19 @@ const doubled = yield* counter.doubled();
 own dependency graph records the read.
 
 ```typescript
-import { craftComputed, craftService } from '@craft-ts/core';
+import { craftComputed, craftService, craftUse, craftExpose } from '@craft-ts/core';
 
 const { Multiplier } = craftService(
   { name: 'Multiplier', providedIn: 'function' },
-  () => ({ factor: 3 }),
+  function* () {
+    yield* craftExpose('factor', 3);
+  },
 );
 
-const tripled = craftComputed('tripled', function* () {
+const tripled = craftUse(craftComputed('tripled', function* () {
   const multiplier = yield* Multiplier();
   return (yield* counter()) * multiplier.factor;
-});
+}));
 ```
 
 ## Caveats

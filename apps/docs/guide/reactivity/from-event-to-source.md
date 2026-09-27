@@ -142,9 +142,9 @@ const input$ = fromEventToSource$(inputElement, 'input', {
 });
 
 // Use in template or computed
-const trimmedValue = craftComputed('trimmedValue', function* () {
+const trimmedValue = craftUse(craftComputed('trimmedValue', function* () {
   return (yield* input$.value())?.trim() ?? '';
-});
+}));
 ```
 
 ### Event Transformation
@@ -282,7 +282,7 @@ export const Responsive = craftComponent(
 
     return {
       dimensions,
-      isMobile: craftComputed('isMobile', function* () {
+      isMobile: yield* craftComputed('isMobile', function* () {
         const dims = yield* dimensions();
         return dims ? dims.width < 768 : false;
       }),

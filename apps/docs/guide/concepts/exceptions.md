@@ -88,7 +88,7 @@ const { ReportFacade } = craftService(
   { name: 'ReportFacade', providedIn: 'global' },
   function* () {
     const report = yield* loadReport(); // narrowed: never the exception
-    return { total: report.totalUsers };
+    yield* craftExpose('total', report.totalUsers);
   },
 );
 ```
