@@ -47,6 +47,7 @@ import {
   type SendContextPromptOptions,
 } from './send-context-prompt';
 import type { SendContextUiContext } from './send-context-ui.tokens';
+import { createReplayController, validateReplayExport, type ReplayController } from './debug-session-replay';
 
 /** The timeline is a debugging view, not a log: only the tail is readable. */
 const VISIBLE_EVENTS = 100;
@@ -142,6 +143,14 @@ type ChatContext = {
   clearTimeline: () => void;
   copyPrompt: () => void;
   exportJson: () => void;
+  replayJson: () => string;
+  writeReplayJson: (value: string) => Generator<unknown, unknown, unknown>;
+  importReplay: () => void;
+  replayStep: () => void;
+  replayPlay: () => void;
+  replayPause: () => void;
+  replayStop: () => void;
+  replayStatus: () => string;
   endpoint?: string;
   sendPayload?: () => void;
   retrySend?: () => void;
@@ -221,6 +230,11 @@ export const AiSendContextChat: CraftComponent<{
         setPanelOffset: (value: PanelOffset) => set(value),
       }),
     ) as unknown as Generator<never, PanelOffsetState, unknown>;
+    type ReplayTextState = (() => string) & { setReplayJson: (value: string) => Generator<unknown, unknown, unknown> };
+    type ReplayStatusState = (() => string) & { setReplayStatus: (value: string) => Generator<unknown, unknown, unknown> };
+    const replayText = yield* state('replayJson', '', ({ set }) => ({ setReplayJson: (value: string) => set(value) })) as unknown as Generator<never, ReplayTextState, unknown>;
+    const replayStatusValue = yield* state('replayStatus', '', ({ set }) => ({ setReplayStatus: (value: string) => set(value) })) as unknown as Generator<never, ReplayStatusState, unknown>;
+    let replayController: ReplayController | undefined;
 
     const setStatus: (value: string) => void = craftMethod(
       'setStatus',
@@ -245,6 +259,10 @@ export const AiSendContextChat: CraftComponent<{
       function* (value: PanelOffset) {
         yield* panelOffset.setPanelOffset(value);
       },
+    );
+    const setReplayStatus: (value: string) => void = craftMethod(
+      'setReplayStatus',
+      function* (value: string) { yield* replayStatusValue.setReplayStatus(value); },
     );
 
     let statusTimer: TemporalTaskHandle | null = null;
@@ -563,11 +581,41 @@ export const AiSendContextChat: CraftComponent<{
     };
 
     const exportJson = (): void => {
-      copyToClipboard(
-        timelineJson(),
-        'Timeline JSON copied to the clipboard ✓',
-      );
+      const json = readContext().session.exportSessionJson();
+      const parsed = JSON.parse(json) as { truncated?: boolean };
+      copyToClipboard(json, parsed.truncated
+        ? 'Session copied, but retention truncated it; this export cannot be replayed.'
+        : 'Full session copied to the clipboard ✓');
     };
+
+    const importReplay = (): void => {
+      const validation = validateReplayExport(craftUse(replayText()));
+      if (!validation.ok) { setReplayStatus(validation.error); return; }
+      replayController?.stop();
+      replayController = createReplayController(validation.session, {
+        onError: setReplayStatus,
+        onDifference: (event) => {
+          if (event.state === undefined) return undefined;
+          const actual = readContext().events.at(-1)?.state;
+          if (JSON.stringify(actual) === JSON.stringify(event.state)) return undefined;
+          setReplayStatus(`State differs after event ${event.sequence}.`);
+          return { eventId: event.id, expected: event.state, actual };
+        },
+      });
+      let recordedPath = validation.session.startUrl;
+      try {
+        const recordedUrl = new URL(validation.session.startUrl, location.href);
+        recordedPath = `${recordedUrl.pathname}${recordedUrl.search}${recordedUrl.hash}`;
+      } catch { /* the validator already requires a string; report the raw path */ }
+      setReplayStatus(`Session ready: ${validation.session.events.length} events. For a clean start, reload this local app at ${recordedPath}, then paste and validate the export again.`);
+    };
+    const replayStep = (): void => {
+      if (!replayController) { setReplayStatus('Paste and validate a session first.'); return; }
+      void replayController.step().then(() => setReplayStatus(`Replay step ${replayController?.index() ?? 0}.`));
+    };
+    const replayPlay = (): void => { replayController?.play(); setReplayStatus('Replay playing.'); };
+    const replayPause = (): void => { replayController?.pause(); setReplayStatus('Replay paused.'); };
+    const replayStop = (): void => { replayController?.stop(); setReplayStatus('Replay stopped.'); };
 
     const toggleRecord = (): void => {
       const ui = readContext();
@@ -624,6 +672,14 @@ export const AiSendContextChat: CraftComponent<{
       clearTimeline,
       copyPrompt,
       exportJson,
+      replayJson: () => craftUse(replayText()),
+      writeReplayJson: replayText.setReplayJson,
+      importReplay,
+      replayStep,
+      replayPlay,
+      replayPause,
+      replayStop,
+      replayStatus: () => craftUse(replayStatusValue()),
       endpoint: configuredEndpoint,
       sendPayload,
       retrySend,
@@ -651,6 +707,14 @@ export const AiSendContextChat: CraftComponent<{
     clearTimeline,
     copyPrompt,
     exportJson,
+    replayJson,
+    writeReplayJson,
+    importReplay,
+    replayStep,
+    replayPlay,
+    replayPause,
+    replayStop,
+    replayStatus,
     endpoint,
     sendPayload,
     retrySend,
@@ -899,6 +963,25 @@ export const AiSendContextChat: CraftComponent<{
             },
             'The DOM capture can take a moment, freeze the page and produce a very large prompt.',
           ),
+          section({ class: aiChat.section }, [
+            label({ class: aiChat.sectionHead, htmlFor: 'craft-ai-replay-json' }, 'Replay a session'),
+            textarea('aiReplayJson', {
+              id: 'craft-ai-replay-json',
+              class: aiChat.textarea,
+              rows: 3,
+              value: replayJson,
+              placeholder: 'Paste a full Craft debug session JSON export…',
+              *input(event) { yield* writeReplayJson((event.target as HTMLTextAreaElement).value); },
+            }),
+            div({ class: aiChat.actions }, [
+              button('aiReplayImport', { type: 'button', class: aiChat.button, click: importReplay }, 'Validate'),
+              button('aiReplayPlay', { type: 'button', class: aiChat.button, click: replayPlay }, 'Play'),
+              button('aiReplayPause', { type: 'button', class: aiChat.button, click: replayPause }, 'Pause'),
+              button('aiReplayStep', { type: 'button', class: aiChat.button, click: replayStep }, 'Next step'),
+              button('aiReplayStop', { type: 'button', class: aiChat.button, click: replayStop }, 'Stop'),
+            ]),
+            p({ class: aiChat.empty, role: 'status' }, replayStatus),
+          ]),
           liveRegion(
             { politeness: 'polite' },
             div(

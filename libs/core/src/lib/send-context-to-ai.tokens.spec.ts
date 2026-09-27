@@ -65,6 +65,15 @@ describe('send context session', () => {
     expect(session.exportSummary(clip.id)).toContain('[started] http');
   });
 
+  it('exports a versioned full session and marks un-clipped retention loss', () => {
+    const session = createSendContextSession({ retentionPolicy: { maxEvents: 1 } });
+    session.capture('custom', 'emitted', { name: 'evicted' });
+    session.capture('custom', 'emitted', { name: 'kept' });
+    const value = JSON.parse(session.exportSessionJson()) as Record<string, unknown>;
+    expect(value).toMatchObject({ format: 'craft-debug-session', version: 1, truncated: true });
+    expect(value.events).toHaveLength(1);
+  });
+
   it('redacts sensitive object keys recursively', () => {
     expect(
       defaultSendContextRedactor({ nested: { password: 'x', ok: 1 } }),

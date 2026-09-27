@@ -2605,6 +2605,7 @@ class ForRenderedNode implements RenderedNode {
 
     this.scheduler = createForScheduler(
       policy ?? { enabled: false, strategy: 'sync', frameBudgetMs: 4 },
+      () => runInInjectionContext(this.context.injector, () => ɵinjectCraftTemporalRuntime()),
     );
     this.ownsScheduler = true;
   }

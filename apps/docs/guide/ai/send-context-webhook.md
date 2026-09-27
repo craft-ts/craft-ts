@@ -57,8 +57,52 @@ without parsing Markdown.
 
 The chat also supports recording a named **clip**. A clip is a subset of the
 timeline, which is useful when an investigation contains several unrelated
-interactions. `Copy JSON` exports the visible timeline (or the selected clip),
-whereas `Copy prompt` builds the AI-oriented Markdown document.
+interactions. `Copy JSON` copies a versioned export of the **full session**,
+regardless of which clip is selected. `Copy prompt` builds the AI-oriented
+Markdown document.
+
+## Export and replay a debugging session
+
+Use the timeline's `Record` control while reproducing an issue, then choose
+`Copy JSON` to copy the complete session. The export includes the starting URL,
+the event timeline, clips, and recorded HTTP request/response data. DOM events
+include a replay target and action; form values and relevant keyboard details
+are included when available. Password fields and fields whose names indicate
+secrets are omitted, and the normal send-context redactor runs before data is
+exported. Events from the debugging overlay itself are excluded.
+
+In the local app, open the context panel, paste the JSON into **Replay a
+session**, and choose `Validate`. Invalid JSON, unsupported versions, and
+sessions marked as truncated are rejected. Retention can evict old events, so
+an export with lost events is explicitly marked incomplete and cannot be
+replayed as a complete session.
+
+For the most useful replay, first reload the local app on the recorded path,
+then reopen the panel, paste the export again, and validate it. The origin in
+the export may belong to another environment; replay compares request paths
+and uses the current local app. It re-runs the app's code and interactions; it
+does not restore the app's complete initial state.
+
+After validation, use:
+
+- `Play` to replay interactions at the intervals recorded in the session;
+- `Pause` to hold replay before the next interaction;
+- `Next step` to dispatch one interaction and advance Craft's virtual clock
+  to that event's recorded time;
+- `Stop` to end replay and restore the normal Craft clock and `fetch`.
+
+Recorded HTTP responses are returned for matching `fetch` requests. A request
+with no recorded match stops replay and is rejected; it is never sent through
+`fetch` to the server. Matching uses the request method, local path and query,
+body, and recorded order. Craft timers scheduled through `CraftTemporalRuntime`
+and progressive `scheduleFor` rendering use the replay clock: they remain
+paused between steps and run when replay advances time. Direct calls by the
+application to native timers or animation-frame APIs are outside this virtual
+clock's control.
+
+Events that include a captured state can be compared with state observed after
+replay. A mismatch is reported in the panel so the interaction can be
+investigated; replay does not force the recorded state back into the app.
 
 ## Send the context to an agent
 
