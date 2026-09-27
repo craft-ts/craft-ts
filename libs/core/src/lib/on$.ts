@@ -30,8 +30,31 @@ type TrackedOnSource<Dependencies extends object> =
         readonly [SERVICE_HELPER_DEPENDENCIES]?: Dependencies;
       };
 
+type IsUnion<Value, Whole = Value> = Value extends unknown
+  ? [Whole] extends [Value]
+    ? false
+    : true
+  : never;
+
+/**
+ * The source a "source service" exposes: a craftService exposes its named
+ * primitives, so the service `on$` subscribes to is one exposing exactly one
+ * source (`yield* source$<void>('reset$')`) — `never` otherwise.
+ */
+type ExposedSource<Output> = {
+  [Key in keyof Output]: Output[Key] extends ReadonlySource$<any, any>
+    ? Key
+    : never;
+}[keyof Output] extends infer SourceKey extends keyof Output
+  ? [SourceKey] extends [never]
+    ? never
+    : true extends IsUnion<SourceKey>
+      ? never
+      : Output[SourceKey]
+  : never;
+
 type SourceHelperOutput<Helper extends ServiceReference> =
-  GetServiceOutput<Helper> extends ReadonlySource$<
+  ExposedSource<GetServiceOutput<Helper>> extends ReadonlySource$<
     infer SourceType,
     infer _Name extends string
   >
@@ -39,7 +62,7 @@ type SourceHelperOutput<Helper extends ServiceReference> =
     : never;
 
 type SourceHelper<Helper extends ServiceReference> =
-  GetServiceOutput<Helper> extends ReadonlySource$<
+  ExposedSource<GetServiceOutput<Helper>> extends ReadonlySource$<
     infer _SourceType,
     infer _Name extends string
   >
@@ -94,7 +117,7 @@ export function on$<State, SourceType>(
 
   const resolvedSource = (
     typeof source === 'function'
-      ? craftUse((source as () => Generator)())
+      ? exposedSource(craftUse((source as () => Generator)()))
       : source
   ) as SourceSubscription<SourceType>;
 
@@ -106,4 +129,24 @@ export function on$<State, SourceType>(
   destroyRef.onDestroy(() => sub.unsubscribe());
 
   return SourceBranded;
+}
+
+function isSubscribable(value: unknown): boolean {
+  return (
+    (typeof value === 'object' || typeof value === 'function') &&
+    value !== null &&
+    typeof (value as { subscribe?: unknown }).subscribe === 'function'
+  );
+}
+
+/** The single source a resolved "source service" exposes (see {@link ExposedSource}). */
+function exposedSource(service: unknown): unknown {
+  if (isSubscribable(service)) return service;
+  const sources = Object.values(service as object).filter(isSubscribable);
+  if (sources.length !== 1) {
+    throw new Error(
+      `on$(service, ...) needs a craftService exposing exactly one source; this one exposes ${sources.length}.`,
+    );
+  }
+  return sources[0];
 }

@@ -576,7 +576,6 @@ describe('setupCraftServiceTestingByRegister', () => {
           return undefined;
         });
 
-        return 1;
       },
     );
 
@@ -632,7 +631,6 @@ describe('setupCraftServiceTestingByRegister', () => {
             }),
         );
 
-        return 1;
       },
     );
 
@@ -673,7 +671,6 @@ describe('setupCraftServiceTestingByRegister', () => {
           return undefined;
         });
 
-        return 1;
       },
     );
 
@@ -755,7 +752,6 @@ describe('setupCraftServiceTestingByRegister', () => {
           return undefined;
         });
 
-        return 1;
       },
     );
 

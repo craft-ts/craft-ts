@@ -6,6 +6,7 @@ import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { craftService, ɵtoCraftService as toCraftService, type CraftServiceInput } from './craft-service';
 import { craftUse } from './craft-use';
+import { craftExpose } from './craft-primitive-gen';
 import {
   provideReactiveReadObserver,
   type ReactiveReadEdge,
@@ -24,13 +25,13 @@ describe('craft service inputs', () => {
     const { ReadInput } = craftService(
       { name: 'ReadInput', providedIn: 'function' },
       function* (inputs: { value: CraftServiceInput<number> }) {
-        return yield* inputs.value();
+        yield* craftExpose('value', yield* inputs.value());
       },
     );
 
     TestBed.runInInjectionContext(() => {
       const source = craftUse(state('service-input-source', 3));
-      expect(craftUse(ReadInput({ value: source }))).toBe(3);
+      expect(craftUse(ReadInput({ value: source })).value).toBe(3);
     });
 
     expect(
@@ -51,13 +52,13 @@ describe('craft service inputs', () => {
     const { ReadSignalInput } = craftService(
       { name: 'ReadSignalInput', providedIn: 'function' },
       function* (inputs: { value: CraftServiceInput<number> }) {
-        return yield* inputs.value();
+        yield* craftExpose('value', yield* inputs.value());
       },
     );
     const source = signal(5);
 
     TestBed.runInInjectionContext(() => {
-      expect(craftUse(ReadSignalInput({ value: source }))).toBe(5);
+      expect(craftUse(ReadSignalInput({ value: source })).value).toBe(5);
     });
 
     expect(

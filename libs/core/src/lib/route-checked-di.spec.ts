@@ -9,7 +9,6 @@ describe('RouteCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -32,7 +31,6 @@ describe('RouteCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -56,7 +54,6 @@ describe('RouteCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -95,7 +92,6 @@ describe('RouteCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -119,7 +115,6 @@ describe('RouteCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -148,19 +143,16 @@ describe('RouteCheckedDI', () => {
     const { GlobalSvc } = craftService(
       { name: 'GlobalSvc', providedIn: 'global' },
       function* () {
-        return 1;
       },
     );
     const { RouteSvc } = craftService(
       { name: 'RouteSvc', providedIn: 'toProvide' },
       function* () {
-        return 2;
       },
     );
     const { CompSvc } = craftService(
       { name: 'CompSvc', providedIn: 'toProvide' },
       function* () {
-        return 3;
       },
     );
 
@@ -230,7 +222,6 @@ describe('RouteCheckedDI', () => {
     // of how many checks coexist. This test asserts that >50 distinct checks
     // type-check cleanly (the global AppCheckedDI would TS2589 well before).
     const { S } = craftService({ name: 'S', providedIn: 'toProvide' }, function* () {
-      return 1;
     });
 
     type Deps = GetDeps<{

@@ -232,12 +232,15 @@ describe('browser boundaries', () => {
     const { LeavePageFlow } = craftService(
       { name: 'LeavePageFlow', providedIn: 'global' },
       function* () {
-        return yield* BrowserWindow.confirm('Stay on page?');
+        yield* craftExpose(
+          'confirmed',
+          yield* BrowserWindow.confirm('Stay on page?'),
+        );
       },
     );
 
     TestBed.runInInjectionContext(() => {
-      expect(craftUse(LeavePageFlow())).toBe(false);
+      expect(craftUse(LeavePageFlow()).confirmed).toBe(false);
     });
 
     expect(confirmSpy).toHaveBeenCalledWith('Stay on page?');

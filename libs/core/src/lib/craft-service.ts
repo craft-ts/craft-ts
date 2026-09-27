@@ -28,6 +28,7 @@ import {
   createYieldableReactiveValue,
   isYieldableReactiveValue,
   rawReactiveValue,
+  type ReactiveReadRequest,
   type YieldableReactiveProperties,
   type YieldableReactiveValue,
 } from './reactive-read';
@@ -2390,7 +2391,13 @@ export const SERVICE_RUNTIME_OVERRIDES = new InjectionToken<
  * The public service helper still accepts the resolved value, an Angular
  * signal, or another Craft reader for this input.
  */
-export type CraftServiceInput<Value, Yielded = unknown> = Yieldable<
+// The reader yields a reactive read request. It must not default to
+// `unknown`: that yield would absorb the service's whole `Yielded` union, and
+// with it the named primitives the service exposes.
+export type CraftServiceInput<
+  Value,
+  Yielded = ReactiveReadRequest<Value>,
+> = Yieldable<
   [],
   Value,
   Yielded

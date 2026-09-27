@@ -27,7 +27,6 @@ describe('craftAppConfig', () => {
     const { provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
     const token = new InjectionToken<string>('plain-provider');
@@ -101,7 +100,6 @@ describe('craftAppConfig appStart', () => {
           return waitForAppStart;
         });
 
-        return 1;
       },
     );
 
@@ -138,7 +136,6 @@ describe('craftAppConfig appStart', () => {
           return undefined;
         });
 
-        return 1;
       },
     );
 

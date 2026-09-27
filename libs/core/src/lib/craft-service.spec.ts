@@ -214,7 +214,6 @@ describe('craftService', () => {
           return waitForAppStart;
         });
 
-        return 1;
       },
     );
 
@@ -285,7 +284,6 @@ describe('craftService', () => {
             return undefined;
           });
 
-          return 1;
         },
       );
 
@@ -316,7 +314,6 @@ describe('craftService', () => {
       { name: 'InvalidAppStart', providedIn: 'global' },
       function* () {
         yield* onAppStart(() => undefined);
-        return 1;
       },
     );
 

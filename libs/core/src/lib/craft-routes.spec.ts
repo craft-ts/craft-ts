@@ -1403,7 +1403,6 @@ describe('craftRoutes', () => {
     const { provideCounter, Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -1446,7 +1445,6 @@ describe('craftRoutes', () => {
     const { provideCounter, Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -1495,7 +1493,6 @@ describe('craftRoutes', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
     const { Permissions } = craftService(
@@ -1569,7 +1566,6 @@ describe('craftRoutes', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
     const { Permissions } = craftService(
@@ -2199,7 +2195,6 @@ describe('craftRoutes', () => {
     const { provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -2716,7 +2711,6 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
     class UserComponent {
@@ -2755,7 +2749,6 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
     class UserComponent {
@@ -2900,7 +2893,6 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -2995,7 +2987,6 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -3034,7 +3025,6 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 
@@ -3178,7 +3168,6 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        return 1;
       },
     );
 

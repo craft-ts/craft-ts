@@ -31,7 +31,7 @@ describe('yieldable source services', () => {
     const { Reset } = craftService(
       { name: 'Reset', providedIn: 'global' },
       function* () {
-        const reset$ = yield* source$<void>('reset$');
+        yield* source$<void, 'reset$'>('reset$');
       },
     );
 
