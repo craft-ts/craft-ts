@@ -24,14 +24,19 @@ import {
  * 2. A plain `craftService` factory (`(inputs) => expr`) becomes a generator.
  * 3. In every `craftService` factory, the `return { ... }` is removed: a
  *    shorthand `{ x }` of a binding `const x = yield* <primitive named 'x'>` is
- *    exposed as is, `k: craftGen(function* ...)` or a plain function becomes
- *    `yield* craftMethod('k', function* ...)`, a key naming another binding
- *    renames that primitive at its source, and every named primitive that was
- *    NOT returned is wrapped in `craftPrivate(...)`.
- * 4. Anything else (a flattened `{ addItem: dataList.addItem }`, a spread, an
- *    injected service, a primitive returned alone) stays in the `return` and
- *    is reported as `SERVICE_EXPOSE_MANUAL`, so its consumers can be rewritten
- *    by hand.
+ *    exposed as is, a key naming another primitive binding renames it at its
+ *    source, every other member (`craftGen(...)`, a function, a constant, a
+ *    flattened `dataList.addItem`) becomes `yield* craftExpose('k', value)`,
+ *    and every named primitive that was NOT returned is wrapped in
+ *    `craftPrivate(...)`.
+ *
+ *    `craftGen` members are NOT turned into `craftMethod`: a `craftMethod`
+ *    taken from a service is eager (calling it runs it), so every consumer
+ *    written `yield* api.member(...)` would break. `craftExpose` keeps the
+ *    member exactly as it was.
+ * 4. What cannot be expressed that way (a spread, a primitive returned alone,
+ *    several returns) stays as is and is reported as `SERVICE_EXPOSE_MANUAL`,
+ *    so its consumers can be rewritten by hand.
  *
  * Every step edits the raw text (never re-printing a node), so the code it
  * does not change keeps its formatting.
@@ -565,8 +570,8 @@ function migrateFactory(
     const lines = hoisted.map((entry) =>
       reindent(entry.render(returnEdits), lineIndent(entry.from), indent),
     );
-    if (lines.some((line) => line.includes('craftMethod('))) {
-      imports.add('craftMethod');
+    if (lines.some((line) => line.includes('craftExpose('))) {
+      imports.add('craftExpose');
     }
     if (kept.length > 0) {
       lines.push(
@@ -611,11 +616,14 @@ function planReturnedObject(
     exposures.push({ yielded, key, renameBinding });
     return true;
   };
-  const method = (key: string, from: Node, fn: Node) => {
+  const exposeValue = (
+    key: string,
+    from: Node,
+    value: (edits: readonly Edit[]) => string,
+  ) => {
     hoisted.push({
       from,
-      render: (edits) =>
-        `yield* craftMethod('${key}', ${toGeneratorFunctionText(fn, edits)});`,
+      render: (edits) => `yield* craftExpose('${key}', ${value(edits)});`,
     });
   };
 
@@ -624,13 +632,9 @@ function planReturnedObject(
       const key = property.getName();
       const yielded = byBinding.get(key);
       if (yielded && expose(yielded, key, false)) continue;
-      report(
-        property,
-        yielded
-          ? `"${key}" cannot be named at its source (${yielded.primitive}).`
-          : `"${key}" is not bound to a named primitive yielded by the factory.`,
+      exposeValue(key, property, (edits) =>
+        textWithEdits(property.getNameNode(), edits),
       );
-      kept.push(property);
       continue;
     }
 
@@ -676,40 +680,22 @@ function planReturnedObject(
         }
       }
 
-      // `k: craftGen(function* ...)` — a method.
-      if (
-        Node.isCallExpression(value) &&
-        value.getExpression().getText() === 'craftGen' &&
-        value.getArguments().length === 1 &&
-        toGeneratorFunctionText(value.getArguments()[0]!, []) !== undefined
-      ) {
-        method(key, property, value.getArguments()[0]!);
-        continue;
-      }
-
-      // `k: (args) => ...` / `k: function (...) {}` — a plain method.
-      if (
-        (Node.isArrowFunction(value) || Node.isFunctionExpression(value)) &&
-        toGeneratorFunctionText(value, []) !== undefined
-      ) {
-        method(key, property, value);
-        continue;
-      }
-
-      report(
-        property,
-        `"${key}: ${truncate(value.getText())}" cannot be exposed automatically: expose a named primitive and rewrite the consumers.`,
+      // Anything else — a function, a `craftGen`, a constant, a flattened
+      // member — is exposed exactly as it was.
+      exposeValue(key, property, (edits) =>
+        textWithEdits(property.getInitializerOrThrow(), edits),
       );
-      kept.push(property);
       continue;
     }
 
     if (
       Node.isMethodDeclaration(property) &&
       isPlainKey(property.getNameNode()) &&
-      toGeneratorFunctionText(property, []) !== undefined
+      !usesOwnThisOrArguments(property)
     ) {
-      method(property.getName(), property, property);
+      exposeValue(property.getName(), property, (edits) =>
+        methodAsFunctionText(property, edits),
+      );
       continue;
     }
 
@@ -894,50 +880,26 @@ function enclosingFunction(node: Node): Node | undefined {
   );
 }
 
-/**
- * `(a) => expr`, `function (a) {}`, `function* (a) {}` or a method as the text
- * of a generator function — `undefined` for what cannot become one
- * faithfully: an async function, or one relying on its own `this` /
- * `arguments`. A declared return type `T` becomes `Generator<never, T>`.
- */
-function toGeneratorFunctionText(
-  fn: Node,
+/** An object-literal method as a function expression with the same signature. */
+function methodAsFunctionText(
+  method: Node,
   edits: readonly Edit[],
-): string | undefined {
-  if (
-    !Node.isArrowFunction(fn) &&
-    !Node.isFunctionExpression(fn) &&
-    !Node.isMethodDeclaration(fn)
-  ) {
-    return undefined;
-  }
-  if (fn.isAsync()) return undefined;
-  if (!Node.isArrowFunction(fn) && usesOwnThisOrArguments(fn)) {
-    return undefined;
-  }
-  const isGenerator = !Node.isArrowFunction(fn) && fn.isGenerator();
-  const returnType = fn.getReturnTypeNode();
-
-  const typeParameters = fn
+): string {
+  if (!Node.isMethodDeclaration(method)) return textWithEdits(method, edits);
+  const typeParameters = method
     .getTypeParameters()
     .map((typeParameter) => textWithEdits(typeParameter, edits));
   const typeParams = typeParameters.length
     ? `<${typeParameters.join(', ')}>`
     : '';
-  const parameters = fn
+  const parameters = method
     .getParameters()
     .map((parameter) => textWithEdits(parameter, edits))
     .join(', ');
-  const body = fn.getBody();
-  if (!body) return undefined;
-  const bodyText = textWithEdits(body, edits);
-  const block = Node.isBlock(body) ? bodyText : `{ return ${bodyText}; }`;
-  const annotation = !returnType
-    ? ''
-    : isGenerator
-      ? `: ${textWithEdits(returnType, edits)}`
-      : `: Generator<never, ${textWithEdits(returnType, edits)}>`;
-  return `function* ${typeParams}(${parameters})${annotation} ${block}`;
+  const returnType = method.getReturnTypeNode();
+  const annotation = returnType ? `: ${textWithEdits(returnType, edits)}` : '';
+  const keyword = `${method.isAsync() ? 'async ' : ''}function${method.isGenerator() ? '*' : ''}`;
+  return `${keyword} ${typeParams}(${parameters})${annotation} ${textWithEdits(method.getBodyOrThrow(), edits)}`;
 }
 
 function usesOwnThisOrArguments(fn: Node): boolean {
@@ -1015,7 +977,7 @@ function importedLocalNames(
 
 const CORE_SYMBOL_MODULE: Record<string, string> = {
   craftPrivate: 'libs/core/src/lib/craft-primitive-gen',
-  craftMethod: 'libs/core/src/lib/craft-method',
+  craftExpose: 'libs/core/src/lib/craft-primitive-gen',
   craftUse: 'libs/core/src/lib/craft-use',
 };
 

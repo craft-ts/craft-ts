@@ -238,6 +238,42 @@ export function createNamedPrimitiveGen<Name extends string, Ref>(
   }) as unknown as NamedCraftPrimitiveGen<Name, Ref>;
 }
 
+/**
+ * Exposes any value on the enclosing `craftService` under `name` — for what is
+ * not a named primitive: a function, a constant, a member of an injected
+ * service, a primitive's insertion method.
+ *
+ * ```ts
+ * const api = yield* UsersApi();
+ * yield* craftExpose('getUsers', getUsers);
+ * yield* craftExpose('setLocale', language.setLocale);
+ * ```
+ *
+ * The value is exposed as is (no signal branding, no wrapping) and resolved
+ * back, so `const x = yield* craftExpose('x', value)` keeps using it. Like any
+ * named primitive, `craftPrivate(craftExpose(...))` hides it again.
+ */
+export function craftExpose<const Name extends string, Value>(
+  name: Name,
+  value: Value,
+): Generator<CraftExposeRequest<Name, Value>, Value, unknown> {
+  const gen = (function* () {
+    yield {
+      [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true,
+      [CRAFT_EXPOSE_MARKER]: true,
+      providedIn: 'global',
+      resolve: () => undefined,
+      name,
+      ref: value,
+    } as never;
+    return value;
+  })();
+
+  return Object.assign(gen, {
+    [CRAFT_PRIMITIVE_GEN_MARKER]: true,
+  }) as unknown as Generator<CraftExposeRequest<Name, Value>, Value, unknown>;
+}
+
 const CRAFT_PRIMITIVE_GEN_MARKER = Symbol('craft-primitive-gen-marker');
 
 /**
