@@ -8,7 +8,6 @@ import {
   CraftHttpClient,
   craftService,
   query,
-  craftPrivate,
   craftExpose,
 } from '@craft-ts/core';
 import type { User } from '../query/api.service';
@@ -36,14 +35,13 @@ const { UsersApiOnError } = craftService(
         },
       ],
     }));
-    const _query = yield* craftPrivate(query('query', {
+    yield* query('query', {
       params: () => true,
       loader: function* () {
         return users();
       },
-    }));
+    });
     yield* craftExpose('users', users);
-    yield* craftExpose('query', _query);
   },
 );
 
