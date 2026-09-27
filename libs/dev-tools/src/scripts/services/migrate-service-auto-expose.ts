@@ -241,11 +241,22 @@ function convertPlainFactories(sourceFile: SourceFile): Edit[] {
 // Phase 2 — craftComputed / craftMethod / craftEffect are consumed.
 // ---------------------------------------------------------------------------
 
+/**
+ * Where the yieldable helpers come from. `host/craft-signal` exports a
+ * low-level `craftComputed` of its own, which is left alone.
+ */
+const YIELDABLE_HELPER_MODULE =
+  /^@craft-ts\/core$|\/craft-(computed|method|effect)(\.js)?$|\/craft-runtime(\.js)?$/;
+
 function consumeYieldableHelpers(
   sourceFile: SourceFile,
   imports: Set<string>,
 ): Edit[] {
-  const local = importedLocalNames(sourceFile, new Set(YIELDABLE_HELPERS));
+  const local = importedLocalNames(
+    sourceFile,
+    new Set(YIELDABLE_HELPERS),
+    YIELDABLE_HELPER_MODULE,
+  );
   if (local.size === 0) return [];
   const edits: Edit[] = [];
   for (const call of sourceFile.getDescendantsOfKind(
@@ -985,9 +996,11 @@ function truncate(text: string): string {
 function importedLocalNames(
   sourceFile: SourceFile,
   names: Set<string>,
+  module: RegExp,
 ): Map<string, string> {
   const local = new Map<string, string>();
   for (const declaration of sourceFile.getImportDeclarations()) {
+    if (!module.test(declaration.getModuleSpecifierValue())) continue;
     for (const specifier of declaration.getNamedImports()) {
       if (names.has(specifier.getName())) {
         local.set(
