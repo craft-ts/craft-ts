@@ -28,7 +28,7 @@ import type { ExtractDeps } from './branded-component/branded-component';
 import { query } from './query';
 import { CraftHttpClient } from './craft-http-client';
 import { craftUse } from './craft-use';
-import { craftYieldRecord, craftExpose } from './craft-primitive-gen';
+import { craftExpose } from './craft-primitive-gen';
 import { craftGen } from './craft-gen';
 
 // todo later ne pas passer d'input et passer une dérivation inject...
@@ -71,35 +71,33 @@ describe('craftService', () => {
     });
   });
 
-  it('should accept a direct primitive factory and resolve primitive records', () => {
+  it('should expose every named primitive the factory yields, under its name', () => {
     const { DirectUserQuery } = craftService(
       { name: 'DirectUserQuery', providedIn: 'global' },
       function* (inputs: { userId: () => string }) {
-        yield* craftExpose('value', query('userQuery', {
+        yield* query('userQuery', {
           params: inputs.userId,
           loader: async ({ params }) => ({ id: params }),
-        }));
+        });
       },
     );
 
     const { UserQueryWithState } = craftService(
       { name: 'UserQueryWithState', providedIn: 'global' },
       function* () {
-        yield* craftExpose('value', craftYieldRecord({
-          userQuery: query('userQueryWithState', {
-            params: () => 'user-1',
-            loader: async ({ params }) => ({ id: params }),
-          }),
-          refresh: state('refresh', 0, ({ update }) => ({
-            increment: () => update((value) => value + 1),
-          })),
+        yield* query('userQuery', {
+          params: () => 'user-1',
+          loader: async ({ params }) => ({ id: params }),
+        });
+        yield* state('refresh', 0, ({ update }) => ({
+          increment: () => update((value) => value + 1),
         }));
       },
     );
 
     TestBed.runInInjectionContext(() => {
-      const directQuery = craftUse(DirectUserQuery({ userId: () => 'user-1' }));
-      expect(craftUse(directQuery.status())).toBe('loading');
+      const direct = craftUse(DirectUserQuery({ userId: () => 'user-1' }));
+      expect(craftUse(direct.userQuery.status())).toBe('loading');
 
       const resolved = craftUse(UserQueryWithState());
       expect(craftUse(resolved.userQuery.status())).toBe('loading');
@@ -339,7 +337,7 @@ describe('craftService', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        yield* craftExpose('value', Object.assign(counter, {
+        yield* craftExpose('counter', Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
@@ -349,7 +347,7 @@ describe('craftService', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(CounterExtended());
+      const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
       expect(craftUse(counter())).toBe(1);
@@ -679,8 +677,7 @@ describe('scope', () => {
     const { Counter, CounterRequirement } = craftService(
       { name: 'Counter', providedIn: 'abstract' },
       abstract<{
-        (): number;
-        increment(): void;
+        counter: { (): number; increment(): void };
       }>(),
     );
 
@@ -694,7 +691,7 @@ describe('scope', () => {
         requirement: CounterRequirement,
       },
       function* () {
-        const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -707,20 +704,19 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(Counter());
+      const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
       expect(craftUse(counter())).toBe(1);
 
-      const counterImpl = craftUse(CounterImpl()).counterImpl;
+      const counterImpl = craftUse(CounterImpl()).counter;
       expect(craftUse(counterImpl())).toBe(1);
     });
   });
 
   it('should enable to create a craftService from craftRequirement inline', () => {
     interface Counter {
-      (): number;
-      increment(): void;
+      counter: { (): number; increment(): void };
     }
 
     const { CounterRequirement } = craftService(
@@ -734,7 +730,7 @@ describe('scope', () => {
         requirement: CounterRequirement,
       },
       function* () {
-        const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -745,7 +741,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterImpl = craftUse(CounterImpl()).counterImpl;
+      const counterImpl = craftUse(CounterImpl()).counter;
       expect(craftUse(counterImpl())).toBe(0);
       counterImpl.increment();
       expect(craftUse(counterImpl())).toBe(1);
@@ -786,8 +782,7 @@ describe('scope', () => {
 
   it('should expose an abstract helper that resolves to its concrete implementation', () => {
     interface Counter {
-      (): number;
-      increment(): void;
+      counter: { (): number; increment(): void };
     }
 
     const { Counter, CounterRequirement } = craftService(
@@ -801,7 +796,7 @@ describe('scope', () => {
         requirement: CounterRequirement,
       },
       function* () {
-        const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -812,8 +807,8 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counterImpl = craftUse(CounterImpl()).counterImpl;
-      const counter = craftUse(Counter());
+      const counterImpl = craftUse(CounterImpl()).counter;
+      const counter = craftUse(Counter()).counter;
 
       expect(counter).toBe(counterImpl);
       counter.increment();
@@ -825,8 +820,7 @@ describe('scope', () => {
     const { CounterRequirement } = craftService(
       { name: 'Counter', providedIn: 'abstract' },
       abstract<{
-        (): number;
-        increment(): void;
+        counter: { (): number; increment(): void };
       }>(),
     );
 
@@ -838,7 +832,7 @@ describe('scope', () => {
         requirement: CounterRequirement,
       },
       function* () {
-        const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -849,8 +843,7 @@ describe('scope', () => {
     const { CounterRequirement } = craftService(
       { name: 'Counter', providedIn: 'abstract' },
       abstract<{
-        (): number;
-        increment(): void;
+        counter: { (): number; increment(): void };
       }>(),
     );
 
@@ -862,7 +855,7 @@ describe('scope', () => {
         requirement: CounterRequirement,
       },
       function* () {
-        const counterImpl = yield* state('counterImpl', 0);
+        yield* state('counter', 0);
       },
     );
   });
@@ -897,7 +890,7 @@ describe('scope', () => {
           }>(),
         },
         function* () {
-          const counterImpl = yield* state('counterImpl', 0);
+          yield* state('counter', 0);
         },
       );
     }
@@ -943,7 +936,7 @@ describe('scope', () => {
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(GlobalCounter());
+      const counter = craftUse(GlobalCounter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
       expect(craftUse(counter())).toBe(1);
@@ -991,7 +984,7 @@ describe('injectService should enable to binding inputs', () => {
             $provided: { initialValue: 99 },
           },
         ]) as ReturnType<typeof Counter>,
-      ) as { (): number; increment(): void };
+      ).counter;
 
       expect(craftUse(counter())).toBe(10);
       counter.increment();
@@ -1217,7 +1210,7 @@ describe('service should enable to binding inputs', () => {
       function* () {
         const counter = (yield* Counter({ initialValue: 10 })).counter;
 
-        yield* craftExpose('value', Object.assign(counter, {
+        yield* craftExpose('counter', Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
@@ -1227,7 +1220,7 @@ describe('service should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(CounterExtended());
+      const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(10);
       counter.increment();
       expect(craftUse(counter())).toBe(11);
@@ -1255,7 +1248,7 @@ describe('service should enable to binding inputs', () => {
       function* () {
         const counter = (yield* Counter({ initialValue: signal(10) })).counter;
 
-        yield* craftExpose('value', Object.assign(counter, {
+        yield* craftExpose('counter', Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
@@ -1265,7 +1258,7 @@ describe('service should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(CounterExtended());
+      const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(10);
       counter.increment();
       expect(craftUse(counter())).toBe(11);
@@ -1300,7 +1293,7 @@ describe('service should enable to binding inputs', () => {
           optionalProperty1: signal(20),
         })).counter;
 
-        yield* craftExpose('value', Object.assign(counter, {
+        yield* craftExpose('counter', Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
@@ -1310,7 +1303,7 @@ describe('service should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(CounterExtended());
+      const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(10);
       counter.increment();
       expect(craftUse(counter())).toBe(11);
@@ -1369,7 +1362,7 @@ describe('service should enable to binding inputs', () => {
           initialValue: 'Provided elsewhere #warn-check-docs:inputs',
         })).counter;
 
-        yield* craftExpose('value', Object.assign(counter1, {
+        yield* craftExpose('counter', Object.assign(counter1, {
           incrementTwice: () => {
             counter1.increment();
             counter1.increment();
@@ -1380,7 +1373,7 @@ describe('service should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(CounterExtended());
+      const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(10);
       counter.increment();
       expect(craftUse(counter())).toBe(11);
@@ -1431,7 +1424,7 @@ describe('service should enable to binding inputs', () => {
 });
 
 describe('injectService/Service should expose an optional parameter that can be used to only expose what is needed and yield* dep must be used to declare non exposed fields. “Any dependency that is used but not exposed must be yielded (with yield*) in order to be counted.”', () => {
-  it('should enable to explicitly re-expose the root callable when using Counter', () => {
+  it('should expose only the members the selector picks', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
@@ -1439,28 +1432,26 @@ describe('injectService/Service should expose an optional parameter that can be 
           increment: () => update((v) => v + 1),
           decrement: () => update((v) => v - 1),
         }));
+        yield* craftExpose('increment', counter.increment);
+        yield* craftExpose('decrement', counter.decrement);
       },
     );
 
     TestBed.runInInjectionContext(() => {
       const counterHandler = craftUse(
-        Counter({}, ({ $self, increment }) => ({
-          $self,
+        Counter({}, ({ counter, increment }) => ({
+          counter,
           increment,
         })),
-      ).counter;
+      );
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
       expect(counterHandler.decrement).toBeUndefined();
 
-      //@ts-expect-error $self should not be accessible because it is merged back at the root
-      expect(counterHandler.$self).toBeUndefined();
-
       expect('decrement' in counterHandler).toBe(false);
-      expect('$self' in counterHandler).toBe(false);
-      expect(craftUse(counterHandler())).toBe(10);
+      expect(craftUse(counterHandler.counter())).toBe(10);
       counterHandler.increment();
-      expect(craftUse(counterHandler())).toBe(11);
+      expect(craftUse(counterHandler.counter())).toBe(11);
     });
   });
 
@@ -1547,7 +1538,7 @@ describe('injectService/Service should expose an optional parameter that can be 
     );
 
     TestBed.runInInjectionContext(() => {
-      const counterHandler = craftUse(CounterExtended());
+      const counterHandler = craftUse(CounterExtended()).counter;
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
       expect(counterHandler.decrement).toBeUndefined();
@@ -1708,7 +1699,7 @@ describe('injectService/Service should expose an optional parameter that can be 
     }>();
 
     await TestBed.runInInjectionContext(async () => {
-      await expect(craftUse(DirectMethodShortcutConsumer())).resolves.toEqual({
+      await expect(craftUse(DirectMethodShortcutConsumer()).result).resolves.toEqual({
         id: '1',
         name: 'Geffrault',
       });
@@ -2058,148 +2049,6 @@ describe('injectService/Service should expose an optional parameter that can be 
     });
   });
 
-  it('should not keep the root callable implicitly when using Counter without $self', () => {
-    const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'function' },
-      function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
-          'counter',
-          toValue(inputs.initialValue),
-          ({ update }) => ({
-            increment: () => update((v) => v + 1),
-            decrement: () => update((v) => v - 1),
-          }),
-        );
-      },
-    );
-
-    const { CounterExtended } = craftService(
-      { name: 'CounterExtended', providedIn: 'global' },
-      function* () {
-        const partialCounter = (yield* Counter(
-          {
-            initialValue: signal(10),
-          },
-          ({ increment }) => ({
-            incrementCounter: increment,
-          }),
-        )).counter;
-
-        //@ts-expect-error decrement should not be accessible because it is not exposed
-        expect(partialCounter.decrement).toBeUndefined();
-
-        yield* craftExpose('partialCounter', partialCounter);
-      },
-    );
-
-    TestBed.runInInjectionContext(() => {
-      const counterHandler = craftUse(CounterExtended());
-
-      expect('decrement' in counterHandler).toBe(false);
-      expect('incrementCounter' in counterHandler).toBe(true);
-      //@ts-expect-error counterHandler should not be callable without exposing $self
-      expect(() => counterHandler()).toThrow(TypeError);
-      counterHandler.incrementCounter();
-      //@ts-expect-error counterHandler should not be callable without exposing $self
-      expect(() => counterHandler()).toThrow(TypeError);
-    });
-  });
-
-  it('should enable to explicitly re-expose the root callable when using Counter', () => {
-    const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'function' },
-      function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
-          'counter',
-          toValue(inputs.initialValue),
-          ({ update }) => ({
-            increment: () => update((v) => v + 1),
-            decrement: () => update((v) => v - 1),
-          }),
-        );
-      },
-    );
-
-    const { CounterExtended } = craftService(
-      { name: 'CounterExtended', providedIn: 'global' },
-      function* () {
-        yield* craftExpose('counter', (yield* Counter(
-          {
-            initialValue: signal(10),
-          },
-          ({ $self, increment }) => ({
-            $self,
-            incrementCounter: increment,
-          }),
-        )).counter);
-      },
-    );
-
-    TestBed.runInInjectionContext(() => {
-      const counterHandler = craftUse(CounterExtended());
-
-      //@ts-expect-error $self should not be accessible because it is merged back at the root
-      expect(counterHandler.$self).toBeUndefined();
-
-      expect('$self' in counterHandler).toBe(false);
-      expect(craftUse(counterHandler())).toBe(10);
-      counterHandler.incrementCounter();
-      expect(craftUse(counterHandler())).toBe(11);
-    });
-  });
-
-  it('should enable to track hidden root callable dependencies from Service', () => {
-    const triggerDecrementObservable = new Subject<void>();
-
-    const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'function' },
-      function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
-          'counter',
-          toValue(inputs.initialValue),
-          ({ update }) => ({
-            increment: () => update((v) => v + 1),
-            decrement: () => update((v) => v - 1),
-          }),
-        );
-      },
-    );
-
-    const { CounterExtended } = craftService(
-      { name: 'CounterExtended', providedIn: 'global' },
-      function* () {
-        yield* craftExpose('counter', (yield* Counter(
-          {
-            initialValue: signal(10),
-          },
-          function* ({ $self, increment, decrement }) {
-            const stateRef = yield* $self();
-            const decrementRef = yield* decrement();
-
-            triggerDecrementObservable.subscribe(() => {
-              craftUse(stateRef());
-              decrementRef();
-            });
-
-            return {
-              $self,
-              incrementCounter: increment,
-            };
-          },
-        )).counter);
-      },
-    );
-
-    TestBed.runInInjectionContext(() => {
-      const counterHandler = craftUse(CounterExtended());
-
-      expect(craftUse(counterHandler())).toBe(10);
-      counterHandler.incrementCounter();
-      expect(craftUse(counterHandler())).toBe(11);
-      triggerDecrementObservable.next();
-      expect(craftUse(counterHandler())).toBe(10);
-    });
-  });
 });
 
 describe('typing can track all dependencies (direct and child dependencies)', () => {
@@ -2492,21 +2341,23 @@ describe('typing can track all derived dependencies (only the properties that ar
             decrement: () => update((v) => v - 1),
           }),
         );
+        yield* craftExpose('increment', counter.increment);
+        yield* craftExpose('decrement', counter.decrement);
       },
     );
 
     const { CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
-        const partialCounter = (yield* Counter(
+        const partialCounter = yield* Counter(
           {
             initialValue: signal(10),
           },
-          ({ $self, increment }) => ({
-            $self,
+          ({ counter, increment }) => ({
+            counter,
             incrementCounter: increment,
           }),
-        )).counter;
+        );
 
         yield* craftExpose('partialCounter', partialCounter);
       },
@@ -2525,11 +2376,11 @@ describe('typing can track all derived dependencies (only the properties that ar
           appStart: false;
           dependencies: {};
           derivedPropertiesUsed: {
-            $self: GetServiceOutput<typeof Counter>;
+            counter: GetServiceOutput<typeof Counter>['counter'];
             increment: GetServiceOutput<typeof Counter>['increment'];
           };
           derivedPropertiesExposed: {
-            $self: GetServiceOutput<typeof Counter>;
+            counter: GetServiceOutput<typeof Counter>['counter'];
             incrementCounter: GetServiceOutput<typeof Counter>['increment'];
           };
         };
@@ -2550,18 +2401,20 @@ describe('typing can track all derived dependencies (only the properties that ar
             decrement: () => update((v) => v - 1),
           }),
         );
+        yield* craftExpose('increment', counter.increment);
+        yield* craftExpose('decrement', counter.decrement);
       },
     );
 
     const { CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
-        const partialCounter = (yield* Counter(
+        const partialCounter = yield* Counter(
           {
             initialValue: signal(10),
           },
-          function* ({ $self, increment, decrement }) {
-            const stateRef = yield* $self();
+          function* ({ counter, increment, decrement }) {
+            const stateRef = yield* counter();
             const triggerDecrementRef = yield* decrement();
 
             triggerDecrementObservable.subscribe(() => {
@@ -2570,11 +2423,11 @@ describe('typing can track all derived dependencies (only the properties that ar
             });
 
             return {
-              $self,
+              counter,
               incrementCounter: increment,
             };
           },
-        )).counter;
+        );
 
         yield* craftExpose('partialCounter', partialCounter);
       },
@@ -2593,12 +2446,12 @@ describe('typing can track all derived dependencies (only the properties that ar
           appStart: false;
           dependencies: {};
           derivedPropertiesUsed: {
-            $self: GetServiceOutput<typeof Counter>;
+            counter: GetServiceOutput<typeof Counter>['counter'];
             increment: GetServiceOutput<typeof Counter>['increment'];
             decrement: GetServiceOutput<typeof Counter>['decrement'];
           };
           derivedPropertiesExposed: {
-            $self: GetServiceOutput<typeof Counter>;
+            counter: GetServiceOutput<typeof Counter>['counter'];
             incrementCounter: GetServiceOutput<typeof Counter>['increment'];
           };
         };

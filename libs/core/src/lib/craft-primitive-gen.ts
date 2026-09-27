@@ -216,8 +216,16 @@ export function isCraftExposeRequest(
 export function createNamedPrimitiveGen<Name extends string, Ref>(
   name: Name,
   ref: Ref,
+  options?: {
+    /**
+     * `false` for a ref that is already named and must not be read at
+     * creation — reading the members of a computed's reactive value
+     * evaluates it (`craftComputed`, `craftMethod`, `craftEffect`).
+     */
+    markMembers?: boolean;
+  },
 ): NamedCraftPrimitiveGen<Name, Ref> {
-  markNamedReactiveProperties(ref);
+  if (options?.markMembers !== false) markNamedReactiveProperties(ref);
   const namedRef = isSignal(ref) ? markYieldableValue(ref, name) : ref;
   const gen = (function* () {
     // One object, two roles: the tracked-deps no-op every driver knows, and

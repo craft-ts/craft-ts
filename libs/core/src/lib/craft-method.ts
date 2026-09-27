@@ -146,6 +146,7 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
         CraftMethodWithoutReceiver<Args, Result>,
         Yielded
       >),
+      { markMembers: false },
     );
   }
 
@@ -161,6 +162,7 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
       CraftMethodWithReceiver<This, Args, Result>,
       Yielded
     >),
+    { markMembers: false },
   );
 }
 

@@ -207,5 +207,6 @@ export function craftComputed<T>(
       computed: name,
       path: name,
     }) as unknown as TrackedCraftComputed<string, T, unknown>,
+    { markMembers: false },
   );
 }

@@ -182,5 +182,5 @@ export function craftEffect(
     );
   }
 
-  return createNamedPrimitiveGen(name, ref);
+  return createNamedPrimitiveGen(name, ref, { markMembers: false });
 }

@@ -47,14 +47,13 @@ describe('setupCraftServiceTest', () => {
 
     const { sut, mocks } = setupCraftServiceTest(COUNTER_EXTENDED_META_DATA, {
       Counter: mock({
-        $self: rootCallable,
-        increment: vi.fn(),
+        counter: Object.assign(rootCallable, { increment: vi.fn() }),
       }),
     });
 
     expect(COUNTER_META_DATA.inject).toBeTypeOf('function');
     expect(sut.read()).toBe(14);
-    expect(mocks.Counter()).toBe(14);
+    expect(mocks.Counter.counter()).toBe(14);
   });
 
   it('should fail at typing time when a required child craftService is not covered', () => {
@@ -205,18 +204,14 @@ describe('setupCraftServiceTest', () => {
 
     const { sut, mocks } = setupCraftServiceTest(CounterConsumer, {
       Counter: mock({
-        $self: rootCallable,
-        increment,
+        counter: Object.assign(rootCallable, { increment }),
       }),
     });
 
     expect(sut.read()).toBe(41);
     sut.increment();
-    expect(mocks.Counter()).toBe(41);
-    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
-    expect('$self' in mocks.Counter).toBe(false);
-    //@ts-expect-error $self should never be part of the public mock
-    expect(mocks.Counter.$self).toBeUndefined();
+    expect(mocks.Counter.counter()).toBe(41);
+    expect(mocks.Counter.counter.increment).toHaveBeenCalledTimes(1);
   });
 
   it('should allow mocking a global dependency with the explicit inject helper fallback', () => {
