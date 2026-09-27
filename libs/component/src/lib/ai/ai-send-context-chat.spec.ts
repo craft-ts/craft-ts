@@ -43,7 +43,6 @@ function createUiContext(
     get recording() {
       return session.activeClip !== undefined;
     },
-    recordingEnabled: true,
     payload: {
       hostName: 'DemoComponent',
       tagList: ['component:DemoComponent#1'],
@@ -621,6 +620,20 @@ describe('AiSendContextChat', () => {
     record.click();
     expect(session.activeClip).toBeDefined();
 
+    rendered.destroy();
+    session.destroy();
+  });
+
+  it('clears captured data and resumes an active recording', async () => {
+    const session = createSendContextSession();
+    session.startRecord('Initial session');
+    session.capture('custom', 'emitted', { name: 'old-event' });
+    const rendered = await renderChat(createUiContext(session, []));
+
+    (rendered.nativeElement.querySelector('[data-craft-name="aiClearTimeline"]') as HTMLButtonElement).click();
+
+    expect(session.events).toEqual([]);
+    expect(session.activeClip?.label).toBe('Recording after clear');
     rendered.destroy();
     session.destroy();
   });

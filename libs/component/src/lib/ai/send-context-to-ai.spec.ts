@@ -38,15 +38,32 @@ describe('provideSendContextToAi', () => {
     document.body.replaceChildren();
   });
 
-  it('requires an explicit recording choice and does not collect events when disabled', () => {
+  it('waits for Record when automatic recording is disabled', () => {
     const parent = createEnvironmentInjector(
       [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: false })],
       Injector.NULL,
       'SendContextRecordingDisabledTestRoot',
     );
     const session = runInInjectionContext(parent, () => ɵinjectSendContextSession());
-    session?.capture('custom', 'emitted', { name: 'must-not-be-recorded' });
+    expect(session?.activeClip).toBeUndefined();
+    session?.capture('custom', 'emitted', { name: 'before-record' });
     expect(session?.events).toEqual([]);
+    session?.startRecord();
+    session?.capture('custom', 'emitted', { name: 'after-record' });
+    expect(session?.events.map((event) => event.name)).toEqual(['after-record']);
+    parent.destroy();
+  });
+
+  it('starts an application session when automatic recording is enabled', () => {
+    const parent = createEnvironmentInjector(
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
+      Injector.NULL,
+      'SendContextRecordingEnabledTestRoot',
+    );
+    const session = runInInjectionContext(parent, () => ɵinjectSendContextSession());
+    expect(session?.activeClip?.label).toBe('Application session');
+    session?.capture('custom', 'emitted', { name: 'during-startup-session' });
+    expect(session?.events.map((event) => event.name)).toEqual(['during-startup-session']);
     parent.destroy();
   });
 

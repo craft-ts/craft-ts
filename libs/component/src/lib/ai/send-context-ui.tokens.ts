@@ -25,8 +25,6 @@ export interface SendContextUiContext {
   readonly clips: readonly SendContextClip[];
   readonly targets: readonly SendContextTarget[];
   readonly recording: boolean;
-  /** Whether this app configuration allows capturing the session timeline. */
-  readonly recordingEnabled?: boolean;
   /**
    * The component context captured by the last right-click, and the app
    * snapshot reports collected for it. Absent when the chat was opened from

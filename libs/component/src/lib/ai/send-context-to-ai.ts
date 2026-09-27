@@ -17,8 +17,10 @@ import {
   provideComponentMonitoring,
   provideFnWrapper,
   provideSendContextToAiBuffer,
-  provideSendContextSession,
+  provideAppInitializer,
   provideSendContextEventFilter,
+  provideSendContextEventSource,
+  provideSendContextSession,
   ɵinjectAppSnapshotRegistry,
   ɵinjectSendContextSession,
   ɵinjectTakeAppSnapshot,
@@ -222,7 +224,6 @@ export function createAiContextMenuController({
   chatActions,
   exportSections,
   endpoint,
-  recordingEnabled = true,
 }: {
   injector: Injector;
   buffer: SendContextToAiBuffer;
@@ -237,7 +238,6 @@ export function createAiContextMenuController({
   chatActions?: readonly SendContextChatAction[];
   exportSections?: readonly SendContextExportSection[];
   endpoint?: string;
-  recordingEnabled?: boolean;
 }): AiContextMenuController {
   let menu: Overlay | null = null;
   let dialog: Overlay | null = null;
@@ -323,7 +323,6 @@ export function createAiContextMenuController({
       return { ...rest, snapshot: buffer.snapshot() };
     },
     endpoint,
-    recordingEnabled,
     get captureElement() {
       return capturedSignal()?.captureElement;
     },
@@ -450,16 +449,28 @@ export function createAiContextMenuController({
 export interface SendContextToAiOptions {
   /** Browser-accessible webhook URL. Omit it to keep the copy-only behavior. */
   readonly endpoint?: string;
-  /** Whether this app may collect and export a debugging session timeline. */
+  /** Start recording at app startup; false waits for the user to click Record. */
   readonly recording: boolean;
 }
 
 export function provideSendContextToAi(
   options: SendContextToAiOptions,
 ): Provider[] {
+  let session: SendContextSession | undefined;
   return [
     ...provideSendContextSession(),
-    provideSendContextEventFilter(() => options.recording),
+    ...(options.recording
+      ? [
+          provideAppInitializer(() => {
+            ɵinjectSendContextSession();
+          }),
+        ]
+      : []),
+    provideSendContextEventSource((createdSession) => {
+      session = createdSession;
+      if (options.recording) createdSession.startRecord('Application session');
+    }),
+    provideSendContextEventFilter(() => session?.activeClip !== undefined),
     provideSendContextChatComponent(() => AiSendContextChat),
     provideSendContextContextMenuComponent(() => AiContextMenu),
     provideSendContextLauncherComponent(() => AiSendContextLauncher),
@@ -485,7 +496,6 @@ export function provideSendContextToAi(
         chatActions: ɵinjectSendContextChatActions(),
         exportSections: ɵinjectSendContextExportSections(),
         endpoint: options.endpoint,
-        recordingEnabled: options.recording,
       }),
     ),
     provideFnWrapper(

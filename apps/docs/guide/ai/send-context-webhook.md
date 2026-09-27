@@ -14,10 +14,11 @@ Typical uses include:
 
 The feature is user-driven. It does not call an AI service by itself. Without
 an `endpoint`, everything stays in the browser and the user copies the prompt
-or the timeline when they choose to. State explicitly whether the app may
-collect a session timeline with the required `recording` option. Setting it to
-`false` disables timeline capture and hides its Record/Clear controls while
-leaving the rest of the context UI available.
+or the timeline when they choose to. The required `recording` option decides
+when capture starts: `true` starts a session clip automatically at app startup;
+`false` waits until the user clicks **Record**. In either mode, the user can
+stop and manually start recording from the timeline controls. Events are only
+captured while a recording clip is active.
 
 ## Minimal setup
 
@@ -62,7 +63,8 @@ The chat also supports recording a named **clip**. A clip is a subset of the
 timeline, which is useful when an investigation contains several unrelated
 interactions. `Copy JSON` copies a versioned export of the **full session**,
 regardless of which clip is selected. `Copy prompt` builds the AI-oriented
-Markdown document.
+Markdown document. **Clear** removes the current timeline and, if recording
+was active, starts a fresh clip so the next reproduction can be captured.
 
 ## Export and replay a debugging session
 
