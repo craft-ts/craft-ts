@@ -183,7 +183,7 @@ const craftPrimitiveRegistryService = ɵcraftValueService(
   { name: 'CraftPrimitiveRegistry', providedIn: 'global' },
   () => new CraftPrimitiveRegistryState(),
 ) as unknown as {
-  CraftPrimitiveRegistry: () => Generator<unknown, CraftPrimitiveRegistryState, unknown>;
+  CraftPrimitiveRegistry: () => Generator<never, CraftPrimitiveRegistryState, unknown>;
   CRAFT_PRIMITIVE_REGISTRY_META_DATA: { inject(): CraftPrimitiveRegistryState };
 };
 

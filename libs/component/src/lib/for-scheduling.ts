@@ -83,7 +83,7 @@ const forSchedulerService = ɵcraftValueService(
   (inputs: { $provided?: ForScheduler }) =>
     inputs.$provided ?? new SyncForScheduler(),
 ) as unknown as {
-  ForScheduler: () => Generator<unknown, ForScheduler, unknown>;
+  ForScheduler: () => Generator<never, ForScheduler, unknown>;
   provideForScheduler: (value: ForScheduler) => CraftServiceProvider;
   FOR_SCHEDULER_META_DATA: { inject(): ForScheduler };
 };

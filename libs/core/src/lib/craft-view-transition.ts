@@ -66,7 +66,7 @@ const craftViewTransitionService = ɵcraftValueService(
   (inputs: { $provided?: Signal<CraftViewTransitionInput> }) =>
     inputs.$provided ?? signal<CraftViewTransitionInput>(null),
 ) as unknown as {
-  CraftViewTransition: () => Generator<unknown, Signal<CraftViewTransitionInput>, unknown>;
+  CraftViewTransition: () => Generator<never, Signal<CraftViewTransitionInput>, unknown>;
   provideCraftViewTransition: (
     value: Signal<CraftViewTransitionInput>,
   ) => CraftServiceProvider;
@@ -92,7 +92,7 @@ const craftViewTransitionsEnabledService = ɵcraftValueService(
   { name: 'CraftViewTransitionsEnabled', providedIn: 'toProvide' },
   (inputs: { $provided?: boolean }) => inputs.$provided ?? false,
 ) as unknown as {
-  CraftViewTransitionsEnabled: () => Generator<unknown, boolean, unknown>;
+  CraftViewTransitionsEnabled: () => Generator<never, boolean, unknown>;
   provideCraftViewTransitionsEnabled: (value: boolean) => CraftServiceProvider;
   CRAFT_VIEW_TRANSITIONS_ENABLED_META_DATA: { inject(): boolean };
 };
@@ -114,7 +114,7 @@ const craftViewTransitionSkipBlankService = ɵcraftValueService(
   { name: 'CraftViewTransitionSkipBlank', providedIn: 'toProvide' },
   (inputs: { $provided?: boolean }) => inputs.$provided ?? false,
 ) as unknown as {
-  CraftViewTransitionSkipBlank: () => Generator<unknown, boolean, unknown>;
+  CraftViewTransitionSkipBlank: () => Generator<never, boolean, unknown>;
   provideCraftViewTransitionSkipBlank: (value: boolean) => CraftServiceProvider;
   CRAFT_VIEW_TRANSITION_SKIP_BLANK_META_DATA: { inject(): boolean };
 };
@@ -143,7 +143,7 @@ const craftStartViewTransitionService = ɵcraftValueService(
   (inputs: { $provided?: CraftStartViewTransition }) =>
     inputs.$provided ?? defaultStartViewTransition,
 ) as unknown as {
-  CraftStartViewTransition: () => Generator<unknown, CraftStartViewTransition, unknown>;
+  CraftStartViewTransition: () => Generator<never, CraftStartViewTransition, unknown>;
   provideCraftStartViewTransition: (value: CraftStartViewTransition) => CraftServiceProvider;
   CRAFT_START_VIEW_TRANSITION_META_DATA: { inject(): CraftStartViewTransition };
 };

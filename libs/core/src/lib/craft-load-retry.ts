@@ -42,7 +42,7 @@ const craftDynamicImportService = ɵcraftValueService(
   { name: 'CraftDynamicImport', providedIn: 'global' },
   () => (url: string) => import(/* @vite-ignore */ url),
 ) as unknown as {
-  CraftDynamicImport: () => Generator<unknown, (url: string) => Promise<unknown>, unknown>;
+  CraftDynamicImport: () => Generator<never, (url: string) => Promise<unknown>, unknown>;
   CRAFT_DYNAMIC_IMPORT_META_DATA: { inject(): (url: string) => Promise<unknown> };
 };
 export const CraftDynamicImport = craftDynamicImportService.CraftDynamicImport;
@@ -163,7 +163,7 @@ const craftLazyLoadRetryService = ɵcraftValueService(
   (inputs: { $provided?: CraftLoadRetry }) =>
     inputs.$provided ?? createCraftLoadRetry(),
 ) as unknown as {
-  CraftLazyLoadRetry: () => Generator<unknown, CraftLoadRetry, unknown>;
+  CraftLazyLoadRetry: () => Generator<never, CraftLoadRetry, unknown>;
   provideCraftLazyLoadRetry: (value: CraftLoadRetry) => CraftServiceProvider;
   CRAFT_LAZY_LOAD_RETRY_META_DATA: { inject(): CraftLoadRetry };
 };

@@ -75,7 +75,7 @@ const craftRouteLoadRetryService = ɵcraftValueService(
   (inputs: { $provided?: CraftRouteLoadRetry }) =>
     inputs.$provided ?? createRouteLoadRetry(),
 ) as unknown as {
-  CraftRouteLoadRetry: () => Generator<unknown, CraftRouteLoadRetry, unknown>;
+  CraftRouteLoadRetry: () => Generator<never, CraftRouteLoadRetry, unknown>;
   provideCraftRouteLoadRetry: (value: CraftRouteLoadRetry) => CraftServiceProvider;
   CRAFT_ROUTE_LOAD_RETRY_META_DATA: { inject(): CraftRouteLoadRetry };
 };
@@ -144,7 +144,7 @@ const craftRouteLoadErrorService = ɵcraftValueService(
   { name: 'CraftRouteLoadError', providedIn: 'global' },
   () => computed(() => ɵinjectActiveCraftRouteLoadError()()?.exception ?? null),
 ) as unknown as {
-  CraftRouteLoadError: () => Generator<unknown, Signal<CraftRouteLoadError | null>, unknown>;
+  CraftRouteLoadError: () => Generator<never, Signal<CraftRouteLoadError | null>, unknown>;
   CRAFT_ROUTE_LOAD_ERROR_META_DATA: { inject(): Signal<CraftRouteLoadError | null> };
 };
 export const CraftRouteLoadError = craftRouteLoadErrorService.CraftRouteLoadError;
@@ -169,7 +169,7 @@ const craftRouteLoadRecoveryService = ɵcraftValueService(
     } satisfies CraftRouteLoadRecovery;
   },
 ) as unknown as {
-  CraftRouteLoadRecovery: () => Generator<unknown, CraftRouteLoadRecovery, unknown>;
+  CraftRouteLoadRecovery: () => Generator<never, CraftRouteLoadRecovery, unknown>;
   CRAFT_ROUTE_LOAD_RECOVERY_META_DATA: { inject(): CraftRouteLoadRecovery };
 };
 export const CraftRouteLoadRecovery = craftRouteLoadRecoveryService.CraftRouteLoadRecovery;

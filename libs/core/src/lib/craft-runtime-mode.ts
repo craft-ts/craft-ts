@@ -12,7 +12,7 @@ const craftRuntimeModeService = ɵcraftValueService(
   { name: 'CraftRuntimeMode', providedIn: 'toProvide' },
   (inputs: { $provided?: CraftRuntimeMode }) => inputs.$provided ?? 'development',
 ) as unknown as {
-  CraftRuntimeMode: () => Generator<unknown, CraftRuntimeMode, unknown>;
+  CraftRuntimeMode: () => Generator<never, CraftRuntimeMode, unknown>;
   provideCraftRuntimeMode: (value: CraftRuntimeMode) => CraftServiceProvider;
   CRAFT_RUNTIME_MODE_META_DATA: { inject(): CraftRuntimeMode };
 };

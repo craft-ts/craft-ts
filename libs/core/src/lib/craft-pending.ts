@@ -98,8 +98,8 @@ function pendingService<T>(
     inject: (api[metadataName] as { inject(): T }).inject,
   };
 }
-function pendingHelper<T>(service: unknown, name: string): () => Generator<unknown, T, unknown> {
-  return (service as Record<string, unknown>)[name] as () => Generator<unknown, T, unknown>;
+function pendingHelper<T>(service: unknown, name: string): () => Generator<never, T, unknown> {
+  return (service as Record<string, unknown>)[name] as () => Generator<never, T, unknown>;
 }
 
 const craftLoadingTextService = ɵcraftValueService(

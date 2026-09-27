@@ -78,7 +78,7 @@ const craftHistoryService = ɵcraftValueService(
     return platform.history;
   },
 ) as unknown as {
-  CraftHistory: () => Generator<unknown, CraftHistory, unknown>;
+  CraftHistory: () => Generator<never, CraftHistory, unknown>;
   provideCraftHistory: (value: CraftHistory | (() => CraftHistory)) => unknown;
   CRAFT_HISTORY_META_DATA: { inject(): CraftHistory };
 };
@@ -173,7 +173,7 @@ const craftMatchService = ɵcraftValueService(
     return match;
   },
 ) as unknown as {
-  CraftMatch: () => Generator<unknown, CraftSignal<CraftMatch | null>, unknown>;
+  CraftMatch: () => Generator<never, CraftSignal<CraftMatch | null>, unknown>;
   provideCraftMatch: (
     value: CraftSignal<CraftMatch | null> | (() => CraftSignal<CraftMatch | null>),
   ) => unknown;
@@ -188,7 +188,7 @@ const craftChildMatchService = ɵcraftValueService(
     return inputs.$provided;
   },
 ) as unknown as {
-  CraftChildMatch: () => Generator<unknown, CraftSignal<CraftMatch | null>, unknown>;
+  CraftChildMatch: () => Generator<never, CraftSignal<CraftMatch | null>, unknown>;
   provideCraftChildMatch: (value: CraftSignal<CraftMatch | null>) => unknown;
   CRAFT_CHILD_MATCH_META_DATA: {
     inject(): CraftSignal<CraftMatch | null>;
@@ -203,7 +203,7 @@ const craftRouterRuntimeService = ɵcraftValueService(
       : inputs.$provided;
   },
 ) as unknown as {
-  CraftRouterRuntime: () => Generator<unknown, CraftRouterNavigationApi, unknown>;
+  CraftRouterRuntime: () => Generator<never, CraftRouterNavigationApi, unknown>;
   provideCraftRouterRuntime: (
     value: CraftRouterNavigationApi | (() => CraftRouterNavigationApi),
   ) => unknown;

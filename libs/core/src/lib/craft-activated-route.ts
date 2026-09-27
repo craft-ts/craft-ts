@@ -8,7 +8,7 @@ const craftActivatedRouteService = ɵcraftValueService(
       ? inputs.$provided()
       : inputs.$provided,
 ) as unknown as {
-  CraftActivatedRoute: () => Generator<unknown, ActivatedRoute, unknown>;
+  CraftActivatedRoute: () => Generator<never, ActivatedRoute, unknown>;
   provideCraftActivatedRoute: (
     value: ActivatedRoute | (() => ActivatedRoute),
   ) => CraftServiceProvider;

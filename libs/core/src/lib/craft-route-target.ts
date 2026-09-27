@@ -33,7 +33,7 @@ const craftRouteTargetService = ɵcraftValueService(
     return inputs.$provided ?? null;
   },
 ) as unknown as {
-  CraftRouteTarget: () => Generator<unknown, CraftRouteTarget | null, unknown>;
+  CraftRouteTarget: () => Generator<never, CraftRouteTarget | null, unknown>;
   provideCraftRouteTarget: (
     value: CraftRouteTarget | null | (() => CraftRouteTarget | null),
   ) => CraftServiceProvider;

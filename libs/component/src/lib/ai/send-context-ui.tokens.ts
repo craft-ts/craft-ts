@@ -61,7 +61,7 @@ export interface SendContextExportSection {
   readonly render?: unknown;
 }
 
-type UiHelper<T> = () => Generator<unknown, T, unknown>;
+type UiHelper<T> = () => Generator<never, T, unknown>;
 type UiService<T> = {
   helper: UiHelper<T>;
   provide: (value?: T | (() => T)) => unknown;

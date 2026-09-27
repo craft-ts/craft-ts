@@ -12,7 +12,7 @@ const craftA11yNavigationFocusService = ɵcraftValueService(
   { name: 'CraftA11yNavigationFocus', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided?: boolean }) => inputs.$provided ?? false,
 ) as unknown as {
-  CraftA11yNavigationFocus: () => Generator<unknown, boolean, unknown>;
+  CraftA11yNavigationFocus: () => Generator<never, boolean, unknown>;
   provideCraftA11yNavigationFocus: (value: boolean) => Provider;
   CRAFT_A11Y_NAVIGATION_FOCUS_META_DATA: { inject(): boolean };
 };
@@ -50,7 +50,7 @@ const craftTitleStrategyService = ɵcraftValueService(
   { name: 'CraftTitleStrategy', providedIn: 'global' },
   () => createCraftTitleStrategy(),
 ) as unknown as {
-  CraftTitleStrategy: () => Generator<unknown, CraftTitleStrategy, unknown>;
+  CraftTitleStrategy: () => Generator<never, CraftTitleStrategy, unknown>;
   CRAFT_TITLE_STRATEGY_META_DATA: { inject(): CraftTitleStrategy };
 };
 

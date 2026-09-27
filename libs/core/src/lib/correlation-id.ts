@@ -43,7 +43,7 @@ const correlationIdService = ɵcraftValueService(
   (inputs: { $provided?: CorrelationIdServiceApi | null }) =>
     inputs.$provided ?? null,
 ) as unknown as {
-  CorrelationIdService: () => Generator<unknown, CorrelationIdServiceApi | null, unknown>;
+  CorrelationIdService: () => Generator<never, CorrelationIdServiceApi | null, unknown>;
   provideCorrelationIdService: (
     value: CorrelationIdServiceApi,
   ) => CraftServiceProvider;

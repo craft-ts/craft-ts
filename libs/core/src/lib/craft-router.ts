@@ -306,7 +306,7 @@ const routerService = ɵcraftValueService(
 );
 
 type GeneratedCraftRouterHelper = {
-  (): Generator<unknown, CraftRouter, unknown>;
+  (): Generator<never, CraftRouter, unknown>;
   <Exposed extends object>(
     bindings: undefined,
     expose: (router: CraftRouter) => Exposed,

@@ -333,9 +333,23 @@ type LiteralExposeName<Request> = Request extends CraftExposeRequest<
  * yields, keyed by name (see {@link CraftExposeRequest}). Primitives wrapped in
  * {@link craftPrivate}, and injected services, are not part of it.
  */
-export type ExposedFromYielded<Yielded> = {
-  [Name in LiteralExposeName<ExposeRequestsOf<Yielded>>]: Extract<
-    ExposeRequestsOf<Yielded>,
-    { readonly name: Name }
-  >['ref'];
+export type ExposedFromYielded<Yielded> = 0 extends 1 & Yielded
+  ? UntypedExposure
+  : unknown extends Yielded
+    ? UntypedExposure
+    : {
+        [Name in LiteralExposeName<ExposeRequestsOf<Yielded>>]: Extract<
+          ExposeRequestsOf<Yielded>,
+          { readonly name: Name }
+        >['ref'];
+      };
+
+/**
+ * What a service API becomes when one of its `yield*` is typed
+ * `Generator<unknown | any, …>`: that yield absorbs the whole `Yielded`
+ * union, exposure requests included. The key names the cause, so reading a
+ * member reports it instead of a bare `{}`.
+ */
+export type UntypedExposure = {
+  readonly 'craft-ts: a yield* in this craftService is typed Generator<unknown | any, ...>, so its exposed API cannot be read': never;
 };

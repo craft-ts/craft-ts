@@ -8,7 +8,7 @@ export type CraftHydrationRuntime = Readonly<{
 }>;
 
 type CraftHydrationRuntimeHelper = () =>
-  Generator<unknown, CraftHydrationRuntime, unknown>;
+  Generator<never, CraftHydrationRuntime, unknown>;
 const craftHydrationRuntimeService = ɵcraftValueService(
   { name: 'CraftHydrationRuntime', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: CraftHydrationRuntime }) => inputs.$provided,

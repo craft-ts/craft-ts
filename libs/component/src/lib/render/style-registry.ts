@@ -110,7 +110,7 @@ const craftStyleRegistryService = ɵcraftValueService(
   { name: 'CraftStyleRegistry', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: CraftStyleRegistry }) => inputs.$provided,
 ) as unknown as {
-  CraftStyleRegistry: () => Generator<unknown, CraftStyleRegistry, unknown>;
+  CraftStyleRegistry: () => Generator<never, CraftStyleRegistry, unknown>;
   provideCraftStyleRegistry: (value: CraftStyleRegistry) => unknown;
   CRAFT_STYLE_REGISTRY_META_DATA: { inject(): CraftStyleRegistry };
 };

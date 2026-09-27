@@ -21,7 +21,7 @@ const craftNodeEffectFactoryService = ɵcraftValueService(
   { name: 'CraftNodeEffectFactory', providedIn: 'toProvide' },
   (inputs: { $provided: CraftNodeEffectFactory }) => inputs.$provided,
 ) as unknown as {
-  CraftNodeEffectFactory: () => Generator<unknown, CraftNodeEffectFactory, unknown>;
+  CraftNodeEffectFactory: () => Generator<never, CraftNodeEffectFactory, unknown>;
   provideCraftNodeEffectFactory: (value: CraftNodeEffectFactory) => CraftServiceProvider;
   CRAFT_NODE_EFFECT_FACTORY_META_DATA: { inject(): CraftNodeEffectFactory };
 };

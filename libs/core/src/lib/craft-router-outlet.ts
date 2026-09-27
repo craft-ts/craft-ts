@@ -169,7 +169,7 @@ const craftSyncTemplateFlushService = ɵcraftValueService(
   { name: 'CraftSyncTemplateFlush', providedIn: 'global' },
   () => runRegisteredSyncTemplateFlush,
 ) as unknown as {
-  CraftSyncTemplateFlush: () => Generator<unknown, () => void, unknown>;
+  CraftSyncTemplateFlush: () => Generator<never, () => void, unknown>;
   CRAFT_SYNC_TEMPLATE_FLUSH_META_DATA: { inject(): () => void };
 };
 export const CraftSyncTemplateFlush = craftSyncTemplateFlushService.CraftSyncTemplateFlush;

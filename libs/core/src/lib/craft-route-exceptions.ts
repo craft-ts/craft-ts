@@ -452,7 +452,7 @@ const craftGlobalErrorService = ɵcraftValueService(
   { name: 'CraftGlobalError', providedIn: 'global' },
   () => signal<AnyCraftException | null>(null),
 ) as unknown as {
-  CraftGlobalError: () => Generator<unknown, Signal<AnyCraftException | null>, unknown>;
+  CraftGlobalError: () => Generator<never, Signal<AnyCraftException | null>, unknown>;
   CRAFT_GLOBAL_ERROR_META_DATA: {
     inject(): WritableSignal<AnyCraftException | null>;
   };

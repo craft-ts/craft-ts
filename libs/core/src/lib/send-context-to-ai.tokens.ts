@@ -161,7 +161,7 @@ export interface SendContextRecordController {
   exportJson(clipId?: string): string;
 }
 
-type SendContextHelper<T> = () => Generator<unknown, T, unknown>;
+type SendContextHelper<T> = () => Generator<never, T, unknown>;
 type SendContextService<T> = {
   helper: SendContextHelper<T>;
   provide?: (value?: T | (() => T)) => unknown;

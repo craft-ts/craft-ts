@@ -69,7 +69,7 @@ const craftSchemaValidationPolicyService = ɵcraftValueService(
   (inputs: { $provided?: SchemaValidationPolicy }) =>
     inputs.$provided ?? defaultSchemaValidationPolicy,
 ) as unknown as {
-  CraftSchemaValidationPolicy: () => Generator<unknown, SchemaValidationPolicy, unknown>;
+  CraftSchemaValidationPolicy: () => Generator<never, SchemaValidationPolicy, unknown>;
   provideCraftSchemaValidationPolicy: (value: SchemaValidationPolicy) => CraftServiceProvider;
   CRAFT_SCHEMA_VALIDATION_POLICY_META_DATA: { inject(): SchemaValidationPolicy };
 };

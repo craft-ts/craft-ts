@@ -98,7 +98,7 @@ const appSnapshotRegistryService = ɵcraftValueService(
   { name: 'AppSnapshotRegistry', providedIn: 'global' },
   () => new AppSnapshotRegistryState(),
 ) as unknown as {
-  AppSnapshotRegistry: () => Generator<unknown, AppSnapshotRegistry, unknown>;
+  AppSnapshotRegistry: () => Generator<never, AppSnapshotRegistry, unknown>;
   APP_SNAPSHOT_REGISTRY_META_DATA: { inject(): AppSnapshotRegistry };
 };
 
@@ -147,7 +147,7 @@ const takeAppSnapshotService = ɵcraftValueService(
     };
   },
 ) as unknown as {
-  TakeAppSnapshot: () => Generator<unknown, () => void, unknown>;
+  TakeAppSnapshot: () => Generator<never, () => void, unknown>;
   provideTakeAppSnapshot: (value: () => void) => CraftServiceProvider;
   TAKE_APP_SNAPSHOT_META_DATA: { inject(): () => void };
 };
