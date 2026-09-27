@@ -520,9 +520,15 @@ type InputBindings<
         | AllowedProvidedElsewhere<Scope>;
     };
 
+// Any reader of the right value binds an input, whatever it yields: the
+// service reads it through its own `CraftServiceInput`.
 type PublicInputValue<Value> =
   Value extends Yieldable<[], infer Resolved, any>
-    ? Resolved | Signal<Resolved> | YieldableReactiveValue<Resolved> | Value
+    ?
+        | Resolved
+        | Signal<Resolved>
+        | YieldableReactiveValue<Resolved>
+        | Yieldable<[], Resolved, unknown>
     : Value;
 
 type PublicInputBindings<

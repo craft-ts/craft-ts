@@ -26,7 +26,7 @@ import { example } from '../../shared/example.style';
 const { UserQuery } = craftService(
   { name: 'UserQuery', providedIn: 'global' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
-    return yield* query(
+    yield* query(
       'userQuery',
       {
         params: inputs.userId,
@@ -49,7 +49,7 @@ const CraftGlobalQuery = craftComponent(
   'CraftGlobalQuery',
   {},
   function* (userId: Input<string>) {
-    const user = yield* UserQuery({
+    const { userQuery: user } = yield* UserQuery({
       userId,
     });
 

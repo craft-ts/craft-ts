@@ -52,7 +52,7 @@ const { provideUser, User } = craftService(
   { name: 'User', providedIn: 'toProvide' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
     const api = yield* UsersApi();
-    const user = yield* query('user', {
+    yield* query('user', {
       params: function* () {
         return yield* inputs.userId();
       },
@@ -61,7 +61,6 @@ const { provideUser, User } = craftService(
       },
     });
     yield* craftExpose('userIds', api.availableUserIds);
-    return { ...user };
   },
 );
 
@@ -74,7 +73,7 @@ const CraftServiceUserDetailComponent = craftComponent(
     const userId = yield* state('userId', '1', ({ set }) => ({
       selectUser: (value: string) => set(value),
     }));
-    const user = yield* User({ userId });
+    const { user, userIds } = yield* User({ userId });
     const hasValue = yield* craftComputed('hasValue', () => user.hasValue());
     const userIdValue = yield* craftComputed('userIdValue', function* () {
       return (yield* user.value())?.id ?? '';
@@ -85,9 +84,9 @@ const CraftServiceUserDetailComponent = craftComponent(
     const userEmail = yield* craftComputed('userEmail', function* () {
       return (yield* user.value())?.email ?? '';
     });
-    return { userId, user, hasValue, userIdValue, userName, userEmail };
+    return { userId, user, userIds, hasValue, userIdValue, userName, userEmail };
   },
-  ({ userId, user, hasValue, userIdValue, userName, userEmail }) => {
+  ({ userId, user, userIds, hasValue, userIdValue, userName, userEmail }) => {
     return div({ class: example.centered }, [
       heading({ class: example.title }, 'craftService User Detail (query)'),
       div({ class: example.row, 'data-testid': 'user-controls' }, [
@@ -101,7 +100,7 @@ const CraftServiceUserDetailComponent = craftComponent(
               );
             },
           },
-          user.userIds.map((id) => option({ value: id }, `User ${id}`)),
+          userIds.map((id) => option({ value: id }, `User ${id}`)),
         ),
       ]),
       div({ class: example.box, 'data-testid': 'user-card' }, [
