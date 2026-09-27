@@ -24,6 +24,10 @@ import type {
 } from './craft-settled';
 import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
 import {
+  createNamedPrimitiveGen,
+  type NamedCraftPrimitiveGen,
+} from './craft-primitive-gen';
+import {
   createYieldableReactiveValue,
   REACTIVE_DEPENDENCIES,
   type ReactiveDependencyMapFromYielded,
@@ -71,6 +75,18 @@ type TrackedCraftComputed<
       }) &
   SettledBrandFromYielded<Yielded>;
 
+/**
+ * A named computed signal, created eagerly and consumed like every craft
+ * primitive — `yield*` inside a generator host, `craftUse(...)` in a class
+ * field. Inside a `craftService` it is exposed under its name (unless wrapped
+ * in `craftPrivate`).
+ *
+ * ```ts
+ * const fullName = yield* craftComputed('fullName', function* () {
+ *   return `${yield* firstName} ${yield* lastName}`;
+ * });
+ * ```
+ */
 // Host-bound forms — `craftComputed('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the computation it returns) to the given host,
 // so a class-field initializer can read instance state (mirrors `craftMethod`).
@@ -83,49 +99,39 @@ export function craftComputed<Name extends string, This, Yielded, T>(
   host: This,
   factory: CraftComputedGenerator<This, Yielded, T>,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<Name, T, Yielded>;
+): NamedCraftPrimitiveGen<Name, TrackedCraftComputed<Name, T, Yielded>>;
 export function craftComputed<Name extends string, Yielded, T>(
   name: Name,
   factory: CraftComputedGenerator<void, Yielded, T>,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<Name, T, Yielded>;
+): NamedCraftPrimitiveGen<Name, TrackedCraftComputed<Name, T, Yielded>>;
 export function craftComputed<Name extends string, This, T>(
   name: Name,
   host: This,
   computation: (this: This) => T,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<Name, T, never>;
+): NamedCraftPrimitiveGen<Name, TrackedCraftComputed<Name, T, never>>;
 export function craftComputed<Name extends string, T>(
   name: Name,
   computation: () => T,
   options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<Name, T, never>;
-export function craftComputed<Yielded, T>(
-  factory: CraftComputedGenerator<void, Yielded, T>,
-  options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<'computed', T, Yielded>;
+): NamedCraftPrimitiveGen<Name, TrackedCraftComputed<Name, T, never>>;
 export function craftComputed<T>(
-  computation: () => T,
-  options?: CreateComputedOptions<T>,
-): TrackedCraftComputed<'computed', T, never>;
-export function craftComputed<T>(
-  nameOrComputation: string | ((...args: never[]) => unknown),
-  hostOrComputation?: unknown,
+  name: string,
+  hostOrComputation: unknown,
   factoryOrOptions?: unknown,
   maybeOptions?: CreateComputedOptions<T>,
-): TrackedCraftComputed<string, T, unknown> {
-  const hasName = typeof nameOrComputation === 'string';
-  const name = hasName ? nameOrComputation : 'computed';
+): NamedCraftPrimitiveGen<string, TrackedCraftComputed<string, T, unknown>> {
   // The host form is recognized by its 3rd argument being the factory —
   // `options` is never a function.
-  const hasHost = hasName && typeof factoryOrOptions === 'function';
+  const hasHost = typeof factoryOrOptions === 'function';
   const host = hasHost ? hostOrComputation : undefined;
   const computationOrFactory = (
-    hasHost ? factoryOrOptions : hasName ? hostOrComputation : nameOrComputation
+    hasHost ? factoryOrOptions : hostOrComputation
   ) as ((this: unknown) => T) | CraftComputedGenerator<unknown, unknown, T>;
-  const options = (
-    hasHost ? maybeOptions : hasName ? factoryOrOptions : hostOrComputation
-  ) as CreateComputedOptions<T> | undefined;
+  const options = (hasHost ? maybeOptions : factoryOrOptions) as
+    | CreateComputedOptions<T>
+    | undefined;
 
   assertInInjectionContext(craftComputed);
   const injector = inject(Injector);
@@ -195,8 +201,11 @@ export function craftComputed<T>(
     }
   }
 
-  return createYieldableReactiveValue(result, name, {
-    computed: name,
-    path: name,
-  }) as unknown as TrackedCraftComputed<string, T, unknown>;
+  return createNamedPrimitiveGen(
+    name,
+    createYieldableReactiveValue(result, name, {
+      computed: name,
+      path: name,
+    }) as unknown as TrackedCraftComputed<string, T, unknown>,
+  );
 }

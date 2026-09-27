@@ -6,7 +6,7 @@ import {
   type Type,
   type WritableSignal,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import {
   CraftRouter,
   type CraftRouterUrlTreeInput,
@@ -448,7 +448,7 @@ export type CraftGlobalHandledException = {
  * renders the global error component. Runtime-typed loosely; the typed view is
  * exposed by {@link injectCraftGlobalError}.
  */
-const craftGlobalErrorService = craftService(
+const craftGlobalErrorService = ɵcraftValueService(
   { name: 'CraftGlobalError', providedIn: 'global' },
   () => signal<AnyCraftException | null>(null),
 ) as unknown as {

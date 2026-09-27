@@ -12,7 +12,7 @@ import {
   type ResourceLoaderParams,
   type ResourceStreamingLoader,
 } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { craftLinkedSignal as linkedSignal } from './host/craft-linked-signal';
 import { preservedResource } from './preserved-resource';
 import { Prettify } from './util/util.type';
@@ -512,7 +512,7 @@ export function resourceById<
   return Object.assign(resourceByGroup.asReadonly(), resourcesHandler);
 }
 
-const dynamicResourceInstanceService = craftService(
+const dynamicResourceInstanceService = ɵcraftValueService(
   { name: 'DynamicResourceInstance', providedIn: 'toProvide' },
   (inputs: {
     $provided?:

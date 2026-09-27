@@ -1,4 +1,4 @@
-import { craftService, type Provider } from '@craft-ts/core';
+import { type Provider, ɵcraftValueService } from '@craft-ts/core';
 import { isCraftComponent } from './types';
 
 type HostComponent = unknown;
@@ -31,27 +31,27 @@ function serviceAsHostComponentService(
   };
 }
 
-const craftRoutedComponentService = craftService(
+const craftRoutedComponentService = ɵcraftValueService(
   { name: 'CraftRoutedComponent', providedIn: 'toProvide' },
   (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
     resolveHostComponent(inputs.$provided),
 );
-const craftRootComponentService = craftService(
+const craftRootComponentService = ɵcraftValueService(
   { name: 'CraftRootComponent', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
     resolveHostComponent(inputs.$provided),
 );
-const craftGlobalErrorComponentService = craftService(
+const craftGlobalErrorComponentService = ɵcraftValueService(
   { name: 'CraftGlobalErrorComponent', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
     resolveHostComponent(inputs.$provided),
 );
-const craftRouteLoadErrorComponentService = craftService(
+const craftRouteLoadErrorComponentService = ɵcraftValueService(
   { name: 'CraftRouteLoadErrorComponent', providedIn: 'toProvide' },
   (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
     resolveHostComponent(inputs.$provided),
 );
-const craftPendingComponentService = craftService(
+const craftPendingComponentService = ɵcraftValueService(
   { name: 'CraftPendingComponent', providedIn: 'toProvide' },
   (inputs: { $provided: HostComponent | (() => HostComponent) }) =>
     resolveHostComponent(inputs.$provided),

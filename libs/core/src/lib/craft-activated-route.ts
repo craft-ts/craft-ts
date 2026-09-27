@@ -1,7 +1,7 @@
 import type { ActivatedRoute } from './host/craft-router-types';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 
-const craftActivatedRouteService = craftService(
+const craftActivatedRouteService = ɵcraftValueService(
   { name: 'CraftActivatedRoute', providedIn: 'toProvide' },
   (inputs: { $provided?: ActivatedRoute | (() => ActivatedRoute) }) =>
     typeof inputs.$provided === 'function'

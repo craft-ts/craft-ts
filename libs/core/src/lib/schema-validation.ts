@@ -5,7 +5,7 @@ import {
   type Signal,
   signal,
 } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { craftException, type AnyCraftException } from './craft-exception';
 import type {
   StandardSchemaV1,
@@ -64,7 +64,7 @@ const defaultSchemaValidationPolicy: SchemaValidationPolicy = (context) => {
   return { action: isDevMode() ? 'reject' : 'accept' };
 };
 
-const craftSchemaValidationPolicyService = craftService(
+const craftSchemaValidationPolicyService = ɵcraftValueService(
   { name: 'CraftSchemaValidationPolicy', providedIn: 'toProvide' },
   (inputs: { $provided?: SchemaValidationPolicy }) =>
     inputs.$provided ?? defaultSchemaValidationPolicy,

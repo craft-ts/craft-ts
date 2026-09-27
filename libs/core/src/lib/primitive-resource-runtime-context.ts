@@ -3,7 +3,7 @@ import {
   type Provider,
   type Signal,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
 
 export type PrimitiveResourceRuntimeKind =
@@ -57,7 +57,7 @@ type ResourceByIdTarget = Readonly<{
 }> &
   (() => Record<string, WritableResourceTarget | undefined>);
 
-const primitiveResourceObserverService = craftService(
+const primitiveResourceObserverService = ɵcraftValueService(
   { name: 'PrimitiveResourceRuntimeObservers', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: PrimitiveResourceRuntimeObserver }) =>
     inputs.$provided ? [inputs.$provided] : [],

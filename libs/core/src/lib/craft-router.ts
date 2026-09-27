@@ -26,11 +26,9 @@ import {
 } from './host/craft-router-types';
 import { provideCraftActivatedRoute } from './craft-activated-route';
 import {
-  craftService,
   type ServiceTrackingMetadata,
   type ServiceYieldRequest,
-  type SERVICE_HELPER_DEPENDENCIES,
-} from './craft-service';
+  type SERVICE_HELPER_DEPENDENCIES, ɵcraftValueService } from './craft-service';
 import type { Simplify } from './craft-service.shared';
 import {
   ɵprovideCraftViewTransitionDefaults,
@@ -300,7 +298,7 @@ type CraftRouterInputWithOptionalQueryParams = {
 type CraftRouterInputExtras = CraftRouterInputWithOptionalQueryParams &
   CraftNavigationExtras;
 
-const routerService = craftService(
+const routerService = ɵcraftValueService(
   { name: 'CraftRouter', providedIn: 'toProvide' },
   function* () {
     return (yield* CraftRouterRuntime()) as CraftRouter;

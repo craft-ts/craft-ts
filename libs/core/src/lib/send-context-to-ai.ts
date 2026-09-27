@@ -1,5 +1,5 @@
 import type { GetDeps } from './branded-component/branded-component';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import { type SendContextPayload } from './send-context-to-ai.tokens';
 import {
   type AppSnapshotRegistry,
@@ -18,7 +18,7 @@ export type SendContextToAiBuffer = {
   snapshot: () => SnapshotReport[];
 };
 
-const sendContextToAiBufferService = craftService(
+const sendContextToAiBufferService = ɵcraftValueService(
   { name: 'SendContextToAiBuffer', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: {
     $provided: SendContextToAiBuffer | (() => SendContextToAiBuffer);

@@ -4,7 +4,7 @@ import {
   runInInjectionContext,
   type Injector,
 } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { Subject } from 'rxjs';
 import { provideFnWrapper } from './fn-wrapper';
 import { isCraftControlFlow } from './craft-control-flow';
@@ -94,7 +94,7 @@ export class InsertionSnapshotRegistry {
   readonly allInsertionSnapshot$ = new Subject<InsertionSnapshotReport>();
 }
 
-const appSnapshotRegistryService = craftService(
+const appSnapshotRegistryService = ɵcraftValueService(
   { name: 'AppSnapshotRegistry', providedIn: 'global' },
   () => new AppSnapshotRegistryState(),
 ) as unknown as {
@@ -111,7 +111,7 @@ export const ɵinjectAppSnapshotRegistryIn = (
 ): AppSnapshotRegistry =>
   runInInjectionContext(injector, () => ɵinjectAppSnapshotRegistry());
 
-const insertionSnapshotRegistryService = craftService(
+const insertionSnapshotRegistryService = ɵcraftValueService(
   { name: 'InsertionSnapshotRegistry', providedIn: 'toProvide' },
   (inputs: { $provided?: InsertionSnapshotRegistry | null }) =>
     inputs.$provided ?? null,
@@ -137,7 +137,7 @@ export const ɵinjectInsertionSnapshotRegistry =
     }
   };
 
-const takeAppSnapshotService = craftService(
+const takeAppSnapshotService = ɵcraftValueService(
   { name: 'TakeAppSnapshot', providedIn: 'toProvide' },
   function* (inputs: { $provided?: () => void }) {
     if (inputs.$provided) return inputs.$provided();

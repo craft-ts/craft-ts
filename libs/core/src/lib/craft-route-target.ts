@@ -2,7 +2,7 @@ import {
   runInInjectionContext,
   type Injector,
 } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 
 /**
  * What a route mounts. Everything Craft renders is a Craft component, so the
@@ -22,7 +22,7 @@ export type CraftRouteTarget = {
 export type CraftRouteTargetInput = object | CraftRouteTarget;
 
 /** Route-scoped target consumed by `CraftRouterOutletController`. */
-const craftRouteTargetService = craftService(
+const craftRouteTargetService = ɵcraftValueService(
   { name: 'CraftRouteTarget', providedIn: 'toProvide' },
   (inputs: {
     $provided?: CraftRouteTarget | null | (() => CraftRouteTarget | null);

@@ -1,4 +1,4 @@
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import type {
   CraftCompiledRoute,
   CraftHistory as RuntimeCraftHistory,
@@ -65,7 +65,7 @@ export type CraftRouterNavigationApi = {
   getCurrentNavigation(): CraftNavigation | null;
 };
 
-const craftHistoryService = craftService(
+const craftHistoryService = ɵcraftValueService(
   { name: 'CraftHistory', providedIn: 'toProvide' },
   function* (inputs: { $provided?: CraftHistory | (() => CraftHistory) }) {
     const provided = inputs.$provided
@@ -83,7 +83,7 @@ const craftHistoryService = craftService(
   CRAFT_HISTORY_META_DATA: { inject(): CraftHistory };
 };
 
-const craftCompiledRoutesService = craftService(
+const craftCompiledRoutesService = ɵcraftValueService(
   { name: 'CraftCompiledRoutes', providedIn: 'toProvide' },
   (inputs: { $provided: readonly CraftCompiledRoute[] }) => inputs.$provided,
 ) as unknown as {
@@ -98,7 +98,7 @@ const craftCompiledRoutesService = craftService(
   };
 };
 
-const craftLocationService = craftService(
+const craftLocationService = ɵcraftValueService(
   { name: 'CraftLocation', providedIn: 'toProvide' },
   function* (inputs: {
     $provided?:
@@ -131,7 +131,7 @@ const craftLocationService = craftService(
   };
 };
 
-const craftMatchService = craftService(
+const craftMatchService = ɵcraftValueService(
   { name: 'CraftMatch', providedIn: 'toProvide' },
   function* (inputs: {
     $provided?: CraftSignal<CraftMatch | null> | (() => CraftSignal<CraftMatch | null>);
@@ -182,7 +182,7 @@ const craftMatchService = craftService(
   };
 };
 
-const craftChildMatchService = craftService(
+const craftChildMatchService = ɵcraftValueService(
   { name: 'CraftChildMatch', providedIn: 'toProvide' },
   function* (inputs: { $provided: CraftSignal<CraftMatch | null> }) {
     return inputs.$provided;
@@ -195,7 +195,7 @@ const craftChildMatchService = craftService(
   };
 };
 
-const craftRouterRuntimeService = craftService(
+const craftRouterRuntimeService = ɵcraftValueService(
   { name: 'CraftRouterRuntime', providedIn: 'toProvide' },
   function* (inputs: { $provided: CraftRouterNavigationApi | (() => CraftRouterNavigationApi) }) {
     return typeof inputs.$provided === 'function'

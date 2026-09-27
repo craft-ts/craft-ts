@@ -1,5 +1,5 @@
 import { runInInjectionContext, type EffectRef, type Injector } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import {
   CRAFT_REGISTRATION_TARGET,
   type CraftRegistrationTarget,
@@ -17,7 +17,7 @@ export type CraftNodeEffectFactory = (
   effectFn: () => void,
 ) => EffectRef;
 
-const craftNodeEffectFactoryService = craftService(
+const craftNodeEffectFactoryService = ɵcraftValueService(
   { name: 'CraftNodeEffectFactory', providedIn: 'toProvide' },
   (inputs: { $provided: CraftNodeEffectFactory }) => inputs.$provided,
 ) as unknown as {

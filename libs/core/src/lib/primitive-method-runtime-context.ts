@@ -1,7 +1,7 @@
 import {
   type Signal,
 } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { rawReactiveFacade } from './reactive-read';
 
 export type PrimitiveMethodRuntimeKind =
@@ -37,7 +37,7 @@ type PrimitiveInsertionContext = Readonly<{
   patch(updater: (current: unknown) => object): unknown;
 }>;
 
-const primitiveMethodRuntimeContextService = craftService(
+const primitiveMethodRuntimeContextService = ɵcraftValueService(
   { name: 'PrimitiveMethodRuntimeContext', providedIn: 'toProvide' },
   (inputs: { $provided?: PrimitiveMethodRuntimeContext }) => inputs.$provided,
 ) as unknown as {

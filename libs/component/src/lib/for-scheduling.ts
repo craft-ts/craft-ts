@@ -1,5 +1,5 @@
 import { runInInjectionContext, type Injector } from './host-runtime';
-import { craftService, type CraftServiceProvider } from '@craft-ts/core';
+import { type CraftServiceProvider, ɵcraftValueService } from '@craft-ts/core';
 import { craftDirective } from './directive';
 import type { CraftDirective } from './types';
 
@@ -78,7 +78,7 @@ export interface ForScheduler {
 }
 
 /** Injectable override used by deterministic tests and host integrations. */
-const forSchedulerService = craftService(
+const forSchedulerService = ɵcraftValueService(
   { name: 'ForScheduler', providedIn: 'toProvide' },
   (inputs: { $provided?: ForScheduler }) =>
     inputs.$provided ?? new SyncForScheduler(),

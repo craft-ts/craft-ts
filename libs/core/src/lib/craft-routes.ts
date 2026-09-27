@@ -51,7 +51,7 @@ import type {
   CraftExceptionHandler,
   RouteExceptionUnion,
 } from './craft-route-exceptions';
-import { craftService, getServiceMetaData } from './craft-service';
+import { getServiceMetaData, ɵcraftValueService } from './craft-service';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   BrandedServiceProvider,
@@ -2172,7 +2172,7 @@ type AnyRouteValueServiceApi = CraftRouteValueServiceApi<string, unknown>;
 function createRouteValueService<Name extends string, Output>(
   name: Name,
 ): CraftRouteValueServiceApi<Name, Output> {
-  return craftService(
+  return ɵcraftValueService(
     { name, providedIn: 'toProvide' },
     (inputs: { $provided: { resolve: () => Output } }) =>
       inputs.$provided.resolve(),

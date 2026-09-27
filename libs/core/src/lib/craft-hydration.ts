@@ -1,4 +1,4 @@
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 
 /** Coordinates async work that must finish before SSR DOM cleanup. */
 export type CraftHydrationRuntime = Readonly<{
@@ -9,7 +9,7 @@ export type CraftHydrationRuntime = Readonly<{
 
 type CraftHydrationRuntimeHelper = () =>
   Generator<unknown, CraftHydrationRuntime, unknown>;
-const craftHydrationRuntimeService = craftService(
+const craftHydrationRuntimeService = ɵcraftValueService(
   { name: 'CraftHydrationRuntime', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: CraftHydrationRuntime }) => inputs.$provided,
 ) as unknown as {

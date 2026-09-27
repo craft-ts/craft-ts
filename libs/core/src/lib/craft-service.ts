@@ -59,7 +59,10 @@ import type {
   Simplify,
   UnionToTuple,
 } from './craft-service.shared';
-import type { ServiceTrackedDepsRequest } from './craft-primitive-gen';
+import type {
+  ExposedFromYielded,
+  ServiceTrackedDepsRequest,
+} from './craft-primitive-gen';
 import {
   markNamedReactiveProperties,
   markYieldableMethod,
@@ -370,7 +373,23 @@ type FactoryReturn<Factory> = Factory extends (...args: any[]) => infer Result
   ? Result
   : never;
 
+/**
+ * A concrete `craftService` factory: a generator whose API is what it yields,
+ * never what it returns (see {@link ExposedFromYielded}).
+ */
+type ServiceGeneratorFactory = (...args: any[]) => Generator<any, void, any>;
+
+/** The service API: the named primitives its generator factory yields. */
 type FactoryOutput<Factory> =
+  FactoryReturn<Factory> extends Generator<infer Yielded, any, any>
+    ? ExposedFromYielded<Yielded>
+    : never;
+
+/**
+ * The API of a value service (internal DI slots, see `ɵcraftValueService`): the
+ * factory's result, resolved when it is a generator.
+ */
+type ValueFactoryOutput<Factory> =
   FactoryReturn<Factory> extends Generator<any, infer Result, any>
     ? Result
     : FactoryReturn<Factory>;
@@ -1197,10 +1216,11 @@ type ServiceHelperMetadata<
   Factory extends AnyFactory,
   BrowserBoundary extends boolean = false,
   AppStart extends boolean = false,
+  Output = FactoryOutput<Factory>,
 > = ServiceTrackingMetadata<
   Name,
   Scope,
-  FactoryOutput<Factory>,
+  Output,
   FactoryYields<Factory>,
   undefined,
   ServiceProvidedInput<FactoryInputs<Factory>>,
@@ -2232,7 +2252,15 @@ type ConcreteRuntimeDefinition = {
   externalProviders?: (...args: unknown[]) => CraftServiceProvider;
   appStartHooks: Map<unknown, () => AppStartResult>;
   startedAppStartServices: Set<unknown>;
+  /**
+   * `'auto'`: a generator factory whose API is the named primitives it yields
+   * (a `return` is an error). `'value'`: the factory's result IS the service —
+   * abstract implementations, `toCraftService` adapters, internal DI slots.
+   */
+  exposure: ServiceExposure;
 };
+
+type ServiceExposure = 'auto' | 'value';
 
 const OMIT_INPUTS_BINDINGS = Symbol('craft-ts.omit-inputs-bindings');
 type ConcreteServiceBindings =
@@ -2841,7 +2869,7 @@ export function ɵtoCraftService(
 ): unknown {
   const api = (
     adaptFactory
-      ? craftService(
+      ? ɵcraftValueService(
           {
             name: options.name,
             providedIn: options.providedIn,
@@ -2857,7 +2885,7 @@ export function ɵtoCraftService(
             return adaptFactory(dependencyValue, inputs);
           },
         )
-      : craftService(
+      : ɵcraftValueService(
           {
             name: options.name,
             providedIn: options.providedIn,
@@ -3050,7 +3078,7 @@ export function craftService<
   Name extends string,
   Scope extends AppStartCapableScope,
   Requirement extends ServiceRequirement<any, any>,
-  Factory extends AnyFactory,
+  Factory extends ServiceGeneratorFactory,
   BrowserBoundary extends boolean = false,
 >(
   options: {
@@ -3079,7 +3107,7 @@ export function craftService<
   Name extends string,
   Scope extends RealCapableScope,
   Requirement extends ServiceRequirement<any, any>,
-  Factory extends AnyFactory,
+  Factory extends ServiceGeneratorFactory,
   BrowserBoundary extends boolean = false,
 >(
   options: {
@@ -3106,7 +3134,7 @@ export function craftService<
 export function craftService<
   Name extends string,
   Scope extends AppStartCapableScope,
-  Factory extends AnyFactory,
+  Factory extends ServiceGeneratorFactory,
   BrowserBoundary extends boolean = false,
 >(
   options: {
@@ -3132,7 +3160,7 @@ export function craftService<
 export function craftService<
   Name extends string,
   Scope extends ConcreteServiceScope,
-  Factory extends AnyFactory,
+  Factory extends ServiceGeneratorFactory,
   BrowserBoundary extends boolean = false,
 >(
   options: {
@@ -3155,16 +3183,71 @@ export function craftService<
   false
 >;
 export function craftService(
+  options: CraftServiceRuntimeOptions,
+  factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
+): unknown {
+  return createCraftServiceApi(options, factoryOrMarker, 'auto');
+}
+
+type CraftServiceRuntimeOptions = {
+  name: string;
+  providedIn: ServiceScope;
+  requirement?: ServiceRequirement<unknown>;
+  browserBoundary?: boolean;
+  appStart?: boolean;
+  providers?: readonly Provider[];
+  collection?: boolean;
+};
+
+/**
+ * @internal A craft service whose factory's RESULT is the service — a DI slot
+ * (`(inputs: { $provided: X }) => inputs.$provided ?? fallback`), a collection
+ * contribution, an adapted external value. Same scopes, providers and tracking
+ * as {@link craftService}; only the public `craftService` requires a generator
+ * whose named primitives are exposed.
+ */
+export function ɵcraftValueService<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Factory extends AnyFactory,
+  BrowserBoundary extends boolean = false,
+>(
   options: {
-    name: string;
-    providedIn: ServiceScope;
-    requirement?: ServiceRequirement<unknown>;
-    browserBoundary?: boolean;
-    appStart?: boolean;
+    name: Name;
+    providedIn: Scope;
+    browserBoundary?: BrowserBoundary;
     providers?: readonly Provider[];
     collection?: boolean;
   },
+  factory: Factory &
+    ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
+    ValidateFactoryScope<Scope, Factory>,
+): ConcreteServiceApi<
+  Name,
+  Scope,
+  FactoryInputs<Factory>,
+  ValueFactoryOutput<Factory>,
+  ServiceHelperMetadata<
+    Name,
+    Scope,
+    Factory,
+    BrowserBoundary,
+    false,
+    ValueFactoryOutput<Factory>
+  >,
+  false
+>;
+export function ɵcraftValueService(
+  options: CraftServiceRuntimeOptions,
+  factory: AnyFactory,
+): unknown {
+  return createCraftServiceApi(options, factory, 'value');
+}
+
+function createCraftServiceApi(
+  options: CraftServiceRuntimeOptions,
   factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
+  exposure: ServiceExposure,
 ): unknown {
   const capitalizedName = capitalize(options.name);
   const provideName = `provide${capitalizedName}`;
@@ -3196,6 +3279,7 @@ export function craftService(
       hasProvidedInput: false,
       appStartHooks: new Map(),
       startedAppStartServices: new Set(),
+      exposure: 'value',
     };
 
     // The helper closes over metadata that is initialized immediately below.
@@ -3228,6 +3312,7 @@ export function craftService(
           hasProvidedInput: factoryUsesProvidedInput(factory),
           appStartHooks: new Map(),
           startedAppStartServices: new Set(),
+          exposure: 'value',
         };
         return createProviders(abstractRuntimeDefinition);
       },
@@ -3266,6 +3351,7 @@ export function craftService(
     hasProvidedInput: factoryUsesProvidedInput(concreteFactory),
     appStartHooks: new Map(),
     startedAppStartServices: new Set(),
+    exposure,
   };
 
   const token =
@@ -3964,14 +4050,25 @@ function createConcreteServiceInstance(
           ? wrappedFactory(inputs)
           : wrappedFactory();
 
+      const autoExpose = definition.exposure === 'auto';
+
       if (!isGenerator(result)) {
+        if (autoExpose) {
+          throw new Error(
+            `craftService("${definition.name}") needs a generator factory (function* () { ... }): its API is the named primitives it yields. See the craft-ts/no-craft-service-return rule.`,
+          );
+        }
         return result;
       }
 
+      const exposed: Record<string, unknown> = {};
       const resolved = runCraftGenerator({
         iterator: result,
         injector: scopedInjector,
         hostScope: definition.providedIn,
+        collectExposed: autoExpose
+          ? { record: exposed, owner: `craftService("${definition.name}")` }
+          : undefined,
         invalidYieldErrorMessage:
           'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
         multipleAppStartErrorMessage:
@@ -3985,6 +4082,14 @@ function createConcreteServiceInstance(
         },
       });
 
+      if (autoExpose && resolved.value !== undefined) {
+        throw new Error(
+          `craftService("${definition.name}") returned a value, but a craftService cannot return: its API is the named primitives it yields. Remove the return (wrap what must stay internal in craftPrivate(...)); see the craft-ts/no-craft-service-return rule.`,
+        );
+      }
+
+      const instance = autoExpose ? exposed : resolved.value;
+
       if (resolved.appStartHook) {
         if (!definition.appStart) {
           throw new Error(
@@ -3992,10 +4097,10 @@ function createConcreteServiceInstance(
           );
         }
 
-        definition.appStartHooks.set(resolved.value, resolved.appStartHook);
+        definition.appStartHooks.set(instance, resolved.appStartHook);
       }
 
-      return resolved.value;
+      return instance;
     }),
   );
 }
@@ -4523,7 +4628,7 @@ export const ɵTRACK_TAGS_LIST = new InjectionToken<readonly TrackTag[]>(
   },
 );
 
-const hostNameApi = craftService(
+const hostNameApi = ɵcraftValueService(
   { name: 'HostName', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: string }) => inputs.$provided,
 );

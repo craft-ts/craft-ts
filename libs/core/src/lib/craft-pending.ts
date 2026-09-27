@@ -5,7 +5,7 @@ import {
   type Provider,
   type Signal,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import {
   craftRouteTarget,
@@ -102,7 +102,7 @@ function pendingHelper<T>(service: unknown, name: string): () => Generator<unkno
   return (service as Record<string, unknown>)[name] as () => Generator<unknown, T, unknown>;
 }
 
-const craftLoadingTextService = craftService(
+const craftLoadingTextService = ɵcraftValueService(
   { name: 'CraftLoadingText', providedIn: 'toProvide' },
   (inputs: { $provided?: Signal<string> | (() => Signal<string>) }) => {
     if (inputs.$provided) {
@@ -113,24 +113,24 @@ const craftLoadingTextService = craftService(
     return signal(resolveLoadingTextForLocale(inject(LOCALE_ID)));
   },
 );
-const craftPendingComponentService = craftService(
+const craftPendingComponentService = ɵcraftValueService(
   { name: 'CraftPendingComponent', providedIn: 'toProvide' },
   (inputs: { $provided?: CraftRouteTargetInput }) =>
     inputs.$provided ?? getDefaultCraftPendingComponent(),
 );
-const craftStayMsService = craftService(
+const craftStayMsService = ɵcraftValueService(
   { name: 'CraftStayMs', providedIn: 'toProvide' },
   (inputs: { $provided?: number }) => inputs.$provided ?? 300,
 );
-const craftBlankMsService = craftService(
+const craftBlankMsService = ɵcraftValueService(
   { name: 'CraftBlankMs', providedIn: 'toProvide' },
   (inputs: { $provided?: number }) => inputs.$provided ?? 300,
 );
-const craftPendingMinMsService = craftService(
+const craftPendingMinMsService = ɵcraftValueService(
   { name: 'CraftPendingMinMs', providedIn: 'toProvide' },
   (inputs: { $provided?: number }) => inputs.$provided ?? 0,
 );
-const craftErrorComponentService = craftService(
+const craftErrorComponentService = ɵcraftValueService(
   { name: 'CraftErrorComponent', providedIn: 'toProvide' },
   (inputs: { $provided?: CraftExceptionComponentDescriptor | null }) =>
     inputs.$provided ?? null,

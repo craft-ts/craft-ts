@@ -14,7 +14,7 @@ import {
   type CraftTemporalRuntime,
   type TemporalTaskHandle,
 } from './temporal-runtime';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 
 /** A human-readable prefix describing the operation that started a flow. */
 export type CorrelationIdPrefix =
@@ -38,7 +38,7 @@ export interface CorrelationIdServiceApi {
   endOperation(id: string): void;
 }
 
-const correlationIdService = craftService(
+const correlationIdService = ɵcraftValueService(
   { name: 'CorrelationIdService', providedIn: 'toProvide' },
   (inputs: { $provided?: CorrelationIdServiceApi | null }) =>
     inputs.$provided ?? null,

@@ -1,4 +1,4 @@
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 
 export type CraftTransferPolicy = Readonly<{
   /**
@@ -136,7 +136,7 @@ export function validateCraftSecurityPolicy(
 
 type SecurityPolicyHelper = () =>
   Generator<unknown, CraftSecurityPolicy, unknown>;
-const craftSecurityPolicyService = craftService(
+const craftSecurityPolicyService = ɵcraftValueService(
   { name: 'CraftSecurityPolicy', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: CraftSecurityPolicy }) => inputs.$provided,
 ) as unknown as {
@@ -166,7 +166,7 @@ export function provideCraftSecurityPolicy(
 }
 
 type CspNonceHelper = () => Generator<unknown, string, unknown>;
-const craftCspNonceService = craftService(
+const craftCspNonceService = ɵcraftValueService(
   { name: 'CraftCspNonce', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: string }) => inputs.$provided,
 ) as unknown as {

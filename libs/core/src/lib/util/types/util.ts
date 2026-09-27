@@ -5,10 +5,10 @@ import {
   Injector,
   runInInjectionContext,
 } from '../../host/craft-compat';
-import { craftService, type CraftServiceProvider } from '../../craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from '../../craft-service';
 import { explicitEffect, ExplicitEffectValues } from '../explicit-effect';
 
-const dynamicEffectRefInstanceService = craftService(
+const dynamicEffectRefInstanceService = ɵcraftValueService(
   { name: 'DynamicEffectRefInstance', providedIn: 'toProvide' },
   (inputs: { $provided?: () => EffectRef }) => inputs.$provided?.(),
 ) as unknown as {

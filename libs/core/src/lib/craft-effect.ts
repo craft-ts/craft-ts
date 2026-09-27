@@ -23,6 +23,10 @@ import {
   runCraftGenerator,
 } from './craft-generator-runtime';
 import { ɵinjectAppSnapshotRegistryIn } from './take-app-snapshot';
+import {
+  createNamedPrimitiveGen,
+  type NamedCraftPrimitiveGen,
+} from './craft-primitive-gen';
 
 type CraftEffectFn = (onCleanup: EffectCleanupRegisterFn) => void;
 
@@ -34,6 +38,12 @@ type TrackedCraftEffect<E, Yielded> = E & {
   readonly [SERVICE_HELPER_DEPENDENCIES]?: ServiceDependencyMapFromYielded<Yielded>;
 };
 
+/**
+ * A named effect, created eagerly and consumed like every craft primitive —
+ * `yield*` inside a generator host, `craftUse(...)` in a class field. Inside a
+ * `craftService` its `EffectRef` is exposed under its name; wrap it in
+ * `craftPrivate(...)` to keep it internal.
+ */
 // Host-bound forms — `craftEffect('name', this, function* () { ... })` — bind
 // `this` inside the factory (and the effect body it returns) to the given host,
 // so a class-field initializer can read instance state (mirrors `craftMethod`).
@@ -46,29 +56,29 @@ export function craftEffect<Name extends string, This, Yielded>(
   host: This,
   factory: CraftEffectGenerator<This, Yielded>,
   options?: CreateEffectOptions,
-): TrackedCraftEffect<EffectRef, Yielded>;
+): NamedCraftPrimitiveGen<Name, TrackedCraftEffect<EffectRef, Yielded>>;
 export function craftEffect<Name extends string, Yielded>(
   name: Name,
   factory: CraftEffectGenerator<void, Yielded>,
   options?: CreateEffectOptions,
-): TrackedCraftEffect<EffectRef, Yielded>;
+): NamedCraftPrimitiveGen<Name, TrackedCraftEffect<EffectRef, Yielded>>;
 export function craftEffect<Name extends string, This>(
   name: Name,
   host: This,
   effectFn: (this: This, onCleanup: EffectCleanupRegisterFn) => void,
   options?: CreateEffectOptions,
-): EffectRef;
+): NamedCraftPrimitiveGen<Name, EffectRef>;
 export function craftEffect<Name extends string>(
   name: Name,
   effectFn: CraftEffectFn,
   options?: CreateEffectOptions,
-): EffectRef;
+): NamedCraftPrimitiveGen<Name, EffectRef>;
 export function craftEffect(
   name: string,
   hostOrFn: unknown,
   fnOrOptions?: unknown,
   maybeOptions?: CreateEffectOptions,
-): EffectRef {
+): NamedCraftPrimitiveGen<string, EffectRef> {
   // The host form is recognized by its 3rd argument being the factory —
   // `options` is never a function.
   const hasHost = typeof fnOrOptions === 'function';
@@ -172,5 +182,5 @@ export function craftEffect(
     );
   }
 
-  return ref;
+  return createNamedPrimitiveGen(name, ref);
 }

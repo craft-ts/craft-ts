@@ -5,14 +5,14 @@ import {
   runInInjectionContext,
   type Provider,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 
 type ComponentMonitoringFactory =
   | (() => void)
   | (() => Generator<unknown, void, unknown>);
 
-const componentMonitoringService = craftService(
+const componentMonitoringService = ɵcraftValueService(
   { name: 'ComponentMonitoring', providedIn: 'toProvide' },
   (inputs: { $provided: ComponentMonitoringFactory }) => inputs.$provided,
 ) as unknown as {

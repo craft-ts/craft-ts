@@ -14,7 +14,6 @@ const { AppStartCounter: AppStartCounterInternal } = craftService(
       appStartCalls.push('started');
       return undefined;
     });
-    return 1;
   },
 );
 
