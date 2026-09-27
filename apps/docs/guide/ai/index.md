@@ -21,7 +21,7 @@ There are three complementary layers:
 | Read or change a published primitive during development     | [MCP tools](/guide/ai/mcp-tools)                     | `registry.*` tools                         |
 | Search logs from a reproducible flow                        | [MCP tools](/guide/ai/mcp-tools)                     | `@craft-ts/log-mcp` → `logs.*`             |
 | Ask what a node depends on, or what a change can break      | [MCP tools](/guide/ai/mcp-tools)                     | `@craft-ts/graph-mcp` → `graph.*`          |
-| Give an AI a human-selected debugging context               | [Send context to AI](/guide/ai/send-context-webhook) | `provideSendContextToAi`                   |
+| Export, share, or replay a debugging session                | [Send context to AI](/guide/ai/send-context-webhook) | `provideSendContextToAi`                   |
 | Understand the tracing and snapshot data behind the context | [Observability](/guide/advanced/observability)       | Craft providers and runtime hooks          |
 
 The tools are deliberately separated by boundary. The documentation MCP is

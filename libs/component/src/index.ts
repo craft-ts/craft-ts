@@ -3,6 +3,7 @@ export * from './lib/ai/ai-send-dialog';
 export * from './lib/ai/ai-send-context-chat';
 export * from './lib/ai/ai-send-context-launcher';
 export * from './lib/ai/send-context-prompt';
+export * from './lib/ai/debug-session-replay';
 export * from './lib/ai/send-context-ui.tokens';
 export * from './lib/ai/send-context-to-ai';
 export * from './lib/assert-defined-input';
