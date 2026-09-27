@@ -56,6 +56,7 @@ declare function source$(...args: unknown[]): unknown;
 declare function craftEffect(...args: unknown[]): unknown;
 declare function craftComputed(...args: unknown[]): unknown;
 declare function craftMethod(...args: unknown[]): unknown;
+declare function craftPrivate<T>(generator: T): T;
 declare function settled(...args: unknown[]): unknown;
 declare function div(...args: unknown[]): unknown;
 declare function span(...args: unknown[]): unknown;
@@ -96,6 +97,39 @@ function edgeLabels(
 }
 
 describe('analyzeDependencyGraph reactive granularity', () => {
+  it('reads primitives a service yields, including private ones', async () => {
+    const root = await fixture({
+      'todo.ts': `
+        ${CRAFT_STUBS}
+
+        const { Todo } = craftService(
+          { name: 'Todo', providedIn: 'global' },
+          function* () {
+            const draft = yield* craftPrivate(state('draft', ''));
+            const items = yield* state('items', []);
+            yield* craftComputed('count', function* () {
+              return (yield* items()).length + (yield* draft()).length;
+            });
+          },
+        );
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(nodeByLabel(graph, 'state:draft')).toHaveLength(1);
+    expect(nodeByLabel(graph, 'state:items')).toHaveLength(1);
+    expect(edgeLabels(graph, 'craftComputed:count', 'depends-on')).toEqual(
+      expect.arrayContaining([
+        'depends-on->state:items',
+        'depends-on->state:draft',
+      ]),
+    );
+  });
+
   it('does not treat object property names as reactive dependencies', async () => {
     const root = await fixture({
       'replay.ts': `

@@ -5013,10 +5013,28 @@ export function isBindingName(
   );
 }
 
+/**
+ * Wrappers that relay a primitive generator unchanged: `craftPrivate(x)` only
+ * drops its exposure, `craftUse(x)` drives it outside a generator host.
+ */
+const PRIMITIVE_RELAY_NAMES = new Set(['craftPrivate', 'craftUse']);
+
 function unwrapExpression(node: Node | undefined): Node | undefined {
   let current = node;
-  while (current && Node.isParenthesizedExpression(current)) {
-    current = current.getExpression();
+  while (current) {
+    if (Node.isParenthesizedExpression(current)) {
+      current = current.getExpression();
+      continue;
+    }
+    if (
+      Node.isCallExpression(current) &&
+      current.getArguments().length === 1 &&
+      PRIMITIVE_RELAY_NAMES.has(current.getExpression().getText())
+    ) {
+      current = current.getArguments()[0];
+      continue;
+    }
+    break;
   }
   return current;
 }
