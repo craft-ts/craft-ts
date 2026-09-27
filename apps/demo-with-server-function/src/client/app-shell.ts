@@ -12,6 +12,7 @@ import { demoNav } from './demo.style';
 export const { AppShellView, provideAppShellView } = craftService(
   { name: 'appShellView', providedIn: 'toProvide' },
   function* () {
+    // Nothing to expose.
   },
 );
 

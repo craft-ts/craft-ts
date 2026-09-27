@@ -12,7 +12,7 @@ import {
   type Output,
 } from '@craft-ts/component';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftService, craftExpose } from '@craft-ts/core';
 import { RetirementReasonPicker } from './retirement-reason-picker';
 import type { Messages } from './messages';
 import { annotation } from './annotation.style';
@@ -52,13 +52,78 @@ type Inputs = {
 };
 
 /** Decision controls and the reason field for the selected review card. */
+export const { ReviewDecisionPanelView, provideReviewDecisionPanelView } =
+  craftService(
+    { name: 'reviewDecisionPanelView', providedIn: 'toProvide' },
+    function* (inputs: Inputs) {
+      const {
+        card,
+        t,
+        selection,
+        noteState,
+        rejectionReasonMissing,
+        handleNoteInput,
+        previewMentionFromEvent,
+        previewMention,
+        rememberCaret,
+        pasteReasonText,
+        isDeciding,
+        retire,
+        decide,
+      } = inputs;
+      yield* craftComputed('previousRejectionVisible', function* () {
+        const value = yield* inputs.card();
+        return (
+          value.kind === 'visual' &&
+          (Boolean(value.previousDecision) || Boolean(value.rejectionReason))
+        );
+      });
+      yield* craftComputed('previousRejectionText', function* () {
+        const value = yield* inputs.card();
+        const previous = value.previousDecision;
+        if (!previous) return value.rejectionReason ?? '';
+        const messages = yield* inputs.t();
+        return `${messages.previousVerdict(previous.verdict)} · ${previous.by} · ${previous.at}${previous.note ? ` — ${previous.note}` : ''}`;
+      });
+      yield* craftComputed('degradedVisible', function* () {
+        return yield* inputs.degraded();
+      });
+      yield* craftComputed('rejectionMissingVisible', function* () {
+        return yield* inputs.rejectionReasonMissing();
+      });
+      yield* craftComputed('retirementVisible', function* () {
+        return (yield* inputs.current())?.kind === 'removal';
+      });
+      yield* craftComputed('acceptWithNoteDisabled', function* () {
+        return (yield* inputs.isDeciding()) || !(yield* inputs.hasNote());
+      });
+      yield* craftExpose('t', t);
+      yield* craftExpose('selection', selection);
+      yield* craftExpose('noteState', noteState);
+      yield* craftExpose('rejectionReasonMissing', rejectionReasonMissing);
+      yield* craftExpose('handleNoteInput', handleNoteInput);
+      yield* craftExpose('previewMentionFromEvent', previewMentionFromEvent);
+      yield* craftExpose('previewMention', previewMention);
+      yield* craftExpose('rememberCaret', rememberCaret);
+      yield* craftExpose('pasteReasonText', pasteReasonText);
+      yield* craftExpose('isDeciding', isDeciding);
+      yield* craftExpose('retire', retire);
+      yield* craftExpose('card', card);
+      yield* craftExpose('decide', decide);
+    },
+  );
+
 export const ReviewDecisionPanel = craftComponent(
   'ReviewDecisionPanel',
-  {},
+  {
+    providers: [provideReviewDecisionPanelView()],
+  },
   function* (inputs: Inputs) {
     const {
-      card,
+      previousRejectionVisible,
       t,
+      previousRejectionText,
+      degradedVisible,
       selection,
       noteState,
       rejectionReasonMissing,
@@ -67,48 +132,14 @@ export const ReviewDecisionPanel = craftComponent(
       previewMention,
       rememberCaret,
       pasteReasonText,
+      rejectionMissingVisible,
+      retirementVisible,
       isDeciding,
       retire,
+      card,
       decide,
-    } = inputs;
-    const previousRejectionVisible = yield* craftComputed(
-      'previousRejectionVisible',
-      function* () {
-        const value = yield* inputs.card();
-        return (
-          value.kind === 'visual' &&
-          (Boolean(value.previousDecision) || Boolean(value.rejectionReason))
-        );
-      },
-    );
-    const previousRejectionText = yield* craftComputed(
-      'previousRejectionText',
-      function* () {
-        const value = yield* inputs.card();
-        const previous = value.previousDecision;
-        if (!previous) return value.rejectionReason ?? '';
-        const messages = yield* inputs.t();
-        return `${messages.previousVerdict(previous.verdict)} · ${previous.by} · ${previous.at}${previous.note ? ` — ${previous.note}` : ''}`;
-      },
-    );
-    const degradedVisible = yield* craftComputed('degradedVisible', function* () {
-      return yield* inputs.degraded();
-    });
-    const rejectionMissingVisible = yield* craftComputed(
-      'rejectionMissingVisible',
-      function* () {
-        return yield* inputs.rejectionReasonMissing();
-      },
-    );
-    const retirementVisible = yield* craftComputed('retirementVisible', function* () {
-      return (yield* inputs.current())?.kind === 'removal';
-    });
-    const acceptWithNoteDisabled = yield* craftComputed(
-      'acceptWithNoteDisabled',
-      function* () {
-        return (yield* inputs.isDeciding()) || !(yield* inputs.hasNote());
-      },
-    );
+      acceptWithNoteDisabled,
+    } = yield* ReviewDecisionPanelView(inputs);
     return div({ class: reviewCard.decision }, [
       section(
         {

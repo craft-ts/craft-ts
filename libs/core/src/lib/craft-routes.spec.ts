@@ -1403,6 +1403,7 @@ describe('craftRoutes', () => {
     const { provideCounter, Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1445,6 +1446,7 @@ describe('craftRoutes', () => {
     const { provideCounter, Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1493,6 +1495,7 @@ describe('craftRoutes', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
     const { Permissions } = craftService(
@@ -1566,6 +1569,7 @@ describe('craftRoutes', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
     const { Permissions } = craftService(
@@ -2195,6 +2199,7 @@ describe('craftRoutes', () => {
     const { provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -2711,6 +2716,7 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
     class UserComponent {
@@ -2749,6 +2755,7 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
     class UserComponent {
@@ -2893,6 +2900,7 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -2987,6 +2995,7 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -3025,6 +3034,7 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -3168,6 +3178,7 @@ describe('AppRoutes.META_DATA', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

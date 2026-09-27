@@ -176,6 +176,7 @@ describe('Craft SSR and hydration', () => {
     const { AutoStartAppView, provideAutoStartAppView } = craftService(
       { name: 'autoStartAppView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -475,6 +476,7 @@ describe('Craft SSR and hydration', () => {
     const { HydratedLazyPageView, provideHydratedLazyPageView } = craftService(
       { name: 'hydratedLazyPageView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -489,6 +491,7 @@ describe('Craft SSR and hydration', () => {
     const { HydratedNextPageView, provideHydratedNextPageView } = craftService(
       { name: 'hydratedNextPageView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -604,6 +607,7 @@ describe('Craft SSR and hydration', () => {
     const { MismatchAppView, provideMismatchAppView } = craftService(
       { name: 'mismatchAppView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -645,6 +649,7 @@ describe('Craft SSR and hydration', () => {
     const { StructuralAppView, provideStructuralAppView } = craftService(
       { name: 'structuralAppView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

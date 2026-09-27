@@ -36,6 +36,7 @@ describe('heading outline', () => {
     const { HeadingPageTitleView, provideHeadingPageTitleView } = craftService(
       { name: 'headingPageTitleView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -60,6 +61,7 @@ describe('heading outline', () => {
       craftService(
         { name: 'headingNestedSectionsView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -87,6 +89,7 @@ describe('heading outline', () => {
     const { DeepView, provideDeepView } = craftService(
       { name: 'deepView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -132,6 +135,7 @@ describe('heading outline', () => {
     const { HeadingRootPageView, provideHeadingRootPageView } = craftService(
       { name: 'headingRootPageView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -159,6 +163,7 @@ describe('heading outline', () => {
     const { HeadingNeedCardView, provideHeadingNeedCardView } = craftService(
       { name: 'headingNeedCardView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -182,6 +187,7 @@ describe('heading outline', () => {
       craftService(
         { name: 'headingNeedParentOkView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -208,6 +214,7 @@ describe('liveRegion', () => {
     const { ToastView, provideToastView } = craftService(
       { name: 'toastView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -236,6 +243,7 @@ describe('liveRegion persistence', () => {
     const { LiveRegionEmptyView, provideLiveRegionEmptyView } = craftService(
       { name: 'liveRegionEmptyView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -265,6 +273,7 @@ describe('skipLink', () => {
     const { SkipLinkShellView, provideSkipLinkShellView } = craftService(
       { name: 'skipLinkShellView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

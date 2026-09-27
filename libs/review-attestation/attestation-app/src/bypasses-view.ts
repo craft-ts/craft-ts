@@ -73,45 +73,52 @@ export const BypassesView = craftComponent(
       ALL_RULES,
       ({ set, state: current }) => ({
         choose: (rule: string) => set(rule),
-        rules: craftUse(craftComputed('rules', function* () {
-          const items = yield* bypasses();
-          const active = yield* current();
-          const say = yield* t();
-          const named = [...new Set(items.map((item) => item.rule))].sort(
-            (left, right) => left.localeCompare(right),
-          );
-          return [
-            { rule: ALL_RULES, count: items.length },
-            ...named.map((rule) => ({
+        rules: craftUse(
+          craftComputed('rules', function* () {
+            const items = yield* bypasses();
+            const active = yield* current();
+            const say = yield* t();
+            const named = [...new Set(items.map((item) => item.rule))].sort(
+              (left, right) => left.localeCompare(right),
+            );
+            return [
+              { rule: ALL_RULES, count: items.length },
+              ...named.map((rule) => ({
+                rule,
+                count: items.filter((item) => item.rule === rule).length,
+              })),
+            ].map(({ rule, count }) => ({
               rule,
-              count: items.filter((item) => item.rule === rule).length,
-            })),
-          ].map(({ rule, count }) => ({
-            rule,
-            text: `${rule === ALL_RULES ? say.bypassAllRules : rule} (${count})`,
-            filterState: rule === active ? 'active' : null,
-            pressed: rule === active ? 'true' : 'false',
-          }));
-        })),
-        shown: craftUse(craftComputed('shown', function* () {
-          const rule = yield* current();
-          const say = yield* t();
-          return (yield* bypasses())
-            .filter((item) => rule === ALL_RULES || item.rule === rule)
-            .map((item) => ({
-              subject: item.subject,
-              heading: `${item.kind === 'eslint-disable' ? say.bypassEslintDisable : say.bypassWaiver} · ${item.rule}`,
-              meta: `${locationOf(item)} · ${item.state}${item.target ? ` · ${say.bypassWaivedTarget(item.target)}` : ''}`,
-              reasonState: item.reason ? null : 'missing',
-              reasonText: item.reason ?? say.bypassNoReason,
-              excerpt: excerptText(item),
+              text: `${rule === ALL_RULES ? say.bypassAllRules : rule} (${count})`,
+              filterState: rule === active ? 'active' : null,
+              pressed: rule === active ? 'true' : 'false',
             }));
-        })),
+          }),
+        ),
+        shown: craftUse(
+          craftComputed('shown', function* () {
+            const rule = yield* current();
+            const say = yield* t();
+            return (yield* bypasses())
+              .filter((item) => rule === ALL_RULES || item.rule === rule)
+              .map((item) => ({
+                subject: item.subject,
+                heading: `${item.kind === 'eslint-disable' ? say.bypassEslintDisable : say.bypassWaiver} · ${item.rule}`,
+                meta: `${locationOf(item)} · ${item.state}${item.target ? ` · ${say.bypassWaivedTarget(item.target)}` : ''}`,
+                reasonState: item.reason ? null : 'missing',
+                reasonText: item.reason ?? say.bypassNoReason,
+                excerpt: excerptText(item),
+              }));
+          }),
+        ),
       }),
     );
-    const chooseRule = yield* craftMethod('chooseRule', function* (rule: string) {
-      yield* ruleFilter.choose(rule);
-    });
+    const chooseRule = yield* craftMethod(
+      'chooseRule',
+      function* (rule: string) {
+        yield* ruleFilter.choose(rule);
+      },
+    );
     const rulesSource = ruleFilter.rules;
     const shownSource = ruleFilter.shown;
     const rules = deepYieldable(rulesSource);
@@ -119,12 +126,15 @@ export const BypassesView = craftComponent(
     const adoptionKnown = yield* craftComputed('adoptionKnown', function* () {
       return (yield* adoption()) !== undefined;
     });
-    const adoptionSummary = yield* craftComputed('adoptionSummary', function* () {
-      const value = yield* adoption();
-      return value
-        ? (yield* t()).adoptionSummary(value.adopted, value.styling)
-        : '';
-    });
+    const adoptionSummary = yield* craftComputed(
+      'adoptionSummary',
+      function* () {
+        const value = yield* adoption();
+        return value
+          ? (yield* t()).adoptionSummary(value.adopted, value.styling)
+          : '';
+      },
+    );
     const adoptionComposition = yield* craftComputed(
       'adoptionComposition',
       function* () {

@@ -4,6 +4,7 @@ import { craftComponent, p } from '@craft-ts/component';
 export const { TasksView, provideTasksView } = craftService(
   { name: 'tasksView', providedIn: 'toProvide' },
   function* () {
+    // Nothing to expose.
   },
 );
 

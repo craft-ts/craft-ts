@@ -23,7 +23,13 @@ import {
   type Output,
 } from '@craft-ts/component';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
-import { craftComputed, deepYieldable } from '@craft-ts/core';
+import {
+  craftComputed,
+  deepYieldable,
+  craftService,
+  craftExpose,
+  craftPrivate,
+} from '@craft-ts/core';
 import {
   ApplicationOverview,
   type ApplicationVerdict,
@@ -72,87 +78,161 @@ type Inputs = {
 };
 
 /** Inventory panels for application, bypass, asset, visual, and template views. */
+export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
+  craftService(
+    { name: 'reviewInventoryPanelsView', providedIn: 'toProvide' },
+    function* (inputs: Inputs) {
+      const {
+        devtoolView,
+        t,
+        applicationCaptures,
+        decideApplicationCaptures,
+        inspectApplicationCapture,
+        bypasses,
+        styleAdoption,
+        visualAssets,
+        selectedVisualTest,
+        selectVisualTest,
+        selectedVisualAsset,
+        sourceUrl,
+        visualReviewCard,
+        openVisualReview,
+        fileUrl,
+      } = inputs;
+      const diagnostics = deepYieldable(
+        yield* craftPrivate(
+          craftComputed('diagnostics', function* () {
+            const say = yield* inputs.t();
+            const locale = yield* inputs.locale();
+            return ((yield* inputs.queueValue())?.diagnostics ?? []).map(
+              (diagnostic) => {
+                const summary = diagnosticSummaryOf(
+                  diagnostic.code,
+                  diagnostic.message,
+                  say,
+                  locale,
+                );
+                return {
+                  code: diagnostic.code,
+                  message: diagnostic.message,
+                  filePath: diagnostic.filePath ?? '',
+                  line: diagnostic.line ?? 0,
+                  summary,
+                  summaryHidden: summary.length === 0,
+                };
+              },
+            );
+          }),
+        ),
+      );
+      const templateObligations = deepYieldable(
+        yield* craftPrivate(
+          craftComputed('templateObligations', function* () {
+            const say = yield* inputs.t();
+            const locale = yield* inputs.locale();
+            return (yield* inputs.templateObligations()).map((obligation) => ({
+              subject: obligation.subject,
+              componentDirection: `${obligation.component} · ${directionText(obligation.direction, say)}`,
+              conditionsHidden: (obligation.conditions?.length ?? 0) === 0,
+              conditionsText: say.templateWhen(
+                conditionText(obligation.conditions ?? [], say),
+              ),
+              statementText: templateStatementOf(
+                obligation.statementParts,
+                obligation.statement,
+                say,
+                locale,
+              ),
+              stateLabel: stateText(obligation.state, say),
+            }));
+          }),
+        ),
+      );
+      const visualTests = deepYieldable(
+        yield* craftPrivate(
+          craftComputed('visualTestRows', function* () {
+            const say = yield* inputs.t();
+            return (yield* inputs.visualTests()).map((test) => ({
+              ...test,
+              stateLabel: stateText(test.state, say),
+            }));
+          }),
+        ),
+      );
+      yield* craftComputed('selectedSourceHref', function* () {
+        const subject = (yield* inputs.selectedVisualTest())?.subject ?? '';
+        const url = sourceUrl(subject);
+        return typeof url === 'string' ? url : '';
+      });
+      yield* craftComputed('selectedSourceHidden', function* () {
+        const subject = (yield* inputs.selectedVisualTest())?.subject ?? '';
+        return !sourceUrl(subject);
+      });
+      yield* craftComputed('selectedVisualState', function* () {
+        const test = yield* inputs.selectedVisualTest();
+        return test ? stateText(test.state, yield* inputs.t()) : '';
+      });
+      yield* craftComputed('selectedImageSource', function* () {
+        const image = (yield* inputs.selectedVisualAsset())?.image;
+        return image ? imageUrl(image) : '';
+      });
+      yield* craftExpose('devtoolView', devtoolView);
+      yield* craftExpose('applicationCaptures', applicationCaptures);
+      yield* craftExpose(
+        'decideApplicationCaptures',
+        decideApplicationCaptures,
+      );
+      yield* craftExpose(
+        'inspectApplicationCapture',
+        inspectApplicationCapture,
+      );
+      yield* craftExpose('t', t);
+      yield* craftExpose('bypasses', bypasses);
+      yield* craftExpose('styleAdoption', styleAdoption);
+      yield* craftExpose('visualAssets', visualAssets);
+      yield* craftExpose('visualTests', visualTests);
+      yield* craftExpose('selectedVisualTest', selectedVisualTest);
+      yield* craftExpose('selectVisualTest', selectVisualTest);
+      yield* craftExpose('sourceUrl', sourceUrl);
+      yield* craftExpose('selectedVisualAsset', selectedVisualAsset);
+      yield* craftExpose('visualReviewCard', visualReviewCard);
+      yield* craftExpose('openVisualReview', openVisualReview);
+      yield* craftExpose('templateObligations', templateObligations);
+      yield* craftExpose('diagnostics', diagnostics);
+      yield* craftExpose('fileUrl', fileUrl);
+    },
+  );
+
 export const ReviewInventoryPanels = craftComponent(
   'ReviewInventoryPanels',
-  {},
+  {
+    providers: [provideReviewInventoryPanelsView()],
+  },
   function* (inputs: Inputs) {
     const {
       devtoolView,
-      t,
       applicationCaptures,
       decideApplicationCaptures,
       inspectApplicationCapture,
+      t,
       bypasses,
       styleAdoption,
       visualAssets,
+      visualTests,
       selectedVisualTest,
       selectVisualTest,
-      selectedVisualAsset,
       sourceUrl,
+      selectedVisualState,
+      selectedSourceHref,
+      selectedSourceHidden,
+      selectedVisualAsset,
+      selectedImageSource,
       visualReviewCard,
       openVisualReview,
+      templateObligations,
+      diagnostics,
       fileUrl,
-    } = inputs;
-    const diagnostics = deepYieldable(
-      yield* craftComputed('diagnostics', function* () {
-        const say = yield* inputs.t();
-        const locale = yield* inputs.locale();
-        return ((yield* inputs.queueValue())?.diagnostics ?? []).map(
-          (diagnostic) => {
-            const summary = diagnosticSummaryOf(
-              diagnostic.code,
-              diagnostic.message,
-              say,
-              locale,
-            );
-            return {
-              code: diagnostic.code,
-              message: diagnostic.message,
-              filePath: diagnostic.filePath ?? '',
-              line: diagnostic.line ?? 0,
-              summary,
-              summaryHidden: summary.length === 0,
-            };
-          },
-        );
-      }),
-    );
-    const templateObligations = deepYieldable(
-      yield* craftComputed('templateObligations', function* () {
-        const say = yield* inputs.t();
-        const locale = yield* inputs.locale();
-        return (yield* inputs.templateObligations()).map((obligation) => ({
-          subject: obligation.subject,
-          componentDirection: `${obligation.component} · ${directionText(obligation.direction, say)}`,
-          conditionsHidden: (obligation.conditions?.length ?? 0) === 0,
-          conditionsText: say.templateWhen(
-            conditionText(obligation.conditions ?? [], say),
-          ),
-          statementText: templateStatementOf(
-            obligation.statementParts,
-            obligation.statement,
-            say,
-            locale,
-          ),
-          stateLabel: stateText(obligation.state, say),
-        }));
-      }),
-    );
-    const visualTests = deepYieldable(inputs.visualTests);
-    const selectedVisualState = yield* craftComputed(
-      'selectedVisualState',
-      function* () {
-        const test = yield* inputs.selectedVisualTest();
-        return test ? stateText(test.state, yield* inputs.t()) : '';
-      },
-    );
-    const selectedImageSource = yield* craftComputed(
-      'selectedImageSource',
-      function* () {
-        const image = (yield* inputs.selectedVisualAsset())?.image;
-        return image ? imageUrl(image) : '';
-      },
-    );
+    } = yield* ReviewInventoryPanelsView(inputs);
     return [
       main(
         {
@@ -260,9 +340,7 @@ export const ReviewInventoryPanels = craftComponent(
                           },
                           test.component,
                         ),
-                        small(function* () {
-                          return stateText((yield* test()).state, yield* t());
-                        }),
+                        small(test.stateLabel),
                       ],
                     ),
                   ],
@@ -299,21 +377,9 @@ export const ReviewInventoryPanels = craftComponent(
                       'data-navigation': 'external',
                       'data-testid': 'source-link',
                       href: function* () {
-                        return safeUrl(
-                          sourceUrl(
-                            (yield* selectedVisualTest())?.subject ?? '',
-                          ) ?? '',
-                        );
+                        return safeUrl(yield* selectedSourceHref());
                       },
-                      hidden: function* () {
-                        return (
-                          Boolean(
-                            sourceUrl(
-                              (yield* selectedVisualTest())?.subject ?? '',
-                            ),
-                          ) === false
-                        );
-                      },
+                      hidden: selectedSourceHidden,
                     },
                     function* () {
                       return (yield* t()).openInIde;

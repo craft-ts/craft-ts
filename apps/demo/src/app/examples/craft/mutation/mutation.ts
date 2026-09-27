@@ -42,7 +42,7 @@ export const { provideUserMutation, UserMutation } = craftService(
       },
     });
 
-    const user = yield* query(
+    yield* query(
       'user',
       {
         params: inputs.userId,
@@ -66,7 +66,6 @@ export const { provideUserMutation, UserMutation } = craftService(
         }),
       ),
     );
-
   },
 );
 
@@ -85,27 +84,24 @@ export const { MutationCraftView, provideMutationCraftView } = craftService(
     yield* craftComputed('userValueJson', function* () {
       return JSON.stringify(yield* store.user.value(), null, 2);
     });
-    yield* craftMethod(
-      'updateUserNameFn',
-      function* (newName: string) {
-        const { user, updateUserName } = yield* UserMutation(
-          undefined,
-          ({ user, updateUserName }) => ({ user, updateUserName }),
-        );
-        const _uservalue = yield* user.value();
-        const userValue = _uservalue;
-        if (userValue) {
-          yield* updateUserName.mutate({
-            userName: newName,
-            user: userValue,
-          });
-        }
-      },
-    );
+    yield* craftMethod('updateUserNameFn', function* (newName: string) {
+      const { user, updateUserName } = yield* UserMutation(
+        undefined,
+        ({ user, updateUserName }) => ({ user, updateUserName }),
+      );
+      const _uservalue = yield* user.value();
+      const userValue = _uservalue;
+      if (userValue) {
+        yield* updateUserName.mutate({
+          userName: newName,
+          user: userValue,
+        });
+      }
+    });
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const navigate = yield* craftMethod('navigate', function* (offset: number) {
+    yield* craftMethod('navigate', function* (offset: number) {
       void router.navigate({
         to: 'craft/mutation/:userId',
         params: { userId: String(Number((yield* userId()) ?? '0') + offset) },

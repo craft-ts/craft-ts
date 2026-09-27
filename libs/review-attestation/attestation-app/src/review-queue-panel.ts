@@ -21,7 +21,14 @@ import type {
   ReviewApiQueue,
   ReviewSessionDecision,
 } from '@craft-ts/style-testing/review';
-import { craftComputed, craftMethod, deepYieldable } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftMethod,
+  deepYieldable,
+  craftService,
+  craftExpose,
+  craftPrivate,
+} from '@craft-ts/core';
 import type { DevtoolView } from './devtool-view-state';
 import type { Messages } from './messages';
 import { ThemeLocalePicker } from './theme-locale-picker';
@@ -62,14 +69,135 @@ type Inputs = {
 };
 
 /** The review queue, filters, session history, and card navigation. */
+export const { ReviewQueuePanelView, provideReviewQueuePanelView } =
+  craftService(
+    { name: 'reviewQueuePanelView', providedIn: 'toProvide' },
+    function* (inputs: Inputs) {
+      const {
+        queueValue,
+        regenerating,
+        openRegenerationDialog,
+        handoffBusy,
+        openIterationDialog,
+        devtoolView,
+        chooseDevtoolView,
+        visualTests,
+        templateObligations,
+        folderLayouts,
+        bypasses,
+        reviewCards,
+        t,
+        cards,
+        reviewFailed,
+        activeIndex,
+        selectCard,
+        sessionHistory,
+        reopening,
+        movePrevious,
+        moveNext,
+      } = inputs;
+      yield* craftComputed('canRegenerate', function* () {
+        return yield* inputs.regenerationAvailable();
+      });
+      yield* craftComputed('canStartHandoff', function* () {
+        return yield* inputs.iterationHandoffAvailable();
+      });
+      yield* craftComputed('queueTitle', function* () {
+        const queue = yield* inputs.queueValue();
+        const unified =
+          (queue?.templateObligations.length ?? 0) > 0 ||
+          queue?.cards.some((card) => card.kind !== 'visual');
+        const messages = yield* inputs.t();
+        return unified ? messages.attestationTitle : messages.appTitle;
+      });
+      yield* craftComputed('regeneratingLabel', function* () {
+        const messages = yield* inputs.t();
+        return (yield* inputs.regenerating())
+          ? messages.regeneratingEvidence
+          : messages.regenerateEvidence;
+      });
+      yield* craftComputed('reopeningLabel', function* () {
+        const messages = yield* inputs.t();
+        return (yield* inputs.reopening())
+          ? messages.reopeningDecision
+          : messages.reopenDecision;
+      });
+      const queueItems = deepYieldable(
+        yield* craftPrivate(
+          craftComputed('queueItems', function* () {
+            const queue = yield* inputs.cards();
+            const messages = yield* inputs.t();
+            return queue.map((card) => ({
+              card,
+              scenario: scenarioOf(card.subject),
+              hint:
+                card.cluster.length > 1
+                  ? messages.identicalChanges(card.cluster.length)
+                  : reasonText(card.reason, messages),
+            }));
+          }),
+        ),
+      );
+      const historyItems = deepYieldable(
+        yield* craftPrivate(
+          craftComputed('historyItems', function* () {
+            return (yield* inputs.sessionHistory()).map((entry, index) => ({
+              index,
+              shape: entry.decision.shape,
+              id: entry.decision.id ?? '',
+              cardSubject: entry.card.subject,
+              verdict: entry.decision.verdict,
+            }));
+          }),
+        ),
+      );
+      yield* craftMethod('reopenHistoryItem', function* (index: number) {
+        const entry = (yield* inputs.sessionHistory())[index];
+        if (entry) {
+          inputs.reopenDecision(entry);
+        }
+      });
+      yield* craftExpose('t', t);
+      yield* craftExpose('queueValue', queueValue);
+      yield* craftExpose('regenerating', regenerating);
+      yield* craftExpose('openRegenerationDialog', openRegenerationDialog);
+      yield* craftExpose('handoffBusy', handoffBusy);
+      yield* craftExpose('openIterationDialog', openIterationDialog);
+      yield* craftExpose('devtoolView', devtoolView);
+      yield* craftExpose('chooseDevtoolView', chooseDevtoolView);
+      yield* craftExpose('visualTests', visualTests);
+      yield* craftExpose('templateObligations', templateObligations);
+      yield* craftExpose('folderLayouts', folderLayouts);
+      yield* craftExpose('bypasses', bypasses);
+      yield* craftExpose('reviewCards', reviewCards);
+      yield* craftExpose('queueItems', queueItems);
+      yield* craftExpose('reviewFailed', reviewFailed);
+      yield* craftExpose('activeIndex', activeIndex);
+      yield* craftExpose('selectCard', selectCard);
+      yield* craftExpose('sessionHistory', sessionHistory);
+      yield* craftExpose('historyItems', historyItems);
+      yield* craftExpose('reopening', reopening);
+      yield* craftExpose('movePrevious', movePrevious);
+      yield* craftExpose('cards', cards);
+      yield* craftExpose('moveNext', moveNext);
+    },
+  );
+
 export const ReviewQueuePanel = craftComponent(
   'ReviewQueuePanel',
-  {},
+  {
+    providers: [provideReviewQueuePanelView()],
+  },
   function* (inputs: Inputs) {
     const {
+      t,
+      queueTitle,
       queueValue,
+      canRegenerate,
       regenerating,
       openRegenerationDialog,
+      regeneratingLabel,
+      canStartHandoff,
       handoffBusy,
       openIterationDialog,
       devtoolView,
@@ -79,76 +207,19 @@ export const ReviewQueuePanel = craftComponent(
       folderLayouts,
       bypasses,
       reviewCards,
-      t,
-      cards,
+      queueItems,
       reviewFailed,
       activeIndex,
       selectCard,
       sessionHistory,
+      historyItems,
       reopening,
+      reopenHistoryItem,
+      reopeningLabel,
       movePrevious,
+      cards,
       moveNext,
-    } = inputs;
-    const canRegenerate = yield* craftComputed('canRegenerate', function* () {
-      return yield* inputs.regenerationAvailable();
-    });
-    const canStartHandoff = yield* craftComputed('canStartHandoff', function* () {
-      return yield* inputs.iterationHandoffAvailable();
-    });
-    const queueTitle = yield* craftComputed('queueTitle', function* () {
-      const queue = yield* inputs.queueValue();
-      const unified =
-        (queue?.templateObligations.length ?? 0) > 0 ||
-        queue?.cards.some((card) => card.kind !== 'visual');
-      const messages = yield* inputs.t();
-      return unified ? messages.attestationTitle : messages.appTitle;
-    });
-    const regeneratingLabel = yield* craftComputed('regeneratingLabel', function* () {
-      const messages = yield* inputs.t();
-      return (yield* inputs.regenerating())
-        ? messages.regeneratingEvidence
-        : messages.regenerateEvidence;
-    });
-    const reopeningLabel = yield* craftComputed('reopeningLabel', function* () {
-      const messages = yield* inputs.t();
-      return (yield* inputs.reopening())
-        ? messages.reopeningDecision
-        : messages.reopenDecision;
-    });
-    const queueItems = deepYieldable(
-      yield* craftComputed('queueItems', function* () {
-        const queue = yield* inputs.cards();
-        const messages = yield* inputs.t();
-        return queue.map((card) => ({
-          card,
-          scenario: scenarioOf(card.subject),
-          hint:
-            card.cluster.length > 1
-              ? messages.identicalChanges(card.cluster.length)
-              : reasonText(card.reason, messages),
-        }));
-      }),
-    );
-    const historyItems = deepYieldable(
-      yield* craftComputed('historyItems', function* () {
-        return (yield* inputs.sessionHistory()).map((entry, index) => ({
-          index,
-          shape: entry.decision.shape,
-          id: entry.decision.id ?? '',
-          cardSubject: entry.card.subject,
-          verdict: entry.decision.verdict,
-        }));
-      }),
-    );
-    const reopenHistoryItem = yield* craftMethod(
-      'reopenHistoryItem',
-      function* (index: number) {
-        const entry = (yield* inputs.sessionHistory())[index];
-        if (entry) {
-          inputs.reopenDecision(entry);
-        }
-      },
-    );
+    } = yield* ReviewQueuePanelView(inputs);
     return aside(
       {
         class: shell.queuePanel,

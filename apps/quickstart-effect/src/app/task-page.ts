@@ -50,8 +50,6 @@ const QuickstartTaskPage = craftComponent(
     return [
       div([
         heading(function* () {
-          // Structural helpers are the reactive binding boundary for their content.
-          // eslint-disable-next-line craft-ts/require-reactive-template-bindings
           return `EffectTS + CraftTS (${yield* taskQuery.status()})`;
         }),
         p('One Effect domain operation, one Layer, one Craft query.'),

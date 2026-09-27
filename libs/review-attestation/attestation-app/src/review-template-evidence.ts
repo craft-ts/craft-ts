@@ -17,7 +17,13 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed, deepYieldable } from '@craft-ts/core';
+import {
+  craftComputed,
+  deepYieldable,
+  craftService,
+  craftPrivate,
+  craftExpose,
+} from '@craft-ts/core';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
 import { conditionText, templateStatementOf } from './card-presentation';
 import type { Locale } from './preferences';
@@ -52,74 +58,71 @@ type Inputs = {
 };
 
 /** Template, removal, and source evidence for a review card. */
-export const ReviewTemplateEvidence = craftComponent(
-  'ReviewTemplateEvidence',
-  {},
-  function* (inputs: Inputs) {
-    const { card, sourceDetail, fileUrl, t } = inputs;
-    const effects = yield* craftComputed('effects', function* () {
-      const card = yield* inputs.card();
-      return card.kind === 'template' ? (card.effects ?? []) : [];
-    });
-    const renderSites = deepYieldable(
-      yield* craftComputed('renderSites', function* () {
-        return (yield* inputs.sourceDetail())?.renderSites ?? [];
-      }),
-    );
-    const elementSource = yield* craftComputed('elementSource', function* () {
-      return (yield* inputs.sourceDetail())?.element;
-    });
-    const methodSource = yield* craftComputed('methodSource', function* () {
-      return (yield* inputs.sourceDetail())?.method;
-    });
-    const evidenceHidden = yield* craftComputed('evidenceHidden', function* () {
-      const kind = (yield* inputs.card()).kind;
-      return kind !== 'template' && kind !== 'removal';
-    });
-    const promiseHeading = yield* craftComputed('promiseHeading', function* () {
-      return (yield* inputs.card()).kind === 'removal'
-        ? (yield* inputs.t()).removedPromise
-        : (yield* inputs.t()).currentPromise;
-    });
-    const templateWhenHidden = yield* craftComputed(
-      'templateWhenHidden',
-      function* () {
+export const { ReviewTemplateEvidenceView, provideReviewTemplateEvidenceView } =
+  craftService(
+    { name: 'reviewTemplateEvidenceView', providedIn: 'toProvide' },
+    function* (inputs: Inputs) {
+      const { card, sourceDetail, fileUrl, t } = inputs;
+      const effects = yield* craftComputed('effects', function* () {
+        const card = yield* inputs.card();
+        return card.kind === 'template' ? (card.effects ?? []) : [];
+      });
+      const renderSites = deepYieldable(
+        yield* craftPrivate(
+          craftComputed('renderSites', function* () {
+            return (yield* inputs.sourceDetail())?.renderSites ?? [];
+          }),
+        ),
+      );
+      const elementSource = yield* craftComputed('elementSource', function* () {
+        return (yield* inputs.sourceDetail())?.element;
+      });
+      const methodSource = yield* craftComputed('methodSource', function* () {
+        return (yield* inputs.sourceDetail())?.method;
+      });
+      yield* craftComputed('evidenceHidden', function* () {
+        const kind = (yield* inputs.card()).kind;
+        return kind !== 'template' && kind !== 'removal';
+      });
+      yield* craftComputed('promiseHeading', function* () {
+        return (yield* inputs.card()).kind === 'removal'
+          ? (yield* inputs.t()).removedPromise
+          : (yield* inputs.t()).currentPromise;
+      });
+      yield* craftComputed('templateWhenHidden', function* () {
         const card = yield* inputs.card();
         return card.kind !== 'template' || !card.conditions?.length;
-      },
-    );
-    const templateWhenText = yield* craftComputed('templateWhenText', function* () {
-      const card = yield* inputs.card();
-      return card.kind === 'template'
-        ? (yield* inputs.t()).templateWhen(
-            conditionText(card.conditions ?? [], yield* inputs.t()),
-          )
-        : '';
-    });
-    const statementText = yield* craftComputed('statementText', function* () {
-      const card = yield* inputs.card();
-      if (card.kind === 'template') {
-        return templateStatementOf(
-          card.statementParts,
-          card.statement,
-          yield* inputs.t(),
-          yield* inputs.locale(),
-        );
-      }
-      if (card.kind === 'removal') {
-        const proof = card.previousEvidence;
-        return proof
-          ? `${proof.element ?? 'template'}${proof.elementName ? ` "${proof.elementName}"` : ''} → ${proof.target}`
-          : (yield* inputs.t()).previousUnavailable;
-      }
-      return '';
-    });
-    const effectsHidden = yield* craftComputed('effectsHidden', function* () {
-      return (yield* effects()).length === 0;
-    });
-    const templateSourceHidden = yield* craftComputed(
-      'templateSourceHidden',
-      function* () {
+      });
+      yield* craftComputed('templateWhenText', function* () {
+        const card = yield* inputs.card();
+        return card.kind === 'template'
+          ? (yield* inputs.t()).templateWhen(
+              conditionText(card.conditions ?? [], yield* inputs.t()),
+            )
+          : '';
+      });
+      yield* craftComputed('statementText', function* () {
+        const card = yield* inputs.card();
+        if (card.kind === 'template') {
+          return templateStatementOf(
+            card.statementParts,
+            card.statement,
+            yield* inputs.t(),
+            yield* inputs.locale(),
+          );
+        }
+        if (card.kind === 'removal') {
+          const proof = card.previousEvidence;
+          return proof
+            ? `${proof.element ?? 'template'}${proof.elementName ? ` "${proof.elementName}"` : ''} → ${proof.target}`
+            : (yield* inputs.t()).previousUnavailable;
+        }
+        return '';
+      });
+      yield* craftComputed('effectsHidden', function* () {
+        return (yield* effects()).length === 0;
+      });
+      yield* craftComputed('templateSourceHidden', function* () {
         const card = yield* inputs.card();
         const detail = yield* inputs.sourceDetail();
         return (
@@ -127,72 +130,106 @@ export const ReviewTemplateEvidence = craftComponent(
           detail?.subject !== card.subject ||
           !(detail.element || detail.method || detail.renderSites?.length)
         );
-      },
-    );
-    const renderSitesHidden = yield* craftComputed('renderSitesHidden', function* () {
-      return (yield* renderSites()).length === 0;
-    });
-    const elementSourceHidden = yield* craftComputed(
-      'elementSourceHidden',
-      function* () {
+      });
+      yield* craftComputed('renderSitesHidden', function* () {
+        return (yield* renderSites()).length === 0;
+      });
+      yield* craftComputed('elementSourceHidden', function* () {
         return !(yield* elementSource());
-      },
-    );
-    const elementLocation = yield* craftComputed('elementLocation', function* () {
-      const value = yield* elementSource();
-      return value ? `${value.file}:${value.line}` : '';
-    });
-    const methodSourceHidden = yield* craftComputed(
-      'methodSourceHidden',
-      function* () {
+      });
+      yield* craftComputed('elementLocation', function* () {
+        const value = yield* elementSource();
+        return value ? `${value.file}:${value.line}` : '';
+      });
+      yield* craftComputed('methodSourceHidden', function* () {
         return !(yield* methodSource());
-      },
-    );
-    const methodLocation = yield* craftComputed('methodLocation', function* () {
-      const value = yield* methodSource();
-      return value ? `${value.file}:${value.line}` : '';
-    });
-    const semanticDiff = deepYieldable(
-      yield* craftComputed('semanticDiff', function* () {
+      });
+      yield* craftComputed('methodLocation', function* () {
+        const value = yield* methodSource();
+        return value ? `${value.file}:${value.line}` : '';
+      });
+      const semanticDiff = deepYieldable(
+        yield* craftPrivate(
+          craftComputed('semanticDiff', function* () {
+            const card = yield* inputs.card();
+            return card.kind === 'template' ? card.semanticDiff : [];
+          }),
+        ),
+      );
+      yield* craftComputed('codeDiff', function* () {
         const card = yield* inputs.card();
-        return card.kind === 'template' ? card.semanticDiff : [];
-      }),
-    );
-    const codeDiff = yield* craftComputed('codeDiff', function* () {
-      const card = yield* inputs.card();
-      if (card.kind !== 'template') return [];
-      return [
-        ...card.codeDiff.removed.map((change) => ({
-          line: `− ${change.leaf}`,
-        })),
-        ...card.codeDiff.added.map((change) => ({ line: `+ ${change.leaf}` })),
-        ...card.codeDiff.changed.map((change) => ({
-          line: `~ ${change.leaf}`,
-        })),
-      ];
-    });
-    const previousEvidenceUnavailable = yield* craftComputed(
-      'previousEvidenceUnavailable',
-      function* () {
+        if (card.kind !== 'template') return [];
+        return [
+          ...card.codeDiff.removed.map((change) => ({
+            line: `− ${change.leaf}`,
+          })),
+          ...card.codeDiff.added.map((change) => ({
+            line: `+ ${change.leaf}`,
+          })),
+          ...card.codeDiff.changed.map((change) => ({
+            line: `~ ${change.leaf}`,
+          })),
+        ];
+      });
+      yield* craftComputed('previousEvidenceUnavailable', function* () {
         const card = yield* inputs.card();
         return (
           (card.kind === 'template' || card.kind === 'removal') &&
           card.previousEvidenceUnavailable
         );
-      },
-    );
-    const previousDecision = yield* craftComputed('previousDecision', function* () {
-      return (yield* inputs.card()).previousDecision;
-    });
-    const previousDecisionText = yield* craftComputed(
-      'previousDecisionText',
-      function* () {
+      });
+      yield* craftPrivate(
+        craftComputed('previousDecision', function* () {
+          return (yield* inputs.card()).previousDecision;
+        }),
+      );
+      yield* craftComputed('previousDecisionText', function* () {
         const previous = (yield* inputs.card()).previousDecision;
         if (!previous) return '—';
         const note = previous.note ? ` — ${previous.note}` : '';
         return `${(yield* inputs.t()).previousVerdict(previous.verdict)} · ${previous.by} · ${previous.at}${note}`;
-      },
-    );
+      });
+      yield* craftExpose('card', card);
+      yield* craftExpose('t', t);
+      yield* craftExpose('renderSites', renderSites);
+      yield* craftExpose('fileUrl', fileUrl);
+      yield* craftExpose('sourceDetail', sourceDetail);
+      yield* craftExpose('semanticDiff', semanticDiff);
+    },
+  );
+
+export const ReviewTemplateEvidence = craftComponent(
+  'ReviewTemplateEvidence',
+  {
+    providers: [provideReviewTemplateEvidenceView()],
+  },
+  function* (inputs: Inputs) {
+    const {
+      card,
+      evidenceHidden,
+      promiseHeading,
+      templateWhenHidden,
+      templateWhenText,
+      statementText,
+      effectsHidden,
+      t,
+      effects,
+      templateSourceHidden,
+      renderSitesHidden,
+      renderSites,
+      fileUrl,
+      elementSourceHidden,
+      elementLocation,
+      elementSource,
+      sourceDetail,
+      methodSourceHidden,
+      methodLocation,
+      methodSource,
+      semanticDiff,
+      previousEvidenceUnavailable,
+      previousDecisionText,
+      codeDiff,
+    } = yield* ReviewTemplateEvidenceView(inputs);
     return section(
       {
         class: templateEvidence.root,

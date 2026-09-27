@@ -2,7 +2,8 @@ import { craftComponent, span, type Input } from '@craft-ts/component';
 import {
   craftService,
   craftComputed,
-  type CraftResourceStatus, type CraftServiceInput } from '@craft-ts/core';
+  type CraftResourceStatus,
+} from '@craft-ts/core';
 import { status as styles, TONE_OF_STATUS } from './status.style';
 
 const STATUS_VIEW = {
@@ -31,7 +32,7 @@ const STATUS_VIEW = {
  */
 export const { StatusView, provideStatusView } = craftService(
   { name: 'statusView', providedIn: 'toProvide' },
-  function* (inputs: { readonly status: CraftServiceInput<CraftResourceStatus> }) {
+  function* (inputs: { readonly status: Input<CraftResourceStatus> }) {
     const { status } = inputs;
     yield* craftComputed('statusEmoji', function* () {
       return STATUS_VIEW[yield* status()][0];

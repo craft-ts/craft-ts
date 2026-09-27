@@ -58,19 +58,20 @@ export const { ExceptionQueryParamsView, provideExceptionQueryParamsView } =
           },
         },
         ({ exceptions }) => ({
-          hasParseException: craftUse(craftComputed('hasParseException', function* () {
-            return (yield* exceptions()).parse.mode !== undefined;
-          })),
-          parseExceptionMessage: craftUse(craftComputed(
-            'parseExceptionMessage',
-            function* () {
+          hasParseException: craftUse(
+            craftComputed('hasParseException', function* () {
+              return (yield* exceptions()).parse.mode !== undefined;
+            }),
+          ),
+          parseExceptionMessage: craftUse(
+            craftComputed('parseExceptionMessage', function* () {
               const exception = (yield* exceptions()).parse.mode;
               return exception ? formatParseException(exception) : '';
-            },
-          )),
+            }),
+          ),
         }),
       );
-      const navigate = yield* craftMethod('navigate', function* (mode: string) {
+      yield* craftMethod('navigate', function* (mode: string) {
         void router.navigate({
           to: 'exception-query-params',
           //@ts-expect-error intentional to demonstrate the example
@@ -92,16 +93,22 @@ const ExceptionQueryParamsComponent = craftComponent(
     return section({ class: example.card }, [
       heading({ class: example.subtitle }, 'QueryParams decode exception'),
       div({ class: example.row }, [
-        button('success',
-          { class: example.button, type: 'button',
+        button(
+          'success',
+          {
+            class: example.button,
+            type: 'button',
             *click() {
               navigate('success');
             },
           },
           'Navigate success',
         ),
-        button('exception',
-          { class: example.button, type: 'button',
+        button(
+          'exception',
+          {
+            class: example.button,
+            type: 'button',
             *click() {
               navigate('exception');
             },

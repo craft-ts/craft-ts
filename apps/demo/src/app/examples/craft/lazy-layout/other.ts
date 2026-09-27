@@ -42,6 +42,7 @@ const { UsersApiOnError } = craftService(
 );
 
 const { Test2 } = craftService({ name: 'test2', providedIn: 'global' }, function* () {
+  // Nothing to expose.
 });
 
 export const { OtherView, provideOtherView } = craftService(

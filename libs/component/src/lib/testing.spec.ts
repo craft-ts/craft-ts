@@ -129,6 +129,7 @@ describe('Craft component and directive testing utilities', () => {
     const { RoleLocatorPageView, provideRoleLocatorPageView } = craftService(
       { name: 'roleLocatorPageView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -169,6 +170,7 @@ describe('Craft component and directive testing utilities', () => {
     const { LocatorChildView, provideLocatorChildView } = craftService(
       { name: 'locatorChildView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -183,6 +185,7 @@ describe('Craft component and directive testing utilities', () => {
     const { LocatorView, provideLocatorView } = craftService(
       { name: 'locatorView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -374,6 +377,7 @@ describe('Craft component and directive testing utilities', () => {
     const { AmbiguousLocatorView, provideAmbiguousLocatorView } = craftService(
       { name: 'ambiguousLocatorView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -405,6 +409,7 @@ describe('Craft component and directive testing utilities', () => {
     const { EachLocatorView, provideEachLocatorView } = craftService(
       { name: 'eachLocatorView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

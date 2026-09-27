@@ -29,6 +29,7 @@ const EXAMPLE_LINKS = [
 export const { AppView, provideAppView } = craftService(
   { name: 'appView', providedIn: 'toProvide' },
   function* () {
+    // Nothing to expose.
   },
 );
 

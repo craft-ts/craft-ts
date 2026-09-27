@@ -33,6 +33,7 @@ import { craftExpose } from './craft-primitive-gen';
 const { StateSpecHost } = craftService(
   { name: 'StateSpecHost', providedIn: 'global' },
   function* () {
+    // Nothing to expose.
   },
 );
 

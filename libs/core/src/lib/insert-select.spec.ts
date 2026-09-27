@@ -25,6 +25,7 @@ import { craftExpose } from './craft-primitive-gen';
 const { InsertSelectSpecHost } = craftService(
   { name: 'InsertSelectSpecHost', providedIn: 'global' },
   function* () {
+    // Nothing to expose.
   },
 );
 

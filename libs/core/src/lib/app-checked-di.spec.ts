@@ -44,6 +44,7 @@ describe('AppCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -86,6 +87,7 @@ describe('AppCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -153,6 +155,7 @@ describe('AppCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -201,6 +204,7 @@ describe('AppCheckedDI', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

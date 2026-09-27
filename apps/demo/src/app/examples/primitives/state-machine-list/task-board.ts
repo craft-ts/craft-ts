@@ -246,6 +246,7 @@ export const {
 } = craftService(
   { name: 'taskBoardStateMachineListView', providedIn: 'toProvide' },
   function* () {
+    // Nothing to expose.
   },
 );
 

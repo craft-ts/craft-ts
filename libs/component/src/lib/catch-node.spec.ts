@@ -105,6 +105,7 @@ describe('template exception blocks', () => {
     const { BlockRootView, provideBlockRootView } = craftService(
       { name: 'blockRootView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

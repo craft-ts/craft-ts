@@ -60,7 +60,7 @@ export const { CraftGlobalQueryView, provideCraftGlobalQueryView } =
         navigate,
       }));
 
-      const navigate = yield* craftMethod('navigate', function* (offset: number) {
+      yield* craftMethod('navigate', function* (offset: number) {
         void router.navigate({
           to: 'craft/query/:userId',
           params: {

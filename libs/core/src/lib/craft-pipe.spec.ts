@@ -34,6 +34,7 @@ import { craftExpose } from './craft-primitive-gen';
 const { PipeSpecHost } = craftService(
   { name: 'PipeSpecHost', providedIn: 'global' },
   function* () {
+    // Nothing to expose.
   },
 );
 

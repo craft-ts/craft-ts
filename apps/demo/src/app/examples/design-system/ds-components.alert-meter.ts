@@ -1,4 +1,4 @@
-import { craftComputed, craftService, craftExpose, type CraftServiceInput } from '@craft-ts/core';
+import { craftService, craftExpose } from '@craft-ts/core';
 import { craftComponent, div, span, type Input } from '@craft-ts/component';
 import { assign, unit } from '@craft-ts/style';
 import { alert, meter, meterVars } from './components.style';
@@ -7,9 +7,9 @@ import { alert, meter, meterVars } from './components.style';
 export const { DsAlertView, provideDsAlertView } = craftService(
   { name: 'dsAlertView', providedIn: 'toProvide' },
   function* (inputs: {
-      readonly message: CraftServiceInput<string>;
-      readonly tone: CraftServiceInput<'neutral' | 'info' | 'success' | 'warning' | 'danger'>;
-    }) {
+    readonly message: Input<string>;
+    readonly tone: Input<'neutral' | 'info' | 'success' | 'warning' | 'danger'>;
+  }) {
     const { message, tone } = inputs;
     yield* craftExpose('message', message);
     yield* craftExpose('tone', tone);
@@ -41,13 +41,10 @@ export type DsAlert = typeof DsAlert;
 export const { DsMeterView, provideDsMeterView } = craftService(
   { name: 'dsMeterView', providedIn: 'toProvide' },
   function* (inputs: {
-      readonly value: CraftServiceInput<number>;
-      readonly caption: CraftServiceInput<string>;
-    }) {
+    readonly value: Input<number>;
+    readonly caption: Input<string>;
+  }) {
     const { value, caption } = inputs;
-    yield* craftComputed('fillStyle', function* () {
-      return assign(meterVars.value, unit.pct(yield* value()));
-    });
     yield* craftExpose('value', value);
     yield* craftExpose('caption', caption);
   },
@@ -60,7 +57,7 @@ export const DsMeter = craftComponent(
     readonly value: Input<number>;
     readonly caption: Input<string>;
   }) {
-    const { value, caption, fillStyle } = yield* DsMeterView(inputs);
+    const { value, caption } = yield* DsMeterView(inputs);
     return div({ class: meter.root }, [
       div(
         {
@@ -71,7 +68,15 @@ export const DsMeter = craftComponent(
           'aria-valuenow': value,
           'aria-label': caption,
         },
-        [div({ class: meter.fill, style: fillStyle })],
+        [
+          div({
+            class: meter.fill,
+            // The width is a typed variable, written by assign.
+            style: function* () {
+              return assign(meterVars.value, unit.pct(yield* value()));
+            },
+          }),
+        ],
       ),
       span({ class: meter.label }, function* () {
         return `${yield* caption()} — ${yield* value()}%`;

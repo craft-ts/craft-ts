@@ -32,30 +32,28 @@ export const { ReviewFilters } = craftService(
   function* () {
     const clearFilters$ = source$<void>('clearFilters$');
 
-    const componentFilter = yield* state(
-      'componentFilter',
-      '',
-      ({ set }) => ({
-        writeFromInput: (value: string) => set(value),
-        clearFromFilterEvent: on$(clearFilters$, () => set('')),
-      }),
+    const componentFilter = yield* state('componentFilter', '', ({ set }) => ({
+      writeFromInput: (value: string) => set(value),
+      clearFromFilterEvent: on$(clearFilters$, () => set('')),
+    }));
+    const textParams = yield* craftPrivate(
+      queryParams(
+        'reviewTextFilter',
+        {
+          state: {
+            text: { fallbackValue: '', codec: stringQueryParamCodec },
+          },
+        },
+        ({ patch }) => ({
+          writeFromInput: function* (value: string) {
+            yield* patch({ text: value }, { replaceUrl: true });
+          },
+          clearText: function* () {
+            yield* patch({ text: '' }, { replaceUrl: true });
+          },
+        }),
+      ),
     );
-    const textParams = yield* craftPrivate(queryParams(
-      'reviewTextFilter',
-      {
-        state: {
-          text: { fallbackValue: '', codec: stringQueryParamCodec },
-        },
-      },
-      ({ patch }) => ({
-        writeFromInput: function* (value: string) {
-          yield* patch({ text: value }, { replaceUrl: true });
-        },
-        clearText: function* () {
-          yield* patch({ text: '' }, { replaceUrl: true });
-        },
-      }),
-    ));
     const textFilter = textParams.text;
     // Each `chooseFromInput` takes the raw select value and no-ops on
     // anything unexpected, so a template's change handler stays a single

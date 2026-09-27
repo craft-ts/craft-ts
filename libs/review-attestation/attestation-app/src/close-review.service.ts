@@ -37,18 +37,17 @@ export const { CloseReview } = craftService(
         },
       },
       ({ hasException }) => ({
-        failed: craftUse(craftComputed('failed', function* () {
-          return yield* hasException();
-        })),
+        failed: craftUse(
+          craftComputed('failed', function* () {
+            return yield* hasException();
+          }),
+        ),
       }),
     );
 
-    yield* craftMethod(
-      'closeReviewSession',
-      function* () {
-        closeReviewRequested$.emit(++closeReviewRequest);
-      },
-    );
+    yield* craftMethod('closeReviewSession', function* () {
+      closeReviewRequested$.emit(++closeReviewRequest);
+    });
 
     yield* craftExpose('closeReviewFailed', closeReview.failed);
   },

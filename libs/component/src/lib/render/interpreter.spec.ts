@@ -33,7 +33,9 @@ import {
   state,
   type CraftDomEvent,
   craftExpose,
-  craftPrivate, type CraftServiceInput } from '@craft-ts/core';
+  craftPrivate,
+  type CraftServiceInput,
+} from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
 import { craftDirective } from '../directive';
@@ -238,6 +240,7 @@ describe('functional component interpreter', () => {
     const { CoalescedBindingView, provideCoalescedBindingView } = craftService(
       { name: 'coalescedBindingView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -305,6 +308,7 @@ describe('functional component interpreter', () => {
     const { StableIfBranchView, provideStableIfBranchView } = craftService(
       { name: 'stableIfBranchView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -597,11 +601,9 @@ describe('functional component interpreter', () => {
 
   it('runs event modifiers before the piped action through the normal click listener', async () => {
     const seen: string[] = [];
-    const widget = craftComponent('eventActionWidget', {}, function* () {
-      const navOpen = yield* state('navOpen', false, ({ update }) => ({
-        toggle: () => update((open) => !open),
-      }));
-      return div({ click: () => seen.push('parent') }, [
+    const navOpen = signal(false);
+    const widget = craftComponent('eventActionWidget', {}, () =>
+      div({ click: () => seen.push('parent') }, [
         button('navToggle', { type: 'button' }, 'Browse').pipe(
           eventAction({
             click: {
@@ -609,16 +611,16 @@ describe('functional component interpreter', () => {
                 seen.push(
                   `action:${event.defaultPrevented}:${event.cancelBubble}`,
                 );
-                return navOpen.toggle();
+                navOpen.update((open) => !open);
               },
               preventDefault: true,
               stopPropagation: true,
             },
           }),
         ),
-        span(navOpen),
-      ]);
-    });
+        span(String(navOpen())),
+      ]),
+    );
     const { nativeElement, flush, destroy } =
       await renderCraftComponent(widget);
     const click = new MouseEvent('click', { bubbles: true, cancelable: true });
@@ -892,6 +894,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'runtimeProjectionParentView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -934,6 +937,7 @@ describe('functional component interpreter', () => {
     const { StableProjectionView, provideStableProjectionView } = craftService(
       { name: 'stableProjectionView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1029,6 +1033,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'runtimeToolbarRootView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -1075,6 +1080,7 @@ describe('functional component interpreter', () => {
     } = craftService(
       { name: 'contentStyleProjectedChildView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1102,6 +1108,7 @@ describe('functional component interpreter', () => {
     const { ContentStylePageView, provideContentStylePageView } = craftService(
       { name: 'contentStylePageView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1166,6 +1173,7 @@ describe('functional component interpreter', () => {
     } = craftService(
       { name: 'isolatedContentStylePageView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1227,6 +1235,7 @@ describe('functional component interpreter', () => {
     } = craftService(
       { name: 'runtimeProjectedChildParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1266,6 +1275,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'runtimeTemplateFragmentView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -1303,6 +1313,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'stableTemplateFragmentView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -1365,6 +1376,7 @@ describe('functional component interpreter', () => {
     const { QueryParentView, provideQueryParentView } = craftService(
       { name: 'queryParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1386,10 +1398,12 @@ describe('functional component interpreter', () => {
         factoryRuns += 1;
         const refresh = signal(0);
         // Keep the unused local query from the full-demo shape in the repro.
-        yield* craftPrivate(query('localTodos', {
-          params: () => true,
-          loader: async () => [],
-        }));
+        yield* craftPrivate(
+          query('localTodos', {
+            params: () => true,
+            loader: async () => [],
+          }),
+        );
         yield* query('todos', {
           params: refresh,
           loader: async ({ params }) =>
@@ -1568,9 +1582,11 @@ describe('functional component interpreter', () => {
       { name: 'yieldableComputedPropertyView', providedIn: 'toProvide' },
       function* () {
         yield* state('counter', 0, ({ state }) => ({
-          disabled: craftUse(craftComputed('disabled', function* () {
-            return (yield* state()) % 2 === 0;
-          })),
+          disabled: craftUse(
+            craftComputed('disabled', function* () {
+              return (yield* state()) % 2 === 0;
+            }),
+          ),
         }));
       },
     );
@@ -1610,12 +1626,19 @@ describe('functional component interpreter', () => {
       { name: 'yieldableReactiveTemplateView', providedIn: 'toProvide' },
       function* () {
         yield* state('counter', 1, ({ state, set }) => ({
-          doubled: craftUse(craftComputed('doubled', function* () {
-            return (yield* state()) * 2;
-          })),
-          items: craftUse(craftComputed('items', function* () {
-            return Array.from({ length: yield* state() }, (_, index) => index);
-          })),
+          doubled: craftUse(
+            craftComputed('doubled', function* () {
+              return (yield* state()) * 2;
+            }),
+          ),
+          items: craftUse(
+            craftComputed('items', function* () {
+              return Array.from(
+                { length: yield* state() },
+                (_, index) => index,
+              );
+            }),
+          ),
           increment: function* () {
             set((yield* state()) + 1);
           },
@@ -1790,6 +1813,7 @@ describe('functional component interpreter', () => {
     const { ScopedChildView, provideScopedChildView } = craftService(
       { name: 'scopedChildView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1809,6 +1833,7 @@ describe('functional component interpreter', () => {
     const { ScopedParentView, provideScopedParentView } = craftService(
       { name: 'scopedParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1850,6 +1875,7 @@ describe('functional component interpreter', () => {
     const { StylesUrlView, provideStylesUrlView } = craftService(
       { name: 'stylesUrlView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1982,6 +2008,7 @@ describe('functional component interpreter', () => {
     const { DirectivePageView, provideDirectivePageView } = craftService(
       { name: 'directivePageView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -2049,6 +2076,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'reactiveDirectivePageView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -2251,6 +2279,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'nodeDirectiveLifecycleView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -2466,9 +2495,9 @@ describe('functional component interpreter', () => {
     const { UserCardView, provideUserCardView } = craftService(
       { name: 'userCardView', providedIn: 'toProvide' },
       function* (inputs: {
-              readonly name: CraftServiceInput<string>;
-              readonly onPick: Output<(name: string) => void>;
-            }) {
+        readonly name: CraftServiceInput<string>;
+        readonly onPick: Output<(name: string) => void>;
+      }) {
         const { name, onPick } = inputs;
         yield* craftExpose('name', name);
         yield* craftExpose('onPick', onPick);
@@ -2708,6 +2737,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'disabledscheduledlistView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -2856,6 +2886,7 @@ describe('functional component interpreter', () => {
     const { SuccessView, provideSuccessView } = craftService(
       { name: 'successView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -2887,6 +2918,7 @@ describe('functional component interpreter', () => {
     const { FailureView, provideFailureView } = craftService(
       { name: 'failureView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -2922,6 +2954,7 @@ describe('functional component interpreter', () => {
     const { DeferRetryView, provideDeferRetryView } = craftService(
       { name: 'deferRetryView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -2962,6 +2995,7 @@ describe('functional component interpreter', () => {
     const { InteractionView, provideInteractionView } = craftService(
       { name: 'interactionView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -3001,6 +3035,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'trackedInteractionView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -3053,6 +3088,7 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'detachedInteractionView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -3130,6 +3166,7 @@ describe('binding isolation under the application provider set', () => {
     } = craftService(
       { name: 'correlationBindingIsolationView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

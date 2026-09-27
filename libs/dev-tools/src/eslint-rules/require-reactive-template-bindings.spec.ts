@@ -150,6 +150,27 @@ describe('require-reactive-template-bindings', () => {
     expect(messages).toEqual([]);
   });
 
+  it('reads a heading content function as its text binding', async () => {
+    const messages = await lintFixture(`
+      declare const YIELDABLE_VALUE: unique symbol;
+      type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
+      type Messages = { title: string };
+      declare const t: CraftValue<Messages>;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () => [
+        heading(function* () {
+          return (yield* t()).title;
+        }),
+        heading({ id: 'title' }, function* () {
+          return (yield* t()).title;
+        }),
+      ]);
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('checks structural branch templates but not their nested bindings', async () => {
     const messages = await lintFixture(`
       declare const INPUT_BRAND: unique symbol;

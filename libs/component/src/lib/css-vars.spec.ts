@@ -45,6 +45,7 @@ type _Opaque = Expect<Equal<OpaqueContract['unknownCss'], true>>;
 const { TypedBadgeSpecView, provideTypedBadgeSpecView } = craftService(
   { name: 'typedBadgeSpecView', providedIn: 'toProvide' },
   function* () {
+    // Nothing to expose.
   },
 );
 
@@ -63,6 +64,7 @@ const TypedBadge = craftComponent(
 const { InheritingCardSpecView, provideInheritingCardSpecView } = craftService(
   { name: 'inheritingCardSpecView', providedIn: 'toProvide' },
   function* () {
+    // Nothing to expose.
   },
 );
 
@@ -92,6 +94,7 @@ const { ExplicitExternalSpecView, provideExplicitExternalSpecView } =
   craftService(
     { name: 'explicitExternalSpecView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -115,6 +118,7 @@ describe('component CSS variables', () => {
       craftService(
         { name: 'cssVarRuntimeRootSpecView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -148,6 +152,7 @@ describe('component CSS variables', () => {
       craftService(
         { name: 'forwardParentSpecView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 

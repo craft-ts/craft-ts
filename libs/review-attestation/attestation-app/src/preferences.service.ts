@@ -51,6 +51,5 @@ export const { ReviewPreferences } = craftService(
       yield* ide.choose(value);
       storeIde(value);
     });
-
   },
 );

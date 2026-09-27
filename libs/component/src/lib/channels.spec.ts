@@ -148,6 +148,7 @@ describe('channels through the render tree', () => {
       craftService(
         { name: 'scrollerNeedingPortView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -169,6 +170,7 @@ describe('channels through the render tree', () => {
     const { PlainView, providePlainView } = craftService(
       { name: 'plainView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

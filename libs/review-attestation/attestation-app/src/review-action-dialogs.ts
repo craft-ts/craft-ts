@@ -16,7 +16,12 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftService,
+  craftPrivate,
+  craftExpose,
+} from '@craft-ts/core';
 import type {
   ReviewApiQueue,
   ReviewIterationHandoffResponse,
@@ -53,74 +58,68 @@ type Inputs = {
 };
 
 /** Dialogs for regeneration, applying folder layouts, and handoff. */
-export const ReviewActionDialogs = craftComponent(
-  'ReviewActionDialogs',
-  {},
-  function* (inputs: Inputs) {
-    const {
-      queueValue,
-      t,
-      regenerating,
-      closeRegenerationDialog,
-      confirmRegeneration,
-      applyingLayout,
-      dismissFolderLayoutApply,
-      copyFolderLayoutCommand,
-      confirmFolderLayoutApply,
-      closeIterationDialog,
-      confirmIterationHandoff,
-      handoffBusy,
-      handoffValue,
-      copyIterationPrompt,
-      closing,
-      closeReviewSession,
-    } = inputs;
-    const isRegenerationOpen = yield* craftComputed(
-      'isRegenerationOpen',
-      function* () {
+export const { ReviewActionDialogsView, provideReviewActionDialogsView } =
+  craftService(
+    { name: 'reviewActionDialogsView', providedIn: 'toProvide' },
+    function* (inputs: Inputs) {
+      const {
+        queueValue,
+        t,
+        regenerating,
+        closeRegenerationDialog,
+        confirmRegeneration,
+        applyingLayout,
+        dismissFolderLayoutApply,
+        copyFolderLayoutCommand,
+        confirmFolderLayoutApply,
+        closeIterationDialog,
+        confirmIterationHandoff,
+        handoffBusy,
+        handoffValue,
+        copyIterationPrompt,
+        closing,
+        closeReviewSession,
+      } = inputs;
+      yield* craftComputed('isRegenerationOpen', function* () {
         return yield* inputs.regenerationDialogOpen();
-      },
-    );
-    const isFolderApplyOpen = yield* craftComputed('isFolderApplyOpen', function* () {
-      return yield* inputs.folderLayoutApplyDialogOpen();
-    });
-    const isIterationOpen = yield* craftComputed('isIterationOpen', function* () {
-      return yield* inputs.iterationDialogOpen();
-    });
-    const isIterationSetup = yield* craftComputed('isIterationSetup', function* () {
-      return yield* inputs.iterationPreparationNotStarted();
-    });
-    const isHandoffReady = yield* craftComputed('isHandoffReady', function* () {
-      return yield* inputs.iterationHandoffReady();
-    });
-    const isHandoffBusy = yield* craftComputed('isHandoffBusy', function* () {
-      return yield* inputs.handoffBusy();
-    });
-    const isRegenerating = yield* craftComputed('isRegenerating', function* () {
-      return yield* inputs.regenerating();
-    });
-    const isApplyCopied = yield* craftComputed('isApplyCopied', function* () {
-      return yield* inputs.folderLayoutApplyCopied();
-    });
-    const isHandoffCopied = yield* craftComputed('isHandoffCopied', function* () {
-      return yield* inputs.iterationPromptCopied();
-    });
-    const isApplyError = yield* craftComputed('isApplyError', function* () {
-      return (yield* inputs.applyStatus()) === 'exception';
-    });
-    const regenerationHistoryText = yield* craftComputed(
-      'regenerationHistoryText',
-      function* () {
+      });
+      yield* craftComputed('isFolderApplyOpen', function* () {
+        return yield* inputs.folderLayoutApplyDialogOpen();
+      });
+      yield* craftComputed('isIterationOpen', function* () {
+        return yield* inputs.iterationDialogOpen();
+      });
+      yield* craftComputed('isIterationSetup', function* () {
+        return yield* inputs.iterationPreparationNotStarted();
+      });
+      yield* craftComputed('isHandoffReady', function* () {
+        return yield* inputs.iterationHandoffReady();
+      });
+      yield* craftComputed('isHandoffBusy', function* () {
+        return yield* inputs.handoffBusy();
+      });
+      yield* craftPrivate(
+        craftComputed('isRegenerating', function* () {
+          return yield* inputs.regenerating();
+        }),
+      );
+      yield* craftComputed('isApplyCopied', function* () {
+        return yield* inputs.folderLayoutApplyCopied();
+      });
+      yield* craftComputed('isHandoffCopied', function* () {
+        return yield* inputs.iterationPromptCopied();
+      });
+      yield* craftComputed('isApplyError', function* () {
+        return (yield* inputs.applyStatus()) === 'exception';
+      });
+      yield* craftComputed('regenerationHistoryText', function* () {
         const count = yield* inputs.previousRegenerationDecisions();
         const messages = yield* inputs.t();
         return count > 0
           ? messages.regenerationPreservesHistory(count)
           : messages.regenerationFirstGeneration;
-      },
-    );
-    const folderApplyDescription = yield* craftComputed(
-      'folderApplyDescription',
-      function* () {
+      });
+      yield* craftComputed('folderApplyDescription', function* () {
         const apply = (yield* inputs.queueValue())?.folderLayoutApply;
         if (!apply) return '';
         return (yield* inputs.t()).folderLayoutApplyDescription(
@@ -128,27 +127,21 @@ export const ReviewActionDialogs = craftComponent(
           apply.deletions,
           apply.manualReviews,
         );
-      },
-    );
-    const folderApplyLabel = yield* craftComputed('folderApplyLabel', function* () {
-      const messages = yield* inputs.t();
-      return (yield* inputs.applyingLayout())
-        ? messages.folderLayoutApplyRunning
-        : messages.folderLayoutApplyRun;
-    });
-    const rejectedIterationDescription = yield* craftComputed(
-      'rejectedIterationDescription',
-      function* () {
+      });
+      yield* craftComputed('folderApplyLabel', function* () {
+        const messages = yield* inputs.t();
+        return (yield* inputs.applyingLayout())
+          ? messages.folderLayoutApplyRunning
+          : messages.folderLayoutApplyRun;
+      });
+      yield* craftComputed('rejectedIterationDescription', function* () {
         const rejected =
           (yield* inputs.queueValue())?.cards.filter(
             (card) => card.previousDecision?.verdict === 'rejected',
           ).length ?? 0;
         return (yield* inputs.t()).iterationModalDescription(rejected);
-      },
-    );
-    const handoffFilesDescription = yield* craftComputed(
-      'handoffFilesDescription',
-      function* () {
+      });
+      yield* craftComputed('handoffFilesDescription', function* () {
         const value = yield* inputs.handoffValue();
         if (!value) return '';
         return (yield* inputs.t()).iterationHandoffFiles(
@@ -156,14 +149,71 @@ export const ReviewActionDialogs = craftComponent(
           value.feedbackPath,
           value.promptPath,
         );
-      },
-    );
-    const closeReviewLabel = yield* craftComputed('closeReviewLabel', function* () {
-      const messages = yield* inputs.t();
-      return (yield* inputs.closing())
-        ? messages.iterationModalClosing
-        : messages.closeReview;
-    });
+      });
+      yield* craftComputed('closeReviewLabel', function* () {
+        const messages = yield* inputs.t();
+        return (yield* inputs.closing())
+          ? messages.iterationModalClosing
+          : messages.closeReview;
+      });
+      yield* craftExpose('t', t);
+      yield* craftExpose('queueValue', queueValue);
+      yield* craftExpose('closeRegenerationDialog', closeRegenerationDialog);
+      yield* craftExpose('regenerating', regenerating);
+      yield* craftExpose('confirmRegeneration', confirmRegeneration);
+      yield* craftExpose('dismissFolderLayoutApply', dismissFolderLayoutApply);
+      yield* craftExpose('copyFolderLayoutCommand', copyFolderLayoutCommand);
+      yield* craftExpose('applyingLayout', applyingLayout);
+      yield* craftExpose('confirmFolderLayoutApply', confirmFolderLayoutApply);
+      yield* craftExpose('closeIterationDialog', closeIterationDialog);
+      yield* craftExpose('handoffBusy', handoffBusy);
+      yield* craftExpose('confirmIterationHandoff', confirmIterationHandoff);
+      yield* craftExpose('handoffValue', handoffValue);
+      yield* craftExpose('copyIterationPrompt', copyIterationPrompt);
+      yield* craftExpose('closing', closing);
+      yield* craftExpose('closeReviewSession', closeReviewSession);
+    },
+  );
+
+export const ReviewActionDialogs = craftComponent(
+  'ReviewActionDialogs',
+  {
+    providers: [provideReviewActionDialogsView()],
+  },
+  function* (inputs: Inputs) {
+    const {
+      isRegenerationOpen,
+      t,
+      queueValue,
+      regenerationHistoryText,
+      closeRegenerationDialog,
+      regenerating,
+      confirmRegeneration,
+      isFolderApplyOpen,
+      folderApplyDescription,
+      isApplyError,
+      isApplyCopied,
+      dismissFolderLayoutApply,
+      copyFolderLayoutCommand,
+      applyingLayout,
+      confirmFolderLayoutApply,
+      folderApplyLabel,
+      isIterationOpen,
+      isIterationSetup,
+      rejectedIterationDescription,
+      closeIterationDialog,
+      handoffBusy,
+      confirmIterationHandoff,
+      isHandoffBusy,
+      isHandoffReady,
+      handoffFilesDescription,
+      handoffValue,
+      copyIterationPrompt,
+      closing,
+      closeReviewSession,
+      closeReviewLabel,
+      isHandoffCopied,
+    } = yield* ReviewActionDialogsView(inputs);
     return [
       ifNode(isRegenerationOpen, () =>
         div({ class: dialog.backdrop }, [

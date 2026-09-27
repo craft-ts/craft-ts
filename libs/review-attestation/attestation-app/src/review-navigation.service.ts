@@ -7,6 +7,7 @@ export const { ReviewNavigation, provideReviewNavigation } = craftService(
     const router = yield* CraftRouter();
 
     yield* craftExpose('navigateToView', (value: DevtoolView) =>
-      router.navigateByUrl(`/${value}?view=${value}`));
+      router.navigateByUrl(`/${value}?view=${value}`),
+    );
   },
 );

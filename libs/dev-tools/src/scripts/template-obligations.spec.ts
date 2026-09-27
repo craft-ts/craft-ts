@@ -65,15 +65,15 @@ describe('template obligations', () => {
       const BrowserLocation: any = {};
       const Persister: any = {};
       const App = craftComponent('App', {}, function* () {
-        const clearCache = craftMethod('clearCache', function* () {
+        const clearCache = yield* craftMethod('clearCache', function* () {
           yield* Persister.clearAllCache();
           yield* BrowserWindow.alert('Cache cleared');
           yield* BrowserLocation.reload();
         });
-        return { clearCache };
-      }, ({ clearCache }) => div([
-        button('clearCache', { click: clearCache }, 'Clear cache'),
-      ]));
+        return div([
+          button('clearCache', { click: clearCache }, 'Clear cache'),
+        ]);
+      });
     `);
     const index = indexFor(root);
     const obligation = index.obligations.find(

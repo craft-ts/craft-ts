@@ -42,6 +42,7 @@ describe('provideSendContextToAi', () => {
     const { ContextHostView, provideContextHostView } = craftService(
       { name: 'contextHostView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -96,6 +97,7 @@ describe('provideSendContextToAi', () => {
     } = craftService(
       { name: 'contextHostWithDefaultAiView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -130,6 +132,7 @@ describe('provideSendContextToAi', () => {
       craftService(
         { name: 'contextHostWithLauncherView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -193,6 +196,7 @@ describe('provideSendContextToAi', () => {
     } = craftService(
       { name: 'contextHostWithMultipleTargetsView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -308,6 +312,7 @@ describe('provideSendContextToAi', () => {
       craftService(
         { name: 'customSendContextUiView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 

@@ -16,16 +16,12 @@ type Task = { id: string; title: string; done: boolean };
 const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
-    yield* state(
-      'tasks',
-      [] as Task[],
-      ({ update: _update }) => ({
-        remaining: () => 0,
-        add: (_title: string) => undefined,
-        toggle: (_id: string) => undefined,
-        remove: (_id: string) => undefined,
-      }),
-    );
+    yield* state('tasks', [] as Task[], ({ update: _update }) => ({
+      remaining: () => 0,
+      add: (_title: string) => undefined,
+      toggle: (_id: string) => undefined,
+      remove: (_id: string) => undefined,
+    }));
   },
 );
 
@@ -67,11 +63,16 @@ describe('Learn 10 Tasks component', () => {
       inputs: {},
       register: {
         TaskList: {
-          $self: () => [{ id: '1', title: 'Write tests', done: false }],
+          // The exposed `tasks` state: its call shape and the members read.
           // A state method hands back an invocation, so the fake does too.
-          remaining: function* () {
-            return 1;
-          },
+          tasks: Object.assign(
+            () => [{ id: '1', title: 'Write tests', done: false }],
+            {
+              remaining: function* () {
+                return 1;
+              },
+            },
+          ),
         },
       },
     });

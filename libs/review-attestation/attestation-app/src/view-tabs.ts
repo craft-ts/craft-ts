@@ -44,9 +44,12 @@ export const ViewTabs = craftComponent(
     const visualPressed = yield* craftComputed('visualPressed', function* () {
       return (yield* devtoolView()) === 'visual' ? 'true' : 'false';
     });
-    const templatePressed = yield* craftComputed('templatePressed', function* () {
-      return (yield* devtoolView()) === 'template' ? 'true' : 'false';
-    });
+    const templatePressed = yield* craftComputed(
+      'templatePressed',
+      function* () {
+        return (yield* devtoolView()) === 'template' ? 'true' : 'false';
+      },
+    );
     const reviewPressed = yield* craftComputed('reviewPressed', function* () {
       return (yield* devtoolView()) === 'review' ? 'true' : 'false';
     });
@@ -56,9 +59,12 @@ export const ViewTabs = craftComponent(
         return (yield* devtoolView()) === 'folder-layout' ? 'true' : 'false';
       },
     );
-    const bypassesPressed = yield* craftComputed('bypassesPressed', function* () {
-      return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
-    });
+    const bypassesPressed = yield* craftComputed(
+      'bypassesPressed',
+      function* () {
+        return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
+      },
+    );
     return [
       button(
         'ShowApplicationOverview',

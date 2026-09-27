@@ -115,7 +115,7 @@ describe('demo architecture', () => {
         'removeTodo',
         'toggleTodo',
         'deleteTodo',
-        'openLibrarySearch',
+        'searchQuery',
         'submitted',
         'usersQuery',
         'slowAccess',

@@ -24,6 +24,7 @@ import {
 const { FormAttributesSpecHost } = craftService(
   { name: 'FormAttributesSpecHost', providedIn: 'global' },
   function* () {
+    // Nothing to expose.
   },
 );
 

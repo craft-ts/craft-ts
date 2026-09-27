@@ -120,6 +120,7 @@ describe('component composition', () => {
       craftService(
         { name: 'stylelessOperatorBaseView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -136,6 +137,7 @@ describe('component composition', () => {
       craftService(
         { name: 'stylelessOperatorPageView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 

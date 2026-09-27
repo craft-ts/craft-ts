@@ -1,5 +1,5 @@
 import { craftComponent, li, span, ul, type Input } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftService } from '@craft-ts/core';
 import { TIERS } from '@craft-ts/style-testing/review/frame';
 import type { Messages } from './messages';
 import { tierLegend } from './tier-legend.style';
@@ -41,41 +41,35 @@ const legendEntry = (
  * meets a dotted orange box around a button they never touched and has no
  * way to find out what it is telling them.
  */
-export const TierLegend = craftComponent(
-  'TierLegend',
-  {},
-  function* ({
-    showing,
-    changedCount,
-    coveredCount,
-    chromeNames,
-    t,
-  }: {
+export const { TierLegendView, provideTierLegendView } = craftService(
+  { name: 'tierLegendView', providedIn: 'toProvide' },
+  function* (inputs: {
     readonly showing: Input<boolean>;
     readonly changedCount: Input<number>;
     readonly coveredCount: Input<number>;
     readonly chromeNames: Input<readonly string[]>;
     readonly t: Input<Messages>;
   }) {
-    const hiddenLegend = yield* craftComputed('hiddenLegend', function* () {
+    const { showing, changedCount, coveredCount, chromeNames, t } = inputs;
+    yield* craftComputed('hiddenLegend', function* () {
       return !(yield* showing());
     });
-    const subjectLabel = yield* craftComputed('subjectLabel', function* () {
+    yield* craftComputed('subjectLabel', function* () {
       return (yield* t()).tierSubject;
     });
-    const changedHidden = yield* craftComputed('changedHidden', function* () {
+    yield* craftComputed('changedHidden', function* () {
       return (yield* changedCount()) === 0;
     });
-    const changedLabel = yield* craftComputed('changedLabel', function* () {
+    yield* craftComputed('changedLabel', function* () {
       return (yield* t()).tierChanged;
     });
-    const occludedHidden = yield* craftComputed('occludedHidden', function* () {
+    yield* craftComputed('occludedHidden', function* () {
       return (yield* coveredCount()) === 0;
     });
     // Named when the replay knows the name. "Covered by the page's own
     // overlay" asked the reviewer to work out what an overlay is and which
     // one; this points at the same thing the lift control above removes.
-    const occludedLabel = yield* craftComputed('occludedLabel', function* () {
+    yield* craftComputed('occludedLabel', function* () {
       const covering = yield* chromeNames();
       const say = yield* t();
       if (covering.length === 1) {
@@ -85,9 +79,33 @@ export const TierLegend = craftComponent(
         ? say.tierOccludedMany(covering.length)
         : say.tierOccludedUnknown;
     });
-    const pickedLabel = yield* craftComputed('pickedLabel', function* () {
+    yield* craftComputed('pickedLabel', function* () {
       return (yield* t()).tierPicked;
     });
+  },
+);
+
+export const TierLegend = craftComponent(
+  'TierLegend',
+  {
+    providers: [provideTierLegendView()],
+  },
+  function* (inputs: {
+    readonly showing: Input<boolean>;
+    readonly changedCount: Input<number>;
+    readonly coveredCount: Input<number>;
+    readonly chromeNames: Input<readonly string[]>;
+    readonly t: Input<Messages>;
+  }) {
+    const {
+      hiddenLegend,
+      subjectLabel,
+      changedHidden,
+      changedLabel,
+      occludedHidden,
+      occludedLabel,
+      pickedLabel,
+    } = yield* TierLegendView(inputs);
     return ul({ class: tierLegend.root, hidden: hiddenLegend }, [
       legendEntry('subject', { label: subjectLabel }),
       legendEntry('changed', {

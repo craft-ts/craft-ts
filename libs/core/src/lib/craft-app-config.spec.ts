@@ -27,6 +27,7 @@ describe('craftAppConfig', () => {
     const { provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
     const token = new InjectionToken<string>('plain-provider');

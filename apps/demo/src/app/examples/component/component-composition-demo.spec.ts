@@ -15,7 +15,7 @@ describe('componentCompositionDemo', () => {
 
     (
       rendered.element.querySelector(
-        '.component-demo__access-toggle',
+        'button[data-craft-name="accessToggle"]',
       ) as HTMLButtonElement
     ).click();
     await rendered.flush();

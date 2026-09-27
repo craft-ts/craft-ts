@@ -197,156 +197,165 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       readonly note: string;
     }>('mentionEdited$');
 
-    const navigationParams = yield* craftPrivate(queryParams(
-      'reviewNavigation',
-      {
-        state: {
-          view: {
-            fallbackValue: '' satisfies UrlDevtoolView,
-            codec: devtoolViewQueryParamCodec,
-          },
-          scenario: {
-            fallbackValue: '',
-            codec: stringQueryParamCodec,
+    const navigationParams = yield* craftPrivate(
+      queryParams(
+        'reviewNavigation',
+        {
+          state: {
+            view: {
+              fallbackValue: '' satisfies UrlDevtoolView,
+              codec: devtoolViewQueryParamCodec,
+            },
+            scenario: {
+              fallbackValue: '',
+              codec: stringQueryParamCodec,
+            },
           },
         },
-      },
-      insertQueryParamsPipe(
-        ({ state }) => ({
-          devtoolView: craftUse(craftComputed('devtoolView', function* () {
-            const params = yield* state();
-            return params.view || initialDevtoolView();
-          })),
-          selectedVisualTest: craftUse(craftComputed('selectedVisualTest', function* () {
-            const list = yield* visualTests();
-            if (list.length === 0) return undefined;
-            const params = yield* state();
-            return (
-              list.find(
-                (test) =>
-                  test.subject === params.scenario ||
-                  test.scenario === params.scenario,
-              ) ?? list[0]
-            );
-          })),
-          activeTemplateGroupIndex: craftUse(craftComputed(
-            'activeTemplateGroupIndex',
-            function* () {
-              const groups = yield* templateReviewGroups();
-              const params = yield* state();
-              const index = groups.findIndex((group) =>
-                group.cards.some(
-                  (card) =>
-                    card.shape === params.scenario ||
-                    card.subject === params.scenario,
-                ),
-              );
-              return index < 0 ? 0 : index;
-            },
-          )),
-          activeIndex: craftUse(craftComputed('activeIndex', function* () {
-            const params = yield* state();
-            const source = (yield* review.value())?.cards ?? [];
-            const view = params.view || initialDevtoolView();
-            let list = source;
-            if (view === 'review') {
-              list = source.filter((card) => card.kind !== 'folder-layout');
-            } else if (view === 'folder-layout') {
-              list = source.filter((card) => card.kind === 'folder-layout');
-            } else {
-              const component = (yield* componentFilter()).trim().toLowerCase();
-              const searchTerm = (yield* searchTextFilter())
-                .trim()
-                .toLowerCase();
-              const kind = yield* kindFilter();
-              const itemState = yield* stateFilter();
-              const direction = yield* directionFilter();
-              list = source.filter((card) => {
-                if (kind !== 'all' && card.kind !== kind) return false;
-                if (itemState !== 'all' && card.state !== itemState)
-                  return false;
-                if (direction !== 'all') {
-                  const cardDirection =
-                    card.kind === 'template'
-                      ? card.direction
-                      : card.kind === 'removal'
-                        ? card.previousEvidence?.direction
-                        : undefined;
-                  if (cardDirection !== direction) return false;
-                }
-                if (
-                  component &&
-                  !card.reviewMembers.some((member) =>
-                    member.label.toLowerCase().includes(component),
-                  )
-                ) {
-                  return false;
-                }
-                if (searchTerm) {
-                  const searchable = [
-                    card.subject,
-                    card.reason,
-                    ...card.changes,
-                    ...(card.kind === 'template' ? [card.statement] : []),
-                  ]
-                    .join(' ')
+        insertQueryParamsPipe(
+          ({ state }) => ({
+            devtoolView: craftUse(
+              craftComputed('devtoolView', function* () {
+                const params = yield* state();
+                return params.view || initialDevtoolView();
+              }),
+            ),
+            selectedVisualTest: craftUse(
+              craftComputed('selectedVisualTest', function* () {
+                const list = yield* visualTests();
+                if (list.length === 0) return undefined;
+                const params = yield* state();
+                return (
+                  list.find(
+                    (test) =>
+                      test.subject === params.scenario ||
+                      test.scenario === params.scenario,
+                  ) ?? list[0]
+                );
+              }),
+            ),
+            activeTemplateGroupIndex: craftUse(
+              craftComputed('activeTemplateGroupIndex', function* () {
+                const groups = yield* templateReviewGroups();
+                const params = yield* state();
+                const index = groups.findIndex((group) =>
+                  group.cards.some(
+                    (card) =>
+                      card.shape === params.scenario ||
+                      card.subject === params.scenario,
+                  ),
+                );
+                return index < 0 ? 0 : index;
+              }),
+            ),
+            activeIndex: craftUse(
+              craftComputed('activeIndex', function* () {
+                const params = yield* state();
+                const source = (yield* review.value())?.cards ?? [];
+                const view = params.view || initialDevtoolView();
+                let list = source;
+                if (view === 'review') {
+                  list = source.filter((card) => card.kind !== 'folder-layout');
+                } else if (view === 'folder-layout') {
+                  list = source.filter((card) => card.kind === 'folder-layout');
+                } else {
+                  const component = (yield* componentFilter())
+                    .trim()
                     .toLowerCase();
-                  if (!searchable.includes(searchTerm)) return false;
+                  const searchTerm = (yield* searchTextFilter())
+                    .trim()
+                    .toLowerCase();
+                  const kind = yield* kindFilter();
+                  const itemState = yield* stateFilter();
+                  const direction = yield* directionFilter();
+                  list = source.filter((card) => {
+                    if (kind !== 'all' && card.kind !== kind) return false;
+                    if (itemState !== 'all' && card.state !== itemState)
+                      return false;
+                    if (direction !== 'all') {
+                      const cardDirection =
+                        card.kind === 'template'
+                          ? card.direction
+                          : card.kind === 'removal'
+                            ? card.previousEvidence?.direction
+                            : undefined;
+                      if (cardDirection !== direction) return false;
+                    }
+                    if (
+                      component &&
+                      !card.reviewMembers.some((member) =>
+                        member.label.toLowerCase().includes(component),
+                      )
+                    ) {
+                      return false;
+                    }
+                    if (searchTerm) {
+                      const searchable = [
+                        card.subject,
+                        card.reason,
+                        ...card.changes,
+                        ...(card.kind === 'template' ? [card.statement] : []),
+                      ]
+                        .join(' ')
+                        .toLowerCase();
+                      if (!searchable.includes(searchTerm)) return false;
+                    }
+                    return true;
+                  });
                 }
-                return true;
-              });
-            }
-            if (list.length === 0) return 0;
-            if (!params.scenario) return 0;
-            const index = list.findIndex(
-              (card) => card.shape === params.scenario,
-            );
-            return index >= 0 ? index : 0;
-          })),
-        }),
-        ({ patch }) => ({
-          setViewForDevtoolChoice: function* (value: DevtoolView) {
-            yield* patch({ view: value }, { replaceUrl: true });
-            return navigateToView(value);
-          },
-          setViewForApplicationReview: function* (value: DevtoolView) {
-            yield* patch({ view: value }, { replaceUrl: true });
-            return navigateToView(value);
-          },
-          setScenarioForApplicationReview: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-          setScenarioForTemplateGroup: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-          setViewForVisualReview: function* (value: DevtoolView) {
-            yield* patch({ view: value }, { replaceUrl: true });
-            return navigateToView(value);
-          },
-          setScenarioAfterRegeneration: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-          setScenarioPrevious: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-          setScenarioNext: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-          setScenarioForVisualTestSelection: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-          setScenarioForVisualReview: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-          setScenarioForCardSelection: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-          setScenarioForReopenedDecision: function* (value: string) {
-            return yield* patch({ scenario: value });
-          },
-        }),
+                if (list.length === 0) return 0;
+                if (!params.scenario) return 0;
+                const index = list.findIndex(
+                  (card) => card.shape === params.scenario,
+                );
+                return index >= 0 ? index : 0;
+              }),
+            ),
+          }),
+          ({ patch }) => ({
+            setViewForDevtoolChoice: function* (value: DevtoolView) {
+              yield* patch({ view: value }, { replaceUrl: true });
+              return navigateToView(value);
+            },
+            setViewForApplicationReview: function* (value: DevtoolView) {
+              yield* patch({ view: value }, { replaceUrl: true });
+              return navigateToView(value);
+            },
+            setScenarioForApplicationReview: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+            setScenarioForTemplateGroup: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+            setViewForVisualReview: function* (value: DevtoolView) {
+              yield* patch({ view: value }, { replaceUrl: true });
+              return navigateToView(value);
+            },
+            setScenarioAfterRegeneration: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+            setScenarioPrevious: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+            setScenarioNext: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+            setScenarioForVisualTestSelection: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+            setScenarioForVisualReview: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+            setScenarioForCardSelection: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+            setScenarioForReopenedDecision: function* (value: string) {
+              return yield* patch({ scenario: value });
+            },
+          }),
+        ),
       ),
-    ));
+    );
     const { selectedVisualTest, activeTemplateGroupIndex } = navigationParams;
     const { devtoolView } = navigationParams;
 
@@ -374,25 +383,33 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       '',
       insertStatePipe(
         ({ state }) => ({
-          noteState: craftUse(craftComputed('noteState', function* () {
-            return (yield* state()).length === 0 ? 'empty' : null;
-          })),
-          hasNote: craftUse(craftComputed('hasNote', function* () {
-            return proseOf(yield* state()).length > 0;
-          })),
-          findings: craftUse(craftComputed('findings', function* () {
-            const noteContent = yield* state();
-            return (yield* mentions())
-              .filter((mention) => mentionPattern(mention.id).test(noteContent))
-              .flatMap((mention) =>
-                mention.paths.map(
-                  (path): Finding => ({
-                    path,
-                    note: noteForMention(noteContent, mention.id),
-                  }),
-                ),
-              );
-          })),
+          noteState: craftUse(
+            craftComputed('noteState', function* () {
+              return (yield* state()).length === 0 ? 'empty' : null;
+            }),
+          ),
+          hasNote: craftUse(
+            craftComputed('hasNote', function* () {
+              return proseOf(yield* state()).length > 0;
+            }),
+          ),
+          findings: craftUse(
+            craftComputed('findings', function* () {
+              const noteContent = yield* state();
+              return (yield* mentions())
+                .filter((mention) =>
+                  mentionPattern(mention.id).test(noteContent),
+                )
+                .flatMap((mention) =>
+                  mention.paths.map(
+                    (path): Finding => ({
+                      path,
+                      note: noteForMention(noteContent, mention.id),
+                    }),
+                  ),
+                );
+            }),
+          ),
         }),
         ({ set }) => ({
           writeFromInput: (value: string) => set(value),
@@ -430,12 +447,11 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       false,
       insertStatePipe(
         ({ state }) => ({
-          rejectionReasonMissing: craftUse(craftComputed(
-            'rejectionReasonMissing',
-            function* () {
+          rejectionReasonMissing: craftUse(
+            craftComputed('rejectionReasonMissing', function* () {
               return (yield* state()) && !(yield* hasNote());
-            },
-          )),
+            }),
+          ),
         }),
         ({ set }) => ({
           showForRejectedDecision: () => set(true),
@@ -453,25 +469,29 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       initialEvidenceView(),
       insertStatePipe(
         ({ state }) => ({
-          showingReplay: craftUse(craftComputed('showingReplay', function* () {
-            const card = yield* current();
-            if (card?.kind === 'visual' && card.evidenceMode === 'screenshot')
-              return false;
-            if (!(yield* canReplay())) return false;
-            const chosen = yield* state();
-            if (chosen !== 'auto') return chosen === 'replay';
-            const replayState = yield* replay();
-            return !replayState.loaded || replayState.faithful;
-          })),
-          fellBack: craftUse(craftComputed('fellBack', function* () {
-            const replayState = yield* replay();
-            return (
-              (yield* canReplay()) &&
-              (yield* state()) === 'auto' &&
-              replayState.loaded &&
-              !replayState.faithful
-            );
-          })),
+          showingReplay: craftUse(
+            craftComputed('showingReplay', function* () {
+              const card = yield* current();
+              if (card?.kind === 'visual' && card.evidenceMode === 'screenshot')
+                return false;
+              if (!(yield* canReplay())) return false;
+              const chosen = yield* state();
+              if (chosen !== 'auto') return chosen === 'replay';
+              const replayState = yield* replay();
+              return !replayState.loaded || replayState.faithful;
+            }),
+          ),
+          fellBack: craftUse(
+            craftComputed('fellBack', function* () {
+              const replayState = yield* replay();
+              return (
+                (yield* canReplay()) &&
+                (yield* state()) === 'auto' &&
+                replayState.loaded &&
+                !replayState.faithful
+              );
+            }),
+          ),
         }),
         ({ set }) => ({
           chooseReplay: () => set('replay'),
@@ -507,10 +527,12 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       false,
       insertStatePipe(
         ({ state }) => ({
-          overlayLabel: craftUse(craftComputed('overlayLabel', function* () {
-            const say = yield* t();
-            return (yield* state()) ? say.drop : say.lift;
-          })),
+          overlayLabel: craftUse(
+            craftComputed('overlayLabel', function* () {
+              const say = yield* t();
+              return (yield* state()) ? say.drop : say.lift;
+            }),
+          ),
         }),
         ({ set }) => ({ choose: (value: boolean) => set(value) }),
       ),
@@ -551,22 +573,23 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         closeFromCancel: on$(iterationDialogClosed$, () => set(false)),
       }),
     );
-    const folderLayoutApplyDialogDismissed = yield* craftPrivate(state(
-      'folderLayoutApplyDialogDismissed',
-      false,
-      insertStatePipe(
-        ({ state }) => ({
-          folderLayoutApplyDialogOpen: craftUse(craftComputed(
-            'folderLayoutApplyDialogOpen',
-            function* () {
-              const apply = (yield* review.value())?.folderLayoutApply;
-              return Boolean(apply && !apply.applied && !(yield* state()));
-            },
-          )),
-        }),
-        ({ set }) => ({ dismiss: () => set(true) }),
+    const folderLayoutApplyDialogDismissed = yield* craftPrivate(
+      state(
+        'folderLayoutApplyDialogDismissed',
+        false,
+        insertStatePipe(
+          ({ state }) => ({
+            folderLayoutApplyDialogOpen: craftUse(
+              craftComputed('folderLayoutApplyDialogOpen', function* () {
+                const apply = (yield* review.value())?.folderLayoutApply;
+                return Boolean(apply && !apply.applied && !(yield* state()));
+              }),
+            ),
+          }),
+          ({ set }) => ({ dismiss: () => set(true) }),
+        ),
       ),
-    ));
+    );
     const { folderLayoutApplyDialogOpen } = folderLayoutApplyDialogDismissed;
     const folderLayoutApplyCopied = yield* state(
       'folderLayoutApplyCopied',
@@ -578,12 +601,11 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       false,
       insertStatePipe(
         ({ state }) => ({
-          iterationPreparationNotStarted: craftUse(craftComputed(
-            'iterationPreparationNotStarted',
-            function* () {
+          iterationPreparationNotStarted: craftUse(
+            craftComputed('iterationPreparationNotStarted', function* () {
               return !(yield* state());
-            },
-          )),
+            }),
+          ),
         }),
         ({ set }) => ({
           beginFromConfirmation: on$(iterationHandoffRequested$, () =>
@@ -621,23 +643,24 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
     // Callable from inside the frozen frame: a craftMethod is a plain function
     // that drives its own generator, which is what lets a listener living in
     // another document write back into this component's state.
-    const selectNodes = yield* craftPrivate(craftMethod(
-      'selectNodes',
-      function* (paths: readonly string[]) {
+    const selectNodes = yield* craftPrivate(
+      craftMethod('selectNodes', function* (paths: readonly string[]) {
         yield* selection.replaceFromFrame(paths);
         trackSelection(paths);
-      },
-    ));
-    const showBand = yield* craftPrivate(craftMethod(
-      'showBand',
-      function* (
-        rect:
-          | { x: number; y: number; width: number; height: number }
-          | undefined,
-      ) {
-        yield* band.show(rect);
-      },
-    ));
+      }),
+    );
+    const showBand = yield* craftPrivate(
+      craftMethod(
+        'showBand',
+        function* (
+          rect:
+            | { x: number; y: number; width: number; height: number }
+            | undefined,
+        ) {
+          yield* band.show(rect);
+        },
+      ),
+    );
     // Replaced on every re-mark. Without it each toggle of the page chrome
     // added another listener, and one click produced two selections.
     let stopPicking: (() => void) | undefined;
@@ -761,100 +784,106 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
      * CI and is not faithful here would otherwise be judged as though it were
      * the original. The check runs on load, on this screen, every time.
      */
-    const inspect = yield* craftPrivate(asyncProcess(
-      'inspectReplay',
-      {
-        method: (payload: {
-          readonly frame: HTMLIFrameElement;
-          readonly target: string;
-          readonly evidence?: string;
-          readonly attested: readonly string[];
-          readonly changed: readonly string[];
-          readonly occluded: readonly string[];
-          readonly hideChrome: boolean;
-          readonly selected: readonly string[];
-          readonly colorScheme?: 'light' | 'dark' | 'no-preference';
-        }) => payload,
-        loader: function* ({ params }) {
-          const view = viewOf(params.frame);
-          if (!view) {
+    const inspect = yield* craftPrivate(
+      asyncProcess(
+        'inspectReplay',
+        {
+          method: (payload: {
+            readonly frame: HTMLIFrameElement;
+            readonly target: string;
+            readonly evidence?: string;
+            readonly attested: readonly string[];
+            readonly changed: readonly string[];
+            readonly occluded: readonly string[];
+            readonly hideChrome: boolean;
+            readonly selected: readonly string[];
+            readonly colorScheme?: 'light' | 'dark' | 'no-preference';
+          }) => payload,
+          loader: function* ({ params }) {
+            const view = viewOf(params.frame);
+            if (!view) {
+              return {
+                loaded: false,
+                faithful: false,
+                reason: undefined,
+                report: [],
+                chrome: [],
+              };
+            }
+            // Fonts first: a box measured before its face arrives carries the
+            // fallback's metrics, and half a pixel on one span reads as an
+            // unfaithful replay.
+            yield* waitForReplayReady(view);
+
+            // Measured before anything is drawn on it. The marking is meant to be
+            // layout-neutral, but "meant to be" is not a guarantee, and a check
+            // that runs after its own annotations is checking the annotations.
+            const attested = params.evidence
+              ? yield* craftUntilSettled(
+                  CraftHttpClient.get(({ response }) => ({
+                    url: `/api/digest/${encodeURIComponent(params.evidence ?? '')}`,
+                    success: response<LayoutDigest>(),
+                  })),
+                )
+              : undefined;
+            const fidelity = attested
+              ? checkReplay(view, params.target, attested, {
+                  tolerance: REVIEW_TOLERANCE,
+                })
+              : undefined;
+
+            const chrome = markTiers(view, {
+              root: params.target,
+              attested: params.attested,
+              changed: params.changed,
+              occluded: params.occluded,
+              dimDecor: true,
+              hideChrome: params.hideChrome,
+            });
+            // Re-applied after the marking, which rebuilds the frame's
+            // annotations: lifting the page's chrome must not silently drop the
+            // nodes the reviewer had already pointed at.
+            markSelection(view, params.selected);
+            applyReplayScale();
+            watchWindowSize();
+            stopPicking?.();
+            stopPicking = onPick(view, selectNodes, { onBand: showBand });
+
             return {
-              loaded: false,
-              faithful: false,
-              reason: undefined,
-              report: [],
-              chrome: [],
+              loaded: true,
+              faithful: fidelity?.faithful ?? false,
+              reason: fidelity?.reason,
+              report: fidelity?.report ?? [],
+              chrome,
             };
-          }
-          // Fonts first: a box measured before its face arrives carries the
-          // fallback's metrics, and half a pixel on one span reads as an
-          // unfaithful replay.
-          yield* waitForReplayReady(view);
-
-          // Measured before anything is drawn on it. The marking is meant to be
-          // layout-neutral, but "meant to be" is not a guarantee, and a check
-          // that runs after its own annotations is checking the annotations.
-          const attested = params.evidence
-            ? yield* craftUntilSettled(
-                CraftHttpClient.get(({ response }) => ({
-                  url: `/api/digest/${encodeURIComponent(params.evidence ?? '')}`,
-                  success: response<LayoutDigest>(),
-                })),
-              )
-            : undefined;
-          const fidelity = attested
-            ? checkReplay(view, params.target, attested, {
-                tolerance: REVIEW_TOLERANCE,
-              })
-            : undefined;
-
-          const chrome = markTiers(view, {
-            root: params.target,
-            attested: params.attested,
-            changed: params.changed,
-            occluded: params.occluded,
-            dimDecor: true,
-            hideChrome: params.hideChrome,
-          });
-          // Re-applied after the marking, which rebuilds the frame's
-          // annotations: lifting the page's chrome must not silently drop the
-          // nodes the reviewer had already pointed at.
-          markSelection(view, params.selected);
-          applyReplayScale();
-          watchWindowSize();
-          stopPicking?.();
-          stopPicking = onPick(view, selectNodes, { onBand: showBand });
-
-          return {
-            loaded: true,
-            faithful: fidelity?.faithful ?? false,
-            reason: fidelity?.reason,
-            report: fidelity?.report ?? [],
-            chrome,
-          };
+          },
         },
-      },
-      ({ resource, state, hasException }) => ({
-        replay: craftUse(craftComputed('replay', function* () {
-          return (
-            (yield* state()) ??
-            ({
-              loaded: false,
-              faithful: false,
-              reason: undefined,
-              report: [],
-              chrome: [],
-            } satisfies ReplayState)
-          );
-        })),
-        inspectFailed: craftUse(craftComputed('inspectFailed', function* () {
-          return (
-            String(yield* resource.status()) === 'exception' ||
-            (yield* hasException())
-          );
-        })),
-      }),
-    ));
+        ({ resource, state, hasException }) => ({
+          replay: craftUse(
+            craftComputed('replay', function* () {
+              return (
+                (yield* state()) ??
+                ({
+                  loaded: false,
+                  faithful: false,
+                  reason: undefined,
+                  report: [],
+                  chrome: [],
+                } satisfies ReplayState)
+              );
+            }),
+          ),
+          inspectFailed: craftUse(
+            craftComputed('inspectFailed', function* () {
+              return (
+                String(yield* resource.status()) === 'exception' ||
+                (yield* hasException())
+              );
+            }),
+          ),
+        }),
+      ),
+    );
     const { replay, inspectFailed } = inspect;
 
     const decision = yield* mutation(
@@ -878,12 +907,14 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         },
       },
       ({ resource, hasException }) => ({
-        decisionFailed: craftUse(craftComputed('decisionFailed', function* () {
-          return (
-            String(yield* resource.status()) === 'exception' ||
-            (yield* hasException())
-          );
-        })),
+        decisionFailed: craftUse(
+          craftComputed('decisionFailed', function* () {
+            return (
+              String(yield* resource.status()) === 'exception' ||
+              (yield* hasException())
+            );
+          }),
+        ),
       }),
     );
     const { decisionFailed } = decision;
@@ -901,12 +932,14 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         },
       },
       ({ resource, hasException }) => ({
-        reopenFailed: craftUse(craftComputed('reopenFailed', function* () {
-          return (
-            String(yield* resource.status()) === 'exception' ||
-            (yield* hasException())
-          );
-        })),
+        reopenFailed: craftUse(
+          craftComputed('reopenFailed', function* () {
+            return (
+              String(yield* resource.status()) === 'exception' ||
+              (yield* hasException())
+            );
+          }),
+        ),
       }),
     );
     const { reopenFailed } = reopen;
@@ -924,12 +957,14 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         },
       },
       ({ resource, hasException }) => ({
-        regenerationFailed: craftUse(craftComputed('regenerationFailed', function* () {
-          return (
-            String(yield* resource.status()) === 'exception' ||
-            (yield* hasException())
-          );
-        })),
+        regenerationFailed: craftUse(
+          craftComputed('regenerationFailed', function* () {
+            return (
+              String(yield* resource.status()) === 'exception' ||
+              (yield* hasException())
+            );
+          }),
+        ),
       }),
     );
     const { regenerationFailed } = regenerate;
@@ -947,15 +982,14 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         },
       },
       ({ resource, hasException }) => ({
-        iterationHandoffFailed: craftUse(craftComputed(
-          'iterationHandoffFailed',
-          function* () {
+        iterationHandoffFailed: craftUse(
+          craftComputed('iterationHandoffFailed', function* () {
             return (
               String(yield* resource.status()) === 'exception' ||
               (yield* hasException())
             );
-          },
-        )),
+          }),
+        ),
       }),
     );
     const { iterationHandoffFailed } = iterationHandoff;
@@ -987,122 +1021,124 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
 
     // Infer the query before delegating to it: combining both expressions can
     // exceed TypeScript's union complexity limit when this file is checked first.
-    const reviewQueue = yield* craftPrivate(query(
-      'reviewQueue',
-      {
-        params: () => true,
-        loader: function* () {
-          return yield* CraftHttpClient.get(({ response }) => ({
-            url: '/api/review',
-            success: response<ReviewApiQueue>(),
-          }));
+    const reviewQueue = yield* craftPrivate(
+      query(
+        'reviewQueue',
+        {
+          params: () => true,
+          loader: function* () {
+            return yield* CraftHttpClient.get(({ response }) => ({
+              url: '/api/review',
+              success: response<ReviewApiQueue>(),
+            }));
+          },
         },
-      },
-      insertQueryPipe(
-        insertReactOnMutation(decision, {
-          update: ({ queryResource, mutationResource }) =>
-            mutationResource.value() ??
-            queryResource.value() ?? {
-              items: 0,
-              decisions: 0,
-              cards: [],
-              visualAssets: [],
-              visualTests: [],
-              templateObligations: [],
-              diagnostics: [],
-              history: [],
-            },
-        }),
-        insertReactOnMutation(reopen, {
-          update: ({ queryResource, mutationResource }) =>
-            mutationResource.value() ??
-            queryResource.value() ?? {
-              items: 0,
-              decisions: 0,
-              cards: [],
-              visualAssets: [],
-              visualTests: [],
-              templateObligations: [],
-              diagnostics: [],
-              history: [],
-            },
-        }),
-        insertReactOnMutation(regenerate, {
-          update: ({ queryResource, mutationResource }) =>
-            mutationResource.value() ??
-            queryResource.value() ?? {
-              items: 0,
-              decisions: 0,
-              cards: [],
-              visualAssets: [],
-              visualTests: [],
-              templateObligations: [],
-              diagnostics: [],
-              history: [],
-            },
-        }),
-        insertReactOnMutation(iterationHandoff, {
-          // The handoff writes files and returns its prompt; it does not change
-          // the attestation queue. Still react declaratively so this mutation
-          // participates in the same resource graph as the other actions.
-          update: ({ queryResource }) =>
-            queryResource.value() ?? {
-              items: 0,
-              decisions: 0,
-              cards: [],
-              visualAssets: [],
-              visualTests: [],
-              templateObligations: [],
-              diagnostics: [],
-              history: [],
-            },
-        }),
-        insertReactOnMutation(applyFolderLayout, {
-          update: ({ queryResource, mutationResource }) =>
-            mutationResource.value() ??
-            queryResource.value() ?? {
-              items: 0,
-              decisions: 0,
-              cards: [],
-              visualAssets: [],
-              visualTests: [],
-              templateObligations: [],
-              diagnostics: [],
-              history: [],
-            },
-        }),
-        insertReactOnMutation(templateAgentReview, {
-          update: ({ queryResource, mutationResource }) =>
-            mutationResource.value() ??
-            queryResource.value() ?? {
-              items: 0,
-              decisions: 0,
-              cards: [],
-              visualAssets: [],
-              visualTests: [],
-              templateObligations: [],
-              diagnostics: [],
-              history: [],
-            },
-        }),
-        insertReactOnMutation(closeReview, {
-          // Closing writes the iteration handoff, so keep the queue resource
-          // in the same declarative mutation graph even though the response
-          // itself is not a queue payload.
-          update: ({ queryResource }) =>
-            queryResource.value() ?? {
-              items: 0,
-              decisions: 0,
-              cards: [],
-              visualAssets: [],
-              visualTests: [],
-              templateObligations: [],
-              diagnostics: [],
-              history: [],
-            },
-        }),
+        insertQueryPipe(
+          insertReactOnMutation(decision, {
+            update: ({ queryResource, mutationResource }) =>
+              mutationResource.value() ??
+              queryResource.value() ?? {
+                items: 0,
+                decisions: 0,
+                cards: [],
+                visualAssets: [],
+                visualTests: [],
+                templateObligations: [],
+                diagnostics: [],
+                history: [],
+              },
+          }),
+          insertReactOnMutation(reopen, {
+            update: ({ queryResource, mutationResource }) =>
+              mutationResource.value() ??
+              queryResource.value() ?? {
+                items: 0,
+                decisions: 0,
+                cards: [],
+                visualAssets: [],
+                visualTests: [],
+                templateObligations: [],
+                diagnostics: [],
+                history: [],
+              },
+          }),
+          insertReactOnMutation(regenerate, {
+            update: ({ queryResource, mutationResource }) =>
+              mutationResource.value() ??
+              queryResource.value() ?? {
+                items: 0,
+                decisions: 0,
+                cards: [],
+                visualAssets: [],
+                visualTests: [],
+                templateObligations: [],
+                diagnostics: [],
+                history: [],
+              },
+          }),
+          insertReactOnMutation(iterationHandoff, {
+            // The handoff writes files and returns its prompt; it does not change
+            // the attestation queue. Still react declaratively so this mutation
+            // participates in the same resource graph as the other actions.
+            update: ({ queryResource }) =>
+              queryResource.value() ?? {
+                items: 0,
+                decisions: 0,
+                cards: [],
+                visualAssets: [],
+                visualTests: [],
+                templateObligations: [],
+                diagnostics: [],
+                history: [],
+              },
+          }),
+          insertReactOnMutation(applyFolderLayout, {
+            update: ({ queryResource, mutationResource }) =>
+              mutationResource.value() ??
+              queryResource.value() ?? {
+                items: 0,
+                decisions: 0,
+                cards: [],
+                visualAssets: [],
+                visualTests: [],
+                templateObligations: [],
+                diagnostics: [],
+                history: [],
+              },
+          }),
+          insertReactOnMutation(templateAgentReview, {
+            update: ({ queryResource, mutationResource }) =>
+              mutationResource.value() ??
+              queryResource.value() ?? {
+                items: 0,
+                decisions: 0,
+                cards: [],
+                visualAssets: [],
+                visualTests: [],
+                templateObligations: [],
+                diagnostics: [],
+                history: [],
+              },
+          }),
+          insertReactOnMutation(closeReview, {
+            // Closing writes the iteration handoff, so keep the queue resource
+            // in the same declarative mutation graph even though the response
+            // itself is not a queue payload.
+            update: ({ queryResource }) =>
+              queryResource.value() ?? {
+                items: 0,
+                decisions: 0,
+                cards: [],
+                visualAssets: [],
+                visualTests: [],
+                templateObligations: [],
+                diagnostics: [],
+                history: [],
+              },
+          }),
+        ),
       ),
-    ));
+    );
 
     const review = reviewQueue;
 
@@ -1224,60 +1260,58 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
               .includes(searchTerm)),
       );
     });
-    yield* craftComputed(
-      'selectedVisualAsset',
+    yield* craftComputed('selectedVisualAsset', function* () {
+      const test = yield* selectedVisualTest();
+      if (!test) return undefined;
+      return (yield* review.value())?.visualAssets.find(
+        (asset) => asset.evidence === test.evidence,
+      );
+    });
+    const visualReviewCard = yield* craftComputed(
+      'visualReviewCard',
       function* () {
         const test = yield* selectedVisualTest();
         if (!test) return undefined;
-        return (yield* review.value())?.visualAssets.find(
-          (asset) => asset.evidence === test.evidence,
+        return (yield* review.value())?.cards.find(
+          (card) =>
+            card.kind === 'visual' &&
+            card.reviewMembers.some(
+              (member) => member.subject === test.subject,
+            ),
         );
       },
     );
-    const visualReviewCard = yield* craftComputed('visualReviewCard', function* () {
-      const test = yield* selectedVisualTest();
-      if (!test) return undefined;
-      return (yield* review.value())?.cards.find(
-        (card) =>
-          card.kind === 'visual' &&
-          card.reviewMembers.some((member) => member.subject === test.subject),
+    yield* craftComputed('templateObligations', function* () {
+      if (
+        (yield* kindFilter()) !== 'all' &&
+        (yield* kindFilter()) !== 'template'
+      )
+        return [];
+      const component = (yield* componentFilter()).trim().toLowerCase();
+      const searchTerm = (yield* searchTextFilter()).trim().toLowerCase();
+      const state = yield* stateFilter();
+      const direction = yield* directionFilter();
+      return ((yield* review.value())?.templateObligations ?? []).filter(
+        (obligation) =>
+          (state === 'all' || obligation.state === state) &&
+          (direction === 'all' || obligation.direction === direction) &&
+          (!component ||
+            obligation.component.toLowerCase().includes(component)) &&
+          (!searchTerm ||
+            `${obligation.subject} ${obligation.statement}`
+              .toLowerCase()
+              .includes(searchTerm)),
       );
     });
-    yield* craftComputed(
-      'templateObligations',
-      function* () {
-        if (
-          (yield* kindFilter()) !== 'all' &&
-          (yield* kindFilter()) !== 'template'
-        )
-          return [];
-        const component = (yield* componentFilter()).trim().toLowerCase();
-        const searchTerm = (yield* searchTextFilter()).trim().toLowerCase();
-        const state = yield* stateFilter();
-        const direction = yield* directionFilter();
-        return ((yield* review.value())?.templateObligations ?? []).filter(
-          (obligation) =>
-            (state === 'all' || obligation.state === state) &&
-            (direction === 'all' || obligation.direction === direction) &&
-            (!component ||
-              obligation.component.toLowerCase().includes(component)) &&
-            (!searchTerm ||
-              `${obligation.subject} ${obligation.statement}`
-                .toLowerCase()
-                .includes(searchTerm)),
-        );
-      },
-    );
-    const templateReviewGroups = yield* craftPrivate(craftComputed(
-      'templateReviewGroups',
-      function* () {
+    const templateReviewGroups = yield* craftPrivate(
+      craftComputed('templateReviewGroups', function* () {
         return groupTemplateReviewCards(
           ((yield* review.value())?.cards ?? []).filter(
             (card) => card.kind === 'template',
           ),
         );
-      },
-    ));
+      }),
+    );
     const activeTemplateGroup = yield* craftComputed(
       'activeTemplateGroup',
       function* () {
@@ -1286,18 +1320,12 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         ];
       },
     );
-    yield* craftComputed(
-      'templateGroupCount',
-      function* () {
-        return (yield* templateReviewGroups()).length;
-      },
-    );
-    yield* craftComputed(
-      'templateAgentAvailable',
-      function* () {
-        return (yield* review.value())?.templateAgentAvailable ?? false;
-      },
-    );
+    yield* craftComputed('templateGroupCount', function* () {
+      return (yield* templateReviewGroups()).length;
+    });
+    yield* craftComputed('templateAgentAvailable', function* () {
+      return (yield* review.value())?.templateAgentAvailable ?? false;
+    });
     const templateGroupVisible = yield* craftComputed(
       'templateGroupVisible',
       function* () {
@@ -1322,83 +1350,84 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       return list[yield* activeIndex()];
     });
     const activeCardForPanel = deepYieldable(
-      yield* craftComputed('activeCardForPanel', function* (): Generator<
-        unknown,
-        readonly ReviewCard[],
-        unknown
-      > {
-        const card = yield* current();
-        return card && !(yield* templateGroupVisible()) ? [card] : [];
+      yield* craftPrivate(
+        craftComputed('activeCardForPanel', function* (): Generator<
+          unknown,
+          readonly ReviewCard[],
+          unknown
+        > {
+          const card = yield* current();
+          return card && !(yield* templateGroupVisible()) ? [card] : [];
+        }),
+      ),
+    );
+    const templateSource = yield* craftPrivate(
+      query('templateSource', {
+        params: function* () {
+          const selected = yield* current();
+          return selected?.kind === 'template'
+            ? { subject: selected.subject, revision: selected.revision }
+            : { subject: '', revision: '' };
+        },
+        loader: function* ({ params }) {
+          if (!params.subject) return undefined;
+          return yield* craftUntilSettled(
+            CraftHttpClient.get(({ response }) => ({
+              url: `/api/template-detail?subject=${encodeURIComponent(params.subject)}`,
+              success: response<TemplateSourceDetail>(),
+            })),
+          );
+        },
       }),
     );
-    const templateSource = yield* craftPrivate(query('templateSource', {
-      params: function* () {
-        const selected = yield* current();
-        return selected?.kind === 'template'
-          ? { subject: selected.subject, revision: selected.revision }
-          : { subject: '', revision: '' };
-      },
-      loader: function* ({ params }) {
-        if (!params.subject) return undefined;
-        return yield* craftUntilSettled(
-          CraftHttpClient.get(({ response }) => ({
-            url: `/api/template-detail?subject=${encodeURIComponent(params.subject)}`,
-            success: response<TemplateSourceDetail>(),
-          })),
-        );
-      },
-    }));
     const sourceDetail = templateSource;
-    const activeSourceLine = yield* craftComputed('activeSourceLine', function* () {
-      const card = yield* current();
-      if (card?.kind !== 'template') return undefined;
-      const detail = yield* sourceDetail.value();
-      if (detail?.subject !== card.subject) return undefined;
-      return detail.renderSites?.[0]?.line ?? detail.element?.line;
-    });
-    yield* craftComputed(
-      'activeSubjectLabel',
+    const activeSourceLine = yield* craftComputed(
+      'activeSourceLine',
       function* () {
         const card = yield* current();
-        if (!card) return '';
-        const line = yield* activeSourceLine();
-        return `${componentOf(card.subject)}${line ? `:${line}` : ''}`;
+        if (card?.kind !== 'template') return undefined;
+        const detail = yield* sourceDetail.value();
+        if (detail?.subject !== card.subject) return undefined;
+        return detail.renderSites?.[0]?.line ?? detail.element?.line;
       },
     );
+    yield* craftComputed('activeSubjectLabel', function* () {
+      const card = yield* current();
+      if (!card) return '';
+      const line = yield* activeSourceLine();
+      return `${componentOf(card.subject)}${line ? `:${line}` : ''}`;
+    });
     yield* craftComputed('activeReasonLabel', function* () {
       const card = yield* current();
       return card ? reasonText(card.reason, yield* t()) : '';
     });
-    yield* craftComputed(
-      'clusterMembersLabel',
+    yield* craftComputed('clusterMembersLabel', function* () {
+      return (yield* t()).clusterMembers;
+    });
+    const activeSourceUrl = yield* craftComputed(
+      'activeSourceUrl',
       function* () {
-        return (yield* t()).clusterMembers;
+        const card = yield* current();
+        if (!card) return '';
+        return (
+          ideLinkUrl(
+            (yield* review.value())?.sourceLinksAvailable,
+            sourcePathOf(card.subject),
+            yield* ide(),
+            yield* activeSourceLine(),
+          ) ?? ''
+        );
       },
     );
-    const activeSourceUrl = yield* craftComputed('activeSourceUrl', function* () {
-      const card = yield* current();
-      if (!card) return '';
-      return (
-        ideLinkUrl(
-          (yield* review.value())?.sourceLinksAvailable,
-          sourcePathOf(card.subject),
-          yield* ide(),
-          yield* activeSourceLine(),
-        ) ?? ''
-      );
-    });
     yield* craftComputed('sourceLinkHidden', function* () {
       return (yield* activeSourceUrl()).length === 0;
     });
     yield* craftComputed('visualEvidence', function* () {
       return (yield* current())?.kind === 'visual';
     });
-    yield* craftComputed(
-      'folderLayoutEvidence',
-      function* () {
-        return (yield* current())?.kind === 'folder-layout';
-      },
-    );
+    yield* craftComputed('folderLayoutEvidence', function* () {
+      return (yield* current())?.kind === 'folder-layout';
+    });
     yield* craftComputed('bypassEvidence', function* () {
       const kind = (yield* current())?.kind;
       return kind === 'eslint-disable' || kind === 'architecture-waiver';
@@ -1412,88 +1441,55 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       fitReplay = mode === 'fit';
       applyReplayScale();
     }
-    yield* craftMethod(
-      'openRegenerationDialog',
-      function* () {
-        regenerationDialogRequested$.emit();
-      },
-    );
-    yield* craftMethod(
-      'closeRegenerationDialog',
-      function* () {
-        regenerationDialogClosed$.emit();
-      },
-    );
-    yield* craftMethod(
-      'confirmRegeneration',
-      function* () {
-        yield* navigationParams.setScenarioAfterRegeneration('');
-        regenerationConfirmed$.emit('regenerate');
-        clearReason();
-      },
-    );
-    yield* craftMethod(
-      'openIterationDialog',
-      function* () {
-        iterationDialogRequested$.emit();
-      },
-    );
-    yield* craftMethod(
-      'closeIterationDialog',
-      function* () {
-        iterationDialogClosed$.emit();
-      },
-    );
-    yield* craftMethod(
-      'confirmIterationHandoff',
-      function* () {
-        iterationHandoffRequested$.emit(++iterationHandoffRequest);
-      },
-    );
-    yield* craftMethod(
-      'copyIterationPrompt',
-      function* () {
-        const value = yield* iterationHandoff.value();
-        if (!value) return;
-        const clipboard = reviewClipboard();
-        if (clipboard)
-          void clipboard.writeText(value.prompt).catch(() => undefined);
-        const field = reviewDocument.getElementById('iteration-prompt');
-        if (field instanceof HTMLTextAreaElement) {
-          field.focus();
-          field.select();
-        }
-        yield* iterationPromptCopied.markCopied();
-      },
-    );
-    yield* craftMethod(
-      'dismissFolderLayoutApply',
-      function* () {
-        yield* folderLayoutApplyDialogDismissed.dismiss();
-      },
-    );
-    yield* craftMethod(
-      'confirmFolderLayoutApply',
-      function* () {
-        folderLayoutApplyRequested$.emit(++folderLayoutApplyRequest);
-      },
-    );
-    yield* craftMethod(
-      'copyFolderLayoutCommand',
-      function* () {
-        const value = (yield* review.value())?.folderLayoutApply?.command;
-        if (!value) return;
-        const clipboard = reviewClipboard();
-        if (clipboard) void clipboard.writeText(value).catch(() => undefined);
-        yield* folderLayoutApplyCopied.markCopied();
-      },
-    );
-    yield* craftMethod(
-      'chooseDevtoolView',
-      function* (value: DevtoolView) {
-        yield* navigationParams.setViewForDevtoolChoice(value);
-      },
-    );
+    yield* craftMethod('openRegenerationDialog', function* () {
+      regenerationDialogRequested$.emit();
+    });
+    yield* craftMethod('closeRegenerationDialog', function* () {
+      regenerationDialogClosed$.emit();
+    });
+    yield* craftMethod('confirmRegeneration', function* () {
+      yield* navigationParams.setScenarioAfterRegeneration('');
+      regenerationConfirmed$.emit('regenerate');
+      clearReason();
+    });
+    yield* craftMethod('openIterationDialog', function* () {
+      iterationDialogRequested$.emit();
+    });
+    yield* craftMethod('closeIterationDialog', function* () {
+      iterationDialogClosed$.emit();
+    });
+    yield* craftMethod('confirmIterationHandoff', function* () {
+      iterationHandoffRequested$.emit(++iterationHandoffRequest);
+    });
+    yield* craftMethod('copyIterationPrompt', function* () {
+      const value = yield* iterationHandoff.value();
+      if (!value) return;
+      const clipboard = reviewClipboard();
+      if (clipboard)
+        void clipboard.writeText(value.prompt).catch(() => undefined);
+      const field = reviewDocument.getElementById('iteration-prompt');
+      if (field instanceof HTMLTextAreaElement) {
+        field.focus();
+        field.select();
+      }
+      yield* iterationPromptCopied.markCopied();
+    });
+    yield* craftMethod('dismissFolderLayoutApply', function* () {
+      yield* folderLayoutApplyDialogDismissed.dismiss();
+    });
+    yield* craftMethod('confirmFolderLayoutApply', function* () {
+      folderLayoutApplyRequested$.emit(++folderLayoutApplyRequest);
+    });
+    yield* craftMethod('copyFolderLayoutCommand', function* () {
+      const value = (yield* review.value())?.folderLayoutApply?.command;
+      if (!value) return;
+      const clipboard = reviewClipboard();
+      if (clipboard) void clipboard.writeText(value).catch(() => undefined);
+      yield* folderLayoutApplyCopied.markCopied();
+    });
+    yield* craftMethod('chooseDevtoolView', function* (value: DevtoolView) {
+      yield* navigationParams.setViewForDevtoolChoice(value);
+    });
     yield* craftMethod(
       'inspectApplicationCapture',
       function* (subject: string) {
@@ -1532,20 +1528,14 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         if (requests.length) decisionSubmitted$.emit(requests);
       },
     );
-    yield* craftComputed(
-      'applicationCaptures',
-      function* () {
-        return (yield* review.value())?.applicationCaptures ?? [];
-      },
-    );
-    yield* craftMethod(
-      'selectVisualTest',
-      function* (index: number) {
-        const test = (yield* visualTests())[index];
-        if (!test) return;
-        yield* navigationParams.setScenarioForVisualTestSelection(test.subject);
-      },
-    );
+    yield* craftComputed('applicationCaptures', function* () {
+      return (yield* review.value())?.applicationCaptures ?? [];
+    });
+    yield* craftMethod('selectVisualTest', function* (index: number) {
+      const test = (yield* visualTests())[index];
+      if (!test) return;
+      yield* navigationParams.setScenarioForVisualTestSelection(test.subject);
+    });
     yield* craftMethod('openVisualReview', function* () {
       const card = yield* visualReviewCard();
       if (!card) return;
@@ -1568,9 +1558,11 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
     const member = yield* craftComputed('member', function* () {
       return (yield* current())?.members[0];
     });
-    const replayTarget = yield* craftPrivate(craftComputed('replayTarget', function* () {
-      return (yield* member())?.metadata?.target ?? 'body';
-    }));
+    const replayTarget = yield* craftPrivate(
+      craftComputed('replayTarget', function* () {
+        return (yield* member())?.metadata?.target ?? 'body';
+      }),
+    );
     const canReplay = yield* craftComputed('canReplay', function* () {
       const card = yield* current();
       if (card?.kind === 'visual' && card.evidenceMode === 'screenshot')
@@ -1653,169 +1645,124 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
     yield* craftComputed('reviewFailed', function* () {
       return (yield* review.status()) === 'exception';
     });
-    yield* craftComputed(
-      'regenerationAvailable',
-      function* () {
-        return (yield* review.value())?.regeneration !== undefined;
-      },
-    );
-    yield* craftComputed(
-      'iterationHandoffAvailable',
-      function* () {
-        return (yield* review.value())?.iteration !== undefined;
-      },
-    );
-    yield* craftComputed(
-      'iterationHandoffReady',
-      function* () {
-        return (
-          (yield* iterationPreparationStarted()) &&
-          !(yield* iterationHandoff.isLoading()) &&
-          Boolean(yield* iterationHandoff.value())
-        );
-      },
-    );
-    yield* craftComputed(
-      'previousRegenerationDecisions',
-      function* () {
-        return (yield* review.value())?.regeneration?.previousDecisions ?? 0;
-      },
-    );
-    yield* craftMethod(
-      'toggleTemplateCard',
-      function* (id: string) {
-        yield* selectedTemplateIds.toggle(id);
-      },
-    );
-    yield* craftMethod(
-      'selectAllTemplateCards',
-      function* () {
-        const group = yield* activeTemplateGroup();
-        if (!group) return;
-        yield* selectedTemplateIds.selectPending(
-          group.cards
-            .filter((card) => card.state !== 'removed')
-            .map((card) => card.id),
-        );
-      },
-    );
-    yield* craftMethod(
-      'clearTemplateSelection',
-      function* () {
-        yield* selectedTemplateIds.clear();
-      },
-    );
-    yield* craftMethod(
-      'selectHumanTemplateCards',
-      function* () {
-        const group = yield* activeTemplateGroup();
-        if (!group) return;
-        const results =
-          (yield* review.value())?.templateAgentResults ??
-          (yield* templateAgentReview.value())?.templateAgentResults ??
-          [];
-        yield* selectedTemplateIds.selectHuman(
-          group.cards
-            .filter(
-              (card) =>
-                card.state !== 'removed' &&
-                (card.validationPolicy === 'human-required' ||
-                  results.some(
-                    (result) =>
-                      result.id === card.id &&
-                      result.revision === card.revision &&
-                      result.outcome === 'needs-human',
-                  )),
-            )
-            .map((card) => card.id),
-        );
-      },
-    );
-    yield* craftMethod(
-      'acceptTemplateSelection',
-      function* () {
-        const group = yield* activeTemplateGroup();
-        const selected = new Set(yield* selectedTemplateIds());
-        if (!group) return;
-        const requests: ReviewDecisionRequest[] = group.cards
-          .filter((card) => selected.has(card.id) && card.state !== 'removed')
-          .map((card) => ({
-            shape: card.shape,
-            id: card.id,
-            revision: card.revision,
-            verdict: 'ok',
-          }));
-        if (requests.length) decisionSubmitted$.emit(requests);
-      },
-    );
-    yield* craftMethod(
-      'requestTemplateReject',
-      function* () {
-        yield* rejectionAttempted.showForTemplateRejectedBatch();
-      },
-    );
-    yield* craftMethod(
-      'cancelTemplateReject',
-      function* () {
-        yield* rejectionAttempted.clear();
-        yield* note.clearForTemplateRejection();
-      },
-    );
-    yield* craftMethod(
-      'submitTemplateReject',
-      function* () {
-        const group = yield* activeTemplateGroup();
-        const selected = new Set(yield* selectedTemplateIds());
-        const writtenNote = proseOf(yield* note());
-        if (!group || !writtenNote) return;
-        const requests: ReviewDecisionRequest[] = group.cards
-          .filter((card) => selected.has(card.id) && card.state !== 'removed')
-          .map((card) => ({
-            shape: card.shape,
-            id: card.id,
-            revision: card.revision,
-            verdict: 'rejected',
-            note: writtenNote,
-          }));
-        if (requests.length) decisionSubmitted$.emit(requests);
-      },
-    );
-    yield* craftMethod(
-      'navigateTemplateGroup',
-      function* (offset: number) {
-        const groups = yield* templateReviewGroups();
-        const index = yield* activeTemplateGroupIndex();
-        const target = groups[index + offset];
-        const card = target?.cards.find(
-          (candidate) => candidate.state !== 'removed',
-        );
-        if (!card) return;
-        clearReason();
-        navigation$.emit(index + offset);
-        yield* navigationParams.setScenarioForTemplateGroup(card.shape);
-      },
-    );
-    yield* craftMethod(
-      'writeTemplateGroupNote',
-      function* (value: string) {
-        yield* note.writeTemplateGroup(value);
-      },
-    );
-    yield* craftMethod(
-      'delegateTemplateSelection',
-      function* () {
-        const group = yield* activeTemplateGroup();
-        const selected = new Set(yield* selectedTemplateIds());
-        if (!group) return;
-        const cards = group.cards.filter(
-          (card) => selected.has(card.id) && card.state !== 'removed',
-        );
-        if (!cards.length) return;
-        templateAgentRequested$.emit({
-          cards: cards.map(({ id, revision }) => ({ id, revision })),
-        });
-      },
-    );
+    yield* craftComputed('regenerationAvailable', function* () {
+      return (yield* review.value())?.regeneration !== undefined;
+    });
+    yield* craftComputed('iterationHandoffAvailable', function* () {
+      return (yield* review.value())?.iteration !== undefined;
+    });
+    yield* craftComputed('iterationHandoffReady', function* () {
+      return (
+        (yield* iterationPreparationStarted()) &&
+        !(yield* iterationHandoff.isLoading()) &&
+        Boolean(yield* iterationHandoff.value())
+      );
+    });
+    yield* craftComputed('previousRegenerationDecisions', function* () {
+      return (yield* review.value())?.regeneration?.previousDecisions ?? 0;
+    });
+    yield* craftMethod('toggleTemplateCard', function* (id: string) {
+      yield* selectedTemplateIds.toggle(id);
+    });
+    yield* craftMethod('selectAllTemplateCards', function* () {
+      const group = yield* activeTemplateGroup();
+      if (!group) return;
+      yield* selectedTemplateIds.selectPending(
+        group.cards
+          .filter((card) => card.state !== 'removed')
+          .map((card) => card.id),
+      );
+    });
+    yield* craftMethod('clearTemplateSelection', function* () {
+      yield* selectedTemplateIds.clear();
+    });
+    yield* craftMethod('selectHumanTemplateCards', function* () {
+      const group = yield* activeTemplateGroup();
+      if (!group) return;
+      const results =
+        (yield* review.value())?.templateAgentResults ??
+        (yield* templateAgentReview.value())?.templateAgentResults ??
+        [];
+      yield* selectedTemplateIds.selectHuman(
+        group.cards
+          .filter(
+            (card) =>
+              card.state !== 'removed' &&
+              (card.validationPolicy === 'human-required' ||
+                results.some(
+                  (result) =>
+                    result.id === card.id &&
+                    result.revision === card.revision &&
+                    result.outcome === 'needs-human',
+                )),
+          )
+          .map((card) => card.id),
+      );
+    });
+    yield* craftMethod('acceptTemplateSelection', function* () {
+      const group = yield* activeTemplateGroup();
+      const selected = new Set(yield* selectedTemplateIds());
+      if (!group) return;
+      const requests: ReviewDecisionRequest[] = group.cards
+        .filter((card) => selected.has(card.id) && card.state !== 'removed')
+        .map((card) => ({
+          shape: card.shape,
+          id: card.id,
+          revision: card.revision,
+          verdict: 'ok',
+        }));
+      if (requests.length) decisionSubmitted$.emit(requests);
+    });
+    yield* craftMethod('requestTemplateReject', function* () {
+      yield* rejectionAttempted.showForTemplateRejectedBatch();
+    });
+    yield* craftMethod('cancelTemplateReject', function* () {
+      yield* rejectionAttempted.clear();
+      yield* note.clearForTemplateRejection();
+    });
+    yield* craftMethod('submitTemplateReject', function* () {
+      const group = yield* activeTemplateGroup();
+      const selected = new Set(yield* selectedTemplateIds());
+      const writtenNote = proseOf(yield* note());
+      if (!group || !writtenNote) return;
+      const requests: ReviewDecisionRequest[] = group.cards
+        .filter((card) => selected.has(card.id) && card.state !== 'removed')
+        .map((card) => ({
+          shape: card.shape,
+          id: card.id,
+          revision: card.revision,
+          verdict: 'rejected',
+          note: writtenNote,
+        }));
+      if (requests.length) decisionSubmitted$.emit(requests);
+    });
+    yield* craftMethod('navigateTemplateGroup', function* (offset: number) {
+      const groups = yield* templateReviewGroups();
+      const index = yield* activeTemplateGroupIndex();
+      const target = groups[index + offset];
+      const card = target?.cards.find(
+        (candidate) => candidate.state !== 'removed',
+      );
+      if (!card) return;
+      clearReason();
+      navigation$.emit(index + offset);
+      yield* navigationParams.setScenarioForTemplateGroup(card.shape);
+    });
+    yield* craftMethod('writeTemplateGroupNote', function* (value: string) {
+      yield* note.writeTemplateGroup(value);
+    });
+    yield* craftMethod('delegateTemplateSelection', function* () {
+      const group = yield* activeTemplateGroup();
+      const selected = new Set(yield* selectedTemplateIds());
+      if (!group) return;
+      const cards = group.cards.filter(
+        (card) => selected.has(card.id) && card.state !== 'removed',
+      );
+      if (!cards.length) return;
+      templateAgentRequested$.emit({
+        cards: cards.map(({ id, revision }) => ({ id, revision })),
+      });
+    });
     yield* craftMethod('movePrevious', function* () {
       const index = yield* activeIndex();
       const nextIndex = Math.max(0, index - 1);
@@ -1910,9 +1857,8 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
      * takes the reference back out, because a reference to nothing is worse
      * than none.
      */
-    const trackSelection = yield* craftPrivate(craftMethod(
-      'trackSelection',
-      function* (paths: readonly string[]) {
+    const trackSelection = yield* craftPrivate(
+      craftMethod('trackSelection', function* (paths: readonly string[]) {
         const field = reasonField();
         if (!field) return;
         const known = yield* mentions();
@@ -1999,8 +1945,8 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
         // to do is say what is wrong with it. Not on every refinement — the
         // caret would jump while the reviewer is still pointing.
         field.focus();
-      },
-    ));
+      }),
+    );
 
     /** Paints the nodes a reference stands for, while it is pointed at. */
     function* updateMentionPreview(id: number | undefined) {
@@ -2014,61 +1960,46 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
           : (yield* mentions()).find((one) => one.id === id);
       markHighlight(view, found?.paths ?? []);
     }
-    yield* craftMethod(
-      'previewMention',
-      function* (id: number | undefined) {
-        yield* updateMentionPreview(id);
-      },
-    );
+    yield* craftMethod('previewMention', function* (id: number | undefined) {
+      yield* updateMentionPreview(id);
+    });
 
-    yield* craftMethod(
-      'changeZoomFromEvent',
-      function* (event: Event) {
-        const value = eventValue(event);
-        if (isZoomMode(value)) yield* applyZoom(value);
-      },
-    );
+    yield* craftMethod('changeZoomFromEvent', function* (event: Event) {
+      const value = eventValue(event);
+      if (isZoomMode(value)) yield* applyZoom(value);
+    });
 
-    yield* craftMethod(
-      'handleNoteInput',
-      function* (event: Event) {
-        const field = event.currentTarget;
-        if (!(field instanceof HTMLElement)) return;
-        freezePick();
-        yield* note.writeFromInput(textOf(field));
-      },
-    );
+    yield* craftMethod('handleNoteInput', function* (event: Event) {
+      const field = event.currentTarget;
+      if (!(field instanceof HTMLElement)) return;
+      freezePick();
+      yield* note.writeFromInput(textOf(field));
+    });
 
-    yield* craftMethod(
-      'previewMentionFromEvent',
-      function* (event: Event) {
-        const target = event.target;
-        const chip =
-          target instanceof Element ? target.closest(`[${MENTION_ID}]`) : null;
-        const id = chip?.getAttribute(MENTION_ID);
-        yield* updateMentionPreview(id ? Number(id) : undefined);
-      },
-    );
+    yield* craftMethod('previewMentionFromEvent', function* (event: Event) {
+      const target = event.target;
+      const chip =
+        target instanceof Element ? target.closest(`[${MENTION_ID}]`) : null;
+      const id = chip?.getAttribute(MENTION_ID);
+      yield* updateMentionPreview(id ? Number(id) : undefined);
+    });
 
-    yield* craftMethod(
-      'pasteReasonText',
-      function* (event: Event) {
-        const clipboard =
-          event instanceof ClipboardEvent ? event.clipboardData : null;
-        if (!clipboard) return;
-        event.preventDefault();
-        const text = clipboard.getData('text/plain');
-        reviewDocument
-          .getSelection()
-          ?.getRangeAt(0)
-          .insertNode(reviewDocument.createTextNode(text));
-        reviewDocument.getSelection()?.collapseToEnd();
-        const field = event.currentTarget;
-        if (field instanceof HTMLElement) {
-          field.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      },
-    );
+    yield* craftMethod('pasteReasonText', function* (event: Event) {
+      const clipboard =
+        event instanceof ClipboardEvent ? event.clipboardData : null;
+      if (!clipboard) return;
+      event.preventDefault();
+      const text = clipboard.getData('text/plain');
+      reviewDocument
+        .getSelection()
+        ?.getRangeAt(0)
+        .insertNode(reviewDocument.createTextNode(text));
+      reviewDocument.getSelection()?.collapseToEnd();
+      const field = event.currentTarget;
+      if (field instanceof HTMLElement) {
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
 
     yield* craftMethod('decide', function* (verdict: DecisionVerdict) {
       const card = yield* current();
@@ -2128,9 +2059,15 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
     yield* craftExpose('decisionFailed', decisionFailed);
     yield* craftExpose('reopenFailed', reopenFailed);
     yield* craftExpose('iterationHandoffFailed', iterationHandoffFailed);
-    yield* craftExpose('iterationPreparationNotStarted', iterationPreparationNotStarted);
+    yield* craftExpose(
+      'iterationPreparationNotStarted',
+      iterationPreparationNotStarted,
+    );
     yield* craftExpose('closeReviewFailed', closeReviewFailed);
-    yield* craftExpose('folderLayoutApplyDialogOpen', folderLayoutApplyDialogOpen);
+    yield* craftExpose(
+      'folderLayoutApplyDialogOpen',
+      folderLayoutApplyDialogOpen,
+    );
     yield* craftExpose('regenerationFailed', regenerationFailed);
     yield* craftExpose('closeReviewSession', closeReviewSession);
     yield* craftExpose('devtoolView', devtoolView);

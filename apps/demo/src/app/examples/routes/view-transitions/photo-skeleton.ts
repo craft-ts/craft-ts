@@ -8,7 +8,7 @@ import {
   span,
   type Input,
 } from '@craft-ts/component';
-import { craftComputed, injectCraftViewTransition, craftUse } from '@craft-ts/core';
+import { craftComputed, injectCraftViewTransition } from '@craft-ts/core';
 import { findPhoto } from './photos';
 import { assign } from '@craft-ts/style';
 import {
@@ -37,19 +37,31 @@ function isTransitionPayload(value: unknown): value is TransitionPayload {
 const ViewTransitionsSkeletonComponent = craftComponent(
   'ViewTransitionsSkeletonComponent',
   {},
-  ({ photoId }: { readonly photoId: Input<string> }) => {
+  function* ({ photoId }: { readonly photoId: Input<string> }) {
     const rawViewTransition = injectCraftViewTransition();
-    const viewTransition = craftUse(craftComputed('viewTransition', function* () {
+    const viewTransition = yield* craftComputed('viewTransition', function* () {
       // The generic inject helper is an untyped transport boundary.
       const value = rawViewTransition();
       return isTransitionPayload(value) ? value : null;
-    }));
-    const hasImage = craftUse(craftComputed('hasImage', function* () {
+    });
+    const hasImage = yield* craftComputed('hasImage', function* () {
       return (yield* viewTransition())?.image !== null;
-    }));
-    const imageSrc = craftUse(craftComputed('imageSrc', function* () {
+    });
+    const imageSrc = yield* craftComputed('imageSrc', function* () {
       return (yield* viewTransition())?.image ?? '';
-    }));
+    });
+    const heroArt = yield* craftComputed('heroArt', function* () {
+      return photoArt(yield* photoId());
+    });
+    const heroTransitionName = yield* craftComputed(
+      'heroTransitionName',
+      function* () {
+        return photoTransitionName(yield* photoId());
+      },
+    );
+    const heroEmoji = yield* craftComputed('heroEmoji', function* () {
+      return findPhoto(yield* photoId())?.emoji;
+    });
     return [
       span('← Back to gallery'),
       article({ class: vt.detail }, [
@@ -58,8 +70,8 @@ const ViewTransitionsSkeletonComponent = craftComponent(
             class: vt.hero,
             style: function* () {
               return {
-                ...assign(vtPhoto.art, photoArt(yield* photoId())),
-                ...assign(vtPhoto.name, photoTransitionName(yield* photoId())),
+                ...assign(vtPhoto.art, yield* heroArt()),
+                ...assign(vtPhoto.name, yield* heroTransitionName()),
               };
             },
           },
@@ -74,10 +86,7 @@ const ViewTransitionsSkeletonComponent = craftComponent(
                   },
                   alt: '',
                 }),
-              () =>
-                span({ class: vt.heroEmoji }, function* () {
-                  return findPhoto(yield* photoId())?.emoji;
-                }),
+              () => span({ class: vt.heroEmoji }, heroEmoji),
             ),
           ],
         ),

@@ -111,6 +111,7 @@ describe('assertDefinedInput', () => {
     } = craftService(
       { name: 'assertDefinedInputRuntimeRootView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -199,6 +200,7 @@ describe('assertDefinedInput', () => {
     } = craftService(
       { name: 'assertDefinedInputValueCatchRootView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -262,6 +264,7 @@ describe('assertDefinedInput', () => {
     } = craftService(
       { name: 'assertDefinedInputUnhandledRootView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

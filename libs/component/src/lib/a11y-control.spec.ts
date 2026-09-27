@@ -35,6 +35,7 @@ describe('fieldControl', () => {
       craftService(
         { name: 'fieldControlBasicView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -73,6 +74,7 @@ describe('fieldControl', () => {
     } = craftService(
       { name: 'fieldControlHtmlForCleanupView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -107,6 +109,7 @@ describe('fieldControl', () => {
       craftService(
         { name: 'fieldControlInvalidView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -139,6 +142,7 @@ describe('disclosureControl', () => {
     const { DisclosureOpenView, provideDisclosureOpenView } = craftService(
       { name: 'disclosureOpenView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -174,6 +178,7 @@ describe('disclosureControl', () => {
     const { DisclosureClosedView, provideDisclosureClosedView } = craftService(
       { name: 'disclosureClosedView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -212,6 +217,7 @@ describe('buttonControl', () => {
       craftService(
         { name: 'buttonControlTypeView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -238,6 +244,7 @@ describe('buttonControl', () => {
       craftService(
         { name: 'buttonControlDisabledView', providedIn: 'toProvide' },
         function* () {
+          // Nothing to expose.
         },
       );
 
@@ -267,6 +274,7 @@ describe('buttonControl', () => {
     } = craftService(
       { name: 'buttonControlKeepFocusableView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

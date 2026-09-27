@@ -35,9 +35,12 @@ export const FilterBarActions = craftComponent(
     const statusText = yield* craftComputed('statusText', function* () {
       return (yield* t()).activeFilters(yield* activeFilterCount());
     });
-    const noFiltersActive = yield* craftComputed('noFiltersActive', function* () {
-      return (yield* activeFilterCount()) === 0;
-    });
+    const noFiltersActive = yield* craftComputed(
+      'noFiltersActive',
+      function* () {
+        return (yield* activeFilterCount()) === 0;
+      },
+    );
     return div({ class: filters.actions }, [
       small({ class: filters.status, 'aria-live': 'polite' }, statusText),
       button(

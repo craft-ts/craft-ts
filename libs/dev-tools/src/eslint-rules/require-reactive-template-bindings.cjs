@@ -302,6 +302,9 @@ module.exports = {
       if (name === 'exhaustive') {
         return argumentIndex !== 0;
       }
+      // A heading's content function is its text binding, exactly like a
+      // paragraph's: the helper only picks the rank.
+      if (name === 'heading') return false;
       return Boolean(name && STRUCTURAL_HELPERS.has(name));
     }
 

@@ -35,6 +35,30 @@ describe('no-craft-use', () => {
     ]);
   });
 
+  it('allows unwrapping a named primitive outside a generator', async () => {
+    const result = await lintFixture(`
+      import { craftComputed, craftUse } from '@craft-ts/core';
+
+      const insertion = ({ resource }) => ({
+        hasValue: craftUse(craftComputed('hasValue', () => resource.hasValue())),
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('still reports a craftUse that reads a reactive value', async () => {
+    const result = await lintFixture(`
+      import { craftComputed, craftUse } from '@craft-ts/core';
+
+      const total = craftUse(craftComputed('total', () => 1)());
+    `);
+
+    expect(result.messages).toEqual([
+      '`craftUse(...)` is forbidden in Craft TypeScript. Use a generator and delegate the reader with `yield*` instead.',
+    ]);
+  });
+
   it('does not report unrelated identifiers', async () => {
     const result = await lintFixture(`
       declare function craftUseful(value: unknown): unknown;

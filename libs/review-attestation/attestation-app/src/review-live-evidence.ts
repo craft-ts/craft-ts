@@ -7,8 +7,8 @@ import {
   figure,
   forNode,
   heading,
-  iframe,
   ifNode,
+  iframe,
   img,
   label,
   li,
@@ -21,347 +21,90 @@ import {
   strong,
   summary,
   ul,
-  type Input,
-  type Output,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
-import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
 import { assign, unit } from '@craft-ts/style';
+import { annotation } from './annotation.style';
 import { BypassCardEvidence } from './bypasses-view';
 import { FolderLayoutView } from './folder-layout-view';
-import { TierLegend } from './tier-legend';
-import type { Messages } from './messages';
-import { imageUrl, scenarioOf, snapshotUrl } from './card-presentation';
-import { annotation } from './annotation.style';
 import {
   evidenceBox,
   imageEvidence,
   notice,
   reviewBits,
 } from './review-card.style';
+import {
+  Inputs,
+  ReviewLiveEvidenceView,
+  provideReviewLiveEvidenceView,
+} from './review-live-evidence.service';
+import { TierLegend } from './tier-legend';
 
-type ReviewCard = ReviewApiQueue['cards'][number];
-type ReplayEvidenceState = {
-  readonly loaded: boolean;
-  readonly faithful: boolean;
-  readonly report: readonly string[];
-};
-type Band =
-  | {
-      readonly x: number;
-      readonly y: number;
-      readonly width: number;
-      readonly height: number;
-    }
-  | undefined;
-type Member = { readonly changed: readonly unknown[] } | undefined;
-const FRAME_ID = 'craft-replay-frame';
-type Inputs = {
-  card: Input<ReviewCard>;
-  current: Input<ReviewCard | undefined>;
-  t: Input<Messages>;
-  bypassEvidence: Input<boolean>;
-  folderLayoutEvidence: Input<boolean>;
-  visualEvidence: Input<boolean>;
-  showingReplay: Input<boolean>;
-  replay: Input<ReplayEvidenceState>;
-  canReplay: Input<boolean>;
-  inspectFailed: Input<boolean>;
-  fellBack: Input<boolean>;
-  fidelitySentence: Input<string>;
-  band: Input<Band>;
-  overlayHint: Input<string>;
-  overlayLabel: Input<string>;
-  chrome: Input<readonly string[]>;
-  hideChrome: Input<boolean>;
-  toggleChrome: Output<() => unknown>;
-  zoom: Input<string>;
-  changeZoomFromEvent: Output<(event: Event) => unknown>;
-  member: Input<Member>;
-  coveredCount: Input<number>;
-  inspectFrame: Output<(event: Event) => unknown>;
-  chooseReplay: Output<() => unknown>;
-  chooseImage: Output<() => unknown>;
-};
-
-/** Bypass, folder-layout, screenshot, and replay evidence for the active card. */
 export const ReviewLiveEvidence = craftComponent(
   'ReviewLiveEvidence',
-  {},
+  {
+    providers: [provideReviewLiveEvidenceView()],
+  },
   function* (inputs: Inputs) {
     const {
-      card,
+      canShowBypass,
+      bypassLabel,
+      bypassLocation,
+      bypassReason,
+      bypassCode,
+      bypassPreviousReason,
       t,
+      canShowFolderLayout,
+      folderEntries,
+      folderSourceGraphHash,
+      folderConfigHash,
+      folderMoves,
+      folderReviews,
+      card,
+      visualEvidenceHidden,
+      viewportLabel,
+      screenshotLabel,
+      colorSchemeLabel,
+      browserLabel,
+      neverApprovedHidden,
+      coverageLabel,
+      cannotReplay,
       showingReplay,
-      replay,
-      band,
+      chooseReplay,
+      imageViewPressed,
+      chooseImage,
       overlayHint,
-      overlayLabel,
-      chrome,
+      overlayToggleHidden,
       hideChrome,
       toggleChrome,
+      overlayLabel,
       zoom,
       changeZoomFromEvent,
+      helpHidden,
+      helpText,
       member,
       coveredCount,
+      chrome,
+      evidenceErrorHidden,
+      warningHidden,
+      warningText,
+      replay,
+      replayReport,
+      canShowVisualEvidence,
+      replayHolderHidden,
+      replayFrameId,
+      frameWidth,
+      frameHeight,
+      replaySource,
       inspectFrame,
-      chooseReplay,
-      chooseImage,
-    } = inputs;
-    const canShowBypass = yield* craftComputed('canShowBypass', function* () {
-      return yield* inputs.bypassEvidence();
-    });
-    const canShowFolderLayout = yield* craftComputed(
-      'canShowFolderLayout',
-      function* () {
-        return yield* inputs.folderLayoutEvidence();
-      },
-    );
-    const canShowVisualEvidence = yield* craftComputed(
-      'canShowVisualEvidence',
-      function* () {
-        return yield* inputs.visualEvidence();
-      },
-    );
-    const visualEvidenceHidden = yield* craftComputed(
-      'visualEvidenceHidden',
-      function* () {
-        return !(yield* inputs.visualEvidence());
-      },
-    );
-    const bypassLabel = yield* craftComputed('bypassLabel', function* () {
-      const card = yield* inputs.card();
-      if (card.kind === 'eslint-disable')
-        return `eslint-disable · ${card.rule}`;
-      return card.kind === 'architecture-waiver'
-        ? `${card.rule} → ${card.target}`
-        : '';
-    });
-    const bypassLocation = yield* craftComputed('bypassLocation', function* () {
-      const card = yield* inputs.card();
-      if (card.kind === 'eslint-disable')
-        return `${card.filePath}:${card.excerpt.highlightLine}`;
-      return card.kind === 'architecture-waiver'
-        ? `${card.filePath}:${card.line}`
-        : '';
-    });
-    const bypassReason = yield* craftComputed('bypassReason', function* () {
-      const card = yield* inputs.card();
-      return card.kind === 'eslint-disable' ||
-        card.kind === 'architecture-waiver'
-        ? card.bypassReason
-        : null;
-    });
-    const bypassCode = yield* craftComputed('bypassCode', function* () {
-      const card = yield* inputs.card();
-      if (card.kind === 'eslint-disable') {
-        return card.excerpt.lines
-          .map(
-            (line, index) =>
-              `${String(card.excerpt.startLine + index).padStart(4)}  ${line}`,
-          )
-          .join('\n');
-      }
-      return card.kind === 'architecture-waiver'
-        ? `${card.project}: ${card.rule} → ${card.target}`
-        : '';
-    });
-    const bypassPreviousReason = yield* craftComputed(
-      'bypassPreviousReason',
-      function* () {
-        const card = yield* inputs.card();
-        return card.kind === 'eslint-disable' ||
-          card.kind === 'architecture-waiver'
-          ? (card.previousReason ?? null)
-          : null;
-      },
-    );
-    const folderEntries = yield* craftComputed('folderEntries', function* () {
-      const card = yield* inputs.card();
-      return card.kind === 'folder-layout' ? card.entries : [];
-    });
-    const folderSourceGraphHash = yield* craftComputed(
-      'folderSourceGraphHash',
-      function* () {
-        const card = yield* inputs.card();
-        return card.kind === 'folder-layout' ? card.sourceGraphHash : '';
-      },
-    );
-    const folderConfigHash = yield* craftComputed('folderConfigHash', function* () {
-      const card = yield* inputs.card();
-      return card.kind === 'folder-layout' ? card.configHash : '';
-    });
-    const folderMoves = yield* craftComputed('folderMoves', function* () {
-      const card = yield* inputs.card();
-      return card.kind === 'folder-layout' ? card.statistics.moves : 0;
-    });
-    const folderReviews = yield* craftComputed('folderReviews', function* () {
-      const card = yield* inputs.card();
-      return card.kind === 'folder-layout' ? card.statistics.reviews : 0;
-    });
-    const viewportLabel = yield* craftComputed('viewportLabel', function* () {
-      const viewport = (yield* inputs.card()).members[0]?.metadata?.viewport;
-      return viewport
-        ? (yield* inputs.t()).viewport(viewport.width, viewport.height)
-        : (yield* inputs.t()).viewportUnknown;
-    });
-    const screenshotLabel = yield* craftComputed('screenshotLabel', function* () {
-      const screenshot = (yield* inputs.card()).members[0]?.metadata
-        ?.screenshot;
-      return screenshot
-        ? (yield* inputs.t()).capture(screenshot.width, screenshot.height)
-        : (yield* inputs.t()).captureUnknown;
-    });
-    const colorSchemeLabel = yield* craftComputed('colorSchemeLabel', function* () {
-      return (
-        (yield* inputs.card()).members[0]?.metadata?.colorScheme ??
-        (yield* inputs.t()).schemeUnknown
-      );
-    });
-    const browserLabel = yield* craftComputed('browserLabel', function* () {
-      const browser = (yield* inputs.card()).members[0]?.metadata?.browser;
-      return browser
-        ? `${browser.name} ${browser.version}`
-        : (yield* inputs.t()).browserUnknown;
-    });
-    const neverApprovedHidden = yield* craftComputed(
-      'neverApprovedHidden',
-      function* () {
-        return (yield* inputs.card()).changes.length > 0;
-      },
-    );
-    const coverageLabel = yield* craftComputed('coverageLabel', function* () {
-      const coverage = (yield* inputs.card()).members[0]?.metadata?.coverage;
-      if (!coverage) return (yield* inputs.t()).coverageUnknown;
-      return (yield* inputs.t()).coverage(
-        coverage.attested,
-        coverage.attested - coverage.offScreen - coverage.occluded,
-        coverage.occluded,
-      );
-    });
-    const cannotReplay = yield* craftComputed('cannotReplay', function* () {
-      return !(yield* inputs.canReplay());
-    });
-    const imageViewPressed = yield* craftComputed('imageViewPressed', function* () {
-      return !(yield* inputs.showingReplay());
-    });
-    const overlayToggleHidden = yield* craftComputed(
-      'overlayToggleHidden',
-      function* () {
-        return (
-          !(yield* inputs.showingReplay()) ||
-          (yield* inputs.chrome()).length === 0
-        );
-      },
-    );
-    const helpHidden = yield* craftComputed('helpHidden', function* () {
-      return !(yield* inputs.visualEvidence());
-    });
-    const helpText = yield* craftComputed('helpText', function* () {
-      const messages = yield* inputs.t();
-      return (yield* inputs.showingReplay())
-        ? messages.helpReplay
-        : messages.helpImage;
-    });
-    const evidenceErrorHidden = yield* craftComputed(
-      'evidenceErrorHidden',
-      function* () {
-        return !(yield* inputs.inspectFailed()) || !(yield* inputs.canReplay());
-      },
-    );
-    const warningHidden = yield* craftComputed('warningHidden', function* () {
-      const replay = yield* inputs.replay();
-      return !(yield* inputs.canReplay()) || !replay.loaded || replay.faithful;
-    });
-    const warningText = yield* craftComputed('warningText', function* () {
-      const sentence = yield* inputs.fidelitySentence();
-      return (yield* inputs.fellBack())
-        ? (yield* inputs.t()).fellBack(
-            `${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}`,
-          )
-        : sentence;
-    });
-    const replayHolderHidden = yield* craftComputed(
-      'replayHolderHidden',
-      function* () {
-        return !(yield* inputs.showingReplay());
-      },
-    );
-    const replayFrameId = yield* craftComputed('replayFrameId', function* () {
-      return (yield* inputs.card()).shape === (yield* inputs.current())?.shape
-        ? FRAME_ID
-        : '';
-    });
-    const frameWidth = yield* craftComputed('frameWidth', function* () {
-      return String(
-        (yield* inputs.card()).members[0]?.metadata?.viewport?.width ?? 375,
-      );
-    });
-    const frameHeight = yield* craftComputed('frameHeight', function* () {
-      return String(
-        (yield* inputs.card()).members[0]?.metadata?.viewport?.height ?? 900,
-      );
-    });
-    const replaySource = yield* craftComputed('replaySource', function* () {
-      const card = yield* inputs.card();
-      const snapshot =
-        card.shape === (yield* inputs.current())?.shape
-          ? card.members[0]?.snapshot
-          : undefined;
-      return snapshot ? snapshotUrl(snapshot) : '/api/blank';
-    });
-    const bandHidden = yield* craftComputed('bandHidden', function* () {
-      return (yield* inputs.band()) === undefined;
-    });
-    const bandStyle = yield* craftComputed('bandStyle', function* () {
-      const rect = yield* inputs.band();
-      if (!rect) return null;
-      return {
-        ...assign(evidenceBox.left, unit.px(rect.x)),
-        ...assign(evidenceBox.top, unit.px(rect.y)),
-        ...assign(evidenceBox.width, unit.px(rect.width)),
-        ...assign(evidenceBox.height, unit.px(rect.height)),
-      };
-    });
-    const imageHidden = yield* craftComputed('imageHidden', function* () {
-      return !(yield* inputs.card()).image;
-    });
-    const imageAlt = yield* craftComputed('imageAlt', function* () {
-      return (yield* inputs.t()).imageAlt(
-        scenarioOf((yield* inputs.card()).subject),
-      );
-    });
-    const imageSource = yield* craftComputed('imageSource', function* () {
-      const hash = (yield* inputs.card()).image;
-      return hash ? imageUrl(hash) : '';
-    });
-    const foldHidden = yield* craftComputed('foldHidden', function* () {
-      const metadata = (yield* inputs.card()).members[0]?.metadata;
-      return !(metadata?.visibleBand && metadata.screenshot);
-    });
-    const foldStyle = yield* craftComputed('foldStyle', function* () {
-      const metadata = (yield* inputs.card()).members[0]?.metadata;
-      const band = metadata?.visibleBand;
-      const shot = metadata?.screenshot;
-      if (!band || !shot) return null;
-      const percent = (value: number, total: number) =>
-        unit.pct(Math.max(0, Math.min(100, (value / total) * 100)));
-      return {
-        ...assign(evidenceBox.left, percent(band.x, shot.width)),
-        ...assign(evidenceBox.top, percent(band.y, shot.height)),
-        ...assign(evidenceBox.width, percent(band.width, shot.width)),
-        ...assign(evidenceBox.height, percent(band.height, shot.height)),
-      };
-    });
-    const noImageHidden = yield* craftComputed('noImageHidden', function* () {
-      const card = yield* inputs.card();
-      return card.kind !== 'visual' || Boolean(card.image);
-    });
-    const captionText = yield* craftComputed('captionText', function* () {
-      const target = (yield* inputs.card()).members[0]?.metadata?.target;
-      const messages = yield* inputs.t();
-      return target ? messages.captionWithTarget(target) : messages.caption;
-    });
+      band,
+      bandHidden,
+      imageHidden,
+      imageAlt,
+      imageSource,
+      foldHidden,
+      noImageHidden,
+      captionText,
+    } = yield* ReviewLiveEvidenceView(inputs);
     return [
       ifNode(canShowBypass, () =>
         BypassCardEvidence({
@@ -592,11 +335,7 @@ export const ReviewLiveEvidence = craftComponent(
               }),
               ul(
                 forNode(
-                  function* () {
-                    return (yield* replay()).report.map((line) => ({
-                      line,
-                    }));
-                  },
+                  replayReport,
                   { track: (entry) => entry.line },
                   (entry) =>
                     li({ class: reviewBits.code }, function* () {

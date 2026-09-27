@@ -109,6 +109,7 @@ it('derives named element identities for editor completion', () => {
     craftService(
       { name: 'namedIdentityCompletionView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -335,6 +336,7 @@ it('extracts projection contracts and propagates projected dependencies', () => 
   const { ProjectingParentView, provideProjectingParentView } = craftService(
     { name: 'projectingParentView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -361,6 +363,7 @@ it('extracts projection contracts and propagates projected dependencies', () => 
     craftService(
       { name: 'providedProjectingParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -395,6 +398,7 @@ it('extracts projection contracts and propagates projected dependencies', () => 
   } = craftService(
     { name: 'parentWithoutProjectedProviderView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -438,6 +442,7 @@ it('checks the declared selector contract for projected content', () => {
   } = craftService(
     { name: 'selectorContractValidParentView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -460,6 +465,7 @@ it('checks the declared selector contract for projected content', () => {
   } = craftService(
     { name: 'selectorContractInvalidParentView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -615,6 +621,7 @@ it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
     craftService(
       { name: 'componentDepsUnionFirstView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -630,6 +637,7 @@ it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
     craftService(
       { name: 'componentDepsUnionSecondView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -969,6 +977,7 @@ it('includes dependencies of Craft components rendered in nested templates', () 
     craftService(
       { name: 'templateDependencyParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1084,6 +1093,7 @@ it('preserves template dependencies when Craft directives are applied', () => {
   } = craftService(
     { name: 'directiveTemplateDependencyParentView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1105,6 +1115,7 @@ it('preserves template dependencies when Craft directives are applied', () => {
       providedIn: 'toProvide',
     },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1151,6 +1162,7 @@ it('propagates component-carried dependencies from a reader used as text', () =>
   } = craftService(
     { name: 'translationReaderDependencyView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1200,6 +1212,7 @@ it('resolves registered child templates without a runtime test harness', () => {
   const { ContractIconView, provideContractIconView } = craftService(
     { name: 'contractIconView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1214,6 +1227,7 @@ it('resolves registered child templates without a runtime test harness', () => {
   const { ContractParentView, provideContractParentView } = craftService(
     { name: 'contractParentView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1243,6 +1257,7 @@ it('reports a missing child component in the type-only template contract', () =>
   const { ContractMissingView, provideContractMissingView } = craftService(
     { name: 'contractMissingView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1258,6 +1273,7 @@ it('reports a missing child component in the type-only template contract', () =>
     craftService(
       { name: 'contractMissingParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1305,6 +1321,7 @@ it('keeps exact child component references and validates their props', () => {
     craftService(
       { name: 'contractPropsParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1355,6 +1372,7 @@ it('keeps exact child component references and validates their props', () => {
   } = craftService(
     { name: 'contractInvalidPropsParentView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1524,6 +1542,7 @@ it('diagnoses imperative callbacks when the template contract is requested', () 
   } = craftService(
     { name: 'contractImperativeCallbackParentView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1568,6 +1587,7 @@ it('checks output callback arguments on a child component', () => {
     craftService(
       { name: 'contractOutputParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1619,6 +1639,7 @@ it('diagnoses imperative output callbacks in the template contract', () => {
   } = craftService(
     { name: 'contractImperativeOutputParentView', providedIn: 'toProvide' },
     function* () {
+      // Nothing to expose.
     },
   );
 
@@ -1644,6 +1665,7 @@ it('resolves the component loaded by defer in the type-only contract', () => {
     craftService(
       { name: 'contractDeferredChildView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1659,6 +1681,7 @@ it('resolves the component loaded by defer in the type-only contract', () => {
     craftService(
       { name: 'contractDeferredParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1687,6 +1710,7 @@ it('reports dynamic component unions and conditional branch failures', () => {
     craftService(
       { name: 'contractDynamicFirstView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1702,6 +1726,7 @@ it('reports dynamic component unions and conditional branch failures', () => {
     craftService(
       { name: 'contractDynamicSecondView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1723,6 +1748,7 @@ it('reports dynamic component unions and conditional branch failures', () => {
     craftService(
       { name: 'contractDynamicParentView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 
@@ -1747,6 +1773,7 @@ it('reports dynamic component unions and conditional branch failures', () => {
     craftService(
       { name: 'contractBranchMissingView', providedIn: 'toProvide' },
       function* () {
+        // Nothing to expose.
       },
     );
 

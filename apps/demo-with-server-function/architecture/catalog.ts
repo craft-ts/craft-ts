@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "7940fed70d2019c5",
+  "graphHash": "4db569eba6916cae",
   "routes": [
     "",
     "access-denied",
@@ -14,113 +14,29 @@ export const architectureCatalog = {
     "users-not-found"
   ],
   "services": [
-    "AiContextMenuController",
-    "AppSnapshotRegistry",
-    "BrowserCryptoService",
-    "BrowserDocumentService",
-    "BrowserHistoryService",
-    "BrowserLocationService",
-    "BrowserNavigatorService",
-    "BrowserPerformanceService",
-    "BrowserWindowService",
     "ClaimedUserId",
     "ClientSession",
-    "ComponentMonitoring",
-    "ConsoleService",
-    "CookiesService",
-    "CorrelationIdService",
-    "CraftA11yNavigationFocus",
-    "CraftActivatedRoute",
-    "CraftActiveRouteLoadError",
-    "CraftBlankMs",
-    "CraftChildMatch",
-    "CraftCompiledRoutes",
-    "CraftCspNonce",
-    "CraftDomEventHooks",
-    "CraftDynamicImport",
-    "CraftErrorComponent",
     "CraftFieldCheckboxControl",
-    "CraftFieldExceptionBoundary",
     "CraftFieldValueControl",
-    "CraftGlobalError",
-    "CraftGlobalErrorComponent",
-    "CraftHistory",
-    "CraftHttpTraces",
-    "CraftHydrationRuntime",
-    "CraftLazyLoadRetry",
-    "CraftLoadingText",
-    "CraftLocation",
     "CraftLogServerUrl",
-    "CraftMatch",
-    "CraftNodeEffectFactory",
-    "CraftPendingComponent",
-    "CraftPendingMinMs",
-    "CraftPlatform",
-    "CraftPrimitiveRegistry",
-    "CraftRenderIdentity",
-    "CraftRootComponent",
-    "CraftRouteChainRunner",
-    "CraftRouteLoadError",
-    "CraftRouteLoadErrorComponent",
-    "CraftRouteLoadErrorConfig",
-    "CraftRouteLoadRecovery",
-    "CraftRouteLoadRetry",
-    "CraftRouteTarget",
-    "CraftRoutedComponent",
-    "CraftRouter",
-    "CraftRouterRuntime",
-    "CraftRouterTraces",
-    "CraftRuntimeMode",
-    "CraftSchemaValidationPolicy",
-    "CraftSecurityPolicy",
-    "CraftSsrPolicy",
-    "CraftSsrRuntime",
-    "CraftStartViewTransition",
-    "CraftStayMs",
-    "CraftStyleRegistry",
-    "CraftSyncTemplateFlush",
-    "CraftTitleStrategy",
-    "CraftViewTransition",
-    "CraftViewTransitionSkipBlank",
-    "CraftViewTransitionsEnabled",
     "CurrentSession",
     "CurrentUser",
-    "DynamicEffectRefInstance",
-    "DynamicResourceInstance",
-    "ForScheduler",
     "GlobalPersisterHandlerService",
-    "HostName",
-    "InsertionSnapshotRegistry",
-    "LocalStoragePersister",
-    "LocalStorageService",
     "MiddlewareExecutionScope",
-    "PrimitiveMethodRuntimeContext",
-    "PrimitiveResourceRuntimeObservers",
-    "SendContextChatActions",
-    "SendContextChatComponent",
-    "SendContextChatSections",
-    "SendContextContextMenuComponent",
-    "SendContextEventEnrichers",
-    "SendContextEventFilters",
-    "SendContextEventSources",
-    "SendContextExportSections",
-    "SendContextLauncherComponent",
-    "SendContextRecordController",
-    "SendContextRedactor",
-    "SendContextRetentionPolicy",
-    "SendContextSession",
-    "SendContextToAiBuffer",
-    "SendContextUiRenderer",
-    "SendContextValueSerializer",
     "ServerFunctionTransport",
-    "SessionStoragePersister",
-    "SessionStorageService",
     "StoragePersister",
     "StorageService",
-    "TakeAppSnapshot",
-    "TemplateTraces",
     "UserRepository",
-    "api"
+    "aiContextMenuDismissal",
+    "aiSendContextChatState",
+    "aiSendDialogState",
+    "appShellView",
+    "craftRouterOutletState",
+    "effectServerMiddlewareDemoView",
+    "portableServerFunctionDemoView",
+    "publicProductsDemoView",
+    "serverFunctionDemoView",
+    "simpleListDemoView"
   ],
   "components": [
     "AiContextMenu",
@@ -139,49 +55,42 @@ export const architectureCatalog = {
     "craftPending"
   ],
   "primitives": [
+    "accessDenied",
+    "auditId",
     "busy",
     "captureError",
     "captureInProgress",
+    "clearAllCache",
     "copied",
-    "craftComputed",
     "currentUser",
     "currentUserQuery",
-    "effectMiddlewareFilter",
-    "effectMiddlewareHasServerError",
-    "effectMiddlewareHasUsers",
-    "effectMiddlewareIsEmpty",
     "effectMiddlewareServerError",
-    "effectMiddlewareServerErrorText",
-    "effectMiddlewareUsersQuery",
     "error",
+    "filter",
     "hasProducts",
+    "hasServerError",
     "hasUsers",
     "instruction",
     "isAdmin",
     "isEmpty",
+    "normalizedFilter",
     "notFound",
     "notFoundMessage",
     "panelOffset",
-    "portableAuditId",
-    "portableHasUsers",
-    "portableIsEmpty",
-    "portableNormalizedFilter",
-    "portableResultCount",
-    "portableScannedCount",
-    "portableSearchInput",
     "portableUsers",
-    "portableUsersQuery",
     "productsIsEmpty",
+    "productsQuery",
     "productsRequestDetail",
     "productsRequestTitle",
     "productsResultCount",
     "promptOptions",
-    "publicProductsQuery",
     "requestDetail",
     "requestTitle",
     "resultCount",
+    "scannedCount",
     "searchInput",
     "sendContextToAi",
+    "serverErrorText",
     "setBusy",
     "setCaptureError",
     "setCaptureInProgress",
@@ -190,7 +99,6 @@ export const architectureCatalog = {
     "setPanelOffset",
     "setStatus",
     "status",
-    "submitPortableSearch",
     "submitSearch",
     "users",
     "usersFilter",
@@ -210,7 +118,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:267>"
+      "url": "<unresolved:ai-send-context-chat.ts:274>"
     }
   ],
   "uniques": [
@@ -219,16 +127,125 @@ export const architectureCatalog = {
     "\"demo.users.list\"",
     "\"demo.users.portable-list\""
   ],
-  "providers": [],
+  "providers": [
+    "aiContextMenuDismissal",
+    "aiSendContextChatState",
+    "aiSendDialogState",
+    "appShellView",
+    "craftRouterOutletState",
+    "effectServerMiddlewareDemoView",
+    "portableServerFunctionDemoView",
+    "publicProductsDemoView",
+    "serverFunctionDemoView",
+    "simpleListDemoView"
+  ],
   "routeProviders": {},
-  "componentProviders": {},
-  "providedOn": {},
+  "componentProviders": {
+    "AppShell": [
+      "appShellView"
+    ],
+    "EffectServerMiddlewareDemo": [
+      "effectServerMiddlewareDemoView"
+    ],
+    "PortableServerFunctionDemo": [
+      "portableServerFunctionDemoView"
+    ],
+    "PublicProductsDemo": [
+      "publicProductsDemoView"
+    ],
+    "ServerFunctionDemo": [
+      "serverFunctionDemoView"
+    ],
+    "SimpleListDemo": [
+      "simpleListDemoView"
+    ],
+    "AiContextMenu": [
+      "aiContextMenuDismissal"
+    ],
+    "AiSendContextChat": [
+      "aiSendContextChatState"
+    ],
+    "AiSendDialog": [
+      "aiSendDialogState"
+    ],
+    "CraftRouterOutlet": [
+      "craftRouterOutletState"
+    ]
+  },
+  "providedOn": {
+    "appShellView": [
+      {
+        "kind": "component",
+        "name": "AppShell",
+        "file": "apps/demo-with-server-function/src/client/app-shell.ts"
+      }
+    ],
+    "effectServerMiddlewareDemoView": [
+      {
+        "kind": "component",
+        "name": "EffectServerMiddlewareDemo",
+        "file": "apps/demo-with-server-function/src/client/effect-server-middleware-demo.ts"
+      }
+    ],
+    "portableServerFunctionDemoView": [
+      {
+        "kind": "component",
+        "name": "PortableServerFunctionDemo",
+        "file": "apps/demo-with-server-function/src/client/portable-server-function-demo.ts"
+      }
+    ],
+    "publicProductsDemoView": [
+      {
+        "kind": "component",
+        "name": "PublicProductsDemo",
+        "file": "apps/demo-with-server-function/src/client/public-products-demo.ts"
+      }
+    ],
+    "serverFunctionDemoView": [
+      {
+        "kind": "component",
+        "name": "ServerFunctionDemo",
+        "file": "apps/demo-with-server-function/src/client/server-function-demo.ts"
+      }
+    ],
+    "simpleListDemoView": [
+      {
+        "kind": "component",
+        "name": "SimpleListDemo",
+        "file": "apps/demo-with-server-function/src/client/simple-list-demo.ts"
+      }
+    ],
+    "aiContextMenuDismissal": [
+      {
+        "kind": "component",
+        "name": "AiContextMenu",
+        "file": "libs/component/src/lib/ai/ai-context-menu.ts"
+      }
+    ],
+    "aiSendContextChatState": [
+      {
+        "kind": "component",
+        "name": "AiSendContextChat",
+        "file": "libs/component/src/lib/ai/ai-send-context-chat.ts"
+      }
+    ],
+    "aiSendDialogState": [
+      {
+        "kind": "component",
+        "name": "AiSendDialog",
+        "file": "libs/component/src/lib/ai/ai-send-dialog.ts"
+      }
+    ],
+    "craftRouterOutletState": [
+      {
+        "kind": "component",
+        "name": "CraftRouterOutlet",
+        "file": "libs/component/src/lib/craft-router-outlet.ts"
+      }
+    ]
+  },
   "collisions": {
     "services": {
-      "CraftPendingComponent": [
-        "libs/component/src/lib/craft-host-tokens.ts",
-        "libs/core/src/lib/craft-pending.ts"
-      ],
       "CurrentSession": [
         "apps/demo-with-server-function/src/shared/authenticated-user.ts",
         "apps/demo-with-server-function/src/shared/authenticated-user.ts"
@@ -244,28 +261,12 @@ export const architectureCatalog = {
       "UserRepository": [
         "apps/demo-with-server-function/src/server/database.ts",
         "apps/demo-with-server-function/src/server/database.ts"
-      ],
-      "api": [
-        "libs/core/src/lib/craft-register-for.ts",
-        "libs/core/src/lib/craft-service.ts"
       ]
     },
     "components": {},
     "routes": {}
   },
-  "browserBoundaryServices": [
-    "BrowserCryptoService",
-    "BrowserDocumentService",
-    "BrowserHistoryService",
-    "BrowserLocationService",
-    "BrowserNavigatorService",
-    "BrowserPerformanceService",
-    "BrowserWindowService",
-    "ConsoleService",
-    "CookiesService",
-    "LocalStorageService",
-    "SessionStorageService"
-  ],
+  "browserBoundaryServices": [],
   "scopes": {}
 } as const;
 export type ArchitectureCatalog = typeof architectureCatalog;
