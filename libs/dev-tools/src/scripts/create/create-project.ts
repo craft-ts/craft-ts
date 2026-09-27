@@ -3168,17 +3168,14 @@ function servicesPageTs(context: TemplateContext): string {
   const service =
     context.config.frontendRuntime === 'effect'
       ? ''
-      : `import { craftService } from '@craft-ts/core';
+      : `import { craftExpose, craftService } from '@craft-ts/core';
 
+// A craftService exposes what it yields, under its name.
 const { StarterService } = craftService({ name: 'StarterService', providedIn: 'global' }, function* () {
-  return { label: 'resolved through Craft DI' };
+  yield* craftExpose('label', 'resolved through Craft DI');
 });
 `;
-  const lintComment =
-    context.config.frontendRuntime === 'effect'
-      ? ''
-      : '/* eslint-disable require-yield -- Synchronous DI factory is intentional in this starter. */\n';
-  return `${lintComment}import { craftComponent, div, heading, p } from '@craft-ts/component';
+  return `import { craftComponent, div, heading, p } from '@craft-ts/component';
 ${uiImport}${i18n}${effectI18n}${service}
 export const ServicesPage = craftComponent(
   'ServicesPage',

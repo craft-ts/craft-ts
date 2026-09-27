@@ -77,7 +77,7 @@ export const ${formName} = craftComponent(
   {},
   function* () {
     const ${name} = yield* state(
-      '${name}Form',
+      '${name}',
       { name: '', email: '' } satisfies ${type}FormValue,
       insertForm(
         insertSelectFormTree(
@@ -189,9 +189,9 @@ export const ${formName} = craftComponent(
   '${type}Form',
   {},
   function* () {
-    const includeAddress = yield* state('${name}IncludeAddress', true);
+    const includeAddress = yield* state('includeAddress', true);
     const ${name} = yield* state(
-      '${name}Form',
+      '${name}',
       {
         name: '',
         email: '',
