@@ -31,7 +31,7 @@ describe('yieldable source services', () => {
       { name: 'Reset', providedIn: 'global' },
       function* () {
         const reset$ = yield* source$<void>('reset$');
-        return reset$;
+        return { reset$ };
       },
     );
 
@@ -47,7 +47,7 @@ describe('yieldable source services', () => {
           }),
         }));
 
-        const reset = yield* Reset();
+        const reset = (yield* Reset()).reset$;
 
         return { counter, reset };
       },

@@ -40,7 +40,7 @@ const { SlowAccess } = craftService(
         return { allowed: true };
       },
     });
-    return slowAccess;
+    return { slowAccess };
   },
 );
 
@@ -57,7 +57,7 @@ const { SlowReport } = craftService(
         };
       },
     });
-    return slowReport;
+    return { slowReport };
   },
 );
 
@@ -65,7 +65,7 @@ const { SlowReport } = craftService(
 // allows navigation or short-circuits with a typed NOT_AUTHENTICATED exception
 // routed through `handleExceptions`.
 const slowAccessGuard = craftGen(function* () {
-  const accessRef = yield* SlowAccess();
+  const accessRef = (yield* SlowAccess()).slowAccess;
   const access = yield* craftUntilSettled(accessRef);
   return access.allowed
     ? access
@@ -76,7 +76,7 @@ const slowAccessGuard = craftGen(function* () {
 // typed REPORT_EMPTY exception — recovered locally below through `catchTag`).
 // The resolved value is consumed via `injectSlowPageRootResolvedData()`.
 const loadSlowReport = craftGen(function* () {
-  const reportRef = yield* SlowReport();
+  const reportRef = (yield* SlowReport()).slowReport;
   const report = yield* craftUntilSettled(reportRef);
   return report.totalUsers === 0
     ? craftException({ _tag: 'REPORT_EMPTY' })

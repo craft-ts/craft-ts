@@ -13,14 +13,14 @@ const { Counter } = craftService(
     const counter = yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
     }));
-    return counter;
+    return { counter };
   },
 );
 
 const { CounterFacade } = craftService(
   { name: 'CounterFacade', providedIn: 'global' },
   function* () {
-    const counter = yield* Counter();
+    const counter = (yield* Counter()).counter;
 
     return {
       read: function* () {

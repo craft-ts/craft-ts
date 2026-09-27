@@ -14,14 +14,14 @@ const { Counter } = craftService(
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));
-    return counter;
+    return { counter };
   },
 );
 
 const { CounterConsumer } = craftService(
   { name: 'CounterConsumer', providedIn: 'global' },
   function* () {
-    const counter = yield* Counter();
+    const counter = (yield* Counter()).counter;
     yield* counter.increment();
     return counter;
   },

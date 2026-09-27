@@ -38,7 +38,7 @@ export const { TaskList } = craftService(
       ),
     );
 
-    return tasks;
+    return { tasks };
   },
 );
 // #endregion insert-state-pipe

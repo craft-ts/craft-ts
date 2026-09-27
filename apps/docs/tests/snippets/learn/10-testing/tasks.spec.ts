@@ -24,7 +24,7 @@ const { TaskList } = craftService(
         remove: (_id: string) => undefined,
       }),
     );
-    return tasks;
+    return { tasks };
   },
 );
 
@@ -35,7 +35,7 @@ export const Tasks = craftComponent(
   'Tasks',
   {},
   function* () {
-    const tasks = yield* TaskList();
+    const tasks = (yield* TaskList()).tasks;
     return { tasks };
   },
   ({ tasks }) => [

@@ -37,7 +37,7 @@ export const { TaskForm } = craftService(
       ),
     );
 
-    return taskForm;
+    return { taskForm };
   },
 );
 // #endregion task-form

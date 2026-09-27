@@ -11,7 +11,7 @@ const { Reset } = craftService(
   { name: 'Reset', providedIn: 'global' },
   function* () {
     const reset$ = yield* source$<void>('reset$');
-    return reset$;
+    return { reset$ };
   },
 );
 
@@ -22,7 +22,7 @@ const { Counter } = craftService(
       reset: on$(Reset, () => set(0)),
     }));
 
-    const reset = yield* Reset();
+    const reset = (yield* Reset()).reset$;
     return { counter, reset };
   },
 );

@@ -48,12 +48,12 @@ const { ViewTransitionAccess } = craftService(
         return { allowed: true };
       },
     });
-    return viewTransitionAccess;
+    return { viewTransitionAccess };
   },
 );
 
 const slowDetailGuard = craftGen(function* () {
-  const accessRef = yield* ViewTransitionAccess();
+  const accessRef = (yield* ViewTransitionAccess()).viewTransitionAccess;
   const access = yield* craftUntilSettled(accessRef);
   // Always allowed here — the `craftException` branch only exists so the guard
   // carries a typed exception code (a guard with no exception branch collapses

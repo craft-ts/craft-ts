@@ -24,7 +24,7 @@ export const { TaskList } = craftService(
       },
     });
 
-    return tasksQuery;
+    return { tasksQuery };
   },
 );
 // #endregion task-list-query

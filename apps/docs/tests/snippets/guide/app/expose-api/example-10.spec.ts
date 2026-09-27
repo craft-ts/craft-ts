@@ -14,17 +14,17 @@ const { Counter } = craftService(
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));
-    return counter;
+    return { counter };
   },
 );
 
 const { CounterExtended, provideCounterExtended } = craftService(
   { name: 'CounterExtended', providedIn: 'toProvide' },
   function* () {
-    return yield* Counter(undefined, ({ $self, increment }) => ({
+    return (yield* Counter(undefined, ({ $self, increment }) => ({
       $self,
       incrementCounter: increment,
-    }));
+    }))).counter;
   },
 );
 // #endregion example-10

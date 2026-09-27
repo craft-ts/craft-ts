@@ -24,7 +24,7 @@ const { Counter, provideCounter } = craftService(
       decrement: () => update((v) => v - 1),
     }));
 
-    return counter;
+    return { counter };
   },
 );
 
@@ -34,7 +34,7 @@ const CounterChild = craftComponent(
     providers: [provideCounter()],
   },
   function* () {
-    const counter = yield* Counter();
+    const counter = (yield* Counter()).counter;
     return { counter };
   },
   ({ counter }) =>
