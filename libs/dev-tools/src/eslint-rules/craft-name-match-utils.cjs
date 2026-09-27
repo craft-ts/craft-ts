@@ -1,7 +1,13 @@
+const { isServiceExposure } = require('./craft-service-exposure-utils.cjs');
+
 function createNameMatchRule({
   calleeName,
   description,
   supportsObjectConfigForm = false,
+  requireImport = false,
+  // `state('')`: a lone argument is the initial value, not a name (the
+  // runtime tells them apart the same way).
+  unnamedWhenSingleArgument = false,
 }) {
   return {
     meta: {
@@ -16,8 +22,19 @@ function createNameMatchRule({
           "{{calleeName}} first argument '{{actual}}' must match the declared name '{{declaredName}}'.",
       },
     },
-    create(context) {
-      const sourceCode = context.sourceCode ?? context.getSourceCode();
+    create(originalContext) {
+      const sourceCode =
+        originalContext.sourceCode ?? originalContext.getSourceCode();
+      let exposure = false;
+      // Renaming an exposed primitive renames the service's public key and
+      // breaks its consumers: report it, but never fix it automatically.
+      const context = {
+        report(descriptor) {
+          originalContext.report(
+            exposure ? { ...descriptor, fix: undefined } : descriptor,
+          );
+        },
+      };
 
       return {
         CallExpression(node) {
@@ -27,6 +44,10 @@ function createNameMatchRule({
           ) {
             return;
           }
+          if (requireImport && !isImported(node.callee, sourceCode)) {
+            return;
+          }
+          exposure = isServiceExposure(node);
 
           const declaredName = getDeclaredName(node);
           if (!declaredName) {
@@ -34,6 +55,22 @@ function createNameMatchRule({
           }
 
           const firstArg = node.arguments[0];
+
+          if (
+            unnamedWhenSingleArgument &&
+            node.arguments.length === 1 &&
+            firstArg.type !== 'SpreadElement'
+          ) {
+            context.report({
+              node: firstArg,
+              messageId: 'missingName',
+              data: { calleeName, declaredName },
+              fix(fixer) {
+                return fixer.insertTextBefore(firstArg, `'${declaredName}', `);
+              },
+            });
+            return;
+          }
 
           if (!firstArg) {
             context.report({
@@ -129,8 +166,32 @@ function createNameMatchRule({
   };
 }
 
+/**
+ * The name a primitive call is bound to — looking through the ways a primitive
+ * generator is consumed: `yield* x(...)`, `craftUse(x(...))`,
+ * `craftPrivate(x(...))` (and their combinations).
+ */
 function getDeclaredName(callNode) {
-  const parent = callNode.parent;
+  let node = callNode;
+  let parent = node.parent;
+  while (
+    parent &&
+    ((parent.type === 'YieldExpression' && parent.delegate) ||
+      parent.type === 'TSAsExpression' ||
+      parent.type === 'ParenthesizedExpression' ||
+      (parent.type === 'CallExpression' &&
+        parent.callee.type === 'Identifier' &&
+        (parent.callee.name === 'craftUse' ||
+          parent.callee.name === 'craftPrivate') &&
+        parent.arguments[0] === node))
+  ) {
+    node = parent;
+    parent = node.parent;
+  }
+  return getBindingName(node, parent);
+}
+
+function getBindingName(callNode, parent) {
   if (!parent) return undefined;
 
   if (
@@ -162,6 +223,24 @@ function getDeclaredName(callNode) {
   }
 
   return undefined;
+}
+
+/** `true` when `identifier` resolves to an import binding. */
+function isImported(identifier, sourceCode) {
+  let scope = sourceCode.getScope(identifier);
+  while (scope) {
+    const variable = scope.variables.find(
+      (candidate) => candidate.name === identifier.name,
+    );
+    if (variable) {
+      return (
+        variable.defs.length > 0 &&
+        variable.defs.every((def) => def.type === 'ImportBinding')
+      );
+    }
+    scope = scope.upper;
+  }
+  return false;
 }
 
 function isStringLiteral(node) {

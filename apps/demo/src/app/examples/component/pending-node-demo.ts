@@ -10,7 +10,14 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  craftSleep,
+  query,
+  settled,
+  craftUse,
+} from '@craft-ts/core';
 import { componentUi, pendingDemo } from './component-demos.style';
 
 interface DemoUser {
@@ -33,11 +40,8 @@ const USERS: readonly DemoUser[] = [
  * boundary below is a **compile error**, not an `undefined` leaking into the
  * render.
  */
-export const pendingNodeDemo = craftComponent(
-  'pendingNodeDemo',
-  {
-    host: { class: componentUi.host },
-  },
+export const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
+  { name: 'pendingNodeDemoView', providedIn: 'toProvide' },
   function* () {
     const users = yield* query(
       'users',
@@ -53,25 +57,33 @@ export const pendingNodeDemo = craftComponent(
         },
       },
       ({ resource }) => ({
-        teams: craftComputed('teams', function* () {
+        teams: craftUse(craftComputed('teams', function* () {
           const list = yield* settled(resource);
           return [...new Set(list.items.map((user) => user.team))]
             .sort()
             .join(' · ');
-        }),
-        total: craftComputed('total', function* () {
+        })),
+        total: craftUse(craftComputed('total', function* () {
           const list = yield* settled(resource);
           return `${list.items.length} people`;
-        }),
+        })),
       }),
     );
 
     yield* users.call(undefined); // trigger first call
 
-    return { users };
   },
-  ({ users }) =>
-    section({ class: pendingDemo.page }, [
+);
+
+export const pendingNodeDemo = craftComponent(
+  'pendingNodeDemo',
+  {
+    providers: [providePendingNodeDemoView()],
+    host: { class: componentUi.host },
+  },
+  function* () {
+    const { users } = yield* PendingNodeDemoView();
+    return section({ class: pendingDemo.page }, [
       heading('settledValue + pendingNode'),
       p(
         'The template reads an always-resolved value; the pendingNode owns the loading state.',
@@ -99,7 +111,8 @@ export const pendingNodeDemo = craftComponent(
           fallback: () => p({ class: pendingDemo.skeleton }, 'Loading teams…'),
         }),
       ),
-    ]),
+    ]);
+  },
 );
 
 export default pendingNodeDemo;

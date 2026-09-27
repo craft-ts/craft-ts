@@ -15,7 +15,7 @@ describe('max-craft-component-lines', () => {
     const result = await lint(`
       import { craftComponent } from '@craft-ts/component';
 
-      export const Widget = craftComponent('Widget', {}, () => ({}), () => [
+      export const Widget = craftComponent('Widget', {}, () => [
 ${body}
       ]);
     `);
@@ -31,7 +31,7 @@ ${body}
       `
       import { craftComponent } from '@craft-ts/component';
 
-      export const Widget = craftComponent('Widget', {}, () => ({}), () => [
+      export const Widget = craftComponent('Widget', {}, () => [
 ${body}
       ]);
     `,
@@ -52,7 +52,7 @@ ${body}
 ${imports}
       import { craftComponent } from '@craft-ts/component';
 
-      export const Widget = craftComponent('Widget', {}, () => ({}), () => []);
+      export const Widget = craftComponent('Widget', {}, () => []);
     `,
       { max: 10 },
     );
@@ -68,7 +68,7 @@ ${imports}
       `
       import * as component from '@craft-ts/component';
 
-      export const Widget = component.craftComponent('Widget', {}, () => ({}), () => [
+      export const Widget = component.craftComponent('Widget', {}, () => [
 ${body}
       ]);
     `,
@@ -86,7 +86,7 @@ ${body}
       `
       const craftComponent = () => {};
 
-      craftComponent('Widget', {}, () => ({}), () => [
+      craftComponent('Widget', {}, () => [
 ${body}
       ]);
     `,

@@ -36,54 +36,59 @@ module.exports = {
       },
 
       'Program:exit'(program) {
-        walk(program, (node) => {
-          if (node.type !== 'VariableDeclarator') return;
-          if (
-            node.id.type !== 'Identifier' ||
-            !isProviderArray(node.init)
-          ) {
-            return;
-          }
+        walk(
+          program,
+          (node) => {
+            if (node.type !== 'VariableDeclarator') return;
+            if (node.id.type !== 'Identifier' || !isProviderArray(node.init)) {
+              return;
+            }
 
-          const references = findReferences(program, node.id.name, node);
-          if (references.length !== 1) return;
+            const references = findReferences(program, node.id.name, node);
+            if (references.length !== 1) return;
 
-          const reference = references[0];
-          const call = reference.parent;
-          if (
-            call?.type !== 'CallExpression' ||
-            call.arguments[1] !== reference ||
-            call.callee.type !== 'Identifier' ||
-            !loadCraftComponentBindings.has(call.callee.name)
-          ) {
-            return;
-          }
+            const reference = references[0];
+            const call = reference.parent;
+            if (
+              call?.type !== 'CallExpression' ||
+              call.arguments[1] !== reference ||
+              call.callee.type !== 'Identifier' ||
+              !loadCraftComponentBindings.has(call.callee.name)
+            ) {
+              return;
+            }
 
-          context.report({
-            node: reference,
-            messageId: 'inline',
-            fix(fixer) {
-              return [
-                fixer.replaceText(reference, sourceCode.getText(node.init)),
-                removeDeclaration(fixer, node),
-              ];
-            },
-          });
-        }, visitorKeys);
+            context.report({
+              node: reference,
+              messageId: 'inline',
+              fix(fixer) {
+                return [
+                  fixer.replaceText(reference, sourceCode.getText(node.init)),
+                  removeDeclaration(fixer, node),
+                ];
+              },
+            });
+          },
+          visitorKeys,
+        );
       },
     };
 
     function findReferences(program, name, declaration) {
       const references = [];
-      walk(program, (node) => {
-        if (
-          node.type === 'Identifier' &&
-          node.name === name &&
-          node !== declaration.id
-        ) {
-          references.push(node);
-        }
-      }, visitorKeys);
+      walk(
+        program,
+        (node) => {
+          if (
+            node.type === 'Identifier' &&
+            node.name === name &&
+            node !== declaration.id
+          ) {
+            references.push(node);
+          }
+        },
+        visitorKeys,
+      );
       return references;
     }
   },

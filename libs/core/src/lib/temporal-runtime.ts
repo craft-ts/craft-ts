@@ -205,8 +205,10 @@ export function provideCraftTemporalRuntime(
   return { provide: CRAFT_TEMPORAL_RUNTIME, useValue: runtime };
 }
 
+// It resolves synchronously and suspends nothing: `never`, so a craftService
+// yielding it keeps a readable exposed API.
 export function* CraftTemporalRuntime(): Generator<
-  unknown,
+  never,
   CraftTemporalRuntime,
   unknown
 > {

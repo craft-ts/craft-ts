@@ -22,13 +22,10 @@ export const ThemeLocalePicker = craftComponent(
   function* () {
     const { locale, theme, ide, chooseLocale, chooseTheme, chooseIde } =
       yield* ReviewPreferences();
-    const t = craftComputed('t', function* () {
+    const t = yield* craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
-    return { locale, theme, ide, chooseLocale, chooseTheme, chooseIde, t };
-  },
-  ({ locale, theme, ide, chooseLocale, chooseTheme, chooseIde, t }) =>
-    div({ class: preferences.root }, [
+    return div({ class: preferences.root }, [
       label({ htmlFor: 'review-locale' }, function* () {
         return (yield* t()).language;
       }),
@@ -39,7 +36,7 @@ export const ThemeLocalePicker = craftComponent(
           id: 'review-locale',
           value: locale,
           *change(event: Event) {
-            yield* chooseLocale(eventValue(event));
+            chooseLocale(eventValue(event));
           },
         },
         [
@@ -57,7 +54,7 @@ export const ThemeLocalePicker = craftComponent(
           id: 'review-theme',
           value: theme,
           *change(event: Event) {
-            yield* chooseTheme(eventValue(event));
+            chooseTheme(eventValue(event));
           },
         },
         [
@@ -85,7 +82,7 @@ export const ThemeLocalePicker = craftComponent(
           id: 'review-ide',
           value: ide,
           *change(event: Event) {
-            yield* chooseIde(eventValue(event));
+            chooseIde(eventValue(event));
           },
         },
         [
@@ -94,5 +91,6 @@ export const ThemeLocalePicker = craftComponent(
           option({ value: 'zed' }, 'Zed'),
         ],
       ),
-    ]),
+    ]);
+  },
 );

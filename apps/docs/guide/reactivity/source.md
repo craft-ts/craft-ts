@@ -98,7 +98,8 @@ type ReadonlySource$<T> = {
 ### Source services and dependency tracking
 
 Use a `craftService` as the dependency handle when a source is shared by
-multiple consumers:
+multiple consumers. The service exposes its source under its name, and
+`on$(Service, ...)` subscribes to the one source a service exposes:
 
 <<< @/tests/snippets/guide/reactivity/source/example-6.spec.ts#example-6
 
@@ -129,9 +130,9 @@ message$.emit('Hello');
 console.log(message$.value()); // 'Hello'
 
 // Use in templates or craftComputed
-const uppercased = craftComputed('uppercased', function* () {
+const uppercased = craftUse(craftComputed('uppercased', function* () {
   return (yield* message$.value())?.toUpperCase();
-});
+}));
 ```
 
 ### Last Value Preservation
@@ -201,32 +202,27 @@ const { counter } = state('counter', 0, ({ set, update }) => ({
 import { button, craftComponent, p } from '@craft-ts/component';
 import { on$, source$, state } from '@craft-ts/core';
 
-export const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    // a source for reset events
-    const reset$ = source$<void>('reset$');
+export const Counter = craftComponent('Counter', {}, function* () {
+  // a source for reset events
+  const reset$ = source$<void>('reset$');
 
-    const counter = yield* state('counter', 0, ({ set, update }) => ({
-      increment: () => update((v) => v + 1),
-      decrement: () => update((v) => v - 1),
-      // internal: listens to reset$ and sets counter to 0.
-      // NOT exposed on the ref, because it is bound with on$
-      reset: on$(reset$, () => set(0)),
-    }));
+  const counter = yield* state('counter', 0, ({ set, update }) => ({
+    increment: () => update((v) => v + 1),
+    decrement: () => update((v) => v - 1),
+    // internal: listens to reset$ and sets counter to 0.
+    // NOT exposed on the ref, because it is bound with on$
+    reset: on$(reset$, () => set(0)),
+  }));
 
-    return { counter, reset$ };
-  },
-  ({ counter, reset$ }) => [
+  return [
     p(function* () {
       return `Count: ${yield* counter()}`;
     }),
     button({ click: counter.increment }, '+1'),
     button({ click: counter.decrement }, '-1'),
     button({ click: () => reset$.emit() }, 'Reset'),
-  ],
-);
+  ];
+});
 ```
 
 ### Multi-Source Coordination

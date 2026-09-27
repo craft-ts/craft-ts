@@ -16,7 +16,7 @@ describe('no-craft-service-component-same-file', () => {
       const { DemoService } = craftService({ name: 'DemoService', scope: 'route' }, function* () {
         return {};
       });
-      const DemoComponent = craftComponent('DemoComponent', {}, () => ({}), () => []);
+      const DemoComponent = craftComponent('DemoComponent', {}, () => []);
     `);
 
     expect(result.messages).toHaveLength(2);
@@ -47,7 +47,7 @@ describe('no-craft-service-component-same-file', () => {
     const componentResult = await lint(`
       import { craftComponent } from '@craft-ts/component';
 
-      const component = craftComponent('Component', {}, () => ({}), () => []);
+      const component = craftComponent('Component', {}, () => []);
     `);
 
     expect(serviceResult.messages).toEqual([]);

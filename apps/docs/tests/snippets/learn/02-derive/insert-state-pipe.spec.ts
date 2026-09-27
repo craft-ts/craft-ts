@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { setupCraftServiceTestingByRegister } from '@craft-ts/core';
-import { craftUse } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../snippet-harness';
 
@@ -15,12 +14,12 @@ const newTask = (title: string): Task => ({
 });
 
 // #region insert-state-pipe
-import { insertStatePipe, craftComputed, craftService, state } from '@craft-ts/core';
+import { insertStatePipe, craftComputed, craftService, state, craftUse } from '@craft-ts/core';
 
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
-    const tasks = yield* state(
+    yield* state(
       'tasks',
       [] as Task[],
       insertStatePipe(
@@ -28,17 +27,15 @@ export const { TaskList } = craftService(
           add: (title: string) => update((c) => [...c, newTask(title)]),
         }),
         ({ state }) => ({
-          remaining: craftComputed(function* () {
+          remaining: craftUse(craftComputed('remaining', function* () {
             return (yield* state()).filter((t) => !t.done).length;
-          }),
-          isEmpty: craftComputed(function* () {
+          })),
+          isEmpty: craftUse(craftComputed('isEmpty', function* () {
             return (yield* state()).length === 0;
-          }),
+          })),
         }),
       ),
     );
-
-    return tasks;
   },
 );
 // #endregion insert-state-pipe
@@ -49,9 +46,9 @@ describe('Learn 02 insertStatePipe', () => {
       TaskList: 'real',
     });
 
-    expect(craftUse(sut.isEmpty())).toBe(true);
-    sut.add('Split insertions');
-    expect(craftUse(sut.remaining())).toBe(1);
-    expect(craftUse(sut.isEmpty())).toBe(false);
+    expect(craftUse(sut.tasks.isEmpty())).toBe(true);
+    sut.tasks.add('Split insertions');
+    expect(craftUse(sut.tasks.remaining())).toBe(1);
+    expect(craftUse(sut.tasks.isEmpty())).toBe(false);
   });
 });

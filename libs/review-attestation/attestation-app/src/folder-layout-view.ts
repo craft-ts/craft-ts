@@ -12,7 +12,15 @@ import {
   ul,
   type Input,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, state } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftMethod,
+  state,
+  craftUse,
+  craftService,
+  craftPrivate,
+  craftExpose,
+} from '@craft-ts/core';
 import type { FolderLayoutEntry } from '@craft-ts/dev-tools/attestation-review';
 import {
   highlightFolderLayoutRow,
@@ -74,134 +82,152 @@ const noCollapsedFolders = (): readonly string[] => [];
 const withoutSide = (ids: readonly string[], side: FolderLayoutSide) =>
   ids.filter((id) => !id.startsWith(`${side}|`));
 
+export const { FolderLayoutViewState, provideFolderLayoutViewState } =
+  craftService(
+    { name: 'folderLayoutViewState', providedIn: 'toProvide' },
+    function* (inputs: {
+      readonly entries: Input<readonly FolderLayoutEntry[]>;
+      readonly sourceGraphHash: Input<string>;
+      readonly configHash: Input<string>;
+      readonly moves: Input<number>;
+      readonly reviews: Input<number>;
+    }) {
+      const { entries, moves, reviews } = inputs;
+      const trees = yield* craftComputed('trees', function* () {
+        return folderLayoutTrees(yield* entries());
+      });
+      /** Folders folded by the reviewer, as `side|key` ids. */
+      const collapsed = yield* craftPrivate(
+        state(
+          'collapsedFolders',
+          noCollapsedFolders(),
+          ({ state: ids, update }) => ({
+            toggle: (id: string) =>
+              update((current) =>
+                current.includes(id)
+                  ? current.filter((other) => other !== id)
+                  : [...current, id],
+              ),
+            collapseSide: (
+              side: FolderLayoutSide,
+              sideIds: readonly string[],
+            ) =>
+              update((current) => [...withoutSide(current, side), ...sideIds]),
+            expandSide: (side: FolderLayoutSide) =>
+              update((current) => withoutSide(current, side)),
+            /** Unfolds whatever hides these files in the `side` tree. */
+            reveal: function* (
+              side: FolderLayoutSide,
+              links: readonly string[],
+            ) {
+              const unfold = ancestorFolderIds(
+                (yield* trees())[side],
+                side,
+                links,
+              );
+              if (!unfold.length) return;
+              yield* update((current) =>
+                current.filter((id) => !unfold.includes(id)),
+              );
+            },
+            sourceRows: craftUse(
+              craftComputed('sourceRows', function* () {
+                return visibleRows(
+                  (yield* trees()).source,
+                  'source',
+                  yield* ids(),
+                );
+              }),
+            ),
+            proposedRows: craftUse(
+              craftComputed('proposedRows', function* () {
+                return visibleRows(
+                  (yield* trees()).proposed,
+                  'proposed',
+                  yield* ids(),
+                );
+              }),
+            ),
+          }),
+        ),
+      );
+      const { sourceRows, proposedRows } = collapsed;
+      yield* craftComputed('folderIds', function* () {
+        const { source, proposed } = yield* trees();
+        const idsOf = (
+          side: FolderLayoutSide,
+          rows: readonly FolderLayoutRow[],
+        ) =>
+          rows
+            .filter((row) => row.kind === 'folder')
+            .map((row) => folderId(side, row));
+        return {
+          source: idsOf('source', source),
+          proposed: idsOf('proposed', proposed),
+        };
+      });
+      yield* craftMethod('toggleFolder', function* (id: string) {
+        yield* collapsed.toggle(id);
+      });
+      yield* craftMethod(
+        'collapseFolders',
+        function* (side: FolderLayoutSide, ids: readonly string[]) {
+          yield* collapsed.collapseSide(side, ids);
+        },
+      );
+      yield* craftMethod('expandFolders', function* (side: FolderLayoutSide) {
+        yield* collapsed.expandSide(side);
+      });
+      yield* craftMethod(
+        'revealFolders',
+        function* (side: FolderLayoutSide, links: readonly string[]) {
+          yield* collapsed.reveal(side, links);
+        },
+      );
+      yield* craftComputed('summary', function* () {
+        const { collisions } = yield* trees();
+        const currentEntries = yield* entries();
+        const deletions = currentEntries.filter(
+          (entry) => entry.status === 'deleted',
+        ).length;
+        const counts = `${currentEntries.length} files · ${yield* moves()} moves · ${deletions} deletions · ${yield* reviews()} reviews`;
+        return collisions
+          ? `${counts} · ${collisions} destination collisions`
+          : counts;
+      });
+      yield* craftComputed('root', function* () {
+        return (yield* trees()).root || './';
+      });
+      yield* craftExpose('sourceRows', sourceRows);
+      yield* craftExpose('proposedRows', proposedRows);
+    },
+  );
+
 export const FolderLayoutView = craftComponent(
   'FolderLayoutView',
-  {},
-  function* (
-    entries: Input<readonly FolderLayoutEntry[]>,
-    sourceGraphHash: Input<string>,
-    configHash: Input<string>,
-    moves: Input<number>,
-    reviews: Input<number>,
-  ) {
-    const trees = craftComputed('trees', function* () {
-      return folderLayoutTrees(yield* entries());
-    });
-    /** Folders folded by the reviewer, as `side|key` ids. */
-    const collapsed = yield* state(
-      'collapsedFolders',
-      noCollapsedFolders(),
-      ({ state: ids, update }) => ({
-        toggle: (id: string) =>
-          update((current) =>
-            current.includes(id)
-              ? current.filter((other) => other !== id)
-              : [...current, id],
-          ),
-        collapseSide: (side: FolderLayoutSide, sideIds: readonly string[]) =>
-          update((current) => [...withoutSide(current, side), ...sideIds]),
-        expandSide: (side: FolderLayoutSide) =>
-          update((current) => withoutSide(current, side)),
-        /** Unfolds whatever hides these files in the `side` tree. */
-        reveal: function* (side: FolderLayoutSide, links: readonly string[]) {
-          const unfold = ancestorFolderIds((yield* trees())[side], side, links);
-          if (!unfold.length) return;
-          yield* update((current) =>
-            current.filter((id) => !unfold.includes(id)),
-          );
-        },
-        sourceRows: craftComputed('sourceRows', function* () {
-          return visibleRows((yield* trees()).source, 'source', yield* ids());
-        }),
-        proposedRows: craftComputed('proposedRows', function* () {
-          return visibleRows(
-            (yield* trees()).proposed,
-            'proposed',
-            yield* ids(),
-          );
-        }),
-      }),
-    );
-    const { sourceRows, proposedRows } = collapsed;
-    const folderIds = craftComputed('folderIds', function* () {
-      const { source, proposed } = yield* trees();
-      const idsOf = (
-        side: FolderLayoutSide,
-        rows: readonly FolderLayoutRow[],
-      ) =>
-        rows
-          .filter((row) => row.kind === 'folder')
-          .map((row) => folderId(side, row));
-      return {
-        source: idsOf('source', source),
-        proposed: idsOf('proposed', proposed),
-      };
-    });
-    const toggleFolder = craftMethod('toggleFolder', function* (id: string) {
-      yield* collapsed.toggle(id);
-    });
-    const collapseFolders = craftMethod(
-      'collapseFolders',
-      function* (side: FolderLayoutSide, ids: readonly string[]) {
-        yield* collapsed.collapseSide(side, ids);
-      },
-    );
-    const expandFolders = craftMethod(
-      'expandFolders',
-      function* (side: FolderLayoutSide) {
-        yield* collapsed.expandSide(side);
-      },
-    );
-    const revealFolders = craftMethod(
-      'revealFolders',
-      function* (side: FolderLayoutSide, links: readonly string[]) {
-        yield* collapsed.reveal(side, links);
-      },
-    );
-    const summary = craftComputed('summary', function* () {
-      const { collisions } = yield* trees();
-      const currentEntries = yield* entries();
-      const deletions = currentEntries.filter(
-        (entry) => entry.status === 'deleted',
-      ).length;
-      const counts = `${currentEntries.length} files · ${yield* moves()} moves · ${deletions} deletions · ${yield* reviews()} reviews`;
-      return collisions
-        ? `${counts} · ${collisions} destination collisions`
-        : counts;
-    });
-    const root = craftComputed('root', function* () {
-      return (yield* trees()).root || './';
-    });
-    return {
+  {
+    providers: [provideFolderLayoutViewState()],
+  },
+  function* (inputs: {
+    readonly entries: Input<readonly FolderLayoutEntry[]>;
+    readonly sourceGraphHash: Input<string>;
+    readonly configHash: Input<string>;
+    readonly moves: Input<number>;
+    readonly reviews: Input<number>;
+  }) {
+    const {
+      summary,
       trees,
+      root,
       sourceRows,
-      proposedRows,
-      folderIds,
       toggleFolder,
       collapseFolders,
       expandFolders,
       revealFolders,
-      summary,
-      root,
-      sourceGraphHash,
-      configHash,
-    };
-  },
-  ({
-    trees,
-    sourceRows,
-    proposedRows,
-    folderIds,
-    toggleFolder,
-    collapseFolders,
-    expandFolders,
-    revealFolders,
-    summary,
-    root,
-    sourceGraphHash,
-  configHash,
-  }) =>
-    section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
+      folderIds,
+      proposedRows,
+    } = yield* FolderLayoutViewState(inputs);
+    return section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
       div({ class: folderLayout.summary }, [
         strong('Folder layout proposal'),
         small({ class: folderLayout.muted }, summary),
@@ -251,27 +277,26 @@ export const FolderLayoutView = craftComponent(
         }),
       ]),
       p({ class: folderLayout.hash }, function* () {
-        return `Graph ${yield* sourceGraphHash()} · configuration ${yield* configHash()}`;
+        return `Graph ${yield* inputs.sourceGraphHash()} · configuration ${yield* inputs.configHash()}`;
       }),
-    ]),
+    ]);
+  },
 );
 
 interface TreeBindings {
   readonly root: Input<string>;
   readonly trees: Input<FolderLayoutTrees>;
   readonly rows: Input<readonly VisibleFolderLayoutRow[]>;
-  readonly toggleFolder: (id: string) => Generator<unknown, unknown, unknown>;
+  readonly toggleFolder: (id: string) => void;
   readonly collapseFolders: (
     side: FolderLayoutSide,
     ids: readonly string[],
-  ) => Generator<unknown, unknown, unknown>;
-  readonly expandFolders: (
-    side: FolderLayoutSide,
-  ) => Generator<unknown, unknown, unknown>;
+  ) => void;
+  readonly expandFolders: (side: FolderLayoutSide) => void;
   readonly revealFolders: (
     side: FolderLayoutSide,
     links: readonly string[],
-  ) => Generator<unknown, unknown, unknown>;
+  ) => void;
   readonly folderIds: Input<
     Readonly<Record<FolderLayoutSide, readonly string[]>>
   >;
@@ -305,7 +330,7 @@ function tree(
             class: folderLayout.treeAction,
             title: 'Collapse every folder',
             *click() {
-              yield* collapseFolders(side, (yield* folderIds())[side]);
+              collapseFolders(side, (yield* folderIds())[side]);
             },
           },
           'Collapse all',
@@ -316,8 +341,8 @@ function tree(
             type: 'button',
             class: folderLayout.treeAction,
             title: 'Expand every folder',
-            *click() {
-              yield* expandFolders(side);
+            click() {
+              expandFolders(side);
             },
           },
           'Expand all',
@@ -390,7 +415,7 @@ function tree(
                 *click() {
                   const value = yield* row();
                   if (value.kind === 'folder') {
-                    yield* toggleFolder(folderId(side, value));
+                    toggleFolder(folderId(side, value));
                   }
                 },
               },
@@ -411,7 +436,7 @@ function tree(
                     (yield* trees())[side],
                     yield* row(),
                   );
-                  yield* revealFolders(otherFolderLayoutSide(side), links);
+                  revealFolders(otherFolderLayoutSide(side), links);
                   locateFolderLayoutRows(event, links);
                 },
               },

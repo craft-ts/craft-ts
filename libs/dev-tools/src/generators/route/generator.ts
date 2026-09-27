@@ -467,11 +467,8 @@ export const ${sheetName} = craftStyles('${sheetName.replace(/Styles$/, '')}', {
     `import { craftComponent, p } from '@craft-ts/component';
 import { ${sheetName} } from '${sheetModule}';
 
-export const ${exportName} = craftComponent(
-  '${target.name}',
-  {},
-  () => ({}),
-  () => p({ class: ${sheetName}.root }, '${target.name} works'),
+export const ${exportName} = craftComponent('${target.name}', {}, () =>
+  p({ class: ${sheetName}.root }, '${target.name} works'),
 );
 
 export default ${exportName};

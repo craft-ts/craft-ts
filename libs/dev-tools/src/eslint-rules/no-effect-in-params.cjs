@@ -233,9 +233,7 @@ module.exports = {
         ) {
           return true;
         }
-        if (
-          ['FunctionDeclaration', 'Program'].includes(current.type)
-        ) {
+        if (['FunctionDeclaration', 'Program'].includes(current.type)) {
           return false;
         }
       }

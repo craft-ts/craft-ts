@@ -9,7 +9,11 @@ import {
   type CraftTemporalRuntime as CraftTemporalRuntimeApi,
   type SendContextEvent,
   type TemporalTaskHandle,
+  craftPrivate,
+  craftExpose,
+  type CraftServiceInput,
 } from '@craft-ts/core';
+import { craftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import { DestroyRef, inject } from '../host-runtime';
@@ -31,7 +35,7 @@ import {
   strong,
   textarea,
 } from '../hyperscript';
-import type { CraftComponent, Input, Output } from '../types';
+import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
 import { measureAi, writeAiClipboard } from './ai-performance';
 import { assign, unit } from '@craft-ts/style';
@@ -47,7 +51,11 @@ import {
   type SendContextPromptOptions,
 } from './send-context-prompt';
 import type { SendContextUiContext } from './send-context-ui.tokens';
-import { createReplayController, validateReplayExport, type ReplayController } from './debug-session-replay';
+import {
+  createReplayController,
+  validateReplayExport,
+  type ReplayController,
+} from './debug-session-replay';
 
 /** The timeline is a debugging view, not a log: only the tail is readable. */
 const VISIBLE_EVENTS = 100;
@@ -128,11 +136,11 @@ type ChatContext = {
   recording: () => boolean;
   removeTarget: (index: number) => void;
   instruction: () => string;
-  writeInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+  writeInstruction: (value: string) => Generator<never, unknown, unknown>;
   options: () => SendContextPromptOptions;
   writeOptions: (
     value: SendContextPromptOptions,
-  ) => Generator<unknown, unknown, unknown>;
+  ) => Generator<never, unknown, unknown>;
   status: () => string;
   error: () => string;
   busy: () => boolean;
@@ -166,103 +174,121 @@ type ChatFactoryContext = Omit<ChatContext, 'onClose'> & {
  * recorded event timeline, an instruction box, and the per-section switches
  * that decide what the copied prompt actually carries.
  */
-export const AiSendContextChat: CraftComponent<{
-  context: Input<SendContextUiContext>;
-  onClose: Output<() => void>;
-}> = craftComponent(
-  'AiSendContextChat',
-  {},
-  function* (
-    context: Input<SendContextUiContext>,
-    onClose: Output<() => void>,
-  ): Generator<unknown, ChatFactoryContext, unknown> {
+/**
+ * The chat's own memory: captured targets, the recorded timeline, the draft
+ * instruction and the send in flight. A rerender must find all of it again.
+ */
+const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
+  { name: 'aiSendContextChatState', providedIn: 'toProvide' },
+  function* (input: {
+    readonly context: CraftServiceInput<SendContextUiContext>;
+    readonly onClose: Output<() => void>;
+  }) {
+    const { context, onClose } = input;
     const temporalRuntime = yield* CraftTemporalRuntime();
 
     // Reactive values carry `unique symbol`s that declaration emit cannot name
     // (TS4023), so — as in `AiSendDialog` — the signals stay local and the
     // template context exposes plain accessors only.
     type InstructionState = (() => string) & {
-      setInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+      setInstruction: (value: string) => Generator<never, unknown, unknown>;
     };
     type OptionsState = (() => SendContextPromptOptions) & {
       setOptions: (
         value: SendContextPromptOptions,
-      ) => Generator<unknown, unknown, unknown>;
+      ) => Generator<never, unknown, unknown>;
     };
     type StatusState = (() => string) & {
-      setStatus: (value: string) => Generator<unknown, unknown, unknown>;
+      setStatus: (value: string) => Generator<never, unknown, unknown>;
     };
     type ErrorState = (() => string) & {
-      setError: (value: string) => Generator<unknown, unknown, unknown>;
+      setError: (value: string) => Generator<never, unknown, unknown>;
     };
     type BusyState = (() => boolean) & {
-      setBusy: (value: boolean) => Generator<unknown, unknown, unknown>;
+      setBusy: (value: boolean) => Generator<never, unknown, unknown>;
     };
     type PanelOffsetState = (() => PanelOffset) & {
       setPanelOffset: (
         value: PanelOffset,
-      ) => Generator<unknown, unknown, unknown>;
+      ) => Generator<never, unknown, unknown>;
     };
 
-    const instruction = yield* state('instruction', '', ({ set }) => ({
-      setInstruction: (value: string) => set(value),
-    })) as unknown as Generator<never, InstructionState, unknown>;
-    const promptOptions = yield* state(
-      'promptOptions',
-      DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
-      ({ set }) => ({
-        setOptions: (value: SendContextPromptOptions) => set(value),
-      }),
-    ) as unknown as Generator<never, OptionsState, unknown>;
-    const status = yield* state('status', '', ({ set }) => ({
-      setStatus: (value: string) => set(value),
-    })) as unknown as Generator<never, StatusState, unknown>;
-    const error = yield* state('error', '', ({ set }) => ({
-      setError: (value: string) => set(value),
-    })) as unknown as Generator<never, ErrorState, unknown>;
-    const busy = yield* state('busy', false, ({ set }) => ({
-      setBusy: (value: boolean) => set(value),
-    })) as unknown as Generator<never, BusyState, unknown>;
-    const panelOffset = yield* state(
-      'panelOffset',
-      { x: 0, y: 0 } as PanelOffset,
-      ({ set }) => ({
+    const instruction = (yield* craftPrivate(
+      state('instruction', '', ({ set }) => ({
+        setInstruction: (value: string) => set(value),
+      })),
+    )) as unknown as InstructionState;
+    const promptOptions = (yield* craftPrivate(
+      state(
+        'promptOptions',
+        DEFAULT_SEND_CONTEXT_PROMPT_OPTIONS,
+        ({ set }) => ({
+          setOptions: (value: SendContextPromptOptions) => set(value),
+        }),
+      ),
+    )) as unknown as OptionsState;
+    const status = (yield* craftPrivate(
+      state('status', '', ({ set }) => ({
+        setStatus: (value: string) => set(value),
+      })),
+    )) as unknown as StatusState;
+    const error = (yield* craftPrivate(
+      state('error', '', ({ set }) => ({
+        setError: (value: string) => set(value),
+      })),
+    )) as unknown as ErrorState;
+    const busy = (yield* craftPrivate(
+      state('busy', false, ({ set }) => ({
+        setBusy: (value: boolean) => set(value),
+      })),
+    )) as unknown as BusyState;
+    const panelOffset = (yield* craftPrivate(
+      state('panelOffset', { x: 0, y: 0 } as PanelOffset, ({ set }) => ({
         setPanelOffset: (value: PanelOffset) => set(value),
-      }),
-    ) as unknown as Generator<never, PanelOffsetState, unknown>;
-    type ReplayTextState = (() => string) & { setReplayJson: (value: string) => Generator<unknown, unknown, unknown> };
-    type ReplayStatusState = (() => string) & { setReplayStatus: (value: string) => Generator<unknown, unknown, unknown> };
-    const replayText = yield* state('replayJson', '', ({ set }) => ({ setReplayJson: (value: string) => set(value) })) as unknown as Generator<never, ReplayTextState, unknown>;
-    const replayStatusValue = yield* state('replayStatus', '', ({ set }) => ({ setReplayStatus: (value: string) => set(value) })) as unknown as Generator<never, ReplayStatusState, unknown>;
+      })),
+    )) as unknown as PanelOffsetState;
+    type ReplayTextState = (() => string) & {
+      setReplayJson: (value: string) => Generator<never, unknown, unknown>;
+    };
+    type ReplayStatusState = (() => string) & {
+      setReplayStatus: (value: string) => Generator<never, unknown, unknown>;
+    };
+    const replayText = (yield* craftPrivate(
+      state('replayJson', '', ({ set }) => ({
+        setReplayJson: (value: string) => set(value),
+      })),
+    )) as unknown as ReplayTextState;
+    const replayStatusValue = (yield* craftPrivate(
+      state('replayStatus', '', ({ set }) => ({
+        setReplayStatus: (value: string) => set(value),
+      })),
+    )) as unknown as ReplayStatusState;
     let replayController: ReplayController | undefined;
 
-    const setStatus: (value: string) => void = craftMethod(
-      'setStatus',
-      function* (value: string) {
+    const setStatus: (value: string) => void = yield* craftPrivate(
+      craftMethod('setStatus', function* (value: string) {
         yield* status.setStatus(value);
-      },
+      }),
     );
-    const setError: (value: string) => void = craftMethod(
-      'setError',
-      function* (value: string) {
+    const setError: (value: string) => void = yield* craftPrivate(
+      craftMethod('setError', function* (value: string) {
         yield* error.setError(value);
-      },
+      }),
     );
-    const setBusy: (value: boolean) => void = craftMethod(
-      'setBusy',
-      function* (value: boolean) {
+    const setBusy: (value: boolean) => void = yield* craftPrivate(
+      craftMethod('setBusy', function* (value: boolean) {
         yield* busy.setBusy(value);
-      },
+      }),
     );
-    const setPanelOffset: (value: PanelOffset) => void = craftMethod(
-      'setPanelOffset',
-      function* (value: PanelOffset) {
+    const setPanelOffset: (value: PanelOffset) => void = yield* craftPrivate(
+      craftMethod('setPanelOffset', function* (value: PanelOffset) {
         yield* panelOffset.setPanelOffset(value);
-      },
+      }),
     );
-    const setReplayStatus: (value: string) => void = craftMethod(
-      'setReplayStatus',
-      function* (value: string) { yield* replayStatusValue.setReplayStatus(value); },
+    const setReplayStatus: (value: string) => void = yield* craftPrivate(
+      craftMethod('setReplayStatus', function* (value: string) {
+        yield* replayStatusValue.setReplayStatus(value);
+      }),
     );
 
     let statusTimer: TemporalTaskHandle | null = null;
@@ -583,21 +609,28 @@ export const AiSendContextChat: CraftComponent<{
     const exportJson = (): void => {
       const json = readContext().session.exportSessionJson();
       const parsed = JSON.parse(json) as { truncated?: boolean };
-      copyToClipboard(json, parsed.truncated
-        ? 'Session copied, but retention truncated it; this export cannot be replayed.'
-        : 'Full session copied to the clipboard ✓');
+      copyToClipboard(
+        json,
+        parsed.truncated
+          ? 'Session copied, but retention truncated it; this export cannot be replayed.'
+          : 'Full session copied to the clipboard ✓',
+      );
     };
 
     const importReplay = (): void => {
       const validation = validateReplayExport(craftUse(replayText()));
-      if (!validation.ok) { setReplayStatus(validation.error); return; }
+      if (!validation.ok) {
+        setReplayStatus(validation.error);
+        return;
+      }
       replayController?.stop();
       replayController = createReplayController(validation.session, {
         onError: setReplayStatus,
         onDifference: (event) => {
           if (event.state === undefined) return undefined;
           const actual = readContext().events.at(-1)?.state;
-          if (JSON.stringify(actual) === JSON.stringify(event.state)) return undefined;
+          if (JSON.stringify(actual) === JSON.stringify(event.state))
+            return undefined;
           setReplayStatus(`State differs after event ${event.sequence}.`);
           return { eventId: event.id, expected: event.state, actual };
         },
@@ -606,16 +639,36 @@ export const AiSendContextChat: CraftComponent<{
       try {
         const recordedUrl = new URL(validation.session.startUrl, location.href);
         recordedPath = `${recordedUrl.pathname}${recordedUrl.search}${recordedUrl.hash}`;
-      } catch { /* the validator already requires a string; report the raw path */ }
-      setReplayStatus(`Session ready: ${validation.session.events.length} events. For a clean start, reload this local app at ${recordedPath}, then paste and validate the export again.`);
+      } catch {
+        /* the validator already requires a string; report the raw path */
+      }
+      setReplayStatus(
+        `Session ready: ${validation.session.events.length} events. For a clean start, reload this local app at ${recordedPath}, then paste and validate the export again.`,
+      );
     };
     const replayStep = (): void => {
-      if (!replayController) { setReplayStatus('Paste and validate a session first.'); return; }
-      void replayController.step().then(() => setReplayStatus(`Replay step ${replayController?.index() ?? 0}.`));
+      if (!replayController) {
+        setReplayStatus('Paste and validate a session first.');
+        return;
+      }
+      void replayController
+        .step()
+        .then(() =>
+          setReplayStatus(`Replay step ${replayController?.index() ?? 0}.`),
+        );
     };
-    const replayPlay = (): void => { replayController?.play(); setReplayStatus('Replay playing.'); };
-    const replayPause = (): void => { replayController?.pause(); setReplayStatus('Replay paused.'); };
-    const replayStop = (): void => { replayController?.stop(); setReplayStatus('Replay stopped.'); };
+    const replayPlay = (): void => {
+      replayController?.play();
+      setReplayStatus('Replay playing.');
+    };
+    const replayPause = (): void => {
+      replayController?.pause();
+      setReplayStatus('Replay paused.');
+    };
+    const replayStop = (): void => {
+      replayController?.stop();
+      setReplayStatus('Replay stopped.');
+    };
 
     const toggleRecord = (): void => {
       const ui = readContext();
@@ -640,94 +693,104 @@ export const AiSendContextChat: CraftComponent<{
       );
     };
 
-    return {
+    yield* craftExpose('onClose', onClose);
+    yield* craftExpose('visibleEvents', () => {
+      const events = appEvents();
+      const tail =
+        events.length > VISIBLE_EVENTS
+          ? events.slice(events.length - VISIBLE_EVENTS)
+          : events;
+      return tail.map(toTimelineRow);
+    });
+    yield* craftExpose('eventCount', () => appEvents().length);
+    yield* craftExpose('targets', () =>
+      readContext().targets.map((target, index) => ({
+        // Two right-clicks can capture the same markup, so the position is
+        // part of the key: `forNode` rejects duplicates.
+        key: `${index}:${target.outerHTML ?? target.tagName}`,
+        label: describeTarget(target),
+        index,
+      })),
+    );
+    yield* craftExpose('recording', () => readContext().recording);
+    yield* craftExpose('removeTarget', (index: number) => {
+      const ui = readContext();
+      const target = ui.targets[index];
+      if (target) ui.removeTarget(target);
+    });
+    yield* craftExpose('instruction', readInstruction);
+    yield* craftExpose('writeInstruction', instruction.setInstruction);
+    yield* craftExpose('options', readOptions);
+    yield* craftExpose('writeOptions', promptOptions.setOptions);
+    yield* craftExpose('status', () => craftUse(status()));
+    yield* craftExpose('error', () => craftUse(error()));
+    yield* craftExpose('busy', () => craftUse(busy()));
+    yield* craftExpose('panelOffset', () => craftUse(panelOffset()));
+    yield* craftExpose('startDrag', startDrag);
+    yield* craftExpose('resetPanelOffset', resetPanelOffset);
+    yield* craftExpose('toggleRecord', toggleRecord);
+    yield* craftExpose('clearTimeline', clearTimeline);
+    yield* craftExpose('copyPrompt', copyPrompt);
+    yield* craftExpose('exportJson', exportJson);
+    yield* craftExpose('replayJson', () => craftUse(replayText()));
+    yield* craftExpose('writeReplayJson', replayText.setReplayJson);
+    yield* craftExpose('importReplay', importReplay);
+    yield* craftExpose('replayStep', replayStep);
+    yield* craftExpose('replayPlay', replayPlay);
+    yield* craftExpose('replayPause', replayPause);
+    yield* craftExpose('replayStop', replayStop);
+    yield* craftExpose('replayStatus', () => craftUse(replayStatusValue()));
+    yield* craftExpose('endpoint', configuredEndpoint);
+    yield* craftExpose('sendPayload', sendPayload);
+    yield* craftExpose('retrySend', retrySend);
+    yield* craftExpose('copyPayload', copyPayload);
+  },
+);
+
+export const AiSendContextChat = craftComponent(
+  'AiSendContextChat',
+  {
+    providers: [provideAiSendContextChatState()],
+  },
+  function* (inputs: {
+    readonly context: Input<SendContextUiContext>;
+    readonly onClose: Output<() => void>;
+  }) {
+    const {
       onClose,
-      visibleEvents: () => {
-        const events = appEvents();
-        const tail =
-          events.length > VISIBLE_EVENTS
-            ? events.slice(events.length - VISIBLE_EVENTS)
-            : events;
-        return tail.map(toTimelineRow);
-      },
-      eventCount: () => appEvents().length,
-      targets: () =>
-        readContext().targets.map((target, index) => ({
-          // Two right-clicks can capture the same markup, so the position is
-          // part of the key: `forNode` rejects duplicates.
-          key: `${index}:${target.outerHTML ?? target.tagName}`,
-          label: describeTarget(target),
-          index,
-        })),
-      recording: () => readContext().recording,
-      removeTarget: (index: number) => {
-        const ui = readContext();
-        const target = ui.targets[index];
-        if (target) ui.removeTarget(target);
-      },
-      instruction: readInstruction,
-      writeInstruction: instruction.setInstruction,
-      options: readOptions,
-      writeOptions: promptOptions.setOptions,
-      status: () => craftUse(status()),
-      error: () => craftUse(error()),
-      busy: () => craftUse(busy()),
-      panelOffset: () => craftUse(panelOffset()),
+      visibleEvents,
+      eventCount,
+      targets,
+      recording,
+      removeTarget,
+      instruction,
+      writeInstruction,
+      options,
+      writeOptions,
+      status,
+      error,
+      busy,
+      panelOffset,
       startDrag,
       resetPanelOffset,
       toggleRecord,
       clearTimeline,
       copyPrompt,
       exportJson,
-      replayJson: () => craftUse(replayText()),
-      writeReplayJson: replayText.setReplayJson,
+      replayJson,
+      writeReplayJson,
       importReplay,
       replayStep,
       replayPlay,
       replayPause,
       replayStop,
-      replayStatus: () => craftUse(replayStatusValue()),
-      endpoint: configuredEndpoint,
+      replayStatus,
+      endpoint,
       sendPayload,
       retrySend,
       copyPayload,
-    };
-  },
-  ({
-    onClose,
-    visibleEvents,
-    eventCount,
-    targets,
-    recording,
-    removeTarget,
-    instruction,
-    writeInstruction,
-    options,
-    writeOptions,
-    status,
-    error,
-    busy,
-    panelOffset,
-    startDrag,
-    resetPanelOffset,
-    toggleRecord,
-    clearTimeline,
-    copyPrompt,
-    exportJson,
-    replayJson,
-    writeReplayJson,
-    importReplay,
-    replayStep,
-    replayPlay,
-    replayPause,
-    replayStop,
-    replayStatus,
-    endpoint,
-    sendPayload,
-    retrySend,
-    copyPayload,
-  }: ChatContext) =>
-    div({ class: [aiTheme.root, aiChat.overlay] }, [
+    } = yield* AiSendContextChatState(inputs);
+    return div({ class: [aiTheme.root, aiChat.overlay] }, [
       div(
         {
           class: aiChat.panel,
@@ -971,21 +1034,48 @@ export const AiSendContextChat: CraftComponent<{
             'The DOM capture can take a moment, freeze the page and produce a very large prompt.',
           ),
           section({ class: aiChat.section }, [
-            label({ class: aiChat.sectionHead, htmlFor: 'craft-ai-replay-json' }, 'Replay a session'),
+            label(
+              { class: aiChat.sectionHead, htmlFor: 'craft-ai-replay-json' },
+              'Replay a session',
+            ),
             textarea('aiReplayJson', {
               id: 'craft-ai-replay-json',
               class: aiChat.textarea,
               rows: 3,
               value: replayJson,
               placeholder: 'Paste a full Craft debug session JSON export…',
-              *input(event) { yield* writeReplayJson((event.target as HTMLTextAreaElement).value); },
+              *input(event) {
+                yield* writeReplayJson(
+                  (event.target as HTMLTextAreaElement).value,
+                );
+              },
             }),
             div({ class: aiChat.actions }, [
-              button('aiReplayImport', { type: 'button', class: aiChat.button, click: importReplay }, 'Validate'),
-              button('aiReplayPlay', { type: 'button', class: aiChat.button, click: replayPlay }, 'Play'),
-              button('aiReplayPause', { type: 'button', class: aiChat.button, click: replayPause }, 'Pause'),
-              button('aiReplayStep', { type: 'button', class: aiChat.button, click: replayStep }, 'Next step'),
-              button('aiReplayStop', { type: 'button', class: aiChat.button, click: replayStop }, 'Stop'),
+              button(
+                'aiReplayImport',
+                { type: 'button', class: aiChat.button, click: importReplay },
+                'Validate',
+              ),
+              button(
+                'aiReplayPlay',
+                { type: 'button', class: aiChat.button, click: replayPlay },
+                'Play',
+              ),
+              button(
+                'aiReplayPause',
+                { type: 'button', class: aiChat.button, click: replayPause },
+                'Pause',
+              ),
+              button(
+                'aiReplayStep',
+                { type: 'button', class: aiChat.button, click: replayStep },
+                'Next step',
+              ),
+              button(
+                'aiReplayStop',
+                { type: 'button', class: aiChat.button, click: replayStop },
+                'Stop',
+              ),
             ]),
             p({ class: aiChat.empty, role: 'status' }, replayStatus),
           ]),
@@ -1084,8 +1174,15 @@ export const AiSendContextChat: CraftComponent<{
           ] as never),
         ],
       ),
-    ]),
-);
+    ]);
+  },
+) as unknown as CraftComponent<
+  {
+    readonly context: InputValue<SendContextUiContext>;
+    readonly onClose: () => void;
+  },
+  any
+>;
 
 function toTimelineRow(event: SendContextEvent): SendContextTimelineRow {
   return {

@@ -22,6 +22,7 @@ import {
   insertDeepYieldable,
   mutation,
   markYieldableValue,
+  overrideService,
   provideCraftDomEventHook,
   provideCraftLazyLoadRetry,
   provideCorrelationIdTracking,
@@ -31,10 +32,14 @@ import {
   query,
   state,
   type CraftDomEvent,
+  craftExpose,
+  craftPrivate,
+  type CraftServiceInput,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
 import { craftDirective } from '../directive';
+import { withHostProps } from '../composition';
 import { eventAction } from '../event-action';
 import { content, renderContent } from '../project';
 import { deferNode } from '../defer-node';
@@ -129,12 +134,7 @@ describe('functional component interpreter', () => {
     const firstBinding = vi.fn(() => first());
     const secondBinding = vi.fn(() => second());
     const template = vi.fn(() => div([p(firstBinding), p(secondBinding)]));
-    const component = craftComponent(
-      'granularTextBindings',
-      {},
-      () => ({}),
-      template,
-    );
+    const component = craftComponent('granularTextBindings', {}, template);
     const {
       nativeElement: element,
       flush,
@@ -175,12 +175,7 @@ describe('functional component interpreter', () => {
         'content',
       ),
     );
-    const component = craftComponent(
-      'granularElementBindings',
-      {},
-      () => ({}),
-      template,
-    );
+    const component = craftComponent('granularElementBindings', {}, template);
     const {
       nativeElement: element,
       flush,
@@ -217,7 +212,6 @@ describe('functional component interpreter', () => {
     const component = craftComponent(
       'granularHostBindings',
       { host: { class: hostClass } },
-      () => ({}),
       template,
     );
     const {
@@ -243,12 +237,21 @@ describe('functional component interpreter', () => {
   // value and that destruction stops the binding for good.
   it('re-runs a text binding per write and stops after destruction', async () => {
     const value = signal(0);
+    const { CoalescedBindingView, provideCoalescedBindingView } = craftService(
+      { name: 'coalescedBindingView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const binding = vi.fn(() => value());
     const component = craftComponent(
       'coalescedBinding',
-      {},
-      () => ({}),
-      () => p(binding),
+      { providers: [provideCoalescedBindingView()] },
+      function* () {
+        yield* CoalescedBindingView();
+        return p(binding);
+      },
     );
     const {
       nativeElement: element,
@@ -275,12 +278,7 @@ describe('functional component interpreter', () => {
     const branch = vi.fn(() => p(binding));
     const condition = markYieldableValue(() => visible(), 'visible');
     const template = vi.fn(() => ifNode(condition, branch));
-    const component = craftComponent(
-      'granularConditional',
-      {},
-      () => ({}),
-      template,
-    );
+    const component = craftComponent('granularConditional', {}, template);
     const {
       nativeElement: element,
       flush,
@@ -307,12 +305,21 @@ describe('functional component interpreter', () => {
 
   it('keeps the active if branch mounted while its condition stays truthy', async () => {
     const conditionValue = signal(1);
+    const { StableIfBranchView, provideStableIfBranchView } = craftService(
+      { name: 'stableIfBranchView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const condition = markYieldableValue(() => conditionValue(), 'visible');
     const component = craftComponent(
       'stableIfBranch',
-      {},
-      () => ({}),
-      () => ifNode(condition, () => p('stable')),
+      { providers: [provideStableIfBranchView()] },
+      function* () {
+        yield* StableIfBranchView();
+        return ifNode(condition, () => p('stable'));
+      },
     );
     const {
       nativeElement: element,
@@ -352,12 +359,7 @@ describe('functional component interpreter', () => {
     const template = vi.fn(() =>
       ul(forNode(items, { track: (item) => item.id }, itemTemplate)),
     );
-    const component = craftComponent(
-      'granularEachBindings',
-      {},
-      () => ({}),
-      template,
-    );
+    const component = craftComponent('granularEachBindings', {}, template);
     const {
       nativeElement: element,
       flush,
@@ -394,12 +396,21 @@ describe('functional component interpreter', () => {
         },
       ),
     );
+    const { GranularEachCollectionView, provideGranularEachCollectionView } =
+      craftService(
+        { name: 'granularEachCollectionView', providedIn: 'toProvide' },
+        function* () {
+          yield* craftExpose('items', items);
+        },
+      );
+
     const component = craftComponent(
       'granularEachCollection',
-      {},
-      () => ({ items }),
-      ({ items }) =>
-        ul(forNode(items, { track: (item) => item.id }, itemTemplate)),
+      { providers: [provideGranularEachCollectionView()] },
+      function* () {
+        const { items } = yield* GranularEachCollectionView();
+        return ul(forNode(items, { track: (item) => item.id }, itemTemplate));
+      },
     );
     const {
       nativeElement: element,
@@ -427,13 +438,20 @@ describe('functional component interpreter', () => {
   it('does not move unchanged keyed DOM fragments', async () => {
     const first = { id: 1, label: 'one' };
     const second = { id: 2, label: 'two' };
+    const { StableEachDomView, provideStableEachDomView } = craftService(
+      { name: 'stableEachDomView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('items', items);
+      },
+    );
+
     const items = signal([first, second]);
     const component = craftComponent(
       'stableEachDom',
-      {},
-      () => ({ items }),
-      ({ items }) =>
-        ul(
+      { providers: [provideStableEachDomView()] },
+      function* () {
+        const { items } = yield* StableEachDomView();
+        return ul(
           forNode(items, { track: (item) => item.id }, (item) =>
             li(
               {
@@ -446,7 +464,8 @@ describe('functional component interpreter', () => {
               },
             ),
           ),
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -488,25 +507,35 @@ describe('functional component interpreter', () => {
       name?: string;
       renderCount: number;
     }> = [];
+    const { GranularEachTraceView, provideGranularEachTraceView } =
+      craftService(
+        { name: 'granularEachTraceView', providedIn: 'toProvide' },
+        function* () {
+          yield* craftExpose('items', items);
+        },
+      );
+
     const component = craftComponent(
       'granularEachTrace',
       {
         providers: [
+          provideGranularEachTraceView(),
           provideTemplateTrace((context, next) => {
             traces.push({ ...context });
             return next();
           }),
         ],
       },
-      () => ({ items }),
-      ({ items }) =>
-        ul(
+      function* () {
+        const { items } = yield* GranularEachTraceView();
+        return ul(
           forNode(items, { track: (item) => item.id }, (item) =>
             li(function* () {
               return (yield* item()).label;
             }),
           ),
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -531,16 +560,27 @@ describe('functional component interpreter', () => {
   });
 
   it('renders static nodes, listeners, classes and reactive signal reads', async () => {
+    const { CounterView, provideCounterView } = craftService(
+      { name: 'counterView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('count', count);
+      },
+    );
+
     const count = signal(0);
     const counter = craftComponent(
       'counter',
-      { host: { 'data-kind': 'counter' } },
-      () => ({ count }),
-      ({ count }) =>
-        div({ class: ['counter', 'active'] }, [
+      {
+        providers: [provideCounterView()],
+        host: { 'data-kind': 'counter' },
+      },
+      function* () {
+        const { count } = yield* CounterView();
+        return div({ class: ['counter', 'active'] }, [
           p({ class: { value: true } }, `Count: ${count()}`),
           button({ click: () => count.update((value) => value + 1) }, '+'),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -561,33 +601,25 @@ describe('functional component interpreter', () => {
 
   it('runs event modifiers before the piped action through the normal click listener', async () => {
     const seen: string[] = [];
-    const widget = craftComponent(
-      'eventActionWidget',
-      {},
-      function* () {
-        const navOpen = yield* state('navOpen', false, ({ update }) => ({
-          toggle: () => update((open) => !open),
-        }));
-        return { navOpen };
-      },
-      ({ navOpen }) =>
-        div({ click: () => seen.push('parent') }, [
-          button('navToggle', { type: 'button' }, 'Browse').pipe(
-            eventAction({
-              click: {
-                action: (event) => {
-                  seen.push(
-                    `action:${event.defaultPrevented}:${event.cancelBubble}`,
-                  );
-                  return navOpen.toggle();
-                },
-                preventDefault: true,
-                stopPropagation: true,
+    const navOpen = signal(false);
+    const widget = craftComponent('eventActionWidget', {}, () =>
+      div({ click: () => seen.push('parent') }, [
+        button('navToggle', { type: 'button' }, 'Browse').pipe(
+          eventAction({
+            click: {
+              action: (event) => {
+                seen.push(
+                  `action:${event.defaultPrevented}:${event.cancelBubble}`,
+                );
+                navOpen.update((open) => !open);
               },
-            }),
-          ),
-          span(navOpen),
-        ]),
+              preventDefault: true,
+              stopPropagation: true,
+            },
+          }),
+        ),
+        span(String(navOpen())),
+      ]),
     );
     const { nativeElement, flush, destroy } =
       await renderCraftComponent(widget);
@@ -602,21 +634,17 @@ describe('functional component interpreter', () => {
 
   it('stops later same-element listeners while still running a generator action', async () => {
     const seen: string[] = [];
-    const widget = craftComponent(
-      'immediateEventActionWidget',
-      {},
-      () => ({}),
-      () =>
-        button('action', { type: 'button' }, 'Act').pipe(
-          eventAction({
-            click: {
-              action: function* () {
-                seen.push('action');
-              },
-              stopImmediatePropagation: true,
+    const widget = craftComponent('immediateEventActionWidget', {}, () =>
+      button('action', { type: 'button' }, 'Act').pipe(
+        eventAction({
+          click: {
+            action: function* () {
+              seen.push('action');
             },
-          }),
-        ),
+            stopImmediatePropagation: true,
+          },
+        }),
+      ),
     );
     const { nativeElement, destroy } = await renderCraftComponent(widget);
     const buttonElement = nativeElement.querySelector('button')!;
@@ -636,13 +664,24 @@ describe('functional component interpreter', () => {
 
   it('keeps an inline click handler after the parent template re-renders', async () => {
     const revision = signal(0);
+    const {
+      InlineClickSurvivesRendersView,
+      provideInlineClickSurvivesRendersView,
+    } = craftService(
+      { name: 'inlineClickSurvivesRendersView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('revision', revision);
+        yield* craftExpose('clicks', clicks);
+      },
+    );
+
     const clicks = signal(0);
     const widget = craftComponent(
       'inlineClickSurvivesRenders',
-      {},
-      () => ({ revision, clicks }),
-      ({ revision, clicks }) =>
-        div([
+      { providers: [provideInlineClickSurvivesRendersView()] },
+      function* () {
+        const { revision, clicks } = yield* InlineClickSurvivesRendersView();
+        return div([
           span(() => String(revision())),
           button(
             {
@@ -653,7 +692,8 @@ describe('functional component interpreter', () => {
             },
             () => `clicks:${clicks()} r:${revision()}`,
           ),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -683,18 +723,29 @@ describe('functional component interpreter', () => {
       name?: string;
       renderCount: number;
     }> = [];
+    const { TemplateTraceCounterView, provideTemplateTraceCounterView } =
+      craftService(
+        { name: 'templateTraceCounterView', providedIn: 'toProvide' },
+        function* () {
+          yield* craftExpose('count', count);
+        },
+      );
+
     const counter = craftComponent(
       'templateTraceCounter',
       {
         providers: [
+          provideTemplateTraceCounterView(),
           provideTemplateTrace((context, next) => {
             traces.push({ ...context });
             return next();
           }),
         ],
       },
-      () => ({ count }),
-      ({ count }) => p(String(count())),
+      function* () {
+        const { count } = yield* TemplateTraceCounterView();
+        return p(String(count()));
+      },
     );
     const {
       nativeElement: element,
@@ -747,25 +798,34 @@ describe('functional component interpreter', () => {
       seen.push(`${interaction.eventName}:${inject(marker)}`);
       return next();
     };
+    const { InteractionHookView, provideInteractionHookView } = craftService(
+      { name: 'interactionHookView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('clicked', clicked);
+      },
+    );
+
     const clicked = signal(0);
     const component = craftComponent(
       'interactionHookComponent',
       {
         providers: [
+          provideInteractionHookView(),
           { provide: marker, useValue: 'component-scope' },
           provideCraftDomEventHook(interactionHook),
         ],
       },
-      () => ({ clicked }),
-      ({ clicked }) =>
-        div([
+      function* () {
+        const { clicked } = yield* InteractionHookView();
+        return div([
           button(
             'save',
             { click: () => clicked.update((value) => value + 1) },
             'Save',
           ),
           p(() => String(clicked())),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -783,11 +843,20 @@ describe('functional component interpreter', () => {
   });
 
   it('provides an automatic component host tag from the component name', async () => {
+    const { AutomaticHostTagView, provideAutomaticHostTagView } = craftService(
+      { name: 'automaticHostTagView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('hostTags', inject(HOST_TAG_LIST));
+      },
+    );
+
     const counter = craftComponent(
       'AutomaticHostTag',
-      {},
-      () => ({ hostTags: inject(HOST_TAG_LIST) }),
-      ({ hostTags }) => p(hostTags.join('|')),
+      { providers: [provideAutomaticHostTagView()] },
+      function* () {
+        const { hostTags } = yield* AutomaticHostTagView();
+        return p(hostTags.join('|'));
+      },
     );
     const {
       nativeElement: element,
@@ -795,7 +864,10 @@ describe('functional component interpreter', () => {
       destroy,
     } = await renderCraftComponent(counter);
 
-    expect(element.textContent).toMatch(/^component:AutomaticHostTag#\d+$/);
+    // The component's own tag, then the tag of the service it reads from.
+    expect(element.textContent).toMatch(
+      /^component:AutomaticHostTag#\d+\|service:automaticHostTagView#\d+$/,
+    );
     destroy();
   });
 
@@ -810,22 +882,37 @@ describe('functional component interpreter', () => {
       {
         providers: [{ provide: label, useValue: 'consumer' }],
       },
-      (input: CardInput) => input,
-      ({ header, body }) =>
-        div([
+      function* (input: CardInput) {
+        const { header, body } = input;
+        return div([
           header ? renderContent('header', header) : h2('fallback'),
           section(renderContent('body', body)),
-        ]),
+        ]);
+      },
     );
+    const { RuntimeProjectionParentView, provideRuntimeProjectionParentView } =
+      craftService(
+        { name: 'runtimeProjectionParentView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const parent = craftComponent(
       'runtimeProjectionParent',
-      { providers: [{ provide: label, useValue: 'declarer' }] },
-      () => ({}),
-      () =>
-        card({
+      {
+        providers: [
+          provideRuntimeProjectionParentView(),
+          { provide: label, useValue: 'declarer' },
+        ],
+      },
+      function* () {
+        yield* RuntimeProjectionParentView();
+        return card({
           header: () => h2(inject(label)),
           body: () => [p('before'), p(inject(label)), p('after')],
-        }),
+        });
+      },
     );
     const {
       nativeElement: element,
@@ -847,12 +934,23 @@ describe('functional component interpreter', () => {
   it('keeps projected DOM mounted when its descriptor is refreshed', async () => {
     const revision = signal(1);
     const condition = markYieldableValue(() => revision(), 'revision');
+    const { StableProjectionView, provideStableProjectionView } = craftService(
+      { name: 'stableProjectionView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const projected = content(() => p('stable projection'));
     const component = craftComponent(
       'stableProjection',
-      {},
-      () => ({}),
-      () => ifNode(condition, () => section(renderContent('body', projected))),
+      { providers: [provideStableProjectionView()] },
+      function* () {
+        yield* StableProjectionView();
+        return ifNode(condition, () =>
+          section(renderContent('body', projected)),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -885,44 +983,66 @@ describe('functional component interpreter', () => {
       readonly trigger: () => void;
       readonly disabled: () => boolean;
     };
+    const { RuntimeToolbarActionView, provideRuntimeToolbarActionView } =
+      craftService(
+        { name: 'runtimeToolbarActionView', providedIn: 'toProvide' },
+        function* (input: {
+          readonly key: string;
+          readonly content: ContentSlot;
+          readonly trigger: () => void;
+        }) {
+          yield* craftExpose('key', input.key);
+          yield* craftExpose('contract', {
+            kind: 'toolbar-action',
+            trigger: input.trigger,
+            disabled: () => false,
+          } satisfies ActionContract);
+          yield* craftExpose('content', input.content);
+        },
+      );
+
     const action = craftComponent(
       'runtimeToolbarAction',
-      {},
-      (input: {
+      { providers: [provideRuntimeToolbarActionView()] },
+      function* (input: {
         readonly key: string;
         readonly content: ContentSlot;
         readonly trigger: () => void;
-      }) => ({
-        key: input.key,
-        contract: {
-          kind: 'toolbar-action',
-          trigger: input.trigger,
-          disabled: () => false,
-        } satisfies ActionContract,
-        content: input.content,
-      }),
-      ({ contract, content: label }) =>
-        button({ click: contract.trigger }, renderContent(label)),
+      }) {
+        const { contract, content: label } =
+          yield* RuntimeToolbarActionView(input);
+        return button({ click: contract.trigger }, renderContent(label));
+      },
     );
     const toolbar = craftComponent(
       'runtimeToolbar',
       {},
-      (input: { readonly actions: readonly ReturnType<typeof action>[] }) =>
-        input,
-      ({ actions }) =>
-        div(
+      function* (input: {
+        readonly actions: readonly ReturnType<typeof action>[];
+      }) {
+        const { actions } = input;
+        return div(
           { role: 'toolbar' },
           forNode(actions, { track: (item) => item.key }, (item) =>
             renderContent(item),
           ),
-        ),
+        );
+      },
     );
+    const { RuntimeToolbarRootView, provideRuntimeToolbarRootView } =
+      craftService(
+        { name: 'runtimeToolbarRootView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const root = craftComponent(
       'runtimeToolbarRoot',
-      {},
-      () => ({}),
-      () =>
-        toolbar({
+      { providers: [provideRuntimeToolbarRootView()] },
+      function* () {
+        yield* RuntimeToolbarRootView();
+        return toolbar({
           actions: [
             action({
               key: 'save',
@@ -930,7 +1050,8 @@ describe('functional component interpreter', () => {
               trigger,
             }),
           ],
-        }),
+        });
+      },
     );
     const {
       nativeElement: element,
@@ -953,11 +1074,23 @@ describe('functional component interpreter', () => {
         };
       }>;
     };
+    const {
+      ContentStyleProjectedChildView,
+      provideContentStyleProjectedChildView,
+    } = craftService(
+      { name: 'contentStyleProjectedChildView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const projectedChild = craftComponent(
       'contentStyleProjectedChild',
-      {},
-      () => ({}),
-      () => p({ class: 'projected-value' }, 'child'),
+      { providers: [provideContentStyleProjectedChildView()] },
+      function* () {
+        yield* ContentStyleProjectedChildView();
+        return p({ class: 'projected-value' }, 'child');
+      },
     );
     const card = craftComponent(
       'contentStyleCard',
@@ -967,15 +1100,24 @@ describe('functional component interpreter', () => {
           body: ':scope { display: block; } .projected-value { color: red; }',
         },
       },
-      (input: CardInput) => input,
-      ({ body }) => section(renderContent('body', body)),
+      function* (input: CardInput) {
+        const { body } = input;
+        return section(renderContent('body', body));
+      },
     );
+    const { ContentStylePageView, provideContentStylePageView } = craftService(
+      { name: 'contentStylePageView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const page = craftComponent(
       'contentStylePage',
-      {},
-      () => ({}),
-      () =>
-        card({
+      { providers: [provideContentStylePageView()] },
+      function* () {
+        yield* ContentStylePageView();
+        return card({
           body: content(
             () => [
               p({ class: 'projected-value' }, 'ordinary'),
@@ -983,7 +1125,8 @@ describe('functional component interpreter', () => {
             ],
             { allowContainerStyles: true },
           ),
-        }),
+        });
+      },
     );
     const {
       nativeElement: element,
@@ -1019,14 +1162,28 @@ describe('functional component interpreter', () => {
     const card = craftComponent(
       'isolatedContentStyleCard',
       { contentStyles: { body: ':scope { color: red; }' } },
-      (input: { readonly body: ContentSlot }) => input,
-      ({ body }) => renderContent('body', body),
+      function* (input: { readonly body: ContentSlot }) {
+        const { body } = input;
+        return renderContent('body', body);
+      },
     );
+    const {
+      IsolatedContentStylePageView,
+      provideIsolatedContentStylePageView,
+    } = craftService(
+      { name: 'isolatedContentStylePageView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const page = craftComponent(
       'isolatedContentStylePage',
-      {},
-      () => ({}),
-      () => card({ body: () => p({ class: 'isolated' }, 'content') }),
+      { providers: [provideIsolatedContentStylePageView()] },
+      function* () {
+        yield* IsolatedContentStylePageView();
+        return card({ body: () => p({ class: 'isolated' }, 'content') });
+      },
     );
     const {
       nativeElement: element,
@@ -1045,28 +1202,55 @@ describe('functional component interpreter', () => {
   });
 
   it('keeps projected child components on the declarative injector chain', async () => {
+    const { RuntimeProjectedChildView, provideRuntimeProjectedChildView } =
+      craftService(
+        { name: 'runtimeProjectedChildView', providedIn: 'toProvide' },
+        function* () {
+          yield* craftExpose('label', inject<string>(label));
+        },
+      );
+
     const label = { debugName: 'projected-child-label' };
     const projectedChild = craftComponent(
       'runtimeProjectedChild',
-      {},
-      () => ({ label: inject<string>(label) }),
-      ({ label: value }) => p(value),
+      { providers: [provideRuntimeProjectedChildView()] },
+      function* () {
+        const { label: value } = yield* RuntimeProjectedChildView();
+        return p(value);
+      },
     );
     const card = craftComponent(
       'runtimeProjectedChildCard',
       {
         providers: [{ provide: label, useValue: 'consumer' }],
       },
-      (input: { readonly body: ContentSlot }) => input,
-      ({ body }) => section(renderContent('body', body)),
+      function* (input: { readonly body: ContentSlot }) {
+        const { body } = input;
+        return section(renderContent('body', body));
+      },
     );
+    const {
+      RuntimeProjectedChildParentView,
+      provideRuntimeProjectedChildParentView,
+    } = craftService(
+      { name: 'runtimeProjectedChildParentView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const parent = craftComponent(
       'runtimeProjectedChildParent',
       {
-        providers: [{ provide: label, useValue: 'declarer' }],
+        providers: [
+          provideRuntimeProjectedChildParentView(),
+          { provide: label, useValue: 'declarer' },
+        ],
       },
-      () => ({}),
-      () => card({ body: () => projectedChild({}) }),
+      function* () {
+        yield* RuntimeProjectedChildParentView();
+        return card({ body: () => projectedChild({}) });
+      },
     );
     const {
       nativeElement: element,
@@ -1087,16 +1271,25 @@ describe('functional component interpreter', () => {
       renders += 1;
       return li(`${index}: ${value}`);
     });
+    const { RuntimeTemplateFragmentView, provideRuntimeTemplateFragmentView } =
+      craftService(
+        { name: 'runtimeTemplateFragmentView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const component = craftComponent(
       'runtimeTemplateFragment',
-      {},
-      () => ({}),
-      () =>
-        ul(
+      { providers: [provideRuntimeTemplateFragmentView()] },
+      function* () {
+        yield* RuntimeTemplateFragmentView();
+        return ul(
           forNode(['Ada', 'Lin'], { track: (value) => value }, (value, index) =>
             renderTemplate(row, { $implicit: value, index }),
           ),
-        ),
+        );
+      },
     );
     expect(renders).toBe(0);
     const {
@@ -1116,14 +1309,23 @@ describe('functional component interpreter', () => {
     const row = craftTemplate<{ readonly label: string }>(({ label }) =>
       p(label),
     );
+    const { StableTemplateFragmentView, provideStableTemplateFragmentView } =
+      craftService(
+        { name: 'stableTemplateFragmentView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const component = craftComponent(
       'stableTemplateFragment',
-      {},
-      () => ({}),
-      () =>
-        ifNode(condition, () =>
+      { providers: [provideStableTemplateFragmentView()] },
+      function* () {
+        yield* StableTemplateFragmentView();
+        return ifNode(condition, () =>
           renderTemplate(row, { label: `revision-${revision()}` }),
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -1151,65 +1353,86 @@ describe('functional component interpreter', () => {
   });
 
   it('constructs child component queries outside the parent render context', async () => {
-    const child = craftComponent(
-      'queryChild',
-      {},
+    const { QueryChildView, provideQueryChildView } = craftService(
+      { name: 'queryChildView', providedIn: 'toProvide' },
       function* () {
-        const value = yield* query('value', {
+        yield* query('value', {
           params: () => true,
           loader: async () => ({ status: 'ready' }),
         });
-        return { value };
       },
-      ({ value }) =>
-        p(function* () {
-          return (yield* value.value())?.status ?? 'loading';
-        }),
     );
+
+    const child = craftComponent(
+      'queryChild',
+      { providers: [provideQueryChildView()] },
+      function* () {
+        const { value } = yield* QueryChildView();
+        return p(function* () {
+          return (yield* value.value())?.status ?? 'loading';
+        });
+      },
+    );
+    const { QueryParentView, provideQueryParentView } = craftService(
+      { name: 'queryParentView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const parent = craftComponent(
       'queryParent',
-      {},
-      () => ({}),
-      () => div([child()]),
+      { providers: [provideQueryParentView()] },
+      function* () {
+        yield* QueryParentView();
+        return div([child()]);
+      },
     );
     await expect(renderCraftComponent(parent)).resolves.toBeDefined();
   });
 
   it('does not recreate a composed query component when its resource settles', async () => {
-    let factoryRuns = 0;
-    const component = craftComponent(
-      'composedQuery',
-      {},
+    const { ComposedQueryView, provideComposedQueryView } = craftService(
+      { name: 'composedQueryView', providedIn: 'toProvide' },
       function* () {
         factoryRuns += 1;
         const refresh = signal(0);
         // Keep the unused local query from the full-demo shape in the repro.
-        yield* query('localTodos', {
-          params: () => true,
-          loader: async () => [],
-        });
-        const todos = yield* query('todos', {
+        yield* craftPrivate(
+          query('localTodos', {
+            params: () => true,
+            loader: async () => [],
+          }),
+        );
+        yield* query('todos', {
           params: refresh,
           loader: async ({ params }) =>
             params === 0 ? [] : craftException({ _tag: 'FAILED_TO_LOAD' }),
         });
-        const add = yield* mutation('add', {
+        yield* mutation('add', {
           method: (title: string) => title,
           loader: async () => {
             refresh.update((value) => value + 1);
             return 'added';
           },
         });
-        return { todos, add };
       },
-      ({ todos, add }) =>
-        section([
+    );
+
+    let factoryRuns = 0;
+    const component = craftComponent(
+      'composedQuery',
+      { providers: [provideComposedQueryView()] },
+      function* () {
+        const { todos, add } = yield* ComposedQueryView();
+        return section([
           p('source'),
           p(function* () {
             return yield* todos.status();
           }),
           button({ click: () => add.mutate('new todo') }, 'Add'),
-        ]),
+        ]);
+      },
     ).pipe(
       catchNode.exhaustive({
         FAILED_TO_LOAD: {
@@ -1237,28 +1460,34 @@ describe('functional component interpreter', () => {
   });
 
   it('drives generator DOM callbacks and branded Craft methods', async () => {
+    const { YieldableCounterView, provideYieldableCounterView } = craftService(
+      { name: 'yieldableCounterView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('count', count);
+        yield* craftMethod('increment', function* () {
+          count.update((value) => value + 1);
+        });
+      },
+    );
+
     const count = signal(0);
     const counter = craftComponent(
       'yieldableCounter',
-      {},
-      () => ({
-        count,
-        increment: craftMethod('increment', function* () {
-          count.update((value) => value + 1);
-        }),
-      }),
-      ({ count, increment }) =>
-        div([
+      { providers: [provideYieldableCounterView()] },
+      function* () {
+        const { count, increment } = yield* YieldableCounterView();
+        return div([
           p(() => String(count())),
           button(
             {
               *click() {
-                yield* increment();
+                increment();
               },
             },
             '+',
           ),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -1273,23 +1502,30 @@ describe('functional component interpreter', () => {
   });
 
   it('drives generator callbacks assigned to primitive DOM properties', async () => {
+    const { YieldablePropertyView, provideYieldablePropertyView } =
+      craftService(
+        { name: 'yieldablePropertyView', providedIn: 'toProvide' },
+        function* () {
+          yield* craftMethod('disabled', function* () {
+            return true;
+          });
+        },
+      );
+
     const component = craftComponent(
       'yieldableProperty',
-      {},
-      () => ({
-        disabled: craftMethod('disabled', function* () {
-          return true;
-        }),
-      }),
-      ({ disabled }) =>
-        button(
+      { providers: [provideYieldablePropertyView()] },
+      function* () {
+        const { disabled } = yield* YieldablePropertyView();
+        return button(
           {
             *disabled() {
-              return yield* disabled();
+              return disabled();
             },
           },
           '+',
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -1307,17 +1543,24 @@ describe('functional component interpreter', () => {
   });
 
   it('keeps branded methods callable from ordinary template callbacks', async () => {
+    const { OrdinaryBrandedCallbackView, provideOrdinaryBrandedCallbackView } =
+      craftService(
+        { name: 'ordinaryBrandedCallbackView', providedIn: 'toProvide' },
+        function* () {
+          yield* craftMethod('increment', function* () {
+            count.update((value) => value + 1);
+          });
+        },
+      );
+
     const count = signal(0);
     const component = craftComponent(
       'ordinaryBrandedCallback',
-      {},
-      () => ({
-        increment: craftMethod('increment', function* () {
-          count.update((value) => value + 1);
-        }),
-      }),
-      ({ increment }) =>
-        button({ click: () => void increment() }, String(count())),
+      { providers: [provideOrdinaryBrandedCallbackView()] },
+      function* () {
+        const { increment } = yield* OrdinaryBrandedCallbackView();
+        return button({ click: () => void increment() }, String(count()));
+      },
     );
     const {
       nativeElement: element,
@@ -1332,26 +1575,36 @@ describe('functional component interpreter', () => {
   });
 
   it('projects craftComputed state insertions as yieldable template properties', async () => {
+    const {
+      YieldableComputedPropertyView,
+      provideYieldableComputedPropertyView,
+    } = craftService(
+      { name: 'yieldableComputedPropertyView', providedIn: 'toProvide' },
+      function* () {
+        yield* state('counter', 0, ({ state }) => ({
+          disabled: craftUse(
+            craftComputed('disabled', function* () {
+              return (yield* state()) % 2 === 0;
+            }),
+          ),
+        }));
+      },
+    );
+
     const component = craftComponent(
       'yieldableComputedProperty',
-      {},
+      { providers: [provideYieldableComputedPropertyView()] },
       function* () {
-        const counter = yield* state('counter', 0, ({ state }) => ({
-          disabled: craftComputed('disabled', function* () {
-            return (yield* state()) % 2 === 0;
-          }),
-        }));
-        return { counter };
-      },
-      ({ counter }) =>
-        button(
+        const { counter } = yield* YieldableComputedPropertyView();
+        return button(
           {
             *disabled() {
               return yield* counter.disabled();
             },
           },
           '+',
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -1366,25 +1619,39 @@ describe('functional component interpreter', () => {
   });
 
   it('renders root and derived reactive readers across template blocks', async () => {
-    const component = craftComponent(
-      'yieldableReactiveTemplate',
-      {},
+    const {
+      YieldableReactiveTemplateView,
+      provideYieldableReactiveTemplateView,
+    } = craftService(
+      { name: 'yieldableReactiveTemplateView', providedIn: 'toProvide' },
       function* () {
-        const counter = yield* state('counter', 1, ({ state, set }) => ({
-          doubled: craftComputed(function* () {
-            return (yield* state()) * 2;
-          }),
-          items: craftComputed(function* () {
-            return Array.from({ length: yield* state() }, (_, index) => index);
-          }),
+        yield* state('counter', 1, ({ state, set }) => ({
+          doubled: craftUse(
+            craftComputed('doubled', function* () {
+              return (yield* state()) * 2;
+            }),
+          ),
+          items: craftUse(
+            craftComputed('items', function* () {
+              return Array.from(
+                { length: yield* state() },
+                (_, index) => index,
+              );
+            }),
+          ),
           increment: function* () {
             set((yield* state()) + 1);
           },
         }));
-        return { counter };
       },
-      ({ counter }) =>
-        section([
+    );
+
+    const component = craftComponent(
+      'yieldableReactiveTemplate',
+      { providers: [provideYieldableReactiveTemplateView()] },
+      function* () {
+        const { counter } = yield* YieldableReactiveTemplateView();
+        return section([
           span({ class: 'value' }, function* () {
             return yield* counter.doubled();
           }),
@@ -1400,7 +1667,8 @@ describe('functional component interpreter', () => {
             },
             '+',
           ),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -1421,17 +1689,24 @@ describe('functional component interpreter', () => {
   });
 
   it('allows a state insertion named select in a generator DOM callback', async () => {
-    const component = craftComponent(
-      'yieldableStateSelectMethod',
-      {},
+    const {
+      YieldableStateSelectMethodView,
+      provideYieldableStateSelectMethodView,
+    } = craftService(
+      { name: 'yieldableStateSelectMethodView', providedIn: 'toProvide' },
       function* () {
-        const scenario = yield* state('scenario', 'initial', ({ set }) => ({
+        yield* state('scenario', 'initial', ({ set }) => ({
           select: (value: string) => set(value),
         }));
-        return { scenario };
       },
-      ({ scenario }) =>
-        section([
+    );
+
+    const component = craftComponent(
+      'yieldableStateSelectMethod',
+      { providers: [provideYieldableStateSelectMethodView()] },
+      function* () {
+        const { scenario } = yield* YieldableStateSelectMethodView();
+        return section([
           p(function* () {
             return yield* scenario();
           }),
@@ -1443,7 +1718,8 @@ describe('functional component interpreter', () => {
             },
             'select',
           ),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -1461,16 +1737,19 @@ describe('functional component interpreter', () => {
   });
 
   it('renders named conditional elements and updates their visibility', async () => {
+    const { NamedConditionalView, provideNamedConditionalView } = craftService(
+      { name: 'namedConditionalView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftComputed('enabled', () => true);
+      },
+    );
+
     const component = craftComponent(
       'namedConditional',
-      {},
+      { providers: [provideNamedConditionalView()] },
       function* () {
-        return {
-          enabled: craftComputed('enabled', () => true),
-        };
-      },
-      ({ enabled }) =>
-        ifNode(
+        const { enabled } = yield* NamedConditionalView();
+        return ifNode(
           enabled,
           () =>
             button(
@@ -1483,7 +1762,8 @@ describe('functional component interpreter', () => {
               '+',
             ),
           () => p('hidden'),
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -1503,11 +1783,21 @@ describe('functional component interpreter', () => {
   it('projects cyclic arrays in the template context without overflowing the stack', async () => {
     const items: unknown[] = [];
     items.push(items);
+    const { CyclicTemplateContextView, provideCyclicTemplateContextView } =
+      craftService(
+        { name: 'cyclicTemplateContextView', providedIn: 'toProvide' },
+        function* () {
+          yield* craftExpose('items', items);
+        },
+      );
+
     const component = craftComponent(
       'cyclicTemplateContext',
-      {},
-      () => ({ items }),
-      () => p('ready'),
+      { providers: [provideCyclicTemplateContextView()] },
+      function* () {
+        yield* CyclicTemplateContextView();
+        return p('ready');
+      },
     );
     const {
       nativeElement: element,
@@ -1520,17 +1810,43 @@ describe('functional component interpreter', () => {
   });
 
   it('marks component roots without leaking the marker into descendants', async () => {
+    const { ScopedChildView, provideScopedChildView } = craftService(
+      { name: 'scopedChildView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const scopedChild = craftComponent(
       'scopedChild',
-      { styles: '.child { color: red; }' },
-      () => ({}),
-      () => div({ class: 'child' }, [span({ class: 'child-inner' }, 'child')]),
+      {
+        providers: [provideScopedChildView()],
+        styles: '.child { color: red; }',
+      },
+      function* () {
+        yield* ScopedChildView();
+        return div({ class: 'child' }, [
+          span({ class: 'child-inner' }, 'child'),
+        ]);
+      },
     );
+    const { ScopedParentView, provideScopedParentView } = craftService(
+      { name: 'scopedParentView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const scopedParent = craftComponent(
       'scopedParent',
-      { styles: '.parent { color: blue; }' },
-      () => ({}),
-      () => div({ class: 'parent' }, [scopedChild()]),
+      {
+        providers: [provideScopedParentView()],
+        styles: '.parent { color: blue; }',
+      },
+      function* () {
+        yield* ScopedParentView();
+        return div({ class: 'parent' }, [scopedChild()]);
+      },
     );
     const {
       nativeElement: element,
@@ -1556,11 +1872,23 @@ describe('functional component interpreter', () => {
   });
 
   it('registers stylesUrl content in the component style scope', async () => {
+    const { StylesUrlView, provideStylesUrlView } = craftService(
+      { name: 'stylesUrlView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const component = craftComponent(
       'stylesUrlComponent',
-      { stylesUrl: '.external { color: red; }' },
-      () => ({}),
-      () => div({ class: 'external' }, 'external'),
+      {
+        providers: [provideStylesUrlView()],
+        stylesUrl: '.external { color: red; }',
+      },
+      function* () {
+        yield* StylesUrlView();
+        return div({ class: 'external' }, 'external');
+      },
     );
     const {
       nativeElement: element,
@@ -1581,18 +1909,26 @@ describe('functional component interpreter', () => {
     const valueReader = markYieldableValue(function* () {
       return value();
     }, 'inputText');
+    const { LabelView, provideLabelView } = craftService(
+      { name: 'labelView', providedIn: 'toProvide' },
+      function* (inputs: { readonly text: CraftServiceInput<string> }) {
+        const { text } = inputs;
+
+        factoryRuns += 1;
+        yield* craftExpose('text', text);
+      },
+    );
+
     let factoryRuns = 0;
     const label = craftComponent(
       'label',
-      {},
-      (text: Input<string>) => {
-        factoryRuns += 1;
-        return { text };
-      },
-      ({ text }) =>
-        p(function* () {
+      { providers: [provideLabelView()] },
+      function* (inputs: { readonly text: Input<string> }) {
+        const { text } = yield* LabelView(inputs);
+        return p(function* () {
           return yield* text();
-        }),
+        });
+      },
     );
     const {
       nativeElement: element,
@@ -1614,19 +1950,17 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  it('passes reactive Input shells to object-shaped factories', async () => {
-    let factoryRuns = 0;
+  it('passes reactive Input shells to an object-shaped template', async () => {
+    let templateRuns = 0;
     const categoryPage = craftComponent(
       'objectInputCategoryPage',
       {},
       function* ({ categorySlug }: { categorySlug: Input<string> }) {
-        factoryRuns += 1;
-        return { categorySlug };
-      },
-      ({ categorySlug }) =>
-        p(function* () {
+        templateRuns += 1;
+        return p(function* () {
           return yield* categorySlug();
-        }),
+        });
+      },
     );
     const {
       nativeElement: element,
@@ -1643,26 +1977,47 @@ describe('functional component interpreter', () => {
     await flush();
 
     expect(element.textContent).toBe('games');
-    expect(factoryRuns).toBe(1);
+    // The prop changed, so the template ran again — the reactive shell is what
+    // kept the rendered text in step with it.
+    expect(templateRuns).toBeGreaterThan(1);
     destroy();
   });
 
   it('merges host classes supplied at a component call site', async () => {
+    const { EditableStatusView, provideEditableStatusView } = craftService(
+      { name: 'editableStatusView', providedIn: 'toProvide' },
+      function* (inputs: { readonly status: CraftServiceInput<string> }) {
+        const { status } = inputs;
+        yield* craftExpose('status', status);
+      },
+    );
+
     const editableStatusComponent = craftComponent(
       'editableStatusComponent',
-      { host: { class: 'status-base' } },
-      (status: Input<string>) => ({ status }),
-      ({ status }) =>
-        span(function* () {
+      {
+        providers: [provideEditableStatusView()],
+        host: { class: 'status-base' },
+      },
+      function* (inputs: { readonly status: Input<string> }) {
+        const { status } = yield* EditableStatusView(inputs);
+        return span(function* () {
           return yield* status();
-        }),
+        });
+      },
     );
+    const { DirectivePageView, provideDirectivePageView } = craftService(
+      { name: 'directivePageView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const directivePage = craftComponent(
       'directivePage',
-      {},
-      () => ({}),
-      () =>
-        h2([
+      { providers: [provideDirectivePageView()] },
+      function* () {
+        yield* DirectivePageView();
+        return h2([
           'Full craftService demo ',
           editableStatusComponent({
             status: function* () {
@@ -1670,7 +2025,8 @@ describe('functional component interpreter', () => {
             },
             class: 'newClassAdded',
           }),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -1689,46 +2045,64 @@ describe('functional component interpreter', () => {
     const onlyEditable = craftDirective(
       'onlyEditable',
       {},
-      (
-        baseLogic: HostRequiredLogic<{
-          permissions: { canEdit: () => boolean };
-        }>,
-      ) => baseLogic,
-      (
-        baseTemplate: HostTemplate<{
-          permissions: { canEdit: () => boolean };
-        }>,
-      ) =>
-        (context) =>
-          baseTemplate(context, {
-            class: () => (context.permissions.canEdit() ? 'visible' : 'hidden'),
-          }),
+      {
+        template: (baseTemplate) =>
+          function* () {
+            return withHostProps(yield* baseTemplate(), {
+              class: () => (canEdit() ? 'visible' : 'hidden'),
+            });
+          },
+      },
     );
+    const { ReactiveStatusView, provideReactiveStatusView } = craftService(
+      { name: 'reactiveStatusView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('permissions', { canEdit: () => canEdit() });
+      },
+    );
+
     const reactiveStatusComponent = craftComponent(
       'reactiveStatusComponent',
-      { host: { class: 'status-base' } },
-      () => ({ permissions: { canEdit: () => canEdit() } }),
-      () => span('ready'),
+      {
+        providers: [provideReactiveStatusView()],
+        host: { class: 'status-base' },
+      },
+      function* () {
+        yield* ReactiveStatusView();
+        return span('ready');
+      },
     ).pipe(onlyEditable);
+    const { ReactiveDirectivePageView, provideReactiveDirectivePageView } =
+      craftService(
+        { name: 'reactiveDirectivePageView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const reactiveDirectivePage = craftComponent(
       'reactiveDirectivePage',
-      {},
-      () => ({}),
-      () => reactiveStatusComponent({ class: 'caller-class' }),
+      { providers: [provideReactiveDirectivePageView()] },
+      function* () {
+        yield* ReactiveDirectivePageView();
+        return reactiveStatusComponent({ class: 'caller-class' });
+      },
     );
     const {
       nativeElement: element,
       flush,
       destroy,
     } = await renderCraftComponent(reactiveDirectivePage);
+    // The directive dressed the children first, so its class leads the
+    // component's own.
     expect(element.querySelector('span')?.className).toBe(
-      'status-base visible caller-class',
+      'visible status-base caller-class',
     );
 
     canEdit.set(false);
     await flush();
     expect(element.querySelector('span')?.className).toBe(
-      'status-base hidden caller-class',
+      'hidden status-base caller-class',
     );
     destroy();
   });
@@ -1738,27 +2112,30 @@ describe('functional component interpreter', () => {
     const guard = craftDirective(
       'guard',
       {},
-      (baseLogic: HostRequiredLogic<{ user: Input<string> }>) =>
-        (user: Input<string>) => ({
-          ...baseLogic(user),
-          allowed,
-        }),
-      (
-        baseTemplate: HostTemplate<{
-          user: Input<string>;
-          allowed: () => boolean;
-        }>,
-      ) =>
-        (context) => (context.allowed() ? baseTemplate(context) : []),
+      {
+        template: (baseTemplate) =>
+          function* (inputs: { readonly user: Input<string> }) {
+            return allowed() ? yield* baseTemplate(inputs) : [];
+          },
+      },
     );
+    const { GuardedView, provideGuardedView } = craftService(
+      { name: 'guardedView', providedIn: 'toProvide' },
+      function* (inputs: { readonly user: CraftServiceInput<string> }) {
+        const { user } = inputs;
+        yield* craftExpose('user', user);
+      },
+    );
+
     const guarded = craftComponent(
       'guarded',
-      {},
-      (user: Input<string>) => ({ user }),
-      ({ user }) =>
-        p(function* () {
+      { providers: [provideGuardedView()] },
+      function* (inputs: { readonly user: Input<string> }) {
+        const { user } = yield* GuardedView(inputs);
+        return p(function* () {
           return yield* user();
-        }),
+        });
+      },
     ).pipe(guard);
     const {
       nativeElement: element,
@@ -1780,49 +2157,48 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  it('passes public inputs added by a directive to the final factory', async () => {
+  it('lets a directive restrict a service member without touching the props', async () => {
+    const granted = signal(false);
+    const { CardView, provideCardView } = craftService(
+      { name: 'cardView', providedIn: 'toProvide' },
+      function* (inputs: { readonly user: CraftServiceInput<string> }) {
+        const { user } = inputs;
+        yield* craftExpose('user', user);
+        yield* craftExpose('label', 'editable');
+      },
+    );
+
     const withPermission = craftDirective(
       'withPermission',
       {},
-      (baseLogic: HostRequiredLogic<{ user: Input<string> }>) =>
-        (user: Input<string>, permission: Input<string>) => ({
-          ...baseLogic(user),
-          permission,
-        }),
-      (
-        baseTemplate: HostTemplate<{
-          user: Input<string>;
-          permission: Input<string>;
-        }>,
-      ) =>
-        (context) =>
-          baseTemplate(context),
+      {
+        service: overrideService(CardView, (base) => ({
+          ...base,
+          label: granted() ? base.label : 'read-only',
+        })),
+      },
     );
+
     const card = craftComponent(
       'card',
-      {},
-      (user: Input<string>) => ({ user }),
-      ({ user }) =>
-        p(function* () {
-          return yield* user();
-        }),
+      { providers: [provideCardView()] },
+      function* (inputs: { readonly user: Input<string> }) {
+        const { label } = yield* CardView(inputs);
+        return p(label);
+      },
     ).pipe(withPermission);
-    const {
-      nativeElement: element,
-      flush,
-      destroy,
-    } = await renderCraftComponent(card, {
-      props: {
-        user: function* () {
-          return 'Ada';
-        },
-        permission: function* () {
-          return 'edit';
+    const { nativeElement: element, destroy } = await renderCraftComponent(
+      card,
+      {
+        props: {
+          user: function* () {
+            return 'Ada';
+          },
         },
       },
-    });
+    );
 
-    expect(element.textContent).toBe('Ada');
+    expect(element.textContent).toBe('read-only');
     destroy();
   });
 
@@ -1831,15 +2207,28 @@ describe('functional component interpreter', () => {
     const when = craftDirective(
       'when',
       {},
-      (baseLogic: HostRequiredLogic<{ visible: Input<boolean> }>) => baseLogic,
-      (baseTemplate: HostTemplate<{ visible: Input<boolean> }>) => (context) =>
-        craftUse(context.visible()) ? baseTemplate(context) : [],
+      {
+        template: (baseTemplate) =>
+          function* () {
+            return visible() ? yield* baseTemplate() : [];
+          },
+      },
     );
+    const { PanelView, providePanelView } = craftService(
+      { name: 'panelView', providedIn: 'toProvide' },
+      function* (inputs: { readonly visible: CraftServiceInput<boolean> }) {
+        const { visible } = inputs;
+        yield* craftExpose('visible', visible);
+      },
+    );
+
     const panel = craftComponent(
       'panel',
-      {},
-      (visible: Input<boolean>) => ({ visible }),
-      () => p('conditional').pipe(when),
+      { providers: [providePanelView()] },
+      function* (inputs: { readonly visible: Input<boolean> }) {
+        yield* PanelView(inputs);
+        return p('conditional').pipe(when);
+      },
     );
     const {
       nativeElement: element,
@@ -1886,17 +2275,26 @@ describe('functional component interpreter', () => {
         return returnedCleanups;
       },
     );
+    const { NodeDirectiveLifecycleView, provideNodeDirectiveLifecycleView } =
+      craftService(
+        { name: 'nodeDirectiveLifecycleView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const component = craftComponent(
       'nodeDirectiveLifecycle',
-      {},
-      () => ({}),
-      () =>
-        div([
+      { providers: [provideNodeDirectiveLifecycleView()] },
+      function* () {
+        yield* NodeDirectiveLifecycleView();
+        return div([
           span({ marker: label() }, 'one').pipe(marker),
           ...(showSecond()
             ? [span({ marker: `second-${label()}` }, 'two').pipe(marker)]
             : []),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -1931,19 +2329,27 @@ describe('functional component interpreter', () => {
   });
 
   it('recovers an ifNode after its true branch throws', async () => {
-    const explode = signal(true);
-    const component = craftComponent(
-      'ifNodeRecoversAfterThrow',
-      {},
+    const {
+      IfNodeRecoversAfterThrowView,
+      provideIfNodeRecoversAfterThrowView,
+    } = craftService(
+      { name: 'ifNodeRecoversAfterThrowView', providedIn: 'toProvide' },
       function* () {
         const navOpen = yield* state('navOpen', false, ({ set, update }) => ({
           toggle: () => update((open) => !open),
           close: () => set(false),
         }));
-        return { navOpen, toggleNav: navOpen.toggle };
+        yield* craftExpose('toggleNav', navOpen.toggle);
       },
-      ({ navOpen, toggleNav }) =>
-        div([
+    );
+
+    const explode = signal(true);
+    const component = craftComponent(
+      'ifNodeRecoversAfterThrow',
+      { providers: [provideIfNodeRecoversAfterThrowView()] },
+      function* () {
+        const { navOpen, toggleNav } = yield* IfNodeRecoversAfterThrowView();
+        return div([
           button(
             {
               class: 'toggle',
@@ -1964,7 +2370,8 @@ describe('functional component interpreter', () => {
             },
             () => [],
           ),
-        ]),
+        ]);
+      },
     );
     const {
       nativeElement: element,
@@ -2009,20 +2416,36 @@ describe('functional component interpreter', () => {
     const PREFIX = { debugName: 'component-prefix' };
     const { Greeting } = craftService(
       { name: 'Greeting', providedIn: 'function' },
-      () => ({ prefix: inject(PREFIX) }),
+      function* () {
+        yield* craftExpose('prefix', inject(PREFIX));
+      },
+    );
+
+    const { GreetingView, provideGreetingView } = craftService(
+      { name: 'greetingView', providedIn: 'toProvide' },
+      function* (inputs: { readonly name: CraftServiceInput<string> }) {
+        const { name } = inputs;
+
+        const service = yield* Greeting();
+        yield* craftExpose('name', name);
+        yield* craftExpose('service', service);
+      },
     );
 
     const greeting = craftComponent(
       'greeting',
-      { providers: [{ provide: PREFIX, useValue: 'Bonjour' }] },
-      function* (name: Input<string>) {
-        const service = yield* Greeting();
-        return { name, service };
+      {
+        providers: [
+          provideGreetingView(),
+          { provide: PREFIX, useValue: 'Bonjour' },
+        ],
       },
-      ({ name, service }) =>
-        p(function* () {
+      function* (inputs: { readonly name: Input<string> }) {
+        const { name, service } = yield* GreetingView(inputs);
+        return p(function* () {
           return `${service.prefix} ${yield* name()}`;
-        }),
+        });
+      },
     );
 
     const {
@@ -2041,12 +2464,21 @@ describe('functional component interpreter', () => {
   });
 
   it('preserves an intermediate parent injector for nested Craft components', async () => {
+    const { InjectorRoutedView, provideInjectorRoutedView } = craftService(
+      { name: 'injectorRoutedView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('routeMarker', inject<string>(routeMarker));
+      },
+    );
+
     const routeMarker = { debugName: 'route-marker' };
     const injectorRouted = craftComponent(
       'injectorRouted',
-      {},
-      () => ({ routeMarker: inject<string>(routeMarker) }),
-      ({ routeMarker }) => p(routeMarker),
+      { providers: [provideInjectorRoutedView()] },
+      function* () {
+        const { routeMarker } = yield* InjectorRoutedView();
+        return p(routeMarker);
+      },
     );
     const {
       nativeElement: element,
@@ -2060,32 +2492,52 @@ describe('functional component interpreter', () => {
   });
 
   it('mounts selectorless children by lexical component reference', async () => {
+    const { UserCardView, provideUserCardView } = craftService(
+      { name: 'userCardView', providedIn: 'toProvide' },
+      function* (inputs: {
+        readonly name: CraftServiceInput<string>;
+        readonly onPick: Output<(name: string) => void>;
+      }) {
+        const { name, onPick } = inputs;
+        yield* craftExpose('name', name);
+        yield* craftExpose('onPick', onPick);
+      },
+    );
+
     const picked = vi.fn();
     const userCard = craftComponent(
       'userCard',
-      {},
-      (name: Input<string>, onPick: Output<(name: string) => void>) => ({
-        name,
-        onPick,
-      }),
-      ({ name, onPick }) =>
-        button(
+      { providers: [provideUserCardView()] },
+      function* (inputs: {
+        readonly name: Input<string>;
+        readonly onPick: Output<(name: string) => void>;
+      }) {
+        const { name, onPick } = yield* UserCardView(inputs);
+        return button(
           {
             *click() {
-              yield* onPick(yield* name());
+              onPick(yield* name());
             },
           },
           function* () {
             return yield* name();
           },
-        ),
+        );
+      },
     );
+    const { ParentView, provideParentView } = craftService(
+      { name: 'parentView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('picked', picked);
+      },
+    );
+
     const parent = craftComponent(
       'parent',
-      {},
-      () => ({ picked }),
-      ({ picked }) =>
-        div([
+      { providers: [provideParentView()] },
+      function* () {
+        const { picked } = yield* ParentView();
+        return div([
           span('Parent'),
           userCard({
             name: function* () {
@@ -2093,7 +2545,8 @@ describe('functional component interpreter', () => {
             },
             onPick: picked,
           }),
-        ]),
+        ]);
+      },
     );
 
     const {
@@ -2112,12 +2565,19 @@ describe('functional component interpreter', () => {
       { id: 1, name: 'Ada' },
       { id: 2, name: 'Grace' },
     ]);
+    const { ListView, provideListView } = craftService(
+      { name: 'listView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('users', users);
+      },
+    );
+
     const list = craftComponent(
       'list',
-      {},
-      () => ({ users }),
-      ({ users }) =>
-        div(
+      { providers: [provideListView()] },
+      function* () {
+        const { users } = yield* ListView();
+        return div(
           forNode(
             users,
             {
@@ -2136,7 +2596,8 @@ describe('functional component interpreter', () => {
                 },
               ),
           ),
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -2170,13 +2631,20 @@ describe('functional component interpreter', () => {
 
   it('renders a scheduled each block progressively and keeps keyed DOM identity', async () => {
     const values = signal([1, 2, 3]);
+    const { ScheduledlistView, provideScheduledlistView } = craftService(
+      { name: 'scheduledlistView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('values', values);
+      },
+    );
+
     const scheduler = new VirtualForScheduler();
     const list = craftComponent(
       'scheduled-list',
-      {},
-      () => ({ values }),
-      ({ values }) =>
-        div(
+      { providers: [provideScheduledlistView()] },
+      function* () {
+        const { values } = yield* ScheduledlistView();
+        return div(
           forNode(values, { track: (value) => value }, (value) =>
             button(
               {
@@ -2189,7 +2657,8 @@ describe('functional component interpreter', () => {
               },
             ),
           ).pipe(scheduleFor({ enabled: true, strategy: 'frame' })),
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -2225,30 +2694,36 @@ describe('functional component interpreter', () => {
   });
 
   it('deepifies forNode items when the collection uses insertDeepYieldable', async () => {
+    const { DeepYieldableForItemsView, provideDeepYieldableForItemsView } =
+      craftService(
+        { name: 'deepYieldableForItemsView', providedIn: 'toProvide' },
+        function* () {
+          yield* state(
+            'catalog',
+            {
+              products: [
+                { id: 1, category: 'fruit', name: 'Apple' },
+                { id: 2, category: 'grain', name: 'Oat' },
+              ],
+            },
+            insertDeepYieldable('products'),
+          );
+        },
+      );
+
     const component = craftComponent(
       'deepYieldableForItems',
-      {},
+      { providers: [provideDeepYieldableForItemsView()] },
       function* () {
-        const catalog = yield* state(
-          'catalog',
-          {
-            products: [
-              { id: 1, category: 'fruit', name: 'Apple' },
-              { id: 2, category: 'grain', name: 'Oat' },
-            ],
-          },
-          insertDeepYieldable('products'),
-        );
-        return { catalog };
-      },
-      ({ catalog }) =>
-        ul(
+        const { catalog } = yield* DeepYieldableForItemsView();
+        return ul(
           forNode(
             catalog.deepYieldableProducts,
             { track: (product) => product.id },
             (product) => li([span(product.category), span(product.name)]),
           ),
-        ),
+        );
+      },
     );
     const { nativeElement: element, destroy } =
       await renderCraftComponent(component);
@@ -2258,18 +2733,27 @@ describe('functional component interpreter', () => {
   });
 
   it('keeps scheduleFor synchronous when disabled', async () => {
+    const { DisabledscheduledlistView, provideDisabledscheduledlistView } =
+      craftService(
+        { name: 'disabledscheduledlistView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const list = craftComponent(
       'disabled-scheduled-list',
-      {},
-      () => ({}),
-      () =>
-        div(
+      { providers: [provideDisabledscheduledlistView()] },
+      function* () {
+        yield* DisabledscheduledlistView();
+        return div(
           forNode([1, 2, 3], { track: (value) => value }, (value) =>
             p(function* () {
               return String(yield* value());
             }),
           ).pipe(scheduleFor({ enabled: false, strategy: 'frame' })),
-        ),
+        );
+      },
     );
     const { nativeElement: element, destroy } =
       await renderCraftComponent(list);
@@ -2280,13 +2764,21 @@ describe('functional component interpreter', () => {
 
   it('cancels obsolete scheduled work when the collection changes or the node is destroyed', async () => {
     const values = signal([1, 2, 3]);
+    const { CancelledscheduledlistView, provideCancelledscheduledlistView } =
+      craftService(
+        { name: 'cancelledscheduledlistView', providedIn: 'toProvide' },
+        function* () {
+          yield* craftExpose('values', values);
+        },
+      );
+
     const scheduler = new VirtualForScheduler();
     const list = craftComponent(
       'cancelled-scheduled-list',
-      {},
-      () => ({ values }),
-      ({ values }) =>
-        div(
+      { providers: [provideCancelledscheduledlistView()] },
+      function* () {
+        const { values } = yield* CancelledscheduledlistView();
+        return div(
           forNode(values, { track: (value) => value }, (value) =>
             p(
               {
@@ -2299,7 +2791,8 @@ describe('functional component interpreter', () => {
               },
             ),
           ).pipe(scheduleFor({ strategy: 'frame' })),
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -2329,12 +2822,19 @@ describe('functional component interpreter', () => {
     const users = signal<
       readonly { id: number; name: string }[] | null | undefined
     >(null);
+    const { NullablelistView, provideNullablelistView } = craftService(
+      { name: 'nullablelistView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftExpose('users', users);
+      },
+    );
+
     const list = craftComponent(
       'nullable-list',
-      {},
-      () => ({ users }),
-      ({ users }) =>
-        div(
+      { providers: [provideNullablelistView()] },
+      function* () {
+        const { users } = yield* NullablelistView();
+        return div(
           forNode(
             () => users(),
             {
@@ -2353,7 +2853,8 @@ describe('functional component interpreter', () => {
                 },
               ),
           ),
-        ),
+        );
+      },
     );
     const {
       nativeElement: element,
@@ -2382,17 +2883,25 @@ describe('functional component interpreter', () => {
     const loaded = new Promise<string>((resolve) => {
       resolveModule = resolve;
     });
+    const { SuccessView, provideSuccessView } = craftService(
+      { name: 'successView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const success = craftComponent(
       'success',
-      {},
-      () => ({}),
-      () =>
-        deferNode(() => loaded, {
+      { providers: [provideSuccessView()] },
+      function* () {
+        yield* SuccessView();
+        return deferNode(() => loaded, {
           trigger: 'immediate',
           resolve: (value) => p({ class: 'loaded' }, value),
           placeholder: () => p('Placeholder'),
           loading: () => p({ class: 'loading' }, 'Loading'),
-        }),
+        });
+      },
     );
     const {
       nativeElement: successHost,
@@ -2406,12 +2915,19 @@ describe('functional component interpreter', () => {
       expect(successHost.querySelector('.loaded')?.textContent).toBe('Ready');
     });
 
+    const { FailureView, provideFailureView } = craftService(
+      { name: 'failureView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const failure = craftComponent(
       'failure',
-      {},
-      () => ({}),
-      () =>
-        deferNode(() => Promise.reject(new Error('boom')), {
+      { providers: [provideFailureView()] },
+      function* () {
+        yield* FailureView();
+        return deferNode(() => Promise.reject(new Error('boom')), {
           trigger: 'immediate',
           resolve: () => p('unreachable'),
           error: (error) =>
@@ -2419,7 +2935,8 @@ describe('functional component interpreter', () => {
               { class: 'error' },
               (error as { _tag?: string })._tag ?? 'unknown',
             ),
-        }),
+        });
+      },
     );
     const { nativeElement: failureHost, destroy: destroyFailure } =
       await renderCraftComponent(failure);
@@ -2434,13 +2951,20 @@ describe('functional component interpreter', () => {
   });
 
   it('passes withRetry to defer loaders and retries a failed lazy import', async () => {
+    const { DeferRetryView, provideDeferRetryView } = craftService(
+      { name: 'deferRetryView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     let calls = 0;
     const component = craftComponent(
       'deferRetry',
-      {},
-      () => ({}),
-      () =>
-        deferNode(
+      { providers: [provideDeferRetryView()] },
+      function* () {
+        yield* DeferRetryView();
+        return deferNode(
           ({ withRetry }) =>
             withRetry(
               calls++ === 0
@@ -2451,7 +2975,8 @@ describe('functional component interpreter', () => {
             trigger: 'immediate',
             resolve: (value) => p({ class: 'loaded' }, value),
           },
-        ),
+        );
+      },
     );
     const { nativeElement: element, destroy } = await renderCraftComponent(
       component,
@@ -2467,16 +2992,24 @@ describe('functional component interpreter', () => {
   });
 
   it('keeps a defer placeholder until its interaction trigger fires', async () => {
+    const { InteractionView, provideInteractionView } = craftService(
+      { name: 'interactionView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const interaction = craftComponent(
       'interaction',
-      {},
-      () => ({}),
-      () =>
-        deferNode(() => Promise.resolve('Interacted'), {
+      { providers: [provideInteractionView()] },
+      function* () {
+        yield* InteractionView();
+        return deferNode(() => Promise.resolve('Interacted'), {
           trigger: 'interaction',
           resolve: (value) => p({ class: 'interaction-loaded' }, value),
           placeholder: () => button({ class: 'interaction-trigger' }, 'Start'),
-        }),
+        });
+      },
     );
     const {
       nativeElement: element,
@@ -2498,18 +3031,27 @@ describe('functional component interpreter', () => {
   });
 
   it('runs DOM event hooks for an interaction defer trigger', async () => {
+    const { TrackedInteractionView, provideTrackedInteractionView } =
+      craftService(
+        { name: 'trackedInteractionView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const interactions: CraftDomEvent[] = [];
     const interaction = craftComponent(
       'trackedInteraction',
-      {},
-      () => ({}),
-      () =>
-        deferNode(() => Promise.resolve('Interacted'), {
+      { providers: [provideTrackedInteractionView()] },
+      function* () {
+        yield* TrackedInteractionView();
+        return deferNode(() => Promise.resolve('Interacted'), {
           trigger: 'interaction',
           resolve: (value) => p({ class: 'interaction-loaded' }, value),
           placeholder: () =>
             button('loadDeferred', { type: 'button' }, 'Start'),
-        }),
+        });
+      },
     );
     const { nativeElement: element, destroy } = await renderCraftComponent(
       interaction,
@@ -2542,16 +3084,25 @@ describe('functional component interpreter', () => {
   });
 
   it('keeps interaction defer idle on a DocumentFragment parent', async () => {
+    const { DetachedInteractionView, provideDetachedInteractionView } =
+      craftService(
+        { name: 'detachedInteractionView', providedIn: 'toProvide' },
+        function* () {
+          // Nothing to expose.
+        },
+      );
+
     const loader = vi.fn(async () => 'Interacted');
     const interaction = craftComponent(
       'detachedInteraction',
-      {},
-      () => ({}),
-      () =>
-        deferNode(loader, {
+      { providers: [provideDetachedInteractionView()] },
+      function* () {
+        yield* DetachedInteractionView();
+        return deferNode(loader, {
           trigger: 'interaction',
           resolve: (value) => p({ class: 'detached-loaded' }, value),
-        }),
+        });
+      },
     );
     const fragment = document.createDocumentFragment();
     const parent = createEnvironmentInjector(
@@ -2609,12 +3160,24 @@ describe('binding isolation under the application provider set', () => {
     const second = signal('B');
     const firstBinding = vi.fn(() => first());
     const secondBinding = vi.fn(() => second());
+    const {
+      CorrelationBindingIsolationView,
+      provideCorrelationBindingIsolationView,
+    } = craftService(
+      { name: 'correlationBindingIsolationView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const constantBinding = vi.fn(() => 'constant');
     const component = craftComponent(
       'correlationBindingIsolation',
-      {},
-      () => ({}),
-      () => div([p(firstBinding), p(secondBinding), p(constantBinding)]),
+      { providers: [provideCorrelationBindingIsolationView()] },
+      function* () {
+        yield* CorrelationBindingIsolationView();
+        return div([p(firstBinding), p(secondBinding), p(constantBinding)]);
+      },
     );
 
     const { flush, destroy, injector } = await renderCraftComponent(component, {

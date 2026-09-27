@@ -21,6 +21,8 @@ import {
   query,
   state,
   craftException,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import { example } from '../shared/example.style';
 
@@ -56,63 +58,61 @@ const TODOS: Todo[] = [
 const { ApiService } = craftService(
   { name: 'ApiService', providedIn: 'global' },
   function* () {
-    const nextId = yield* state('nextId', 4, ({ state, update }) => ({
+    const nextId = yield* craftPrivate(state('nextId', 4, ({ state, update }) => ({
       take: function* () {
-            const _state = yield* state();
-                const id = _state;
-                yield* update((value) => value + 1);
-                return id;
-              },
-    }));
+        const _state = yield* state();
+        const id = _state;
+        yield* update((value) => value + 1);
+        return id;
+      },
+    })));
 
-    return {
-      getTodos: craftGen(function* () {
-        yield* craftSleep(500);
-        return [...TODOS];
-      }),
-      getTodo: craftGen(function* (id: number) {
-        const todo = TODOS.find((t) => t.id === id);
-        if (!todo)
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`Todo ${id} not found`) },
-          );
-        yield* craftSleep(500);
-        return { ...todo };
-      }),
-      addTodo: craftGen(function* (title: string) {
-        const todo: Todo = {
-          id: yield* nextId.take(),
-          title,
-          completed: false,
-        };
-        TODOS.push(todo);
-        yield* craftSleep(500);
-        return todo;
-      }),
-      toggleTodo: craftGen(function* (id: number) {
-        const todo = TODOS.find((t) => t.id === id);
-        if (!todo)
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`Todo ${id} not found`) },
-          );
-        todo.completed = !todo.completed;
-        yield* craftSleep(500);
-        return { ...todo };
-      }),
-      deleteTodo: craftGen(function* (id: number) {
-        const index = TODOS.findIndex((t) => t.id === id);
-        if (index === -1)
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`Todo ${id} not found`) },
-          );
-        const removed = TODOS.splice(index, 1)[0];
-        yield* craftSleep(500);
-        return removed;
-      }),
-    };
+    yield* craftExpose('getTodos', craftGen(function* () {
+      yield* craftSleep(500);
+      return [...TODOS];
+    }));
+    yield* craftExpose('getTodo', craftGen(function* (id: number) {
+      const todo = TODOS.find((t) => t.id === id);
+      if (!todo)
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`Todo ${id} not found`) },
+        );
+      yield* craftSleep(500);
+      return { ...todo };
+    }));
+    yield* craftExpose('addTodo', craftGen(function* (title: string) {
+      const todo: Todo = {
+        id: yield* nextId.take(),
+        title,
+        completed: false,
+      };
+      TODOS.push(todo);
+      yield* craftSleep(500);
+      return todo;
+    }));
+    yield* craftExpose('toggleTodo', craftGen(function* (id: number) {
+      const todo = TODOS.find((t) => t.id === id);
+      if (!todo)
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`Todo ${id} not found`) },
+        );
+      todo.completed = !todo.completed;
+      yield* craftSleep(500);
+      return { ...todo };
+    }));
+    yield* craftExpose('deleteTodo', craftGen(function* (id: number) {
+      const index = TODOS.findIndex((t) => t.id === id);
+      if (index === -1)
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`Todo ${id} not found`) },
+        );
+      const removed = TODOS.splice(index, 1)[0];
+      yield* craftSleep(500);
+      return removed;
+    }));
   },
 );
 
@@ -143,7 +143,7 @@ const { Playground } = craftService(
       },
     });
 
-    const todos = yield* query(
+    yield* query(
       'todos',
       {
         params: () => 'all',
@@ -164,49 +164,54 @@ const { Playground } = craftService(
       ),
     );
 
-    return { todos, addTodo, toggleTodo, deleteTodo };
   },
 );
 
 // -- Component --
 
-const PlaygroundComponent = craftComponent(
-  'PlaygroundComponent',
-  {},
+export const { PlaygroundView, providePlaygroundView } = craftService(
+  { name: 'playgroundView', providedIn: 'toProvide' },
   function* () {
     const pg = yield* Playground();
     const titleInput = yield* state('titleInput', '', ({ set }) => ({
       setTitle: (value: string) => set(value),
       clearTitle: () => set(''),
     }));
-    const add = craftMethod('add', function* () {
+    yield* craftMethod('add', function* () {
       const title = (yield* titleInput()).trim();
       if (!title) return;
       yield* pg.addTodo.mutate(title);
       yield* titleInput.clearTitle();
       return {};
     });
-    const isAdding = craftComputed('isAdding', function* () {
-        const _pgaddTodoisLoading = yield* pg.addTodo.isLoading(); return _pgaddTodoisLoading; },
-    );
-    const todos = craftComputed(
-      'todos',
-      function* () {
-          const _pgtodosvalue = yield* pg.todos.value(); return _pgtodosvalue ?? []; },
-    );
-    return {
-      pg,
-      add,
-      isAdding,
-      todos,
-      titleInput,
-      setTitle: titleInput.setTitle,
-    };
+    yield* craftComputed('isAdding', function* () {
+      const _pgaddTodoisLoading = yield* pg.addTodo.isLoading();
+      return _pgaddTodoisLoading;
+    });
+    yield* craftComputed('todos', function* () {
+      const _pgtodosvalue = yield* pg.todos.value();
+      return _pgtodosvalue ?? [];
+    });
+    yield* craftExpose('pg', pg);
+    yield* craftExpose('setTitle', titleInput.setTitle);
   },
-  ({ pg, add, isAdding, todos, titleInput, setTitle }) => {
+);
+
+const PlaygroundComponent = craftComponent(
+  'PlaygroundComponent',
+  {
+    providers: [providePlaygroundView()],
+  },
+  function* () {
+    const { pg, add, isAdding, todos, titleInput, setTitle } =
+      yield* PlaygroundView();
+
     return div({ class: example.centered }, [
       heading({ class: example.title }, 'Playground'),
-      p({ class: example.text, 'data-exampleText': 'muted' }, 'Sandbox for testing @craft-ts — ready to share on StackBlitz'),
+      p(
+        { class: example.text, 'data-exampleText': 'muted' },
+        'Sandbox for testing @craft-ts — ready to share on StackBlitz',
+      ),
       div({ class: example.row }, [
         input('title', {
           class: example.input,
@@ -217,11 +222,14 @@ const PlaygroundComponent = craftComponent(
             yield* setTitle(event.target.value);
           },
           *keydown(event) {
-            if (event.key === 'Enter') yield* add();
+            if (event.key === 'Enter') add();
           },
         }),
-        button('add',
-          { class: example.button, type: 'button',
+        button(
+          'add',
+          {
+            class: example.button,
+            type: 'button',
             disabled: pg.addTodo.isLoading,
             click: add,
           },
@@ -239,8 +247,12 @@ const PlaygroundComponent = craftComponent(
           { track: (todo) => todo.id, empty: () => p('No todos yet.') },
           (todo) =>
             div({ class: example.item }, [
-              button('toggle',
-                { class: example.button, 'data-exampleButton': 'ghost', type: 'button',
+              button(
+                'toggle',
+                {
+                  class: example.button,
+                  'data-exampleButton': 'ghost',
+                  type: 'button',
                   *click() {
                     yield* pg.toggleTodo.mutate((yield* todo()).id);
                   },
@@ -249,16 +261,23 @@ const PlaygroundComponent = craftComponent(
                   return TODO_ICONS[String((yield* todo()).completed)];
                 },
               ),
-              span({
-                class: example.itemTitle,
-                'data-exampleText': function* () {
-                  return TODO_STATE[String((yield* todo()).completed)];
+              span(
+                {
+                  class: example.itemTitle,
+                  'data-exampleText': function* () {
+                    return TODO_STATE[String((yield* todo()).completed)];
+                  },
                 },
-              }, function* () {
-                return (yield* todo()).title;
-              }),
-              button('delete',
-                { class: example.button, 'data-exampleButton': 'ghost', type: 'button',
+                function* () {
+                  return (yield* todo()).title;
+                },
+              ),
+              button(
+                'delete',
+                {
+                  class: example.button,
+                  'data-exampleButton': 'ghost',
+                  type: 'button',
                   'aria-label': function* () {
                     return `Delete ${(yield* todo()).title}`;
                   },

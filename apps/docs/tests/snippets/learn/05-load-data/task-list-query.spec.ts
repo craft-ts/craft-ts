@@ -13,7 +13,7 @@ import { CraftHttpClient, craftService, query } from '@craft-ts/core';
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
-    const tasksQuery = yield* query('tasksQuery', {
+    yield* query('tasksQuery', {
       // The initial params value immediately triggers the loader.
       params: () => ({ done: false }),
       loader: function* ({ params }) {
@@ -23,8 +23,6 @@ export const { TaskList } = craftService(
         }));
       },
     });
-
-    return tasksQuery;
   },
 );
 // #endregion task-list-query
@@ -36,6 +34,6 @@ describe('Learn 05 TaskList query', () => {
     });
 
     expect(sut).toBeDefined();
-    expect(typeof sut.isLoading).toBe('function');
+    expect(typeof sut.tasksQuery.isLoading).toBe('function');
   });
 });

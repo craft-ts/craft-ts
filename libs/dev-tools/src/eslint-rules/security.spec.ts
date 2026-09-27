@@ -103,14 +103,21 @@ describe('craft-ts security rules', () => {
         await lint(`element.innerHTML = value;`, 'no-unsafe-html'),
       ).toHaveLength(1);
       expect(
-        await lint(`element.insertAdjacentHTML('beforeend', value);`, 'no-unsafe-html'),
+        await lint(
+          `element.insertAdjacentHTML('beforeend', value);`,
+          'no-unsafe-html',
+        ),
       ).toHaveLength(1);
       expect(await lint(`eval(value);`, 'no-unsafe-html')).toHaveLength(1);
-      expect(await lint(`document.write(value);`, 'no-unsafe-html')).toHaveLength(1);
+      expect(
+        await lint(`document.write(value);`, 'no-unsafe-html'),
+      ).toHaveLength(1);
     });
 
     it('requires a recorded exception next to unsafeHtml', async () => {
-      expect(await lint(`const html = unsafeHtml(value);`, 'no-unsafe-html')).toHaveLength(1);
+      expect(
+        await lint(`const html = unsafeHtml(value);`, 'no-unsafe-html'),
+      ).toHaveLength(1);
       expect(
         await lint(
           `const exception = allowUnsafe('raw-html', {
@@ -129,7 +136,10 @@ describe('craft-ts security rules', () => {
   describe('no-trust-forwarded-headers', () => {
     it('reports a forwarded header outside the proxy boundary', async () => {
       expect(
-        await lint(`const ip = headers.get('x-forwarded-for');`, 'no-trust-forwarded-headers'),
+        await lint(
+          `const ip = headers.get('x-forwarded-for');`,
+          'no-trust-forwarded-headers',
+        ),
       ).toHaveLength(1);
     });
 
@@ -147,13 +157,19 @@ describe('craft-ts security rules', () => {
   describe('require-server-function-timeout', () => {
     it('reports a registry without limits', async () => {
       expect(
-        await lint(`createServer({ functions: [fn] });`, 'require-server-function-timeout'),
+        await lint(
+          `createServer({ functions: [fn] });`,
+          'require-server-function-timeout',
+        ),
       ).toHaveLength(1);
     });
 
     it('ignores node:http createServer', async () => {
       expect(
-        await lint(`createServer({ keepAlive: true });`, 'require-server-function-timeout'),
+        await lint(
+          `createServer({ keepAlive: true });`,
+          'require-server-function-timeout',
+        ),
       ).toEqual([]);
     });
 
@@ -173,7 +189,10 @@ describe('craft-ts security rules', () => {
   describe('no-unsafe-transfer-state', () => {
     it('reports an implicit transfer policy', async () => {
       expect(
-        await lint(`captureCraftTransferSnapshot(registry);`, 'no-unsafe-transfer-state'),
+        await lint(
+          `captureCraftTransferSnapshot(registry);`,
+          'no-unsafe-transfer-state',
+        ),
       ).toHaveLength(1);
       expect(
         await lint(`renderCraft({ config, url });`, 'no-unsafe-transfer-state'),

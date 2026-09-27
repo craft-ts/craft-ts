@@ -184,7 +184,8 @@ async function lintFixture(
         plugins: {
           local: {
             rules: {
-              'craft-signal-source-name-match': craftSignalSourceNameMatchRule as never,
+              'craft-signal-source-name-match':
+                craftSignalSourceNameMatchRule as never,
             },
           },
         },

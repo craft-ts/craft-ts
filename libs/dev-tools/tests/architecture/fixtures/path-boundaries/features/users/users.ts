@@ -7,6 +7,5 @@ export const { Users } = craftService(
   function* () {
     yield* Auth();
     yield* Cart();
-    return {};
   },
 );

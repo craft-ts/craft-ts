@@ -13,10 +13,10 @@ import { craftEffect } from '@craft-ts/core';
 ```
 
 ```typescript
-craftEffect('myEffect', function* () {
+craftUse(craftEffect('myEffect', function* () {
   const counter = yield* Counter();
   // do some stuff
-});
+}));
 ```
 
 ## Resource triggers
@@ -48,9 +48,9 @@ const triggerSearch = craftGen(function* (term: string) {
   yield* searchQuery.call(term);
 });
 
-craftEffect('load', function* () {
+craftUse(craftEffect('load', function* () {
   yield* triggerSearch(input()); // forbidden: indirect imperative trigger
-});
+}));
 ```
 
 Use a reactive query instead when the data depends on a signal:

@@ -66,8 +66,8 @@ export const ElementRef = ɵElementRef;
 export const EnvironmentInjector = ɵEnvironmentInjector;
 export const Injector = CraftInjectorToken;
 export const inject = ɵinject;
-export const reflectComponentType: HostRuntimeApi['reflectComponentType'] = () =>
-  null;
+export const reflectComponentType: HostRuntimeApi['reflectComponentType'] =
+  () => null;
 export const runInInjectionContext = ɵrunInInjectionContext;
 export const signal = ɵsignal;
 export const untracked = ɵuntracked;

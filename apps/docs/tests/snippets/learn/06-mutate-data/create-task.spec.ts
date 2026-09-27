@@ -12,7 +12,7 @@ import { CraftHttpClient, craftService, mutation } from '@craft-ts/core';
 export const { TaskWrites } = craftService(
   { name: 'TaskWrites', providedIn: 'function' },
   function* () {
-    const createTask = yield* mutation('createTask', {
+    yield* mutation('createTask', {
       method: (payload: { title: string }) => payload,
       loader: function* ({ params }) {
         return yield* CraftHttpClient.post(({ response }) => ({
@@ -23,7 +23,6 @@ export const { TaskWrites } = craftService(
       },
     });
 
-    return { createTask };
   },
 );
 // #endregion create-task

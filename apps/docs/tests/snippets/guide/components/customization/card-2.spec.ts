@@ -15,24 +15,18 @@ import { titleSheet } from './card-2.style';
 const CardTitle = craftComponent(
   'CardTitle',
   {},
-  (text: Input<string>) => ({ text }),
-  ({ text }) => h2({ class: titleSheet.root }, text),
+  ({ text }: { readonly text: Input<string> }) =>
+    h2({ class: titleSheet.root }, text),
 );
 
-const Card = craftComponent(
-  'Card',
-  {},
-  function* () {
-    const title = yield* state('title', 'Card');
-    return { title };
-  },
-  ({ title }) =>
-    // The card sets `data-cardActive`; its sheet writes the inherited
-    // variable; the title, a separate component, reads it.
-    div({ class: cardSheet.root, 'data-cardActive': 'true' }, [
-      CardTitle({ text: title }),
-    ]),
-);
+const Card = craftComponent('Card', {}, function* () {
+  const title = yield* state('title', 'Card');
+  // The card sets `data-cardActive`; its sheet writes the inherited
+  // variable; the title, a separate component, reads it.
+  return div({ class: cardSheet.root, 'data-cardActive': 'true' }, [
+    CardTitle({ text: title }),
+  ]);
+});
 // #endregion card-2
 
 describe('guide/components/customization.md #card-2', () => {

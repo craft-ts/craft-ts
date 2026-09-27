@@ -48,13 +48,12 @@ export const Profile = craftComponent(
       loader: ({ params }) => loadUser(params),
     });
 
-    return { profile };
+    return [
+      p(function* () {
+        return (yield* profile.value())?.name ?? 'Loading…';
+      }),
+    ];
   },
-  ({ profile }) => [
-    p(function* () {
-      return (yield* profile.value())?.name ?? 'Loading…';
-    }),
-  ],
 );
 // #endregion component
 

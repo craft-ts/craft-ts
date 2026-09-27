@@ -97,13 +97,13 @@ export type ReadonlySource$<
  * const { Reset } = craftService(
  *   { name: 'Reset', providedIn: 'global' },
  *   function* () {
- *     const reset$ = yield* source$<void>('reset$');
- *     return reset$;
+ *     yield* source$<void>('reset$');
  *   },
  * );
  *
- * const reset = yield* Reset();
- * reset.emit();
+ * const { reset$ } = yield* Reset();
+ * reset$.emit();
+ * // A service exposing a single source can also be given to `on$(Reset, ...)`.
  * ```
  *
  * @example

@@ -4,7 +4,7 @@ import {
   type Provider,
   type Signal,
 } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { BehaviorSubject, type Observable } from 'rxjs';
 import { provideCraftDomEventHook } from './dom-event-hook';
 import {
@@ -173,7 +173,7 @@ export interface SendContextRecordController {
   exportJson(clipId?: string): string;
 }
 
-type SendContextHelper<T> = () => Generator<unknown, T, unknown>;
+type SendContextHelper<T> = () => Generator<never, T, unknown>;
 type SendContextService<T> = {
   helper: SendContextHelper<T>;
   provide?: (value?: T | (() => T)) => unknown;
@@ -194,35 +194,35 @@ function asSendContextService<T>(
   };
 }
 
-const sendContextRetentionPolicyService = craftService(
+const sendContextRetentionPolicyService = ɵcraftValueService(
   { name: 'SendContextRetentionPolicy', providedIn: 'toProvide' },
   () => ({ maxEvents: 500, maxBytes: 2 * 1024 * 1024 }),
 );
-const sendContextRedactorService = craftService(
+const sendContextRedactorService = ɵcraftValueService(
   { name: 'SendContextRedactor', providedIn: 'toProvide' },
   () => defaultSendContextRedactor,
 );
-const sendContextValueSerializerService = craftService(
+const sendContextValueSerializerService = ɵcraftValueService(
   { name: 'SendContextValueSerializer', providedIn: 'toProvide' },
   () => defaultSendContextValueSerializer,
 );
-const sendContextEventSourceService = craftService(
+const sendContextEventSourceService = ɵcraftValueService(
   { name: 'SendContextEventSources', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: SendContextEventSource }) =>
     inputs.$provided ? [inputs.$provided] : [],
 );
-const sendContextEventEnricherService = craftService(
+const sendContextEventEnricherService = ɵcraftValueService(
   { name: 'SendContextEventEnrichers', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: SendContextEventEnricher }) =>
     inputs.$provided ? [inputs.$provided] : [],
 );
-const sendContextEventFilterService = craftService(
+const sendContextEventFilterService = ɵcraftValueService(
   { name: 'SendContextEventFilters', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: SendContextEventFilter }) =>
     inputs.$provided ? [inputs.$provided] : [],
 );
 
-const sendContextSessionService = craftService(
+const sendContextSessionService = ɵcraftValueService(
   { name: 'SendContextSession', providedIn: 'toProvide' },
   function* () {
     const session = createSendContextSession({
@@ -240,7 +240,7 @@ const sendContextSessionService = craftService(
     return session;
   },
 );
-const sendContextRecordControllerService = craftService(
+const sendContextRecordControllerService = ɵcraftValueService(
   { name: 'SendContextRecordController', providedIn: 'toProvide' },
   function* () {
     return createSendContextRecordController(yield* SendContextSession());

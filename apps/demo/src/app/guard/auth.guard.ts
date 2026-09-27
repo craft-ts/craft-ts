@@ -4,7 +4,7 @@ type User = { name: string };
 const noUser = (): User | undefined => undefined;
 
 const { Auth } = craftService({ name: 'Auth', providedIn: 'global' }, function* () {
-  return yield* query('auth', {
+  yield* query('auth', {
     params: () => true,
     loader: function* () {
       return noUser();
@@ -13,8 +13,8 @@ const { Auth } = craftService({ name: 'Auth', providedIn: 'global' }, function* 
 });
 
 export const authGuard = craftGen(function* () {
-  const user = yield* Auth();
-  const userValue = yield* user.value();
+  const { auth } = yield* Auth();
+  const userValue = yield* auth.value();
 
   if (!userValue) return craftException({ _tag: 'NOT_AUTHENTICATED' });
   // demo: a user named "disabled" is routed to the global error screen

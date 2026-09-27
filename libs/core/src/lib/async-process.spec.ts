@@ -30,6 +30,7 @@ import type {
   YieldableReactiveProperties,
   YieldableReactiveSignal,
 } from './reactive-read';
+import { craftExpose } from './craft-primitive-gen';
 
 type EmptyAsyncProcessExceptions = {
   hasException: Signal<boolean>;
@@ -194,22 +195,22 @@ describe('AsyncProcess', () => {
   it('typing: tracks generator dependencies from method, loader and insertions', () => {
     const { AsyncParams } = craftService(
       { name: 'AsyncParams', providedIn: 'global' },
-      () => ({
-        normalize: (userId: string): string => userId.trim(),
-      }),
+      function* () {
+        yield* craftExpose('normalize', (userId: string): string => userId.trim());
+      },
     );
     const { AsyncApi } = craftService(
       { name: 'AsyncApi', providedIn: 'global' },
-      () => ({
-        load: (userId: string): Promise<{ userId: string }> =>
-          Promise.resolve({ userId }),
-      }),
+      function* () {
+        yield* craftExpose('load', (userId: string): Promise<{ userId: string }> =>
+          Promise.resolve({ userId }));
+      },
     );
     const { AsyncTools } = craftService(
       { name: 'AsyncTools', providedIn: 'global' },
-      () => ({
-        key: (): string => 'async-user',
-      }),
+      function* () {
+        yield* craftExpose('key', (): string => 'async-user');
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -247,19 +248,19 @@ describe('AsyncProcess', () => {
     const logs: string[] = [];
     const { AsyncLoggerRuntime } = craftService(
       { name: 'AsyncLoggerRuntime', providedIn: 'global' },
-      () => ({
-        log: (message: string) => {
+      function* () {
+        yield* craftExpose('log', (message: string) => {
           logs.push(message);
-        },
-      }),
+        });
+      },
     );
     const { AsyncApiRuntime } = craftService(
       { name: 'AsyncApiRuntime', providedIn: 'global' },
-      () => ({
-        load: async (userId: string): Promise<{ userId: string }> => ({
+      function* () {
+        yield* craftExpose('load', async (userId: string): Promise<{ userId: string }> => ({
           userId,
-        }),
-      }),
+        }));
+      },
     );
 
     await TestBed.runInInjectionContext(async () => {
@@ -302,7 +303,7 @@ describe('AsyncProcess types without identifier', () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', providedIn: 'function' },
-        () => {
+        function* () {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
               method: ({
@@ -341,25 +342,23 @@ describe('AsyncProcess types without identifier', () => {
             ),
           );
 
-          return {
-            props: {
-              searchChange: removeMethod(searchChange),
-              filterChange: removeMethod(filterChange),
+          yield* craftExpose('props', {
+            searchChange: removeMethod(searchChange),
+            filterChange: removeMethod(filterChange),
+          });
+          yield* craftExpose('methods', {
+            setSearchChange: (args: {
+              timeToWait: number;
+              searchChange: string;
+            }) => {
+              searchChange.method(args);
+              return args;
             },
-            methods: {
-              setSearchChange: (args: {
-                timeToWait: number;
-                searchChange: string;
-              }) => {
-                searchChange.method(args);
-                return args;
-              },
-              setFilterChange: (args: { filter: string }) => {
-                filterChange.method(args);
-                return args;
-              },
+            setFilterChange: (args: { filter: string }) => {
+              filterChange.method(args);
+              return args;
             },
-          };
+          });
         },
       );
 
@@ -434,7 +433,7 @@ describe('AsyncProcess types without identifier', () => {
       );
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', providedIn: 'function' },
-        () => {
+        function* () {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
@@ -465,18 +464,16 @@ describe('AsyncProcess types without identifier', () => {
             ),
           );
 
-          return {
-            props: {
-              searchChange: removeMethod(searchChange),
-              filterChange: removeMethod(filterChange),
+          yield* craftExpose('props', {
+            searchChange: removeMethod(searchChange),
+            filterChange: removeMethod(filterChange),
+          });
+          yield* craftExpose('methods', {
+            setFilterChange: (args: { filter: string }) => {
+              filterChange.method(args);
+              return args;
             },
-            methods: {
-              setFilterChange: (args: { filter: string }) => {
-                filterChange.method(args);
-                return args;
-              },
-            },
-          };
+          });
         },
       );
 
@@ -646,7 +643,7 @@ describe('AsyncProcess types with identifier', () => {
     TestBed.runInInjectionContext(() => {
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', providedIn: 'function' },
-        () => {
+        function* () {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
               method: ({
@@ -686,25 +683,23 @@ describe('AsyncProcess types with identifier', () => {
             ),
           );
 
-          return {
-            props: {
-              searchChange: removeMethod(searchChange),
-              filterChange: removeMethod(filterChange),
+          yield* craftExpose('props', {
+            searchChange: removeMethod(searchChange),
+            filterChange: removeMethod(filterChange),
+          });
+          yield* craftExpose('methods', {
+            setSearchChange: (args: {
+              timeToWait: number;
+              searchChange: string;
+            }) => {
+              searchChange.method(args);
+              return args;
             },
-            methods: {
-              setSearchChange: (args: {
-                timeToWait: number;
-                searchChange: string;
-              }) => {
-                searchChange.method(args);
-                return args;
-              },
-              setFilterChange: (args: { filter: string }) => {
-                filterChange.method(args);
-                return args;
-              },
+            setFilterChange: (args: { filter: string }) => {
+              filterChange.method(args);
+              return args;
             },
-          };
+          });
         },
       );
 
@@ -781,7 +776,7 @@ describe('AsyncProcess types with identifier', () => {
       );
       const { AsyncProcessOutput } = craftService(
         { name: 'AsyncProcessOutput', providedIn: 'function' },
-        () => {
+        function* () {
           const searchChange = craftUse(
             asyncProcess('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
@@ -813,18 +808,16 @@ describe('AsyncProcess types with identifier', () => {
             ),
           );
 
-          return {
-            props: {
-              searchChange: removeMethod(searchChange),
-              filterChange: removeMethod(filterChange),
+          yield* craftExpose('props', {
+            searchChange: removeMethod(searchChange),
+            filterChange: removeMethod(filterChange),
+          });
+          yield* craftExpose('methods', {
+            setFilterChange: (args: { filter: string }) => {
+              filterChange.method(args);
+              return args;
             },
-            methods: {
-              setFilterChange: (args: { filter: string }) => {
-                filterChange.method(args);
-                return args;
-              },
-            },
-          };
+          });
         },
       );
 
@@ -1685,7 +1678,9 @@ describe('asyncProcess — providers', () => {
   it('typing: asyncProcess accepts BrandedServiceProvider in providers without type errors', () => {
     const { AsyncService, provideAsyncService } = craftService(
       { name: 'AsyncService', providedIn: 'toProvide' },
-      () => ({ getValue: () => 42 }),
+      function* () {
+        yield* craftExpose('getValue', () => 42);
+      },
     );
 
     TestBed.runInInjectionContext(() => {

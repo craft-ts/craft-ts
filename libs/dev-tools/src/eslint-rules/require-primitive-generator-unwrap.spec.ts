@@ -95,25 +95,22 @@ describe('require-primitive-generator-unwrap', () => {
     expect(messages).toEqual([]);
   });
 
-  it('does not report a direct primitive return from a craftComponent factory', async () => {
+  it('does not report a direct primitive return from a craftService factory', async () => {
     const { messages } = await lintFixture({
       'src/app/counter.ts': `
-        import { craftComponent } from '@craft-ts/component';
-        import { state } from '@craft-ts/core';
+        import { craftService, state } from '@craft-ts/core';
 
-        export const Counter = craftComponent(
-          'Counter',
-          {},
+        export const { CounterView } = craftService(
+          { name: 'counterView', providedIn: 'toProvide' },
           () => state('counter', 0),
-          ({ counter }) => counter(),
-        );
+        ) as { CounterView: () => unknown };
       `,
     });
 
     expect(messages).toEqual([]);
   });
 
-  it('still reports a bare primitive inside a craftComponent generator factory', async () => {
+  it('still reports a bare primitive inside a craftComponent generator template', async () => {
     const { messages } = await lintFixture({
       'src/app/counter.ts': `
         import { craftComponent } from '@craft-ts/component';
@@ -124,9 +121,8 @@ describe('require-primitive-generator-unwrap', () => {
           {},
           function* () {
             const counter = state('counter', 0);
-            return { counter };
+            return counter();
           },
-          ({ counter }) => counter(),
         );
       `,
     });
@@ -145,7 +141,6 @@ describe('require-primitive-generator-unwrap', () => {
         export const Counter = craftComponent(
           'Counter',
           {},
-          () => ({}),
           () => state('counter', 0),
         );
       `,
@@ -208,7 +203,69 @@ describe('require-primitive-generator-unwrap', () => {
     );
 
     expect(output).toContain('readonly counter = craftUse(state(0));');
-    expect(output).toContain("import { state, craftUse } from '@craft-ts/core';");
+    expect(output).toContain(
+      "import { state, craftUse } from '@craft-ts/core';",
+    );
+  });
+  it('reports craftComputed, craftMethod and craftEffect, now primitive generators', async () => {
+    const { messages, output } = await lintFixture(
+      {
+        'src/app/todo.ts': `
+import { craftComputed, craftEffect, craftMethod, craftService } from '@craft-ts/core';
+
+export const todo = craftService({ name: 'Todo', providedIn: 'global' }, function* () {
+  craftComputed('count', () => 1);
+  craftMethod('reset', function* () {});
+  craftEffect('log', () => undefined);
+});
+
+export class Page {
+  readonly total = craftComputed('total', this, () => 1);
+}
+`,
+      },
+      { fix: true },
+    );
+
+    expect(messages).toEqual([]);
+    expect(output).toBe(`import { craftComputed, craftEffect, craftMethod, craftService, craftUse } from '@craft-ts/core';
+
+export const todo = craftService({ name: 'Todo', providedIn: 'global' }, function* () {
+  yield* craftComputed('count', () => 1);
+  yield* craftMethod('reset', function* () {});
+  yield* craftEffect('log', () => undefined);
+});
+
+export class Page {
+  readonly total = craftUse(craftComputed('total', this, () => 1));
+}
+`);
+  });
+
+  it('treats craftPrivate(...) as consuming the primitive it wraps', async () => {
+    const { messages } = await lintFixture({
+      'src/app/todo.ts': `
+        import { craftPrivate, craftService, state } from '@craft-ts/core';
+
+        export const todo = craftService({ name: 'Todo', providedIn: 'global' }, function* () {
+          yield* craftPrivate(state('draft', ''));
+        });
+      `,
+    });
+
+    expect(messages).toEqual([]);
+  });
+
+  it('ignores the low-level craftComputed of host/craft-signal', async () => {
+    const { messages } = await lintFixture({
+      'src/app/signal.ts': `
+        import { craftComputed } from './host/craft-signal';
+
+        export const doubled = craftComputed(() => 2);
+      `,
+    });
+
+    expect(messages).toEqual([]);
   });
 });
 

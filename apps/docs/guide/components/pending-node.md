@@ -39,11 +39,11 @@ Inside a `craftComputed` generator, `yield* settled(ref)` hands back the
 resource's settled read:
 
 ```typescript
-const teams = craftComputed('teams', function* () {
+const teams = craftUse(craftComputed('teams', function* () {
   const list = yield* settled(users);
   // `list()` is `User[]` here — never undefined, never in exception
   return () => [...new Set(list().map((user) => user.team))].sort();
-});
+}));
 ```
 
 Nothing is awaited and nothing is yielded at runtime: the markers are type-only.
@@ -83,16 +83,15 @@ a computed derived from them.
 craftComponent(
   'teamList',
   {},
+  // ERROR_async_source_rendered_outside_a_pendingNode: "users"
   function* () {
     const users = yield* query('users', { ... });
-    const teams = craftComputed('teams', function* () {
+    const teams = yield* craftComputed('teams', function* () {
       const list = yield* settled(users);
       return () => list().length;
     });
-    return { teams };
+    return div([span(teams)]);
   },
-  // ERROR_async_source_rendered_outside_a_pendingNode: "users"
-  ({ teams }) => div([span(teams)]),
 );
 ```
 

@@ -4,6 +4,8 @@ import {
   craftService,
   craftComputed,
   state,
+  craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import {
   button,
@@ -22,35 +24,44 @@ const { RestrictedData, provideRestrictedData } = craftService(
   abstract<string | typeof noAccess>(),
 );
 
+export const { RestrictedContentView, provideRestrictedContentView } =
+  craftService(
+    { name: 'restrictedContentView', providedIn: 'toProvide' },
+    function* () {
+      yield* craftExpose('value', yield* RestrictedData());
+    },
+  );
+
 const restrictedContent = craftComponent(
   'restrictedContent',
-  {},
+  { providers: [provideRestrictedContentView()] },
   function* () {
-    return { value: yield* RestrictedData() };
-  },
-  ({ value }) =>
-    p(
+    const { value } = yield* RestrictedContentView();
+    return p(
       { class: componentUi.restricted },
       `Private data: ${value}`,
-    ),
+    );
+  },
 );
 
-export const componentCompositionDemo = craftComponent(
-  'componentCompositionDemo',
-  { host: { class: componentUi.host } },
+export const {
+  ComponentCompositionDemoView,
+  provideComponentCompositionDemoView,
+} = craftService(
+  { name: 'componentCompositionDemoView', providedIn: 'toProvide' },
   function* () {
-    const canReadRestrictedData = yield* state(
+    yield* state(
       'canReadRestrictedData',
       false,
       ({ update, state }) => ({
-        restriction: craftComputed('restriction', function* () {
+        restriction: craftUse(craftComputed('restriction', function* () {
           return (yield* state()) ? 'accessible' : noAccess;
-        }),
+        })),
         toggle: () => update((v) => !v),
       }),
     );
 
-    const lastHandledException = yield* state(
+    yield* state(
       'lastHandledException',
       '',
       ({ set }) => ({
@@ -60,33 +71,43 @@ export const componentCompositionDemo = craftComponent(
           ),
       }),
     );
-    return {
-      canReadRestrictedData,
-      lastHandledException,
-    };
   },
-  ({ canReadRestrictedData, lastHandledException }) =>
+);
+
+export const componentCompositionDemo = craftComponent(
+  'componentCompositionDemo',
+  {
+    providers: [provideComponentCompositionDemoView()],
+    host: { class: componentUi.host },
+  },
+  () =>
     section({ class: componentUi.page }, [
       heading('Reactive composition with providers'),
       p(
         'The provider supplies data to the component. Click to go through the NO_ACCESS handler, then back to the template.',
       ),
-      button('accessToggle',
-        { type: 'button',
+      button(
+        'accessToggle',
+        {
+          type: 'button',
           class: componentUi.button,
           'data-componentButton': 'slate',
-          click: canReadRestrictedData.toggle,
+          click: ComponentCompositionDemoView.canReadRestrictedData.toggle,
         },
         'Toggle access',
       ),
-      p(lastHandledException),
+      p(ComponentCompositionDemoView.lastHandledException),
       restrictedContent.pipe(
         withProviders([
-          provideRestrictedData(canReadRestrictedData.restriction),
+          provideRestrictedData(function* () {
+            const restriction =
+              yield* ComponentCompositionDemoView.canReadRestrictedData.restriction();
+            return yield* restriction();
+          }),
         ]),
         catchTag.exhaustive({
           NO_ACCESS: function* () {
-            yield* lastHandledException.showNoAccessText();
+            yield* ComponentCompositionDemoView.lastHandledException.showNoAccessText();
             return;
           },
         }),

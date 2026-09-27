@@ -31,6 +31,8 @@ import {
   transitionStep,
   withBackNavigation,
   withStateMachineHistory,
+  craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 import { editor } from './editor.style';
@@ -52,22 +54,23 @@ const INITIAL_PROFILE: Profile = {
 const { ProfilePermissions } = craftService(
   { name: 'ProfilePermissions', providedIn: 'global' },
   function* () {
-    const readOnly = yield* state('readOnly', false, ({ update }) => ({
+    yield* state('readOnly', false, ({ update }) => ({
       toggle: () => update((current) => !current),
     }));
 
-    return { readOnly };
   },
 );
 
-const ProfileEditorStateMachine = craftComponent(
-  'ProfileEditorStateMachine',
-  {},
+export const {
+  ProfileEditorStateMachineView,
+  provideProfileEditorStateMachineView,
+} = craftService(
+  { name: 'profileEditorStateMachineView', providedIn: 'toProvide' },
   function* () {
     const permissions = yield* ProfilePermissions();
 
-    const machine = yield* craftStateMachine(
-      'profileEditor',
+    yield* craftStateMachine(
+      'machine',
 
       // 1. The machine's context: every primitive its steps and workflows use.
       function* () {
@@ -103,9 +106,9 @@ const ProfileEditorStateMachine = craftComponent(
               reload: { onMutationException: true },
             }),
             ({ resource }) => ({
-              profileSource: craftComputed('profileSource', function* () {
+              profileSource: craftUse(craftComputed('profileSource', function* () {
                 return (yield* resource.value()) ?? INITIAL_PROFILE;
-              }),
+              })),
             }),
           ),
         );
@@ -122,12 +125,12 @@ const ProfileEditorStateMachine = craftComponent(
                 update((profile) => ({ ...profile, name })),
               setEmail: (email: string) =>
                 update((profile) => ({ ...profile, email })),
-              isValid: craftComputed('isValid', function* () {
+              isValid: craftUse(craftComputed('isValid', function* () {
                 const profile = yield* current();
                 return (
                   profile.name.trim().length > 0 && profile.email.includes('@')
                 );
-              }),
+              })),
             }),
           ),
         );
@@ -206,65 +209,68 @@ const ProfileEditorStateMachine = craftComponent(
       insertStateMachinePipe(
         withStateMachineHistory(
           {
-            persist: craftUnique({ storeName: 'demo', key: 'profile-editor' }),
+            persist: craftUnique({
+              storeName: 'demo',
+              key: 'profile-editor',
+            }),
           },
           withBackNavigation(),
         ),
         ({ context, currentStep, currentStepWithContext, insertions }) => {
           const stepState = (step: string) =>
-            craftComputed(`${step}Step`, function* () {
+            craftUse(craftComputed('computed', `${step}Step`, function* () {
               return (yield* currentStep()) === step ? 'active' : null;
-            });
+            }));
 
           return {
-            profileLabel: craftComputed('profileLabel', function* () {
+            profileLabel: craftUse(craftComputed('profileLabel', function* () {
               const profile =
                 (yield* context.saveProfile.value()) ??
                 (yield* context.profileQuery.value()) ??
                 INITIAL_PROFILE;
               return `${profile.name} <${profile.email}>`;
-            }),
+            })),
             profileIsLoading: context.profileQuery.isLoading,
-            draftName: craftComputed('draftName', function* () {
+            draftName: craftUse(craftComputed('draftName', function* () {
               return (yield* context.draft()).name;
-            }),
-            draftEmail: craftComputed('draftEmail', function* () {
+            })),
+            draftEmail: craftUse(craftComputed('draftEmail', function* () {
               return (yield* context.draft()).email;
-            }),
+            })),
             readingStep: stepState('reading'),
             editingStep: stepState('editing'),
             savingStep: stepState('saving'),
-            isReading: craftComputed('isReading', function* () {
+            isReading: craftUse(craftComputed('isReading', function* () {
               return (yield* currentStepWithContext()).step === 'reading';
-            }),
-            isEditing: craftComputed('isEditing', function* () {
+            })),
+            isEditing: craftUse(craftComputed('isEditing', function* () {
               return (yield* currentStepWithContext()).step === 'editing';
-            }),
-            stepHint: craftComputed('stepHint', function* () {
+            })),
+            stepHint: craftUse(craftComputed('stepHint', function* () {
               const current = yield* currentStepWithContext();
               return current.step === 'saving'
                 ? ''
                 : 'hint' in current && typeof current.hint === 'string'
                   ? current.hint
                   : '';
-            }),
-            submitBlocked: craftComputed('submitBlocked', function* () {
+            })),
+            submitBlocked: craftUse(craftComputed('submitBlocked', function* () {
               return (
                 !(yield* context.draft.isValid()) ||
                 (yield* permissions.readOnly())
               );
-            }),
-            historyLabel: craftComputed('historyLabel', function* () {
+            })),
+            historyLabel: craftUse(craftComputed('historyLabel', function* () {
               const entries = yield* insertions.history();
               const cursor = yield* insertions.historyCursor();
               return `step ${cursor + 1} of ${entries.length}`;
-            }),
-            backDisabled: craftComputed('backDisabled', function* () {
+            })),
+            backDisabled: craftUse(craftComputed('backDisabled', function* () {
               return !(yield* insertions.canGoBack());
-            }),
-            forwardDisabled: craftComputed('forwardDisabled', function* () {
+            })),
+            forwardDisabled: craftUse(craftComputed('forwardDisabled', function* () {
               return !(yield* insertions.canGoForward());
-            }),
+            })),
             requestEdit: () => context.edit$.emit(),
             requestCancel: function* () {
               const persisted =
@@ -296,10 +302,18 @@ const ProfileEditorStateMachine = craftComponent(
       ),
     );
 
-    return { machine, permissions };
+    yield* craftExpose('permissions', permissions);
   },
-  ({ machine, permissions }) =>
-    section({ class: example.card }, [
+);
+
+const ProfileEditorStateMachine = craftComponent(
+  'ProfileEditorStateMachine',
+  {
+    providers: [provideProfileEditorStateMachineView()],
+  },
+  function* () {
+    const { machine, permissions } = yield* ProfileEditorStateMachineView();
+    return section({ class: example.card }, [
       heading({ class: example.title }, 'State machine — profile editor'),
       p(
         { class: example.text, 'data-exampleText': 'muted' },
@@ -461,7 +475,8 @@ const ProfileEditorStateMachine = craftComponent(
           () => span('read-only: off'),
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default ProfileEditorStateMachine;

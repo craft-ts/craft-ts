@@ -86,7 +86,13 @@ function graphOf(
   nodes: DependencyGraphNode[],
   edges: DependencyGraphEdge[],
 ): DependencyGraph {
-  return { version: 1, rootDir: '/', tsConfigFilePath: '/tsconfig.json', nodes, edges };
+  return {
+    version: 1,
+    rootDir: '/',
+    tsConfigFilePath: '/tsconfig.json',
+    nodes,
+    edges,
+  };
 }
 
 function span(start: number, end: number, filePath = '/a.ts'): NodeSourceSpan {
@@ -231,21 +237,16 @@ describe('analyzeDependencyGraph metrics', () => {
       'panel.ts': `
         ${CRAFT_STUBS}
 
-        const Panel = craftComponent(
-          'Panel',
-          {},
-          function* () {
-            const filter = yield* state('filter', 'all');
-            const visible = craftComputed('visible', function* () {
-              const value = (yield* filter()) as string;
-              if (value === 'all') return true;
-              return value === 'none' ? false : value.length > 0 && value !== 'x';
-            });
-            const mode = flags.mode ?? 'compact';
-            return { filter, visible, mode };
-          },
-          () => div([span('static')]),
-        );
+        const Panel = craftComponent('Panel', {}, function* () {
+          const filter = yield* state('filter', 'all');
+          const visible = craftComputed('visible', function* () {
+            const value = (yield* filter()) as string;
+            if (value === 'all') return true;
+            return value === 'none' ? false : value.length > 0 && value !== 'x';
+          });
+          const mode = flags.mode ?? 'compact';
+          return div([span('static')]);
+        });
       `,
     });
 
@@ -274,8 +275,8 @@ describe('analyzeDependencyGraph metrics', () => {
         ${CRAFT_STUBS}
         const Panel = craftComponent('Panel', {}, function* () {
           const filter = yield* state('filter', 'all');
-          return { filter };
-        }, () => div([span('x')]));
+          return div([span('x')]);
+        });
       `,
     });
 
@@ -288,7 +289,9 @@ describe('analyzeDependencyGraph metrics', () => {
       nodes: graph.nodes.map(({ metrics: _metrics, ...rest }) => rest),
     };
 
-    expect(graph.nodes.every((entry) => entry.metrics !== undefined)).toBe(true);
+    expect(graph.nodes.every((entry) => entry.metrics !== undefined)).toBe(
+      true,
+    );
     expect(graphHash(graph)).toBe(graphHash(withoutMetrics));
   });
 });
@@ -296,9 +299,18 @@ describe('analyzeDependencyGraph metrics', () => {
 describe('rankings', () => {
   const ranked = graphOf(
     [
-      node('b', { filePath: '/b.ts', metrics: { cyclomaticTotal: 10, fanIn: 1, fanOut: 0 } }),
-      node('a', { filePath: '/a.ts', metrics: { cyclomaticTotal: 2, fanIn: 4, fanOut: 0 } }),
-      node('c', { filePath: '/c.ts', metrics: { cyclomaticTotal: 3, fanIn: 4, fanOut: 1 } }),
+      node('b', {
+        filePath: '/b.ts',
+        metrics: { cyclomaticTotal: 10, fanIn: 1, fanOut: 0 },
+      }),
+      node('a', {
+        filePath: '/a.ts',
+        metrics: { cyclomaticTotal: 2, fanIn: 4, fanOut: 0 },
+      }),
+      node('c', {
+        filePath: '/c.ts',
+        metrics: { cyclomaticTotal: 3, fanIn: 4, fanOut: 1 },
+      }),
       node('unknown', { metrics: { fanIn: 9, fanOut: 0 } }),
       node('lonely', { metrics: { cyclomaticTotal: 1, fanIn: 0, fanOut: 0 } }),
     ],
@@ -322,7 +334,12 @@ describe('rankings', () => {
           label: 'big',
           filePath: '/repo/src/a.ts',
           line: 4,
-          metrics: { cyclomaticOwn: 12, cyclomaticTotal: 30, fanIn: 2, fanOut: 0 },
+          metrics: {
+            cyclomaticOwn: 12,
+            cyclomaticTotal: 30,
+            fanIn: 2,
+            fanOut: 0,
+          },
         }),
         node('/repo/src/legacy/old.ts#old', {
           label: 'old',

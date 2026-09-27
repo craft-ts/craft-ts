@@ -22,7 +22,7 @@ describe('primitive dependency tracking', () => {
     const { Auth } = craftService(
       { name: 'Auth', providedIn: 'global', appStart: true },
       function* () {
-        const register = yield* mutation('register', {
+        yield* mutation('register', {
           method: ({
             email,
             password,
@@ -54,7 +54,6 @@ describe('primitive dependency tracking', () => {
         });
 
         yield* onAppStart(() => void userQuery.call('go'));
-        return { userQuery, register };
       },
     );
 
@@ -68,7 +67,7 @@ describe('primitive dependency tracking', () => {
     const { AuthUntracked } = craftService(
       { name: 'AuthUntracked', providedIn: 'global' },
       function* () {
-        const register = yield* mutation('register', {
+        yield* mutation('register', {
           method: (p: { email: string }) => p,
           loader: function* ({ params }) {
             return yield* CraftHttpClient.post(({ response }) => ({
@@ -78,7 +77,6 @@ describe('primitive dependency tracking', () => {
             }));
           },
         });
-        return { register };
       },
     );
 

@@ -28,8 +28,8 @@ describe('require-primitive-derived-property', () => {
         const Demo = craftComponent('Demo', {}, function* () {
           const userQuery = yield* query('userQuery', {});
           const total = computed(() => userQuery.value()?.length ?? 0);
-          return { userQuery, total };
-        }, () => null);
+          return null;
+        });
       `,
     });
 
@@ -46,8 +46,8 @@ describe('require-primitive-derived-property', () => {
         const Demo = craftComponent('Demo', {}, function* () {
           const userQuery = yield* query('userQuery', {});
           const total = yield* craftComputed('total', () => userQuery.value()?.length ?? 0);
-          return { userQuery, total };
-        }, () => null);
+          return null;
+        });
       `,
     });
 
@@ -68,8 +68,8 @@ describe('require-primitive-derived-property', () => {
           const result = craftComputed('result', function* () {
             return yield* layerScopeQuery.value();
           });
-          return { layerScopeQuery, result };
-        }, () => null);
+          return null;
+        });
       `,
     });
 
@@ -88,8 +88,8 @@ describe('require-primitive-derived-property', () => {
           const total = craftComputed('total', function* () {
             return (yield* userQuery.value())?.length ?? 0;
           });
-          return { userQuery, total };
-        }, () => null);
+          return null;
+        });
       `,
     });
 
@@ -125,8 +125,8 @@ describe('require-primitive-derived-property', () => {
           const userQuery = yield* query('userQuery', {});
           const page = yield* state('page', 1);
           const total = computed(() => (userQuery.value()?.length ?? 0) + page());
-          return { userQuery, page, total };
-        }, () => null);
+          return null;
+        });
       `,
     });
 
@@ -147,8 +147,8 @@ describe('require-primitive-derived-property', () => {
             {},
             ({ state }) => ({ total: computed(() => state()?.length ?? 0) }),
           );
-          return { userQuery };
-        }, () => null);
+          return null;
+        });
       `,
     });
 
@@ -165,8 +165,8 @@ describe('require-primitive-derived-property', () => {
           const Demo = craftComponent('Demo', {}, function* () {
             const userQuery = yield* query('userQuery', {});
             const total = computed(() => userQuery.value()?.length ?? 0);
-            return { userQuery, total };
-          }, () => null);
+            return null;
+          });
         `,
       },
       { fix: true },
@@ -190,8 +190,8 @@ describe('require-primitive-derived-property', () => {
               key: 'user',
             })));
             const total = craftComputed('total', () => userQuery.value()?.length ?? 0);
-            return { userQuery, total };
-          }, () => null);
+            return null;
+          });
         `,
       },
       { fix: true },

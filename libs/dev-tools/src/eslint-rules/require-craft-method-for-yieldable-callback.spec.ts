@@ -19,20 +19,23 @@ describe('require-craft-method-for-yieldable-callback', () => {
     );
   });
 
-  it('reports a returned callback that calls a yieldable method', async () => {
+  it('reports a bound callback that calls a yieldable method', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = ((value: number) => void) & {
+      type YieldableMethod = ((
+        value: number,
+      ) => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const pagination: { updatePageSize: YieldableMethod };
       declare function craftComponent(...args: unknown[]): unknown;
+      declare function select(...args: unknown[]): unknown;
 
       craftComponent('Demo', {}, function* () {
         const updatePageSize = (event: Event) =>
           pagination.updatePageSize(Number((event.target as HTMLSelectElement).value));
-        return { updatePageSize };
-      }, () => ({}));
+        return select({ change: updatePageSize });
+      });
     `);
 
     expect(result.messages).toEqual([
@@ -40,18 +43,19 @@ describe('require-craft-method-for-yieldable-callback', () => {
     ]);
   });
 
-  it('reports an inline returned callback', async () => {
+  it('reports an inline bound callback', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = (() => void) & {
+      type YieldableMethod = (() => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const action: YieldableMethod;
       declare function craftComponent(...args: unknown[]): unknown;
+      declare function button(...args: unknown[]): unknown;
 
       craftComponent('Demo', {}, function* () {
-        return { run: () => action() };
-      }, () => ({}));
+        return button({ run: () => action() });
+      });
     `);
 
     expect(result.messages).toEqual([
@@ -62,37 +66,41 @@ describe('require-craft-method-for-yieldable-callback', () => {
   it('accepts a callback created with craftMethod', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = ((value: number) => void) & {
+      type YieldableMethod = ((
+        value: number,
+      ) => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const pagination: { updatePageSize: YieldableMethod };
       declare function craftComponent(...args: unknown[]): unknown;
       declare function craftMethod(name: string, factory: Function): Function;
+      declare function select(...args: unknown[]): unknown;
 
       craftComponent('Demo', {}, function* () {
         const updatePageSize = craftMethod('updatePageSize', function* (value: number) {
           yield* pagination.updatePageSize(value);
         });
-        return { updatePageSize };
-      }, () => ({}));
+        return select({ change: updatePageSize });
+      });
     `);
 
     expect(result.messages).toEqual([]);
   });
 
-  it('ignores ordinary returned callbacks and nested functions', async () => {
+  it('ignores ordinary bound callbacks and nested functions', async () => {
     const result = await lintFixture(`
       declare const YIELDABLE_METHOD: unique symbol;
-      type YieldableMethod = (() => void) & {
+      type YieldableMethod = (() => Generator<void, void, unknown>) & {
         readonly [YIELDABLE_METHOD]: true;
       };
       declare const action: YieldableMethod;
       declare function craftComponent(...args: unknown[]): unknown;
+      declare function button(...args: unknown[]): unknown;
 
       craftComponent('Demo', {}, function* () {
         const nested = () => action();
-        return { log: () => console.log('ok') };
-      }, () => ({}));
+        return button({ log: () => console.log('ok') });
+      });
     `);
 
     expect(result.messages).toEqual([]);

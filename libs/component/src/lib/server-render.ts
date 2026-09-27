@@ -74,9 +74,7 @@ export async function renderCraft(
   const timeoutMs = options.timeoutMs ?? defaultPolicy.ssr.timeoutMs;
   const timeout = setTimeout(
     () =>
-      controller.abort(
-        new Error(`Craft SSR timed out after ${timeoutMs}ms.`),
-      ),
+      controller.abort(new Error(`Craft SSR timed out after ${timeoutMs}ms.`)),
     timeoutMs,
   );
   const dom = createStringDomAdapter();
@@ -203,7 +201,9 @@ export async function renderToString<Component extends CraftComponent<any>>(
     timeoutMs: options.timeoutMs,
     signal: options.signal,
     mode: options.mode,
-    ...(options.securityPolicy ? { securityPolicy: options.securityPolicy } : {}),
+    ...(options.securityPolicy
+      ? { securityPolicy: options.securityPolicy }
+      : {}),
     ...(options.cspNonce ? { cspNonce: options.cspNonce } : {}),
   });
   return result.html;

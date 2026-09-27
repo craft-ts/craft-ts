@@ -1,6 +1,10 @@
 'use strict';
 
-const { parseHyperscriptCall, hasAccessibleName, staticPropString } = require('./hyperscript-walk.cjs');
+const {
+  parseHyperscriptCall,
+  hasAccessibleName,
+  staticPropString,
+} = require('./hyperscript-walk.cjs');
 
 const NAMED_CONTROLS = new Set(['button', 'a', 'textarea', 'select', 'svg']);
 
@@ -28,8 +32,17 @@ module.exports = {
           if (hasAccessibleName(call)) return;
           // An input may be named by a sibling label[htmlFor] — checked by label-has-associated-control.
           // Still require a name on the control itself when it is a button-like type.
-          if (type === 'button' || type === 'submit' || type === 'reset' || type === 'image') {
-            context.report({ node, messageId: 'missingName', data: { tag: `input[type=${type}]` } });
+          if (
+            type === 'button' ||
+            type === 'submit' ||
+            type === 'reset' ||
+            type === 'image'
+          ) {
+            context.report({
+              node,
+              messageId: 'missingName',
+              data: { tag: `input[type=${type}]` },
+            });
           }
           return;
         }
@@ -42,14 +55,20 @@ module.exports = {
               (entry) =>
                 entry.type === 'Property' &&
                 ((entry.key.type === 'Identifier' &&
-                  (entry.key.name === 'click' || entry.key.name === 'onClick')) ||
+                  (entry.key.name === 'click' ||
+                    entry.key.name === 'onClick')) ||
                   (entry.key.type === 'Literal' &&
-                    (entry.key.value === 'click' || entry.key.value === 'onClick'))),
+                    (entry.key.value === 'click' ||
+                      entry.key.value === 'onClick'))),
             );
           if (role !== 'button' && role !== 'img' && !hasHandler) return;
         }
         if (hasAccessibleName(call)) return;
-        context.report({ node, messageId: 'missingName', data: { tag: call.tag } });
+        context.report({
+          node,
+          messageId: 'missingName',
+          data: { tag: call.tag },
+        });
       },
     };
   },

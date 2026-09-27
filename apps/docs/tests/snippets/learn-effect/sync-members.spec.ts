@@ -76,24 +76,19 @@ import { craftComponent, p } from '@craft-ts/component';
 import { state } from '@craft-ts/core';
 import { computedEffect } from '@craft-ts/effect';
 
-export const CartTotal = craftComponent(
-  'LearnEffectCartTotal',
-  {},
-  function* () {
-    const lines = yield* state('lines', [
-      { sku: 'sku-1', qty: 2, unitCents: 1_000 },
-      { sku: 'sku-2', qty: 1, unitCents: 1_000 },
-    ] as CartLine[]);
+export const CartTotal = craftComponent('LearnEffectCartTotal', {}, function* () {
+  const lines = yield* state('lines', [
+    { sku: 'sku-1', qty: 2, unitCents: 1_000 },
+    { sku: 'sku-2', qty: 1, unitCents: 1_000 },
+  ] as CartLine[]);
 
-    // The factory RETURNS the Effect; `computedEffect` runs it in place.
-    const totalLabel = computedEffect('totalLabel', function* () {
-      return cartTotalLabel(yield* lines());
-    });
+  // The factory RETURNS the Effect; `computedEffect` runs it in place.
+  const totalLabel = computedEffect('totalLabel', function* () {
+    return cartTotalLabel(yield* lines());
+  });
 
-    return { totalLabel };
-  },
-  ({ totalLabel }) => [p(totalLabel)],
-);
+  return [p(totalLabel)];
+});
 // #endregion component
 
 // #region refused

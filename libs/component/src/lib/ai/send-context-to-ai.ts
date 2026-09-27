@@ -8,7 +8,6 @@ import {
 } from '../host-runtime';
 import {
   craftSignal,
-  craftService,
   createSendContextToAiBuffer,
   type SendContextToAiBuffer,
   HostTag,
@@ -29,8 +28,7 @@ import {
   type GetDeps,
   type SendContextPayload,
   type SendContextSession,
-  type SendContextSessionSnapshot,
-} from '@craft-ts/core';
+  type SendContextSessionSnapshot, ɵcraftValueService } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import type { Output } from '../types';
 import { AiContextMenu } from './ai-context-menu';
@@ -173,7 +171,7 @@ export type AiContextMenuController = {
   open(ctx: CapturedContext): void;
 };
 
-const aiContextMenuControllerService = craftService(
+const aiContextMenuControllerService = ɵcraftValueService(
   { name: 'AiContextMenuController', providedIn: 'toProvide' },
   (inputs: {
     $provided: AiContextMenuController | (() => AiContextMenuController);

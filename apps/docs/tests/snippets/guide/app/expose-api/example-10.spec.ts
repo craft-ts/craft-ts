@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-10
-import { craftService, state } from '@craft-ts/core';
+import { craftExpose, craftService, state } from '@craft-ts/core';
 
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
@@ -14,17 +14,22 @@ const { Counter } = craftService(
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));
-    return counter;
+    yield* craftExpose('increment', counter.increment);
+    yield* craftExpose('decrement', counter.decrement);
   },
 );
 
 const { CounterExtended, provideCounterExtended } = craftService(
   { name: 'CounterExtended', providedIn: 'toProvide' },
   function* () {
-    return yield* Counter(undefined, ({ $self, increment }) => ({
-      $self,
-      incrementCounter: increment,
-    }));
+    // Only `counter` and `incrementCounter` reach this service: `decrement`
+    // is neither usable here nor part of the dependency.
+    const { counter, incrementCounter } = yield* Counter(
+      undefined,
+      ({ counter, increment }) => ({ counter, incrementCounter: increment }),
+    );
+    yield* craftExpose('count', counter);
+    yield* craftExpose('increment', incrementCounter);
   },
 );
 // #endregion example-10

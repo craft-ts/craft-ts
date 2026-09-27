@@ -1,5 +1,11 @@
 import { runInInjectionContext, type Injector } from './host-runtime';
-import { craftService, ɵonCraftTemporalRuntimeOverride, type CraftServiceProvider, type CraftTemporalRuntime, type TemporalTaskHandle } from '@craft-ts/core';
+import {
+  type CraftServiceProvider,
+  type CraftTemporalRuntime,
+  type TemporalTaskHandle,
+  ɵcraftValueService,
+  ɵonCraftTemporalRuntimeOverride,
+} from '@craft-ts/core';
 import { craftDirective } from './directive';
 import type { CraftDirective } from './types';
 
@@ -59,8 +65,7 @@ export function scheduleFor<const Options extends ForScheduleOptions>(
   const directive = craftDirective(
     'scheduleFor',
     {},
-    (baseLogic) => baseLogic,
-    (baseTemplate) => baseTemplate,
+    {},
   ) as ScheduleForDirective<NormalizedPolicy<Options>>;
   Object.defineProperty(directive, SCHEDULE_FOR_DIRECTIVE, {
     value: Object.freeze(policy),
@@ -78,12 +83,12 @@ export interface ForScheduler {
 }
 
 /** Injectable override used by deterministic tests and host integrations. */
-const forSchedulerService = craftService(
+const forSchedulerService = ɵcraftValueService(
   { name: 'ForScheduler', providedIn: 'toProvide' },
   (inputs: { $provided?: ForScheduler }) =>
     inputs.$provided ?? new SyncForScheduler(),
 ) as unknown as {
-  ForScheduler: () => Generator<unknown, ForScheduler, unknown>;
+  ForScheduler: () => Generator<never, ForScheduler, unknown>;
   provideForScheduler: (value: ForScheduler) => CraftServiceProvider;
   FOR_SCHEDULER_META_DATA: { inject(): ForScheduler };
 };

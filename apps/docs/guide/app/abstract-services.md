@@ -43,7 +43,9 @@ the resulting provider participates in the cascade DI check just like a regular 
 ```typescript
 const { Greeting } = craftService(
   { name: 'Greeting', providedIn: 'global' },
-  () => ({ prefix: 'Hello' }),
+  function* () {
+    yield* craftExpose('prefix', 'Hello');
+  },
 );
 
 const providers = [
@@ -53,6 +55,13 @@ const providers = [
   }),
 ];
 ```
+
+::: info An implementation returns its contract
+Unlike a concrete `craftService`, which exposes the named primitives it yields,
+a `provideX(factory)` factory **returns** the value of its contract: the
+contract is a type (`abstract<User>()`, `abstract<string>()`), not a record of
+primitives.
+:::
 
 This is the foundation of route-scoped providers: a route can implement an abstract contract from
 its own guarded data / params. See

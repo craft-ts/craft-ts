@@ -23,6 +23,7 @@ import {
 import type { YieldableReactiveValue } from './reactive-read';
 import { craftUse } from './craft-use';
 import { craftSignal } from './host/craft-signal';
+import { craftExpose } from './craft-primitive-gen';
 
 describe('craftComputed', () => {
   beforeEach(() => {
@@ -31,7 +32,7 @@ describe('craftComputed', () => {
 
   it('should require an injection context', () => {
     class OutsideInjectionContext {
-      readonly total = craftComputed('total', () => 42);
+      readonly total = craftUse(craftComputed('total', () => 42));
     }
 
     expect(() => new OutsideInjectionContext()).toThrow();
@@ -40,7 +41,7 @@ describe('craftComputed', () => {
   it('should work with a plain computation function', () => {
     class CounterComponent {
       readonly count = signal(0);
-      readonly doubled = craftComputed('doubled', () => this.count() * 2);
+      readonly doubled = craftUse(craftComputed('doubled', () => this.count() * 2));
     }
 
     const component = TestBed.runInInjectionContext(
@@ -55,7 +56,7 @@ describe('craftComputed', () => {
   it('memoizes repeated reads until a dependency changes', () => {
     const computation = vi.fn(() => 42);
     const value = TestBed.runInInjectionContext(() =>
-      craftComputed('value', computation),
+      craftUse(craftComputed('value', computation)),
     );
 
     expect(craftUse(value())).toBe(42);
@@ -70,7 +71,7 @@ describe('craftComputed', () => {
     const angularSource = signal(3);
     const computation = vi.fn(() => craftSource() * angularSource());
     const value = TestBed.runInInjectionContext(() =>
-      craftComputed('single-evaluation', computation),
+      craftUse(craftComputed('single-evaluation', computation)),
     );
     const angularConsumer = computed(() => craftUse(value()));
 
@@ -93,7 +94,7 @@ describe('craftComputed', () => {
   it('invalidates an Angular computed when a Craft dependency changes', () => {
     const source = craftSignal(2);
     const value = TestBed.runInInjectionContext(() =>
-      craftComputed('value', () => source() * 3),
+      craftUse(craftComputed('value', () => source() * 3)),
     );
     const angularConsumer = computed(() => craftUse(value()));
 
@@ -107,12 +108,12 @@ describe('craftComputed', () => {
   it('recovers an Angular consumer after a thrown first evaluation', () => {
     const ready = craftSignal(false);
     const value = TestBed.runInInjectionContext(() =>
-      craftComputed('recover', () => {
+      craftUse(craftComputed('recover', () => {
         if (!ready()) {
           throw new Error('not ready');
         }
         return 'recovered';
-      }),
+      })),
     );
     const angularConsumer = computed(() => craftUse(value()));
 
@@ -128,7 +129,7 @@ describe('craftComputed', () => {
     const first = signal('first');
     const second = signal('second');
     const value = TestBed.runInInjectionContext(() =>
-      craftComputed('conditional', () => (useSecond() ? second() : first())),
+      craftUse(craftComputed('conditional', () => (useSecond() ? second() : first()))),
     );
     const angularConsumer = computed(() => craftUse(value()));
 
@@ -146,7 +147,7 @@ describe('craftComputed', () => {
     const source = craftSignal(1);
     const computation = vi.fn(() => source() * 2);
     const value = TestBed.runInInjectionContext(() =>
-      craftComputed('lazy', computation),
+      craftUse(craftComputed('lazy', computation)),
     );
 
     expect(craftUse(value())).toBe(2);
@@ -160,7 +161,9 @@ describe('craftComputed', () => {
   it('should work with a generator factory that resolves DI deps once', () => {
     const { Multiplier } = craftService(
       { name: 'Multiplier', providedIn: 'function' },
-      () => ({ factor: 3 }),
+      function* () {
+        yield* craftExpose('factor', 3);
+      },
     );
 
     class CounterComponent {
@@ -168,10 +171,10 @@ describe('craftComputed', () => {
 
       // The host form binds `this` inside the generator (and the computation
       // it returns) to the component instance.
-      readonly tripled = craftComputed('tripled', this, function* () {
+      readonly tripled = craftUse(craftComputed('tripled', this, function* () {
         const multiplier = yield* Multiplier();
         return this.count() * multiplier.factor;
-      });
+      }));
     }
 
     const component = TestBed.runInInjectionContext(
@@ -185,10 +188,10 @@ describe('craftComputed', () => {
 
   it('should reject onAppStart inside craftComputed generators', () => {
     class InvalidComponent {
-      readonly value = craftComputed('value', function* () {
+      readonly value = craftUse(craftComputed('value', function* () {
         yield* onAppStart(() => undefined);
         return 42;
-      });
+      }));
     }
 
     const component = TestBed.runInInjectionContext(
@@ -202,16 +205,18 @@ describe('craftComputed', () => {
   it('should preserve Signal<T> type from plain computation', () => {
     const { Multiplier4 } = craftService(
       { name: 'Multiplier4', providedIn: 'function' },
-      () => ({ factor: 2 }),
+      function* () {
+        yield* craftExpose('factor', 2);
+      },
     );
 
     class CounterComponent {
       readonly count = signal(0);
-      readonly doubled = craftComputed('doubled', () => this.count() * 2);
-      readonly tripled = craftComputed('tripled', this, function* () {
+      readonly doubled = craftUse(craftComputed('doubled', () => this.count() * 2));
+      readonly tripled = craftUse(craftComputed('tripled', this, function* () {
         const m = yield* Multiplier4();
         return this.count() * m.factor;
-      });
+      }));
     }
 
     const component = TestBed.runInInjectionContext(
@@ -240,15 +245,17 @@ describe('craftComputed', () => {
   it('should expose craftComputed dependencies through ExtractDeps', () => {
     const { Multiplier5 } = craftService(
       { name: 'Multiplier5', providedIn: 'function' },
-      () => ({ factor: 5 }),
+      function* () {
+        yield* craftExpose('factor', 5);
+      },
     );
 
     class Component {
       readonly count = signal(0);
-      readonly value = craftComputed('value', this, function* () {
+      readonly value = craftUse(craftComputed('value', this, function* () {
         const m = yield* Multiplier5();
         return this.count() * m.factor;
-      });
+      }));
     }
 
     type ExpectedDeps = {

@@ -72,6 +72,8 @@ const SAFE_TEMPLATE_CALLS = new Set([
 // from @craft-ts/style's unit constructors. Presentation, like `assign`.
 const STYLE_VALUE_NAMESPACES = new Set(['unit']);
 
+const { templateRegions } = require('./craft-template-region.cjs');
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -115,17 +117,21 @@ module.exports = {
           !esTreeNodeToTSNodeMap ||
           node.callee.type !== 'Identifier' ||
           node.callee.name !== 'craftComponent' ||
-          node.arguments.length < 4
+          node.arguments.length < 3
         ) {
           return;
         }
-        inspectTemplate(node.arguments[3]);
+        for (const region of templateRegions(node.arguments[2])) {
+          inspectTemplate(region, node.arguments[2]);
+        }
       },
     };
 
-    function inspectTemplate(template) {
-      walk(template, (node) => {
-        if (node !== template && isNestedCraftComponent(node)) {
+    // `region` is what the component returns; `template` stays the function, so
+    // the "am I inside a binding?" walks keep the same boundary as before.
+    function inspectTemplate(region, template) {
+      walk(region, (node) => {
+        if (node !== region && isNestedCraftComponent(node)) {
           return 'skip';
         }
         if (
@@ -296,6 +302,9 @@ module.exports = {
       if (name === 'exhaustive') {
         return argumentIndex !== 0;
       }
+      // A heading's content function is its text binding, exactly like a
+      // paragraph's: the helper only picks the rank.
+      if (name === 'heading') return false;
       return Boolean(name && STRUCTURAL_HELPERS.has(name));
     }
 

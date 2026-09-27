@@ -2,6 +2,8 @@
 import {
   setupCraftServiceTestingByRegister,
   state,
+  craftExpose,
+  craftPrivate,
 } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
@@ -17,7 +19,7 @@ const { Counter } = craftService(
     const initialValue = inputs.initialValue
       ? yield* inputs.initialValue()
       : 0;
-    return { count: initialValue };
+    yield* craftExpose('count', initialValue);
   },
 );
 // #endregion omit-inputs
@@ -25,10 +27,11 @@ const { Counter } = craftService(
 const { CounterHost } = craftService(
   { name: 'CounterHost', providedIn: 'function' },
   function* () {
-    const startAt = yield* state('startAt', 5);
+    const startAt = yield* craftPrivate(state('startAt', 5));
     const count = yield* Counter.count({ initialValue: startAt });
     const defaultCount = yield* Counter.OmitInputs.count();
-    return { count, defaultCount };
+    yield* craftExpose('count', count);
+    yield* craftExpose('defaultCount', defaultCount);
   },
 );
 

@@ -19,6 +19,7 @@ import {
   craftMethod,
   deepYieldable,
   state,
+  craftUse,
 } from '@craft-ts/core';
 import type {
   BypassInventoryItem,
@@ -55,11 +56,15 @@ const excerptText = (item: BypassInventoryItem): string => {
 export const BypassesView = craftComponent(
   'BypassesView',
   {},
-  function* (
-    bypasses: Input<readonly BypassInventoryItem[]>,
-    adoption: Input<StyleAdoption | undefined>,
-    t: Input<Messages>,
-  ) {
+  function* ({
+    bypasses,
+    adoption,
+    t,
+  }: {
+    readonly bypasses: Input<readonly BypassInventoryItem[]>;
+    readonly adoption: Input<StyleAdoption | undefined>;
+    readonly t: Input<Messages>;
+  }) {
     // The filter owns what it filters: the rule list with its counts, and the
     // rows it lets through. Everything the template shows is derived here,
     // so the template reads fields and never decides between two texts.
@@ -68,96 +73,87 @@ export const BypassesView = craftComponent(
       ALL_RULES,
       ({ set, state: current }) => ({
         choose: (rule: string) => set(rule),
-        rules: craftComputed('rules', function* () {
-          const items = yield* bypasses();
-          const active = yield* current();
-          const say = yield* t();
-          const named = [...new Set(items.map((item) => item.rule))].sort(
-            (left, right) => left.localeCompare(right),
-          );
-          return [
-            { rule: ALL_RULES, count: items.length },
-            ...named.map((rule) => ({
+        rules: craftUse(
+          craftComputed('rules', function* () {
+            const items = yield* bypasses();
+            const active = yield* current();
+            const say = yield* t();
+            const named = [...new Set(items.map((item) => item.rule))].sort(
+              (left, right) => left.localeCompare(right),
+            );
+            return [
+              { rule: ALL_RULES, count: items.length },
+              ...named.map((rule) => ({
+                rule,
+                count: items.filter((item) => item.rule === rule).length,
+              })),
+            ].map(({ rule, count }) => ({
               rule,
-              count: items.filter((item) => item.rule === rule).length,
-            })),
-          ].map(({ rule, count }) => ({
-            rule,
-            text: `${rule === ALL_RULES ? say.bypassAllRules : rule} (${count})`,
-            filterState: rule === active ? 'active' : null,
-            pressed: rule === active ? 'true' : 'false',
-          }));
-        }),
-        shown: craftComputed('shown', function* () {
-          const rule = yield* current();
-          const say = yield* t();
-          return (yield* bypasses())
-            .filter((item) => rule === ALL_RULES || item.rule === rule)
-            .map((item) => ({
-              subject: item.subject,
-              heading: `${item.kind === 'eslint-disable' ? say.bypassEslintDisable : say.bypassWaiver} · ${item.rule}`,
-              meta: `${locationOf(item)} · ${item.state}${item.target ? ` · ${say.bypassWaivedTarget(item.target)}` : ''}`,
-              reasonState: item.reason ? null : 'missing',
-              reasonText: item.reason ?? say.bypassNoReason,
-              excerpt: excerptText(item),
+              text: `${rule === ALL_RULES ? say.bypassAllRules : rule} (${count})`,
+              filterState: rule === active ? 'active' : null,
+              pressed: rule === active ? 'true' : 'false',
             }));
-        }),
+          }),
+        ),
+        shown: craftUse(
+          craftComputed('shown', function* () {
+            const rule = yield* current();
+            const say = yield* t();
+            return (yield* bypasses())
+              .filter((item) => rule === ALL_RULES || item.rule === rule)
+              .map((item) => ({
+                subject: item.subject,
+                heading: `${item.kind === 'eslint-disable' ? say.bypassEslintDisable : say.bypassWaiver} · ${item.rule}`,
+                meta: `${locationOf(item)} · ${item.state}${item.target ? ` · ${say.bypassWaivedTarget(item.target)}` : ''}`,
+                reasonState: item.reason ? null : 'missing',
+                reasonText: item.reason ?? say.bypassNoReason,
+                excerpt: excerptText(item),
+              }));
+          }),
+        ),
       }),
     );
-    const chooseRule = craftMethod('chooseRule', function* (rule: string) {
-      yield* ruleFilter.choose(rule);
-    });
+    const chooseRule = yield* craftMethod(
+      'chooseRule',
+      function* (rule: string) {
+        yield* ruleFilter.choose(rule);
+      },
+    );
     const rulesSource = ruleFilter.rules;
     const shownSource = ruleFilter.shown;
     const rules = deepYieldable(rulesSource);
     const shown = deepYieldable(shownSource);
-    const adoptionKnown = craftComputed('adoptionKnown', function* () {
+    const adoptionKnown = yield* craftComputed('adoptionKnown', function* () {
       return (yield* adoption()) !== undefined;
     });
-    const adoptionSummary = craftComputed('adoptionSummary', function* () {
-      const value = yield* adoption();
-      return value
-        ? (yield* t()).adoptionSummary(value.adopted, value.styling)
-        : '';
-    });
-    const adoptionComposition = craftComputed(
+    const adoptionSummary = yield* craftComputed(
+      'adoptionSummary',
+      function* () {
+        const value = yield* adoption();
+        return value
+          ? (yield* t()).adoptionSummary(value.adopted, value.styling)
+          : '';
+      },
+    );
+    const adoptionComposition = yield* craftComputed(
       'adoptionComposition',
       function* () {
         const value = yield* adoption();
         return value ? (yield* t()).adoptionComposition(value.composition) : '';
       },
     );
-    const adoptionRemaining = deepYieldable(craftComputed('adoptionRemaining', function* () {
-      const say = yield* t();
-      return ((yield* adoption())?.remaining ?? []).map((entry) => ({
-        component: entry.component,
-        note: entry.waivedBy
-          ? say.adoptionWaivedBy(entry.waivedBy)
-          : say.adoptionNotWaived,
-      }));
-    }));
-    return {
-      t,
-      rules,
-      shown,
-      chooseRule,
-      adoptionKnown,
-      adoptionSummary,
-      adoptionComposition,
-      adoptionRemaining,
-    };
-  },
-  ({
-    t,
-    rules,
-    shown,
-    chooseRule,
-    adoptionKnown,
-    adoptionSummary,
-    adoptionComposition,
-    adoptionRemaining,
-  }) =>
-    section({ class: bypassesView.root }, [
+    const adoptionRemaining = deepYieldable(
+      yield* craftComputed('adoptionRemaining', function* () {
+        const say = yield* t();
+        return ((yield* adoption())?.remaining ?? []).map((entry) => ({
+          component: entry.component,
+          note: entry.waivedBy
+            ? say.adoptionWaivedBy(entry.waivedBy)
+            : say.adoptionNotWaived,
+        }));
+      }),
+    );
+    return section({ class: bypassesView.root }, [
       div({ class: bypassesView.adoption }, [
         strong({ class: bypassesView.heading }, function* () {
           return (yield* t()).adoptionTitle;
@@ -197,7 +193,7 @@ export const BypassesView = craftComponent(
               'data-bypassFilter': entry.filterState,
               'aria-pressed': entry.pressed,
               *click() {
-                yield* chooseRule(yield* entry.rule());
+                chooseRule(yield* entry.rule());
               },
             },
             entry.text,
@@ -230,7 +226,8 @@ export const BypassesView = craftComponent(
             ]),
         ),
       ),
-    ]),
+    ]);
+  },
 );
 
 /**
@@ -240,28 +237,32 @@ export const BypassesView = craftComponent(
 export const BypassCardEvidence = craftComponent(
   'BypassCardEvidence',
   {},
-  function* (
-    label: Input<string>,
-    location: Input<string>,
-    reason: Input<string | null>,
-    code: Input<string>,
-    previousReason: Input<string | null>,
-    t: Input<Messages>,
-  ) {
-    const reasonState = craftComputed('reasonState', function* () {
+  function* ({
+    label,
+    location,
+    reason,
+    code,
+    previousReason,
+    t,
+  }: {
+    readonly label: Input<string>;
+    readonly location: Input<string>;
+    readonly reason: Input<string | null>;
+    readonly code: Input<string>;
+    readonly previousReason: Input<string | null>;
+    readonly t: Input<Messages>;
+  }) {
+    const reasonState = yield* craftComputed('reasonState', function* () {
       return (yield* reason()) ? null : 'missing';
     });
-    const reasonText = craftComputed('reasonText', function* () {
+    const reasonText = yield* craftComputed('reasonText', function* () {
       return (yield* reason()) ?? (yield* t()).bypassNoReason;
     });
-    const previousText = craftComputed('previousText', function* () {
+    const previousText = yield* craftComputed('previousText', function* () {
       const previous = yield* previousReason();
       return previous ? (yield* t()).bypassPreviousReason(previous) : '';
     });
-    return { label, location, code, reasonState, reasonText, previousText };
-  },
-  ({ label, location, code, reasonState, reasonText, previousText }) =>
-    section({ class: bypassesView.item }, [
+    return section({ class: bypassesView.item }, [
       strong({ class: bypassesView.heading }, label),
       small({ class: bypassesView.meta }, location),
       span(
@@ -270,5 +271,6 @@ export const BypassCardEvidence = craftComponent(
       ),
       small({ class: bypassesView.meta }, previousText),
       pre({ class: bypassesView.excerpt }, code),
-    ]),
+    ]);
+  },
 );

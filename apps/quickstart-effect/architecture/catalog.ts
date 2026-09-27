@@ -1,112 +1,23 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "2c89b93f79bb6c0c",
+  "graphHash": "fb195422388d365b",
   "routes": [],
   "services": [
-    "AiContextMenuController",
-    "AppSnapshotRegistry",
-    "BrowserCryptoService",
-    "BrowserDocumentService",
-    "BrowserHistoryService",
-    "BrowserLocationService",
-    "BrowserNavigatorService",
-    "BrowserPerformanceService",
-    "BrowserWindowService",
-    "ComponentMonitoring",
-    "ConsoleService",
-    "CookiesService",
-    "CorrelationIdService",
-    "CraftA11yNavigationFocus",
-    "CraftActivatedRoute",
-    "CraftActiveRouteLoadError",
-    "CraftBlankMs",
-    "CraftChildMatch",
-    "CraftCompiledRoutes",
-    "CraftCspNonce",
-    "CraftDomEventHooks",
-    "CraftDynamicImport",
-    "CraftErrorComponent",
     "CraftFieldCheckboxControl",
-    "CraftFieldExceptionBoundary",
     "CraftFieldValueControl",
-    "CraftGlobalError",
-    "CraftGlobalErrorComponent",
-    "CraftHistory",
-    "CraftHttpTraces",
-    "CraftHydrationRuntime",
-    "CraftLazyLoadRetry",
-    "CraftLoadingText",
-    "CraftLocation",
     "CraftLogServerUrl",
-    "CraftMatch",
-    "CraftNodeEffectFactory",
-    "CraftPendingComponent",
-    "CraftPendingMinMs",
-    "CraftPlatform",
-    "CraftPrimitiveRegistry",
-    "CraftRenderIdentity",
-    "CraftRootComponent",
-    "CraftRouteChainRunner",
-    "CraftRouteLoadError",
-    "CraftRouteLoadErrorComponent",
-    "CraftRouteLoadErrorConfig",
-    "CraftRouteLoadRecovery",
-    "CraftRouteLoadRetry",
-    "CraftRouteTarget",
-    "CraftRoutedComponent",
-    "CraftRouter",
-    "CraftRouterRuntime",
-    "CraftRouterTraces",
-    "CraftRuntimeMode",
-    "CraftSchemaValidationPolicy",
-    "CraftSecurityPolicy",
-    "CraftSsrPolicy",
-    "CraftSsrRuntime",
-    "CraftStartViewTransition",
-    "CraftStayMs",
-    "CraftStyleRegistry",
-    "CraftSyncTemplateFlush",
-    "CraftTitleStrategy",
-    "CraftViewTransition",
-    "CraftViewTransitionSkipBlank",
-    "CraftViewTransitionsEnabled",
-    "DynamicEffectRefInstance",
-    "DynamicResourceInstance",
-    "ForScheduler",
     "GlobalPersisterHandlerService",
-    "HostName",
-    "InsertionSnapshotRegistry",
-    "LocalStoragePersister",
-    "LocalStorageService",
     "MiddlewareExecutionScope",
-    "PrimitiveMethodRuntimeContext",
-    "PrimitiveResourceRuntimeObservers",
-    "SendContextChatActions",
-    "SendContextChatComponent",
-    "SendContextChatSections",
-    "SendContextContextMenuComponent",
-    "SendContextEventEnrichers",
-    "SendContextEventFilters",
-    "SendContextEventSources",
-    "SendContextExportSections",
-    "SendContextLauncherComponent",
-    "SendContextRecordController",
-    "SendContextRedactor",
-    "SendContextRetentionPolicy",
-    "SendContextSession",
-    "SendContextToAiBuffer",
-    "SendContextUiRenderer",
-    "SendContextValueSerializer",
     "ServerFunctionTransport",
-    "SessionStoragePersister",
-    "SessionStorageService",
     "StoragePersister",
     "StorageService",
-    "TakeAppSnapshot",
     "TaskRepositoryService",
-    "TemplateTraces",
-    "api"
+    "aiContextMenuDismissal",
+    "aiSendContextChatState",
+    "aiSendDialogState",
+    "craftRouterOutletState",
+    "quickstartTaskPageView"
   ],
   "components": [
     "AiContextMenu",
@@ -122,6 +33,7 @@ export const architectureCatalog = {
     "busy",
     "captureError",
     "captureInProgress",
+    "clearAllCache",
     "copied",
     "error",
     "exception",
@@ -131,6 +43,8 @@ export const architectureCatalog = {
     "instruction",
     "panelOffset",
     "promptOptions",
+    "replayJson",
+    "replayStatus",
     "sendContextToAi",
     "setBusy",
     "setCaptureError",
@@ -138,6 +52,7 @@ export const architectureCatalog = {
     "setCopied",
     "setError",
     "setPanelOffset",
+    "setReplayStatus",
     "setStatus",
     "status",
     "taskQuery",
@@ -151,20 +66,74 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:267>"
+      "url": "<unresolved:ai-send-context-chat.ts:311>"
     }
   ],
   "uniques": [],
-  "providers": [],
+  "providers": [
+    "aiContextMenuDismissal",
+    "aiSendContextChatState",
+    "aiSendDialogState",
+    "craftRouterOutletState",
+    "quickstartTaskPageView"
+  ],
   "routeProviders": {},
-  "componentProviders": {},
-  "providedOn": {},
+  "componentProviders": {
+    "QuickstartTaskPage": [
+      "quickstartTaskPageView"
+    ],
+    "AiContextMenu": [
+      "aiContextMenuDismissal"
+    ],
+    "AiSendContextChat": [
+      "aiSendContextChatState"
+    ],
+    "AiSendDialog": [
+      "aiSendDialogState"
+    ],
+    "CraftRouterOutlet": [
+      "craftRouterOutletState"
+    ]
+  },
+  "providedOn": {
+    "quickstartTaskPageView": [
+      {
+        "kind": "component",
+        "name": "QuickstartTaskPage",
+        "file": "apps/quickstart-effect/src/app/task-page.ts"
+      }
+    ],
+    "aiContextMenuDismissal": [
+      {
+        "kind": "component",
+        "name": "AiContextMenu",
+        "file": "libs/component/src/lib/ai/ai-context-menu.ts"
+      }
+    ],
+    "aiSendContextChatState": [
+      {
+        "kind": "component",
+        "name": "AiSendContextChat",
+        "file": "libs/component/src/lib/ai/ai-send-context-chat.ts"
+      }
+    ],
+    "aiSendDialogState": [
+      {
+        "kind": "component",
+        "name": "AiSendDialog",
+        "file": "libs/component/src/lib/ai/ai-send-dialog.ts"
+      }
+    ],
+    "craftRouterOutletState": [
+      {
+        "kind": "component",
+        "name": "CraftRouterOutlet",
+        "file": "libs/component/src/lib/craft-router-outlet.ts"
+      }
+    ]
+  },
   "collisions": {
     "services": {
-      "CraftPendingComponent": [
-        "libs/component/src/lib/craft-host-tokens.ts",
-        "libs/core/src/lib/craft-pending.ts"
-      ],
       "MiddlewareExecutionScope": [
         "libs/core/src/lib/server-function-middleware.ts",
         "libs/core/src/lib/server-function-middleware.ts"
@@ -172,28 +141,12 @@ export const architectureCatalog = {
       "TaskRepositoryService": [
         "apps/quickstart-effect/src/app/task-domain.ts",
         "apps/quickstart-effect/src/app/task-domain.ts"
-      ],
-      "api": [
-        "libs/core/src/lib/craft-register-for.ts",
-        "libs/core/src/lib/craft-service.ts"
       ]
     },
     "components": {},
     "routes": {}
   },
-  "browserBoundaryServices": [
-    "BrowserCryptoService",
-    "BrowserDocumentService",
-    "BrowserHistoryService",
-    "BrowserLocationService",
-    "BrowserNavigatorService",
-    "BrowserPerformanceService",
-    "BrowserWindowService",
-    "ConsoleService",
-    "CookiesService",
-    "LocalStorageService",
-    "SessionStorageService"
-  ],
+  "browserBoundaryServices": [],
   "scopes": {}
 } as const;
 export type ArchitectureCatalog = typeof architectureCatalog;

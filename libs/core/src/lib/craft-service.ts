@@ -28,6 +28,7 @@ import {
   createYieldableReactiveValue,
   isYieldableReactiveValue,
   rawReactiveValue,
+  type ReactiveReadRequest,
   type YieldableReactiveProperties,
   type YieldableReactiveValue,
 } from './reactive-read';
@@ -59,7 +60,10 @@ import type {
   Simplify,
   UnionToTuple,
 } from './craft-service.shared';
-import type { ServiceTrackedDepsRequest } from './craft-primitive-gen';
+import type {
+  ExposedFromYielded,
+  ServiceTrackedDepsRequest,
+} from './craft-primitive-gen';
 import {
   markNamedReactiveProperties,
   markYieldableMethod,
@@ -370,7 +374,23 @@ type FactoryReturn<Factory> = Factory extends (...args: any[]) => infer Result
   ? Result
   : never;
 
+/**
+ * A concrete `craftService` factory: a generator whose API is what it yields,
+ * never what it returns (see {@link ExposedFromYielded}).
+ */
+type ServiceGeneratorFactory = (...args: any[]) => Generator<any, void, any>;
+
+/** The service API: the named primitives its generator factory yields. */
 type FactoryOutput<Factory> =
+  FactoryReturn<Factory> extends Generator<infer Yielded, any, any>
+    ? ExposedFromYielded<Yielded>
+    : never;
+
+/**
+ * The API of a value service (internal DI slots, see `ɵcraftValueService`): the
+ * factory's result, resolved when it is a generator.
+ */
+type ValueFactoryOutput<Factory> =
   FactoryReturn<Factory> extends Generator<any, infer Result, any>
     ? Result
     : FactoryReturn<Factory>;
@@ -500,9 +520,15 @@ type InputBindings<
         | AllowedProvidedElsewhere<Scope>;
     };
 
+// Any reader of the right value binds an input, whatever it yields: the
+// service reads it through its own `CraftServiceInput`.
 type PublicInputValue<Value> =
   Value extends Yieldable<[], infer Resolved, any>
-    ? Resolved | Signal<Resolved> | YieldableReactiveValue<Resolved> | Value
+    ?
+        | Resolved
+        | Signal<Resolved>
+        | YieldableReactiveValue<Resolved>
+        | Yieldable<[], Resolved, unknown>
     : Value;
 
 type PublicInputBindings<
@@ -965,6 +991,19 @@ export type ExtractServiceHelperDependencyMap<ServiceHelper> =
       }
     : never;
 
+/**
+ * The dependency a value carries because it *is* a service helper — the
+ * shortcut `Service.member` handed to a template binding.
+ *
+ * The carrier is optional, so `extends { [SERVICE_HELPER_DEPENDENCIES]?: … }`
+ * alone would match every type and answer with the constraint. The `keyof`
+ * guard is what makes the question "does this value carry the brand?".
+ */
+export type ServiceHelperDependencyMapOf<Value> =
+  typeof SERVICE_HELPER_DEPENDENCIES extends keyof Value
+    ? ExtractServiceHelperDependencyMap<Value>
+    : {};
+
 export type ServiceDependencyMapFromYielded<Yielded> = BuildDependencyMap<
   DependencyRequests<Yielded>
 >;
@@ -1197,10 +1236,11 @@ type ServiceHelperMetadata<
   Factory extends AnyFactory,
   BrowserBoundary extends boolean = false,
   AppStart extends boolean = false,
+  Output = FactoryOutput<Factory>,
 > = ServiceTrackingMetadata<
   Name,
   Scope,
-  FactoryOutput<Factory>,
+  Output,
   FactoryYields<Factory>,
   undefined,
   ServiceProvidedInput<FactoryInputs<Factory>>,
@@ -2232,7 +2272,15 @@ type ConcreteRuntimeDefinition = {
   externalProviders?: (...args: unknown[]) => CraftServiceProvider;
   appStartHooks: Map<unknown, () => AppStartResult>;
   startedAppStartServices: Set<unknown>;
+  /**
+   * `'auto'`: a generator factory whose API is the named primitives it yields
+   * (a `return` is an error). `'value'`: the factory's result IS the service —
+   * abstract implementations, `toCraftService` adapters, internal DI slots.
+   */
+  exposure: ServiceExposure;
 };
+
+type ServiceExposure = 'auto' | 'value';
 
 const OMIT_INPUTS_BINDINGS = Symbol('craft-ts.omit-inputs-bindings');
 type ConcreteServiceBindings =
@@ -2317,7 +2365,10 @@ export type GetMergedServiceDependencyNodeMap<
 export type ServiceBindings<Reference extends ServiceReference> = Partial<
   InputBindings<
     GetServiceInputs<Reference>,
-    Extract<GetServiceReferenceMeta<Reference>['providedIn'], ConcreteServiceScope>
+    Extract<
+      GetServiceReferenceMeta<Reference>['providedIn'],
+      ConcreteServiceScope
+    >
   >
 >;
 
@@ -2362,7 +2413,13 @@ export const SERVICE_RUNTIME_OVERRIDES = new InjectionToken<
  * The public service helper still accepts the resolved value, an Angular
  * signal, or another Craft reader for this input.
  */
-export type CraftServiceInput<Value, Yielded = unknown> = Yieldable<
+// The reader yields a reactive read request. It must not default to
+// `unknown`: that yield would absorb the service's whole `Yielded` union, and
+// with it the named primitives the service exposes.
+export type CraftServiceInput<
+  Value,
+  Yielded = ReactiveReadRequest<Value>,
+> = Yieldable<
   [],
   Value,
   Yielded
@@ -2841,7 +2898,7 @@ export function ɵtoCraftService(
 ): unknown {
   const api = (
     adaptFactory
-      ? craftService(
+      ? ɵcraftValueService(
           {
             name: options.name,
             providedIn: options.providedIn,
@@ -2857,7 +2914,7 @@ export function ɵtoCraftService(
             return adaptFactory(dependencyValue, inputs);
           },
         )
-      : craftService(
+      : ɵcraftValueService(
           {
             name: options.name,
             providedIn: options.providedIn,
@@ -3050,7 +3107,7 @@ export function craftService<
   Name extends string,
   Scope extends AppStartCapableScope,
   Requirement extends ServiceRequirement<any, any>,
-  Factory extends AnyFactory,
+  Factory extends ServiceGeneratorFactory,
   BrowserBoundary extends boolean = false,
 >(
   options: {
@@ -3079,7 +3136,7 @@ export function craftService<
   Name extends string,
   Scope extends RealCapableScope,
   Requirement extends ServiceRequirement<any, any>,
-  Factory extends AnyFactory,
+  Factory extends ServiceGeneratorFactory,
   BrowserBoundary extends boolean = false,
 >(
   options: {
@@ -3106,7 +3163,7 @@ export function craftService<
 export function craftService<
   Name extends string,
   Scope extends AppStartCapableScope,
-  Factory extends AnyFactory,
+  Factory extends ServiceGeneratorFactory,
   BrowserBoundary extends boolean = false,
 >(
   options: {
@@ -3132,7 +3189,7 @@ export function craftService<
 export function craftService<
   Name extends string,
   Scope extends ConcreteServiceScope,
-  Factory extends AnyFactory,
+  Factory extends ServiceGeneratorFactory,
   BrowserBoundary extends boolean = false,
 >(
   options: {
@@ -3155,16 +3212,71 @@ export function craftService<
   false
 >;
 export function craftService(
+  options: CraftServiceRuntimeOptions,
+  factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
+): unknown {
+  return createCraftServiceApi(options, factoryOrMarker, 'auto');
+}
+
+type CraftServiceRuntimeOptions = {
+  name: string;
+  providedIn: ServiceScope;
+  requirement?: ServiceRequirement<unknown>;
+  browserBoundary?: boolean;
+  appStart?: boolean;
+  providers?: readonly Provider[];
+  collection?: boolean;
+};
+
+/**
+ * @internal A craft service whose factory's RESULT is the service — a DI slot
+ * (`(inputs: { $provided: X }) => inputs.$provided ?? fallback`), a collection
+ * contribution, an adapted external value. Same scopes, providers and tracking
+ * as {@link craftService}; only the public `craftService` requires a generator
+ * whose named primitives are exposed.
+ */
+export function ɵcraftValueService<
+  Name extends string,
+  Scope extends ConcreteServiceScope,
+  Factory extends AnyFactory,
+  BrowserBoundary extends boolean = false,
+>(
   options: {
-    name: string;
-    providedIn: ServiceScope;
-    requirement?: ServiceRequirement<unknown>;
-    browserBoundary?: boolean;
-    appStart?: boolean;
+    name: Name;
+    providedIn: Scope;
+    browserBoundary?: BrowserBoundary;
     providers?: readonly Provider[];
     collection?: boolean;
   },
+  factory: Factory &
+    ValidateProvidedInputScope<Scope, FactoryInputs<Factory>> &
+    ValidateFactoryScope<Scope, Factory>,
+): ConcreteServiceApi<
+  Name,
+  Scope,
+  FactoryInputs<Factory>,
+  ValueFactoryOutput<Factory>,
+  ServiceHelperMetadata<
+    Name,
+    Scope,
+    Factory,
+    BrowserBoundary,
+    false,
+    ValueFactoryOutput<Factory>
+  >,
+  false
+>;
+export function ɵcraftValueService(
+  options: CraftServiceRuntimeOptions,
+  factory: AnyFactory,
+): unknown {
+  return createCraftServiceApi(options, factory, 'value');
+}
+
+function createCraftServiceApi(
+  options: CraftServiceRuntimeOptions,
   factoryOrMarker: AnyFactory | AbstractMarker<unknown>,
+  exposure: ServiceExposure,
 ): unknown {
   const capitalizedName = capitalize(options.name);
   const provideName = `provide${capitalizedName}`;
@@ -3196,6 +3308,7 @@ export function craftService(
       hasProvidedInput: false,
       appStartHooks: new Map(),
       startedAppStartServices: new Set(),
+      exposure: 'value',
     };
 
     // The helper closes over metadata that is initialized immediately below.
@@ -3228,6 +3341,7 @@ export function craftService(
           hasProvidedInput: factoryUsesProvidedInput(factory),
           appStartHooks: new Map(),
           startedAppStartServices: new Set(),
+          exposure: 'value',
         };
         return createProviders(abstractRuntimeDefinition);
       },
@@ -3266,6 +3380,7 @@ export function craftService(
     hasProvidedInput: factoryUsesProvidedInput(concreteFactory),
     appStartHooks: new Map(),
     startedAppStartServices: new Set(),
+    exposure,
   };
 
   const token =
@@ -3360,7 +3475,12 @@ function createInjectHelper(
     const injector = inject(Injector);
     const serviceValue = resolveConcreteService(definition, injector, bindings);
     return expose
-      ? resolveExposedService(serviceValue, expose, injector, definition.providedIn)
+      ? resolveExposedService(
+          serviceValue,
+          expose,
+          injector,
+          definition.providedIn,
+        )
       : serviceValue;
   };
 
@@ -3659,6 +3779,21 @@ function attachServiceRuntimeMeta(
   });
 }
 
+/**
+ * The injection token a concrete service is stored under, when it has one.
+ *
+ * Scopes that never reach the injector (a `function` service, a global one)
+ * answer `undefined`: there is nothing to re-provide for them.
+ */
+export function ɵgetServiceInjectionToken(
+  target: unknown,
+): InjectionToken<unknown> | undefined {
+  const metaData = getServiceMetaData(target) as InternalServiceMetaData;
+  return metaData[SERVICE_RUNTIME_DEFINITION]?.token as
+    | InjectionToken<unknown>
+    | undefined;
+}
+
 export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   if (isServiceMetaData(target)) {
     return target;
@@ -3895,15 +4030,50 @@ function resolveConcreteService(
     definition.initialBindings = bindings;
   }
 
+  // The instance is built by the provider, which knows nothing of this call
+  // site. Hand it this call's inputs for the length of the resolution: two
+  // scopes that provide the same service each get their own inputs, instead of
+  // every one of them inheriting whichever scope resolved it first.
   return trackResolvedService(
     definition,
     injector,
     markNamedReactiveProperties(
-      ɵcraftInjectorFromHost(injector).get(
-        definition.token as object,
+      withPendingServiceBindings(
+        definition.name,
+        bindings === OMIT_INPUTS_BINDINGS
+          ? undefined
+          : (bindings as Record<string, unknown> | undefined),
+        () =>
+          ɵcraftInjectorFromHost(injector).get(
+            definition.token as object,
+          ),
       ),
     ),
   );
+}
+
+const PENDING_SERVICE_BINDINGS = new Map<string, Record<string, unknown>>();
+
+function withPendingServiceBindings<Result>(
+  name: string,
+  bindings: Record<string, unknown> | undefined,
+  resolve: () => Result,
+): Result {
+  if (bindings === undefined) {
+    return resolve();
+  }
+
+  const previous = PENDING_SERVICE_BINDINGS.get(name);
+  PENDING_SERVICE_BINDINGS.set(name, bindings);
+  try {
+    return resolve();
+  } finally {
+    if (previous === undefined) {
+      PENDING_SERVICE_BINDINGS.delete(name);
+    } else {
+      PENDING_SERVICE_BINDINGS.set(name, previous);
+    }
+  }
 }
 
 function trackResolvedService(
@@ -3951,7 +4121,10 @@ function createConcreteServiceInstance(
       const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
       const bindings = omitInputs
         ? {}
-        : (bindingsOverride ?? definition.initialBindings ?? {});
+        : (bindingsOverride ??
+          PENDING_SERVICE_BINDINGS.get(definition.name) ??
+          definition.initialBindings ??
+          {});
       const inputs = createInputProxy(
         bindings,
         providedConfig,
@@ -3964,14 +4137,25 @@ function createConcreteServiceInstance(
           ? wrappedFactory(inputs)
           : wrappedFactory();
 
+      const autoExpose = definition.exposure === 'auto';
+
       if (!isGenerator(result)) {
+        if (autoExpose) {
+          throw new Error(
+            `craftService("${definition.name}") needs a generator factory (function* () { ... }): its API is the named primitives it yields. See the craft-ts/no-craft-service-return rule.`,
+          );
+        }
         return result;
       }
 
+      const exposed: Record<string, unknown> = {};
       const resolved = runCraftGenerator({
         iterator: result,
         injector: scopedInjector,
         hostScope: definition.providedIn,
+        collectExposed: autoExpose
+          ? { record: exposed, owner: `craftService("${definition.name}")` }
+          : undefined,
         invalidYieldErrorMessage:
           'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
         multipleAppStartErrorMessage:
@@ -3985,6 +4169,14 @@ function createConcreteServiceInstance(
         },
       });
 
+      if (autoExpose && resolved.value !== undefined) {
+        throw new Error(
+          `craftService("${definition.name}") returned a value, but a craftService cannot return: its API is the named primitives it yields. Remove the return (wrap what must stay internal in craftPrivate(...)); see the craft-ts/no-craft-service-return rule.`,
+        );
+      }
+
+      const instance = autoExpose ? exposed : resolved.value;
+
       if (resolved.appStartHook) {
         if (!definition.appStart) {
           throw new Error(
@@ -3992,10 +4184,10 @@ function createConcreteServiceInstance(
           );
         }
 
-        definition.appStartHooks.set(resolved.value, resolved.appStartHook);
+        definition.appStartHooks.set(instance, resolved.appStartHook);
       }
 
-      return resolved.value;
+      return instance;
     }),
   );
 }
@@ -4076,7 +4268,24 @@ function createInputProxy(
   });
 }
 
+const CONTENT_DECLARATION_CONTEXT = Symbol.for(
+  'craft-content-declaration-context',
+);
+
+/** Projected content is a renderer, never a value to read: leave it alone. */
+function isProjectedContent(value: unknown): boolean {
+  return (
+    (typeof value === 'function' || typeof value === 'object') &&
+    value !== null &&
+    CONTENT_DECLARATION_CONTEXT in (value as object)
+  );
+}
+
 function isReactiveServiceInput(value: unknown): boolean {
+  if (isProjectedContent(value)) {
+    return false;
+  }
+
   return (
     isSignal(value) ||
     isYieldableReactiveValue(value) ||
@@ -4523,7 +4732,7 @@ export const ɵTRACK_TAGS_LIST = new InjectionToken<readonly TrackTag[]>(
   },
 );
 
-const hostNameApi = craftService(
+const hostNameApi = ɵcraftValueService(
   { name: 'HostName', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: string }) => inputs.$provided,
 );

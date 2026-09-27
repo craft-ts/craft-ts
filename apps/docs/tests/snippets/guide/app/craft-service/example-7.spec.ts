@@ -5,31 +5,28 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-7
-import { craftService, state } from '@craft-ts/core';
+import { craftService, state, craftExpose } from '@craft-ts/core';
 
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'global' },
   function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
+    yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
     }));
-    return counter;
   },
 );
 
 const { CounterFacade } = craftService(
   { name: 'CounterFacade', providedIn: 'global' },
   function* () {
-    const counter = yield* Counter();
+    const counter = (yield* Counter()).counter;
 
-    return {
-      read: function* () {
-        return yield* counter();
-      },
-      increment: function* () {
-        return yield* counter.increment();
-      },
-    };
+    yield* craftExpose('read', function* () {
+      return yield* counter();
+    });
+    yield* craftExpose('increment', function* () {
+      return yield* counter.increment();
+    });
   },
 );
 // #endregion example-7

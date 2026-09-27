@@ -1,11 +1,8 @@
 import { button, craftComponent, input } from '../craft-runtime';
 
-export const Login = craftComponent(
-  'Login',
-  {},
-  () => ({}),
-  () => [
+export const Login = craftComponent('Login', {}, function* () {
+  return [
     input('loginEmail', { type: 'email' }),
     button('loginSubmit', { type: 'submit' }, 'Sign in'),
-  ],
-);
+  ];
+});

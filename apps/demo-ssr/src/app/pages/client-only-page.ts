@@ -9,20 +9,21 @@ import {
 } from '@craft-ts/component';
 import { pendingNode } from '@craft-ts/component';
 import {
+  craftService,
   BrowserWindow,
   LocalStorage,
   craftComputed,
   query,
   settled,
+  craftPrivate,
 } from '@craft-ts/core';
 import { page } from './page-layout';
 import { page as pageStyle } from '../ssr-lab.style';
 
-export const ClientOnlyPage = craftComponent(
-  'SsrClientOnlyPage',
-  {},
+export const { SsrClientOnlyPageView, provideSsrClientOnlyPageView } = craftService(
+  { name: 'ssrClientOnlyPageView', providedIn: 'toProvide' },
   function* () {
-    const data = yield* query('clientOnlyData', {
+    const data = yield* craftPrivate(query('clientOnlyData', {
       params: () => true,
       loader: function* () {
         const width = yield* BrowserWindow.innerWidth();
@@ -33,14 +34,19 @@ export const ClientOnlyPage = craftComponent(
         yield* LocalStorage.setItem('ssr-lab-visits', String(visits));
         return { width, visits };
       },
-    });
-    const resolved = craftComputed('resolvedClientOnlyData', function* () {
+    }));
+    yield* craftComputed('resolved', function* () {
       return yield* settled(data);
     });
-    return { resolved };
   },
-  ({ resolved }) =>
-    page(
+);
+
+export const ClientOnlyPage = craftComponent(
+  'SsrClientOnlyPage',
+  { providers: [provideSsrClientOnlyPageView()] },
+  function* () {
+    const { resolved } = yield* SsrClientOnlyPageView();
+    return page(
       'Route SSR : `client`',
       'Contenu réservé au navigateur',
       'La source ne démarre pas pendant renderCraft. Le navigateur la lance après hydrateCraft, ce qui permet d’utiliser viewport et localStorage sans bloquer le SSR.',
@@ -76,5 +82,6 @@ export const ClientOnlyPage = craftComponent(
             ]),
         }),
       ),
-    ),
+    );
+  },
 );

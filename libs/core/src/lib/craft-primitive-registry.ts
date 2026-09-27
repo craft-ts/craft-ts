@@ -4,7 +4,7 @@ import {
   runInInjectionContext,
   type Injector,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import { ɵHOST_TAG_LIST } from './craft-service';
 
 /**
@@ -179,11 +179,11 @@ class CraftPrimitiveRegistryState {
   }
 }
 
-const craftPrimitiveRegistryService = craftService(
+const craftPrimitiveRegistryService = ɵcraftValueService(
   { name: 'CraftPrimitiveRegistry', providedIn: 'global' },
   () => new CraftPrimitiveRegistryState(),
 ) as unknown as {
-  CraftPrimitiveRegistry: () => Generator<unknown, CraftPrimitiveRegistryState, unknown>;
+  CraftPrimitiveRegistry: () => Generator<never, CraftPrimitiveRegistryState, unknown>;
   CRAFT_PRIMITIVE_REGISTRY_META_DATA: { inject(): CraftPrimitiveRegistryState };
 };
 

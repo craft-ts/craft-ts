@@ -14,7 +14,8 @@ function isStringLiteral(node) {
 
 function stringLiteralValue(node) {
   if (!node) return undefined;
-  if (node.type === 'Literal' && typeof node.value === 'string') return node.value;
+  if (node.type === 'Literal' && typeof node.value === 'string')
+    return node.value;
   if (
     node.type === 'TemplateLiteral' &&
     node.expressions.length === 0 &&
@@ -35,7 +36,10 @@ function isNullLiteral(node) {
 
 function looksLikeChildren(node) {
   if (!node) return true;
-  if (isNullLiteral(node) || node.type === 'Identifier' && node.name === 'undefined') {
+  if (
+    isNullLiteral(node) ||
+    (node.type === 'Identifier' && node.name === 'undefined')
+  ) {
     return true;
   }
   if (
@@ -130,7 +134,11 @@ function parseHelperArgs(args) {
  * `customElement('tag', …)`.
  */
 function parseHyperscriptCall(node) {
-  if (!node || node.type !== 'CallExpression' || node.callee.type !== 'Identifier') {
+  if (
+    !node ||
+    node.type !== 'CallExpression' ||
+    node.callee.type !== 'Identifier'
+  ) {
     return null;
   }
   const callee = node.callee.name;
@@ -160,12 +168,21 @@ function parseHyperscriptCall(node) {
       callee,
     };
   }
-  if (!NAMED_HTML_HELPER_SET.has(callee) && callee !== 'heading' && callee !== 'liveRegion') {
+  if (
+    !NAMED_HTML_HELPER_SET.has(callee) &&
+    callee !== 'heading' &&
+    callee !== 'liveRegion'
+  ) {
     return null;
   }
   const parsed = parseHelperArgs(node.arguments);
   return {
-    tag: callee === 'heading' ? 'heading' : callee === 'liveRegion' ? 'liveRegion' : callee,
+    tag:
+      callee === 'heading'
+        ? 'heading'
+        : callee === 'liveRegion'
+          ? 'liveRegion'
+          : callee,
     tagNode: node.callee,
     props: parsed.props,
     children: parsed.children,
@@ -231,14 +248,19 @@ function hasDynamicAccessibleName(children) {
     );
   }
   if (children.type === 'ArrayExpression') {
-    return children.elements.some((element) => hasDynamicAccessibleName(element));
+    return children.elements.some((element) =>
+      hasDynamicAccessibleName(element),
+    );
   }
   return false;
 }
 
 function hasAccessibleName(call) {
   if (!call) return false;
-  if (hasProp(call.props, 'aria-label') || hasProp(call.props, 'aria-labelledby')) {
+  if (
+    hasProp(call.props, 'aria-label') ||
+    hasProp(call.props, 'aria-labelledby')
+  ) {
     const ariaLabel = staticPropString(call.props, 'aria-label');
     if (ariaLabel === '') return false;
     return true;

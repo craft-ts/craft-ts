@@ -1,4 +1,4 @@
-import { craftService, CraftHttpClient } from '../craft-runtime';
+import { craftExpose, craftService, CraftHttpClient } from '../craft-runtime';
 
 export const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
@@ -7,6 +7,6 @@ export const { UsersApi } = craftService(
       url: 'users',
       success: response(),
     }));
-    return { users };
+    yield* craftExpose('users', users);
   },
 );

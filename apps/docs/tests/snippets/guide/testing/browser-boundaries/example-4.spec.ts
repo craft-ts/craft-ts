@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-4
-import { ConsoleService, craftService } from '@craft-ts/core';
+import { ConsoleService, craftService, craftExpose } from '@craft-ts/core';
 
 const { AuditTrail } = craftService(
   { name: 'AuditTrail', providedIn: 'global' },
@@ -18,12 +18,10 @@ const { AuditTrail } = craftService(
       }),
     );
 
-    return {
-      trackUserAction: (action: string) =>
-        consoleService.log('user action', action),
-      trackFailure: (error: unknown) =>
-        consoleService.error('unexpected failure', error),
-    };
+    yield* craftExpose('trackUserAction', (action: string) =>
+      consoleService.log('user action', action));
+    yield* craftExpose('trackFailure', (error: unknown) =>
+      consoleService.error('unexpected failure', error));
   },
 );
 // #endregion example-4

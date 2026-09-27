@@ -1,5 +1,5 @@
 import { signal, type Provider, type Signal } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 
 /**
@@ -61,12 +61,12 @@ export const CRAFT_VIEW_TRANSITION_STATE_KEY = '__craftViewTransition';
  * injectCraftViewTransition}). `null` between/without view-transition
  * navigations.
  */
-const craftViewTransitionService = craftService(
+const craftViewTransitionService = ɵcraftValueService(
   { name: 'CraftViewTransition', providedIn: 'toProvide' },
   (inputs: { $provided?: Signal<CraftViewTransitionInput> }) =>
     inputs.$provided ?? signal<CraftViewTransitionInput>(null),
 ) as unknown as {
-  CraftViewTransition: () => Generator<unknown, Signal<CraftViewTransitionInput>, unknown>;
+  CraftViewTransition: () => Generator<never, Signal<CraftViewTransitionInput>, unknown>;
   provideCraftViewTransition: (
     value: Signal<CraftViewTransitionInput>,
   ) => CraftServiceProvider;
@@ -88,11 +88,11 @@ export function injectCraftViewTransition(): Signal<CraftViewTransitionInput> {
 }
 
 /** Whether the outlet should drive `document.startViewTransition()` around its swaps. */
-const craftViewTransitionsEnabledService = craftService(
+const craftViewTransitionsEnabledService = ɵcraftValueService(
   { name: 'CraftViewTransitionsEnabled', providedIn: 'toProvide' },
   (inputs: { $provided?: boolean }) => inputs.$provided ?? false,
 ) as unknown as {
-  CraftViewTransitionsEnabled: () => Generator<unknown, boolean, unknown>;
+  CraftViewTransitionsEnabled: () => Generator<never, boolean, unknown>;
   provideCraftViewTransitionsEnabled: (value: boolean) => CraftServiceProvider;
   CRAFT_VIEW_TRANSITIONS_ENABLED_META_DATA: { inject(): boolean };
 };
@@ -110,11 +110,11 @@ export const ɵinjectCraftViewTransitionsEnabled = (): boolean =>
  * payload always skip blank; this token lets `withCraftViewTransitions({ skipBlank })`
  * extend that to every route.
  */
-const craftViewTransitionSkipBlankService = craftService(
+const craftViewTransitionSkipBlankService = ɵcraftValueService(
   { name: 'CraftViewTransitionSkipBlank', providedIn: 'toProvide' },
   (inputs: { $provided?: boolean }) => inputs.$provided ?? false,
 ) as unknown as {
-  CraftViewTransitionSkipBlank: () => Generator<unknown, boolean, unknown>;
+  CraftViewTransitionSkipBlank: () => Generator<never, boolean, unknown>;
   provideCraftViewTransitionSkipBlank: (value: boolean) => CraftServiceProvider;
   CRAFT_VIEW_TRANSITION_SKIP_BLANK_META_DATA: { inject(): boolean };
 };
@@ -138,12 +138,12 @@ interface ViewTransitionDocument {
  * `cb` directly when the API is missing or the user prefers reduced motion.
  * Overridable in tests to capture the callback deterministically.
  */
-const craftStartViewTransitionService = craftService(
+const craftStartViewTransitionService = ɵcraftValueService(
   { name: 'CraftStartViewTransition', providedIn: 'toProvide' },
   (inputs: { $provided?: CraftStartViewTransition }) =>
     inputs.$provided ?? defaultStartViewTransition,
 ) as unknown as {
-  CraftStartViewTransition: () => Generator<unknown, CraftStartViewTransition, unknown>;
+  CraftStartViewTransition: () => Generator<never, CraftStartViewTransition, unknown>;
   provideCraftStartViewTransition: (value: CraftStartViewTransition) => CraftServiceProvider;
   CRAFT_START_VIEW_TRANSITION_META_DATA: { inject(): CraftStartViewTransition };
 };

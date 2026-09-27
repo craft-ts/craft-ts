@@ -1,4 +1,4 @@
-import { craftService, type GetDeps } from '@craft-ts/core';
+import { type GetDeps, ɵcraftValueService } from '@craft-ts/core';
 
 type StyleRoot = Document | ShadowRoot;
 
@@ -106,11 +106,11 @@ export function createCraftStyleRegistry(
   return { acquire };
 }
 
-const craftStyleRegistryService = craftService(
+const craftStyleRegistryService = ɵcraftValueService(
   { name: 'CraftStyleRegistry', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: CraftStyleRegistry }) => inputs.$provided,
 ) as unknown as {
-  CraftStyleRegistry: () => Generator<unknown, CraftStyleRegistry, unknown>;
+  CraftStyleRegistry: () => Generator<never, CraftStyleRegistry, unknown>;
   provideCraftStyleRegistry: (value: CraftStyleRegistry) => unknown;
   CRAFT_STYLE_REGISTRY_META_DATA: { inject(): CraftStyleRegistry };
 };

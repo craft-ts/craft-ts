@@ -1,5 +1,5 @@
 import { craftComponent, li, span, ul, type Input } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftService } from '@craft-ts/core';
 import { TIERS } from '@craft-ts/style-testing/review/frame';
 import type { Messages } from './messages';
 import { tierLegend } from './tier-legend.style';
@@ -41,35 +41,35 @@ const legendEntry = (
  * meets a dotted orange box around a button they never touched and has no
  * way to find out what it is telling them.
  */
-export const TierLegend = craftComponent(
-  'TierLegend',
-  {},
-  (
-    showing: Input<boolean>,
-    changedCount: Input<number>,
-    coveredCount: Input<number>,
-    chromeNames: Input<readonly string[]>,
-    t: Input<Messages>,
-  ) => {
-    const hiddenLegend = craftComputed('hiddenLegend', function* () {
+export const { TierLegendView, provideTierLegendView } = craftService(
+  { name: 'tierLegendView', providedIn: 'toProvide' },
+  function* (inputs: {
+    readonly showing: Input<boolean>;
+    readonly changedCount: Input<number>;
+    readonly coveredCount: Input<number>;
+    readonly chromeNames: Input<readonly string[]>;
+    readonly t: Input<Messages>;
+  }) {
+    const { showing, changedCount, coveredCount, chromeNames, t } = inputs;
+    yield* craftComputed('hiddenLegend', function* () {
       return !(yield* showing());
     });
-    const subjectLabel = craftComputed('subjectLabel', function* () {
+    yield* craftComputed('subjectLabel', function* () {
       return (yield* t()).tierSubject;
     });
-    const changedHidden = craftComputed('changedHidden', function* () {
+    yield* craftComputed('changedHidden', function* () {
       return (yield* changedCount()) === 0;
     });
-    const changedLabel = craftComputed('changedLabel', function* () {
+    yield* craftComputed('changedLabel', function* () {
       return (yield* t()).tierChanged;
     });
-    const occludedHidden = craftComputed('occludedHidden', function* () {
+    yield* craftComputed('occludedHidden', function* () {
       return (yield* coveredCount()) === 0;
     });
     // Named when the replay knows the name. "Covered by the page's own
     // overlay" asked the reviewer to work out what an overlay is and which
     // one; this points at the same thing the lift control above removes.
-    const occludedLabel = craftComputed('occludedLabel', function* () {
+    yield* craftComputed('occludedLabel', function* () {
       const covering = yield* chromeNames();
       const say = yield* t();
       if (covering.length === 1) {
@@ -79,11 +79,25 @@ export const TierLegend = craftComponent(
         ? say.tierOccludedMany(covering.length)
         : say.tierOccludedUnknown;
     });
-    const pickedLabel = craftComputed('pickedLabel', function* () {
+    yield* craftComputed('pickedLabel', function* () {
       return (yield* t()).tierPicked;
     });
+  },
+);
 
-    return {
+export const TierLegend = craftComponent(
+  'TierLegend',
+  {
+    providers: [provideTierLegendView()],
+  },
+  function* (inputs: {
+    readonly showing: Input<boolean>;
+    readonly changedCount: Input<number>;
+    readonly coveredCount: Input<number>;
+    readonly chromeNames: Input<readonly string[]>;
+    readonly t: Input<Messages>;
+  }) {
+    const {
       hiddenLegend,
       subjectLabel,
       changedHidden,
@@ -91,18 +105,8 @@ export const TierLegend = craftComponent(
       occludedHidden,
       occludedLabel,
       pickedLabel,
-    };
-  },
-  ({
-    hiddenLegend,
-    subjectLabel,
-    changedHidden,
-    changedLabel,
-    occludedHidden,
-    occludedLabel,
-    pickedLabel,
-  }) =>
-    ul({ class: tierLegend.root, hidden: hiddenLegend }, [
+    } = yield* TierLegendView(inputs);
+    return ul({ class: tierLegend.root, hidden: hiddenLegend }, [
       legendEntry('subject', { label: subjectLabel }),
       legendEntry('changed', {
         hidden: changedHidden,
@@ -113,5 +117,6 @@ export const TierLegend = craftComponent(
         label: occludedLabel,
       }),
       legendEntry('picked', { label: pickedLabel }),
-    ]),
+    ]);
+  },
 );

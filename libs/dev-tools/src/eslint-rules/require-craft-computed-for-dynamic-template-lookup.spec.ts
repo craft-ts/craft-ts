@@ -17,8 +17,7 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
       const Status = craftComponent(
         'Status',
         {},
-        (status: unknown) => ({ status }),
-        ({ status: resourceStatus }) => span([
+        (resourceStatus: unknown) => span([
           span(function* () {
             return STATUS_VIEW[yield* resourceStatus()][0];
           }),
@@ -32,9 +31,9 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
     `);
 
     expect(messages).toEqual([
-      'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() in the component logic factory, then bind the computed value directly.',
-      'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() in the component logic factory, then bind the computed value directly.',
-      'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() in the component logic factory, then bind the computed value directly.',
+      'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() where the component declares what it takes, then bind the computed value directly.',
+      'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() where the component declares what it takes, then bind the computed value directly.',
+      'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() where the component declares what it takes, then bind the computed value directly.',
     ]);
   });
 
@@ -44,16 +43,13 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
       declare function span(...args: unknown[]): unknown;
       declare const STATUS_VIEW: Record<string, readonly [string, string]>;
 
-      craftComponent(
-        'Status',
-        {},
-        () => ({ statusEmoji, statusTone, statusLabel }),
-        ({ statusEmoji, statusTone, statusLabel }) => span([
+      craftComponent('Status', {}, function* ({ statusEmoji, statusTone, statusLabel }) {
+        return span([
           span(STATUS_VIEW['idle'][0]),
           span({ 'data-status': statusTone }, statusLabel),
           span(statusEmoji),
-        ]),
-      );
+        ]);
+      });
     `);
 
     expect(messages).toEqual([]);
@@ -68,7 +64,6 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
       craftComponent(
         'Status',
         {},
-        () => ({}),
         ({ status: resourceStatus }) => span(labels[yield* resourceStatus()]),
       );
     `);
@@ -85,10 +80,9 @@ describe('require-craft-computed-for-dynamic-template-lookup', () => {
       const Child = craftComponent(
         'Child',
         {},
-        () => ({}),
         ({ status }) => span(labels[yield* status()]),
       );
-      craftComponent('Parent', {}, () => ({}), () => Child({}));
+      craftComponent('Parent', {}, () => Child({}));
     `);
 
     expect(messages).toHaveLength(1);

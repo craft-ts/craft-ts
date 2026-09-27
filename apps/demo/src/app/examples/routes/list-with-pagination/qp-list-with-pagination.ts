@@ -14,6 +14,7 @@ import {
   tbody,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftMethod,
   insertPaginationPlaceholderData,
   insertQueryPipe,
@@ -28,57 +29,65 @@ import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import { example } from '../../shared/example.style';
 
+export const { QpListWithPaginationView, provideQpListWithPaginationView } =
+  craftService(
+    { name: 'qpListWithPaginationView', providedIn: 'toProvide' },
+    function* () {
+      const pagination = yield* queryParams(
+        'pagination',
+        paginationQueryParams(),
+        ({ patch, state }) => ({
+          nextPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: _state.page + 1 });
+          },
+          previousPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: Math.max(1, _state.page - 1) });
+          },
+          updatePageSize: function* (pageSize: number) {
+            return yield* patch({ pageSize, page: 1 });
+          },
+        }),
+      );
+      const api = yield* ApiService();
+      yield* query(
+        'usersQuery',
+        {
+          params: pagination,
+          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+          loader: function* ({ params }) {
+            return yield* api.getDataList(params);
+          },
+        },
+        insertQueryPipe(
+          insertStoragePersister(
+            craftUnique({
+              storeName: 'demo-app',
+              key: 'route-list-with-pagination',
+            }),
+          ),
+          insertPaginationPlaceholderData({ initialValue: Array<User>() }),
+        ),
+      );
+      yield* craftMethod(
+        'updatePageSize',
+        function* (event: Event) {
+          yield* pagination.updatePageSize(Number(eventValue(event)));
+        },
+      );
+    },
+  );
+
 const QpListWithPagination = craftComponent(
   'QpListWithPagination',
-  {},
-  function* () {
-    const pagination = yield* queryParams(
-      'pagination',
-      paginationQueryParams(),
-      ({ patch, state }) => ({
-        nextPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: _state.page + 1 });
-        },
-        previousPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: Math.max(1, _state.page - 1) });
-        },
-        updatePageSize: function* (pageSize: number) {
-          return yield* patch({ pageSize, page: 1 });
-        },
-      }),
-    );
-    const api = yield* ApiService();
-    const usersQuery = yield* query(
-      'usersQuery',
-      {
-        params: pagination,
-        identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-        loader: function* ({ params }) {
-          return yield* api.getDataList(params);
-        },
-      },
-      insertQueryPipe(
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app',
-          key: 'route-list-with-pagination',
-        })),
-        insertPaginationPlaceholderData({ initialValue: Array<User>() }),
-      ),
-    );
-    const updatePageSize = craftMethod(
-      'updatePageSize',
-      function* (event: Event) {
-        yield* pagination.updatePageSize(
-          Number(eventValue(event)),
-        );
-      },
-    );
-    return { pagination, usersQuery, updatePageSize };
+  {
+    providers: [provideQpListWithPaginationView()],
   },
-  ({ pagination, updatePageSize, usersQuery }) =>
-    div([
+  function* () {
+    const { pagination, updatePageSize, usersQuery } =
+      yield* QpListWithPaginationView();
+    return div([
       heading([
         'Route QueryParams pagination: ',
         StatusComponent({
@@ -119,7 +128,8 @@ const QpListWithPagination = craftComponent(
         span({ class: example.currentPage, 'data-testid': 'current-page' }, pagination.page),
         button('nextPage', { type: 'button', click: pagination.nextPage }, 'Next'),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default QpListWithPagination;

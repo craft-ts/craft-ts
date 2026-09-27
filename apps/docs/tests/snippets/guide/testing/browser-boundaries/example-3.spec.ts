@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-3
-import { Console, craftService } from '@craft-ts/core';
+import { Console, craftService, craftExpose } from '@craft-ts/core';
 
 const { BootLogger } = craftService(
   { name: 'BootLogger', providedIn: 'global' },
@@ -13,9 +13,7 @@ const { BootLogger } = craftService(
     yield* Console.log('boot');
     yield* Console.info('config loaded');
 
-    return {
-      ready: true,
-    };
+    yield* craftExpose('ready', true);
   },
 );
 // #endregion example-3

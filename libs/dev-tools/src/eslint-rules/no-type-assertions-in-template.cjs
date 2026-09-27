@@ -1,3 +1,5 @@
+const { templateRegions } = require('./craft-template-region.cjs');
+
 module.exports = {
   meta: {
     type: 'problem',
@@ -8,7 +10,7 @@ module.exports = {
     schema: [],
     messages: {
       forbidden:
-        'Do not use type assertions in a Craft template. Fix the type in the component logic or expose a correctly typed derived value.',
+        'Do not use type assertions in a Craft template. Fix the type where the component declares it, or expose a correctly typed derived value.',
     },
   },
 
@@ -20,12 +22,14 @@ module.exports = {
         if (
           node.callee.type !== 'Identifier' ||
           node.callee.name !== 'craftComponent' ||
-          node.arguments.length < 4
+          node.arguments.length < 3
         ) {
           return;
         }
 
-        inspectTemplate(node.arguments[3]);
+        for (const region of templateRegions(node.arguments[2])) {
+          inspectTemplate(region);
+        }
       },
     };
 
@@ -39,10 +43,7 @@ module.exports = {
           return 'skip';
         }
 
-        if (
-          node.type === 'TSAsExpression' ||
-          node.type === 'TSTypeAssertion'
-        ) {
+        if (node.type === 'TSAsExpression' || node.type === 'TSTypeAssertion') {
           context.report({ node, messageId: 'forbidden' });
           return 'skip';
         }

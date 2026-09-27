@@ -54,25 +54,19 @@ elements are better handled with a plain event prop:
 import { craftComponent, p } from '@craft-ts/component';
 import { sourceFromEvent, state } from '@craft-ts/core';
 
-export const KeyCounter = craftComponent(
-  'KeyCounter',
-  {},
-  function* () {
-    const keySource = sourceFromEvent(
-      document,
-      'keydown',
-      () => (count: number) => count + 1,
-    );
+export const KeyCounter = craftComponent('KeyCounter', {}, function* () {
+  const keySource = sourceFromEvent(
+    document,
+    'keydown',
+    () => (count: number) => count + 1,
+  );
 
-    const keys = yield* state('keys', 0, { sources: [keySource] });
+  const keys = yield* state('keys', 0, { sources: [keySource] });
 
-    return { keys };
-  },
-  ({ keys }) =>
-    p(function* () {
-      return `Keys pressed: ${yield* keys()}`;
-    }),
-);
+  return p(function* () {
+    return `Keys pressed: ${yield* keys()}`;
+  });
+});
 ```
 
 ::: tip For the component's own elements, use an event prop

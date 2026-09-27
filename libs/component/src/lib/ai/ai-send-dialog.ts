@@ -7,7 +7,9 @@ import {
   type CraftTemporalRuntime as CraftTemporalRuntimeApi,
   type TemporalTaskHandle,
   type SendContextPayload,
-} from '@craft-ts/core';
+  craftPrivate,
+  craftExpose, type CraftServiceInput } from '@craft-ts/core';
+import { craftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
 import {
@@ -25,7 +27,7 @@ import {
   strong,
   textarea,
 } from '../hyperscript';
-import type { CraftComponent, Input, Output } from '../types';
+import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { captureAiDomStyles } from './ai-dom-capture';
 import { aiTheme } from './ai-overlay.style';
 import { aiDialog } from './ai-send-dialog.style';
@@ -54,10 +56,10 @@ type AiDialogContext = {
   payload: Input<AiDialogPayload>;
   onClose: () => void;
   instruction: () => string;
-  writeInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+  writeInstruction: (value: string) => Generator<never, unknown, unknown>;
   copied: () => boolean;
   options: () => PromptOptions;
-  writeOptions: (value: PromptOptions) => Generator<unknown, unknown, unknown>;
+  writeOptions: (value: PromptOptions) => Generator<never, unknown, unknown>;
   captureInProgress: () => boolean;
   captureError: () => string;
   copy: () => void;
@@ -150,86 +152,81 @@ function formatPrompt(
 }
 
 /**
- * Modal that collects an instruction and copies the formatted prompt, with the
- * captured component context and app snapshot, to the clipboard.
+ * Everything the dialog remembers: its draft instruction, its options, and the
+ * copy in flight. It lives in a service so a rerender finds the same draft.
  */
-export const AiSendDialog: CraftComponent<{
-  payload: Input<AiDialogPayload>;
-  onClose: Output<() => void>;
-}> = craftComponent(
-  'AiSendDialog',
-  {
-  },
-  function* (
-    payload: Input<AiDialogPayload>,
-    onClose: Output<() => void>,
-  ): Generator<unknown, AiDialogFactoryContext, unknown> {
+const { AiSendDialogState, provideAiSendDialogState } = craftService(
+  { name: 'aiSendDialogState', providedIn: 'toProvide' },
+  function* (input: {
+      readonly payload: CraftServiceInput<AiDialogPayload>;
+      readonly onClose: Output<() => void>;
+    }) {
+    const { payload, onClose } = input;
     const temporalRuntime = yield* CraftTemporalRuntime();
     type InstructionState = (() => string) & {
-      setInstruction: (value: string) => Generator<unknown, unknown, unknown>;
+      setInstruction: (value: string) => Generator<never, unknown, unknown>;
     };
     type CopiedState = (() => boolean) & {
-      setCopied: (value: boolean) => Generator<unknown, unknown, unknown>;
+      setCopied: (value: boolean) => Generator<never, unknown, unknown>;
     };
     type PromptOptionsState = (() => PromptOptions) & {
       setPromptOptions: (
         value: PromptOptions,
-      ) => Generator<unknown, unknown, unknown>;
+      ) => Generator<never, unknown, unknown>;
     };
     type CaptureState = (() => boolean) & {
       setCaptureInProgress: (
         value: boolean,
-      ) => Generator<unknown, unknown, unknown>;
+      ) => Generator<never, unknown, unknown>;
     };
     type ErrorState = (() => string) & {
-      setCaptureError: (value: string) => Generator<unknown, unknown, unknown>;
+      setCaptureError: (value: string) => Generator<never, unknown, unknown>;
     };
 
     // This component ships in a published package, so its inferred type goes
     // through declaration emit. Reactive values (craft `state()`, Angular
     // signals) carry `unique symbol`s that the emitter cannot name (TS4023),
     // so the signals stay local and the context exposes plain accessors only.
-    const instruction = yield* state('instruction', '', ({ set }) => ({
-      setInstruction: (value: string) => set(value),
-    })) as unknown as Generator<never, InstructionState, unknown>;
-    const copied = yield* state('copied', false, ({ set }) => ({
-      setCopied: (value: boolean) => set(value),
-    })) as unknown as Generator<never, CopiedState, unknown>;
-    const promptOptions = yield* state(
-      'promptOptions',
-      DEFAULT_PROMPT_OPTIONS,
-      ({ set }) => ({
+    const instruction = (yield* craftPrivate(
+      state('instruction', '', ({ set }) => ({
+        setInstruction: (value: string) => set(value),
+      })),
+    )) as unknown as InstructionState;
+    const copied = (yield* craftPrivate(
+      state('copied', false, ({ set }) => ({
+        setCopied: (value: boolean) => set(value),
+      })),
+    )) as unknown as CopiedState;
+    const promptOptions = (yield* craftPrivate(
+      state('promptOptions', DEFAULT_PROMPT_OPTIONS, ({ set }) => ({
         setPromptOptions: (value: PromptOptions) => set(value),
-      }),
-    ) as unknown as Generator<never, PromptOptionsState, unknown>;
-    const captureInProgress = yield* state(
-      'captureInProgress',
-      false,
-      ({ set }) => ({
+      })),
+    )) as unknown as PromptOptionsState;
+    const captureInProgress = (yield* craftPrivate(
+      state('captureInProgress', false, ({ set }) => ({
         setCaptureInProgress: (value: boolean) => set(value),
-      }),
-    ) as unknown as Generator<never, CaptureState, unknown>;
-    const captureError = yield* state('captureError', '', ({ set }) => ({
-      setCaptureError: (value: string) => set(value),
-    })) as unknown as Generator<never, ErrorState, unknown>;
+      })),
+    )) as unknown as CaptureState;
+    const captureError = (yield* craftPrivate(
+      state('captureError', '', ({ set }) => ({
+        setCaptureError: (value: string) => set(value),
+      })),
+    )) as unknown as ErrorState;
 
-    const setCopied: (value: boolean) => void = craftMethod(
-      'setCopied',
-      function* (value: boolean) {
+    const setCopied: (value: boolean) => void = yield* craftPrivate(
+      craftMethod('setCopied', function* (value: boolean) {
         yield* copied.setCopied(value);
-      },
+      }),
     );
-    const setCaptureInProgress: (value: boolean) => void = craftMethod(
-      'setCaptureInProgress',
-      function* (value: boolean) {
+    const setCaptureInProgress: (value: boolean) => void = yield* craftPrivate(
+      craftMethod('setCaptureInProgress', function* (value: boolean) {
         yield* captureInProgress.setCaptureInProgress(value);
-      },
+      }),
     );
-    const setCaptureError: (value: string) => void = craftMethod(
-      'setCaptureError',
-      function* (value: string) {
+    const setCaptureError: (value: string) => void = yield* craftPrivate(
+      craftMethod('setCaptureError', function* (value: string) {
         yield* captureError.setCaptureError(value);
-      },
+      }),
     );
 
     let copiedTimer: TemporalTaskHandle | null = null;
@@ -237,8 +234,7 @@ export const AiSendDialog: CraftComponent<{
     const readInstruction = (): string => craftUse(instruction());
     const readCopied = (): boolean => craftUse(copied());
     const readPromptOptions = (): PromptOptions => craftUse(promptOptions());
-    const readCaptureInProgress = (): boolean =>
-      craftUse(captureInProgress());
+    const readCaptureInProgress = (): boolean => craftUse(captureInProgress());
     const readCaptureError = (): string => craftUse(captureError());
 
     fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
@@ -306,32 +302,45 @@ export const AiSendDialog: CraftComponent<{
       }, 0);
     };
 
-    return {
+    yield* craftExpose('payload', payload);
+    yield* craftExpose('onClose', onClose);
+    yield* craftExpose('instruction', readInstruction);
+    yield* craftExpose('writeInstruction', instruction.setInstruction);
+    yield* craftExpose('copied', readCopied);
+    yield* craftExpose('options', readPromptOptions);
+    yield* craftExpose('writeOptions', promptOptions.setPromptOptions);
+    yield* craftExpose('captureInProgress', readCaptureInProgress);
+    yield* craftExpose('captureError', readCaptureError);
+    yield* craftExpose('copy', copy);
+  },
+);
+
+/**
+ * Modal that collects an instruction and copies the formatted prompt, with the
+ * captured component context and app snapshot, to the clipboard.
+ */
+export const AiSendDialog = craftComponent(
+  'AiSendDialog',
+  {
+    providers: [provideAiSendDialogState()],
+  },
+  function* (inputs: {
+    readonly payload: Input<AiDialogPayload>;
+    readonly onClose: Output<() => void>;
+  }) {
+    const {
       payload,
       onClose,
-      instruction: readInstruction,
-      writeInstruction: instruction.setInstruction,
-      copied: readCopied,
-      options: readPromptOptions,
-      writeOptions: promptOptions.setPromptOptions,
-      captureInProgress: readCaptureInProgress,
-      captureError: readCaptureError,
+      instruction,
+      writeInstruction,
+      copied,
+      options,
+      writeOptions,
+      captureInProgress,
+      captureError,
       copy,
-    };
-  },
-  ({
-    payload,
-    onClose,
-    instruction,
-    writeInstruction,
-    copied,
-    options,
-    writeOptions,
-    captureInProgress,
-    captureError,
-    copy,
-  }: AiDialogContext) =>
-    dialog(
+    } = yield* AiSendDialogState(inputs);
+    return dialog(
       {
         class: [aiTheme.root, aiDialog.overlay],
         open: true,
@@ -389,9 +398,8 @@ export const AiSendDialog: CraftComponent<{
                 *change(event) {
                   yield* writeOptions({
                     ...options(),
-                    includeClickedElement: (
-                      event.target as HTMLInputElement
-                    ).checked,
+                    includeClickedElement: (event.target as HTMLInputElement)
+                      .checked,
                   });
                 },
               }),
@@ -461,7 +469,9 @@ export const AiSendDialog: CraftComponent<{
               {
                 class: aiDialog.warning,
                 hidden: () =>
-                  !(options().includeDomStyles || options().includePageDomStyles),
+                  !(
+                    options().includeDomStyles || options().includePageDomStyles
+                  ),
               },
               'La capture DOM peut prendre quelques instants, bloquer l’interface et produire une payload volumineuse.',
             ),
@@ -523,8 +533,7 @@ export const AiSendDialog: CraftComponent<{
                 type: 'button',
                 class: aiDialog.copy,
                 'data-craftAiCopy': () => (copied() ? 'done' : null),
-                disabled: () =>
-                  !instruction().trim() || captureInProgress(),
+                disabled: () => !instruction().trim() || captureInProgress(),
                 click: copy,
               },
               () =>
@@ -537,6 +546,12 @@ export const AiSendDialog: CraftComponent<{
           ]),
         ],
       ),
-    ),
-
-);
+    );
+  },
+) as unknown as CraftComponent<
+  {
+    readonly payload: InputValue<AiDialogPayload>;
+    readonly onClose: () => void;
+  },
+  any
+>;

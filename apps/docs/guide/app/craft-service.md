@@ -17,6 +17,48 @@ check and the test registers read.
 import { craftService } from '@craft-ts/core';
 ```
 
+## What a service exposes
+
+A service never returns. Its factory is a generator, and **every named primitive
+it yields is exposed under its name** — the name is already the primitive's
+first argument, so it is not written twice:
+
+```typescript
+import { craftPrivate, craftService, query, state } from '@craft-ts/core';
+
+const { TodoStore } = craftService(
+  { name: 'TodoStore', providedIn: 'global' },
+  function* () {
+    // Internal: created and tracked, not part of the API.
+    const draft = yield* craftPrivate(state('draft', ''));
+
+    // Exposed as `todos`.
+    yield* query('todos', {
+      params: function* () {
+        return yield* draft();
+      },
+      loader: ({ params }) => TodoApi.search(params),
+    });
+  },
+);
+
+// const { todos } = yield* TodoStore();
+```
+
+- `craftPrivate(primitive)` keeps a primitive internal. It works on any
+  generator, a `craftGen` helper creating several primitives included.
+- `craftExpose(name, value)` exposes what is not a named primitive: a function,
+  a constant, a member of an injected service.
+- The services a factory injects (`yield* ApiService()`) are not exposed.
+- Two exposed primitives cannot share a name: the service throws when it is
+  created.
+
+A `return` is a type error, and an error at runtime. The
+`craft-ts/no-craft-service-return` lint rule reports it, and fixes the simple
+case.
+
+## Service inputs
+
 Service inputs that can change should be consumed as yieldable readers
 (`CraftServiceInput<T>`), the service counterpart of a component `Input<T>`.
 Yield them so the input-to-service edge stays in the dependency graph:
@@ -26,13 +68,14 @@ import { craftService, query, type CraftServiceInput } from '@craft-ts/core';
 
 const { UserQuery } = craftService(
   { name: 'UserQuery', providedIn: 'global' },
-  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
-    query('userQuery', {
+  function* (inputs: { userId: CraftServiceInput<string | undefined> }) {
+    yield* query('userQuery', {
       params: function* () {
         return yield* inputs.userId();
       },
       loader: ({ params }) => ApiService.getItemById(params),
-    }),
+    });
+  },
 );
 ```
 
@@ -73,59 +116,6 @@ Each scope and when to pick it: **[Service scopes](/guide/app/service-scopes)**.
 
 <<< @/tests/snippets/guide/app/craft-service/example-3.spec.ts#example-3
 
-## Returning one primitive directly
-
-When a service exposes only one primitive, the factory can return its generator
-directly. `craftService` drives it and the generated service helper returns the
-primitive reference:
-
-```typescript
-import { craftService, query, type CraftServiceInput } from '@craft-ts/core';
-
-const { UserQuery } = craftService(
-  { name: 'UserQuery', providedIn: 'global' },
-  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
-    query('userQuery', {
-      params: function* () {
-        return yield* inputs.userId();
-      },
-      loader: ({ params }) => ApiService.getItemById(params),
-    }),
-);
-```
-
-For several primitives, use `craftYieldRecord`. It resolves every generator in
-the record and preserves the record keys:
-
-```typescript
-import {
-  craftService,
-  craftYieldRecord,
-  query,
-  state,
-  type CraftServiceInput,
-} from '@craft-ts/core';
-
-const { UserQuery } = craftService(
-  { name: 'UserQueryWithState', providedIn: 'global' },
-  (inputs: { userId: CraftServiceInput<string | undefined> }) =>
-    craftYieldRecord({
-      userQuery: query('userQuery', {
-        params: function* () {
-          return yield* inputs.userId();
-        },
-        loader: ({ params }) => ApiService.getItemById(params),
-      }),
-      refresh: state('refresh', 0, ({ update }) => ({
-        increment: () => update((value) => value + 1),
-      })),
-    }),
-);
-```
-
-Inside a generator factory, the equivalent explicit form remains available:
-`const userQuery = yield* query(...)`.
-
 ## Scoping providers to the service
 
 Use `providers` in the service config when the service factory itself needs locally-scoped dependencies:
@@ -141,12 +131,10 @@ const { UserFacade } = craftService(
     const api = yield* UserApi();
     const logger = yield* UserLogger();
 
-    return {
-      rename: (user: { id: string; name: string }, name: string) => {
-        logger.log(`rename:${user.id}`);
-        return api.updateUser({ ...user, name });
-      },
-    };
+    yield* craftExpose('rename', (user: { id: string; name: string }, name: string) => {
+      logger.log(`rename:${user.id}`);
+      return api.updateUser({ ...user, name });
+    });
   },
 );
 ```
@@ -190,8 +178,13 @@ at compile time; the failure appears at runtime. The
 check from quietly disappearing — a `CanRun` alias that nobody references still
 compiles.
 
-**Returning the whole world.** What a service returns is its API. Return the
-narrow thing; consumers that need more can yield more.
+**Exposing the whole world.** What a service yields is its API. Keep what
+consumers do not need in `craftPrivate(...)`; consumers that need more can
+yield more.
+
+**Exposing a `craftMethod` to be yielded.** A `craftMethod` taken from a service
+runs when it is called. To hand consumers a generator they `yield*`, expose the
+`craftGen` itself: `yield* craftExpose('load', craftGen(function* () { … }))`.
 
 ## See Also
 

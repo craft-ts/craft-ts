@@ -14,13 +14,16 @@ function property(object, name) {
 }
 
 function staticString(node) {
-  if (node?.type === 'Literal' && typeof node.value === 'string') return node.value;
+  if (node?.type === 'Literal' && typeof node.value === 'string')
+    return node.value;
   if (node?.type === 'TemplateLiteral' && node.expressions.length === 0) {
     return node.quasis[0]?.value.cooked ?? '';
   }
   if (node?.type === 'ArrayExpression') {
     const values = node.elements.map(staticString);
-    return values.every((value) => typeof value === 'string') ? values.join('\n') : undefined;
+    return values.every((value) => typeof value === 'string')
+      ? values.join('\n')
+      : undefined;
   }
   return undefined;
 }
@@ -31,11 +34,15 @@ function resolveImportedCss(context, sourceCode, identifier) {
       entry.type === 'ImportDeclaration' &&
       entry.specifiers.some((specifier) => specifier.local.name === identifier),
   );
-  if (!declaration || typeof declaration.source.value !== 'string') return undefined;
+  if (!declaration || typeof declaration.source.value !== 'string')
+    return undefined;
   const filename = context.filename ?? context.getFilename();
   if (!filename || filename === '<input>') return undefined;
   try {
-    return fs.readFileSync(path.resolve(path.dirname(filename), declaration.source.value), 'utf8');
+    return fs.readFileSync(
+      path.resolve(path.dirname(filename), declaration.source.value),
+      'utf8',
+    );
   } catch {
     return undefined;
   }
@@ -47,7 +54,8 @@ function componentInfo(context, sourceCode, node) {
     node.callee.name !== 'craftComponent' ||
     node.arguments.length < 2 ||
     node.arguments[1].type !== 'ObjectExpression'
-  ) return undefined;
+  )
+    return undefined;
   const name = staticString(node.arguments[0]);
   if (!name) return undefined;
   const meta = node.arguments[1];
@@ -72,20 +80,37 @@ function componentInfo(context, sourceCode, node) {
   if (cssVars?.value.type === 'ObjectExpression') {
     for (const entry of cssVars.value.properties) {
       if (entry.type !== 'Property') continue;
-      const key = entry.key.type === 'Identifier' ? entry.key.name : entry.key.value;
+      const key =
+        entry.key.type === 'Identifier' ? entry.key.name : entry.key.value;
       if (typeof key === 'string') contract.add(key);
     }
   }
-  return { name, meta, styles, stylesUrl, cssVars, css, opaque, external, contract };
+  return {
+    name,
+    meta,
+    styles,
+    stylesUrl,
+    cssVars,
+    css,
+    opaque,
+    external,
+    contract,
+  };
 }
 
 function cssFacts(css = '') {
-  const used = new Set([...css.matchAll(/var\(\s*(--[\w-]+)/g)].map((match) => match[1]));
+  const used = new Set(
+    [...css.matchAll(/var\(\s*(--[\w-]+)/g)].map((match) => match[1]),
+  );
   const fallback = new Set(
     [...css.matchAll(/var\(\s*(--[\w-]+)\s*,/g)].map((match) => match[1]),
   );
-  const declared = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]));
-  const registered = new Set([...css.matchAll(/@property\s+(--[\w-]+)/g)].map((match) => match[1]));
+  const declared = new Set(
+    [...css.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]),
+  );
+  const registered = new Set(
+    [...css.matchAll(/@property\s+(--[\w-]+)/g)].map((match) => match[1]),
+  );
   registered.forEach((name) => declared.add(name));
   return { used, fallback, declared, registered };
 }
@@ -106,4 +131,3 @@ function prefixes(name) {
 }
 
 module.exports = { componentInfo, cssFacts, kebab, prefixes };
-

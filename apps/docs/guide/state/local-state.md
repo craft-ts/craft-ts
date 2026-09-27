@@ -12,15 +12,15 @@ async action ([`asyncProcess`](/guide/state/async-process)).
 ## The common case
 
 ```typescript
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed, state, craftUse } from '@craft-ts/core';
 
 const counter = yield* state('counter', 0, ({ state, update, set }) => ({
   increment: () => update((value) => value + 1),
   decrement: () => update((value) => value - 1),
   reset: () => set(0),
-  isEven: craftComputed(function* () {
+  isEven: craftUse(craftComputed('isEven', function* () {
     return (yield* state()) % 2 === 0;
-  }),
+  })),
 }));
 
 yield* counter(); // 0
@@ -51,9 +51,9 @@ const origin = yield* state('origin', 5);
 
 const doubled = yield* state(
   'doubled',
-  craftComputed('originDoubled', function* () {
+  craftUse(craftComputed('originDoubled', function* () {
     return (yield* origin()) * 2;
-  }),
+  })),
 );
 
 yield* doubled(); // 10
@@ -64,7 +64,7 @@ yield* doubled(); // 10
 One insertion function gets crowded. Split it and compose with `insertStatePipe`:
 
 ```typescript
-import { craftComputed, insertStatePipe, state } from '@craft-ts/core';
+import { craftComputed, insertStatePipe, state, craftUse } from '@craft-ts/core';
 
 const counter = yield* state(
   'counter',
@@ -75,9 +75,9 @@ const counter = yield* state(
       reset: () => set(0),
     }),
     ({ state }) => ({
-      isOdd: craftComputed(function* () {
+      isOdd: craftUse(craftComputed('isOdd', function* () {
         return (yield* state()) % 2 === 1;
-      }),
+      })),
     }),
   ),
 );

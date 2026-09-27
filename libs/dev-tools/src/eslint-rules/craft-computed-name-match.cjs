@@ -1,9 +1,11 @@
 const { createNameMatchRule } = require('./craft-name-match-utils.cjs');
 
+// craftComputed always takes its name (it is the key a craftService exposes
+// it under); computedEffect may still take it from an insertion result key.
 const namedRule = createNameMatchRule({
   calleeName: 'craftComputed',
   description:
-    'Require a matching craftComputed or computedEffect name outside insertion result objects; insertion keys provide the runtime name automatically.',
+    'Require a matching craftComputed name, and a matching computedEffect name outside insertion result objects (insertion keys provide its runtime name automatically).',
   supportsObjectConfigForm: false,
 });
 
@@ -22,12 +24,14 @@ module.exports = {
     return {
       ...listeners,
       CallExpression(node) {
-        if (isInsertionResultProperty(node)) return;
         if (node.callee.type !== 'Identifier') return;
         if (node.callee.name === 'craftComputed') {
           listeners.CallExpression?.(node);
         }
-        if (node.callee.name === 'computedEffect') {
+        if (
+          node.callee.name === 'computedEffect' &&
+          !isInsertionResultProperty(node)
+        ) {
           computedEffectListeners.CallExpression?.(node);
         }
       },

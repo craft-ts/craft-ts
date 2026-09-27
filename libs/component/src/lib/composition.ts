@@ -1,4 +1,7 @@
 import type { AnyCraftException, CraftServiceProvider } from '@craft-ts/core';
+import type { CraftNodeChildren } from './render/vnode';
+import { applyHostPropsToChildren } from './render/vnode';
+import type { HostProps } from './hyperscript';
 import { craftDirective } from './directive';
 import {
   COMPONENT_OPERATOR,
@@ -15,8 +18,7 @@ export function withProviders<
   const operator = craftDirective(
     'withProviders',
     {},
-    (baseLogic) => baseLogic,
-    (baseTemplate) => baseTemplate,
+    {},
     { providers },
   ) as unknown as ComponentOperator<Providers>;
 
@@ -94,8 +96,7 @@ function createCatchTagOperator<
   const operator = craftDirective(
     'catchTag.exhaustive',
     {},
-    (baseLogic) => baseLogic,
-    (baseTemplate) => baseTemplate,
+    {},
     {
       catchTagHandlers: handlers as unknown as Record<
         string,
@@ -113,4 +114,17 @@ function createCatchTagOperator<
   });
 
   return operator;
+}
+
+/**
+ * Puts host props on what a template rendered.
+ *
+ * A directive that decorates a component's host — a class, an attribute — has
+ * the children in hand, not the host element: this is how it reaches it.
+ */
+export function withHostProps<Children extends CraftNodeChildren>(
+  children: Children,
+  hostProps: HostProps,
+): Children {
+  return applyHostPropsToChildren(children, hostProps) as Children;
 }

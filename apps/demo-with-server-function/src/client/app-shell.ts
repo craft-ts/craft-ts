@@ -6,17 +6,24 @@ import {
   main,
   nav,
 } from '@craft-ts/component';
-import { CraftRouterLink } from '@craft-ts/core';
+import { craftService, CraftRouterLink } from '@craft-ts/core';
 import { demoNav } from './demo.style';
+
+export const { AppShellView, provideAppShellView } = craftService(
+  { name: 'appShellView', providedIn: 'toProvide' },
+  function* () {
+    // Nothing to expose.
+  },
+);
 
 const AppShell = craftComponent(
   'AppShell',
-  {},
-  function* () {
-    return {};
+  {
+    providers: [provideAppShellView()],
   },
-  () =>
-    div({ class: demoNav.root }, [
+  function* () {
+    yield* AppShellView();
+    return div({ class: demoNav.root }, [
       nav({ class: demoNav.bar }, [
         a(
           'navLinkPublicProducts',
@@ -43,7 +50,8 @@ const AppShell = craftComponent(
         ).pipe(CraftRouterLink({ to: 'effect-middleware' })),
       ]),
       main(CraftRouterOutlet()),
-    ]),
+    ]);
+  },
 );
 
 export { AppShell };

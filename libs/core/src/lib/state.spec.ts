@@ -28,10 +28,13 @@ import { craftSignal } from './host/craft-signal';
 import {
   setupCraftServiceTest,
 } from './setup-craft-service-test';
+import { craftExpose } from './craft-primitive-gen';
 
 const { StateSpecHost } = craftService(
   { name: 'StateSpecHost', providedIn: 'global' },
-  () => ({}),
+  function* () {
+    // Nothing to expose.
+  },
 );
 
 const runInInjectionContext = <T>(
@@ -225,15 +228,15 @@ describe('state', () => {
   it('typing: tracks generator dependencies from state config and insertions', async () => {
     const { CounterReader } = craftService(
       { name: 'CounterReader', providedIn: 'global' },
-      () => ({
-        read: (): number => 2,
-      }),
+      function* () {
+        yield* craftExpose('read', (): number => 2);
+      },
     );
     const { CounterStep } = craftService(
       { name: 'CounterStep', providedIn: 'global' },
-      () => ({
-        step: (): number => 3,
-      }),
+      function* () {
+        yield* craftExpose('step', (): number => 3);
+      },
     );
 
     runInInjectionContext(() => {
@@ -285,15 +288,15 @@ describe('state', () => {
   it('should resolve generator state config and generator insertions', async () => {
     const { CounterReaderRuntime } = craftService(
       { name: 'CounterReaderRuntime', providedIn: 'global' },
-      () => ({
-        read: (): number => 2,
-      }),
+      function* () {
+        yield* craftExpose('read', (): number => 2);
+      },
     );
     const { CounterStepRuntime } = craftService(
       { name: 'CounterStepRuntime', providedIn: 'global' },
-      () => ({
-        step: (): number => 3,
-      }),
+      function* () {
+        yield* craftExpose('step', (): number => 3);
+      },
     );
 
     runInInjectionContext(() => {
@@ -614,7 +617,9 @@ describe('state — $self config with providers', () => {
   it('typing: satisfied BrandedServiceProvider deps are removed from ExtractDeps', async () => {
     const { LocalCounter, provideLocalCounter } = craftService(
       { name: 'LocalCounter', providedIn: 'toProvide' },
-      () => ({ value: () => 1 }),
+      function* () {
+        yield* craftExpose('value', () => 1);
+      },
     );
 
     if (false) {

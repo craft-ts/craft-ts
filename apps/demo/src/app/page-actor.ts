@@ -63,7 +63,13 @@ export const DEFAULT_PAGE_STYLE_WHITELIST = [
   'position',
 ] as const;
 
-const INTERACTIVE_TAGS = new Set(['a', 'button', 'input', 'select', 'textarea']);
+const INTERACTIVE_TAGS = new Set([
+  'a',
+  'button',
+  'input',
+  'select',
+  'textarea',
+]);
 
 export function collectPageControls(root: ParentNode): readonly PageControl[] {
   const nodes = namedInteractiveNodes(root);
@@ -249,7 +255,11 @@ function roleOf(node: Element): string {
     if (node.type === 'radio') {
       return 'radio';
     }
-    if (node.type === 'submit' || node.type === 'button' || node.type === 'reset') {
+    if (
+      node.type === 'submit' ||
+      node.type === 'button' ||
+      node.type === 'reset'
+    ) {
       return 'button';
     }
     return 'textbox';
@@ -273,10 +283,16 @@ function accessibleName(node: Element): string {
   if (ariaLabel !== null && ariaLabel.trim().length > 0) {
     return ariaLabel.trim();
   }
-  if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement) {
+  if (
+    node instanceof HTMLInputElement ||
+    node instanceof HTMLTextAreaElement ||
+    node instanceof HTMLSelectElement
+  ) {
     const id = node.id;
     if (id.length > 0) {
-      const label = node.ownerDocument?.querySelector(`label[for="${cssEscape(id)}"]`);
+      const label = node.ownerDocument?.querySelector(
+        `label[for="${cssEscape(id)}"]`,
+      );
       const text = label?.textContent?.trim();
       if (text !== undefined && text.length > 0) {
         return text;
@@ -303,7 +319,10 @@ function valueOf(node: Element, role: string): unknown {
     }
     return node.value;
   }
-  if (node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement) {
+  if (
+    node instanceof HTMLTextAreaElement ||
+    node instanceof HTMLSelectElement
+  ) {
     return node.value;
   }
   return undefined;
@@ -313,7 +332,12 @@ function isEnabled(node: Element): boolean {
   if (node.hasAttribute('disabled')) {
     return false;
   }
-  if (node instanceof HTMLInputElement || node instanceof HTMLButtonElement || node instanceof HTMLSelectElement || node instanceof HTMLTextAreaElement) {
+  if (
+    node instanceof HTMLInputElement ||
+    node instanceof HTMLButtonElement ||
+    node instanceof HTMLSelectElement ||
+    node instanceof HTMLTextAreaElement
+  ) {
     if (node.disabled) {
       return false;
     }

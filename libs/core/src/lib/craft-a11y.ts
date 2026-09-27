@@ -1,4 +1,4 @@
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import type { Provider } from './host/craft-compat';
 import { TitleStrategy, type RouterStateSnapshot } from './host/craft-router-types';
 import { ɵapplyBrowserDocumentTitle } from './browser-boundaries';
@@ -8,11 +8,11 @@ import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
  * When true, {@link CraftRouterOutletController} moves keyboard focus to
  * `#main` / `<main>` after a completed navigation (not the initial load).
  */
-const craftA11yNavigationFocusService = craftService(
+const craftA11yNavigationFocusService = ɵcraftValueService(
   { name: 'CraftA11yNavigationFocus', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided?: boolean }) => inputs.$provided ?? false,
 ) as unknown as {
-  CraftA11yNavigationFocus: () => Generator<unknown, boolean, unknown>;
+  CraftA11yNavigationFocus: () => Generator<never, boolean, unknown>;
   provideCraftA11yNavigationFocus: (value: boolean) => Provider;
   CRAFT_A11Y_NAVIGATION_FOCUS_META_DATA: { inject(): boolean };
 };
@@ -46,11 +46,11 @@ export function withA11yNavigationFocus(): CraftLoadingFeature {
  */
 export type CraftTitleStrategy = TitleStrategy;
 
-const craftTitleStrategyService = craftService(
+const craftTitleStrategyService = ɵcraftValueService(
   { name: 'CraftTitleStrategy', providedIn: 'global' },
   () => createCraftTitleStrategy(),
 ) as unknown as {
-  CraftTitleStrategy: () => Generator<unknown, CraftTitleStrategy, unknown>;
+  CraftTitleStrategy: () => Generator<never, CraftTitleStrategy, unknown>;
   CRAFT_TITLE_STRATEGY_META_DATA: { inject(): CraftTitleStrategy };
 };
 

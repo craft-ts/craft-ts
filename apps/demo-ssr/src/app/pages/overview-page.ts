@@ -9,33 +9,37 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { CraftRouterLink } from '@craft-ts/core';
+import { craftService, CraftRouterLink, craftPrivate } from '@craft-ts/core';
 import { craftComputed, query, settled } from '@craft-ts/core';
 import { page } from './page-layout';
 import { Pipeline } from './pipeline';
 import { getPublicProducts } from '../../../../demo-with-server-function/src/products/public-products.fn-client';
 import { page as pageStyle } from '../ssr-lab.style';
 
-export const OverviewPage = craftComponent(
-  'SsrOverviewPage',
-  {},
+export const { SsrOverviewPageView, provideSsrOverviewPageView } = craftService(
+  { name: 'ssrOverviewPageView', providedIn: 'toProvide' },
   function* () {
-    const products = yield* query('serverFunctionProducts', {
+    const products = yield* craftPrivate(query('serverFunctionProducts', {
       params: () => true,
       loader: function* () {
         return yield* getPublicProducts({});
       },
-    });
-    const resolvedProducts = craftComputed(
-      'resolvedServerFunctionProducts',
+    }));
+    yield* craftComputed(
+      'resolvedProducts',
       function* () {
         return yield* settled(products);
       },
     );
-    return { resolvedProducts };
   },
-  ({ resolvedProducts }) =>
-    page(
+);
+
+export const OverviewPage = craftComponent(
+  'SsrOverviewPage',
+  { providers: [provideSsrOverviewPageView()] },
+  function* () {
+    const { resolvedProducts } = yield* SsrOverviewPageView();
+    return page(
       'Rendu côté serveur · démonstration',
       'Comprendre SSR par l’expérience',
       'Chaque page expose une décision différente : attendre la donnée, afficher un fallback, ou laisser le navigateur la charger après hydratation.',
@@ -87,5 +91,6 @@ export const OverviewPage = craftComponent(
           ]),
         ]),
       ]),
-    ),
+    );
+  },
 );

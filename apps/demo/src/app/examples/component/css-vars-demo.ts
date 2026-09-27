@@ -40,32 +40,28 @@ const CASES = [
   description: string;
 }[];
 
-export const CssVarsDemo = craftComponent(
-  'CssVarsDemo',
-  {},
-  () => ({}),
-  () =>
-    div({ class: cssVarsDemo.page }, [
-      CssVarsPageNav(),
-      div({ class: cssVarsDemo.intro }, [
-        heading('Typed CSS variables'),
-        p(
-          { class: cssVarsDemo.muted },
-          'Variables are declared with cssVars from @craft-ts/style: each one has a kind, a typed initial value, and is registered with @property. A sheet sets them with set(), a template with assign().',
-        ),
-      ]),
-      headingSection(
-        section(
-          { class: cssVarsDemo.grid, 'aria-label': 'Examples' },
-          CASES.map(({ path, title, description }) =>
-            a('cardLink', { class: cssVarsDemo.caseCard }, [
-              heading(title),
-              p({ class: cssVarsDemo.muted }, description),
-            ]).pipe(CraftRouterLink({ to: path })),
-          ),
-        ),
+export const CssVarsDemo = craftComponent('CssVarsDemo', {}, () =>
+  div({ class: cssVarsDemo.page }, [
+    CssVarsPageNav(),
+    div({ class: cssVarsDemo.intro }, [
+      heading('Typed CSS variables'),
+      p(
+        { class: cssVarsDemo.muted },
+        'Variables are declared with cssVars from @craft-ts/style: each one has a kind, a typed initial value, and is registered with @property. A sheet sets them with set(), a template with assign().',
       ),
     ]),
+    headingSection(
+      section(
+        { class: cssVarsDemo.grid, 'aria-label': 'Examples' },
+        CASES.map(({ path, title, description }) =>
+          a('cardLink', { class: cssVarsDemo.caseCard }, [
+            heading(title),
+            p({ class: cssVarsDemo.muted }, description),
+          ]).pipe(CraftRouterLink({ to: path })),
+        ),
+      ),
+    ),
+  ]),
 );
 
 export default CssVarsDemo;

@@ -28,6 +28,8 @@ import {
   query,
   state,
   type ValidatedFormValue,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { example } from '../../shared/example.style';
@@ -42,19 +44,19 @@ const INITIAL_TODOS = [
 export const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', providedIn: 'toProvide' },
   function* () {
-    const nextId = yield* state('nextId', 3, ({ state, update }) => ({
+    const nextId = yield* craftPrivate(state('nextId', 3, ({ state, update }) => ({
       take: function* () {
         const _state = yield* state();
         const id = _state;
         yield* update((value) => value + 1);
         return id;
       },
-    }));
-    const records = yield* state('records', INITIAL_TODOS, ({ update }) => ({
+    })));
+    const records = yield* craftPrivate(state('records', INITIAL_TODOS, ({ update }) => ({
       add: (todo: Todo) => update((current) => [...current, todo]),
       remove: (id: number) =>
         update((current) => current.filter((todo) => todo.id !== id)),
-    }));
+    })));
     const add = yield* mutation('add', {
       method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
@@ -70,7 +72,7 @@ export const { provideTodoStore, TodoStore } = craftService(
         return id;
       },
     });
-    const todos = yield* query(
+    yield* query(
       'todos',
       {
         // The list is loaded once. Mutations update its value through the
@@ -108,18 +110,14 @@ export const { provideTodoStore, TodoStore } = craftService(
         }),
       ),
     );
-    return { todos, add, remove };
   },
 );
 
-const FullDemoCraft = craftComponent(
-  'FullDemoCraft',
-  {
-    providers: [provideTodoStore()],
-  },
+export const { FullDemoCraftView, provideFullDemoCraftView } = craftService(
+  { name: 'fullDemoCraftView', providedIn: 'toProvide' },
   function* () {
     const store = yield* TodoStore();
-    const titleForm = yield* state(
+    yield* state(
       'titleForm',
       '',
       insertForm(
@@ -127,9 +125,18 @@ const FullDemoCraft = craftComponent(
         insertFormSubmit(store.add),
       ),
     );
-    return { store, titleForm };
+    yield* craftExpose('store', store);
   },
-  ({ store, titleForm }) => {
+);
+
+const FullDemoCraft = craftComponent(
+  'FullDemoCraft',
+  {
+    providers: [provideFullDemoCraftView(), provideTodoStore()],
+  },
+  function* () {
+    const { store, titleForm } = yield* FullDemoCraftView();
+
     return div({ class: example.page }, [
       heading({ class: example.title }, [
         'Full craftService demo ',

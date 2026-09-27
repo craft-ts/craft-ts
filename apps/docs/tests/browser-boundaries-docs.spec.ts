@@ -322,7 +322,7 @@ describe('craftMethod doc page', () => {
 
   it('documents Browser Boundaries and crafted service composition examples', () => {
     expect(content).toContain(
-      "readonly increment = craftMethod('increment', this, function* (step = 1) {",
+      "readonly increment = craftUse(craftMethod('increment', this, function* (step = 1) {",
     );
     expect(content).toContain("yield* Console.log('increment is called');");
     expect(content).toContain('function* (this: Counter, step = 1) {');

@@ -1,4 +1,4 @@
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import type {
   CraftCompiledRoute,
   CraftHistory as RuntimeCraftHistory,
@@ -65,7 +65,7 @@ export type CraftRouterNavigationApi = {
   getCurrentNavigation(): CraftNavigation | null;
 };
 
-const craftHistoryService = craftService(
+const craftHistoryService = ɵcraftValueService(
   { name: 'CraftHistory', providedIn: 'toProvide' },
   function* (inputs: { $provided?: CraftHistory | (() => CraftHistory) }) {
     const provided = inputs.$provided
@@ -78,12 +78,12 @@ const craftHistoryService = craftService(
     return platform.history;
   },
 ) as unknown as {
-  CraftHistory: () => Generator<unknown, CraftHistory, unknown>;
+  CraftHistory: () => Generator<never, CraftHistory, unknown>;
   provideCraftHistory: (value: CraftHistory | (() => CraftHistory)) => unknown;
   CRAFT_HISTORY_META_DATA: { inject(): CraftHistory };
 };
 
-const craftCompiledRoutesService = craftService(
+const craftCompiledRoutesService = ɵcraftValueService(
   { name: 'CraftCompiledRoutes', providedIn: 'toProvide' },
   (inputs: { $provided: readonly CraftCompiledRoute[] }) => inputs.$provided,
 ) as unknown as {
@@ -98,7 +98,7 @@ const craftCompiledRoutesService = craftService(
   };
 };
 
-const craftLocationService = craftService(
+const craftLocationService = ɵcraftValueService(
   { name: 'CraftLocation', providedIn: 'toProvide' },
   function* (inputs: {
     $provided?:
@@ -131,7 +131,7 @@ const craftLocationService = craftService(
   };
 };
 
-const craftMatchService = craftService(
+const craftMatchService = ɵcraftValueService(
   { name: 'CraftMatch', providedIn: 'toProvide' },
   function* (inputs: {
     $provided?: CraftSignal<CraftMatch | null> | (() => CraftSignal<CraftMatch | null>);
@@ -173,7 +173,7 @@ const craftMatchService = craftService(
     return match;
   },
 ) as unknown as {
-  CraftMatch: () => Generator<unknown, CraftSignal<CraftMatch | null>, unknown>;
+  CraftMatch: () => Generator<never, CraftSignal<CraftMatch | null>, unknown>;
   provideCraftMatch: (
     value: CraftSignal<CraftMatch | null> | (() => CraftSignal<CraftMatch | null>),
   ) => unknown;
@@ -182,20 +182,20 @@ const craftMatchService = craftService(
   };
 };
 
-const craftChildMatchService = craftService(
+const craftChildMatchService = ɵcraftValueService(
   { name: 'CraftChildMatch', providedIn: 'toProvide' },
   function* (inputs: { $provided: CraftSignal<CraftMatch | null> }) {
     return inputs.$provided;
   },
 ) as unknown as {
-  CraftChildMatch: () => Generator<unknown, CraftSignal<CraftMatch | null>, unknown>;
+  CraftChildMatch: () => Generator<never, CraftSignal<CraftMatch | null>, unknown>;
   provideCraftChildMatch: (value: CraftSignal<CraftMatch | null>) => unknown;
   CRAFT_CHILD_MATCH_META_DATA: {
     inject(): CraftSignal<CraftMatch | null>;
   };
 };
 
-const craftRouterRuntimeService = craftService(
+const craftRouterRuntimeService = ɵcraftValueService(
   { name: 'CraftRouterRuntime', providedIn: 'toProvide' },
   function* (inputs: { $provided: CraftRouterNavigationApi | (() => CraftRouterNavigationApi) }) {
     return typeof inputs.$provided === 'function'
@@ -203,7 +203,7 @@ const craftRouterRuntimeService = craftService(
       : inputs.$provided;
   },
 ) as unknown as {
-  CraftRouterRuntime: () => Generator<unknown, CraftRouterNavigationApi, unknown>;
+  CraftRouterRuntime: () => Generator<never, CraftRouterNavigationApi, unknown>;
   provideCraftRouterRuntime: (
     value: CraftRouterNavigationApi | (() => CraftRouterNavigationApi),
   ) => unknown;

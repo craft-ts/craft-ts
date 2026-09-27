@@ -18,8 +18,6 @@ export const { StartupFlag } = craftService(
       console.log('app started');
       return Promise.resolve();
     });
-
-    return true;
   },
 );
 // #endregion startupflag

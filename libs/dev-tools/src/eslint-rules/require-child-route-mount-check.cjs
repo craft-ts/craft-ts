@@ -95,7 +95,9 @@ module.exports = {
         }
 
         if (!isAssertImported(craftImport)) {
-          fixes.push((fixer) => addAssertImport(fixer, sourceCode, craftImport));
+          fixes.push((fixer) =>
+            addAssertImport(fixer, sourceCode, craftImport),
+          );
         }
 
         context.report({
@@ -118,7 +120,10 @@ function hasLazyLoadChildren(element) {
     return false;
   }
   const loadChildren = findProperty(element, 'loadChildren');
-  return Boolean(loadChildren) && loadChildren.value.type === 'ArrowFunctionExpression';
+  return (
+    Boolean(loadChildren) &&
+    loadChildren.value.type === 'ArrowFunctionExpression'
+  );
 }
 
 function findProperty(objectExpression, name) {
@@ -145,7 +150,8 @@ function resolveBindingName(call, collectionName) {
     return undefined;
   }
   const properties = declarator.id.properties.filter(
-    (property) => property.type === 'Property' && property.key.type === 'Identifier',
+    (property) =>
+      property.type === 'Property' && property.key.type === 'Identifier',
   );
 
   const expected = `${collectionName}Routes`;
@@ -157,7 +163,8 @@ function resolveBindingName(call, collectionName) {
   const endingInRoutes = properties.filter((property) =>
     property.key.name.endsWith('Routes'),
   );
-  return endingInRoutes.length === 1 && endingInRoutes[0].value.type === 'Identifier'
+  return endingInRoutes.length === 1 &&
+    endingInRoutes[0].value.type === 'Identifier'
     ? endingInRoutes[0].value.name
     : undefined;
 }

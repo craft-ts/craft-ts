@@ -15,8 +15,7 @@ import { card, meter, meterVars, panel } from './card.style';
 const Card = craftComponent(
   'Card',
   {},
-  (progress: Input<number>) => ({ progress }),
-  ({ progress }) =>
+  ({ progress }: { readonly progress: Input<number> }) =>
     article({ class: card.root }, [
       'Card',
       div({
@@ -28,21 +27,16 @@ const Card = craftComponent(
     ]),
 );
 
-const Page = craftComponent(
-  'Page',
-  {},
-  function* () {
-    const alertProgress = yield* state('alertProgress', 20);
-    const panelProgress = yield* state('panelProgress', 80);
-    return { alertProgress, panelProgress };
-  },
-  ({ alertProgress, panelProgress }) => [
+const Page = craftComponent('Page', {}, function* () {
+  const alertProgress = yield* state('alertProgress', 20);
+  const panelProgress = yield* state('panelProgress', 80);
+  return [
     // Per instance: a variant sets the variables it changes.
     Card({ progress: alertProgress, 'data-cardLook': 'alert' }),
     // Forwarded: the panel's variable becomes the card's ink.
     div({ class: panel.root }, [Card({ progress: panelProgress })]),
-  ],
-);
+  ];
+});
 // #endregion card
 
 describe('guide/components/css-variables.md #card', () => {

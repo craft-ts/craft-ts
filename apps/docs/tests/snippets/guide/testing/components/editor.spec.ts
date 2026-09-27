@@ -11,7 +11,6 @@ import { setupCraftComponentTemplateTest } from '@craft-ts/component/testing';
 const Editor = craftComponent(
   'Editor',
   {},
-  () => ({}),
   () =>
     div([
       button(
@@ -24,7 +23,7 @@ const Editor = craftComponent(
 
 it('finds the save button', async () => {
   const test = await setupCraftComponentTemplateTest.byRegister(Editor, {
-    context: {},
+    inputs: {},
     register: {},
   });
 

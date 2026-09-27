@@ -19,6 +19,7 @@ import {
   flushCraftTest,
   setupCraftServiceTest,
 } from '../setup-craft-service-test';
+import { craftExpose } from '../craft-primitive-gen';
 
 
 const runInInjectionContext = <T>(fn: () => T): T => {
@@ -526,9 +527,10 @@ describe('insertSelectFormTree with generator insertions', () => {
   it('should resolve generator insertion on object form tree', async () => {
     const { ObjFormLogger } = craftService(
       { name: 'ObjFormLogger', providedIn: 'global' },
-      () => {
+      function* () {
         const calls: string[] = [];
-        return { log: (msg: string) => calls.push(msg), calls };
+        yield* craftExpose('log', (msg: string) => calls.push(msg));
+        yield* craftExpose('calls', calls);
       },
     );
 
@@ -565,9 +567,10 @@ describe('insertSelectFormTree with generator insertions', () => {
   it('should resolve generator insertion on array form tree items', async () => {
     const { ArrFormLogger } = craftService(
       { name: 'ArrFormLogger', providedIn: 'global' },
-      () => {
+      function* () {
         const calls: string[] = [];
-        return { log: (msg: string) => calls.push(msg), calls };
+        yield* craftExpose('log', (msg: string) => calls.push(msg));
+        yield* craftExpose('calls', calls);
       },
     );
 

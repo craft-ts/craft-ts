@@ -16,19 +16,21 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, query, state } from '@craft-ts/core';
+import { craftService, craftComputed, query, state, craftUse, craftExpose } from '@craft-ts/core';
 import { getEffectMiddlewareUsers } from '../users/effect-middleware-list.fn-client';
 import { demoPage } from './demo.style';
 
-const EffectServerMiddlewareDemo = craftComponent(
-  'EffectServerMiddlewareDemo',
-  {},
+export const {
+  EffectServerMiddlewareDemoView,
+  provideEffectServerMiddlewareDemoView,
+} = craftService(
+  { name: 'effectServerMiddlewareDemoView', providedIn: 'toProvide' },
   function* () {
-    const filter = yield* state('effectMiddlewareFilter', '', ({ set }) => ({
+    const filter = yield* state('filter', '', ({ set }) => ({
       setEffectMiddlewareFilter: (value: string) => set(value),
     }));
     const usersQuery = yield* query(
-      'effectMiddlewareUsersQuery',
+      'usersQuery',
       {
         method: (request: {
           readonly filter: string;
@@ -39,18 +41,18 @@ const EffectServerMiddlewareDemo = craftComponent(
         },
       },
       ({ exceptions }) => ({
-        serverError: craftComputed('effectMiddlewareServerError', function* () {
+        serverError: craftUse(craftComputed('effectMiddlewareServerError', function* () {
           return (yield* exceptions()).loader;
-        }),
+        })),
       }),
     );
     yield* usersQuery.call({ filter: '', simulateError: 'none' });
-    const hasUsers = craftComputed('effectMiddlewareHasUsers', () =>
+    const hasUsers = yield* craftComputed('hasUsers', () =>
       usersQuery.hasValue(),
     );
-    const serverErrorText = craftComputed(
+    yield* craftComputed(
       // todo interdire ? JSON.stringify ? et pourquoi aps eereur eslint remonté ici ?
-      'effectMiddlewareServerErrorText',
+      'serverErrorText',
       function* () {
         const error = yield* usersQuery.serverError();
         if (!error || typeof error !== 'object') return '';
@@ -59,10 +61,10 @@ const EffectServerMiddlewareDemo = craftComponent(
         return `${String(tag)} · ${JSON.stringify(payload)}`;
       },
     );
-    const hasServerError = craftComputed('effectMiddlewareHasServerError', () =>
+    const hasServerError = yield* craftComputed('hasServerError', () =>
       Boolean(usersQuery.serverError()),
     );
-    const isEmpty = craftComputed('effectMiddlewareIsEmpty', function* () {
+    yield* craftComputed('isEmpty', function* () {
       return (
         !usersQuery.isLoading &&
         !(yield* hasUsers()) &&
@@ -79,9 +81,21 @@ const EffectServerMiddlewareDemo = craftComponent(
       event?.preventDefault();
       yield* runScenario('none');
     }
-    return {
+    yield* craftExpose('setFilter', filter.setEffectMiddlewareFilter);
+    yield* craftExpose('runScenario', runScenario);
+    yield* craftExpose('submit', submit);
+  },
+);
+
+const EffectServerMiddlewareDemo = craftComponent(
+  'EffectServerMiddlewareDemo',
+  {
+    providers: [provideEffectServerMiddlewareDemoView()],
+  },
+  function* () {
+    const {
       filter,
-      setFilter: filter.setEffectMiddlewareFilter,
+      setFilter,
       usersQuery,
       hasUsers,
       hasServerError,
@@ -89,20 +103,8 @@ const EffectServerMiddlewareDemo = craftComponent(
       isEmpty,
       runScenario,
       submit,
-    };
-  },
-  ({
-    filter,
-    setFilter,
-    usersQuery,
-    hasUsers,
-    hasServerError,
-    serverErrorText,
-    isEmpty,
-    runScenario,
-    submit,
-  }) =>
-    main({ class: demoPage.shell }, [
+    } = yield* EffectServerMiddlewareDemoView();
+    return main({ class: demoPage.shell }, [
       div({ class: demoPage.eyebrow }, 'runnable playground · Effect adapter'),
       heading(
         { class: demoPage.title },
@@ -234,7 +236,8 @@ const EffectServerMiddlewareDemo = craftComponent(
           ),
         ]),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export { EffectServerMiddlewareDemo };

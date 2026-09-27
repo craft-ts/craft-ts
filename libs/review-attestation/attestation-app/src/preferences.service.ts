@@ -34,24 +34,22 @@ export const { ReviewPreferences } = craftService(
 
     // Take the raw select value and no-op on anything unexpected, so the
     // template's change handler stays a single yield with no local guard.
-    const chooseLocale = craftMethod('chooseLocale', function* (value: string) {
+    yield* craftMethod('chooseLocale', function* (value: string) {
       if (!isLocale(value)) return;
       yield* locale.choose(value);
       storeLocale(value);
       applyLocale(value, reviewDocument.documentElement);
     });
-    const chooseTheme = craftMethod('chooseTheme', function* (value: string) {
+    yield* craftMethod('chooseTheme', function* (value: string) {
       if (!isThemeChoice(value)) return;
       yield* theme.choose(value);
       storeTheme(value);
       applyTheme(value, reviewDocument.documentElement);
     });
-    const chooseIde = craftMethod('chooseIde', function* (value: string) {
+    yield* craftMethod('chooseIde', function* (value: string) {
       if (!isIde(value)) return;
       yield* ide.choose(value);
       storeIde(value);
     });
-
-    return { locale, theme, ide, chooseLocale, chooseTheme, chooseIde };
   },
 );

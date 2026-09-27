@@ -39,7 +39,7 @@ describe('debug session replay format', () => {
       startUrl: 'http://localhost/', exportedAt: 2_000, truncated: false,
       clips: [],
       events: [1_000, 2_000].map((timestamp, index) => ({
-        id: `e${index}`, sequence: index + 1, timestamp, kind: 'dom', phase: 'emitted',
+        id: `e${index}`, sequence: index + 1, timestamp, kind: 'dom' as const, phase: 'emitted' as const,
         payload: { selector: '#replay-target', action: 'click' },
       })),
     };

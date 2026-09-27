@@ -9,7 +9,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, settled } from '@craft-ts/core';
+import { craftService, craftComputed, settled, craftUse, craftExpose } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
 import { Database } from './effect-database';
@@ -24,33 +24,37 @@ export const getData = Effect.gen(function* () {
   return yield* db.query('SELECT id, value FROM demo_data');
 });
 
-const EffectFunctionComponent = craftComponent(
-  'EffectFunctionComponent',
-  {},
+export const { EffectFunctionView, provideEffectFunctionView } = craftService(
+  { name: 'effectFunctionView', providedIn: 'toProvide' },
   function* () {
     const dataQuery = yield* queryEffect(
-      'effectFunctionQuery',
+      'dataQuery',
       {
         params: () => true, // initial load
         loader: () => getData,
       },
       ({ resource }) => ({
-        hasData: craftComputed('hasData', () => resource.hasValue()),
-        summary: craftComputed('summary', function* () {
+        hasData: craftUse(craftComputed('hasData', () => resource.hasValue())),
+        summary: craftUse(craftComputed('summary', function* () {
           const rows = yield* settled(resource);
           return rows.map(({ id, value }) => `${id}: ${value}`).join(', ');
-        }),
+        })),
       }),
     );
 
-    return {
-      dataQuery,
-      hasData: dataQuery.hasData,
-      summary: dataQuery.summary,
-    };
+    yield* craftExpose('hasData', dataQuery.hasData);
+    yield* craftExpose('summary', dataQuery.summary);
   },
-  ({ dataQuery, hasData, summary }) =>
-    div({ class: example.card, 'data-exampleTint': 'violet' }, [
+);
+
+const EffectFunctionComponent = craftComponent(
+  'EffectFunctionComponent',
+  {
+    providers: [provideEffectFunctionView()],
+  },
+  function* () {
+    const { dataQuery, hasData, summary } = yield* EffectFunctionView();
+    return div({ class: example.card, 'data-exampleTint': 'violet' }, [
       heading(
         { class: example.title },
         'Use an Effect function with injected Database',
@@ -102,7 +106,8 @@ const EffectFunctionComponent = craftComponent(
         span({ class: example.mono }, 'pendingNode'),
         ' has shown the connection state.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectFunctionComponent;

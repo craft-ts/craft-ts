@@ -1,9 +1,12 @@
 import { craftService } from './craft-service';
 import type { Equal, Expect } from 'test-type';
+import { craftExpose } from './craft-primitive-gen';
 
 const todoStore = craftService(
   { name: 'TodoStore', providedIn: 'toProvide' },
-  () => ({ todos: [] as string[] }),
+  function* () {
+    yield* craftExpose('todos', [] as string[]);
+  },
 );
 
 type _NoGeneratedInjectHelper = Expect<

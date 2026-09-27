@@ -389,7 +389,14 @@ export type YieldableReactiveProperties<Shape> = Shape extends SourceBranded
         ? Shape
         : Shape extends object
           ? {
-              [Key in keyof Shape]: Shape[Key] extends SourceBranded
+              // A deep reader is already the member's final shape: re-branding
+              // it as a plain reactive signal would drop the deep item readers
+              // a `forNode` over it relies on.
+              [Key in keyof Shape]: Shape[Key] extends {
+                readonly [DEEP_YIELDABLE]: true;
+              }
+                ? Shape[Key]
+                : Shape[Key] extends SourceBranded
                 ? Shape[Key] extends Signal<any>
                   ? YieldableReactiveSignal<
                       Shape[Key],

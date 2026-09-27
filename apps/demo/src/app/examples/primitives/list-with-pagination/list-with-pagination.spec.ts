@@ -1,19 +1,27 @@
 // @vitest-environment jsdom
 import {
-  ComponentLogicOutputOf,
   ComponentTemplateOf,
   TemplateRendersNamedElementWhen,
-  setupCraftComponentLogicTest,
   setupCraftComponentTemplateTest,
 } from '@craft-ts/component';
 import type { ExtractDeps, GetServiceDependencies } from '@craft-ts/core';
-import { craftUse, markYieldableMethod, markYieldableValue, provideCraftRouter as provideRouter } from '@craft-ts/core';
+import {
+  setupCraftServiceTestingByRegister,
+  craftUse,
+  markYieldableMethod,
+  markYieldableValue,
+  provideCraftRouter as provideRouter,
+  type GetServiceOutput,
+} from '@craft-ts/core';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
-import ListWithPagination from './list-with-pagination';
+import ListWithPagination, {
+  ListWithPaginationView,
+  provideListWithPaginationView,
+} from './list-with-pagination';
 import { ApiService, type User } from './api.service';
 
-type ListLogic = ComponentLogicOutputOf<typeof ListWithPagination>;
+type ListLogic = GetServiceOutput<typeof ListWithPaginationView>;
 type ListTemplate = ComponentTemplateOf<typeof ListWithPagination>;
 
 type _UsersQueryDependsOnApiService = Expect<
@@ -137,22 +145,28 @@ function createTemplateContext(users: User[]) {
     paginationState.pageSize = pageSize;
     paginationState.page = 1;
   });
-  const pagination = markYieldableValue(Object.assign(
-    vi.fn(function* () {
-      return { ...paginationState };
-    }),
-    {
-      previousPage: markYieldableMethod(function* () {
-        previousPage();
+  const pagination = markYieldableValue(
+    Object.assign(
+      vi.fn(function* () {
+        return { ...paginationState };
       }),
-      nextPage: markYieldableMethod(function* () {
-        nextPage();
-      }),
-      updatePageSize: markYieldableMethod(updatePageSize),
-    },
-  ), 'pagination');
+      {
+        previousPage: markYieldableMethod(function* () {
+          previousPage();
+        }),
+        nextPage: markYieldableMethod(function* () {
+          nextPage();
+        }),
+        updatePageSize: markYieldableMethod(updatePageSize),
+      },
+    ),
+    'pagination',
+  );
   const usersQuery = {
-    currentPageData: markYieldableValue(vi.fn(() => users), 'currentPageData'),
+    currentPageData: markYieldableValue(
+      vi.fn(() => users),
+      'currentPageData',
+    ),
     currentPageStatus: markYieldableValue(
       vi.fn(() => 'resolved' as const),
       'currentPageStatus',
@@ -188,7 +202,15 @@ describe('primitive list with pagination template', () => {
     ]);
     const template = await setupCraftComponentTemplateTest.byRegister(
       ListWithPagination,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          listWithPaginationView: result.context,
+        },
+      },
     );
 
     try {
@@ -210,7 +232,15 @@ describe('primitive list with pagination template', () => {
     const result = createTemplateContext([{ id: '1', name: 'Romain' }]);
     const template = await setupCraftComponentTemplateTest.byRegister(
       ListWithPagination,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          listWithPaginationView: result.context,
+        },
+      },
     );
 
     try {
@@ -232,7 +262,15 @@ describe('primitive list with pagination template', () => {
     const result = createTemplateContext([{ id: '1', name: 'Romain' }]);
     const template = await setupCraftComponentTemplateTest.byRegister(
       ListWithPagination,
-      { context: result.context, register: {} },
+      {
+        inputs: {},
+        register: {
+          ApiService: 'notReached',
+          StoragePersister: 'notReached',
+          statusView: 'notReached',
+          listWithPaginationView: result.context,
+        },
+      },
     );
 
     try {
@@ -274,15 +312,14 @@ describe('primitive list with pagination logic', () => {
       return users.slice((page - 1) * pageSize, page * pageSize);
     });
     const storage = createStorageMock();
-    const result = await setupCraftComponentLogicTest.byRegister(
-      ListWithPagination,
+    const result = await setupCraftServiceTestingByRegister(
+      ListWithPaginationView,
       {
-        register: {
-          ApiService: { getDataList },
-          StoragePersister: storage,
-        },
-        providers: [provideRouter([])],
-      },
+        listWithPaginationView: provideListWithPaginationView(),
+        ApiService: { getDataList },
+        StoragePersister: storage,
+      } as never,
+      { providers: [provideRouter([])] } as never,
     );
 
     await vi.waitFor(() =>
@@ -293,14 +330,14 @@ describe('primitive list with pagination logic', () => {
   }
 
   it('loads the first page through ApiService.getDataList', async () => {
-    const { context, getDataList, destroy } = await setupLogic();
+    const { sut, getDataList, injector } = await setupLogic();
 
     try {
-      expect(craftUse(context.pagination())).toEqual({
+      expect(craftUse(sut.pagination())).toEqual({
         page: 1,
         pageSize: 4,
       });
-      expect(craftUse(context.usersQuery.currentPageData())).toEqual([
+      expect(craftUse(sut.usersQuery.currentPageData())).toEqual([
         { id: '1', name: 'Romain' },
         { id: '2', name: 'Geffrault' },
         { id: '3', name: 'Rom1' },
@@ -308,38 +345,38 @@ describe('primitive list with pagination logic', () => {
       ]);
       expect(getDataList).toHaveBeenCalledTimes(1);
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 
   it('reloads the query with the right params when pagination changes', async () => {
-    const { context, getDataList, destroy } = await setupLogic();
+    const { sut, getDataList, injector } = await setupLogic();
 
     try {
-      context.pagination.nextPage();
+      sut.pagination.nextPage();
       await vi.waitFor(() =>
         expect(getDataList).toHaveBeenCalledWith({ page: 2, pageSize: 4 }),
       );
-      expect(craftUse(context.pagination())).toEqual({
+      expect(craftUse(sut.pagination())).toEqual({
         page: 2,
         pageSize: 4,
       });
       await vi.waitFor(() =>
-        expect(craftUse(context.usersQuery.currentPageData())).toEqual([
+        expect(craftUse(sut.usersQuery.currentPageData())).toEqual([
           { id: '5', name: 'Toto' },
           { id: '6', name: 'Julien' },
         ]),
       );
 
-      context.pagination.previousPage();
+      sut.pagination.previousPage();
       await vi.waitFor(() =>
-        expect(craftUse(context.pagination())).toEqual({
+        expect(craftUse(sut.pagination())).toEqual({
           page: 1,
           pageSize: 4,
         }),
       );
       await vi.waitFor(() =>
-        expect(craftUse(context.usersQuery.currentPageData())).toEqual([
+        expect(craftUse(sut.usersQuery.currentPageData())).toEqual([
           { id: '1', name: 'Romain' },
           { id: '2', name: 'Geffrault' },
           { id: '3', name: 'Rom1' },
@@ -347,22 +384,22 @@ describe('primitive list with pagination logic', () => {
         ]),
       );
 
-      context.pagination.updatePageSize(2);
+      sut.pagination.updatePageSize(2);
       await vi.waitFor(() =>
         expect(getDataList).toHaveBeenCalledWith({ page: 1, pageSize: 2 }),
       );
-      expect(craftUse(context.pagination())).toEqual({
+      expect(craftUse(sut.pagination())).toEqual({
         page: 1,
         pageSize: 2,
       });
       await vi.waitFor(() =>
-        expect(craftUse(context.usersQuery.currentPageData())).toEqual([
+        expect(craftUse(sut.usersQuery.currentPageData())).toEqual([
           { id: '1', name: 'Romain' },
           { id: '2', name: 'Geffrault' },
         ]),
       );
     } finally {
-      destroy();
+      injector.destroy();
     }
   });
 });

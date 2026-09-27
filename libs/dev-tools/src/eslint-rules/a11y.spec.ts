@@ -366,7 +366,7 @@ describe('craft-ts a11y', () => {
               { path: 'x', loadComponent: () => import('./page').then((m) => m.Page) },
             ]);
           `,
-          'page.ts': `export const Page = craftComponent('Page', {}, () => ({}), () => div('page'));`,
+          'page.ts': `export const Page = craftComponent('Page', {}, () => div('page'));`,
         },
         'require-route-heading-outline',
       );
@@ -381,7 +381,7 @@ describe('craft-ts a11y', () => {
               { path: 'x', ...loadCraftComponent(() => import('./page').then((m) => m.Page)) },
             ]);
           `,
-          'page.ts': `export const Page = craftComponent('Page', {}, () => ({}), () => heading('Page'));`,
+          'page.ts': `export const Page = craftComponent('Page', {}, () => heading('Page'));`,
         },
         'require-route-heading-outline',
       );
@@ -396,7 +396,7 @@ describe('craft-ts a11y', () => {
               craftRoute('x', { ...loadCraftComponent(() => import('./page').then((m) => m.Page)) }),
             ]);
           `,
-          'page.ts': `export const Page = craftComponent('Page', {}, () => ({}), () => div('page'));`,
+          'page.ts': `export const Page = craftComponent('Page', {}, () => div('page'));`,
         },
         'require-route-heading-outline',
       );
@@ -407,7 +407,7 @@ describe('craft-ts a11y', () => {
   describe('require-outlet-heading-section', () => {
     it('allows a shell outlet without heading()', async () => {
       const [result] = await lint(
-        `craftComponent('App', {}, () => ({}), () => main({ id: 'main' }, CraftRouterOutlet()));`,
+        `craftComponent('App', {}, () => main({ id: 'main' }, CraftRouterOutlet()));`,
         'require-outlet-heading-section',
       );
       expect(result.messages).toEqual([]);
@@ -415,7 +415,7 @@ describe('craft-ts a11y', () => {
 
     it('rejects heading() above an unwrapped outlet', async () => {
       const [result] = await lint(
-        `craftComponent('App', {}, () => ({}), () => [heading('App'), main(CraftRouterOutlet())]);`,
+        `craftComponent('App', {}, () => [heading('App'), main(CraftRouterOutlet())]);`,
         'require-outlet-heading-section',
       );
       expect(messages(result)[0]).toContain('headingSection');
@@ -423,7 +423,7 @@ describe('craft-ts a11y', () => {
 
     it('accepts a layout that wraps the outlet in headingSection', async () => {
       const [result] = await lint(
-        `craftComponent('Layout', {}, () => ({}), () => [heading('Layout'), headingSection([CraftRouterOutlet()])]);`,
+        `craftComponent('Layout', {}, () => [heading('Layout'), headingSection([CraftRouterOutlet()])]);`,
         'require-outlet-heading-section',
       );
       expect(result.messages).toEqual([]);
@@ -431,7 +431,7 @@ describe('craft-ts a11y', () => {
 
     it('rejects a headingSection around the outlet without heading()', async () => {
       const [result] = await lint(
-        `craftComponent('Layout', {}, () => ({}), () => headingSection([CraftRouterOutlet()]));`,
+        `craftComponent('Layout', {}, () => headingSection([CraftRouterOutlet()]));`,
         'require-outlet-heading-section',
       );
       expect(messages(result)[0]).toContain('heading(');
@@ -441,7 +441,7 @@ describe('craft-ts a11y', () => {
   describe('no-heading-level-skip', () => {
     it('rejects h1 followed by h3 in a craftComponent template', async () => {
       const [result] = await lint(
-        `craftComponent('Page', {}, () => ({}), () => [h1('A'), h3('C')]);`,
+        `craftComponent('Page', {}, () => [h1('A'), h3('C')]);`,
         'no-heading-level-skip',
       );
       expect(messages(result)[0]).toContain('Heading level skips');

@@ -52,6 +52,7 @@ import {
   CRAFT_VIEW_TRANSITION_STATE_KEY,
   ɵinjectCraftViewTransition,
 } from './craft-view-transition';
+import { craftExpose } from './craft-primitive-gen';
 
 function craftHistory() {
   return TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
@@ -273,7 +274,9 @@ describe('CraftRouterOutlet', () => {
     window.history.replaceState(null, '', '/');
     const { RedirectAuth, provideRedirectAuth } = craftService(
       { name: 'RedirectAuth', providedIn: 'toProvide' },
-      () => ({ isAdmin: () => true }),
+      function* () {
+        yield* craftExpose('isAdmin', () => true);
+      },
     );
     TestBed.configureTestingModule({
       providers: [
@@ -1403,7 +1406,9 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
     type User = { id: number; name: string };
     const { OutletAuth, provideOutletAuth } = craftService(
       { name: 'OutletAuth', providedIn: 'toProvide' },
-      () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
+      function* () {
+        yield* craftExpose('currentUser', { id: 7, name: 'Bob' } as User);
+      },
     );
     const { outlet } = setup();
     const meta = makeMeta({

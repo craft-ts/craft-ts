@@ -2,6 +2,8 @@
 import {
   craftUse,
   setupCraftServiceTestingByRegister,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
@@ -14,14 +16,12 @@ import { craftService, state } from '@craft-ts/core';
 const { SearchApi } = craftService(
   { name: 'SearchApi', providedIn: 'global' },
   function* () {
-    const isLoading = yield* state('isLoading', false);
-    const data = yield* state('data', [] as string[]);
-    return {
-      usersQuery: {
-        isLoading,
-        data,
-      },
-    };
+    const isLoading = yield* craftPrivate(state('isLoading', false));
+    const data = yield* craftPrivate(state('data', [] as string[]));
+    yield* craftExpose('usersQuery', {
+      isLoading,
+      data,
+    });
   },
 );
 
@@ -29,7 +29,7 @@ const { SearchFacade } = craftService(
   { name: 'SearchFacade', providedIn: 'global' },
   function* () {
     const isLoading = yield* SearchApi.usersQuery.isLoading();
-    return { isLoading };
+    yield* craftExpose('isLoading', isLoading);
   },
 );
 // #endregion search-facade

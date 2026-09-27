@@ -81,7 +81,7 @@ p({ title: translate('order', { amount: 1234.5 }) }, 'Order');
 
 Both forms carry `ClientCurrency` into the component dependency contract, so
 the route check reports a missing provider at compile time, just as it does for
-a service yielded by the component factory.
+a service the component yields.
 
 The reader is a function, so `yield* translate(...)` does not type-check; and
 driving it yourself inside a template generator (`yield* translate(...)()`)

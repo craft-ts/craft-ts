@@ -12,7 +12,7 @@ import { CraftHttpClient, craftService, query } from '@craft-ts/core';
 export const { TaskSearch } = craftService(
   { name: 'TaskSearch', providedIn: 'function' },
   function* () {
-    const searchQuery = yield* query('searchQuery', {
+    yield* query('searchQuery', {
       method: (term: string) => term,
       loader: function* ({ params: term }) {
         return yield* CraftHttpClient.get(({ response }) => ({
@@ -22,7 +22,6 @@ export const { TaskSearch } = craftService(
       },
     });
 
-    return { searchQuery };
   },
 );
 // #endregion search-query

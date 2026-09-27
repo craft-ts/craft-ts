@@ -10,17 +10,13 @@ const CSS_VARS_LINKS = [
   ['@property', { to: 'css-vars/property' }],
 ] satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
-export const CssVarsPageNav = craftComponent(
-  'CssVarsPageNav',
-  {},
-  () => ({}),
-  () =>
-    nav(
-      { class: cssVarsDemo.nav, 'aria-label': 'CSS variable examples' },
-      CSS_VARS_LINKS.map(([label, link]) =>
-        a('link', { class: cssVarsDemo.navLink }, label).pipe(
-          CraftRouterLink(link),
-        ),
+export const CssVarsPageNav = craftComponent('CssVarsPageNav', {}, () =>
+  nav(
+    { class: cssVarsDemo.nav, 'aria-label': 'CSS variable examples' },
+    CSS_VARS_LINKS.map(([label, link]) =>
+      a('link', { class: cssVarsDemo.navLink }, label).pipe(
+        CraftRouterLink(link),
       ),
     ),
+  ),
 );

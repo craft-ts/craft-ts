@@ -60,31 +60,23 @@ enforces the match and offers a quick fix.
 
 ## The common case — inside a Craft component
 
-In a Craft component's logic factory there is no `this`: declare the method with
-`craftMethod(name, fn)` and return it in the context.
+In a Craft component there is no `this`: declare the method with
+`craftMethod(name, fn)` and bind it where the template needs it.
 
 ```typescript
 import { button, craftComponent, div, p } from '@craft-ts/component';
 import { Console, craftMethod, state } from '@craft-ts/core';
 
-export const Counter = craftComponent(
-  'Counter',
-  {},
-  function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({ update }));
+export const Counter = craftComponent('Counter', {}, function* () {
+  const counter = yield* state('counter', 0, ({ update }) => ({ update }));
 
-    const increment = craftMethod('increment', function* (step = 1) {
-      yield* Console.log('increment is called');
-      yield* counter.update((value) => value + step);
-    });
+  const increment = yield* craftMethod('increment', function* (step = 1) {
+    yield* Console.log('increment is called');
+    yield* counter.update((value) => value + step);
+  });
 
-    return { counter, increment };
-  },
-  ({ counter, increment }) => [
-    p(counter),
-    button({ click: increment }, 'Increment'),
-  ],
-);
+  return [p(counter), button({ click: increment }, 'Increment')];
+});
 ```
 
 `counter` does not belong to `increment`, so the method yields
@@ -97,9 +89,9 @@ than wrapping `() => increment()`.
 crafted service graph as `craftService`:
 
 ```typescript
-const increment = craftMethod('increment', function* (value: number) {
+const increment = craftUse(craftMethod('increment', function* (value: number) {
   return yield* CounterWorker.set(value);
-});
+}));
 ```
 
 ::: details Class-based wrappers — capturing `this`
@@ -111,15 +103,15 @@ overloads.
 Use `craftMethod(name, this, fn)` when the generator needs component state.
 
 ```typescript
-import { Console, craftMethod, craftSignal } from '@craft-ts/core';
+import { Console, craftMethod, craftSignal, craftUse } from '@craft-ts/core';
 
 export class Counter {
   readonly counter = craftSignal(0);
 
-  readonly increment = craftMethod('increment', this, function* (step = 1) {
+  readonly increment = craftUse(craftMethod('increment', this, function* (step = 1) {
     yield* Console.log('increment is called');
     this.counter.update((value) => value + step);
-  });
+  }));
 }
 ```
 
@@ -137,19 +129,19 @@ Use `craftMethod(name, fn)` when you want the method to resolve `this` from its 
 In strict TypeScript, annotate `this` explicitly inside the generator:
 
 ```typescript
-import { Console, craftMethod, craftSignal } from '@craft-ts/core';
+import { Console, craftMethod, craftSignal, craftUse } from '@craft-ts/core';
 
 export class Counter {
   readonly counter = craftSignal(0);
 
-  readonly increment = craftMethod(
+  readonly increment = craftUse(craftMethod(
     'increment',
     function* (this: Counter, step = 1) {
       yield* Console.log('increment is called');
       this.counter.update((value) => value + step);
       return this.counter();
     },
-  );
+  ));
 }
 ```
 
@@ -157,13 +149,13 @@ export class Counter {
 
 ```typescript
 export class Counter {
-  readonly increment = craftMethod(
+  readonly increment = craftUse(craftMethod(
     'increment',
     this,
     function* (value: number) {
       return yield* CounterWorker.set(value);
     },
-  );
+  ));
 }
 ```
 

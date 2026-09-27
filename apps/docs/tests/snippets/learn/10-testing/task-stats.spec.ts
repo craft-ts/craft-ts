@@ -16,7 +16,7 @@ type Task = { id: string; title: string; done: boolean };
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
-    return yield* state('tasks', [] as Task[]);
+    yield* state('tasks', [] as Task[]);
   },
 );
 
@@ -24,13 +24,11 @@ export const { TaskList } = craftService(
 export const { TaskStats, provideTaskStats } = craftService(
   { name: 'TaskStats', providedIn: 'toProvide' },
   function* () {
-    const tasks = yield* TaskList();
+    const { tasks } = yield* TaskList();
 
-    return {
-      done: craftComputed('done', function* () {
-        return (yield* tasks()).filter((task) => task.done).length;
-      }),
-    };
+    yield* craftComputed('done', function* () {
+      return (yield* tasks()).filter((task) => task.done).length;
+    });
   },
 );
 // #endregion task-stats
@@ -44,7 +42,7 @@ describe('Learn 10 TaskStats service', () => {
 
       // its only dependency, replaced by a mock
       TaskList: {
-        $self: vi.fn(function* () {
+        tasks: vi.fn(function* () {
           return [
             { id: '1', title: 'a', done: true },
             { id: '2', title: 'b', done: false },

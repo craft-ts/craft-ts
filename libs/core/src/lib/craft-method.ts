@@ -13,7 +13,22 @@ import type {
 import { ɵcreateHostTaggedInjector } from './craft-service';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
-import { markYieldableMethod, YIELDABLE_METHOD } from './yieldable';
+import {
+  markYieldableMethod,
+  markYieldableValue,
+  YIELDABLE_METHOD,
+} from './yieldable';
+import { YIELDABLE_VALUE } from './reactive-read';
+import {
+  createNamedPrimitiveGen,
+  type NamedCraftPrimitiveGen,
+} from './craft-primitive-gen';
+
+type CraftMethodNameOf<Config> = Config extends string
+  ? Config
+  : Config extends { readonly name: infer Name extends string }
+    ? Name
+    : string;
 
 type CraftMethodGenerator<This, Args extends unknown[], Yielded, Result> = (
   this: This,
@@ -33,6 +48,12 @@ type CraftMethodNameConfig<Name extends string> =
   | Name
   | { name: Name; providers?: readonly Provider[] };
 
+type CraftMethodConfigName<Config> = Config extends string
+  ? Config
+  : Config extends { name: infer Name extends string }
+    ? Name
+    : string;
+
 type CraftMethodConfigProviderNames<Config> = Config extends {
   providers: readonly (infer P)[];
 }
@@ -45,7 +66,15 @@ type SatisfyDependencies<Deps, SatisfiedNames extends string> = {
   [K in keyof Deps as K extends SatisfiedNames ? never : K]: Deps[K];
 };
 
-type TrackedCraftMethod<Callable, Yielded, Config = never> = Callable & {
+type TrackedCraftMethod<
+  Callable,
+  Yielded,
+  Config = never,
+  Name extends string = CraftMethodNameOf<Config>,
+> = Callable & {
+  // The name travels with the method: a template binding is how a reader finds
+  // out which member of a service it is looking at.
+  readonly [YIELDABLE_VALUE]: Name;
   readonly [YIELDABLE_METHOD]: {
     readonly yielded?: Yielded;
   };
@@ -81,10 +110,13 @@ export function craftMethod<
 >(
   name: Config,
   factory: CraftMethodGenerator<This, Args, Yielded, Result>,
-): TrackedCraftMethod<
-  CraftMethodWithReceiver<This, Args, Result>,
-  Yielded,
-  Config
+): NamedCraftPrimitiveGen<
+  CraftMethodConfigName<Config>,
+  TrackedCraftMethod<
+    CraftMethodWithReceiver<This, Args, Result>,
+    Yielded,
+    Config
+  >
 >;
 export function craftMethod<
   Name extends string,
@@ -97,21 +129,19 @@ export function craftMethod<
   name: Config,
   self: This,
   factory: CraftMethodGenerator<This, Args, Yielded, Result>,
-): TrackedCraftMethod<
-  CraftMethodWithoutReceiver<Args, Result>,
-  Yielded,
-  Config
+): NamedCraftPrimitiveGen<
+  CraftMethodConfigName<Config>,
+  TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded, Config>
 >;
 export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   nameOrConfig: CraftMethodNameConfig<string>,
   selfOrFactory: This | CraftMethodGenerator<This, Args, Yielded, Result>,
   maybeFactory?: CraftMethodGenerator<This, Args, Yielded, Result>,
-):
-  | TrackedCraftMethod<
-      CraftMethodWithReceiver<This, Args, Result>,
-      Yielded
-    >
-  | TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded> {
+): NamedCraftPrimitiveGen<
+  string,
+  | TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>
+  | TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded>
+> {
   assertInInjectionContext(craftMethod);
   const injector = inject(Injector);
   const resolvedName = resolveCraftMethodName(nameOrConfig);
@@ -127,22 +157,42 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
     const self = selfOrFactory as This;
     const factory = wrapFn(maybeFactory);
 
-    return markYieldableMethod(((...args: Args) =>
-      executeCraftMethod(
-        factory,
-        methodInjector,
-        self,
-        args,
-      )) as TrackedCraftMethod<CraftMethodWithoutReceiver<Args, Result>, Yielded>);
+    return createNamedPrimitiveGen(
+      resolvedName,
+      markYieldableValue(
+        markYieldableMethod(((...args: Args) =>
+          executeCraftMethod(
+            factory,
+            methodInjector,
+            self,
+            args,
+          )) as TrackedCraftMethod<
+          CraftMethodWithoutReceiver<Args, Result>,
+          Yielded
+        >),
+        resolvedName,
+      ),
+      { markMembers: false },
+    );
   }
 
   const factory = wrapFn(
     selfOrFactory as CraftMethodGenerator<This, Args, Yielded, Result>,
   );
 
-  return markYieldableMethod(function (this: This, ...args: Args) {
-    return executeCraftMethod(factory, methodInjector, this, args);
-  } as TrackedCraftMethod<CraftMethodWithReceiver<This, Args, Result>, Yielded>);
+  return createNamedPrimitiveGen(
+    resolvedName,
+    markYieldableValue(
+      markYieldableMethod(function (this: This, ...args: Args) {
+        return executeCraftMethod(factory, methodInjector, this, args);
+      } as TrackedCraftMethod<
+        CraftMethodWithReceiver<This, Args, Result>,
+        Yielded
+      >),
+      resolvedName,
+    ),
+    { markMembers: false },
+  );
 }
 
 function executeCraftMethod<This, Args extends unknown[], Yielded, Result>(

@@ -5,6 +5,5 @@ export const { LeakyWidget } = craftService(
   { name: 'LeakyWidget', providedIn: 'global' },
   function* () {
     yield* UsersApi();
-    return {};
   },
 );

@@ -48,7 +48,7 @@ Nowhere, until a component seals:
 ```ts
 import { craftComponent } from '@craft-ts/component';
 
-craftComponent('AppShell', { seals: [true] }, factory, template);
+craftComponent('AppShell', { seals: [true] }, template);
 ```
 
 Until then the requirement **travels** — an ancestor still has the right to

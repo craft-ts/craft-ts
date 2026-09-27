@@ -26,6 +26,12 @@ export const SERVICE_APP_START_REQUEST_MARKER = Symbol(
 export const SERVICE_TRACKED_DEPS_REQUEST_MARKER = Symbol(
   'service-tracked-deps-request-marker',
 );
+/**
+ * Carried, beside the tracked-deps marker, by the request a NAMED primitive
+ * yields: `{ name, ref }` is exposed on the enclosing `craftService` (see
+ * `collectExposed`). Every other driver ignores it.
+ */
+export const CRAFT_EXPOSE_MARKER = Symbol('craft-expose-marker');
 export const GUARD_AWAIT_REQUEST_MARKER = Symbol('guard-await-request-marker');
 
 /** Marker for an asynchronous promise yielded by a Craft resource loader. */
@@ -249,6 +255,17 @@ type RunCraftGeneratorOptions = {
   guardAwaitNotSupportedErrorMessage?: string;
   /** Identity of the computation currently consuming reactive values. */
   reactiveReader?: ReactiveReadIdentity;
+  /**
+   * When given, every named primitive yielded (outside `craftPrivate`) is
+   * recorded here under its name. Only the `craftService` driver passes it.
+   */
+  collectExposed?: {
+    record: Record<string, unknown>;
+    /** Owner named in the duplicate-name error, e.g. `craftService("Todo")`. */
+    owner: string;
+  };
+  /** Sees every service instance this run resolved, in resolution order. */
+  onServiceResolved?: (instance: unknown) => void;
 };
 
 export function runCraftGenerator({
@@ -261,6 +278,8 @@ export function runCraftGenerator({
   onAppStartNotSupportedErrorMessage,
   guardAwaitNotSupportedErrorMessage,
   reactiveReader,
+  collectExposed,
+  onServiceResolved,
 }: RunCraftGeneratorOptions): {
   value: unknown;
   appStartHook?: () => AppStartResult;
@@ -283,9 +302,9 @@ export function runCraftGenerator({
     }
 
     if (isServiceYieldRequest(yielded)) {
-      current = iterator.next(
-        resolveServiceYield(yielded, injector, hostScope),
-      );
+      const instance = resolveServiceYield(yielded, injector, hostScope);
+      onServiceResolved?.(instance);
+      current = iterator.next(instance);
       continue;
     }
 
@@ -296,7 +315,21 @@ export function runCraftGenerator({
 
     if (isServiceTrackedDepsRequest(yielded)) {
       // Type-level only: the tracked primitive resolves its own dependencies
-      // lazily through the injector. Nothing to do at runtime.
+      // lazily through the injector. Nothing to do at runtime — except
+      // recording the exposure a named primitive carries on the same request.
+      if (collectExposed && isExposeRequest(yielded)) {
+        if (
+          Object.prototype.hasOwnProperty.call(
+            collectExposed.record,
+            yielded.name,
+          )
+        ) {
+          throw new Error(
+            `${collectExposed.owner} exposes "${yielded.name}" twice. Each named primitive yielded by a craftService is exposed under its name, so names must be unique; rename one, or wrap it in craftPrivate(...) to keep it internal.`,
+          );
+        }
+        collectExposed.record[yielded.name] = yielded.ref;
+      }
       current = iterator.next(undefined);
       continue;
     }
@@ -383,6 +416,7 @@ export function executeGeneratorCompatibleFactory<
   invalidYieldErrorMessage,
   multipleAppStartErrorMessage,
   onAppStartNotSupportedErrorMessage,
+  onServiceResolved,
 }: {
   factory: (this: This, ...args: Args) => Result;
   thisArg: This;
@@ -391,6 +425,7 @@ export function executeGeneratorCompatibleFactory<
   invalidYieldErrorMessage: string;
   multipleAppStartErrorMessage: string;
   onAppStartNotSupportedErrorMessage?: string;
+  onServiceResolved?: (instance: unknown) => void;
 }): ResolveGeneratorResult<Result> {
   const injector = getInjector();
   const craftInjector = ɵcraftInjectorFromHost(injector);
@@ -409,6 +444,7 @@ export function executeGeneratorCompatibleFactory<
       invalidYieldErrorMessage,
       multipleAppStartErrorMessage,
       onAppStartNotSupportedErrorMessage,
+      onServiceResolved,
     }).value as ResolveGeneratorResult<Result>;
   });
 }
@@ -534,6 +570,12 @@ export function isServiceAppStartRequest(
     value !== null &&
     SERVICE_APP_START_REQUEST_MARKER in value
   );
+}
+
+function isExposeRequest(
+  value: object,
+): value is { name: string; ref: unknown } {
+  return CRAFT_EXPOSE_MARKER in value;
 }
 
 function isServiceTrackedDepsRequest(

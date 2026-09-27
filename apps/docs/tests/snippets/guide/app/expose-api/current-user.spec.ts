@@ -1,35 +1,29 @@
 // @vitest-environment jsdom
-import {
-  craftUse,
-  setupCraftServiceTestingByRegister,
-} from '@craft-ts/core';
+import { craftUse, setupCraftServiceTestingByRegister } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
 
 useSnippetHarness();
 
 // #region current-user
-import { craftService, state } from '@craft-ts/core';
+import { craftExpose, craftService, state } from '@craft-ts/core';
 
 const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global' },
   function* () {
-    const currentUser = yield* state('currentUser', {
+    yield* state('currentUser', {
       id: '1',
       name: 'Ada',
     });
-    return {
-      updateUser: (user: { id: string; name: string }) =>
-        Promise.resolve(user),
-      currentUser,
-    };
+    yield* craftExpose('updateUser', (user: { id: string; name: string }) =>
+      Promise.resolve(user));
   },
 );
 
 const { CurrentUser } = craftService(
   { name: 'CurrentUser', providedIn: 'global' },
   function* () {
-    return yield* UsersApi.currentUser();
+    yield* craftExpose('currentUser', yield* UsersApi.currentUser());
   },
 );
 // #endregion current-user
@@ -41,6 +35,6 @@ describe('guide/app/expose-api.md #current-user', () => {
       UsersApi: 'real',
     });
 
-    expect(craftUse(sut())).toEqual({ id: '1', name: 'Ada' });
+    expect(craftUse(sut.currentUser())).toEqual({ id: '1', name: 'Ada' });
   });
 });

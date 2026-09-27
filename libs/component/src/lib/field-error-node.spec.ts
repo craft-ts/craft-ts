@@ -1,18 +1,14 @@
 // @vitest-environment jsdom
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import {
-  beforeEach,
-  describe,
-  expect,
-  expectTypeOf,
-  it,
-} from 'vitest';
-import {
+  craftService,
   CraftFieldDirective,
   cEmail,
   cMinLength,
   cRequired,
   cValidate,
   craftException,
+  craftExpose,
   craftUse,
   insertForm,
   insertFormAttributes,
@@ -99,11 +95,13 @@ describe('fieldErrorNode', () => {
   });
 
   it('renders partial handlers locally and forwards residual cases to its parent boundary', async () => {
-    const component = craftComponent(
-      'partialFieldExceptionBoundary',
-      {},
+    const {
+      PartialFieldExceptionBoundaryView,
+      providePartialFieldExceptionBoundaryView,
+    } = craftService(
+      { name: 'partialFieldExceptionBoundaryView', providedIn: 'toProvide' },
       function* () {
-        return yield* state(
+        yield* state(
           'password',
           '' as string,
           insertForm(
@@ -113,8 +111,14 @@ describe('fieldErrorNode', () => {
           ),
         );
       },
-      ({ form }) =>
-        div({ id: 'password-field' }, [
+    );
+
+    const component = craftComponent(
+      'partialFieldExceptionBoundary',
+      { providers: [providePartialFieldExceptionBoundaryView()] },
+      function* () {
+        const { form } = (yield* PartialFieldExceptionBoundaryView()).password;
+        return div({ id: 'password-field' }, [
           input({ id: 'partial-password' })
             .pipe(CraftFieldDirective(form))
             .pipe(
@@ -127,11 +131,14 @@ describe('fieldErrorNode', () => {
             minLength: ({ exception }) =>
               p(`Parent minimum ${exception.payload}`),
           }),
-        ),
+        );
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const control = element.querySelector(
       '#partial-password',
@@ -165,11 +172,13 @@ describe('fieldErrorNode', () => {
   });
 
   it('uses visibleExceptions by default and preserves the mounted control', async () => {
-    const component = craftComponent(
-      'fieldExceptionDefaultVisibility',
-      {},
+    const {
+      FieldExceptionDefaultVisibilityView,
+      provideFieldExceptionDefaultVisibilityView,
+    } = craftService(
+      { name: 'fieldExceptionDefaultVisibilityView', providedIn: 'toProvide' },
       function* () {
-        return yield* state(
+        yield* state(
           'email',
           '' as string,
           insertForm(
@@ -177,18 +186,27 @@ describe('fieldErrorNode', () => {
           ),
         );
       },
-      ({ form }) =>
-        input({ id: 'email' })
+    );
+
+    const component = craftComponent(
+      'fieldExceptionDefaultVisibility',
+      { providers: [provideFieldExceptionDefaultVisibilityView()] },
+      function* () {
+        const { form } = (yield* FieldExceptionDefaultVisibilityView()).email;
+        return input({ id: 'email' })
           .pipe(CraftFieldDirective(form))
           .pipe(
             fieldErrorNode.exhaustive({
               required: () => p('Email is required.'),
             }),
-          ),
+          );
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const control = element.querySelector('input') as HTMLInputElement;
     expect(element.textContent).not.toContain('Email is required.');
@@ -216,11 +234,13 @@ describe('fieldErrorNode', () => {
   });
 
   it('supports a touched visibility override and restores existing aria attributes', async () => {
-    const component = craftComponent(
-      'fieldExceptionTouchedVisibility',
-      {},
+    const {
+      FieldExceptionTouchedVisibilityView,
+      provideFieldExceptionTouchedVisibilityView,
+    } = craftService(
+      { name: 'fieldExceptionTouchedVisibilityView', providedIn: 'toProvide' },
       function* () {
-        return yield* state(
+        yield* state(
           'email',
           '' as string,
           insertForm(
@@ -228,8 +248,14 @@ describe('fieldErrorNode', () => {
           ),
         );
       },
-      ({ form }) =>
-        input({
+    );
+
+    const component = craftComponent(
+      'fieldExceptionTouchedVisibility',
+      { providers: [provideFieldExceptionTouchedVisibilityView()] },
+      function* () {
+        const { form } = (yield* FieldExceptionTouchedVisibilityView()).email;
+        return input({
           id: 'email',
           'aria-invalid': 'grammar',
           'aria-describedby': 'existing-hint',
@@ -240,11 +266,14 @@ describe('fieldErrorNode', () => {
               { required: () => p('Touched error') },
               { visibility: { anyOf: ['touched'] } },
             ),
-          ),
+          );
+      },
     );
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      component,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component);
 
     const control = element.querySelector('input') as HTMLInputElement;
     expect(element.textContent).not.toContain('Touched error');
@@ -260,11 +289,13 @@ describe('fieldErrorNode', () => {
   });
 
   it('handles multiple fields by path at the component boundary', async () => {
-    const unsafe = craftComponent(
-      'fieldExceptionComponentBoundary',
-      {},
+    const {
+      FieldExceptionComponentBoundaryView,
+      provideFieldExceptionComponentBoundaryView,
+    } = craftService(
+      { name: 'fieldExceptionComponentBoundaryView', providedIn: 'toProvide' },
       function* () {
-        return yield* state(
+        yield* state(
           'credentials',
           { email: '', password: '' },
           insertForm(
@@ -285,13 +316,20 @@ describe('fieldErrorNode', () => {
           ),
         );
       },
-      ({ form }) =>
-        div([
+    );
+
+    const unsafe = craftComponent(
+      'fieldExceptionComponentBoundary',
+      { providers: [provideFieldExceptionComponentBoundaryView()] },
+      function* () {
+        const { form } = (yield* FieldExceptionComponentBoundaryView()).credentials;
+        return div([
           input({ id: 'email' }).pipe(CraftFieldDirective(form.selectEmail())),
           input({ id: 'password' }).pipe(
             CraftFieldDirective(form.selectPassword()),
           ),
-        ]),
+        ]);
+      },
     );
     expectTypeOf<
       ComponentFieldExceptionsOf<typeof unsafe>
@@ -333,9 +371,11 @@ describe('fieldErrorNode', () => {
     >().toEqualTypeOf<never>();
     loadCraftComponent(async () => safe);
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      safe,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(safe);
 
     let email = element.querySelector('#email') as HTMLInputElement;
     let password = element.querySelector('#password') as HTMLInputElement;
@@ -400,23 +440,28 @@ describe('fieldErrorNode', () => {
           ),
         ),
       );
-      const credentials = registration.form.selectCredentials();
-      return { registration, credentials };
+      yield* craftExpose('credentials', registration.form.selectCredentials());
     }
+
+    const { RegistrationView, provideRegistrationView } = craftService(
+      { name: 'registrationView', providedIn: 'toProvide' },
+      registrationFactory,
+    );
 
     const unsafe = craftComponent(
       'groupFieldExceptionFromLogic',
-      {},
-      registrationFactory,
-      ({ credentials }) =>
-        div([
+      { providers: [provideRegistrationView()] },
+      function* () {
+        const { credentials } = yield* RegistrationView();
+        return div([
           input({ id: 'group-password' }).pipe(
             CraftFieldDirective(credentials.password),
           ),
           input({ id: 'group-confirmation' }).pipe(
             CraftFieldDirective(credentials.confirmation),
           ),
-        ]),
+        ]);
+      },
     );
 
     expectTypeOf<
@@ -438,10 +483,10 @@ describe('fieldErrorNode', () => {
 
     const safeInTemplate = craftComponent(
       'groupFieldExceptionHandledInTemplate',
-      {},
-      registrationFactory,
-      ({ credentials }) =>
-        div([
+      { providers: [provideRegistrationView()] },
+      function* () {
+        const { credentials } = yield* RegistrationView();
+        return div([
           input({ id: 'group-password' }).pipe(
             CraftFieldDirective(credentials.password),
           ),
@@ -454,15 +499,18 @@ describe('fieldErrorNode', () => {
               passwordMismatch: () => p('Passwords do not match.'),
             },
           }),
-        ),
+        );
+      },
     );
     expectTypeOf<
       ComponentFieldExceptionsOf<typeof safeInTemplate>
     >().toEqualTypeOf<never>();
 
-    const { nativeElement: element, flush, destroy } = await renderCraftComponent(
-      safeInTemplate,
-    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(safeInTemplate);
 
     expect(element.textContent).not.toContain('Passwords do not match.');
     const password = element.querySelector(

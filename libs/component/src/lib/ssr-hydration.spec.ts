@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  craftService,
   CraftSsrTimeoutError,
   CraftUnhandledSsrResolutionError,
   provideCraftSsrPolicy,
@@ -12,7 +13,7 @@ import {
   query,
   settled,
   state,
-} from '@craft-ts/core';
+  craftPrivate, type CraftServiceInput } from '@craft-ts/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   button,
@@ -46,17 +47,26 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('renders deterministic HTML, CSS and a serializable state snapshot', async () => {
-    const counter = craftComponent(
-      'SsrCounter',
-      { styles: ':scope { color: rebeccapurple; }' },
-      function* (initial: Input<number>) {
-        const count = yield* state('count', yield* initial(), ({ update }) => ({
+    const { SsrCounterView, provideSsrCounterView } = craftService(
+      { name: 'ssrCounterView', providedIn: 'toProvide' },
+      function* (inputs: { readonly initial: CraftServiceInput<number> }) {
+        const { initial } = inputs;
+
+        yield* state('count', yield* initial(), ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { count };
       },
-      ({ count }) =>
-        div([
+    );
+
+    const counter = craftComponent(
+      'SsrCounter',
+      {
+        providers: [provideSsrCounterView()],
+        styles: ':scope { color: rebeccapurple; }',
+      },
+      function* (inputs: { readonly initial: Input<number> }) {
+        const { count } = yield* SsrCounterView(inputs);
+        return div([
           p({ class: 'value' }, function* () {
             return String(yield* count());
           }),
@@ -68,7 +78,8 @@ describe('Craft SSR and hydration', () => {
             },
             '+',
           ),
-        ]),
+        ]);
+      },
     );
     const config = configFor(counter);
 
@@ -98,26 +109,30 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('blocks for a declared query, transfers it, reuses DOM and avoids a client reload', async () => {
-    let loads = 0;
-    const app = craftComponent(
-      'SsrQueryApp',
-      {},
+    const { SsrQueryAppView, provideSsrQueryAppView } = craftService(
+      { name: 'ssrQueryAppView', providedIn: 'toProvide' },
       function* () {
-        const users = yield* query('users', {
+        const users = yield* craftPrivate(query('users', {
           params: () => true,
           loader: async () => {
             loads += 1;
             await Promise.resolve();
             return [{ id: '42', name: 'Ada' }];
           },
-        });
-        const firstName = craftComputed('firstName', function* () {
+        }));
+        yield* craftComputed('firstName', function* () {
           return (yield* settled(users))[0].name;
         });
-        return { firstName };
       },
-      ({ firstName }) =>
-        div([
+    );
+
+    let loads = 0;
+    const app = craftComponent(
+      'SsrQueryApp',
+      { providers: [provideSsrQueryAppView()] },
+      function* () {
+        const { firstName } = yield* SsrQueryAppView();
+        return div([
           span({ class: 'name' }, firstName),
           button({ class: 'action', click: () => undefined }, 'action'),
         ]).pipe(
@@ -125,7 +140,8 @@ describe('Craft SSR and hydration', () => {
             ssr: 'block',
             fallback: () => p('loading'),
           }),
-        ),
+        );
+      },
     );
     const config = configFor(app);
     const rendered = await renderCraft({
@@ -157,13 +173,20 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('automatically hydrates an SSR host and bootstraps a plain host', async () => {
+    const { AutoStartAppView, provideAutoStartAppView } = craftService(
+      { name: 'autoStartAppView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const app = craftComponent(
       'AutoStartApp',
-      {},
+      { providers: [provideAutoStartAppView()] },
       function* () {
-        return {};
+        yield* AutoStartAppView();
+        return p('ready');
       },
-      () => p('ready'),
     );
     const config = configFor(app);
     const rendered = await renderCraft({ config });
@@ -187,28 +210,31 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('renders a fallback without waiting and rejects an undeclared server policy', async () => {
+    const { SsrFallbackView, provideSsrFallbackView } = craftService(
+      { name: 'ssrFallbackView', providedIn: 'toProvide' },
+      function* () {
+        const value = yield* craftPrivate(query('slow', {
+          params: () => true,
+          loader: never,
+        }));
+        yield* craftComputed('text', function* () {
+          return yield* settled(value);
+        });
+      },
+    );
+
     const never = () => new Promise<string>(() => undefined);
     const withPolicy = craftComponent(
       'SsrFallback',
-      {},
+      { providers: [provideSsrFallbackView()] },
       function* () {
-        const value = yield* query('slow', {
-          params: () => true,
-          loader: never,
-        });
-        const text = craftComputed('slowText', function* () {
-          return yield* settled(value);
-        });
-        return { text };
-      },
-      ({ text }) =>
-        div(
+        const { text } = yield* SsrFallbackView();
+        return div(
           span(function* () {
             return String(yield* text());
           }),
-        ).pipe(
-          pendingNode({ ssr: 'fallback', fallback: () => p('skeleton') }),
-        ),
+        ).pipe(pendingNode({ ssr: 'fallback', fallback: () => p('skeleton') }));
+      },
     );
     const fallback = await renderCraft({
       config: configFor(withPolicy),
@@ -216,25 +242,30 @@ describe('Craft SSR and hydration', () => {
     });
     expect(fallback.rootHtml).toContain('skeleton');
 
-    const withoutPolicy = craftComponent(
-      'SsrUndeclared',
-      {},
+    const { SsrUndeclaredView, provideSsrUndeclaredView } = craftService(
+      { name: 'ssrUndeclaredView', providedIn: 'toProvide' },
       function* () {
-        const value = yield* query('undeclared', {
+        const value = yield* craftPrivate(query('undeclared', {
           params: () => true,
           loader: never,
-        });
-        const text = craftComputed('undeclaredText', function* () {
+        }));
+        yield* craftComputed('text', function* () {
           return yield* settled(value);
         });
-        return { text };
       },
-      ({ text }) =>
-        div(
+    );
+
+    const withoutPolicy = craftComponent(
+      'SsrUndeclared',
+      { providers: [provideSsrUndeclaredView()] },
+      function* () {
+        const { text } = yield* SsrUndeclaredView();
+        return div(
           span(function* () {
             return String(yield* text());
           }),
-        ).pipe(pendingNode({ fallback: () => p('waiting') })),
+        ).pipe(pendingNode({ fallback: () => p('waiting') }));
+      },
     );
     await expect(
       renderCraft({ config: configFor(withoutPolicy), timeoutMs: 20 }),
@@ -242,25 +273,30 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('times out blocking sources and propagates request cancellation', async () => {
-    const app = craftComponent(
-      'SsrNeverSettles',
-      {},
+    const { SsrNeverSettlesView, provideSsrNeverSettlesView } = craftService(
+      { name: 'ssrNeverSettlesView', providedIn: 'toProvide' },
       function* () {
-        const value = yield* query('neverSettles', {
+        const value = yield* craftPrivate(query('neverSettles', {
           params: () => true,
           loader: () => new Promise<string>(() => undefined),
-        });
-        const text = craftComputed('neverText', function* () {
+        }));
+        yield* craftComputed('text', function* () {
           return yield* settled(value);
         });
-        return { text };
       },
-      ({ text }) =>
-        div(
+    );
+
+    const app = craftComponent(
+      'SsrNeverSettles',
+      { providers: [provideSsrNeverSettlesView()] },
+      function* () {
+        const { text } = yield* SsrNeverSettlesView();
+        return div(
           span(function* () {
             return String(yield* text());
           }),
-        ).pipe(pendingNode({ fallback: () => p('waiting') })),
+        ).pipe(pendingNode({ fallback: () => p('waiting') }));
+      },
     );
     const config = {
       providers: [
@@ -286,29 +322,35 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('uses the route policy by default, lets a local block override it, and skips client queries', async () => {
+    const { RoutePolicyDefaultView, provideRoutePolicyDefaultView } =
+      craftService(
+        { name: 'routePolicyDefaultView', providedIn: 'toProvide' },
+        function* () {
+          const value = yield* craftPrivate(query('routeValue', {
+            params: () => true,
+            loader: async () => {
+              routeLoads += 1;
+              return 'route ready';
+            },
+          }));
+          yield* craftComputed('text', function* () {
+            return yield* settled(value);
+          });
+        },
+      );
+
     let routeLoads = 0;
     const routeDefault = craftComponent(
       'RoutePolicyDefault',
-      {},
+      { providers: [provideRoutePolicyDefaultView()] },
       function* () {
-        const value = yield* query('routeValue', {
-          params: () => true,
-          loader: async () => {
-            routeLoads += 1;
-            return 'route ready';
-          },
-        });
-        const text = craftComputed('routeText', function* () {
-          return yield* settled(value);
-        });
-        return { text };
-      },
-      ({ text }) =>
-        div(
+        const { text } = yield* RoutePolicyDefaultView();
+        return div(
           span(function* () {
             return String(yield* text());
           }),
-        ).pipe(pendingNode({ fallback: () => p('route shell') })),
+        ).pipe(pendingNode({ fallback: () => p('route shell') }));
+      },
     );
     const routeResult = await renderCraft({
       config: {
@@ -321,31 +363,37 @@ describe('Craft SSR and hydration', () => {
     expect(routeResult.rootHtml).toContain('route ready');
     expect(routeLoads).toBe(1);
 
+    const { LocalClientPolicyView, provideLocalClientPolicyView } =
+      craftService(
+        { name: 'localClientPolicyView', providedIn: 'toProvide' },
+        function* () {
+          const value = yield* craftPrivate(query('clientValue', {
+            params: () => true,
+            loader: async () => {
+              clientLoads += 1;
+              return 'must not render';
+            },
+          }));
+          yield* craftComputed('text', function* () {
+            return yield* settled(value);
+          });
+        },
+      );
+
     let clientLoads = 0;
     const localClient = craftComponent(
       'LocalClientPolicy',
-      {},
+      { providers: [provideLocalClientPolicyView()] },
       function* () {
-        const value = yield* query('clientValue', {
-          params: () => true,
-          loader: async () => {
-            clientLoads += 1;
-            return 'must not render';
-          },
-        });
-        const text = craftComputed('clientText', function* () {
-          return yield* settled(value);
-        });
-        return { text };
-      },
-      ({ text }) =>
-        div(
+        const { text } = yield* LocalClientPolicyView();
+        return div(
           span(function* () {
             return String(yield* text());
           }),
         ).pipe(
           pendingNode({ ssr: 'client', fallback: () => p('client shell') }),
-        ),
+        );
+      },
     );
     const clientResult = await renderCraft({
       config: {
@@ -361,27 +409,32 @@ describe('Craft SSR and hydration', () => {
 
   it('waits for the initial lazy route before serializing its HTML', async () => {
     let lazyLoads = 0;
-    let queryLoads = 0;
-    const page = craftComponent(
-      'LazySsrPage',
-      {},
+    const { LazySsrPageView, provideLazySsrPageView } = craftService(
+      { name: 'lazySsrPageView', providedIn: 'toProvide' },
       function* () {
-        const value = yield* query('lazyRouteValue', {
+        const value = yield* craftPrivate(query('lazyRouteValue', {
           params: () => true,
           loader: async () => {
             queryLoads += 1;
             return 'lazy route ready';
           },
-        });
-        const text = craftComputed('lazyRouteText', function* () {
+        }));
+        yield* craftComputed('text', function* () {
           return yield* settled(value);
         });
-        return { text };
       },
-      ({ text }) =>
-        p({ class: 'lazy-page' }, function* () {
+    );
+
+    let queryLoads = 0;
+    const page = craftComponent(
+      'LazySsrPage',
+      { providers: [provideLazySsrPageView()] },
+      function* () {
+        const { text } = yield* LazySsrPageView();
+        return p({ class: 'lazy-page' }, function* () {
           return String(yield* text());
-        }).pipe(pendingNode({ fallback: () => p('lazy pending') })),
+        }).pipe(pendingNode({ fallback: () => p('lazy pending') }));
+      },
     );
     const { ssrRoutes } = craftRoutes('ssr', [
       {
@@ -420,17 +473,35 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('keeps SSR DOM and hydration markers until an initial lazy route loads', async () => {
+    const { HydratedLazyPageView, provideHydratedLazyPageView } = craftService(
+      { name: 'hydratedLazyPageView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const page = craftComponent(
       'HydratedLazyPage',
-      {},
-      () => ({}),
-      () => p({ class: 'hydrated-lazy-page' }, 'hydrated lazy route'),
+      { providers: [provideHydratedLazyPageView()] },
+      function* () {
+        yield* HydratedLazyPageView();
+        return p({ class: 'hydrated-lazy-page' }, 'hydrated lazy route');
+      },
     );
+    const { HydratedNextPageView, provideHydratedNextPageView } = craftService(
+      { name: 'hydratedNextPageView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const nextPage = craftComponent(
       'HydratedNextPage',
-      {},
-      () => ({}),
-      () => p({ class: 'hydrated-next-page' }, 'next lazy route'),
+      { providers: [provideHydratedNextPageView()] },
+      function* () {
+        yield* HydratedNextPageView();
+        return p({ class: 'hydrated-next-page' }, 'next lazy route');
+      },
     );
     const createConfig = () => {
       const { hydrationLazyRoutes } = craftRoutes('hydration-lazy', [
@@ -484,23 +555,29 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('names the active route when its async source has no SSR policy', async () => {
+    const { UndeclaredRoutePageView, provideUndeclaredRoutePageView } =
+      craftService(
+        { name: 'undeclaredRoutePageView', providedIn: 'toProvide' },
+        function* () {
+          const value = yield* craftPrivate(query('routeWithoutPolicy', {
+            params: () => true,
+            loader: () => new Promise<string>(() => undefined),
+          }));
+          yield* craftComputed('text', function* () {
+            return yield* settled(value);
+          });
+        },
+      );
+
     const page = craftComponent(
       'UndeclaredRoutePage',
-      {},
+      { providers: [provideUndeclaredRoutePageView()] },
       function* () {
-        const value = yield* query('routeWithoutPolicy', {
-          params: () => true,
-          loader: () => new Promise<string>(() => undefined),
-        });
-        const text = craftComputed('routeWithoutPolicyText', function* () {
-          return yield* settled(value);
-        });
-        return { text };
-      },
-      ({ text }) =>
-        p(function* () {
+        const { text } = yield* UndeclaredRoutePageView();
+        return p(function* () {
           return String(yield* text());
-        }).pipe(pendingNode({ fallback: () => p('pending') })),
+        }).pipe(pendingNode({ fallback: () => p('pending') }));
+      },
     );
     const { missingPolicyRoutes } = craftRoutes('missing-policy', [
       {
@@ -527,15 +604,23 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('remounts only a mismatched subtree and keeps a sibling node', async () => {
+    const { MismatchAppView, provideMismatchAppView } = craftService(
+      { name: 'mismatchAppView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const app = craftComponent(
       'MismatchApp',
-      {},
-      () => ({}),
-      () =>
-        div([
+      { providers: [provideMismatchAppView()] },
+      function* () {
+        yield* MismatchAppView();
+        return div([
           p({ class: 'replace-me' }, 'server value'),
           button({ class: 'keep-me' }, 'keep'),
-        ]),
+        ]);
+      },
     );
     const config = configFor(app);
     const rendered = await renderCraft({ config });
@@ -561,13 +646,20 @@ describe('Craft SSR and hydration', () => {
 
   it('hydrates keyed each entries and recovers changed keys and conditional branches locally', async () => {
     const items = craftSignal<readonly number[]>([1, 2]);
+    const { StructuralAppView, provideStructuralAppView } = craftService(
+      { name: 'structuralAppView', providedIn: 'toProvide' },
+      function* () {
+        // Nothing to expose.
+      },
+    );
+
     const show = markYieldableValue(craftSignal(true), 'show');
     const app = craftComponent(
       'StructuralApp',
-      {},
-      () => ({}),
-      () =>
-        div([
+      { providers: [provideStructuralAppView()] },
+      function* () {
+        yield* StructuralAppView();
+        return div([
           ul(
             forNode(items, { track: (item) => item }, (item) =>
               li(
@@ -588,7 +680,8 @@ describe('Craft SSR and hydration', () => {
             () => span({ class: 'false-branch' }, 'no'),
           ),
           button({ class: 'structural-sibling' }, 'stable'),
-        ]),
+        ]);
+      },
     );
     const config = configFor(app);
     const rendered = await renderCraft({ config });
@@ -612,17 +705,24 @@ describe('Craft SSR and hydration', () => {
   });
 
   it('keeps concurrent request state isolated', async () => {
+    const { IsolatedAppView, provideIsolatedAppView } = craftService(
+      { name: 'isolatedAppView', providedIn: 'toProvide' },
+      function* (inputs: { readonly initial: CraftServiceInput<number> }) {
+        const { initial } = inputs;
+
+        yield* state('value', yield* initial());
+      },
+    );
+
     const app = craftComponent(
       'IsolatedApp',
-      {},
-      function* (initial: Input<number>) {
-        const value = yield* state('requestValue', yield* initial());
-        return { value };
-      },
-      ({ value }) =>
-        p(function* () {
+      { providers: [provideIsolatedAppView()] },
+      function* (inputs: { readonly initial: Input<number> }) {
+        const { value } = yield* IsolatedAppView(inputs);
+        return p(function* () {
           return String(yield* value());
-        }),
+        });
+      },
     );
     const config = configFor(app);
 

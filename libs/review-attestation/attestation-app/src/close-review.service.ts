@@ -5,6 +5,8 @@ import {
   craftService,
   mutation,
   source$,
+  craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import type { ReviewCloseResponse } from '@craft-ts/style-testing/review';
 
@@ -35,23 +37,18 @@ export const { CloseReview } = craftService(
         },
       },
       ({ hasException }) => ({
-        failed: craftComputed(function* () {
-          return yield* hasException();
-        }),
+        failed: craftUse(
+          craftComputed('failed', function* () {
+            return yield* hasException();
+          }),
+        ),
       }),
     );
 
-    const closeReviewSession = craftMethod(
-      'closeReviewSession',
-      function* () {
-        closeReviewRequested$.emit(++closeReviewRequest);
-      },
-    );
+    yield* craftMethod('closeReviewSession', function* () {
+      closeReviewRequested$.emit(++closeReviewRequest);
+    });
 
-    return {
-      closeReview,
-      closeReviewSession,
-      closeReviewFailed: closeReview.failed,
-    };
+    yield* craftExpose('closeReviewFailed', closeReview.failed);
   },
 );

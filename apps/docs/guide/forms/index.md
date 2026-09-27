@@ -168,68 +168,63 @@ const saveAnimal = mutation('saveAnimal', {
       : params,
 });
 
-export const AnimalForm = craftComponent(
-  'AnimalForm',
-  {},
-  function* () {
-    const animal = yield* state(
-      'animalForm',
-      { name: '', email: '' } satisfies Animal,
-      insertForm(
-        insertSelectFormTree(
-          'name',
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({ validators: [cRequired()] })),
-        ),
-        insertSelectFormTree(
-          'email',
-          insertNoopTypingAnchor,
-          insertFormAttributes(() => ({ validators: [cRequired(), cEmail()] })),
-        ),
-        insertFormSubmit(saveAnimal),
+export const AnimalForm = craftComponent('AnimalForm', {}, function* () {
+  const animal = yield* state(
+    'animalForm',
+    { name: '', email: '' } satisfies Animal,
+    insertForm(
+      insertSelectFormTree(
+        'name',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({ validators: [cRequired()] })),
       ),
-    );
-    return { animal };
-  },
-  ({ animal }) =>
-    form(
-      'animal-form',
-      {
-        *submit(event) {
-          event.preventDefault();
-          yield* animal.form.submit();
-        },
-      },
-      [
-        label({ htmlFor: 'animal-name' }, 'Name'),
-        input('animal-name', { id: 'animal-name' })
-          .pipe(CraftFieldDirective(animal.form.selectName()))
-          .pipe(
-            fieldErrorNode.exhaustive({
-              required: () => p('Name is required.'),
-            }),
-          ),
-        label({ htmlFor: 'animal-email' }, 'Email'),
-        input('animal-email', { id: 'animal-email', type: 'email' })
-          .pipe(CraftFieldDirective(animal.form.selectEmail()))
-          .pipe(
-            fieldErrorNode.exhaustive({
-              required: () => p('Email is required.'),
-              email: () => p('Enter a valid email.'),
-            }),
-          ),
-        button(
-          'animal-submit',
-          { type: 'submit', disabled: animal.form.submitting },
-          'Save',
-        ),
-        p(function* () {
-          if (!(yield* animal.form.hasSubmitExceptions())) return '';
-          return 'The server rejected this animal.';
-        }),
-      ],
+      insertSelectFormTree(
+        'email',
+        insertNoopTypingAnchor,
+        insertFormAttributes(() => ({ validators: [cRequired(), cEmail()] })),
+      ),
+      insertFormSubmit(saveAnimal),
     ),
-);
+  );
+
+  return form(
+    'animal-form',
+    {
+      *submit(event) {
+        event.preventDefault();
+        yield* animal.form.submit();
+      },
+    },
+    [
+      label({ htmlFor: 'animal-name' }, 'Name'),
+      input('animal-name', { id: 'animal-name' })
+        .pipe(CraftFieldDirective(animal.form.selectName()))
+        .pipe(
+          fieldErrorNode.exhaustive({
+            required: () => p('Name is required.'),
+          }),
+        ),
+      label({ htmlFor: 'animal-email' }, 'Email'),
+      input('animal-email', { id: 'animal-email', type: 'email' })
+        .pipe(CraftFieldDirective(animal.form.selectEmail()))
+        .pipe(
+          fieldErrorNode.exhaustive({
+            required: () => p('Email is required.'),
+            email: () => p('Enter a valid email.'),
+          }),
+        ),
+      button(
+        'animal-submit',
+        { type: 'submit', disabled: animal.form.submitting },
+        'Save',
+      ),
+      p(function* () {
+        if (!(yield* animal.form.hasSubmitExceptions())) return '';
+        return 'The server rejected this animal.';
+      }),
+    ],
+  );
+});
 ```
 
 The advanced version uses the same primitives for nested `address` fields,

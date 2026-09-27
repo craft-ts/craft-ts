@@ -1,29 +1,37 @@
 import { button, craftComponent, div, p, heading } from '@craft-ts/component';
 import {
+  craftService,
   craftComputed,
   CraftRouteLoadError,
   CraftRouteLoadRecovery,
+  craftExpose,
 } from '@craft-ts/core';
 import { example } from './examples/shared/example.style';
 
+export const { MyRouteLoadErrorScreenView, provideMyRouteLoadErrorScreenView } =
+  craftService(
+    { name: 'myRouteLoadErrorScreenView', providedIn: 'toProvide' },
+    function* () {
+      const error = yield* CraftRouteLoadError();
+      yield* craftComputed('message', () => {
+        const current = error();
+        return current
+          ? `Failed to load ${current.payload.phase} for route "${current.payload.routePath}" after ${current.payload.attempt} attempts.`
+          : 'The requested route chunk could not be loaded.';
+      });
+      yield* craftExpose('error', error);
+      yield* craftExpose('recovery', yield* CraftRouteLoadRecovery());
+    },
+  );
+
 export const MyRouteLoadErrorScreen = craftComponent(
   'MyRouteLoadErrorScreen',
-  {},
-  function* () {
-    const error = yield* CraftRouteLoadError();
-    const message = craftComputed('message', () => {
-      const current = error();
-      return current
-        ? `Failed to load ${current.payload.phase} for route "${current.payload.routePath}" after ${current.payload.attempt} attempts.`
-        : 'The requested route chunk could not be loaded.';
-    });
-    return {
-      error,
-      message,
-      recovery: yield* CraftRouteLoadRecovery(),
-    };
+  {
+    providers: [provideMyRouteLoadErrorScreenView()],
   },
-  ({ message, recovery }) => {
+  function* () {
+    const { message, recovery } = yield* MyRouteLoadErrorScreenView();
+
     return div({ class: example.alert, 'data-exampleAlert': 'warning' }, [
       heading({ class: example.subtitle }, '⚠️ Route chunk failed'),
       p(message),

@@ -23,11 +23,7 @@ describe('App navbar', () => {
 
     const element = document.createElement('div');
     document.body.append(element);
-    const mounted = mountCraftComponent(
-      App,
-      element,
-      TestBed.inject(Injector),
-    );
+    const mounted = mountCraftComponent(App, element, TestBed.inject(Injector));
     TestBed.tick();
 
     const toggle = () => {
@@ -85,17 +81,14 @@ describe('App navbar', () => {
     const navigateByUrl = vi.spyOn(router, 'navigateByUrl');
     const element = document.createElement('div');
     document.body.append(element);
-    const mounted = mountCraftComponent(
-      App,
-      element,
-      TestBed.inject(Injector),
-    );
+    const mounted = mountCraftComponent(App, element, TestBed.inject(Injector));
     TestBed.tick();
 
     element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
     TestBed.tick();
-    const link = Array.from(element.querySelectorAll<HTMLAnchorElement>('a'))
-      .find((anchor) => anchor.textContent?.trim() === 'Reactive Composition');
+    const link = Array.from(
+      element.querySelectorAll<HTMLAnchorElement>('a'),
+    ).find((anchor) => anchor.textContent?.trim() === 'Reactive Composition');
 
     expect(link).toBeDefined();
     if (link === undefined) {
@@ -114,11 +107,7 @@ describe('App navbar', () => {
 
     const element = document.createElement('div');
     document.body.append(element);
-    const mounted = mountCraftComponent(
-      App,
-      element,
-      TestBed.inject(Injector),
-    );
+    const mounted = mountCraftComponent(App, element, TestBed.inject(Injector));
     TestBed.tick();
 
     element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();

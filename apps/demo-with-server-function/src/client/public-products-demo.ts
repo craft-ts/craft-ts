@@ -15,7 +15,7 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, query } from '@craft-ts/core';
+import { craftService, craftComputed, query, craftUse } from '@craft-ts/core';
 import { getPublicProducts } from '../products/public-products.fn-client';
 import { demoPage } from './demo.style';
 
@@ -24,12 +24,11 @@ import { demoPage } from './demo.style';
  * server-function path before any middleware, context, or authorization is
  * introduced by the other examples.
  */
-const PublicProductsDemo = craftComponent(
-  'PublicProductsDemo',
-  {},
+export const { PublicProductsDemoView, providePublicProductsDemoView } = craftService(
+  { name: 'publicProductsDemoView', providedIn: 'toProvide' },
   function* () {
-    const productsQuery = yield* query(
-      'publicProductsQuery',
+    yield* query(
+      'productsQuery',
       {
         params: () => true,
         loader: function* () {
@@ -37,38 +36,45 @@ const PublicProductsDemo = craftComponent(
         },
       },
       ({ resource }) => ({
-        hasProducts: craftComputed('hasProducts', () => resource.hasValue()),
-        isEmpty: craftComputed('productsIsEmpty', function* () {
+        hasProducts: craftUse(craftComputed('hasProducts', () => resource.hasValue())),
+        isEmpty: craftUse(craftComputed('productsIsEmpty', function* () {
           const currentStatus = yield* resource.status();
           return (
             currentStatus !== 'loading' &&
             currentStatus !== 'reloading' &&
             !resource.hasValue()
           );
-        }),
-        requestTitle: craftComputed('productsRequestTitle', function* () {
+        })),
+        requestTitle: craftUse(craftComputed('productsRequestTitle', function* () {
           const currentStatus = yield* resource.status();
           return currentStatus === 'loading' || currentStatus === 'reloading'
             ? 'Calling demo.products.list…'
             : 'Public response ready';
-        }),
-        requestDetail: craftComputed('productsRequestDetail', function* () {
+        })),
+        requestDetail: craftUse(craftComputed('productsRequestDetail', function* () {
           const currentStatus = yield* resource.status();
           return currentStatus === 'loading' || currentStatus === 'reloading'
             ? 'POST /__server-functions · no middleware'
             : `Status: ${currentStatus}`;
-        }),
-        resultCount: craftComputed('productsResultCount', function* () {
+        })),
+        resultCount: craftUse(craftComputed('productsResultCount', function* () {
           const value = yield* resource.value();
           return Array.isArray(value) ? value.length.toString() : '—';
-        }),
+        })),
       }),
     );
 
-    return { productsQuery };
   },
-  ({ productsQuery }) =>
-    main({ class: demoPage.shell }, [
+);
+
+const PublicProductsDemo = craftComponent(
+  'PublicProductsDemo',
+  {
+    providers: [providePublicProductsDemoView()],
+  },
+  function* () {
+    const { productsQuery } = yield* PublicProductsDemoView();
+    return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
           span({ class: demoPage.pulse }),
@@ -160,7 +166,8 @@ const PublicProductsDemo = craftComponent(
           'products/public-products.fn-serveur.ts',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export { PublicProductsDemo };

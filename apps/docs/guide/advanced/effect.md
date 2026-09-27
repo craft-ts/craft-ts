@@ -108,18 +108,13 @@ import { button, craftComponent, p } from '@craft-ts/component';
 import { queryEffect } from '@craft-ts/effect';
 import { loadUserProfile } from './profile-domain';
 
-export const Profile = craftComponent(
-  'Profile',
-  {},
-  function* () {
-    const profile = yield* queryEffect('profile', {
-      params: () => 'user-ada',
-      loader: ({ params }) => loadUserProfile(params),
-    });
+export const Profile = craftComponent('Profile', {}, function* () {
+  const profile = yield* queryEffect('profile', {
+    params: () => 'user-ada',
+    loader: ({ params }) => loadUserProfile(params),
+  });
 
-    return { profile };
-  },
-  ({ profile }) => [
+  return [
     p(function* () {
       const user = yield* profile.value();
       return user?.name ?? 'Loading…';
@@ -133,8 +128,8 @@ export const Profile = craftComponent(
       },
       'Reload',
     ),
-  ],
-);
+  ];
+});
 ```
 
 The template consumes Craft readers. It does not subscribe to an Effect, call
@@ -446,10 +441,10 @@ declaring it in the shape is enough, the implementation needs no ceremony. Where
 Run it with `syncEffect(...)`, which resolves in place instead of suspending:
 
 ```typescript
-const totalLabel = craftComputed('totalLabel', function* () {
+const totalLabel = craftUse(craftComputed('totalLabel', function* () {
   const cents = yield* syncEffect(cartTotal(yield* lines()));
   return yield* syncEffect(formatPrice(cents));
-});
+}));
 ```
 
 Requirements other than `SyncOp` travel through untouched — the level in force

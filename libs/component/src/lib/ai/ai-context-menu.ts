@@ -1,23 +1,19 @@
-import { craftUse, fromEventToSource$ } from '@craft-ts/core';
+import { craftService, craftUse, fromEventToSource$ } from '@craft-ts/core';
 import { craftComponent } from '../component';
 import { button, div, span } from '../hyperscript';
-import type { Input, Output } from '../types';
+import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { assign, unit } from '@craft-ts/style';
 import { aiMenu, aiTheme, menuPosition } from './ai-overlay.style';
 
 /**
- * Context menu shown at the pointer position when a component is
- * right-clicked. Mounted imperatively by the AI overlay controller.
+ * Closes the menu on any interaction outside of it.
+ *
+ * The subscriptions belong to a service so a rerender keeps the ones the first
+ * render opened instead of stacking new ones on top of them.
  */
-export const AiContextMenu = craftComponent(
-  'AiContextMenu',
-  {},
-  (
-    x: Input<number>,
-    y: Input<number>,
-    onSelect: Output<() => void>,
-    onDismiss: Output<() => void>,
-  ) => {
+const { AiContextMenuDismissal, provideAiContextMenuDismissal } = craftService(
+  { name: 'aiContextMenuDismissal', providedIn: 'toProvide' },
+  function* (onDismiss: Output<() => void>) {
     // Clicks inside the menu stop propagating, so anything reaching the
     // document is an outside click.
     fromEventToSource$<MouseEvent>(document, 'click').subscribe(() =>
@@ -30,11 +26,27 @@ export const AiContextMenu = craftComponent(
         }
       },
     );
-
-    return { x, y, onSelect, onDismiss };
   },
-  ({ x, y, onSelect }) =>
-    div(
+);
+
+/**
+ * Context menu shown at the pointer position when a component is
+ * right-clicked. Mounted imperatively by the AI overlay controller.
+ */
+export const AiContextMenu = craftComponent(
+  'AiContextMenu',
+  {
+    providers: [provideAiContextMenuDismissal()],
+  },
+  function* (inputs: {
+    readonly x: Input<number>;
+    readonly y: Input<number>;
+    readonly onSelect: Output<() => void>;
+    readonly onDismiss: Output<() => void>;
+  }) {
+    const { x, y, onSelect } = inputs;
+    yield* AiContextMenuDismissal(inputs.onDismiss);
+    return div(
       'aiContextMenu',
       {
         class: [aiTheme.root, aiMenu.root],
@@ -59,5 +71,14 @@ export const AiContextMenu = craftComponent(
         },
         [span({ 'aria-hidden': 'true' }, '✨'), span('Add to AI context')],
       ),
-    ),
-);
+    );
+  },
+) as unknown as CraftComponent<
+  {
+    readonly x: InputValue<number>;
+    readonly y: InputValue<number>;
+    readonly onSelect: () => void;
+    readonly onDismiss: () => void;
+  },
+  any
+>;

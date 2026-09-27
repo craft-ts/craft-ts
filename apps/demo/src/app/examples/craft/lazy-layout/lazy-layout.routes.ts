@@ -1,6 +1,4 @@
-import {
-  loadCraftComponent,
-} from '@craft-ts/component';
+import { loadCraftComponent } from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
   craftRoutes,

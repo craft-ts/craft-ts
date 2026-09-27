@@ -34,7 +34,7 @@ describe('Craft CSS variable ESLint rules', () => {
     const result = await messages(
       'craft-css-vars-contract',
       `import styles from './css-vars-external.css' with { loader: 'text' };
-       craftComponent('External', { stylesUrl: styles }, () => ({}), () => div());`,
+       craftComponent('External', { stylesUrl: styles }, () => div());`,
       new URL('./fixtures/fixture.ts', import.meta.url).pathname,
     );
     expect(result).toContain(
@@ -46,7 +46,7 @@ describe('Craft CSS variable ESLint rules', () => {
     expect(
       await messages(
         'craft-css-vars-contract',
-        `craftComponent('Dynamic', { styles: makeCss() }, () => ({}), () => div());`,
+        `craftComponent('Dynamic', { styles: makeCss() }, () => div());`,
       ),
     ).toContain(
       'Craft component styles are dynamic and their CSS variable contract cannot be checked.',
@@ -56,7 +56,7 @@ describe('Craft CSS variable ESLint rules', () => {
   it('mirrors scope safety checks', async () => {
     const result = await messages(
       'craft-styles-scope-safe',
-      "craftComponent('Spinner', { styles: '@keyframes spin {to{opacity:1}}' }, () => ({}), () => div());",
+      "craftComponent('Spinner', { styles: '@keyframes spin {to{opacity:1}}' }, () => div());",
     );
     expect(result[0]).toContain('Spinner-spin');
   });
@@ -64,7 +64,7 @@ describe('Craft CSS variable ESLint rules', () => {
   it('enforces component variable namespaces', async () => {
     const result = await messages(
       'craft-css-var-naming',
-      "craftComponent('Card', { styles: ':scope { --gap: 1rem }' }, () => ({}), () => div());",
+      "craftComponent('Card', { styles: ':scope { --gap: 1rem }' }, () => div());",
     );
     expect(result[0]).toContain('--card-');
   });
@@ -73,13 +73,13 @@ describe('Craft CSS variable ESLint rules', () => {
     expect(
       await messages(
         'no-hardcoded-design-values',
-        "craftComponent('Card', { styles: '.x { color: #fff }' }, () => ({}), () => div());",
+        "craftComponent('Card', { styles: '.x { color: #fff }' }, () => div());",
       ),
     ).toHaveLength(1);
     expect(
       await messages(
         'no-important-in-component-styles',
-        "craftComponent('Card', { styles: '.x { color: red !important }' }, () => ({}), () => div());",
+        "craftComponent('Card', { styles: '.x { color: red !important }' }, () => div());",
       ),
     ).toHaveLength(1);
   });

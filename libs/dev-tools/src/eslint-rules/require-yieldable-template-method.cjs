@@ -1,4 +1,4 @@
-const YIELDABLE_METHOD_NAME = 'YIELDABLE_METHOD';
+const { templateRegions } = require('./craft-template-region.cjs');
 
 module.exports = {
   meta: {
@@ -42,15 +42,15 @@ module.exports = {
           !esTreeNodeToTSNodeMap ||
           node.callee.type !== 'Identifier' ||
           node.callee.name !== 'craftComponent' ||
-          node.arguments.length < 4
+          node.arguments.length < 3
         ) {
           return;
         }
 
-        inspectTemplate(
-          node.arguments[3],
-          collectLocalWrappers(node.arguments[2]),
-        );
+        const wrappers = collectLocalWrappers(node.arguments[2]);
+        for (const region of templateRegions(node.arguments[2])) {
+          inspectTemplate(region, wrappers);
+        }
       },
     };
 
@@ -88,30 +88,16 @@ module.exports = {
       return Boolean(findLocalWrapper(node, localWrappers));
     }
 
+    // What must be delegated is what hands back an invocation. A craftMethod
+    // carries the same brand but runs when it is called and returns its result,
+    // so the brand alone does not make a call a delegation.
     function isDirectYieldableCall(node) {
       const tsNode = esTreeNodeToTSNodeMap.get(node.callee);
       if (!tsNode) return false;
 
       const calleeType = checker.getTypeAtLocation(tsNode);
-      if (hasYieldableBrand(calleeType, new Set())) {
-        return true;
-      }
-
       const signature = calleeType.getCallSignatures?.()[0];
       return signature ? returnsGenerator(signature.getReturnType()) : false;
-    }
-
-    function hasYieldableBrand(type, seen) {
-      if (!type || seen.has(type)) return false;
-      seen.add(type);
-
-      if (type.isUnion?.() || type.isIntersection?.()) {
-        return type.types.some((part) => hasYieldableBrand(part, seen));
-      }
-
-      return checker
-        .getPropertiesOfType(type)
-        .some((property) => String(property.escapedName).includes(YIELDABLE_METHOD_NAME));
     }
 
     function returnsGenerator(type) {
@@ -125,20 +111,23 @@ module.exports = {
         return type.types.every((part) => returnsGenerator(part));
       }
 
-      return checker
-        .getPropertiesOfType(type)
-        .some((property) => property.name === 'next') &&
-        checker.getPropertiesOfType(type).some((property) => property.name === 'return');
+      return (
+        checker
+          .getPropertiesOfType(type)
+          .some((property) => property.name === 'next') &&
+        checker
+          .getPropertiesOfType(type)
+          .some((property) => property.name === 'return')
+      );
     }
 
+    // A local function the component declares and a binding then calls: the
+    // delegation it forgot is the one inside that function.
     function collectLocalWrappers(factory) {
+      const wrappers = new Map();
+      if (!factory?.body) return wrappers;
+
       const localFunctions = new Map();
-      let returnedObject;
-
-      if (!factory) {
-        return new Map();
-      }
-
       walk(factory.body, (node) => {
         if (isFunctionNode(node)) {
           if (node.type === 'FunctionDeclaration' && node.id) {
@@ -147,59 +136,30 @@ module.exports = {
           return 'skip';
         }
 
-        if (node.type === 'VariableDeclarator') {
-          if (
-            node.id.type === 'Identifier' &&
-            node.init &&
-            isFunctionNode(node.init)
-          ) {
-            localFunctions.set(node.id.name, node.init);
-          }
-          return;
-        }
-
         if (
-          !returnedObject &&
-          node.type === 'ReturnStatement' &&
-          node.argument?.type === 'ObjectExpression'
+          node.type === 'VariableDeclarator' &&
+          node.id.type === 'Identifier' &&
+          node.init &&
+          isFunctionNode(node.init)
         ) {
-          returnedObject = node.argument;
-          return 'skip';
+          localFunctions.set(node.id.name, node.init);
         }
       });
 
-      if (!returnedObject) {
-        return new Map();
-      }
-
-      const wrappers = new Map();
-      for (const property of returnedObject.properties) {
-        if (
-          property.type !== 'Property' ||
-          property.value.type !== 'Identifier'
-        ) {
-          continue;
-        }
-
-        const functionNode = localFunctions.get(property.value.name);
-        if (!functionNode) {
-          continue;
-        }
-
+      for (const [name, functionNode] of localFunctions) {
         const yieldableCalls = [];
         walkFunctionBody(functionNode.body, (node) => {
-          if (node.type === 'CallExpression' && isDirectYieldableCall(node)) {
-            if (!isDelegated(node)) {
-              yieldableCalls.push(node);
-            }
+          if (
+            node.type === 'CallExpression' &&
+            isDirectYieldableCall(node) &&
+            !isDelegated(node)
+          ) {
+            yieldableCalls.push(node);
           }
         });
 
         if (yieldableCalls.length > 0) {
-          wrappers.set(property.value.name, {
-            functionNode,
-            yieldableCalls,
-          });
+          wrappers.set(name, { functionNode, yieldableCalls });
         }
       }
 
@@ -319,7 +279,9 @@ module.exports = {
       }
 
       for (const node of wrapper.yieldableCalls) {
-        fixes.push(fixer.replaceText(node, `yield* ${sourceCode.getText(node)}`));
+        fixes.push(
+          fixer.replaceText(node, `yield* ${sourceCode.getText(node)}`),
+        );
       }
 
       return fixes;

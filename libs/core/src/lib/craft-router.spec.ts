@@ -329,10 +329,10 @@ describe('CraftRouter', () => {
     // delegating to `CraftRouter` had `Yielded = unknown`, so
     // `ExtractDeps<...>` returned `{}` instead of `{ CraftRouter: ... }`.
     class GoToHome {
-      readonly navigate = craftMethod('navigate', this, function* () {
+      readonly navigate = craftUse(craftMethod('navigate', this, function* () {
         const router = yield* CraftRouter();
         return router.navigate({ to: '' });
-      });
+      }));
     }
 
     type _Check = Expect<
@@ -427,10 +427,10 @@ describe('CraftRouter', () => {
     // the merged deps map to a `{ [x: string]: ... }` index signature instead
     // of preserving each service's literal name.
     class MultiYield {
-      readonly run = craftMethod('run', this, function* () {
+      readonly run = craftUse(craftMethod('run', this, function* () {
         yield* Console.log('navigating');
         yield* CraftRouter();
-      });
+      }));
     }
 
     type _Check = Expect<

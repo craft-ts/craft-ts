@@ -6,7 +6,7 @@ import {
   runInInjectionContext,
   type Type,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import { DOCUMENT } from './host/craft-compat';
 import { ɵinjectCraftA11yNavigationFocus } from './craft-a11y';
 import { isCraftException, type AnyCraftException } from './craft-exception';
@@ -127,7 +127,7 @@ export type CraftOutletState =
   | 'loaded'
   | 'error';
 
-const craftRouteChainRunnerService = craftService(
+const craftRouteChainRunnerService = ɵcraftValueService(
   { name: 'CraftRouteChainRunner', providedIn: 'global' },
   () => runCraftRouteChainAsync,
 ) as unknown as {
@@ -165,11 +165,11 @@ function runRegisteredSyncTemplateFlush(): void {
  * the displayed DOM is patched before the callback returns. Templates driven by
  * `craftEffect` otherwise bump an Angular signal asynchronously.
  */
-const craftSyncTemplateFlushService = craftService(
+const craftSyncTemplateFlushService = ɵcraftValueService(
   { name: 'CraftSyncTemplateFlush', providedIn: 'global' },
   () => runRegisteredSyncTemplateFlush,
 ) as unknown as {
-  CraftSyncTemplateFlush: () => Generator<unknown, () => void, unknown>;
+  CraftSyncTemplateFlush: () => Generator<never, () => void, unknown>;
   CRAFT_SYNC_TEMPLATE_FLUSH_META_DATA: { inject(): () => void };
 };
 export const CraftSyncTemplateFlush = craftSyncTemplateFlushService.CraftSyncTemplateFlush;

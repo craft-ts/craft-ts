@@ -8,6 +8,7 @@ import {
   source$,
   state,
 } from '../index';
+import { craftExpose } from './craft-primitive-gen';
 
 describe('yieldable source services', () => {
   it('keeps the direct source API while resolving through yield*', () => {
@@ -30,15 +31,14 @@ describe('yieldable source services', () => {
     const { Reset } = craftService(
       { name: 'Reset', providedIn: 'global' },
       function* () {
-        const reset$ = yield* source$<void>('reset$');
-        return reset$;
+        yield* source$<void, 'reset$'>('reset$');
       },
     );
 
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 0, ({ set, state }) => ({
+        yield* state('counter', 0, ({ set, state }) => ({
           increment: function* () {
                 const _state = yield* state(); return set(_state + 1); },
           reset: on$(Reset, (value) => {
@@ -47,9 +47,9 @@ describe('yieldable source services', () => {
           }),
         }));
 
-        const reset = yield* Reset();
+        const reset = (yield* Reset()).reset$;
 
-        return { counter, reset };
+        yield* craftExpose('reset', reset);
       },
     );
 

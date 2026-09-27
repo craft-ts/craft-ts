@@ -17,6 +17,7 @@ import {
   state,
   type CraftServiceInput,
   craftException,
+  craftExpose,
 } from '@craft-ts/core';
 import { eventValue } from '../../event-value';
 import { example } from '../shared/example.style';
@@ -33,19 +34,17 @@ const USERS: User[] = [
 const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global' },
   function* () {
-    return {
-      getUser: craftGen(function* (id: string) {
-        yield* craftSleep(600);
-        const user = USERS.find((candidate) => candidate.id === id);
-        if (!user)
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`User ${id} not found`) },
-          );
-        return user;
-      }),
-      availableUserIds: USERS.map(({ id }) => id),
-    };
+    yield* craftExpose('getUser', craftGen(function* (id: string) {
+      yield* craftSleep(600);
+      const user = USERS.find((candidate) => candidate.id === id);
+      if (!user)
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`User ${id} not found`) },
+        );
+      return user;
+    }));
+    yield* craftExpose('availableUserIds', USERS.map(({ id }) => id));
   },
 );
 
@@ -53,7 +52,7 @@ const { provideUser, User } = craftService(
   { name: 'User', providedIn: 'toProvide' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
     const api = yield* UsersApi();
-    const user = yield* query('user', {
+    yield* query('user', {
       params: function* () {
         return yield* inputs.userId();
       },
@@ -61,36 +60,49 @@ const { provideUser, User } = craftService(
         return yield* api.getUser(params);
       },
     });
-    return {
-      ...user,
-      userIds: api.availableUserIds,
-    };
+    yield* craftExpose('userIds', api.availableUserIds);
   },
 );
+
+export const { CraftServiceUserDetailView, provideCraftServiceUserDetailView } =
+  craftService(
+    { name: 'craftServiceUserDetailView', providedIn: 'toProvide' },
+    function* () {
+      const userId = yield* state('userId', '1', ({ set }) => ({
+        selectUser: (value: string) => set(value),
+      }));
+      const { user, userIds } = yield* User({ userId });
+      yield* craftComputed('hasValue', () => user.hasValue());
+      yield* craftComputed('userIdValue', function* () {
+        return (yield* user.value())?.id ?? '';
+      });
+      yield* craftComputed('userName', function* () {
+        return (yield* user.value())?.name ?? '';
+      });
+      yield* craftComputed('userEmail', function* () {
+        return (yield* user.value())?.email ?? '';
+      });
+      yield* craftExpose('user', user);
+      yield* craftExpose('userIds', userIds);
+    },
+  );
 
 const CraftServiceUserDetailComponent = craftComponent(
   'CraftServiceUserDetailComponent',
   {
-    providers: [provideUser()],
+    providers: [provideCraftServiceUserDetailView(), provideUser()],
   },
   function* () {
-    const userId = yield* state('userId', '1', ({ set }) => ({
-      selectUser: (value: string) => set(value),
-    }));
-    const user = yield* User({ userId });
-    const hasValue = craftComputed('hasValue', () => user.hasValue());
-    const userIdValue = craftComputed('userIdValue', function* () {
-      return (yield* user.value())?.id ?? '';
-    });
-    const userName = craftComputed('userName', function* () {
-      return (yield* user.value())?.name ?? '';
-    });
-    const userEmail = craftComputed('userEmail', function* () {
-      return (yield* user.value())?.email ?? '';
-    });
-    return { userId, user, hasValue, userIdValue, userName, userEmail };
-  },
-  ({ userId, user, hasValue, userIdValue, userName, userEmail }) => {
+    const {
+      userId,
+      user,
+      userIds,
+      hasValue,
+      userIdValue,
+      userName,
+      userEmail,
+    } = yield* CraftServiceUserDetailView();
+
     return div({ class: example.centered }, [
       heading({ class: example.title }, 'craftService User Detail (query)'),
       div({ class: example.row, 'data-testid': 'user-controls' }, [
@@ -99,12 +111,10 @@ const CraftServiceUserDetailComponent = craftComponent(
             'aria-label': 'User',
             value: userId,
             *change(event: Event) {
-              yield* userId.selectUser(
-                eventValue(event),
-              );
+              yield* userId.selectUser(eventValue(event));
             },
           },
-          user.userIds.map((id) => option({ value: id }, `User ${id}`)),
+          userIds.map((id) => option({ value: id }, `User ${id}`)),
         ),
       ]),
       div({ class: example.box, 'data-testid': 'user-card' }, [

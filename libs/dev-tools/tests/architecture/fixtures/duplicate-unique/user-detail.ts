@@ -8,13 +8,12 @@ import {
 export const { UserDetail, provideUserDetail } = craftService(
   { name: 'UserDetail', providedIn: 'toProvide' },
   function* () {
-    const detail = yield* query(
-      'userDetail',
+    yield* query(
+      'detail',
       {},
       insertStoragePersister(
         craftUnique({ storeName: 'shop', key: 'user' }),
       ),
     );
-    return { detail };
   },
 );

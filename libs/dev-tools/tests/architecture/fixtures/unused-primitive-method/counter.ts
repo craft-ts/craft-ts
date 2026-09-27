@@ -3,7 +3,7 @@ import { craftService, state } from '../craft-runtime';
 export const { Counter } = craftService(
   { name: 'Counter', providedIn: 'global' },
   function* () {
-    const counter = yield* state(
+    yield* state(
       'counter',
       0,
       ({ update }) => ({
@@ -11,6 +11,5 @@ export const { Counter } = craftService(
         unused: () => update((value) => value - 1),
       }),
     );
-    return { counter };
   },
 );

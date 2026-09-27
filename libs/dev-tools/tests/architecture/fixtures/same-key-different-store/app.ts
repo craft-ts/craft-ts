@@ -9,27 +9,25 @@ import {
 export const { ShopUsers } = craftService(
   { name: 'ShopUsers', providedIn: 'global' },
   function* () {
-    const list = yield* query(
-      'shopUsers',
+    yield* query(
+      'list',
       {},
       insertStoragePersister(
         craftUnique({ key: 'user', storeName: 'shop' }),
       ),
     );
-    return { list };
   },
 );
 
 export const { AdminUsers } = craftService(
   { name: 'AdminUsers', providedIn: 'global' },
   function* () {
-    const list = yield* state(
-      'adminUsers',
+    yield* state(
+      'list',
       [],
       insertStoragePersister(
         craftUnique({ key: 'user', storeName: 'admin' }),
       ),
     );
-    return { list };
   },
 );

@@ -140,9 +140,7 @@ module.exports = {
 
     function isReactiveRead(node) {
       const type = getCalleeType(node);
-      return (
-        hasBrand(type, REACTIVE_READ_BRAND) || hasBrand(type, INPUT_BRAND)
-      );
+      return hasBrand(type, REACTIVE_READ_BRAND) || hasBrand(type, INPUT_BRAND);
     }
 
     function isKnownAsyncApi(node) {

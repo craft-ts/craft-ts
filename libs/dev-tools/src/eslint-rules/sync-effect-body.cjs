@@ -151,7 +151,9 @@ module.exports = {
       if (!tsNode) return false;
 
       const contextual = checker.getContextualType?.(tsNode);
-      return Boolean(contextual && SYNC_OP_PATTERN.test(safeToString(contextual)));
+      return Boolean(
+        contextual && SYNC_OP_PATTERN.test(safeToString(contextual)),
+      );
     }
 
     function inspectYield(yielded) {
@@ -299,7 +301,9 @@ module.exports = {
     }
 
     function isEffectGenCall(node) {
-      return node.type === 'CallExpression' && isEffectMemberCall(node.callee, 'gen');
+      return (
+        node.type === 'CallExpression' && isEffectMemberCall(node.callee, 'gen')
+      );
     }
   },
 };

@@ -15,22 +15,16 @@ function statusPage(
   message: string,
   detail: string,
 ) {
-  return craftComponent(
-    name,
-    {},
-    function* () {
-      return {};
-    },
-    () =>
-      main({ class: statusStyle.root }, [
-        section({ class: statusStyle.card }, [
-          p({ class: statusStyle.eyebrow }, eyebrow),
-          heading({ class: statusStyle.title }, title),
-          p({ class: statusStyle.message }, message),
-          p({ class: statusStyle.detail }, detail),
-          divActions(),
-        ]),
+  return craftComponent(name, {}, () =>
+    main({ class: statusStyle.root }, [
+      section({ class: statusStyle.card }, [
+        p({ class: statusStyle.eyebrow }, eyebrow),
+        heading({ class: statusStyle.title }, title),
+        p({ class: statusStyle.message }, message),
+        p({ class: statusStyle.detail }, detail),
+        divActions(),
       ]),
+    ]),
   );
 }
 

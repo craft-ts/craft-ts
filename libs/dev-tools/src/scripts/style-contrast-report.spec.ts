@@ -170,7 +170,7 @@ export {};
 const APP = `
 const card = craftStyles('dsCard', { root: [], body: [] });
 
-export const Card = craftComponent('Card', {}, () => ({}), () =>
+export const Card = craftComponent('Card', {}, () =>
   div('card', { class: card.root }, p('body', { class: card.body }, 'Readable?')),
 );
 `;

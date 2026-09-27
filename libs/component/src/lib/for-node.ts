@@ -56,9 +56,10 @@ type ForItem<Source> = [NonNullable<Source>] extends [never]
   ? unknown
   : ForItemFromValue<Source>;
 
-type DeepForItemPath<Source> = SourceName<Source> extends string
-  ? `${SourceName<Source>}.item`
-  : 'forNode.item';
+type DeepForItemPath<Source> =
+  SourceName<Source> extends string
+    ? `${SourceName<Source>}.item`
+    : 'forNode.item';
 
 type ForItemInput<Source> = [Source] extends [DeepYieldableMarker]
   ? DeepYieldableValue<ForItem<Source>, Source, DeepForItemPath<Source>>

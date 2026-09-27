@@ -14,7 +14,7 @@ export function createComponentRegister(): ComponentRegister {
 }
 
 type ComponentRegisterHelper = () =>
-  Generator<unknown, ComponentRegister, unknown>;
+  Generator<never, ComponentRegister, unknown>;
 export const COMPONENT_REGISTER = Object.freeze({});
 
 export const ComponentRegister: ComponentRegisterHelper = function* () {

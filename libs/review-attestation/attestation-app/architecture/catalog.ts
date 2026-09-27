@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "ac1650f216fe4fed",
+  "graphHash": "316ec11c8415d8cd",
   "routes": [
     "",
     "application",
@@ -13,114 +13,34 @@ export const architectureCatalog = {
     "visual"
   ],
   "services": [
-    "AiContextMenuController",
-    "AppSnapshotRegistry",
-    "BrowserCryptoService",
-    "BrowserDocumentService",
-    "BrowserHistoryService",
-    "BrowserLocationService",
-    "BrowserNavigatorService",
-    "BrowserPerformanceService",
-    "BrowserWindowService",
     "CloseReview",
-    "ComponentMonitoring",
-    "ConsoleService",
-    "CookiesService",
-    "CorrelationIdService",
-    "CraftA11yNavigationFocus",
-    "CraftActivatedRoute",
-    "CraftActiveRouteLoadError",
-    "CraftBlankMs",
-    "CraftChildMatch",
-    "CraftCompiledRoutes",
-    "CraftCspNonce",
-    "CraftDomEventHooks",
-    "CraftDynamicImport",
-    "CraftErrorComponent",
     "CraftFieldCheckboxControl",
-    "CraftFieldExceptionBoundary",
     "CraftFieldValueControl",
-    "CraftGlobalError",
-    "CraftGlobalErrorComponent",
-    "CraftHistory",
-    "CraftHttpTraces",
-    "CraftHydrationRuntime",
-    "CraftLazyLoadRetry",
-    "CraftLoadingText",
-    "CraftLocation",
     "CraftLogServerUrl",
-    "CraftMatch",
-    "CraftNodeEffectFactory",
-    "CraftPendingComponent",
-    "CraftPendingMinMs",
-    "CraftPlatform",
-    "CraftPrimitiveRegistry",
-    "CraftRenderIdentity",
-    "CraftRootComponent",
-    "CraftRouteChainRunner",
-    "CraftRouteLoadError",
-    "CraftRouteLoadErrorComponent",
-    "CraftRouteLoadErrorConfig",
-    "CraftRouteLoadRecovery",
-    "CraftRouteLoadRetry",
-    "CraftRouteTarget",
-    "CraftRoutedComponent",
-    "CraftRouter",
-    "CraftRouterRuntime",
-    "CraftRouterTraces",
-    "CraftRuntimeMode",
-    "CraftSchemaValidationPolicy",
-    "CraftSecurityPolicy",
-    "CraftSsrPolicy",
-    "CraftSsrRuntime",
-    "CraftStartViewTransition",
-    "CraftStayMs",
-    "CraftStyleRegistry",
-    "CraftSyncTemplateFlush",
-    "CraftTitleStrategy",
-    "CraftViewTransition",
-    "CraftViewTransitionSkipBlank",
-    "CraftViewTransitionsEnabled",
-    "DynamicEffectRefInstance",
-    "DynamicResourceInstance",
-    "ForScheduler",
     "GlobalPersisterHandlerService",
-    "HostName",
-    "InsertionSnapshotRegistry",
-    "LocalStoragePersister",
-    "LocalStorageService",
     "MiddlewareExecutionScope",
-    "PrimitiveMethodRuntimeContext",
-    "PrimitiveResourceRuntimeObservers",
     "RetirementReasonChoice",
     "ReviewAppModel",
     "ReviewFilters",
     "ReviewNavigation",
     "ReviewPreferences",
-    "SendContextChatActions",
-    "SendContextChatComponent",
-    "SendContextChatSections",
-    "SendContextContextMenuComponent",
-    "SendContextEventEnrichers",
-    "SendContextEventFilters",
-    "SendContextEventSources",
-    "SendContextExportSections",
-    "SendContextLauncherComponent",
-    "SendContextRecordController",
-    "SendContextRedactor",
-    "SendContextRetentionPolicy",
-    "SendContextSession",
-    "SendContextToAiBuffer",
-    "SendContextUiRenderer",
-    "SendContextValueSerializer",
     "ServerFunctionTransport",
-    "SessionStoragePersister",
-    "SessionStorageService",
     "StoragePersister",
     "StorageService",
-    "TakeAppSnapshot",
-    "TemplateTraces",
-    "api"
+    "aiContextMenuDismissal",
+    "aiSendContextChatState",
+    "aiSendDialogState",
+    "applicationOverviewView",
+    "craftRouterOutletState",
+    "folderLayoutViewState",
+    "reviewActionDialogsView",
+    "reviewDecisionPanelView",
+    "reviewInventoryPanelsView",
+    "reviewLiveEvidenceView",
+    "reviewQueuePanelView",
+    "reviewTemplateEvidenceView",
+    "templateReviewGroupState",
+    "tierLegendView"
   ],
   "components": [
     "AiContextMenu",
@@ -172,16 +92,7 @@ export const architectureCatalog = {
     "adoptionSummary",
     "allSelected",
     "applicationCaptures",
-    "applicationCategory",
-    "applicationImage",
-    "applicationNote",
-    "applicationPage",
     "applicationPressed",
-    "applicationScenario",
-    "applicationSelection",
-    "applicationStatus",
-    "applicationViewport",
-    "applicationZoom",
     "applyFolderLayout",
     "band",
     "bandHidden",
@@ -209,6 +120,7 @@ export const architectureCatalog = {
     "captureError",
     "captureInProgress",
     "cards",
+    "category",
     "changeZoomFromEvent",
     "changedHidden",
     "changedLabel",
@@ -219,6 +131,7 @@ export const architectureCatalog = {
     "chooseRule",
     "chooseTheme",
     "chrome",
+    "clearAllCache",
     "clearFilters",
     "clearTemplateSelection",
     "closeIterationDialog",
@@ -240,15 +153,16 @@ export const architectureCatalog = {
     "copyIterationPrompt",
     "coverageLabel",
     "coveredCount",
-    "craftComputed",
     "current",
     "decide",
     "decideApplicationCaptures",
+    "decision",
     "decisionFailed",
     "degraded",
     "degradedVisible",
     "delegateTemplateSelection",
     "devtoolView",
+    "diagnostics",
     "directionFilter",
     "dismissFolderLayoutApply",
     "effects",
@@ -261,6 +175,7 @@ export const architectureCatalog = {
     "evidenceHidden",
     "evidenceView",
     "expandFolders",
+    "failed",
     "fellBack",
     "fidelitySentence",
     "findings",
@@ -289,9 +204,11 @@ export const architectureCatalog = {
     "helpText",
     "hiddenLegend",
     "hideChrome",
+    "historyItems",
     "ide",
     "imageAlt",
     "imageHidden",
+    "imageKind",
     "imageSource",
     "imageViewPressed",
     "inspectApplicationCapture",
@@ -342,6 +259,7 @@ export const architectureCatalog = {
     "overlayHint",
     "overlayLabel",
     "overlayToggleHidden",
+    "pageFilter",
     "pageProgress",
     "pages",
     "panelOffset",
@@ -364,7 +282,7 @@ export const architectureCatalog = {
     "queueTitle",
     "reasonState",
     "reasonText",
-    "regenerateEvidence",
+    "regenerate",
     "regeneratingLabel",
     "regenerationAvailable",
     "regenerationDialogOpen",
@@ -376,14 +294,18 @@ export const architectureCatalog = {
     "rejectionReasonMissing",
     "renderSites",
     "renderSitesHidden",
+    "reopen",
     "reopenDecision",
     "reopenFailed",
-    "reopenReviewDecision",
+    "reopenHistoryItem",
     "reopeningLabel",
     "replay",
     "replayFrameId",
     "replayHolderHidden",
+    "replayJson",
+    "replayReport",
     "replaySource",
+    "replayStatus",
     "replayTarget",
     "requestTemplateReject",
     "retire",
@@ -391,15 +313,16 @@ export const architectureCatalog = {
     "retirementVisible",
     "revealFolders",
     "reviewCards",
-    "reviewDecision",
     "reviewFailed",
     "reviewNavigation",
     "reviewPanelHidden",
     "reviewPressed",
     "reviewQueue",
+    "reviewTextFilter",
     "root",
     "rows",
     "rules",
+    "scenarioFilter",
     "scenarios",
     "screenshotLabel",
     "selectAllTemplateCards",
@@ -407,8 +330,11 @@ export const architectureCatalog = {
     "selectHumanTemplateCards",
     "selectNodes",
     "selectVisualTest",
+    "selected",
     "selectedCount",
     "selectedImageSource",
+    "selectedSourceHidden",
+    "selectedSourceHref",
     "selectedTemplateIds",
     "selectedVisualAsset",
     "selectedVisualState",
@@ -423,6 +349,7 @@ export const architectureCatalog = {
     "setCopied",
     "setError",
     "setPanelOffset",
+    "setReplayStatus",
     "setStatus",
     "showActions",
     "showAgentBusy",
@@ -436,6 +363,7 @@ export const architectureCatalog = {
     "stateFilter",
     "statementText",
     "status",
+    "statusFilter",
     "statusText",
     "styleAdoption",
     "subjectLabel",
@@ -454,7 +382,6 @@ export const architectureCatalog = {
     "templateSourceHidden",
     "templateWhenHidden",
     "templateWhenText",
-    "textFilter",
     "theme",
     "themeAttribute",
     "toggleChrome",
@@ -464,6 +391,7 @@ export const architectureCatalog = {
     "trees",
     "view",
     "viewTitle",
+    "viewportFilter",
     "viewportLabel",
     "viewports",
     "visible",
@@ -473,6 +401,7 @@ export const architectureCatalog = {
     "visualEvidenceHidden",
     "visualPressed",
     "visualReviewCard",
+    "visualTestRows",
     "visualTests",
     "warningHidden",
     "warningText",
@@ -542,49 +471,186 @@ export const architectureCatalog = {
     },
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:267>"
+      "url": "<unresolved:ai-send-context-chat.ts:311>"
     }
   ],
   "uniques": [],
-  "providers": [],
+  "providers": [
+    "aiContextMenuDismissal",
+    "aiSendContextChatState",
+    "aiSendDialogState",
+    "applicationOverviewView",
+    "craftRouterOutletState",
+    "folderLayoutViewState",
+    "reviewActionDialogsView",
+    "reviewDecisionPanelView",
+    "reviewInventoryPanelsView",
+    "reviewLiveEvidenceView",
+    "reviewQueuePanelView",
+    "reviewTemplateEvidenceView",
+    "templateReviewGroupState",
+    "tierLegendView"
+  ],
   "routeProviders": {},
-  "componentProviders": {},
-  "providedOn": {},
+  "componentProviders": {
+    "AiContextMenu": [
+      "aiContextMenuDismissal"
+    ],
+    "AiSendContextChat": [
+      "aiSendContextChatState"
+    ],
+    "AiSendDialog": [
+      "aiSendDialogState"
+    ],
+    "CraftRouterOutlet": [
+      "craftRouterOutletState"
+    ],
+    "ApplicationOverview": [
+      "applicationOverviewView"
+    ],
+    "FolderLayoutView": [
+      "folderLayoutViewState"
+    ],
+    "ReviewActionDialogs": [
+      "reviewActionDialogsView"
+    ],
+    "ReviewDecisionPanel": [
+      "reviewDecisionPanelView"
+    ],
+    "ReviewInventoryPanels": [
+      "reviewInventoryPanelsView"
+    ],
+    "ReviewLiveEvidence": [
+      "reviewLiveEvidenceView"
+    ],
+    "ReviewQueuePanel": [
+      "reviewQueuePanelView"
+    ],
+    "ReviewTemplateEvidence": [
+      "reviewTemplateEvidenceView"
+    ],
+    "TemplateReviewGroupView": [
+      "templateReviewGroupState"
+    ],
+    "TierLegend": [
+      "tierLegendView"
+    ]
+  },
+  "providedOn": {
+    "aiContextMenuDismissal": [
+      {
+        "kind": "component",
+        "name": "AiContextMenu",
+        "file": "libs/component/src/lib/ai/ai-context-menu.ts"
+      }
+    ],
+    "aiSendContextChatState": [
+      {
+        "kind": "component",
+        "name": "AiSendContextChat",
+        "file": "libs/component/src/lib/ai/ai-send-context-chat.ts"
+      }
+    ],
+    "aiSendDialogState": [
+      {
+        "kind": "component",
+        "name": "AiSendDialog",
+        "file": "libs/component/src/lib/ai/ai-send-dialog.ts"
+      }
+    ],
+    "craftRouterOutletState": [
+      {
+        "kind": "component",
+        "name": "CraftRouterOutlet",
+        "file": "libs/component/src/lib/craft-router-outlet.ts"
+      }
+    ],
+    "applicationOverviewView": [
+      {
+        "kind": "component",
+        "name": "ApplicationOverview",
+        "file": "libs/review-attestation/attestation-app/src/application-overview.ts"
+      }
+    ],
+    "folderLayoutViewState": [
+      {
+        "kind": "component",
+        "name": "FolderLayoutView",
+        "file": "libs/review-attestation/attestation-app/src/folder-layout-view.ts"
+      }
+    ],
+    "reviewActionDialogsView": [
+      {
+        "kind": "component",
+        "name": "ReviewActionDialogs",
+        "file": "libs/review-attestation/attestation-app/src/review-action-dialogs.ts"
+      }
+    ],
+    "reviewDecisionPanelView": [
+      {
+        "kind": "component",
+        "name": "ReviewDecisionPanel",
+        "file": "libs/review-attestation/attestation-app/src/review-decision-panel.ts"
+      }
+    ],
+    "reviewInventoryPanelsView": [
+      {
+        "kind": "component",
+        "name": "ReviewInventoryPanels",
+        "file": "libs/review-attestation/attestation-app/src/review-inventory-panels.ts"
+      }
+    ],
+    "reviewLiveEvidenceView": [
+      {
+        "kind": "component",
+        "name": "ReviewLiveEvidence",
+        "file": "libs/review-attestation/attestation-app/src/review-live-evidence.ts"
+      }
+    ],
+    "reviewQueuePanelView": [
+      {
+        "kind": "component",
+        "name": "ReviewQueuePanel",
+        "file": "libs/review-attestation/attestation-app/src/review-queue-panel.ts"
+      }
+    ],
+    "reviewTemplateEvidenceView": [
+      {
+        "kind": "component",
+        "name": "ReviewTemplateEvidence",
+        "file": "libs/review-attestation/attestation-app/src/review-template-evidence.ts"
+      }
+    ],
+    "templateReviewGroupState": [
+      {
+        "kind": "component",
+        "name": "TemplateReviewGroupView",
+        "file": "libs/review-attestation/attestation-app/src/template-review-group.ts"
+      }
+    ],
+    "tierLegendView": [
+      {
+        "kind": "component",
+        "name": "TierLegend",
+        "file": "libs/review-attestation/attestation-app/src/tier-legend.ts"
+      }
+    ]
+  },
   "collisions": {
     "services": {
       "CloseReview": [
         "libs/review-attestation/attestation-app/src/close-review.service.ts",
         "libs/review-attestation/attestation-app/src/review-action-dialogs.ts"
       ],
-      "CraftPendingComponent": [
-        "libs/component/src/lib/craft-host-tokens.ts",
-        "libs/core/src/lib/craft-pending.ts"
-      ],
       "MiddlewareExecutionScope": [
         "libs/core/src/lib/server-function-middleware.ts",
         "libs/core/src/lib/server-function-middleware.ts"
-      ],
-      "api": [
-        "libs/core/src/lib/craft-register-for.ts",
-        "libs/core/src/lib/craft-service.ts"
       ]
     },
     "components": {},
     "routes": {}
   },
-  "browserBoundaryServices": [
-    "BrowserCryptoService",
-    "BrowserDocumentService",
-    "BrowserHistoryService",
-    "BrowserLocationService",
-    "BrowserNavigatorService",
-    "BrowserPerformanceService",
-    "BrowserWindowService",
-    "ConsoleService",
-    "CookiesService",
-    "LocalStorageService",
-    "SessionStorageService"
-  ],
+  "browserBoundaryServices": [],
   "scopes": {}
 } as const;
 export type ArchitectureCatalog = typeof architectureCatalog;

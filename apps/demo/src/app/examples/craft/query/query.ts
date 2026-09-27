@@ -18,6 +18,7 @@ import {
   craftUnique,
   query,
   type CraftServiceInput,
+  craftExpose,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
@@ -26,7 +27,7 @@ import { example } from '../../shared/example.style';
 const { UserQuery } = craftService(
   { name: 'UserQuery', providedIn: 'global' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
-    return yield* query(
+    yield* query(
       'userQuery',
       {
         params: inputs.userId,
@@ -45,34 +46,45 @@ const { UserQuery } = craftService(
   },
 );
 
+export const { CraftGlobalQueryView, provideCraftGlobalQueryView } =
+  craftService(
+    { name: 'craftGlobalQueryView', providedIn: 'toProvide' },
+    function* (inputs: { readonly userId: CraftServiceInput<string> }) {
+      const { userId } = inputs;
+
+      const { userQuery: user } = yield* UserQuery({
+        userId,
+      });
+
+      const router = yield* CraftRouter(undefined, ({ navigate }) => ({
+        navigate,
+      }));
+
+      yield* craftMethod('navigate', function* (offset: number) {
+        void router.navigate({
+          to: 'craft/query/:userId',
+          params: {
+            userId: String(Number((yield* userId()) ?? '0') + offset),
+          },
+        });
+      });
+      yield* craftComputed('hasUser', () => user.hasValue());
+      yield* craftComputed('userValueJson', function* () {
+        return JSON.stringify(yield* user.value(), null, 2);
+      });
+      yield* craftExpose('user', user);
+    },
+  );
+
 const CraftGlobalQuery = craftComponent(
   'CraftGlobalQuery',
-  {},
-  function* (userId: Input<string>) {
-    const user = yield* UserQuery({
-      userId,
-    });
-
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
-
-    const navigate = craftMethod('navigate', function* (offset: number) {
-      void router.navigate({
-        to: 'craft/query/:userId',
-        params: {
-          userId: String(Number((yield* userId()) ?? '0') + offset),
-        },
-      });
-    });
-    const hasUser = craftComputed('hasUser', () => user.hasValue());
-    const userValueJson = craftComputed('userValueJson', function* () {
-      return JSON.stringify(yield* user.value(), null, 2);
-    });
-    return { user, hasUser, userValueJson, navigate };
+  {
+    providers: [provideCraftGlobalQueryView()],
   },
-  ({ user, hasUser, userValueJson, navigate }) =>
-    div({ class: example.card }, [
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { user, hasUser, userValueJson, navigate } =
+      yield* CraftGlobalQueryView(inputs);
+    return div({ class: example.card }, [
       heading({ class: example.title }, 'User query'),
       div({ class: example.result }, [
         'User ',
@@ -92,7 +104,7 @@ const CraftGlobalQuery = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              yield* navigate(-1);
+              navigate(-1);
             },
           },
           'Previous user',
@@ -104,13 +116,14 @@ const CraftGlobalQuery = craftComponent(
             'data-exampleButton': 'primary',
             type: 'button',
             *click() {
-              yield* navigate(1);
+              navigate(1);
             },
           },
           'Next user',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default CraftGlobalQuery;

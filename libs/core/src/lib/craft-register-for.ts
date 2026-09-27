@@ -1,12 +1,10 @@
 import { HOST_TAG_LIST } from './host-tag';
 import {
-  craftService,
   type CraftServiceProvider,
   getServiceMetaData,
   type GetServiceReferenceMeta,
   type GetServiceReferenceOutput,
-  type ServiceReference,
-} from './craft-service';
+  type ServiceReference, ɵcraftValueService } from './craft-service';
 import {
   CRAFT_REGISTRATION_TARGET,
   createRegisterForRegistry,
@@ -323,7 +321,7 @@ function createCraftRegisterFor(
 
   const registryServiceName = `RegisterFor${capitalize(registryName)}Registry`;
   const registryService = (() => {
-    const api = craftService(
+    const api = ɵcraftValueService(
       { name: registryServiceName, providedIn: 'toProvide' },
       (inputs: { $provided: RegisterForRegistry }) => inputs.$provided,
     ) as unknown as Record<string, unknown>;

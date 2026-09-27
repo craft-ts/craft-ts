@@ -3,7 +3,7 @@ import {
   type Injector,
   type Provider,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import { isCraftDevelopment } from './craft-runtime-mode';
 
 /** Metadata attached to one effective Craft template render. */
@@ -35,7 +35,7 @@ export type TemplateTraceWrapper<Children = unknown> = (
 ) => Children;
 
 /** All template trace wrappers active in the current injector. */
-const templateTraceService = craftService(
+const templateTraceService = ɵcraftValueService(
   { name: 'TemplateTraces', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: TemplateTraceWrapper }) =>
     inputs.$provided ? [inputs.$provided] : [],

@@ -1,6 +1,6 @@
 import { isSignal, type Injector, type Signal } from './host/craft-compat';
 import {
-  isGenerator,
+  CRAFT_EXPOSE_MARKER,
   SERVICE_TRACKED_DEPS_REQUEST_MARKER,
 } from './craft-generator-runtime';
 import type { ConcreteServiceScope } from './craft-service.shared';
@@ -11,10 +11,7 @@ import {
   markYieldableValue,
   YIELDABLE_VALUE,
 } from './yieldable';
-import {
-  DEEP_YIELDABLE,
-  type YieldableReactiveValue,
-} from './reactive-read';
+import { DEEP_YIELDABLE, type YieldableReactiveValue } from './reactive-read';
 
 /**
  * Dependency map carried by a primitive (`mutation`, `query`, `asyncProcess`,
@@ -110,94 +107,179 @@ export type NamedPrimitive<Name extends string, Ref> = Ref extends {
   ? Ref
   : Ref extends { readonly [DEEP_YIELDABLE]: true }
     ? Ref
-  : Ref extends YieldableReactiveValue<infer State, any>
-    ? Omit<Ref, keyof YieldableReactiveValue<State, any>> &
-        YieldableReactiveValue<State, Name>
-    : Ref extends Signal<any>
-      ? Ref & { readonly [YIELDABLE_VALUE]: Name }
-      : Ref;
+    : Ref extends YieldableReactiveValue<infer State, any>
+      ? Omit<Ref, keyof YieldableReactiveValue<State, any>> &
+          YieldableReactiveValue<State, Name>
+      : Ref extends Signal<any>
+        ? Ref & { readonly [YIELDABLE_VALUE]: Name }
+        : Ref;
+
+/**
+ * Request yielded by a NAMED primitive generator, beside its tracked
+ * dependencies: it carries the primitive's `name` and `ref` so the enclosing
+ * `craftService` exposes the ref under that name. At runtime it is the SAME
+ * object as the tracked-deps request, so every driver that does not collect
+ * exposures treats it as the usual no-op.
+ *
+ * The literal `Name` keeps two requests apart in an inferred `Yielded` union,
+ * so none of them is subtype-reduced away (see `EmptyDepMapToNever`).
+ */
+export type CraftExposeRequest<Name extends string, Ref> = Readonly<{
+  [CRAFT_EXPOSE_MARKER]: true;
+  name: Name;
+  ref: Ref;
+}>;
 
 /**
  * Return type of the named craft primitives: a {@link CraftPrimitiveGen}
- * resolving to the primitive reference itself (see {@link NamedPrimitive}).
+ * resolving to the primitive reference itself (see {@link NamedPrimitive}) that
+ * also yields a {@link CraftExposeRequest} — inside a `craftService`, the
+ * primitive is exposed under its name unless wrapped in {@link craftPrivate}.
  */
 export type NamedCraftPrimitiveGen<
   Name extends string,
   Ref,
-> = CraftPrimitiveGen<NamedPrimitive<Name, Ref>, Ref>;
+  ExceptionRef = Ref,
+> = Generator<
+  | ServiceTrackedDepsRequest<
+      EmptyDepMapToNever<HelperDependencyMap<NamedPrimitive<Name, Ref>>>
+    >
+  | PrimitiveExceptionMarker<ExceptionRef>
+  | CraftExposeRequest<Name, NamedPrimitive<Name, Ref>>,
+  NamedPrimitive<Name, Ref>,
+  unknown
+>;
 
-type YieldRecordValue<Value> =
-  Value extends Generator<any, infer Output, any> ? Output : Value;
-
-type YieldRecordOutput<Record extends object> = {
-  [Key in keyof Record]: YieldRecordValue<Record[Key]>;
-};
-
-type YieldRecordYielded<Record extends object> =
-  Record[keyof Record] extends infer Value
-    ? Value extends Generator<infer Yielded, any, any>
-      ? Yielded
-      : never
-    : never;
+/** A generator's `Yielded` union without its exposure requests. */
+export type WithoutExposeRequests<Yielded> = Exclude<
+  Yielded,
+  CraftExposeRequest<any, any>
+>;
 
 /**
- * Resolves a record of generator-compatible values while preserving its keys.
- *
- * This is useful when a craft service exposes several primitives without
- * writing a generator only to delegate each one:
+ * Keeps the primitives created by `generator` internal to the enclosing
+ * `craftService`: they are still created and tracked, only not exposed.
  *
  * ```ts
- * const { UserStore } = craftService(
- *   { name: 'UserStore', providedIn: 'global' },
- *   () =>
- *     craftYieldRecord({
- *       userQuery: query('userQuery', { ... }),
- *       refresh: state('refresh', 0),
- *     }),
- * );
+ * const draft = yield* craftPrivate(state('draft', ''));
  * ```
  *
- * Plain values are passed through unchanged. Generator values are consumed in
- * insertion order, so their tracked dependencies are visible to the enclosing
- * craft generator.
+ * Works on any generator — a single primitive, or a `craftGen` helper creating
+ * several of them. The generator is relayed as is (values sent back through
+ * `next(...)` included); only the exposure part of each request is removed.
  */
-export function craftYieldRecord<Record extends object>(
-  record: Record,
-): Generator<YieldRecordYielded<Record>, YieldRecordOutput<Record>, unknown> {
+export function craftPrivate<Yielded, Result>(
+  generator: Generator<Yielded, Result, any>,
+): Generator<WithoutExposeRequests<Yielded>, Result, unknown> {
   return (function* () {
-    const output = {} as YieldRecordOutput<Record>;
-
-    for (const key of Reflect.ownKeys(record) as (keyof Record)[]) {
-      const value = record[key];
-      output[key] = (
-        isGenerator(value) ? yield* value : value
-      ) as YieldRecordValue<Record[typeof key]>;
+    let current = generator.next();
+    while (!current.done) {
+      const sent: unknown = yield stripExposeRequest(
+        current.value,
+      ) as WithoutExposeRequests<Yielded>;
+      current = generator.next(sent);
     }
+    return current.value;
+  })();
+}
 
-    return output;
-  })() as Generator<
-    YieldRecordYielded<Record>,
-    YieldRecordOutput<Record>,
-    unknown
-  >;
+function stripExposeRequest(value: unknown): unknown {
+  if (!isCraftExposeRequest(value)) return value;
+  // Object rest copies own enumerable symbol keys too, so the tracked-deps
+  // marker (and anything else the request carries) survives.
+  const {
+    [CRAFT_EXPOSE_MARKER]: _marker,
+    name: _name,
+    ref: _ref,
+    ...rest
+  } = value as CraftExposeRequest<string, unknown> &
+    Record<PropertyKey, unknown>;
+  return rest;
+}
+
+/** `true` for a request carrying a primitive exposure (see {@link CraftExposeRequest}). */
+export function isCraftExposeRequest(
+  value: unknown,
+): value is CraftExposeRequest<string, unknown> {
+  return (
+    typeof value === 'object' && value !== null && CRAFT_EXPOSE_MARKER in value
+  );
 }
 
 /**
- * Surfaces a primitive ref as a {@link CraftPrimitiveGen} while retaining its
- * declared `name` for runtime tagging. Counterpart of
+ * Surfaces a primitive ref as a {@link NamedCraftPrimitiveGen} while retaining
+ * its declared `name` for runtime tagging and service exposure. Counterpart of
  * {@link createPrimitiveGen} for the named primitives (`state`, `query`,
- * `mutation`, `asyncProcess`, `queryParams`).
+ * `mutation`, `asyncProcess`, `queryParams`, `craftComputed`, `craftMethod`,
+ * `craftEffect`, …).
  */
 export function createNamedPrimitiveGen<Name extends string, Ref>(
   name: Name,
   ref: Ref,
-): CraftPrimitiveGen<NamedPrimitive<Name, Ref>, Ref> {
-  markNamedReactiveProperties(ref);
+  options?: {
+    /**
+     * `false` for a ref that is already named and must not be read at
+     * creation — reading the members of a computed's reactive value
+     * evaluates it (`craftComputed`, `craftMethod`, `craftEffect`).
+     */
+    markMembers?: boolean;
+  },
+): NamedCraftPrimitiveGen<Name, Ref> {
+  if (options?.markMembers !== false) markNamedReactiveProperties(ref);
   const namedRef = isSignal(ref) ? markYieldableValue(ref, name) : ref;
-  return createPrimitiveGen(namedRef) as CraftPrimitiveGen<
-    NamedPrimitive<Name, Ref>,
-    Ref
-  >;
+  const gen = (function* () {
+    // One object, two roles: the tracked-deps no-op every driver knows, and
+    // the exposure a `craftService` collects.
+    yield {
+      [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true,
+      [CRAFT_EXPOSE_MARKER]: true,
+      providedIn: 'global',
+      resolve: () => undefined,
+      name,
+      ref: namedRef,
+    } as never;
+    return namedRef;
+  })();
+
+  return Object.assign(gen, {
+    [CRAFT_PRIMITIVE_GEN_MARKER]: true,
+  }) as unknown as NamedCraftPrimitiveGen<Name, Ref>;
+}
+
+/**
+ * Exposes any value on the enclosing `craftService` under `name` — for what is
+ * not a named primitive: a function, a constant, a member of an injected
+ * service, a primitive's insertion method.
+ *
+ * ```ts
+ * const api = yield* UsersApi();
+ * yield* craftExpose('getUsers', getUsers);
+ * yield* craftExpose('setLocale', language.setLocale);
+ * ```
+ *
+ * The value is exposed as is (no signal branding, no wrapping) and resolved
+ * back, so `const x = yield* craftExpose('x', value)` keeps using it. Like any
+ * named primitive, `craftPrivate(craftExpose(...))` hides it again.
+ */
+export function craftExpose<const Name extends string, Value>(
+  name: Name,
+  value: Value,
+): Generator<CraftExposeRequest<Name, Value>, Value, unknown> {
+  const gen = (function* () {
+    yield {
+      [SERVICE_TRACKED_DEPS_REQUEST_MARKER]: true,
+      [CRAFT_EXPOSE_MARKER]: true,
+      providedIn: 'global',
+      resolve: () => undefined,
+      name,
+      ref: value,
+    } as never;
+    return value;
+  })();
+
+  return Object.assign(gen, {
+    [CRAFT_PRIMITIVE_GEN_MARKER]: true,
+  }) as unknown as Generator<CraftExposeRequest<Name, Value>, Value, unknown>;
 }
 
 const CRAFT_PRIMITIVE_GEN_MARKER = Symbol('craft-primitive-gen-marker');
@@ -236,3 +318,46 @@ export function isCraftPrimitiveGen(
     CRAFT_PRIMITIVE_GEN_MARKER in value
   );
 }
+
+type ExposeRequestsOf<Yielded> = Extract<
+  Yielded,
+  CraftExposeRequest<string, any>
+>;
+
+// A request whose name widened to `string` (a primitive named from a
+// non-literal) cannot become a key: it would turn the whole API into an index
+// signature. It stays exposed at runtime, just untyped.
+type LiteralExposeName<Request> = Request extends CraftExposeRequest<
+  infer Name,
+  any
+>
+  ? string extends Name
+    ? never
+    : Name
+  : never;
+
+/**
+ * The public API of a `craftService`: every named primitive its factory
+ * yields, keyed by name (see {@link CraftExposeRequest}). Primitives wrapped in
+ * {@link craftPrivate}, and injected services, are not part of it.
+ */
+export type ExposedFromYielded<Yielded> = 0 extends 1 & Yielded
+  ? UntypedExposure
+  : unknown extends Yielded
+    ? UntypedExposure
+    : {
+        [Name in LiteralExposeName<ExposeRequestsOf<Yielded>>]: Extract<
+          ExposeRequestsOf<Yielded>,
+          { readonly name: Name }
+        >['ref'];
+      };
+
+/**
+ * What a service API becomes when one of its `yield*` is typed
+ * `Generator<unknown | any, …>`: that yield absorbs the whole `Yielded`
+ * union, exposure requests included. The key names the cause, so reading a
+ * member reports it instead of a bare `{}`.
+ */
+export type UntypedExposure = {
+  readonly 'craft-ts: a yield* in this craftService is typed Generator<unknown | any, ...>, so its exposed API cannot be read': never;
+};

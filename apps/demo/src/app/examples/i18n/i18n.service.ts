@@ -1,4 +1,4 @@
-import { craftComputed, craftService, state } from '@craft-ts/core';
+import { craftComputed, craftService, state, craftUse, craftExpose } from '@craft-ts/core';
 import {
   compactNumber,
   dateLong,
@@ -54,18 +54,15 @@ export const { ClientCurrency, provideClientCurrency } = craftService(
       initialClient(),
       ({ state: selected, set }) => ({
         changeClient: (next: DemoClientId) => set(next),
-        currency: craftComputed(function* () {
+        currency: craftUse(craftComputed('currency', function* () {
           const clientDetails = DEMO_CLIENTS[yield* selected()];
           return { code: clientDetails.currency, name: clientDetails.name };
-        }),
+        })),
       }),
     );
 
-    return {
-      client,
-      changeClient: client.changeClient,
-      currency: client.currency,
-    };
+    yield* craftExpose('changeClient', client.changeClient);
+    yield* craftExpose('currency', client.currency);
   },
 );
 
@@ -85,7 +82,7 @@ export const { ClientUnits, provideClientUnits } = craftService(
       return DEMO_CLIENTS[yield* clientCurrency.client()].units;
     };
 
-    return { system };
+    yield* craftExpose('system', system);
   },
 );
 

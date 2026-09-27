@@ -16,9 +16,7 @@ describe('no-craft-use-in-template', () => {
         currentPageStatus: () => string;
       };
 
-      craftComponent('Demo', {}, function* () {
-        return {};
-      }, () => div([
+      craftComponent('Demo', {}, () => div([
         () => craftUse(usersQuery.currentPageStatus()),
       ]));
     `);
@@ -28,19 +26,41 @@ describe('no-craft-use-in-template', () => {
     ]);
   });
 
-  it('allows craftUse in component factories', async () => {
+  it('allows craftUse where a component declares what it takes', async () => {
     const result = await lintFixture(`
       declare function craftComponent(...args: unknown[]): unknown;
+      declare function p(child: unknown): unknown;
+      declare function state(...args: unknown[]): any;
+      declare function craftUse<T>(value: T): T;
+
+      craftComponent('Demo', {}, function* () {
+        const count = yield* state('count', 0);
+        const initial = craftUse(count());
+
+        return p(String(initial));
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('allows craftUse in the service a component reads', async () => {
+    const result = await lintFixture(`
+      declare function craftComponent(...args: unknown[]): unknown;
+      declare function craftService(...args: unknown[]): unknown;
       declare function craftUse<T>(value: T): T;
       declare const value: unknown;
 
-      const Child = craftComponent('Child', {}, function* () {
-        return { value: craftUse(value) };
-      }, () => null);
+      const { DemoView } = craftService(
+        { name: 'demoView', providedIn: 'toProvide' },
+        function* () {
+          return { value: craftUse(value) };
+        },
+      ) as { DemoView: () => unknown };
 
       craftComponent('Parent', {}, function* () {
-        return { value: craftUse(value) };
-      }, () => Child({ value }));
+        return DemoView();
+      });
     `);
 
     expect(result.messages).toEqual([]);
@@ -52,7 +72,7 @@ describe('no-craft-use-in-template', () => {
       declare function craftComponent(...args: unknown[]): unknown;
       declare const value: () => string;
 
-      craftComponent('Demo', {}, () => ({}), () => read(value()));
+      craftComponent('Demo', {}, () => read(value()));
     `);
 
     expect(result.messages).toEqual([

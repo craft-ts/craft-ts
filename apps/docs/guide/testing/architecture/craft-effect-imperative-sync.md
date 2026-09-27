@@ -23,11 +23,11 @@ The problem is putting the same code in a `craftEffect`. This is exactly the
 case rejected by `assertCraftEffectNoImperativeSync`:
 
 ```typescript
-craftEffect('sync', function* () {
+craftUse(craftEffect('sync', function* () {
   yield* searchResults.set(yield* rawResults());
   yield* usersQuery.call(yield* searchTerm());
   yield* saveMutation.mutate(yield* draft());
-});
+}));
 ```
 
 The rule is therefore not saying that `yield* searchResults.set(...)` is
@@ -39,11 +39,11 @@ effect must not imperatively write or trigger another Craft primitive.
 This effect creates three hidden edges in the Craft graph:
 
 ```typescript
-craftEffect('sync', function* () {
+craftUse(craftEffect('sync', function* () {
   yield* searchResults.set(yield* rawResults());
   yield* usersQuery.call(yield* searchTerm());
   yield* saveMutation.mutate(yield* draft());
-});
+}));
 ```
 
 The graph is effectively:
@@ -77,10 +77,10 @@ If the operation is a single explicit user action, a `craftMethod` may call one
 mutation after normalising the event:
 
 ```typescript
-const save = craftMethod('save', function* (event: Event) {
+const save = craftUse(craftMethod('save', function* (event: Event) {
   event.preventDefault();
   yield* saveMutation.mutate(yield* draft());
-});
+}));
 ```
 
 For several operations belonging to one event, emit a `source$` directly from

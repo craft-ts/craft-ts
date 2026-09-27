@@ -1,17 +1,23 @@
 'use strict';
 
 const { HEADING_HELPERS } = require('./html-helpers.cjs');
-const { parseHyperscriptCall, hasAccessibleName, staticTextContent } = require('./hyperscript-walk.cjs');
+const {
+  parseHyperscriptCall,
+  hasAccessibleName,
+  staticTextContent,
+} = require('./hyperscript-walk.cjs');
 
 module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Require heading helpers and heading() to have accessible content.',
+      description:
+        'Require heading helpers and heading() to have accessible content.',
     },
     schema: [],
     messages: {
-      empty: '<{{tag}}> must have text content, aria-label, or aria-labelledby.',
+      empty:
+        '<{{tag}}> must have text content, aria-label, or aria-labelledby.',
     },
   },
   create(context) {

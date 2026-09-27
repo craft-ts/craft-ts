@@ -7,7 +7,7 @@ import {
   pendingNode,
   span,
 } from '@craft-ts/component';
-import { craftComputed, settled, state } from '@craft-ts/core';
+import { craftService, craftComputed, settled, state, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   i18nRuntime,
@@ -34,9 +34,8 @@ const ORDER = {
  * calls `setLocale` on the shared runtime and re-runs the program, so every
  * string on screen changes together.
  */
-const EffectI18nComponent = craftComponent(
-  'EffectI18nComponent',
-  {},
+export const { EffectI18nView, provideEffectI18nView } = craftService(
+  { name: 'effectI18nView', providedIn: 'toProvide' },
   function* () {
     const locale = yield* state('locale', 'en-US', ({ set, state: read }) => {
       // One active locale for the process: the Effect side reads the same
@@ -50,16 +49,16 @@ const EffectI18nComponent = craftComponent(
       return {
         chooseEnglish: choose('en-US'),
         chooseFrench: choose('fr-FR'),
-        englishPressed: craftComputed('englishPressed', function* () {
+        englishPressed: craftUse(craftComputed('englishPressed', function* () {
           return (yield* read()) === 'en-US' ? 'true' : 'false';
-        }),
-        frenchPressed: craftComputed('frenchPressed', function* () {
+        })),
+        frenchPressed: craftUse(craftComputed('frenchPressed', function* () {
           return (yield* read()) === 'fr-FR' ? 'true' : 'false';
-        }),
+        })),
       };
     });
 
-    const receiptQuery = yield* queryEffect(
+    yield* queryEffect(
       'receiptQuery',
       {
         params: function* () {
@@ -68,25 +67,32 @@ const EffectI18nComponent = craftComponent(
         loader: () => renderReceipt(ORDER),
       },
       ({ resource }) => ({
-        heading: craftComputed('heading', function* () {
+        heading: craftUse(craftComputed('heading', function* () {
           return (yield* settled(resource)).heading;
-        }),
-        placed: craftComputed('placed', function* () {
+        })),
+        placed: craftUse(craftComputed('placed', function* () {
           return (yield* settled(resource)).placed;
-        }),
-        total: craftComputed('total', function* () {
+        })),
+        total: craftUse(craftComputed('total', function* () {
           return (yield* settled(resource)).total;
-        }),
-        lines: craftComputed('lines', function* () {
+        })),
+        lines: craftUse(craftComputed('lines', function* () {
           return (yield* settled(resource)).lines;
-        }),
+        })),
       }),
     );
 
-    return { locale, receiptQuery };
   },
-  ({ locale, receiptQuery }) =>
-    div({ class: example.card, 'data-exampleTint': 'violet' }, [
+);
+
+const EffectI18nComponent = craftComponent(
+  'EffectI18nComponent',
+  {
+    providers: [provideEffectI18nView()],
+  },
+  function* () {
+    const { locale, receiptQuery } = yield* EffectI18nView();
+    return div({ class: example.card, 'data-exampleTint': 'violet' }, [
       heading({ class: example.title }, 'Translating inside an Effect program'),
       p(
         { class: example.intro },
@@ -133,7 +139,8 @@ const EffectI18nComponent = craftComponent(
         span({ class: example.mono }, 'defineLocaleLike'),
         ' accepts the French catalogue. Drop a key from it and the build fails on the catalogue, before any French speaker sees an English string.',
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default EffectI18nComponent;

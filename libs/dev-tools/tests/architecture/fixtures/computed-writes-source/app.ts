@@ -5,10 +5,9 @@ const reset$ = source$<void>('reset$');
 export const { Counter } = craftService(
   { name: 'Counter', providedIn: 'global' },
   function* () {
-    const label = craftComputed('label', function* () {
+    yield* craftComputed('label', function* () {
       reset$.emit();
       return 1;
     });
-    return { label };
   },
 );

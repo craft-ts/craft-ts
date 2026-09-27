@@ -109,7 +109,7 @@ the boundary and wants the graph to record only the members it uses.
 query resource:
 
 ```typescript
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 
 const accessQuery =
@@ -119,9 +119,9 @@ const accessQuery =
     loader: ({ params }) => checkUserAccess(params),
   });
 
-const accessLabel = craftComputed('accessLabel', function* () {
+const accessLabel = craftUse(craftComputed('accessLabel', function* () {
   return (yield* accessQuery.value())?.label ?? 'Loading…';
-});
+}));
 ```
 
 The chain is: `queryEffect` runs `checkUserAccess`, the active `Layer` provides

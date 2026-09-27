@@ -103,6 +103,7 @@ export {
 } from './lib/craft-state-machine-runtime';
 export * from './lib/craft-effect';
 export * from './lib/craft-service';
+export * from './lib/craft-service-override';
 export {
   ComponentRegister,
   createComponentRegister,

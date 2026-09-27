@@ -41,19 +41,18 @@ import PhotoSkeleton from './photo-skeleton';
 const { ViewTransitionAccess } = craftService(
   { name: 'ViewTransitionAccess', providedIn: 'global' },
   function* () {
-    const viewTransitionAccess = yield* query('viewTransitionAccess', {
+    yield* query('viewTransitionAccess', {
       params: () => true,
       loader: function* () {
         yield* craftSleep(3000);
         return { allowed: true };
       },
     });
-    return viewTransitionAccess;
   },
 );
 
 const slowDetailGuard = craftGen(function* () {
-  const accessRef = yield* ViewTransitionAccess();
+  const accessRef = (yield* ViewTransitionAccess()).viewTransitionAccess;
   const access = yield* craftUntilSettled(accessRef);
   // Always allowed here — the `craftException` branch only exists so the guard
   // carries a typed exception code (a guard with no exception branch collapses

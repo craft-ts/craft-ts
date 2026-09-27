@@ -63,40 +63,39 @@ import {
   matchNode,
   p,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadUserProfile, type ProfileScenario } from './profile-domain';
 
 const Profile = craftComponent(
   'Profile',
   {},
-  function* (profileScenarioInput: Input<ProfileScenario>) {
+  function* (inputs: { readonly scenario: Input<ProfileScenario> }) {
     const profile = yield* queryEffect(
       'profile',
       {
-        params: profileScenarioInput,
+        params: inputs.scenario,
         loader: ({ params }) => loadUserProfile(params),
       },
       ({ resource, exceptions }) => ({
-        hasProfile: craftComputed('hasProfile', () => resource.hasValue()),
-        currentError: craftComputed('currentError', function* () {
+        hasProfile: craftUse(craftComputed('hasProfile', () => resource.hasValue())),
+        currentError: craftUse(craftComputed('currentError', function* () {
           return (yield* exceptions()).loader;
-        }),
+        })),
       }),
     );
 
-    return { profile };
+    return [
+      ifNode(profile.isLoading, () => p('Loading…')),
+      /* bind profile.value() or match profile.exceptions().loader here */
+    ];
   },
-  ({ profile }) => [
-    ifNode(profile.isLoading, () => p('Loading…')),
-    /* bind profile.value() or match profile.exceptions().loader here */
-  ],
 );
 ```
 
 `queryEffect` is a Craft query with an Effect loader. It owns cancellation,
 loading state, the last value and typed exceptions. Its `Effect` requirements are
-resolved by the active Layer. Here, `profileScenarioInput` is the reactive input
+resolved by the active Layer. Here, `inputs.scenario` is the reactive input
 source: changing it reruns `loadUserProfile`; there is no `method` or manual
 `profile.call(...)` because the input drives the query.
 

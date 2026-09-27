@@ -1,3 +1,18 @@
+import { craftService } from '@craft-ts/core';
 import { craftComponent, p } from '@craft-ts/component';
 
-export default craftComponent('Tasks', {}, () => ({}), () => p('Tasks'));
+export const { TasksView, provideTasksView } = craftService(
+  { name: 'tasksView', providedIn: 'toProvide' },
+  function* () {
+    // Nothing to expose.
+  },
+);
+
+export default craftComponent(
+  'Tasks',
+  { providers: [provideTasksView()] },
+  function* () {
+    yield* TasksView();
+    return p('Tasks');
+  },
+);

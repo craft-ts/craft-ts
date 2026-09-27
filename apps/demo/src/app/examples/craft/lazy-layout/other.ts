@@ -1,13 +1,10 @@
-import {
-  craftComponent,
-  div,
-  p,
-} from '@craft-ts/component';
+import { craftComponent, div, p } from '@craft-ts/component';
 import {
   craftException,
   CraftHttpClient,
   craftService,
   query,
+  craftExpose,
 } from '@craft-ts/core';
 import type { User } from '../query/api.service';
 import { OtherService, provideOtherService } from './to-provide.service';
@@ -34,38 +31,41 @@ const { UsersApiOnError } = craftService(
         },
       ],
     }));
-    const _query = yield* query('query', {
+    yield* query('query', {
       params: () => true,
       loader: function* () {
         return users();
       },
     });
-    return {
-      users,
-      query: _query,
-    };
+    yield* craftExpose('users', users);
   },
 );
 
-const { Test2 } = craftService({ name: 'test2', providedIn: 'global' }, () => ({}));
+const { Test2 } = craftService({ name: 'test2', providedIn: 'global' }, function* () {
+  // Nothing to expose.
+});
+
+export const { OtherView, provideOtherView } = craftService(
+  { name: 'otherView', providedIn: 'toProvide' },
+  function* () {
+    yield* craftExpose('other', yield* OtherService());
+    yield* craftExpose('users', yield* UsersApiOnError());
+    yield* craftExpose('test', yield* Test2());
+  },
+);
 
 export const OtherComponent = craftComponent(
   'OtherComponent',
   {
-    providers: [provideOtherService()],
+    providers: [provideOtherView(), provideOtherService()],
   },
   function* () {
-    return {
-      other: yield* OtherService(),
-      users: yield* UsersApiOnError(),
-      test: yield* Test2(),
-    };
-  },
-  ({ other, users }) =>
-    div([
+    const { other, users } = yield* OtherView();
+    return div([
       p(() => other.getValue()),
       p(function* () {
         return `Query status: ${yield* users.query.status()}`;
       }),
-    ]),
+    ]);
+  },
 );

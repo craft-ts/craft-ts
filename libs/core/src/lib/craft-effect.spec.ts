@@ -27,6 +27,7 @@ import {
   flushCraftTest,
   setupCraftServiceTest,
 } from './setup-craft-service-test';
+import { craftExpose } from './craft-primitive-gen';
 
 let lastInjector: ReturnType<typeof setupCraftServiceTest>['injector'];
 const runInInjectionContext = <T>(fn: () => T): T => lastInjector.run(fn);
@@ -43,9 +44,9 @@ describe('craftEffect', () => {
 
   it('should require an injection context', async () => {
     class OutsideInjectionContext {
-      readonly fx = craftEffect('outside', () => {
+      readonly fx = craftUse(craftEffect('outside', () => {
         /* noop */
-      });
+      }));
     }
 
     expect(() => new OutsideInjectionContext()).toThrow();
@@ -55,9 +56,9 @@ describe('craftEffect', () => {
     class Component {
       readonly count = signal(0);
       readonly seen: number[] = [];
-      readonly fx = craftEffect('observe', () => {
+      readonly fx = craftUse(craftEffect('observe', () => {
         this.seen.push(this.count());
-      });
+      }));
     }
 
     const component = runInInjectionContext(() => new Component());
@@ -76,9 +77,9 @@ describe('craftEffect', () => {
     const seen: number[] = [];
 
     runInInjectionContext(() =>
-      craftEffect('mixed', () => {
+      craftUse(craftEffect('mixed', () => {
         seen.push(angularCount() + craftCount());
-      }),
+      })),
     );
 
     flushHost();
@@ -99,9 +100,9 @@ describe('craftEffect', () => {
     const seen: string[] = [];
 
     runInInjectionContext(() =>
-      craftEffect('conditional-mixed', () => {
+      craftUse(craftEffect('conditional-mixed', () => {
         seen.push(useSecond() ? second() : first());
-      }),
+      })),
     );
 
     flushHost();
@@ -123,13 +124,13 @@ describe('craftEffect', () => {
     const owner = createEnvironmentInjector([], hostEnvironmentInjector());
 
     runInInjectionContext(() =>
-      craftEffect(
+      craftUse(craftEffect(
         'custom-owner',
         () => {
           seen.push(source());
         },
         { injector: owner },
-      ),
+      )),
     );
     flushHost();
     source.set(1);
@@ -148,9 +149,9 @@ describe('craftEffect', () => {
     const injector = createEnvironmentInjector([], hostEnvironmentInjector());
 
     runInAngularInjectionContext(injector, () =>
-      craftEffect('destroyed', () => {
+      craftUse(craftEffect('destroyed', () => {
         seen.push(source());
-      }),
+      })),
     );
     flushHost();
     source.set(1);
@@ -166,7 +167,9 @@ describe('craftEffect', () => {
   it('should run a generator factory that resolves DI deps once and returns the effect body', async () => {
     const { EffectMultiplier } = craftService(
       { name: 'EffectMultiplier', providedIn: 'function' },
-      () => ({ factor: 3 }),
+      function* () {
+        yield* craftExpose('factor', 3);
+      },
     );
 
     class Component {
@@ -175,12 +178,12 @@ describe('craftEffect', () => {
 
       // The host form binds `this` inside the generator (and the effect body
       // it returns) to the component instance.
-      readonly fx = craftEffect('compute', this, function* () {
+      readonly fx = craftUse(craftEffect('compute', this, function* () {
         const m = yield* EffectMultiplier();
         return () => {
           this.seen.push(this.count() * m.factor);
         };
-      });
+      }));
     }
 
     const component = runInInjectionContext(() => new Component());
@@ -197,13 +200,13 @@ describe('craftEffect', () => {
     class Component {
       readonly count = signal(0);
       readonly cleanups: number[] = [];
-      readonly fx = craftEffect(
+      readonly fx = craftUse(craftEffect(
         'cleanup',
         (onCleanup: EffectCleanupRegisterFn) => {
           const current = this.count();
           onCleanup(() => this.cleanups.push(current));
         },
-      );
+      ));
     }
 
     const component = runInInjectionContext(() => new Component());
@@ -219,12 +222,12 @@ describe('craftEffect', () => {
 
   it('should reject onAppStart inside craftEffect generators', async () => {
     class InvalidComponent {
-      readonly fx = craftEffect('invalid', function* () {
+      readonly fx = craftUse(craftEffect('invalid', function* () {
         yield* onAppStart(() => undefined);
         return () => {
           /* noop */
         };
-      });
+      }));
     }
 
     expect(() => runInInjectionContext(() => new InvalidComponent())).toThrow(
@@ -234,9 +237,9 @@ describe('craftEffect', () => {
 
   it('reads active effect reports synchronously with the effect host tag', async () => {
     class Component {
-      readonly fx = craftEffect('tracker', () => {
+      readonly fx = craftUse(craftEffect('tracker', () => {
         /* noop */
-      });
+      }));
     }
 
     const { injector } = setupCraftServiceTest();
@@ -257,13 +260,13 @@ describe('craftEffect', () => {
     const registry = owner.run(() => craftUse(AppSnapshotRegistry()));
 
     runInInjectionContext(() =>
-      craftEffect(
+      craftUse(craftEffect(
         'custom-registry',
         () => {
           /* noop */
         },
         { injector: owner },
-      ),
+      )),
     );
     flushHost();
 
@@ -276,17 +279,19 @@ describe('craftEffect', () => {
   it('should expose craftEffect dependencies through ExtractDeps', async () => {
     const { EffectMultiplierDeps } = craftService(
       { name: 'EffectMultiplierDeps', providedIn: 'function' },
-      () => ({ factor: 5 }),
+      function* () {
+        yield* craftExpose('factor', 5);
+      },
     );
 
     class Component {
       readonly count = signal(0);
-      readonly fx = craftEffect('with-deps', this, function* () {
+      readonly fx = craftUse(craftEffect('with-deps', this, function* () {
         const m = yield* EffectMultiplierDeps();
         return () => {
           void (this.count() * m.factor);
         };
-      });
+      }));
     }
 
     type ExpectedDeps = {
@@ -298,11 +303,13 @@ describe('craftEffect', () => {
   it('tracks dependencies yielded by a primitive trigger', async () => {
     const { TriggerDependency } = craftService(
       { name: 'TriggerDependency', providedIn: 'function' },
-      () => ({ value: 'tracked' }),
+      function* () {
+        yield* craftExpose('value', 'tracked');
+      },
     );
 
     class Component {
-      readonly fx = craftEffect('primitive-trigger', function* () {
+      readonly fx = craftUse(craftEffect('primitive-trigger', function* () {
         const search = yield* query('search', {
           method: function* (term: string) {
             yield* TriggerDependency();
@@ -313,7 +320,7 @@ describe('craftEffect', () => {
 
         yield* search.call('craft');
         return () => undefined;
-      });
+      }));
     }
 
     type ExpectedDeps = {

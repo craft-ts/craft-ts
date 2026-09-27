@@ -1,5 +1,5 @@
 import { runInInjectionContext, type Injector, type Signal } from '../host/craft-compat';
-import { craftService, type CraftServiceProvider } from '../craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from '../craft-service';
 import type { AnyCraftException } from '../craft-exception';
 import type { CraftField } from './craft-field';
 import type { ValidatorOutput } from './validator';
@@ -82,7 +82,7 @@ export type FieldExceptionBoundaryRegistration = {
 };
 
 /** Nearest runtime boundary used by `CraftFieldDirective`. */
-const craftFieldExceptionBoundaryService = craftService(
+const craftFieldExceptionBoundaryService = ɵcraftValueService(
   { name: 'CraftFieldExceptionBoundary', providedIn: 'toProvide' },
   (inputs: { $provided: FieldExceptionBoundaryRegistration }) => inputs.$provided,
 ) as unknown as {

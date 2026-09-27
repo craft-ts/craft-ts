@@ -13,10 +13,10 @@ export const DEMO_SECURITY_POLICY = {
   transfer: {
     mode: 'allowlist',
     allow: [
-      'component:SsrLabApp#1 / component:CraftRouterOutlet#9 / route:static#10 / component:SsrStaticPage#11 / state:counter / state:counter#1',
-      'component:SsrLabApp#2 / component:CraftRouterOutlet#20 / route:data#32 / component:SsrDataPage#33 / query:ssrData / query:ssrData#1',
-      'component:SsrLabApp#1 / component:CraftRouterOutlet#9 / route:fallback#10 / component:SsrFallbackPage#11 / query:deferredData / query:deferredData#1',
-      'component:SsrLabApp#1 / component:CraftRouterOutlet#9 / route:client-only#10 / component:SsrClientOnlyPage#11 / query:clientOnlyData / query:clientOnlyData#1',
+      'component:SsrLabApp#2 / component:CraftRouterOutlet#20 / service:craftRouterOutletState#21 / route:static#33 / component:SsrStaticPage#34 / service:ssrStaticPageView#35 / state:counter / state:counter#1',
+      'component:SsrLabApp#2 / component:CraftRouterOutlet#20 / service:craftRouterOutletState#21 / route:data#33 / component:SsrDataPage#34 / service:ssrDataPageView#35 / query:ssrData / query:ssrData#1',
+      'component:SsrLabApp#2 / component:CraftRouterOutlet#20 / service:craftRouterOutletState#21 / route:fallback#33 / component:SsrFallbackPage#34 / service:ssrFallbackPageView#35 / query:deferredData / query:deferredData#1',
+      'component:SsrLabApp#2 / component:CraftRouterOutlet#20 / service:craftRouterOutletState#21 / route:client-only#33 / component:SsrClientOnlyPage#34 / service:ssrClientOnlyPageView#35 / query:clientOnlyData / query:clientOnlyData#1',
     ],
     maxBytes: 256_000,
     maxDepth: 12,

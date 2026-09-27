@@ -15,6 +15,7 @@ import {
   tbody,
 } from '@craft-ts/component';
 import {
+  craftService,
   insertStoragePersister,
   craftUnique,
   insertPaginationPlaceholderData,
@@ -23,6 +24,7 @@ import {
   query,
   queryParams,
   craftComputed,
+  craftUse,
 } from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -30,66 +32,75 @@ import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import { example } from '../../shared/example.style';
 
+export const { ListWithPaginationView, provideListWithPaginationView } =
+  craftService(
+    { name: 'listWithPaginationView', providedIn: 'toProvide' },
+    function* () {
+      const pagination = yield* queryParams(
+        'pagination',
+        paginationQueryParams(),
+        ({ patch, state }) => ({
+          nextPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: _state.page + 1 });
+          },
+          previousPage: function* () {
+            const _state = yield* state();
+            return yield* patch({ page: Math.max(1, _state.page - 1) });
+          },
+          updatePageSize: function* (pageSize: number) {
+            return yield* patch({ pageSize, page: 1 });
+          },
+        }),
+      );
+      yield* query(
+        'usersQuery',
+        {
+          params: pagination,
+          identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
+          loader: function* ({ params }) {
+            return yield* ApiService.getDataList(params);
+          },
+        },
+        insertQueryPipe(
+          insertStoragePersister(
+            craftUnique({
+              storeName: 'demo-app',
+              key: 'list-with-pagination',
+            }),
+          ),
+          insertPaginationPlaceholderData(
+            { initialValue: Array<User>() },
+            ({ currentPageStatus }) => ({
+              isCurrentPageResolved: craftUse(craftComputed(
+                'isCurrentPageResolved',
+                function* () {
+                  return (yield* currentPageStatus()) === 'resolved';
+                },
+              )),
+            }),
+          ),
+        ),
+      );
+
+      yield* craftMethod(
+        'updatePageSize',
+        function* (event: Event) {
+          yield* pagination.updatePageSize(Number(eventValue(event)));
+        },
+      );
+    },
+  );
+
 const ListWithPagination = craftComponent(
   'ListWithPagination',
-  {},
-  function* () {
-    const pagination = yield* queryParams(
-      'pagination',
-      paginationQueryParams(),
-      ({ patch, state }) => ({
-        nextPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: _state.page + 1 });
-        },
-        previousPage: function* () {
-          const _state = yield* state();
-          return yield* patch({ page: Math.max(1, _state.page - 1) });
-        },
-        updatePageSize: function* (pageSize: number) {
-          return yield* patch({ pageSize, page: 1 });
-        },
-      }),
-    );
-    const usersQuery = yield* query(
-      'usersQuery',
-      {
-        params: pagination,
-        identifier: ({ page, pageSize }) => `${page}-${pageSize}`,
-        loader: function* ({ params }) {
-          return yield* ApiService.getDataList(params);
-        },
-      },
-      insertQueryPipe(
-        insertStoragePersister(craftUnique({
-          storeName: 'demo-app',
-          key: 'list-with-pagination',
-        })),
-        insertPaginationPlaceholderData(
-          { initialValue: Array<User>() },
-          ({ currentPageStatus }) => ({
-            isCurrentPageResolved: craftComputed(
-              'isCurrentPageResolved',
-              function* () {
-                return (yield* currentPageStatus()) === 'resolved';
-              },
-            ),
-          }),
-        ),
-      ),
-    );
-
-    const updatePageSize = craftMethod(
-      'updatePageSize',
-      function* (event: Event) {
-        yield* pagination.updatePageSize(
-          Number(eventValue(event)),
-        );
-      },
-    );
-    return { pagination, usersQuery, updatePageSize };
+  {
+    providers: [provideListWithPaginationView()],
   },
-  ({ pagination, usersQuery, updatePageSize }) => {
+  function* () {
+    const { pagination, usersQuery, updatePageSize } =
+      yield* ListWithPaginationView();
+
     // `currentPageStatus` is a settled read: it suspends whenever the page on
     // screen has no value of its own — on the first load, and again on every
     // page change. The badge and the table each get their OWN boundary, so a
@@ -132,9 +143,9 @@ const ListWithPagination = craftComponent(
               ]),
           ),
         ),
-      // Only reached on the very first load: once a page has been shown, the
-      // placeholder keeps `currentPageData` non-empty, so the empty slot (and
-      // the settled read inside it) never runs again.
+        // Only reached on the very first load: once a page has been shown, the
+        // placeholder keeps `currentPageData` non-empty, so the empty slot (and
+        // the settled read inside it) never runs again.
       ).pipe(pendingNode({ fallback: () => div('⏳ Loading users…') })),
       div({ class: example.pagination, 'data-testid': 'pagination' }, [
         select(

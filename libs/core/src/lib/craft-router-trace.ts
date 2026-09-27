@@ -6,7 +6,7 @@ import {
   type EnvironmentProviders,
   type Provider,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import type { CraftRoutePhase } from './craft-route-exceptions';
 import { isCraftDevelopment } from './craft-runtime-mode';
 import { ɵinjectCraftRouterRuntime, type CraftRouterEvent } from './craft-router-tokens';
@@ -32,7 +32,7 @@ export type CraftRouterTraceWrapper = (
   next: () => unknown,
 ) => unknown;
 
-const craftRouterTraceService = craftService(
+const craftRouterTraceService = ɵcraftValueService(
   { name: 'CraftRouterTraces', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: CraftRouterTraceWrapper }) =>
     inputs.$provided ? [inputs.$provided] : [],

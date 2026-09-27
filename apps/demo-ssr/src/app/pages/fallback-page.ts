@@ -8,15 +8,21 @@ import {
   span,
 } from '@craft-ts/component';
 import { pendingNode } from '@craft-ts/component';
-import { CraftHttpClient, craftComputed, query, settled } from '@craft-ts/core';
+import {
+  craftService,
+  CraftHttpClient,
+  craftComputed,
+  query,
+  settled,
+  craftPrivate,
+} from '@craft-ts/core';
 import { page } from './page-layout';
 import { page as pageStyle } from '../ssr-lab.style';
 
-export const FallbackPage = craftComponent(
-  'SsrFallbackPage',
-  {},
+export const { SsrFallbackPageView, provideSsrFallbackPageView } = craftService(
+  { name: 'ssrFallbackPageView', providedIn: 'toProvide' },
   function* () {
-    const data = yield* query('deferredData', {
+    const data = yield* craftPrivate(query('deferredData', {
       params: () => true,
       loader: function* () {
         return yield* CraftHttpClient.get(({ response }) => ({
@@ -24,14 +30,19 @@ export const FallbackPage = craftComponent(
           success: response<{ message: string }>(),
         }));
       },
-    });
-    const resolved = craftComputed('resolvedDeferredData', function* () {
+    }));
+    yield* craftComputed('resolved', function* () {
       return yield* settled(data);
     });
-    return { resolved };
   },
-  ({ resolved }) =>
-    page(
+);
+
+export const FallbackPage = craftComponent(
+  'SsrFallbackPage',
+  { providers: [provideSsrFallbackPageView()] },
+  function* () {
+    const { resolved } = yield* SsrFallbackPageView();
+    return page(
       'Route SSR : `fallback`',
       'Shell serveur, contenu différé',
       'Le serveur rend la structure et le pending block. La query est autorisée à démarrer côté serveur, mais la page peut répondre avec son fallback sans la bloquer.',
@@ -68,7 +79,8 @@ export const FallbackPage = craftComponent(
             ]),
         }),
       ),
-    ),
+    );
+  },
 );
 
 function hasMessage(value: unknown): value is { message: string } {

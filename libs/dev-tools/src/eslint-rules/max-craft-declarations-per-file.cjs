@@ -18,6 +18,7 @@ module.exports = {
   create(context) {
     const sourceCode = context.sourceCode ?? context.getSourceCode();
     const declarations = new Map();
+    const componentProvided = new Set();
 
     return {
       CallExpression(node) {
@@ -26,15 +27,27 @@ module.exports = {
           return;
         }
 
+        if (kind === 'craft components') {
+          collectProvidedServices(node, componentProvided);
+        }
+
         const kindDeclarations = declarations.get(kind) ?? [];
         kindDeclarations.push(node);
         declarations.set(kind, kindDeclarations);
       },
       'Program:exit'() {
         for (const [kind, kindDeclarations] of declarations) {
-          for (const node of kindDeclarations.slice(
-            MAX_DECLARATIONS_PER_KIND,
-          )) {
+          // A component's own service is part of that component, not a second
+          // thing living in the file: it is declared here because the component
+          // provides it here.
+          const counted =
+            kind === 'craft services'
+              ? kindDeclarations.filter(
+                  (node) => !componentProvided.has(serviceName(node)),
+                )
+              : kindDeclarations;
+
+          for (const node of counted.slice(MAX_DECLARATIONS_PER_KIND)) {
             context.report({
               node,
               messageId: 'tooMany',
@@ -46,6 +59,47 @@ module.exports = {
     };
   },
 };
+
+/** The `name` a craftService(...) call declares, when it is a literal. */
+function serviceName(node) {
+  const options = node.arguments?.[0];
+  if (options?.type !== 'ObjectExpression') return undefined;
+  const property = options.properties.find(
+    (candidate) =>
+      candidate.type === 'Property' &&
+      !candidate.computed &&
+      candidate.key.type === 'Identifier' &&
+      candidate.key.name === 'name' &&
+      candidate.value.type === 'Literal',
+  );
+  return property?.value.value;
+}
+
+/** Service names a craftComponent(...) provides through its own meta. */
+function collectProvidedServices(node, names) {
+  const meta = node.arguments?.[1];
+  if (meta?.type !== 'ObjectExpression') return;
+  const providers = meta.properties.find(
+    (candidate) =>
+      candidate.type === 'Property' &&
+      !candidate.computed &&
+      candidate.key.type === 'Identifier' &&
+      candidate.key.name === 'providers',
+  );
+  if (providers?.value?.type !== 'ArrayExpression') return;
+
+  for (const element of providers.value.elements) {
+    if (
+      element?.type === 'CallExpression' &&
+      element.callee.type === 'Identifier' &&
+      element.callee.name.startsWith('provide')
+    ) {
+      const provided = element.callee.name.slice('provide'.length);
+      names.add(provided.charAt(0).toLowerCase() + provided.slice(1));
+      names.add(provided);
+    }
+  }
+}
 
 function getCraftDeclarationKind(callee, sourceCode) {
   if (callee.type === 'Identifier') {

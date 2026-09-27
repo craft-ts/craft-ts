@@ -12,7 +12,7 @@ by hand.
 
 ## What it produces
 
-By default the result is a callback to paste as the fourth argument of
+By default the result is a callback to paste as the third argument of
 `craftComponent(...)`. Fill in a name to generate a complete component instead.
 
 Native HTML tags become the matching helpers (`div`, `button`, `section`, …);

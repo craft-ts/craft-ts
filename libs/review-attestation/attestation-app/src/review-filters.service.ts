@@ -6,6 +6,8 @@ import {
   queryParams,
   source$,
   state,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import {
   initialDirectionFilter,
@@ -30,29 +32,27 @@ export const { ReviewFilters } = craftService(
   function* () {
     const clearFilters$ = source$<void>('clearFilters$');
 
-    const componentFilter = yield* state(
-      'componentFilter',
-      '',
-      ({ set }) => ({
-        writeFromInput: (value: string) => set(value),
-        clearFromFilterEvent: on$(clearFilters$, () => set('')),
-      }),
-    );
-    const textParams = yield* queryParams(
-      'reviewTextFilter',
-      {
-        state: {
-          text: { fallbackValue: '', codec: stringQueryParamCodec },
+    const componentFilter = yield* state('componentFilter', '', ({ set }) => ({
+      writeFromInput: (value: string) => set(value),
+      clearFromFilterEvent: on$(clearFilters$, () => set('')),
+    }));
+    const textParams = yield* craftPrivate(
+      queryParams(
+        'reviewTextFilter',
+        {
+          state: {
+            text: { fallbackValue: '', codec: stringQueryParamCodec },
+          },
         },
-      },
-      ({ patch }) => ({
-        writeFromInput: function* (value: string) {
-          yield* patch({ text: value }, { replaceUrl: true });
-        },
-        clearText: function* () {
-          yield* patch({ text: '' }, { replaceUrl: true });
-        },
-      }),
+        ({ patch }) => ({
+          writeFromInput: function* (value: string) {
+            yield* patch({ text: value }, { replaceUrl: true });
+          },
+          clearText: function* () {
+            yield* patch({ text: '' }, { replaceUrl: true });
+          },
+        }),
+      ),
     );
     const textFilter = textParams.text;
     // Each `chooseFromInput` takes the raw select value and no-ops on
@@ -89,12 +89,12 @@ export const { ReviewFilters } = craftService(
       }),
     );
 
-    const clearFilters = craftMethod('clearFilters', function* () {
+    yield* craftMethod('clearFilters', function* () {
       clearFilters$.emit();
       yield* textParams.clearText();
     });
 
-    const activeFilterCount = craftComputed('activeFilterCount', function* () {
+    yield* craftComputed('activeFilterCount', function* () {
       let count = 0;
       if ((yield* componentFilter()).trim()) count += 1;
       if ((yield* textFilter()).trim()) count += 1;
@@ -104,15 +104,7 @@ export const { ReviewFilters } = craftService(
       return count;
     });
 
-    return {
-      componentFilter,
-      textFilter,
-      writeTextFilter: textParams.writeFromInput,
-      kindFilter,
-      stateFilter,
-      directionFilter,
-      clearFilters,
-      activeFilterCount,
-    };
+    yield* craftExpose('textFilter', textFilter);
+    yield* craftExpose('writeTextFilter', textParams.writeFromInput);
   },
 );

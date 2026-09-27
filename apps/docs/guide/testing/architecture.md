@@ -13,7 +13,7 @@ runtime behaviour.
 
 | If you want to verify…                                   | Use…                                         | Example                               |
 | -------------------------------------------------------- | -------------------------------------------- | ------------------------------------- |
-| one unit computes the right result                       | [service tests](/guide/testing/services)     | a service returns the expected value  |
+| one unit computes the right result                       | [service tests](/guide/testing/services)     | a service exposes the expected value  |
 | one component renders and reacts correctly               | [component tests](/guide/testing/components) | a button disables after a click       |
 | two parts of the app are allowed to depend on each other | architecture tests                           | `checkout` must not depend on `admin` |
 | a complete user journey works in a browser               | `e2e/` tests                                 | a user can create and then see a task |

@@ -69,16 +69,16 @@ export type {
   HostTemplate,
   Input,
   InputValue,
-  LogicDecorator,
   Output,
   PropsOf,
   TemplateDecorator,
+  DirectiveTransforms,
   ComponentMeta,
   DirectiveMeta,
   CraftDirectiveTemplateDependencies,
   ComponentTemplateOf,
   ComponentTemplateNameOf,
-  ComponentLogicOutputOf,
+  TemplateChildren,
   YieldableTemplateCallback,
   YieldableTemplateContext,
   TemplateMethodUse,
@@ -110,6 +110,7 @@ export type {
   CraftInputExceptionsCarrier,
   ComponentInputExceptionsOf,
 } from './lib/types';
+export { projection } from './lib/types';
 export type {
   TemplateRenderAvailableActionWhen,
   TemplateRendersNamedElementWhen,

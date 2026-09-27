@@ -11,9 +11,6 @@ describe('SSR CSP nonce', () => {
     const app = craftComponent(
       'NonceApp',
       { styles: () => '.a{color:red}' },
-      function* () {
-        return {};
-      },
       () => p({ class: 'a' }, 'hello'),
     );
     const rendered = await renderCraft({

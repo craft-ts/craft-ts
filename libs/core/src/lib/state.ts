@@ -29,7 +29,7 @@ import {
   createNamedPrimitiveGen,
   createPrimitiveGen,
   type CraftPrimitiveGen,
-  type NamedPrimitive,
+  type NamedCraftPrimitiveGen,
 } from './craft-primitive-gen';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
@@ -449,26 +449,22 @@ export function state<StateInput>(
 export function state<Name extends string, Schema extends CraftSchema>(
   name: Name,
   stateConfig: StateSchemaConfig<Schema>,
-): CraftPrimitiveGen<
-  NamedPrimitive<
-    Name,
-    StateOutput<StandardSchemaV1InferOutput<Schema>, {}, {}, true, false, Name>
-  >
+): NamedCraftPrimitiveGen<
+  Name,
+  StateOutput<StandardSchemaV1InferOutput<Schema>, {}, {}, true, false, Name>
 >;
 export function state<Name extends string, StateInput>(
   name: Name,
   stateConfig: StateInput,
-): CraftPrimitiveGen<
-  NamedPrimitive<
-    Name,
-    StateOutput<
-      ResolvedStateType<StateInput>,
-      {},
-      StateTrackedDependencies<StateInput>,
-      false,
-      false,
-      Name
-    >
+): NamedCraftPrimitiveGen<
+  Name,
+  StateOutput<
+    ResolvedStateType<StateInput>,
+    {},
+    StateTrackedDependencies<StateInput>,
+    false,
+    false,
+    Name
   >
 >;
 export function state<
@@ -485,17 +481,15 @@ export function state<
     {},
     Insertion1Yielded
   >,
-): CraftPrimitiveGen<
-  NamedPrimitive<
-    Name,
-    StateOutput<
-      ResolvedStateType<StateInput>,
-      Insertion1,
-      StateTrackedDependencies<StateInput, Insertion1Yielded, Insertion1>,
-      false,
-      false,
-      Name
-    >
+): NamedCraftPrimitiveGen<
+  Name,
+  StateOutput<
+    ResolvedStateType<StateInput>,
+    Insertion1,
+    StateTrackedDependencies<StateInput, Insertion1Yielded, Insertion1>,
+    false,
+    false,
+    Name
   >
 >;
 export function state(

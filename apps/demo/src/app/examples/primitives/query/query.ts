@@ -9,6 +9,7 @@ import {
   type Input,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftMethod,
   CraftRouter,
   insertStoragePersister,
@@ -16,16 +17,17 @@ import {
   insertQueryPipe,
   query,
   craftComputed,
-} from '@craft-ts/core';
+  craftUse, type CraftServiceInput } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 import { example } from '../../shared/example.style';
 
-const GlobalQuery = craftComponent(
-  'GlobalQuery',
-  {},
-  function* (userId: Input<string>) {
-    const userQuery = yield* query(
+export const { GlobalQueryView, provideGlobalQueryView } = craftService(
+  { name: 'globalQueryView', providedIn: 'toProvide' },
+  function* (inputs: { readonly userId: CraftServiceInput<string> }) {
+    const { userId } = inputs;
+
+    yield* query(
       'userQuery',
       {
         params: userId,
@@ -36,10 +38,10 @@ const GlobalQuery = craftComponent(
       },
       insertQueryPipe(
         ({ resource }) => ({
-          hasUser: craftComputed('hasUser', () => resource.hasValue()),
-          userValueJson: craftComputed('userValueJson', function* () {
+          hasUser: craftUse(craftComputed('hasUser', () => resource.hasValue())),
+          userValueJson: craftUse(craftComputed('userValueJson', function* () {
             return JSON.stringify(yield* resource.value(), null, 2);
-          }),
+          })),
         }),
         insertStoragePersister(
           craftUnique({
@@ -52,7 +54,7 @@ const GlobalQuery = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const navigateNext = craftMethod('navigateNext', function* () {
+    yield* craftMethod('navigateNext', function* () {
       const currentUserId = yield* userId();
       const targetUserId = String(Number(currentUserId ?? '0') + 1);
       void router.navigate({
@@ -60,7 +62,7 @@ const GlobalQuery = craftComponent(
         params: { userId: targetUserId },
       });
     });
-    const navigatePrevious = craftMethod('navigatePrevious', function* () {
+    yield* craftMethod('navigatePrevious', function* () {
       const currentUserId = yield* userId();
       const targetUserId = String(Number(currentUserId ?? '0') - 1);
       void router.navigate({
@@ -68,10 +70,18 @@ const GlobalQuery = craftComponent(
         params: { userId: targetUserId },
       });
     });
-    return { userQuery, navigateNext, navigatePrevious };
   },
-  ({ userQuery, navigateNext, navigatePrevious }) =>
-    div({ class: example.card }, [
+);
+
+const GlobalQuery = craftComponent(
+  'GlobalQuery',
+  {
+    providers: [provideGlobalQueryView()],
+  },
+  function* (inputs: { readonly userId: Input<string> }) {
+    const { userQuery, navigateNext, navigatePrevious } =
+      yield* GlobalQueryView(inputs);
+    return div({ class: example.card }, [
       heading({ class: example.title }, 'User query'),
       div({ class: example.result }, [
         'User ',
@@ -101,7 +111,8 @@ const GlobalQuery = craftComponent(
           'Next user',
         ),
       ]),
-    ]),
+    ]);
+  },
 );
 
 export default GlobalQuery;

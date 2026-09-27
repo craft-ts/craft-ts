@@ -258,9 +258,7 @@ export type FieldErrorDirective<
   readonly [FIELD_ERROR_NODE_DIRECTIVE]: {
     readonly handlers: Handlers;
     readonly exhaustive: Exhaustive;
-    readonly options: Required<
-      Pick<FieldErrorOptions, 'mode' | 'position'>
-    > &
+    readonly options: Required<Pick<FieldErrorOptions, 'mode' | 'position'>> &
       Pick<FieldErrorOptions, 'visibility'>;
   };
 };
@@ -283,8 +281,10 @@ function createFieldErrorDirective<
       position: options.position ?? 'after',
     },
   } as const;
-  const directive = (() =>
-    undefined) as unknown as FieldErrorDirective<Handlers, Exhaustive>;
+  const directive = (() => undefined) as unknown as FieldErrorDirective<
+    Handlers,
+    Exhaustive
+  >;
   Object.defineProperty(directive, CRAFT_DIRECTIVE, {
     value: {
       name,

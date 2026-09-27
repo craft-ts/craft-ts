@@ -21,7 +21,8 @@ module.exports = {
     },
     schema: [],
     messages: {
-      direct: 'Use {{adapter}}(...) in demo-effect instead of {{primitive}}(...).\nEffect demos must use the Effect-aware CraftTS adapters.',
+      direct:
+        'Use {{adapter}}(...) in demo-effect instead of {{primitive}}(...).\nEffect demos must use the Effect-aware CraftTS adapters.',
     },
   },
   create(context) {

@@ -10,7 +10,6 @@ export const { AppStartLog, APP_START_LOG_META_DATA } = craftService(
     yield* onAppStart(function* () {
       yield* Console.log('This is a log from the appStart callback');
     });
-    return 1;
   },
 );
 

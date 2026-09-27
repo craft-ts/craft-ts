@@ -1,5 +1,5 @@
 import { runInInjectionContext, type Injector, type Provider } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 
 /** Metadata describing a DOM event bound from a Craft template. */
 export interface CraftDomEvent {
@@ -31,7 +31,7 @@ export type CraftDomEventHook = (
 ) => unknown;
 
 /** All DOM hooks active in the current component injector. */
-const craftDomEventHookService = craftService(
+const craftDomEventHookService = ɵcraftValueService(
   { name: 'CraftDomEventHooks', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: CraftDomEventHook }) =>
     inputs.$provided ? [inputs.$provided] : [],

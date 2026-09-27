@@ -1,4 +1,4 @@
-import { craftService, type Provider } from '@craft-ts/core';
+import { type Provider, ɵcraftValueService } from '@craft-ts/core';
 import type { CraftComponent } from '../types';
 import type {
   SendContextClip,
@@ -61,7 +61,7 @@ export interface SendContextExportSection {
   readonly render?: unknown;
 }
 
-type UiHelper<T> = () => Generator<unknown, T, unknown>;
+type UiHelper<T> = () => Generator<never, T, unknown>;
 type UiService<T> = {
   helper: UiHelper<T>;
   provide: (value?: T | (() => T)) => unknown;
@@ -82,45 +82,45 @@ function asUiService<T>(
   };
 }
 
-const uiRendererService = craftService(
+const uiRendererService = ɵcraftValueService(
   { name: 'SendContextUiRenderer', providedIn: 'toProvide' },
   (inputs: { $provided: SendContextUiRenderer | (() => SendContextUiRenderer) }) =>
     typeof inputs.$provided === 'function'
       ? inputs.$provided()
       : inputs.$provided,
 );
-const chatComponentService = craftService(
+const chatComponentService = ɵcraftValueService(
   { name: 'SendContextChatComponent', providedIn: 'toProvide' },
   (inputs: { $provided: SendContextChatComponent | (() => SendContextChatComponent) }) =>
     typeof inputs.$provided === 'function'
       ? inputs.$provided()
       : inputs.$provided,
 );
-const launcherComponentService = craftService(
+const launcherComponentService = ɵcraftValueService(
   { name: 'SendContextLauncherComponent', providedIn: 'toProvide' },
   (inputs: { $provided: SendContextLauncherComponent | (() => SendContextLauncherComponent) }) =>
     typeof inputs.$provided === 'function'
       ? inputs.$provided()
       : inputs.$provided,
 );
-const contextMenuComponentService = craftService(
+const contextMenuComponentService = ɵcraftValueService(
   { name: 'SendContextContextMenuComponent', providedIn: 'toProvide' },
   (inputs: { $provided: SendContextContextMenuComponent | (() => SendContextContextMenuComponent) }) =>
     typeof inputs.$provided === 'function'
       ? inputs.$provided()
       : inputs.$provided,
 );
-const chatSectionService = craftService(
+const chatSectionService = ɵcraftValueService(
   { name: 'SendContextChatSections', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: SendContextChatSection }) =>
     inputs.$provided ? [inputs.$provided] : [],
 );
-const chatActionService = craftService(
+const chatActionService = ɵcraftValueService(
   { name: 'SendContextChatActions', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: SendContextChatAction }) =>
     inputs.$provided ? [inputs.$provided] : [],
 );
-const exportSectionService = craftService(
+const exportSectionService = ɵcraftValueService(
   { name: 'SendContextExportSections', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: SendContextExportSection }) =>
     inputs.$provided ? [inputs.$provided] : [],

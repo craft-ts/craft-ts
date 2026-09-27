@@ -9,7 +9,14 @@ import {
   strong,
 } from '@craft-ts/component';
 import { pendingNode } from '@craft-ts/component';
-import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
+import {
+  craftService,
+  craftComputed,
+  craftSleep,
+  query,
+  settled,
+  craftPrivate,
+} from '@craft-ts/core';
 import { page } from './page-layout';
 import { page as pageStyle } from '../ssr-lab.style';
 
@@ -19,11 +26,10 @@ type SsrData = Readonly<{
   generatedAt: string;
 }>;
 
-export const DataPage = craftComponent(
-  'SsrDataPage',
-  {},
+export const { SsrDataPageView, provideSsrDataPageView } = craftService(
+  { name: 'ssrDataPageView', providedIn: 'toProvide' },
   function* () {
-    const data = yield* query('ssrData', {
+    const data = yield* craftPrivate(query('ssrData', {
       params: () => true,
       loader: function* () {
         yield* craftSleep(160);
@@ -33,14 +39,19 @@ export const DataPage = craftComponent(
           generatedAt: new Date().toLocaleTimeString('fr-FR'),
         } satisfies SsrData;
       },
-    });
-    const resolved = craftComputed('resolvedSsrData', function* () {
+    }));
+    yield* craftComputed('resolved', function* () {
       return yield* settled(data);
     });
-    return { resolved };
   },
-  ({ resolved }) =>
-    page(
+);
+
+export const DataPage = craftComponent(
+  'SsrDataPage',
+  { providers: [provideSsrDataPageView()] },
+  function* () {
+    const { resolved } = yield* SsrDataPageView();
+    return page(
       'Route SSR : `block`',
       'Query résolue avant la réponse',
       'La route déclare explicitement qu’elle attend ses données. Le HTML initial contient déjà la valeur résolue et le snapshot la transfère à hydrateCraft.',
@@ -86,5 +97,6 @@ export const DataPage = craftComponent(
             ]),
         }),
       ),
-    ),
+    );
+  },
 );

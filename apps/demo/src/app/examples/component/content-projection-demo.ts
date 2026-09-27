@@ -15,7 +15,7 @@ import {
   headingSection,
 } from '@craft-ts/component';
 import { craftComponent } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
+import { craftService, craftComputed, state, craftUse, craftExpose } from '@craft-ts/core';
 
 import { card } from './content-projection-card';
 import { toolbarAction, userBadge } from './content-projection-actions';
@@ -42,68 +42,72 @@ const userRow = craftTemplate<{
   ]),
 );
 
+export const { ContentProjectionDemoView, provideContentProjectionDemoView } =
+  craftService(
+    { name: 'contentProjectionDemoView', providedIn: 'toProvide' },
+    function* () {
+      const showToolbar = yield* state('showToolbar', true, ({ update }) => ({
+        toggle: () => update((visible) => !visible),
+      }));
+      const dialogOpen = yield* state('dialogOpen', false, ({ set }) => ({
+        open: () => set(true),
+        closeFromToolbar: () => set(false),
+        closeFromConfirmation: () => set(false),
+      }));
+      const lastAction = yield* state(
+        'lastAction',
+        'No action triggered yet.',
+        ({ state, set }) => ({
+          recordSave: () => set('Save'),
+          recordCancel: () => set('Cancel'),
+          recordDirect: () => set('Direct action'),
+          recordConfirm: () => set('Confirm'),
+          lastActionLabel: craftUse(craftComputed('lastActionLabel', function* () {
+            return `Last action: ${yield* state()}`;
+          })),
+        }),
+      );
+      const users = [
+        { id: 1, name: 'Ada Lovelace', role: 'Algorithm pioneer' },
+        { id: 2, name: 'Grace Hopper', role: 'Compilers and systems' },
+        { id: 3, name: 'Margaret Hamilton', role: 'Embedded software' },
+      ] satisfies readonly DemoUser[];
+
+      yield* craftExpose('users', users);
+      yield* craftExpose('lastActionLabel', lastAction.lastActionLabel);
+      yield* craftExpose('toggleToolbar', showToolbar.toggle);
+      yield* craftExpose('openDialog', dialogOpen.open);
+      yield* craftExpose('closeDialogFromToolbar', dialogOpen.closeFromToolbar);
+      yield* craftExpose('closeDialogFromConfirmation', dialogOpen.closeFromConfirmation);
+      yield* craftExpose('recordSave', lastAction.recordSave);
+      yield* craftExpose('recordCancel', lastAction.recordCancel);
+      yield* craftExpose('recordDirect', lastAction.recordDirect);
+      yield* craftExpose('recordConfirm', lastAction.recordConfirm);
+    },
+  );
+
 export const contentProjectionDemo = craftComponent(
   'contentProjectionDemo',
-  { host: { class: componentUi.host } },
+  {
+    providers: [provideContentProjectionDemoView()],
+    host: { class: componentUi.host },
+  },
   function* () {
-    const showToolbar = yield* state('showToolbar', true, ({ update }) => ({
-      toggle: () => update((visible) => !visible),
-    }));
-    const dialogOpen = yield* state('dialogOpen', false, ({ set }) => ({
-      open: () => set(true),
-      closeFromToolbar: () => set(false),
-      closeFromConfirmation: () => set(false),
-    }));
-    const lastAction = yield* state(
-      'lastAction',
-      'No action triggered yet.',
-      ({ state, set }) => ({
-        recordSave: () => set('Save'),
-        recordCancel: () => set('Cancel'),
-        recordDirect: () => set('Direct action'),
-        recordConfirm: () => set('Confirm'),
-        lastActionLabel: craftComputed('lastActionLabel', function* () {
-          return `Last action: ${yield* state()}`;
-        }),
-      }),
-    );
-    const users = [
-      { id: 1, name: 'Ada Lovelace', role: 'Algorithm pioneer' },
-      { id: 2, name: 'Grace Hopper', role: 'Compilers and systems' },
-      { id: 3, name: 'Margaret Hamilton', role: 'Embedded software' },
-    ] satisfies readonly DemoUser[];
-
-    return {
+    const {
       users,
       showToolbar,
       dialogOpen,
-      lastAction,
-      lastActionLabel: lastAction.lastActionLabel,
-      toggleToolbar: showToolbar.toggle,
-      openDialog: dialogOpen.open,
-      closeDialogFromToolbar: dialogOpen.closeFromToolbar,
-      closeDialogFromConfirmation: dialogOpen.closeFromConfirmation,
-      recordSave: lastAction.recordSave,
-      recordCancel: lastAction.recordCancel,
-      recordDirect: lastAction.recordDirect,
-      recordConfirm: lastAction.recordConfirm,
-    };
-  },
-  ({
-    users,
-    showToolbar,
-    dialogOpen,
-    lastActionLabel,
-    toggleToolbar,
-    openDialog,
-    closeDialogFromToolbar,
-    closeDialogFromConfirmation,
-    recordSave,
-    recordCancel,
-    recordDirect,
-    recordConfirm,
-  }) =>
-    section({ class: componentUi.page, 'data-componentPage': 'wide' }, [
+      lastActionLabel,
+      toggleToolbar,
+      openDialog,
+      closeDialogFromToolbar,
+      closeDialogFromConfirmation,
+      recordSave,
+      recordCancel,
+      recordDirect,
+      recordConfirm,
+    } = yield* ContentProjectionDemoView();
+    return section({ class: componentUi.page, 'data-componentPage': 'wide' }, [
       heading('Content projection and logical contracts'),
       headingSection([
         p(
@@ -224,5 +228,6 @@ export const contentProjectionDemo = craftComponent(
           () => [],
         ),
       ]),
-    ]),
+    ]);
+  },
 );

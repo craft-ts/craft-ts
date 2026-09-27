@@ -33,7 +33,7 @@ module.exports = {
     schema: [],
     messages: {
       moveToComputed:
-        'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() in the component logic factory, then bind the computed value directly.',
+        'Do not perform a dynamic object or array lookup in a Craft template. Move the lookup to a named craftComputed() where the component declares what it takes, then bind the computed value directly.',
     },
   },
 
@@ -42,11 +42,11 @@ module.exports = {
 
     return {
       CallExpression(node) {
-        if (!isTemplateHostCall(node) || node.arguments.length < 4) {
+        if (!isTemplateHostCall(node) || node.arguments.length < 3) {
           return;
         }
 
-        const template = resolveTemplateFunction(node.arguments[3]);
+        const template = resolveTemplateFunction(node.arguments[2]);
         if (template) inspectTemplate(template);
       },
     };

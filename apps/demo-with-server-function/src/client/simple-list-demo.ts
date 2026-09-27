@@ -20,12 +20,15 @@ import {
   ul,
 } from '@craft-ts/component';
 import {
+  craftService,
   craftComputed,
   craftMethod,
   isCraftException,
   query,
   queryParams,
   state,
+  craftUse,
+  craftExpose,
 } from '@craft-ts/core';
 import { getUsers } from '../users/list.fn-client';
 import { demoPage } from './demo.style';
@@ -36,9 +39,8 @@ import { demoPage } from './demo.style';
  * shows the server function pipeline (client → HTTP → Effect handler → DB)
  * stripped down to its simplest form.
  */
-const SimpleListDemo = craftComponent(
-  'SimpleListDemo',
-  {},
+export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
+  { name: 'simpleListDemoView', providedIn: 'toProvide' },
   function* () {
     const usersFilter = yield* queryParams(
       'usersFilter',
@@ -64,21 +66,21 @@ const SimpleListDemo = craftComponent(
         },
       },
       ({ resource, exceptions }) => {
-        const notFound = craftComputed('notFound', function* () {
+        const notFound = craftUse(craftComputed('notFound', function* () {
           const error = (yield* exceptions()).loader;
           return isCraftException(error) && error._tag === 'UsersNotFound';
-        });
+        }));
 
         return {
           notFound,
-          requestTitle: craftComputed('requestTitle', function* () {
+          requestTitle: craftUse(craftComputed('requestTitle', function* () {
             const currentStatus = yield* resource.status();
             if (yield* notFound()) return 'Server returned 404';
             return currentStatus === 'loading' || currentStatus === 'reloading'
               ? 'Calling demo.users.list from the URL filter…'
               : 'Server function ready';
-          }),
-          requestDetail: craftComputed('requestDetail', function* () {
+          })),
+          requestDetail: craftUse(craftComputed('requestDetail', function* () {
             const currentStatus = yield* resource.status();
             if (yield* notFound()) {
               const error = (yield* exceptions()).loader;
@@ -87,15 +89,15 @@ const SimpleListDemo = craftComponent(
             return currentStatus === 'loading' || currentStatus === 'reloading'
               ? 'POST /__server-functions · Effect is running'
               : `Status: ${currentStatus}`;
-          }),
-          resultCount: craftComputed('resultCount', function* () {
+          })),
+          resultCount: craftUse(craftComputed('resultCount', function* () {
             const value = yield* resource.value();
             return Array.isArray(value) ? value.length.toString() : '—';
-          }),
+          })),
         };
       },
     );
-    const users = craftComputed('users', function* () {
+    yield* craftComputed('users', function* () {
       const value = yield* usersQuery.value();
       return Array.isArray(value) ? value : [];
     });
@@ -106,22 +108,24 @@ const SimpleListDemo = craftComponent(
         setSearchInput: (value: string) => set(value),
       }),
     );
-    const submitSearch = craftMethod('submitSearch', function* (event?: Event) {
+    yield* craftMethod('submitSearch', function* (event?: Event) {
       event?.preventDefault();
       yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
     });
 
-    return {
-      searchInput,
-      setSearchInput: searchInput.setSearchInput,
-      usersFilter,
-      usersQuery,
-      users,
-      submitSearch,
-    };
+    yield* craftExpose('setSearchInput', searchInput.setSearchInput);
   },
-  ({ searchInput, setSearchInput, usersQuery, users, submitSearch }) =>
-    main({ class: demoPage.shell }, [
+);
+
+const SimpleListDemo = craftComponent(
+  'SimpleListDemo',
+  {
+    providers: [provideSimpleListDemoView()],
+  },
+  function* () {
+    const { searchInput, setSearchInput, usersQuery, users, submitSearch } =
+      yield* SimpleListDemoView();
+    return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
         div({ class: demoPage.eyebrow }, [
           span({ class: demoPage.pulse }),
@@ -236,7 +240,8 @@ const SimpleListDemo = craftComponent(
         span('Same Effect service, two instances: client and server.'),
         span({ class: demoPage.footerFile }, 'apps/demo-with-server-function'),
       ]),
-    ]),
+    ]);
+  },
 );
 
 function exceptionMessage(error: unknown, fallback: string): string {

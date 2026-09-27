@@ -1,3 +1,4 @@
+import { craftService, craftExpose, type CraftServiceInput } from '@craft-ts/core';
 /**
  * The components of the mini design system.
  *
@@ -31,17 +32,33 @@ export type Size = 'sm' | 'md' | 'lg';
  * strings and no way to enumerate them; this one has one class, and the fifteen
  * combinations are rules the emitter already wrote.
  */
+export const { DsButtonView, provideDsButtonView } = craftService(
+  { name: 'dsButtonView', providedIn: 'toProvide' },
+  function* (inputs: {
+      readonly label: CraftServiceInput<string>;
+      readonly tone: CraftServiceInput<Tone>;
+      readonly size: CraftServiceInput<Size>;
+      readonly press: Output<() => void>;
+    }) {
+    const { label, tone, size, press } = inputs;
+    yield* craftExpose('label', label);
+    yield* craftExpose('tone', tone);
+    yield* craftExpose('size', size);
+    yield* craftExpose('press', press);
+  },
+);
+
 export const DsButton = craftComponent(
   'DsButton',
-  {},
-  (
-    label: Input<string>,
-    tone: Input<Tone>,
-    size: Input<Size>,
-    press: Output<() => void>,
-  ) => ({ label, tone, size, press }),
-  ({ label, tone, size, press }) =>
-    buttonEl(
+  { providers: [provideDsButtonView()] },
+  function* (inputs: {
+    readonly label: Input<string>;
+    readonly tone: Input<Tone>;
+    readonly size: Input<Size>;
+    readonly press: Output<() => void>;
+  }) {
+    const { label, tone, size, press } = yield* DsButtonView(inputs);
+    return buttonEl(
       'dsButton',
       {
         type: 'button',
@@ -51,18 +68,34 @@ export const DsButton = craftComponent(
         click: press,
       },
       label,
-    ),
+    );
+  },
 );
 
 export type DsButton = typeof DsButton;
 
 /** The same geometry without the fill — a second class, not a second component. */
+export const { DsGhostButtonView, provideDsGhostButtonView } = craftService(
+  { name: 'dsGhostButtonView', providedIn: 'toProvide' },
+  function* (inputs: {
+      readonly label: CraftServiceInput<string>;
+      readonly press: Output<() => void>;
+    }) {
+    const { label, press } = inputs;
+    yield* craftExpose('label', label);
+    yield* craftExpose('press', press);
+  },
+);
+
 export const DsGhostButton = craftComponent(
   'DsGhostButton',
-  {},
-  (label: Input<string>, press: Output<() => void>) => ({ label, press }),
-  ({ label, press }) =>
-    buttonEl(
+  { providers: [provideDsGhostButtonView()] },
+  function* (inputs: {
+    readonly label: Input<string>;
+    readonly press: Output<() => void>;
+  }) {
+    const { label, press } = yield* DsGhostButtonView(inputs);
+    return buttonEl(
       'dsGhostButton',
       {
         type: 'button',
@@ -70,7 +103,8 @@ export const DsGhostButton = craftComponent(
         click: press,
       },
       label,
-    ),
+    );
+  },
 );
 
 export type DsGhostButton = typeof DsGhostButton;

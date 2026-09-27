@@ -12,9 +12,9 @@ const temporaryDirectories: string[] = [];
 describe('server-function-client-match', () => {
   afterEach(async () => {
     await Promise.all(
-      temporaryDirectories.splice(0).map((directory) =>
-        rm(directory, { recursive: true, force: true }),
-      ),
+      temporaryDirectories
+        .splice(0)
+        .map((directory) => rm(directory, { recursive: true, force: true })),
     );
   });
 

@@ -3,7 +3,7 @@ import {
   runInInjectionContext,
   type Provider,
 } from './host/craft-compat';
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import { isCraftDevelopment } from './craft-runtime-mode';
 
 export type CraftHttpTraceContext = Readonly<{
@@ -18,7 +18,7 @@ export type CraftHttpTraceWrapper = (
   next: () => Promise<unknown>,
 ) => Promise<unknown>;
 
-const craftHttpTraceService = craftService(
+const craftHttpTraceService = ɵcraftValueService(
   { name: 'CraftHttpTraces', providedIn: 'toProvide', collection: true },
   (inputs: { $provided?: CraftHttpTraceWrapper }) =>
     inputs.$provided ? [inputs.$provided] : [],

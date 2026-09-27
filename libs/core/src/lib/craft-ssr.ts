@@ -1,4 +1,4 @@
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 
 export type SsrMode = 'block' | 'fallback' | 'client';
 
@@ -9,7 +9,7 @@ export type CraftSsrPolicy = Readonly<{
 
 /** Nearest route-level default, overridden by a local pendingNode policy. */
 type SsrPolicyHelper = () => Generator<unknown, CraftSsrPolicy, unknown>;
-const craftSsrPolicyService = craftService(
+const craftSsrPolicyService = ɵcraftValueService(
   { name: 'CraftSsrPolicy', providedIn: 'toProvide' },
   (inputs: { $provided: CraftSsrPolicy }) => inputs.$provided,
 ) as unknown as {
@@ -35,7 +35,7 @@ export type CraftSsrRuntime = Readonly<{
 }>;
 
 type SsrRuntimeHelper = () => Generator<unknown, CraftSsrRuntime, unknown>;
-const craftSsrRuntimeService = craftService(
+const craftSsrRuntimeService = ɵcraftValueService(
   { name: 'CraftSsrRuntime', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: CraftSsrRuntime }) => inputs.$provided,
 ) as unknown as {

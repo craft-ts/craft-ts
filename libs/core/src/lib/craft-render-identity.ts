@@ -1,4 +1,4 @@
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 
 /** A deterministic address for one node in a Craft render tree. */
 export type CraftRenderIdentity = Readonly<{
@@ -15,7 +15,7 @@ export type CraftRenderIdentity = Readonly<{
  */
 type CraftRenderIdentityHelper = () =>
   Generator<unknown, CraftRenderIdentity, unknown>;
-const craftRenderIdentityService = craftService(
+const craftRenderIdentityService = ɵcraftValueService(
   { name: 'CraftRenderIdentity', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: CraftRenderIdentity }) => inputs.$provided,
 ) as unknown as {

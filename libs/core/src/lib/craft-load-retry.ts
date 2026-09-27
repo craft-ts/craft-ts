@@ -1,5 +1,5 @@
 import { type Type } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import {
   RealCraftTemporalRuntime,
   ɵinjectCraftTemporalRuntime,
@@ -38,11 +38,11 @@ export interface CraftLazyLoadHelpers {
  * The service-backed dynamic `import(url)`. Overridable in tests to observe the
  * cache-busting URL {@link retryFailedDynamicImport} computes.
  */
-const craftDynamicImportService = craftService(
+const craftDynamicImportService = ɵcraftValueService(
   { name: 'CraftDynamicImport', providedIn: 'global' },
   () => (url: string) => import(/* @vite-ignore */ url),
 ) as unknown as {
-  CraftDynamicImport: () => Generator<unknown, (url: string) => Promise<unknown>, unknown>;
+  CraftDynamicImport: () => Generator<never, (url: string) => Promise<unknown>, unknown>;
   CRAFT_DYNAMIC_IMPORT_META_DATA: { inject(): (url: string) => Promise<unknown> };
 };
 export const CraftDynamicImport = craftDynamicImportService.CraftDynamicImport;
@@ -158,12 +158,12 @@ function tryInjectTemporalRuntime(): CraftTemporalRuntime | undefined {
  * the shared attempts/delay loop; override it to tune attempts, back-off, or
  * `shouldRetry` for `craftLazy` loads specifically.
  */
-const craftLazyLoadRetryService = craftService(
+const craftLazyLoadRetryService = ɵcraftValueService(
   { name: 'CraftLazyLoadRetry', providedIn: 'toProvide' },
   (inputs: { $provided?: CraftLoadRetry }) =>
     inputs.$provided ?? createCraftLoadRetry(),
 ) as unknown as {
-  CraftLazyLoadRetry: () => Generator<unknown, CraftLoadRetry, unknown>;
+  CraftLazyLoadRetry: () => Generator<never, CraftLoadRetry, unknown>;
   provideCraftLazyLoadRetry: (value: CraftLoadRetry) => CraftServiceProvider;
   CRAFT_LAZY_LOAD_RETRY_META_DATA: { inject(): CraftLoadRetry };
 };

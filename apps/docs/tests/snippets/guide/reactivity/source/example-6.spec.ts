@@ -5,25 +5,26 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-6
-import { craftService, on$, source$, state } from '@craft-ts/core';
+import { craftService, on$, source$, state, craftExpose } from '@craft-ts/core';
 
 const { Reset } = craftService(
   { name: 'Reset', providedIn: 'global' },
   function* () {
-    const reset$ = yield* source$<void>('reset$');
-    return reset$;
+    // With an explicit value type, repeat the name as a type argument:
+    // TypeScript cannot infer the one while you give the other.
+    yield* source$<void, 'reset$'>('reset$');
   },
 );
 
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'global' },
   function* () {
-    const counter = yield* state('counter', 0, ({ set }) => ({
+    yield* state('counter', 0, ({ set }) => ({
       reset: on$(Reset, () => set(0)),
     }));
 
-    const reset = yield* Reset();
-    return { counter, reset };
+    const { reset$ } = yield* Reset();
+    yield* craftExpose('reset$', reset$);
   },
 );
 // #endregion example-6

@@ -1,4 +1,4 @@
-import { craftService } from './craft-service';
+import { ɵcraftValueService } from './craft-service';
 import {
   createBrowserHistory,
   createMemoryHistory,
@@ -39,7 +39,7 @@ export type CraftServerResourceController = Readonly<{
 }>;
 
 type CraftPlatformHelper = () => Generator<unknown, CraftPlatform, unknown>;
-const craftPlatformService = craftService(
+const craftPlatformService = ɵcraftValueService(
   { name: 'CraftPlatform', providedIn: 'manuallyProvidedAtRoot' },
   (inputs: { $provided: CraftPlatform }) => inputs.$provided,
 ) as unknown as {

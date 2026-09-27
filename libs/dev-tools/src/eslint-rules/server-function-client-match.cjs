@@ -1,9 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const {
-  Project,
-  SyntaxKind,
-} = require('ts-morph');
+const { Project, SyntaxKind } = require('ts-morph');
 
 module.exports = {
   meta: {
@@ -40,12 +37,18 @@ module.exports = {
         const sourceFile = createSourceFile(filePath, sourceCode.getText());
         if (!sourceFile) return;
 
-        for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+        for (const call of sourceFile.getDescendantsOfKind(
+          SyntaxKind.CallExpression,
+        )) {
           if (call.getExpression().getText() !== 'createServerFunctionClient') {
             continue;
           }
 
-          const reportNode = reportLocation(sourceCode, call.getStart(), call.getEnd());
+          const reportNode = reportLocation(
+            sourceCode,
+            call.getStart(),
+            call.getEnd(),
+          );
           const key = readClientKey(call, filePath);
           if (key.kind === 'missing') {
             context.report({ ...reportNode, messageId: 'missingUnique' });
@@ -56,14 +59,21 @@ module.exports = {
             continue;
           }
 
-          const definition = resolveServerDefinition(sourceFile, call, filePath);
+          const definition = resolveServerDefinition(
+            sourceFile,
+            call,
+            filePath,
+          );
           if (!definition) {
             context.report({ ...reportNode, messageId: 'missingDefinition' });
             continue;
           }
 
           const clientFamily = filePath.replace(/\.fn-client\.ts$/, '');
-          const serverFamily = definition.filePath.replace(/\.fn-serveur\.ts$/, '');
+          const serverFamily = definition.filePath.replace(
+            /\.fn-serveur\.ts$/,
+            '',
+          );
           if (clientFamily !== serverFamily) {
             context.report({ ...reportNode, messageId: 'definitionMismatch' });
             continue;
@@ -73,7 +83,10 @@ module.exports = {
             context.report({
               ...reportNode,
               messageId: 'idMismatch',
-              data: { clientId: key.value, serverId: definition.id ?? '<unknown>' },
+              data: {
+                clientId: key.value,
+                serverId: definition.id ?? '<unknown>',
+              },
             });
           }
         }
@@ -91,7 +104,9 @@ function createSourceFile(filePath, text) {
       skipLibCheck: true,
     },
   });
-  return project.createSourceFile(path.resolve(filePath), text, { overwrite: true });
+  return project.createSourceFile(path.resolve(filePath), text, {
+    overwrite: true,
+  });
 }
 
 function readClientKey(call, clientFilePath) {
@@ -134,22 +149,31 @@ function readHandshakeName(sourceFile, variableName, filePath) {
   const local = handshakeNameInFile(sourceFile, variableName);
   if (local !== undefined) return local;
 
-  const importDeclaration = sourceFile.getImportDeclarations().find((declaration) =>
-    declaration.getNamedImports().some(
-      (specifier) =>
-        (specifier.getAliasNode()?.getText() ?? specifier.getName()) === variableName,
-    ),
-  );
+  const importDeclaration = sourceFile
+    .getImportDeclarations()
+    .find((declaration) =>
+      declaration
+        .getNamedImports()
+        .some(
+          (specifier) =>
+            (specifier.getAliasNode()?.getText() ?? specifier.getName()) ===
+            variableName,
+        ),
+    );
   if (!importDeclaration || !filePath) return undefined;
-  const specifier = importDeclaration.getNamedImports().find(
-    (candidate) =>
-      (candidate.getAliasNode()?.getText() ?? candidate.getName()) === variableName,
-  );
+  const specifier = importDeclaration
+    .getNamedImports()
+    .find(
+      (candidate) =>
+        (candidate.getAliasNode()?.getText() ?? candidate.getName()) ===
+        variableName,
+    );
   const importedPath = resolveRelativeImport(
     filePath,
     importDeclaration.getModuleSpecifierValue(),
   );
-  if (!specifier || !importedPath || !fs.existsSync(importedPath)) return undefined;
+  if (!specifier || !importedPath || !fs.existsSync(importedPath))
+    return undefined;
   return handshakeNameInFile(
     createSourceFile(importedPath, fs.readFileSync(importedPath, 'utf8')),
     specifier.getName(),
@@ -157,16 +181,24 @@ function readHandshakeName(sourceFile, variableName, filePath) {
 }
 
 function handshakeNameInFile(sourceFile, variableName) {
-  const initializer = sourceFile.getVariableDeclaration(variableName)?.getInitializer();
+  const initializer = sourceFile
+    .getVariableDeclaration(variableName)
+    ?.getInitializer();
   if (!initializer) return undefined;
   const call = initializer.isKind?.(SyntaxKind.CallExpression)
     ? initializer
-    : initializer.getDescendantsOfKind(SyntaxKind.CallExpression).find(
-        (candidate) => candidate.getExpression().getText() === 'craftHandshake',
-      );
-  if (!call || call.getExpression().getText() !== 'craftHandshake') return undefined;
+    : initializer
+        .getDescendantsOfKind(SyntaxKind.CallExpression)
+        .find(
+          (candidate) =>
+            candidate.getExpression().getText() === 'craftHandshake',
+        );
+  if (!call || call.getExpression().getText() !== 'craftHandshake')
+    return undefined;
   const value = call.getArguments()[0];
-  return value?.isKind(SyntaxKind.StringLiteral) ? value.getLiteralValue() : undefined;
+  return value?.isKind(SyntaxKind.StringLiteral)
+    ? value.getLiteralValue()
+    : undefined;
 }
 
 function resolveServerDefinition(sourceFile, call, clientFilePath) {
@@ -176,16 +208,26 @@ function resolveServerDefinition(sourceFile, call, clientFilePath) {
   if (!match) return undefined;
 
   const importedName = match[1];
-  const importDeclaration = sourceFile.getImportDeclarations().find((declaration) =>
-    declaration.getNamedImports().some((specifier) =>
-      (specifier.getAliasNode()?.getText() ?? specifier.getName()) === importedName,
-    ),
-  );
+  const importDeclaration = sourceFile
+    .getImportDeclarations()
+    .find((declaration) =>
+      declaration
+        .getNamedImports()
+        .some(
+          (specifier) =>
+            (specifier.getAliasNode()?.getText() ?? specifier.getName()) ===
+            importedName,
+        ),
+    );
   if (!importDeclaration) return undefined;
 
-  const specifier = importDeclaration.getNamedImports().find((candidate) =>
-    (candidate.getAliasNode()?.getText() ?? candidate.getName()) === importedName,
-  );
+  const specifier = importDeclaration
+    .getNamedImports()
+    .find(
+      (candidate) =>
+        (candidate.getAliasNode()?.getText() ?? candidate.getName()) ===
+        importedName,
+    );
   if (!specifier) return undefined;
 
   const importedFilePath = resolveRelativeImport(
@@ -204,7 +246,9 @@ function resolveServerDefinition(sourceFile, call, clientFilePath) {
   const serverCall = declaration
     ?.getInitializer()
     ?.getDescendantsOfKind(SyntaxKind.CallExpression)
-    .find((candidate) => candidate.getExpression().getText() === 'serverFunction');
+    .find(
+      (candidate) => candidate.getExpression().getText() === 'serverFunction',
+    );
   if (!serverCall) return undefined;
 
   const firstArgument = serverCall.getArguments()[0];
@@ -212,9 +256,13 @@ function resolveServerDefinition(sourceFile, call, clientFilePath) {
   // soit par un contrat importé — dans cet ordre.
   const id = firstArgument?.isKind(SyntaxKind.StringLiteral)
     ? firstArgument.getLiteralValue()
-    : (firstArgument?.isKind(SyntaxKind.Identifier)
-        ? readHandshakeName(serverSource, firstArgument.getText(), importedFilePath)
-        : undefined) ?? readImportedContractId(serverSource, firstArgument);
+    : ((firstArgument?.isKind(SyntaxKind.Identifier)
+        ? readHandshakeName(
+            serverSource,
+            firstArgument.getText(),
+            importedFilePath,
+          )
+        : undefined) ?? readImportedContractId(serverSource, firstArgument));
 
   return {
     filePath: importedFilePath,
@@ -224,12 +272,16 @@ function resolveServerDefinition(sourceFile, call, clientFilePath) {
 
 function readImportedContractId(serverSource, argument) {
   if (!argument?.isKind(SyntaxKind.Identifier)) return undefined;
-  const contractImport = serverSource.getImportDeclarations().find((declaration) =>
-    declaration.getNamedImports().some((specifier) => specifier.getName() === argument.getText()),
-  );
-  const contractSpecifier = contractImport?.getNamedImports().find(
-    (specifier) => specifier.getName() === argument.getText(),
-  );
+  const contractImport = serverSource
+    .getImportDeclarations()
+    .find((declaration) =>
+      declaration
+        .getNamedImports()
+        .some((specifier) => specifier.getName() === argument.getText()),
+    );
+  const contractSpecifier = contractImport
+    ?.getNamedImports()
+    .find((specifier) => specifier.getName() === argument.getText());
   const contractPath = contractImport
     ? resolveRelativeImport(
         serverSource.getFilePath(),
@@ -243,12 +295,17 @@ function readImportedContractId(serverSource, argument) {
     fs.readFileSync(contractPath, 'utf8'),
   );
   const contractDeclaration = contractSource?.getVariableDeclaration(
-    contractSpecifier?.getAliasNode()?.getText() ?? contractSpecifier?.getName() ?? '',
+    contractSpecifier?.getAliasNode()?.getText() ??
+      contractSpecifier?.getName() ??
+      '',
   );
   const contractCall = contractDeclaration
     ?.getInitializer()
     ?.getDescendantsOfKind(SyntaxKind.CallExpression)
-    .find((candidate) => candidate.getExpression().getText() === 'serverFunctionContract');
+    .find(
+      (candidate) =>
+        candidate.getExpression().getText() === 'serverFunctionContract',
+    );
   const object = contractCall?.getArguments()[0];
   const idProperty = object?.isKind(SyntaxKind.ObjectLiteralExpression)
     ? object.getProperty('id')

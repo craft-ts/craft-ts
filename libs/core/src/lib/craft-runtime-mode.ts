@@ -1,5 +1,5 @@
 import { runInInjectionContext, type Injector } from './host/craft-compat';
-import { craftService, type CraftServiceProvider } from './craft-service';
+import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 
 /** Runtime mode used to gate optional diagnostics and development tooling. */
 export type CraftRuntimeMode = 'development' | 'production';
@@ -8,11 +8,11 @@ export type CraftRuntimeMode = 'development' | 'production';
  * Directly-created injectors remain development-compatible. Application
  * entry points explicitly select their mode when they bootstrap.
  */
-const craftRuntimeModeService = craftService(
+const craftRuntimeModeService = ɵcraftValueService(
   { name: 'CraftRuntimeMode', providedIn: 'toProvide' },
   (inputs: { $provided?: CraftRuntimeMode }) => inputs.$provided ?? 'development',
 ) as unknown as {
-  CraftRuntimeMode: () => Generator<unknown, CraftRuntimeMode, unknown>;
+  CraftRuntimeMode: () => Generator<never, CraftRuntimeMode, unknown>;
   provideCraftRuntimeMode: (value: CraftRuntimeMode) => CraftServiceProvider;
   CRAFT_RUNTIME_MODE_META_DATA: { inject(): CraftRuntimeMode };
 };

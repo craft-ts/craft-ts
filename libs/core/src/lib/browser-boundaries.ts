@@ -5,8 +5,7 @@ import {
   type GetServiceYields,
   type ServiceTrackingMetadata,
   ɵHOST_TAG_LIST,
-  ɵTRACK_TAGS_LIST,
-} from './craft-service';
+  ɵTRACK_TAGS_LIST, ɵcraftValueService } from './craft-service';
 import { type TrackTag } from './host-tag';
 import {
   ɵinjectCorrelationIdServiceIn,
@@ -576,7 +575,7 @@ function removeCookie(name: string, options?: CookieRemoveOptions) {
 const consoleService: BrowserBoundaryService<
   'ConsoleService',
   ConsoleServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'ConsoleService',
     providedIn: 'global',
@@ -608,7 +607,7 @@ export const CONSOLE_SERVICE_META_DATA: BrowserBoundaryService<
 const localStorageService: BrowserBoundaryService<
   'LocalStorageService',
   StorageServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'LocalStorageService',
     providedIn: 'global',
@@ -636,7 +635,7 @@ export const LOCAL_STORAGE_SERVICE_META_DATA: BrowserBoundaryService<
 const sessionStorageService: BrowserBoundaryService<
   'SessionStorageService',
   StorageServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'SessionStorageService',
     providedIn: 'global',
@@ -664,7 +663,7 @@ export const SESSION_STORAGE_SERVICE_META_DATA: BrowserBoundaryService<
 const cookiesService: BrowserBoundaryService<
   'CookiesService',
   CookiesServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'CookiesService',
     providedIn: 'global',
@@ -690,7 +689,7 @@ export const COOKIES_SERVICE_META_DATA: BrowserBoundaryService<
 const browserLocationService: BrowserBoundaryService<
   'BrowserLocationService',
   BrowserLocationServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'BrowserLocationService',
     providedIn: 'global',
@@ -724,7 +723,7 @@ export const BROWSER_LOCATION_SERVICE_META_DATA: BrowserBoundaryService<
 const browserHistoryService: BrowserBoundaryService<
   'BrowserHistoryService',
   BrowserHistoryServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'BrowserHistoryService',
     providedIn: 'global',
@@ -755,7 +754,7 @@ export const BROWSER_HISTORY_SERVICE_META_DATA: BrowserBoundaryService<
 const browserNavigatorService: BrowserBoundaryService<
   'BrowserNavigatorService',
   BrowserNavigatorServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'BrowserNavigatorService',
     providedIn: 'global',
@@ -784,7 +783,7 @@ export const BROWSER_NAVIGATOR_SERVICE_META_DATA: BrowserBoundaryService<
 const browserPerformanceService: BrowserBoundaryService<
   'BrowserPerformanceService',
   BrowserPerformanceServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'BrowserPerformanceService',
     providedIn: 'global',
@@ -830,7 +829,7 @@ export const BROWSER_PERFORMANCE_SERVICE_META_DATA: BrowserBoundaryService<
 const browserCryptoService: BrowserBoundaryService<
   'BrowserCryptoService',
   BrowserCryptoServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'BrowserCryptoService',
     providedIn: 'global',
@@ -865,7 +864,7 @@ export const BROWSER_CRYPTO_SERVICE_META_DATA: BrowserBoundaryService<
 const browserDocumentService: BrowserBoundaryService<
   'BrowserDocumentService',
   BrowserDocumentServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'BrowserDocumentService',
     providedIn: 'global',
@@ -911,7 +910,7 @@ export const BROWSER_DOCUMENT_SERVICE_META_DATA: BrowserBoundaryService<
 const browserWindowService: BrowserBoundaryService<
   'BrowserWindowService',
   BrowserWindowServiceApi
-> = craftService(
+> = ɵcraftValueService(
   {
     name: 'BrowserWindowService',
     providedIn: 'global',

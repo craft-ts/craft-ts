@@ -29,7 +29,7 @@ export const { TaskSync } = craftService(
       },
     });
 
-    const tasksQuery = yield* query(
+    yield* query(
       'tasksQuery',
       {
         params: () => ({ done: false }),
@@ -45,7 +45,6 @@ export const { TaskSync } = craftService(
       }),
     );
 
-    return { createTask, tasksQuery };
   },
 );
 // #endregion react-on-mutation

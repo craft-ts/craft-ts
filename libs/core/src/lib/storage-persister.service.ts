@@ -2,8 +2,7 @@ import {
   abstract,
   craftService,
   type CraftServiceApi,
-  type ServiceTrackingMetadata,
-} from './craft-service';
+  type ServiceTrackingMetadata, ɵcraftValueService } from './craft-service';
 import {
   LocalStorageService,
   SessionStorageService,
@@ -42,7 +41,7 @@ export const provideStoragePersister: typeof storagePersisterService.provideStor
 /** Provider-capable localStorage implementation of StoragePersisterApi. */
 const localStoragePersisterService: StoragePersisterImplementationApi<
   'LocalStoragePersister'
-> = craftService(
+> = ɵcraftValueService(
   { name: 'LocalStoragePersister', providedIn: 'toProvide' },
   function* (): Generator<unknown, StoragePersisterApi> {
     const storage = yield* LocalStorageService();
@@ -57,7 +56,7 @@ export const provideLocalStoragePersister: typeof localStoragePersisterService.p
 /** Provider-capable sessionStorage implementation of StoragePersisterApi. */
 const sessionStoragePersisterService: StoragePersisterImplementationApi<
   'SessionStoragePersister'
-> = craftService(
+> = ɵcraftValueService(
   { name: 'SessionStoragePersister', providedIn: 'toProvide' },
   function* (): Generator<unknown, StoragePersisterApi> {
     const storage = yield* SessionStorageService();

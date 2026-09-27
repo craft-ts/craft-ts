@@ -60,8 +60,13 @@ import {
   ɵinjectCraftMatch,
   ɵinjectCraftChildMatch,
   ɵrunInInjectionContext,
+  craftUse,
 } from '@craft-ts/core';
-import { executeCraftComponentFactory } from '../factory-runtime';
+import {
+  executeCraftComponentFactory,
+  renderCraftComponentTemplate,
+  ɵasGeneratorTemplate,
+} from '../factory-runtime';
 import {
   computed,
   createEnvironmentInjector,
@@ -281,9 +286,7 @@ function shouldUseInputShell(value: unknown): boolean {
   return (
     (typeof value === 'function' &&
       (isGeneratorFunction(value) || isYieldableValue(value))) ||
-    (value !== null &&
-      typeof value !== 'function' &&
-      typeof value !== 'object')
+    (value !== null && typeof value !== 'function' && typeof value !== 'object')
   );
 }
 
@@ -658,7 +661,7 @@ function createEffectInInjector(
 ): EffectRef {
   return untracked(() =>
     runInInjectionContext(injector, () =>
-      craftEffect(name, effectFn, { manualCleanup: true }),
+      craftUse(craftEffect(name, effectFn, { manualCleanup: true })),
     ),
   );
 }
@@ -677,9 +680,45 @@ function executeTemplateCallback(
   }
 }
 
+/**
+ * A `Service.member` shortcut resolves in two steps: driving it hands back the
+ * member, and the member is the reader the binding wanted. Reading it here is
+ * what makes `p(View.label)` render the label instead of the reference.
+ */
+function readResolvedBinding(value: unknown, context: RenderContext): unknown {
+  return isYieldableReactiveValue(value)
+    ? executeTemplateCallback(value as (...args: any[]) => unknown, [], context)
+    : value;
+}
+
+/**
+ * The action side of the same two steps: a `Service.member.method` shortcut
+ * resolves to the method, and the method is what the event wanted to run.
+ */
+function runResolvedAction(
+  resolved: unknown,
+  args: unknown[],
+  context: RenderContext,
+): unknown {
+  return isYieldableMethod(resolved)
+    ? executeTemplateCallback(
+        resolved as (...args: any[]) => unknown,
+        args,
+        context,
+      )
+    : resolved;
+}
+
 function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
   return typeof value === 'function'
-    ? executeTemplateCallback(value as (...args: any[]) => unknown, [], context)
+    ? readResolvedBinding(
+        executeTemplateCallback(
+          value as (...args: any[]) => unknown,
+          [],
+          context,
+        ),
+        context,
+      )
     : value;
 }
 
@@ -1184,7 +1223,10 @@ class ReactiveTextRenderedNode implements RenderedNode {
 
   private createEffect(): EffectRef {
     return createRenderEffect(this.context, 'text-binding', () => {
-      const resolved = executeTemplateCallback(this.binding, [], this.context);
+      const resolved = readResolvedBinding(
+        executeTemplateCallback(this.binding, [], this.context),
+        this.context,
+      );
       const next =
         resolved === null || resolved === undefined || resolved === false
           ? ''
@@ -1201,19 +1243,44 @@ function renderCraftDirectiveNode(
   node: CraftDirectiveNode<any, any, any>,
   context: RenderContext,
 ): CraftNodeChildren {
-  let template = (_componentContext: any): CraftNodeChildren => [node.node];
+  let template: (...args: any[]) => unknown = () => [node.node];
 
   for (const directive of node.directives) {
-    template = directive[CRAFT_DIRECTIVE].template(template);
+    const decorator = directive[CRAFT_DIRECTIVE].template;
+    if (decorator) {
+      template = decorator(
+        ɵasGeneratorTemplate(template as never) as never,
+      ) as (...args: any[]) => unknown;
+    }
   }
 
   return renderChildrenCallback(
     context,
-    template,
-    [context.componentContext],
+    () => driveTemplateChildren(template(), context.injector),
+    [],
     'callback',
     'directive',
   );
+}
+
+/**
+ * A directive template may reach services, so what it hands back can still be a
+ * running generator: drive it until children come out.
+ */
+function driveTemplateChildren(
+  result: unknown,
+  injector: EnvironmentInjector | object,
+): CraftNodeChildren {
+  let current = result;
+  while (isGenerator(current)) {
+    const pending = current;
+    current = executeCraftComponentFactory(
+      (() => pending) as () => unknown,
+      [] as [],
+      injector,
+    );
+  }
+  return current as CraftNodeChildren;
 }
 
 class CraftDirectiveRenderedNode implements RenderedNode {
@@ -1223,6 +1290,7 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   private readonly effectRef: EffectRef;
   private readonly styleReleases: (() => void)[];
   private readonly registrationReleases: (() => void)[];
+  private readonly scopedInjector: EnvironmentInjector | undefined;
 
   private node: CraftDirectiveNode<any, any, any>;
   private readonly context: RenderContext;
@@ -1262,11 +1330,36 @@ class CraftDirectiveRenderedNode implements RenderedNode {
         false,
       ),
     );
-    this.view = createFragment(parent, before, context, [], 'craft-directive');
-    this.effectRef = createRenderEffect(context, 'craft-directive', () => {
-      this.node = this.descriptor();
-      this.view.patchChildren(renderCraftDirectiveNode(this.node, context));
-    });
+    const transforms = node.directives.flatMap(
+      (directive) => directive[CRAFT_DIRECTIVE].service ?? [],
+    );
+    this.scopedInjector = transforms.length
+      ? createEnvironmentInjector(
+          transforms,
+          context.injector as EnvironmentInjector,
+          'CraftDirectiveServiceTransforms',
+        )
+      : undefined;
+    const scopedContext = this.scopedInjector
+      ? childContext(context, { injector: this.scopedInjector })
+      : context;
+    this.view = createFragment(
+      parent,
+      before,
+      scopedContext,
+      [],
+      'craft-directive',
+    );
+    this.effectRef = createRenderEffect(
+      scopedContext,
+      'craft-directive',
+      () => {
+        this.node = this.descriptor();
+        this.view.patchChildren(
+          renderCraftDirectiveNode(this.node, scopedContext),
+        );
+      },
+    );
   }
 
   firstNode(): NativeNode {
@@ -1294,6 +1387,7 @@ class CraftDirectiveRenderedNode implements RenderedNode {
     this.effectRef.destroy();
     this.view.destroy();
     this.styleReleases.forEach((release) => release());
+    this.scopedInjector?.destroy();
   }
 }
 
@@ -1699,7 +1793,9 @@ export function ɵassertSafeStyleValue(
   }
   // Chaque url() passe par le même garde-fou que les attributs d'URL, ce qui
   // écarte les schémas exécutables comme les chargements protocol-relative.
-  for (const match of text.matchAll(/url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\)/gi)) {
+  for (const match of text.matchAll(
+    /url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\)/gi,
+  )) {
     const url = (match[1] ?? match[2] ?? match[3] ?? '').trim();
     if (url === '') continue;
     safeResourceUrl(url, { allowedOrigins: resourceOrigins });
@@ -1961,7 +2057,11 @@ class ElementRenderedNode implements RenderedNode {
             const hooks = ɵinjectCraftDomEventHooks(this.context.injector);
             runInInjectionContext(this.context.injector, () =>
               executeDomEventHooks(hooks, interaction, () =>
-                executeTemplateCallback(listener, [event], this.context),
+                runResolvedAction(
+                  executeTemplateCallback(listener, [event], this.context),
+                  [event],
+                  this.context,
+                ),
               ),
             );
             return undefined;
@@ -2475,7 +2575,9 @@ class ForRenderedNode implements RenderedNode {
     const seenKeys = new Set<unknown>();
     keys.forEach((key) => {
       if (seenKeys.has(key)) {
-        throw new Error(`forNode() received the duplicate key "${String(key)}".`);
+        throw new Error(
+          `forNode() received the duplicate key "${String(key)}".`,
+        );
       }
       seenKeys.add(key);
     });
@@ -2668,10 +2770,7 @@ class ForRenderedNode implements RenderedNode {
       }),
       'for',
       this.node.itemTemplate,
-      [
-        itemInput,
-        index,
-      ],
+      [itemInput, index],
     );
   }
 
@@ -2784,13 +2883,7 @@ class MatchRenderedNode implements RenderedNode {
     this.node = node;
     this.context = context;
     this.descriptor = signal(node);
-    this.view = createFragment(
-      parent,
-      before,
-      context,
-      [],
-      'craft-match-node',
-    );
+    this.view = createFragment(parent, before, context, [], 'craft-match-node');
     this.effectRef = createRenderEffect(context, 'match-node', () => {
       this.node = this.descriptor();
       this.view.patchChildren(this.children());
@@ -3638,20 +3731,16 @@ class FieldErrorRenderedNode implements RenderedNode {
     this.componentSourceCleanups = componentFieldExceptionSources(
       context.componentContext,
     ).map((source) => this.register(source));
-    this.effectRef = createRenderEffect(
-      context,
-      'field-error-node',
-      () => {
-        this.node = this.descriptor();
-        this.sourcesVersion();
-        const fallbacks = this.renderFallbacks();
-        this.view.patchChildren(
-          this.node.options.position === 'before'
-            ? [fallbacks, this.node.source]
-            : [this.node.source, fallbacks],
-        );
-      },
-    );
+    this.effectRef = createRenderEffect(context, 'field-error-node', () => {
+      this.node = this.descriptor();
+      this.sourcesVersion();
+      const fallbacks = this.renderFallbacks();
+      this.view.patchChildren(
+        this.node.options.position === 'before'
+          ? [fallbacks, this.node.source]
+          : [this.node.source, fallbacks],
+      );
+    });
   }
 
   firstNode(): NativeNode {
@@ -3927,7 +4016,10 @@ class ComponentRenderedNode implements RenderedNode {
   private readonly traceState: TemplateTraceState;
   private readonly componentRenderContext: RenderContext;
   private traceCreated = false;
-  private factoryContext: unknown;
+  // Kept as one array for the whole component: the nodes that read it (a field
+  // error boundary looking for validation cases) hold on to the reference.
+  private readonly resolvedServices: unknown[] = [];
+  private templateArgs: readonly unknown[] = [];
   private latestTemplate: CraftNodeChildren = [];
   private registrationReleases: (() => void)[] = [];
   private readonly hostBindings: HostPropertyBindings | undefined;
@@ -3983,7 +4075,7 @@ class ComponentRenderedNode implements RenderedNode {
     // ActivatedRoute and ChildrenOutletContexts.
     const parentInjector = context.injector as EnvironmentInjector;
     if (!composition) {
-      this.environmentInjector = createEnvironmentInjector(
+      const scopeInjector = createEnvironmentInjector(
         [
           ...provideHostName(`component:${definition.name}`),
           provideCraftRenderIdentity(componentRenderContext.identity),
@@ -3997,6 +4089,15 @@ class ComponentRenderedNode implements RenderedNode {
         parentInjector,
         'CraftComponent',
       );
+      // A service transform wraps what the scope above resolved, so it has to
+      // live one scope below the providers it decorates.
+      this.environmentInjector = definition.service.length
+        ? createEnvironmentInjector(
+            [...definition.service],
+            scopeInjector,
+            'CraftComponentServiceTransforms',
+          )
+        : scopeInjector;
       this.traceCreated = true;
       traceComponentLifecycle(
         this.environmentInjector,
@@ -4085,84 +4186,60 @@ class ComponentRenderedNode implements RenderedNode {
       });
     });
 
-    // A one-argument logic factory may model its complete input as one typed
-    // object. The callable shell keeps the historical Input<T> invocation
-    // while exposing the object's properties for the contract-based API.
-    const args =
-      !this.templateOnly && definition.factory.length === 1
-        ? [
-            new Proxy(
-              ((...callbackArgs: unknown[]) =>
-                (inputShells[0] as (...args: unknown[]) => unknown)(
-                  ...callbackArgs,
-                )) as (...args: unknown[]) => unknown,
-              {
-                get: (target, property, receiver) => {
-                  const index = this.propKeys.indexOf(String(property));
-                  if (index !== -1) {
-                    const value = this.propSources[index]();
-                    return shouldUseInputShell(value)
-                      ? inputShells[index]
-                      : preserveContentDeclarationContext(
-                          value,
-                          declarationContext ?? context,
-                        );
-                  }
-                  return Reflect.get(target, property, receiver);
-                },
-                has: (target, property) =>
-                  this.propKeys.includes(String(property)) ||
-                  Reflect.has(target, property),
-                ownKeys: (target) => [
-                  ...new Set([...Reflect.ownKeys(target), ...this.propKeys]),
-                ],
-                getOwnPropertyDescriptor: (target, property) => {
-                  const index = this.propKeys.indexOf(String(property));
-                  return index === -1
-                    ? Reflect.getOwnPropertyDescriptor(target, property)
-                    : {
-                        configurable: true,
-                        enumerable: true,
-                        value: shouldUseInputShell(this.propSources[index]())
-                          ? inputShells[index]
-                          : preserveContentDeclarationContext(
-                              this.propSources[index](),
-                              declarationContext ?? context,
-                            ),
-                      };
-                },
+    // A component takes its inputs as one object. The callable shell keeps the
+    // historical Input<T> invocation while exposing the object's properties.
+    const args = this.templateOnly
+      ? [templateContext?.value]
+      : [
+          new Proxy(
+            ((...callbackArgs: unknown[]) =>
+              (inputShells[0] as (...args: unknown[]) => unknown)(
+                ...callbackArgs,
+              )) as (...args: unknown[]) => unknown,
+            {
+              get: (target, property, receiver) => {
+                const index = this.propKeys.indexOf(String(property));
+                if (index !== -1) {
+                  const value = this.propSources[index]();
+                  return shouldUseInputShell(value)
+                    ? inputShells[index]
+                    : preserveContentDeclarationContext(
+                        value,
+                        declarationContext ?? context,
+                      );
+                }
+                return Reflect.get(target, property, receiver);
               },
-            ),
-          ]
-        : inputShells;
+              has: (target, property) =>
+                this.propKeys.includes(String(property)) ||
+                Reflect.has(target, property),
+              ownKeys: (target) => [
+                ...new Set([...Reflect.ownKeys(target), ...this.propKeys]),
+              ],
+              getOwnPropertyDescriptor: (target, property) => {
+                const index = this.propKeys.indexOf(String(property));
+                return index === -1
+                  ? Reflect.getOwnPropertyDescriptor(target, property)
+                  : {
+                      configurable: true,
+                      enumerable: true,
+                      value: shouldUseInputShell(this.propSources[index]())
+                        ? inputShells[index]
+                        : preserveContentDeclarationContext(
+                            this.propSources[index](),
+                            declarationContext ?? context,
+                          ),
+                    };
+              },
+            },
+          ),
+        ];
 
-    const factoryContext = composition
-      ? undefined
-      : this.templateOnly
-        ? templateContext?.value
-        : untracked(() =>
-            executeCraftComponentFactory(
-              definition.factory,
-              args,
-              this.environmentInjector!,
-            ),
-          );
-    if (
-      !composition &&
-      !this.templateOnly &&
-      typeof factoryContext === 'object' &&
-      factoryContext !== null &&
-      'then' in factoryContext
-    ) {
-      throw new Error(
-        'Async component factories are not renderable directly. Move asynchronous work behind deferNode().',
-      );
-    }
-    this.factoryContext = factoryContext;
+    this.templateArgs = args;
     if (!composition) {
       this.registerRuntimeTargets(
         definition,
-        factoryContext,
+        undefined,
         this.environmentInjector!,
       );
     }
@@ -4172,7 +4249,7 @@ class ComponentRenderedNode implements RenderedNode {
       before,
       childContext(componentRenderContext, {
         injector: composition ? parentInjector : this.environmentInjector,
-        componentContext: factoryContext,
+        componentContext: this.resolvedServices,
       }),
       composition ? [] : [],
       'craft-component',
@@ -4182,7 +4259,7 @@ class ComponentRenderedNode implements RenderedNode {
       runInInjectionContext(
         composition ? parentInjector : this.environmentInjector!,
         () =>
-          craftEffect(
+          craftUse(craftEffect(
             'component-render',
             composition
               ? (onCleanup: (cleanup: () => void) => void) => {
@@ -4217,7 +4294,7 @@ class ComponentRenderedNode implements RenderedNode {
                     );
                     const renderContext = childContext(componentRenderContext, {
                       injector: this.environmentInjector!,
-                      componentContext: this.factoryContext,
+                      componentContext: this.resolvedServices,
                     });
                     this.traceState.renderCount += 1;
                     this.latestTemplate = executeTemplateTrace(
@@ -4231,14 +4308,16 @@ class ComponentRenderedNode implements RenderedNode {
                         definition.name,
                       ),
                       () =>
-                        withCraftRenderContext(renderContext, () =>
-                          definition.template(
-                            projectYieldableTemplateContext(
-                              this.factoryContext,
-                            ) as never,
+                        withCraftRenderContext(renderContext, () => {
+                          this.resolvedServices.length = 0;
+                          return renderCraftComponentTemplate(
+                            definition,
+                            args,
                             callSiteHostProps,
-                          ),
-                        ),
+                            renderContext.injector,
+                            (instance) => this.resolvedServices.push(instance),
+                          );
+                        }),
                     );
                     this.view.patchChildren(this.latestTemplate);
                     this.hostBindings?.patch(hostProps);
@@ -4257,7 +4336,7 @@ class ComponentRenderedNode implements RenderedNode {
                     throw error;
                   }
                 },
-          ),
+          )),
       ),
     );
   }
@@ -4268,7 +4347,7 @@ class ComponentRenderedNode implements RenderedNode {
 
   private refreshComposedComponent(
     definition: (typeof this.component)[typeof CRAFT_COMPONENT],
-    args: readonly ((...callbackArgs: unknown[]) => unknown)[],
+    args: readonly unknown[],
     componentElement: Element | null,
     parentInjector: EnvironmentInjector,
     additionalProviders: readonly CraftServiceProvider[],
@@ -4330,11 +4409,9 @@ class ComponentRenderedNode implements RenderedNode {
       this.providerTrackers = [];
       if (this.environmentInjector === renderInjector) {
         this.environmentInjector = undefined;
-        this.factoryContext = undefined;
       }
     });
 
-    let factoryContext: unknown;
     let renderContext: RenderContext;
     const handledResourceExceptionCodes = new Set<string>();
     const componentBoundary = composition.catchNodePosition
@@ -4383,9 +4460,13 @@ class ComponentRenderedNode implements RenderedNode {
         );
         return;
       }
-      if (providerResolution.overrides.length > 0) {
+      const scopedProviders = [
+        ...providerResolution.overrides,
+        ...definition.service,
+      ];
+      if (scopedProviders.length > 0) {
         renderInjector = createEnvironmentInjector(
-          [...providerResolution.overrides],
+          scopedProviders,
           environmentInjector,
           'CraftComponentProviders',
         );
@@ -4394,25 +4475,10 @@ class ComponentRenderedNode implements RenderedNode {
       renderContext = childContext(componentRenderContext, {
         injector: renderInjector,
         handledResourceExceptionCodes,
+        componentContext: this.resolvedServices,
       });
       this.view.updateContext(renderContext);
-      factoryContext = untracked(() =>
-        executeCraftComponentFactory(
-          definition.factory,
-          args as ((...callbackArgs: unknown[]) => unknown)[],
-          renderInjector,
-        ),
-      );
-      if (
-        typeof factoryContext === 'object' &&
-        factoryContext !== null &&
-        'then' in factoryContext
-      ) {
-        throw new Error(
-          'Async component factories are not renderable directly. Move asynchronous work behind deferNode().',
-        );
-      }
-      this.registerRuntimeTargets(definition, factoryContext, renderInjector);
+      this.registerRuntimeTargets(definition, undefined, renderInjector);
     } catch (error) {
       if (!isCraftGenShortCircuit(error)) {
         throw error;
@@ -4433,50 +4499,35 @@ class ComponentRenderedNode implements RenderedNode {
       return;
     }
 
-    if (isCraftException(factoryContext)) {
-      this.renderComposedException(
-        definition,
-        factoryContext,
-        renderInjector,
-        renderContext,
-        context,
-        hostTarget,
-      );
-      return;
-    }
-
     this.composedTemplateEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
-        craftEffect('component-template', () => {
+        craftUse(craftEffect('component-template', () => {
           this.renderComposedTemplate(
             definition,
-            factoryContext,
+            args,
             renderInjector,
             renderContext,
             context,
             hostTarget,
           );
-          if (
-            composition.catchNodePosition &&
-            !this.componentExceptionEffect
-          ) {
+          if (composition.catchNodePosition && !this.componentExceptionEffect) {
             this.installComponentExceptionEffect(
               definition,
-              factoryContext,
+              args,
               renderInjector,
               renderContext,
               context,
               hostTarget,
             );
           }
-        }),
+        })),
       ),
     );
     this.syncTemplateFlushRelease?.();
     this.syncTemplateFlushRelease = registerCraftSyncTemplateFlush(() => {
       this.renderComposedTemplate(
         definition,
-        factoryContext,
+        args,
         renderInjector,
         renderContext,
         context,
@@ -4487,7 +4538,7 @@ class ComponentRenderedNode implements RenderedNode {
 
   private installComponentExceptionEffect(
     definition: (typeof this.component)[typeof CRAFT_COMPONENT],
-    factoryContext: unknown,
+    args: readonly unknown[],
     renderInjector: EnvironmentInjector,
     renderContext: RenderContext,
     context: RenderContext,
@@ -4495,10 +4546,10 @@ class ComponentRenderedNode implements RenderedNode {
   ): void {
     this.componentExceptionEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
-        craftEffect(
+        craftUse(craftEffect(
           'component-catch-node-resource-exceptions',
           () => {
-            const exception = findResourceException(factoryContext);
+            const exception = findResourceException(this.resolvedServices);
             if (exception) {
               if (
                 renderContext.handledResourceExceptionCodes?.has(exception._tag)
@@ -4509,7 +4560,7 @@ class ComponentRenderedNode implements RenderedNode {
                   untracked(() =>
                     this.renderComposedTemplate(
                       definition,
-                      factoryContext,
+                      args,
                       renderInjector,
                       renderContext,
                       context,
@@ -4544,7 +4595,7 @@ class ComponentRenderedNode implements RenderedNode {
               untracked(() =>
                 this.renderComposedTemplate(
                   definition,
-                  factoryContext,
+                  args,
                   renderInjector,
                   renderContext,
                   context,
@@ -4554,7 +4605,7 @@ class ComponentRenderedNode implements RenderedNode {
             }
           },
           { manualCleanup: true },
-        ),
+        )),
       ),
     );
   }
@@ -4589,7 +4640,7 @@ class ComponentRenderedNode implements RenderedNode {
 
   private renderComposedTemplate(
     definition: (typeof this.component)[typeof CRAFT_COMPONENT],
-    factoryContext: unknown,
+    args: readonly unknown[],
     renderInjector: EnvironmentInjector,
     renderContext: RenderContext,
     context: RenderContext,
@@ -4600,7 +4651,7 @@ class ComponentRenderedNode implements RenderedNode {
       this.traceState.renderCount += 1;
       const rendered = this.composedTemplateChildren(
         definition,
-        factoryContext,
+        args,
         renderContext,
       );
       const children = this.withComponentFieldError(
@@ -4628,12 +4679,13 @@ class ComponentRenderedNode implements RenderedNode {
 
   private composedTemplateChildren(
     definition: (typeof this.component)[typeof CRAFT_COMPONENT],
-    factoryContext: unknown,
+    args: readonly unknown[],
     renderContext: RenderContext,
   ): { readonly children: CraftNodeChildren; readonly hostProps: HostProps } {
-    this.factoryContext = factoryContext;
     this.view.updateContext(
-      childContext(renderContext, { componentContext: factoryContext }),
+      childContext(renderContext, {
+        componentContext: this.resolvedServices,
+      }),
     );
     const callSiteHostProps = this.hostPropsSource();
     const hostProps = mergeHostProps(
@@ -4650,12 +4702,16 @@ class ComponentRenderedNode implements RenderedNode {
           definition.name,
         ),
         () =>
-          withCraftRenderContext(renderContext, () =>
-            definition.template(
-              projectYieldableTemplateContext(factoryContext) as never,
+          withCraftRenderContext(renderContext, () => {
+            this.resolvedServices.length = 0;
+            return renderCraftComponentTemplate(
+              definition,
+              args,
               callSiteHostProps,
-            ),
-          ),
+              renderContext.injector,
+              (instance) => this.resolvedServices.push(instance),
+            );
+          }),
       ),
       hostProps,
     };
@@ -4683,7 +4739,7 @@ class ComponentRenderedNode implements RenderedNode {
     renderContext: RenderContext,
     context: RenderContext,
     hostTarget: Element | undefined,
-    preserveFactoryContext = false,
+    preserveSource = false,
   ): void {
     const blockHandler =
       definition.composition?.catchHandlers?.[exception._tag];
@@ -4696,9 +4752,6 @@ class ComponentRenderedNode implements RenderedNode {
       throw new CraftUnhandledExceptionError(exception);
     }
 
-    if (!preserveFactoryContext) {
-      this.factoryContext = undefined;
-    }
     this.view.updateContext(renderContext);
     const hostProps = mergeHostProps(
       definition.meta.host ?? {},
@@ -4728,12 +4781,12 @@ class ComponentRenderedNode implements RenderedNode {
           definition.composition?.catchNodePosition ?? 'after',
         ),
       );
-      if (preserveFactoryContext && resolved.showSource) {
+      if (preserveSource && resolved.showSource) {
         try {
           const source = untracked(() =>
             this.composedTemplateChildren(
               definition,
-              this.factoryContext,
+              this.templateArgs,
               renderContext,
             ),
           );
@@ -4741,16 +4794,10 @@ class ComponentRenderedNode implements RenderedNode {
             resolved.position === 'before'
               ? [
                   resolved.children,
-                  this.withComponentFieldError(
-                    definition,
-                    source.children,
-                  ),
+                  this.withComponentFieldError(definition, source.children),
                 ]
               : [
-                  this.withComponentFieldError(
-                    definition,
-                    source.children,
-                  ),
+                  this.withComponentFieldError(definition, source.children),
                   resolved.children,
                 ];
           this.view.patchChildren(children);
@@ -4803,10 +4850,10 @@ class ComponentRenderedNode implements RenderedNode {
 
   updateContext(context: unknown): void {
     if (!this.templateOnly) {
-      throw new Error('Cannot update the context of a logic-backed component.');
+      throw new Error('Cannot update the inputs of a mounted component.');
     }
 
-    this.factoryContext = context;
+    this.templateArgs = [context];
     const definition = this.component[CRAFT_COMPONENT];
     const callSiteHostProps = this.hostPropsSource();
     const hostProps = mergeHostProps(
@@ -4823,9 +4870,11 @@ class ComponentRenderedNode implements RenderedNode {
         definition.name,
       ),
       () =>
-        definition.template(
-          projectYieldableTemplateContext(context) as never,
+        renderCraftComponentTemplate(
+          definition,
+          this.templateArgs,
           callSiteHostProps,
+          this.environmentInjector ?? this.context.injector,
         ),
     );
     this.view.patchChildren(this.latestTemplate);

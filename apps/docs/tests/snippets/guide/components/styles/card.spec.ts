@@ -12,28 +12,22 @@ import { state } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { card, cardVars } from './card.style';
 
-const UploadCard = craftComponent(
-  'UploadCard',
-  {},
-  function* () {
-    const progress = yield* state('progress', 40);
-    // The variant's point, or null for none: the attribute is then removed.
-    const tone = yield* state('tone', 'danger' as 'danger' | null);
-    return { progress, tone };
-  },
-  ({ progress, tone }) =>
-    // One constant class per element; the variant is an attribute.
-    div({ class: card.root, 'data-cardTone': tone }, [
-      h2({ class: card.title }, 'Upload'),
-      div({
-        class: card.bar,
-        // The only thing `style:` accepts: a typed variable, written by assign.
-        style: function* () {
-          return assign(cardVars.progress, unit.pct(yield* progress()));
-        },
-      }),
-    ]),
-);
+const UploadCard = craftComponent('UploadCard', {}, function* () {
+  const progress = yield* state('progress', 40);
+  // The variant's point, or null for none: the attribute is then removed.
+  const tone = yield* state('tone', 'danger' as 'danger' | null);
+  // One constant class per element; the variant is an attribute.
+  return div({ class: card.root, 'data-cardTone': tone }, [
+    h2({ class: card.title }, 'Upload'),
+    div({
+      class: card.bar,
+      // The only thing `style:` accepts: a typed variable, written by assign.
+      style: function* () {
+        return assign(cardVars.progress, unit.pct(yield* progress()));
+      },
+    }),
+  ]);
+});
 // #endregion component
 
 describe('guide/components/styles.md', () => {

@@ -7,6 +7,7 @@ import {
 } from './host/craft-injector';
 import { setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
+import { craftPrivate, craftExpose } from './craft-primitive-gen';
 
 describe('setupCraftServiceTest without TestBed', () => {
   it('boots a craftService and reads its state', () => {
@@ -15,8 +16,8 @@ describe('setupCraftServiceTest without TestBed', () => {
       { name: 'Counter', providedIn: 'global' },
       function* () {
         serviceInjector = getCurrentCraftInjector();
-        const counter = yield* state('hostCounter', 7);
-        return { read: () => craftUse(counter()) };
+        const counter = yield* craftPrivate(state('hostCounter', 7));
+        yield* craftExpose('read', () => craftUse(counter()));
       },
     );
 

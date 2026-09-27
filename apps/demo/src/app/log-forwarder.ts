@@ -19,13 +19,7 @@ export const { LogServerUrl, provideLogServerUrl } = craftService(
 );
 
 /** Levels that the craft `Console.*` boundary decorates with metadata. */
-const FORWARDED_LEVELS = [
-  'debug',
-  'info',
-  'log',
-  'warn',
-  'error',
-] as const;
+const FORWARDED_LEVELS = ['debug', 'info', 'log', 'warn', 'error'] as const;
 
 type ForwardedLevel = (typeof FORWARDED_LEVELS)[number];
 
@@ -84,9 +78,7 @@ const DEFAULT_FLUSH_INTERVAL_MS = 1000;
 const DEFAULT_BATCH_SIZE = 50;
 const DEFAULT_MAX_BUFFER_SIZE = 1000;
 
-export function createLogForwarder(
-  options: LogForwarderOptions,
-): LogForwarder {
+export function createLogForwarder(options: LogForwarderOptions): LogForwarder {
   // This IS the Console boundary implementation: reaching for the craft
   // Console here would recurse into the sink we are building.
   // eslint-disable-next-line craft-ts/prefer-browser-boundaries
@@ -174,7 +166,8 @@ export function provideLogForwarding(): Provider {
 
       const forwarder = createLogForwarder({
         clientId,
-        send: (payload, { beacon }) => sendToLogServer(endpoint, payload, beacon),
+        send: (payload, { beacon }) =>
+          sendToLogServer(endpoint, payload, beacon),
       });
 
       // Ship whatever is buffered when the tab goes away.
@@ -214,14 +207,13 @@ function sendToLogServer(
   // The non-beacon path is an intentional transport boundary for this log sink.
   const request = globalThis.fetch.bind(globalThis);
   void request(endpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body,
-      keepalive: true,
-    })
-    .catch(() => {
-      // Log server offline: drop the batch silently.
-    });
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {
+    // Log server offline: drop the batch silently.
+  });
 }
 
 function createPassThrough(target: ConsoleServiceApi): ConsoleServiceApi {
@@ -240,9 +232,7 @@ function createPassThrough(target: ConsoleServiceApi): ConsoleServiceApi {
   };
 }
 
-function isCraftConsoleMetadata(
-  value: unknown,
-): value is CraftConsoleMetadata {
+function isCraftConsoleMetadata(value: unknown): value is CraftConsoleMetadata {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Record<string, unknown>;
   return (

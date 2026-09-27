@@ -80,5 +80,6 @@ export const groupTemplateReviewCards = (
 };
 
 /** A former acceptance is not a current acceptance after evidence/context changed. */
-export const pendingTemplateCards = (group: Pick<TemplateReviewGroup, 'cards'>) =>
-  group.cards.filter((card) => card.state !== 'removed');
+export const pendingTemplateCards = (
+  group: Pick<TemplateReviewGroup, 'cards'>,
+) => group.cards.filter((card) => card.state !== 'removed');

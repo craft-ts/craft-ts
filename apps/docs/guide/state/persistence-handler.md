@@ -46,7 +46,7 @@ const { CacheActions } = craftService(
   { name: 'CacheActions', providedIn: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
-    return { clearCache: () => persister.clearAllCache() };
+    yield* craftExpose('clearCache', () => persister.clearAllCache());
   },
 );
 ```

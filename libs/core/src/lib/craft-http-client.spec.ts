@@ -20,6 +20,7 @@ import {
   type GetServiceOutput,
 } from './craft-service';
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
+import { craftExpose } from './craft-primitive-gen';
 
 type PendingFetchRequest = {
   input: string;
@@ -119,9 +120,7 @@ describe('CraftHttpClient', () => {
           // @ts-expect-error CraftHttpClient now requires a declarative builder callback
           const invalidGet = yield* CraftHttpClient.get<User[]>();
 
-          return {
-            invalidGet,
-          };
+          yield* craftExpose('invalidGet', invalidGet);
         },
       );
     }
@@ -142,9 +141,7 @@ describe('CraftHttpClient', () => {
           success: response<User[]>(),
         }));
 
-        return {
-          getUsers,
-        };
+        yield* craftExpose('getUsers', getUsers);
       },
     );
 
@@ -210,7 +207,7 @@ describe('CraftHttpClient', () => {
           success: response(decoder),
         }));
 
-        return { getUser };
+        yield* craftExpose('getUser', getUser);
       },
     );
 
@@ -250,7 +247,7 @@ describe('CraftHttpClient', () => {
           success: response(decoder),
         }));
 
-        return { getUser };
+        yield* craftExpose('getUser', getUser);
       },
     );
 
@@ -291,7 +288,7 @@ describe('CraftHttpClient', () => {
           }),
         }));
 
-        return { getValue };
+        yield* craftExpose('getValue', getValue);
       },
     );
 
@@ -323,9 +320,7 @@ describe('CraftHttpClient', () => {
           success: response<User[]>(),
         }));
 
-        return {
-          getUsers,
-        };
+        yield* craftExpose('getUsers', getUsers);
       },
     );
 
@@ -369,9 +364,7 @@ describe('CraftHttpClient', () => {
           success: response<User[]>(),
         }));
 
-        return {
-          getUsers,
-        };
+        yield* craftExpose('getUsers', getUsers);
       },
     );
 
@@ -411,9 +404,7 @@ describe('CraftHttpClient', () => {
           success: response<User[]>(),
         }));
 
-        return {
-          getUsers,
-        };
+        yield* craftExpose('getUsers', getUsers);
       },
     );
 
@@ -460,9 +451,7 @@ describe('CraftHttpClient', () => {
           ],
         }));
 
-        return {
-          getUsers,
-        };
+        yield* craftExpose('getUsers', getUsers);
       },
     );
 
@@ -540,9 +529,7 @@ describe('CraftHttpClient', () => {
           ],
         }));
 
-        return {
-          getUsers,
-        };
+        yield* craftExpose('getUsers', getUsers);
       },
     );
 
@@ -600,7 +587,7 @@ describe('CraftHttpClient', () => {
           url: '/api/cache',
           success: response<null>(),
         }));
-        return { load };
+        yield* craftExpose('load', load);
       },
     );
 
@@ -657,9 +644,7 @@ describe('CraftHttpClient', () => {
           ],
         }));
 
-        return {
-          login,
-        };
+        yield* craftExpose('login', login);
       },
     );
 
@@ -758,9 +743,7 @@ describe('CraftHttpClient', () => {
           ],
         }));
 
-        return {
-          login,
-        };
+        yield* craftExpose('login', login);
       },
     );
 
@@ -824,9 +807,7 @@ describe('CraftHttpClient', () => {
           ],
         }));
 
-        return {
-          login,
-        };
+        yield* craftExpose('login', login);
       },
     );
 
@@ -900,9 +881,7 @@ describe('CraftHttpClient', () => {
           ],
         }));
 
-        return {
-          login,
-        };
+        yield* craftExpose('login', login);
       },
     );
 
@@ -944,9 +923,7 @@ describe('CraftHttpClient', () => {
           success: response<User>(),
         }));
 
-        return {
-          createUser,
-        };
+        yield* craftExpose('createUser', createUser);
       },
     );
 
@@ -1009,9 +986,7 @@ describe('CraftHttpClient', () => {
             ],
           }));
 
-          return {
-            getUsers,
-          };
+          yield* craftExpose('getUsers', getUsers);
         },
       );
 
@@ -1064,9 +1039,7 @@ describe('CraftHttpClient', () => {
           success: response<User[]>(),
         }));
 
-        return {
-          load: () => getUsers(),
-        };
+        yield* craftExpose('load', () => getUsers());
       },
     );
 
@@ -1149,9 +1122,7 @@ describe('CraftHttpClient', () => {
           ],
         }));
 
-        return {
-          getUsers,
-        };
+        yield* craftExpose('getUsers', getUsers);
       },
     );
 
@@ -1256,7 +1227,7 @@ describe('CraftBinaryHttpClient', () => {
           success: response<null>(),
         }));
 
-        return { upload };
+        yield* craftExpose('upload', upload);
       },
     );
 
