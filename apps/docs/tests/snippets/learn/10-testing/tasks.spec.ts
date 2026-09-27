@@ -34,7 +34,7 @@ export const Tasks = craftComponent(
   'Tasks',
   {},
   function* () {
-    const tasks = (yield* TaskList()).tasks;
+    const { tasks } = yield* TaskList();
     return { tasks };
   },
   ({ tasks }) => [
@@ -59,8 +59,10 @@ describe('Learn 10 Tasks component', () => {
       await setupCraftComponentLogicTest.byRegister(Tasks, {
         register: {
           TaskList: {
-            $self: () => [{ id: '1', title: 'a', done: false }],
-            remaining: () => 1,
+            // The exposed `tasks` state: its call shape and the members read.
+            tasks: Object.assign(() => [{ id: '1', title: 'a', done: false }], {
+              remaining: () => 1,
+            }),
           },
         },
       });
