@@ -26,7 +26,7 @@ const developmentProviders = import.meta.env.DEV
         ...event,
         application: 'review-attestation',
       })),
-      provideSendContextToAi(),
+      provideSendContextToAi({ recording: true }),
     ]
   : [];
 

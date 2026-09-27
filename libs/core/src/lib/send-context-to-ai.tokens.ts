@@ -846,7 +846,10 @@ export function provideSendContextSession(): CraftServiceProvider[] {
 function stableReplaySelector(element: Element): string {
   const named = element.closest('[data-craft-name]');
   if (named?.getAttribute('data-craft-name')) {
-    const value = CSS.escape(named.getAttribute('data-craft-name')!);
+    const rawName = named.getAttribute('data-craft-name')!;
+    const value = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+      ? CSS.escape(rawName)
+      : rawName.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
     const descendants: string[] = [];
     let current: Element | null = element;
     while (current && current !== named) {

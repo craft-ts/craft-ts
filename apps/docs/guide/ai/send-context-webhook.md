@@ -14,13 +14,16 @@ Typical uses include:
 
 The feature is user-driven. It does not call an AI service by itself. Without
 an `endpoint`, everything stays in the browser and the user copies the prompt
-or the timeline when they choose to.
+or the timeline when they choose to. State explicitly whether the app may
+collect a session timeline with the required `recording` option. Setting it to
+`false` disables timeline capture and hides its Record/Clear controls while
+leaving the rest of the context UI available.
 
 ## Minimal setup
 
 Register the provider once in the application providers. The default UI then
 adds an `AI context` launcher in the bottom-right corner and a context menu to
-Craft component hosts.
+Craft component hosts. The minimal setup opts in to session recording:
 
 <<< @/tests/snippets/guide/ai/send-context-webhook.spec.ts#minimal
 
@@ -275,6 +278,7 @@ import {
 export const appConfig = craftAppConfig({
   providers: [
     provideSendContextToAi({
+      recording: true,
       endpoint: '/internal/ai/context',
     }),
     {

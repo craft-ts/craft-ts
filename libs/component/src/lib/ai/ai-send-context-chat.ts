@@ -126,6 +126,7 @@ type ChatContext = {
   eventCount: () => number;
   targets: () => readonly SendContextTargetRow[];
   recording: () => boolean;
+  recordingEnabled: () => boolean;
   removeTarget: (index: number) => void;
   instruction: () => string;
   writeInstruction: (value: string) => Generator<unknown, unknown, unknown>;
@@ -653,6 +654,7 @@ export const AiSendContextChat: CraftComponent<{
           index,
         })),
       recording: () => readContext().recording,
+      recordingEnabled: () => readContext().recordingEnabled !== false,
       removeTarget: (index: number) => {
         const ui = readContext();
         const target = ui.targets[index];
@@ -692,6 +694,7 @@ export const AiSendContextChat: CraftComponent<{
     eventCount,
     targets,
     recording,
+    recordingEnabled,
     removeTarget,
     instruction,
     writeInstruction,
@@ -816,6 +819,7 @@ export const AiSendContextChat: CraftComponent<{
                   {
                     type: 'button',
                     class: aiChat.button,
+                    hidden: () => !recordingEnabled(),
                     'data-craftAiButton': () =>
                       recording() ? 'recording' : null,
                     'aria-pressed': () => recording(),
@@ -828,6 +832,7 @@ export const AiSendContextChat: CraftComponent<{
                   {
                     type: 'button',
                     class: aiChat.button,
+                    hidden: () => !recordingEnabled(),
                     click: clearTimeline,
                   },
                   'Clear',
@@ -843,7 +848,9 @@ export const AiSendContextChat: CraftComponent<{
                   empty: () =>
                     p(
                       { class: aiChat.empty },
-                      'No event recorded yet — interact with the app.',
+                      () => recordingEnabled()
+                        ? 'No event recorded yet — interact with the app.'
+                        : 'Session recording is disabled by app configuration.',
                     ),
                 },
                 (event) =>

@@ -43,6 +43,7 @@ function createUiContext(
     get recording() {
       return session.activeClip !== undefined;
     },
+    recordingEnabled: true,
     payload: {
       hostName: 'DemoComponent',
       tagList: ['component:DemoComponent#1'],

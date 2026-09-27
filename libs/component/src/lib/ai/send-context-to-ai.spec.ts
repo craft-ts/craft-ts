@@ -4,8 +4,8 @@ import { craftComponent } from '../component';
 import { mountCraftComponent } from '../bridge';
 import { div, span } from '../hyperscript';
 import { renderCraftComponent } from '../testing';
-import { createEnvironmentInjector, Injector } from '../host-runtime';
-import { ɵgetCraftRootDefaultProviders } from '@craft-ts/core';
+import { createEnvironmentInjector, Injector, runInInjectionContext } from '../host-runtime';
+import { ɵgetCraftRootDefaultProviders, ɵinjectSendContextSession } from '@craft-ts/core';
 import { AiContextMenu } from './ai-context-menu';
 import {
   provideAiContextMenuController,
@@ -38,6 +38,18 @@ describe('provideSendContextToAi', () => {
     document.body.replaceChildren();
   });
 
+  it('requires an explicit recording choice and does not collect events when disabled', () => {
+    const parent = createEnvironmentInjector(
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: false })],
+      Injector.NULL,
+      'SendContextRecordingDisabledTestRoot',
+    );
+    const session = runInInjectionContext(parent, () => ɵinjectSendContextSession());
+    session?.capture('custom', 'emitted', { name: 'must-not-be-recorded' });
+    expect(session?.events).toEqual([]);
+    parent.destroy();
+  });
+
   it('opens the AI context menu from the component host context', async () => {
     const controller = { open: vi.fn() };
     const component = craftComponent(
@@ -51,7 +63,7 @@ describe('provideSendContextToAi', () => {
     );
     const rendered = await renderCraftComponent(component, {
       providers: [
-        ...provideSendContextToAi(),
+        ...provideSendContextToAi({ recording: true }),
         provideAiContextMenuController(controller),
       ] as never,
     });
@@ -91,7 +103,7 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi()],
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
       Injector.NULL,
       'SendContextAiTestRoot',
     );
@@ -116,7 +128,7 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi()],
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
       Injector.NULL,
       'SendContextAiLauncherRoot',
     );
@@ -172,7 +184,7 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi()],
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
       Injector.NULL,
       'SendContextAiPersistenceRoot',
     );
