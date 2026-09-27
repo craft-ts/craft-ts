@@ -993,11 +993,13 @@ function failedResult(
 
 export function createRouteVerificationFixtures(): RouteVerificationFixture[] {
   const support = `
-import { craftService, type GetDeps, type GetServiceDependencies } from '@craft-ts/core';
+import { craftExpose, craftService, type GetDeps, type GetServiceDependencies } from '@craft-ts/core';
 
 export const { VerifyMissingService, provideVerifyMissingService } = craftService(
   { name: '${serviceName}', providedIn: 'toProvide' },
-  () => ({ value: 1 }),
+  function* () {
+    yield* craftExpose('value', 1);
+  },
 );
 
 export type Router = { readonly __routeVerifierRouter: unique symbol };
