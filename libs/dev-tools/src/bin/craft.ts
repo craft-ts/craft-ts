@@ -3,6 +3,7 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   listAngularProjects,
   runRouteAdd,
@@ -425,7 +426,6 @@ type CreateArgs = {
   attestationMode?: CreateAttestationMode | 'none';
   viewports?: string;
   viewportSpecs?: readonly string[];
-  templateObligations?: boolean;
   visualTests?: boolean;
   workspace?: 'standalone' | 'nx';
   references?: 'none' | 'craft-ts' | 'all';
@@ -448,14 +448,17 @@ const CREATE_APPLICATION_OPTIONS: readonly InteractiveOption<
 const CREATE_FRONTEND_OPTIONS: readonly InteractiveOption<
   'plain' | 'effect'
 >[] = [
-  { value: 'plain', label: 'Plain CraftTS' },
-  { value: 'effect', label: 'Effect v4' },
+  { value: 'plain', label: 'Plain CraftTS (no Effect adapter in browser)' },
+  { value: 'effect', label: 'CraftTS + Effect v4 (frontend adapter)' },
 ];
 const CREATE_FULL_STACK_BACKEND_OPTIONS: readonly InteractiveOption<
   'promise' | 'effect'
 >[] = [
   { value: 'promise', label: 'Promise server functions' },
-  { value: 'effect', label: 'EffectTS server functions (recommended)' },
+  {
+    value: 'effect',
+    label: 'EffectTS v4 server functions (backend only; recommended)',
+  },
 ];
 const CREATE_I18N_OPTIONS: readonly InteractiveOption<
   'strict' | 'loose' | 'none'
@@ -536,7 +539,6 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       argument === '--no-i18n' ||
       argument === '--no-design-system' ||
       argument === '--no-attest' ||
-      argument === '--no-template-obligations' ||
       argument === '--no-visual-tests' ||
       argument === '--no-clone-craft-ts' ||
       argument === '--no-clone-effect-ts' ||
@@ -547,8 +549,6 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
       else if (argument === '--no-design-system')
         setValue('design-system', 'none');
       else if (argument === '--no-attest') result.attest = false;
-      else if (argument === '--no-template-obligations')
-        result.templateObligations = false;
       else if (argument === '--no-visual-tests') result.visualTests = false;
       else if (argument === '--no-clone-craft-ts') result.cloneCraftTs = false;
       else if (argument === '--no-clone-effect-ts')
@@ -589,15 +589,12 @@ export function parseCreateArgs(argv: string[]): CreateArgs {
     }
     if (
       argument === '--attest' ||
-      argument === '--template-obligations' ||
       argument === '--visual-tests' ||
       argument === '--clone-craft-ts' ||
       argument === '--clone-effect-ts' ||
       argument === '--demos'
     ) {
       if (argument === '--attest') result.attest = true;
-      else if (argument === '--template-obligations')
-        result.templateObligations = true;
       else if (argument === '--visual-tests') result.visualTests = true;
       else if (argument === '--clone-craft-ts') result.cloneCraftTs = true;
       else if (argument === '--clone-effect-ts') result.cloneEffectTs = true;
@@ -820,7 +817,7 @@ async function runCreate(argv: string[]): Promise<number> {
             ? await selectCreateOption(
                 readline,
                 CREATE_FULL_STACK_BACKEND_OPTIONS,
-                'Backend runtime (EffectTS is recommended; ↑/↓ move, Enter confirm):',
+                'Backend runtime (independent from frontend; ↑/↓ move, Enter confirm):',
                 'effect',
               )
             : 'effect'
@@ -834,7 +831,7 @@ async function runCreate(argv: string[]): Promise<number> {
           ? await selectCreateOption(
               readline,
               CREATE_FRONTEND_OPTIONS,
-              'Frontend runtime (↑/↓ move, Enter confirm):',
+              'Frontend runtime (independent from backend; plain adds no Effect adapter; ↑/↓ move, Enter confirm):',
               'plain',
             )
           : 'plain');
@@ -899,14 +896,12 @@ async function runCreate(argv: string[]): Promise<number> {
       parsed.attestationMode !== undefined ||
       parsed.viewports !== undefined ||
       (parsed.viewportSpecs?.length ?? 0) > 0 ||
-      parsed.templateObligations !== undefined ||
       parsed.visualTests !== undefined;
     if (
       parsed.attestationMode === 'none' &&
       (parsed.attest === true ||
         parsed.viewports !== undefined ||
         (parsed.viewportSpecs?.length ?? 0) > 0 ||
-        parsed.templateObligations !== undefined ||
         parsed.visualTests !== undefined)
     ) {
       throw new Error(
@@ -949,16 +944,6 @@ async function runCreate(argv: string[]): Promise<number> {
           viewports:
             parseCreateViewports(parsed.viewports, parsed.viewportSpecs) ??
             (interactive ? await selectCreateViewports(readline) : undefined),
-          template:
-            parsed.templateObligations ??
-            (interactive && parsed.attest === undefined
-              ? (await selectCreateOption(
-                  readline,
-                  CREATE_BOOLEAN_OPTIONS,
-                  'Generate template obligations? (↑/↓ move, Enter confirm):',
-                  'yes',
-                )) === 'yes'
-              : true),
           visualTests:
             parsed.visualTests ??
             (interactive && parsed.attest === undefined
@@ -1027,10 +1012,13 @@ async function runCreate(argv: string[]): Promise<number> {
       console.log(JSON.stringify(result, null, 2));
     } else {
       console.log(
-        `Created ${result.frontendRuntime === 'effect' ? 'Effect v4' : 'plain'} CraftTS app at ${result.directory}`,
+        `Created CraftTS app at ${result.directory}`,
       );
       console.log(
-        `Runtime: frontend=${result.frontendRuntime}, backend=${result.backendRuntime}`,
+        `Frontend: ${result.frontendRuntime === 'effect' ? 'Effect v4 with CraftTS frontend adapter' : 'plain CraftTS (no Effect frontend adapter)'}`,
+      );
+      console.log(
+        `Backend: ${result.backendRuntime === 'effect' ? 'EffectTS v4 server functions' : result.backendRuntime === 'promise' ? 'Promise server functions' : 'none'}`,
       );
       console.log(
         `Agents: ${result.agents.length > 0 ? result.agents.join(', ') : 'none'}`,
@@ -1188,8 +1176,6 @@ Options:
   --viewports <list>           mobile,tablet,desktop (or none)
   --viewport <name=widthxheight>
                               Add a custom attestation viewport; repeatable
-  --template-obligations / --no-template-obligations
-                              Include or omit template obligations
   --visual-tests / --no-visual-tests
                               Include or omit visual hotspot tests
   --workspace <standalone|nx>
@@ -1219,11 +1205,16 @@ Options:
 `);
 }
 
-main(process.argv.slice(2))
-  .then((exitCode) => {
-    process.exitCode = exitCode;
-  })
-  .catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exitCode = 1;
-  });
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  main(process.argv.slice(2))
+    .then((exitCode) => {
+      process.exitCode = exitCode;
+    })
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : error);
+      process.exitCode = 1;
+    });
+}

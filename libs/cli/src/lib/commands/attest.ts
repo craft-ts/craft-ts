@@ -37,7 +37,6 @@ import {
   eslintDisableExcerpt,
   eslintDisableExcerptRange,
   architectureWaiverSubjectId,
-  observeTemplateObligations,
   observeVisualRun,
   observeTests,
   parseVisualRunReport,
@@ -645,48 +644,10 @@ export async function runAttestCommand(
       return folderLayout;
     }
     const templateRun = async (): Promise<ObservedRun> => {
-      const templateEnabled =
-        reviewConfig?.template ?? reviewConfig === undefined;
-      const obligations = templateEnabled
-        ? workspace.templateObligations()
-        : [];
+      const obligations: readonly TemplateObligationInput[] = [];
       const leaves = new Map<string, Readonly<Record<string, string>>>();
-      const list = observeTemplateObligations(obligations, (obligation) => {
-        leaves.set(
-          obligation.subject,
-          workspace.leavesForTemplate(obligation.subject),
-        );
-        return workspace.fingerprintForTemplate(obligation.subject);
-      });
-      await Promise.all(
-        obligations.map(async (obligation) => {
-          const stored = await storeTemplateEvidence(store, obligation);
-          const observation = list.find(
-            (candidate) => candidate.subject === obligation.subject,
-          );
-          if (observation && stored !== observation.evidence) {
-            throw new Error(
-              `template evidence: '${obligation.subject}' was stored under an unexpected hash.`,
-            );
-          }
-        }),
-      );
-      const diagnostics = templateEnabled
-        ? workspace.templateDiagnostics().map((diagnostic) => ({
-            code: diagnostic.code,
-            message: diagnostic.message,
-            ...(diagnostic.proof?.filePath
-              ? { filePath: diagnostic.proof.filePath }
-              : {}),
-            ...(diagnostic.proof?.line ? { line: diagnostic.proof.line } : {}),
-          }))
-        : [];
-      for (const diagnostic of diagnostics) {
-        const location = diagnostic.filePath
-          ? `${diagnostic.filePath}${diagnostic.line ? `:${diagnostic.line}` : ''}: `
-          : '';
-        io.writeError(`${location}${diagnostic.code}: ${diagnostic.message}`);
-      }
+      const list: SubjectObservation[] = [];
+      const diagnostics: TemplateDiagnostic[] = [];
       return {
         list,
         workspace,
@@ -707,7 +668,9 @@ export async function runAttestCommand(
     }
     const visualDisabled =
       requestedKind === 'visual' ||
-      (requestedKind === 'all' && reviewConfig?.template !== true);
+      (requestedKind === 'all' &&
+        !parsed.values['report'] &&
+        !reviewConfig?.visual);
     if (
       reviewConfig &&
       visualDisabled &&
@@ -1104,7 +1067,7 @@ export async function runAttestCommand(
                 reloadObserved: observations,
                 run: async () =>
                   await runScript({ rootDir, script: regenerateScript }),
-            }
+              }
             : undefined,
           folderLayoutApply,
         );

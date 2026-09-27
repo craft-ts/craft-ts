@@ -21,7 +21,6 @@ export type CreateViewport = {
 export type CreateAttestationConfig = {
   readonly mode: CreateAttestationMode;
   readonly viewports: Readonly<Record<string, CreateViewport>>;
-  readonly template: boolean;
   /** Component-level visual tests, also called visual hotspots. */
   readonly visualTests: boolean;
 };
@@ -75,12 +74,11 @@ export type CreateProjectOptions = {
   readonly designSystem?: 'none' | 'basic';
   /** Generate the opt-in attestation workflow (default: false). */
   readonly attest?: boolean;
-  /** Configure the generated visual/template attestation workflow. */
+  /** Configure the generated visual attestation workflow. */
   readonly attestation?: {
     readonly mode?: CreateAttestationMode;
     /** Empty means that application happy paths are not captured. */
     readonly viewports?: Readonly<Record<string, CreateViewport>>;
-    readonly template?: boolean;
     readonly visualTests?: boolean;
   };
   readonly workspace?: WorkspaceKind;
@@ -648,7 +646,7 @@ guide for coding agents: it records the selected runtime and feature surfaces.
 - Starter surface: **${config?.demoPages === false ? 'domain-first' : 'demo pages'}**
 ${
   config?.attest
-    ? `- Attestation: **${attestation?.mode ?? 'manual'}**, ${Object.keys(attestation?.viewports ?? {}).length} application viewport(s), template obligations **${attestation?.template ? 'enabled' : 'disabled'}**, visual hotspot tests **${attestation?.visualTests ? 'enabled' : 'disabled'}**`
+    ? `- Attestation: **${attestation?.mode ?? 'manual'}**, ${Object.keys(attestation?.viewports ?? {}).length} application viewport(s), template obligations **disabled**, visual hotspot tests **${attestation?.visualTests ? 'enabled' : 'disabled'}**`
     : '- Attestation: **disabled**'
 }
 
@@ -792,6 +790,8 @@ function packageJson(context: TemplateContext): string {
               'craft-ts attest status --config review-attest.config.ts --kind all --report ${CRAFT_ATTEST_REPORT:-.craft/runs/attest.json} --tsconfig tsconfig.graph.json',
             'attest:review': `craft-ts attest review --config review-attest.config.ts --kind all --report ${attestReport} --tsconfig tsconfig.graph.json${regenerateOption}`,
             'attest:check': `npm run architecture && ${hasVisualCapture ? 'npm run attest:capture && ' : ''}npm run attest:status`,
+            'review:generate': `npm run architecture && ${hasVisualCapture ? 'npm run attest:capture && ' : ''}(npm run attest:status || test $? -eq 1)`,
+            'review:apply': `craft-ts attest devtools --config review-attest.config.ts --report ${attestReport} --tsconfig tsconfig.graph.json${regenerateOption}`,
             review: `npm run architecture && ${hasVisualCapture ? 'npm run attest:capture && ' : ''}(npm run attest:status || test $? -eq 1) && npm run attest:review`,
           }
         : {}),
@@ -2804,7 +2804,7 @@ const subtreeSha = () => {
 if (execFileSync('git', ['status', '--short'], { cwd: gitRoot, encoding: 'utf8' }).trim()) {
   throw new Error('Working tree is not clean; commit or stash changes before updating vendored references.');
 }
-for (const entry of Object.entries(manifest).filter(([key, value]) => !metadataKeys.has(key) && value && value.path).map(([, value]) => value)) {
+for (const [, entry] of Object.entries(manifest).filter(([key, value]) => !metadataKeys.has(key) && value && value.path)) {
   const path = resolve(projectRoot, entry.path);
   if (!existsSync(path)) throw new Error('Missing vendored reference: ' + path);
   if (existsSync(join(path, '.git'))) throw new Error('Nested Git clone found; migrate this reference to git subtree: ' + path);
@@ -3843,9 +3843,6 @@ function readme(context: TemplateContext): string {
                 'Visual hotspot tests are enabled; add `visualMatrix(...)` scenarios to the `matrices` section.',
               ]
             : ['Visual hotspot tests are disabled for this starter.']),
-          ...(attestation.template
-            ? ['Template obligations are included in the review.']
-            : ['Template obligations are not generated.']),
           'Use `npm run attest:check` in CI; it fails while a decision remains.',
         ]
       : []),
@@ -3979,8 +3976,7 @@ ${imports}
 } from '@craft-ts/style-testing';
 
 export const reviewAttestConfig = defineReviewAttestConfig({
-${visual}  template: ${attestation.template},
-});
+${visual}});
 
 export default reviewAttestConfig;
 `;
@@ -4228,7 +4224,13 @@ function nxProjectJson(context: TemplateContext): string {
       'typecheck-architecture': run('typecheck-architecture'),
       build: run('build'),
       e2e: run('e2e'),
-      ...(context.config.attest ? { review: run('review') } : {}),
+      ...(context.config.attest
+        ? {
+            'review-generate': run('review:generate'),
+            'review-apply': run('review:apply'),
+            review: run('review'),
+          }
+        : {}),
       ...(context.config.references.craftTs ||
       context.config.references.effectTs
         ? { 'update-references': run('update:references') }
@@ -4351,7 +4353,6 @@ export function normalizeCreateOptions(
     viewports: attest
       ? normaliseCreateViewports(attestationInput?.viewports)
       : {},
-    template: attest ? (attestationInput?.template ?? true) : false,
     visualTests: attest ? (attestationInput?.visualTests ?? false) : false,
   };
 

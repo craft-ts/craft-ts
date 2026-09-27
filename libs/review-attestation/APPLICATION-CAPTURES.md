@@ -1,8 +1,9 @@
 # Application overview captures
 
-`defineReviewAttestConfig` enables **Aperçu de l’application** alongside template
-obligations and component matrices. Its contract is page × scenario × capture
-point × viewport. A screenshot decision never accepts a template obligation.
+`defineReviewAttestConfig` enables **Aperçu de l’application** alongside
+component matrices. Its contract is page × scenario × capture point ×
+viewport. Template-obligation generation is currently disabled; the legacy
+`template` option is accepted but has no effect.
 
 ## Declare a page
 
@@ -33,7 +34,6 @@ export const ordersMocks = defineVisualHttpMocks('src/orders.mocks.ts', [
 import { defineReviewAttestConfig } from '@craft-ts/style-testing';
 import { ordersMocks } from './src/orders.mocks';
 export default defineReviewAttestConfig({
-  template: true,
   visual: {
     app: {
       sourceFiles: ['src/app/app.style.ts'],

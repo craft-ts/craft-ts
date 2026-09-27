@@ -34,7 +34,6 @@ export const reviewAttestConfig = defineReviewAttestConfig({
       },
     ],
   },
-  template: true,
   folderLayout: {
     proposal: 'apps/demo/folder-layout/folder-layout-proposal.json',
     analysis: 'apps/demo/folder-layout/folder-layout-analysis.json',

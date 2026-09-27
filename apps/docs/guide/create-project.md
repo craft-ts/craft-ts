@@ -45,9 +45,17 @@ The generator presents menus in this order:
 - a standalone or Nx workspace;
 - integrations for Codex, Cursor, or Claude Code.
 
-The frontend and backend choices are independent. To create a plain browser
-application whose server functions use Effect v4, choose `plain` for the
-frontend and `effect` for the backend.
+The frontend and backend choices are independent. The frontend choice controls
+whether CraftTS's Effect adapter is installed in the browser; the backend
+choice controls only the server functions. To use EffectTS v4 on the backend
+while keeping the browser on base CraftTS, choose `plain` for the frontend and
+`effect` for the backend. This generates no Effect adapter or Effect imports in
+the browser app.
+
+| Frontend choice | Backend choice | Effect adapter in browser |
+| --- | --- | --- |
+| `plain` | `effect` | No |
+| `effect` | `effect` | Yes |
 
 Use `↑`/`↓` to move and `Enter` to confirm a single choice. For locales and
 agent integrations, use `Space` to select or deselect several items, then
@@ -160,8 +168,8 @@ The main configuration options are:
 | Option               | Values                                | Purpose                                                                   |
 | -------------------- | ------------------------------------- | ------------------------------------------------------------------------- |
 | `--effect`           | `v4`, `none`                          | Select the Effect v4 or plain starter                                     |
-| `--frontend-runtime` | `plain`, `effect`                     | Choose the frontend runtime                                               |
-| `--backend-runtime`  | `none`, `promise`, `effect`           | Choose server functions                                                   |
+| `--frontend-runtime` | `plain`, `effect`                     | Choose whether to install the Effect adapter in the browser               |
+| `--backend-runtime`  | `none`, `promise`, `effect`           | Choose server functions independently of the frontend                     |
 | `--effect-scope`     | `none`, `frontend`, `backend`, `both` | Set Effect placement                                                      |
 | `--agents`           | comma-separated names or `none`       | Add editor-specific agent integrations; `AGENTS.md` is always generated   |
 | `--i18n`             | `strict`, `loose`, `none`             | Configure type-safe i18n                                                  |
