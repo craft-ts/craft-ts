@@ -1,5 +1,11 @@
 import { runInInjectionContext, type Injector } from './host-runtime';
-import { type CraftServiceProvider, ɵcraftValueService } from '@craft-ts/core';
+import {
+  type CraftServiceProvider,
+  type CraftTemporalRuntime,
+  type TemporalTaskHandle,
+  ɵcraftValueService,
+  ɵonCraftTemporalRuntimeOverride,
+} from '@craft-ts/core';
 import { craftDirective } from './directive';
 import type { CraftDirective } from './types';
 
@@ -193,11 +199,68 @@ function now(): number {
 
 export function createForScheduler(
   policy: ForSchedulePolicy,
+  temporalRuntime?: CraftTemporalRuntime | (() => CraftTemporalRuntime),
 ): ForScheduler & { destroy?(): void } {
   if (!policy.enabled || policy.strategy === 'sync') {
     return new SyncForScheduler();
   }
-  return new FrameForScheduler(policy.frameBudgetMs);
+  return temporalRuntime
+    ? new TemporalForScheduler(
+        policy.frameBudgetMs,
+        typeof temporalRuntime === 'function' ? temporalRuntime : () => temporalRuntime,
+      )
+    : new FrameForScheduler(policy.frameBudgetMs);
+}
+
+/** Frame-sized slices scheduled on Craft's clock (virtual during replay). */
+class TemporalForScheduler implements ForScheduler {
+  private readonly queue: QueuedTask[] = [];
+  private timer: TemporalTaskHandle | undefined;
+  private destroyed = false;
+  private readonly frameBudgetMs: number;
+  private readonly getClock: () => CraftTemporalRuntime;
+  private readonly removeOverrideListener: () => void;
+
+  constructor(frameBudgetMs: number, getClock: () => CraftTemporalRuntime) {
+    this.frameBudgetMs = frameBudgetMs;
+    this.getClock = getClock;
+    this.removeOverrideListener = ɵonCraftTemporalRuntimeOverride(() => {
+      this.timer?.cancel();
+      this.timer = undefined;
+      this.requestSlice();
+    });
+  }
+
+  schedule(task: () => void): CancelHandle {
+    if (this.destroyed) return NOOP_CANCEL;
+    const queued: QueuedTask = { task, cancelled: false };
+    this.queue.push(queued);
+    this.requestSlice();
+    return { cancel: () => { queued.cancelled = true; } };
+  }
+
+  destroy(): void {
+    this.destroyed = true;
+    this.removeOverrideListener();
+    this.queue.length = 0;
+    this.timer?.cancel();
+    this.timer = undefined;
+  }
+
+  private requestSlice(): void {
+    if (this.timer || this.destroyed || !this.queue.length) return;
+    const clock = this.getClock();
+    this.timer = clock.schedule(() => {
+      this.timer = undefined;
+      const started = clock.now();
+      while (this.queue.length) {
+        const queued = this.queue.shift();
+        if (queued && !queued.cancelled) queued.task();
+        if (clock.now() - started >= this.frameBudgetMs) break;
+      }
+      this.requestSlice();
+    }, 16, { kind: 'scheduleFor-frame', owner: 'scheduleFor' });
+  }
 }
 
 export function isScheduleForDirective(

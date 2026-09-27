@@ -127,8 +127,8 @@ describe('template agent boundary', () => {
       ),
     ).rejects.toThrow('JSON');
   });
-  it('validates configuration and preserves template boolean compatibility', () => {
-    expect(defineReviewAttestConfig({ template: true }).template).toBe(true);
+  it('validates template review configuration and ignores the legacy switch', () => {
+    expect(defineReviewAttestConfig({ template: true }).template).toBe(false);
     expect(
       defineReviewAttestConfig({
         template: true,

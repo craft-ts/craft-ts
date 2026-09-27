@@ -13,7 +13,7 @@ describe('review attest configuration', () => {
     expect(reviewAttestHasVisualTargets(config)).toBe(false);
   });
 
-  it('normalizes app defaults and exposes declared subjects', () => {
+  it('accepts the legacy template flag but always disables generation', () => {
     const config = defineReviewAttestConfig({
       visual: {
         app: defineVisualAppConfig({
@@ -30,7 +30,7 @@ describe('review attest configuration', () => {
       },
       template: true,
     });
-    expect(config.template).toBe(true);
+    expect(config.template).toBe(false);
     expect(reviewAttestVisualSubjects(config)).toContain(
       'visual:component:home.ts:Home#home--happy-path--mobile',
     );

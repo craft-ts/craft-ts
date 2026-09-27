@@ -5,17 +5,19 @@ import { useSnippetHarness } from '../../snippet-harness';
 useSnippetHarness();
 
 // #region minimal
-export const minimalAiContextProviders = [provideSendContextToAi()];
+export const minimalAiContextProviders = [provideSendContextToAi({ recording: true })];
 // #endregion minimal
 
 // #region configuration
 export const aiContextProviders = provideSendContextToAi({
+  recording: true,
   endpoint: 'https://agent.example.com/hooks/context',
 });
 // #endregion configuration
 
 // #region endpoint-configuration
 export const customizedAiContextProviders = provideSendContextToAi({
+  recording: true,
   endpoint: '/internal/ai/context',
 });
 // #endregion endpoint-configuration

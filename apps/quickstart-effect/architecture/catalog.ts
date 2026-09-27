@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "22371c094a18c743",
+  "graphHash": "fb195422388d365b",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -43,6 +43,8 @@ export const architectureCatalog = {
     "instruction",
     "panelOffset",
     "promptOptions",
+    "replayJson",
+    "replayStatus",
     "sendContextToAi",
     "setBusy",
     "setCaptureError",
@@ -50,6 +52,7 @@ export const architectureCatalog = {
     "setCopied",
     "setError",
     "setPanelOffset",
+    "setReplayStatus",
     "setStatus",
     "status",
     "taskQuery",
@@ -63,7 +66,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:274>"
+      "url": "<unresolved:ai-send-context-chat.ts:311>"
     }
   ],
   "uniques": [],

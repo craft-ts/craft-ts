@@ -4,8 +4,16 @@ import { craftComponent } from '../component';
 import { mountCraftComponent } from '../bridge';
 import { div, span } from '../hyperscript';
 import { renderCraftComponent } from '../testing';
-import { createEnvironmentInjector, Injector } from '../host-runtime';
-import { craftService, ɵgetCraftRootDefaultProviders } from '@craft-ts/core';
+import {
+  createEnvironmentInjector,
+  Injector,
+  runInInjectionContext,
+} from '../host-runtime';
+import {
+  craftService,
+  ɵgetCraftRootDefaultProviders,
+  ɵinjectSendContextSession,
+} from '@craft-ts/core';
 import { AiContextMenu } from './ai-context-menu';
 import {
   provideAiContextMenuController,
@@ -38,6 +46,35 @@ describe('provideSendContextToAi', () => {
     document.body.replaceChildren();
   });
 
+  it('waits for Record when automatic recording is disabled', () => {
+    const parent = createEnvironmentInjector(
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: false })],
+      Injector.NULL,
+      'SendContextRecordingDisabledTestRoot',
+    );
+    const session = runInInjectionContext(parent, () => ɵinjectSendContextSession());
+    expect(session?.activeClip).toBeUndefined();
+    session?.capture('custom', 'emitted', { name: 'before-record' });
+    expect(session?.events).toEqual([]);
+    session?.startRecord();
+    session?.capture('custom', 'emitted', { name: 'after-record' });
+    expect(session?.events.map((event) => event.name)).toEqual(['after-record']);
+    parent.destroy();
+  });
+
+  it('starts an application session when automatic recording is enabled', () => {
+    const parent = createEnvironmentInjector(
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
+      Injector.NULL,
+      'SendContextRecordingEnabledTestRoot',
+    );
+    const session = runInInjectionContext(parent, () => ɵinjectSendContextSession());
+    expect(session?.activeClip?.label).toBe('Application session');
+    session?.capture('custom', 'emitted', { name: 'during-startup-session' });
+    expect(session?.events.map((event) => event.name)).toEqual(['during-startup-session']);
+    parent.destroy();
+  });
+
   it('opens the AI context menu from the component host context', async () => {
     const { ContextHostView, provideContextHostView } = craftService(
       { name: 'contextHostView', providedIn: 'toProvide' },
@@ -59,7 +96,7 @@ describe('provideSendContextToAi', () => {
     );
     const rendered = await renderCraftComponent(component, {
       providers: [
-        ...provideSendContextToAi(),
+        ...provideSendContextToAi({ recording: true }),
         provideAiContextMenuController(controller),
       ] as never,
     });
@@ -111,7 +148,7 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi()],
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
       Injector.NULL,
       'SendContextAiTestRoot',
     );
@@ -146,7 +183,7 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi()],
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
       Injector.NULL,
       'SendContextAiLauncherRoot',
     );
@@ -213,7 +250,7 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi()],
+      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
       Injector.NULL,
       'SendContextAiPersistenceRoot',
     );

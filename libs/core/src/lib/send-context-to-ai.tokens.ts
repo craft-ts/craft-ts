@@ -73,6 +73,17 @@ export interface SendContextEvent {
   readonly source?: string;
 }
 
+/** A portable, redacted recording that can be validated before replay. */
+export interface SendContextReplayExport {
+  readonly format: 'craft-debug-session';
+  readonly version: 1;
+  readonly startUrl: string;
+  readonly exportedAt: number;
+  readonly truncated: boolean;
+  readonly events: readonly SendContextEvent[];
+  readonly clips: readonly SendContextClip[];
+}
+
 export interface SendContextClip {
   readonly id: string;
   readonly label: string;
@@ -147,6 +158,7 @@ export interface SendContextSession {
   selectClip(id: string | undefined): SendContextClip | undefined;
   clear(): void;
   exportJson(clipId?: string): string;
+  exportSessionJson(): string;
   exportSummary(clipId?: string): string;
   destroy(): void;
 }
@@ -404,6 +416,7 @@ export function createSendContextSession(
   let clipList: SendContextClip[] = [];
   let sequence = 0;
   let activeClipId: string | undefined;
+  let wasTruncated = false;
   const eventsSubject = new BehaviorSubject<readonly SendContextEvent[]>([]);
   const snapshotSubject = new BehaviorSubject<SendContextSessionSnapshot>({
     events: [],
@@ -441,6 +454,7 @@ export function createSendContextSession(
     ) {
       const removed = eventList.shift();
       if (!removed) break;
+      wasTruncated = true;
       clipList = clipList.map((clip) =>
         clip.eventIds.includes(removed.id)
           ? {
@@ -584,6 +598,7 @@ export function createSendContextSession(
       eventList = [];
       clipList = [];
       activeClipId = undefined;
+      wasTruncated = false;
       publish();
     },
     exportJson(clipId) {
@@ -594,6 +609,27 @@ export function createSendContextSession(
         ? eventList.filter((event) => clip.eventIds.includes(event.id))
         : eventList;
       return safeJson({ events, ...(clip ? { clip } : { clips: clipList }) });
+    },
+    exportSessionJson() {
+      const events = eventList.filter((event) =>
+        !(event.kind === 'dom' && typeof event.name === 'string' &&
+          ['AiSendContextChat', 'AiSendContextLauncher', 'AiContextMenu', 'AiSendDialog']
+            .some((component) => event.name!.startsWith(`${component}:`))),
+      );
+      const includedIds = new Set(events.map((event) => event.id));
+      const clips = clipList.map((clip) => ({
+        ...clip,
+        eventIds: clip.eventIds.filter((id) => includedIds.has(id)),
+      }));
+      return safeJson({
+        format: 'craft-debug-session',
+        version: 1,
+        startUrl: typeof location === 'undefined' ? '' : redactReplayUrl(location.href),
+        exportedAt: Date.now(),
+        truncated: wasTruncated || clipList.some((clip) => clip.truncated),
+        events,
+        clips,
+      } satisfies SendContextReplayExport);
     },
     exportSummary(clipId) {
       const clip = clipId
@@ -687,11 +723,26 @@ export function provideSendContextSession(): CraftServiceProvider[] {
       const session = requireSession();
       const correlationId =
         ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+      const element = interaction.element;
+      const form = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
+      const sensitive = form &&
+        (element instanceof HTMLInputElement && element.type === 'password' ||
+          /password|secret|token|authorization|cookie/i.test(`${element.getAttribute('name') ?? ''} ${element.id}`));
+      const event = interaction.event;
+      const value = form && !sensitive ? element.value : undefined;
       session.capture('dom', 'emitted', {
         name: interaction.interactionName,
         correlationId,
-        payload: interaction,
-        targets: [{ tagName: interaction.elementTag }],
+        payload: {
+          action: event.type,
+          eventName: interaction.eventName,
+          interactionName: interaction.interactionName,
+          selector: stableReplaySelector(element),
+          ...(value === undefined ? {} : { value }),
+          ...(event instanceof KeyboardEvent ? { key: event.key, code: event.code } : {}),
+          ...(event instanceof MouseEvent ? { button: event.button, clientX: event.clientX, clientY: event.clientY } : {}),
+        },
+        targets: [{ tagName: interaction.elementTag, selector: stableReplaySelector(element) }],
       });
       return next();
     }),
@@ -790,6 +841,51 @@ export function provideSendContextSession(): CraftServiceProvider[] {
       });
     }),
   ] as CraftServiceProvider[];
+}
+
+function stableReplaySelector(element: Element): string {
+  const named = element.closest('[data-craft-name]');
+  if (named?.getAttribute('data-craft-name')) {
+    const rawName = named.getAttribute('data-craft-name')!;
+    const value = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+      ? CSS.escape(rawName)
+      : rawName.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+    const descendants: string[] = [];
+    let current: Element | null = element;
+    while (current && current !== named) {
+      const siblings = current.parentElement
+        ? Array.from(current.parentElement.children).filter((child) => child.tagName === current!.tagName)
+        : [];
+      descendants.unshift(`${current.tagName.toLowerCase()}:nth-of-type(${siblings.indexOf(current) + 1})`);
+      current = current.parentElement;
+    }
+    return `[data-craft-name="${value}"]${descendants.length ? ` > ${descendants.join(' > ')}` : ''}`;
+  }
+  if (element.id) return `#${CSS.escape(element.id)}`;
+  const parts: string[] = [];
+  let current: Element | null = element;
+  while (current && current !== document.body && parts.length < 6) {
+    const siblings = current.parentElement ? Array.from(current.parentElement.children).filter((child) => child.tagName === current!.tagName) : [];
+    parts.unshift(`${current.tagName.toLowerCase()}:nth-of-type(${siblings.indexOf(current) + 1})`);
+    current = current.parentElement;
+  }
+  return `body > ${parts.join(' > ')}`;
+}
+
+function redactReplayUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.username = '';
+    url.password = '';
+    for (const key of [...url.searchParams.keys()]) {
+      if (/password|passwd|secret|token|authorization|cookie|key/i.test(key)) {
+        url.searchParams.set(key, '[REDACTED]');
+      }
+    }
+    return url.href;
+  } catch {
+    return value;
+  }
 }
 
 type SendContextSessionWithInternals = SendContextSession & {

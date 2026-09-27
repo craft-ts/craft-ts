@@ -216,12 +216,46 @@ export function* CraftTemporalRuntime(): Generator<
 }
 
 export const ɵinjectCraftTemporalRuntime = (): CraftTemporalRuntime => {
+  if (activeTemporalRuntimeOverride) return activeTemporalRuntimeOverride;
   try {
     return inject(CRAFT_TEMPORAL_RUNTIME, { optional: true }) ?? new RealCraftTemporalRuntime();
   } catch {
     return new RealCraftTemporalRuntime();
   }
 };
+
+let activeTemporalRuntimeOverride: CraftTemporalRuntime | undefined;
+const temporalRuntimeOverrideListeners = new Set<
+  (runtime: CraftTemporalRuntime | undefined) => void
+>();
+
+export function ɵonCraftTemporalRuntimeOverride(
+  listener: (runtime: CraftTemporalRuntime | undefined) => void,
+): () => void {
+  temporalRuntimeOverrideListeners.add(listener);
+  return () => temporalRuntimeOverrideListeners.delete(listener);
+}
+
+function notifyTemporalRuntimeOverride(): void {
+  for (const listener of temporalRuntimeOverrideListeners) {
+    listener(activeTemporalRuntimeOverride);
+  }
+}
+
+/** Temporarily supplies Craft's clock to newly resolved runtime consumers. */
+export function activateCraftTemporalRuntime(
+  runtime: CraftTemporalRuntime,
+): () => void {
+  const previous = activeTemporalRuntimeOverride;
+  activeTemporalRuntimeOverride = runtime;
+  notifyTemporalRuntimeOverride();
+  return () => {
+    if (activeTemporalRuntimeOverride === runtime) {
+      activeTemporalRuntimeOverride = previous;
+      notifyTemporalRuntimeOverride();
+    }
+  };
+}
 
 export class CraftTimeoutError extends Error {
   readonly timeoutMs: number;
@@ -487,8 +521,17 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
   >();
 
   now(): number {
+    if (activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this) {
+      return activeTemporalRuntimeOverride.now();
+    }
     return typeof globalThis.performance?.now === 'function'
       ? globalThis.performance.now()
+      : Date.now();
+  }
+
+  override dateNow(): number {
+    return activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this
+      ? activeTemporalRuntimeOverride.dateNow()
       : Date.now();
   }
 
@@ -497,6 +540,9 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
     delayMs: number,
     options: TemporalScheduleOptions = {},
   ): TemporalTaskHandle {
+    if (activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this) {
+      return activeTemporalRuntimeOverride.schedule(callback, delayMs, options);
+    }
     const task = super.schedule(callback, delayMs, options) as TemporalTask;
     if (task.snapshot().status === 'cancelled') return task;
     const nativeTimer = setTimeout(() => {
@@ -516,6 +562,26 @@ export class RealCraftTemporalRuntime extends BaseCraftTemporalRuntime {
       return cancelled;
     };
     return task;
+  }
+
+  override sleep(delayMs: number, options: TemporalScheduleOptions = {}): Promise<void> {
+    return activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this
+      ? activeTemporalRuntimeOverride.sleep(delayMs, options)
+      : super.sleep(delayMs, options);
+  }
+
+  override pendingTasks(owner?: string): readonly TemporalTaskSnapshot[] {
+    return activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this
+      ? activeTemporalRuntimeOverride.pendingTasks(owner)
+      : super.pendingTasks(owner);
+  }
+
+  override cancelAll(owner?: string): void {
+    if (activeTemporalRuntimeOverride && activeTemporalRuntimeOverride !== this) {
+      activeTemporalRuntimeOverride.cancelAll(owner);
+      return;
+    }
+    super.cancelAll(owner);
   }
 }
 

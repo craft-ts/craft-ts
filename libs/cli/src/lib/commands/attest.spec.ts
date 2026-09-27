@@ -130,6 +130,28 @@ const withoutTemplateObligations = () => ({
   }),
 });
 
+const seedHistoricalTemplateAttestation = async (root: string) => {
+  const subject =
+    'template:component:apps/demo/card.ts:Card#command:property:apps/demo/card.ts:save';
+  await mkdir(join(root, '.craft'), { recursive: true });
+  await writeFile(
+    join(root, '.craft/attestations.jsonl'),
+    `${JSON.stringify({
+      subject,
+      kind: 'template',
+      fingerprint: 'template-code-1',
+      evidence: 'a'.repeat(64),
+      verdict: 'ok',
+      assumptions: [],
+      by: 'romain',
+      at: '2026-09-05T09:00:00.000Z',
+      toolVersion: '0.8.8',
+    })}\n`,
+    'utf8',
+  );
+  return subject;
+};
+
 describe('craft-ts attest', () => {
   it('reports every subject as missing before anything is attested', async () => {
     const { root, io, out } = await workspace();
@@ -586,34 +608,41 @@ describe('craft-ts attest', () => {
     expect(err.join('\n')).toContain('bypasses: false');
   });
 
-  it('derives template subjects without a report', async () => {
-    const { root, io, out } = await workspace();
+  it('does not derive template subjects even when a legacy config enables them', async () => {
+    const { root, io, out, err } = await workspace();
+    await writeFile(
+      join(root, 'review-attest.config.ts'),
+      'export default { template: true };\n',
+      'utf8',
+    );
+    const loadSlices = async () => ({
+      ...slices({}),
+      templateObligations: () => {
+        throw new Error('template derivation must remain disabled');
+      },
+      templateDiagnostics: () => {
+        throw new Error('template diagnostics must remain disabled');
+      },
+    });
     const code = await runAttestCommand(
-      ['status', '--kind', 'template'],
+      ['status', '--config', 'review-attest.config.ts', '--kind', 'template'],
       io,
-      dependencies(),
+      { ...dependencies(), loadSlices },
     );
 
-    expect(code).toBe(1);
-    expect(out[0]).toBe('current 0  renewed 0  review 0  missing 1');
-    expect(out.join('\n')).toContain(
-      'template:component:apps/demo/card.ts:Card',
-    );
-    const shards = await readdir(join(root, '.craft/evidence'));
-    const evidenceFiles = (
-      await Promise.all(
-        shards.map(
-          async (shard) => await readdir(join(root, '.craft/evidence', shard)),
-        ),
-      )
-    ).flat();
-    expect(evidenceFiles.some((file) => file.endsWith('.template.json'))).toBe(
-      true,
-    );
+    expect(code).toBe(0);
+    expect(out[0]).toBe('current 0  renewed 0  review 0  missing 0');
+    expect(err).toEqual([]);
+    await expect(readdir(join(root, '.craft/evidence'))).rejects.toThrow();
   });
 
-  it('combines visual and template subjects with --kind all', async () => {
+  it('does not add template subjects to visual review with --kind all', async () => {
     const { root, io, out } = await workspace();
+    await writeFile(
+      join(root, 'review-attest.config.ts'),
+      'export default { template: true };\n',
+      'utf8',
+    );
     await writeFile(
       join(root, 'report.json'),
       JSON.stringify(visualRun()),
@@ -628,16 +657,12 @@ describe('craft-ts attest', () => {
         dependencies(),
       ),
     ).toBe(1);
-    expect(out[0]).toBe('current 0  renewed 0  review 0  missing 2');
+    expect(out[0]).toBe('current 0  renewed 0  review 0  missing 1');
   });
 
   it('blocks an unsigned template removal and accepts a signed retirement', async () => {
     const { root, io, out, err } = await workspace();
-    await runAttestCommand(
-      ['renew', '--all', '--kind', 'template'],
-      io,
-      dependencies(),
-    );
+    const subject = await seedHistoricalTemplateAttestation(root);
     out.splice(0);
 
     expect(
@@ -649,8 +674,6 @@ describe('craft-ts attest', () => {
     ).toBe(1);
     expect(out.join('\n')).toContain('sign the removal with `attest retire`');
 
-    const subject =
-      'template:component:apps/demo/card.ts:Card#command:property:apps/demo/card.ts:save';
     expect(
       await runAttestCommand(
         [
@@ -705,15 +728,9 @@ describe('craft-ts attest', () => {
     ).toBe(0);
   });
 
-  it('queues a retired obligation if it reappears', async () => {
+  it('keeps historical retired template attestations out of the disabled queue', async () => {
     const { root, io, out } = await workspace();
-    await runAttestCommand(
-      ['renew', '--all', '--kind', 'template'],
-      io,
-      dependencies(),
-    );
-    const subject =
-      'template:component:apps/demo/card.ts:Card#command:property:apps/demo/card.ts:save';
+    const subject = await seedHistoricalTemplateAttestation(root);
     await runAttestCommand(
       [
         'retire',
@@ -731,26 +748,24 @@ describe('craft-ts attest', () => {
     );
     out.splice(0);
 
+    await writeFile(
+      join(root, 'review-attest.config.ts'),
+      'export default { template: true };\n',
+      'utf8',
+    );
     expect(
       await runAttestCommand(
-        ['status', '--kind', 'template'],
-        io,
-        dependencies(),
-      ),
-    ).toBe(1);
-    expect(out.join('\n')).toContain('the retired obligation reappeared');
-
-    expect(
-      await runAttestCommand(
-        ['renew', '--kind', 'template', '--subject', subject],
+        ['status', '--config', 'review-attest.config.ts', '--kind', 'template'],
         io,
         dependencies(),
       ),
     ).toBe(0);
+    expect(out.join('\n')).toContain('missing 0');
     const ledger = JSON.parse(
       await readFile(join(root, '.craft/attestations.jsonl'), 'utf8'),
     );
-    expect(ledger.retired).toBeUndefined();
+    expect(ledger.subject).toBe(subject);
+    expect(ledger.retired).toMatchObject({ reason: 'defect' });
   });
 
   it('rejects an unknown option instead of quietly checking something else', async () => {

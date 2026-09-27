@@ -14,13 +14,17 @@ Typical uses include:
 
 The feature is user-driven. It does not call an AI service by itself. Without
 an `endpoint`, everything stays in the browser and the user copies the prompt
-or the timeline when they choose to.
+or the timeline when they choose to. The required `recording` option decides
+when capture starts: `true` starts a session clip automatically at app startup;
+`false` waits until the user clicks **Record**. In either mode, the user can
+stop and manually start recording from the timeline controls. Events are only
+captured while a recording clip is active.
 
 ## Minimal setup
 
 Register the provider once in the application providers. The default UI then
 adds an `AI context` launcher in the bottom-right corner and a context menu to
-Craft component hosts.
+Craft component hosts. The minimal setup opts in to session recording:
 
 <<< @/tests/snippets/guide/ai/send-context-webhook.spec.ts#minimal
 
@@ -57,8 +61,53 @@ without parsing Markdown.
 
 The chat also supports recording a named **clip**. A clip is a subset of the
 timeline, which is useful when an investigation contains several unrelated
-interactions. `Copy JSON` exports the visible timeline (or the selected clip),
-whereas `Copy prompt` builds the AI-oriented Markdown document.
+interactions. `Copy JSON` copies a versioned export of the **full session**,
+regardless of which clip is selected. `Copy prompt` builds the AI-oriented
+Markdown document. **Clear** removes the current timeline and, if recording
+was active, starts a fresh clip so the next reproduction can be captured.
+
+## Export and replay a debugging session
+
+Use the timeline's `Record` control while reproducing an issue, then choose
+`Copy JSON` to copy the complete session. The export includes the starting URL,
+the event timeline, clips, and recorded HTTP request/response data. DOM events
+include a replay target and action; form values and relevant keyboard details
+are included when available. Password fields and fields whose names indicate
+secrets are omitted, and the normal send-context redactor runs before data is
+exported. Events from the debugging overlay itself are excluded.
+
+In the local app, open the context panel, paste the JSON into **Replay a
+session**, and choose `Validate`. Invalid JSON, unsupported versions, and
+sessions marked as truncated are rejected. Retention can evict old events, so
+an export with lost events is explicitly marked incomplete and cannot be
+replayed as a complete session.
+
+For the most useful replay, first reload the local app on the recorded path,
+then reopen the panel, paste the export again, and validate it. The origin in
+the export may belong to another environment; replay compares request paths
+and uses the current local app. It re-runs the app's code and interactions; it
+does not restore the app's complete initial state.
+
+After validation, use:
+
+- `Play` to replay interactions at the intervals recorded in the session;
+- `Pause` to hold replay before the next interaction;
+- `Next step` to dispatch one interaction and advance Craft's virtual clock
+  to that event's recorded time;
+- `Stop` to end replay and restore the normal Craft clock and `fetch`.
+
+Recorded HTTP responses are returned for matching `fetch` requests. A request
+with no recorded match stops replay and is rejected; it is never sent through
+`fetch` to the server. Matching uses the request method, local path and query,
+body, and recorded order. Craft timers scheduled through `CraftTemporalRuntime`
+and progressive `scheduleFor` rendering use the replay clock: they remain
+paused between steps and run when replay advances time. Direct calls by the
+application to native timers or animation-frame APIs are outside this virtual
+clock's control.
+
+Events that include a captured state can be compared with state observed after
+replay. A mismatch is reported in the panel so the interaction can be
+investigated; replay does not force the recorded state back into the app.
 
 ## Send the context to an agent
 
@@ -231,6 +280,7 @@ import {
 export const appConfig = craftAppConfig({
   providers: [
     provideSendContextToAi({
+      recording: true,
       endpoint: '/internal/ai/context',
     }),
     {

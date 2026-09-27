@@ -1085,7 +1085,6 @@ describe('createCraftProject', () => {
           mobile: { width: 360, height: 800 },
           wide: { width: 1920, height: 1080 },
         },
-        template: false,
         visualTests: true,
       },
     });
@@ -1096,7 +1095,6 @@ describe('createCraftProject', () => {
         mobile: { width: 360, height: 800 },
         wide: { width: 1920, height: 1080 },
       },
-      template: false,
       visualTests: true,
     });
     const config = await readFile(
@@ -1106,8 +1104,7 @@ describe('createCraftProject', () => {
     expect(config).toContain('"width": 360');
     expect(config).toContain('"width": 1920');
     expect(config).toContain('matrices: [');
-    expect(config).toContain('template: false');
-    expect(config).not.toContain('template: true');
+    expect(config).not.toContain('template:');
   });
 
   it('does not generate a browser capture when no viewport is selected', async () => {
@@ -1121,7 +1118,7 @@ describe('createCraftProject', () => {
       agents: [],
       i18n: 'none',
       attest: true,
-      attestation: { viewports: {}, template: true },
+      attestation: { viewports: {} },
     });
 
     await expect(
@@ -1134,6 +1131,9 @@ describe('createCraftProject', () => {
     expect(
       await readFile(join(result.directory, 'review-attest.config.ts'), 'utf8'),
     ).not.toContain('visual:');
+    expect(
+      await readFile(join(result.directory, 'review-attest.config.ts'), 'utf8'),
+    ).not.toContain('template:');
   });
 
   it('can generate a domain-first starter without explanatory demo pages', async () => {

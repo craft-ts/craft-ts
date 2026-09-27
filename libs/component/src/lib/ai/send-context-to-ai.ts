@@ -16,6 +16,9 @@ import {
   provideComponentMonitoring,
   provideFnWrapper,
   provideSendContextToAiBuffer,
+  provideAppInitializer,
+  provideSendContextEventFilter,
+  provideSendContextEventSource,
   provideSendContextSession,
   ɵinjectAppSnapshotRegistry,
   ɵinjectSendContextSession,
@@ -444,13 +447,28 @@ export function createAiContextMenuController({
 export interface SendContextToAiOptions {
   /** Browser-accessible webhook URL. Omit it to keep the copy-only behavior. */
   readonly endpoint?: string;
+  /** Start recording at app startup; false waits for the user to click Record. */
+  readonly recording: boolean;
 }
 
 export function provideSendContextToAi(
-  options: SendContextToAiOptions = {},
+  options: SendContextToAiOptions,
 ): Provider[] {
+  let session: SendContextSession | undefined;
   return [
     ...provideSendContextSession(),
+    ...(options.recording
+      ? [
+          provideAppInitializer(() => {
+            ɵinjectSendContextSession();
+          }),
+        ]
+      : []),
+    provideSendContextEventSource((createdSession) => {
+      session = createdSession;
+      if (options.recording) createdSession.startRecord('Application session');
+    }),
+    provideSendContextEventFilter(() => session?.activeClip !== undefined),
     provideSendContextChatComponent(() => AiSendContextChat),
     provideSendContextContextMenuComponent(() => AiContextMenu),
     provideSendContextLauncherComponent(() => AiSendContextLauncher),

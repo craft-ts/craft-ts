@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "93fd20117c99fd36",
+  "graphHash": "316ec11c8415d8cd",
   "routes": [
     "",
     "application",
@@ -302,8 +302,10 @@ export const architectureCatalog = {
     "replay",
     "replayFrameId",
     "replayHolderHidden",
+    "replayJson",
     "replayReport",
     "replaySource",
+    "replayStatus",
     "replayTarget",
     "requestTemplateReject",
     "retire",
@@ -347,6 +349,7 @@ export const architectureCatalog = {
     "setCopied",
     "setError",
     "setPanelOffset",
+    "setReplayStatus",
     "setStatus",
     "showActions",
     "showAgentBusy",
@@ -468,7 +471,7 @@ export const architectureCatalog = {
     },
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:274>"
+      "url": "<unresolved:ai-send-context-chat.ts:311>"
     }
   ],
   "uniques": [],

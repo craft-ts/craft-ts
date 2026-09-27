@@ -35,7 +35,7 @@ export type ReviewAttestConfigInput = {
     readonly app?: VisualAppConfigInput | VisualAppConfig;
     readonly matrices?: readonly ReviewAttestMatrixInput[];
   };
-  /** Global v1 switch for template obligations. */
+  /** @deprecated Accepted for compatibility; template generation is disabled. */
   readonly template?: boolean;
   /**
    * Deliberate bypasses — `eslint-disable` directives and architecture waivers
@@ -56,7 +56,8 @@ export type ReviewAttestConfigInput = {
 
 export type ReviewAttestConfig = {
   readonly visual?: ReviewAttestVisualConfig;
-  readonly template: boolean;
+  /** @deprecated Always normalized to false; template generation is disabled. */
+  readonly template: false;
   /**
    * Deliberate bypasses — `eslint-disable` directives and architecture waivers
    * — listed for a decision. On by default: a bypass is allowed, never silent.
@@ -228,7 +229,7 @@ export function defineReviewAttestConfig<
         ...(app ? { app } : {}),
         matrices,
       },
-      template: input.template === true,
+      template: false,
       ...bypassesOption,
       ...(templateReview ? { templateReview } : {}),
       ...(normalizedFolderLayout
@@ -240,7 +241,7 @@ export function defineReviewAttestConfig<
     invalid('template must be a boolean.');
   }
   return {
-    template: input.template === true,
+    template: false,
     ...bypassesOption,
     ...(templateReview ? { templateReview } : {}),
     ...(normalizedFolderLayout ? { folderLayout: normalizedFolderLayout } : {}),

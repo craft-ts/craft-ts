@@ -57,7 +57,7 @@ const developmentProviders = import.meta.env.DEV
         ...event,
         application: 'demo',
       })),
-      provideSendContextToAi(),
+      provideSendContextToAi({ recording: true }),
       provideMcpExperimentation(),
     ]
   : [];

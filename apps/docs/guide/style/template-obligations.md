@@ -1,9 +1,16 @@
 # Template obligations
 
+> **Paused:** `craft-ts attest` no longer generates template obligations. The
+> extraction algorithm, evidence format, and review support remain in the
+> repository so the feature can be reconsidered later. Existing ledger entries
+> are retained. The legacy `template: true` config field is accepted but
+> ignored.
+
 Tests and visual captures describe things that were observed. A component
 template describes something earlier: what the component promises to display
-and what actions it exposes. CraftTS can derive those promises directly from
-the dependency graph and record a human judgement about each one.
+and what actions it exposes. The retained extractor derives those promises
+directly from the dependency graph and records a human judgement about each one
+when enabled. Generation is currently disabled in the CLI.
 
 ```sh
 craft-ts attest status \
@@ -11,8 +18,9 @@ craft-ts attest status \
   --tsconfig apps/demo/tsconfig.graph.json
 ```
 
-No test or browser report is required. The command reads each
-`craftComponent` template and derives two kinds of obligation.
+No test or browser report is required by the extractor. It reads each
+`craftComponent` template and derives two kinds of obligation; the CLI no longer
+invokes it.
 
 ## Render and command
 

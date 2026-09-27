@@ -6,15 +6,30 @@ import { executeGeneratorCompatibleFactoryAsync } from './craft-program-runtime'
 import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 import {
   craftSleep,
+  activateCraftTemporalRuntime,
   exponentialTemporalSchedule,
   fixedTemporalSchedule,
   provideCraftTemporalRuntime,
+  RealCraftTemporalRuntime,
   sequenceTemporalSchedule,
   withCraftTimeout,
   VirtualCraftTemporalRuntime,
 } from './temporal-runtime';
 
 describe('VirtualCraftTemporalRuntime', () => {
+  it('routes previously captured real Craft runtimes through the active replay clock', async () => {
+    const capturedRuntime = new RealCraftTemporalRuntime();
+    const replayClock = new VirtualCraftTemporalRuntime(100);
+    const restore = activateCraftTemporalRuntime(replayClock);
+    let ran = false;
+    capturedRuntime.schedule(() => { ran = true; }, 20);
+    await replayClock.advanceBy(19);
+    expect(ran).toBe(false);
+    await replayClock.advanceBy(1);
+    expect(ran).toBe(true);
+    restore();
+  });
+
   it('executes tasks by deadline and creation order', async () => {
     const clock = new VirtualCraftTemporalRuntime();
     const events: string[] = [];

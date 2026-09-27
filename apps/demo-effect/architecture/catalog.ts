@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "65723dd2b1169efc",
+  "graphHash": "b0d8997be414c395",
   "routes": [
     "",
     "access",
@@ -91,6 +91,8 @@ export const architectureCatalog = {
     "quoteLabel",
     "receiptQuery",
     "removeTodoMutation",
+    "replayJson",
+    "replayStatus",
     "sendContextToAi",
     "setBusy",
     "setCaptureError",
@@ -98,6 +100,7 @@ export const architectureCatalog = {
     "setCopied",
     "setError",
     "setPanelOffset",
+    "setReplayStatus",
     "setStatus",
     "shippingQuery",
     "showUnknown",
@@ -123,7 +126,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:274>"
+      "url": "<unresolved:ai-send-context-chat.ts:311>"
     }
   ],
   "uniques": [],
