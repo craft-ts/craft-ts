@@ -70,7 +70,7 @@ describe('setupCraftServiceTest', () => {
     const { CounterExtended: CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
-        return (yield* Counter()).counter;
+        yield* craftExpose('counter', (yield* Counter()).counter);
       },
     );
 
@@ -102,7 +102,7 @@ describe('setupCraftServiceTest', () => {
     const { RootCounter: RootCounter } = craftService(
       { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
-        return yield* ParentCounter();
+        yield* craftExpose('parentCounter', yield* ParentCounter());
       },
     );
 
@@ -138,7 +138,7 @@ describe('setupCraftServiceTest', () => {
     const { RootCounter: RootCounter } = craftService(
       { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
-        return yield* ParentCounter();
+        yield* craftExpose('parentCounter', yield* ParentCounter());
       },
     );
 
@@ -243,19 +243,15 @@ describe('setupCraftServiceTest', () => {
     const increment = vi.fn();
 
     const { sut, mocks } = setupCraftServiceTest(CounterConsumer, {
-      Counter: mock(Counter, {
-        $self: rootCallable,
-        increment,
+      Counter: mock({
+        counter: Object.assign(rootCallable, { increment }),
       }),
     });
 
     expect(sut.read()).toBe(41);
     sut.increment();
-    expect(mocks.Counter()).toBe(41);
-    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
-    expect('$self' in mocks.Counter).toBe(false);
-    //@ts-expect-error $self should never be part of the public mock
-    expect(mocks.Counter.$self).toBeUndefined();
+    expect(mocks.Counter.counter()).toBe(41);
+    expect(mocks.Counter.counter.increment).toHaveBeenCalledTimes(1);
   });
 
   it('should type derived mocks with only the used properties and keep extras optional', () => {
@@ -270,21 +266,26 @@ describe('setupCraftServiceTest', () => {
             decrement: () => update((value) => value - 1),
           }),
         );
+        yield* craftExpose('increment', counter.increment);
+        yield* craftExpose('decrement', counter.decrement);
       },
     );
 
     const { CounterExtended: CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
-        return (yield* Counter(undefined, ({ $self, increment }) => ({
-          $self,
-          incrementCounter: increment,
-        }))).counter;
+        yield* craftExpose(
+          'selected',
+          yield* Counter(undefined, ({ counter, increment }) => ({
+            counter,
+            incrementCounter: increment,
+          })),
+        );
       },
     );
 
     if (false) {
-      //@ts-expect-error $self is required because the derivation uses it
+      //@ts-expect-error counter is required because the derivation uses it
       setupCraftServiceTest(CounterExtended, {
         Counter: mock({
           increment: vi.fn(),
@@ -298,7 +299,8 @@ describe('setupCraftServiceTest', () => {
 
     const { sut, mocks } = setupCraftServiceTest(CounterExtended, {
       Counter: mock({
-        $self: rootCallable,
+        // A mocked root stands in for the whole state the derivation reads.
+        counter: rootCallable as never,
         increment,
         decrement,
       }),
@@ -306,12 +308,10 @@ describe('setupCraftServiceTest', () => {
 
     expect(Counter).toBeDefined();
     expectTypeOf(mocks.Counter.increment).toEqualTypeOf(increment);
-    expectTypeOf(mocks.Counter()).toEqualTypeOf<number>();
-    expect(sut()).toBe(41);
-    sut.incrementCounter();
+    expect(sut.selected.counter()).toBe(41);
+    sut.selected.incrementCounter();
     expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
     expect(mocks.Counter.decrement).toHaveBeenCalledTimes(0);
-    expect('$self' in mocks.Counter).toBe(false);
   });
 
   it('should keep explicit mock fallback with inject helper', () => {
@@ -338,16 +338,15 @@ describe('setupCraftServiceTest', () => {
     const rootCallable = vi.fn(() => 41);
 
     const { sut, mocks } = setupCraftServiceTest(CounterExtended, {
-      Counter: mock(Counter, {
-        $self: rootCallable,
-        increment,
+      Counter: mock({
+        counter: Object.assign(rootCallable, { increment }),
       }),
     });
 
     expect(sut.read()).toBe(41);
     sut.incrementThroughCounter();
-    expect(mocks.Counter()).toBe(41);
-    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect(mocks.Counter.counter()).toBe(41);
+    expect(mocks.Counter.counter.increment).toHaveBeenCalledTimes(1);
   });
 
   it('should support a real raw provider override for manuallyProvidedAtRoot dependencies', () => {
@@ -438,7 +437,7 @@ describe('setupCraftServiceTest', () => {
       },
     );
 
-    expect(craftUse(sut())).toBe(5);
+    expect(craftUse(sut.counter())).toBe(5);
   });
 
   it('should require an explicit provider when a raw external dependency only uses provider inputs', () => {
@@ -517,22 +516,22 @@ describe('setupCraftServiceTest', () => {
     const { Service1 } = craftService(
       { name: 'Service1', providedIn: 'global' },
       function* () {
-        return craftUse(
+        yield* craftExpose('value', craftUse(
           state('service1', 0, ({ update }) => ({
             increment: () => update((value) => value + 1),
           })),
-        );
+        ));
       },
     );
 
     const { Service2 } = craftService(
       { name: 'Service2', providedIn: 'global' },
       function* () {
-        return craftUse(
+        yield* craftExpose('value', craftUse(
           state('service2', 0, ({ update }) => ({
             increment: () => update((value) => value + 1),
           })),
-        );
+        ));
       },
     );
 
@@ -542,9 +541,9 @@ describe('setupCraftServiceTest', () => {
         const _service1 = yield* Service1();
         const _service2 = yield* Service2();
 
-        return yield* state('serviceHost', 0, ({ update }) => ({
+        yield* craftExpose('state', yield* state('serviceHost', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
-        }));
+        })));
       },
     );
 

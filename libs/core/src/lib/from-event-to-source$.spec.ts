@@ -218,7 +218,7 @@ describe('fromEventToSource$', () => {
     const { ClickEventSource: Click } = craftService(
       { name: 'ClickEventSource', providedIn: 'global' },
       function* () {
-        const click = yield* fromEventToSource$<MouseEvent>(button, 'click');
+        yield* fromEventToSource$<MouseEvent, 'click'>(button, 'click');
       },
     );
 

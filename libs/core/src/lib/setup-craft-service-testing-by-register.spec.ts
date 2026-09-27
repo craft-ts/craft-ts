@@ -130,16 +130,16 @@ describe('setupCraftServiceTestingByRegister', () => {
       {
         CounterConsumer: provideCounterConsumer(),
         Counter: {
-          $self: rootCallable,
-          increment,
+          counter: Object.assign(rootCallable, { increment }) as never,
         },
       },
     );
 
     expect(sut.read()).toBe(41);
     sut.increment();
-    expect(mocks.Counter()).toBe(41);
-    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect(rootCallable).toHaveBeenCalled();
+    expect(increment).toHaveBeenCalledTimes(1);
+    expect(mocks.Counter.counter).toBe(rootCallable);
   });
 
   it('should allow a minimal mock when a dependency is only used through derivations', async () => {
@@ -150,16 +150,21 @@ describe('setupCraftServiceTestingByRegister', () => {
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
         }));
+        yield* craftExpose('increment', counter.increment);
+        yield* craftExpose('decrement', counter.decrement);
       },
     );
 
     const { CounterFeature, provideCounterFeature } = craftService(
       { name: 'CounterFeature', providedIn: 'toProvide' },
       function* () {
-        return (yield* Counter(undefined, ({ $self, increment }) => ({
-          $self,
-          incrementCounter: increment,
-        }))).counter;
+        yield* craftExpose(
+          'selected',
+          yield* Counter(undefined, ({ counter, increment }) => ({
+            counter,
+            incrementCounter: increment,
+          })),
+        );
       },
     );
 
@@ -171,16 +176,15 @@ describe('setupCraftServiceTestingByRegister', () => {
       {
         CounterFeature: provideCounterFeature(),
         Counter: {
-          $self: rootCallable,
+          counter: rootCallable as never,
           increment,
         },
       },
     );
 
-    expect(sut()).toBe(41);
-    sut.incrementCounter();
+    expect(sut.selected.counter()).toBe(41);
+    sut.selected.incrementCounter();
     expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
-    expect('$self' in mocks.Counter).toBe(false);
 
     if (false) {
       //@ts-expect-error minimal derived mocks should not expose unused full-service members
@@ -277,7 +281,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     }
   });
 
-  it('should keep a full-service mock public shape without exposing $self', async () => {
+  it('should keep a full-service mock public shape', async () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
@@ -285,23 +289,25 @@ describe('setupCraftServiceTestingByRegister', () => {
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
         }));
+        yield* craftExpose('increment', counter.increment);
+        yield* craftExpose('decrement', counter.decrement);
       },
     );
 
     const { CounterConsumer, provideCounterConsumer } = craftService(
       { name: 'CounterConsumer', providedIn: 'toProvide' },
       function* () {
-        const counter = (yield* Counter()).counter;
-        const { incrementCounter } = (yield* Counter(
+        const { counter, decrement } = yield* Counter();
+        const { incrementCounter } = yield* Counter(
           undefined,
           ({ increment }) => ({
             incrementCounter: increment,
           }),
-        )).counter;
+        );
 
         yield* craftExpose('read', () => craftUse(counter()));
         yield* craftExpose('increment', () => incrementCounter());
-        yield* craftExpose('decrement', () => counter.decrement());
+        yield* craftExpose('decrement', () => decrement());
       },
     );
 
@@ -314,7 +320,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       {
         CounterConsumer: provideCounterConsumer(),
         Counter: {
-          $self: rootCallable,
+          counter: rootCallable as never,
           increment,
           decrement,
         },
@@ -326,12 +332,6 @@ describe('setupCraftServiceTestingByRegister', () => {
     sut.decrement();
     expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
     expect(mocks.Counter.decrement).toHaveBeenCalledTimes(1);
-    expect('$self' in mocks.Counter).toBe(false);
-
-    if (false) {
-      //@ts-expect-error public full-service mocks should still hide $self
-      expect(mocks.Counter.$self).toBeDefined();
-    }
   });
 
   it('should require a provider for manuallyProvidedAtRoot dependencies', async () => {
@@ -637,7 +637,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { AsyncRegisterHost, provideAsyncRegisterHost } = craftService(
       { name: 'AsyncRegisterHost', providedIn: 'toProvide' },
       function* () {
-        return yield* AsyncRegisterStartup();
+        yield* craftExpose('asyncRegisterStartup', yield* AsyncRegisterStartup());
       },
     );
 
@@ -677,7 +677,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { IgnoredRegisterHost, provideIgnoredRegisterHost } = craftService(
       { name: 'IgnoredRegisterHost', providedIn: 'toProvide' },
       function* () {
-        return yield* IgnoredRegisterStartup();
+        yield* craftExpose('ignoredRegisterStartup', yield* IgnoredRegisterStartup());
       },
     );
 
@@ -768,7 +768,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       craftService(
         { name: 'NotReachedRegisterHost', providedIn: 'toProvide' },
         function* () {
-          return yield* NotReachedRegisterParent();
+          yield* craftExpose('notReachedRegisterParent', yield* NotReachedRegisterParent());
         },
       );
 

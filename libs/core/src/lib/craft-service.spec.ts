@@ -75,17 +75,17 @@ describe('craftService', () => {
     const { DirectUserQuery } = craftService(
       { name: 'DirectUserQuery', providedIn: 'global' },
       function* (inputs: { userId: () => string }) {
-        return query('userQuery', {
+        yield* craftExpose('value', query('userQuery', {
           params: inputs.userId,
           loader: async ({ params }) => ({ id: params }),
-        });
+        }));
       },
     );
 
     const { UserQueryWithState } = craftService(
       { name: 'UserQueryWithState', providedIn: 'global' },
       function* () {
-        return craftYieldRecord({
+        yield* craftExpose('value', craftYieldRecord({
           userQuery: query('userQueryWithState', {
             params: () => 'user-1',
             loader: async ({ params }) => ({ id: params }),
@@ -93,7 +93,7 @@ describe('craftService', () => {
           refresh: state('refresh', 0, ({ update }) => ({
             increment: () => update((value) => value + 1),
           })),
-        });
+        }));
       },
     );
 
@@ -166,7 +166,7 @@ describe('craftService', () => {
           return waitXTime;
         });
 
-        return yield* state('appStartCounter', 0);
+        yield* craftExpose('state', yield* state('appStartCounter', 0));
       },
     );
 
@@ -339,12 +339,12 @@ describe('craftService', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return Object.assign(counter, {
+        yield* craftExpose('value', Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
           },
-        });
+        }));
       },
     );
 
@@ -916,7 +916,7 @@ describe('scope', () => {
     //@ts-expect-error it should not be possible to create a global craftService that depends on a toProvide craftService because the dependency cannot be resolved, it should force to provide the craftService in the test or use manuallyProvidedAtRoot for the craftService that need to be yield in a global craftService
     craftService({ name: 'GlobalCounter', providedIn: 'global' }, function* () {
       const counter = (yield* Counter()).counter;
-      return counter;
+      yield* craftExpose('counter', counter);
     });
   });
 
@@ -934,7 +934,7 @@ describe('scope', () => {
       { name: 'GlobalCounter', providedIn: 'global' },
       function* () {
         const counter = (yield* Counter()).counter;
-        return counter;
+        yield* craftExpose('counter', counter);
       },
     );
 
@@ -1217,12 +1217,12 @@ describe('service should enable to binding inputs', () => {
       function* () {
         const counter = (yield* Counter({ initialValue: 10 })).counter;
 
-        return Object.assign(counter, {
+        yield* craftExpose('value', Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
           },
-        });
+        }));
       },
     );
 
@@ -1255,12 +1255,12 @@ describe('service should enable to binding inputs', () => {
       function* () {
         const counter = (yield* Counter({ initialValue: signal(10) })).counter;
 
-        return Object.assign(counter, {
+        yield* craftExpose('value', Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
           },
-        });
+        }));
       },
     );
 
@@ -1300,12 +1300,12 @@ describe('service should enable to binding inputs', () => {
           optionalProperty1: signal(20),
         })).counter;
 
-        return Object.assign(counter, {
+        yield* craftExpose('value', Object.assign(counter, {
           incrementTwice: () => {
             counter.increment();
             counter.increment();
           },
-        });
+        }));
       },
     );
 
@@ -1336,7 +1336,7 @@ describe('service should enable to binding inputs', () => {
     const { CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'global' },
       function* () {
-        return (yield* Counter()).counter;
+        yield* craftExpose('counter', (yield* Counter()).counter);
       },
     );
 
@@ -1369,13 +1369,13 @@ describe('service should enable to binding inputs', () => {
           initialValue: 'Provided elsewhere #warn-check-docs:inputs',
         })).counter;
 
-        return Object.assign(counter1, {
+        yield* craftExpose('value', Object.assign(counter1, {
           incrementTwice: () => {
             counter1.increment();
             counter1.increment();
           },
           counter2,
-        });
+        }));
       },
     );
 
@@ -1529,7 +1529,7 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'global' },
       function* () {
-        return yield* Counter(
+        yield* craftExpose('counter', yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -1542,7 +1542,7 @@ describe('injectService/Service should expose an optional parameter that can be 
               increment,
             };
           },
-        );
+        ));
       },
     );
 
@@ -1675,7 +1675,7 @@ describe('injectService/Service should expose an optional parameter that can be 
           >
         >();
 
-        return result;
+        yield* craftExpose('result', result);
       },
     );
 
@@ -2088,7 +2088,7 @@ describe('injectService/Service should expose an optional parameter that can be 
         //@ts-expect-error decrement should not be accessible because it is not exposed
         expect(partialCounter.decrement).toBeUndefined();
 
-        return partialCounter;
+        yield* craftExpose('partialCounter', partialCounter);
       },
     );
 
@@ -2123,7 +2123,7 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'global' },
       function* () {
-        return (yield* Counter(
+        yield* craftExpose('counter', (yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -2131,7 +2131,7 @@ describe('injectService/Service should expose an optional parameter that can be 
             $self,
             incrementCounter: increment,
           }),
-        )).counter;
+        )).counter);
       },
     );
 
@@ -2168,7 +2168,7 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'global' },
       function* () {
-        return (yield* Counter(
+        yield* craftExpose('counter', (yield* Counter(
           {
             initialValue: signal(10),
           },
@@ -2186,7 +2186,7 @@ describe('injectService/Service should expose an optional parameter that can be 
               incrementCounter: increment,
             };
           },
-        )).counter;
+        )).counter);
       },
     );
 
@@ -2315,7 +2315,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
           initialValue: signal(10),
         })).counter;
 
-        return partialCounter;
+        yield* craftExpose('partialCounter', partialCounter);
       },
     );
 
@@ -2508,7 +2508,7 @@ describe('typing can track all derived dependencies (only the properties that ar
           }),
         )).counter;
 
-        return partialCounter;
+        yield* craftExpose('partialCounter', partialCounter);
       },
     );
 
@@ -2576,7 +2576,7 @@ describe('typing can track all derived dependencies (only the properties that ar
           },
         )).counter;
 
-        return partialCounter;
+        yield* craftExpose('partialCounter', partialCounter);
       },
     );
 
