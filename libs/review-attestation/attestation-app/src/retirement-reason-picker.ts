@@ -18,7 +18,7 @@ export const RetirementReasonPicker = craftComponent(
     const { retirementReason, chooseRetirementReason } =
       yield* RetirementReasonChoice();
     const { locale } = yield* ReviewPreferences();
-    const t = craftComputed('t', function* () {
+    const t = yield* craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
     return { retirementReason, chooseRetirementReason, t };

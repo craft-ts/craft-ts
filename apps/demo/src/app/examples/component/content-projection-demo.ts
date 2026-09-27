@@ -15,7 +15,7 @@ import {
   headingSection,
 } from '@craft-ts/component';
 import { craftComponent } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed, state, craftUse } from '@craft-ts/core';
 
 import { card } from './content-projection-card';
 import { toolbarAction, userBadge } from './content-projection-actions';
@@ -62,9 +62,9 @@ export const contentProjectionDemo = craftComponent(
         recordCancel: () => set('Cancel'),
         recordDirect: () => set('Direct action'),
         recordConfirm: () => set('Confirm'),
-        lastActionLabel: craftComputed('lastActionLabel', function* () {
+        lastActionLabel: craftUse(craftComputed('lastActionLabel', function* () {
           return `Last action: ${yield* state()}`;
-        }),
+        })),
       }),
     );
     const users = [

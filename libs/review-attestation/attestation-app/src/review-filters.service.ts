@@ -6,6 +6,8 @@ import {
   queryParams,
   source$,
   state,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import {
   initialDirectionFilter,
@@ -38,7 +40,7 @@ export const { ReviewFilters } = craftService(
         clearFromFilterEvent: on$(clearFilters$, () => set('')),
       }),
     );
-    const textParams = yield* queryParams(
+    const textParams = yield* craftPrivate(queryParams(
       'reviewTextFilter',
       {
         state: {
@@ -53,7 +55,7 @@ export const { ReviewFilters } = craftService(
           yield* patch({ text: '' }, { replaceUrl: true });
         },
       }),
-    );
+    ));
     const textFilter = textParams.text;
     // Each `chooseFromInput` takes the raw select value and no-ops on
     // anything unexpected, so a template's change handler stays a single
@@ -89,12 +91,12 @@ export const { ReviewFilters } = craftService(
       }),
     );
 
-    const clearFilters = craftMethod('clearFilters', function* () {
+    const clearFilters = yield* craftMethod('clearFilters', function* () {
       clearFilters$.emit();
       yield* textParams.clearText();
     });
 
-    const activeFilterCount = craftComputed('activeFilterCount', function* () {
+    const activeFilterCount = yield* craftComputed('activeFilterCount', function* () {
       let count = 0;
       if ((yield* componentFilter()).trim()) count += 1;
       if ((yield* textFilter()).trim()) count += 1;
@@ -104,15 +106,7 @@ export const { ReviewFilters } = craftService(
       return count;
     });
 
-    return {
-      componentFilter,
-      textFilter,
-      writeTextFilter: textParams.writeFromInput,
-      kindFilter,
-      stateFilter,
-      directionFilter,
-      clearFilters,
-      activeFilterCount,
-    };
+    yield* craftExpose('textFilter', textFilter);
+    yield* craftExpose('writeTextFilter', textParams.writeFromInput);
   },
 );

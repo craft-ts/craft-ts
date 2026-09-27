@@ -11,7 +11,7 @@ export const MyRouteLoadErrorScreen = craftComponent(
   {},
   function* () {
     const error = yield* CraftRouteLoadError();
-    const message = craftComputed('message', () => {
+    const message = yield* craftComputed('message', () => {
       const current = error();
       return current
         ? `Failed to load ${current.payload.phase} for route "${current.payload.routePath}" after ${current.payload.attempt} attempts.`

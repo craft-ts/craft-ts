@@ -26,7 +26,7 @@ export const OverviewPage = craftComponent(
         return yield* getPublicProducts({});
       },
     });
-    const resolvedProducts = craftComputed(
+    const resolvedProducts = yield* craftComputed(
       'resolvedServerFunctionProducts',
       function* () {
         return yield* settled(products);

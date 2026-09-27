@@ -20,6 +20,7 @@ import {
   state,
   craftMethod,
   craftComputed,
+  craftUse,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
@@ -53,10 +54,10 @@ const MutationDemoComponent = craftComponent(
       },
       insertQueryPipe(
         ({ resource }) => ({
-          hasUser: craftComputed('hasUser', () => resource.hasValue()),
-          userValueJson: craftComputed('userValueJson', function* () {
+          hasUser: craftUse(craftComputed('hasUser', () => resource.hasValue())),
+          userValueJson: craftUse(craftComputed('userValueJson', function* () {
             return JSON.stringify(yield* resource.value(), null, 2);
-          }),
+          })),
         }),
         insertStoragePersister(
           craftUnique({
@@ -76,13 +77,13 @@ const MutationDemoComponent = craftComponent(
       navigate,
     }));
 
-    const goTo = craftMethod('goTo', function* (offset: number) {
+    const goTo = yield* craftMethod('goTo', function* (offset: number) {
       void router.navigate({
         to: 'mutation/:userId',
         params: { userId: String(Number((yield* userId()) ?? '0') + offset) },
       });
     });
-    const update = craftMethod('update', function* (name: string | undefined) {
+    const update = yield* craftMethod('update', function* (name: string | undefined) {
       if (!name) {
         return;
       }

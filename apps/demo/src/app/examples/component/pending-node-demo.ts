@@ -10,7 +10,7 @@ import {
   ul,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, craftSleep, query, settled } from '@craft-ts/core';
+import { craftComputed, craftSleep, query, settled, craftUse } from '@craft-ts/core';
 import { componentUi, pendingDemo } from './component-demos.style';
 
 interface DemoUser {
@@ -53,16 +53,16 @@ export const pendingNodeDemo = craftComponent(
         },
       },
       ({ resource }) => ({
-        teams: craftComputed('teams', function* () {
+        teams: craftUse(craftComputed('teams', function* () {
           const list = yield* settled(resource);
           return [...new Set(list.items.map((user) => user.team))]
             .sort()
             .join(' · ');
-        }),
-        total: craftComputed('total', function* () {
+        })),
+        total: craftUse(craftComputed('total', function* () {
           const list = yield* settled(resource);
           return `${list.items.length} people`;
-        }),
+        })),
       }),
     );
 

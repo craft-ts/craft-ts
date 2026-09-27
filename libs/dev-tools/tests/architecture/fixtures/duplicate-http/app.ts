@@ -7,7 +7,6 @@ export const { UsersApi } = craftService(
       url: 'users',
       success: response(),
     }));
-    return {};
   },
 );
 
@@ -18,6 +17,5 @@ export const { ProfileApi } = craftService(
       url: 'users',
       success: response(),
     }));
-    return {};
   },
 );

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { craftSignal as signal } from '@craft-ts/core';
+import { craftSignal as signal, craftUse } from '@craft-ts/core';
 import {
   afterEach,
   beforeEach,
@@ -62,7 +62,7 @@ describe('pendingNode', () => {
             return [{ id: '1', name: 'Ada' }];
           },
         });
-        const firstName = craftComputed('firstName', function* () {
+        const firstName = yield* craftComputed('firstName', function* () {
           const list = yield* settled(users);
           return list[0].name;
         });
@@ -112,7 +112,7 @@ describe('pendingNode', () => {
             return { text: 'prêt' };
           },
         });
-        const text = craftComputed('text', function* () {
+        const text = yield* craftComputed('text', function* () {
           const settledLabel = yield* settled(label);
           return settledLabel.text;
         });
@@ -154,7 +154,7 @@ describe('pendingNode', () => {
             return [{ id: String(params), name: `Ada ${params}` }];
           },
         });
-        const firstName = craftComputed('firstName', function* () {
+        const firstName = yield* craftComputed('firstName', function* () {
           const list = yield* settled(users);
           return list[0].name;
         });
@@ -213,7 +213,7 @@ describe('pendingNode', () => {
             shouldFail() ? craftException({ _tag: 'MISSING_USER_ID' }) : true,
           loader: async (): Promise<User[]> => [{ id: '1', name: 'Ada' }],
         });
-        const firstName = craftComputed('firstName', function* () {
+        const firstName = yield* craftComputed('firstName', function* () {
           const list = yield* settled(users);
           return list[0].name;
         });
@@ -263,7 +263,7 @@ describe('pendingNode', () => {
         });
         // The boundary is keyed on the QUERY name, even when the template only
         // ever sees the computed derived from it.
-        const firstName = craftComputed('firstName', function* () {
+        const firstName = yield* craftComputed('firstName', function* () {
           const list = yield* settled(users);
           return list[0].name;
         });
@@ -362,9 +362,9 @@ describe('pendingNode type-level contract', () => {
             loader: async (): Promise<User[]> => [],
           },
           ({ resource }) => ({
-            count: craftComputed('count', function* () {
+            count: craftUse(craftComputed('count', function* () {
               return (yield* settled(resource)).length;
-            }),
+            })),
           }),
         );
         return { users };
@@ -435,7 +435,7 @@ describe('pendingNode type-level contract', () => {
           params: () => true,
           loader: async (): Promise<{ text: string }> => ({ text: '' }),
         });
-        const label = craftComputed('label', function* () {
+        const label = yield* craftComputed('label', function* () {
           const settledUsers = yield* settled(users);
           return settledUsers.text;
         });

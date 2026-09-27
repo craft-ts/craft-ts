@@ -16,6 +16,7 @@ import {
   transitionStep,
   type CraftMachineContext,
 } from './craft-state-machine';
+import { craftExpose } from './craft-primitive-gen';
 
 type ChildrenOf<Deps> = Deps extends { dependencies: infer Children }
   ? Children
@@ -31,12 +32,16 @@ type SaveStatus = 'idle' | 'loading' | 'resolved';
 
 const { SessionService } = craftService(
   { name: 'SessionService', providedIn: 'global' },
-  () => ({ isAuthenticated: () => authenticated }),
+  function* () {
+    yield* craftExpose('isAuthenticated', () => authenticated);
+  },
 );
 
 const { PermissionsService } = craftService(
   { name: 'PermissionsService', providedIn: 'global' },
-  () => ({ canEdit: () => editable }),
+  function* () {
+    yield* craftExpose('canEdit', () => editable);
+  },
 );
 
 let authenticated = true;
@@ -126,13 +131,13 @@ function createMachine() {
 
       function* ({ currentStep, currentStepWithContext }) {
         return {
-          isReading: craftComputed('isReading', function* () {
+          isReading: yield* craftComputed('isReading', function* () {
             return (yield* currentStep()) === 'reading';
           }),
-          isSaving: craftComputed('isSaving', function* () {
+          isSaving: yield* craftComputed('isSaving', function* () {
             return (yield* currentStep()) === 'saving';
           }),
-          currentContext: craftComputed('currentContext', function* () {
+          currentContext: yield* craftComputed('currentContext', function* () {
             return yield* currentStepWithContext();
           }),
         };
@@ -228,7 +233,9 @@ describe('craftStateMachine typing', () => {
   it('carries dependencies yielded by the transitions second argument to the machine graph', () => {
     const { TransitionPolicy } = craftService(
       { name: 'TransitionPolicy', providedIn: 'toProvide' },
-      () => ({ canEnter: () => true }),
+      function* () {
+        yield* craftExpose('canEnter', () => true);
+      },
     );
 
     const transitionsWithDependency = transitionsSetup(function* (
@@ -252,14 +259,13 @@ describe('craftStateMachine typing', () => {
       { name: 'StateMachineHost', providedIn: 'function' },
       function* () {
         const machine = yield* craftStateMachine(
-          contextFactory,
+          'machine', contextFactory,
           transitionsWithDependency,
           function* () {
             return { reading: {} };
           },
         );
 
-        return { machine };
       },
     );
 
@@ -274,7 +280,7 @@ describe('craftStateMachine typing', () => {
       { name: 'EditorMachine', providedIn: 'function' },
       function* () {
         const machine = yield* craftStateMachine(
-          contextFactory,
+          'machine', contextFactory,
           transitions,
           function* (context) {
             return {
@@ -285,7 +291,6 @@ describe('craftStateMachine typing', () => {
           },
         );
 
-        return { machine };
       },
     );
 
@@ -541,7 +546,7 @@ describe('craftStateMachine bare transitions', () => {
       { name: 'BareMachine', providedIn: 'function' },
       function* () {
         const machine = yield* craftStateMachine(
-          contextFactory,
+          'machine', contextFactory,
           function* (context, transit) {
             return {
               reading: transitionStep(function* () {
@@ -567,7 +572,6 @@ describe('craftStateMachine bare transitions', () => {
           },
         );
 
-        return { machine };
       },
     );
 

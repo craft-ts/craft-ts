@@ -22,7 +22,7 @@ export const MyGlobalErrorScreen = craftComponent(
   {},
   function* () {
     const error = yield* CraftGlobalError();
-    const disabled = craftComputed(
+    const disabled = yield* craftComputed(
       'disabled',
       () => {
         return isDisabledError(error());

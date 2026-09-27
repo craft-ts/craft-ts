@@ -15,7 +15,7 @@ export const TaskOpener = craftComponent(
   function* () {
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({ navigate }));
 
-    const goToTask = craftMethod('goToTask', function* (taskId: string) {
+    const goToTask = yield* craftMethod('goToTask', function* (taskId: string) {
       void router.navigate({ to: 'tasks/:taskId', params: { taskId } });
     });
 

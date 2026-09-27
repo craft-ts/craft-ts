@@ -31,6 +31,7 @@ import {
   query,
   state,
   type CraftDomEvent,
+  craftExpose,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
@@ -1243,9 +1244,9 @@ describe('functional component interpreter', () => {
       {},
       () => ({
         count,
-        increment: craftMethod('increment', function* () {
+        increment: craftUse(craftMethod('increment', function* () {
           count.update((value) => value + 1);
-        }),
+        })),
       }),
       ({ count, increment }) =>
         div([
@@ -1277,9 +1278,9 @@ describe('functional component interpreter', () => {
       'yieldableProperty',
       {},
       () => ({
-        disabled: craftMethod('disabled', function* () {
+        disabled: craftUse(craftMethod('disabled', function* () {
           return true;
-        }),
+        })),
       }),
       ({ disabled }) =>
         button(
@@ -1312,9 +1313,9 @@ describe('functional component interpreter', () => {
       'ordinaryBrandedCallback',
       {},
       () => ({
-        increment: craftMethod('increment', function* () {
+        increment: craftUse(craftMethod('increment', function* () {
           count.update((value) => value + 1);
-        }),
+        })),
       }),
       ({ increment }) =>
         button({ click: () => void increment() }, String(count())),
@@ -1337,9 +1338,9 @@ describe('functional component interpreter', () => {
       {},
       function* () {
         const counter = yield* state('counter', 0, ({ state }) => ({
-          disabled: craftComputed('disabled', function* () {
+          disabled: craftUse(craftComputed('disabled', function* () {
             return (yield* state()) % 2 === 0;
-          }),
+          })),
         }));
         return { counter };
       },
@@ -1371,12 +1372,12 @@ describe('functional component interpreter', () => {
       {},
       function* () {
         const counter = yield* state('counter', 1, ({ state, set }) => ({
-          doubled: craftComputed(function* () {
+          doubled: craftUse(craftComputed('doubled', function* () {
             return (yield* state()) * 2;
-          }),
-          items: craftComputed(function* () {
+          })),
+          items: craftUse(craftComputed('items', function* () {
             return Array.from({ length: yield* state() }, (_, index) => index);
-          }),
+          })),
           increment: function* () {
             set((yield* state()) + 1);
           },
@@ -1466,7 +1467,7 @@ describe('functional component interpreter', () => {
       {},
       function* () {
         return {
-          enabled: craftComputed('enabled', () => true),
+          enabled: yield* craftComputed('enabled', () => true),
         };
       },
       ({ enabled }) =>
@@ -2009,7 +2010,9 @@ describe('functional component interpreter', () => {
     const PREFIX = { debugName: 'component-prefix' };
     const { Greeting } = craftService(
       { name: 'Greeting', providedIn: 'function' },
-      () => ({ prefix: inject(PREFIX) }),
+      function* () {
+        yield* craftExpose('prefix', inject(PREFIX));
+      },
     );
 
     const greeting = craftComponent(

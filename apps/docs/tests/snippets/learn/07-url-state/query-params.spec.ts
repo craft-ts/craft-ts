@@ -30,7 +30,6 @@ export const { TaskFilters } = craftService(
       ({ set, patch, reset }) => ({ set, patch, reset }),
     );
 
-    return { filters };
   },
 );
 // #endregion query-params

@@ -13,6 +13,7 @@ import {
   craftRoute,
   type RouteExceptionHandlerDepsMap,
 } from './craft-routes';
+import { craftExpose } from './craft-primitive-gen';
 
 declare module './craft-router' {
   interface CraftRouterRoutesRegistry {
@@ -377,7 +378,9 @@ describe('route handleExceptions (third argument)', () => {
   it('preserves handler yields for route DI extraction', () => {
     const { HandlerConfig } = craftService(
       { name: 'HandlerConfig', providedIn: 'toProvide' },
-      () => ({ target: '/login' }),
+      function* () {
+        yield* craftExpose('target', '/login');
+      },
     );
     const def = craftRoute(
       ':userId',

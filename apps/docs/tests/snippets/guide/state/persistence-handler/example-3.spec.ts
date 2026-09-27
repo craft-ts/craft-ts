@@ -5,19 +5,17 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-3
-import { GlobalPersisterHandlerService, craftService } from '@craft-ts/core';
+import { GlobalPersisterHandlerService, craftService, craftExpose } from '@craft-ts/core';
 
 const { AccountSwitcher } = craftService(
   { name: 'AccountSwitcher', providedIn: 'toProvide' },
   function* () {
     const persister = yield* GlobalPersisterHandlerService();
-    return {
-      switchAccount: (accountId: string) => {
-        persister.clearAllCache();
-        // Load the selected account...
-        return accountId;
-      },
-    };
+    yield* craftExpose('switchAccount', (accountId: string) => {
+      persister.clearAllCache();
+      // Load the selected account...
+      return accountId;
+    });
   },
 );
 // #endregion example-3

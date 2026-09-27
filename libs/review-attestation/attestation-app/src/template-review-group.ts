@@ -23,7 +23,7 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
 import type { Messages } from './messages';
 import { eventValue } from './annotation-text';
@@ -97,38 +97,38 @@ export const TemplateReviewGroupView = craftComponent(
     locale: Input<Locale>;
     t: Input<Messages>;
   }) => {
-    const selectedCount = craftComputed('selectedCount', function* () {
+    const selectedCount = craftUse(craftComputed('selectedCount', function* () {
       const ids = new Set(yield* selectedIds());
       return pendingTemplateCards(yield* group()).filter((card) =>
         ids.has(card.id),
       ).length;
-    });
-    const allSelected = craftComputed('allSelected', function* () {
+    }));
+    const allSelected = craftUse(craftComputed('allSelected', function* () {
       const pending = pendingTemplateCards(yield* group());
       const ids = yield* selectedIds();
       return (
         pending.length > 0 && pending.every((card) => ids.includes(card.id))
       );
-    });
-    const actionDisabled = craftComputed('actionDisabled', function* () {
+    }));
+    const actionDisabled = craftUse(craftComputed('actionDisabled', function* () {
       return (yield* busy()) || (yield* selectedCount()) === 0;
-    });
-    const showReject = craftComputed('showReject', function* () {
+    }));
+    const showReject = craftUse(craftComputed('showReject', function* () {
       return yield* rejectionOpen();
-    });
-    const showActions = craftComputed('showActions', function* () {
+    }));
+    const showActions = craftUse(craftComputed('showActions', function* () {
       return !(yield* rejectionOpen());
-    });
-    const showAgentBusy = craftComputed('showAgentBusy', function* () {
+    }));
+    const showAgentBusy = craftUse(craftComputed('showAgentBusy', function* () {
       return yield* agentBusy();
-    });
-    const showAgentFailed = craftComputed('showAgentFailed', function* () {
+    }));
+    const showAgentFailed = craftUse(craftComputed('showAgentFailed', function* () {
       return yield* agentFailed();
-    });
-    const noAgent = craftComputed('noAgent', function* () {
+    }));
+    const noAgent = craftUse(craftComputed('noAgent', function* () {
       return !(yield* agentAvailable());
-    });
-    const view = craftComputed('view', function* () {
+    }));
+    const view = craftUse(craftComputed('view', function* () {
       const value = yield* group();
       const say = yield* t();
       const count = yield* selectedCount();
@@ -154,11 +154,11 @@ export const TemplateReviewGroupView = craftComponent(
         delegateDisabled:
           (yield* actionDisabled()) || !(yield* agentAvailable()),
       };
-    });
-    const viewTitle = craftComputed('viewTitle', function* () {
+    }));
+    const viewTitle = craftUse(craftComputed('viewTitle', function* () {
       return (yield* view()).title;
-    });
-    const rows = craftComputed('rows', function* () {
+    }));
+    const rows = craftUse(craftComputed('rows', function* () {
       const value = yield* group();
       const say = yield* t();
       const language = yield* locale();
@@ -216,7 +216,7 @@ export const TemplateReviewGroupView = craftComponent(
             previous?.agentReview?.references.join(' · ') ?? '',
         };
       });
-    });
+    }));
     return {
       view,
       viewTitle,

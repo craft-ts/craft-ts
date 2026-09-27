@@ -8,6 +8,7 @@ import {
   source$,
   state,
 } from '../index';
+import { craftExpose } from './craft-primitive-gen';
 
 describe('yieldable source services', () => {
   it('keeps the direct source API while resolving through yield*', () => {
@@ -31,7 +32,6 @@ describe('yieldable source services', () => {
       { name: 'Reset', providedIn: 'global' },
       function* () {
         const reset$ = yield* source$<void>('reset$');
-        return { reset$ };
       },
     );
 
@@ -49,7 +49,7 @@ describe('yieldable source services', () => {
 
         const reset = (yield* Reset()).reset$;
 
-        return { counter, reset };
+        yield* craftExpose('reset', reset);
       },
     );
 

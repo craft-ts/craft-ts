@@ -28,7 +28,7 @@ import type { ExtractDeps } from './branded-component/branded-component';
 import { query } from './query';
 import { CraftHttpClient } from './craft-http-client';
 import { craftUse } from './craft-use';
-import { craftYieldRecord } from './craft-primitive-gen';
+import { craftYieldRecord, craftExpose } from './craft-primitive-gen';
 import { craftGen } from './craft-gen';
 
 // todo later ne pas passer d'input et passer une dérivation inject...
@@ -41,7 +41,6 @@ describe('craftService', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -57,11 +56,9 @@ describe('craftService', () => {
     const { CraftGenUserApi: UserApi } = craftService(
       { name: 'CraftGenUserApi', providedIn: 'global' },
       function* () {
-        return {
-          getUser: craftGen(function* (id: string) {
-            return { id };
-          }),
-        };
+        yield* craftExpose('getUser', craftGen(function* (id: string) {
+          return { id };
+        }));
       },
     );
 
@@ -77,17 +74,18 @@ describe('craftService', () => {
   it('should accept a direct primitive factory and resolve primitive records', () => {
     const { DirectUserQuery } = craftService(
       { name: 'DirectUserQuery', providedIn: 'global' },
-      (inputs: { userId: () => string }) =>
-        query('userQuery', {
+      function* (inputs: { userId: () => string }) {
+        return query('userQuery', {
           params: inputs.userId,
           loader: async ({ params }) => ({ id: params }),
-        }),
+        });
+      },
     );
 
     const { UserQueryWithState } = craftService(
       { name: 'UserQueryWithState', providedIn: 'global' },
-      () =>
-        craftYieldRecord({
+      function* () {
+        return craftYieldRecord({
           userQuery: query('userQueryWithState', {
             params: () => 'user-1',
             loader: async ({ params }) => ({ id: params }),
@@ -95,7 +93,8 @@ describe('craftService', () => {
           refresh: state('refresh', 0, ({ update }) => ({
             increment: () => update((value) => value + 1),
           })),
-        }),
+        });
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -119,7 +118,6 @@ describe('craftService', () => {
       },
       function* () {
         const browserCounter = yield* state('browserCounter', 0);
-        return { browserCounter };
       },
     );
 
@@ -127,7 +125,6 @@ describe('craftService', () => {
       { name: 'DefaultCounter', providedIn: 'global' },
       function* () {
         const defaultCounter = yield* state('defaultCounter', 0);
-        return { defaultCounter };
       },
     );
 
@@ -261,7 +258,6 @@ describe('craftService', () => {
           },
         });
         yield* onAppStart(() => void userQuery.call('go'));
-        return { userQuery };
       },
     );
   });
@@ -338,7 +334,6 @@ describe('craftService', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -376,7 +371,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -396,7 +390,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -412,7 +405,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -431,7 +423,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -463,7 +454,6 @@ describe('scope', () => {
             readProvidedInitialValue: () => inputs.$provided.initialValue,
           }),
         );
-        return { counter };
       },
     );
 
@@ -492,7 +482,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -520,7 +509,6 @@ describe('scope', () => {
             readProvidedInitialValue: () => inputs.$provided.initialValue,
           }),
         );
-        return { counter };
       },
     );
 
@@ -545,7 +533,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -568,7 +555,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -590,7 +576,6 @@ describe('scope', () => {
             'counter',
             inputs.$provided.initialValue,
           );
-          return { counter };
         },
       );
     }
@@ -604,7 +589,6 @@ describe('scope', () => {
             'counter',
             inputs.$provided.initialValue,
           );
-          return { counter };
         },
       );
     }
@@ -649,9 +633,9 @@ describe('scope', () => {
   });
 
   it('should resolve services yielded inside an abstract provideX generator factory', () => {
-    const { Seed } = craftService({ name: 'Seed', providedIn: 'global' }, () => ({
-      base: 10,
-    }));
+    const { Seed } = craftService({ name: 'Seed', providedIn: 'global' }, function* () {
+      yield* craftExpose('base', 10);
+    });
     const { Score, provideScore } = craftService(
       { name: 'Score', providedIn: 'abstract' },
       abstract<{ total: number }>(),
@@ -681,7 +665,7 @@ describe('scope', () => {
       { name: 'Greeting', providedIn: 'toProvide' },
       function* () {
         const user = yield* User();
-        return { hello: `Hi ${user.name}` };
+        yield* craftExpose('hello', `Hi ${user.name}`);
       },
     );
 
@@ -716,7 +700,6 @@ describe('scope', () => {
         const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counterImpl };
       },
     );
 
@@ -757,7 +740,6 @@ describe('scope', () => {
         const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counterImpl };
       },
     );
 
@@ -789,9 +771,9 @@ describe('scope', () => {
         providedIn: 'toProvide',
         requirement: CounterRequirement,
       },
-      () => ({
-        increment,
-      }),
+      function* () {
+        yield* craftExpose('increment', increment);
+      },
     );
 
     TestBed.configureTestingModule({
@@ -825,7 +807,6 @@ describe('scope', () => {
         const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counterImpl };
       },
     );
 
@@ -863,7 +844,6 @@ describe('scope', () => {
         const counterImpl = yield* state('counterImpl', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counterImpl };
       },
     );
   });
@@ -886,7 +866,6 @@ describe('scope', () => {
       },
       function* () {
         const counterImpl = yield* state('counterImpl', 0);
-        return { counterImpl };
       },
     );
   });
@@ -902,9 +881,9 @@ describe('scope', () => {
             increment(): void;
           }>(),
         },
-        () => ({
-          increment: () => undefined,
-        }),
+        function* () {
+          yield* craftExpose('increment', () => undefined);
+        },
       );
     }
   });
@@ -922,7 +901,6 @@ describe('scope', () => {
         },
         function* () {
           const counterImpl = yield* state('counterImpl', 0);
-          return { counterImpl };
         },
       );
     }
@@ -935,7 +913,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -953,7 +930,6 @@ describe('scope', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
-        return { counter };
       },
     );
 
@@ -993,7 +969,6 @@ describe('injectService should enable to binding inputs', () => {
             increment: () => update((value) => value + inputs.step),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1040,7 +1015,6 @@ describe('injectService should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1070,7 +1044,6 @@ describe('injectService should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1098,7 +1071,6 @@ describe('injectService should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1125,7 +1097,6 @@ describe('injectService should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1148,7 +1119,6 @@ describe('injectService should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1191,7 +1161,6 @@ describe('service should enable to binding inputs', () => {
             increment: () => update((value) => value + inputs.step),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1200,10 +1169,8 @@ describe('service should enable to binding inputs', () => {
       function* () {
         const counter = (yield* Counter({ step: 2 })).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -1245,7 +1212,6 @@ describe('service should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1284,7 +1250,6 @@ describe('service should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1327,7 +1292,6 @@ describe('service should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1369,7 +1333,6 @@ describe('service should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1397,7 +1360,6 @@ describe('service should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1441,7 +1403,6 @@ describe('service should enable to binding inputs', () => {
             increment: () => update((v) => v + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -1455,10 +1416,8 @@ describe('service should enable to binding inputs', () => {
           initialValue: signal(20),
         })).counter;
 
-        return {
-          counter1,
-          counter2,
-        };
+        yield* craftExpose('counter1', counter1);
+        yield* craftExpose('counter2', counter2);
       },
     );
 
@@ -1483,7 +1442,6 @@ describe('injectService/Service should expose an optional parameter that can be 
           increment: () => update((v) => v + 1),
           decrement: () => update((v) => v - 1),
         }));
-        return { counter };
       },
     );
 
@@ -1512,7 +1470,7 @@ describe('injectService/Service should expose an optional parameter that can be 
   it('should enable to track hidden dependencies when using Counter', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
-      () => {
+      function* () {
         const counter = craftUse(
           state('counter', 10, ({ update }) => ({
             increment: () => update((v) => v + 1),
@@ -1520,11 +1478,9 @@ describe('injectService/Service should expose an optional parameter that can be 
           })),
         );
 
-        return {
-          state: counter,
-          increment: counter.increment,
-          decrement: counter.decrement,
-        };
+        yield* craftExpose('state', counter);
+        yield* craftExpose('increment', counter.increment);
+        yield* craftExpose('decrement', counter.decrement);
       },
     );
 
@@ -1559,7 +1515,7 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'function' },
-      (inputs: { initialValue: MaybeSignal<number> }) => {
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
         const counter = craftUse(
           state('counter', toValue(inputs.initialValue), ({ update }) => ({
             increment: () => update((v) => v + 1),
@@ -1567,11 +1523,9 @@ describe('injectService/Service should expose an optional parameter that can be 
           })),
         );
 
-        return {
-          state: counter,
-          increment: counter.increment,
-          decrement: counter.decrement,
-        };
+        yield* craftExpose('state', counter);
+        yield* craftExpose('increment', counter.increment);
+        yield* craftExpose('decrement', counter.decrement);
       },
     );
 
@@ -1620,17 +1574,17 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { SinglePropertyShortcutApi } = craftService(
       { name: 'SinglePropertyShortcutApi', providedIn: 'global' },
-      () => ({
-        users,
-        updateItem: async (updatedUser: User) => {
+      function* () {
+        yield* craftExpose('users', users);
+        yield* craftExpose('updateItem', async (updatedUser: User) => {
           users.set(
             users().map((user) =>
               user.id === updatedUser.id ? updatedUser : user,
             ),
           );
           return updatedUser;
-        },
-      }),
+        });
+      },
     );
 
     const { SinglePropertyShortcutConsumer } = craftService(
@@ -1642,9 +1596,7 @@ describe('injectService/Service should expose an optional parameter that can be 
           GetServiceOutput<typeof SinglePropertyShortcutApi>['updateItem']
         >();
 
-        return {
-          updateItem,
-        };
+        yield* craftExpose('updateItem', updateItem);
       },
     );
 
@@ -1700,16 +1652,16 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { DirectMethodShortcutApi } = craftService(
       { name: 'DirectMethodShortcutApi', providedIn: 'global' },
-      () => ({
-        updateItem: async (updatedUser: User) => {
+      function* () {
+        yield* craftExpose('updateItem', async (updatedUser: User) => {
           users.set(
             users().map((user) =>
               user.id === updatedUser.id ? updatedUser : user,
             ),
           );
           return updatedUser;
-        },
-      }),
+        });
+      },
     );
 
     const { DirectMethodShortcutConsumer } = craftService(
@@ -1772,9 +1724,9 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { InputShortcutCounter } = craftService(
       { name: 'InputShortcutCounter', providedIn: 'function' },
-      (inputs: { initialValue: MaybeSignal<number> }) => ({
-        increment: () => calls.push(toValue(inputs.initialValue) + 1),
-      }),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        yield* craftExpose('increment', () => calls.push(toValue(inputs.initialValue) + 1));
+      },
     );
 
     const { InputShortcutCounterConsumer } = craftService(
@@ -1788,9 +1740,7 @@ describe('injectService/Service should expose an optional parameter that can be 
           GetServiceOutput<typeof InputShortcutCounter>['increment']
         >();
 
-        return {
-          increment,
-        };
+        yield* craftExpose('increment', increment);
       },
     );
 
@@ -1813,17 +1763,17 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { SinglePropertyShortcutInjectApi } = craftService(
       { name: 'SinglePropertyShortcutInjectApi', providedIn: 'global' },
-      () => ({
-        users,
-        updateItem: async (updatedUser: User) => {
+      function* () {
+        yield* craftExpose('users', users);
+        yield* craftExpose('updateItem', async (updatedUser: User) => {
           users.set(
             users().map((user) =>
               user.id === updatedUser.id ? updatedUser : user,
             ),
           );
           return updatedUser;
-        },
-      }),
+        });
+      },
     );
 
     expect(
@@ -1875,16 +1825,16 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { DirectMethodShortcutInjectApi } = craftService(
       { name: 'DirectMethodShortcutInjectApi', providedIn: 'global' },
-      () => ({
-        updateItem: async (updatedUser: User) => {
+      function* () {
+        yield* craftExpose('updateItem', async (updatedUser: User) => {
           users.set(
             users().map((user) =>
               user.id === updatedUser.id ? updatedUser : user,
             ),
           );
           return updatedUser;
-        },
-      }),
+        });
+      },
     );
 
     type ShortcutDependencies = GetServiceDependencies<
@@ -1932,9 +1882,9 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { InputShortcutCounterInject } = craftService(
       { name: 'InputShortcutCounterInject', providedIn: 'function' },
-      (inputs: { initialValue: MaybeSignal<number> }) => ({
-        increment: () => calls.push(toValue(inputs.initialValue) + 1),
-      }),
+      function* (inputs: { initialValue: MaybeSignal<number> }) {
+        yield* craftExpose('increment', () => calls.push(toValue(inputs.initialValue) + 1));
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -1959,9 +1909,9 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { NestedPropShortcutService } = craftService(
       { name: 'NestedPropShortcutService', providedIn: 'global' },
-      () => ({
-        userQuery: { isLoading, data: signal<string | null>(null) },
-      }),
+      function* () {
+        yield* craftExpose('userQuery', { isLoading, data: signal<string | null>(null) });
+      },
     );
 
     type ShortcutDependencies = GetServiceDependencies<
@@ -1993,9 +1943,9 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { NestedPropApi } = craftService(
       { name: 'NestedPropApi', providedIn: 'global' },
-      () => ({
-        userQuery: { isLoading, data: signal<string | null>(null) },
-      }),
+      function* () {
+        yield* craftExpose('userQuery', { isLoading, data: signal<string | null>(null) });
+      },
     );
 
     const { NestedPropConsumer } = craftService(
@@ -2003,7 +1953,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       function* () {
         const loadingSignal = yield* NestedPropApi.userQuery.isLoading();
         expectTypeOf(loadingSignal).toEqualTypeOf<typeof isLoading>();
-        return { isLoading: loadingSignal };
+        yield* craftExpose('isLoading', loadingSignal);
       },
     );
 
@@ -2040,9 +1990,9 @@ describe('injectService/Service should expose an optional parameter that can be 
   it('should require OmitInputs for no-arg property shortcuts when service has public inputs', () => {
     const { OmitInputsInjectCounter } = craftService(
       { name: 'OmitInputsInjectCounter', providedIn: 'function' },
-      (inputs: { initialValue?: MaybeSignal<number> }) => ({
-        count: toValue(inputs.initialValue) ?? 0,
-      }),
+      function* (inputs: { initialValue?: MaybeSignal<number> }) {
+        yield* craftExpose('count', toValue(inputs.initialValue) ?? 0);
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -2066,9 +2016,9 @@ describe('injectService/Service should expose an optional parameter that can be 
   it('should require OmitInputs for no-arg property shortcuts when  service has public inputs', () => {
     const { OmitInputsYieldCounter } = craftService(
       { name: 'OmitInputsYieldCounter', providedIn: 'function' },
-      (inputs: { initialValue?: MaybeSignal<number> }) => ({
-        count: toValue(inputs.initialValue) ?? 0,
-      }),
+      function* (inputs: { initialValue?: MaybeSignal<number> }) {
+        yield* craftExpose('count', toValue(inputs.initialValue) ?? 0);
+      },
     );
 
     const { OmitInputsYieldConsumer } = craftService(
@@ -2076,7 +2026,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       function* () {
         const count = yield* OmitInputsYieldCounter.OmitInputs.count();
         expectTypeOf(count).toEqualTypeOf<number>();
-        return { count };
+        yield* craftExpose('count', count);
       },
     );
 
@@ -2094,12 +2044,12 @@ describe('injectService/Service should expose an optional parameter that can be 
 
     const { OmitInputsNestedService } = craftService(
       { name: 'OmitInputsNestedService', providedIn: 'function' },
-      (inputs: { userId?: string }) => ({
-        userQuery: {
+      function* (inputs: { userId?: string }) {
+        yield* craftExpose('userQuery', {
           isLoading,
           userId: inputs.userId ?? 'default',
-        },
-      }),
+        });
+      },
     );
 
     TestBed.runInInjectionContext(() => {
@@ -2123,7 +2073,6 @@ describe('injectService/Service should expose an optional parameter that can be 
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2171,7 +2120,6 @@ describe('injectService/Service should expose an optional parameter that can be 
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2217,7 +2165,6 @@ describe('injectService/Service should expose an optional parameter that can be 
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2271,7 +2218,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2297,7 +2243,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2318,9 +2263,9 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
         providedIn: 'global',
         browserBoundary: true,
       },
-      () => ({
-        read: () => localStorage.getItem('key'),
-      }),
+      function* () {
+        yield* craftExpose('read', () => localStorage.getItem('key'));
+      },
     );
 
     const { StorageConsumer } = craftService(
@@ -2328,9 +2273,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       function* () {
         const storage = yield* BrowserStorage();
 
-        return {
-          read: () => storage.read(),
-        };
+        yield* craftExpose('read', () => storage.read());
       },
     );
 
@@ -2365,7 +2308,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2409,7 +2351,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { manuallyProvidedAtRoot1 };
       },
     );
 
@@ -2437,7 +2378,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { manuallyProvidedAtRoot1 };
       },
     );
 
@@ -2452,7 +2392,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { manuallyProvidedAtRoot2 };
       },
     );
 
@@ -2467,7 +2406,6 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2480,11 +2418,9 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
           initialValue: signal(10),
         })).counter;
 
-        return {
-          partialCounter,
-          manuallyProvidedAtRoot1,
-          manuallyProvidedAtRoot2,
-        };
+        yield* craftExpose('partialCounter', partialCounter);
+        yield* craftExpose('manuallyProvidedAtRoot1', manuallyProvidedAtRoot1);
+        yield* craftExpose('manuallyProvidedAtRoot2', manuallyProvidedAtRoot2);
       },
     );
 
@@ -2534,7 +2470,6 @@ describe('typing can track all derived dependencies (only the properties that ar
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2560,7 +2495,6 @@ describe('typing can track all derived dependencies (only the properties that ar
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2619,7 +2553,6 @@ describe('typing can track all derived dependencies (only the properties that ar
             decrement: () => update((v) => v - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -2699,7 +2632,7 @@ describe('craftService — providers', () => {
         ],
       },
       function* () {
-        return { value: () => 1 };
+        yield* craftExpose('value', () => 1);
       },
     );
 
@@ -2730,13 +2663,13 @@ describe('craftService — providers', () => {
         ],
       },
       function* () {
-        return { value: () => 1 };
+        yield* craftExpose('value', () => 1);
       },
     );
     const { SiblingB } = craftService(
       { name: 'SiblingB', providedIn: 'global' },
       function* () {
-        return { value: () => 2 };
+        yield* craftExpose('value', () => 2);
       },
     );
 

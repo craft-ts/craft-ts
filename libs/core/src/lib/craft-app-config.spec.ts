@@ -26,7 +26,9 @@ describe('craftAppConfig', () => {
   it('should ignore plain Angular providers when extracting Craft provider names', () => {
     const { provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
     const token = new InjectionToken<string>('plain-provider');
 

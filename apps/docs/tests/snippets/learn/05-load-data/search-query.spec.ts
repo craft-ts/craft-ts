@@ -22,7 +22,6 @@ export const { TaskSearch } = craftService(
       },
     });
 
-    return { searchQuery };
   },
 );
 // #endregion search-query

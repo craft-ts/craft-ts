@@ -26,11 +26,9 @@ export const { TaskStats, provideTaskStats } = craftService(
   function* () {
     const tasks = yield* TaskList();
 
-    return {
-      done: craftComputed('done', function* () {
-        return (yield* tasks()).filter((task) => task.done).length;
-      }),
-    };
+    yield* craftComputed('done', function* () {
+      return (yield* tasks()).filter((task) => task.done).length;
+    });
   },
 );
 // #endregion task-stats

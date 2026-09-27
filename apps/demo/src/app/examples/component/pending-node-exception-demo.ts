@@ -18,6 +18,7 @@ import {
   craftSleep,
   mutation,
   settled,
+  craftUse,
 } from '@craft-ts/core';
 import { componentUi, pendingDemo } from './component-demos.style';
 
@@ -67,10 +68,10 @@ export const pendingNodeExceptionDemo = craftComponent(
       }),
     },
       ({ resource }) => ({
-        summary: craftComputed('summary', function* () {
+        summary: craftUse(craftComputed('summary', function* () {
           const invoice = yield* settled(resource);
           return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
-        }),
+        })),
       }),
     );
 

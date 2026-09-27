@@ -11,12 +11,11 @@ export const { UserDetail, provideUserDetail } = craftService(
   function* () {
     yield* UsersApi();
     const detail = yield* query(
-      'userDetail',
+      'detail',
       {},
       insertStoragePersister(
         craftUnique({ key: 'user-detail', storeName: 'shop' }),
       ),
     );
-    return { detail };
   },
 );

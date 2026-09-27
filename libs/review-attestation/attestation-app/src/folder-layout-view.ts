@@ -12,7 +12,7 @@ import {
   ul,
   type Input,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, state } from '@craft-ts/core';
+import { craftComputed, craftMethod, state, craftUse } from '@craft-ts/core';
 import type { FolderLayoutEntry } from '@craft-ts/dev-tools/attestation-review';
 import {
   highlightFolderLayoutRow,
@@ -84,7 +84,7 @@ export const FolderLayoutView = craftComponent(
     moves: Input<number>,
     reviews: Input<number>,
   ) {
-    const trees = craftComputed('trees', function* () {
+    const trees = yield* craftComputed('trees', function* () {
       return folderLayoutTrees(yield* entries());
     });
     /** Folders folded by the reviewer, as `side|key` ids. */
@@ -110,20 +110,20 @@ export const FolderLayoutView = craftComponent(
             current.filter((id) => !unfold.includes(id)),
           );
         },
-        sourceRows: craftComputed('sourceRows', function* () {
+        sourceRows: craftUse(craftComputed('sourceRows', function* () {
           return visibleRows((yield* trees()).source, 'source', yield* ids());
-        }),
-        proposedRows: craftComputed('proposedRows', function* () {
+        })),
+        proposedRows: craftUse(craftComputed('proposedRows', function* () {
           return visibleRows(
             (yield* trees()).proposed,
             'proposed',
             yield* ids(),
           );
-        }),
+        })),
       }),
     );
     const { sourceRows, proposedRows } = collapsed;
-    const folderIds = craftComputed('folderIds', function* () {
+    const folderIds = yield* craftComputed('folderIds', function* () {
       const { source, proposed } = yield* trees();
       const idsOf = (
         side: FolderLayoutSide,
@@ -137,28 +137,28 @@ export const FolderLayoutView = craftComponent(
         proposed: idsOf('proposed', proposed),
       };
     });
-    const toggleFolder = craftMethod('toggleFolder', function* (id: string) {
+    const toggleFolder = yield* craftMethod('toggleFolder', function* (id: string) {
       yield* collapsed.toggle(id);
     });
-    const collapseFolders = craftMethod(
+    const collapseFolders = yield* craftMethod(
       'collapseFolders',
       function* (side: FolderLayoutSide, ids: readonly string[]) {
         yield* collapsed.collapseSide(side, ids);
       },
     );
-    const expandFolders = craftMethod(
+    const expandFolders = yield* craftMethod(
       'expandFolders',
       function* (side: FolderLayoutSide) {
         yield* collapsed.expandSide(side);
       },
     );
-    const revealFolders = craftMethod(
+    const revealFolders = yield* craftMethod(
       'revealFolders',
       function* (side: FolderLayoutSide, links: readonly string[]) {
         yield* collapsed.reveal(side, links);
       },
     );
-    const summary = craftComputed('summary', function* () {
+    const summary = yield* craftComputed('summary', function* () {
       const { collisions } = yield* trees();
       const currentEntries = yield* entries();
       const deletions = currentEntries.filter(
@@ -169,7 +169,7 @@ export const FolderLayoutView = craftComponent(
         ? `${counts} · ${collisions} destination collisions`
         : counts;
     });
-    const root = craftComputed('root', function* () {
+    const root = yield* craftComputed('root', function* () {
       return (yield* trees()).root || './';
     });
     return {

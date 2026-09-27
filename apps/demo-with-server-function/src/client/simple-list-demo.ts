@@ -26,6 +26,7 @@ import {
   query,
   queryParams,
   state,
+  craftUse,
 } from '@craft-ts/core';
 import { getUsers } from '../users/list.fn-client';
 import { demoPage } from './demo.style';
@@ -64,21 +65,21 @@ const SimpleListDemo = craftComponent(
         },
       },
       ({ resource, exceptions }) => {
-        const notFound = craftComputed('notFound', function* () {
+        const notFound = craftUse(craftComputed('notFound', function* () {
           const error = (yield* exceptions()).loader;
           return isCraftException(error) && error._tag === 'UsersNotFound';
-        });
+        }));
 
         return {
           notFound,
-          requestTitle: craftComputed('requestTitle', function* () {
+          requestTitle: craftUse(craftComputed('requestTitle', function* () {
             const currentStatus = yield* resource.status();
             if (yield* notFound()) return 'Server returned 404';
             return currentStatus === 'loading' || currentStatus === 'reloading'
               ? 'Calling demo.users.list from the URL filter…'
               : 'Server function ready';
-          }),
-          requestDetail: craftComputed('requestDetail', function* () {
+          })),
+          requestDetail: craftUse(craftComputed('requestDetail', function* () {
             const currentStatus = yield* resource.status();
             if (yield* notFound()) {
               const error = (yield* exceptions()).loader;
@@ -87,15 +88,15 @@ const SimpleListDemo = craftComponent(
             return currentStatus === 'loading' || currentStatus === 'reloading'
               ? 'POST /__server-functions · Effect is running'
               : `Status: ${currentStatus}`;
-          }),
-          resultCount: craftComputed('resultCount', function* () {
+          })),
+          resultCount: craftUse(craftComputed('resultCount', function* () {
             const value = yield* resource.value();
             return Array.isArray(value) ? value.length.toString() : '—';
-          }),
+          })),
         };
       },
     );
-    const users = craftComputed('users', function* () {
+    const users = yield* craftComputed('users', function* () {
       const value = yield* usersQuery.value();
       return Array.isArray(value) ? value : [];
     });
@@ -106,7 +107,7 @@ const SimpleListDemo = craftComponent(
         setSearchInput: (value: string) => set(value),
       }),
     );
-    const submitSearch = craftMethod('submitSearch', function* (event?: Event) {
+    const submitSearch = yield* craftMethod('submitSearch', function* (event?: Event) {
       event?.preventDefault();
       yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
     });

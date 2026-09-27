@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { craftSignal as signal } from '@craft-ts/core';
+import { craftSignal as signal, craftExpose } from '@craft-ts/core';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import { craftService, craftUse } from '@craft-ts/core';
 import { craftComponent } from './component';
@@ -26,7 +26,9 @@ describe('Craft component and directive testing utilities', () => {
   it('tests component logic with an isolated service register', async () => {
     const { LogicDependency } = craftService(
       { name: 'LogicDependency', providedIn: 'function' },
-      () => ({ value: 'real' }),
+      function* () {
+        yield* craftExpose('value', 'real');
+      },
     );
     const component = craftComponent(
       'logicTestComponent',
@@ -58,7 +60,9 @@ describe('Craft component and directive testing utilities', () => {
   it('tests a component template with direct context and child services', async () => {
     const { ChildDependency } = craftService(
       { name: 'ChildDependency', providedIn: 'function' },
-      () => ({ label: 'child' }),
+      function* () {
+        yield* craftExpose('label', 'child');
+      },
     );
     const child = craftComponent(
       'templateChild',

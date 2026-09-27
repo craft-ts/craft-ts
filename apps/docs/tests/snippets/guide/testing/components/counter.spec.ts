@@ -20,9 +20,9 @@ const Counter = craftComponent(
   {},
   function* () {
     const counter = yield* state('counter', 0, ({ state, update }) => ({
-      disabled: craftComputed(function* () {
+      disabled: craftUse(craftComputed('disabled', function* () {
         return (yield* state()) % 2 === 0;
-      }),
+      })),
       increment: () => update((value) => value + 1),
     }));
 

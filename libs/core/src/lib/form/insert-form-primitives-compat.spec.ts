@@ -137,8 +137,31 @@ describe('insertForm compatibility with query', () => {
 
   it('infers the field tree type from the resource state (not unknown)', () => {
     craftService({ name: 'UserStoreTyping', providedIn: 'global' }, function* () {
-      return {
-        user: yield* query(
+      yield* query(
+        'user',
+        {
+          params: () => '5',
+          loader: async ({ params }): Promise<User> => ({
+            id: params,
+            name: 'John Doe',
+            email: 'john@doe.com',
+          }),
+        },
+        insertForm(({ field }) => {
+          expectTypeOf(field.name.value()).toEqualTypeOf<string>();
+          expectTypeOf(field.email.value()).toEqualTypeOf<string>();
+          expectTypeOf(field.id.value()).toEqualTypeOf<string>();
+          return {};
+        }),
+      );
+    });
+  });
+
+  it('exposes a working form at runtime over the resolved resource state', async () => {
+    const { UserStore } = craftService(
+      { name: 'UserStore', providedIn: 'global' },
+      function* () {
+        yield* query(
           'user',
           {
             params: () => '5',
@@ -148,35 +171,8 @@ describe('insertForm compatibility with query', () => {
               email: 'john@doe.com',
             }),
           },
-          insertForm(({ field }) => {
-            expectTypeOf(field.name.value()).toEqualTypeOf<string>();
-            expectTypeOf(field.email.value()).toEqualTypeOf<string>();
-            expectTypeOf(field.id.value()).toEqualTypeOf<string>();
-            return {};
-          }),
-        ),
-      };
-    });
-  });
-
-  it('exposes a working form at runtime over the resolved resource state', async () => {
-    const { UserStore } = craftService(
-      { name: 'UserStore', providedIn: 'global' },
-      function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }): Promise<User> => ({
-                id: params,
-                name: 'John Doe',
-                email: 'john@doe.com',
-              }),
-            },
-            insertForm(),
-          ),
-        };
+          insertForm(),
+        );
       },
     );
 

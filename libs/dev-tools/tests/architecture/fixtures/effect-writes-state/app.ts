@@ -5,9 +5,8 @@ export const { Sync } = craftService(
   function* () {
     const selectedId = yield* state('selectedId', '1');
     const result = yield* state('result', null);
-    const sync = craftEffect('sync', function* () {
+    const sync = yield* craftEffect('sync', function* () {
       yield* result.set(yield* selectedId());
     });
-    return { selectedId, result, sync };
   },
 );

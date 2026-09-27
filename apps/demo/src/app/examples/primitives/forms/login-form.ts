@@ -25,6 +25,7 @@ import {
   mutation,
   state,
   type ValidatedFormValue,
+  craftUse,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 
@@ -63,10 +64,10 @@ const LoginFormComponent = craftComponent(
           })),
         ),
         ({ field }) => ({
-          showSuccess: craftComputed(
+          showSuccess: craftUse(craftComputed(
             'showSuccess',
             () => submitted.hasValue() && field.valid(),
-          ),
+          )),
         }),
       ),
     );

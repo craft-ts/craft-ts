@@ -55,10 +55,7 @@ const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
     function* () {
       const persister = yield* StoragePersister();
 
-      yield* craftMethod('clearAllCache', function* (): Generator<
-        never,
-        void
-      > {
+      yield* craftMethod('clearAllCache', function* (): Generator<never, void> {
         persister.clearAllCache();
       });
     },

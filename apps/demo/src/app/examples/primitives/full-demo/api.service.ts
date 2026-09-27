@@ -3,7 +3,9 @@ import {
   craftGen,
   craftService,
   craftSleep,
-  state
+  state,
+  craftPrivate,
+  craftExpose
 } from '@craft-ts/core';
 
 export type User = {
@@ -14,7 +16,7 @@ export type User = {
 export const { ApiService } = craftService(
   { name: 'ApiService', providedIn: 'global' },
   function* () {
-    const dataList = yield* state(
+    const dataList = yield* craftPrivate(state(
       'dataList',
       [
         { id: '1', name: 'Romain' },
@@ -59,91 +61,88 @@ export const { ApiService } = craftService(
                   return deletedItems;
                 },
       }),
-    );
+    ));
 
     const throwError = yield* state('throwError', false, ({ update }) => ({
       toggleUpdateError: () => update((value) => !value),
     }));
 
-    return {
-      throwError,
-      toggleUpdateError: () => throwError.toggleUpdateError(),
-      getDataList: craftGen(function* (data: {
-        page: number;
-        pageSize: number;
-      }) {
-          const _throwError = yield* throwError();
-        if (_throwError) {
-          yield* craftSleep(2000);
-          return craftException({ _tag: 'HttpError' });
-        }
-          const _dataList = yield* dataList();
-        const list = _dataList;
-        const result = list.slice(
-          (data.page - 1) * data.pageSize,
-          data.page * data.pageSize,
+    yield* craftExpose('toggleUpdateError', () => throwError.toggleUpdateError());
+    yield* craftExpose('getDataList', craftGen(function* (data: {
+      page: number;
+      pageSize: number;
+    }) {
+        const _throwError = yield* throwError();
+      if (_throwError) {
+        yield* craftSleep(2000);
+        return craftException({ _tag: 'HttpError' });
+      }
+        const _dataList = yield* dataList();
+      const list = _dataList;
+      const result = list.slice(
+        (data.page - 1) * data.pageSize,
+        data.page * data.pageSize,
+      );
+      yield* craftSleep(2000);
+      return result;
+    }));
+    yield* craftExpose('getItemById', craftGen(function* (itemId: User['id']) {
+        const _throwError = yield* throwError();
+      if (_throwError) {
+        yield* craftSleep(2000);
+        return craftException({ _tag: 'HttpError' });
+      }
+        const _dataList = yield* dataList();
+      const list = _dataList;
+      const item = list.find((dataItem) => dataItem.id === itemId);
+      if (!item) {
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`failed to find the item ${itemId}`) },
         );
+      }
+      yield* craftSleep(2000);
+      return item;
+    }));
+    yield* craftExpose('addItem', craftGen(function* (newItem: User) {
+        const _throwError = yield* throwError();
+      if (_throwError) {
         yield* craftSleep(2000);
-        return result;
-      }),
-      getItemById: craftGen(function* (itemId: User['id']) {
-          const _throwError = yield* throwError();
-        if (_throwError) {
-          yield* craftSleep(2000);
-          return craftException({ _tag: 'HttpError' });
-        }
-          const _dataList = yield* dataList();
-        const list = _dataList;
-        const item = list.find((dataItem) => dataItem.id === itemId);
-        if (!item) {
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`failed to find the item ${itemId}`) },
-          );
-        }
+        return craftException({ _tag: 'HttpError' });
+      }
+      yield* dataList.addItem(newItem);
+      yield* craftSleep(2000);
+      return newItem;
+    }));
+    yield* craftExpose('deleteItem', craftGen(function* (itemId: User['id']) {
+        const _throwError = yield* throwError();
+      if (_throwError) {
         yield* craftSleep(2000);
-        return item;
-      }),
-      addItem: craftGen(function* (newItem: User) {
-          const _throwError = yield* throwError();
-        if (_throwError) {
-          yield* craftSleep(2000);
-          return craftException({ _tag: 'HttpError' });
-        }
-        yield* dataList.addItem(newItem);
+        return craftException({ _tag: 'HttpError' });
+      }
+      const deletedItem = yield* dataList.deleteItem(itemId);
+      yield* craftSleep(2000);
+      return deletedItem;
+    }));
+    yield* craftExpose('updateItem', craftGen(function* (updatedItem: User) {
+        const _throwError = yield* throwError();
+      if (_throwError) {
         yield* craftSleep(2000);
-        return newItem;
-      }),
-      deleteItem: craftGen(function* (itemId: User['id']) {
-          const _throwError = yield* throwError();
-        if (_throwError) {
-          yield* craftSleep(2000);
-          return craftException({ _tag: 'HttpError' });
-        }
-        const deletedItem = yield* dataList.deleteItem(itemId);
+        return craftException({ _tag: 'HttpError' });
+      }
+      yield* dataList.updateItem(updatedItem);
+      yield* craftSleep(2000);
+      return updatedItem;
+    }));
+    yield* craftExpose('bulkDelete', craftGen(function* (itemIds: User['id'][]) {
+        const _throwError = yield* throwError();
+      if (_throwError) {
         yield* craftSleep(2000);
-        return deletedItem;
-      }),
-      updateItem: craftGen(function* (updatedItem: User) {
-          const _throwError = yield* throwError();
-        if (_throwError) {
-          yield* craftSleep(2000);
-          return craftException({ _tag: 'HttpError' });
-        }
-        yield* dataList.updateItem(updatedItem);
-        yield* craftSleep(2000);
-        return updatedItem;
-      }),
-      bulkDelete: craftGen(function* (itemIds: User['id'][]) {
-          const _throwError = yield* throwError();
-        if (_throwError) {
-          yield* craftSleep(2000);
-          return craftException({ _tag: 'HttpError' });
-        }
-        const deletedItems = yield* dataList.bulkDelete(itemIds);
-        yield* craftSleep(2000);
-        return deletedItems;
-      }),
-    };
+        return craftException({ _tag: 'HttpError' });
+      }
+      const deletedItems = yield* dataList.bulkDelete(itemIds);
+      yield* craftSleep(2000);
+      return deletedItems;
+    }));
   },
 );

@@ -13,6 +13,7 @@ import {
   craftRegisterFor,
   craftService,
   state,
+  craftUse,
 } from '@craft-ts/core';
 import { example } from '../shared/example.style';
 
@@ -24,7 +25,6 @@ const { Counter, provideCounter } = craftService(
       decrement: () => update((v) => v - 1),
     }));
 
-    return { counter };
   },
 );
 
@@ -49,7 +49,7 @@ const CounterChild = craftComponent(
 
 const { RegisterForCounterChild, provideRegisterForCounterChild } =
   craftRegisterFor('CounterChild', CounterChild, ({ CounterChild }) => ({
-    total: craftComputed('total', () => CounterChild()?.length ?? 0),
+    total: craftUse(craftComputed('total', () => CounterChild()?.length ?? 0)),
     incrementAllChildCounter: () =>
       CounterChild()?.forEach(({ ref }) => ref.counter.increment()),
     decrementAllChildCounter: () =>
@@ -60,7 +60,7 @@ const { RegisterForCounter, provideRegisterForCounter } = craftRegisterFor(
   'Counter',
   Counter,
   ({ Counter }) => ({
-    total: craftComputed('total', () => Counter()?.length ?? 0),
+    total: craftUse(craftComputed('total', () => Counter()?.length ?? 0)),
   }),
 );
 
@@ -85,10 +85,10 @@ const RegisterForDemo = craftComponent(
 
     const childComponents = yield* RegisterForCounterChild();
     const counterTotal = yield* RegisterForCounter.total();
-    const childTotal = craftComputed('childTotal', function* () {
+    const childTotal = yield* craftComputed('childTotal', function* () {
         const _childComponentstotal = yield* childComponents.total(); return _childComponentstotal; },
     );
-    const serviceTotal = craftComputed('serviceTotal', function* () {
+    const serviceTotal = yield* craftComputed('serviceTotal', function* () {
         const _counterTotal = yield* counterTotal(); return _counterTotal; },
     );
 

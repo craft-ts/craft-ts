@@ -5,14 +5,14 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-1
-import { craftService } from '@craft-ts/core';
+import { craftService, craftExpose } from '@craft-ts/core';
 
 const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global' },
-  () => ({
-    updateUser: (user: { id: string; name: string }) => Promise.resolve(user),
-    getUsers: () => Promise.resolve([]),
-  }),
+  function* () {
+    yield* craftExpose('updateUser', (user: { id: string; name: string }) => Promise.resolve(user));
+    yield* craftExpose('getUsers', () => Promise.resolve([]));
+  },
 );
 
 const { UserUpdater } = craftService(
@@ -20,10 +20,8 @@ const { UserUpdater } = craftService(
   function* () {
     const updateUser = yield* UsersApi.updateUser();
 
-    return {
-      rename: (user: { id: string; name: string }, name: string) =>
-        updateUser({ ...user, name }),
-    };
+    yield* craftExpose('rename', (user: { id: string; name: string }, name: string) =>
+      updateUser({ ...user, name }));
   },
 );
 // #endregion example-1

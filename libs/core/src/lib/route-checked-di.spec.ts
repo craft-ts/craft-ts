@@ -8,7 +8,9 @@ describe('RouteCheckedDI', () => {
   it('should return true if all deps are provided via AvailableProviderNames', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type GenDeps_MyComp = GetDeps<{
@@ -29,7 +31,9 @@ describe('RouteCheckedDI', () => {
   it('should report a missing injected service when not in AvailableProviderNames', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type GenDeps_MyComp = GetDeps<{
@@ -51,7 +55,9 @@ describe('RouteCheckedDI', () => {
   it('should fail closed when AvailableProviderNames widens to string', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type GenDeps_MyComp = GetDeps<{
@@ -88,7 +94,9 @@ describe('RouteCheckedDI', () => {
   it('should resolve a missing service when a structurally matching ProvidedValue is supplied', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type CounterDep = GetServiceDependencies<typeof Counter>;
@@ -110,7 +118,9 @@ describe('RouteCheckedDI', () => {
   it('should accept a custom Context for clearer error messages', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type GenDeps_MyComp = GetDeps<{
@@ -137,15 +147,21 @@ describe('RouteCheckedDI', () => {
     // from `provided`), the cascade check must surface the error.
     const { GlobalSvc } = craftService(
       { name: 'GlobalSvc', providedIn: 'global' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
     const { RouteSvc } = craftService(
       { name: 'RouteSvc', providedIn: 'toProvide' },
-      () => 2,
+      function* () {
+        return 2;
+      },
     );
     const { CompSvc } = craftService(
       { name: 'CompSvc', providedIn: 'toProvide' },
-      () => 3,
+      function* () {
+        return 3;
+      },
     );
 
     type RouteProvidedNames = 'RouteSvc';
@@ -213,7 +229,9 @@ describe('RouteCheckedDI', () => {
     // a route list, so the type instantiation depth stays constant regardless
     // of how many checks coexist. This test asserts that >50 distinct checks
     // type-check cleanly (the global AppCheckedDI would TS2589 well before).
-    const { S } = craftService({ name: 'S', providedIn: 'toProvide' }, () => 1);
+    const { S } = craftService({ name: 'S', providedIn: 'toProvide' }, function* () {
+      return 1;
+    });
 
     type Deps = GetDeps<{
       deps: { S: GetServiceDependencies<typeof S> };

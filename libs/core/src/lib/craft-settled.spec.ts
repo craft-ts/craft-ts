@@ -414,7 +414,7 @@ describe('settledState in resource insertions', () => {
           loader: async (): Promise<User[]> => [],
         },
         function* ({ settledState }) {
-          const derived = craftComputed('derivedSettledState', function* () {
+          const derived = yield* craftComputed('derivedSettledState', function* () {
             return (yield* settledState()).length;
           });
           expectTypeOf<
@@ -493,12 +493,12 @@ describe('settled() inside craftComputed', () => {
         }),
       );
 
-      return craftComputed('activeUsers', function* () {
+      return craftUse(craftComputed('activeUsers', function* () {
         const list = yield* settled(users);
         // The settled read is non-undefined and exception-free here.
         expectTypeOf(list).toEqualTypeOf<User[]>();
         return list.length;
-      });
+      }));
     };
 
     type Computed = ReturnType<typeof _activeUsers>;
@@ -510,7 +510,7 @@ describe('settled() inside craftComputed', () => {
   });
 
   it('leaves a computed with no async dependency unbranded', () => {
-    const _plain = () => craftComputed('plain', () => 1);
+    const _plain = () => craftUse(craftComputed('plain', () => 1));
 
     expectTypeOf<
       CraftSettledSourcesOf<ReturnType<typeof _plain>>

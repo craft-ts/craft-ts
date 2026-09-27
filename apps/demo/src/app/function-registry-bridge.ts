@@ -3,6 +3,7 @@ import {
   craftService,
   type EffectRef,
   type ɵInjector as Injector,
+  craftUse,
 } from '@craft-ts/core';
 import { craftEffect } from '@craft-ts/core';
 import {
@@ -175,7 +176,7 @@ export function startFunctionRegistryBridge({
     });
   };
 
-  const snapshotEffect: EffectRef = craftEffect(
+  const snapshotEffect: EffectRef = craftUse(craftEffect(
     'snapshotEffect',
     () => {
       const snapshot = createSnapshot(registry, clientId, getPageInfo());
@@ -184,7 +185,7 @@ export function startFunctionRegistryBridge({
       }
     },
     { injector },
-  );
+  ));
 
   const observer = new MutationObserver(scheduleSurface);
 

@@ -17,6 +17,7 @@ import {
   state,
   type CraftServiceInput,
   craftException,
+  craftExpose,
 } from '@craft-ts/core';
 import { eventValue } from '../../event-value';
 import { example } from '../shared/example.style';
@@ -33,19 +34,17 @@ const USERS: User[] = [
 const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global' },
   function* () {
-    return {
-      getUser: craftGen(function* (id: string) {
-        yield* craftSleep(600);
-        const user = USERS.find((candidate) => candidate.id === id);
-        if (!user)
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`User ${id} not found`) },
-          );
-        return user;
-      }),
-      availableUserIds: USERS.map(({ id }) => id),
-    };
+    yield* craftExpose('getUser', craftGen(function* (id: string) {
+      yield* craftSleep(600);
+      const user = USERS.find((candidate) => candidate.id === id);
+      if (!user)
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`User ${id} not found`) },
+        );
+      return user;
+    }));
+    yield* craftExpose('availableUserIds', USERS.map(({ id }) => id));
   },
 );
 
@@ -61,10 +60,8 @@ const { provideUser, User } = craftService(
         return yield* api.getUser(params);
       },
     });
-    return {
-      ...user,
-      userIds: api.availableUserIds,
-    };
+    yield* craftExpose('userIds', api.availableUserIds);
+    return { ...user };
   },
 );
 
@@ -78,14 +75,14 @@ const CraftServiceUserDetailComponent = craftComponent(
       selectUser: (value: string) => set(value),
     }));
     const user = yield* User({ userId });
-    const hasValue = craftComputed('hasValue', () => user.hasValue());
-    const userIdValue = craftComputed('userIdValue', function* () {
+    const hasValue = yield* craftComputed('hasValue', () => user.hasValue());
+    const userIdValue = yield* craftComputed('userIdValue', function* () {
       return (yield* user.value())?.id ?? '';
     });
-    const userName = craftComputed('userName', function* () {
+    const userName = yield* craftComputed('userName', function* () {
       return (yield* user.value())?.name ?? '';
     });
-    const userEmail = craftComputed('userEmail', function* () {
+    const userEmail = yield* craftComputed('userEmail', function* () {
       return (yield* user.value())?.email ?? '';
     });
     return { userId, user, hasValue, userIdValue, userName, userEmail };

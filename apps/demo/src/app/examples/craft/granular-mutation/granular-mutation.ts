@@ -94,7 +94,6 @@ export const { provideGranularMutation, GranularMutation } = craftService(
         }),
       ),
     );
-    return { pagination, users, updateUserName };
   },
 );
 
@@ -105,7 +104,7 @@ const GranularMutationCraft = craftComponent(
   },
   function* () {
     const store = yield* GranularMutation();
-    const updatePageSize = craftMethod(
+    const updatePageSize = yield* craftMethod(
       'updatePageSize',
       function* (event: Event) {
         (yield* GranularMutation()).pagination.updatePageSize(

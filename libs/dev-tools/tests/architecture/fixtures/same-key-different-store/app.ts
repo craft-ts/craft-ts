@@ -10,13 +10,12 @@ export const { ShopUsers } = craftService(
   { name: 'ShopUsers', providedIn: 'global' },
   function* () {
     const list = yield* query(
-      'shopUsers',
+      'list',
       {},
       insertStoragePersister(
         craftUnique({ key: 'user', storeName: 'shop' }),
       ),
     );
-    return { list };
   },
 );
 
@@ -24,12 +23,11 @@ export const { AdminUsers } = craftService(
   { name: 'AdminUsers', providedIn: 'global' },
   function* () {
     const list = yield* state(
-      'adminUsers',
+      'list',
       [],
       insertStoragePersister(
         craftUnique({ key: 'user', storeName: 'admin' }),
       ),
     );
-    return { list };
   },
 );

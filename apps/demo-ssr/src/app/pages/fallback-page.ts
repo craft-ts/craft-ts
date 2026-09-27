@@ -25,7 +25,7 @@ export const FallbackPage = craftComponent(
         }));
       },
     });
-    const resolved = craftComputed('resolvedDeferredData', function* () {
+    const resolved = yield* craftComputed('resolvedDeferredData', function* () {
       return yield* settled(data);
     });
     return { resolved };

@@ -222,25 +222,25 @@ export const AiSendContextChat: CraftComponent<{
       }),
     ) as unknown as Generator<never, PanelOffsetState, unknown>;
 
-    const setStatus: (value: string) => void = craftMethod(
+    const setStatus: (value: string) => void = yield* craftMethod(
       'setStatus',
       function* (value: string) {
         yield* status.setStatus(value);
       },
     );
-    const setError: (value: string) => void = craftMethod(
+    const setError: (value: string) => void = yield* craftMethod(
       'setError',
       function* (value: string) {
         yield* error.setError(value);
       },
     );
-    const setBusy: (value: boolean) => void = craftMethod(
+    const setBusy: (value: boolean) => void = yield* craftMethod(
       'setBusy',
       function* (value: boolean) {
         yield* busy.setBusy(value);
       },
     );
-    const setPanelOffset: (value: PanelOffset) => void = craftMethod(
+    const setPanelOffset: (value: PanelOffset) => void = yield* craftMethod(
       'setPanelOffset',
       function* (value: PanelOffset) {
         yield* panelOffset.setPanelOffset(value);

@@ -1,5 +1,5 @@
 import { craftComponent, div, span, type Input } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { meter, meterVars } from './css-vars.style';
 
@@ -24,9 +24,9 @@ export const AssignedMeter = craftComponent(
   {},
   (value: Input<number>) => ({
     value,
-    label: craftComputed('label', function* () {
+    label: craftUse(craftComputed('label', function* () {
       return `Assigned value: ${yield* value()}%`;
-    }),
+    })),
   }),
   ({ value, label }) =>
     div({ class: meter.root }, [

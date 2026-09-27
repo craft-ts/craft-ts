@@ -29,13 +29,13 @@ export const FilterBarActions = craftComponent(
   function* () {
     const { clearFilters, activeFilterCount } = yield* ReviewFilters();
     const { locale } = yield* ReviewPreferences();
-    const t = craftComputed('t', function* () {
+    const t = yield* craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
-    const statusText = craftComputed('statusText', function* () {
+    const statusText = yield* craftComputed('statusText', function* () {
       return (yield* t()).activeFilters(yield* activeFilterCount());
     });
-    const noFiltersActive = craftComputed('noFiltersActive', function* () {
+    const noFiltersActive = yield* craftComputed('noFiltersActive', function* () {
       return (yield* activeFilterCount()) === 0;
     });
     return { clearFilters, statusText, noFiltersActive, t };
@@ -72,7 +72,7 @@ export const FilterBarFields = craftComponent(
       directionFilter,
     } = yield* ReviewFilters();
     const { locale } = yield* ReviewPreferences();
-    const t = craftComputed('t', function* () {
+    const t = yield* craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
     return {

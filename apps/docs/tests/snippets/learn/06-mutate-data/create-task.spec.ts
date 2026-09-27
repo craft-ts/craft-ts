@@ -23,7 +23,6 @@ export const { TaskWrites } = craftService(
       },
     });
 
-    return { createTask };
   },
 );
 // #endregion create-task

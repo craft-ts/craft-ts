@@ -18,6 +18,7 @@ import {
   type ReactiveReadRequest,
   type YieldableReactiveValue,
 } from './reactive-read';
+import { craftUse } from './craft-use';
 
 function* readPaginationReactive<T>(
   reader: () => T | Generator<ReactiveReadRequest<T>, T, unknown>,
@@ -276,7 +277,7 @@ export function insertPaginationPlaceholderData<
       };
     };
 
-    const showPlaceHolderData = craftComputed(
+    const showPlaceHolderData = craftUse(craftComputed(
       'showPlaceHolderData',
       function* () {
         const { pageKey, hasOwnValue } = yield* currentPageValue();
@@ -287,9 +288,9 @@ export function insertPaginationPlaceholderData<
         // rows from an earlier one are still on screen.
         return !hasOwnValue && lastShownValue !== undefined;
       },
-    );
+    ));
 
-    const currentPageData = craftComputed('currentPageData', function* () {
+    const currentPageData = craftUse(craftComputed('currentPageData', function* () {
       const { pageKey, hasOwnValue } = yield* currentPageValue();
       if (pageKey !== undefined && hasOwnValue) {
         const settled = (yield* settledState()) as PageState;
@@ -317,9 +318,9 @@ export function insertPaginationPlaceholderData<
       // Nothing for this page yet: keep what is already on screen instead of
       // blanking the list, which is the entire point of the placeholder.
       return lastShownValue ?? config.initialValue;
-    });
+    }));
 
-    const currentPageStatus = craftComputed('currentPageStatus', function* () {
+    const currentPageStatus = craftUse(craftComputed('currentPageStatus', function* () {
       const page = yield* readPaginationReactive(resourceParamsSrc);
       const resources = (yield* readPaginationReactive(
         resourceById,
@@ -348,19 +349,19 @@ export function insertPaginationPlaceholderData<
         currentResource?.status() ?? 'idle',
         hasCurrentPageException,
       );
-    }) as unknown as PaginationBaseOutputs<
+    })) as unknown as PaginationBaseOutputs<
       PageState,
       PrimitiveName,
       Exceptions['params'] | Exceptions['loader']
     >['currentPageStatus'];
 
-    const currentIdentifier = craftComputed('currentIdentifier', function* () {
+    const currentIdentifier = craftUse(craftComputed('currentIdentifier', function* () {
       const page = yield* readPaginationReactive(resourceParamsSrc);
       if (page == null) {
         return '';
       }
       return identifier(page);
-    });
+    }));
 
     const baseOutputs: PaginationBaseOutputs<
       PageState,
@@ -414,9 +415,9 @@ export function insertPaginationPlaceholderData<
      * above four visible rows. `settledState` stays the strict reading for
      * code that must wait for the page it actually asked for.
      */
-    const state = craftComputed('state', function* () {
+    const state = craftUse(craftComputed('state', function* () {
       return yield* currentPageData();
-    });
+    }));
     const set: YieldableInsertionWrite<[PageState], PageState> = function* (
       newValue,
     ) {

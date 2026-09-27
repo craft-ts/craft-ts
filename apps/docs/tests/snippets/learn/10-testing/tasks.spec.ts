@@ -24,7 +24,6 @@ const { TaskList } = craftService(
         remove: (_id: string) => undefined,
       }),
     );
-    return { tasks };
   },
 );
 

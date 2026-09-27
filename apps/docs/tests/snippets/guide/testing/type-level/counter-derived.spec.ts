@@ -6,16 +6,16 @@ useSnippetHarness();
 
 // #region counter-derived
 import { button, craftComponent } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed, state, craftUse } from '@craft-ts/core';
 
 const Counter = craftComponent(
   'Counter',
   {},
   function* () {
     const counter = yield* state('counter', 0, ({ state }) => ({
-      disabled: craftComputed(function* () {
+      disabled: craftUse(craftComputed('disabled', function* () {
         return (yield* state()) % 2 === 0;
-      }),
+      })),
     }));
 
     return { counter };

@@ -11,12 +11,11 @@ export const { UserList, provideUserList } = craftService(
   function* () {
     yield* UsersApi();
     const list = yield* query(
-      'userList',
+      'list',
       {},
       insertStoragePersister(
         craftUnique({ storeName: 'shop', key: 'user-list' }),
       ),
     );
-    return { list };
   },
 );

@@ -12,6 +12,7 @@ import {
   type QueryOutput,
   type YieldableMethod,
   type YieldableReactiveValue,
+  craftUse,
 } from '@craft-ts/core';
 import { Effect } from 'effect';
 import { runEffect } from './run-effect';
@@ -200,7 +201,7 @@ export function computedEffect(
     unknown
   >;
 
-  return craftComputed(name, function* () {
+  return craftUse(craftComputed('computed', name, function* () {
     const produced = (
       factory as () =>
         | Effect.Effect<unknown, unknown, unknown>
@@ -218,7 +219,7 @@ export function computedEffect(
     return yield* syncEffect(effect as never, {
       label: `computedEffect('${name}')`,
     });
-  });
+  }));
 }
 
 /**
@@ -298,14 +299,14 @@ export function methodEffect(
   };
 
   if (hasHost) {
-    return craftMethod(
+    return craftUse(craftMethod(
       nameOrConfig as never,
       selfOrFactory,
       runFactory as never,
-    );
+    ));
   }
 
-  return craftMethod(nameOrConfig as never, runFactory as never);
+  return craftUse(craftMethod(nameOrConfig as never, runFactory as never));
 }
 
 /**

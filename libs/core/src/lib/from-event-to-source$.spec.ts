@@ -219,7 +219,6 @@ describe('fromEventToSource$', () => {
       { name: 'ClickEventSource', providedIn: 'global' },
       function* () {
         const click = yield* fromEventToSource$<MouseEvent>(button, 'click');
-        return { click };
       },
     );
 
@@ -233,7 +232,6 @@ describe('fromEventToSource$', () => {
           }),
         }));
 
-        return { counter };
       },
     );
 

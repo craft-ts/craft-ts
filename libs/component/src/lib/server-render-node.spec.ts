@@ -22,7 +22,7 @@ describe('Craft server renderer without browser globals', () => {
           params: () => true,
           loader: async () => 'resolved in node',
         });
-        const resolved = craftComputed('resolved', function* () {
+        const resolved = yield* craftComputed('resolved', function* () {
           return yield* settled(result);
         });
         return { title, resolved };

@@ -48,7 +48,6 @@ const { ViewTransitionAccess } = craftService(
         return { allowed: true };
       },
     });
-    return { viewTransitionAccess };
   },
 );
 

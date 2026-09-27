@@ -7,6 +7,7 @@ import {
 import type { ActivatedRoute } from './host/craft-router-types';
 import { craftService } from './craft-service';
 import { setupCraftServiceTest } from './setup-craft-service-test';
+import { craftExpose } from './craft-primitive-gen';
 
 describe('CraftActivatedRoute', () => {
   it('resolves the provided route through its Craft service helper', () => {
@@ -17,7 +18,7 @@ describe('CraftActivatedRoute', () => {
     const { RouteProbe } = craftService(
       { name: 'RouteProbe', providedIn: 'function' },
       function* () {
-        return { route: yield* CraftActivatedRoute() };
+        yield* craftExpose('route', yield* CraftActivatedRoute());
       },
     );
     const { sut } = setupCraftServiceTest(

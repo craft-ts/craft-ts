@@ -17,6 +17,7 @@ import {
   type MockHttpRequestResponse,
   type RouteHttpDepsByPath,
 } from './mock-http-request-for-route';
+import { craftExpose } from './craft-primitive-gen';
 
 type User = { id: string };
 type LoginResult = { token: string };
@@ -63,9 +64,7 @@ const { RouteHttpMockUsersApi } = craftService(
       success: response<User[]>(),
     }));
 
-    return {
-      getUsers,
-    };
+    yield* craftExpose('getUsers', getUsers);
   },
 );
 
@@ -140,9 +139,7 @@ const { RouteHttpMockAuthApi } = craftService(
       ],
     }));
 
-    return {
-      login,
-    };
+    yield* craftExpose('login', login);
   },
 );
 

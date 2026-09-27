@@ -5,6 +5,5 @@ export const { Widget } = craftService(
   { name: 'Widget', providedIn: 'global' },
   function* () {
     yield* Auth();
-    return {};
   },
 );

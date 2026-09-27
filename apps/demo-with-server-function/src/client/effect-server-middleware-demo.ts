@@ -16,7 +16,7 @@ import {
   strong,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, query, state } from '@craft-ts/core';
+import { craftComputed, query, state, craftUse } from '@craft-ts/core';
 import { getEffectMiddlewareUsers } from '../users/effect-middleware-list.fn-client';
 import { demoPage } from './demo.style';
 
@@ -39,16 +39,16 @@ const EffectServerMiddlewareDemo = craftComponent(
         },
       },
       ({ exceptions }) => ({
-        serverError: craftComputed('effectMiddlewareServerError', function* () {
+        serverError: craftUse(craftComputed('effectMiddlewareServerError', function* () {
           return (yield* exceptions()).loader;
-        }),
+        })),
       }),
     );
     yield* usersQuery.call({ filter: '', simulateError: 'none' });
-    const hasUsers = craftComputed('effectMiddlewareHasUsers', () =>
+    const hasUsers = yield* craftComputed('effectMiddlewareHasUsers', () =>
       usersQuery.hasValue(),
     );
-    const serverErrorText = craftComputed(
+    const serverErrorText = yield* craftComputed(
       // todo interdire ? JSON.stringify ? et pourquoi aps eereur eslint remonté ici ?
       'effectMiddlewareServerErrorText',
       function* () {
@@ -59,10 +59,10 @@ const EffectServerMiddlewareDemo = craftComponent(
         return `${String(tag)} · ${JSON.stringify(payload)}`;
       },
     );
-    const hasServerError = craftComputed('effectMiddlewareHasServerError', () =>
+    const hasServerError = yield* craftComputed('effectMiddlewareHasServerError', () =>
       Boolean(usersQuery.serverError()),
     );
-    const isEmpty = craftComputed('effectMiddlewareIsEmpty', function* () {
+    const isEmpty = yield* craftComputed('effectMiddlewareIsEmpty', function* () {
       return (
         !usersQuery.isLoading &&
         !(yield* hasUsers()) &&

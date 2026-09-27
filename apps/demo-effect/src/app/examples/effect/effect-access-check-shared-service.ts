@@ -8,7 +8,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { checkUserAccess } from '../../shared/access-domain';
 import { example } from '../../effect-demo.style';
@@ -28,19 +28,19 @@ const EffectSharedServiceComponent = craftComponent(
         loader: ({ params }) => checkUserAccess(params),
       },
       ({ resource }) => ({
-        hasDecision: craftComputed('hasDecision', () => resource.hasValue()),
-        showUnknown: craftComputed('showUnknown', function* () {
+        hasDecision: craftUse(craftComputed('hasDecision', () => resource.hasValue())),
+        showUnknown: craftUse(craftComputed('showUnknown', function* () {
           return !(yield* resource.isLoading()) && !resource.hasValue();
-        }),
-        userName: craftComputed('userName', function* () {
+        })),
+        userName: craftUse(craftComputed('userName', function* () {
           return (yield* resource.value())?.user.name ?? '…';
-        }),
-        accessLabel: craftComputed('accessLabel', function* () {
+        })),
+        accessLabel: craftUse(craftComputed('accessLabel', function* () {
           return (yield* resource.value())?.label ?? '…';
-        }),
-        accessReason: craftComputed('accessReason', function* () {
+        })),
+        accessReason: craftUse(craftComputed('accessReason', function* () {
           return (yield* resource.value())?.reason ?? '…';
-        }),
+        })),
       }),
     );
 

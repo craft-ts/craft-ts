@@ -60,6 +60,7 @@ import {
   ɵinjectCraftMatch,
   ɵinjectCraftChildMatch,
   ɵrunInInjectionContext,
+  craftUse,
 } from '@craft-ts/core';
 import { executeCraftComponentFactory } from '../factory-runtime';
 import {
@@ -658,7 +659,7 @@ function createEffectInInjector(
 ): EffectRef {
   return untracked(() =>
     runInInjectionContext(injector, () =>
-      craftEffect(name, effectFn, { manualCleanup: true }),
+      craftUse(craftEffect(name, effectFn, { manualCleanup: true })),
     ),
   );
 }
@@ -4181,7 +4182,7 @@ class ComponentRenderedNode implements RenderedNode {
       runInInjectionContext(
         composition ? parentInjector : this.environmentInjector!,
         () =>
-          craftEffect(
+          craftUse(craftEffect(
             'component-render',
             composition
               ? (onCleanup: (cleanup: () => void) => void) => {
@@ -4256,7 +4257,7 @@ class ComponentRenderedNode implements RenderedNode {
                     throw error;
                   }
                 },
-          ),
+          )),
       ),
     );
   }
@@ -4446,7 +4447,7 @@ class ComponentRenderedNode implements RenderedNode {
 
     this.composedTemplateEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
-        craftEffect('component-template', () => {
+        craftUse(craftEffect('component-template', () => {
           this.renderComposedTemplate(
             definition,
             factoryContext,
@@ -4468,7 +4469,7 @@ class ComponentRenderedNode implements RenderedNode {
               hostTarget,
             );
           }
-        }),
+        })),
       ),
     );
     this.syncTemplateFlushRelease?.();
@@ -4494,7 +4495,7 @@ class ComponentRenderedNode implements RenderedNode {
   ): void {
     this.componentExceptionEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
-        craftEffect(
+        craftUse(craftEffect(
           'component-catch-node-resource-exceptions',
           () => {
             const exception = findResourceException(factoryContext);
@@ -4553,7 +4554,7 @@ class ComponentRenderedNode implements RenderedNode {
             }
           },
           { manualCleanup: true },
-        ),
+        )),
       ),
     );
   }

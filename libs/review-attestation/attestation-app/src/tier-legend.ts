@@ -1,5 +1,5 @@
 import { craftComponent, li, span, ul, type Input } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { TIERS } from '@craft-ts/style-testing/review/frame';
 import type { Messages } from './messages';
 import { tierLegend } from './tier-legend.style';
@@ -51,25 +51,25 @@ export const TierLegend = craftComponent(
     chromeNames: Input<readonly string[]>,
     t: Input<Messages>,
   ) => {
-    const hiddenLegend = craftComputed('hiddenLegend', function* () {
+    const hiddenLegend = craftUse(craftComputed('hiddenLegend', function* () {
       return !(yield* showing());
-    });
-    const subjectLabel = craftComputed('subjectLabel', function* () {
+    }));
+    const subjectLabel = craftUse(craftComputed('subjectLabel', function* () {
       return (yield* t()).tierSubject;
-    });
-    const changedHidden = craftComputed('changedHidden', function* () {
+    }));
+    const changedHidden = craftUse(craftComputed('changedHidden', function* () {
       return (yield* changedCount()) === 0;
-    });
-    const changedLabel = craftComputed('changedLabel', function* () {
+    }));
+    const changedLabel = craftUse(craftComputed('changedLabel', function* () {
       return (yield* t()).tierChanged;
-    });
-    const occludedHidden = craftComputed('occludedHidden', function* () {
+    }));
+    const occludedHidden = craftUse(craftComputed('occludedHidden', function* () {
       return (yield* coveredCount()) === 0;
-    });
+    }));
     // Named when the replay knows the name. "Covered by the page's own
     // overlay" asked the reviewer to work out what an overlay is and which
     // one; this points at the same thing the lift control above removes.
-    const occludedLabel = craftComputed('occludedLabel', function* () {
+    const occludedLabel = craftUse(craftComputed('occludedLabel', function* () {
       const covering = yield* chromeNames();
       const say = yield* t();
       if (covering.length === 1) {
@@ -78,10 +78,10 @@ export const TierLegend = craftComponent(
       return covering.length > 1
         ? say.tierOccludedMany(covering.length)
         : say.tierOccludedUnknown;
-    });
-    const pickedLabel = craftComputed('pickedLabel', function* () {
+    }));
+    const pickedLabel = craftUse(craftComputed('pickedLabel', function* () {
       return (yield* t()).tierPicked;
-    });
+    }));
 
     return {
       hiddenLegend,

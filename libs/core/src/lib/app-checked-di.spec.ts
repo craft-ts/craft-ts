@@ -43,7 +43,9 @@ describe('AppCheckedDI', () => {
 
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type APP_ROUTES = readonly [
@@ -84,7 +86,9 @@ describe('AppCheckedDI', () => {
 
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type APP_ROUTES = readonly [
@@ -150,7 +154,9 @@ describe('AppCheckedDI', () => {
   it('should return combined errors', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type GenDeps_AppComponent = GetDeps<{
@@ -197,7 +203,9 @@ describe('AppCheckedDI', () => {
   it('should report composed lazy child paths for missing inputs and providers', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type GenDeps_AppComponent = GetDeps<{

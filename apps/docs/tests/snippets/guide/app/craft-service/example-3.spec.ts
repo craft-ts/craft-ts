@@ -14,7 +14,6 @@ const { Counter } = craftService(
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));
-    return { counter };
   },
 );
 

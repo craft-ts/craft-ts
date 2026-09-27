@@ -213,19 +213,19 @@ export const AiSendDialog: CraftComponent<{
       setCaptureError: (value: string) => set(value),
     })) as unknown as Generator<never, ErrorState, unknown>;
 
-    const setCopied: (value: boolean) => void = craftMethod(
+    const setCopied: (value: boolean) => void = yield* craftMethod(
       'setCopied',
       function* (value: boolean) {
         yield* copied.setCopied(value);
       },
     );
-    const setCaptureInProgress: (value: boolean) => void = craftMethod(
+    const setCaptureInProgress: (value: boolean) => void = yield* craftMethod(
       'setCaptureInProgress',
       function* (value: boolean) {
         yield* captureInProgress.setCaptureInProgress(value);
       },
     );
-    const setCaptureError: (value: string) => void = craftMethod(
+    const setCaptureError: (value: string) => void = yield* craftMethod(
       'setCaptureError',
       function* (value: string) {
         yield* captureError.setCaptureError(value);

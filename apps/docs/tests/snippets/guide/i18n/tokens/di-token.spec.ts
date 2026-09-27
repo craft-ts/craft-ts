@@ -25,7 +25,6 @@ const { Units } = craftService(
     const system = yield* state('system', 'metric' as UnitSystem, ({ set }) => ({
       useImperial: () => set('imperial'),
     }));
-    return { system };
   },
 );
 

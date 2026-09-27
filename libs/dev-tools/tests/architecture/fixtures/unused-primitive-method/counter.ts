@@ -11,6 +11,5 @@ export const { Counter } = craftService(
         unused: () => update((value) => value - 1),
       }),
     );
-    return { counter };
   },
 );

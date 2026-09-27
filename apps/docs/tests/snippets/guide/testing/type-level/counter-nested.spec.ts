@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region counter-nested
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed, state, craftUse } from '@craft-ts/core';
 import { button, craftComponent, div } from '@craft-ts/component';
 
 const Counter = craftComponent(
@@ -13,9 +13,9 @@ const Counter = craftComponent(
   {},
   function* () {
     const counter = yield* state('counter', 0, ({ state, update }) => ({
-      disabled: craftComputed(function* () {
+      disabled: craftUse(craftComputed('disabled', function* () {
         return (yield* state()) === 0;
-      }),
+      })),
       increment: () => update((value) => value + 1),
     }));
 

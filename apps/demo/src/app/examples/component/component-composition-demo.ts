@@ -4,6 +4,7 @@ import {
   craftService,
   craftComputed,
   state,
+  craftUse,
 } from '@craft-ts/core';
 import {
   button,
@@ -43,9 +44,9 @@ export const componentCompositionDemo = craftComponent(
       'canReadRestrictedData',
       false,
       ({ update, state }) => ({
-        restriction: craftComputed('restriction', function* () {
+        restriction: craftUse(craftComputed('restriction', function* () {
           return (yield* state()) ? 'accessible' : noAccess;
-        }),
+        })),
         toggle: () => update((v) => !v),
       }),
     );

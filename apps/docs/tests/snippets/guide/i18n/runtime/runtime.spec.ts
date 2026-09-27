@@ -36,7 +36,7 @@ export const runtime = createI18nRuntime({
 // #endregion loader
 
 // #region reactive
-import { craftService, state } from '@craft-ts/core';
+import { craftService, state, craftExpose } from '@craft-ts/core';
 
 type Locale = 'en-US' | 'fr-FR';
 
@@ -54,7 +54,8 @@ export const { I18n } = craftService(
       },
     }));
 
-    return { language, setLocale: language.setLocale, translate: runtime.bind(language) };
+    yield* craftExpose('setLocale', language.setLocale);
+    yield* craftExpose('translate', runtime.bind(language));
   },
 );
 // #endregion reactive

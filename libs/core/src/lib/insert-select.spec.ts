@@ -20,10 +20,12 @@ import {
   flushCraftTest,
   setupCraftServiceTest,
 } from './setup-craft-service-test';
+import { craftExpose } from './craft-primitive-gen';
 
 const { InsertSelectSpecHost } = craftService(
   { name: 'InsertSelectSpecHost', providedIn: 'global' },
-  () => ({}),
+  function* () {
+  },
 );
 
 const runInInjectionContext = <T>(
@@ -470,12 +472,10 @@ describe('insertSelect with generator insertions', () => {
   it('should resolve generator insertion on object states', async () => {
     const { ObjLogger } = craftService(
       { name: 'ObjLogger', providedIn: 'global' },
-      () => {
+      function* () {
         const calls: string[] = [];
-        return {
-          log: (msg: string) => calls.push(msg),
-          calls,
-        };
+        yield* craftExpose('log', (msg: string) => calls.push(msg));
+        yield* craftExpose('calls', calls);
       },
     );
 
@@ -512,12 +512,10 @@ describe('insertSelect with generator insertions', () => {
   it('should resolve generator insertion on array states', async () => {
     const { ArrLogger } = craftService(
       { name: 'ArrLogger', providedIn: 'global' },
-      () => {
+      function* () {
         const calls: string[] = [];
-        return {
-          log: (msg: string) => calls.push(msg),
-          calls,
-        };
+        yield* craftExpose('log', (msg: string) => calls.push(msg));
+        yield* craftExpose('calls', calls);
       },
     );
 

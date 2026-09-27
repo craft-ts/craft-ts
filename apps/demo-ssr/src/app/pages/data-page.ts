@@ -34,7 +34,7 @@ export const DataPage = craftComponent(
         } satisfies SsrData;
       },
     });
-    const resolved = craftComputed('resolvedSsrData', function* () {
+    const resolved = yield* craftComputed('resolvedSsrData', function* () {
       return yield* settled(data);
     });
     return { resolved };

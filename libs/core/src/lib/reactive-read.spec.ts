@@ -34,19 +34,19 @@ describe('yieldable reactive reads', () => {
           insertStatePipe(
             ({ state, set }) => ({
               setValue: (value: number) => set(value),
-              doubled: craftComputed(function* () {
+              doubled: craftUse(craftComputed('doubled', function* () {
                 return (yield* state()) * 2;
-              }),
+              })),
             }),
             ({ insertions }) => ({
-              tripled: craftComputed(function* () {
+              tripled: craftUse(craftComputed('tripled', function* () {
                 return (yield* insertions.doubled()) * 3;
-              }),
+              })),
             }),
             ({ insertions }) => ({
-              quadrupled: craftComputed(function* () {
+              quadrupled: craftUse(craftComputed('quadrupled', function* () {
                 return (yield* insertions.tripled()) * 4;
-              }),
+              })),
             }),
           ),
         ),
@@ -79,14 +79,14 @@ describe('yieldable reactive reads', () => {
           3,
           insertStatePipe(
             ({ state }) => ({
-              forwarded: craftComputed(function* () {
+              forwarded: craftUse(craftComputed('forwarded', function* () {
                 return yield* state();
-              }),
+              })),
             }),
             ({ insertions }) => ({
-              derived: craftComputed(function* () {
+              derived: craftUse(craftComputed('derived', function* () {
                 return (yield* insertions.forwarded()) + 1;
-              }),
+              })),
             }),
           ),
         ),
@@ -127,9 +127,9 @@ describe('yieldable reactive reads', () => {
     expect(craftUse(user.profile.name())).toBe('Ada');
 
     const displayName = TestBed.runInInjectionContext(() =>
-      craftComputed('displayName', function* () {
+      craftUse(craftComputed('displayName', function* () {
         return yield* user.profile.name();
-      }),
+      })),
     );
     expect(craftUse(displayName())).toBe('Ada');
     expect(
@@ -238,10 +238,10 @@ describe('yieldable reactive reads', () => {
 
   it('rejects unknown yields with the craftComputed-specific error', () => {
     const invalid = TestBed.runInInjectionContext(() =>
-      craftComputed('invalid', function* () {
+      craftUse(craftComputed('invalid', function* () {
         yield { unknown: true };
         return 1;
-      }),
+      })),
     );
 
     expect(() => craftUse(invalid())).toThrow(

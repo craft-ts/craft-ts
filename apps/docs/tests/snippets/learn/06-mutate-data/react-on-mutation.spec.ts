@@ -45,7 +45,6 @@ export const { TaskSync } = craftService(
       }),
     );
 
-    return { createTask, tasksQuery };
   },
 );
 // #endregion react-on-mutation

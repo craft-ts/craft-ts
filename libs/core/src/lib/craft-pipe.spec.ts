@@ -28,11 +28,13 @@ import {
   flushCraftTest,
   setupCraftServiceTest,
 } from './setup-craft-service-test';
+import { craftExpose } from './craft-primitive-gen';
 
 
 const { PipeSpecHost } = craftService(
   { name: 'PipeSpecHost', providedIn: 'global' },
-  () => ({}),
+  function* () {
+  },
 );
 
 const runInInjectionContext = <T>(
@@ -206,15 +208,15 @@ describe('craftPipe with state', () => {
   it('resolves generator members and tracks their dependencies (types + runtime)', async () => {
     const { PipeCounterReader } = craftService(
       { name: 'PipeCounterReader', providedIn: 'global' },
-      () => ({
-        read: (): number => 2,
-      }),
+      function* () {
+        yield* craftExpose('read', (): number => 2);
+      },
     );
     const { PipeCounterStep } = craftService(
       { name: 'PipeCounterStep', providedIn: 'global' },
-      () => ({
-        step: (): number => 3,
-      }),
+      function* () {
+        yield* craftExpose('step', (): number => 3);
+      },
     );
 
     await runInInjectionContext(async () => {
@@ -285,44 +287,42 @@ describe('craftPipe with query', () => {
     const { QueryPipeStore } = craftService(
       { name: 'QueryPipeStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }) => {
-                return {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                } satisfies User;
-              },
+        yield* query(
+          'user',
+          {
+            params: () => '5',
+            loader: async ({ params }) => {
+              return {
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              } satisfies User;
             },
-            (context) =>
-              craftPipe(
-                context,
-                // insert 1
-                () => {
-                  return {
-                    pagination: {
-                      page: 1,
-                    },
+          },
+          (context) =>
+            craftPipe(
+              context,
+              // insert 1
+              () => {
+                return {
+                  pagination: {
+                    page: 1,
+                  },
+                };
+              },
+              // insert 2
+              ({ insertions: inserts }) => {
+                expectTypeOf(inserts).toEqualTypeOf<{
+                  pagination: {
+                    page: number;
                   };
-                },
-                // insert 2
-                ({ insertions: inserts }) => {
-                  expectTypeOf(inserts).toEqualTypeOf<{
-                    pagination: {
-                      page: number;
-                    };
-                  }>();
-                  return {
-                    someOtherInfo: true,
-                  };
-                },
-              ),
-          ),
-        };
+                }>();
+                return {
+                  someOtherInfo: true,
+                };
+              },
+            ),
+        );
       },
     );
     await runInInjectionContext(async () => {
@@ -343,32 +343,30 @@ describe('craftPipe with query', () => {
     const { QueryPipeSevenStore } = craftService(
       { name: 'QueryPipeSevenStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }) => {
-                return {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                } satisfies User;
-              },
+        yield* query(
+          'user',
+          {
+            params: () => '5',
+            loader: async ({ params }) => {
+              return {
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              } satisfies User;
             },
-            (context) =>
-              craftPipe(
-                context,
-                () => ({ ext1: 1 }),
-                ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
-                ({ insertions: inserts }) => ({ ext3: inserts.ext2 + 1 }),
-                ({ insertions: inserts }) => ({ ext4: inserts.ext3 + 1 }),
-                ({ insertions: inserts }) => ({ ext5: inserts.ext4 + 1 }),
-                ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
-                ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
-              ),
-          ),
-        };
+          },
+          (context) =>
+            craftPipe(
+              context,
+              () => ({ ext1: 1 }),
+              ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
+              ({ insertions: inserts }) => ({ ext3: inserts.ext2 + 1 }),
+              ({ insertions: inserts }) => ({ ext4: inserts.ext3 + 1 }),
+              ({ insertions: inserts }) => ({ ext5: inserts.ext4 + 1 }),
+              ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
+              ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
+            ),
+        );
       },
     );
     await runInInjectionContext(async () => {
@@ -457,21 +455,21 @@ describe('craftPipe with query', () => {
   it('typing: tracks generator dependencies of piped members', async () => {
     const { PipeUserIdService } = craftService(
       { name: 'PipeUserIdService', providedIn: 'global' },
-      () => ({
-        read: (): string => 'user-1',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'user-1');
+      },
     );
     const { PipeQueryTools } = craftService(
       { name: 'PipeQueryTools', providedIn: 'global' },
-      () => ({
-        prefix: (): string => 'user',
-      }),
+      function* () {
+        yield* craftExpose('prefix', (): string => 'user');
+      },
     );
     const { PipeQueryTools2 } = craftService(
       { name: 'PipeQueryTools2', providedIn: 'global' },
-      () => ({
-        suffix: (): string => 'details',
-      }),
+      function* () {
+        yield* craftExpose('suffix', (): string => 'details');
+      },
     );
 
     await runInInjectionContext(async () => {

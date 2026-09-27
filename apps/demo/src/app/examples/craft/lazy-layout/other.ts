@@ -8,6 +8,8 @@ import {
   CraftHttpClient,
   craftService,
   query,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import type { User } from '../query/api.service';
 import { OtherService, provideOtherService } from './to-provide.service';
@@ -34,20 +36,19 @@ const { UsersApiOnError } = craftService(
         },
       ],
     }));
-    const _query = yield* query('query', {
+    const _query = yield* craftPrivate(query('query', {
       params: () => true,
       loader: function* () {
         return users();
       },
-    });
-    return {
-      users,
-      query: _query,
-    };
+    }));
+    yield* craftExpose('users', users);
+    yield* craftExpose('query', _query);
   },
 );
 
-const { Test2 } = craftService({ name: 'test2', providedIn: 'global' }, () => ({}));
+const { Test2 } = craftService({ name: 'test2', providedIn: 'global' }, function* () {
+});
 
 export const OtherComponent = craftComponent(
   'OtherComponent',

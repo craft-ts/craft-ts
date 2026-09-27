@@ -16,6 +16,7 @@ import {
   craftSleep,
   query,
   craftComputed,
+  craftUse,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 
@@ -52,35 +53,35 @@ const ExceptionsComponent = craftComponent(
         }),
       },
       ({ resource, exceptions }) => ({
-        hasUser: craftComputed('hasUser', () => resource.hasValue()),
-        userExceptionLoader: craftComputed(
+        hasUser: craftUse(craftComputed('hasUser', () => resource.hasValue())),
+        userExceptionLoader: craftUse(craftComputed(
           'userExceptionLoader',
           function* () {
             return (yield* exceptions()).loader;
           },
-        ),
-        userIsLoading: craftComputed('userIsLoading', function* () {
+        )),
+        userIsLoading: craftUse(craftComputed('userIsLoading', function* () {
           const status = yield* resource.status();
           return status === 'loading' || status === 'reloading';
-        }),
-        userStatusLabel: craftComputed('userStatusLabel', function* () {
+        })),
+        userStatusLabel: craftUse(craftComputed('userStatusLabel', function* () {
           return yield* resource.status();
-        }),
-        userId: craftComputed('userId', function* () {
+        })),
+        userId: craftUse(craftComputed('userId', function* () {
           return (yield* resource.value())?.id ?? '';
-        }),
-        userName: craftComputed('userName', function* () {
+        })),
+        userName: craftUse(craftComputed('userName', function* () {
           return (yield* resource.value())?.name ?? '';
-        }),
-        userEmail: craftComputed('userEmail', function* () {
+        })),
+        userEmail: craftUse(craftComputed('userEmail', function* () {
           return (yield* resource.value())?.email ?? '';
-        }),
-        typedUserExceptionLoader: craftComputed(
+        })),
+        typedUserExceptionLoader: craftUse(craftComputed(
           'typedUserExceptionLoader',
           function* () {
             return (yield* exceptions()).loader;
           },
-        ),
+        )),
       }),
     );
     yield* userQuery.call('success'); // trigger first call

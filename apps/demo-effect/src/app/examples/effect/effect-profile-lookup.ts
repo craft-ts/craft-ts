@@ -12,7 +12,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   loadUserProfile,
@@ -31,13 +31,13 @@ const EffectYieldComponent = craftComponent(
         loader: ({ params }) => loadUserProfile(params),
       },
       ({ resource }) => ({
-        hasProfile: craftComputed('hasProfile', () => resource.hasValue()),
-        profileName: craftComputed('profileName', function* () {
+        hasProfile: craftUse(craftComputed('hasProfile', () => resource.hasValue())),
+        profileName: craftUse(craftComputed('profileName', function* () {
           return (yield* resource.value())?.name ?? '…';
-        }),
-        headingText: craftComputed('headingText', function* () {
+        })),
+        headingText: craftUse(craftComputed('headingText', function* () {
           return `View a profile (${yield* resource.status()})`;
-        }),
+        })),
       }),
     );
 

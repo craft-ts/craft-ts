@@ -28,17 +28,16 @@ export const { TaskList } = craftService(
           add: (title: string) => update((c) => [...c, newTask(title)]),
         }),
         ({ state }) => ({
-          remaining: craftComputed(function* () {
+          remaining: craftUse(craftComputed('remaining', function* () {
             return (yield* state()).filter((t) => !t.done).length;
-          }),
-          isEmpty: craftComputed(function* () {
+          })),
+          isEmpty: craftUse(craftComputed('isEmpty', function* () {
             return (yield* state()).length === 0;
-          }),
+          })),
         }),
       ),
     );
 
-    return { tasks };
   },
 );
 // #endregion insert-state-pipe

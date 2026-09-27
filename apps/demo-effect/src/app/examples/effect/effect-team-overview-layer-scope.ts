@@ -7,7 +7,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadTeamOverview } from '../../shared/access-domain';
 import { example } from '../../effect-demo.style';
@@ -28,22 +28,22 @@ const EffectLayerScopeComponent = craftComponent(
         loader: () => loadTeamOverview,
       },
       ({ resource }) => ({
-        teamName: craftComputed('teamName', function* () {
+        teamName: craftUse(craftComputed('teamName', function* () {
           return (yield* resource.value())?.teamName ?? '…';
-        }),
-        viewerName: craftComputed('viewerName', function* () {
+        })),
+        viewerName: craftUse(craftComputed('viewerName', function* () {
           return (yield* resource.value())?.viewerName ?? '…';
-        }),
-        viewerAccess: craftComputed('viewerAccess', function* () {
+        })),
+        viewerAccess: craftUse(craftComputed('viewerAccess', function* () {
           return (yield* resource.value())?.viewerAccess ?? '…';
-        }),
-        memberNames: craftComputed('memberNames', function* () {
+        })),
+        memberNames: craftUse(craftComputed('memberNames', function* () {
           return (
             (yield* resource.value())?.members
               .map((member: { readonly name: string }) => member.name)
               .join(', ') ?? '…'
           );
-        }),
+        })),
       }),
     );
 

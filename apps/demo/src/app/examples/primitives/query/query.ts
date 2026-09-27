@@ -16,6 +16,7 @@ import {
   insertQueryPipe,
   query,
   craftComputed,
+  craftUse,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
@@ -36,10 +37,10 @@ const GlobalQuery = craftComponent(
       },
       insertQueryPipe(
         ({ resource }) => ({
-          hasUser: craftComputed('hasUser', () => resource.hasValue()),
-          userValueJson: craftComputed('userValueJson', function* () {
+          hasUser: craftUse(craftComputed('hasUser', () => resource.hasValue())),
+          userValueJson: craftUse(craftComputed('userValueJson', function* () {
             return JSON.stringify(yield* resource.value(), null, 2);
-          }),
+          })),
         }),
         insertStoragePersister(
           craftUnique({
@@ -52,7 +53,7 @@ const GlobalQuery = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const navigateNext = craftMethod('navigateNext', function* () {
+    const navigateNext = yield* craftMethod('navigateNext', function* () {
       const currentUserId = yield* userId();
       const targetUserId = String(Number(currentUserId ?? '0') + 1);
       void router.navigate({
@@ -60,7 +61,7 @@ const GlobalQuery = craftComponent(
         params: { userId: targetUserId },
       });
     });
-    const navigatePrevious = craftMethod('navigatePrevious', function* () {
+    const navigatePrevious = yield* craftMethod('navigatePrevious', function* () {
       const currentUserId = yield* userId();
       const targetUserId = String(Number(currentUserId ?? '0') - 1);
       void router.navigate({

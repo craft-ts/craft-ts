@@ -18,6 +18,7 @@ import {
   craftComputed,
   craftMethod,
   state,
+  craftUse,
 } from '@craft-ts/core';
 import { assign } from '@craft-ts/style';
 import { example } from '../../shared/example.style';
@@ -95,20 +96,20 @@ const PixelArt = craftComponent(
             update((current) =>
               current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
             ),
-          paintedCount: craftComputed('paintedCount', function* () {
+          paintedCount: craftUse(craftComputed('paintedCount', function* () {
             return (yield* state()).filter(({ color }) => color !== EMPTY_COLOR)
               .length;
-          }),
-          totalPaintActions: craftComputed('totalPaintActions', function* () {
+          })),
+          totalPaintActions: craftUse(craftComputed('totalPaintActions', function* () {
             return (yield* state()).reduce(
               (total, { paintCount }) => total + paintCount,
               0,
             );
-          }),
+          })),
         }),
       ),
     );
-    const paintCell = craftMethod('paintCell', function* (index: number) {
+    const paintCell = yield* craftMethod('paintCell', function* (index: number) {
       const cell = cells.selectCell(index);
       if (!cell) return;
       yield* cell.paint();

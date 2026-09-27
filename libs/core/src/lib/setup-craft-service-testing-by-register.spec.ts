@@ -10,6 +10,7 @@ import {
 } from './craft-service';
 import { setupCraftServiceTestingByRegister } from './setup-craft-service-testing-by-register';
 import { state } from './state';
+import { craftExpose } from './craft-primitive-gen';
 
 describe('setupCraftServiceTestingByRegister', () => {
   it('should return the real sut, keep only explicit mocks and allow notReached descendants', async () => {
@@ -19,7 +20,6 @@ describe('setupCraftServiceTestingByRegister', () => {
         const childCounter = yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { childCounter };
       },
     );
 
@@ -28,9 +28,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const child = (yield* ChildCounter()).childCounter;
 
-        return {
-          incrementParent: () => child.increment(),
-        };
+        yield* craftExpose('incrementParent', () => child.increment());
       },
     );
 
@@ -39,9 +37,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const parent = yield* ParentCounter();
 
-        return {
-          incrementRoot: () => parent.incrementParent(),
-        };
+        yield* craftExpose('incrementRoot', () => parent.incrementParent());
       },
     );
 
@@ -79,7 +75,6 @@ describe('setupCraftServiceTestingByRegister', () => {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -88,10 +83,8 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -116,7 +109,6 @@ describe('setupCraftServiceTestingByRegister', () => {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -125,10 +117,8 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -160,7 +150,6 @@ describe('setupCraftServiceTestingByRegister', () => {
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
         }));
-        return { counter };
       },
     );
 
@@ -202,19 +191,19 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should allow a minimal mock when a dependency is only used through a nested property shortcut', async () => {
     const { QueryApi } = craftService(
       { name: 'QueryApi', providedIn: 'global' },
-      () => ({
-        userQuery: {
+      function* () {
+        yield* craftExpose('userQuery', {
           isLoading: signal(false),
           data: signal<string | null>(null),
-        },
-      }),
+        });
+      },
     );
 
     const { QueryConsumer, provideQueryConsumer } = craftService(
       { name: 'QueryConsumer', providedIn: 'toProvide' },
       function* () {
         const isLoading = yield* QueryApi.userQuery.isLoading();
-        return { isLoading };
+        yield* craftExpose('isLoading', isLoading);
       },
     );
 
@@ -243,12 +232,12 @@ describe('setupCraftServiceTestingByRegister', () => {
   it('should require all nested properties that are used in the mock', async () => {
     const { QueryApiMulti } = craftService(
       { name: 'QueryApiMulti', providedIn: 'global' },
-      () => ({
-        userQuery: {
+      function* () {
+        yield* craftExpose('userQuery', {
           isLoading: signal(false),
           data: signal<string | null>(null),
-        },
-      }),
+        });
+      },
     );
 
     const { QueryMultiConsumer, provideQueryMultiConsumer } = craftService(
@@ -256,7 +245,8 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const isLoading = yield* QueryApiMulti.userQuery.isLoading();
         const data = yield* QueryApiMulti.userQuery.data();
-        return { isLoading, data };
+        yield* craftExpose('isLoading', isLoading);
+        yield* craftExpose('data', data);
       },
     );
 
@@ -295,7 +285,6 @@ describe('setupCraftServiceTestingByRegister', () => {
           increment: () => update((value) => value + 1),
           decrement: () => update((value) => value - 1),
         }));
-        return { counter };
       },
     );
 
@@ -310,11 +299,9 @@ describe('setupCraftServiceTestingByRegister', () => {
           }),
         )).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => incrementCounter(),
-          decrement: () => counter.decrement(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => incrementCounter());
+        yield* craftExpose('decrement', () => counter.decrement());
       },
     );
 
@@ -354,7 +341,6 @@ describe('setupCraftServiceTestingByRegister', () => {
         const counter = yield* state('counter', 7, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -363,10 +349,8 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -391,7 +375,6 @@ describe('setupCraftServiceTestingByRegister', () => {
             increment: () => update((value) => value + 1),
           }),
         );
-        return { sharedCounter };
       },
     );
 
@@ -400,9 +383,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const shared = (yield* SharedCounter()).sharedCounter;
 
-        return {
-          incrementLeft: () => shared.increment(),
-        };
+        yield* craftExpose('incrementLeft', () => shared.increment());
       },
     );
 
@@ -411,10 +392,8 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const shared = (yield* SharedCounter()).sharedCounter;
 
-        return {
-          incrementRight: () => shared.increment(),
-          readSharedFromRight: () => craftUse(shared()),
-        };
+        yield* craftExpose('incrementRight', () => shared.increment());
+        yield* craftExpose('readSharedFromRight', () => craftUse(shared()));
       },
     );
 
@@ -424,13 +403,11 @@ describe('setupCraftServiceTestingByRegister', () => {
         const left = yield* LeftCounter();
         const right = yield* RightCounter();
 
-        return {
-          incrementRoot: () => {
-            left.incrementLeft();
-            right.incrementRight();
-          },
-          readShared: () => right.readSharedFromRight(),
-        };
+        yield* craftExpose('incrementRoot', () => {
+          left.incrementLeft();
+          right.incrementRight();
+        });
+        yield* craftExpose('readShared', () => right.readSharedFromRight());
       },
     );
 
@@ -462,7 +439,6 @@ describe('setupCraftServiceTestingByRegister', () => {
         const childCounter = yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { childCounter };
       },
     );
 
@@ -471,9 +447,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const child = (yield* ChildCounter()).childCounter;
 
-        return {
-          incrementMid: () => child.increment(),
-        };
+        yield* craftExpose('incrementMid', () => child.increment());
       },
     );
 
@@ -482,9 +456,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const mid = yield* MidCounter();
 
-        return {
-          incrementParent: () => mid.incrementMid(),
-        };
+        yield* craftExpose('incrementParent', () => mid.incrementMid());
       },
     );
 
@@ -494,13 +466,11 @@ describe('setupCraftServiceTestingByRegister', () => {
         const parent = yield* ParentCounter();
         const child = (yield* ChildCounter()).childCounter;
 
-        return {
-          incrementRoot: () => {
-            parent.incrementParent();
-            child.increment();
-          },
-          readChild: () => craftUse(child()),
-        };
+        yield* craftExpose('incrementRoot', () => {
+          parent.incrementParent();
+          child.increment();
+        });
+        yield* craftExpose('readChild', () => craftUse(child()));
       },
     );
 
@@ -536,7 +506,6 @@ describe('setupCraftServiceTestingByRegister', () => {
             increment: () => update((value) => value + 1),
           }),
         );
-        return { sharedCounter };
       },
     );
 
@@ -545,9 +514,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const shared = (yield* SharedCounter()).sharedCounter;
 
-        return {
-          incrementLeft: () => shared.increment(),
-        };
+        yield* craftExpose('incrementLeft', () => shared.increment());
       },
     );
 
@@ -557,7 +524,6 @@ describe('setupCraftServiceTestingByRegister', () => {
         const rightCounter = yield* state('rightCounter', 0, ({ update }) => ({
           incrementRight: () => update((value) => value + 1),
         }));
-        return { rightCounter };
       },
     );
 
@@ -567,13 +533,11 @@ describe('setupCraftServiceTestingByRegister', () => {
         const left = yield* LeftCounter();
         const right = (yield* RightCounter()).rightCounter;
 
-        return {
-          incrementRoot: () => {
-            left.incrementLeft();
-            right.incrementRight();
-          },
-          readRight: () => craftUse(right()),
-        };
+        yield* craftExpose('incrementRoot', () => {
+          left.incrementLeft();
+          right.incrementRight();
+        });
+        yield* craftExpose('readRight', () => craftUse(right()));
       },
     );
 
@@ -621,9 +585,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const startup = yield* AppStartRequired();
 
-        return {
-          read: () => startup,
-        };
+        yield* craftExpose('read', () => startup);
       },
     );
 
@@ -752,9 +714,7 @@ describe('setupCraftServiceTestingByRegister', () => {
           return undefined;
         });
 
-        return {
-          read: () => 1 as number,
-        };
+        yield* craftExpose('read', () => 1 as number);
       },
     );
 
@@ -763,9 +723,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const startup = yield* MockedRegisterStartup();
 
-        return {
-          read: startup.read,
-        };
+        yield* craftExpose('read', startup.read);
       },
     );
 
@@ -806,9 +764,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const startup = yield* NotReachedRegisterStartup();
 
-        return {
-          read: () => startup,
-        };
+        yield* craftExpose('read', () => startup);
       },
     );
 
@@ -838,7 +794,6 @@ describe('setupCraftServiceTestingByRegister', () => {
         const childCounter = yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { childCounter };
       },
     );
 
@@ -847,9 +802,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const child = (yield* ChildCounter()).childCounter;
 
-        return {
-          incrementParent: () => child.increment(),
-        };
+        yield* craftExpose('incrementParent', () => child.increment());
       },
     );
 
@@ -859,12 +812,10 @@ describe('setupCraftServiceTestingByRegister', () => {
         const parent = yield* ParentCounter();
         const child = (yield* ChildCounter()).childCounter;
 
-        return {
-          incrementRoot: () => {
-            parent.incrementParent();
-            child.increment();
-          },
-        };
+        yield* craftExpose('incrementRoot', () => {
+          parent.incrementParent();
+          child.increment();
+        });
       },
     );
 
@@ -874,7 +825,6 @@ describe('setupCraftServiceTestingByRegister', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -883,18 +833,16 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
     const { Router } = craftService(
       { name: 'Router', providedIn: 'global' },
-      () => ({
-        url: '/real',
-      }),
+      function* () {
+        yield* craftExpose('url', '/real');
+      },
     );
 
     const { Navigation, provideNavigation } = craftService(
@@ -902,9 +850,7 @@ describe('setupCraftServiceTestingByRegister', () => {
       function* () {
         const router = yield* Router();
 
-        return {
-          readUrl: () => router.url,
-        };
+        yield* craftExpose('readUrl', () => router.url);
       },
     );
 
@@ -992,9 +938,9 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
         providedIn: 'global',
         browserBoundary: true,
       },
-      () => ({
-        read: (): string => 'real-storage',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'real-storage');
+      },
     );
 
     const { BoundaryOnlyDomain } = craftService(
@@ -1002,9 +948,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
       function* () {
         const storage = yield* BoundaryOnlyStorage();
 
-        return {
-          read: () => `domain:${storage.read()}`,
-        };
+        yield* craftExpose('read', () => `domain:${storage.read()}`);
       },
     );
 
@@ -1013,9 +957,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
       function* () {
         const domain = yield* BoundaryOnlyDomain();
 
-        return {
-          read: domain.read,
-        };
+        yield* craftExpose('read', domain.read);
       },
     );
 
@@ -1047,9 +989,9 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
         providedIn: 'global',
         browserBoundary: true,
       },
-      () => ({
-        read: (): string => 'real-storage',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'real-storage');
+      },
     );
 
     const { BoundaryOnlyRealHost } = craftService(
@@ -1057,9 +999,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
       function* () {
         const storage = yield* BoundaryOnlyRealStorage();
 
-        return {
-          read: storage.read,
-        };
+        yield* craftExpose('read', storage.read);
       },
     );
 
@@ -1080,9 +1020,9 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
   it('should require providers for reachable provider-scoped real services', async () => {
     const { BoundaryOnlyConfig, provideBoundaryOnlyConfig } = craftService(
       { name: 'BoundaryOnlyConfig', providedIn: 'toProvide' },
-      () => ({
-        read: (): string => 'provided-config',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'provided-config');
+      },
     );
 
     const { BoundaryOnlyConfigHost, provideBoundaryOnlyConfigHost } =
@@ -1091,9 +1031,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
         function* () {
           const config = yield* BoundaryOnlyConfig();
 
-          return {
-            read: config.read,
-          };
+          yield* craftExpose('read', config.read);
         },
       );
 
@@ -1125,9 +1063,9 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
         providedIn: 'global',
         browserBoundary: true,
       },
-      () => ({
-        read: (): string => 'real-boundary',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'real-boundary');
+      },
     );
 
     const { BoundaryOnlyRequiredHost } = craftService(
@@ -1135,9 +1073,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
       function* () {
         const boundary = yield* BoundaryOnlyRequiredBoundary();
 
-        return {
-          read: boundary.read,
-        };
+        yield* craftExpose('read', boundary.read);
       },
     );
 
@@ -1159,9 +1095,9 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
         providedIn: 'global',
         browserBoundary: true,
       },
-      () => ({
-        read: (): string => 'child',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'child');
+      },
     );
 
     const { BoundaryOnlyParentBoundary } = craftService(
@@ -1173,9 +1109,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
       function* () {
         const child = yield* BoundaryOnlyChildBoundary();
 
-        return {
-          read: () => `parent:${child.read()}`,
-        };
+        yield* craftExpose('read', () => `parent:${child.read()}`);
       },
     );
 
@@ -1184,9 +1118,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
       function* () {
         const parent = yield* BoundaryOnlyParentBoundary();
 
-        return {
-          read: parent.read,
-        };
+        yield* craftExpose('read', parent.read);
       },
     );
 
@@ -1218,9 +1150,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
           return undefined;
         });
 
-        return {
-          read: () => 1,
-        };
+        yield* craftExpose('read', () => 1);
       },
     );
 
@@ -1229,9 +1159,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
       function* () {
         const startup = yield* BoundaryOnlyStartup();
 
-        return {
-          read: startup.read,
-        };
+        yield* craftExpose('read', startup.read);
       },
     );
 
@@ -1259,9 +1187,9 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
   it('should reject non-boundary mocks at type level and runtime', async () => {
     const { BoundaryOnlyRuntimeDomain } = craftService(
       { name: 'BoundaryOnlyRuntimeDomain', providedIn: 'global' },
-      () => ({
-        read: (): string => 'real-domain',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'real-domain');
+      },
     );
 
     const { BoundaryOnlyRuntimeHost } = craftService(
@@ -1269,9 +1197,7 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
       function* () {
         const domain = yield* BoundaryOnlyRuntimeDomain();
 
-        return {
-          read: domain.read,
-        };
+        yield* craftExpose('read', domain.read);
       },
     );
 

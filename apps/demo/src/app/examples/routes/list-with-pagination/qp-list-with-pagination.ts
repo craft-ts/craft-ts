@@ -67,7 +67,7 @@ const QpListWithPagination = craftComponent(
         insertPaginationPlaceholderData({ initialValue: Array<User>() }),
       ),
     );
-    const updatePageSize = craftMethod(
+    const updatePageSize = yield* craftMethod(
       'updatePageSize',
       function* (event: Event) {
         yield* pagination.updatePageSize(

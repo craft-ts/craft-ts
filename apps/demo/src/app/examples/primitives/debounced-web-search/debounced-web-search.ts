@@ -28,6 +28,7 @@ import {
   retry,
   state,
   insertStatePipe,
+  craftUse,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { eventValue } from '../../../event-value';
@@ -156,12 +157,12 @@ const DebouncedWebSearch = craftComponent(
           setSearchInput: (value: string) => set(value),
         }),
         ({ state }) => ({
-          currentTerm: craftComputed('currentTerm', function* () {
+          currentTerm: craftUse(craftComputed('currentTerm', function* () {
             return (yield* state())?.trim() ?? '';
-          }),
-          tooShort: craftComputed('tooShort', function* () {
+          })),
+          tooShort: craftUse(craftComputed('tooShort', function* () {
             return (yield* state()).trim().length < 2;
-          }),
+          })),
         }),
       ),
     );
@@ -183,9 +184,9 @@ const DebouncedWebSearch = craftComponent(
         },
       },
       ({ resource }) => ({
-        isDebouncing: craftComputed('isDebouncing', function* () {
+        isDebouncing: craftUse(craftComputed('isDebouncing', function* () {
           return yield* resource.isLoading();
-        }),
+        })),
       }),
     );
 
@@ -212,44 +213,44 @@ const DebouncedWebSearch = craftComponent(
         },
       },
       ({ resource, hasException }) => {
-        const hasResults = craftComputed('hasResults', function* () {
+        const hasResults = craftUse(craftComputed('hasResults', function* () {
           const value = yield* resource.value();
           return isSearchResults(value) && value.books.length > 0;
-        });
+        }));
 
         return {
           hasResults,
-          resultCount: craftComputed('resultCount', function* () {
+          resultCount: craftUse(craftComputed('resultCount', function* () {
             const value = yield* resource.value();
             return String(isSearchResults(value) ? value.total : 0);
-          }),
-          resultBooks: craftComputed('resultBooks', function* () {
+          })),
+          resultBooks: craftUse(craftComputed('resultBooks', function* () {
             const value = yield* resource.value();
             return isSearchResults(value) ? value.books : [];
-          }),
-          hasSearchError: craftComputed('hasSearchError', function* () {
+          })),
+          hasSearchError: craftUse(craftComputed('hasSearchError', function* () {
             return yield* hasException();
-          }),
-          showResults: craftComputed('showResults', function* () {
+          })),
+          showResults: craftUse(craftComputed('showResults', function* () {
             return (
               !(yield* resource.isLoading()) &&
               !(yield* hasException()) &&
               (yield* hasResults())
             );
-          }),
-          showEmpty: craftComputed('showEmpty', function* () {
+          })),
+          showEmpty: craftUse(craftComputed('showEmpty', function* () {
             return (
               (yield* searchInput.currentTerm()).length >= 2 &&
               !(yield* resource.isLoading()) &&
               !(yield* hasException()) &&
               !(yield* hasResults())
             );
-          }),
+          })),
         };
       },
     );
 
-    const showDebouncing = craftComputed('showDebouncing', function* () {
+    const showDebouncing = yield* craftComputed('showDebouncing', function* () {
       const _debouncedSearchisDebouncing =
         yield* debouncedSearch.isDebouncing();
       const _searchInput = yield* searchInput();

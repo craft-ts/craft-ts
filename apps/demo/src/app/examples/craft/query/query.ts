@@ -57,7 +57,7 @@ const CraftGlobalQuery = craftComponent(
       navigate,
     }));
 
-    const navigate = craftMethod('navigate', function* (offset: number) {
+    const navigate = yield* craftMethod('navigate', function* (offset: number) {
       void router.navigate({
         to: 'craft/query/:userId',
         params: {
@@ -65,8 +65,8 @@ const CraftGlobalQuery = craftComponent(
         },
       });
     });
-    const hasUser = craftComputed('hasUser', () => user.hasValue());
-    const userValueJson = craftComputed('userValueJson', function* () {
+    const hasUser = yield* craftComputed('hasUser', () => user.hasValue());
+    const userValueJson = yield* craftComputed('userValueJson', function* () {
       return JSON.stringify(yield* user.value(), null, 2);
     });
     return { user, hasUser, userValueJson, navigate };

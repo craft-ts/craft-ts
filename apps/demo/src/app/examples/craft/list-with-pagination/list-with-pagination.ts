@@ -27,6 +27,7 @@ import {
   insertQueryPipe,
   query,
   queryParams,
+  craftUse,
 } from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -71,14 +72,13 @@ export const { provideUserList, UserList } = craftService(
         insertPaginationPlaceholderData(
           { initialValue: Array<User>() },
           ({ state }) => ({
-            total: craftComputed('total', function* () {
+            total: craftUse(craftComputed('total', function* () {
               return (yield* state()).length;
-            }),
+            })),
           }),
         ),
       ),
     );
-    return { pagination, users };
   },
 );
 
@@ -89,12 +89,12 @@ const ListWithPaginationCraft = craftComponent(
   },
   function* () {
     const store = yield* UserList();
-    const isCurrentPageResolved = craftComputed(
+    const isCurrentPageResolved = yield* craftComputed(
       'isCurrentPageResolved',
       function* () {
           const _storeuserscurrentPageStatus = yield* store.users.currentPageStatus(); return _storeuserscurrentPageStatus === 'resolved'; },
     );
-    const updatePageSize = craftMethod(
+    const updatePageSize = yield* craftMethod(
       'updatePageSize',
       function* (event: Event) {
         (yield* UserList()).pagination.updatePageSize(

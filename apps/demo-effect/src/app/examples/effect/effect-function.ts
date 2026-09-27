@@ -9,7 +9,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, settled } from '@craft-ts/core';
+import { craftComputed, settled, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
 import { Database } from './effect-database';
@@ -35,11 +35,11 @@ const EffectFunctionComponent = craftComponent(
         loader: () => getData,
       },
       ({ resource }) => ({
-        hasData: craftComputed('hasData', () => resource.hasValue()),
-        summary: craftComputed('summary', function* () {
+        hasData: craftUse(craftComputed('hasData', () => resource.hasValue())),
+        summary: craftUse(craftComputed('summary', function* () {
           const rows = yield* settled(resource);
           return rows.map(({ id, value }) => `${id}: ${value}`).join(', ');
-        }),
+        })),
       }),
     );
 

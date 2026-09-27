@@ -16,6 +16,7 @@ import type {
   GetPublicComponentProperties,
 } from './branded-component';
 import type { InputSignal } from '../host/craft-compat';
+import { craftExpose } from '../craft-primitive-gen';
 
 // Core is host-agnostic — it never imports Angular. These stand-ins give the
 // type-level assertions below the same shapes an Angular component would carry,
@@ -27,9 +28,9 @@ describe('GetDeps', () => {
   it('computes missing providers from requirement-scoped service deps', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => ({
-        increment: () => 1,
-      }),
+      function* () {
+        yield* craftExpose('increment', () => 1);
+      },
     );
 
     type CounterDependency = GetServiceDependencies<
@@ -56,10 +57,10 @@ describe('GetDeps', () => {
   it('removes provided keys from derived service missing providers', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => ({
-        increment: () => 1,
-        decrement: () => 0,
-      }),
+      function* () {
+        yield* craftExpose('increment', () => 1);
+        yield* craftExpose('decrement', () => 0);
+      },
     );
 
     type CounterDependency = DerivedService<
@@ -115,9 +116,9 @@ describe('GetDeps', () => {
   it('ignores child component GenDeps when their missingProvider map is empty', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => ({
-        increment: () => 1,
-      }),
+      function* () {
+        yield* craftExpose('increment', () => 1);
+      },
     );
 
         class StatusComponent {}
@@ -157,9 +158,9 @@ describe('GetDeps', () => {
   it('flattens child component missing providers into the parent map', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => ({
-        increment: () => 1,
-      }),
+      function* () {
+        yield* craftExpose('increment', () => 1);
+      },
     );
 
         class StatusComponent {}
@@ -197,9 +198,9 @@ describe('GetDeps', () => {
   it('keeps transitive service missing providers flat at the top level', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => ({
-        increment: () => 1,
-      }),
+      function* () {
+        yield* craftExpose('increment', () => 1);
+      },
     );
 
     const { CounterExtended } = craftService(
@@ -207,9 +208,7 @@ describe('GetDeps', () => {
       function* () {
         yield* Counter();
 
-        return {
-          increment: () => 2,
-        };
+        yield* craftExpose('increment', () => 2);
       },
     );
 
@@ -235,9 +234,9 @@ describe('GetDeps', () => {
   it('extracts tracked helper dependencies through ExtractDeps', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => ({
-        increment: () => 1,
-      }),
+      function* () {
+        yield* craftExpose('increment', () => 1);
+      },
     );
 
     expectTypeOf<ExtractDeps<typeof Counter>>().toEqualTypeOf<{
@@ -248,9 +247,9 @@ describe('GetDeps', () => {
   it('merges propertiesDeps into missingProvider computation', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => ({
-        increment: () => 1,
-      }),
+      function* () {
+        yield* craftExpose('increment', () => 1);
+      },
     );
 
     type CounterDependency = GetServiceDependencies<
@@ -287,9 +286,9 @@ describe('GetDeps', () => {
   it('keeps transitive missing providers from function-scoped property deps', () => {
     const { B } = craftService(
       { name: 'B', providedIn: 'toProvide' },
-      () => ({
-        read: () => 'service-b',
-      }),
+      function* () {
+        yield* craftExpose('read', () => 'service-b');
+      },
     );
 
     const { Counter } = craftService(
@@ -297,9 +296,7 @@ describe('GetDeps', () => {
       function* () {
         const b = yield* B();
 
-        return {
-          read: () => b.read(),
-        };
+        yield* craftExpose('read', () => b.read());
       },
     );
 

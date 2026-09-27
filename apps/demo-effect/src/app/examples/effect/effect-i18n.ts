@@ -7,7 +7,7 @@ import {
   pendingNode,
   span,
 } from '@craft-ts/component';
-import { craftComputed, settled, state } from '@craft-ts/core';
+import { craftComputed, settled, state, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import {
   i18nRuntime,
@@ -50,12 +50,12 @@ const EffectI18nComponent = craftComponent(
       return {
         chooseEnglish: choose('en-US'),
         chooseFrench: choose('fr-FR'),
-        englishPressed: craftComputed('englishPressed', function* () {
+        englishPressed: craftUse(craftComputed('englishPressed', function* () {
           return (yield* read()) === 'en-US' ? 'true' : 'false';
-        }),
-        frenchPressed: craftComputed('frenchPressed', function* () {
+        })),
+        frenchPressed: craftUse(craftComputed('frenchPressed', function* () {
           return (yield* read()) === 'fr-FR' ? 'true' : 'false';
-        }),
+        })),
       };
     });
 
@@ -68,18 +68,18 @@ const EffectI18nComponent = craftComponent(
         loader: () => renderReceipt(ORDER),
       },
       ({ resource }) => ({
-        heading: craftComputed('heading', function* () {
+        heading: craftUse(craftComputed('heading', function* () {
           return (yield* settled(resource)).heading;
-        }),
-        placed: craftComputed('placed', function* () {
+        })),
+        placed: craftUse(craftComputed('placed', function* () {
           return (yield* settled(resource)).placed;
-        }),
-        total: craftComputed('total', function* () {
+        })),
+        total: craftUse(craftComputed('total', function* () {
           return (yield* settled(resource)).total;
-        }),
-        lines: craftComputed('lines', function* () {
+        })),
+        lines: craftUse(craftComputed('lines', function* () {
           return (yield* settled(resource)).lines;
-        }),
+        })),
       }),
     );
 

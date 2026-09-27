@@ -19,6 +19,7 @@ import { craftService, ɵtoCraftService as toCraftService } from './craft-servic
 import { mock, setupCraftServiceTest } from './setup-craft-service-test';
 import { state } from './state';
 import { craftUse } from './craft-use';
+import { craftExpose } from './craft-primitive-gen';
 
 class CheckoutPage {}
 
@@ -30,7 +31,6 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -39,9 +39,7 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
       },
     );
 
@@ -66,7 +64,6 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -90,7 +87,6 @@ describe('setupCraftServiceTest', () => {
         const childCounter = yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { childCounter };
       },
     );
 
@@ -99,9 +95,7 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* ChildCounter()).childCounter;
 
-        return {
-          increment: counter.increment,
-        };
+        yield* craftExpose('increment', counter.increment);
       },
     );
 
@@ -129,7 +123,6 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -138,9 +131,7 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          increment: counter.increment,
-        };
+        yield* craftExpose('increment', counter.increment);
       },
     );
 
@@ -169,7 +160,6 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -178,10 +168,8 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -199,7 +187,6 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -208,10 +195,8 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -241,7 +226,6 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -250,10 +234,8 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -288,7 +270,6 @@ describe('setupCraftServiceTest', () => {
             decrement: () => update((value) => value - 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -340,7 +321,6 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -349,10 +329,8 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          incrementThroughCounter: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('incrementThroughCounter', () => counter.increment());
       },
     );
 
@@ -379,7 +357,6 @@ describe('setupCraftServiceTest', () => {
         const counter = yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
-        return { counter };
       },
     );
 
@@ -388,10 +365,8 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -415,7 +390,6 @@ describe('setupCraftServiceTest', () => {
             increment: () => update((value) => value + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -424,10 +398,8 @@ describe('setupCraftServiceTest', () => {
       function* () {
         const counter = (yield* Counter()).counter;
 
-        return {
-          read: () => craftUse(counter()),
-          increment: () => counter.increment(),
-        };
+        yield* craftExpose('read', () => craftUse(counter()));
+        yield* craftExpose('increment', () => counter.increment());
       },
     );
 
@@ -451,7 +423,6 @@ describe('setupCraftServiceTest', () => {
             increment: () => update((value) => value + 1),
           }),
         );
-        return { counter };
       },
     );
 
@@ -526,9 +497,7 @@ describe('setupCraftServiceTest', () => {
           navigateByUrl,
         }));
 
-        return {
-          goToCheckout: () => router.navigateByUrl('/checkout'),
-        };
+        yield* craftExpose('goToCheckout', () => router.navigateByUrl('/checkout'));
       },
     );
 
@@ -547,7 +516,7 @@ describe('setupCraftServiceTest', () => {
   it('should help with autocompletion the mocking of a global service dependency', async () => {
     const { Service1 } = craftService(
       { name: 'Service1', providedIn: 'global' },
-      () => {
+      function* () {
         return craftUse(
           state('service1', 0, ({ update }) => ({
             increment: () => update((value) => value + 1),
@@ -558,7 +527,7 @@ describe('setupCraftServiceTest', () => {
 
     const { Service2 } = craftService(
       { name: 'Service2', providedIn: 'global' },
-      () => {
+      function* () {
         return craftUse(
           state('service2', 0, ({ update }) => ({
             increment: () => update((value) => value + 1),

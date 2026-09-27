@@ -21,6 +21,8 @@ import {
   query,
   state,
   craftException,
+  craftPrivate,
+  craftExpose,
 } from '@craft-ts/core';
 import { example } from '../shared/example.style';
 
@@ -56,63 +58,61 @@ const TODOS: Todo[] = [
 const { ApiService } = craftService(
   { name: 'ApiService', providedIn: 'global' },
   function* () {
-    const nextId = yield* state('nextId', 4, ({ state, update }) => ({
+    const nextId = yield* craftPrivate(state('nextId', 4, ({ state, update }) => ({
       take: function* () {
             const _state = yield* state();
                 const id = _state;
                 yield* update((value) => value + 1);
                 return id;
               },
-    }));
+    })));
 
-    return {
-      getTodos: craftGen(function* () {
-        yield* craftSleep(500);
-        return [...TODOS];
-      }),
-      getTodo: craftGen(function* (id: number) {
-        const todo = TODOS.find((t) => t.id === id);
-        if (!todo)
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`Todo ${id} not found`) },
-          );
-        yield* craftSleep(500);
-        return { ...todo };
-      }),
-      addTodo: craftGen(function* (title: string) {
-        const todo: Todo = {
-          id: yield* nextId.take(),
-          title,
-          completed: false,
-        };
-        TODOS.push(todo);
-        yield* craftSleep(500);
-        return todo;
-      }),
-      toggleTodo: craftGen(function* (id: number) {
-        const todo = TODOS.find((t) => t.id === id);
-        if (!todo)
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`Todo ${id} not found`) },
-          );
-        todo.completed = !todo.completed;
-        yield* craftSleep(500);
-        return { ...todo };
-      }),
-      deleteTodo: craftGen(function* (id: number) {
-        const index = TODOS.findIndex((t) => t.id === id);
-        if (index === -1)
-          return craftException(
-            { _tag: 'UNEXPECTED_ERROR' },
-            { error: new Error(`Todo ${id} not found`) },
-          );
-        const removed = TODOS.splice(index, 1)[0];
-        yield* craftSleep(500);
-        return removed;
-      }),
-    };
+    yield* craftExpose('getTodos', craftGen(function* () {
+      yield* craftSleep(500);
+      return [...TODOS];
+    }));
+    yield* craftExpose('getTodo', craftGen(function* (id: number) {
+      const todo = TODOS.find((t) => t.id === id);
+      if (!todo)
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`Todo ${id} not found`) },
+        );
+      yield* craftSleep(500);
+      return { ...todo };
+    }));
+    yield* craftExpose('addTodo', craftGen(function* (title: string) {
+      const todo: Todo = {
+        id: yield* nextId.take(),
+        title,
+        completed: false,
+      };
+      TODOS.push(todo);
+      yield* craftSleep(500);
+      return todo;
+    }));
+    yield* craftExpose('toggleTodo', craftGen(function* (id: number) {
+      const todo = TODOS.find((t) => t.id === id);
+      if (!todo)
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`Todo ${id} not found`) },
+        );
+      todo.completed = !todo.completed;
+      yield* craftSleep(500);
+      return { ...todo };
+    }));
+    yield* craftExpose('deleteTodo', craftGen(function* (id: number) {
+      const index = TODOS.findIndex((t) => t.id === id);
+      if (index === -1)
+        return craftException(
+          { _tag: 'UNEXPECTED_ERROR' },
+          { error: new Error(`Todo ${id} not found`) },
+        );
+      const removed = TODOS.splice(index, 1)[0];
+      yield* craftSleep(500);
+      return removed;
+    }));
   },
 );
 
@@ -164,7 +164,6 @@ const { Playground } = craftService(
       ),
     );
 
-    return { todos, addTodo, toggleTodo, deleteTodo };
   },
 );
 
@@ -179,17 +178,17 @@ const PlaygroundComponent = craftComponent(
       setTitle: (value: string) => set(value),
       clearTitle: () => set(''),
     }));
-    const add = craftMethod('add', function* () {
+    const add = yield* craftMethod('add', function* () {
       const title = (yield* titleInput()).trim();
       if (!title) return;
       yield* pg.addTodo.mutate(title);
       yield* titleInput.clearTitle();
       return {};
     });
-    const isAdding = craftComputed('isAdding', function* () {
+    const isAdding = yield* craftComputed('isAdding', function* () {
         const _pgaddTodoisLoading = yield* pg.addTodo.isLoading(); return _pgaddTodoisLoading; },
     );
-    const todos = craftComputed(
+    const todos = yield* craftComputed(
       'todos',
       function* () {
           const _pgtodosvalue = yield* pg.todos.value(); return _pgtodosvalue ?? []; },

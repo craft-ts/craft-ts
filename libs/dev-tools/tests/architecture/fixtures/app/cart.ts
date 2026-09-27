@@ -9,10 +9,9 @@ export const { Cart, provideCart } = craftService(
   { name: 'Cart', providedIn: 'toProvide' },
   function* () {
     const items = yield* state(
-      'cartItems',
+      'items',
       [],
       insertStoragePersister(craftUnique({ storeName: 'shop', key: 'cart' })),
     );
-    return { items };
   },
 );

@@ -7,7 +7,7 @@ import {
   p,
   span,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadTask } from './task-domain';
 import { taskPage } from './foundation.style';
@@ -23,19 +23,19 @@ const QuickstartTaskPage = craftComponent(
         loader: ({ params }) => loadTask(params),
       },
       ({ resource, exceptions }) => ({
-        hasTask: craftComputed('hasTask', () => resource.hasValue()),
-        hasTaskException: craftComputed('hasTaskException', function* () {
+        hasTask: craftUse(craftComputed('hasTask', () => resource.hasValue())),
+        hasTaskException: craftUse(craftComputed('hasTaskException', function* () {
           return Boolean((yield* exceptions()).loader);
-        }),
-        title: craftComputed('title', function* () {
+        })),
+        title: craftUse(craftComputed('title', function* () {
           return (yield* resource.value())?.title ?? 'Loading…';
-        }),
-        exception: craftComputed('exception', function* () {
+        })),
+        exception: craftUse(craftComputed('exception', function* () {
           return (yield* exceptions()).loader;
-        }),
-        exceptionTag: craftComputed('exceptionTag', function* () {
+        })),
+        exceptionTag: craftUse(craftComputed('exceptionTag', function* () {
           return (yield* exceptions()).loader?._tag ?? 'Unknown';
-        }),
+        })),
       }),
     );
 

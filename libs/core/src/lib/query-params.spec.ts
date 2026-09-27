@@ -24,6 +24,7 @@ import {
 } from './craft-router';
 import { ɵinjectCraftHistory, ɵinjectCraftRouterRuntime } from './craft-router-tokens';
 import { Schema } from 'effect';
+import { craftExpose } from './craft-primitive-gen';
 
 let queryParamsResourceObserver:
   | ((context: PrimitiveResourceRuntimeContext) => void)
@@ -243,9 +244,9 @@ describe('queryParams', () => {
   it('typing: tracks dependencies used by generator insertions', () => {
     const { PaginationRulesDeps } = craftService(
       { name: 'PaginationRulesDeps', providedIn: 'global' },
-      () => ({
-        maxPage: () => 3,
-      }),
+      function* () {
+        yield* craftExpose('maxPage', () => 3);
+      },
     );
 
     TestBed.runInInjectionContext(() => {

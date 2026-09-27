@@ -8,6 +8,5 @@ export const { Users } = craftService(
       {},
       insertStoragePersister({ key: 'user', storeName: 'app' }),
     );
-    return { leaked };
   },
 );

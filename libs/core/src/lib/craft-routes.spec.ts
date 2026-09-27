@@ -104,6 +104,7 @@ import { createCraftRouterOutletController } from './craft-router-outlet';
 import { CRAFT_ROUTE_META, getCraftRouteMeta } from './craft-route-meta';
 import { craftSignal, type CraftWritableSignal } from './host/craft-signal';
 import { withTransitionTimings } from './craft-pending';
+import { craftExpose } from './craft-primitive-gen';
 
 const flushChain = async () => {
   for (let i = 0; i < 20; i += 1) {
@@ -930,7 +931,9 @@ describe('craftRoutes', () => {
   it('should support canActivate generator alongside plain Angular loadChildren — outlet-driven guards', async () => {
     const { Auth, provideAuth } = craftService(
       { name: 'Auth', providedIn: 'toProvide' },
-      () => ({ currentUser: { id: 1 } }),
+      function* () {
+        yield* craftExpose('currentUser', { id: 1 });
+      },
     );
     const plainRoutes: Route[] = [{ path: 'child', children: [] }];
     const { testRoutes: appRoutes } = craftRoutes('test', [
@@ -956,7 +959,9 @@ describe('craftRoutes', () => {
   it('should support a redirectTo generator that yields tracked dependencies', () => {
     const { Auth, provideAuth } = craftService(
       { name: 'Auth', providedIn: 'toProvide' },
-      () => ({ isAdmin: () => true }),
+      function* () {
+        yield* craftExpose('isAdmin', () => true);
+      },
     );
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
@@ -1397,7 +1402,9 @@ describe('craftRoutes', () => {
   it('should remove lazy child missing providers satisfied by the direct parent route providers', () => {
     const { provideCounter, Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type ChildRouteDeps = GetDeps<{
@@ -1438,7 +1445,9 @@ describe('craftRoutes', () => {
   it('should not treat sibling route providers as covering lazy child missing providers', () => {
     const { provideCounter, Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type ChildRouteDeps = GetDeps<{
@@ -1485,13 +1494,15 @@ describe('craftRoutes', () => {
   it('should merge parent loadComponent missing providers with lazy child missing providers', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
     const { Permissions } = craftService(
       { name: 'Permissions', providedIn: 'toProvide' },
-      () => ({
-        allow: true,
-      }),
+      function* () {
+        yield* craftExpose('allow', true);
+      },
     );
 
     type ParentRouteDeps = GetDeps<{
@@ -1557,13 +1568,15 @@ describe('craftRoutes', () => {
   it('should place flattened lazy child metadata after the parent entry in mixed route tuples', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
     const { Permissions } = craftService(
       { name: 'Permissions', providedIn: 'toProvide' },
-      () => ({
-        allow: true,
-      }),
+      function* () {
+        yield* craftExpose('allow', true);
+      },
     );
 
     type ChildRouteDeps = GetDeps<{
@@ -1698,9 +1711,7 @@ describe('craftRoutes', () => {
           success: response<User[]>(),
         }));
 
-        return {
-          getUsers,
-        };
+        yield* craftExpose('getUsers', getUsers);
       },
     );
 
@@ -1757,9 +1768,7 @@ describe('craftRoutes', () => {
           success: response<ParentResponse>(),
         }));
 
-        return {
-          getLayout,
-        };
+        yield* craftExpose('getLayout', getLayout);
       },
     );
 
@@ -1772,9 +1781,7 @@ describe('craftRoutes', () => {
           success: response<ChildResponse>(),
         }));
 
-        return {
-          createUser,
-        };
+        yield* craftExpose('createUser', createUser);
       },
     );
 
@@ -2071,9 +2078,9 @@ describe('craftRoutes', () => {
 
       class PageComponent {
         readonly load = runInInjectionContext(injector, () =>
-          craftMethod('load', this, function* () {
+          craftUse(craftMethod('load', this, function* () {
             yield* Console.log('loading');
-          }),
+          })),
         );
       }
 
@@ -2191,7 +2198,9 @@ describe('craftRoutes', () => {
   it('should accept branded route providers as componentDeps coverage', () => {
     const { provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     craftRoutes('test', [
@@ -2279,15 +2288,15 @@ describe('craftRoutes', () => {
     const entityOperational$ = new BehaviorSubject(true);
     const { Auth, provideAuth } = craftService(
       { name: 'Auth', providedIn: 'toProvide' },
-      () => ({
-        canAccess$: authAccess$.asObservable(),
-      }),
+      function* () {
+        yield* craftExpose('canAccess$', authAccess$.asObservable());
+      },
     );
     const { Entity, provideEntity } = craftService(
       { name: 'Entity', providedIn: 'toProvide' },
-      () => ({
-        isOperational$: entityOperational$.asObservable(),
-      }),
+      function* () {
+        yield* craftExpose('isOperational$', entityOperational$.asObservable());
+      },
     );
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
@@ -2315,9 +2324,9 @@ describe('craftRoutes', () => {
   it('should allow canMatch generators to yield services and return a synchronous result — outlet-driven guards', async () => {
     const { Permissions, providePermissions } = craftService(
       { name: 'Permissions', providedIn: 'toProvide' },
-      () => ({
-        allow: true,
-      }),
+      function* () {
+        yield* craftExpose('allow', true);
+      },
     );
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
@@ -2548,7 +2557,9 @@ describe('craftRoutes', () => {
     it('should set guard data signal when generator guard yields services and returns an object — outlet-driven guards', async () => {
       const { Auth, provideAuth } = craftService(
         { name: 'Auth', providedIn: 'toProvide' },
-        () => ({ currentUser: { id: 7, name: 'Bob' } as User }),
+        function* () {
+          yield* craftExpose('currentUser', { id: 7, name: 'Bob' } as User);
+        },
       );
 
       const { appRoutes, AppDashboardGuardedData } = craftRoutes('app', [
@@ -2704,7 +2715,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should remove matching params / inputs from publicProperties deps', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
     class UserComponent {
       userId = craftSignal<string>(undefined as never);
@@ -2741,7 +2754,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should not throw an error if a provider is missing,', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
     class UserComponent {
       userId = craftSignal<string>(undefined as never);
@@ -2798,9 +2813,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should include queryParams deps in META_DATA, including outer generator yields', () => {
     const { PaginationRules } = craftService(
       { name: 'PaginationRules', providedIn: 'global' },
-      () => ({
-        maxPage: () => 3,
-      }),
+      function* () {
+        yield* craftExpose('maxPage', () => 3);
+      },
     );
 
     type QueryParamsRouteDeps = GetDeps<{
@@ -2884,7 +2899,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should remove queryParams deps when satisfied by route providers', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type QueryParamsRouteDeps = GetDeps<{
@@ -2977,7 +2994,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should include generator guard deps in META_DATA', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type GuardRouteDeps = GetDeps<{
@@ -3014,7 +3033,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should remove generator guard deps when satisfied by route providers', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type GuardRouteDeps = GetDeps<{
@@ -3063,7 +3084,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should include canActivate generator handler deps in META_DATA', () => {
     const { RedirectConfig } = craftService(
       { name: 'RedirectConfig', providedIn: 'toProvide' },
-      () => ({ loginUrl: '/login' }),
+      function* () {
+        yield* craftExpose('loginUrl', '/login');
+      },
     );
     const authGuard = craftGen(function* () {
       return craftException({ _tag: 'NOT_AUTHENTICATED' });
@@ -3112,7 +3135,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should strip canActivate handler deps satisfied by route providers', () => {
     const { RedirectConfig, provideRedirectConfig } = craftService(
       { name: 'RedirectConfig', providedIn: 'toProvide' },
-      () => ({ loginUrl: '/login' }),
+      function* () {
+        yield* craftExpose('loginUrl', '/login');
+      },
     );
     const authGuard = craftGen(function* () {
       return craftException({ _tag: 'NOT_AUTHENTICATED' });
@@ -3152,7 +3177,9 @@ describe('AppRoutes.META_DATA', () => {
   it('should flatten lazy route metadata and inherit providers, params and data', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      () => 1,
+      function* () {
+        return 1;
+      },
     );
 
     type ChildRouteDeps = GetDeps<{

@@ -23,7 +23,8 @@ import {
 
 const { FormAttributesSpecHost } = craftService(
   { name: 'FormAttributesSpecHost', providedIn: 'global' },
-  () => ({}),
+  function* () {
+  },
 );
 
 const runInInjectionContext = <T>(

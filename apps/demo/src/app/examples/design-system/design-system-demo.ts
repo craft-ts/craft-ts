@@ -29,7 +29,7 @@ import {
   span,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed, state, craftUse } from '@craft-ts/core';
 import { card, stack } from './components.style';
 import { dsTheme } from './foundation.style';
 import {
@@ -72,15 +72,15 @@ export const designSystemDemo = craftComponent(
   {},
   () =>
     state('showcase', initialShowcase(), ({ state: showcase, update }) => ({
-      tone: craftComputed('tone', function* () {
+      tone: craftUse(craftComputed('tone', function* () {
         return (yield* showcase()).tone;
-      }),
-      size: craftComputed('size', function* () {
+      })),
+      size: craftUse(craftComputed('size', function* () {
         return (yield* showcase()).size;
-      }),
-      progress: craftComputed('progress', function* () {
+      })),
+      progress: craftUse(craftComputed('progress', function* () {
         return (yield* showcase()).progress;
-      }),
+      })),
       pickTone: (tone: Tone) => update((current) => ({ ...current, tone })),
       pickSize: (size: Size) => update((current) => ({ ...current, size })),
       nudge: () =>

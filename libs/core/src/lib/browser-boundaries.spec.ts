@@ -18,6 +18,7 @@ import {
   SessionStorageService,
 } from './browser-boundaries';
 import { craftService, getServiceMetaData } from './craft-service';
+import { craftExpose } from './craft-primitive-gen';
 
 function clearCookies() {
   for (const cookie of document.cookie.split(';')) {
@@ -56,9 +57,7 @@ describe('browser boundaries', () => {
           log,
         }));
 
-        return {
-          track: (message: string) => consoleService.log(message),
-        };
+        yield* craftExpose('track', (message: string) => consoleService.log(message));
       },
     );
 
@@ -109,15 +108,13 @@ describe('browser boundaries', () => {
 
         yield* Cookies.remove('session', { path: '/' });
 
-        return {
-          token,
-          localLength,
-          tab,
-          session,
-          hasSession,
-          cookieMap,
-          removedSession: yield* Cookies.get('session'),
-        };
+        yield* craftExpose('token', token);
+        yield* craftExpose('localLength', localLength);
+        yield* craftExpose('tab', tab);
+        yield* craftExpose('session', session);
+        yield* craftExpose('hasSession', hasSession);
+        yield* craftExpose('cookieMap', cookieMap);
+        yield* craftExpose('removedSession', yield* Cookies.get('session'));
       },
     );
 
@@ -158,22 +155,20 @@ describe('browser boundaries', () => {
           'Cache cleared! The page will reload.',
         );
 
-        return {
-          href: yield* BrowserLocation.href(),
-          pathname: yield* BrowserLocation.pathname(),
-          search: yield* BrowserLocation.search(),
-          hash: yield* BrowserLocation.hash(),
-          historyState: yield* BrowserHistory.state(),
-          title: yield* BrowserDocument.title(),
-          visibilityState: yield* BrowserDocument.visibilityState(),
-          hasFocus: yield* BrowserDocument.hasFocus(),
-          innerWidth: yield* BrowserWindow.innerWidth(),
-          innerHeight: yield* BrowserWindow.innerHeight(),
-          language: yield* BrowserNavigator.language(),
-          languages: yield* BrowserNavigator.languages(),
-          cookieEnabled: yield* BrowserNavigator.cookieEnabled(),
-          confirmed,
-        };
+        yield* craftExpose('href', yield* BrowserLocation.href());
+        yield* craftExpose('pathname', yield* BrowserLocation.pathname());
+        yield* craftExpose('search', yield* BrowserLocation.search());
+        yield* craftExpose('hash', yield* BrowserLocation.hash());
+        yield* craftExpose('historyState', yield* BrowserHistory.state());
+        yield* craftExpose('title', yield* BrowserDocument.title());
+        yield* craftExpose('visibilityState', yield* BrowserDocument.visibilityState());
+        yield* craftExpose('hasFocus', yield* BrowserDocument.hasFocus());
+        yield* craftExpose('innerWidth', yield* BrowserWindow.innerWidth());
+        yield* craftExpose('innerHeight', yield* BrowserWindow.innerHeight());
+        yield* craftExpose('language', yield* BrowserNavigator.language());
+        yield* craftExpose('languages', yield* BrowserNavigator.languages());
+        yield* craftExpose('cookieEnabled', yield* BrowserNavigator.cookieEnabled());
+        yield* craftExpose('confirmed', confirmed);
       },
     );
 
@@ -262,12 +257,10 @@ describe('browser boundaries', () => {
       function* () {
         const bytes = yield* BrowserCrypto.getRandomValues(new Uint8Array(8));
 
-        return {
-          now: yield* BrowserPerformance.now(),
-          uuid: yield* BrowserCrypto.randomUUID(),
-          digest: yield* BrowserCrypto.digest('SHA-256', payload),
-          bytes,
-        };
+        yield* craftExpose('now', yield* BrowserPerformance.now());
+        yield* craftExpose('uuid', yield* BrowserCrypto.randomUUID());
+        yield* craftExpose('digest', yield* BrowserCrypto.digest('SHA-256', payload));
+        yield* craftExpose('bytes', bytes);
       },
     );
     await TestBed.runInInjectionContext(async () => {

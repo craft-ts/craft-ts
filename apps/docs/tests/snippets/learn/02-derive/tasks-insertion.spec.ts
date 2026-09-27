@@ -33,12 +33,11 @@ export const { TaskList } = craftService(
         return yield* set(current.filter((task) => task.id !== id));
       },
 
-      remaining: craftComputed(function* () {
+      remaining: craftUse(craftComputed('remaining', function* () {
         return (yield* state()).filter((task) => !task.done).length;
-      }),
+      })),
     }));
 
-    return { tasks };
   },
 );
 // #endregion tasks-insertion

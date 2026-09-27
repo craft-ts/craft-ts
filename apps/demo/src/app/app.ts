@@ -23,6 +23,7 @@ import {
   GlobalPersisterHandlerService,
   type CraftRouterLinkInput,
   state,
+  craftUse,
 } from '@craft-ts/core';
 import { demoEnabledRoutePaths } from './app.routes';
 import { demoShell } from './demo-shell.style';
@@ -144,12 +145,12 @@ export const App = craftComponent(
       ({ set, update, state: navOpenState }) => ({
         toggle: () => update((open) => !open),
         close: () => set(false),
-        navToggleLabel: craftComputed('navToggleLabel', function* () {
+        navToggleLabel: craftUse(craftComputed('navToggleLabel', function* () {
           return (yield* navOpenState()) ? 'Close examples' : 'Browse examples';
-        }),
+        })),
       }),
     );
-    const clearCache = craftMethod('clearCache', function* () {
+    const clearCache = yield* craftMethod('clearCache', function* () {
       yield* GlobalPersisterHandlerService.clearAllCache();
       yield* BrowserWindow.alert('Cache cleared! The page will reload.');
       // This button is an explicit development reset action; reload after the

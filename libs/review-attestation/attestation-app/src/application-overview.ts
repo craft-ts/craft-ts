@@ -16,7 +16,7 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, state } from '@craft-ts/core';
+import { craftComputed, craftMethod, state, craftUse } from '@craft-ts/core';
 import type { ApplicationCaptureInventoryItem } from '@craft-ts/dev-tools/attestation-review';
 import { eventValue } from './annotation-text';
 import { applicationOverview } from './application-overview.style';
@@ -65,16 +65,16 @@ export const ApplicationOverview = craftComponent(
     const note = yield* state('applicationNote', '', ({ set }) => ({
       write: set,
     }));
-    const pages = craftComputed('pages', function* () {
+    const pages = yield* craftComputed('pages', function* () {
       return [...new Set((yield* captures()).map((c) => c.page))];
     });
-    const scenarios = craftComputed('scenarios', function* () {
+    const scenarios = yield* craftComputed('scenarios', function* () {
       return [...new Set((yield* captures()).map((c) => c.scenario))];
     });
-    const viewports = craftComputed('viewports', function* () {
+    const viewports = yield* craftComputed('viewports', function* () {
       return [...new Set((yield* captures()).map((c) => c.viewport))];
     });
-    const visible = craftComputed('visible', function* () {
+    const visible = yield* craftComputed('visible', function* () {
       const kind = yield* category();
       const page = yield* pageFilter();
       const scenario = yield* scenarioFilter();
@@ -89,7 +89,7 @@ export const ApplicationOverview = craftComponent(
           (!status || c.state === status),
       );
     });
-    const progress = craftComputed('progress', function* () {
+    const progress = yield* craftComputed('progress', function* () {
       const all = yield* captures();
       return `${all.filter((c) => c.state === 'current' || c.state === 'renewed').length} / ${all.length} acceptées · ${all.filter((c) => !c.image).length} manquantes · ${all.filter((c) => c.category === 'exception').length} captures d’exception`;
     });
@@ -106,7 +106,7 @@ export const ApplicationOverview = craftComponent(
           );
         },
         clear: () => set([]),
-        visibleSelection: craftComputed('visibleSelection', function* () {
+        visibleSelection: craftUse(craftComputed('visibleSelection', function* () {
           const selection = yield* state();
           return (yield* visible())
             .filter(
@@ -117,15 +117,15 @@ export const ApplicationOverview = craftComponent(
                 ['missing', 'review'].includes(c.state),
             )
             .map((c) => c.subject);
-        }),
+        })),
       }),
     );
-    const actions = craftComputed('actions', function* () {
+    const actions = yield* craftComputed('actions', function* () {
       const empty = !(yield* selected.visibleSelection()).length;
       const written = yield* note();
       return { disableAccept: empty, disableReject: empty || !written.trim() };
     });
-    const pageProgress = craftComputed('pageProgress', function* () {
+    const pageProgress = yield* craftComputed('pageProgress', function* () {
       const all = yield* captures();
       return (yield* pages()).map((name) => {
         const entries = all.filter((c) => c.page === name);
@@ -135,7 +135,7 @@ export const ApplicationOverview = craftComponent(
         };
       });
     });
-    const rows = craftComputed('rows', function* () {
+    const rows = yield* craftComputed('rows', function* () {
       const selection = yield* selected();
       const kind = yield* imageKind();
       const scale = yield* zoom();
@@ -168,7 +168,7 @@ export const ApplicationOverview = craftComponent(
         };
       });
     });
-    const submit = craftMethod(
+    const submit = yield* craftMethod(
       'submit',
       function* (verdict: 'ok' | 'rejected') {
         const subjects = yield* selected.visibleSelection();
@@ -179,7 +179,7 @@ export const ApplicationOverview = craftComponent(
         yield* selected.clear();
       },
     );
-    const next = craftMethod('next', function* () {
+    const next = yield* craftMethod('next', function* () {
       const capture = (yield* visible()).find(
         (c) => c.image && !c.error && ['review', 'missing'].includes(c.state),
       );

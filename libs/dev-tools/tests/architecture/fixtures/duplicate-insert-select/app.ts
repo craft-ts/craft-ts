@@ -9,6 +9,5 @@ export const { Grid } = craftService(
       insertSelect('cell', () => ({})),
       insertSelect('cell', () => ({})),
     );
-    return { cells };
   },
 );

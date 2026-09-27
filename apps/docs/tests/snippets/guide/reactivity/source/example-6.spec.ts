@@ -5,13 +5,12 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-6
-import { craftService, on$, source$, state } from '@craft-ts/core';
+import { craftService, on$, source$, state, craftExpose } from '@craft-ts/core';
 
 const { Reset } = craftService(
   { name: 'Reset', providedIn: 'global' },
   function* () {
     const reset$ = yield* source$<void>('reset$');
-    return { reset$ };
   },
 );
 
@@ -23,7 +22,7 @@ const { Counter } = craftService(
     }));
 
     const reset = (yield* Reset()).reset$;
-    return { counter, reset };
+    yield* craftExpose('reset', reset);
   },
 );
 // #endregion example-6

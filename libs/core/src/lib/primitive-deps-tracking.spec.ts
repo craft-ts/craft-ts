@@ -54,7 +54,6 @@ describe('primitive dependency tracking', () => {
         });
 
         yield* onAppStart(() => void userQuery.call('go'));
-        return { userQuery, register };
       },
     );
 
@@ -78,7 +77,6 @@ describe('primitive dependency tracking', () => {
             }));
           },
         });
-        return { register };
       },
     );
 

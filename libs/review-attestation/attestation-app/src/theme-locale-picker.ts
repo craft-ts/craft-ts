@@ -22,7 +22,7 @@ export const ThemeLocalePicker = craftComponent(
   function* () {
     const { locale, theme, ide, chooseLocale, chooseTheme, chooseIde } =
       yield* ReviewPreferences();
-    const t = craftComputed('t', function* () {
+    const t = yield* craftComputed('t', function* () {
       return MESSAGES[yield* locale()];
     });
     return { locale, theme, ide, chooseLocale, chooseTheme, chooseIde, t };

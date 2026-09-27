@@ -9,12 +9,11 @@ export const { UserDetail, provideUserDetail } = craftService(
   { name: 'UserDetail', providedIn: 'toProvide' },
   function* () {
     const detail = yield* query(
-      'userDetail',
+      'detail',
       {},
       insertStoragePersister(
         craftUnique({ storeName: 'shop', key: 'user' }),
       ),
     );
-    return { detail };
   },
 );

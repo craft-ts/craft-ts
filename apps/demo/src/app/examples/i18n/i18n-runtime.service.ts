@@ -1,4 +1,4 @@
-import { BrowserDocument, craftService, state } from '@craft-ts/core';
+import { BrowserDocument, craftService, state, craftExpose } from '@craft-ts/core';
 import { createI18nRuntime } from '@craft-ts/i18n';
 import { locales, type DemoLocale } from './i18n.service';
 import { eventValue } from '../../event-value';
@@ -30,10 +30,7 @@ export const { I18n } = craftService(
 
     const translate = runtime.bind(language);
 
-    return {
-      language,
-      setLocale: language.setLocale,
-      translate,
-    };
+    yield* craftExpose('setLocale', language.setLocale);
+    yield* craftExpose('translate', translate);
   },
 );

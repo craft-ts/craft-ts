@@ -28,6 +28,7 @@ import {
   query,
   state,
   type ValidatedFormValue,
+  craftPrivate,
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { example } from '../../shared/example.style';
@@ -42,19 +43,19 @@ const INITIAL_TODOS = [
 export const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', providedIn: 'toProvide' },
   function* () {
-    const nextId = yield* state('nextId', 3, ({ state, update }) => ({
+    const nextId = yield* craftPrivate(state('nextId', 3, ({ state, update }) => ({
       take: function* () {
         const _state = yield* state();
         const id = _state;
         yield* update((value) => value + 1);
         return id;
       },
-    }));
-    const records = yield* state('records', INITIAL_TODOS, ({ update }) => ({
+    })));
+    const records = yield* craftPrivate(state('records', INITIAL_TODOS, ({ update }) => ({
       add: (todo: Todo) => update((current) => [...current, todo]),
       remove: (id: number) =>
         update((current) => current.filter((todo) => todo.id !== id)),
-    }));
+    })));
     const add = yield* mutation('add', {
       method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
@@ -108,7 +109,6 @@ export const { provideTodoStore, TodoStore } = craftService(
         }),
       ),
     );
-    return { todos, add, remove };
   },
 );
 

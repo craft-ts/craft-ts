@@ -36,6 +36,7 @@ import type {
 import {
   setupCraftServiceTest,
 } from './setup-craft-service-test';
+import { craftExpose } from './craft-primitive-gen';
 
 
 const runInInjectionContext = <T>(fn: () => T): T =>
@@ -210,22 +211,22 @@ describe('mutation', () => {
   it('typing: tracks generator dependencies from method, loader and insertions', async () => {
     const { MutationParams } = craftService(
       { name: 'MutationParams', providedIn: 'global' },
-      () => ({
-        mapUserId: (userId: string): string => userId.trim(),
-      }),
+      function* () {
+        yield* craftExpose('mapUserId', (userId: string): string => userId.trim());
+      },
     );
     const { MutationApi } = craftService(
       { name: 'MutationApi', providedIn: 'global' },
-      () => ({
-        save: (userId: string): Promise<{ userId: string }> =>
-          Promise.resolve({ userId }),
-      }),
+      function* () {
+        yield* craftExpose('save', (userId: string): Promise<{ userId: string }> =>
+          Promise.resolve({ userId }));
+      },
     );
     const { MutationTools } = craftService(
       { name: 'MutationTools', providedIn: 'global' },
-      () => ({
-        label: (): string => 'save-user',
-      }),
+      function* () {
+        yield* craftExpose('label', (): string => 'save-user');
+      },
     );
 
     runInInjectionContext(() => {
@@ -263,19 +264,19 @@ describe('mutation', () => {
     const logs: string[] = [];
     const { MutationLoggerRuntime } = craftService(
       { name: 'MutationLoggerRuntime', providedIn: 'global' },
-      () => ({
-        log: (message: string) => {
+      function* () {
+        yield* craftExpose('log', (message: string) => {
           logs.push(message);
-        },
-      }),
+        });
+      },
     );
     const { MutationApiRuntime } = craftService(
       { name: 'MutationApiRuntime', providedIn: 'global' },
-      () => ({
-        save: async (userId: string): Promise<{ userId: string }> => ({
+      function* () {
+        yield* craftExpose('save', async (userId: string): Promise<{ userId: string }> => ({
           userId,
-        }),
-      }),
+        }));
+      },
     );
 
     await runInInjectionContext(async () => {
@@ -318,7 +319,7 @@ describe('mutation types without identifier', () => {
     runInInjectionContext(() => {
       const { Mutations } = craftService(
         { name: 'Mutations', providedIn: 'function' },
-        () => {
+        function* () {
           const searchChange = craftUse(
             mutation('searchChange', {
               method: ({
@@ -361,25 +362,23 @@ describe('mutation types without identifier', () => {
             ),
           );
 
-          return {
-            props: {
-              searchChange: removeMutate(searchChange),
-              filterChange: removeMutate(filterChange),
+          yield* craftExpose('props', {
+            searchChange: removeMutate(searchChange),
+            filterChange: removeMutate(filterChange),
+          });
+          yield* craftExpose('methods', {
+            mutateSearchChange: (args: {
+              timeToWait: number;
+              searchChange: string;
+            }) => {
+              searchChange.mutate(args);
+              return args;
             },
-            methods: {
-              mutateSearchChange: (args: {
-                timeToWait: number;
-                searchChange: string;
-              }) => {
-                searchChange.mutate(args);
-                return args;
-              },
-              mutateFilterChange: (args: { filter: string }) => {
-                filterChange.mutate(args);
-                return args;
-              },
+            mutateFilterChange: (args: { filter: string }) => {
+              filterChange.mutate(args);
+              return args;
             },
-          };
+          });
         },
       );
 
@@ -458,7 +457,7 @@ describe('mutation types without identifier', () => {
       );
       const { Mutations } = craftService(
         { name: 'Mutations', providedIn: 'function' },
-        () => {
+        function* () {
           const searchChange = craftUse(
             mutation('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
@@ -491,18 +490,16 @@ describe('mutation types without identifier', () => {
             ),
           );
 
-          return {
-            props: {
-              searchChange: removeMutate(searchChange),
-              filterChange: removeMutate(filterChange),
+          yield* craftExpose('props', {
+            searchChange: removeMutate(searchChange),
+            filterChange: removeMutate(filterChange),
+          });
+          yield* craftExpose('methods', {
+            mutateFilterChange: (args: { filter: string }) => {
+              filterChange.mutate(args);
+              return args;
             },
-            methods: {
-              mutateFilterChange: (args: { filter: string }) => {
-                filterChange.mutate(args);
-                return args;
-              },
-            },
-          };
+          });
         },
       );
 
@@ -682,7 +679,7 @@ describe('mutation types with identifier', () => {
     runInInjectionContext(() => {
       const { Mutations } = craftService(
         { name: 'Mutations', providedIn: 'function' },
-        () => {
+        function* () {
           const searchChange = craftUse(
             mutation('searchChange', {
               method: ({
@@ -726,25 +723,23 @@ describe('mutation types with identifier', () => {
             ),
           );
 
-          return {
-            props: {
-              searchChange: removeMutate(searchChange),
-              filterChange: removeMutate(filterChange),
+          yield* craftExpose('props', {
+            searchChange: removeMutate(searchChange),
+            filterChange: removeMutate(filterChange),
+          });
+          yield* craftExpose('methods', {
+            mutateSearchChange: (args: {
+              timeToWait: number;
+              searchChange: string;
+            }) => {
+              searchChange.mutate(args);
+              return args;
             },
-            methods: {
-              mutateSearchChange: (args: {
-                timeToWait: number;
-                searchChange: string;
-              }) => {
-                searchChange.mutate(args);
-                return args;
-              },
-              mutateFilterChange: (args: { filter: string }) => {
-                filterChange.mutate(args);
-                return args;
-              },
+            mutateFilterChange: (args: { filter: string }) => {
+              filterChange.mutate(args);
+              return args;
             },
-          };
+          });
         },
       );
 
@@ -823,7 +818,7 @@ describe('mutation types with identifier', () => {
       );
       const { Mutations } = craftService(
         { name: 'Mutations', providedIn: 'function' },
-        () => {
+        function* () {
           const searchChange = craftUse(
             mutation('searchChange', {
               method: afterRecomputation(searchSource, (searchChange) => {
@@ -857,18 +852,16 @@ describe('mutation types with identifier', () => {
             ),
           );
 
-          return {
-            props: {
-              searchChange: removeMutate(searchChange),
-              filterChange: removeMutate(filterChange),
+          yield* craftExpose('props', {
+            searchChange: removeMutate(searchChange),
+            filterChange: removeMutate(filterChange),
+          });
+          yield* craftExpose('methods', {
+            mutateFilterChange: (args: { filter: string }) => {
+              filterChange.mutate(args);
+              return args;
             },
-            methods: {
-              mutateFilterChange: (args: { filter: string }) => {
-                filterChange.mutate(args);
-                return args;
-              },
-            },
-          };
+          });
         },
       );
 
@@ -1592,7 +1585,9 @@ describe('mutation — providers', () => {
   it('typing: mutation accepts BrandedServiceProvider in providers without type errors', async () => {
     const { MethodService, provideMethodService } = craftService(
       { name: 'MethodService', providedIn: 'toProvide' },
-      () => ({ getValue: () => 42 }),
+      function* () {
+        yield* craftExpose('getValue', () => 42);
+      },
     );
 
     setupCraftServiceTest(MethodService, {}, {

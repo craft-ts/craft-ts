@@ -31,6 +31,7 @@ import {
 } from './reactive-read';
 import { craftSignal } from './host/craft-signal';
 import { setupCraftServiceTest } from './setup-craft-service-test';
+import { craftExpose } from './craft-primitive-gen';
 
 const runInInjectionContext = <T>(fn: () => T): T =>
   setupCraftServiceTest().injector.run(fn);
@@ -244,26 +245,26 @@ describe('query', () => {
   it('typing: tracks generator dependencies from params, loader and insertions', async () => {
     const { UserIdService } = craftService(
       { name: 'UserIdService', providedIn: 'global' },
-      () => ({
-        read: (): string => 'user-1',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'user-1');
+      },
     );
     const { UserApiService } = craftService(
       { name: 'UserApiService', providedIn: 'global' },
-      () => ({
-        get: (userId: string): Promise<User> =>
+      function* () {
+        yield* craftExpose('get', (userId: string): Promise<User> =>
           Promise.resolve({
             id: userId,
             name: 'John Doe',
             email: 'john@doe.com',
-          }),
-      }),
+          }));
+      },
     );
     const { QueryTools } = craftService(
       { name: 'QueryTools', providedIn: 'global' },
-      () => ({
-        prefix: (): string => 'user',
-      }),
+      function* () {
+        yield* craftExpose('prefix', (): string => 'user');
+      },
     );
 
     runInInjectionContext(() => {
@@ -323,27 +324,27 @@ describe('query', () => {
     const logs: string[] = [];
     const { UserIdRuntime } = craftService(
       { name: 'UserIdRuntime', providedIn: 'global' },
-      () => ({
-        read: (): string => 'user-2',
-      }),
+      function* () {
+        yield* craftExpose('read', (): string => 'user-2');
+      },
     );
     const { QueryLoggerRuntime } = craftService(
       { name: 'QueryLoggerRuntime', providedIn: 'global' },
-      () => ({
-        log: (message: string) => {
+      function* () {
+        yield* craftExpose('log', (message: string) => {
           logs.push(message);
-        },
-      }),
+        });
+      },
     );
     const { UserApiRuntime } = craftService(
       { name: 'UserApiRuntime', providedIn: 'global' },
-      () => ({
-        get: async (userId: string): Promise<User> => ({
+      function* () {
+        yield* craftExpose('get', async (userId: string): Promise<User> => ({
           id: userId,
           name: 'Jane Doe',
           email: 'jane@doe.com',
-        }),
-      }),
+        }));
+      },
     );
 
     await runInInjectionContext(async () => {
@@ -544,18 +545,16 @@ describe('craftService using query', () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query('user', {
-            params: () => '5',
-            loader: async ({ params }) => {
-              return {
-                id: params,
-                name: 'John Doe',
-                email: 'test@a.com',
-              };
-            },
-          }),
-        };
+        yield* query('user', {
+          params: () => '5',
+          loader: async ({ params }) => {
+            return {
+              id: params,
+              name: 'John Doe',
+              email: 'test@a.com',
+            };
+          },
+        });
       },
     );
 
@@ -572,26 +571,24 @@ describe('query Insertions output', () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }) => {
-                return {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                };
-              },
+        yield* query(
+          'user',
+          {
+            params: () => '5',
+            loader: async ({ params }) => {
+              return {
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              };
             },
-            () => ({
-              pagination: {
-                page: 1,
-              },
-            }),
-          ),
-        };
+          },
+          () => ({
+            pagination: {
+              page: 1,
+            },
+          }),
+        );
       },
     );
     runInInjectionContext(() => {
@@ -605,48 +602,46 @@ describe('query Insertions output', () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }) => {
-                return {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                };
-              },
-            },
-            (data) => {
-              // `toMatchTypeOf`, like the resourceById sibling below: the
-              // context replaces `settledValue` with its yieldable counterpart,
-              // so the ref is a structural superset rather than an equal.
-              expectTypeOf(data.resource).toMatchTypeOf<
-                YieldableReactiveProperties<
-                  Omit<
-                    CraftResourceRef<
-                      NoInfer<{
-                        id: string;
-                        name: string;
-                        email: string;
-                      }>,
-                      string,
-                      'user'
-                    >,
-                    'settledValue'
-                  >
-                >
-              >();
-              expect(data.resource).toBeDefined();
+        yield* query(
+          'user',
+          {
+            params: () => '5',
+            loader: async ({ params }) => {
               return {
-                pagination: {
-                  page: 1,
-                },
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
               };
             },
-          ),
-        };
+          },
+          (data) => {
+            // `toMatchTypeOf`, like the resourceById sibling below: the
+            // context replaces `settledValue` with its yieldable counterpart,
+            // so the ref is a structural superset rather than an equal.
+            expectTypeOf(data.resource).toMatchTypeOf<
+              YieldableReactiveProperties<
+                Omit<
+                  CraftResourceRef<
+                    NoInfer<{
+                      id: string;
+                      name: string;
+                      email: string;
+                    }>,
+                    string,
+                    'user'
+                  >,
+                  'settledValue'
+                >
+              >
+            >();
+            expect(data.resource).toBeDefined();
+            return {
+              pagination: {
+                page: 1,
+              },
+            };
+          },
+        );
       },
     );
     runInInjectionContext(() => {
@@ -660,43 +655,41 @@ describe('query Insertions output', () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              identifier: (params) => params,
-              loader: async ({ params }) => {
-                return {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                };
-              },
-            },
-            (data) => {
-              expectTypeOf(data.resourceById).toMatchTypeOf<
-                YieldableReactiveProperties<
-                  ResourceByIdRef<
-                    string,
-                    NoInfer<{
-                      id: string;
-                      name: string;
-                      email: string;
-                    }>,
-                    string
-                  >
-                >
-              >();
-              expect(data.resourceById).toBeDefined();
+        yield* query(
+          'user',
+          {
+            params: () => '5',
+            identifier: (params) => params,
+            loader: async ({ params }) => {
               return {
-                pagination: {
-                  page: 1,
-                },
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
               };
             },
-          ),
-        };
+          },
+          (data) => {
+            expectTypeOf(data.resourceById).toMatchTypeOf<
+              YieldableReactiveProperties<
+                ResourceByIdRef<
+                  string,
+                  NoInfer<{
+                    id: string;
+                    name: string;
+                    email: string;
+                  }>,
+                  string
+                >
+              >
+            >();
+            expect(data.resourceById).toBeDefined();
+            return {
+              pagination: {
+                page: 1,
+              },
+            };
+          },
+        );
       },
     );
     runInInjectionContext(() => {
@@ -710,29 +703,27 @@ describe('query Insertions output', () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }) => {
-                return {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                } satisfies User;
-              },
-            },
-            (data) => {
-              console.log('data', data);
+        yield* query(
+          'user',
+          {
+            params: () => '5',
+            loader: async ({ params }) => {
               return {
-                pagination: {
-                  page: 1,
-                },
-              };
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              } satisfies User;
             },
-          ),
-        };
+          },
+          (data) => {
+            console.log('data', data);
+            return {
+              pagination: {
+                page: 1,
+              },
+            };
+          },
+        );
       },
     );
     runInInjectionContext(() => {
@@ -747,44 +738,42 @@ describe('query Insertions output', () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }) => {
-                return {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                } satisfies User;
-              },
+        yield* query(
+          'user',
+          {
+            params: () => '5',
+            loader: async ({ params }) => {
+              return {
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              } satisfies User;
             },
-            (context) =>
-              craftPipe(
-                context,
-                // insert 1
-                () => {
-                  return {
-                    pagination: {
-                      page: 1,
-                    },
+          },
+          (context) =>
+            craftPipe(
+              context,
+              // insert 1
+              () => {
+                return {
+                  pagination: {
+                    page: 1,
+                  },
+                };
+              },
+              // insert 2
+              ({ insertions: inserts }) => {
+                expectTypeOf(inserts).toEqualTypeOf<{
+                  pagination: {
+                    page: number;
                   };
-                },
-                // insert 2
-                ({ insertions: inserts }) => {
-                  expectTypeOf(inserts).toEqualTypeOf<{
-                    pagination: {
-                      page: number;
-                    };
-                  }>();
-                  return {
-                    someOtherInfo: true,
-                  };
-                },
-              ),
-          ),
-        };
+                }>();
+                return {
+                  someOtherInfo: true,
+                };
+              },
+            ),
+        );
       },
     );
     runInInjectionContext(() => {
@@ -804,39 +793,37 @@ describe('query Insertions output', () => {
     const { QueryStore } = craftService(
       { name: 'QueryStore', providedIn: 'global' },
       function* () {
-        return {
-          user: yield* query(
-            'user',
-            {
-              params: () => '5',
-              loader: async ({ params }) => {
-                return {
-                  id: params,
-                  name: 'John Doe',
-                  email: 'test@a.com',
-                } satisfies User;
-              },
+        yield* query(
+          'user',
+          {
+            params: () => '5',
+            loader: async ({ params }) => {
+              return {
+                id: params,
+                name: 'John Doe',
+                email: 'test@a.com',
+              } satisfies User;
             },
-            (context) =>
-              craftPipe(
-                context,
-                // insert 1
-                () => ({ ext1: 1 }),
-                // insert 2
-                ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
-                // insert 3
-                ({ insertions: inserts }) => ({ ext3: inserts.ext2 + 1 }),
-                // insert 4
-                ({ insertions: inserts }) => ({ ext4: inserts.ext3 + 1 }),
-                // insert 5
-                ({ insertions: inserts }) => ({ ext5: inserts.ext4 + 1 }),
-                // insert 6
-                ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
-                // insert 7
-                ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
-              ),
-          ),
-        };
+          },
+          (context) =>
+            craftPipe(
+              context,
+              // insert 1
+              () => ({ ext1: 1 }),
+              // insert 2
+              ({ insertions: inserts }) => ({ ext2: inserts.ext1 + 1 }),
+              // insert 3
+              ({ insertions: inserts }) => ({ ext3: inserts.ext2 + 1 }),
+              // insert 4
+              ({ insertions: inserts }) => ({ ext4: inserts.ext3 + 1 }),
+              // insert 5
+              ({ insertions: inserts }) => ({ ext5: inserts.ext4 + 1 }),
+              // insert 6
+              ({ insertions: inserts }) => ({ ext6: inserts.ext5 + 1 }),
+              // insert 7
+              ({ insertions: inserts }) => ({ ext7: inserts.ext6 + 1 }),
+            ),
+        );
       },
     );
     runInInjectionContext(() => {
@@ -1689,7 +1676,9 @@ describe('query — providers', () => {
   it('typing: query accepts BrandedServiceProvider in providers without type errors', async () => {
     const { QueryService, provideQueryService } = craftService(
       { name: 'QueryService', providedIn: 'toProvide' },
-      () => ({ getValue: () => 42 }),
+      function* () {
+        yield* craftExpose('getValue', () => 42);
+      },
     );
 
     runInInjectionContext(() => {

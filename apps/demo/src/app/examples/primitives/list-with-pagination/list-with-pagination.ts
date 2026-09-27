@@ -23,6 +23,7 @@ import {
   query,
   queryParams,
   craftComputed,
+  craftUse,
 } from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -68,18 +69,18 @@ const ListWithPagination = craftComponent(
         insertPaginationPlaceholderData(
           { initialValue: Array<User>() },
           ({ currentPageStatus }) => ({
-            isCurrentPageResolved: craftComputed(
+            isCurrentPageResolved: craftUse(craftComputed(
               'isCurrentPageResolved',
               function* () {
                 return (yield* currentPageStatus()) === 'resolved';
               },
-            ),
+            )),
           }),
         ),
       ),
     );
 
-    const updatePageSize = craftMethod(
+    const updatePageSize = yield* craftMethod(
       'updatePageSize',
       function* (event: Event) {
         yield* pagination.updatePageSize(

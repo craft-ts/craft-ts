@@ -8,7 +8,7 @@ import {
   span,
   type Input,
 } from '@craft-ts/component';
-import { craftComputed, injectCraftViewTransition } from '@craft-ts/core';
+import { craftComputed, injectCraftViewTransition, craftUse } from '@craft-ts/core';
 import { findPhoto } from './photos';
 import { assign } from '@craft-ts/style';
 import { photoArt, photoTransitionName, vt, vtPhoto } from './view-transitions.style';
@@ -34,23 +34,23 @@ const ViewTransitionsSkeletonComponent = craftComponent(
   {},
   (photoId: Input<string>) => {
     const rawViewTransition = injectCraftViewTransition();
-    const viewTransition = craftComputed('viewTransition', function* () {
+    const viewTransition = craftUse(craftComputed('viewTransition', function* () {
       // The generic inject helper is an untyped transport boundary.
     const value = rawViewTransition();
       return isTransitionPayload(value) ? value : null;
-    });
-    const hasImage = craftComputed(
+    }));
+    const hasImage = craftUse(craftComputed(
       'hasImage',
       function* () {
         return (yield* viewTransition())?.image !== null;
       },
-    );
-    const imageSrc = craftComputed(
+    ));
+    const imageSrc = craftUse(craftComputed(
       'imageSrc',
       function* () {
         return (yield* viewTransition())?.image ?? '';
       },
-    );
+    ));
     return { photoId, viewTransition, hasImage, imageSrc };
   },
   ({ photoId, hasImage, imageSrc }) => [

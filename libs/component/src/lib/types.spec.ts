@@ -1,4 +1,4 @@
-import { ɵcomputed as computed } from '@craft-ts/core';
+import { ɵcomputed as computed, craftExpose } from '@craft-ts/core';
 import { Context, Effect, Layer } from 'effect';
 import { expectTypeOf, it } from 'vitest';
 import type { Equal, Expect } from 'test-type';
@@ -242,7 +242,9 @@ it('extracts projection contracts and propagates projected dependencies', () => 
   };
   const { BadgeService, provideBadgeService } = craftService(
     { name: 'BadgeService', providedIn: 'toProvide' },
-    () => ({ label: 'badge' }),
+    function* () {
+      yield* craftExpose('label', 'badge');
+    },
   );
   const badge = craftComponent(
     'projectedBadge',
@@ -417,7 +419,9 @@ it('checks reusable template contexts at every render site', () => {
 it('carries inferred dependencies from the component through the lazy route fragment', () => {
   const { TypeSpecService } = craftService(
     { name: 'TypeSpecService', providedIn: 'toProvide' },
-    () => ({ value: 'tracked' }),
+    function* () {
+      yield* craftExpose('value', 'tracked');
+    },
   );
 
   const trackedComponent = craftComponent(
@@ -530,7 +534,9 @@ it('keeps ComponentDepsOf stable for conditional-type edge cases', () => {
 it('propagates a service used by state-machine transitions into the component DI check', () => {
   const { TransitionPolicy } = craftService(
     { name: 'TransitionPolicy', providedIn: 'toProvide' },
-    () => ({ canEnter: () => true }),
+    function* () {
+      yield* craftExpose('canEnter', () => true);
+    },
   );
 
   const component = craftComponent(
@@ -740,7 +746,9 @@ it('propagates an Effect service used by transitionGuardEffect into the route DI
 it('does not treat unbranded Angular providers as Craft service providers', () => {
   const { MissingProvider } = craftService(
     { name: 'MissingProvider', providedIn: 'toProvide' },
-    () => ({ value: 'missing' }),
+    function* () {
+      yield* craftExpose('value', 'missing');
+    },
   );
 
   const component = craftComponent(
@@ -768,7 +776,9 @@ it('does not treat unbranded Angular providers as Craft service providers', () =
 it('includes dependencies of Craft components rendered in nested templates', () => {
   const { TemplateDependency } = craftService(
     { name: 'TemplateDependency', providedIn: 'toProvide' },
-    () => ({ value: 'template' }),
+    function* () {
+      yield* craftExpose('value', 'template');
+    },
   );
 
   const child = craftComponent(
@@ -846,7 +856,9 @@ it('infers public inputs added by a piped directive', () => {
 it('preserves template dependencies when Craft directives are applied', () => {
   const { DirectiveTemplateDependency } = craftService(
     { name: 'DirectiveTemplateDependency', providedIn: 'toProvide' },
-    () => ({ value: 'directive-template' }),
+    function* () {
+      yield* craftExpose('value', 'directive-template');
+    },
   );
 
   const child = craftComponent(
@@ -1083,12 +1095,12 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     'contextPropertyBinding',
     {},
     () => ({
-      disabled: craftMethod('disabled', function* () {
+      disabled: craftUse(craftMethod('disabled', function* () {
         return true;
-      }),
-      enabled: craftMethod('enabled', function* () {
+      })),
+      enabled: craftUse(craftMethod('enabled', function* () {
         return true;
-      }),
+      })),
     }),
     ({ disabled }) =>
       button(
@@ -1120,9 +1132,9 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     {},
     () => ({
       counter: {
-        disabled: craftMethod('disabled', function* () {
+        disabled: craftUse(craftMethod('disabled', function* () {
           return true;
-        }),
+        })),
       },
     }),
     ({ counter }) =>
@@ -1153,9 +1165,9 @@ it('keeps yieldable primitive properties in template VNodes', () => {
     {},
     function* () {
       const counter = yield* state('counter', 0, ({ state }) => ({
-        disabled: craftComputed(function* () {
+        disabled: craftUse(craftComputed('disabled', function* () {
           return (yield* state()) % 2 === 0;
-        }),
+        })),
       }));
       return { counter };
     },
@@ -1533,7 +1545,7 @@ it('tracks available actions through conditional template branches', () => {
       );
       return {
         isAuth,
-        increment: craftMethod('increment', function* () {
+        increment: yield* craftMethod('increment', function* () {
           return undefined;
         }),
       };

@@ -7,7 +7,7 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { craftComputed } from '@craft-ts/core';
+import { craftComputed, craftUse } from '@craft-ts/core';
 import type { DevtoolView } from './devtool-view-state';
 import type { Messages } from './messages';
 import { viewTabs } from './view-tabs.style';
@@ -26,30 +26,30 @@ export const ViewTabs = craftComponent(
     cardsCount: Input<number>,
     t: Input<Messages>,
   ) => {
-    const applicationPressed = craftComputed(
+    const applicationPressed = craftUse(craftComputed(
       'applicationPressed',
       function* () {
         return (yield* devtoolView()) === 'application' ? 'true' : 'false';
       },
-    );
-    const visualPressed = craftComputed('visualPressed', function* () {
+    ));
+    const visualPressed = craftUse(craftComputed('visualPressed', function* () {
       return (yield* devtoolView()) === 'visual' ? 'true' : 'false';
-    });
-    const templatePressed = craftComputed('templatePressed', function* () {
+    }));
+    const templatePressed = craftUse(craftComputed('templatePressed', function* () {
       return (yield* devtoolView()) === 'template' ? 'true' : 'false';
-    });
-    const reviewPressed = craftComputed('reviewPressed', function* () {
+    }));
+    const reviewPressed = craftUse(craftComputed('reviewPressed', function* () {
       return (yield* devtoolView()) === 'review' ? 'true' : 'false';
-    });
-    const folderLayoutPressed = craftComputed(
+    }));
+    const folderLayoutPressed = craftUse(craftComputed(
       'folderLayoutPressed',
       function* () {
         return (yield* devtoolView()) === 'folder-layout' ? 'true' : 'false';
       },
-    );
-    const bypassesPressed = craftComputed('bypassesPressed', function* () {
+    ));
+    const bypassesPressed = craftUse(craftComputed('bypassesPressed', function* () {
       return (yield* devtoolView()) === 'bypasses' ? 'true' : 'false';
-    });
+    }));
 
     return {
       chooseDevtoolView,

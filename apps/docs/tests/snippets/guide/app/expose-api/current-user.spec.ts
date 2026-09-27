@@ -2,6 +2,7 @@
 import {
   craftUse,
   setupCraftServiceTestingByRegister,
+  craftExpose,
 } from '@craft-ts/core';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
@@ -18,11 +19,8 @@ const { UsersApi } = craftService(
       id: '1',
       name: 'Ada',
     });
-    return {
-      updateUser: (user: { id: string; name: string }) =>
-        Promise.resolve(user),
-      currentUser,
-    };
+    yield* craftExpose('updateUser', (user: { id: string; name: string }) =>
+      Promise.resolve(user));
   },
 );
 

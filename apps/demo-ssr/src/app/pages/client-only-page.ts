@@ -34,7 +34,7 @@ export const ClientOnlyPage = craftComponent(
         return { width, visits };
       },
     });
-    const resolved = craftComputed('resolvedClientOnlyData', function* () {
+    const resolved = yield* craftComputed('resolvedClientOnlyData', function* () {
       return yield* settled(data);
     });
     return { resolved };

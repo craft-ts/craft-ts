@@ -11,7 +11,6 @@ const { Counter } = craftService(
     const count = yield* state('count', 0, ({ set }) => ({
       to: (value: number) => set(value),
     }));
-    return { count };
   },
 );
 
@@ -67,7 +66,6 @@ describe('craft primitive registry', () => {
       { name: 'Row', providedIn: 'function' },
       function* () {
         const value = yield* state('value', 'a');
-        return { value };
       },
     );
 
@@ -97,7 +95,6 @@ describe('craft primitive registry', () => {
       { name: 'Settings', providedIn: 'global' },
       function* () {
         const theme = yield* state('theme', 'light');
-        return { theme };
       },
     );
 

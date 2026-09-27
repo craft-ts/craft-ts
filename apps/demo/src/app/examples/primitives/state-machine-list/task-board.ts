@@ -105,36 +105,36 @@ const TaskRow = craftComponent(
           setNote: function* (value: string) {
             yield* machineContext.context.note.to(value);
           },
-          step: craftComputed('step', function* () {
+          step: yield* craftComputed('step', function* () {
             return (yield* machineContext.currentStep()) ?? 'todo';
           }),
-          isTodo: craftComputed('isTodo', function* () {
+          isTodo: yield* craftComputed('isTodo', function* () {
             return (yield* machineContext.currentStep()) === 'todo';
           }),
-          isDoing: craftComputed('isDoing', function* () {
+          isDoing: yield* craftComputed('isDoing', function* () {
             return (yield* machineContext.currentStep()) === 'doing';
           }),
-          isDone: craftComputed('isDone', function* () {
+          isDone: yield* craftComputed('isDone', function* () {
             return (yield* machineContext.currentStep()) === 'done';
           }),
-          startDisabled: craftComputed('startDisabled', function* () {
+          startDisabled: yield* craftComputed('startDisabled', function* () {
             return (yield* machineContext.currentStep()) !== 'todo';
           }),
-          finishDisabled: craftComputed('finishDisabled', function* () {
+          finishDisabled: yield* craftComputed('finishDisabled', function* () {
             return (yield* machineContext.currentStep()) !== 'doing';
           }),
-          reopenDisabled: craftComputed('reopenDisabled', function* () {
+          reopenDisabled: yield* craftComputed('reopenDisabled', function* () {
             return (yield* machineContext.currentStep()) === 'todo';
           }),
-          historyLabel: craftComputed('historyLabel', function* () {
+          historyLabel: yield* craftComputed('historyLabel', function* () {
             const entries = yield* history.history();
             const cursor = yield* history.historyCursor();
             return `${title} · moment ${cursor + 1}/${entries.length}`;
           }),
-          backDisabled: craftComputed('backDisabled', function* () {
+          backDisabled: yield* craftComputed('backDisabled', function* () {
             return !(yield* history.canGoBack());
           }),
-          forwardDisabled: craftComputed('forwardDisabled', function* () {
+          forwardDisabled: yield* craftComputed('forwardDisabled', function* () {
             return !(yield* history.canGoForward());
           }),
           start: () => machineContext.context.start$.emit(),

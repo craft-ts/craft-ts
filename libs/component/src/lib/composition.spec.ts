@@ -275,7 +275,6 @@ describe('component composition', () => {
             params: refresh,
             loader: async () => (refresh() < 0 ? failed : []),
           });
-          return { todos };
         },
       );
     const component = craftComponent(

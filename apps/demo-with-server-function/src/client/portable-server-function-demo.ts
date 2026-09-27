@@ -39,38 +39,38 @@ const PortableServerFunctionDemo = craftComponent(
     yield* usersQuery.call('');
     // Le payload remonté par la chaîne : chaque clé a été produite par une
     // couche différente du `.pipe(...)` côté serveur.
-    const portableUsers = craftComputed('portableUsers', function* () {
+    const portableUsers = yield* craftComputed('portableUsers', function* () {
       return (yield* usersQuery.value())?.users ?? [];
     });
-    const hasUsers = craftComputed('portableHasUsers', function* () {
+    const hasUsers = yield* craftComputed('portableHasUsers', function* () {
       return (yield* portableUsers()).length > 0;
     });
-    const isEmpty = craftComputed('portableIsEmpty', function* () {
+    const isEmpty = yield* craftComputed('portableIsEmpty', function* () {
       return !usersQuery.isLoading && !(yield* hasUsers());
     });
-    const auditId = craftComputed('portableAuditId', function* () {
+    const auditId = yield* craftComputed('portableAuditId', function* () {
       return (yield* usersQuery.value())?.auditId ?? '—';
     });
-    const normalizedFilter = craftComputed(
+    const normalizedFilter = yield* craftComputed(
       'portableNormalizedFilter',
       function* () {
         const value = (yield* usersQuery.value())?.filter ?? '';
         return value.length === 0 ? '(empty)' : value;
       },
     );
-    const scannedCount = craftComputed('portableScannedCount', function* () {
+    const scannedCount = yield* craftComputed('portableScannedCount', function* () {
       const value = yield* usersQuery.value();
       return value === undefined ? '—' : value.scanned.toString();
     });
 
-    const submitSearch = craftMethod(
+    const submitSearch = yield* craftMethod(
       'submitPortableSearch',
       function* (event?: Event) {
         event?.preventDefault();
         yield* usersQuery.call((yield* searchInput()).trim());
       },
     );
-    const resultCount = craftComputed('portableResultCount', function* () {
+    const resultCount = yield* craftComputed('portableResultCount', function* () {
       const value = yield* usersQuery.value();
       return value === undefined ? '—' : value.users.length.toString();
     });

@@ -19,6 +19,7 @@ import {
   source$,
   state,
   transitionStep,
+  craftUse,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 import { editor } from './editor.style';
@@ -94,12 +95,12 @@ const TextEditorStateMachine = craftComponent(
 
       ({ currentStep }) => {
         return {
-          readingStep: craftComputed('readingStep', function* () {
+          readingStep: craftUse(craftComputed('readingStep', function* () {
             return (yield* currentStep()) === 'reading' ? 'active' : null;
-          }),
-          editingStep: craftComputed('editingStep', function* () {
+          })),
+          editingStep: craftUse(craftComputed('editingStep', function* () {
             return (yield* currentStep()) === 'editing' ? 'active' : null;
-          }),
+          })),
         };
       },
     );

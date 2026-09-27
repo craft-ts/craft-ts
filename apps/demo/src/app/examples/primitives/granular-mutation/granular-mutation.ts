@@ -102,7 +102,7 @@ const GranularMutation = craftComponent(
       updateUserName,
       usersQuery,
       isUpdatePending,
-      updatePageSize: craftMethod('updatePageSize', function* (event: Event) {
+      updatePageSize: yield* craftMethod('updatePageSize', function* (event: Event) {
         yield* pagination.updatePageSize(
           Number(eventValue(event)),
         );

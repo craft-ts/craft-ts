@@ -8,7 +8,7 @@ import {
   span,
   strong,
 } from '@craft-ts/component';
-import { craftComputed, settled, state } from '@craft-ts/core';
+import { craftComputed, settled, state, craftUse } from '@craft-ts/core';
 import {
   computedEffect,
   methodEffect,
@@ -47,10 +47,10 @@ const EffectSyncMembersComponent = craftComponent(
   function* () {
     // Everything derived from the quantity alone lives in its insertion.
     const qty = yield* state('qty', 2, ({ state: read, update }) => {
-      const lines = craftComputed('lines', function* () {
+      const lines = craftUse(craftComputed('lines', function* () {
         const currentQty = yield* read();
         return CATALOG.map((item) => ({ ...item, qty: currentQty }));
-      });
+      }));
 
       return {
         increment: () => update((value) => Math.min(20, value + 1)),
@@ -84,10 +84,10 @@ const EffectSyncMembersComponent = craftComponent(
         loader: ({ params }) => quoteShipping(params),
       },
       ({ resource }) => ({
-        quoteLabel: craftComputed('quoteLabel', function* () {
+        quoteLabel: craftUse(craftComputed('quoteLabel', function* () {
           const quote = yield* settled(resource);
           return `${quote.carrier} — ${(quote.cents / 100).toFixed(2)} €`;
-        }),
+        })),
       }),
     );
 

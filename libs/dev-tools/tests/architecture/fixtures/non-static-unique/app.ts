@@ -15,6 +15,5 @@ export const { Users } = craftService(
       {},
       insertStoragePersister(craftUnique(identity)),
     );
-    return { cached };
   },
 );

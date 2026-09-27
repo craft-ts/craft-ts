@@ -111,7 +111,7 @@ describe('Craft SSR and hydration', () => {
             return [{ id: '42', name: 'Ada' }];
           },
         });
-        const firstName = craftComputed('firstName', function* () {
+        const firstName = yield* craftComputed('firstName', function* () {
           return (yield* settled(users))[0].name;
         });
         return { firstName };
@@ -196,7 +196,7 @@ describe('Craft SSR and hydration', () => {
           params: () => true,
           loader: never,
         });
-        const text = craftComputed('slowText', function* () {
+        const text = yield* craftComputed('slowText', function* () {
           return yield* settled(value);
         });
         return { text };
@@ -224,7 +224,7 @@ describe('Craft SSR and hydration', () => {
           params: () => true,
           loader: never,
         });
-        const text = craftComputed('undeclaredText', function* () {
+        const text = yield* craftComputed('undeclaredText', function* () {
           return yield* settled(value);
         });
         return { text };
@@ -250,7 +250,7 @@ describe('Craft SSR and hydration', () => {
           params: () => true,
           loader: () => new Promise<string>(() => undefined),
         });
-        const text = craftComputed('neverText', function* () {
+        const text = yield* craftComputed('neverText', function* () {
           return yield* settled(value);
         });
         return { text };
@@ -298,7 +298,7 @@ describe('Craft SSR and hydration', () => {
             return 'route ready';
           },
         });
-        const text = craftComputed('routeText', function* () {
+        const text = yield* craftComputed('routeText', function* () {
           return yield* settled(value);
         });
         return { text };
@@ -333,7 +333,7 @@ describe('Craft SSR and hydration', () => {
             return 'must not render';
           },
         });
-        const text = craftComputed('clientText', function* () {
+        const text = yield* craftComputed('clientText', function* () {
           return yield* settled(value);
         });
         return { text };
@@ -373,7 +373,7 @@ describe('Craft SSR and hydration', () => {
             return 'lazy route ready';
           },
         });
-        const text = craftComputed('lazyRouteText', function* () {
+        const text = yield* craftComputed('lazyRouteText', function* () {
           return yield* settled(value);
         });
         return { text };
@@ -492,7 +492,7 @@ describe('Craft SSR and hydration', () => {
           params: () => true,
           loader: () => new Promise<string>(() => undefined),
         });
-        const text = craftComputed('routeWithoutPolicyText', function* () {
+        const text = yield* craftComputed('routeWithoutPolicyText', function* () {
           return yield* settled(value);
         });
         return { text };

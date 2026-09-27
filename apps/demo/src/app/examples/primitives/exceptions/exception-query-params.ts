@@ -14,6 +14,7 @@ import {
   queryParams,
   craftComputed,
   craftException,
+  craftUse,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 
@@ -56,22 +57,22 @@ const ExceptionQueryParamsComponent = craftComponent(
         },
       },
       ({ exceptions }) => ({
-        hasParseException: craftComputed(
+        hasParseException: craftUse(craftComputed(
           'hasParseException',
           function* () {
             return (yield* exceptions()).parse.mode !== undefined;
           },
-        ),
-        parseExceptionMessage: craftComputed(
+        )),
+        parseExceptionMessage: craftUse(craftComputed(
           'parseExceptionMessage',
           function* () {
             const exception = (yield* exceptions()).parse.mode;
             return exception ? formatParseException(exception) : '';
           },
-        ),
+        )),
       }),
     );
-    const navigate = craftMethod('navigate', function* (mode: string) {
+    const navigate = yield* craftMethod('navigate', function* (mode: string) {
       void router.navigate({
         to: 'exception-query-params',
         //@ts-expect-error intentional to demonstrate the example

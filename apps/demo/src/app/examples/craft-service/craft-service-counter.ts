@@ -16,7 +16,6 @@ const { Counter, provideCounter } = craftService(
       decrement: () => update((value) => value - 1),
       reset: () => set(0),
     }));
-    return { counter };
   },
 );
 

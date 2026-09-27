@@ -1,4 +1,5 @@
 import { craftService, CraftHttpClient } from '../craft-runtime';
+import { craftExpose } from '@craft-ts/core';
 
 export const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global', browserBoundary: true },
@@ -7,6 +8,6 @@ export const { UsersApi } = craftService(
       url: 'users',
       success: response(),
     }));
-    return { users };
+    yield* craftExpose('users', users);
   },
 );

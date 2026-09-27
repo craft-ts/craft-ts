@@ -5,6 +5,5 @@ export const { Users } = craftService(
   function* () {
     const save = yield* mutation('save', {});
     const user = yield* query('user', {});
-    return { save, user };
   },
 );

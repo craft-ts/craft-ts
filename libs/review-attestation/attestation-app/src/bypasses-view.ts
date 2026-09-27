@@ -19,6 +19,7 @@ import {
   craftMethod,
   deepYieldable,
   state,
+  craftUse,
 } from '@craft-ts/core';
 import type {
   BypassInventoryItem,
@@ -68,7 +69,7 @@ export const BypassesView = craftComponent(
       ALL_RULES,
       ({ set, state: current }) => ({
         choose: (rule: string) => set(rule),
-        rules: craftComputed('rules', function* () {
+        rules: craftUse(craftComputed('rules', function* () {
           const items = yield* bypasses();
           const active = yield* current();
           const say = yield* t();
@@ -87,8 +88,8 @@ export const BypassesView = craftComponent(
             filterState: rule === active ? 'active' : null,
             pressed: rule === active ? 'true' : 'false',
           }));
-        }),
-        shown: craftComputed('shown', function* () {
+        })),
+        shown: craftUse(craftComputed('shown', function* () {
           const rule = yield* current();
           const say = yield* t();
           return (yield* bypasses())
@@ -101,33 +102,33 @@ export const BypassesView = craftComponent(
               reasonText: item.reason ?? say.bypassNoReason,
               excerpt: excerptText(item),
             }));
-        }),
+        })),
       }),
     );
-    const chooseRule = craftMethod('chooseRule', function* (rule: string) {
+    const chooseRule = yield* craftMethod('chooseRule', function* (rule: string) {
       yield* ruleFilter.choose(rule);
     });
     const rulesSource = ruleFilter.rules;
     const shownSource = ruleFilter.shown;
     const rules = deepYieldable(rulesSource);
     const shown = deepYieldable(shownSource);
-    const adoptionKnown = craftComputed('adoptionKnown', function* () {
+    const adoptionKnown = yield* craftComputed('adoptionKnown', function* () {
       return (yield* adoption()) !== undefined;
     });
-    const adoptionSummary = craftComputed('adoptionSummary', function* () {
+    const adoptionSummary = yield* craftComputed('adoptionSummary', function* () {
       const value = yield* adoption();
       return value
         ? (yield* t()).adoptionSummary(value.adopted, value.styling)
         : '';
     });
-    const adoptionComposition = craftComputed(
+    const adoptionComposition = yield* craftComputed(
       'adoptionComposition',
       function* () {
         const value = yield* adoption();
         return value ? (yield* t()).adoptionComposition(value.composition) : '';
       },
     );
-    const adoptionRemaining = deepYieldable(craftComputed('adoptionRemaining', function* () {
+    const adoptionRemaining = deepYieldable(yield* craftComputed('adoptionRemaining', function* () {
       const say = yield* t();
       return ((yield* adoption())?.remaining ?? []).map((entry) => ({
         component: entry.component,
@@ -248,13 +249,13 @@ export const BypassCardEvidence = craftComponent(
     previousReason: Input<string | null>,
     t: Input<Messages>,
   ) {
-    const reasonState = craftComputed('reasonState', function* () {
+    const reasonState = yield* craftComputed('reasonState', function* () {
       return (yield* reason()) ? null : 'missing';
     });
-    const reasonText = craftComputed('reasonText', function* () {
+    const reasonText = yield* craftComputed('reasonText', function* () {
       return (yield* reason()) ?? (yield* t()).bypassNoReason;
     });
-    const previousText = craftComputed('previousText', function* () {
+    const previousText = yield* craftComputed('previousText', function* () {
       const previous = yield* previousReason();
       return previous ? (yield* t()).bypassPreviousReason(previous) : '';
     });

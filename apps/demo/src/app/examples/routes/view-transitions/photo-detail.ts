@@ -32,19 +32,19 @@ const ViewTransitionsDetailComponent = craftComponent(
   'ViewTransitionsDetailComponent',
   {},
   function* (photoId: Input<string>) {
-    const currentPhoto = craftComputed('currentPhoto', function* () {
+    const currentPhoto = yield* craftComputed('currentPhoto', function* () {
       return findPhoto(yield* photoId()) ?? MISSING_PHOTO;
     });
-    const hasPhoto = craftComputed('hasPhoto', function* () {
+    const hasPhoto = yield* craftComputed('hasPhoto', function* () {
       return (yield* currentPhoto()).id !== MISSING_PHOTO.id;
     });
-    const currentPhotoTitle = craftComputed('currentPhotoTitle', function* () {
+    const currentPhotoTitle = yield* craftComputed('currentPhotoTitle', function* () {
       return (yield* currentPhoto()).title;
     });
-    const currentArt = craftComputed('currentArt', function* () {
+    const currentArt = yield* craftComputed('currentArt', function* () {
       return photoArt((yield* currentPhoto()).id);
     });
-    const currentTransitionName = craftComputed(
+    const currentTransitionName = yield* craftComputed(
       'currentTransitionName',
       function* () {
         return photoTransitionName((yield* currentPhoto()).id);

@@ -11,7 +11,7 @@ import {
   type Output,
   heading,
 } from '@craft-ts/component';
-import { craftComputed, deepYieldable, state } from '@craft-ts/core';
+import { craftComputed, deepYieldable, state, craftUse } from '@craft-ts/core';
 import { componentUi } from './component-demos.style';
 
 interface DemoUser {
@@ -61,9 +61,9 @@ export const componentDemo = craftComponent(
         ] satisfies DemoUser[],
       },
       ({ state, update }) => ({
-        items: craftComputed(function* () {
+        items: craftUse(craftComputed('items', function* () {
           return (yield* state()).items;
-        }),
+        })),
         addUser: () =>
           update((current) => {
             const id = current.nextId;

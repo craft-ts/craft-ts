@@ -40,7 +40,6 @@ const { SlowAccess } = craftService(
         return { allowed: true };
       },
     });
-    return { slowAccess };
   },
 );
 
@@ -57,7 +56,6 @@ const { SlowReport } = craftService(
         };
       },
     });
-    return { slowReport };
   },
 );
 

@@ -20,6 +20,7 @@ import {
 import { craftEffect } from '../craft-effect';
 import type { CraftSignal } from './craft-signal';
 import { CRAFT_SIGNAL } from './craft-signal';
+import { craftUse } from '../craft-use';
 
 describe('isDevMode', () => {
   afterEach(() => {
@@ -127,7 +128,7 @@ describe('inject fallback', () => {
     expect(inject(Injector)).toBe(host);
     expect(() => assertInInjectionContext()).not.toThrow();
     expect(() =>
-      craftEffect('fallback-effect', () => undefined, { injector: host }),
+      craftUse(craftEffect('fallback-effect', () => undefined, { injector: host })),
     ).not.toThrow();
   });
 });

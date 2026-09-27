@@ -66,7 +66,6 @@ export const { provideUserMutation, UserMutation } = craftService(
       ),
     );
 
-    return { user, updateUserName };
   },
 );
 
@@ -82,11 +81,11 @@ const MutationCraft = craftComponent(
     const nameInput = yield* state('nameInput', '', ({ set }) => ({
       setName: (value: string) => set(value),
     }));
-    const hasUser = craftComputed('hasUser', () => store.user.hasValue());
-    const userValueJson = craftComputed('userValueJson', function* () {
+    const hasUser = yield* craftComputed('hasUser', () => store.user.hasValue());
+    const userValueJson = yield* craftComputed('userValueJson', function* () {
       return JSON.stringify(yield* store.user.value(), null, 2);
     });
-    const updateUserNameFn = craftMethod(
+    const updateUserNameFn = yield* craftMethod(
       'updateUserNameFn',
       function* (newName: string) {
         const { user, updateUserName } = yield* UserMutation(
@@ -106,7 +105,7 @@ const MutationCraft = craftComponent(
     const router = yield* CraftRouter(undefined, ({ navigate }) => ({
       navigate,
     }));
-    const navigate = craftMethod('navigate', function* (offset: number) {
+    const navigate = yield* craftMethod('navigate', function* (offset: number) {
       void router.navigate({
         to: 'craft/mutation/:userId',
         params: { userId: String(Number((yield* userId()) ?? '0') + offset) },

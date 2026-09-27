@@ -25,6 +25,7 @@ import {
   isCraftException,
   query,
   state,
+  craftUse,
 } from '@craft-ts/core';
 import { CurrentUser, requireAdmin } from '../shared/authenticated-user';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-client';
@@ -43,10 +44,10 @@ const ServerFunctionDemo = craftComponent(
         return yield* CurrentUser;
       },
     });
-    const currentUser = craftComputed('currentUser', function* () {
+    const currentUser = yield* craftComputed('currentUser', function* () {
       return yield* currentUserQuery.value();
     });
-    const isAdmin = craftComputed('isAdmin', function* () {
+    const isAdmin = yield* craftComputed('isAdmin', function* () {
       return (yield* currentUser())?.role === 'admin';
     });
     // todo removeImporve and remove all the coments
@@ -65,15 +66,15 @@ const ServerFunctionDemo = craftComponent(
         },
       },
       ({ resource, exceptions }) => {
-        const hasUsers = craftComputed('hasUsers', () => resource.hasValue());
-        const notFound = craftComputed('notFound', function* () {
+        const hasUsers = craftUse(craftComputed('hasUsers', () => resource.hasValue()));
+        const notFound = craftUse(craftComputed('notFound', function* () {
           const error = (yield* exceptions()).loader;
           return (
             isCraftException(error) &&
             error._tag === 'AuthenticatedUsersNotFound'
           );
-        });
-        const notFoundMessage = craftComputed('notFoundMessage', function* () {
+        }));
+        const notFoundMessage = craftUse(craftComputed('notFoundMessage', function* () {
           const error = (yield* exceptions()).loader;
           if (!isCraftException(error)) return '';
           const payload = error.payload;
@@ -82,15 +83,15 @@ const ServerFunctionDemo = craftComponent(
               ? payload.message
               : undefined;
           return `404 · ${String(message ?? 'No matching users.')}`;
-        });
+        }));
         return {
-          accessDenied: craftComputed(function* () {
+          accessDenied: craftUse(craftComputed('accessDenied', function* () {
             return (yield* currentUser())?.role === 'member';
-          }),
+          })),
           hasUsers,
           notFound,
           notFoundMessage,
-          isEmpty: craftComputed('isEmpty', function* () {
+          isEmpty: craftUse(craftComputed('isEmpty', function* () {
             const currentStatus = yield* resource.status();
             return (
               (yield* currentUser())?.role !== 'member' &&
@@ -99,8 +100,8 @@ const ServerFunctionDemo = craftComponent(
               currentStatus !== 'reloading' &&
               !resource.hasValue()
             );
-          }),
-          requestTitle: craftComputed('requestTitle', function* () {
+          })),
+          requestTitle: craftUse(craftComputed('requestTitle', function* () {
             const currentStatus = yield* resource.status();
             if ((yield* currentUser())?.role === 'member') {
               return 'Client-side access denied';
@@ -109,8 +110,8 @@ const ServerFunctionDemo = craftComponent(
             return currentStatus === 'loading' || currentStatus === 'reloading'
               ? 'Calling demo.users.authenticated-list…'
               : 'Server function ready';
-          }),
-          requestDetail: craftComputed('requestDetail', function* () {
+          })),
+          requestDetail: craftUse(craftComputed('requestDetail', function* () {
             const currentStatus = yield* resource.status();
             if ((yield* currentUser())?.role === 'member') {
               return `Role “${(yield* currentUser())?.role ?? '…'}” · no request sent`;
@@ -121,16 +122,16 @@ const ServerFunctionDemo = craftComponent(
             return currentStatus === 'loading' || currentStatus === 'reloading'
               ? 'POST /__server-functions · Effect is running'
               : `Status: ${currentStatus}`;
-          }),
-          resultCount: craftComputed('resultCount', function* () {
+          })),
+          resultCount: craftUse(craftComputed('resultCount', function* () {
             const value = yield* resource.value();
             return Array.isArray(value) ? value.length.toString() : '—';
-          }),
+          })),
         };
       },
     );
     yield* usersQuery.call(''); // trigger first call
-    const submitSearch = craftMethod('submitSearch', function* (event?: Event) {
+    const submitSearch = yield* craftMethod('submitSearch', function* (event?: Event) {
       event?.preventDefault();
       if (!(yield* isAdmin())) return; // todo remove
       yield* usersQuery.call((yield* searchInput()).trim());
