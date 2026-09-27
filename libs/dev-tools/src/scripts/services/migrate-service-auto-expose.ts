@@ -13,7 +13,6 @@ import {
   VariableDeclaration,
   YieldExpression,
 } from 'ts-morph';
-import { migratePrimitiveGeneratorsInFile } from '../primitives/migrate-primitive-generators.js';
 
 /**
  * Migrates code to the `craftService` without `return`:
@@ -22,16 +21,20 @@ import { migratePrimitiveGeneratorsInFile } from '../primitives/migrate-primitiv
  *    generators — calls are consumed with `yield*` (inside a generator) or
  *    `craftUse(...)` (anywhere else), and an unnamed `craftComputed(fn)` takes
  *    its name from the binding it is assigned to.
- * 2. In every `craftService` factory, the `return { ... }` is removed: a
+ * 2. A plain `craftService` factory (`(inputs) => expr`) becomes a generator.
+ * 3. In every `craftService` factory, the `return { ... }` is removed: a
  *    shorthand `{ x }` of a binding `const x = yield* <primitive named 'x'>` is
- *    exposed as is, a `k: craftGen(function* ...)` / plain function becomes
- *    `yield* craftMethod('k', function* ...)`, a renamed key renames the
- *    primitive at its source, and every named primitive that was NOT returned
- *    is wrapped in `craftPrivate(...)`.
- * 3. Anything else (a flattened `{ addItem: dataList.addItem }`, a spread, a
- *    returned injected service, a single primitive returned alone) is kept in
- *    the `return` and reported as `SERVICE_EXPOSE_MANUAL`, so its consumers
- *    can be rewritten by hand.
+ *    exposed as is, `k: craftGen(function* ...)` or a plain function becomes
+ *    `yield* craftMethod('k', function* ...)`, a key naming another binding
+ *    renames that primitive at its source, and every named primitive that was
+ *    NOT returned is wrapped in `craftPrivate(...)`.
+ * 4. Anything else (a flattened `{ addItem: dataList.addItem }`, a spread, an
+ *    injected service, a primitive returned alone) stays in the `return` and
+ *    is reported as `SERVICE_EXPOSE_MANUAL`, so its consumers can be rewritten
+ *    by hand.
+ *
+ * Every step edits the raw text (never re-printing a node), so the code it
+ * does not change keeps its formatting.
  */
 
 export type ServiceExposeDiagnosticCode = 'SERVICE_EXPOSE_MANUAL';
@@ -85,7 +88,11 @@ export const NAMED_PRIMITIVE_NAME_ARG: Readonly<Record<string, number>> = {
 };
 
 /** Primitives whose name argument is optional and may be inserted. */
-const NAMEABLE_WHEN_UNNAMED = new Set(['state', 'craftComputed', 'craftStateMachine']);
+const NAMEABLE_WHEN_UNNAMED = new Set([
+  'state',
+  'craftComputed',
+  'craftStateMachine',
+]);
 
 const SERVICE_CALLEES = new Set(['craftService']);
 
@@ -110,7 +117,9 @@ export async function migrateServiceAutoExpose({
 
   if (write) await project.save();
 
-  log(`${write ? 'Migrated' : 'Would migrate'} ${changedFiles.length} file(s).`);
+  log(
+    `${write ? 'Migrated' : 'Would migrate'} ${changedFiles.length} file(s).`,
+  );
   for (const file of changedFiles) log(`  ${file}`);
   if (diagnostics.length > 0) {
     log(`\n${diagnostics.length} service exposure(s) need a manual rewrite:`);
@@ -126,57 +135,211 @@ export function migrateServiceAutoExposeInFile(
   sourceFile: SourceFile,
   diagnostics: ServiceExposeDiagnostic[] = [],
 ): boolean {
-  let changed = nameUnnamedHelpers(sourceFile);
-  changed =
-    migratePrimitiveGeneratorsInFile(sourceFile, YIELDABLE_HELPERS) || changed;
+  const original = sourceFile.getFullText();
+  const imports = new Set<string>();
 
-  changed = convertPlainFactories(sourceFile) || changed;
-
-  // Bottom-up, and re-resolved each time: rewriting a `return` as raw text
-  // forgets every node wrapper around it, but never shifts the ones above.
-  const factoryCount = findServiceFactories(sourceFile).length;
-  let needsCraftPrivate = false;
-  let needsCraftMethod = false;
-  for (let index = factoryCount - 1; index >= 0; index -= 1) {
-    const { factory, serviceName } = findServiceFactories(sourceFile)[index]!;
-    const outcome = migrateFactory(sourceFile, factory, serviceName, diagnostics);
-    changed = outcome.changed || changed;
-    needsCraftPrivate = outcome.usedCraftPrivate || needsCraftPrivate;
-    needsCraftMethod = outcome.usedCraftMethod || needsCraftMethod;
+  runPhase(sourceFile, convertPlainFactories);
+  runPhase(sourceFile, (file) => consumeYieldableHelpers(file, imports));
+  runPhase(sourceFile, (file) => migrateFactories(file, diagnostics, imports));
+  if (sourceFile.getFullText() !== original) {
+    runPhase(sourceFile, (file) => addImports(file, imports));
+    removeUnusedImport(sourceFile, 'craftGen');
   }
-  if (needsCraftPrivate) ensureCoreImport(sourceFile, 'craftPrivate');
-  if (needsCraftMethod) ensureCoreImport(sourceFile, 'craftMethod');
-  if (factoryCount > 0) removeUnusedImport(sourceFile, 'craftGen');
-  return changed;
+  return sourceFile.getFullText() !== original;
 }
 
 // ---------------------------------------------------------------------------
-// Step 1 — name the unnamed `craftComputed(fn)` from its binding.
+// Text edits
 // ---------------------------------------------------------------------------
 
-function nameUnnamedHelpers(sourceFile: SourceFile): boolean {
-  const local = importedLocalNames(sourceFile, new Set(['craftComputed']));
-  if (local.size === 0) return false;
-  let changed = false;
-  const calls = sourceFile
-    .getDescendantsOfKind(SyntaxKind.CallExpression)
-    .filter((call) => {
-      const callee = call.getExpression();
-      return (
-        Node.isIdentifier(callee) &&
-        local.has(callee.getText()) &&
-        call.getArguments().length > 0 &&
-        !Node.isStringLiteral(call.getArguments()[0]) &&
-        !Node.isNoSubstitutionTemplateLiteral(call.getArguments()[0])
-      );
-    })
-    .sort((a, b) => b.getStart() - a.getStart());
-  for (const call of calls) {
-    const name = bindingNameOf(call) ?? 'computed';
-    call.insertArgument(0, `'${name}'`);
-    changed = true;
+type Edit = { start: number; end: number; text: string };
+
+/** Collects edits on the current text, then applies them in one pass. */
+function runPhase(
+  sourceFile: SourceFile,
+  collect: (sourceFile: SourceFile) => Edit[],
+): void {
+  const edits = collect(sourceFile);
+  if (edits.length === 0) return;
+  sourceFile.replaceWithText(applyEdits(sourceFile.getFullText(), edits));
+}
+
+/**
+ * Applies non-overlapping edits. Insertions at the same offset keep the order
+ * they were collected in.
+ */
+function applyEdits(text: string, edits: readonly Edit[]): string {
+  const ordered = edits
+    .map((edit, sequence) => ({ ...edit, sequence }))
+    .sort(
+      (a, b) => b.start - a.start || b.end - a.end || b.sequence - a.sequence,
+    );
+  let result = text;
+  for (const edit of ordered) {
+    result = result.slice(0, edit.start) + edit.text + result.slice(edit.end);
   }
-  return changed;
+  return result;
+}
+
+/** The text of `node` with the edits that fall inside it applied. */
+function textWithEdits(node: Node, edits: readonly Edit[]): string {
+  const start = node.getStart();
+  const end = node.getEnd();
+  const inner = edits
+    .filter((edit) => edit.start >= start && edit.end <= end)
+    .map((edit) => ({
+      ...edit,
+      start: edit.start - start,
+      end: edit.end - start,
+    }));
+  return applyEdits(node.getText(), inner);
+}
+
+/** The whitespace that starts the line `node` begins on. */
+function lineIndent(node: Node): string {
+  const text = node.getSourceFile().getFullText();
+  const lineStart = text.lastIndexOf('\n', node.getStart() - 1) + 1;
+  return /^[ \t]*/.exec(text.slice(lineStart))![0];
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1 — plain factories become generators.
+// ---------------------------------------------------------------------------
+
+function convertPlainFactories(sourceFile: SourceFile): Edit[] {
+  const edits: Edit[] = [];
+  for (const call of serviceCalls(sourceFile)) {
+    const factory = call.getArguments()[1];
+    if (
+      !factory ||
+      !(Node.isArrowFunction(factory) || Node.isFunctionExpression(factory)) ||
+      factory.isAsync() ||
+      (Node.isFunctionExpression(factory) && factory.isGenerator())
+    ) {
+      continue;
+    }
+    if (isInsideServiceFactory(call)) continue;
+    const parameters = factory
+      .getParameters()
+      .map((parameter) => parameter.getText())
+      .join(', ');
+    const body = factory.getBody();
+    const indent = lineIndent(factory);
+    const block = Node.isBlock(body)
+      ? body.getText()
+      : `{\n${indent}  return ${body.getText()};\n${indent}}`;
+    edits.push({
+      start: factory.getStart(),
+      end: factory.getEnd(),
+      text: `function* (${parameters}) ${block}`,
+    });
+  }
+  return edits;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 — craftComputed / craftMethod / craftEffect are consumed.
+// ---------------------------------------------------------------------------
+
+function consumeYieldableHelpers(
+  sourceFile: SourceFile,
+  imports: Set<string>,
+): Edit[] {
+  const local = importedLocalNames(sourceFile, new Set(YIELDABLE_HELPERS));
+  if (local.size === 0) return [];
+  const edits: Edit[] = [];
+  for (const call of sourceFile.getDescendantsOfKind(
+    SyntaxKind.CallExpression,
+  )) {
+    const callee = call.getExpression();
+    if (!Node.isIdentifier(callee)) continue;
+    const helper = local.get(callee.getText());
+    if (!helper || call.getArguments().length === 0) continue;
+
+    const first = call.getArguments()[0]!;
+    if (helper === 'craftComputed' && !isNameLiteral(first)) {
+      edits.push({
+        start: first.getStart(),
+        end: first.getStart(),
+        text: `'${bindingNameOf(call) ?? 'computed'}', `,
+      });
+    }
+
+    if (isAlreadyConsumed(call)) continue;
+    if (isInsideGeneratorFunction(call)) {
+      const parens = needsYieldParens(call);
+      edits.push({
+        start: call.getStart(),
+        end: call.getStart(),
+        text: parens ? '(yield* ' : 'yield* ',
+      });
+      if (parens) {
+        edits.push({ start: call.getEnd(), end: call.getEnd(), text: ')' });
+      }
+    } else {
+      edits.push({
+        start: call.getStart(),
+        end: call.getStart(),
+        text: 'craftUse(',
+      });
+      edits.push({ start: call.getEnd(), end: call.getEnd(), text: ')' });
+      imports.add('craftUse');
+    }
+  }
+  return edits;
+}
+
+function isAlreadyConsumed(call: CallExpression): boolean {
+  let parent = call.getParent();
+  while (parent && Node.isParenthesizedExpression(parent)) {
+    parent = parent.getParent();
+  }
+  if (Node.isYieldExpression(parent)) return true;
+  return (
+    Node.isCallExpression(parent) &&
+    ['craftUse', 'craftPrivate'].includes(parent.getExpression().getText())
+  );
+}
+
+function isInsideGeneratorFunction(node: Node): boolean {
+  let current = node.getParent();
+  while (current) {
+    if (Node.isArrowFunction(current)) return false;
+    if (
+      Node.isFunctionDeclaration(current) ||
+      Node.isFunctionExpression(current) ||
+      Node.isMethodDeclaration(current)
+    ) {
+      return current.isGenerator();
+    }
+    if (
+      Node.isGetAccessorDeclaration(current) ||
+      Node.isSetAccessorDeclaration(current) ||
+      Node.isConstructorDeclaration(current) ||
+      Node.isPropertyDeclaration(current)
+    ) {
+      return false;
+    }
+    current = current.getParent();
+  }
+  return false;
+}
+
+function needsYieldParens(call: CallExpression): boolean {
+  const parent = call.getParent();
+  return (
+    Node.isSpreadElement(parent) ||
+    Node.isSpreadAssignment(parent) ||
+    Node.isPropertyAccessExpression(parent) ||
+    Node.isElementAccessExpression(parent) ||
+    Node.isTemplateSpan(parent) ||
+    Node.isBinaryExpression(parent) ||
+    Node.isConditionalExpression(parent) ||
+    Node.isAsExpression(parent) ||
+    Node.isSatisfiesExpression(parent) ||
+    Node.isArrayLiteralExpression(parent) ||
+    (Node.isCallExpression(parent) && parent.getExpression() === call)
+  );
 }
 
 /** The variable / field / property a (possibly consumed) call is bound to. */
@@ -193,8 +356,8 @@ function bindingNameOf(call: Node): string | undefined {
   ) {
     node = node.getParent();
   }
-  if (!node) return undefined;
   if (
+    node &&
     (Node.isVariableDeclaration(node) ||
       Node.isPropertyDeclaration(node) ||
       Node.isPropertyAssignment(node)) &&
@@ -206,60 +369,25 @@ function bindingNameOf(call: Node): string | undefined {
 }
 
 // ---------------------------------------------------------------------------
-// Step 2 — the service factories.
+// Phase 3 — the service factories.
 // ---------------------------------------------------------------------------
 
-/**
- * `craftService(options, (inputs) => expr)` → `function* (inputs) { return expr; }`:
- * a craftService factory must be a generator; its `return` is handled next.
- */
-function convertPlainFactories(sourceFile: SourceFile): boolean {
-  const factories = sourceFile
+function serviceCalls(sourceFile: SourceFile): CallExpression[] {
+  return sourceFile
     .getDescendantsOfKind(SyntaxKind.CallExpression)
     .filter((call) => {
       const callee = call.getExpression();
-      if (!Node.isIdentifier(callee) || !SERVICE_CALLEES.has(callee.getText())) {
-        return false;
-      }
-      const factory = call.getArguments()[1];
-      return (
-        !!factory &&
-        ((Node.isArrowFunction(factory) && !factory.isAsync()) ||
-          (Node.isFunctionExpression(factory) &&
-            !factory.isGenerator() &&
-            !factory.isAsync()))
-      );
-    })
-    .map((call) => call.getArguments()[1]!)
-    .sort((a, b) => b.getStart() - a.getStart());
-  for (const factory of factories) {
-    if (!Node.isArrowFunction(factory) && !Node.isFunctionExpression(factory)) continue;
-    const parameters = factory.getParameters().map((p) => p.getText()).join(', ');
-    const body = factory.getBody();
-    const block = Node.isBlock(body)
-      ? body.getText()
-      : `{\n${lineIndent(factory)}  return ${body.getText()};\n${lineIndent(factory)}}`;
-    factory.replaceWithText(`function* (${parameters}) ${block}`);
-  }
-  return factories.length > 0;
+      return Node.isIdentifier(callee) && SERVICE_CALLEES.has(callee.getText());
+    });
 }
 
-type ServiceFactory = { factory: FunctionExpression; serviceName?: string };
-
-function findServiceFactories(sourceFile: SourceFile): ServiceFactory[] {
-  const result: ServiceFactory[] = [];
-  for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const callee = call.getExpression();
-    if (!Node.isIdentifier(callee) || !SERVICE_CALLEES.has(callee.getText())) {
-      continue;
-    }
-    const [options, factory] = call.getArguments();
-    if (!factory || !Node.isFunctionExpression(factory) || !factory.isGenerator()) {
-      continue;
-    }
-    result.push({ factory, serviceName: readServiceName(options) });
-  }
-  return result.sort((a, b) => a.factory.getStart() - b.factory.getStart());
+function isInsideServiceFactory(call: CallExpression): boolean {
+  return !!call.getFirstAncestor(
+    (ancestor) =>
+      Node.isCallExpression(ancestor) &&
+      Node.isIdentifier(ancestor.getExpression()) &&
+      SERVICE_CALLEES.has(ancestor.getExpression().getText()),
+  );
 }
 
 function readServiceName(options: Node | undefined): string | undefined {
@@ -272,12 +400,6 @@ function readServiceName(options: Node | undefined): string | undefined {
     : undefined;
 }
 
-type FactoryOutcome = {
-  changed: boolean;
-  usedCraftPrivate: boolean;
-  usedCraftMethod: boolean;
-};
-
 /** A named primitive yielded at the top level of the factory body. */
 type YieldedPrimitive = {
   statement: Statement;
@@ -287,27 +409,57 @@ type YieldedPrimitive = {
   binding?: VariableDeclaration;
 };
 
-/** What happens to a named yield once the returned object is read. */
-type Exposure = { yielded: YieldedPrimitive; key: string; renameBinding: boolean };
+/** A named yield exposed under `key` (its binding renamed when asked). */
+type Exposure = {
+  yielded: YieldedPrimitive;
+  key: string;
+  renameBinding: boolean;
+};
+
+/** A statement that replaces a returned property (a method, a hoisted yield). */
+type Hoisted = { from: Node; render: (edits: readonly Edit[]) => string };
+
+function migrateFactories(
+  sourceFile: SourceFile,
+  diagnostics: ServiceExposeDiagnostic[],
+  imports: Set<string>,
+): Edit[] {
+  const edits: Edit[] = [];
+  for (const call of serviceCalls(sourceFile)) {
+    if (isInsideServiceFactory(call)) continue;
+    const [options, factory] = call.getArguments();
+    if (
+      !factory ||
+      !Node.isFunctionExpression(factory) ||
+      !factory.isGenerator()
+    ) {
+      continue;
+    }
+    edits.push(
+      ...migrateFactory(
+        factory,
+        readServiceName(options),
+        diagnostics,
+        imports,
+      ),
+    );
+  }
+  return edits;
+}
 
 function migrateFactory(
-  sourceFile: SourceFile,
   factory: FunctionExpression,
   serviceName: string | undefined,
   diagnostics: ServiceExposeDiagnostic[],
-): FactoryOutcome {
-  const outcome: FactoryOutcome = {
-    changed: false,
-    usedCraftPrivate: false,
-    usedCraftMethod: false,
-  };
+  imports: Set<string>,
+): Edit[] {
   const body = factory.getBody();
-  if (!body || !Node.isBlock(body)) return outcome;
+  if (!body || !Node.isBlock(body)) return [];
 
   const report = (node: Node, message: string) =>
     diagnostics.push({
       code: 'SERVICE_EXPOSE_MANUAL',
-      filePath: relative(process.cwd(), sourceFile.getFilePath()),
+      filePath: relative(process.cwd(), node.getSourceFile().getFilePath()),
       line: node.getStartLineNumber(),
       service: serviceName,
       message,
@@ -316,8 +468,11 @@ function migrateFactory(
 
   const returns = ownReturns(factory);
   if (returns.length > 1) {
-    report(returns[0], 'several return statements: expose each primitive by hand.');
-    return outcome;
+    report(
+      returns[0]!,
+      'several return statements: expose each primitive by hand.',
+    );
+    return [];
   }
   const returnStatement = returns[0];
   const returned = returnStatement?.getExpression();
@@ -334,45 +489,41 @@ function migrateFactory(
         returnStatement,
         `returns ${describe(object)} instead of an object literal: expose its members as named primitives and update the consumers.`,
       );
-      return outcome;
+      return [];
     }
     planReturnedObject(object, yields, exposures, hoisted, kept, report);
-    outcome.usedCraftMethod = hoisted.some(({ text }) => text().includes('craftMethod('));
   }
 
-  // --- apply ------------------------------------------------------------
-  // 1. Renamed bindings first: `rename` rewrites every reference, including
-  //    those inside the hoisted methods, so their text is read afterwards.
+  // --- edits ----------------------------------------------------------------
+  const edits: Edit[] = [];
+  // Renamed bindings: every reference in the factory, the returned object
+  // included (its hoisted text is rendered with these edits applied).
   for (const exposure of exposures) {
-    if (exposure.renameBinding) {
-      exposure.yielded
-        .binding!.getNameNode()
-        .asKindOrThrow(SyntaxKind.Identifier)
-        .rename(exposure.key);
+    if (!exposure.renameBinding) continue;
+    const oldName = exposure.yielded.binding!.getName();
+    for (const identifier of body.getDescendantsOfKind(SyntaxKind.Identifier)) {
+      if (identifier.getText() !== oldName || isMemberName(identifier)) {
+        continue;
+      }
+      edits.push({
+        start: identifier.getStart(),
+        end: identifier.getEnd(),
+        text: exposure.key,
+      });
     }
   }
-  const replacement = returnStatement
-    ? (() => {
-        const indent = lineIndent(returnStatement);
-        const lines = hoisted.map((entry) => reindent(entry, indent));
-        if (kept.length > 0) {
-          lines.push(`return { ${kept.map((node) => node.getText()).join(', ')} };`);
-        }
-        return lines.join(`\n${indent}`);
-      })()
-    : undefined;
+
   const keptNames = new Set(
     kept.flatMap((node) =>
-      node.getDescendantsOfKind(SyntaxKind.Identifier).map((id) => id.getText()),
+      node
+        .getDescendantsOfKind(SyntaxKind.Identifier)
+        .map((identifier) => identifier.getText()),
     ),
   );
-
-  // 2. The yields: exposed ones get their key as name, the others go private.
-  for (const yielded of [...yields].reverse()) {
+  for (const yielded of yields) {
     const exposure = exposures.find((e) => e.yielded === yielded);
     if (exposure) {
-      renameCall(yielded.call, yielded.primitive, exposure.key);
-      outcome.changed = true;
+      edits.push(...nameEdits(yielded.call, yielded.primitive, exposure.key));
       continue;
     }
     // A binding a manual `return` still reads stays as it is.
@@ -385,44 +536,42 @@ function migrateFactory(
     }
     const argument = yielded.yieldExpression.getExpression();
     if (!argument) continue;
-    argument.replaceWithText(`craftPrivate(${argument.getText()})`);
-    outcome.usedCraftPrivate = true;
-    outcome.changed = true;
+    edits.push({
+      start: argument.getStart(),
+      end: argument.getStart(),
+      text: 'craftPrivate(',
+    });
+    edits.push({ start: argument.getEnd(), end: argument.getEnd(), text: ')' });
+    imports.add('craftPrivate');
   }
 
-  // 3. The return itself, last: replacing raw text forgets the nodes around.
-  if (returnStatement && replacement !== undefined) {
-    if (replacement === '') returnStatement.remove();
-    else {
-      sourceFile.replaceText(
-        [returnStatement.getStart(), returnStatement.getEnd()],
-        replacement,
+  if (returnStatement) {
+    const start = returnStatement.getStart();
+    const end = returnStatement.getEnd();
+    const inReturn = (edit: Edit) => edit.start >= start && edit.end <= end;
+    const returnEdits = edits.filter(inReturn);
+    const indent = lineIndent(returnStatement);
+    const lines = hoisted.map((entry) =>
+      reindent(entry.render(returnEdits), lineIndent(entry.from), indent),
+    );
+    if (lines.some((line) => line.includes('craftMethod('))) {
+      imports.add('craftMethod');
+    }
+    if (kept.length > 0) {
+      lines.push(
+        `return { ${kept.map((node) => textWithEdits(node, returnEdits)).join(', ')} };`,
       );
     }
-    outcome.changed = true;
+    const outside = edits.filter((edit) => !inReturn(edit));
+    edits.length = 0;
+    edits.push(
+      ...outside,
+      lines.length > 0
+        ? { start, end, text: lines.join(`\n${indent}`) }
+        : wholeLineRemoval(returnStatement),
+    );
   }
-  return outcome;
-}
-
-/**
- * Hoisted text keeps the indentation of the property it came from; shift its
- * continuation lines so they sit under the statement instead.
- */
-type Hoisted = { text: () => string; from: Node };
-
-function reindent({ text, from }: Hoisted, indent: string): string {
-  const [first, ...rest] = text().split('\n');
-  const fromIndent = lineIndent(from).length;
-  const shift = Math.max(0, fromIndent - indent.length);
-  const strip = new RegExp(`^ {0,${shift}}`);
-  return [first, ...rest.map((line) => line.replace(strip, ''))].join('\n');
-}
-
-/** The whitespace that starts the line `node` begins on. */
-function lineIndent(node: Node): string {
-  const text = node.getSourceFile().getFullText();
-  const lineStart = text.lastIndexOf('\n', node.getStart() - 1) + 1;
-  return /^[ \t]*/.exec(text.slice(lineStart))![0];
+  return edits;
 }
 
 function planReturnedObject(
@@ -439,11 +588,24 @@ function planReturnedObject(
       .map((y) => [y.binding!.getName(), y]),
   );
   const claimed = new Set<YieldedPrimitive>();
-  const expose = (yielded: YieldedPrimitive, key: string, renameBinding: boolean) => {
-    if (claimed.has(yielded) || !canName(yielded.call, yielded.primitive)) return false;
+  const expose = (
+    yielded: YieldedPrimitive,
+    key: string,
+    renameBinding: boolean,
+  ) => {
+    if (claimed.has(yielded) || !canName(yielded.call, yielded.primitive)) {
+      return false;
+    }
     claimed.add(yielded);
     exposures.push({ yielded, key, renameBinding });
     return true;
+  };
+  const method = (key: string, from: Node, fn: Node) => {
+    hoisted.push({
+      from,
+      render: (edits) =>
+        `yield* craftMethod('${key}', ${toGeneratorFunctionText(fn, edits)});`,
+    });
   };
 
   for (const property of object.getProperties()) {
@@ -461,11 +623,14 @@ function planReturnedObject(
       continue;
     }
 
-    if (Node.isPropertyAssignment(property) && isPlainKey(property.getNameNode())) {
+    if (
+      Node.isPropertyAssignment(property) &&
+      isPlainKey(property.getNameNode())
+    ) {
       const key = property.getName().replace(/^['"]|['"]$/g, '');
       const value = unwrapExpression(property.getInitializerOrThrow());
 
-      // `k: y` — a primitive bound under another name: rename it at the source.
+      // `k: y` — a primitive bound under another name: renamed at the source.
       if (Node.isIdentifier(value)) {
         const yielded = byBinding.get(value.getText());
         if (
@@ -478,40 +643,46 @@ function planReturnedObject(
       }
 
       // `k: yield* <named primitive>` — hoisted as a statement named `k`.
-      if (Node.isYieldExpression(value) && value.getText().startsWith('yield*')) {
+      if (
+        Node.isYieldExpression(value) &&
+        value.getText().startsWith('yield*')
+      ) {
         const call = unwrapExpression(value.getExpressionOrThrow());
-        const primitive = Node.isCallExpression(call) ? primitiveOf(call) : undefined;
-        if (Node.isCallExpression(call) && primitive && canName(call, primitive)) {
-          hoisted.push({ text: () => `yield* ${renamedCallText(call, primitive, key)};`, from: property });
+        const primitive = Node.isCallExpression(call)
+          ? primitiveOf(call)
+          : undefined;
+        if (
+          Node.isCallExpression(call) &&
+          primitive &&
+          canName(call, primitive)
+        ) {
+          hoisted.push({
+            from: property,
+            render: (edits) =>
+              `yield* ${textWithEdits(call, [...edits, ...nameEdits(call, primitive, key)])};`,
+          });
           continue;
         }
       }
 
       // `k: craftGen(function* ...)` — a method.
-      if (Node.isCallExpression(value) && value.getExpression().getText() === 'craftGen') {
-        const fn = value.getArguments()[0];
-        const generator = fn ? toGeneratorFunctionText(fn) : undefined;
-        if (generator && value.getArguments().length === 1) {
-          const fnNode = Node.isCallExpression(value) ? value.getArguments()[0]! : value;
-          hoisted.push({
-            text: () => `yield* craftMethod('${key}', ${toGeneratorFunctionText(fnNode)});`,
-            from: property,
-          });
-          continue;
-        }
+      if (
+        Node.isCallExpression(value) &&
+        value.getExpression().getText() === 'craftGen' &&
+        value.getArguments().length === 1 &&
+        toGeneratorFunctionText(value.getArguments()[0]!, []) !== undefined
+      ) {
+        method(key, property, value.getArguments()[0]!);
+        continue;
       }
 
       // `k: (args) => ...` / `k: function (...) {}` — a plain method.
-      if (Node.isArrowFunction(value) || Node.isFunctionExpression(value)) {
-        const generator = toGeneratorFunctionText(value);
-        if (generator) {
-          const fnNode = Node.isCallExpression(value) ? value.getArguments()[0]! : value;
-          hoisted.push({
-            text: () => `yield* craftMethod('${key}', ${toGeneratorFunctionText(fnNode)});`,
-            from: property,
-          });
-          continue;
-        }
+      if (
+        (Node.isArrowFunction(value) || Node.isFunctionExpression(value)) &&
+        toGeneratorFunctionText(value, []) !== undefined
+      ) {
+        method(key, property, value);
+        continue;
       }
 
       report(
@@ -522,18 +693,19 @@ function planReturnedObject(
       continue;
     }
 
-    if (Node.isMethodDeclaration(property) && isPlainKey(property.getNameNode())) {
-      const generator = methodToGeneratorText(property);
-      if (generator) {
-        hoisted.push({
-          text: () => `yield* craftMethod('${property.getName()}', ${methodToGeneratorText(property)});`,
-          from: property,
-        });
-        continue;
-      }
+    if (
+      Node.isMethodDeclaration(property) &&
+      isPlainKey(property.getNameNode()) &&
+      toGeneratorFunctionText(property, []) !== undefined
+    ) {
+      method(property.getName(), property, property);
+      continue;
     }
 
-    report(property, `"${truncate(property.getText())}" cannot be exposed automatically.`);
+    report(
+      property,
+      `"${truncate(property.getText())}" cannot be exposed automatically.`,
+    );
     kept.push(property);
   }
 }
@@ -541,10 +713,16 @@ function planReturnedObject(
 function topLevelNamedYields(statements: Statement[]): YieldedPrimitive[] {
   const result: YieldedPrimitive[] = [];
   for (const statement of statements) {
-    const candidates: { expression: Node | undefined; binding?: VariableDeclaration }[] = [];
+    const candidates: {
+      expression: Node | undefined;
+      binding?: VariableDeclaration;
+    }[] = [];
     if (Node.isVariableStatement(statement)) {
       for (const declaration of statement.getDeclarations()) {
-        candidates.push({ expression: declaration.getInitializer(), binding: declaration });
+        candidates.push({
+          expression: declaration.getInitializer(),
+          binding: declaration,
+        });
       }
     } else if (Node.isExpressionStatement(statement)) {
       candidates.push({ expression: statement.getExpression() });
@@ -574,19 +752,25 @@ function primitiveOf(call: CallExpression): string | undefined {
   return name && name in NAMED_PRIMITIVE_NAME_ARG ? name : undefined;
 }
 
-function nameArgumentOf(call: CallExpression, primitive: string): Node | undefined {
-  const index = NAMED_PRIMITIVE_NAME_ARG[primitive];
-  const argument = call.getArguments()[index];
+function isNameLiteral(node: Node): boolean {
+  return (
+    Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)
+  );
+}
+
+function nameArgumentOf(
+  call: CallExpression,
+  primitive: string,
+): Node | undefined {
+  const argument = call.getArguments()[NAMED_PRIMITIVE_NAME_ARG[primitive]!];
   if (!argument) return undefined;
-  if (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) {
-    return argument;
-  }
+  if (isNameLiteral(argument)) return argument;
   // `craftMethod({ name: 'x', providers })`
   if (Node.isObjectLiteralExpression(argument)) {
     const name = argument.getProperty('name');
     if (name && Node.isPropertyAssignment(name)) {
       const initializer = name.getInitializer();
-      if (initializer && Node.isStringLiteral(initializer)) return initializer;
+      if (initializer && isNameLiteral(initializer)) return initializer;
     }
   }
   return undefined;
@@ -595,58 +779,88 @@ function nameArgumentOf(call: CallExpression, primitive: string): Node | undefin
 function isUnnamed(call: CallExpression, primitive: string): boolean {
   if (!NAMEABLE_WHEN_UNNAMED.has(primitive)) return false;
   const first = call.getArguments()[0];
-  if (!first) return false;
-  if (Node.isStringLiteral(first) || Node.isNoSubstitutionTemplateLiteral(first)) {
-    return false;
-  }
+  if (!first || isNameLiteral(first)) return false;
   // `state(config)` has a single argument; `state('x', config, ...)` two or more.
   return primitive !== 'state' || call.getArguments().length === 1;
 }
 
 function canName(call: CallExpression, primitive: string): boolean {
-  return nameArgumentOf(call, primitive) !== undefined || isUnnamed(call, primitive);
+  return (
+    nameArgumentOf(call, primitive) !== undefined || isUnnamed(call, primitive)
+  );
 }
 
-/** Sets the primitive's name literal to `name` (inserting it when absent). */
-function renameCall(call: CallExpression, primitive: string, name: string): void {
+/** Edits that set the primitive's name to `name` (inserting it when absent). */
+function nameEdits(
+  call: CallExpression,
+  primitive: string,
+  name: string,
+): Edit[] {
   const literal = nameArgumentOf(call, primitive);
   if (literal) {
-    if (!Node.isStringLiteral(literal) || literal.getLiteralValue() !== name) {
-      literal.replaceWithText(`'${name}'`);
-    }
-    return;
+    const current = literal.getText().slice(1, -1);
+    return current === name
+      ? []
+      : [{ start: literal.getStart(), end: literal.getEnd(), text: `'${name}'` }];
   }
-  if (isUnnamed(call, primitive)) call.insertArgument(0, `'${name}'`);
+  if (isUnnamed(call, primitive)) {
+    const first = call.getArguments()[0]!;
+    return [
+      { start: first.getStart(), end: first.getStart(), text: `'${name}', ` },
+    ];
+  }
+  return [];
 }
 
-function renamedCallText(call: CallExpression, primitive: string, name: string): string {
-  const literal = nameArgumentOf(call, primitive);
-  const text = call.getText();
-  if (literal) {
-    const start = literal.getStart() - call.getStart();
-    return `${text.slice(0, start)}'${name}'${text.slice(start + literal.getWidth())}`;
+/** Hoisted text keeps the indentation of its property; move it under `indent`. */
+function reindent(text: string, fromIndent: string, indent: string): string {
+  const [first, ...rest] = text.split('\n');
+  const shift = Math.max(0, fromIndent.length - indent.length);
+  const strip = new RegExp(`^ {0,${shift}}`);
+  return [first, ...rest.map((line) => line.replace(strip, ''))].join('\n');
+}
+
+function wholeLineRemoval(node: Node): Edit {
+  const text = node.getSourceFile().getFullText();
+  const lineStart = text.lastIndexOf('\n', node.getStart() - 1) + 1;
+  const onlyOnLine = text.slice(lineStart, node.getStart()).trim() === '';
+  const lineEnd = text.indexOf('\n', node.getEnd());
+  const restOfLine = text.slice(
+    node.getEnd(),
+    lineEnd === -1 ? text.length : lineEnd,
+  );
+  if (onlyOnLine && restOfLine.trim() === '' && lineEnd !== -1) {
+    return { start: lineStart, end: lineEnd + 1, text: '' };
   }
-  const first = call.getArguments()[0]!;
-  const start = first.getStart() - call.getStart();
-  return `${text.slice(0, start)}'${name}', ${text.slice(start)}`;
+  return { start: node.getStart(), end: node.getEnd(), text: '' };
 }
 
 function canRenameBinding(binding: VariableDeclaration, name: string): boolean {
   if (!Node.isIdentifier(binding.getNameNode())) return false;
   const scope = binding.getFirstAncestor(
-    (node) => Node.isFunctionExpression(node) || Node.isFunctionDeclaration(node),
+    (node) =>
+      Node.isFunctionExpression(node) || Node.isFunctionDeclaration(node),
   );
   if (!scope) return false;
-  return !scope.getDescendantsOfKind(SyntaxKind.Identifier).some((identifier) => {
-    if (identifier.getText() !== name) return false;
-    // A property key or member name is not a binding that could clash.
-    const parent = identifier.getParent();
-    return !(
-      (Node.isPropertyAssignment(parent) && parent.getNameNode() === identifier) ||
-      (Node.isPropertyAccessExpression(parent) && parent.getNameNode() === identifier) ||
-      (Node.isMethodDeclaration(parent) && parent.getNameNode() === identifier)
+  return !scope
+    .getDescendantsOfKind(SyntaxKind.Identifier)
+    .some(
+      (identifier) =>
+        identifier.getText() === name && !isMemberName(identifier),
     );
-  });
+}
+
+/** A property key or member name — not a reference to a binding. */
+function isMemberName(identifier: Node): boolean {
+  const parent = identifier.getParent();
+  return (
+    (Node.isPropertyAssignment(parent) &&
+      parent.getNameNode() === identifier) ||
+    (Node.isPropertyAccessExpression(parent) &&
+      parent.getNameNode() === identifier) ||
+    (Node.isMethodDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isPropertySignature(parent) && parent.getNameNode() === identifier)
+  );
 }
 
 /** Return statements of `fn` itself — not those of nested functions. */
@@ -670,53 +884,64 @@ function enclosingFunction(node: Node): Node | undefined {
 }
 
 /**
- * `(a) => expr` / `function (a) { ... }` / `function* (a) { ... }` as the text
- * of a generator function. `undefined` for what cannot become one faithfully:
- * an async function, or one relying on `this` / `arguments`.
+ * `(a) => expr`, `function (a) {}`, `function* (a) {}` or a method as the text
+ * of a generator function — `undefined` for what cannot become one
+ * faithfully: an async function, or one relying on its own `this` /
+ * `arguments`. A declared return type `T` becomes `Generator<never, T>`.
  */
-function toGeneratorFunctionText(fn: Node): string | undefined {
-  if (!Node.isArrowFunction(fn) && !Node.isFunctionExpression(fn)) return undefined;
-  if (fn.isAsync()) return undefined;
-  const bodyNode = fn.getBody();
-  if (Node.isFunctionExpression(fn) && usesOwnThisOrArguments(fn)) return undefined;
-  const typeParameters = fn.getTypeParameters().map((t) => t.getText());
-  const typeParams = typeParameters.length ? `<${typeParameters.join(', ')}>` : '';
-  const parameters = fn.getParameters().map((p) => p.getText()).join(', ');
-  const returnType = fn.getReturnTypeNode();
-  if (Node.isFunctionExpression(fn) && fn.isGenerator()) {
-    return `function* ${typeParams}(${parameters})${returnType ? `: ${returnType.getText()}` : ''} ${bodyNode!.getText()}`;
+function toGeneratorFunctionText(
+  fn: Node,
+  edits: readonly Edit[],
+): string | undefined {
+  if (
+    !Node.isArrowFunction(fn) &&
+    !Node.isFunctionExpression(fn) &&
+    !Node.isMethodDeclaration(fn)
+  ) {
+    return undefined;
   }
-  if (returnType) return undefined; // a declared plain return type would lie
-  const block = Node.isBlock(bodyNode)
-    ? bodyNode.getText()
-    : `{ return ${bodyNode!.getText()}; }`;
-  return `function* ${typeParams}(${parameters}) ${block}`;
-}
+  if (fn.isAsync()) return undefined;
+  if (!Node.isArrowFunction(fn) && usesOwnThisOrArguments(fn)) {
+    return undefined;
+  }
+  const isGenerator = !Node.isArrowFunction(fn) && fn.isGenerator();
+  const returnType = fn.getReturnTypeNode();
 
-function methodToGeneratorText(method: Node): string | undefined {
-  if (!Node.isMethodDeclaration(method)) return undefined;
-  if (method.isAsync()) return undefined;
-  if (usesOwnThisOrArguments(method)) return undefined;
-  const typeParameters = method.getTypeParameters().map((t) => t.getText());
-  const typeParams = typeParameters.length ? `<${typeParameters.join(', ')}>` : '';
-  const parameters = method.getParameters().map((p) => p.getText()).join(', ');
-  const returnType = method.getReturnTypeNode();
-  if (!method.isGenerator() && returnType) return undefined;
-  return `function* ${typeParams}(${parameters})${method.isGenerator() && returnType ? `: ${returnType.getText()}` : ''} ${method.getBodyOrThrow().getText()}`;
+  const typeParameters = fn
+    .getTypeParameters()
+    .map((typeParameter) => textWithEdits(typeParameter, edits));
+  const typeParams = typeParameters.length
+    ? `<${typeParameters.join(', ')}>`
+    : '';
+  const parameters = fn
+    .getParameters()
+    .map((parameter) => textWithEdits(parameter, edits))
+    .join(', ');
+  const body = fn.getBody();
+  if (!body) return undefined;
+  const bodyText = textWithEdits(body, edits);
+  const block = Node.isBlock(body) ? bodyText : `{ return ${bodyText}; }`;
+  const annotation = !returnType
+    ? ''
+    : isGenerator
+      ? `: ${textWithEdits(returnType, edits)}`
+      : `: Generator<never, ${textWithEdits(returnType, edits)}>`;
+  return `function* ${typeParams}(${parameters})${annotation} ${block}`;
 }
 
 function usesOwnThisOrArguments(fn: Node): boolean {
   return fn.getDescendants().some((node) => {
-    if (!Node.isThisExpression(node) && !(Node.isIdentifier(node) && node.getText() === 'arguments')) {
-      return false;
-    }
-    let owner = node.getParent();
-    while (owner && Node.isArrowFunction(owner) === false && owner !== fn) {
-      if (Node.isFunctionExpression(owner) || Node.isFunctionDeclaration(owner) || Node.isMethodDeclaration(owner)) {
-        return owner === fn;
-      }
-      owner = owner.getParent();
-    }
+    const isThis = Node.isThisExpression(node);
+    const isArguments =
+      Node.isIdentifier(node) && node.getText() === 'arguments';
+    if (!isThis && !isArguments) return false;
+    // `this` / `arguments` belong to the closest non-arrow function.
+    const owner = node.getFirstAncestor(
+      (ancestor) =>
+        Node.isFunctionExpression(ancestor) ||
+        Node.isFunctionDeclaration(ancestor) ||
+        Node.isMethodDeclaration(ancestor),
+    );
     return owner === fn;
   });
 }
@@ -736,13 +961,15 @@ function unwrapExpression(node: Node): Node {
 function isPlainKey(name: Node): boolean {
   return (
     Node.isIdentifier(name) ||
-    (Node.isStringLiteral(name) && /^[A-Za-z_$][\w$]*$/.test(name.getLiteralValue()))
+    (Node.isStringLiteral(name) &&
+      /^[A-Za-z_$][\w$]*$/.test(name.getLiteralValue()))
   );
 }
 
 function describe(node: Node): string {
-  if (Node.isIdentifier(node)) return `"${node.getText()}"`;
-  if (Node.isCallExpression(node)) return `a call (${truncate(node.getText())})`;
+  if (Node.isCallExpression(node)) {
+    return `a call (${truncate(node.getText())})`;
+  }
   return `"${truncate(node.getText())}"`;
 }
 
@@ -751,22 +978,118 @@ function truncate(text: string): string {
   return flat.length > 60 ? `${flat.slice(0, 57)}...` : flat;
 }
 
-function importedLocalNames(sourceFile: SourceFile, names: Set<string>): Set<string> {
-  const local = new Set<string>();
+// ---------------------------------------------------------------------------
+// Imports
+// ---------------------------------------------------------------------------
+
+function importedLocalNames(
+  sourceFile: SourceFile,
+  names: Set<string>,
+): Map<string, string> {
+  const local = new Map<string, string>();
   for (const declaration of sourceFile.getImportDeclarations()) {
     for (const specifier of declaration.getNamedImports()) {
       if (names.has(specifier.getName())) {
-        local.add(specifier.getAliasNode()?.getText() ?? specifier.getName());
+        local.set(
+          specifier.getAliasNode()?.getText() ?? specifier.getName(),
+          specifier.getName(),
+        );
       }
     }
   }
   return local;
 }
 
+const CORE_SYMBOL_MODULE: Record<string, string> = {
+  craftPrivate: 'libs/core/src/lib/craft-primitive-gen',
+  craftMethod: 'libs/core/src/lib/craft-method',
+  craftUse: 'libs/core/src/lib/craft-use',
+};
+
+function addImports(sourceFile: SourceFile, symbols: Set<string>): Edit[] {
+  const edits: Edit[] = [];
+  const pending = new Map<string, string[]>();
+  for (const symbol of symbols) {
+    const imported = sourceFile
+      .getImportDeclarations()
+      .some((declaration) =>
+        declaration
+          .getNamedImports()
+          .some((specifier) => specifier.getName() === symbol),
+      );
+    if (imported) continue;
+    const module = moduleFor(sourceFile, symbol);
+    pending.set(module, [...(pending.get(module) ?? []), symbol]);
+  }
+
+  const text = sourceFile.getFullText();
+  for (const [module, names] of pending) {
+    const declaration = sourceFile
+      .getImportDeclarations()
+      .find(
+        (candidate) =>
+          candidate.getModuleSpecifierValue() === module &&
+          !candidate.isTypeOnly() &&
+          candidate.getNamedImports().length > 0,
+      );
+    if (declaration) {
+      const specifiers = declaration.getNamedImports();
+      const last = specifiers[specifiers.length - 1]!;
+      const afterLast = text.slice(last.getEnd());
+      const trailingComma = /^\s*,/.test(afterLast);
+      if (declaration.getText().includes('\n')) {
+        // One specifier per line, trailing comma kept as found.
+        const indent = lineIndent(last);
+        const position = trailingComma
+          ? last.getEnd() + afterLast.indexOf(',') + 1
+          : last.getEnd();
+        const added = names.map((name) => `\n${indent}${name}`).join(',');
+        edits.push({
+          start: position,
+          end: position,
+          text: trailingComma ? `${added},` : `,${added}`,
+        });
+      } else {
+        edits.push({
+          start: last.getEnd(),
+          end: last.getEnd(),
+          text: names.map((name) => `, ${name}`).join(''),
+        });
+      }
+      continue;
+    }
+    const declarations = sourceFile.getImportDeclarations();
+    const anchor = declarations[declarations.length - 1];
+    const line = `import { ${names.join(', ')} } from '${module}';`;
+    edits.push(
+      anchor
+        ? { start: anchor.getEnd(), end: anchor.getEnd(), text: `\n${line}` }
+        : { start: 0, end: 0, text: `${line}\n` },
+    );
+  }
+  return edits;
+}
+
+function moduleFor(sourceFile: SourceFile, symbol: string): string {
+  const filePath = resolve(sourceFile.getFilePath());
+  const coreSrc = resolve('libs/core/src');
+  if (!filePath.startsWith(coreSrc + '/')) return '@craft-ts/core';
+  let specifier = relative(
+    dirname(filePath),
+    resolve(CORE_SYMBOL_MODULE[symbol]!),
+  );
+  if (!specifier.startsWith('.')) specifier = `./${specifier}`;
+  return specifier;
+}
+
 function removeUnusedImport(sourceFile: SourceFile, symbol: string): void {
   const used = sourceFile
     .getDescendantsOfKind(SyntaxKind.Identifier)
-    .some((id) => id.getText() === symbol && !Node.isImportSpecifier(id.getParent()));
+    .some(
+      (identifier) =>
+        identifier.getText() === symbol &&
+        !Node.isImportSpecifier(identifier.getParent()),
+    );
   if (used) return;
   for (const declaration of sourceFile.getImportDeclarations()) {
     for (const specifier of declaration.getNamedImports()) {
@@ -783,61 +1106,23 @@ function removeUnusedImport(sourceFile: SourceFile, symbol: string): void {
   }
 }
 
-const CORE_SYMBOL_MODULE: Record<string, string> = {
-  craftPrivate: 'libs/core/src/lib/craft-primitive-gen',
-  craftMethod: 'libs/core/src/lib/craft-method',
-};
-
-function ensureCoreImport(sourceFile: SourceFile, symbol: string): void {
-  const imported = sourceFile
-    .getImportDeclarations()
-    .some((declaration) =>
-      declaration.getNamedImports().some((specifier) => specifier.getName() === symbol),
-    );
-  if (imported) return;
-
-  const filePath = sourceFile.getFilePath();
-  const coreSrc = resolve('libs/core/src');
-  if (resolve(filePath).startsWith(coreSrc + '/')) {
-    let specifier = relative(dirname(filePath), resolve(CORE_SYMBOL_MODULE[symbol]));
-    if (!specifier.startsWith('.')) specifier = `./${specifier}`;
-    const existing = sourceFile
-      .getImportDeclarations()
-      .find((d) => d.getModuleSpecifierValue() === specifier && !d.isTypeOnly());
-    if (existing) existing.addNamedImport(symbol);
-    else sourceFile.addImportDeclaration({ moduleSpecifier: specifier, namedImports: [symbol] });
-    return;
-  }
-
-  const coreImport = sourceFile
-    .getImportDeclarations()
-    .find(
-      (declaration) =>
-        declaration.getModuleSpecifierValue() === '@craft-ts/core' && !declaration.isTypeOnly(),
-    );
-  if (coreImport) {
-    coreImport.addNamedImport(symbol);
-    return;
-  }
-  sourceFile.addImportDeclaration({
-    moduleSpecifier: '@craft-ts/core',
-    namedImports: [symbol],
-  });
-}
-
 const isCli = process.argv[1]?.includes('migrate-service-auto-expose');
 if (isCli) {
   const args = process.argv.slice(2);
   const index = args.indexOf('--paths');
-  const paths = index === -1 ? undefined : args[index + 1]?.split(',').filter(Boolean);
+  const paths =
+    index === -1 ? undefined : args[index + 1]?.split(',').filter(Boolean);
   if (!paths || paths.length === 0) {
-    console.error('Usage: migrate-service-auto-expose --paths <glob,...> [--dry]');
+    console.error(
+      'Usage: migrate-service-auto-expose --paths <glob,...> [--dry]',
+    );
     process.exit(1);
   }
-  void migrateServiceAutoExpose({ paths, write: !args.includes('--dry') }).catch(
-    (error) => {
-      console.error(error);
-      process.exit(1);
-    },
-  );
+  void migrateServiceAutoExpose({
+    paths,
+    write: !args.includes('--dry'),
+  }).catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 }
