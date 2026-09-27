@@ -1,6 +1,13 @@
 module.exports = {
   'craft-ts/craft-method-name-match': 'warn',
   'craft-ts/craft-computed-name-match': 'warn',
+  'craft-ts/craft-state-name-match': 'warn',
+  'craft-ts/craft-query-name-match': 'warn',
+  'craft-ts/craft-mutation-name-match': 'warn',
+  'craft-ts/craft-async-process-name-match': 'warn',
+  'craft-ts/craft-query-params-name-match': 'warn',
+  // A craftService exposes the named primitives it yields; it never returns.
+  'craft-ts/no-craft-service-return': 'error',
   'craft-ts/craft-source-name-match': 'warn',
   'craft-ts/craft-signal-source-name-match': 'warn',
   'craft-ts/craft-component-name-match': 'warn',

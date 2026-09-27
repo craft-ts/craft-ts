@@ -17,7 +17,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter } = craftService(
       { name: 'ChildCounter', providedIn: 'toProvide' },
       function* () {
-        const childCounter = yield* state('childCounter', 0, ({ update }) => ({
+        yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -72,7 +72,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 10, ({ update }) => ({
+        yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -106,7 +106,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 10, ({ update }) => ({
+        yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -338,7 +338,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const counter = yield* state('counter', 7, ({ update }) => ({
+        yield* state('counter', 7, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -368,7 +368,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { SharedCounter, provideSharedCounter } = craftService(
       { name: 'SharedCounter', providedIn: 'toProvide' },
       function* () {
-        const sharedCounter = yield* state(
+        yield* state(
           'sharedCounter',
           0,
           ({ update }) => ({
@@ -436,7 +436,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter, provideChildCounter } = craftService(
       { name: 'ChildCounter', providedIn: 'toProvide' },
       function* () {
-        const childCounter = yield* state('childCounter', 0, ({ update }) => ({
+        yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -499,7 +499,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { SharedCounter } = craftService(
       { name: 'SharedCounter', providedIn: 'toProvide' },
       function* () {
-        const sharedCounter = yield* state(
+        yield* state(
           'sharedCounter',
           0,
           ({ update }) => ({
@@ -521,7 +521,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RightCounter, provideRightCounter } = craftService(
       { name: 'RightCounter', providedIn: 'toProvide' },
       function* () {
-        const rightCounter = yield* state('rightCounter', 0, ({ update }) => ({
+        yield* state('rightCounter', 0, ({ update }) => ({
           incrementRight: () => update((value) => value + 1),
         }));
       },
@@ -787,7 +787,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ChildCounter, provideChildCounter } = craftService(
       { name: 'ChildCounter', providedIn: 'toProvide' },
       function* () {
-        const childCounter = yield* state('childCounter', 0, ({ update }) => ({
+        yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -818,7 +818,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },

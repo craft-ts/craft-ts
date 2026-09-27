@@ -14,7 +14,7 @@ type Task = { id: string; title: string; done: boolean };
 const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
-    const tasks = yield* state(
+    yield* state(
       'tasks',
       [] as Task[],
       ({ update: _update }) => ({

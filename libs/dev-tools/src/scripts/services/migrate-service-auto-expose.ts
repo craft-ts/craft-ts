@@ -430,6 +430,8 @@ type Exposure = {
   yielded: YieldedPrimitive;
   key: string;
   renameBinding: boolean;
+  /** The identifier of the returned property that referenced the binding. */
+  reference: Node;
 };
 
 /** A statement that replaces a returned property (a method, a hoisted yield). */
@@ -492,6 +494,9 @@ function migrateFactory(
   }
   const returnStatement = returns[0];
   const returned = returnStatement?.getExpression();
+  // A factory without a `return` value is taken as already migrated: its
+  // named primitives are its API. This keeps the migration idempotent.
+  if (!returned) return [];
   const yields = topLevelNamedYields(body.getStatements());
 
   // --- plan ---------------------------------------------------------------
@@ -512,10 +517,13 @@ function migrateFactory(
 
   // --- edits ----------------------------------------------------------------
   const edits: Edit[] = [];
+  const references = exposures.map((exposure) => exposure.reference);
   // Renamed bindings: every reference in the factory, the returned object
   // included (its hoisted text is rendered with these edits applied).
   for (const exposure of exposures) {
     if (!exposure.renameBinding) continue;
+    // A binding only the removed `return` read is dropped instead.
+    if (unusedBindingEdit(exposure.yielded, references)) continue;
     const oldName = exposure.yielded.binding!.getName();
     for (const identifier of body.getDescendantsOfKind(SyntaxKind.Identifier)) {
       if (identifier.getText() !== oldName || isMemberName(identifier)) {
@@ -540,6 +548,9 @@ function migrateFactory(
     const exposure = exposures.find((e) => e.yielded === yielded);
     if (exposure) {
       edits.push(...nameEdits(yielded.call, yielded.primitive, exposure.key));
+      // Read by nothing but the removed `return`: the binding goes too.
+      const unusedBinding = unusedBindingEdit(yielded, references);
+      if (unusedBinding) edits.push(unusedBinding);
       continue;
     }
     // A binding a manual `return` still reads stays as it is.
@@ -608,12 +619,13 @@ function planReturnedObject(
     yielded: YieldedPrimitive,
     key: string,
     renameBinding: boolean,
+    reference: Node,
   ) => {
     if (claimed.has(yielded) || !canName(yielded.call, yielded.primitive)) {
       return false;
     }
     claimed.add(yielded);
-    exposures.push({ yielded, key, renameBinding });
+    exposures.push({ yielded, key, renameBinding, reference });
     return true;
   };
   const exposeValue = (
@@ -631,7 +643,9 @@ function planReturnedObject(
     if (Node.isShorthandPropertyAssignment(property)) {
       const key = property.getName();
       const yielded = byBinding.get(key);
-      if (yielded && expose(yielded, key, false)) continue;
+      if (yielded && expose(yielded, key, false, property.getNameNode())) {
+        continue;
+      }
       exposeValue(key, property, (edits) =>
         textWithEdits(property.getNameNode(), edits),
       );
@@ -651,7 +665,7 @@ function planReturnedObject(
         if (
           yielded &&
           canRenameBinding(yielded.binding!, key) &&
-          expose(yielded, key, true)
+          expose(yielded, key, true, value)
         ) {
           continue;
         }
@@ -807,6 +821,43 @@ function nameEdits(
     ];
   }
   return [];
+}
+
+/**
+ * `const x = yield* p(...)` → `yield* p(...)` when `x` is only read by the
+ * returned properties that exposed it (a `const` with a single declarator
+ * only).
+ */
+function unusedBindingEdit(
+  yielded: YieldedPrimitive,
+  references: readonly Node[],
+): Edit | undefined {
+  const binding = yielded.binding;
+  if (!binding || !Node.isIdentifier(binding.getNameNode())) return undefined;
+  const statement = yielded.statement;
+  if (
+    !Node.isVariableStatement(statement) ||
+    statement.getDeclarations().length !== 1
+  ) {
+    return undefined;
+  }
+  const name = binding.getName();
+  const scope = statement.getParentOrThrow();
+  const readElsewhere = scope
+    .getDescendantsOfKind(SyntaxKind.Identifier)
+    .some(
+      (identifier) =>
+        identifier.getText() === name &&
+        identifier !== binding.getNameNode() &&
+        !isMemberName(identifier) &&
+        !references.includes(identifier),
+    );
+  if (readElsewhere) return undefined;
+  return {
+    start: statement.getStart(),
+    end: yielded.yieldExpression.getStart(),
+    text: '',
+  };
 }
 
 /** Hoisted text keeps the indentation of its property; move it under `indent`. */

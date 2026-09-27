@@ -19,7 +19,7 @@ export const { TaskFilters } = craftService(
       encode: (value: boolean) => String(value),
     };
 
-    const filters = yield* queryParams(
+    yield* queryParams(
       'filters',
       {
         state: {

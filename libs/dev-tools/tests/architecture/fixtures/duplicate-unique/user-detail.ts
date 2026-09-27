@@ -8,7 +8,7 @@ import {
 export const { UserDetail, provideUserDetail } = craftService(
   { name: 'UserDetail', providedIn: 'toProvide' },
   function* () {
-    const detail = yield* query(
+    yield* query(
       'detail',
       {},
       insertStoragePersister(

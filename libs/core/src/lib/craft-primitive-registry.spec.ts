@@ -8,7 +8,7 @@ import { state } from './state';
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'function' },
   function* () {
-    const count = yield* state('count', 0, ({ set }) => ({
+    yield* state('count', 0, ({ set }) => ({
       to: (value: number) => set(value),
     }));
   },
@@ -65,7 +65,7 @@ describe('craft primitive registry', () => {
     const { Row } = craftService(
       { name: 'Row', providedIn: 'function' },
       function* () {
-        const value = yield* state('value', 'a');
+        yield* state('value', 'a');
       },
     );
 
@@ -94,7 +94,7 @@ describe('craft primitive registry', () => {
     const { Settings } = craftService(
       { name: 'Settings', providedIn: 'global' },
       function* () {
-        const theme = yield* state('theme', 'light');
+        yield* state('theme', 'light');
       },
     );
 

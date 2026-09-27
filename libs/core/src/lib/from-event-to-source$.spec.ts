@@ -225,7 +225,7 @@ describe('fromEventToSource$', () => {
     const { ClickEventConsumer: Counter } = craftService(
       { name: 'ClickEventConsumer', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 0, ({ set }) => ({
+        yield* state('counter', 0, ({ set }) => ({
           increment: on$(Click, (event) => {
             expectTypeOf(event).toEqualTypeOf<MouseEvent>();
             return set(1);

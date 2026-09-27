@@ -33,7 +33,7 @@ import {
 const { SlowAccess } = craftService(
   { name: 'SlowAccess', providedIn: 'global' },
   function* () {
-    const slowAccess = yield* query('slowAccess', {
+    yield* query('slowAccess', {
       params: () => true,
       loader: function* () {
         yield* craftSleep(1500);
@@ -46,7 +46,7 @@ const { SlowAccess } = craftService(
 const { SlowReport } = craftService(
   { name: 'SlowReport', providedIn: 'global' },
   function* () {
-    const slowReport = yield* query('slowReport', {
+    yield* query('slowReport', {
       params: () => true,
       loader: function* () {
         yield* craftSleep(1500);

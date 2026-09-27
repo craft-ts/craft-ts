@@ -9,7 +9,7 @@ import {
 export const { ShopUsers } = craftService(
   { name: 'ShopUsers', providedIn: 'global' },
   function* () {
-    const list = yield* query(
+    yield* query(
       'list',
       {},
       insertStoragePersister(
@@ -22,7 +22,7 @@ export const { ShopUsers } = craftService(
 export const { AdminUsers } = craftService(
   { name: 'AdminUsers', providedIn: 'global' },
   function* () {
-    const list = yield* state(
+    yield* state(
       'list',
       [],
       insertStoragePersister(

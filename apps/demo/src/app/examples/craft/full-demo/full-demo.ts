@@ -71,7 +71,7 @@ export const { provideTodoStore, TodoStore } = craftService(
         return id;
       },
     });
-    const todos = yield* query(
+    yield* query(
       'todos',
       {
         // The list is loaded once. Mutations update its value through the

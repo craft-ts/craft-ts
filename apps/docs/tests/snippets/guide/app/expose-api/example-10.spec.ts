@@ -10,7 +10,7 @@ import { craftService, state } from '@craft-ts/core';
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
   function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
+    yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));

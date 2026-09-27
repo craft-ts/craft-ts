@@ -91,12 +91,12 @@ export const { ReviewFilters } = craftService(
       }),
     );
 
-    const clearFilters = yield* craftMethod('clearFilters', function* () {
+    yield* craftMethod('clearFilters', function* () {
       clearFilters$.emit();
       yield* textParams.clearText();
     });
 
-    const activeFilterCount = yield* craftComputed('activeFilterCount', function* () {
+    yield* craftComputed('activeFilterCount', function* () {
       let count = 0;
       if ((yield* componentFilter()).trim()) count += 1;
       if ((yield* textFilter()).trim()) count += 1;

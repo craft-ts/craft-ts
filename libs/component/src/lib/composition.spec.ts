@@ -271,7 +271,7 @@ describe('component composition', () => {
         { name: 'todoStoreWithQueryException', providedIn: 'toProvide' },
         function* () {
           const refresh = signal(0);
-          const todos = yield* query('todos', {
+          yield* query('todos', {
             params: refresh,
             loader: async () => (refresh() < 0 ? failed : []),
           });

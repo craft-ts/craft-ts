@@ -258,7 +258,7 @@ describe('craftStateMachine typing', () => {
     const { StateMachineHost: _StateMachineHost } = craftService(
       { name: 'StateMachineHost', providedIn: 'function' },
       function* () {
-        const machine = yield* craftStateMachine(
+        yield* craftStateMachine(
           'machine', contextFactory,
           transitionsWithDependency,
           function* () {
@@ -279,7 +279,7 @@ describe('craftStateMachine typing', () => {
     const { EditorMachine } = craftService(
       { name: 'EditorMachine', providedIn: 'function' },
       function* () {
-        const machine = yield* craftStateMachine(
+        yield* craftStateMachine(
           'machine', contextFactory,
           transitions,
           function* (context) {
@@ -545,7 +545,7 @@ describe('craftStateMachine bare transitions', () => {
     const { BareMachine } = craftService(
       { name: 'BareMachine', providedIn: 'function' },
       function* () {
-        const machine = yield* craftStateMachine(
+        yield* craftStateMachine(
           'machine', contextFactory,
           function* (context, transit) {
             return {

@@ -13,7 +13,7 @@ import { CraftHttpClient, craftService, query } from '@craft-ts/core';
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
-    const tasksQuery = yield* query('tasksQuery', {
+    yield* query('tasksQuery', {
       // The initial params value immediately triggers the loader.
       params: () => ({ done: false }),
       loader: function* ({ params }) {

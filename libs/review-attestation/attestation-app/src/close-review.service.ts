@@ -43,7 +43,7 @@ export const { CloseReview } = craftService(
       }),
     );
 
-    const closeReviewSession = yield* craftMethod(
+    yield* craftMethod(
       'closeReviewSession',
       function* () {
         closeReviewRequested$.emit(++closeReviewRequest);

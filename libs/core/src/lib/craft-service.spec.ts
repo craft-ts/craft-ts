@@ -38,7 +38,7 @@ describe('craftService', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -115,14 +115,14 @@ describe('craftService', () => {
         browserBoundary: true,
       },
       function* () {
-        const browserCounter = yield* state('browserCounter', 0);
+        yield* state('browserCounter', 0);
       },
     );
 
     const { DefaultCounter, DEFAULT_COUNTER_META_DATA } = craftService(
       { name: 'DefaultCounter', providedIn: 'global' },
       function* () {
-        const defaultCounter = yield* state('defaultCounter', 0);
+        yield* state('defaultCounter', 0);
       },
     );
 
@@ -326,7 +326,7 @@ describe('craftService', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -363,7 +363,7 @@ describe('scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -382,7 +382,7 @@ describe('scope', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -397,7 +397,7 @@ describe('scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -415,7 +415,7 @@ describe('scope', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -440,7 +440,7 @@ describe('scope', () => {
         $provided: { initialValue: number };
         step: number;
       }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
@@ -474,7 +474,7 @@ describe('scope', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -496,7 +496,7 @@ describe('scope', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* (inputs: { $provided: { initialValue: number } }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
@@ -525,7 +525,7 @@ describe('scope', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -547,7 +547,7 @@ describe('scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'function' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -567,7 +567,7 @@ describe('scope', () => {
         { name: 'Counter', providedIn: 'global' },
         //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
         function* (inputs: { $provided: { initialValue: number } }) {
-          const counter = yield* state(
+          yield* state(
             'counter',
             inputs.$provided.initialValue,
           );
@@ -580,7 +580,7 @@ describe('scope', () => {
         { name: 'Counter', providedIn: 'function' },
         //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
         function* (inputs: { $provided: { initialValue: number } }) {
-          const counter = yield* state(
+          yield* state(
             'counter',
             inputs.$provided.initialValue,
           );
@@ -900,7 +900,7 @@ describe('scope', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -917,7 +917,7 @@ describe('scope', () => {
     const { provideCounter, Counter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((v) => v + 1),
         }));
       },
@@ -952,7 +952,7 @@ describe('injectService should enable to binding inputs', () => {
         $provided: { initialValue: number };
         step: number;
       }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
@@ -998,7 +998,7 @@ describe('injectService should enable to binding inputs', () => {
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1027,7 +1027,7 @@ describe('injectService should enable to binding inputs', () => {
         optionalProperty1?: MaybeSignal<number>;
         optionalProperty2?: MaybeSignal<number>;
       }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1054,7 +1054,7 @@ describe('injectService should enable to binding inputs', () => {
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1080,7 +1080,7 @@ describe('injectService should enable to binding inputs', () => {
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1102,7 +1102,7 @@ describe('injectService should enable to binding inputs', () => {
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1144,7 +1144,7 @@ describe('service should enable to binding inputs', () => {
         $provided: { initialValue: number };
         step: number;
       }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
@@ -1195,7 +1195,7 @@ describe('service should enable to binding inputs', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1233,7 +1233,7 @@ describe('service should enable to binding inputs', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1275,7 +1275,7 @@ describe('service should enable to binding inputs', () => {
         optionalProperty1?: MaybeSignal<number>;
         optionalProperty2?: MaybeSignal<number>;
       }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1316,7 +1316,7 @@ describe('service should enable to binding inputs', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1343,7 +1343,7 @@ describe('service should enable to binding inputs', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -1386,7 +1386,7 @@ describe('service should enable to binding inputs', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'function' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -2056,7 +2056,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -2081,7 +2081,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -2146,7 +2146,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -2189,7 +2189,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     const { ManuallyProvidedAtRoot1 } = craftService(
       { name: 'ManuallyProvidedAtRoot1', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const manuallyProvidedAtRoot1 = yield* state(
+        yield* state(
           'manuallyProvidedAtRoot1',
           0,
           ({ update }) => ({
@@ -2216,7 +2216,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     const { ManuallyProvidedAtRoot1 } = craftService(
       { name: 'ManuallyProvidedAtRoot1', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const manuallyProvidedAtRoot1 = yield* state(
+        yield* state(
           'manuallyProvidedAtRoot1',
           0,
           ({ update }) => ({
@@ -2230,7 +2230,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     const { ManuallyProvidedAtRoot2 } = craftService(
       { name: 'ManuallyProvidedAtRoot2', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const manuallyProvidedAtRoot2 = yield* state(
+        yield* state(
           'manuallyProvidedAtRoot2',
           100,
           ({ update }) => ({
@@ -2244,7 +2244,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({
@@ -2308,7 +2308,7 @@ describe('typing can track all derived dependencies (only the properties that ar
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           toValue(inputs.initialValue),
           ({ update }) => ({

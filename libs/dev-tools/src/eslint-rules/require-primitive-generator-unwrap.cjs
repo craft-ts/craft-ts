@@ -4,7 +4,23 @@ const DEFAULT_PRIMITIVES = [
   'mutation',
   'asyncProcess',
   'queryParam',
+  'queryParams',
+  'craftComputed',
+  'craftMethod',
+  'craftEffect',
+  'craftExpose',
 ];
+
+/**
+ * Where the yieldable helpers must come from: `host/craft-signal` exports a
+ * low-level `craftComputed` of its own, which is a plain signal.
+ */
+const HELPER_MODULE = {
+  craftComputed: /^@craft-ts\/core$|\/craft-computed(\.js)?$/,
+  craftMethod: /^@craft-ts\/core$|\/craft-method(\.js)?$/,
+  craftEffect: /^@craft-ts\/core$|\/craft-effect(\.js)?$/,
+  craftExpose: /^@craft-ts\/core$|\/craft-primitive-gen(\.js)?$/,
+};
 
 const FACTORY_HOST_CALLEES = new Set([
   'craftComponent',
@@ -54,7 +70,12 @@ module.exports = {
           return;
         }
 
-        if (!resolvesToImport(node.callee, sourceCode, context)) {
+        const importSource = resolvesToImport(node.callee, sourceCode, context);
+        if (!importSource) {
+          return;
+        }
+        const expectedModule = HELPER_MODULE[node.callee.name];
+        if (expectedModule && !expectedModule.test(importSource)) {
           return;
         }
 
@@ -106,14 +127,16 @@ function resolvesToImport(identifier, sourceCode, context) {
     );
     if (variable) {
       if (variable.defs.length === 0) {
-        return false;
+        return undefined;
       }
-      return variable.defs.every((def) => def.type === 'ImportBinding');
+      const imports = variable.defs.filter((def) => def.type === 'ImportBinding');
+      if (imports.length !== variable.defs.length) return undefined;
+      return imports[0].parent.source.value;
     }
     current = current.upper;
   }
   // Unresolved (globals) — not an import of the primitive.
-  return false;
+  return undefined;
 }
 
 function isConsumed(node) {
@@ -124,10 +147,12 @@ function isConsumed(node) {
   if (parent.type === 'YieldExpression') {
     return true;
   }
+  // `craftPrivate(...)` relays the generator; it is itself consumed.
   return (
     parent.type === 'CallExpression' &&
     parent.callee.type === 'Identifier' &&
-    parent.callee.name === 'craftUse' &&
+    (parent.callee.name === 'craftUse' ||
+      parent.callee.name === 'craftPrivate') &&
     skipParensDown(parent.arguments[0]) === node
   );
 }

@@ -2,6 +2,8 @@ const appStartRegistryMatch = require('./app-start-registry-match.cjs');
 const globalExceptionRegistryMatch = require('./global-exception-registry-match.cjs');
 const craftMethodNameMatch = require('./craft-method-name-match.cjs');
 const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
+const craftPrimitiveNameMatch = require('./craft-primitive-name-match.cjs');
+const noCraftServiceReturn = require('./no-craft-service-return.cjs');
 const craftSourceNameMatch = require('./craft-source-name-match.cjs');
 const craftSignalSourceNameMatch = require('./craft-signal-source-name-match.cjs');
 const noCraftComputedSideEffects = require('./no-craft-computed-side-effects.cjs');
@@ -136,6 +138,8 @@ const plugin = {
     'global-exception-registry-match': globalExceptionRegistryMatch,
     'craft-method-name-match': craftMethodNameMatch,
     'craft-computed-name-match': craftComputedNameMatch,
+    ...craftPrimitiveNameMatch,
+    'no-craft-service-return': noCraftServiceReturn,
     'craft-source-name-match': craftSourceNameMatch,
     'craft-signal-source-name-match': craftSignalSourceNameMatch,
     'no-craft-computed-side-effects': noCraftComputedSideEffects,

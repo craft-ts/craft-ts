@@ -41,7 +41,7 @@ import PhotoSkeleton from './photo-skeleton';
 const { ViewTransitionAccess } = craftService(
   { name: 'ViewTransitionAccess', providedIn: 'global' },
   function* () {
-    const viewTransitionAccess = yield* query('viewTransitionAccess', {
+    yield* query('viewTransitionAccess', {
       params: () => true,
       loader: function* () {
         yield* craftSleep(3000);

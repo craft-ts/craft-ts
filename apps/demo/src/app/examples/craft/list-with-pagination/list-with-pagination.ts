@@ -55,7 +55,7 @@ export const { provideUserList, UserList } = craftService(
         },
       }),
     );
-    const users = yield* query(
+    yield* query(
       'users',
       {
         params: pagination,

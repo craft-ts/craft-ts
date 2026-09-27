@@ -15,7 +15,7 @@ import { craftService, state } from '@craft-ts/core';
 const { UsersApi } = craftService(
   { name: 'UsersApi', providedIn: 'global' },
   function* () {
-    const currentUser = yield* state('currentUser', {
+    yield* state('currentUser', {
       id: '1',
       name: 'Ada',
     });

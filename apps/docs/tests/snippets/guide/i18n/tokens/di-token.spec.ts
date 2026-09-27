@@ -22,7 +22,7 @@ type UnitSystem = 'metric' | 'imperial';
 const { Units } = craftService(
   { name: 'Units', providedIn: 'global' },
   function* () {
-    const system = yield* state('system', 'metric' as UnitSystem, ({ set }) => ({
+    yield* state('system', 'metric' as UnitSystem, ({ set }) => ({
       useImperial: () => set('imperial'),
     }));
   },

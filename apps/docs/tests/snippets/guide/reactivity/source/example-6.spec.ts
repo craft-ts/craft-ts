@@ -10,14 +10,14 @@ import { craftService, on$, source$, state, craftExpose } from '@craft-ts/core';
 const { Reset } = craftService(
   { name: 'Reset', providedIn: 'global' },
   function* () {
-    const reset$ = yield* source$<void>('reset$');
+    yield* source$<void>('reset$');
   },
 );
 
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'global' },
   function* () {
-    const counter = yield* state('counter', 0, ({ set }) => ({
+    yield* state('counter', 0, ({ set }) => ({
       reset: on$(Reset, () => set(0)),
     }));
 

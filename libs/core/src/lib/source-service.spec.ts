@@ -38,7 +38,7 @@ describe('yieldable source services', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 0, ({ set, state }) => ({
+        yield* state('counter', 0, ({ set, state }) => ({
           increment: function* () {
                 const _state = yield* state(); return set(_state + 1); },
           reset: on$(Reset, (value) => {

@@ -20,7 +20,7 @@ import { insertStatePipe, craftComputed, craftService, state } from '@craft-ts/c
 export const { TaskList } = craftService(
   { name: 'TaskList', providedIn: 'function' },
   function* () {
-    const tasks = yield* state(
+    yield* state(
       'tasks',
       [] as Task[],
       insertStatePipe(

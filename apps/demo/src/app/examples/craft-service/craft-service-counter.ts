@@ -11,7 +11,7 @@ import { example } from '../shared/example.style';
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
   function* () {
-    const counter = yield* state('counter', 0, ({ update, set }) => ({
+    yield* state('counter', 0, ({ update, set }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
       reset: () => set(0),

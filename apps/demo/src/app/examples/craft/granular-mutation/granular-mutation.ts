@@ -61,7 +61,7 @@ export const { provideGranularMutation, GranularMutation } = craftService(
         return yield* ApiService.updateItem(params);
       },
     });
-    const users = yield* query(
+    yield* query(
       'users',
       {
         params: pagination,

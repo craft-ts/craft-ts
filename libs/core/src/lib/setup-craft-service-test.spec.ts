@@ -28,7 +28,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter, COUNTER_META_DATA } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -60,7 +60,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -83,7 +83,7 @@ describe('setupCraftServiceTest', () => {
     const { ChildCounter } = craftService(
       { name: 'ChildCounter', providedIn: 'toProvide' },
       function* () {
-        const childCounter = yield* state('childCounter', 0, ({ update }) => ({
+        yield* state('childCounter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -119,7 +119,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -156,7 +156,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 10, ({ update }) => ({
+        yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -183,7 +183,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 10, ({ update }) => ({
+        yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -218,7 +218,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter } = craftService(
       { name: 'Counter', providedIn: 'global' },
       function* () {
-        const counter = yield* state('counter', 10, ({ update }) => ({
+        yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -313,7 +313,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* () {
-        const counter = yield* state('counter', 0, ({ update }) => ({
+        yield* state('counter', 0, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -348,7 +348,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'manuallyProvidedAtRoot' },
       function* () {
-        const counter = yield* state('counter', 10, ({ update }) => ({
+        yield* state('counter', 10, ({ update }) => ({
           increment: () => update((value) => value + 1),
         }));
       },
@@ -377,7 +377,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: { $provided: { initialValue: number } }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
@@ -410,7 +410,7 @@ describe('setupCraftServiceTest', () => {
     const { Counter: Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: { $provided: { initialValue: number } }) {
-        const counter = yield* state(
+        yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({

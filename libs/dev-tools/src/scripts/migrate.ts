@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
   runPrimitivesMigration,
   type MigratePrimitivesResult,
@@ -12,6 +12,10 @@ import {
   runServicesMigration,
   type MigrateServicesResult,
 } from './services/migrate-services.js';
+import {
+  migrateServiceAutoExpose,
+  type MigrateServiceAutoExposeResult,
+} from './services/migrate-service-auto-expose.js';
 import {
   runComponentsMigration,
   type MigrateComponentsResult,
@@ -41,6 +45,7 @@ export type MigrateOptions = {
 export type MigrateResult = {
   primitives: MigratePrimitivesResult;
   services: MigrateServicesResult;
+  serviceExposure: MigrateServiceAutoExposeResult;
   routes: MigrateRoutesResult;
   components: MigrateComponentsResult;
   architecture: MigrateArchitectureResult;
@@ -48,6 +53,7 @@ export type MigrateResult = {
   diagnostics: {
     primitives: MigratePrimitivesResult['diagnostics'];
     services: MigrateServicesResult['diagnostics'];
+    serviceExposure: MigrateServiceAutoExposeResult['diagnostics'];
     routes: MigrateRoutesResult['diagnostics'];
     components: MigrateComponentsResult['diagnostics'];
   };
@@ -69,20 +75,37 @@ export async function runMigration(
     log: stepLog,
   };
 
-  if (!options.json) log('1/5 Migrating primitives and Signal Forms...');
+  if (!options.json) log('1/6 Migrating primitives and Signal Forms...');
   const primitives = await runPrimitivesMigration({
     ...shared,
     eslint: options.eslint,
   });
 
-  if (!options.json) log('2/5 Migrating Angular services...');
+  if (!options.json) log('2/6 Migrating Angular services...');
   const services = await runServicesMigration({
     ...shared,
     configFilePath: options.configFilePath,
     eslint: options.eslint,
   });
 
-  if (!options.json) log('3/5 Migrating Angular routes...');
+  // craftService exposes the named primitives it yields: its `return` goes.
+  if (!options.json) log('3/6 Migrating craftService exposure...');
+  const rootDir = resolve(options.rootDir ?? process.cwd());
+  const serviceExposure = await migrateServiceAutoExpose({
+    paths: options.files?.length
+      ? options.files.map((file) => resolve(rootDir, file))
+      : [
+          join(rootDir, '**/*.ts'),
+          `!${join(rootDir, '**/node_modules/**')}`,
+          `!${join(rootDir, '**/dist/**')}`,
+          `!${join(rootDir, '**/.angular/**')}`,
+          `!${join(rootDir, '**/*.d.ts')}`,
+        ],
+    write: options.write === true,
+    log: stepLog,
+  });
+
+  if (!options.json) log('4/6 Migrating Angular routes...');
   const routes = await runRoutesMigration({
     ...shared,
     collectionName: options.collectionName,
@@ -90,13 +113,13 @@ export async function runMigration(
     parentNames: options.parentNames,
   });
 
-  if (!options.json) log('4/5 Migrating Craft components and directives...');
+  if (!options.json) log('5/6 Migrating Craft components and directives...');
   const components = await runComponentsMigration({
     ...shared,
     eslint: options.eslint,
   });
 
-  if (!options.json) log('5/5 Scaffolding architecture tests...');
+  if (!options.json) log('6/6 Scaffolding architecture tests...');
   const architecture = await runArchitectureMigration({
     rootDir: options.rootDir,
     tsConfigFilePath: options.tsConfigFilePath,
@@ -108,6 +131,7 @@ export async function runMigration(
   const result: MigrateResult = {
     primitives,
     services,
+    serviceExposure,
     routes,
     components,
     architecture,
@@ -115,6 +139,7 @@ export async function runMigration(
       ...new Set([
         ...primitives.changedFiles,
         ...services.changedFiles,
+        ...serviceExposure.changedFiles,
         ...routes.changedFiles,
         ...components.changedFiles,
         ...architecture.changedFiles,
@@ -123,12 +148,14 @@ export async function runMigration(
     diagnostics: {
       primitives: primitives.diagnostics,
       services: services.diagnostics,
+      serviceExposure: serviceExposure.diagnostics,
       routes: routes.diagnostics,
       components: components.diagnostics,
     },
     exitCode: Math.max(
       primitives.exitCode,
       services.exitCode,
+      options.failOnManual && serviceExposure.diagnostics.length > 0 ? 1 : 0,
       routes.exitCode,
       components.exitCode,
       architecture.exitCode,
@@ -146,6 +173,7 @@ export async function runMigration(
     const manualCount =
       primitives.diagnostics.length +
       services.diagnostics.length +
+      serviceExposure.diagnostics.length +
       routes.diagnostics.length +
       components.diagnostics.length;
     log(

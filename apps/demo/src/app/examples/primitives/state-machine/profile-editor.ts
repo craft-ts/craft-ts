@@ -53,7 +53,7 @@ const INITIAL_PROFILE: Profile = {
 const { ProfilePermissions } = craftService(
   { name: 'ProfilePermissions', providedIn: 'global' },
   function* () {
-    const readOnly = yield* state('readOnly', false, ({ update }) => ({
+    yield* state('readOnly', false, ({ update }) => ({
       toggle: () => update((current) => !current),
     }));
 

@@ -17,7 +17,7 @@ export const { RetirementReasonChoice } = craftService(
 
     // Takes the raw select value and no-ops on anything unexpected, so a
     // template's change handler stays a single yield with no local guard.
-    const chooseRetirementReason = yield* craftMethod(
+    yield* craftMethod(
       'chooseRetirementReason',
       function* (value: string) {
         if (!isRetirementReason(value)) return;

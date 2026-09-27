@@ -18,7 +18,7 @@ import {
 export const { TaskForm } = craftService(
   { name: 'TaskForm', providedIn: 'function' },
   function* () {
-    const taskForm = yield* state(
+    yield* state(
       'taskForm',
       { title: '', notes: '' },
       insertForm(

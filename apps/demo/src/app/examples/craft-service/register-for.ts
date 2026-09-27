@@ -20,7 +20,7 @@ import { example } from '../shared/example.style';
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
   function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
+    yield* state('counter', 0, ({ update }) => ({
       increment: () => update((v) => v + 1),
       decrement: () => update((v) => v - 1),
     }));

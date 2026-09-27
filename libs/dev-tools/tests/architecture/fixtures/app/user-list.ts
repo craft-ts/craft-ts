@@ -10,7 +10,7 @@ export const { UserList, provideUserList } = craftService(
   { name: 'UserList', providedIn: 'toProvide' },
   function* () {
     yield* UsersApi();
-    const list = yield* query(
+    yield* query(
       'list',
       {},
       insertStoragePersister(

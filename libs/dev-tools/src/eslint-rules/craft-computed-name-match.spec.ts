@@ -46,18 +46,59 @@ describe('craft-computed-name-match', () => {
     expect(messages).toEqual([]);
   });
 
-  it('accepts an unnamed computed in an insertion result', async () => {
+  it('requires a computed name in an insertion result: it is the exposed key', async () => {
     const { messages } = await lintFixture({
       'src/app/demo.ts': `
-        import { craftComputed } from '@craft-ts/core';
+        import { craftComputed, craftUse } from '@craft-ts/core';
 
         const insertion = state('counter', 0, ({ state }) => ({
-          total: craftComputed(function* () { return (yield* state()) * 2; }),
+          total: craftUse(craftComputed(function* () { return (yield* state()) * 2; })),
         }));
       `,
     });
 
-    expect(messages).toEqual([]);
+    expect(messages).toEqual([
+      "craftComputed must be called with a string literal name matching 'total' as the first argument.",
+    ]);
+  });
+
+  it('sees through yield* and craftPrivate', async () => {
+    const { messages } = await lintFixture({
+      'src/app/demo.ts': `
+        import { craftComputed, craftPrivate } from '@craft-ts/core';
+
+        function* setup() {
+          const total = yield* craftComputed('sum', () => 42);
+          const hidden = yield* craftPrivate(craftComputed('other', () => 1));
+        }
+      `,
+    });
+
+    expect(messages).toEqual([
+      "craftComputed first argument 'sum' must match the declared name 'total'.",
+      "craftComputed first argument 'other' must match the declared name 'hidden'.",
+    ]);
+  });
+
+  it('does not autofix the name of a computed a craftService exposes', async () => {
+    const { messages, output } = await lintFixture(
+      {
+        'src/app/demo.ts': `
+import { craftComputed, craftService } from '@craft-ts/core';
+
+export const { Totals } = craftService({ name: 'Totals', providedIn: 'global' }, function* () {
+  const total = yield* craftComputed('sum', () => 42);
+});
+`,
+      },
+      { fix: true },
+    );
+
+    expect(messages).toEqual([
+      "craftComputed first argument 'sum' must match the declared name 'total'.",
+    ]);
+    // Left as is: renaming it would rename the service's public key.
+    expect(output).toContain("craftComputed('sum', () => 42)");
   });
 
   it('accepts an unnamed computedEffect in an Effect insertion result', async () => {
