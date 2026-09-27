@@ -14,7 +14,12 @@ import {
   ul,
   type Input,
 } from '@craft-ts/component';
-import { craftComputed, craftMethod, state } from '@craft-ts/core';
+import {
+  craftComputed,
+  craftMethod,
+  deepYieldable,
+  state,
+} from '@craft-ts/core';
 import type {
   BypassInventoryItem,
   StyleAdoption,
@@ -102,8 +107,10 @@ export const BypassesView = craftComponent(
     const chooseRule = craftMethod('chooseRule', function* (rule: string) {
       yield* ruleFilter.choose(rule);
     });
-    const rules = ruleFilter.rules;
-    const shown = ruleFilter.shown;
+    const rulesSource = ruleFilter.rules;
+    const shownSource = ruleFilter.shown;
+    const rules = deepYieldable(rulesSource);
+    const shown = deepYieldable(shownSource);
     const adoptionKnown = craftComputed('adoptionKnown', function* () {
       return (yield* adoption()) !== undefined;
     });
@@ -120,7 +127,7 @@ export const BypassesView = craftComponent(
         return value ? (yield* t()).adoptionComposition(value.composition) : '';
       },
     );
-    const adoptionRemaining = craftComputed('adoptionRemaining', function* () {
+    const adoptionRemaining = deepYieldable(craftComputed('adoptionRemaining', function* () {
       const say = yield* t();
       return ((yield* adoption())?.remaining ?? []).map((entry) => ({
         component: entry.component,
@@ -128,7 +135,7 @@ export const BypassesView = craftComponent(
           ? say.adoptionWaivedBy(entry.waivedBy)
           : say.adoptionNotWaived,
       }));
-    });
+    }));
     return {
       t,
       rules,
@@ -167,12 +174,8 @@ export const BypassesView = craftComponent(
                 { track: (entry) => entry.component },
                 (entry) =>
                   li({ class: bypassesView.item }, [
-                    strong(function* () {
-                      return (yield* entry()).component;
-                    }),
-                    small({ class: bypassesView.meta }, function* () {
-                      return (yield* entry()).note;
-                    }),
+                    strong(entry.component),
+                    small({ class: bypassesView.meta }, entry.note),
                   ]),
               ),
             ),
@@ -191,19 +194,13 @@ export const BypassesView = craftComponent(
             {
               type: 'button',
               class: bypassesView.filter,
-              'data-bypassFilter': function* () {
-                return (yield* entry()).filterState;
-              },
-              'aria-pressed': function* () {
-                return (yield* entry()).pressed;
-              },
+              'data-bypassFilter': entry.filterState,
+              'aria-pressed': entry.pressed,
               *click() {
-                yield* chooseRule((yield* entry()).rule);
+                yield* chooseRule(yield* entry.rule());
               },
             },
-            function* () {
-              return (yield* entry()).text;
-            },
+            entry.text,
           ),
         ),
       ),
@@ -220,26 +217,16 @@ export const BypassesView = craftComponent(
           },
           (item) =>
             li({ class: bypassesView.item }, [
-              strong(function* () {
-                return (yield* item()).heading;
-              }),
-              small({ class: bypassesView.meta }, function* () {
-                return (yield* item()).meta;
-              }),
+              strong(item.heading),
+              small({ class: bypassesView.meta }, item.meta),
               span(
                 {
                   class: bypassesView.reason,
-                  'data-bypassReason': function* () {
-                    return (yield* item()).reasonState;
-                  },
+                  'data-bypassReason': item.reasonState,
                 },
-                function* () {
-                  return (yield* item()).reasonText;
-                },
+                item.reasonText,
               ),
-              pre({ class: bypassesView.excerpt }, function* () {
-                return (yield* item()).excerpt;
-              }),
+              pre({ class: bypassesView.excerpt }, item.excerpt),
             ]),
         ),
       ),

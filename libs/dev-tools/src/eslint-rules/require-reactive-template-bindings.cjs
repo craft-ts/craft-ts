@@ -170,6 +170,20 @@ module.exports = {
     }
 
     function isPresentationCall(node) {
+      // Message catalogs often expose interpolation helpers (for example
+      // `t().queueSummary(count)`). These format already-derived values for
+      // display and do not belong in the business-derivation rule.
+      if (
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.object.type === 'YieldExpression' &&
+        node.callee.object.argument.type === 'CallExpression' &&
+        node.callee.object.argument.callee.type === 'Identifier' &&
+        node.callee.object.argument.callee.name === 't' &&
+        node.callee.object.argument.arguments.length === 0
+      ) {
+        return true;
+      }
       if (node.callee.type === 'Identifier') {
         return (
           PRESENTATION_FUNCTIONS.has(node.callee.name) ||

@@ -66,6 +66,7 @@ export const FilterBarFields = craftComponent(
     const {
       componentFilter,
       textFilter,
+      writeTextFilter,
       kindFilter,
       stateFilter,
       directionFilter,
@@ -77,6 +78,7 @@ export const FilterBarFields = craftComponent(
     return {
       componentFilter,
       textFilter,
+      writeTextFilter,
       kindFilter,
       stateFilter,
       directionFilter,
@@ -86,6 +88,7 @@ export const FilterBarFields = craftComponent(
   ({
     componentFilter,
     textFilter,
+    writeTextFilter,
     kindFilter,
     stateFilter,
     directionFilter,
@@ -214,7 +217,7 @@ export const FilterBarFields = craftComponent(
         value: textFilter,
         placeholder: 'save',
         *input(event: Event) {
-          yield* textFilter.writeFromInput(eventValue(event));
+          yield* writeTextFilter(eventValue(event));
         },
       }),
     ]),

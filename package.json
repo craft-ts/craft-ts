@@ -25,7 +25,7 @@
     "attest:review-app:status": "npx tsx libs/cli/src/bin/craft-ts.ts attest status --config libs/review-attestation/attestation-app/review-attest.config.ts --kind all --report ${CRAFT_REVIEW_APP_REPORT:-.craft/runs/review-app.json} --tsconfig libs/review-attestation/attestation-app/tsconfig.graph.json",
     "attest:review-app:review": "npx tsx libs/cli/src/bin/craft-ts.ts attest devtools --config libs/review-attestation/attestation-app/review-attest.config.ts --report ${CRAFT_REVIEW_APP_REPORT:-.craft/runs/review-app.json} --tsconfig libs/review-attestation/attestation-app/tsconfig.graph.json --regenerate-script attest:review-app:capture",
     "style:check:review-app": "npx nx run craft-ts-style-attestation-app:style-check",
-    "review:review-app": "npm run style:check:review-app && npx nx run craft-ts-style-attestation-app:architecture && npm run attest:review-app:capture && (npm run attest:review-app:status || test $? -eq 1) && npm run attest:review-app:review",
+    "review:review-app": "npx nx run craft-ts-style-attestation-app:lint && npx nx run craft-ts-style-attestation-app:typecheck-architecture && npx nx run craft-ts-style-attestation-app:architecture && npm run style:check:review-app && npm run attest:review-app:capture && (npm run attest:review-app:status || test $? -eq 1) && npm run attest:review-app:review",
     "registry:mcp": "npm run start --workspace @craft-ts/function-registry-mcp",
     "logs:server": "npm run start --workspace @craft-ts/log-server",
     "logs:mcp": "npm run start --workspace @craft-ts/log-mcp",

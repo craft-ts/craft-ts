@@ -27,6 +27,9 @@ export default [
     rules: {
       ...craftRules.configs.recommended.rules,
       'craft-ts/no-effect-import-in-frontend': 'error',
+      // A size violation must fail lint: this application is validated through
+      // the same gate as every other consumer of the Craft recommendations.
+      'craft-ts/max-craft-component-lines': 'error',
     },
   },
   {
@@ -35,28 +38,6 @@ export default [
     files: ['**/src/browser-adapter.ts'],
     rules: {
       'craft-ts/prefer-browser-boundaries': 'off',
-    },
-  },
-  {
-    // This legacy review surface keeps its template-local derivations together
-    // for the frozen-document workflow. The smaller components follow the
-    // stricter rules above; this exception avoids a 3,000-line mechanical
-    // rewrite with no runtime benefit.
-    files: ['**/src/review-app.ts'],
-    rules: {
-      'craft-ts/prefer-craft-template-blocks': 'off',
-      'craft-ts/no-ephemeral-template-form-state': 'off',
-      'craft-ts/require-reactive-template-bindings': 'off',
-      'craft-ts/max-craft-component-lines': 'off',
-      'craft-ts/no-type-assertions-in-craft-code': 'off',
-      'craft-ts/no-type-assertions-in-template': 'off',
-      'craft-ts/require-primitive-generator-unwrap': 'off',
-      'craft-ts/no-reused-primitive-method': 'off',
-      'craft-ts/no-direct-temporal-globals': 'off',
-      'craft-ts/prefer-deep-yieldable-for-item': 'off',
-      'craft-ts/no-craft-computed-side-effects': 'off',
-      'craft-ts/prefer-direct-yieldable-callback': 'off',
-      '@typescript-eslint/no-non-null-assertion': 'off',
     },
   },
   {

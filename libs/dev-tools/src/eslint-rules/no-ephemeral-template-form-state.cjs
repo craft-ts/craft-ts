@@ -1,4 +1,13 @@
 const TEMPLATE_HOSTS = new Set(['craftComponent', 'craftDirective']);
+const DOM_EVENT_NAMES = new Set([
+  'change',
+  'click',
+  'input',
+  'keydown',
+  'keyup',
+  'paste',
+  'submit',
+]);
 
 function isFunctionNode(node) {
   return (
@@ -90,6 +99,20 @@ module.exports = {
 
         if (node.type !== 'VariableDeclaration') return;
 
+        // Reading a value yielded by a reactive item is a snapshot alias, not
+        // local form state or a derivation. Keep declarations of derived
+        // values and mutable bindings out of the template, but allow this
+        // ordinary way to name the current item before rendering its fields.
+        if (
+          node.kind === 'const' &&
+          !isInsideEventHandler(node) &&
+          node.declarations.every(
+            (declarator) => declarator.init?.type === 'YieldExpression',
+          )
+        ) {
+          return;
+        }
+
         const named = node.declarations
           .map(declaratorName)
           .filter(Boolean);
@@ -111,6 +134,21 @@ module.exports = {
           });
         }
       });
+    }
+
+    function isInsideEventHandler(node) {
+      let current = node.parent;
+      while (current) {
+        if (
+          (current.type === 'Property' || current.type === 'MethodDefinition') &&
+          current.key?.type === 'Identifier' &&
+          DOM_EVENT_NAMES.has(current.key.name)
+        ) {
+          return true;
+        }
+        current = current.parent;
+      }
+      return false;
     }
 
     function walk(node, visit) {

@@ -131,6 +131,25 @@ describe('require-reactive-template-bindings', () => {
     expect(messages).toEqual([]);
   });
 
+  it('allows message interpolation helpers around reactive reads', async () => {
+    const messages = await lintFixture(`
+      declare const YIELDABLE_VALUE: unique symbol;
+      type CraftValue<T> = (() => T) & { readonly [YIELDABLE_VALUE]: 'value' };
+      type Messages = { queueSummary(items: number): string };
+      declare const t: CraftValue<Messages>;
+      declare const count: CraftValue<number>;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () => ({}), () =>
+        p({ title: function* () {
+          return (yield* t()).queueSummary(yield* count());
+        }}, 'Queue'),
+      );
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
   it('checks structural branch templates but not their nested bindings', async () => {
     const messages = await lintFixture(`
       declare const INPUT_BRAND: unique symbol;

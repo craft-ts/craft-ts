@@ -37,7 +37,7 @@ test('opens a review subject in the selected editor and remembers the choice', a
   });
 
   try {
-    await page.goto(`${running.url}?view=template`);
+    await page.goto(`${running.url}/#/template?view=template`);
     const source = page
       .locator(
         '[data-testid="inventory-panel"]:not([hidden]) [data-testid="source-link"]',
@@ -74,7 +74,7 @@ test('opens a review subject in the selected editor and remembers the choice', a
       'href',
       '/api/open-in-ide?ide=cursor&file=apps%2Fdemo%2Fsrc%2Fapp%2Fapp.ts',
     );
-    await page.goto(`${running.url}?view=template`);
+    await page.goto(`${running.url}/#/template?view=template`);
     await expect(
       page.locator(
         '[data-testid="inventory-panel"]:not([hidden]) [data-testid="source-link"]',
@@ -117,7 +117,7 @@ test('opens the source for a render obligation from the template view', async ({
   });
 
   try {
-    await page.goto(`${running.url}?view=template`);
+    await page.goto(`${running.url}/#/template?view=template`);
     const source = page
       .locator(
         '[data-testid="inventory-panel"]:not([hidden]) [data-testid="source-link"]',

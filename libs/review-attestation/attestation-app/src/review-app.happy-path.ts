@@ -313,6 +313,165 @@ export const reviewAppVisualTestConfig = defineVisualAppConfig({
         },
       ],
     },
+    {
+      id: 'review-app-application',
+      route: '/application',
+      url: '/#/application?view=application',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'application',
+          label: 'Review application section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'application',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-assets',
+      route: '/assets',
+      url: '/#/assets?view=assets',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'assets',
+          label: 'Review assets section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'assets',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-bypasses',
+      route: '/bypasses',
+      url: '/#/bypasses?view=bypasses',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'bypasses',
+          label: 'Review bypasses section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'bypasses',
+              expect: [{ kind: 'visible', target: { name: 'ShowReviewQueue' } }],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-folder-layout',
+      route: '/folder-layout',
+      url: '/#/folder-layout?view=folder-layout',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'folder-layout',
+          label: 'Review folder-layout section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'folder-layout',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-review',
+      route: '/review',
+      url: '/#/review?view=review',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'review',
+          label: 'Review queue section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'review',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-template',
+      route: '/template',
+      url: '/#/template?view=template',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'template',
+          label: 'Review template section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'template',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'review-app-visual',
+      route: '/visual',
+      url: '/#/visual?view=visual',
+      component: REVIEW_APP_COMPONENT,
+      scenarios: [
+        {
+          id: 'visual',
+          label: 'Review visual section',
+          category: 'happy-path',
+          mocks: reviewAppHappyPathMocks,
+          steps: [
+            {
+              action: 'capture',
+              id: 'visual',
+              expect: [
+                { kind: 'visible', target: { name: 'ShowReviewQueue' } },
+              ],
+            },
+          ],
+        },
+      ],
+    },
   ],
 });
 

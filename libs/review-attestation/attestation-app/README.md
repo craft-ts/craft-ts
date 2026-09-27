@@ -1,8 +1,10 @@
 # Attestation application
 
 The attestation application is the unified review surface for visual captures
-and template obligations. It follows the same CraftTS constraints as the
-applications it reviews: the recommended ESLint rules, a dedicated graph
+and historical template obligations. The production CLI currently leaves
+template-obligation generation disabled; the app keeps fixture data to verify
+that older records remain reviewable. It follows the same CraftTS constraints
+as the applications it reviews: the recommended ESLint rules, a dedicated graph
 configuration, and executable architecture checks.
 
 It also reviews itself. This requires two successive sessions rather than one
@@ -10,8 +12,8 @@ self-referential live session:
 
 1. the capture session starts the review application with a deterministic
    fixture queue and freezes its representative states;
-2. the review session starts a new instance with that visual report and the
-   template obligations derived from the review application's own graph.
+2. the review session starts a new instance with that visual report and
+   historical template-obligation fixtures.
 
 The separation is intentional. A server cannot reliably review a queue that it
 is still changing while capturing itself. The frozen, script-free artefacts
@@ -138,8 +140,9 @@ npx craft-ts attest devtools \
 ```
 
 The script must rebuild the report passed to `--report`. After it completes,
-the DevTool re-reads that report, rebuilds the CraftTS graph and template
-obligations, persists the new evidence, and refreshes the complete queue.
+the DevTool re-reads that report, rebuilds the CraftTS graph, persists the new
+visual evidence, and refreshes the queue. Template-obligation generation stays
+disabled.
 
 After changing the review application's TypeScript, template, styles, messages,
 API dataset, or fixture scenarios, run the three commands again. Change the fixture version

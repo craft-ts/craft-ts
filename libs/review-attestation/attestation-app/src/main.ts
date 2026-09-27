@@ -9,8 +9,12 @@ import {
   provideCraftSchemaValidationPolicy,
   provideFnWrapper,
   provideSendContextEventEnricher,
+  withHashLocation,
 } from '@craft-ts/core';
 import { ReviewApp } from './review-app';
+import { provideReviewAppModel } from './review-app.model';
+import { provideReviewNavigation } from './review-navigation.service';
+import { reviewRoutes } from './review.routes';
 import { reviewDocument } from './browser-adapter';
 import {
   applyLocale,
@@ -45,7 +49,9 @@ const config = craftAppConfig({
       action: import.meta.env.DEV ? 'reject' : 'accept',
     })),
     provideCraftRootComponent(ReviewApp),
-    ...provideCraftRouter([]),
+    ...provideCraftRouter(reviewRoutes.toRoutes(), withHashLocation()),
+    provideReviewAppModel(),
+    provideReviewNavigation(),
     provideFnWrapper(
       'Review app function boundary',
       function* (factory, thisArg, args) {

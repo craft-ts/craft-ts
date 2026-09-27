@@ -22,7 +22,7 @@ test('shows the selected template promise and its details', async ({
     model: reviewAppHappyPathModel,
   });
   try {
-    await page.goto(`${running.url}?view=review`);
+    await page.goto(`${running.url}/#/review?view=review`);
     await expect(
       page.locator('[data-testid="template-group-header"]'),
     ).toContainText('ProfileCard');
@@ -49,7 +49,7 @@ test('offers AI context actions from the review screen in development', async ({
   });
 
   try {
-    await page.goto(`${running.url}?view=review`);
+    await page.goto(`${running.url}/#/review?view=review`);
     await expect(
       page.locator('[data-testid="queue-panel"] [data-testid="brand"]'),
     ).toBeVisible();
@@ -75,7 +75,7 @@ test('reviews a folder-layout proposal as a visual before/after tree', async ({
     model: reviewAppHappyPathModel,
   });
   try {
-    await page.goto(`${running.url}?view=folder-layout`);
+    await page.goto(`${running.url}/#/folder-layout?view=folder-layout`);
     await expect(
       page.locator('[data-craft-name="ShowFolderLayout"]'),
     ).toHaveAttribute('aria-pressed', 'true');
@@ -114,7 +114,7 @@ test('keeps folder-layout cards out of the review queue when switching views', a
     model: reviewAppHappyPathModel,
   });
   try {
-    await page.goto(`${running.url}?view=folder-layout`);
+    await page.goto(`${running.url}/#/folder-layout?view=folder-layout`);
 
     const reviewTab = page.locator('[data-craft-name="ShowReviewQueue"]');
     const folderLayoutTab = page.locator(
@@ -140,6 +140,46 @@ test('keeps folder-layout cards out of the review queue when switching views', a
       'data-kind',
       'folder-layout',
     );
+  } finally {
+    await running.close();
+  }
+});
+
+test('routes between review sections and restores the selected section on reload', async ({
+  page,
+}) => {
+  const running = await startReviewServer({
+    port: 0,
+    cards: [reviewAppTemplateCard],
+    model: reviewAppHappyPathModel,
+  });
+
+  try {
+    await page.goto(`${running.url}/#/review?view=review`);
+    const templateTab = page.locator(
+      '[data-craft-name="ShowTemplateObligations"]',
+    );
+    await templateTab.click();
+
+    await expect(page).toHaveURL(/\/#\/template(?:\?|$)/);
+    await expect(templateTab).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.locator('[data-testid="inventory-panel"]:not([hidden])'),
+    ).toBeVisible();
+
+    await page.reload();
+    await expect(page).toHaveURL(/\/#\/template(?:\?|$)/);
+    await expect(templateTab).toHaveAttribute('aria-pressed', 'true');
+    await expect(
+      page.locator('[data-testid="inventory-panel"]:not([hidden])'),
+    ).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/#\/review(?:\?|$)/);
+    await expect(
+      page.locator('[data-craft-name="ShowReviewQueue"]'),
+    ).toHaveAttribute('aria-pressed', 'true');
+
   } finally {
     await running.close();
   }
@@ -173,11 +213,11 @@ test('writes self-attestation evidence for every scenario and viewport', async (
       config: reviewAttestConfig.visual!.app!,
       baseURL: running.url,
       reportPath: reportPathFor(testInfo),
-      rootDir: resolve('.'),
+      rootDir: resolve('../../..'),
       tsconfigPath:
         'libs/review-attestation/attestation-app/tsconfig.graph.json',
     });
-    expect(report.captures).toHaveLength(12);
+    expect(report.captures).toHaveLength(40);
     expect(report.captures.every((c) => c.evidenceMode === 'screenshot')).toBe(
       true,
     );
@@ -196,7 +236,7 @@ test('keeps decision hints readable when their action is disabled', async ({
   });
 
   try {
-    await page.goto(`${running.url}?view=review`);
+    await page.goto(`${running.url}/#/review?view=review`);
     await expect(
       page.locator('[data-testid="template-obligation-copy"]'),
     ).toBeVisible();
@@ -237,7 +277,7 @@ test('keeps primary decision labels and shortcut keys at WCAG AA contrast', asyn
   });
 
   try {
-    await page.goto(`${running.url}?view=review`);
+    await page.goto(`${running.url}/#/review?view=review`);
     await page.locator('[data-craft-name="SelectTemplateGroup"]').check();
     const accept = page.locator('[data-craft-name="AcceptTemplateGroup"]');
     await expect(accept).toBeVisible();
@@ -314,7 +354,7 @@ test('persists the selected view and scenario in the URL', async ({
   });
 
   try {
-    await page.goto(`${running.url}?view=visual`);
+    await page.goto(`${running.url}/#/visual?view=visual`);
     await page.locator('[data-craft-name="SelectVisualTest"]').click();
     await expect(page.locator('[data-testid="visual-detail"]')).toBeVisible();
     await expect(page).toHaveURL(
@@ -333,8 +373,8 @@ test('persists the selected view and scenario in the URL', async ({
       /# Codex iteration prompt/,
     );
     await expect(page.getByRole('dialog')).toContainText('1 rejected card');
-
-    await page.goto(`${running.url}?view=template`);
+    await page.reload();
+    await page.goto(`${running.url}/#/template?view=template`);
     await expect(
       page.locator('[data-testid="inventory-panel"]:not([hidden])'),
     ).toBeVisible();
@@ -343,9 +383,9 @@ test('persists the selected view and scenario in the URL', async ({
     ).toHaveAttribute('aria-pressed', 'true');
 
     await page.locator('[data-craft-name="ShowReviewQueue"]').click();
-    await expect(page).toHaveURL(/view=review/);
+    await expect(page).toHaveURL(/\/#\/review(?:\?|$)/);
     await page.locator('[data-craft-name="SelectReviewCard"]').nth(1).click();
-    await expect(page).toHaveURL(/view=review/);
+    await expect(page).toHaveURL(/\/#\/review(?:\?|$)/);
     await expect(page).toHaveURL(
       new RegExp(`scenario=${encodeURIComponent(secondCard.shape)}`),
     );
@@ -386,7 +426,7 @@ test('shows the selected template group without visual evidence', async ({
   });
 
   try {
-    await page.goto(`${running.url}?view=review`);
+    await page.goto(`${running.url}/#/review?view=review`);
     await page.locator('[data-craft-name="SelectReviewCard"]').nth(1).click();
 
     await expect(
@@ -427,7 +467,7 @@ test('keeps accepted decisions in order and can reopen one', async ({
   });
 
   try {
-    await page.goto(`${running.url}?view=review`);
+    await page.goto(`${running.url}/#/review?view=review`);
     await page.getByRole('checkbox', { name: /profile\.commit/ }).check();
     await page.locator('[data-craft-name="AcceptTemplateGroup"]').click();
     await expect(
@@ -486,7 +526,7 @@ test('explains queue and decision failures in the interface', async ({
   });
 
   try {
-    await page.goto(`${decisionFailure.url}?view=review`);
+    await page.goto(`${decisionFailure.url}/#/review?view=review`);
     await page.locator('[data-craft-name="SelectTemplateGroup"]').check();
     const accept = page.locator('[data-craft-name="AcceptTemplateGroup"]');
     await expect(accept).toBeEnabled();
@@ -574,7 +614,7 @@ test('reviews explicit visible application captures without changing global cove
     },
   });
   try {
-    await page.goto(`${running.url}?view=application`);
+    await page.goto(`${running.url}/#/application?view=application`);
     const progress = page.locator('[data-testid="application-progress"]');
     await expect(progress).toContainText('0 / 4');
     await expect(
