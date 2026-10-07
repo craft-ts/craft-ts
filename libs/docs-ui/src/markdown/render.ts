@@ -31,8 +31,9 @@ import {
 } from '@craft-ts/component';
 import { calloutCaption, DocCallout } from '../callout/callout.ts';
 import { DocCode } from '../code/code.ts';
+import { DocCodeGroup } from '../code/code-group.ts';
 import { proseUi } from '../prose/prose.style.ts';
-import type { Block, Inline } from './tree.ts';
+import type { Block, CodeBlock, Inline } from './tree.ts';
 
 /** Components an author names in a page (`<AuthorNote />`), supplied by the app. */
 export type DocComponents = Readonly<Record<string, () => CraftNodeChild>>;
@@ -75,12 +76,25 @@ export const renderInlines = (inlines: readonly Inline[]): CraftNodeChild[] =>
     }
   });
 
+/**
+ * `path` names where a block sits in the tree (`0-2-1`). It is what makes the
+ * ARIA ids of a code group stable: the same page renders the same ids on the
+ * server and in the browser, which a running counter could not promise.
+ */
 export const renderBlocks = (
   blocks: readonly Block[],
   components: DocComponents,
-): CraftNodeChild[] => blocks.map((block) => renderBlock(block, components));
+  path = '',
+): CraftNodeChild[] =>
+  blocks.map((block, index) =>
+    renderBlock(block, components, `${path}${index}`),
+  );
 
-function renderBlock(block: Block, components: DocComponents): CraftNodeChild {
+function renderBlock(
+  block: Block,
+  components: DocComponents,
+  path: string,
+): CraftNodeChild {
   switch (block.t) {
     case 'heading': {
       return h(`h${block.level}`, { id: block.id, class: HEADING_CLASS[block.level] }, [
@@ -99,14 +113,14 @@ function renderBlock(block: Block, components: DocComponents): CraftNodeChild {
       return p({ class: proseUi.paragraph }, renderInlines(block.children));
     case 'list': {
       const items = block.items.map((item) =>
-        li({ class: proseUi.item }, renderBlocks(item, components)),
+        li({ class: proseUi.item }, renderBlocks(item, components, `${path}-`)),
       );
       return block.ordered
         ? ol({ class: proseUi.orderedList }, items)
         : ul({ class: proseUi.list }, items);
     }
     case 'quote':
-      return h('blockquote', { class: proseUi.quote }, renderBlocks(block.children, components));
+      return h('blockquote', { class: proseUi.quote }, renderBlocks(block.children, components, `${path}-`));
     case 'rule':
       return h('hr', { class: proseUi.rule });
     case 'table':
@@ -131,23 +145,23 @@ function renderBlock(block: Block, components: DocComponents): CraftNodeChild {
         caption: function* () {
           return calloutCaption(tone, caption);
         },
-        body: content(() => renderBlocks(children, components)),
+        body: content(() => renderBlocks(children, components, `${path}-`)),
       });
     }
     case 'details':
       return details({ class: proseUi.details }, [
         summary({ class: proseUi.summary }, block.summary),
-        div({ class: proseUi.detailsBody }, renderBlocks(block.children, components)),
+        div({ class: proseUi.detailsBody }, renderBlocks(block.children, components, `${path}-`)),
       ]);
     case 'raw':
-      return div({ class: proseUi.raw }, renderBlocks(block.children, components));
+      return div({ class: proseUi.raw }, renderBlocks(block.children, components, `${path}-`));
     case 'row':
       return div(
         {
           class: proseUi.row,
           ...(block.layout === 'start' ? {} : { 'data-layout': block.layout }),
         },
-        renderBlocks(block.children, components),
+        renderBlocks(block.children, components, `${path}-`),
       );
     case 'figure':
       return div({ class: proseUi.figure, 'data-variant': block.variant }, [
@@ -159,27 +173,45 @@ function renderBlock(block: Block, components: DocComponents): CraftNodeChild {
         ? render()
         : p({ class: proseUi.paragraph }, `Component ${block.name} is not registered.`);
     }
-    case 'code': {
-      const { lines, filename, language, numbered, firstLine } = block;
-      return DocCode({
-        lines: function* () {
-          return lines;
+    case 'code':
+      return renderCode(block);
+    case 'codeGroup': {
+      const { tabs } = block;
+      const group = `code-group-${path}`;
+      return DocCodeGroup({
+        tabs: function* () {
+          return tabs.map((tab) => ({
+            label: tab.label,
+            render: () => renderCode(tab.block),
+          }));
         },
-        filename: function* () {
-          return filename;
-        },
-        language: function* () {
-          return language;
-        },
-        numbered: function* () {
-          return numbered;
-        },
-        firstLine: function* () {
-          return firstLine;
+        group: function* () {
+          return group;
         },
       });
     }
   }
+}
+
+function renderCode(block: CodeBlock): CraftNodeChild {
+  const { lines, filename, language, numbered, firstLine } = block;
+  return DocCode({
+    lines: function* () {
+      return lines;
+    },
+    filename: function* () {
+      return filename;
+    },
+    language: function* () {
+      return language;
+    },
+    numbered: function* () {
+      return numbered;
+    },
+    firstLine: function* () {
+      return firstLine;
+    },
+  });
 }
 
 export interface DocPageInput {

@@ -482,11 +482,41 @@ export async function parsePage(
               summary: meta.title || 'Details',
               children,
             });
+          } else if (meta.name === 'code-group') {
+            const tabs = children.flatMap((child) =>
+              child.t === 'code'
+                ? [
+                    {
+                      label: child.filename || child.language || 'code',
+                      block: child,
+                    },
+                  ]
+                : [],
+            );
+            if (tabs.length === 0) {
+              report({
+                kind: 'code-group',
+                message:
+                  'A code group holds code blocks: this one has none, so its content is kept, unwrapped.',
+                ...(token.map ? { line: token.map[0] + 1 } : {}),
+              });
+              out.push({ t: 'raw', children });
+            } else {
+              if (tabs.length !== children.length) {
+                report({
+                  kind: 'code-group',
+                  message:
+                    'A code group holds code blocks only: the other content was dropped.',
+                  ...(token.map ? { line: token.map[0] + 1 } : {}),
+                });
+              }
+              out.push({ t: 'codeGroup', tabs });
+            }
           } else if (meta.name === 'raw') {
             out.push({ t: 'raw', children });
           } else {
             report({
-              kind: meta.name === 'code-group' ? 'code-group' : 'unknown-container',
+              kind: 'unknown-container',
               message: `Container '${meta.name}' has no component: its content is kept, unwrapped.`,
               ...(token.map ? { line: token.map[0] + 1 } : {}),
             });

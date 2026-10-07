@@ -70,6 +70,12 @@ describe('containers', () => {
   });
 
   it('reports a container it has no component for, and keeps its content', async () => {
+    const page = await parse('::: columns\ntext\n:::');
+    expect(page.diagnostics.map((d) => d.kind)).toEqual(['unknown-container']);
+    expect(page.blocks[0]).toMatchObject({ t: 'raw' });
+  });
+
+  it('keeps the content of a code group that holds no code, and says so', async () => {
     const page = await parse('::: code-group\ntext\n:::');
     expect(page.diagnostics.map((d) => d.kind)).toEqual(['code-group']);
     expect(page.blocks[0]).toMatchObject({ t: 'raw' });
@@ -235,5 +241,33 @@ describe('helpers', () => {
     expect(kindOfScopes(['source.ts', 'meta.function-call.ts', 'entity.name.function.ts'])).toBe('function');
     expect(kindOfScopes(['source.ts'])).toBeUndefined();
     expect(extractMarkers(['a // [!code ++]', 'b']).marks).toEqual(['add', undefined]);
+  });
+});
+
+describe('code groups', () => {
+  it('turns ::: code-group into one group of tabs named by the fence labels', async () => {
+    const page = await parse(
+      [
+        '::: code-group',
+        '',
+        '```sh [npm]',
+        'npm install @craft-ts/core',
+        '```',
+        '',
+        '```sh [pnpm]',
+        'pnpm add @craft-ts/core',
+        '```',
+        '',
+        ':::',
+      ].join('\n'),
+    );
+
+    expect(page.blocks).toHaveLength(1);
+    const group = page.blocks[0];
+    expect(group?.t).toBe('codeGroup');
+    if (group?.t === 'codeGroup') {
+      expect(group.tabs.map((tab) => tab.label)).toEqual(['npm', 'pnpm']);
+    }
+    expect(page.diagnostics).toEqual([]);
   });
 });

@@ -15,6 +15,12 @@
 import {
   alignItems,
   bg,
+  craftBase,
+  cursor,
+  interaction,
+  prop,
+  set,
+  transitions,
   blockSize,
   borderBlockEndColor,
   borderBlockEndStyle,
@@ -56,6 +62,8 @@ import {
 } from '@craft-ts/style';
 import {
   arriving,
+  duration,
+  ease,
   herbier,
   monoFont,
   sansFont,
@@ -94,6 +102,9 @@ export const codeUi = craftStyles('docCode', {
     radius(radii.md),
     // The block floats a little above the page: a soft, opaque shadow.
     shadow({ y: unit.px(14), blur: unit.px(30), color: theme.shadow }),
+    // The code surface is dark in both themes, so the spruce ring of the page
+    // would vanish on it in the light one: the ring is the pale green here.
+    set(craftBase.focusRing, herbier.text.codeKeyword),
     ...arriving,
   ],
   bar: [
@@ -118,6 +129,25 @@ export const codeUi = craftStyles('docCode', {
     fontWeight(weight.semibold),
     letterSpacing(unit.em(0.04)),
     color(herbier.text.codeComment),
+  ],
+  // The "Copy" label: a small, quiet command in the bar of the block.
+  copy: [
+    display.inlineFlex,
+    alignItems.center,
+    gap(space(2)),
+    bg(theme.clear),
+    cursor.pointer,
+    fontFamily(sansFont),
+    ...font(text.xs),
+    fontWeight(weight.semibold),
+    letterSpacing(unit.em(0.04)),
+    color(herbier.text.codeKeyword),
+    set(theme.glyph, herbier.text.codeKeyword),
+    ...transitions([prop.color], { duration: duration.fast, easing: ease }),
+    when(interaction.hover, [
+      color(herbier.text.codePlain),
+      set(theme.glyph, herbier.text.codePlain),
+    ]),
   ],
   // The scroll port: `overflow` has no helper, and this is the one road to it.
   body: [

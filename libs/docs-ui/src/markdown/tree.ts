@@ -92,6 +92,14 @@ export type Block =
       readonly alt: string;
       readonly variant: string;
     }
+  /**
+   * `::: code-group`: code blocks under one strip of tabs. Each tab is named by
+   * the `[label]` of its fence, or by its language.
+   */
+  | {
+      readonly t: 'codeGroup';
+      readonly tabs: readonly { readonly label: string; readonly block: CodeBlock }[];
+    }
   /** A component named in the page (`<AuthorNote />`), resolved by the app. */
   | { readonly t: 'component'; readonly name: string }
   | CodeBlock;

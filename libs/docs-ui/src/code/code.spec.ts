@@ -7,7 +7,7 @@ import {
   registeredKeyframes,
 } from '@craft-ts/style';
 import { renderCss } from '@craft-ts/style/vite';
-import { DocCode, type CodeLine } from './code.ts';
+import { DocCode, codeText, type CodeLine } from './code.ts';
 
 const lines: readonly CodeLine[] = [
   {
@@ -99,15 +99,22 @@ describe('DocCode', () => {
     rendered.destroy();
   });
 
-  it('shows a header only when there is something to put in it', async () => {
+  it('names the file and the language when it has them, and always offers Copy', async () => {
     const bare = await render();
     expect(bare.element.textContent).not.toContain('counter.ts');
+    expect(bare.element.textContent).toContain('Copy');
     bare.destroy();
 
     const named = await render({ filename: 'counter.ts', lang: 'ts' });
     expect(named.element.textContent).toContain('counter.ts');
     expect(named.element.textContent).toContain('ts');
     named.destroy();
+  });
+
+  it('copies the code as it was written, without gutters or glyphs', () => {
+    expect(codeText(lines)).toBe(
+      'const count = state(0);\nlegacy();\nnext();\n// done',
+    );
   });
 
   it('owns its horizontal scroll port, the only road to overflow', () => {

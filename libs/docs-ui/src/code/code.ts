@@ -6,6 +6,7 @@ import {
   type CraftNodeChild,
   type Input,
 } from '@craft-ts/component';
+import { DocCopyButton } from './copy-button.ts';
 import { codeUi } from './code.style.ts';
 
 /** What kind of word a token is. `undefined` is plain text. */
@@ -104,6 +105,10 @@ const renderLine = (
   );
 };
 
+/** The code as plain text: what "Copy" puts on the clipboard. */
+export const codeText = (lines: readonly CodeLine[]): string =>
+  lines.map((line) => line.tokens.map((token) => token.text).join('')).join('\n');
+
 export const DocCode = craftComponent('DocCode', {}, function* (
   input: CodeInput,
 ) {
@@ -114,15 +119,21 @@ export const DocCode = craftComponent('DocCode', {}, function* (
   const firstLine = yield* input.firstLine();
   const hasMarks = lines.some((line) => line.mark && line.mark !== 'dim');
 
-  const parts: CraftNodeChild[] = [];
-  if (filename || language) {
-    parts.push(
-      div({ class: codeUi.bar }, [
-        span({ class: codeUi.name }, filename),
+  const source = codeText(lines);
+
+  const parts: CraftNodeChild[] = [
+    div({ class: codeUi.bar }, [
+      span({ class: codeUi.name }, filename),
+      div({ class: codeUi.tools }, [
         span({ class: codeUi.lang }, language),
+        DocCopyButton({
+          text: function* () {
+            return source;
+          },
+        }),
       ]),
-    );
-  }
+    ]),
+  ];
   // Focusable on purpose: a block that scrolls sideways must be reachable and
   // scrollable from the keyboard.
   parts.push(
