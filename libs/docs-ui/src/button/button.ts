@@ -1,4 +1,5 @@
 import {
+  a,
   button,
   craftComponent,
   span,
@@ -92,5 +93,30 @@ export const DocIconButton = craftComponent(
           },
         }),
       ],
+    ),
+);
+
+export interface LinkButtonInput {
+  readonly label: Input<string>;
+  readonly href: Input<string>;
+  readonly variant: Input<ButtonVariant>;
+}
+
+/**
+ * A link that looks like a button: the same sheet, an `<a>` underneath. A
+ * button changes the page; a link goes somewhere, and a link is what a call to
+ * action on a docs page is.
+ */
+export const DocLinkButton = craftComponent(
+  'DocLinkButton',
+  {},
+  (input: LinkButtonInput) =>
+    a(
+      {
+        class: buttonUi.root,
+        href: input.href,
+        'data-variant': input.variant,
+      },
+      [span(input.label)],
     ),
 );

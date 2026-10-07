@@ -9,13 +9,8 @@ import {
   type Input,
 } from '@craft-ts/component';
 import { DocIcon } from '../icon/icon.ts';
+import type { Crumb } from '../site/site.ts';
 import { breadcrumbUi } from './nav.style.ts';
-
-export interface Crumb {
-  readonly label: string;
-  /** The last crumb is the page itself and has no link target of its own. */
-  readonly href: string;
-}
 
 export interface BreadcrumbInput {
   readonly trail: Input<readonly Crumb[]>;

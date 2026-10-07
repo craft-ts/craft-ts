@@ -21,7 +21,9 @@
  */
 import {
   animate,
+  at,
   craftBase,
+  defineBreakpoints,
   craftGlobalStyles,
   bg,
   color,
@@ -132,6 +134,16 @@ export const herbier = definePalette('herbier', {
     // Decoration only. Never text.
     decor: { light: '#6E8F5C', dark: '#7FA88A' },
   },
+  // The hero: five planes of spruce from the far ridge to the foreground, and the
+  // contour lines (the spruce at 20 % over the paper, computed once).
+  decor: {
+    forestBack: { light: '#D6DFCB', dark: '#27402F' },
+    forestRidge: { light: '#BBCBAE', dark: '#1F362A' },
+    forestMiddle: { light: '#8FAB93', dark: '#182C22' },
+    forestNear: { light: '#456F59', dark: '#101F17' },
+    forestFront: { light: '#27483B', dark: '#09120D' },
+    contour: { light: '#CBD1C4', dark: '#243430' },
+  },
   // A soft shadow is a flat, blurred colour: opaque, like everything else.
   effect: {
     shadow: { light: '#D9D7CC', dark: '#090F0C' },
@@ -193,6 +205,12 @@ export const theme = cssVars('herbier', {
   decor: kind.color(herbier.accent.decor, themed),
   focusHalo: kind.color(herbier.border.focusHalo, themed),
   shadow: kind.color(herbier.effect.shadow, themed),
+  forestBack: kind.color(herbier.decor.forestBack, themed),
+  forestRidge: kind.color(herbier.decor.forestRidge, themed),
+  forestMiddle: kind.color(herbier.decor.forestMiddle, themed),
+  forestNear: kind.color(herbier.decor.forestNear, themed),
+  forestFront: kind.color(herbier.decor.forestFront, themed),
+  contour: kind.color(herbier.decor.contour, themed),
   infoSurface: kind.color(herbier.surface.info, themed),
   infoBorder: kind.color(herbier.border.info, themed),
   infoInk: kind.color(herbier.text.info, themed),
@@ -318,6 +336,12 @@ const paint = (side: (token: ColorValue) => ColorValue) => [
   set(theme.decor, side(herbier.accent.decor)),
   set(theme.focusHalo, side(herbier.border.focusHalo)),
   set(theme.shadow, side(herbier.effect.shadow)),
+  set(theme.forestBack, side(herbier.decor.forestBack)),
+  set(theme.forestRidge, side(herbier.decor.forestRidge)),
+  set(theme.forestMiddle, side(herbier.decor.forestMiddle)),
+  set(theme.forestNear, side(herbier.decor.forestNear)),
+  set(theme.forestFront, side(herbier.decor.forestFront)),
+  set(theme.contour, side(herbier.decor.contour)),
   set(theme.infoSurface, side(herbier.surface.info)),
   set(theme.infoBorder, side(herbier.border.info)),
   set(theme.infoInk, side(herbier.text.info)),
@@ -344,6 +368,29 @@ const paint = (side: (token: ColorValue) => ColorValue) => [
 
 const light = paint((token) => token);
 const dark = paint(darkOf);
+
+/**
+ * Every theme variable written for one side, for a subtree that must not follow
+ * the page: the root rules above only reach `:root`, so a region that is always
+ * dark (the Effect lessons) spreads `paintDark` under its own scope.
+ */
+export const paintLight = light;
+export const paintDark = dark;
+
+/**
+ * The widths the layout changes at. A phone gets one column and a drawer, a
+ * tablet adds the sidebar, a laptop adds the outline. Declared ascending: the
+ * order is what lets the matrix reduce them by interval.
+ */
+export const bp = defineBreakpoints({
+  sm: at.minInlineSize(unit.rem(36)),
+  md: at.minInlineSize(unit.rem(48)),
+  lg: at.minInlineSize(unit.rem(64)),
+  xl: at.minInlineSize(unit.rem(80)),
+});
+
+/** Which side a scoped subtree is forced to. */
+export const scope = defineStateAxis('scope', ['light', 'dark'] as const);
 
 craftGlobalStyles('herbier', {
   root: [
