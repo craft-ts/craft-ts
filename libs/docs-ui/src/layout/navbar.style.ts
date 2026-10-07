@@ -92,16 +92,8 @@ export const navbarUi = craftStyles('docNavbar', {
     color(theme.ink),
     textDecoration.none,
   ],
-  mark: [
-    display.flex,
-    alignItems.center,
-    justifyContent.center,
-    inlineSize(unit.rem(2.125)),
-    blockSize(unit.rem(2.125)),
-    borderRadius(radii.lg),
-    bg(theme.action),
-    set(theme.glyph, theme.onAction),
-  ],
+  // The logo: it is its own shape, no tile behind it.
+  mark: [display.block, inlineSize(unit.rem(2.5)), flexShrink(num(0))],
   name: [
     fontFamily(displayFont),
     fontSize(unit.rem(1.5625)),

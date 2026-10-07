@@ -742,6 +742,25 @@ sans charger de document.
   Les écritures sont maintenant regroupées (`ɵcraftBatch`), test
   `component-props-batch.spec.ts` (échoue sans le correctif). Gain : ~9 fois en jsdom.
 
+### Le logo par saison (fait, 2026-10-07)
+
+La marque de la barre n'est plus une épicéa sur une tuile verte : c'est le logo de craft-ts
+(l'astérisque à trois barres de `apps/docs/public/assets/craft-ts-logo.png`) redessiné en trois
+masques (`logo/logo.style.ts`, `DocLogo`), peints par des variables de thème. Une barre
+penchée vers la droite passe derrière, une barre droite, une barre en travers par-dessus ;
+chacune porte un dégradé qui suit son axe.
+
+- **Couleurs** : un groupe `logo` (`a1 a2 b1 b2 b3 c1 c2`) dans chaque palette, jour et nuit.
+  Classique = les teintes du logo d'origine (indigo, violet, rose, orange), un peu assombries ;
+  printemps = vert feuille, menthe, rose de fleur ; été = bleu-vert, soleil, corail ;
+  automne = prune, rouille, or ; hiver = bleus de glace et lavande.
+- **Preuve** : chaque couleur de chaque saison, jour et nuit, tient 3:1 contre la page
+  (`seasons.spec.ts`, `herbier.spec.ts`). C'est ce seuil qui fait les tons plus sombres que
+  ceux du logo d'origine du côté clair.
+- **Pas fait** : le favicon reste le PNG d'origine (`<link rel=icon>` ne suit pas la saison) ;
+  les ombres et reflets du logo d'origine (superpositions) ne sont pas repris : il n'y a pas
+  d'alpha dans le vocabulaire.
+
 ### Reste à faire
 
 1. **Retirer VitePress** quand la comparaison est faite : déplacer la navigation

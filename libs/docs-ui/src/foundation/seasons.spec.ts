@@ -120,6 +120,15 @@ describe.each(cases)('the %s palette (%s side), WCAG AA', (_name, palette, side)
     }
   });
 
+  it('keeps every colour of the logo visible against the page of the season, at 3:1', () => {
+    for (const stop of ['a1', 'a2', 'b1', 'b2', 'b3', 'c1', 'c2'] as const) {
+      expect(
+        ratio(palette.logo[stop], palette.surface.page, side),
+        `logo.${stop} on surface.page`,
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT);
+    }
+  });
+
   it('keeps the fixed tones readable on the page of the season', () => {
     // The info, important, warning and danger callouts draw their own surface, but
     // they sit on the page: the border between them is not what carries them, the

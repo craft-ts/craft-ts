@@ -164,6 +164,17 @@ export const herbier = definePalette('herbier', {
     forestFront: { light: '#27483B', dark: '#09120D' },
     contour: { light: '#CBD1C4', dark: '#243430' },
   },
+  // The mark: the three bars of the logo, each a gradient from its first colour to its
+  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  logo: {
+    a1: { light: '#4A52F2', dark: '#8A90FF' },
+    a2: { light: '#5B2BD6', dark: '#9C6BFF' },
+    b1: { light: '#4A52F2', dark: '#8A90FF' },
+    b2: { light: '#5B2BD6', dark: '#9C6BFF' },
+    b3: { light: '#D96A1A', dark: '#FFA860' },
+    c1: { light: '#C93AA8', dark: '#F07AD0' },
+    c2: { light: '#E8408C', dark: '#FF8AC0' },
+  },
   // A soft shadow is a flat, blurred colour: opaque, like everything else.
   effect: {
     shadow: { light: '#D9D7CC', dark: '#090F0C' },
@@ -262,6 +273,15 @@ export const theme = cssVars('herbier', {
   accent2: kind.color(herbier.accent.accent2, themed),
   snow: kind.color(herbier.accent.snow, themed),
   glow: kind.color(herbier.effect.glow, themed),
+  // The three bars of the logo, as gradients: start and end of each, and the pivot of the
+  // bar that runs behind the others.
+  logoA1: kind.color(herbier.logo.a1, themed),
+  logoA2: kind.color(herbier.logo.a2, themed),
+  logoB1: kind.color(herbier.logo.b1, themed),
+  logoB2: kind.color(herbier.logo.b2, themed),
+  logoB3: kind.color(herbier.logo.b3, themed),
+  logoC1: kind.color(herbier.logo.c1, themed),
+  logoC2: kind.color(herbier.logo.c2, themed),
   trim: kind.color(herbier.accent.accent2, themed),
   // The drawings of the season: the trees of each plane, what sits on them, and the
   // colours of the plate. They are masks, and a mask is a URL; the season swaps them.
@@ -416,6 +436,7 @@ export interface Brand {
     | 'snow'
   >;
   readonly effect: Tokens<'shadow' | 'glow'>;
+  readonly logo: Tokens<'a1' | 'a2' | 'b1' | 'b2' | 'b3' | 'c1' | 'c2'>;
   readonly decor: Tokens<
     | 'forestBack'
     | 'forestRidge'
@@ -473,6 +494,13 @@ const paint = (side: Side, brand: Brand, trim: ColorValue) => [
   set(theme.accent2, side(brand.accent.accent2)),
   set(theme.snow, side(brand.accent.snow)),
   set(theme.glow, side(brand.effect.glow)),
+  set(theme.logoA1, side(brand.logo.a1)),
+  set(theme.logoA2, side(brand.logo.a2)),
+  set(theme.logoB1, side(brand.logo.b1)),
+  set(theme.logoB2, side(brand.logo.b2)),
+  set(theme.logoB3, side(brand.logo.b3)),
+  set(theme.logoC1, side(brand.logo.c1)),
+  set(theme.logoC2, side(brand.logo.c2)),
   set(theme.trim, side(trim)),
   set(theme.infoSurface, side(herbier.surface.info)),
   set(theme.infoBorder, side(herbier.border.info)),

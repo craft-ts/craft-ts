@@ -29,6 +29,7 @@ export * from './layout/footer.ts';
 export * from './layout/home.ts';
 export * from './layout/search.ts';
 export * from './layout/layout.ts';
+export * from './logo/logo.ts';
 export * from './layout/mode.ts';
 export * from './layout/season.ts';
 export * from './foundation/season.ts';

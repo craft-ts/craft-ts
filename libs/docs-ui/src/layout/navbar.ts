@@ -12,6 +12,7 @@ import {
 } from '@craft-ts/component';
 import { DocBadge } from '../badge/badge.ts';
 import { DocIcon } from '../icon/icon.ts';
+import { DocLogo } from '../logo/logo.ts';
 import { DocMenu } from '../menu/menu.ts';
 import { activeNavIndex, isMenu, withBase, type NavEntry } from '../site/site.ts';
 import { DocKbd } from '../button/kbd.ts';
@@ -104,16 +105,7 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
 
   return header({ class: navbarUi.root }, [
     a('docNavbarBrand', { class: navbarUi.brand, href: withBase(base, '/') }, [
-      span({ class: navbarUi.mark, 'aria-hidden': 'true' }, [
-        DocIcon({
-          name: function* () {
-            return 'spruce' as const;
-          },
-          size: function* () {
-            return 'md' as const;
-          },
-        }),
-      ]),
+      span({ class: navbarUi.mark }, [DocLogo({})]),
       span({ class: navbarUi.name }, brand),
     ]),
     nav({ class: navbarUi.links, 'aria-label': 'Sections' }, entries),

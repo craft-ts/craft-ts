@@ -57,6 +57,17 @@ export const spring = definePalette('spring', {
     shadow: { light: '#D9DDCF', dark: '#0A100B' },
     glow: { light: '#FAF4C5', dark: '#212E25' },
   },
+  // The mark: the three bars of the logo, each a gradient from its first colour to its
+  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  logo: {
+    a1: { light: '#2F8F55', dark: '#7FD39A' },
+    a2: { light: '#1F6B40', dark: '#4FB878' },
+    b1: { light: '#2E8F7A', dark: '#7ADBC4' },
+    b2: { light: '#3E9A4F', dark: '#8EDB8A' },
+    b3: { light: '#A87A08', dark: '#F2D870' },
+    c1: { light: '#D6457F', dark: '#F59BC2' },
+    c2: { light: '#C23A82', dark: '#F178B0' },
+  },
   decor: {
     forestBack: { light: '#DDEBCF', dark: '#243B2B' },
     forestRidge: { light: '#C4DFB2', dark: '#1D3324' },
@@ -109,6 +120,17 @@ export const summer = definePalette('summer', {
   effect: {
     shadow: { light: '#DCD9C5', dark: '#08100B' },
     glow: { light: '#FDE498', dark: '#252C19' },
+  },
+  // The mark: the three bars of the logo, each a gradient from its first colour to its
+  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  logo: {
+    a1: { light: '#127A9E', dark: '#6CCBEA' },
+    a2: { light: '#0E5E8C', dark: '#3E9FD6' },
+    b1: { light: '#12907F', dark: '#6FDCC8' },
+    b2: { light: '#3E8F2E', dark: '#9AD86A' },
+    b3: { light: '#B86A00', dark: '#FFC94A' },
+    c1: { light: '#D9482F', dark: '#FF8F78' },
+    c2: { light: '#C2570A', dark: '#FFA85A' },
   },
   decor: {
     forestBack: { light: '#D3E5B2', dark: '#213E26' },
@@ -163,6 +185,17 @@ export const autumn = definePalette('autumn', {
     shadow: { light: '#DAD3C4', dark: '#100B08' },
     glow: { light: '#FAD59F', dark: '#2E2013' },
   },
+  // The mark: the three bars of the logo, each a gradient from its first colour to its
+  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  logo: {
+    a1: { light: '#8C3552', dark: '#E08AA6' },
+    a2: { light: '#6A2540', dark: '#C0587A' },
+    b1: { light: '#A8481C', dark: '#F0A070' },
+    b2: { light: '#B5651D', dark: '#F2B85C' },
+    b3: { light: '#9A6B00', dark: '#F8D060' },
+    c1: { light: '#B8321F', dark: '#F08A70' },
+    c2: { light: '#C2550F', dark: '#FFA25A' },
+  },
   decor: {
     forestBack: { light: '#EEDDC2', dark: '#3A2A1D' },
     forestRidge: { light: '#E3C294', dark: '#2F2217' },
@@ -215,6 +248,17 @@ export const winter = definePalette('winter', {
   effect: {
     shadow: { light: '#D4D9DC', dark: '#080C11' },
     glow: { light: '#DFECF9', dark: '#1F2A35' },
+  },
+  // The mark: the three bars of the logo, each a gradient from its first colour to its
+  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  logo: {
+    a1: { light: '#2F52C8', dark: '#8EA6FF' },
+    a2: { light: '#22389A', dark: '#6A80F0' },
+    b1: { light: '#2D6FB8', dark: '#8CC4FF' },
+    b2: { light: '#3C7FC0', dark: '#B6DAFF' },
+    b3: { light: '#4E86B8', dark: '#E2F2FF' },
+    c1: { light: '#5A55C8', dark: '#B0A8FF' },
+    c2: { light: '#7A52B8', dark: '#CDB0FF' },
   },
   decor: {
     forestBack: { light: '#E4EBF1', dark: '#1B2C3D' },
