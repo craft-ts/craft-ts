@@ -61,7 +61,9 @@ import {
 
 export const dialogUi = craftStyles('docDialog', {
   root: [
-    display.block,
+    // No `display` here: a closed dialog is `display: none` by the browser's own rule, and
+    // an author `display: block` would beat it and show the closed dialog at the foot of
+    // the page — with its autofocus field, which then takes the focus and the scroll.
     inlineSize(math.min(unit.rem(36), unit.pct(100))),
     maxInlineSize(unit.pct(92)),
     maxBlockSize(unit.pct(86)),

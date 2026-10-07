@@ -138,6 +138,13 @@ describe('DocDialog', () => {
     expect(dialogUi.root).not.toMatch(/position-(relative|absolute|static)/);
   });
 
+  it('stays hidden while closed: the sheet sets no display that would beat the browser\'s own', () => {
+    // The dialog is mounted all along. A `display` on it would override `dialog:not([open])
+    // { display: none }`, put it at the foot of every page, and let its autofocus field take the
+    // focus — and the scroll — as soon as the page loads.
+    expect(dialogUi.root).not.toMatch(/(^|\s)display-/);
+  });
+
   it('paints the scrim with the ink at 40 % opacity, no alpha colour', () => {
     const sheet = css();
     expect(sheet).toContain('::backdrop');
