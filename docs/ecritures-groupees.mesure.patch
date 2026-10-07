@@ -1,0 +1,21 @@
+diff --git a/libs/component/src/lib/render/interpreter.ts b/libs/component/src/lib/render/interpreter.ts
+index a3587205a..910e5d986 100644
+--- a/libs/component/src/lib/render/interpreter.ts
++++ b/libs/component/src/lib/render/interpreter.ts
+@@ -4349,6 +4349,7 @@ class ComponentRenderedNode implements RenderedNode {
+                       injector: this.environmentInjector!,
+                       componentContext: this.resolvedServices,
+                     });
++                    (globalThis as any).__craftRun?.(definition.name, this);
+                     this.traceState.renderCount += 1;
+                     this.latestTemplate = executeTemplateTrace(
+                       renderContext.injector,
+@@ -4884,7 +4885,7 @@ class ComponentRenderedNode implements RenderedNode {
+     // would run the component's template again with the others still the old value, and
+     // a component with twelve inputs would be drawn thirteen times for one change —
+     // each of them patching its own children the same way.
+-    ɵcraftBatch(() => {
++    ((globalThis as any).__craftUnbatched ? (f: () => void) => f() : ɵcraftBatch)(() => {
+       this.propKeys.forEach((key, index) => {
+         this.propSources[index].set(props[key]);
+       });

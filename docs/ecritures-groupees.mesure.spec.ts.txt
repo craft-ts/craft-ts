@@ -1,0 +1,138 @@
+// Harnais de mesure : combien de fois chaque composant est-il redessiné par une navigation ?
+// Mode d'emploi : docs/ecritures-groupees.md §6. À copier dans apps/docs-herbier/src/ sous le nom
+// `measure.local.spec.ts` (jamais à committer), avec docs/ecritures-groupees.mesure.patch appliqué.
+import * as path from 'node:path';
+import { appendFileSync } from 'node:fs';
+import { Session } from 'node:inspector';
+import { afterAll, beforeAll, beforeEach, describe, it, vi } from 'vitest';
+import { hydrateCraft, renderCraft } from '@craft-ts/component';
+import type { SiteConfig } from '@craft-ts/docs-ui';
+import { appConfig } from './app.config.ts';
+import { asInputs } from './page-data.ts';
+import { createDocs, type Docs } from './server/docs.ts';
+
+const OUT = process.env['MEASURE_OUT'] ?? '/tmp/render-count.txt';
+const SRC_ROOT = path.resolve(import.meta.dirname, '../../docs');
+const site: SiteConfig = {
+  title: '@craft-ts',
+  base: '/craft/',
+  nav: [
+    { text: 'Learn', link: '/learn/', activeMatch: '^/learn/' },
+    { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
+  ],
+  sidebar: {
+    '/guide/': [
+      { text: 'Managing state', items: [{ text: 'Local state', link: '/guide/state/local-state' }] },
+    ],
+  },
+};
+
+let docs: Docs;
+beforeAll(async () => {
+  docs = await createDocs({ srcRoot: SRC_ROOT, site });
+});
+afterAll(() => docs.close());
+beforeEach(() => {
+  window.scrollTo = vi.fn() as never;
+});
+
+// Un onglet caché étrangle setTimeout à 1 s : on attend un tour de boucle avec un MessageChannel.
+const tick = () =>
+  new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => resolve();
+    channel.port2.postMessage(0);
+  });
+
+const press = (anchor: Element) =>
+  anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+
+describe('mesure', () => {
+  // Les deux premières passes chauffent le JIT ; on garde les suivantes. Alternées pour ne pas
+  // favoriser une variante par l'ordre.
+  for (const unbatched of [true, false, true, false, true, false, true, false]) {
+    it(`navigation ${unbatched ? 'SANS regroupement (avant)' : 'avec regroupement (après)'}`, async () => {
+      (globalThis as any).__craftUnbatched = unbatched;
+      vi.stubGlobal('fetch', async (url: string) => {
+        if (url.includes('search-index')) return { ok: true, json: async () => [] };
+        const rest = new URL(url, location.origin).pathname
+          .slice(`${site.base}page-data`.length)
+          .replace(/\.json$/, '')
+          .replace(/\/index$/, '/');
+        const page = await docs.load(rest);
+        return page
+          ? { ok: true, json: async () => page.data }
+          : { ok: false, json: async () => null };
+      });
+
+      const first = await docs.load('/guide/');
+      document.documentElement.setAttribute('data-base', site.base);
+      document.documentElement.setAttribute('data-site-title', site.title);
+      history.replaceState({}, '', `${site.base}guide/`);
+      const props = asInputs({ site: docs.site, page: first!.data });
+      const rendered = await renderCraft({
+        config: appConfig,
+        props,
+        url: `${site.base}guide/`,
+        includeStyles: false,
+        mode: 'production',
+      });
+      document.body.innerHTML = rendered.html;
+      const host = document.querySelector('craft-root') as HTMLElement;
+      const hydrated = hydrateCraft({ config: appConfig, host, props, mode: 'production' });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Totaux par definition.name : exécutions de template (runs) et instances distinctes.
+      const runs = new Map<string, number>();
+      const instances = new Map<string, Set<unknown>>();
+      (globalThis as any).__craftRun = (name: string, instance: unknown) => {
+        runs.set(name, (runs.get(name) ?? 0) + 1);
+        if (!instances.has(name)) instances.set(name, new Set());
+        instances.get(name)!.add(instance);
+      };
+
+      // `NODE_OPTIONS=--cpu-prof` ne rend pas le profil du worker : on prend la session ici.
+      const session = new Session();
+      session.connect();
+      await new Promise<void>((resolve) => session.post('Profiler.enable', () => resolve()));
+      await new Promise<void>((resolve) => session.post('Profiler.start', () => resolve()));
+      const start = performance.now();
+      press(host.querySelector('a[href="/craft/guide/state/local-state"]')!);
+      // La dernière chose qu'un changement de page fait : le focus va sur la page.
+      await vi.waitFor(
+        () => {
+          if (document.activeElement?.id !== 'main') throw new Error('pas encore');
+        },
+        { timeout: 8000 },
+      );
+      await tick();
+      const wallMs = performance.now() - start;
+      const profile: any = await new Promise((resolve) =>
+        session.post('Profiler.stop', (_error, result) => resolve(result.profile)),
+      );
+      session.disconnect();
+      (globalThis as any).__craftRun = undefined;
+
+      const rows = [...runs.entries()].sort((a, b) => b[1] - a[1]);
+      const total = rows.reduce((sum, [, count]) => sum + count, 0);
+      // Échantillons du profil qui ne sont pas `(idle)`. Indicatif seulement : il inclut la surcharge du
+      // profileur et peut dépasser le temps mur. Le compte d'exécutions et le temps mur font foi.
+      const idle = new Set<number>(
+        profile.nodes.filter((node: any) => node.callFrame.functionName === '(idle)').map((node: any) => node.id),
+      );
+      let busyMicros = 0;
+      profile.samples.forEach((id: number, index: number) => {
+        if (!idle.has(id)) busyMicros += profile.timeDeltas[index];
+      });
+      const header = `\n=== ${unbatched ? 'AVANT' : 'APRÈS'} : ${wallMs.toFixed(0)} ms (mur), profil ${(busyMicros / 1000).toFixed(0)} ms (indicatif), ${total} exécutions sur ${rows.length} composants`;
+      const table = rows
+        .map(([name, count]) => `${name.padEnd(22)} exécutions=${String(count).padStart(5)} instances=${instances.get(name)!.size}`)
+        .join('\n');
+      appendFileSync(OUT, `${header}\n${table}\n`);
+
+      hydrated.destroy();
+      document.body.replaceChildren();
+      vi.unstubAllGlobals();
+    });
+  }
+});
