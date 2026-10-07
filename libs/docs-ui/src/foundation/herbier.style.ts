@@ -58,6 +58,10 @@ export const herbier = definePalette('herbier', {
     selectedHover: { light: '#C1CFBC', dark: '#2E4638' },
     selectedActive: { light: '#ACBFAB', dark: '#3B5847' },
     navHover: { light: '#E5E9D9', dark: '#16261E' },
+    // Nothing at all: the fill of a link-style button, whose background must
+    // not paint a patch of page colour over a card. The vocabulary has no
+    // `transparent` keyword and refuses alpha in a value, so it is a token.
+    clear: { light: '#00000000', dark: '#00000000' },
     // The code surface is dark on purpose, in both themes: one set of syntax
     // colours to prove, and the part of a page that reads as a console.
     code: { light: '#17261F', dark: '#0B130F' },
@@ -169,6 +173,7 @@ export const theme = cssVars('herbier', {
   selectedHover: kind.color(herbier.surface.selectedHover, themed),
   selectedActive: kind.color(herbier.surface.selectedActive, themed),
   navHover: kind.color(herbier.surface.navHover, themed),
+  clear: kind.color(herbier.surface.clear, themed),
   ink: kind.color(herbier.text.body, themed),
   // The colour an icon is drawn in. A mask has no `currentColor` to borrow, so
   // whoever sets a text colour for a subtree sets this one beside it.
@@ -248,6 +253,45 @@ export const displaySize = {
   lead: unsafeLength('clamp(2rem, 5.5vw, 3.5rem)', 'herbier-display'),
 } as const;
 
+/**
+ * What a tone paints, as three variables that inherit: the fill, the edge and
+ * the ink of the label. A callout, a badge and a toast all read these, so the
+ * five-way `when` below is written once and a nested part (an icon, a title)
+ * learns the tone without a second attribute.
+ */
+export const toneVars = cssVars('herbierTone', {
+  surface: kind.color(herbier.surface.info, themed),
+  border: kind.color(herbier.border.info, themed),
+  ink: kind.color(herbier.text.info, themed),
+});
+
+/** Spread into the root of a sheet whose element carries `data-tone`. */
+export const toneRules = [
+  set(toneVars.surface, theme.infoSurface),
+  set(toneVars.border, theme.infoBorder),
+  set(toneVars.ink, theme.infoInk),
+  when(tone.tip, [
+    set(toneVars.surface, theme.tipSurface),
+    set(toneVars.border, theme.tipBorder),
+    set(toneVars.ink, theme.tipInk),
+  ]),
+  when(tone.important, [
+    set(toneVars.surface, theme.importantSurface),
+    set(toneVars.border, theme.importantBorder),
+    set(toneVars.ink, theme.importantInk),
+  ]),
+  when(tone.warning, [
+    set(toneVars.surface, theme.warningSurface),
+    set(toneVars.border, theme.warningBorder),
+    set(toneVars.ink, theme.warningInk),
+  ]),
+  when(tone.danger, [
+    set(toneVars.surface, theme.dangerSurface),
+    set(toneVars.border, theme.dangerBorder),
+    set(toneVars.ink, theme.dangerInk),
+  ]),
+] as const;
+
 /** One side of the palette, written once and read for light and for dark. */
 const paint = (side: (token: ColorValue) => ColorValue) => [
   set(theme.surface, side(herbier.surface.page)),
@@ -256,6 +300,7 @@ const paint = (side: (token: ColorValue) => ColorValue) => [
   set(theme.selectedHover, side(herbier.surface.selectedHover)),
   set(theme.selectedActive, side(herbier.surface.selectedActive)),
   set(theme.navHover, side(herbier.surface.navHover)),
+  set(theme.clear, side(herbier.surface.clear)),
   set(theme.ink, side(herbier.text.body)),
   set(theme.glyph, side(herbier.text.body)),
   set(theme.inkMuted, side(herbier.text.muted)),
