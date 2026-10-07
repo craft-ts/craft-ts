@@ -3,11 +3,16 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/docs-ui/src",
   "projectType": "library",
-  "tags": ["scope:docs-ui", "integration:craft"],
+  "tags": [
+    "scope:docs-ui",
+    "integration:craft"
+  ],
   "targets": {
     "build": {
       "executor": "@nx/js:tsc",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/libs/docs-ui",
         "main": "libs/docs-ui/src/index.ts",
@@ -36,6 +41,19 @@
       "executor": "@nx/eslint:lint",
       "options": {
         "maxWarnings": -1
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "vite --config libs/docs-ui/vite.preview.config.ts --port 4410"
+      }
+    },
+    "typecheck-preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/docs-ui/tsconfig.preview.json --noEmit --pretty false"
       }
     }
   }

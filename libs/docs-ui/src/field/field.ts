@@ -22,6 +22,11 @@ export interface FieldInput {
   /** The value was refused: announced, and drawn in the danger tone. */
   readonly invalid: Input<boolean>;
   readonly disabled: Input<boolean>;
+  /**
+   * Takes the focus when it appears: a search field in a dialog should be ready
+   * to type in. Named so that it is not read as the host's `autofocus`.
+   */
+  readonly focusOnOpen: Input<boolean>;
   /** Called with the new text on every keystroke. */
   readonly edit: Output<(value: string) => void>;
 }
@@ -39,6 +44,7 @@ export const DocField = craftComponent('DocField', {}, function* (
   const id = yield* props.fieldId();
   const hint = yield* props.hint();
   const invalid = yield* props.invalid();
+  const focusOnOpen = yield* props.focusOnOpen();
   const control = fieldControl(id, { invalid });
 
   const parts: CraftNodeChild[] = [
@@ -57,6 +63,7 @@ export const DocField = craftComponent('DocField', {}, function* (
       },
       ...(hint ? { 'aria-describedby': control.input['aria-describedby'] } : {}),
       ...(invalid ? { 'aria-invalid': 'true' as const } : {}),
+      ...(focusOnOpen ? { autofocus: true } : {}),
       input: (event) => props.edit(event.target.value),
     }),
   ];

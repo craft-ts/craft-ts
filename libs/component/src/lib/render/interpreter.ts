@@ -1653,6 +1653,15 @@ function applyStyles(
   }
 }
 
+/** Is the dialog open modally? `:modal` is missing from some DOM implementations. */
+function isModalDialog(dialog: HTMLDialogElement): boolean {
+  try {
+    return dialog.matches(':modal');
+  } catch {
+    return dialog.open;
+  }
+}
+
 function flattenAttributes(
   props: Readonly<Record<string, unknown>>,
 ): Map<string, unknown> {
@@ -1850,6 +1859,7 @@ class ElementRenderedNode implements RenderedNode {
       nested,
     );
     this.reapplySelectValue(initial);
+    this.openDialog(initial);
   }
 
   /**
@@ -1914,6 +1924,7 @@ class ElementRenderedNode implements RenderedNode {
         contentScope: undefined,
       }),
     );
+    this.openDialog(node);
     return true;
   }
 
@@ -2182,9 +2193,30 @@ class ElementRenderedNode implements RenderedNode {
       cancel();
       close();
     };
+  }
+
+  /**
+   * Opens or closes a dialog node according to its `open` prop. It runs **after**
+   * the children are mounted: `showModal()` moves focus into the dialog (to the
+   * element marked `autofocus`, else the first control), and a dialog that is
+   * still empty has nothing to move it to, so the focus would stay on the
+   * dialog itself.
+   */
+  private openDialog(
+    nextNode: ElementNodeBase<any, any, any, any, any, any, any, any>,
+  ): void {
+    if (this.tag !== 'dialog') return;
+    const dialog = this.node as HTMLDialogElement;
     const open = nextNode.props['open'];
-    if (open && typeof dialog.showModal === 'function' && !dialog.open) {
-      dialog.showModal();
+    if (open && typeof dialog.showModal === 'function') {
+      // `open` is also written as an attribute by the property pass, which opens
+      // a dialog *non-modally*: it sits in the flow instead of the top layer and
+      // `showModal()` below would never run, because `dialog.open` is already
+      // true. Close that first, then open it for real.
+      if (!isModalDialog(dialog)) {
+        if (dialog.open) dialog.removeAttribute('open');
+        dialog.showModal();
+      }
     } else if (
       open === false &&
       typeof dialog.close === 'function' &&

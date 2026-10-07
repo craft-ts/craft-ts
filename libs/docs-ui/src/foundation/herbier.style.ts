@@ -465,6 +465,23 @@ export const arriving = [
   }),
 ] as const;
 
+/**
+ * A surface that is already placed by the browser — a modal `<dialog>` is
+ * `position: fixed` in the top layer — arrives by fading only. `arriving` sets
+ * `position: relative` to be able to slide, which would take it out of the top
+ * layer's placement and leave it at the foot of the page.
+ */
+export const fade = keyframes('herbierFade', {
+  from: [opacity(num(0))],
+  to: [opacity(num(1))],
+});
+
+export const fading = animate(fade, {
+  duration: duration.slow,
+  easing: ease,
+  fillMode: 'backwards',
+});
+
 /** `arriving`, after a delay: the staggered entrance of a row of cards. */
 export const arrivingAfter = (delay: ReturnType<typeof unit.ms>) =>
   [

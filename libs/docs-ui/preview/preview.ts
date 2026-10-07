@@ -188,9 +188,9 @@ const Gallery = craftComponent(
         DocNavLink({ label: read('query'), href: read('#'), current: read(false), icon: read('') }),
       ]),
       panel('Fields', [
-        DocField({ label: read('Search the docs'), fieldId: read('f1'), value: read(''), placeholder: read('Type a word'), hint: read('Two letters at least'), invalid: read(false), disabled: read(false), edit: (() => undefined) as never }),
-        DocField({ label: read('Invalid'), fieldId: read('f2'), value: read('x'), placeholder: read(''), hint: read('This value was refused'), invalid: read(true), disabled: read(false), edit: (() => undefined) as never }),
-        DocField({ label: read('Disabled'), fieldId: read('f3'), value: read(''), placeholder: read('Not now'), hint: read(''), invalid: read(false), disabled: read(true), edit: (() => undefined) as never }),
+        DocField({ label: read('Search the docs'), fieldId: read('f1'), value: read(''), placeholder: read('Type a word'), hint: read('Two letters at least'), invalid: read(false), disabled: read(false), focusOnOpen: read(false), edit: (() => undefined) as never }),
+        DocField({ label: read('Invalid'), fieldId: read('f2'), value: read('x'), placeholder: read(''), hint: read('This value was refused'), invalid: read(true), disabled: read(false), focusOnOpen: read(false), edit: (() => undefined) as never }),
+        DocField({ label: read('Disabled'), fieldId: read('f3'), value: read(''), placeholder: read('Not now'), hint: read(''), invalid: read(false), disabled: read(true), focusOnOpen: read(false), edit: (() => undefined) as never }),
         DocSwitch({ label: read('Dark mode'), controlId: read('s1'), on: read(true), disabled: read(false), toggle: (() => undefined) as never }),
         DocSwitch({ label: read('Off'), controlId: read('s2'), on: read(false), disabled: read(false), toggle: (() => undefined) as never }),
       ]),

@@ -45,7 +45,6 @@ import {
   pseudo,
   radii,
   scrollPort,
-  shadow,
   space,
   text,
   unit,
@@ -53,7 +52,7 @@ import {
   lineHeight,
 } from '@craft-ts/style';
 import {
-  arriving,
+  fading,
   displayFont,
   sansFont,
   theme,
@@ -77,8 +76,7 @@ export const dialogUi = craftStyles('docDialog', {
     color(theme.ink),
     fontFamily(sansFont),
     ...font(text.sm),
-    shadow({ y: unit.px(24), blur: unit.px(60), color: theme.shadow }),
-    ...arriving,
+    ...fading,
     pseudo.backdrop([bg(theme.ink), opacity(num(0.4))]),
   ],
   header: [

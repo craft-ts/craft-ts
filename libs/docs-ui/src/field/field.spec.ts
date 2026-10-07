@@ -26,7 +26,12 @@ const css = () =>
   });
 
 const renderField = (
-  extra: { hint?: string; invalid?: boolean; edit?: (value: string) => void } = {},
+  extra: {
+    hint?: string;
+    invalid?: boolean;
+    focusOnOpen?: boolean;
+    edit?: (value: string) => void;
+  } = {},
 ) =>
   renderCraftComponent(DocField as never, {
     props: {
@@ -37,6 +42,7 @@ const renderField = (
       hint: reader(extra.hint ?? ''),
       invalid: reader(extra.invalid ?? false),
       disabled: reader(false),
+      focusOnOpen: reader(extra.focusOnOpen ?? false),
       edit: (extra.edit ?? (() => undefined)) as never,
     } as never,
   });
@@ -62,6 +68,16 @@ describe('DocField', () => {
     expect(control.hasAttribute('aria-describedby')).toBe(false);
     expect(rendered.element.querySelector('p')).toBeNull();
     rendered.destroy();
+  });
+
+  it('asks for the focus only when it is told to', async () => {
+    const plain = await renderField();
+    expect(plain.element.querySelector('input')?.hasAttribute('autofocus')).toBe(false);
+    plain.destroy();
+
+    const focused = await renderField({ focusOnOpen: true });
+    expect(focused.element.querySelector('input')?.hasAttribute('autofocus')).toBe(true);
+    focused.destroy();
   });
 
   it('announces a refused value', async () => {

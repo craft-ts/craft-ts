@@ -172,14 +172,14 @@ describe('DocLayout on a page of a section', () => {
   it('opens the search with the keyboard, and not before', async () => {
     const rendered = await renderLayout('/guide/');
     document.body.append(rendered.element);
-    expect(rendered.element.querySelector('dialog')).toBeNull();
+    expect(rendered.element.querySelector('dialog')?.hasAttribute('open')).toBe(false);
 
     document.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'k', metaKey: true, cancelable: true }),
     );
     await rendered.flush();
     const dialog = rendered.element.querySelector('dialog') as HTMLDialogElement;
-    expect(dialog).not.toBeNull();
+    expect(dialog.hasAttribute('open')).toBe(true);
     expect(dialog.getAttribute('aria-labelledby')).toBe('doc-search-title');
     expect(dialog.querySelector('input')?.getAttribute('id')).toBe('doc-search-field');
     rendered.destroy();
@@ -189,7 +189,7 @@ describe('DocLayout on a page of a section', () => {
     const rendered = await renderLayout('/guide/');
     (rendered.element.querySelector('button[aria-keyshortcuts]') as HTMLButtonElement).click();
     await rendered.flush();
-    expect(rendered.element.querySelector('dialog')).not.toBeNull();
+    expect(rendered.element.querySelector('dialog')?.hasAttribute('open')).toBe(true);
     rendered.destroy();
   });
 

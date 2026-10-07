@@ -107,6 +107,9 @@ export const DocSearch = craftComponent(
           disabled: function* () {
             return false;
           },
+          focusOnOpen: function* () {
+            return true;
+          },
           edit: view.type as never,
         }),
         DocSearchResults({

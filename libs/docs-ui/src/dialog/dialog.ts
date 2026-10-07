@@ -3,9 +3,9 @@ import {
   dialog,
   div,
   heading as relativeHeading,
+  headingRoot,
   renderContent,
   type ContentSlot,
-  type CraftNodeChild,
   type Input,
   type Output,
 } from '@craft-ts/component';
@@ -26,31 +26,39 @@ export interface DialogInput {
 }
 
 /**
- * A modal dialog. While `open` is true a native `<dialog>` is on screen and was
- * opened with `showModal()` — the renderer does that for a `dialog` node given
- * `open: true` — so focus is trapped, Escape closes, and the page behind is
- * inert without a line of focus code here. When it closes the node is gone.
+ * A modal dialog. The `<dialog>` is always in the tree and only its `open` state
+ * changes: while `open` is true it was opened with `showModal()` — the renderer
+ * does that for a `dialog` node given `open: true` — so focus is trapped, Escape
+ * closes, and the page behind is inert without a line of focus code here.
+ *
+ * Keeping it mounted, rather than creating it on open, is what lets a control
+ * inside it (the field of a search) already exist when the browser looks for
+ * something to focus; and it keeps what was typed while the dialog is closed.
  */
-export const DocDialog = craftComponent('DocDialog', {}, function* (
-  props: DialogInput,
-) {
-  const open = yield* props.open();
-  const headingText = yield* props.heading();
-  const id = yield* props.dialogId();
+export const DocDialog = craftComponent(
+  'DocDialog',
+  {},
+  function* (props: DialogInput) {
+    const open = yield* props.open();
+    const headingText = yield* props.heading();
+    const id = yield* props.dialogId();
 
-  const children: CraftNodeChild[] = [];
-  if (open) {
-    children.push(
+    return div([
       dialog(
         {
           class: dialogUi.root,
-          open: true,
+          open,
           labelledBy: `${id}-title`,
           onClose: () => props.dismiss(),
         },
-        [
+        // A dialog is its own outline: the title inside it is its h1. The renderer
+        // resets the level at the native element; `headingRoot` says so to the types.
+        headingRoot([
           div({ class: dialogUi.header }, [
-            relativeHeading({ id: `${id}-title`, class: dialogUi.title }, headingText),
+            relativeHeading(
+              { id: `${id}-title`, class: dialogUi.title },
+              headingText,
+            ),
             button(
               'docDialogClose',
               {
@@ -72,9 +80,8 @@ export const DocDialog = craftComponent('DocDialog', {}, function* (
             ),
           ]),
           div({ class: dialogUi.body }, renderContent('body', props.body)),
-        ],
+        ]),
       ),
-    );
-  }
-  return div(children);
-});
+    ]);
+  },
+);
