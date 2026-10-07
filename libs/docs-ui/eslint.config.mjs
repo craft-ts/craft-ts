@@ -22,4 +22,11 @@ export default [
       ...craftRules.configs.typedCss.rules,
     },
   },
+  {
+    // Two relative imports that are the point of the file: the preview harness loads the style
+    // plugin by path (a Vite config is read before any alias exists), and the navigation spec reads
+    // the VitePress configuration of `apps/docs`, which it checks the site model against.
+    files: ['vite.preview.config.ts', 'src/site/build.spec.ts'],
+    rules: { '@nx/enforce-module-boundaries': 'off' },
+  },
 ];
