@@ -52,6 +52,8 @@ const GLYPHS = {
   error: '<circle cx="12" cy="12" r="9"/><path d="M9 9 L15 15 M15 9 L9 15"/>',
   previous: '<path d="M19 12 H5 M11 6 L5 12 L11 18"/>',
   chevron: '<path d="M9 6 L15 12 L9 18"/>',
+  snowflake: '<path d="M12 3 V21 M4.2 7.5 L19.8 16.5 M4.2 16.5 L19.8 7.5 M9.5 4.8 L12 7 L14.5 4.8 M9.5 19.2 L12 17 L14.5 19.2 M5 9.8 L8.1 9.5 L7.5 6.6 M19 14.2 L15.9 14.5 L16.5 17.4 M5 14.2 L8.1 14.5 L7.5 17.4 M19 9.8 L15.9 9.5 L16.5 6.6"/>',
+  calendar: '<path d="M5 6.5 H19 a1 1 0 0 1 1 1 V19 a1 1 0 0 1 -1 1 H5 a1 1 0 0 1 -1 -1 V7.5 a1 1 0 0 1 1 -1Z M4 11 H20 M8 4 V8 M16 4 V8"/>',
   external: '<path d="M14 5 H19 V10 M19 5 L11 13 M17 14 V18 a1 1 0 0 1 -1 1 H6 a1 1 0 0 1 -1 -1 V8 a1 1 0 0 1 1 -1 H10"/>',
 } as const;
 

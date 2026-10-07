@@ -88,7 +88,7 @@ export const codeUi = craftStyles('docCode', {
   root: [
     display.block,
     marginBlockEnd(space(5)),
-    bg(herbier.surface.code),
+    bg(theme.code),
     radius(theme.codeCorner),
     // The block floats a little above the page: a soft, opaque shadow.
     shadow({ y: unit.px(14), blur: unit.px(30), color: theme.codeLift }),
@@ -110,7 +110,7 @@ export const codeUi = craftStyles('docCode', {
     color(herbier.text.codeComment),
     borderBlockEndWidth(lineWidth.hairline),
     borderBlockEndStyle.solid,
-    borderBlockEndColor(herbier.border.codeLine),
+    borderBlockEndColor(theme.codeLine),
   ],
   name: [color(herbier.text.codeComment)],
   tools: [display.flex, alignItems.center, gap(space(3))],
@@ -189,35 +189,35 @@ const lineBase = [
 ] as const;
 
 export const lineUi = craftStyles('docCodeLine', {
-  plain: [...lineBase, borderInlineStartColor(herbier.surface.code)],
+  plain: [...lineBase, borderInlineStartColor(theme.code)],
   highlight: [
     ...lineBase,
-    bg(herbier.surface.codeHighlight),
+    bg(theme.codeHighlight),
     borderInlineStartColor(herbier.text.codeHighlight),
   ],
   add: [
     ...lineBase,
-    bg(herbier.surface.codeAdd),
+    bg(theme.codeAdd),
     borderInlineStartColor(herbier.text.codeAdd),
   ],
   remove: [
     ...lineBase,
-    bg(herbier.surface.codeRemove),
+    bg(theme.codeRemove),
     borderInlineStartColor(herbier.text.codeRemove),
   ],
   error: [
     ...lineBase,
-    bg(herbier.surface.codeRemove),
+    bg(theme.codeRemove),
     borderInlineStartColor(herbier.text.codeRemove),
   ],
   warning: [
     ...lineBase,
-    bg(herbier.surface.codeWarning),
+    bg(theme.codeWarning),
     borderInlineStartColor(herbier.text.codeWarning),
   ],
   dim: [
     ...lineBase,
-    borderInlineStartColor(herbier.surface.code),
+    borderInlineStartColor(theme.code),
     opacity(num(0.45)),
   ],
 });

@@ -678,14 +678,51 @@ déclare (collisions, contenu éparpillé au premier plan) ; et un nœud créé 
 la fin de l'hydratation réclamait encore des nœuds du serveur, de sorte qu'un
 nouveau rendu du composant déclarant vidait le contenu projeté.
 
+### Les saisons (fait, 2026-10-07)
+
+Les quatre variantes de la maquette sont effectives et se choisissent comme le mode
+clair/sombre.
+
+- **Palette** : `foundation/seasons.style.ts` (printemps, été, automne, hiver ; jour
+  et nuit), prouvée AA par `seasons.spec.ts` (texte, états des fills sauge, bouton plein,
+  contours à 3:1, encre du code sur chaque surface marquée). Les tons qui portent un sens
+  (info, important, avertissement, danger) restent ceux de `herbier` : un avertissement est le
+  même en juillet et en janvier.
+- **Dessins** : forêt, rehauts (neige, fleurs…), planche botanique et lueur changent par saison.
+  Les masques de saison sont des variables de thème (`kind.url`) que la racine pose ;
+  les composants de décor ne connaissent pas la saison (`decor/seasons.art.style.ts`,
+  généré, 98 Ko).
+- **Choix** : `data-season` sur `<html>`, à côté de `data-mode`. Le lecteur prend une
+  saison ou « Automatique » (saison météorologique de l'hémisphère nord, mois entiers :
+  mars-mai, juin-août, septembre-novembre, décembre-février). Stocké dans `localStorage`
+  (`docs-season`) ; « Automatique » ne stocke rien, la date décide.
+- **Avant le premier rendu** : `bootScript({ darkPaths })` (`foundation/season.ts`) est
+  inséré dans le `<head>` par `document.ts`. Il pose `data-mode` et `data-season` avant la
+  première peinture, et force le sombre sur `/learn-effect/`. Sa logique est répétée dans
+  le texte du script (il tourne avant tout bundle) : `season.spec.ts` l'exécute contre les
+  douze mois, les choix stockés, un stockage refusé et les chemins forcés.
+- **Interface** : `DocSeasonPicker` (menu `menuitemradio`, `aria-checked`, icône de la saison
+  affichée) dans la barre, avant l'interrupteur de mode. `DocSeasonView` pose aussi
+  `data-season` s'il manque (script bloqué, harnais). `lockedMode` retire l'interrupteur de
+  mode sur une page qui impose le sien ; le choix de saison reste libre.
+- **Cascade** : chaque saison écrit son jour, ses dessins, puis sa nuit sous la préférence
+  du navigateur (`scheme.dark`) et sous un choix explicite (`mode.light/dark`), tout sous
+  `:root[data-season]` pour battre les règles de la palette classique. Vérifié dans le
+  navigateur : 4 saisons × clair/sombre × préférence système sombre.
+- **Non repris, par choix** : les particules ambiantes de la maquette (feuilles qui
+  tombent, neige, lucioles, pollen), le grain et la brume. L'Herbier classique n'est
+  atteignable que sans `data-season` (JavaScript désactivé).
+
 ### Reste à faire
 
 1. **Retirer VitePress** quand la comparaison est faite : déplacer la navigation
    (`nav`/`sidebar` de `config.mts`) dans un module à soi, brancher la CI sur
    `docs-herbier`, supprimer `.vitepress/`. `apps/docs-herbier/src/server/site.ts` est le seul
    endroit qui lit encore la configuration VitePress.
-2. **Correspondance route → portée** : `/learn-effect/` doit passer
-   `scope: 'dark'` au layout (l'entrée existe, la règle de routage non).
+2. ~~**Correspondance route → portée**~~ fait avec les saisons : `/learn-effect/`
+   est forcé en sombre par le script de démarrage (`darkPaths`) et le layout retire
+   l'interrupteur (`lockedMode`). L'entrée `scope` du layout n'est plus utilisée par
+   l'app.
 3. **Polices** : l'axe optique de Newsreader (§4.5) reste un écart accepté ; les
    métriques de repli (`adjustFallback`) ne sont pas fournies, faute de source
    hors ligne pour les métriques Capsize.

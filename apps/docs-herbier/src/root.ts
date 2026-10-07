@@ -14,6 +14,7 @@ import type { Input } from '@craft-ts/component';
 import { AgentPrompt } from './components/agent-prompt.ts';
 import { AuthorNote } from './components/author-note.ts';
 import { TemplateMigrator } from './components/template-migrator.ts';
+import { LOCKED_DARK_PATH } from './locked.ts';
 import type { DocsProps, PageData, SiteConfig } from './page-data.ts';
 
 /** Where the search index is written, next to the pages. */
@@ -111,9 +112,8 @@ const body = (site: SiteConfig, page: PageData): CraftNodeChild => {
   }
 };
 
-/** The Effect lessons are always read in the dark, as they were on the old site. */
-const scopeOf = (route: string): '' | 'dark' =>
-  route.startsWith('/learn-effect/') ? 'dark' : '';
+const lockedModeOf = (route: string): '' | 'dark' =>
+  route.startsWith(LOCKED_DARK_PATH) ? 'dark' : '';
 
 export const DocsRoot = craftComponent(
   'DocsRoot',
@@ -136,7 +136,10 @@ export const DocsRoot = craftComponent(
         return '';
       },
       scope: function* () {
-        return scopeOf(page.route);
+        return '';
+      },
+      lockedMode: function* () {
+        return lockedModeOf(page.route);
       },
       searchIndex: index.entries,
       footerNote: function* () {

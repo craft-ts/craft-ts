@@ -1,4 +1,5 @@
-import { withBase, type SiteConfig } from '@craft-ts/docs-ui';
+import { bootScript, withBase, type SiteConfig } from '@craft-ts/docs-ui';
+import { LOCKED_DARK_PATH } from '../locked.ts';
 import type { PageData } from '../page-data.ts';
 
 export interface Assets {
@@ -24,13 +25,6 @@ export const jsonForScript = (value: unknown): string =>
       character === '\\u2028' ? '\\\\u2028' : '\\\\u2029',
     );
 
-/**
- * Applied before the first paint, so a reader who chose the dark does not see a
- * light page first. It only reads what `DocModeView` wrote.
- */
-const MODE_SCRIPT =
-  "try{var m=localStorage.getItem('docs-mode');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-mode',m)}catch(e){}";
-
 export const renderDocument = (options: {
   readonly site: SiteConfig;
   readonly page: PageData;
@@ -53,7 +47,7 @@ export const renderDocument = (options: {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     ${description ? `<meta name="description" content="${escapeHtml(description)}" />` : ''}
     <link rel="icon" href="${href('/assets/craft-ts-logo.png')}" type="image/png" />
-    <script>${MODE_SCRIPT}</script>
+    <script>${bootScript({ darkPaths: [withBase(site.base, LOCKED_DARK_PATH)] })}</script>
 ${assets.styles.map((style) => `    <link rel="stylesheet" href="${escapeHtml(style)}" />`).join('\n')}
 ${assets.scripts.map((script) => `    <link rel="modulepreload" href="${escapeHtml(script)}" />`).join('\n')}
   </head>

@@ -15,7 +15,9 @@ import { DocIcon } from '../icon/icon.ts';
 import { DocMenu } from '../menu/menu.ts';
 import { isActiveNav, isMenu, withBase, type NavEntry } from '../site/site.ts';
 import { DocKbd } from '../button/kbd.ts';
+import type { SeasonNames } from '../foundation/season.ts';
 import { DocModeToggle } from './mode.ts';
+import { DocSeasonPicker } from './season.ts';
 import { navbarUi } from './navbar.style.ts';
 
 export interface NavbarInput {
@@ -30,6 +32,11 @@ export interface NavbarInput {
   readonly badge: Input<string>;
   readonly searchLabel: Input<string>;
   readonly modeLabel: Input<string>;
+  /** Names the season picker. */
+  readonly seasonLabel: Input<string>;
+  readonly seasonNames: Input<SeasonNames>;
+  /** The appearance is imposed on this page: the switch is not offered. */
+  readonly modeLocked: Input<boolean>;
   readonly menuLabel: Input<string>;
   readonly openSearch: Output<() => void>;
   readonly toggleNav: Output<() => void>;
@@ -62,6 +69,7 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
   const base = yield* props.base();
   const badge = yield* props.badge();
   const searchLabel = yield* props.searchLabel();
+  const modeLocked = yield* props.modeLocked();
 
   const entries = links.map((entry, index): CraftNodeChild =>
     isMenu(entry)
@@ -144,7 +152,14 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
             }),
           ]
         : []),
-      DocModeToggle({ label: props.modeLabel }),
+      DocSeasonPicker({
+        label: props.seasonLabel,
+        names: props.seasonNames,
+        menuId: function* () {
+          return 'season-menu';
+        },
+      }),
+      ...(modeLocked ? [] : [DocModeToggle({ label: props.modeLabel })]),
       button(
         'docNavToggle',
         {

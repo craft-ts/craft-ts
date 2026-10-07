@@ -31,7 +31,9 @@ import {
 import { DocToastRegion, provideDocToastQueue } from '../toast/toast.ts';
 import { DocFooter, type FooterLink } from './footer.ts';
 import { layoutUi } from './layout.style.ts';
-import { provideDocModeView } from './mode.ts';
+import { provideDocModeView, type Mode } from './mode.ts';
+import { defaultSeasonNames, type SeasonNames } from '../foundation/season.ts';
+import { provideDocSeasonView } from './season.ts';
 import { DocNavbar } from './navbar.ts';
 import { DocSearch } from './search.ts';
 import { DocSidebar } from './sidebar.ts';
@@ -45,6 +47,8 @@ export interface LayoutLabels {
   readonly searchPlaceholder: string;
   readonly searchEmpty: string;
   readonly mode: string;
+  readonly season: string;
+  readonly seasons: SeasonNames;
   readonly menu: string;
   readonly sidebar: string;
   readonly onThisPage: string;
@@ -58,6 +62,8 @@ export const defaultLabels: LayoutLabels = {
   searchPlaceholder: 'Type a word or a function name',
   searchEmpty: 'No page matches. Try fewer or different words.',
   mode: 'Switch between light and dark',
+  season: 'Season',
+  seasons: defaultSeasonNames,
   menu: 'Open the navigation',
   sidebar: 'Documentation',
   onThisPage: 'On this page',
@@ -112,6 +118,12 @@ export interface LayoutInput {
   readonly currentHeading: Input<string>;
   /** Forces a side whatever the page prefers: `dark` for the Effect lessons. */
   readonly scope: Input<LayoutScope>;
+  /**
+   * Imposes the appearance on this page. The document is already in that mode (the boot
+   * script wrote it), so this only withdraws the switch, which would offer a choice the
+   * page does not honour.
+   */
+  readonly lockedMode: Input<'' | Mode>;
   readonly searchIndex: Input<readonly SearchEntry[]>;
   readonly footerNote: Input<string>;
   readonly footerLinks: Input<readonly FooterLink[]>;
@@ -134,6 +146,7 @@ export const DocLayout = craftComponent(
     providers: [
       provideDocLayoutView(),
       provideDocModeView(),
+      provideDocSeasonView(),
       provideDocToastQueue(),
     ],
   },
@@ -143,6 +156,7 @@ export const DocLayout = craftComponent(
     const path = yield* props.path();
     const labels = yield* props.labels();
     const scope = yield* props.scope();
+    const lockedMode = yield* props.lockedMode();
 
     const target = normalizePath(path, site.base);
     const sidebar = sidebarFor(site, target);
@@ -272,6 +286,15 @@ export const DocLayout = craftComponent(
           },
           modeLabel: function* () {
             return labels.mode;
+          },
+          seasonLabel: function* () {
+            return labels.season;
+          },
+          seasonNames: function* () {
+            return labels.seasons;
+          },
+          modeLocked: function* () {
+            return lockedMode !== '';
           },
           menuLabel: function* () {
             return labels.menu;

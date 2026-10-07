@@ -13,6 +13,8 @@ import { defaultLabels, DocLayout } from './layout.ts';
 
 afterEach(() => {
   document.documentElement.removeAttribute('data-mode');
+  document.documentElement.removeAttribute('data-season');
+  localStorage.clear();
   document.body.replaceChildren();
 });
 
@@ -65,7 +67,7 @@ const site: SiteConfig = {
 
 const renderLayout = (
   path: string,
-  extra: { scope?: '' | 'light' | 'dark' } = {},
+  extra: { scope?: '' | 'light' | 'dark'; lockedMode?: '' | 'light' | 'dark' } = {},
 ) =>
   renderCraftComponent(DocLayout as never, {
     props: {
@@ -77,6 +79,7 @@ const renderLayout = (
       ]),
       currentHeading: reader('equal'),
       scope: reader(extra.scope ?? ''),
+      lockedMode: reader(extra.lockedMode ?? ''),
       searchIndex: reader([
         {
           href: '/guide/state/local-state',
@@ -210,6 +213,110 @@ describe('DocLayout on a page of a section', () => {
     const second = document.documentElement.getAttribute('data-mode');
     expect(second).not.toBe(first);
     rendered.destroy();
+  });
+
+  it('offers the four seasons and "automatic" as a radio group, with the current one announced', async () => {
+    const rendered = await renderLayout('/guide/');
+    const trigger = rendered.element.querySelector(
+      `button[aria-label^="${defaultLabels.season}:"]`,
+    ) as HTMLButtonElement;
+    expect(trigger).not.toBeNull();
+    expect(trigger.getAttribute('aria-label')).toBe(
+      `${defaultLabels.season}: ${defaultLabels.seasons.auto}`,
+    );
+
+    const rows = [...rendered.element.querySelectorAll('button[role="menuitemradio"]')];
+    expect(rows.map((row) => row.textContent?.trim())).toEqual([
+      defaultLabels.seasons.auto,
+      defaultLabels.seasons.spring,
+      defaultLabels.seasons.summer,
+      defaultLabels.seasons.autumn,
+      defaultLabels.seasons.winter,
+    ]);
+    // Nothing chosen yet: "automatic" is the one that is checked, and only that one.
+    expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual([
+      'true',
+      'false',
+      'false',
+      'false',
+      'false',
+    ]);
+    rendered.destroy();
+  });
+
+  it('writes the chosen season on the document root and in storage, and announces it', async () => {
+    const rendered = await renderLayout('/guide/');
+    const row = (name: string) =>
+      [...rendered.element.querySelectorAll('button[role="menuitemradio"]')].find(
+        (candidate) => candidate.textContent?.trim() === name,
+      ) as HTMLButtonElement;
+
+    row(defaultLabels.seasons.winter).click();
+    await rendered.flush();
+    expect(document.documentElement.getAttribute('data-season')).toBe('winter');
+    expect(localStorage.getItem('docs-season')).toBe('winter');
+    expect(row(defaultLabels.seasons.winter).getAttribute('aria-checked')).toBe('true');
+    expect(row(defaultLabels.seasons.auto).getAttribute('aria-checked')).toBe('false');
+    expect(
+      rendered.element
+        .querySelector(`button[aria-label^="${defaultLabels.season}:"]`)
+        ?.getAttribute('aria-label'),
+    ).toBe(`${defaultLabels.season}: ${defaultLabels.seasons.winter}`);
+
+    // "Automatic" forgets the choice: the date decides again.
+    row(defaultLabels.seasons.auto).click();
+    await rendered.flush();
+    expect(localStorage.getItem('docs-season')).toBeNull();
+    expect(['spring', 'summer', 'autumn', 'winter']).toContain(
+      document.documentElement.getAttribute('data-season'),
+    );
+    expect(row(defaultLabels.seasons.auto).getAttribute('aria-checked')).toBe('true');
+    rendered.destroy();
+  });
+
+  it('starts from the season the reader stored, and writes it when the boot script did not', async () => {
+    localStorage.setItem('docs-season', 'autumn');
+    const rendered = await renderLayout('/guide/');
+    expect(document.documentElement.getAttribute('data-season')).toBe('autumn');
+    const checked = [...rendered.element.querySelectorAll('button[role="menuitemradio"]')].filter(
+      (row) => row.getAttribute('aria-checked') === 'true',
+    );
+    expect(checked.map((row) => row.textContent?.trim())).toEqual([
+      defaultLabels.seasons.autumn,
+    ]);
+    rendered.destroy();
+  });
+
+  it('withdraws the appearance switch on a page that imposes one, and keeps the seasons', async () => {
+    const rendered = await renderLayout('/guide/', { lockedMode: 'dark' });
+    expect(rendered.element.querySelector(`button[aria-label="${defaultLabels.mode}"]`)).toBeNull();
+    expect(
+      rendered.element.querySelector(`button[aria-label^="${defaultLabels.season}:"]`),
+    ).not.toBeNull();
+    rendered.destroy();
+
+    const free = await renderLayout('/guide/');
+    expect(
+      free.element.querySelector(`button[aria-label="${defaultLabels.mode}"]`),
+    ).not.toBeNull();
+    free.destroy();
+  });
+
+  it('paints each season on the root, day and night, under its attribute', () => {
+    const sheet = css();
+    for (const season of ['spring', 'summer', 'autumn', 'winter']) {
+      expect(sheet, season).toContain(`:root[data-season='${season}']`);
+      // The explicit choice of the reader outranks the preference of the user agent,
+      // and a season sets both sides, so neither falls back to the classic palette.
+      expect(sheet, season).toContain(`:root[data-season='${season}'][data-mode='dark']`);
+      expect(sheet, season).toContain(`:root[data-season='${season}'][data-mode='light']`);
+    }
+    // The drawings are theme variables a season sets, not rules a component carries.
+    for (const season of ['spring', 'summer', 'autumn', 'winter']) {
+      expect(sheet).toMatch(
+        new RegExp(`:root\\[data-season='${season}'\\]\\{--herbier-treeBack:url\\(`),
+      );
+    }
   });
 
   it('opens the drawer from the menu button, and says so', async () => {

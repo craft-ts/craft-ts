@@ -49,8 +49,24 @@ import {
   unit,
   unsafeLength,
   when,
+  url,
   type ColorValue,
+  type SheetItem,
 } from '@craft-ts/style';
+import { forestMask, plateMask } from '../decor/art.style.ts';
+import {
+  NO_MASK,
+  PLANES,
+  PLATE_PASSES,
+  seasonPlateMask,
+  treeMask,
+  trimMask,
+  type PlatePass,
+  type Season,
+} from '../decor/seasons.art.style.ts';
+import { autumn, spring, summer, winter } from './seasons.style.ts';
+
+export type { Season };
 
 export const herbier = definePalette('herbier', {
   surface: {
@@ -133,6 +149,10 @@ export const herbier = definePalette('herbier', {
     dangerActive: { light: '#722630', dark: '#F0AEB5' },
     // Decoration only. Never text.
     decor: { light: '#6E8F5C', dark: '#7FA88A' },
+    // The second colour of a season (blossom, flower, leaf, frost) and its snow. The
+    // classic palette draws none of them; they are here so it can stand for a season.
+    accent2: { light: '#6E8F5C', dark: '#7FA88A' },
+    snow: { light: '#FFFFFF', dark: '#DCEAF4' },
   },
   // The hero: five planes of spruce from the far ridge to the foreground, and the
   // contour lines (the spruce at 20 % over the paper, computed once).
@@ -147,6 +167,8 @@ export const herbier = definePalette('herbier', {
   // A soft shadow is a flat, blurred colour: opaque, like everything else.
   effect: {
     shadow: { light: '#D9D7CC', dark: '#090F0C' },
+    // The light of the hero. Classic has none: it is the paper, so the glow is invisible.
+    glow: { light: '#F2EEE3', dark: '#0F1914' },
   },
 });
 
@@ -171,6 +193,19 @@ export const tone = defineStateAxis('tone', [
  * on a subtree takes a scope class (see `scope.style.ts`).
  */
 export const mode = defineStateAxis('mode', ['light', 'dark'] as const);
+
+/**
+ * Which season the page is read in: `data-season` on the document root, written
+ * before the first paint (`bootScript`) and by the season picker. It is an axis,
+ * like `mode`, and the foundation answers it once, in the root rules below. A page
+ * with no `data-season` is the classic Herbier.
+ */
+export const season = defineStateAxis('season', [
+  'spring',
+  'summer',
+  'autumn',
+  'winter',
+] as const);
 
 const themed = { inherits: true } as const;
 
@@ -214,6 +249,39 @@ export const theme = cssVars('herbier', {
   // The corner and the shadow of a code block. A code group draws one card for
   // its tabs and its block, so it sets these to nothing for the block inside.
   codeCorner: kind.length(unit.px(6), themed),
+  // The code surface follows the season (and is dark in every one of them), and so do the
+  // tints of its marked lines and the rule under its bar.
+  code: kind.color(herbier.surface.code, themed),
+  codeHighlight: kind.color(herbier.surface.codeHighlight, themed),
+  codeAdd: kind.color(herbier.surface.codeAdd, themed),
+  codeRemove: kind.color(herbier.surface.codeRemove, themed),
+  codeWarning: kind.color(herbier.surface.codeWarning, themed),
+  codeLine: kind.color(herbier.border.codeLine, themed),
+  // A season's second colour, its snow, the light of its hero and the colour of what
+  // sits on its trees (blossoms in spring, snow in winter).
+  accent2: kind.color(herbier.accent.accent2, themed),
+  snow: kind.color(herbier.accent.snow, themed),
+  glow: kind.color(herbier.effect.glow, themed),
+  trim: kind.color(herbier.accent.accent2, themed),
+  // The drawings of the season: the trees of each plane, what sits on them, and the
+  // colours of the plate. They are masks, and a mask is a URL; the season swaps them.
+  treeBack: kind.url(url(forestMask('back')), themed),
+  treeRidge: kind.url(url(forestMask('ridge')), themed),
+  treeMiddle: kind.url(url(forestMask('middle')), themed),
+  treeNear: kind.url(url(forestMask('near')), themed),
+  treeFront: kind.url(url(forestMask('front')), themed),
+  trimBack: kind.url(url(NO_MASK), themed),
+  trimRidge: kind.url(url(NO_MASK), themed),
+  trimMiddle: kind.url(url(NO_MASK), themed),
+  trimNear: kind.url(url(NO_MASK), themed),
+  trimFront: kind.url(url(NO_MASK), themed),
+  plateInk: kind.url(url(plateMask('ink')), themed),
+  plateSage: kind.url(url(plateMask('sage')), themed),
+  plateAccent: kind.url(url(NO_MASK), themed),
+  plateCard: kind.url(url(NO_MASK), themed),
+  plateMoss: kind.url(url(NO_MASK), themed),
+  plateSnow: kind.url(url(NO_MASK), themed),
+  plateOchre: kind.url(url(plateMask('ochre')), themed),
   codeLift: kind.color(herbier.effect.shadow, themed),
   infoSurface: kind.color(herbier.surface.info, themed),
   infoBorder: kind.color(herbier.border.info, themed),
@@ -314,45 +382,104 @@ export const toneRules = [
   ]),
 ] as const;
 
-/** One side of the palette, written once and read for light and for dark. */
-const paint = (side: (token: ColorValue) => ColorValue) => [
-  set(theme.surface, side(herbier.surface.page)),
-  set(theme.raised, side(herbier.surface.raised)),
-  set(theme.selected, side(herbier.surface.selected)),
-  set(theme.selectedHover, side(herbier.surface.selectedHover)),
-  set(theme.selectedActive, side(herbier.surface.selectedActive)),
-  set(theme.navHover, side(herbier.surface.navHover)),
+/**
+ * What a season (or the classic Herbier) is made of: the tokens of the brand layer.
+ * The fixed tones — information, important, warning, danger — are not in it: they
+ * are read from `herbier` whatever the season.
+ */
+type Tokens<Key extends string> = { readonly [Name in Key]: ColorValue };
+
+export interface Brand {
+  readonly surface: Tokens<
+    | 'page'
+    | 'raised'
+    | 'selected'
+    | 'selectedHover'
+    | 'selectedActive'
+    | 'navHover'
+    | 'code'
+    | 'codeHighlight'
+    | 'codeAdd'
+    | 'codeRemove'
+    | 'codeWarning'
+    | 'tip'
+  >;
+  readonly text: Tokens<'strong' | 'body' | 'muted' | 'subtle' | 'link' | 'tip'>;
+  readonly border: Tokens<'subtle' | 'strong' | 'tip' | 'focusHalo' | 'codeLine'>;
+  readonly accent: Tokens<
+    | 'action'
+    | 'actionHover'
+    | 'actionActive'
+    | 'onAction'
+    | 'decor'
+    | 'accent2'
+    | 'snow'
+  >;
+  readonly effect: Tokens<'shadow' | 'glow'>;
+  readonly decor: Tokens<
+    | 'forestBack'
+    | 'forestRidge'
+    | 'forestMiddle'
+    | 'forestNear'
+    | 'forestFront'
+    | 'contour'
+  >;
+}
+
+type Side = (token: ColorValue) => ColorValue;
+
+/**
+ * One side of a brand, written once and read for light and for dark. `trim` is the
+ * colour of what sits on the trees of the season.
+ */
+const paint = (side: Side, brand: Brand, trim: ColorValue) => [
+  set(theme.surface, side(brand.surface.page)),
+  set(theme.raised, side(brand.surface.raised)),
+  set(theme.selected, side(brand.surface.selected)),
+  set(theme.selectedHover, side(brand.surface.selectedHover)),
+  set(theme.selectedActive, side(brand.surface.selectedActive)),
+  set(theme.navHover, side(brand.surface.navHover)),
   set(theme.clear, side(herbier.surface.clear)),
-  set(theme.ink, side(herbier.text.body)),
-  set(theme.glyph, side(herbier.text.body)),
-  set(theme.inkMuted, side(herbier.text.muted)),
-  set(theme.inkSubtle, side(herbier.text.subtle)),
-  set(theme.link, side(herbier.text.link)),
-  set(theme.line, side(herbier.border.subtle)),
-  set(theme.lineStrong, side(herbier.border.strong)),
-  set(theme.action, side(herbier.accent.action)),
-  set(theme.actionHover, side(herbier.accent.actionHover)),
-  set(theme.actionActive, side(herbier.accent.actionActive)),
-  set(theme.onAction, side(herbier.accent.onAction)),
+  set(theme.ink, side(brand.text.body)),
+  set(theme.glyph, side(brand.text.body)),
+  set(theme.inkMuted, side(brand.text.muted)),
+  set(theme.inkSubtle, side(brand.text.subtle)),
+  set(theme.link, side(brand.text.link)),
+  set(theme.line, side(brand.border.subtle)),
+  set(theme.lineStrong, side(brand.border.strong)),
+  set(theme.action, side(brand.accent.action)),
+  set(theme.actionHover, side(brand.accent.actionHover)),
+  set(theme.actionActive, side(brand.accent.actionActive)),
+  set(theme.onAction, side(brand.accent.onAction)),
   set(theme.danger, side(herbier.accent.danger)),
   set(theme.dangerHover, side(herbier.accent.dangerHover)),
   set(theme.dangerActive, side(herbier.accent.dangerActive)),
-  set(theme.decor, side(herbier.accent.decor)),
-  set(theme.focusHalo, side(herbier.border.focusHalo)),
-  set(theme.shadow, side(herbier.effect.shadow)),
-  set(theme.forestBack, side(herbier.decor.forestBack)),
-  set(theme.forestRidge, side(herbier.decor.forestRidge)),
-  set(theme.forestMiddle, side(herbier.decor.forestMiddle)),
-  set(theme.forestNear, side(herbier.decor.forestNear)),
-  set(theme.forestFront, side(herbier.decor.forestFront)),
-  set(theme.contour, side(herbier.decor.contour)),
-  set(theme.codeLift, side(herbier.effect.shadow)),
+  set(theme.decor, side(brand.accent.decor)),
+  set(theme.focusHalo, side(brand.border.focusHalo)),
+  set(theme.shadow, side(brand.effect.shadow)),
+  set(theme.forestBack, side(brand.decor.forestBack)),
+  set(theme.forestRidge, side(brand.decor.forestRidge)),
+  set(theme.forestMiddle, side(brand.decor.forestMiddle)),
+  set(theme.forestNear, side(brand.decor.forestNear)),
+  set(theme.forestFront, side(brand.decor.forestFront)),
+  set(theme.contour, side(brand.decor.contour)),
+  set(theme.codeLift, side(brand.effect.shadow)),
+  set(theme.code, side(brand.surface.code)),
+  set(theme.codeHighlight, side(brand.surface.codeHighlight)),
+  set(theme.codeAdd, side(brand.surface.codeAdd)),
+  set(theme.codeRemove, side(brand.surface.codeRemove)),
+  set(theme.codeWarning, side(brand.surface.codeWarning)),
+  set(theme.codeLine, side(brand.border.codeLine)),
+  set(theme.accent2, side(brand.accent.accent2)),
+  set(theme.snow, side(brand.accent.snow)),
+  set(theme.glow, side(brand.effect.glow)),
+  set(theme.trim, side(trim)),
   set(theme.infoSurface, side(herbier.surface.info)),
   set(theme.infoBorder, side(herbier.border.info)),
   set(theme.infoInk, side(herbier.text.info)),
-  set(theme.tipSurface, side(herbier.surface.tip)),
-  set(theme.tipBorder, side(herbier.border.tip)),
-  set(theme.tipInk, side(herbier.text.tip)),
+  set(theme.tipSurface, side(brand.surface.tip)),
+  set(theme.tipBorder, side(brand.border.tip)),
+  set(theme.tipInk, side(brand.text.tip)),
   set(theme.importantSurface, side(herbier.surface.important)),
   set(theme.importantBorder, side(herbier.border.important)),
   set(theme.importantInk, side(herbier.text.important)),
@@ -363,24 +490,75 @@ const paint = (side: (token: ColorValue) => ColorValue) => [
   set(theme.dangerBorder, side(herbier.border.danger)),
   set(theme.dangerInk, side(herbier.text.danger)),
   // The foundation's own variables: the focus ring is drawn once, on every
-  // `:focus-visible`, from these. Herbier = a spruce ring of 2 px, 3 px off,
-  // never removed — no component draws its own.
-  set(craftBase.focusRing, side(herbier.accent.action)),
-  set(craftBase.accent, side(herbier.accent.action)),
-  set(craftBase.selectionBg, side(herbier.surface.selected)),
-  set(craftBase.selectionInk, side(herbier.text.strong)),
+  // `:focus-visible`, from these. Herbier = a ring of 2 px in the action colour,
+  // 3 px off, never removed — no component draws its own.
+  set(craftBase.focusRing, side(brand.accent.action)),
+  set(craftBase.accent, side(brand.accent.action)),
+  set(craftBase.selectionBg, side(brand.surface.selected)),
+  set(craftBase.selectionInk, side(brand.text.strong)),
 ];
 
-const light = paint((token) => token);
-const dark = paint(darkOf);
+const identity: Side = (token) => token;
+
+/** The classic Herbier: no `data-season`, or JavaScript that never ran. */
+const light = paint(identity, herbier, herbier.accent.accent2);
+const dark = paint(darkOf, herbier, herbier.accent.accent2);
 
 /**
  * Every theme variable written for one side, for a subtree that must not follow
- * the page: the root rules above only reach `:root`, so a region that is always
- * dark (the Effect lessons) spreads `paintDark` under its own scope.
+ * the page: the root rules only reach `:root`, so a region that is always dark
+ * spreads `paintDark` under its own scope. It paints the classic palette: a
+ * season is an attribute of the document, and a scope sits below it.
  */
 export const paintLight = light;
 export const paintDark = dark;
+
+/** The drawings of one season, set once: they do not depend on day or night. */
+const drawings = (name: Season) => [
+  set(theme.treeBack, url(treeMask(name, 'back'))),
+  set(theme.treeRidge, url(treeMask(name, 'ridge'))),
+  set(theme.treeMiddle, url(treeMask(name, 'middle'))),
+  set(theme.treeNear, url(treeMask(name, 'near'))),
+  set(theme.treeFront, url(treeMask(name, 'front'))),
+  set(theme.trimBack, url(trimMask(name, 'back'))),
+  set(theme.trimRidge, url(trimMask(name, 'ridge'))),
+  set(theme.trimMiddle, url(trimMask(name, 'middle'))),
+  set(theme.trimNear, url(trimMask(name, 'near'))),
+  set(theme.trimFront, url(trimMask(name, 'front'))),
+  set(theme.plateInk, url(seasonPlateMask(name, 'ink'))),
+  set(theme.plateSage, url(seasonPlateMask(name, 'sage'))),
+  set(theme.plateAccent, url(seasonPlateMask(name, 'accent'))),
+  set(theme.plateCard, url(seasonPlateMask(name, 'card'))),
+  set(theme.plateMoss, url(seasonPlateMask(name, 'moss'))),
+  set(theme.plateSnow, url(seasonPlateMask(name, 'snow'))),
+  set(theme.plateOchre, url(seasonPlateMask(name, 'ochre'))),
+];
+
+/**
+ * Everything one season writes on the root: its day, its drawings, then its night under
+ * the user agent's preference and under an explicit choice.
+ */
+const seasonRules = (
+  point: (typeof season)[Season],
+  name: Season,
+  brand: Brand,
+  trim: ColorValue,
+) => {
+  const items: readonly SheetItem[] = [
+    ...paint(identity, brand, trim),
+    ...drawings(name),
+    when(scheme.dark, paint(darkOf, brand, trim)),
+    when(mode.light, paint(identity, brand, trim)),
+    when(mode.dark, paint(darkOf, brand, trim)),
+  ];
+  return when(point, items);
+};
+
+/** Kept so the lists the drawings are made from are checked together. */
+export const SEASON_DRAWINGS: { readonly planes: readonly string[]; readonly passes: readonly PlatePass[] } = {
+  planes: PLANES,
+  passes: PLATE_PASSES,
+};
 
 /**
  * The widths the layout changes at. A phone gets one column and a drawer, a
@@ -414,6 +592,13 @@ craftGlobalStyles('herbier', {
     // specific than the media query, so the explicit choice always wins.
     when(mode.light, light),
     when(mode.dark, dark),
+    // A season comes after, and is written the same way. The order carries the
+    // cascade where specificity is equal, and the seasons' own side rules, one
+    // attribute deeper, beat the classic ones: forced dark in autumn is autumn's dark.
+    seasonRules(season.spring, 'spring', spring, spring.accent.accent2),
+    seasonRules(season.summer, 'summer', summer, summer.accent.accent2),
+    seasonRules(season.autumn, 'autumn', autumn, autumn.accent.accent2),
+    seasonRules(season.winter, 'winter', winter, winter.accent.snow),
   ],
   elements: {
     body: [

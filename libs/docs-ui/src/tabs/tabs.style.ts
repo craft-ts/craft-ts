@@ -63,7 +63,7 @@ export const tabsUi = craftStyles('docTabs', {
     display.block,
     // On the code surface the strip and the block are one card.
     when(surface.code, [
-      bg(herbier.surface.code),
+      bg(theme.code),
       radius(radii.md),
       shadow({ y: unit.px(14), blur: unit.px(30), color: theme.shadow }),
       // The block inside is flat: the card around it carries the corner and the shadow.
@@ -80,7 +80,7 @@ export const tabsUi = craftStyles('docTabs', {
     borderBlockEndStyle.solid,
     borderBlockEndColor(theme.line),
     provides(scrollPort.inline),
-    when(surface.code, [borderBlockEndColor(herbier.border.codeLine)]),
+    when(surface.code, [borderBlockEndColor(theme.codeLine)]),
   ],
   tab: [
     display.inlineFlex,
@@ -114,7 +114,7 @@ export const tabsUi = craftStyles('docTabs', {
       color(herbier.text.codeComment),
       when(interaction.hover, [
         color(herbier.text.codePlain),
-        borderBlockEndColor(herbier.border.codeLine),
+        borderBlockEndColor(theme.codeLine),
       ]),
       when(selected.true, [
         color(herbier.text.codePlain),

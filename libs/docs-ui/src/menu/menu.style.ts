@@ -29,6 +29,7 @@ import {
   gap,
   insetBlockEnd,
   insetBlockStart,
+  insetInlineEnd,
   insetInlineStart,
   int,
   interaction,
@@ -60,6 +61,7 @@ import {
   whiteSpace,
   zIndex,
 } from '@craft-ts/style';
+import { checked } from '../switch/switch.style.ts';
 import {
   duration,
   ease,
@@ -71,6 +73,24 @@ import {
 
 /** The menu is showing. Written beside `aria-expanded`. */
 export const menuState = defineStateAxis('menu-state', ['open'] as const);
+
+const panelBase = [
+    display.none,
+    flexDirection.column,
+    position.absolute,
+    insetBlockStart(unit.pct(100)),
+    marginBlockStart(space(2)),
+    minInlineSize(unit.rem(13.75)),
+    p(space(1)),
+    borderRadius(radii.md),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.line),
+    bg(theme.raised),
+    shadow({ y: unit.px(12), blur: unit.px(26), color: theme.shadow }),
+    zIndex(int(40)),
+    when(menuState.open, [display.flex]),
+] as const;
 
 export const menuUi = craftStyles('docMenu', {
   root: [display.inlineBlock, position.relative],
@@ -93,22 +113,14 @@ export const menuUi = craftStyles('docMenu', {
     when(interaction.hover, [color(theme.ink), set(theme.glyph, theme.ink)]),
   ],
   panel: [
-    display.none,
-    flexDirection.column,
-    position.absolute,
-    insetBlockStart(unit.pct(100)),
+    ...panelBase,
     insetInlineStart(space(0)),
-    marginBlockStart(space(2)),
-    minInlineSize(unit.rem(13.75)),
-    p(space(1)),
-    borderRadius(radii.md),
-    borderWidth(lineWidth.hairline),
-    borderStyle.solid,
-    borderColor(theme.line),
-    bg(theme.raised),
-    shadow({ y: unit.px(12), blur: unit.px(26), color: theme.shadow }),
-    zIndex(int(40)),
-    when(menuState.open, [display.flex]),
+  ],
+  // The same, opening toward the start of the line: for a button at the end of a bar, whose
+  // panel would otherwise leave the screen.
+  endPanel: [
+    ...panelBase,
+    insetInlineEnd(space(0)),
   ],
   item: [
     display.flex,
@@ -125,6 +137,8 @@ export const menuUi = craftStyles('docMenu', {
     cursor.pointer,
     set(theme.glyph, theme.ink),
     when(interaction.hover, [bg(theme.selected)]),
+    // The choice of a radio group: a sage fill and a heavier weight, and a tick in the row.
+    when(checked.true, [bg(theme.selected), fontWeight(weight.semibold), color(theme.link)]),
     when(interaction.disabled, [opacity(num(0.45)), cursor.notAllowed]),
   ],
   // A hint pushed to the far end of the row: a shortcut, a destination.

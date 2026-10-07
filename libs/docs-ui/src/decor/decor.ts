@@ -10,9 +10,12 @@ const LAYERS = ['back', 'ridge', 'middle', 'near', 'front'] as const;
 export const DocForest = craftComponent('DocForest', {}, () =>
   div(
     { class: forestUi.root, 'aria-hidden': 'true' },
-    LAYERS.map(
-      (layer): CraftNodeChild =>
+    // Each plane is its trees, then what sits on them: the next plane covers both.
+    LAYERS.flatMap(
+      (layer): CraftNodeChild[] => [
         span({ class: forestUi.layer, 'data-layer': layer }),
+        span({ class: forestUi.trim, 'data-layer': layer }),
+      ],
     ),
   ),
 );
@@ -20,6 +23,7 @@ export const DocForest = craftComponent('DocForest', {}, () =>
 /** Contour lines over the whole of its parent: two sets, one stronger. */
 export const DocContours = craftComponent('DocContours', {}, () =>
   div({ 'aria-hidden': 'true' }, [
+    span({ class: contoursUi.glow }),
     span({ class: contoursUi.root, 'data-contour': 'strong' }),
     span({ class: contoursUi.root, 'data-contour': 'soft' }),
   ]),
@@ -31,7 +35,13 @@ export const DocContours = craftComponent('DocContours', {}, () =>
  */
 export const DocPlate = craftComponent('DocPlate', {}, () =>
   div({ class: plateUi.root, 'aria-hidden': 'true' }, [
+    // The washes first, the line work over them. A colour the season's plate does not use
+    // is an empty mask: the layer is there and draws nothing.
     span({ class: plateUi.layer, 'data-pass': 'sage' }),
+    span({ class: plateUi.layer, 'data-pass': 'card' }),
+    span({ class: plateUi.layer, 'data-pass': 'moss' }),
+    span({ class: plateUi.layer, 'data-pass': 'accent' }),
+    span({ class: plateUi.layer, 'data-pass': 'snow' }),
     span({ class: plateUi.layer, 'data-pass': 'ochre' }),
     span({ class: plateUi.layer, 'data-pass': 'ink' }),
   ]),

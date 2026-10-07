@@ -108,6 +108,7 @@ const frame = (path: string, body: () => unknown, scope: '' | 'dark' = '') =>
     ]),
     currentHeading: read('the-common-case'),
     scope: read(scope),
+    lockedMode: read(''),
     searchIndex: read(searchIndex),
     footerNote: read('craft-ts · MIT licensed'),
     footerLinks: read([

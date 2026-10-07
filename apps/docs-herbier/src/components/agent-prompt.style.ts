@@ -48,7 +48,7 @@ import {
 export const agentPromptUi = craftStyles('agentPrompt', {
   root: [
     display.block,
-    bg(herbier.surface.code),
+    bg(theme.code),
     borderRadius(radii.md),
     shadow({ y: unit.px(14), blur: unit.px(30), color: theme.shadow }),
     set(craftBase.focusRing, herbier.text.codeKeyword),
@@ -62,7 +62,7 @@ export const agentPromptUi = craftStyles('agentPrompt', {
     paddingInline(space(4)),
     borderBlockEndWidth(lineWidth.hairline),
     borderBlockEndStyle.solid,
-    borderBlockEndColor(herbier.border.codeLine),
+    borderBlockEndColor(theme.codeLine),
   ],
   eyebrow: [
     p(space(0)),

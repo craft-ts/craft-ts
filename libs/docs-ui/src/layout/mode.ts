@@ -1,10 +1,11 @@
 import { craftComponent, type Input } from '@craft-ts/component';
 import { craftExpose, craftService, state } from '@craft-ts/core';
 import { DocIconButton } from '../button/button.ts';
+import { MODE_STORAGE_KEY } from '../foundation/season.ts';
 
 export type Mode = 'light' | 'dark';
 
-const STORAGE_KEY = 'docs-mode';
+const STORAGE_KEY = MODE_STORAGE_KEY;
 
 const stored = (): Mode | undefined => {
   try {
