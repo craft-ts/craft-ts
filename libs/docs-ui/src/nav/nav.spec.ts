@@ -28,7 +28,7 @@ const css = () =>
   });
 
 describe('DocNavLink', () => {
-  const render = (current: boolean, icon: string = '') =>
+  const render = (current: boolean, icon = '') =>
     renderCraftComponent(DocNavLink as never, {
       props: {
         label: reader('state'),

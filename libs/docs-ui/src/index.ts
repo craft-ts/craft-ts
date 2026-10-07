@@ -32,3 +32,13 @@ export * from './layout/layout.ts';
 export * from './layout/mode.ts';
 export * from './site/site.ts';
 export * from './site/search.ts';
+export * from './markdown/render.ts';
+export type {
+  Block,
+  CodeBlock,
+  Diagnostic,
+  HeadingBlock,
+  Inline,
+  Outline,
+  ParsedPage,
+} from './markdown/tree.ts';

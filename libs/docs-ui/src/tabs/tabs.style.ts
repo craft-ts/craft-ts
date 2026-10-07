@@ -13,6 +13,12 @@ import {
   borderBlockEndColor,
   borderBlockEndStyle,
   borderBlockEndWidth,
+  borderWidth,
+  craftBase,
+  radii,
+  radius,
+  set,
+  shadow,
   color,
   craftStyles,
   cursor,
@@ -53,7 +59,19 @@ export const surface = defineStateAxis('surface', ['page', 'code'] as const);
 export const selected = defineStateAxis('selected', ['true'] as const);
 
 export const tabsUi = craftStyles('docTabs', {
-  root: [display.block],
+  root: [
+    display.block,
+    // On the code surface the strip and the block are one card.
+    when(surface.code, [
+      bg(herbier.surface.code),
+      radius(radii.md),
+      shadow({ y: unit.px(14), blur: unit.px(30), color: theme.shadow }),
+      // The block inside is flat: the card around it carries the corner and the shadow.
+      set(theme.codeCorner, unit.px(0)),
+      set(theme.codeLift, theme.clear),
+      set(craftBase.focusRing, herbier.text.codeKeyword),
+    ]),
+  ],
   list: [
     display.flex,
     alignItems.center,
@@ -71,6 +89,7 @@ export const tabsUi = craftStyles('docTabs', {
     py(unit.rem(0.625)),
     px(unit.rem(1)),
     bg(theme.clear),
+    borderWidth(unit.px(0)),
     color(theme.inkMuted),
     fontFamily(sansFont),
     ...font(text.sm),

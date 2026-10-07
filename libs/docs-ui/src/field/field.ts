@@ -42,7 +42,10 @@ export const DocField = craftComponent('DocField', {}, function* (
   const control = fieldControl(id, { invalid });
 
   const parts: CraftNodeChild[] = [
-    label({ class: fieldUi.label, ...control.label }, text),
+    label(
+      { class: fieldUi.label, htmlFor: control.label.htmlFor },
+      text,
+    ),
     input('docFieldInput', {
       class: fieldUi.input,
       id: control.input.id,

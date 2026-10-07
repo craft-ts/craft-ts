@@ -4,7 +4,7 @@ import {
   AA_NORMAL_TEXT,
   contrastRatio,
 } from '@craft-ts/dev-tools/contrast';
-import { herbier } from './herbier.style.ts';
+import { bp, herbier } from './herbier.style.ts';
 
 type Side = 'light' | 'dark';
 type Token = { readonly css: string; readonly dark: string };
@@ -170,5 +170,21 @@ describe('Herbier palette, WCAG AA text contrast', () => {
         `codePlain on code (${side})`,
       ).toBeGreaterThanOrEqual(7);
     }
+  });
+});
+
+describe('breakpoints', () => {
+  it('sort alphabetically in the order of their width, because the emitter does', () => {
+    // Conditional atoms are emitted by class name, and the class name carries the
+    // breakpoint's name. If the names did not sort like the widths, a wide rule
+    // would be overridden by a narrow one that sets the same property.
+    const names = Object.keys(bp);
+    const byWidth = [...names].sort(
+      (left, right) =>
+        Number.parseFloat(bp[left as keyof typeof bp].open.replace(/[^0-9.]/g, '')) -
+        Number.parseFloat(bp[right as keyof typeof bp].open.replace(/[^0-9.]/g, '')),
+    );
+    const byName = [...names].sort((left, right) => left.localeCompare(right));
+    expect(byName).toEqual(byWidth);
   });
 });

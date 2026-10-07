@@ -46,7 +46,6 @@ import {
   marginInlineStart,
   maxInlineSize,
   num,
-  p,
   paddingInlineStart,
   provides,
   px,
@@ -77,7 +76,7 @@ import {
 /** How a row of blocks lays its children out. A plain row is `start`. */
 export const layout = defineStateAxis('layout', ['between', 'end'] as const);
 
-const heading = (size: ReturnType<typeof unit.rem>, height: number) => [
+const headingStyle = (size: ReturnType<typeof unit.rem>, height: number) => [
   fontFamily(displayFont),
   fontSize(size),
   lineHeight(num(height)),
@@ -99,25 +98,26 @@ export const proseUi = craftStyles('docProse', {
     display.block,
     maxInlineSize(unit.rem(48)),
     marginInline.auto,
-    p(space(6)),
+    // The frame owns the sides; the page only owns its own top and bottom.
+    py(space(2)),
     fontFamily(sansFont),
     color(theme.ink),
     ...font(text.base),
     lineHeight(num(1.65)),
   ],
   h1: [
-    ...heading(displaySize.lead, 0.98),
+    ...headingStyle(displaySize.lead, 0.98),
     letterSpacing(unit.em(-0.035)),
     marginBlockEnd(space(6)),
   ],
   h2: [
-    ...heading(unit.rem(2.125), 1.1),
+    ...headingStyle(unit.rem(2.125), 1.1),
     letterSpacing(unit.em(-0.02)),
     marginBlockStart(space(12)),
     marginBlockEnd(space(4)),
   ],
   h3: [
-    ...heading(unit.rem(1.4375), 1.2),
+    ...headingStyle(unit.rem(1.4375), 1.2),
     marginBlockStart(space(8)),
     marginBlockEnd(space(3)),
   ],
@@ -132,6 +132,9 @@ export const proseUi = craftStyles('docProse', {
   ],
   anchor: [
     marginInlineStart(space(2)),
+    fontFamily(sansFont),
+    fontSize(unit.em(0.55)),
+    fontWeight(weight.regular),
     color(theme.inkSubtle),
     textDecoration.none,
     when(interaction.hover, [color(theme.link)]),

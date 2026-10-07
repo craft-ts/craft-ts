@@ -25,6 +25,7 @@ export const DocBreadcrumb = craftComponent('DocBreadcrumb', {}, function* (
     const last = index === trail.length - 1;
     const parts: CraftNodeChild[] = [
       a(
+        'docBreadcrumbLink',
         {
           class: breadcrumbUi.link,
           href: crumb.href,

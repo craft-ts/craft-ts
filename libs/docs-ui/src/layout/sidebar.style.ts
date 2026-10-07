@@ -29,6 +29,7 @@ import {
   listStyleType,
   ident,
   marginBlockEnd,
+  marginInlineEnd,
   maxBlockSize,
   p,
   paddingInlineStart,
@@ -44,11 +45,13 @@ import {
   radius,
   interaction,
   when,
+  borderInlineEndColor,
+  borderInlineEndStyle,
+  borderInlineEndWidth,
   borderInlineStartColor,
   borderInlineStartStyle,
   borderInlineStartWidth,
   textTransform,
-  justifyContent,
   defineStateAxis,
 } from '@craft-ts/style';
 import {
@@ -68,8 +71,11 @@ export const sidebarUi = craftStyles('docSidebar', {
     px(space(4)),
     py(space(6)),
     bg(theme.surface),
+    borderInlineEndWidth(lineWidth.hairline),
+    borderInlineEndStyle.solid,
+    borderInlineEndColor(theme.line),
     when(drawer.true, [display.block]),
-    when(bp.md, [
+    when(bp.medium, [
       display.block,
       position.sticky,
       insetBlockStart(unit.rem(4.5)),
@@ -99,13 +105,12 @@ export const sidebarUi = craftStyles('docSidebar', {
     fontWeight(weight.regular),
     letterSpacing(unit.em(0)),
     textTransform.none,
+    marginInlineEnd(space(2)),
     color(theme.link),
   ],
   // A group that can fold: its label is the summary of a `<details>`.
   disclosure: [
-    display.flex,
-    alignItems.baseline,
-    gap(space(3)),
+    marginBlockEnd(space(2)),
     py(space(1)),
     cursor.pointer,
     fontFamily(sansFont),
@@ -132,9 +137,6 @@ export const sidebarUi = craftStyles('docSidebar', {
     borderInlineStartColor(theme.line),
   ],
   summary: [
-    display.flex,
-    alignItems.center,
-    justifyContent.spaceBetween,
     py(space(2)),
     px(space(3)),
     radius(radii.sm),
@@ -146,7 +148,7 @@ export const sidebarUi = craftStyles('docSidebar', {
     when(interaction.hover, [bg(theme.navHover)]),
   ],
   // The links a phone carries into the drawer; the bar has them from `md` up.
-  mobile: [display.block, marginBlockEnd(space(6)), when(bp.md, [display.none])],
+  mobile: [display.block, marginBlockEnd(space(6)), when(bp.medium, [display.none])],
   rule: [
     marginBlockEnd(space(6)),
     borderBlockEndWidth(lineWidth.hairline),

@@ -2,7 +2,9 @@ import {
   a,
   craftComponent,
   div,
-  h,
+  figcaption,
+  figure,
+  heading,
   p,
   section,
   span,
@@ -75,7 +77,7 @@ export const DocHome = craftComponent('DocHome', {}, function* (props: HomeInput
       p({ class: homeUi.cardText }, feature.details),
     ];
     return feature.link
-      ? a({ class: homeUi.card, href: withBase(base, feature.link) }, body)
+      ? a('docHomeFeature', { class: homeUi.card, href: withBase(base, feature.link) }, body)
       : div({ class: homeUi.card }, body);
   });
 
@@ -85,13 +87,13 @@ export const DocHome = craftComponent('DocHome', {}, function* (props: HomeInput
       div({ class: homeUi.heroGrid }, [
         div([
           p({ class: homeUi.eyebrow }, hero.name),
-          h('h1', { class: homeUi.title }, hero.text),
+          heading({ class: homeUi.title }, hero.text),
           p({ class: homeUi.tagline }, hero.tagline),
           div({ class: homeUi.actions }, actions),
         ]),
-        h('figure', { class: homeUi.figure }, [
+        figure({ class: homeUi.figure }, [
           DocPlate({}),
-          h('figcaption', { class: homeUi.caption }, hero.plateCaption),
+          figcaption({ class: homeUi.caption }, hero.plateCaption),
         ]),
       ]),
       div({ class: homeUi.forest }, [DocForest({})]),
@@ -116,13 +118,13 @@ export const DocNotFound = craftComponent('DocNotFound', {}, function* (
   props: NotFoundInput,
 ) {
   const eyebrow = yield* props.eyebrow();
-  const heading = yield* props.heading();
+  const headingText = yield* props.heading();
   const message = yield* props.message();
   return section({ class: homeUi.lost }, [
     DocContours({}),
     div({ class: homeUi.lostBody }, [
       p({ class: homeUi.eyebrow }, eyebrow),
-      h('h1', { class: homeUi.lostTitle }, heading),
+      heading({ class: homeUi.lostTitle }, headingText),
       p({ class: homeUi.tagline }, message),
       div({ class: homeUi.actions }, [
         DocLinkButton({

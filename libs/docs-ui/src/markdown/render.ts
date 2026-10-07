@@ -13,6 +13,12 @@ import {
   details,
   div,
   h,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
   img,
   li,
   ol,
@@ -38,15 +44,6 @@ import type { Block, CodeBlock, Inline } from './tree.ts';
 /** Components an author names in a page (`<AuthorNote />`), supplied by the app. */
 export type DocComponents = Readonly<Record<string, () => CraftNodeChild>>;
 
-const HEADING_CLASS = {
-  1: proseUi.h1,
-  2: proseUi.h2,
-  3: proseUi.h3,
-  4: proseUi.h4,
-  5: proseUi.h4,
-  6: proseUi.h4,
-} as const;
-
 export const renderInlines = (inlines: readonly Inline[]): CraftNodeChild[] =>
   inlines.map((node): CraftNodeChild => {
     switch (node.t) {
@@ -65,10 +62,15 @@ export const renderInlines = (inlines: readonly Inline[]): CraftNodeChild[] =>
       case 'link':
         return node.external
           ? a(
+              'docExternalLink',
               { href: node.href, class: proseUi.link, rel: 'noopener noreferrer' },
               renderInlines(node.children),
             )
-          : a({ href: node.href, class: proseUi.link }, renderInlines(node.children));
+          : a(
+              'docLink',
+              { href: node.href, class: proseUi.link },
+              renderInlines(node.children),
+            );
       case 'image':
         return img({ src: node.src, alt: node.alt, loading: 'lazy' });
       case 'break':
@@ -97,9 +99,10 @@ function renderBlock(
 ): CraftNodeChild {
   switch (block.t) {
     case 'heading': {
-      return h(`h${block.level}`, { id: block.id, class: HEADING_CLASS[block.level] }, [
+      const children: CraftNodeChild[] = [
         ...renderInlines(block.children),
         a(
+          'docHeadingAnchor',
           {
             href: `#${block.id}`,
             class: proseUi.anchor,
@@ -107,7 +110,30 @@ function renderBlock(
           },
           '#',
         ),
-      ]);
+      ];
+      // A Markdown heading keeps the level its author wrote: it is the one place
+      // where an absolute level is the content, not a composition accident.
+      // One helper per level keeps every class a plain member, so the set of
+      // classes a page can carry stays enumerable.
+      /* eslint-disable craft-ts/prefer-relative-heading --
+         A Markdown page states its own outline: `###` is an h3 whatever component
+         it ends up under. A relative level would re-number the author's headings. */
+      switch (block.level) {
+        case 1:
+          return h1({ id: block.id, class: proseUi.h1 }, children);
+        case 2:
+          return h2({ id: block.id, class: proseUi.h2 }, children);
+        case 3:
+          return h3({ id: block.id, class: proseUi.h3 }, children);
+        case 4:
+          return h4({ id: block.id, class: proseUi.h4 }, children);
+        case 5:
+          return h5({ id: block.id, class: proseUi.h4 }, children);
+        case 6:
+          return h6({ id: block.id, class: proseUi.h4 }, children);
+      }
+      /* eslint-enable craft-ts/prefer-relative-heading */
+      return null as never;
     }
     case 'paragraph':
       return p({ class: proseUi.paragraph }, renderInlines(block.children));

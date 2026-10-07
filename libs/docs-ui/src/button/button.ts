@@ -112,6 +112,7 @@ export const DocLinkButton = craftComponent(
   {},
   (input: LinkButtonInput) =>
     a(
+      'docLinkButton',
       {
         class: buttonUi.root,
         href: input.href,

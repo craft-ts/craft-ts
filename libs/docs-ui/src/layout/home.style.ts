@@ -76,8 +76,8 @@ export const homeUi = craftStyles('docHome', {
     position.relative,
     px(space(4)),
     py(space(12)),
-    when(bp.md, [px(space(8)), py(space(16))]),
-    when(bp.lg, [px(unit.rem(2.75))]),
+    when(bp.medium, [px(space(8)), py(space(16))]),
+    when(bp.wide, [px(unit.rem(2.75))]),
   ],
   heroGrid: [
     display.grid,
@@ -87,7 +87,7 @@ export const homeUi = craftStyles('docHome', {
     maxInlineSize(unit.rem(72)),
     marginInline.auto,
     alignItems.center,
-    when(bp.lg, [
+    when(bp.wide, [
       gridTemplateColumns(
         tracks.list(tracks.minmax(space(0), tracks.fr(1)), unit.rem(16.375)),
       ),
@@ -108,8 +108,8 @@ export const homeUi = craftStyles('docHome', {
   title: [
     marginBlockStart(space(2)),
     fontFamily(displayFont),
-    fontSize(displaySize.hero),
-    lineHeight(num(0.95)),
+    fontSize(displaySize.lead),
+    lineHeight(num(0.98)),
     fontWeight(weight.medium),
     letterSpacing(unit.em(-0.035)),
     color(theme.ink),
@@ -146,8 +146,8 @@ export const homeUi = craftStyles('docHome', {
     px(space(4)),
     paddingBlockEnd(space(8)),
     gridTemplateColumns(tracks.autoFill(unit.rem(17.5))),
-    when(bp.md, [px(space(8))]),
-    when(bp.lg, [px(unit.rem(2.75))]),
+    when(bp.medium, [px(space(8))]),
+    when(bp.wide, [px(unit.rem(2.75))]),
   ],
   card: [
     display.flex,
@@ -193,7 +193,7 @@ export const homeUi = craftStyles('docHome', {
     position.relative,
     px(space(4)),
     py(space(16)),
-    when(bp.md, [px(space(8)), py(space(20))]),
+    when(bp.medium, [px(space(8)), py(space(20))]),
     justifyContent.center,
   ],
   lostBody: [

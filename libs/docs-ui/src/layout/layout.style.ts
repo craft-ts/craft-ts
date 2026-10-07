@@ -62,12 +62,12 @@ export const layoutUi = craftStyles('docLayout', {
     display.grid,
     minInlineSize(space(0)),
     when(sidebarAxis.with, [
-      when(bp.md, [
+      when(bp.medium, [
         gridTemplateColumns(
           tracks.list(unit.rem(15), tracks.minmax(space(0), tracks.fr(1))),
         ),
       ]),
-      when(bp.lg, [
+      when(bp.wide, [
         gridTemplateColumns(
           tracks.list(
             unit.rem(15),
@@ -78,17 +78,20 @@ export const layoutUi = craftStyles('docLayout', {
       ]),
     ]),
   ],
+  // The text column. Beside a sidebar it has padding and a measure; on a page
+  // with no sidebar (the home, the 404) it is full-bleed and the page decides.
   main: [
     display.block,
     minInlineSize(space(0)),
-    px(space(4)),
-    paddingBlockStart(space(6)),
-    when(bp.md, [px(space(8))]),
+    when(sidebarAxis.with, [
+      px(space(4)),
+      paddingBlockStart(space(6)),
+      when(bp.medium, [px(space(8))]),
+    ]),
   ],
   article: [
     display.block,
-    maxInlineSize(unit.rem(48)),
-    marginInline.auto,
+    when(sidebarAxis.with, [maxInlineSize(unit.rem(48)), marginInline.auto]),
   ],
   trail: [display.block, maxInlineSize(unit.rem(48)), marginInline.auto, marginBlockEnd(space(2))],
   pager: [
@@ -100,7 +103,7 @@ export const layoutUi = craftStyles('docLayout', {
   // The outline: a column on the right, from `lg`, that stays in view.
   outline: [
     display.none,
-    when(bp.lg, [
+    when(bp.wide, [
       display.block,
       position.sticky,
       insetBlockStart(unit.rem(6)),

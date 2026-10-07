@@ -29,7 +29,6 @@ import {
   gap,
   insetBlockEnd,
   insetBlockStart,
-  insetInlineEnd,
   insetInlineStart,
   int,
   interaction,
@@ -42,10 +41,6 @@ import {
   num,
   opacity,
   p,
-  paddingInlineStart,
-  paddingInlineEnd,
-  paddingBlockStart,
-  paddingBlockEnd,
   pointerEvents,
   position,
   prop,
@@ -64,8 +59,6 @@ import {
   when,
   whiteSpace,
   zIndex,
-  inlineSize,
-  fontStyle,
 } from '@craft-ts/style';
 import {
   duration,
@@ -81,6 +74,23 @@ export const menuState = defineStateAxis('menu-state', ['open'] as const);
 
 export const menuUi = craftStyles('docMenu', {
   root: [display.inlineBlock, position.relative],
+  // The trigger: no box, the look of the links it sits among.
+  trigger: [
+    display.inlineFlex,
+    alignItems.center,
+    gap(space(1)),
+    bg(theme.clear),
+    p(space(0)),
+    borderWidth(unit.px(0)),
+    color(theme.inkMuted),
+    fontFamily(sansFont),
+    ...font(text.sm),
+    fontWeight(weight.medium),
+    cursor.pointer,
+    set(theme.glyph, theme.inkMuted),
+    ...transitions([prop.color], { duration: duration.fast, easing: ease }),
+    when(interaction.hover, [color(theme.ink), set(theme.glyph, theme.ink)]),
+  ],
   panel: [
     display.none,
     flexDirection.column,

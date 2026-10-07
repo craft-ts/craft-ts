@@ -81,6 +81,7 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
           },
         })
       : a(
+          'docNavbarLink',
           {
             class: navbarUi.link,
             href: withBase(base, entry.link),
@@ -93,7 +94,7 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
   );
 
   return header({ class: navbarUi.root }, [
-    a({ class: navbarUi.brand, href: withBase(base, '/') }, [
+    a('docNavbarBrand', { class: navbarUi.brand, href: withBase(base, '/') }, [
       span({ class: navbarUi.mark, 'aria-hidden': 'true' }, [
         DocIcon({
           name: function* () {
@@ -118,8 +119,10 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
           click: () => props.openSearch(),
         },
         [
-          glyph('search'),
-          span({ class: navbarUi.searchText }, searchLabel),
+          span({ class: navbarUi.searchLabel }, [
+            glyph('search'),
+            span({ class: navbarUi.searchText }, searchLabel),
+          ]),
           span({ class: navbarUi.searchKeys, 'aria-hidden': 'true' }, [
             DocKbd({
               keys: function* () {

@@ -28,7 +28,6 @@ import {
   insetBlockStart,
   insetInlineStart,
   interaction,
-  lineWidth,
   num,
   opacity,
   position,

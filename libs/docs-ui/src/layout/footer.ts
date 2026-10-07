@@ -28,7 +28,7 @@ export const DocFooter = craftComponent('DocFooter', {}, function* (
   const links = yield* props.links();
   const items = links.map(
     (link): CraftNodeChild =>
-      a({ class: footerUi.link, href: link.href }, link.text),
+      a('docFooterLink', { class: footerUi.link, href: link.href }, link.text),
   );
   return footer({ class: footerUi.root }, [
     div({ class: footerUi.content }, [

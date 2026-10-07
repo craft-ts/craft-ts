@@ -2,6 +2,7 @@ import {
   craftComponent,
   div,
   h,
+  pre,
   span,
   type CraftNodeChild,
   type Input,
@@ -137,8 +138,7 @@ export const DocCode = craftComponent('DocCode', {}, function* (
   // Focusable on purpose: a block that scrolls sideways must be reachable and
   // scrollable from the keyboard.
   parts.push(
-    h(
-      'pre',
+    pre(
       { class: codeUi.body, tabindex: 0, 'aria-label': filename || 'Code' },
       [
         h(

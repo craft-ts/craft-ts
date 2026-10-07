@@ -11,7 +11,6 @@
 import {
   alignItems,
   bg,
-  blockSize,
   borderBlockEndColor,
   borderBlockEndStyle,
   borderBlockEndWidth,

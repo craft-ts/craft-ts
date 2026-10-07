@@ -25,6 +25,8 @@ import {
   borderBlockEndColor,
   borderBlockEndStyle,
   borderBlockEndWidth,
+  borderWidth,
+  p,
   borderInlineStartColor,
   borderInlineStartStyle,
   borderInlineStartWidth,
@@ -48,7 +50,6 @@ import {
   paddingInlineStart,
   provides,
   py,
-  radii,
   radius,
   scrollPort,
   shadow,
@@ -99,9 +100,9 @@ export const codeUi = craftStyles('docCode', {
     display.block,
     marginBlockEnd(space(5)),
     bg(herbier.surface.code),
-    radius(radii.md),
+    radius(theme.codeCorner),
     // The block floats a little above the page: a soft, opaque shadow.
-    shadow({ y: unit.px(14), blur: unit.px(30), color: theme.shadow }),
+    shadow({ y: unit.px(14), blur: unit.px(30), color: theme.codeLift }),
     // The code surface is dark in both themes, so the spruce ring of the page
     // would vanish on it in the light one: the ring is the pale green here.
     set(craftBase.focusRing, herbier.text.codeKeyword),
@@ -136,6 +137,8 @@ export const codeUi = craftStyles('docCode', {
     alignItems.center,
     gap(space(2)),
     bg(theme.clear),
+    borderWidth(unit.px(0)),
+    p(space(0)),
     cursor.pointer,
     fontFamily(sansFont),
     ...font(text.xs),

@@ -62,7 +62,7 @@ export const DocTabs = craftComponent(
 
     const tabs = items.map((item, index): CraftNodeChild =>
       button(
-        `tab-${item.id}`,
+        'docTab',
         {
           type: 'button',
           class: tabsUi.tab,
@@ -109,7 +109,7 @@ export const DocTabs = craftComponent(
       ),
     );
 
-    return div({ class: tabsUi.root }, [
+    return div({ class: tabsUi.root, 'data-surface': input.surface }, [
       div(
         { class: tabsUi.list, role: 'tablist', 'data-surface': input.surface },
         tabs,

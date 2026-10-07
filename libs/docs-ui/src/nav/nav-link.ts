@@ -38,6 +38,7 @@ export const DocNavLink = craftComponent('DocNavLink', {}, function* (
   }
   parts.push(span(label));
   return a(
+    'docNavLink',
     {
       class: navLinkUi.root,
       href,

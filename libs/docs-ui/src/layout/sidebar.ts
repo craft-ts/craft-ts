@@ -93,12 +93,24 @@ export const DocSidebar = craftComponent('DocSidebar', {}, function* (
   const label = yield* props.label();
 
   let count = 0;
-  const groups = entries.map((entry): CraftNodeChild => {
-    if (!entry.items) {
-      return div({ class: sidebarUi.group }, [
-        ul({ class: sidebarUi.list }, [row(entry, path, base)]),
-      ]);
+  // Consecutive links at the top level share one list, so they sit as close as
+  // the rows of a group do; a group starts a new block.
+  const groups: CraftNodeChild[] = [];
+  let run: CraftNodeChild[] = [];
+  const flush = () => {
+    if (run.length > 0) {
+      groups.push(
+        div({ class: sidebarUi.group }, [ul({ class: sidebarUi.list }, run)]),
+      );
+      run = [];
     }
+  };
+  for (const entry of entries) {
+    if (!entry.items) {
+      run.push(row(entry, path, base));
+      continue;
+    }
+    flush();
     count += 1;
     const label = [
       span({ class: sidebarUi.numeral, 'aria-hidden': 'true' }, roman(count)),
@@ -107,22 +119,28 @@ export const DocSidebar = craftComponent('DocSidebar', {}, function* (
     // A group that declares `collapsed` can fold, open by itself when it holds
     // the page. One that does not is a plain section with a label.
     if (entry.collapsed !== undefined) {
-      return details(
-        {
-          class: sidebarUi.group,
-          ...(!entry.collapsed || holds(entry, path, base) ? { open: true } : {}),
-        },
-        [
-          summary({ class: sidebarUi.disclosure }, label),
+      groups.push(
+        details(
+          {
+            class: sidebarUi.group,
+            ...(!entry.collapsed || holds(entry, path, base) ? { open: true } : {}),
+          },
+          [
+            summary({ class: sidebarUi.disclosure }, label),
+            ul({ class: sidebarUi.list }, items(entry.items, path, base)),
+          ],
+        ),
+      );
+    } else {
+      groups.push(
+        div({ class: sidebarUi.group }, [
+          p({ class: sidebarUi.heading }, label),
           ul({ class: sidebarUi.list }, items(entry.items, path, base)),
-        ],
+        ]),
       );
     }
-    return div({ class: sidebarUi.group }, [
-      p({ class: sidebarUi.heading }, label),
-      ul({ class: sidebarUi.list }, items(entry.items, path, base)),
-    ]);
-  });
+  }
+  flush();
 
   const mobile: CraftNodeChild[] = sections.map((section) =>
     row(

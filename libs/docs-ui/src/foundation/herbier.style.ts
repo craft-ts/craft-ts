@@ -211,6 +211,10 @@ export const theme = cssVars('herbier', {
   forestNear: kind.color(herbier.decor.forestNear, themed),
   forestFront: kind.color(herbier.decor.forestFront, themed),
   contour: kind.color(herbier.decor.contour, themed),
+  // The corner and the shadow of a code block. A code group draws one card for
+  // its tabs and its block, so it sets these to nothing for the block inside.
+  codeCorner: kind.length(unit.px(6), themed),
+  codeLift: kind.color(herbier.effect.shadow, themed),
   infoSurface: kind.color(herbier.surface.info, themed),
   infoBorder: kind.color(herbier.border.info, themed),
   infoInk: kind.color(herbier.text.info, themed),
@@ -342,6 +346,7 @@ const paint = (side: (token: ColorValue) => ColorValue) => [
   set(theme.forestNear, side(herbier.decor.forestNear)),
   set(theme.forestFront, side(herbier.decor.forestFront)),
   set(theme.contour, side(herbier.decor.contour)),
+  set(theme.codeLift, side(herbier.effect.shadow)),
   set(theme.infoSurface, side(herbier.surface.info)),
   set(theme.infoBorder, side(herbier.border.info)),
   set(theme.infoInk, side(herbier.text.info)),
@@ -379,14 +384,20 @@ export const paintDark = dark;
 
 /**
  * The widths the layout changes at. A phone gets one column and a drawer, a
- * tablet adds the sidebar, a laptop adds the outline. Declared ascending: the
- * order is what lets the matrix reduce them by interval.
+ * tablet adds the sidebar, a laptop adds the outline.
+ *
+ * **The names are chosen to sort.** The emitter orders conditional atoms by
+ * class name, and the class name carries the breakpoint's name, so two
+ * breakpoints that set the same property land in alphabetical order, not in
+ * declaration order. With `sm`, `md`, `lg` that order is `lg`, `md`, `sm`: the
+ * narrow rule would win at every width. `compact` < `medium` < `wide` <
+ * `xwide` is ascending both ways, and `herbier.spec.ts` keeps it that way.
  */
 export const bp = defineBreakpoints({
-  sm: at.minInlineSize(unit.rem(36)),
-  md: at.minInlineSize(unit.rem(48)),
-  lg: at.minInlineSize(unit.rem(64)),
-  xl: at.minInlineSize(unit.rem(80)),
+  compact: at.minInlineSize(unit.rem(36)),
+  medium: at.minInlineSize(unit.rem(48)),
+  wide: at.minInlineSize(unit.rem(64)),
+  xwide: at.minInlineSize(unit.rem(80)),
 });
 
 /** Which side a scoped subtree is forced to. */
@@ -395,6 +406,7 @@ export const scope = defineStateAxis('scope', ['light', 'dark'] as const);
 craftGlobalStyles('herbier', {
   root: [
     ...light,
+    set(theme.codeCorner, unit.px(6)),
     set(craftBase.focusOffset, unit.px(3)),
     // Follows the user agent …
     when(scheme.dark, dark),

@@ -46,7 +46,7 @@ export const DocSearchResults = craftComponent('DocSearchResults', {}, function*
     hits.map(
       (hit): CraftNodeChild =>
         li([
-          a({ class: searchUi.hit, href: withBase(base, hit.entry.href) }, [
+          a('docSearchHit', { class: searchUi.hit, href: withBase(base, hit.entry.href) }, [
             span({ class: searchUi.title }, hit.entry.title),
             ...(hit.heading ? [span({ class: searchUi.where }, hit.heading)] : []),
           ]),

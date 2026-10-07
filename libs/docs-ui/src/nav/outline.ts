@@ -36,6 +36,7 @@ export const DocOutline = craftComponent('DocOutline', {}, function* (
     (entry): CraftNodeChild =>
       li([
         a(
+          'docOutlineLink',
           {
             class: outlineUi.link,
             href: `#${entry.id}`,

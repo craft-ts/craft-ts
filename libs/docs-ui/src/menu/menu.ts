@@ -15,7 +15,6 @@ import {
   type CraftServiceInput,
 } from '@craft-ts/core';
 import { DocIcon } from '../icon/icon.ts';
-import { buttonUi } from '../button/button.style.ts';
 import { menuUi } from './menu.style.ts';
 
 export interface MenuItem {
@@ -87,6 +86,7 @@ export const DocMenu = craftComponent(
     const rows = items.map(
       (item): CraftNodeChild =>
         a(
+          'docMenuItem',
           {
             class: menuUi.item,
             role: 'menuitem',
@@ -105,8 +105,7 @@ export const DocMenu = craftComponent(
         'docMenuTrigger',
         {
           type: 'button',
-          class: buttonUi.root,
-          'data-variant': 'secondary',
+          class: menuUi.trigger,
           'aria-haspopup': 'menu',
           'aria-controls': `${id}-panel`,
           'aria-expanded': isOpen,

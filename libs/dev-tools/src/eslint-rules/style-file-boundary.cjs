@@ -50,6 +50,8 @@ module.exports = {
       // A relative import is fine as long as it lands on another style file:
       // splitting a design system across files must stay possible.
       if (source.startsWith('.') && source.endsWith('.style')) return;
+      // The same, with the extension spelled out (`./tokens.style.ts`).
+      if (source.startsWith('.') && source.endsWith(suffix)) return;
       if (source.startsWith('.') && source.endsWith(suffix.slice(0, -3)))
         return;
       context.report({

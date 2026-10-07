@@ -29,6 +29,7 @@ export const DocPager = craftComponent('DocPager', {}, function* (
   if (previous) {
     parts.push(
       a(
+        'docPagerPrevious',
         {
           class: pagerUi.link,
           href: previous.href,
@@ -46,6 +47,7 @@ export const DocPager = craftComponent('DocPager', {}, function* (
   if (next) {
     parts.push(
       a(
+        'docPagerNext',
         {
           class: pagerUi.link,
           href: next.href,

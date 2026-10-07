@@ -2,7 +2,7 @@ import {
   craftComponent,
   dialog,
   div,
-  h,
+  heading as relativeHeading,
   renderContent,
   type ContentSlot,
   type CraftNodeChild,
@@ -35,7 +35,7 @@ export const DocDialog = craftComponent('DocDialog', {}, function* (
   props: DialogInput,
 ) {
   const open = yield* props.open();
-  const heading = yield* props.heading();
+  const headingText = yield* props.heading();
   const id = yield* props.dialogId();
 
   const children: CraftNodeChild[] = [];
@@ -50,7 +50,7 @@ export const DocDialog = craftComponent('DocDialog', {}, function* (
         },
         [
           div({ class: dialogUi.header }, [
-            h('h2', { id: `${id}-title`, class: dialogUi.title }, heading),
+            relativeHeading({ id: `${id}-title`, class: dialogUi.title }, headingText),
             button(
               'docDialogClose',
               {

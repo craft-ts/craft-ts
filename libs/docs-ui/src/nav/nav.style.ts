@@ -56,7 +56,6 @@ import {
   flex,
   justifyContent,
   marginInlineStart,
-  inlineSize,
   defineStateAxis,
   borderRadius,
   borderWidth,

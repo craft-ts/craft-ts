@@ -9,7 +9,12 @@ import {
   type CraftNodeChild,
   type Input,
 } from '@craft-ts/component';
-import { craftExpose, craftService, fromEventToSource$, state } from '@craft-ts/core';
+import {
+  craftExpose,
+  craftService,
+  fromEventToSource$,
+  state,
+} from '@craft-ts/core';
 import { DocBreadcrumb } from '../nav/breadcrumb.ts';
 import { DocOutline } from '../nav/outline.ts';
 import { DocPager } from '../nav/pager.ts';
@@ -79,7 +84,10 @@ export const { DocLayoutView, provideDocLayoutView } = craftService(
     if (typeof document !== 'undefined') {
       fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
         (event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+          if (
+            (event.metaKey || event.ctrlKey) &&
+            event.key.toLowerCase() === 'k'
+          ) {
             event.preventDefault();
             ui.openSearch();
           }
@@ -171,44 +179,57 @@ export const DocLayout = craftComponent(
       );
     }
     columns.push(
-      main({ id: 'main', class: layoutUi.main }, [
-        ...(hasSidebar && trail.length > 0
-          ? [
-              div({ class: layoutUi.trail }, [
-                DocBreadcrumb({
-                  trail: function* () {
-                    return trail;
-                  },
-                }),
-              ]),
-            ]
-          : []),
-        div({ class: layoutUi.article }, renderContent('body', props.body)),
-        ...(hasSidebar && (pager.previous || pager.next)
-          ? [
-              div({ class: layoutUi.pager }, [
-                DocPager({
-                  previous: function* () {
-                    return pager.previous
-                      ? {
-                          label: pager.previous.text,
-                          href: withBase(site.base, pager.previous.link),
-                        }
-                      : null;
-                  },
-                  next: function* () {
-                    return pager.next
-                      ? {
-                          label: pager.next.text,
-                          href: withBase(site.base, pager.next.link),
-                        }
-                      : null;
-                  },
-                }),
-              ]),
-            ]
-          : []),
-      ]),
+      main(
+        {
+          id: 'main',
+          class: layoutUi.main,
+          'data-sidebar': hasSidebar ? 'with' : 'without',
+        },
+        [
+          ...(hasSidebar && trail.length > 0
+            ? [
+                div({ class: layoutUi.trail }, [
+                  DocBreadcrumb({
+                    trail: function* () {
+                      return trail;
+                    },
+                  }),
+                ]),
+              ]
+            : []),
+          div(
+            {
+              class: layoutUi.article,
+              'data-sidebar': hasSidebar ? 'with' : 'without',
+            },
+            renderContent('body', props.body),
+          ),
+          ...(hasSidebar && (pager.previous || pager.next)
+            ? [
+                div({ class: layoutUi.pager }, [
+                  DocPager({
+                    previous: function* () {
+                      return pager.previous
+                        ? {
+                            label: pager.previous.text,
+                            href: withBase(site.base, pager.previous.link),
+                          }
+                        : null;
+                    },
+                    next: function* () {
+                      return pager.next
+                        ? {
+                            label: pager.next.text,
+                            href: withBase(site.base, pager.next.link),
+                          }
+                        : null;
+                    },
+                  }),
+                ]),
+              ]
+            : []),
+        ],
+      ),
     );
     if (hasSidebar) {
       columns.push(
@@ -261,7 +282,13 @@ export const DocLayout = craftComponent(
             return (yield* view.ui()).navOpen;
           },
         }),
-        div({ class: layoutUi.shell, 'data-sidebar': hasSidebar ? 'with' : 'without' }, columns),
+        div(
+          {
+            class: layoutUi.shell,
+            'data-sidebar': hasSidebar ? 'with' : 'without',
+          },
+          columns,
+        ),
         DocFooter({ note: props.footerNote, links: props.footerLinks }),
         DocSearch({
           open: function* () {
