@@ -7,14 +7,14 @@
  * variables, and every part reads those three: the title is a different
  * element, and a variable that inherits is how it learns the tone without a
  * second attribute.
+ *
+ * Colour is never the only carrier of the tone: each one has its own glyph
+ * (a leaf, a sprout, a triangle…) and its own caption, so a reader who cannot
+ * tell the colours apart loses nothing.
  */
 import {
   bg,
   borderColor,
-  borderEndEndRadius,
-  borderEndStartRadius,
-  borderStartEndRadius,
-  borderStartStartRadius,
   borderStyle,
   borderWidth,
   color,
@@ -24,30 +24,33 @@ import {
   font,
   fontFamily,
   fontWeight,
+  insetBlockStart,
+  insetInlineStart,
   kind,
   letterSpacing,
   lineWidth,
+  marginBlockEnd,
   p,
+  paddingInlineEnd,
   paddingInlineStart,
   position,
-  pseudo,
-  px,
   py,
   radii,
+  radius,
   set,
   space,
   text,
   unit,
   when,
-  insetBlockStart,
-  insetInlineStart,
-  inlineSize,
-  blockSize,
-  radius,
-  marginBlockEnd,
 } from '@craft-ts/style';
-import { arriving, display as displayFont, herbier, tone } from '../foundation/herbier.style.ts';
-import { theme } from '../foundation/herbier.style.ts';
+import {
+  arriving,
+  herbier,
+  sansFont,
+  theme,
+  tone,
+  weight,
+} from '../foundation/herbier.style.ts';
 
 const inherited = { inherits: true } as const;
 
@@ -60,21 +63,18 @@ const v = cssVars('docCallout', {
 export const calloutUi = craftStyles('docCallout', {
   root: [
     display.block,
-    position.relative,
-    py(space(3)),
-    px(space(4)),
-    paddingInlineStart(space(10)),
+    py(space(4)),
+    paddingInlineEnd(space(4)),
+    // Room for the glyph: 56 px in the mock-up.
+    paddingInlineStart(unit.rem(3.5)),
     marginBlockEnd(space(4)),
     borderWidth(lineWidth.hairline),
     borderStyle.solid,
     borderColor(v.border),
     bg(v.surface),
     color(theme.ink),
-    // The cloud: three generous corners and one that stays square.
-    borderStartStartRadius(unit.rem(1.25)),
-    borderStartEndRadius(unit.rem(1.25)),
-    borderEndEndRadius(unit.rem(1.25)),
-    borderEndStartRadius(radii.sm),
+    radius(radii.md),
+    ...font(text.sm),
     ...arriving,
     set(v.surface, theme.infoSurface),
     set(v.border, theme.infoBorder),
@@ -83,6 +83,11 @@ export const calloutUi = craftStyles('docCallout', {
       set(v.surface, theme.tipSurface),
       set(v.border, theme.tipBorder),
       set(v.ink, theme.tipInk),
+    ]),
+    when(tone.important, [
+      set(v.surface, theme.importantSurface),
+      set(v.border, theme.importantBorder),
+      set(v.ink, theme.importantInk),
     ]),
     when(tone.warning, [
       set(v.surface, theme.warningSurface),
@@ -94,33 +99,23 @@ export const calloutUi = craftStyles('docCallout', {
       set(v.border, theme.dangerBorder),
       set(v.ink, theme.dangerInk),
     ]),
-    when(tone.important, [
-      set(v.surface, theme.importantSurface),
-      set(v.border, theme.importantBorder),
-      set(v.ink, theme.importantInk),
-    ]),
-    // The marker. A shape, not an icon: it keeps the tone legible for someone
-    // who cannot tell the colours apart, together with the title text.
-    pseudo.before([
-      pseudo.content.empty,
-      display.block,
-      position.absolute,
-      insetInlineStart(space(4)),
-      insetBlockStart(space(4)),
-      inlineSize(space(4)),
-      blockSize(space(4)),
-      radius(radii.full),
-      bg(v.ink),
-    ]),
+    // The glyph reads the tone's ink through the theme's icon variable.
+    set(theme.glyph, v.ink),
+  ],
+  icon: [
+    display.block,
+    position.absolute,
+    insetInlineStart(space(4)),
+    insetBlockStart(space(4)),
   ],
   title: [
     display.block,
     marginBlockEnd(space(1)),
-    fontFamily(displayFont),
+    fontFamily(sansFont),
     ...font(text.xs),
-    fontWeight.bold,
-    letterSpacing(unit.em(0.1)),
+    fontWeight(weight.semibold),
+    letterSpacing(unit.em(0.2)),
     color(v.ink),
   ],
-  body: [display.block, ...font(text.sm), p(space(0))],
+  body: [display.block, p(space(0))],
 });

@@ -75,6 +75,6 @@ describe('DocCallout', () => {
     expect(css).toContain('prefers-color-scheme');
     expect(css).toContain("[data-mode='dark']");
     expect(css).toContain("[data-mode='light']");
-    expect(css).toContain('@keyframes herbierArrive');
+    expect(css).toContain('@keyframes herbierRise');
   });
 });
