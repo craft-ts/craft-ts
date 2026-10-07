@@ -585,7 +585,7 @@ De cette revue :
 
 ## 11. État d'avancement (2026-10-07, fin de session)
 
-Branche `feat/storm-ui` (worktree `../ng-craft.worktrees/storm-ui`), 8 commits sur `main` (0c737f6c3).
+Branche `feat/storm-ui` (worktree `../ng-craft.worktrees/storm-ui`), au-dessus de `main` (0c737f6c3) ; `git log 0c737f6c3..` donne les commits.
 Vérifié : `tsc -p libs/docs-ui/tsconfig.spec.json` propre, **156 tests / 16 fichiers**
 verts, ESLint à **0 erreur** avec les préréglages `style`, `a11y` et `typedCss`
 (`libs/docs-ui/eslint.config.mjs`), 310 tests de `libs/component` verts, rendu
