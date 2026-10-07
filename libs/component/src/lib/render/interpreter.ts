@@ -60,6 +60,7 @@ import {
   ɵinjectCraftMatch,
   ɵinjectCraftChildMatch,
   ɵrunInInjectionContext,
+  ɵcraftBatch,
   craftUse,
 } from '@craft-ts/core';
 import {
@@ -4879,12 +4880,18 @@ class ComponentRenderedNode implements RenderedNode {
     }
 
     const props = node.props as Record<string, unknown>;
-    this.propKeys.forEach((key, index) => {
-      this.propSources[index].set(props[key]);
+    // One update, not one per input: effects run synchronously, so each separate write
+    // would run the component's template again with the others still the old value, and
+    // a component with twelve inputs would be drawn thirteen times for one change —
+    // each of them patching its own children the same way.
+    ɵcraftBatch(() => {
+      this.propKeys.forEach((key, index) => {
+        this.propSources[index].set(props[key]);
+      });
+      this.hostPropsSource.set(
+        hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
+      );
     });
-    this.hostPropsSource.set(
-      hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
-    );
     return true;
   }
 

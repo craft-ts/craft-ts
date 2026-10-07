@@ -33,6 +33,7 @@ export * from './layout/mode.ts';
 export * from './layout/season.ts';
 export * from './foundation/season.ts';
 export * from './site/site.ts';
+export * from './site/navigated.ts';
 export * from './site/search.ts';
 export * from './markdown/render.ts';
 export type {

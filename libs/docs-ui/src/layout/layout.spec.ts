@@ -10,6 +10,7 @@ import { renderCss } from '@craft-ts/style/vite';
 import type { SiteConfig } from '../site/site.ts';
 import { DocNotFound, DocHome } from './home.ts';
 import { defaultLabels, DocLayout } from './layout.ts';
+import { NAVIGATED_EVENT } from '../site/navigated.ts';
 
 afterEach(() => {
   document.documentElement.removeAttribute('data-mode');
@@ -332,6 +333,23 @@ describe('DocLayout on a page of a section', () => {
     await rendered.flush();
     expect(menu.getAttribute('aria-expanded')).toBe('true');
     expect(sidebar.getAttribute('data-open')).toBe('true');
+    rendered.destroy();
+  });
+
+  it('closes the drawer and the search when the reader moves to another page', async () => {
+    const rendered = await renderLayout('/guide/');
+    document.body.append(rendered.element);
+    (rendered.element.querySelector(`button[aria-label="${defaultLabels.menu}"]`) as HTMLButtonElement).click();
+    (rendered.element.querySelector('button[aria-keyshortcuts]') as HTMLButtonElement).click();
+    await rendered.flush();
+    const sidebar = rendered.element.querySelector('aside[aria-label="Documentation"]') as HTMLElement;
+    expect(sidebar.getAttribute('data-open')).toBe('true');
+    expect(rendered.element.querySelector('dialog')?.hasAttribute('open')).toBe(true);
+
+    document.dispatchEvent(new CustomEvent(NAVIGATED_EVENT));
+    await rendered.flush();
+    expect(sidebar.getAttribute('data-open')).toBe('false');
+    expect(rendered.element.querySelector('dialog')?.hasAttribute('open')).toBe(false);
     rendered.destroy();
   });
 

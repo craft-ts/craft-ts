@@ -15,6 +15,7 @@ import {
   type CraftServiceInput,
 } from '@craft-ts/core';
 import { DocIcon } from '../icon/icon.ts';
+import { NAVIGATED_EVENT } from '../site/navigated.ts';
 import { menuUi } from './menu.style.ts';
 
 export interface MenuItem {
@@ -60,6 +61,7 @@ export const { DocMenuView, provideDocMenuView } = craftService(
           if (event.key === 'Escape') open.close();
         },
       );
+      fromEventToSource$<Event>(document, NAVIGATED_EVENT).subscribe(() => open.close());
     }
     yield* craftExpose('toggle', open.toggle);
     yield* craftExpose('close', open.close);

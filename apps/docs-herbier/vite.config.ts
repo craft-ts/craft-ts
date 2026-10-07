@@ -43,6 +43,23 @@ function docsRenderer() {
           })();
           return;
         }
+        if (url.pathname.startsWith('/page-data/') && url.pathname.endsWith('.json')) {
+          void (async () => {
+            try {
+              const dev = await server.ssrLoadModule('/src/server/dev.ts');
+              const page = await dev.devPageData(
+                url.pathname.slice('/page-data'.length).replace(/\.json$/, '').replace(/\/index$/, '/'),
+                '/',
+              );
+              response.statusCode = page ? 200 : 404;
+              response.setHeader('content-type', 'application/json');
+              response.end(JSON.stringify(page ?? null));
+            } catch (error) {
+              next(error);
+            }
+          })();
+          return;
+        }
         if (isAsset(url.pathname)) {
           next();
           return;

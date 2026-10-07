@@ -1,6 +1,6 @@
 import { bootScript, withBase, type SiteConfig } from '@craft-ts/docs-ui';
 import { LOCKED_DARK_PATH } from '../locked.ts';
-import type { PageData } from '../page-data.ts';
+import { documentTitle, type PageData } from '../page-data.ts';
 
 export interface Assets {
   /** Module scripts to run, as paths the browser can fetch. */
@@ -35,12 +35,11 @@ export const renderDocument = (options: {
   readonly description?: string;
 }): string => {
   const { site, page, assets } = options;
-  const title =
-    page.route === '/' ? site.title : `${page.title} | ${site.title}`;
+  const title = documentTitle(site.title, page);
   const description = options.description ?? site.description ?? '';
   const href = (path: string) => escapeHtml(withBase(site.base, path));
   return `<!doctype html>
-<html lang="en" data-base="${escapeHtml(site.base)}">
+<html lang="en" data-base="${escapeHtml(site.base)}" data-site-title="${escapeHtml(site.title)}">
   <head>
     <meta charset="utf-8" />
     <title>${escapeHtml(title)}</title>

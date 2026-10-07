@@ -2,6 +2,7 @@ import { discoverPages } from '@craft-ts/docs-ui/node';
 import { createDocs, docsSource, type Docs } from './docs.ts';
 import type { Assets } from './document.ts';
 import { renderPage } from './render.ts';
+import { routeOfPath } from '../page-data.ts';
 import { siteAt } from './site.ts';
 
 export interface DevResult {
@@ -40,4 +41,12 @@ export const devSearchIndex = (base = '/'): Promise<readonly unknown[]> => {
     return entries;
   })();
   return index;
+};
+
+/** The data of one page, as the build writes it to `page-data/`: `undefined` for no such page. */
+export const devPageData = async (pathname: string, base: string): Promise<unknown> => {
+  docs ??= createDocs({ srcRoot: docsSource(), site: siteAt(base) });
+  const loaded = await docs;
+  const route = routeOfPath(pathname, base);
+  return route === undefined ? undefined : (await loaded.load(route))?.data;
 };

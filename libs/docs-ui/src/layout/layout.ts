@@ -31,6 +31,7 @@ import {
 import { DocToastRegion, provideDocToastQueue } from '../toast/toast.ts';
 import { DocFooter, type FooterLink } from './footer.ts';
 import { layoutUi } from './layout.style.ts';
+import { NAVIGATED_EVENT } from '../site/navigated.ts';
 import { provideDocModeView, type Mode } from './mode.ts';
 import { defaultSeasonNames, type SeasonNames } from '../foundation/season.ts';
 import { provideDocSeasonView } from './season.ts';
@@ -85,9 +86,14 @@ export const { DocLayoutView, provideDocLayoutView } = craftService(
         closeSearch: () => update((value) => ({ ...value, searchOpen: false })),
         toggleNav: () =>
           update((value) => ({ ...value, navOpen: !value.navOpen })),
+        /** On another page: nothing the last one opened stays open. */
+        arrived: () => update(() => ({ searchOpen: false, navOpen: false })),
       }),
     );
     if (typeof document !== 'undefined') {
+      fromEventToSource$<Event>(document, NAVIGATED_EVENT).subscribe(() =>
+        ui.arrived(),
+      );
       fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe(
         (event) => {
           if (
@@ -103,6 +109,7 @@ export const { DocLayoutView, provideDocLayoutView } = craftService(
     yield* craftExpose('openSearch', ui.openSearch);
     yield* craftExpose('closeSearch', ui.closeSearch);
     yield* craftExpose('toggleNav', ui.toggleNav);
+    yield* craftExpose('arrived', ui.arrived);
   },
 );
 
@@ -196,6 +203,9 @@ export const DocLayout = craftComponent(
       main(
         {
           id: 'main',
+          // So that arriving on a page can move the focus here: the reader who navigates
+          // by keyboard or screen reader starts at the new page, not at the link they pressed.
+          tabindex: '-1',
           class: layoutUi.main,
           'data-sidebar': hasSidebar ? 'with' : 'without',
         },

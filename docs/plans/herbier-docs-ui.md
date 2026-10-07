@@ -713,6 +713,35 @@ clair/sombre.
   tombent, neige, lucioles, pollen), le grain et la brume. L'Herbier classique n'est
   atteignable que sans `data-season` (JavaScript désactivé).
 
+### Navigation sans rechargement (fait, 2026-10-07)
+
+Chaque clic sur un lien interne rechargeait le document puis réhydratait tout : ~0,4 s en
+dev, un flash blanc, le scroll perdu. Le site garde un HTML complet par page (première
+visite, moteurs de recherche, lien ouvert dans un onglet) et sait en plus changer de page
+sans charger de document.
+
+- **Données** : le build écrit `page-data/<route>.json` (une `PageData`, 4 Mo en tout) ; le
+  serveur de dev répond à la même URL (`devPageData`).
+- **Service** `DocsNavigation` (`apps/docs-herbier/src/navigation.ts`, craft-ts seul, pas
+  d'Angular) : intercepte les clics sur les liens internes (pas les modificateurs, `target`,
+  autres sites, fichiers), lit le JSON (préchargé au survol), pose la page dans un `state` que
+  `DocsRoot` lit. Historique (`pushState`, retour arrière avec la position de scroll
+  sauvegardée), scroll en haut ou vers l'ancre, focus sur `main` (`tabindex=-1`),
+  `document.title`, mode forcé de `/learn-effect/` posé puis rendu. Tout ce qu'il ne sait
+  pas faire (page sans données, erreur réseau) retombe sur un chargement normal.
+- **Fermeture** : l'événement `doc-navigated` (`NAVIGATED_EVENT`) ferme le tiroir, la
+  recherche et les menus ouverts.
+- **Mesuré** (site construit, navigateur) : 12 à 53 ms pour dessiner la page suivante, le
+  cadre (barre, sidebar, mode, saison) reste le même élément. Avant le correctif du moteur
+  ci-dessous : 280 à 500 ms.
+- **Défaut du moteur trouvé en route** (`libs/component`, `interpreter.ts`) :
+  `ComponentRenderedNode.patch` écrivait les entrées d'un composant une par une, et les
+  effets tournent de façon synchrone : un composant à douze entrées était dessiné treize fois
+  par changement, avec des états intermédiaires incohérents (`2-1-1`, `2-2-1`), et chaque
+  copie recommençait sur ses enfants (la barre était dessinée 132 fois par navigation).
+  Les écritures sont maintenant regroupées (`ɵcraftBatch`), test
+  `component-props-batch.spec.ts` (échoue sans le correctif). Gain : ~9 fois en jsdom.
+
 ### Reste à faire
 
 1. **Retirer VitePress** quand la comparaison est faite : déplacer la navigation

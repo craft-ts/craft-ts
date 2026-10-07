@@ -15,6 +15,7 @@ import { AgentPrompt } from './components/agent-prompt.ts';
 import { AuthorNote } from './components/author-note.ts';
 import { TemplateMigrator } from './components/template-migrator.ts';
 import { LOCKED_DARK_PATH } from './locked.ts';
+import { DocsNavigation, provideDocsNavigation } from './navigation.ts';
 import type { DocsProps, PageData, SiteConfig } from './page-data.ts';
 
 /** Where the search index is written, next to the pages. */
@@ -117,11 +118,14 @@ const lockedModeOf = (route: string): '' | 'dark' =>
 
 export const DocsRoot = craftComponent(
   'DocsRoot',
-  { providers: [provideDocsSearchIndex()] },
+  { providers: [provideDocsSearchIndex(), provideDocsNavigation()] },
   function* (input: { readonly [K in keyof DocsProps]: Input<DocsProps[K]> }) {
     const index = yield* DocsSearchIndex();
+    const navigation = yield* DocsNavigation();
     const site = yield* input.site();
-    const page = yield* input.page();
+    const loaded = yield* input.page();
+    // The page the server drew, until the reader moves to another without a load.
+    const page = (yield* navigation.page()) ?? loaded;
     return DocLayout({
       site: function* () {
         return site;

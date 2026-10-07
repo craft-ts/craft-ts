@@ -13,6 +13,7 @@ import { renderLlmsTxt, type SearchEntry } from '@craft-ts/docs-ui';
 import { SEARCH_INDEX } from '../root.ts';
 import { createDocs, docsSource } from './docs.ts';
 import type { Assets } from './document.ts';
+import { pageDataFile } from '../page-data.ts';
 import { renderPage } from './render.ts';
 import { siteAt } from './site.ts';
 
@@ -65,6 +66,8 @@ const main = async (): Promise<void> => {
     if (!loaded) throw new Error(`No page for ${route}.`);
     entries.push(loaded.entry);
     write(outDir, fileOfRoute(route), await renderPage(docs.site, loaded.data, assets));
+    // What a press on a link to this page fetches instead of the document.
+    write(outDir, pageDataFile(route), JSON.stringify(loaded.data));
   }
   write(outDir, '404.html', await renderPage(docs.site, docs.notFound(), assets));
   write(outDir, SEARCH_INDEX, JSON.stringify(entries));
