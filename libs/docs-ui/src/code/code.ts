@@ -8,7 +8,7 @@ import {
   type Input,
 } from '@craft-ts/component';
 import { DocCopyButton } from './copy-button.ts';
-import { codeUi } from './code.style.ts';
+import { codeUi, lineUi, tokenUi } from './code.style.ts';
 
 /** What kind of word a token is. `undefined` is plain text. */
 export type TokenKind =
@@ -64,6 +64,29 @@ const GLYPH: Readonly<Record<LineMark, string>> = {
   dim: ' ',
 };
 
+const renderToken = (token: CodeToken): CraftNodeChild => {
+  // One literal class per kind, so every class a page can carry is a plain member.
+  switch (token.kind) {
+    case 'keyword':
+      return span({ class: tokenUi.keyword }, token.text);
+    case 'function':
+      return span({ class: tokenUi.function }, token.text);
+    case 'string':
+      return span({ class: tokenUi.string }, token.text);
+    case 'number':
+      return span({ class: tokenUi.number }, token.text);
+    case 'type':
+      return span({ class: tokenUi.type }, token.text);
+    case 'comment':
+      return span({ class: tokenUi.comment }, token.text);
+    case 'punctuation':
+      return span({ class: tokenUi.punctuation }, token.text);
+    default:
+      // Plain text needs no span of its own: it takes the colour of the block.
+      return token.text;
+  }
+};
+
 const renderLine = (
   line: CodeLine,
   position: number,
@@ -91,19 +114,25 @@ const renderLine = (
       ),
     );
   }
-  for (const token of line.tokens) {
-    parts.push(
-      span(
-        { class: codeUi.token, 'data-syntax': token.kind ?? 'plain' },
-        token.text,
-      ),
-    );
-  }
+  for (const token of line.tokens) parts.push(renderToken(token));
   parts.push('\n');
-  return span(
-    { class: codeUi.line, 'data-mark': line.mark ?? 'none' },
-    parts,
-  );
+  const mark = line.mark ? { 'data-mark': line.mark } : {};
+  switch (line.mark) {
+    case 'highlight':
+      return span({ class: lineUi.highlight, ...mark }, parts);
+    case 'add':
+      return span({ class: lineUi.add, ...mark }, parts);
+    case 'remove':
+      return span({ class: lineUi.remove, ...mark }, parts);
+    case 'error':
+      return span({ class: lineUi.error, ...mark }, parts);
+    case 'warning':
+      return span({ class: lineUi.warning, ...mark }, parts);
+    case 'dim':
+      return span({ class: lineUi.dim, ...mark }, parts);
+    default:
+      return span({ class: lineUi.plain }, parts);
+  }
 };
 
 /** The code as plain text: what "Copy" puts on the clipboard. */

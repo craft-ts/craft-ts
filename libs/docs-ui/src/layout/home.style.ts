@@ -130,6 +130,7 @@ export const homeUi = craftStyles('docHome', {
     marginBlockStart(space(8)),
   ],
   figure: [display.block, maxInlineSize(unit.rem(16.375)), inlineSize(unit.pct(100))],
+  extra: [display.block, marginBlockStart(space(5))],
   caption: [
     display.block,
     marginBlockStart(space(2)),

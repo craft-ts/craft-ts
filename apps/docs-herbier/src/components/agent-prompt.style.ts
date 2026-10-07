@@ -1,0 +1,88 @@
+/**
+ * "Start with an agent": the card of the home page that carries a setup prompt.
+ * It is a console, so it stands on the code surface — dark in both themes — and
+ * reads its colours from the palette the way a code block does.
+ */
+import {
+  alignItems,
+  bg,
+  borderBlockEndColor,
+  borderBlockEndStyle,
+  borderBlockEndWidth,
+  borderRadius,
+  color,
+  craftBase,
+  craftStyles,
+  display,
+  font,
+  fontFamily,
+  fontWeight,
+  gap,
+  justifyContent,
+  letterSpacing,
+  lineWidth,
+  marginBlock,
+  p,
+  paddingBlock,
+  paddingInline,
+  radii,
+  set,
+  shadow,
+  space,
+  text,
+  textOverflow,
+  textTransform,
+  unit,
+  whiteSpace,
+  provides,
+  scrollPort,
+} from '@craft-ts/style';
+import {
+  herbier,
+  monoFont,
+  sansFont,
+  theme,
+  weight,
+} from '@craft-ts/docs-ui/style';
+
+export const agentPromptUi = craftStyles('agentPrompt', {
+  root: [
+    display.block,
+    bg(herbier.surface.code),
+    borderRadius(radii.md),
+    shadow({ y: unit.px(14), blur: unit.px(30), color: theme.shadow }),
+    set(craftBase.focusRing, herbier.text.codeKeyword),
+  ],
+  header: [
+    display.flex,
+    alignItems.center,
+    justifyContent.spaceBetween,
+    gap(space(3)),
+    paddingBlock(space(2)),
+    paddingInline(space(4)),
+    borderBlockEndWidth(lineWidth.hairline),
+    borderBlockEndStyle.solid,
+    borderBlockEndColor(herbier.border.codeLine),
+  ],
+  eyebrow: [
+    p(space(0)),
+    fontFamily(sansFont),
+    ...font(text.xs),
+    fontWeight(weight.semibold),
+    letterSpacing(unit.em(0.12)),
+    textTransform.uppercase,
+    color(herbier.text.codeKeyword),
+  ],
+  preview: [
+    display.block,
+    marginBlock(space(0)),
+    paddingBlock(space(3)),
+    paddingInline(space(4)),
+    fontFamily(monoFont),
+    ...font(text.xs),
+    color(herbier.text.codePlain),
+    whiteSpace.nowrap,
+    textOverflow.ellipsis,
+    provides(scrollPort.inline),
+  ],
+});

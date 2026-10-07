@@ -6,8 +6,10 @@ import {
   figure,
   heading,
   p,
+  renderContent,
   section,
   span,
+  type ContentSlot,
   type CraftNodeChild,
   type Input,
 } from '@craft-ts/component';
@@ -44,6 +46,8 @@ export interface HomeInput {
   readonly hero: Input<HomeHero>;
   readonly features: Input<readonly HomeFeature[]>;
   readonly base: Input<string>;
+  /** What stands under the plate: a card that is the site's, not the theme's. */
+  readonly extra: ContentSlot;
 }
 
 /**
@@ -94,6 +98,7 @@ export const DocHome = craftComponent('DocHome', {}, function* (props: HomeInput
         figure({ class: homeUi.figure }, [
           DocPlate({}),
           figcaption({ class: homeUi.caption }, hero.plateCaption),
+          div({ class: homeUi.extra }, renderContent('extra', props.extra)),
         ]),
       ]),
       div({ class: homeUi.forest }, [DocForest({})]),

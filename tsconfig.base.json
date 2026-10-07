@@ -24,6 +24,7 @@
       "@craft-ts/core": ["./libs/core/src/index.ts"],
       "@craft-ts/i18n": ["./libs/i18n/src/index.ts"],
       "@craft-ts/docs-ui/node": ["./libs/docs-ui/src/node.ts"],
+      "@craft-ts/docs-ui/style": ["./libs/docs-ui/src/style.ts"],
       "@craft-ts/docs-ui": ["./libs/docs-ui/src/index.ts"],
       "@craft-ts/i18n-effect": ["./libs/i18n-effect/src/index.ts"],
       "@craft-ts/core/dev-tools": ["./libs/core/src/lib/dev-tools.ts"],

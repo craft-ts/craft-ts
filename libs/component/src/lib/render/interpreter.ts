@@ -980,13 +980,24 @@ function isElementNode(node: unknown): node is Element {
   );
 }
 
+/** Is this node still being claimed from server HTML, rather than created? */
+function isHydrating(context: RenderContext): context is RenderContext & {
+  readonly hydration: NonNullable<RenderContext['hydration']>;
+} {
+  return (
+    context.mode === 'hydrate' &&
+    context.hydration !== undefined &&
+    !context.hydration.finished
+  );
+}
+
 function mountComment(
   parent: NativeParent,
   value: string,
   before: NativeNode | null,
   context: RenderContext,
 ): Comment {
-  if (context.mode === 'hydrate' && context.hydration) {
+  if (isHydrating(context)) {
     try {
       return context.hydration.claimBoundary(
         context.identity.hydrationKey,
@@ -1012,7 +1023,7 @@ function createElementForRender(
   before: NativeNode | null,
   context: RenderContext,
 ): { readonly element: Element; readonly context: RenderContext } {
-  if (context.mode === 'hydrate' && context.hydration) {
+  if (isHydrating(context)) {
     try {
       return {
         element: context.hydration.claimElement(
@@ -1063,7 +1074,7 @@ function createTextForRender(
   context: RenderContext,
   compare: boolean,
 ): { readonly text: Text; readonly context: RenderContext } {
-  if (context.mode === 'hydrate' && context.hydration) {
+  if (isHydrating(context)) {
     try {
       return {
         text: context.hydration.claimText(
@@ -2380,6 +2391,15 @@ class ProjectionRenderedNode implements RenderedNode {
     this.styleRelease = contentStyle.release;
     this.projectionContext = childContext(this.declarationContext, {
       contentScope: contentStyle.scope,
+      // The nodes were declared elsewhere, so they read their lexical context; but
+      // they live here, and their hydration keys come from where they are mounted.
+      // Numbered from the declarer, every slot it declares would start again at 0
+      // and collide with the declarer's own nodes and with its other slots.
+      identity: childCraftRenderIdentity(
+        context.identity,
+        'projection',
+        node.slotName ?? 'slot',
+      ),
     });
     this.view = createFragment(
       parent,

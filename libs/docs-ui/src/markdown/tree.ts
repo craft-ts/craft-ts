@@ -129,7 +129,8 @@ export interface Outline {
 }
 
 export interface ParsedPage {
-  readonly frontmatter: Readonly<Record<string, string | number | boolean>>;
+  /** The YAML frontmatter, whole: `layout`, and for a home page its `hero` and `features`. */
+  readonly frontmatter: Readonly<Record<string, unknown>>;
   readonly blocks: readonly Block[];
   /** `h2`/`h3` entries, for the "On this page" outline. */
   readonly outline: readonly Outline[];

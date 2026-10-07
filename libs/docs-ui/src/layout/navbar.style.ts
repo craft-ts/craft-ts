@@ -37,7 +37,6 @@ import {
   letterSpacing,
   lineWidth,
   marginInlineStart,
-  maxInlineSize,
   num,
   paddingInlineEnd,
   paddingInlineStart,
@@ -53,6 +52,7 @@ import {
   transitions,
   unit,
   when,
+  whiteSpace,
   zIndex,
   fontSize,
   flexShrink,
@@ -113,8 +113,10 @@ export const navbarUi = craftStyles('docNavbar', {
   links: [
     display.none,
     alignItems.center,
-    gap(space(8)),
+    gap(space(5)),
+    flexShrink(num(0)),
     when(bp.medium, [display.flex]),
+    when(bp.wide, [gap(space(6))]),
   ],
   link: [
     display.inlineBlock,
@@ -122,6 +124,7 @@ export const navbarUi = craftStyles('docNavbar', {
     fontFamily(sansFont),
     ...font(text.sm),
     fontWeight(weight.medium),
+    whiteSpace.nowrap,
     color(theme.inkMuted),
     textDecoration.none,
     ...transitions([prop.color], { duration: duration.fast, easing: ease }),
@@ -173,15 +176,16 @@ export const navbarUi = craftStyles('docNavbar', {
       easing: ease,
     }),
     when(interaction.hover, [borderColor(theme.action), bg(theme.selected)]),
+    // Icon and key from `medium`; the words too only when the bar has room for them.
     when(bp.medium, [
-      inlineSize(unit.rem(15.625)),
-      maxInlineSize(unit.pct(100)),
-      paddingInlineStart(space(4)),
+      inlineSize(unit.rem(6.5)),
+      paddingInlineStart(space(3)),
       paddingInlineEnd(unit.rem(0.625)),
     ]),
+    when(bp.xwide, [inlineSize(unit.rem(15.625)), paddingInlineStart(space(4))]),
   ],
   searchLabel: [display.flex, alignItems.center, gap(space(3))],
-  searchText: [display.none, when(bp.medium, [display.inline])],
+  searchText: [display.none, when(bp.xwide, [display.inline])],
   searchKeys: [display.none, when(bp.medium, [display.inline])],
   // The drawer button: only below `md`.
   menu: [

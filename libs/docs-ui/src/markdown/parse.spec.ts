@@ -184,9 +184,18 @@ describe('prose', () => {
     expect(page.blocks[1]).toMatchObject({ t: 'list', ordered: true });
   });
 
-  it('reads scalar frontmatter', async () => {
-    const page = await parse('---\nlayout: home\noutline: false\n---\n# Hi');
-    expect(page.frontmatter).toEqual({ layout: 'home', outline: false });
+  it('reads the frontmatter, scalars and nested lists', async () => {
+    const page = await parse(
+      '---\nlayout: home\noutline: false\nhero:\n  name: x\n  actions:\n    - text: Go\n      link: /a\nfeatures:\n  - title: One\n---\n# Hi',
+    );
+    expect(page.frontmatter).toEqual({
+      layout: 'home',
+      outline: false,
+      hero: { name: 'x', actions: [{ text: 'Go', link: '/a' }] },
+      features: [{ title: 'One' }],
+    });
+    // Frontmatter that is not YAML is no frontmatter, not a failure.
+    expect((await parse('---\n: : :\n  - [\n---\n# Hi')).frontmatter).toEqual({});
   });
 
   it('reports HTML it has no component for', async () => {

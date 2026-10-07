@@ -6,7 +6,7 @@ export { calloutUi } from './callout/callout.style.ts';
 export * from './code/code.ts';
 export * from './code/code-group.ts';
 export * from './code/copy-button.ts';
-export { codeUi, mark, syntax } from './code/code.style.ts';
+export { codeUi, lineUi, mark, tokenUi } from './code/code.style.ts';
 export * from './button/button.ts';
 export * from './button/kbd.ts';
 export { buttonUi, iconButtonUi, loading, variant } from './button/button.style.ts';
@@ -42,3 +42,6 @@ export type {
   Outline,
   ParsedPage,
 } from './markdown/tree.ts';
+export * from './site/links.ts';
+export * from './site/vitepress.ts';
+export * from './site/llms.ts';

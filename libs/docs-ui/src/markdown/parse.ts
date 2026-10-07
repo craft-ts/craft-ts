@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import MarkdownIt from 'markdown-it';
+import { parse as parseYaml } from 'yaml';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
 import type { CalloutTone } from '../callout/callout.ts';
@@ -203,19 +204,24 @@ const slugify = (text: string): string =>
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
-/** Scalars only (`layout: home`, `outline: false`): all the docs use. */
+/**
+ * The YAML between the dashes, whole: the home page keeps its hero and its
+ * features there, as nested lists. A page whose frontmatter does not parse is
+ * read as having none, and the diagnostic is the page's, not an exception.
+ */
 const parseFrontmatter = (
   source: string,
-): { body: string; data: Record<string, string | number | boolean> } => {
+): { body: string; data: Record<string, unknown> } => {
   const match = FRONTMATTER.exec(source);
   if (!match) return { body: source, data: {} };
-  const data: Record<string, string | number | boolean> = {};
-  for (const line of (match[1] as string).split(/\r?\n/)) {
-    const pair = /^([\w-]+):\s*(.*?)\s*$/.exec(line);
-    if (!pair) continue;
-    const raw = (pair[2] as string).replace(/^['"]|['"]$/g, '');
-    data[pair[1] as string] =
-      raw === 'true' ? true : raw === 'false' ? false : /^-?\d+$/.test(raw) ? Number(raw) : raw;
+  let data: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = parseYaml(match[1] as string);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      data = parsed as Record<string, unknown>;
+    }
+  } catch {
+    data = {};
   }
   return { body: source.slice(match[0].length), data };
 };

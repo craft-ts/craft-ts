@@ -72,17 +72,6 @@ import {
   weight,
 } from '../foundation/herbier.style.ts';
 
-/** What kind of word a token is. The pipeline maps grammar scopes onto these. */
-export const syntax = defineStateAxis('syntax', [
-  'keyword',
-  'function',
-  'string',
-  'number',
-  'type',
-  'comment',
-  'punctuation',
-] as const);
-
 /** What the line means. A line without a mark is plain. */
 export const mark = defineStateAxis('mark', [
   'highlight',
@@ -163,35 +152,6 @@ export const codeUi = craftStyles('docCode', {
     whiteSpace.pre,
     provides(scrollPort.inline),
   ],
-  line: [
-    display.block,
-    paddingInlineStart(space(5)),
-    paddingInlineEnd(space(5)),
-    borderInlineStartWidth(bar),
-    borderInlineStartStyle.solid,
-    borderInlineStartColor(herbier.surface.code),
-    when(mark.highlight, [
-      bg(herbier.surface.codeHighlight),
-      borderInlineStartColor(herbier.text.codeHighlight),
-    ]),
-    when(mark.add, [
-      bg(herbier.surface.codeAdd),
-      borderInlineStartColor(herbier.text.codeAdd),
-    ]),
-    when(mark.remove, [
-      bg(herbier.surface.codeRemove),
-      borderInlineStartColor(herbier.text.codeRemove),
-    ]),
-    when(mark.error, [
-      bg(herbier.surface.codeRemove),
-      borderInlineStartColor(herbier.text.codeRemove),
-    ]),
-    when(mark.warning, [
-      bg(herbier.surface.codeWarning),
-      borderInlineStartColor(herbier.text.codeWarning),
-    ]),
-    when(mark.dim, [opacity(num(0.45))]),
-  ],
   number: [
     display.inlineBlock,
     inlineSize(unit.rem(2)),
@@ -211,13 +171,65 @@ export const codeUi = craftStyles('docCode', {
     when(mark.error, [color(herbier.text.codeRemove)]),
     when(mark.warning, [color(herbier.text.codeWarning)]),
   ],
-  token: [
-    when(syntax.keyword, [color(herbier.text.codeKeyword)]),
-    when(syntax.function, [color(herbier.text.codeFunction)]),
-    when(syntax.string, [color(herbier.text.codeString)]),
-    when(syntax.number, [color(herbier.text.codeNumber)]),
-    when(syntax.type, [color(herbier.text.codeType)]),
-    when(syntax.comment, [color(herbier.text.codeComment)]),
-    when(syntax.punctuation, [color(herbier.text.codePunctuation)]),
+});
+
+/**
+ * A line of code. One class per meaning — not one class carrying every meaning
+ * behind an attribute — because a page has thousands of lines and a class list
+ * that names five alternatives would be written into each of them: a plain line
+ * carries the atoms of a plain line and nothing else. The set stays closed and
+ * enumerable; `data-mark` still says what the line means.
+ */
+const lineBase = [
+  display.block,
+  paddingInlineStart(space(5)),
+  paddingInlineEnd(space(5)),
+  borderInlineStartWidth(bar),
+  borderInlineStartStyle.solid,
+] as const;
+
+export const lineUi = craftStyles('docCodeLine', {
+  plain: [...lineBase, borderInlineStartColor(herbier.surface.code)],
+  highlight: [
+    ...lineBase,
+    bg(herbier.surface.codeHighlight),
+    borderInlineStartColor(herbier.text.codeHighlight),
   ],
+  add: [
+    ...lineBase,
+    bg(herbier.surface.codeAdd),
+    borderInlineStartColor(herbier.text.codeAdd),
+  ],
+  remove: [
+    ...lineBase,
+    bg(herbier.surface.codeRemove),
+    borderInlineStartColor(herbier.text.codeRemove),
+  ],
+  error: [
+    ...lineBase,
+    bg(herbier.surface.codeRemove),
+    borderInlineStartColor(herbier.text.codeRemove),
+  ],
+  warning: [
+    ...lineBase,
+    bg(herbier.surface.codeWarning),
+    borderInlineStartColor(herbier.text.codeWarning),
+  ],
+  dim: [
+    ...lineBase,
+    borderInlineStartColor(herbier.surface.code),
+    opacity(num(0.45)),
+  ],
+});
+
+/** A word of code, by what kind of word it is. The same reasoning as the lines. */
+export const tokenUi = craftStyles('docCodeToken', {
+  plain: [],
+  keyword: [color(herbier.text.codeKeyword)],
+  function: [color(herbier.text.codeFunction)],
+  string: [color(herbier.text.codeString)],
+  number: [color(herbier.text.codeNumber)],
+  type: [color(herbier.text.codeType)],
+  comment: [color(herbier.text.codeComment)],
+  punctuation: [color(herbier.text.codePunctuation)],
 });

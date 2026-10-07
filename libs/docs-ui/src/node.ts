@@ -13,4 +13,3 @@ export {
   type CodeHighlighter,
 } from './markdown/highlight.ts';
 export * from './site/pages.ts';
-export { renderLlmsTxt, type LlmsOptions } from './site/llms.ts';

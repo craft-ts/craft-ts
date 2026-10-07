@@ -1,0 +1,62 @@
+{
+  "name": "docs-herbier",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/docs-herbier/src",
+  "tags": [
+    "scope:docs-ui"
+  ],
+  "targets": {
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vite --config apps/docs-herbier/vite.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{workspaceRoot}/dist/apps/docs-herbier",
+        "{workspaceRoot}/dist/apps/docs-herbier-server"
+      ],
+      "options": {
+        "commands": [
+          "npx vite build --config apps/docs-herbier/vite.config.ts",
+          "npx vite build --config apps/docs-herbier/vite.ssr.config.ts",
+          "node dist/apps/docs-herbier-server/prerender.mjs"
+        ],
+        "parallel": false
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/docs-herbier/tsconfig.json --noEmit --pretty false"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "maxWarnings": -1
+      }
+    },
+    "preview": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "command": "node apps/docs-herbier/preview.mjs"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config apps/docs-herbier/vitest.config.ts"
+      }
+    }
+  }
+}

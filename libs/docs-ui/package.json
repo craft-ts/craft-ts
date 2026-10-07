@@ -16,6 +16,10 @@
     "./node": {
       "types": "./src/node.d.ts",
       "default": "./src/node.js"
+    },
+    "./style": {
+      "types": "./src/style.d.ts",
+      "default": "./src/style.js"
     }
   },
   "engines": {

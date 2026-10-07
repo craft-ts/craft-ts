@@ -262,6 +262,7 @@ export const Preview = craftComponent('Preview', {}, function* () {
             { title: 'Exceptions as values', details: 'A declared failure is returned, not thrown — it travels through types instead of the stack.', link: '/guide/concepts/exceptions' },
           ]),
           base: read('/'),
+          extra: content(() => p('Start with an agent')),
         }),
       );
     case '404':

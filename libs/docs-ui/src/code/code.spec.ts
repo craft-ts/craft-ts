@@ -8,6 +8,7 @@ import {
 } from '@craft-ts/style';
 import { renderCss } from '@craft-ts/style/vite';
 import { DocCode, codeText, type CodeLine } from './code.ts';
+import { lineUi, tokenUi } from './code.style.ts';
 
 const lines: readonly CodeLine[] = [
   {
@@ -127,8 +128,16 @@ describe('DocCode', () => {
     });
 
     expect(css).toContain('overflow-inline:auto');
-    expect(css).toContain("[data-syntax='keyword']");
-    expect(css).toContain("[data-mark='add']");
-    expect(css).toContain("[data-mark='dim']");
+    // One class per kind of word and per mark: the atoms a plain line or a plain word
+    // carries are its own, not those of every alternative.
+    expect(css).toContain('--herbier');
+    for (const kind of ['keyword', 'function', 'string', 'number', 'type', 'comment', 'punctuation']) {
+      expect(tokenUi[kind as keyof typeof tokenUi], kind).toBeTruthy();
+    }
+    for (const mark of ['plain', 'highlight', 'add', 'remove', 'error', 'warning', 'dim']) {
+      expect(lineUi[mark as keyof typeof lineUi], mark).toBeTruthy();
+    }
+    expect(lineUi.plain).not.toEqual(lineUi.add);
+    expect(lineUi.plain.split(' ').length).toBeLessThan(lineUi.add.split(' ').length + 1);
   });
 });

@@ -256,6 +256,7 @@ describe('DocHome', () => {
           { title: 'One API', details: 'Learn one, know five.', link: '' },
         ]),
         base: reader('/craft/'),
+        extra: content(() => p('Start with an agent')),
       } as never,
     });
 
@@ -271,6 +272,7 @@ describe('DocHome', () => {
     // A feature with a link is a door, one without is a statement.
     expect(rendered.element.querySelectorAll('a[href="/craft/guide/x"]').length).toBe(1);
     expect(rendered.element.textContent).toContain('Learn one, know five.');
+    expect(rendered.element.textContent).toContain('Start with an agent');
     // The drawings are decoration: hidden from assistive technology.
     expect(rendered.element.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(1);
     rendered.destroy();

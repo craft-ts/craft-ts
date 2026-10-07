@@ -77,6 +77,7 @@ export const menuUi = craftStyles('docMenu', {
   // The trigger: no box, the look of the links it sits among.
   trigger: [
     display.inlineFlex,
+    whiteSpace.nowrap,
     alignItems.center,
     gap(space(1)),
     bg(theme.clear),

@@ -652,14 +652,38 @@ vérifié à l'œil dans le navigateur (jour, nuit, 1200 px, 375 px, recherche).
   `package.json` racine avec un `pnpm install` : sans cela, retirer VitePress
   casse le pipeline.
 
+### Le branchement : `apps/docs-herbier` (fait, à côté de `apps/docs`)
+
+Plutôt que copier les 296 fichiers de `apps/docs` (la copie diverge), une
+application voisine **lit les mêmes pages en place** et prend sa navigation dans
+la configuration VitePress de `apps/docs` : les deux sites montrent les mêmes
+pages sous les mêmes sections, et se comparent côte à côte. `apps/docs` n'est
+pas modifiée (ses tests lisent encore `CraftAgentPrompt.vue`).
+
+- `nx serve docs-herbier` (:4420, rendu serveur à la demande), `nx build
+  docs-herbier` (165 pages + 404 + `search-index.json` + `llms.txt`), `nx preview
+  docs-herbier` (:4421, le site construit servi sous `/craft/` comme GitHub
+  Pages). Détails : `apps/docs-herbier/README.md`.
+- Les trois composants Vue du thème sont portés : `AuthorNote`, la carte « Start
+  with an agent » et le migrateur de template (testé en direct).
+- Vérifié en production : `startCraft` hydrate chaque page avec 0 écart, liens
+  sous `/craft/`, 165 entrées dans l'index, `/learn-effect/` en sombre.
+- Poids : 96 Mo bruts, 7,3 Mo en gzip pour les 166 pages (VitePress : 32 Mo). Les
+  marqueurs d'hydratation (commentaires + `data-craft-hk`) font 1 Mo sur les pages
+  les plus longues ; c'est le moteur, pas le thème.
+
+Deux défauts du moteur trouvés en chemin (`libs/component`, avec tests) : les
+nœuds d'un contenu projeté prenaient leurs clés d'hydratation de la page qui les
+déclare (collisions, contenu éparpillé au premier plan) ; et un nœud créé après
+la fin de l'hydratation réclamait encore des nœuds du serveur, de sorte qu'un
+nouveau rendu du composant déclarant vidait le contenu projeté.
+
 ### Reste à faire
 
-1. **Le branchement de `apps/docs`** : une application Vite qui monte `DocLayout`
-   avec les données de `buildSiteData`, rendu serveur (`renderCraft`) et
-   hydratation (`hydrateCraft`) page par page, routage côté client, copie de
-   `public/` et de la base `/craft/`, écriture de `search-index.json` et
-   `llms.txt`, cible `nx build docs` à la place de `vitepress build`. Les
-   composants ne s'y attachent à rien de VitePress.
+1. **Retirer VitePress** quand la comparaison est faite : déplacer la navigation
+   (`nav`/`sidebar` de `config.mts`) dans un module à soi, brancher la CI sur
+   `docs-herbier`, supprimer `.vitepress/`. `site/server/site.ts` est le seul
+   endroit qui lit encore la configuration VitePress.
 2. **Correspondance route → portée** : `/learn-effect/` doit passer
    `scope: 'dark'` au layout (l'entrée existe, la règle de routage non).
 3. **Polices** : l'axe optique de Newsreader (§4.5) reste un écart accepté ; les
