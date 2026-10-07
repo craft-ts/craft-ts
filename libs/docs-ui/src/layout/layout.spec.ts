@@ -11,6 +11,7 @@ import type { SiteConfig } from '../site/site.ts';
 import { DocNotFound, DocHome } from './home.ts';
 import { defaultLabels, DocLayout } from './layout.ts';
 import { NAVIGATED_EVENT } from '../site/navigated.ts';
+import { menuUi } from '../menu/menu.style.ts';
 
 afterEach(() => {
   document.documentElement.removeAttribute('data-mode');
@@ -351,6 +352,21 @@ describe('DocLayout on a page of a section', () => {
     expect(sidebar.getAttribute('data-open')).toBe('false');
     expect(rendered.element.querySelector('dialog')?.hasAttribute('open')).toBe(false);
     rendered.destroy();
+  });
+
+  it('gives a menu row, link or button, its own face: no grey button, no border, label at the start', () => {
+    // A choice in the season picker is a `button`. A browser paints it grey with a border
+    // and centres its label, which on the dark page left pale text on a pale face. The row
+    // says what it looks like itself, so a link and a button read the same.
+    const sheet = css();
+    const declarations = String(menuUi.item)
+      .split(/\s+/)
+      .map((token) => new RegExp(`\\.${token}\\{([^}]*)\\}`).exec(sheet)?.[1] ?? '')
+      .join(';');
+    expect(declarations).toContain('background-color:var(--herbier-clear)');
+    expect(declarations).toContain('border-width:0');
+    expect(declarations).toContain('text-align:start');
+    expect(declarations).toContain('inline-size:100%');
   });
 
   it('answers each breakpoint of the frame', () => {

@@ -24,6 +24,7 @@ import {
   display,
   flexDirection,
   font,
+  inlineSize,
   fontFamily,
   fontWeight,
   gap,
@@ -122,13 +123,19 @@ export const menuUi = craftStyles('docMenu', {
     ...panelBase,
     insetInlineEnd(space(0)),
   ],
+  // A row is a link or, in a choice, a button: it states what a button would get from the
+  // browser (a grey face, a border, a centred label) so both read the same.
   item: [
     display.flex,
     alignItems.center,
     gap(space(3)),
+    inlineSize(unit.pct(100)),
     blockSize(unit.rem(2.375)),
     px(space(3)),
     borderRadius(radii.sm),
+    borderWidth(unit.px(0)),
+    bg(theme.clear),
+    textAlign.start,
     color(theme.ink),
     fontFamily(sansFont),
     ...font(text.sm),
