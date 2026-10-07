@@ -13,7 +13,7 @@ import {
 import { DocBadge } from '../badge/badge.ts';
 import { DocIcon } from '../icon/icon.ts';
 import { DocMenu } from '../menu/menu.ts';
-import { isActiveNav, isMenu, withBase, type NavEntry } from '../site/site.ts';
+import { activeNavIndex, isMenu, withBase, type NavEntry } from '../site/site.ts';
 import { DocKbd } from '../button/kbd.ts';
 import type { SeasonNames } from '../foundation/season.ts';
 import { DocModeToggle } from './mode.ts';
@@ -71,6 +71,7 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
   const searchLabel = yield* props.searchLabel();
   const modeLocked = yield* props.modeLocked();
 
+  const current = activeNavIndex(links, path, base);
   const entries = links.map((entry, index): CraftNodeChild =>
     isMenu(entry)
       ? DocMenu({
@@ -93,7 +94,7 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
           {
             class: navbarUi.link,
             href: withBase(base, entry.link),
-            ...(isActiveNav(entry, path, base)
+            ...(index === current
               ? { 'aria-current': 'page' as const }
               : {}),
           },

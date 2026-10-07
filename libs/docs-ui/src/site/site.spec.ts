@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeNavIndex,
   isActiveNav,
   isCurrent,
   normalizePath,
@@ -73,6 +74,16 @@ describe('current page', () => {
     expect(isActiveNav(guide!, '/guide/')).toBe(true);
     expect(isActiveNav(guide!, '/guide/state/mutations')).toBe(false);
     expect(isActiveNav(resources!, '/resources/roadmap')).toBe(true);
+  });
+
+  it('names a single section when two entries cover a page: the first of the bar', () => {
+    const nav = [
+      { text: 'AI agents', link: '/guide/ai/', activeMatch: '^/guide/ai/' },
+      { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
+    ];
+    expect(activeNavIndex(nav, '/guide/ai/')).toBe(0);
+    expect(activeNavIndex(nav, '/guide/state/query')).toBe(1);
+    expect(activeNavIndex(nav, '/reference/')).toBe(-1);
   });
 
   it('knows a group holds the page, so it opens', () => {

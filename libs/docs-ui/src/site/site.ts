@@ -92,6 +92,18 @@ export const isActiveNav = (
   return isCurrent(entry.link, target);
 };
 
+/**
+ * The one top-navigation entry that stands for this page: the first, in the order of
+ * the bar, that covers it. Two entries can cover a page — `/guide/ai/` is under
+ * `Guide` as well as under `AI agents` — and the bar names a single section. Authors
+ * put the narrower entry first, as the VitePress configuration already does.
+ */
+export const activeNavIndex = (
+  entries: readonly NavEntry[],
+  path: string,
+  base = '/',
+): number => entries.findIndex((entry) => isActiveNav(entry, path, base));
+
 const pagesOf = (
   entries: readonly SidebarEntry[],
 ): readonly { readonly text: string; readonly link: string }[] =>
