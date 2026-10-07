@@ -24,7 +24,7 @@ const DEFAULT_CAPTION: Readonly<Record<CalloutTone, string>> = {
 };
 
 /** The glyph of each tone: a different shape, not only a different colour. */
-const TONE_ICON: Readonly<Record<CalloutTone, IconName>> = {
+export const toneIcon: Readonly<Record<CalloutTone, IconName>> = {
   info: 'info',
   tip: 'leaf',
   important: 'sprout',
@@ -62,7 +62,7 @@ export const DocCallout = craftComponent(
         div({ class: calloutUi.icon }, [
           DocIcon({
             name: function* () {
-              return TONE_ICON[yield* input.tone()];
+              return toneIcon[yield* input.tone()];
             },
             size: function* () {
               return 'lg' as const;
