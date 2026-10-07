@@ -164,16 +164,20 @@ export const herbier = definePalette('herbier', {
     forestFront: { light: '#27483B', dark: '#09120D' },
     contour: { light: '#CBD1C4', dark: '#243430' },
   },
-  // The mark: the three bars of the logo, each a gradient from its first colour to its
-  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  // The mark: eight colours along the gradient of the logo (the first three colour the
+  // upright and the leaning bar behind, the next two the bar across, the last three the
+  // end that shows below), then the shade of its folds and its light edge.
   logo: {
-    a1: { light: '#4A52F2', dark: '#8A90FF' },
-    a2: { light: '#5B2BD6', dark: '#9C6BFF' },
-    b1: { light: '#4A52F2', dark: '#8A90FF' },
-    b2: { light: '#5B2BD6', dark: '#9C6BFF' },
-    b3: { light: '#D96A1A', dark: '#FFA860' },
-    c1: { light: '#C93AA8', dark: '#F07AD0' },
-    c2: { light: '#E8408C', dark: '#FF8AC0' },
+    r0: { light: '#4F5BFF', dark: '#9199FF' },
+    r1: { light: '#644CFF', dark: '#9D8EFF' },
+    r2: { light: '#803BF0', dark: '#A879F5' },
+    r3: { light: '#E04FC8', dark: '#EA87DA' },
+    r4: { light: '#F0489A', dark: '#F585BC' },
+    r5: { light: '#F25C66', dark: '#F799A0' },
+    r6: { light: '#EE7138', dark: '#F39D75' },
+    r7: { light: '#E5862A', dark: '#ECA865' },
+    shade: { light: '#2A0F8A', dark: '#0B0E24' },
+    light: { light: '#FFFFFF', dark: '#F4F0FF' },
   },
   // A soft shadow is a flat, blurred colour: opaque, like everything else.
   effect: {
@@ -273,15 +277,17 @@ export const theme = cssVars('herbier', {
   accent2: kind.color(herbier.accent.accent2, themed),
   snow: kind.color(herbier.accent.snow, themed),
   glow: kind.color(herbier.effect.glow, themed),
-  // The three bars of the logo, as gradients: start and end of each, and the pivot of the
-  // bar that runs behind the others.
-  logoA1: kind.color(herbier.logo.a1, themed),
-  logoA2: kind.color(herbier.logo.a2, themed),
-  logoB1: kind.color(herbier.logo.b1, themed),
-  logoB2: kind.color(herbier.logo.b2, themed),
-  logoB3: kind.color(herbier.logo.b3, themed),
-  logoC1: kind.color(herbier.logo.c1, themed),
-  logoC2: kind.color(herbier.logo.c2, themed),
+  // The logo: eight colours along its gradient, the shade of its folds and its light edge.
+  logoR0: kind.color(herbier.logo.r0, themed),
+  logoR1: kind.color(herbier.logo.r1, themed),
+  logoR2: kind.color(herbier.logo.r2, themed),
+  logoR3: kind.color(herbier.logo.r3, themed),
+  logoR4: kind.color(herbier.logo.r4, themed),
+  logoR5: kind.color(herbier.logo.r5, themed),
+  logoR6: kind.color(herbier.logo.r6, themed),
+  logoR7: kind.color(herbier.logo.r7, themed),
+  logoShade: kind.color(herbier.logo.shade, themed),
+  logoLight: kind.color(herbier.logo.light, themed),
   trim: kind.color(herbier.accent.accent2, themed),
   // The drawings of the season: the trees of each plane, what sits on them, and the
   // colours of the plate. They are masks, and a mask is a URL; the season swaps them.
@@ -436,7 +442,9 @@ export interface Brand {
     | 'snow'
   >;
   readonly effect: Tokens<'shadow' | 'glow'>;
-  readonly logo: Tokens<'a1' | 'a2' | 'b1' | 'b2' | 'b3' | 'c1' | 'c2'>;
+  readonly logo: Tokens<
+    'r0' | 'r1' | 'r2' | 'r3' | 'r4' | 'r5' | 'r6' | 'r7' | 'shade' | 'light'
+  >;
   readonly decor: Tokens<
     | 'forestBack'
     | 'forestRidge'
@@ -494,13 +502,16 @@ const paint = (side: Side, brand: Brand, trim: ColorValue) => [
   set(theme.accent2, side(brand.accent.accent2)),
   set(theme.snow, side(brand.accent.snow)),
   set(theme.glow, side(brand.effect.glow)),
-  set(theme.logoA1, side(brand.logo.a1)),
-  set(theme.logoA2, side(brand.logo.a2)),
-  set(theme.logoB1, side(brand.logo.b1)),
-  set(theme.logoB2, side(brand.logo.b2)),
-  set(theme.logoB3, side(brand.logo.b3)),
-  set(theme.logoC1, side(brand.logo.c1)),
-  set(theme.logoC2, side(brand.logo.c2)),
+  set(theme.logoR0, side(brand.logo.r0)),
+  set(theme.logoR1, side(brand.logo.r1)),
+  set(theme.logoR2, side(brand.logo.r2)),
+  set(theme.logoR3, side(brand.logo.r3)),
+  set(theme.logoR4, side(brand.logo.r4)),
+  set(theme.logoR5, side(brand.logo.r5)),
+  set(theme.logoR6, side(brand.logo.r6)),
+  set(theme.logoR7, side(brand.logo.r7)),
+  set(theme.logoShade, side(brand.logo.shade)),
+  set(theme.logoLight, side(brand.logo.light)),
   set(theme.trim, side(trim)),
   set(theme.infoSurface, side(herbier.surface.info)),
   set(theme.infoBorder, side(herbier.border.info)),

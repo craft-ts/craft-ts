@@ -22,27 +22,34 @@ const css = () =>
   } as never);
 
 describe('DocLogo', () => {
-  it('draws the three bars back to front, hidden from assistive technology', async () => {
+  it('stacks the eight bands, then the shade and the light, hidden from assistive technology', async () => {
     const rendered = await renderCraftComponent(DocLogo as never);
     const root = rendered.element.firstElementChild as HTMLElement;
     expect(root.getAttribute('aria-hidden')).toBe('true');
-    expect([...root.children].map((layer) => layer.getAttribute('data-bar'))).toEqual([
-      'behind',
-      'upright',
-      'across',
+    expect([...root.children].map((layer) => layer.getAttribute('data-part'))).toEqual([
+      'r0',
+      'r1',
+      'r2',
+      'r3',
+      'r4',
+      'r5',
+      'r6',
+      'r7',
+      'shade',
+      'light',
     ]);
     rendered.destroy();
   });
 
-  it('paints each bar with the theme colours of the logo, so a season recolours it', async () => {
+  it('paints each layer with the theme colours of the logo, so a season recolours it', async () => {
     await renderCraftComponent(DocLogo as never);
     const sheet = css();
-    for (const stop of ['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2']) {
+    for (const stop of ['R0', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'Shade', 'Light']) {
       expect(sheet, stop).toContain(`var(--herbier-logo${stop})`);
     }
     for (const season of ['spring', 'summer', 'autumn', 'winter']) {
       expect(sheet, season).toMatch(
-        new RegExp(`:root\\[data-season='${season}'\\]\\{--herbier-logoA1:#`),
+        new RegExp(`:root\\[data-season='${season}'\\]\\{--herbier-logoR0:#`),
       );
     }
   });

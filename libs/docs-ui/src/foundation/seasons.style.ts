@@ -57,16 +57,20 @@ export const spring = definePalette('spring', {
     shadow: { light: '#D9DDCF', dark: '#0A100B' },
     glow: { light: '#FAF4C5', dark: '#212E25' },
   },
-  // The mark: the three bars of the logo, each a gradient from its first colour to its
-  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  // The mark: eight colours along the gradient of the logo (the first three colour the
+  // upright and the leaning bar behind, the next two the bar across, the last three the
+  // end that shows below), then the shade of its folds and its light edge.
   logo: {
-    a1: { light: '#2F8F55', dark: '#7FD39A' },
-    a2: { light: '#1F6B40', dark: '#4FB878' },
-    b1: { light: '#2E8F7A', dark: '#7ADBC4' },
-    b2: { light: '#3E9A4F', dark: '#8EDB8A' },
-    b3: { light: '#A87A08', dark: '#F2D870' },
-    c1: { light: '#D6457F', dark: '#F59BC2' },
-    c2: { light: '#C23A82', dark: '#F178B0' },
+    r0: { light: '#3F7FE8', dark: '#7AA6EF' },
+    r1: { light: '#1E9FC6', dark: '#44BEE3' },
+    r2: { light: '#22B38A', dark: '#3DDAAE' },
+    r3: { light: '#E0558F', dark: '#EA8DB4' },
+    r4: { light: '#EC7AA2', dark: '#F2A6C1' },
+    r5: { light: '#F0987F', dark: '#F4B6A4' },
+    r6: { light: '#D9A024', dark: '#E4B95B' },
+    r7: { light: '#7BAE22', dark: '#9FD83A' },
+    shade: { light: '#0B4538', dark: '#0B0E24' },
+    light: { light: '#FFFFFF', dark: '#F4F0FF' },
   },
   decor: {
     forestBack: { light: '#DDEBCF', dark: '#243B2B' },
@@ -121,16 +125,20 @@ export const summer = definePalette('summer', {
     shadow: { light: '#DCD9C5', dark: '#08100B' },
     glow: { light: '#FDE498', dark: '#252C19' },
   },
-  // The mark: the three bars of the logo, each a gradient from its first colour to its
-  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  // The mark: eight colours along the gradient of the logo (the first three colour the
+  // upright and the leaning bar behind, the next two the bar across, the last three the
+  // end that shows below), then the shade of its folds and its light edge.
   logo: {
-    a1: { light: '#127A9E', dark: '#6CCBEA' },
-    a2: { light: '#0E5E8C', dark: '#3E9FD6' },
-    b1: { light: '#12907F', dark: '#6FDCC8' },
-    b2: { light: '#3E8F2E', dark: '#9AD86A' },
-    b3: { light: '#B86A00', dark: '#FFC94A' },
-    c1: { light: '#D9482F', dark: '#FF8F78' },
-    c2: { light: '#C2570A', dark: '#FFA85A' },
+    r0: { light: '#2457D6', dark: '#5981E3' },
+    r1: { light: '#1482D4', dark: '#3EA2ED' },
+    r2: { light: '#0DA3BC', dark: '#1CD1EF' },
+    r3: { light: '#EE4B4B', dark: '#F48888' },
+    r4: { light: '#F26A3A', dark: '#F69978' },
+    r5: { light: '#F4902B', dark: '#F7B16A' },
+    r6: { light: '#E09616', dark: '#EDB24B' },
+    r7: { light: '#BA9810', dark: '#ECC320' },
+    shade: { light: '#0A2A66', dark: '#0B0E24' },
+    light: { light: '#FFFFFF', dark: '#F4F0FF' },
   },
   decor: {
     forestBack: { light: '#D3E5B2', dark: '#213E26' },
@@ -185,16 +193,20 @@ export const autumn = definePalette('autumn', {
     shadow: { light: '#DAD3C4', dark: '#100B08' },
     glow: { light: '#FAD59F', dark: '#2E2013' },
   },
-  // The mark: the three bars of the logo, each a gradient from its first colour to its
-  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  // The mark: eight colours along the gradient of the logo (the first three colour the
+  // upright and the leaning bar behind, the next two the bar across, the last three the
+  // end that shows below), then the shade of its folds and its light edge.
   logo: {
-    a1: { light: '#8C3552', dark: '#E08AA6' },
-    a2: { light: '#6A2540', dark: '#C0587A' },
-    b1: { light: '#A8481C', dark: '#F0A070' },
-    b2: { light: '#B5651D', dark: '#F2B85C' },
-    b3: { light: '#9A6B00', dark: '#F8D060' },
-    c1: { light: '#B8321F', dark: '#F08A70' },
-    c2: { light: '#C2550F', dark: '#FFA25A' },
+    r0: { light: '#7A2B6B', dark: '#AB3C96' },
+    r1: { light: '#A32F5C', dark: '#CB4A7C' },
+    r2: { light: '#C13A47', dark: '#D26B75' },
+    r3: { light: '#D2602A', dark: '#DF885F' },
+    r4: { light: '#DE7E10', dark: '#F19E3F' },
+    r5: { light: '#D58F0C', dark: '#F3AF30' },
+    r6: { light: '#C39A14', dark: '#EABE30' },
+    r7: { light: '#A3A01E', dark: '#D8D42B' },
+    shade: { light: '#4A1030', dark: '#0B0E24' },
+    light: { light: '#FFFFFF', dark: '#F4F0FF' },
   },
   decor: {
     forestBack: { light: '#EEDDC2', dark: '#3A2A1D' },
@@ -249,16 +261,20 @@ export const winter = definePalette('winter', {
     shadow: { light: '#D4D9DC', dark: '#080C11' },
     glow: { light: '#DFECF9', dark: '#1F2A35' },
   },
-  // The mark: the three bars of the logo, each a gradient from its first colour to its
-  // last. Hues follow the season; every stop holds 3:1 against the page it sits on.
+  // The mark: eight colours along the gradient of the logo (the first three colour the
+  // upright and the leaning bar behind, the next two the bar across, the last three the
+  // end that shows below), then the shade of its folds and its light edge.
   logo: {
-    a1: { light: '#2F52C8', dark: '#8EA6FF' },
-    a2: { light: '#22389A', dark: '#6A80F0' },
-    b1: { light: '#2D6FB8', dark: '#8CC4FF' },
-    b2: { light: '#3C7FC0', dark: '#B6DAFF' },
-    b3: { light: '#4E86B8', dark: '#E2F2FF' },
-    c1: { light: '#5A55C8', dark: '#B0A8FF' },
-    c2: { light: '#7A52B8', dark: '#CDB0FF' },
+    r0: { light: '#2B3FB8', dark: '#4F62D6' },
+    r1: { light: '#3A62DA', dark: '#728EE4' },
+    r2: { light: '#4A8DE6', dark: '#84B2EE' },
+    r3: { light: '#5CAFE8', dark: '#96CCF0' },
+    r4: { light: '#8B8EEA', dark: '#A9ABEF' },
+    r5: { light: '#B07FE0', dark: '#CCADEB' },
+    r6: { light: '#D26FC6', dark: '#E2A2DA' },
+    r7: { light: '#E37EB4', dark: '#EDABCE' },
+    shade: { light: '#121F6B', dark: '#0B0E24' },
+    light: { light: '#FFFFFF', dark: '#F4F0FF' },
   },
   decor: {
     forestBack: { light: '#E4EBF1', dark: '#1B2C3D' },

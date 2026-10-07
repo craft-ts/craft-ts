@@ -58,6 +58,7 @@ import {
   type CraftRouteTargetInput,
 } from './craft-route-target';
 import {
+  craftBatch,
   craftSignal,
   craftWatch,
   type CraftWritableSignal,
@@ -296,11 +297,13 @@ export class CraftRouterOutletController {
     queueMicrotask(() => {
       if (this._pendingDeactivation) {
         this._pendingDeactivation = false;
-        this.state.set('idle');
-        this.displayedComponent.set(null);
-        this.displayedTarget.set(null);
-        this.targetComponent.set(null);
-        this.errorComponent.set(null);
+        craftBatch(() => {
+          this.state.set('idle');
+          this.displayedComponent.set(null);
+          this.displayedTarget.set(null);
+          this.targetComponent.set(null);
+          this.errorComponent.set(null);
+        });
       }
     });
   }
@@ -323,9 +326,12 @@ export class CraftRouterOutletController {
       this.state() !== 'error' &&
       canReuseActivation(this._match, activated, this._meta)
     ) {
-      this._liveMatch.set(activated);
-      this._childMatch.set(child);
-      this.displayedProps.set(collectMatchProps(activated));
+      // The page reads its inputs and the live match in one template: they move together.
+      craftBatch(() => {
+        this._liveMatch!.set(activated);
+        this._childMatch!.set(child);
+        this.displayedProps.set(collectMatchProps(activated));
+      });
       this.publishViewTransitionPayload();
       return;
     }
@@ -417,7 +423,6 @@ export class CraftRouterOutletController {
       }
     }
     const component = this.resolveRouteComponent(match);
-    this.displayedProps.set(collectMatchProps(match));
 
     if (!meta || (!meta.match && !meta.guard && !meta.resolve)) {
       this.showComponent(
@@ -425,8 +430,10 @@ export class CraftRouterOutletController {
         this._activeRouteInjector,
         this.resolveRouteTarget(component),
       );
-      this.targetComponent.set(component);
-      this.state.set('loaded');
+      craftBatch(() => {
+        this.targetComponent.set(component);
+        this.state.set('loaded');
+      });
       return;
     }
 
@@ -454,9 +461,11 @@ export class CraftRouterOutletController {
       this._stayTimer = this.temporalRuntime.schedule(
         () => {
           if (this._navId === navId && this.state() === 'stay') {
-            this.state.set('blank');
-            this.displayedComponent.set(null);
-            this.displayedTarget.set(null);
+            craftBatch(() => {
+              this.state.set('blank');
+              this.displayedComponent.set(null);
+              this.displayedTarget.set(null);
+            });
           }
         },
         stayMs,
@@ -533,8 +542,10 @@ export class CraftRouterOutletController {
 
     switch (outcome.kind) {
       case 'data':
-        meta.guardDataSink?.set(outcome.guardData);
-        meta.resolveDataSink?.set(outcome.resolveData);
+        craftBatch(() => {
+          meta.guardDataSink?.set(outcome.guardData);
+          meta.resolveDataSink?.set(outcome.resolveData);
+        });
         this.showTarget(component, meta);
         this.installReactiveGuard(meta, component);
         return;
@@ -596,14 +607,16 @@ export class CraftRouterOutletController {
       ) {
         return;
       }
-      this.displayedInjector.set(injector ?? undefined);
-      this.displayedProps.set(props);
-      // Publish the target last: CraftRouterOutlet mounts it as soon as the
-      // target becomes visible, so its route injector and inputs must already
-      // be available or the first render is created with the parent injector
-      // and immediately remounted when the injector signal catches up.
-      this.displayedTarget.set(target);
-      this.displayedComponent.set(component);
+      // One publication: CraftRouterOutlet reads the target, its inputs and its
+      // injector in one template, so a reader woken between two of these writes
+      // would draw the page being left with the next page's inputs, or hand it the
+      // next page's injector (which remounts it) before the next page appears.
+      craftBatch(() => {
+        this.displayedInjector.set(injector ?? undefined);
+        this.displayedProps.set(props);
+        this.displayedTarget.set(target);
+        this.displayedComponent.set(component);
+      });
       this.syncTemplateFlush();
     };
 
@@ -653,8 +666,10 @@ export class CraftRouterOutletController {
         injector,
         this.resolveRouteTarget(component),
       );
-      this.targetComponent.set(component);
-      this.state.set('loaded');
+      craftBatch(() => {
+        this.targetComponent.set(component);
+        this.state.set('loaded');
+      });
     };
     this.commitWithAntiFlicker(commit, meta);
   }
@@ -670,8 +685,10 @@ export class CraftRouterOutletController {
     // `errorComponent()` and nothing was mounted. The component IS the
     // normalized target's — everything Craft renders is a Craft component.
     const component = (target?.component ?? null) as Type<unknown> | null;
-    this.errorComponent.set(component);
-    this.errorTarget.set(target);
+    craftBatch(() => {
+      this.errorComponent.set(component);
+      this.errorTarget.set(target);
+    });
     this.showComponent(
       component,
       this._activeRouteInjector ?? this.rootInjector,
@@ -852,7 +869,9 @@ export class CraftRouterOutletController {
 
   private clearExceptionSinks(meta: CraftRouteMeta | null | undefined): void {
     if (!meta) return;
-    for (const sink of Object.values(meta.exceptionSinks)) sink.set(null);
+    craftBatch(() => {
+      for (const sink of Object.values(meta.exceptionSinks)) sink.set(null);
+    });
   }
 
   private isCurrentActivation(match: CraftMatch): boolean {

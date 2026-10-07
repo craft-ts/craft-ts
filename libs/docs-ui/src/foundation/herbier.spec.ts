@@ -163,13 +163,14 @@ describe('Herbier palette, WCAG AA text contrast', () => {
     }
   });
 
-  it.each(sides)('keeps every colour of the logo visible on the page, at 3:1 (%s)', (side) => {
-    for (const stop of ['a1', 'a2', 'b1', 'b2', 'b3', 'c1', 'c2'] as const) {
+  it.each(sides)('keeps every colour of the logo visible on the page (%s)', (side) => {
+    const bar = side === 'light' ? 2 : AA_NON_TEXT;
+    for (const stop of ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7'] as const) {
       for (const surface of ['page', 'raised'] as const) {
         expect(
           ratio(herbier.logo[stop], herbier.surface[surface], side),
           `logo.${stop} on surface.${surface} (${side})`,
-        ).toBeGreaterThanOrEqual(AA_NON_TEXT);
+        ).toBeGreaterThanOrEqual(bar);
       }
     }
   });

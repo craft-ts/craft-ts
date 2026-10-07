@@ -1,19 +1,19 @@
 /**
- * The mark of craft-ts: three bars crossing in an asterisk — one upright, two leaning —
- * each a gradient. The drawing is the logo's (`apps/docs/public/assets/craft-ts-logo.png`)
- * redrawn as three masks on a 512 x 512 frame, so the colours are the page's: the same
- * three shapes are painted by the theme variables of the season and of the day or night.
+ * The mark of craft-ts: the logo's three crossing bars, folds and shadows included, drawn
+ * from its own pixels (`scripts/logo-masks.py`) and painted by theme variables.
  *
- * Kept in a `*.style.ts` because a style file cannot import a utility module; the three
- * shapes are constants and nothing else.
+ * The logo is a continuous gradient, so it is not one flat shape per colour. It is a stack
+ * of masks inside one silhouette: eight bands along the gradient, each in one of eight
+ * colours that the season and the day or night choose, then the shade of the folds and the
+ * pale edge. Painted one over the other, the bands give back the gradient; with other
+ * colours they give another gradient, fold for fold.
  */
 import {
   aspectRatio,
-  bgImage,
+  bg,
   craftStyles,
   defineStateAxis,
   display,
-  gradient,
   inset,
   inlineSize,
   maskImage,
@@ -28,72 +28,53 @@ import {
   when,
 } from '@craft-ts/style';
 import { theme } from '../foundation/herbier.style.ts';
+import { LOGO_MASKS } from './logo.art.style.ts';
 
-const svg = (body: string): string =>
-  `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><g fill="#000">${body}</g></svg>`,
-  )}`;
+/** Which layer of the mark: a band of the gradient, the shade, the light. */
+export const part = defineStateAxis('part', [
+  'r0',
+  'r1',
+  'r2',
+  'r3',
+  'r4',
+  'r5',
+  'r6',
+  'r7',
+  'shade',
+  'light',
+] as const);
 
-/** Back to front: the bar that runs behind, the upright one, the one across them. */
-const BARS = {
-  // Leans down to the right, 33° from the horizontal; the lower end shows below the others.
-  behind:
-    '<rect transform="translate(231 312) rotate(33)" x="-230" y="-42" width="460" height="84" rx="16"/>',
-  // Upright, its foot folding away to the lower left behind the bar across.
-  upright:
-    '<path d="M220 66 Q220 46 242 46 H288 Q310 46 310 66 V210 Q300 262 232 312 L120 400 L170 330 Q220 270 220 200 Z"/>',
-  // Leans up to the right, 30° from the horizontal, over the other two.
-  across:
-    '<rect transform="translate(276 292) rotate(-30)" x="-228" y="-42" width="456" height="84" rx="16"/>',
-} as const;
-
-/** Which bar a layer draws. */
-export const bar = defineStateAxis('bar', ['behind', 'upright', 'across'] as const);
+const painted = [
+  maskRepeat.noRepeat,
+  maskPosition.center,
+  maskSize(unit.pct(100)),
+] as const;
 
 export const logoUi = craftStyles('docLogo', {
+  // The silhouette: everything inside is cut to it, so the layers need no edge of their own.
   root: [
     display.block,
     position.relative,
     inlineSize(unit.pct(100)),
     aspectRatio(num(1)),
     pointerEvents.none,
+    ...painted,
+    maskImage(url(LOGO_MASKS.sil)),
   ],
   layer: [
     position.absolute,
     display.block,
     inset(unit.px(0)),
-    maskRepeat.noRepeat,
-    maskPosition.center,
-    maskSize(unit.pct(100)),
-    // Each gradient runs along its bar: the percentages are where the bar starts and ends on
-    // the gradient line of the 512 frame, so the first colour is the bar's first end.
-    when(bar.behind, [
-      maskImage(url(svg(BARS.behind))),
-      bgImage(
-        gradient.linear(unit.deg(123), [
-          [theme.logoB1, unit.pct(19)],
-          [theme.logoB2, unit.pct(52)],
-          [theme.logoB3, unit.pct(84)],
-        ]),
-      ),
-    ]),
-    when(bar.upright, [
-      maskImage(url(svg(BARS.upright))),
-      bgImage(
-        gradient.linear(unit.deg(180), [
-          [theme.logoA1, unit.pct(9)],
-          [theme.logoA2, unit.pct(70)],
-        ]),
-      ),
-    ]),
-    when(bar.across, [
-      maskImage(url(svg(BARS.across))),
-      bgImage(
-        gradient.linear(unit.deg(60), [
-          [theme.logoC1, unit.pct(17)],
-          [theme.logoC2, unit.pct(83)],
-        ]),
-      ),
-    ]),
+    ...painted,
+    when(part.r0, [bg(theme.logoR0), maskImage(url(LOGO_MASKS.r0))]),
+    when(part.r1, [bg(theme.logoR1), maskImage(url(LOGO_MASKS.r1))]),
+    when(part.r2, [bg(theme.logoR2), maskImage(url(LOGO_MASKS.r2))]),
+    when(part.r3, [bg(theme.logoR3), maskImage(url(LOGO_MASKS.r3))]),
+    when(part.r4, [bg(theme.logoR4), maskImage(url(LOGO_MASKS.r4))]),
+    when(part.r5, [bg(theme.logoR5), maskImage(url(LOGO_MASKS.r5))]),
+    when(part.r6, [bg(theme.logoR6), maskImage(url(LOGO_MASKS.r6))]),
+    when(part.r7, [bg(theme.logoR7), maskImage(url(LOGO_MASKS.r7))]),
+    when(part.shade, [bg(theme.logoShade), maskImage(url(LOGO_MASKS.shade))]),
+    when(part.light, [bg(theme.logoLight), maskImage(url(LOGO_MASKS.light))]),
   ],
 });
