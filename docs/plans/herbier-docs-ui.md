@@ -682,7 +682,7 @@ nouveau rendu du composant déclarant vidait le contenu projeté.
 
 1. **Retirer VitePress** quand la comparaison est faite : déplacer la navigation
    (`nav`/`sidebar` de `config.mts`) dans un module à soi, brancher la CI sur
-   `docs-herbier`, supprimer `.vitepress/`. `site/server/site.ts` est le seul
+   `docs-herbier`, supprimer `.vitepress/`. `apps/docs-herbier/src/server/site.ts` est le seul
    endroit qui lit encore la configuration VitePress.
 2. **Correspondance route → portée** : `/learn-effect/` doit passer
    `scope: 'dark'` au layout (l'entrée existe, la règle de routage non).
