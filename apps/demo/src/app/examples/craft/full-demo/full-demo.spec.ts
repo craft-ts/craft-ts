@@ -18,8 +18,8 @@ describe('Full demo template', () => {
     Record<never, never>
   >;
 
-  type _StoreIsTodoStoreOutput = Expect<
-    Equal<FullDemoLogic['store'], TodoStoreOutput>
+  type _TodoStoreIsTodoStoreOutput = Expect<
+    Equal<FullDemoLogic['todoStore'], TodoStoreOutput>
   >;
 
   type _DisplayNewTodoNameInput = Expect<

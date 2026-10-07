@@ -3,6 +3,7 @@ import {
   effect,
   inject,
   Injector,
+  runInInjectionContext,
   Signal,
   untracked,
 } from '../host/craft-compat';
@@ -20,6 +21,11 @@ import { ResourceExceptionConstraints } from '../query.core';
 import { MergeObjects } from '../util/util.type';
 import { rawReactiveFacade } from '../reactive-read';
 import type { YieldableReactiveValue } from '../reactive-read';
+import {
+  isGenerator,
+  isGeneratorFunction,
+  runCraftGenerator,
+} from '../craft-generator-runtime';
 import { executeYieldable } from '../yieldable';
 import {
   FormWithInsertions,
@@ -91,6 +97,49 @@ type SubmitExceptionUnion<SubmitCraftResource> =
             }
           ? ExceptionList
           : never;
+
+type SubmitMutation = {
+  type: 'resourceLike';
+  kind: 'mutation';
+  mutate: (args: any) => any;
+};
+
+type SubmitMutationById = {
+  type: 'resourceByGroupLike';
+  kind: 'mutation';
+  select: (id: any) => any;
+  mutate?: (args: any) => any;
+};
+
+/**
+ * A service member consumed through its property shortcut: `TodoStore.add`
+ * when the service has no public inputs, or `Todos.add({ listId })` once the
+ * bindings are given. Either way it resolves to the mutation, and what it
+ * yields is the service dependency the form inherits.
+ */
+type ServiceMutationSource<Mutation> =
+  | (() => Generator<any, Mutation, any>)
+  | Generator<any, Mutation, any>;
+
+type ResourceOfSource<Source> = Source extends () => Generator<
+  any,
+  infer Resource,
+  any
+>
+  ? Resource
+  : Source extends Generator<any, infer Resource, any>
+    ? Resource
+    : never;
+
+type YieldedOfSource<Source> = Source extends () => Generator<
+  infer Yielded,
+  any,
+  any
+>
+  ? Yielded
+  : Source extends Generator<infer Yielded, any, any>
+    ? Yielded
+    : never;
 
 type SelectedSubmitCraftResource<SubmitCraftResourceById> =
   SubmitCraftResourceById extends {
@@ -238,6 +287,56 @@ function* triggerSubmitResource<FormValue>(
   }
 }
 
+const SUBMIT_SOURCE_INVALID_YIELD_ERROR_MESSAGE =
+  'insertFormSubmit can only resolve a service property shortcut such as `TodoStore.add`.';
+const SUBMIT_SOURCE_APP_START_ERROR_MESSAGE =
+  'insertFormSubmit cannot declare app-start hooks.';
+
+/**
+ * Turns what the caller passed into the mutation reference.
+ *
+ * A service property shortcut reaches here as a generator function
+ * (`TodoStore.add`) or, once bound, as a generator (`Todos.add({ listId })`):
+ * drive it to get the mutation. A mutation reference is a generator function
+ * too (it can be `yield*`ed), but it carries `kind: 'mutation'`, whereas a
+ * shortcut answers any property with a function.
+ */
+function createSubmitSourceResolver(source: unknown) {
+  const isBoundShortcut = isGenerator(source);
+  const isShortcut =
+    isBoundShortcut ||
+    (isGeneratorFunction(source) &&
+      (source as { kind?: unknown }).kind !== 'mutation');
+
+  // A bound shortcut can only be driven once, while a form insertion runs once
+  // per form (a parallel form builds one per item): keep its result.
+  let boundResult: { value: any } | undefined;
+
+  return (injector: Injector): any => {
+    if (!isShortcut) return source;
+    if (boundResult) return boundResult.value;
+
+    const value = runInInjectionContext(
+      injector,
+      () =>
+        runCraftGenerator({
+          iterator: isBoundShortcut
+            ? (source as Generator<unknown, unknown, unknown>)
+            : (source as () => Generator<unknown, unknown, unknown>)(),
+          injector,
+          hostScope: 'function',
+          invalidYieldErrorMessage: SUBMIT_SOURCE_INVALID_YIELD_ERROR_MESSAGE,
+          multipleAppStartErrorMessage: SUBMIT_SOURCE_APP_START_ERROR_MESSAGE,
+          onAppStartNotSupportedErrorMessage:
+            SUBMIT_SOURCE_APP_START_ERROR_MESSAGE,
+        }).value,
+    );
+
+    if (isBoundShortcut) boundResult = { value };
+    return value;
+  };
+}
+
 type ToSubmitExceptions<
   SubmitExceptions extends AnyCraftException | undefined | unknown,
   Config,
@@ -301,6 +400,35 @@ export function insertFormSubmit<
 >;
 export function insertFormSubmit<
   FormValue,
+  SubmitSource extends ServiceMutationSource<SubmitMutation>,
+  SubmitCraftResource = ResourceOfSource<SubmitSource>,
+  SubmitExceptions = SubmitExceptionUnion<SubmitCraftResource>,
+  const Config extends object = {},
+>(
+  submitSource: SubmitSource,
+  config?: Config &
+    InsertFormSubmitConfig<
+      FormValue,
+      SubmitCraftResource,
+      SubmitExceptions,
+      unknown,
+      unknown
+    >,
+): InsertionsFormFactory<
+  FormValue,
+  unknown,
+  {
+    submit: () => void;
+    hasSubmitExceptions: Signal<boolean>;
+    submitExceptions: Signal<
+      ToSubmitExceptions<SubmitExceptions, Config, unknown>[]
+    >;
+  },
+  {},
+  YieldedOfSource<SubmitSource>
+>;
+export function insertFormSubmit<
+  FormValue,
   SubmitCraftResourceById extends {
     type: 'resourceByGroupLike';
     kind: 'mutation';
@@ -336,8 +464,50 @@ export function insertFormSubmit<
     >;
   }
 >;
+export function insertFormSubmit<
+  FormValue,
+  SubmitSourceById extends ServiceMutationSource<SubmitMutationById>,
+  SubmitCraftResourceById = ResourceOfSource<SubmitSourceById>,
+  MutationIdentifier extends
+    | string
+    | number = MutationIdentifierOf<SubmitCraftResourceById> &
+    (string | number),
+  FormIdentifier extends string | number = MutationIdentifier,
+  SubmitCraftResource = SelectedSubmitCraftResource<SubmitCraftResourceById>,
+  SubmitExceptions = SubmitExceptionUnion<SubmitCraftResourceById>,
+  const Config extends object = {},
+>(
+  submitSourceById: SubmitSourceById,
+  config?: Config &
+    InsertFormSubmitConfig<
+      FormValue,
+      SubmitCraftResource,
+      SubmitExceptions,
+      NoInfer<MutationIdentifier>,
+      NoInfer<FormIdentifier>
+    >,
+): InsertionsFormFactory<
+  FormValue,
+  FormIdentifier,
+  {
+    submit: () => void;
+    hasSubmitExceptions: Signal<boolean>;
+    submitExceptions: Signal<
+      ToSubmitExceptions<SubmitExceptions, Config, FormIdentifier>[]
+    >;
+  },
+  {},
+  YieldedOfSource<SubmitSourceById>
+>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function insertFormSubmit(submitCraftResource: any, config?: any): any {
+export function insertFormSubmit(
+  submitCraftResourceInput: any,
+  config?: any,
+): any {
+  const resolveSubmitSource = createSubmitSourceResolver(
+    submitCraftResourceInput,
+  );
+
   return ({
     field,
     setAttemptedSubmit,
@@ -355,6 +525,7 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
     validatedFormValue: Signal<ValidatedFormValue<unknown>>;
   }) => {
     const callbackInjector = injector ?? inject(Injector);
+    const submitCraftResource = resolveSubmitSource(callbackInjector);
     const submitCraftResourceTarget = computed(() => {
       if (
         formIdentifier !== undefined &&
@@ -490,7 +661,6 @@ export function insertFormSubmit(submitCraftResource: any, config?: any): any {
       const validatedFormValue = validatedFormValueSignal();
       if (!validatedFormValue) return;
       if (!submitCraftResource) {
-
         console.warn(
           'No submit resource found for form submission. Please check that the resource is correctly passed to insertFormSubmit and that the formIdentifier (if used) is correct.',
         );

@@ -17,6 +17,11 @@ import { insertSelectFormTree } from './insert-select-form-tree';
 import { insertNoopTypingAnchor } from '../insert-noop-typing-anchor';
 import { craftPipe } from '../craft-pipe';
 import { craftUse } from '../craft-use';
+import {
+  craftService,
+  type CraftServiceInput,
+  type GetServiceDependencies,
+} from '../craft-service';
 
 type LoginData = {
   id: string;
@@ -550,6 +555,190 @@ describe('insertFormSubmit — parallel forms', () => {
 
       expect(craftUse(form2!.hasSubmitExceptions())).toBe(false);
       expect(craftUse(form2!.submitExceptions())).toEqual([]);
+    });
+  });
+
+  describe('with a service property shortcut', () => {
+    it('submits through `Store.add` and tracks the service as a dependency', async () => {
+      const submitted: string[] = [];
+      const { Store, provideStore } = craftService(
+        { name: 'Store', providedIn: 'toProvide' },
+        function* () {
+          yield* mutation('add', {
+            method: (title: ValidatedFormValue<string>) => title,
+            loader: ({ params: title }) => {
+              submitted.push(String(title));
+              return title;
+            },
+          });
+        },
+      );
+      // `Store` is never yielded here: the form alone carries the dependency.
+      const { View, provideView } = craftService(
+        { name: 'View', providedIn: 'toProvide' },
+        function* () {
+          yield* state(
+            'titleForm',
+            '',
+            insertForm(insertFormSubmit(Store.add)),
+          );
+        },
+      );
+
+      expectTypeOf<keyof GetServiceDependencies<typeof View>['dependencies']>()
+        .toEqualTypeOf<'Store'>();
+
+      TestBed.configureTestingModule({
+        providers: [provideStore(), provideView()],
+      });
+
+      await TestBed.runInInjectionContext(async () => {
+        const view = craftUse(View());
+        const add = craftUse(Store()).add;
+
+        view.titleForm.form.set('hello');
+        view.titleForm.form.submit();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(submitted).toEqual(['hello']);
+        expect(craftUse(add.status())).toBe('resolved');
+        expect(craftUse(view.titleForm.form.submitting())).toBe(false);
+      });
+    });
+
+    it('accepts the shortcut once its bindings are given', async () => {
+      const submitted: string[] = [];
+      const { Lists } = craftService(
+        { name: 'Lists', providedIn: 'function' },
+        function* (inputs: { listId: CraftServiceInput<string> }) {
+          const listId = yield* inputs.listId();
+          yield* mutation('add', {
+            method: (title: ValidatedFormValue<string>) => title,
+            loader: ({ params: title }) => {
+              submitted.push(`${listId}:${title}`);
+              return title;
+            },
+          });
+        },
+      );
+      const { Form } = craftService(
+        { name: 'Form', providedIn: 'global' },
+        function* () {
+          yield* state(
+            'titleForm',
+            '',
+            insertForm(insertFormSubmit(Lists.add({ listId: signal('groceries') }))),
+          );
+        },
+      );
+
+      expectTypeOf<keyof GetServiceDependencies<typeof Form>['dependencies']>()
+        .toEqualTypeOf<'Lists'>();
+
+      await TestBed.runInInjectionContext(async () => {
+        const form = craftUse(Form());
+
+        form.titleForm.form.set('milk');
+        form.titleForm.form.submit();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(submitted).toEqual(['groceries:milk']);
+      });
+    });
+
+    it('accepts the shortcut of a by-identifier mutation, one form per item', async () => {
+      const submitted: string[] = [];
+      const { Store, provideStore } = craftService(
+        { name: 'Store', providedIn: 'toProvide' },
+        function* () {
+          yield* mutation('save', {
+            method: (login: ValidatedFormValue<LoginData>) => login,
+            identifier: ({ id }: { id: string }) => id,
+            loader: ({ params: login }) => {
+              submitted.push(`${login.id}:${login.name}`);
+              return login;
+            },
+          });
+        },
+      );
+      const { Logins, provideLogins } = craftService(
+        { name: 'Logins', providedIn: 'toProvide' },
+        function* () {
+          yield* state(
+            'loginForms',
+            [
+              { id: '1', name: '1', password: '' },
+              { id: '2', name: '2', password: '' },
+            ] satisfies LoginData[],
+            insertForm(
+              { identifier: ({ item: { id } }) => id },
+              insertFormSubmit(Store.save),
+            ),
+          );
+        },
+      );
+
+      expectTypeOf<keyof GetServiceDependencies<typeof Logins>['dependencies']>()
+        .toEqualTypeOf<'Store'>();
+
+      TestBed.configureTestingModule({
+        providers: [provideStore(), provideLogins()],
+      });
+
+      await TestBed.runInInjectionContext(async () => {
+        const { loginForms } = craftUse(Logins());
+
+        // The shortcut is resolved for each form, not only the first one.
+        loginForms.select('1')!.submit();
+        loginForms.select('2')!.submit();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(submitted.sort()).toEqual(['1:1', '2:2']);
+      });
+    });
+
+    it('resolves a bound shortcut once for every parallel form', async () => {
+      const submitted: string[] = [];
+      const { Lists } = craftService(
+        { name: 'Lists', providedIn: 'function' },
+        function* (inputs: { listId: CraftServiceInput<string> }) {
+          const listId = yield* inputs.listId();
+          yield* mutation('save', {
+            method: (login: ValidatedFormValue<LoginData>) => login,
+            identifier: ({ id }: { id: string }) => id,
+            loader: ({ params: login }) => {
+              submitted.push(`${listId}:${login.id}`);
+              return login;
+            },
+          });
+        },
+      );
+      const { Logins } = craftService(
+        { name: 'Logins', providedIn: 'global' },
+        function* () {
+          yield* state(
+            'loginForms',
+            [
+              { id: '1', name: '1', password: '' },
+              { id: '2', name: '2', password: '' },
+            ] satisfies LoginData[],
+            insertForm(
+              { identifier: ({ item: { id } }) => id },
+              insertFormSubmit(Lists.save({ listId: signal('team') })),
+            ),
+          );
+        },
+      );
+
+      await TestBed.runInInjectionContext(async () => {
+        const { loginForms } = craftUse(Logins());
+
+        loginForms.select('1')!.submit();
+        loginForms.select('2')!.submit();
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(submitted.sort()).toEqual(['team:1', 'team:2']);
+      });
     });
   });
 });

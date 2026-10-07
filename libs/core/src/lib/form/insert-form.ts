@@ -62,21 +62,28 @@ type InsertFormParallelOutput<StateType, Insertions> = {
   >;
 };
 
-type InsertFormSimpleReturn<StateType, Insertions, PreviousInsertionsOutputs> =
-  InsertionsStateFactory<
-    StateType,
-    InsertFormSimpleOutput<StateType, Insertions>,
-    PreviousInsertionsOutputs
-  >;
+type InsertFormSimpleReturn<
+  StateType,
+  Insertions,
+  PreviousInsertionsOutputs,
+  Yielded = never,
+> = InsertionsStateFactory<
+  StateType,
+  InsertFormSimpleOutput<StateType, Insertions>,
+  PreviousInsertionsOutputs,
+  Yielded
+>;
 
 type InsertFormParallelReturn<
   StateType,
   Insertions,
   PreviousInsertionsOutputs,
+  Yielded = never,
 > = InsertionsStateFactory<
   StateType,
   InsertFormParallelOutput<StateType, Insertions>,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  Yielded
 >;
 
 type ParallelInsertFormConfig<
@@ -238,36 +245,48 @@ export function insertForm<
   StateType,
   Insertion1,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
 >(
   insertion1: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
-): InsertFormSimpleReturn<StateType, Insertion1, PreviousInsertionsOutputs>;
+): InsertFormSimpleReturn<
+  StateType,
+  Insertion1,
+  PreviousInsertionsOutputs,
+  Insertion1Yielded
+>;
 export function insertForm<
   StateType,
   Insertion1,
   Insertion2,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
 >(
   insertion1: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
 ): InsertFormSimpleReturn<
   StateType,
   Insertion1 & Insertion2,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  Insertion1Yielded | Insertion2Yielded
 >;
 export function insertForm<
   StateType,
@@ -275,29 +294,36 @@ export function insertForm<
   Insertion2,
   Insertion3,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
 >(
   insertion1: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
 ): InsertFormSimpleReturn<
   StateType,
   Insertion1 & Insertion2 & Insertion3,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
 >;
 export function insertForm<
   StateType,
@@ -306,35 +332,44 @@ export function insertForm<
   Insertion3,
   Insertion4,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
 >(
   insertion1: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
 ): InsertFormSimpleReturn<
   StateType,
   Insertion1 & Insertion2 & Insertion3 & Insertion4,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  Insertion1Yielded | Insertion2Yielded | Insertion3Yielded | Insertion4Yielded
 >;
 export function insertForm<
   StateType,
@@ -344,30 +379,39 @@ export function insertForm<
   Insertion4,
   Insertion5,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
 >(
   insertion1: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsFormFactory<
     StateType,
@@ -377,12 +421,18 @@ export function insertForm<
       Insertion1 &
       Insertion2 &
       Insertion3 &
-      Insertion4
+      Insertion4,
+    Insertion5Yielded
   >,
 ): InsertFormSimpleReturn<
   StateType,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  | Insertion1Yielded
+  | Insertion2Yielded
+  | Insertion3Yielded
+  | Insertion4Yielded
+  | Insertion5Yielded
 >;
 export function insertForm<
   StateType,
@@ -393,30 +443,40 @@ export function insertForm<
   Insertion5,
   Insertion6,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
 >(
   insertion1: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsFormFactory<
     StateType,
@@ -426,7 +486,8 @@ export function insertForm<
       Insertion1 &
       Insertion2 &
       Insertion3 &
-      Insertion4
+      Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsFormFactory<
     StateType,
@@ -437,12 +498,19 @@ export function insertForm<
       Insertion2 &
       Insertion3 &
       Insertion4 &
-      Insertion5
+      Insertion5,
+    Insertion6Yielded
   >,
 ): InsertFormSimpleReturn<
   StateType,
   Insertion1 & Insertion2 & Insertion3 & Insertion4 & Insertion5 & Insertion6,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  | Insertion1Yielded
+  | Insertion2Yielded
+  | Insertion3Yielded
+  | Insertion4Yielded
+  | Insertion5Yielded
+  | Insertion6Yielded
 >;
 export function insertForm<
   StateType,
@@ -454,30 +522,41 @@ export function insertForm<
   Insertion6,
   Insertion7,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
+  Insertion7Yielded = never,
 >(
   insertion1: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsFormFactory<
     StateType,
@@ -487,7 +566,8 @@ export function insertForm<
       Insertion1 &
       Insertion2 &
       Insertion3 &
-      Insertion4
+      Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsFormFactory<
     StateType,
@@ -498,7 +578,8 @@ export function insertForm<
       Insertion2 &
       Insertion3 &
       Insertion4 &
-      Insertion5
+      Insertion5,
+    Insertion6Yielded
   >,
   insertion7: InsertionsFormFactory<
     StateType,
@@ -510,7 +591,8 @@ export function insertForm<
       Insertion3 &
       Insertion4 &
       Insertion5 &
-      Insertion6
+      Insertion6,
+    Insertion7Yielded
   >,
 ): InsertFormSimpleReturn<
   StateType,
@@ -521,7 +603,14 @@ export function insertForm<
     Insertion5 &
     Insertion6 &
     Insertion7,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  | Insertion1Yielded
+  | Insertion2Yielded
+  | Insertion3Yielded
+  | Insertion4Yielded
+  | Insertion5Yielded
+  | Insertion6Yielded
+  | Insertion7Yielded
 >;
 export function insertForm<
   StateType,
@@ -534,30 +623,42 @@ export function insertForm<
   Insertion7,
   Insertion8,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
+  Insertion5Yielded = never,
+  Insertion6Yielded = never,
+  Insertion7Yielded = never,
+  Insertion8Yielded = never,
 >(
   insertion1: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsFormFactory<
     StateType,
     unknown,
     Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
   insertion5: InsertionsFormFactory<
     StateType,
@@ -567,7 +668,8 @@ export function insertForm<
       Insertion1 &
       Insertion2 &
       Insertion3 &
-      Insertion4
+      Insertion4,
+    Insertion5Yielded
   >,
   insertion6: InsertionsFormFactory<
     StateType,
@@ -578,7 +680,8 @@ export function insertForm<
       Insertion2 &
       Insertion3 &
       Insertion4 &
-      Insertion5
+      Insertion5,
+    Insertion6Yielded
   >,
   insertion7: InsertionsFormFactory<
     StateType,
@@ -590,7 +693,8 @@ export function insertForm<
       Insertion3 &
       Insertion4 &
       Insertion5 &
-      Insertion6
+      Insertion6,
+    Insertion7Yielded
   >,
   insertion8: InsertionsFormFactory<
     StateType,
@@ -603,7 +707,8 @@ export function insertForm<
       Insertion4 &
       Insertion5 &
       Insertion6 &
-      Insertion7
+      Insertion7,
+    Insertion8Yielded
   >,
 ): InsertFormSimpleReturn<
   StateType,
@@ -634,39 +739,51 @@ export function insertForm<
   GroupIdentifier extends string | number,
   Insertion1,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
 >(
   config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
   insertion1: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
-): InsertFormParallelReturn<StateType, Insertion1, PreviousInsertionsOutputs>;
+): InsertFormParallelReturn<
+  StateType,
+  Insertion1,
+  PreviousInsertionsOutputs,
+  Insertion1Yielded
+>;
 export function insertForm<
   StateType extends unknown[],
   GroupIdentifier extends string | number,
   Insertion1,
   Insertion2,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
 >(
   config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
   insertion1: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
 ): InsertFormParallelReturn<
   StateType,
   Insertion1 & Insertion2,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  Insertion1Yielded | Insertion2Yielded
 >;
 export function insertForm<
   StateType extends unknown[],
@@ -675,30 +792,37 @@ export function insertForm<
   Insertion2,
   Insertion3,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
 >(
   config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
   insertion1: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
 ): InsertFormParallelReturn<
   StateType,
   Insertion1 & Insertion2 & Insertion3,
-  PreviousInsertionsOutputs
+  PreviousInsertionsOutputs,
+  Insertion1Yielded | Insertion2Yielded | Insertion3Yielded
 >;
 export function insertForm<
   StateType extends unknown[],
@@ -708,31 +832,39 @@ export function insertForm<
   Insertion3,
   Insertion4,
   PreviousInsertionsOutputs = {},
+  Insertion1Yielded = never,
+  Insertion2Yielded = never,
+  Insertion3Yielded = never,
+  Insertion4Yielded = never,
 >(
   config: ParallelInsertFormConfig<ExtractItemType<StateType>, GroupIdentifier>,
   insertion1: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion1,
-    PreviousInsertionsOutputs
+    PreviousInsertionsOutputs,
+    Insertion1Yielded
   >,
   insertion2: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion2,
-    PreviousInsertionsOutputs & Insertion1
+    PreviousInsertionsOutputs & Insertion1,
+    Insertion2Yielded
   >,
   insertion3: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion3,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2
+    PreviousInsertionsOutputs & Insertion1 & Insertion2,
+    Insertion3Yielded
   >,
   insertion4: InsertionsFormFactory<
     ExtractItemType<StateType>,
     GroupIdentifier,
     Insertion4,
-    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3
+    PreviousInsertionsOutputs & Insertion1 & Insertion2 & Insertion3,
+    Insertion4Yielded
   >,
 ): InsertFormParallelReturn<
   StateType,

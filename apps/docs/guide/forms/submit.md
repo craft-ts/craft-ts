@@ -77,6 +77,33 @@ const submitErrors = userFormState.form.submitExceptions();
 const firstSubmitError = submitErrors[0]?.code; // 'EMAIL_NOT_AVAILABLE'
 ```
 
+## Submitting through a service mutation
+
+When the mutation belongs to a service, pass its
+[property shortcut](/guide/app/expose-api#single-property-shortcut) instead of
+yielding the service just to read the member:
+
+```ts
+function* () {
+  yield* state(
+    'titleForm',
+    '',
+    insertForm(insertFormSubmit(TodoStore.add)),
+  );
+}
+```
+
+The shortcut resolves the same mutation instance `yield* TodoStore()` exposes,
+and the submit exceptions are inferred from it as usual. The form carries the
+service as a dependency of its own, so the service does not have to be yielded
+first for the dependency graph and the test registers to see it.
+
+- **Service with public inputs** — the bare shortcut is not callable without
+  bindings (see [OmitInputs](/guide/app/expose-api#omitinputs)). Give them as
+  you would anywhere else: `insertFormSubmit(Lists.add({ listId }))`.
+- **Mutation by identifier** — works the same way, one resolution shared by
+  every form: `insertForm({ identifier }, insertFormSubmit(Store.save))`.
+
 ::: warning What `success` is for
 `success` runs inside the **derivation of the submit exception list**, and its
 return value is appended to that list. Its purpose is to raise an exception the
