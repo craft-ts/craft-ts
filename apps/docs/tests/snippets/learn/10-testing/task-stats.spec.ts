@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import {
   craftComputed,
+  craftSignal,
+  createYieldableReactiveValue,
   craftService,
   craftUse,
   setupCraftServiceTestingByRegister,
@@ -24,10 +26,8 @@ export const { TaskList } = craftService(
 export const { TaskStats, provideTaskStats } = craftService(
   { name: 'TaskStats', providedIn: 'toProvide' },
   function* () {
-    const { tasks } = yield* TaskList();
-
     yield* craftComputed('done', function* () {
-      return (yield* tasks()).filter((task) => task.done).length;
+      return (yield* TaskList.tasks()).filter((task) => task.done).length;
     });
   },
 );
@@ -42,12 +42,14 @@ describe('Learn 10 TaskStats service', () => {
 
       // its only dependency, replaced by a mock
       TaskList: {
-        tasks: vi.fn(function* () {
-          return [
+        // a reactive member is mocked by a reactive value, like the real one
+        tasks: createYieldableReactiveValue(
+          craftSignal<Task[]>([
             { id: '1', title: 'a', done: true },
             { id: '2', title: 'b', done: false },
-          ];
-        }),
+          ]),
+          'tasks',
+        ),
       },
     });
 

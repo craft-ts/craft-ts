@@ -236,11 +236,12 @@ yield *
     'pagination',
     { state: { page: { fallbackValue: 1, codec: numberCodec } } },
     function* ({ patch, state }) {
-      const maxPage = yield* PaginationRules.maxPage();
       return {
         nextPage: function* () {
           const current = yield* state();
-          if (current.page >= maxPage()) return;
+          // A reactive member is read when it is yielded: this is the
+          // current maximum, not the one from when the query params were built.
+          if (current.page >= (yield* PaginationRules.maxPage())) return;
           return yield* patch(({ page }) => ({ page: page + 1 }));
         },
       };

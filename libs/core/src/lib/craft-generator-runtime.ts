@@ -169,9 +169,16 @@ export type GeneratorOnlyFactory<
   ? (...args: Args) => Generator<Yielded, Result, unknown>
   : never;
 
+/** What an exposure resolves to when the member must not be exposed. */
+export const NOT_EXPOSED = Symbol('craft-not-exposed');
+
 type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
   [SERVICE_YIELD_REQUEST_MARKER]: true;
   name: string;
+  readonly exposure?: {
+    readonly name: string;
+    readonly resolve: (service: Result) => unknown;
+  };
   providedIn: ConcreteServiceScope;
   resolve: (injector: Injector, hostScope: ConcreteServiceScope) => Result;
 }>;
@@ -303,6 +310,23 @@ export function runCraftGenerator({
 
     if (isServiceYieldRequest(yielded)) {
       const instance = resolveServiceYield(yielded, injector, hostScope);
+      const exposure = yielded.exposure;
+      if (collectExposed && exposure) {
+        const exposed = exposure.resolve(instance);
+        if (exposed !== NOT_EXPOSED) {
+          if (
+            Object.prototype.hasOwnProperty.call(
+              collectExposed.record,
+              exposure.name,
+            )
+          ) {
+            throw new Error(
+              `${collectExposed.owner} exposes "${exposure.name}" twice. Rename one exposure or keep it internal with craftPrivate(...).`,
+            );
+          }
+          collectExposed.record[exposure.name] = exposed;
+        }
+      }
       onServiceResolved?.(instance);
       current = iterator.next(instance);
       continue;

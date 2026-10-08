@@ -95,12 +95,10 @@ observes them:
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
   function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
+    yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));
-
-    return counter;
   },
 );
 
@@ -108,9 +106,8 @@ const CounterChild = craftComponent(
   'CounterChild',
   { providers: [provideCounter()] },
   function* () {
-    const counter = yield* Counter();
-
-    return div(counter);
+    // The shortcut is bound as is: the renderer reads it and stays reactive.
+    return div(Counter.counter);
   },
 );
 

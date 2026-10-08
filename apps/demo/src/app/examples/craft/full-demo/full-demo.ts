@@ -43,19 +43,23 @@ const INITIAL_TODOS = [
 export const { provideTodoStore, TodoStore } = craftService(
   { name: 'TodoStore', providedIn: 'toProvide' },
   function* () {
-    const nextId = yield* craftPrivate(state('nextId', 3, ({ state, update }) => ({
-      take: function* () {
-        const _state = yield* state();
-        const id = _state;
-        yield* update((value) => value + 1);
-        return id;
-      },
-    })));
-    const records = yield* craftPrivate(state('records', INITIAL_TODOS, ({ update }) => ({
-      add: (todo: Todo) => update((current) => [...current, todo]),
-      remove: (id: number) =>
-        update((current) => current.filter((todo) => todo.id !== id)),
-    })));
+    const nextId = yield* craftPrivate(
+      state('nextId', 3, ({ state, update }) => ({
+        take: function* () {
+          const _state = yield* state();
+          const id = _state;
+          yield* update((value) => value + 1);
+          return id;
+        },
+      })),
+    );
+    const records = yield* craftPrivate(
+      state('records', INITIAL_TODOS, ({ update }) => ({
+        add: (todo: Todo) => update((current) => [...current, todo]),
+        remove: (id: number) =>
+          update((current) => current.filter((todo) => todo.id !== id)),
+      })),
+    );
     const add = yield* mutation('add', {
       method: (title: NonNullable<ValidatedFormValue<string>>) => title.trim(),
       loader: function* ({ params: title }) {
@@ -132,76 +136,79 @@ const FullDemoCraft = craftComponent(
   {
     providers: [provideFullDemoCraftView(), provideTodoStore()],
   },
-  () => div({ class: example.page }, [
-        heading({ class: example.title }, [
-          'Full craftService demo ',
-          StatusComponent({ status: FullDemoCraftView.todoStore.todos.status }),
-        ]),
-        p(
-          { class: example.text, 'data-exampleText': 'muted' },
-          'A toProvide service composed from a query and two mutations.',
-        ),
-        form(
-          'AddTodoForm',
-          {
-            class: example.row,
-            *submit(event) {
-              event.preventDefault();
-              yield* FullDemoCraftView.titleForm.form.submit();
-            },
-          },
-          [
-            input('TodoNameToAddInput', {
-              class: example.input,
-              placeholder: 'New todo',
-            }).pipe(CraftFieldDirective(FullDemoCraftView.titleForm.form)),
-            button(
-              'AddTodoButton',
-              {
-                class: example.button,
-                'data-exampleButton': 'primary',
-                type: 'submit',
-                disabled: FullDemoCraftView.todoStore.add.isLoading,
-              },
-              'Add',
-            ),
-          ],
-        ).pipe(
-          fieldErrorNode.exhaustive({
-            required: () =>
-              p(
-                { class: example.text, 'data-exampleText': 'error' },
-                'A todo title is required.',
-              ),
-          }),
-        ),
-        ul(
-          { class: example.list },
-          forNode(
-            FullDemoCraftView.todoStore.todos.value,
-            { track: (todo) => todo.id, empty: () => p('No todos.') },
-            (todo) =>
-              li({ class: example.item }, [
-                span('TodoTitle', {}, function* () {
-                  return (yield* todo()).title;
-                }),
-                button(
-                  'RemoveTodoButton',
-                  {
-                    class: example.button,
-                    'data-exampleButton': 'danger',
-                    type: 'button',
-                    disabled: FullDemoCraftView.todoStore.remove.isLoading,
-                    *click() {
-                      yield* FullDemoCraftView.todoStore.remove.mutate((yield* todo()).id);
-                    },
-                  },
-                  'Remove',
-                ),
-              ]),
-          ),
-        ),
+  () =>
+    div({ class: example.page }, [
+      heading({ class: example.title }, [
+        'Full craftService demo ',
+        StatusComponent({ status: FullDemoCraftView.todoStore.todos.status }),
       ]),
+      p(
+        { class: example.text, 'data-exampleText': 'muted' },
+        'A toProvide service composed from a query and two mutations.',
+      ),
+      form(
+        'AddTodoForm',
+        {
+          class: example.row,
+          *submit(event) {
+            event.preventDefault();
+            yield* FullDemoCraftView.titleForm.form.submit();
+          },
+        },
+        [
+          input('TodoNameToAddInput', {
+            class: example.input,
+            placeholder: 'New todo',
+          }).pipe(CraftFieldDirective(FullDemoCraftView.titleForm.form)),
+          button(
+            'AddTodoButton',
+            {
+              class: example.button,
+              'data-exampleButton': 'primary',
+              type: 'submit',
+              disabled: FullDemoCraftView.todoStore.add.isLoading,
+            },
+            'Add',
+          ),
+        ],
+      ).pipe(
+        fieldErrorNode.exhaustive({
+          required: () =>
+            p(
+              { class: example.text, 'data-exampleText': 'error' },
+              'A todo title is required.',
+            ),
+        }),
+      ),
+      ul(
+        { class: example.list },
+        forNode(
+          FullDemoCraftView.todoStore.todos.value,
+          { track: (todo) => todo.id, empty: () => p('No todos.') },
+          (todo) =>
+            li({ class: example.item }, [
+              span('TodoTitle', {}, function* () {
+                return (yield* todo()).title;
+              }),
+              button(
+                'RemoveTodoButton',
+                {
+                  class: example.button,
+                  'data-exampleButton': 'danger',
+                  type: 'button',
+                  disabled: FullDemoCraftView.todoStore.remove.isLoading,
+                  *click() {
+                    yield* FullDemoCraftView.todoStore.remove.mutate(
+                      (yield* todo()).id,
+                    );
+                  },
+                },
+                'Remove',
+              ),
+            ]),
+        ),
+      ),
+    ]),
 ).pipe(
   catchNode.exhaustive({
     FAILED_TO_LOAD: {

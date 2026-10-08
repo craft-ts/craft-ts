@@ -4,7 +4,6 @@ import {
   craftService,
   craftComputed,
   state,
-  craftUse,
   craftExpose,
 } from '@craft-ts/core';
 import {
@@ -15,8 +14,10 @@ import {
   section,
   withProviders,
   heading,
+  headingSection,
 } from '@craft-ts/component';
 import { componentUi } from './component-demos.style';
+import { componentProvidersDemo } from './component-providers-demo';
 
 const noAccess = craftException({ _tag: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(
@@ -35,13 +36,10 @@ export const { RestrictedContentView, provideRestrictedContentView } =
 const restrictedContent = craftComponent(
   'restrictedContent',
   { providers: [provideRestrictedContentView()] },
-  function* () {
-    const { value } = yield* RestrictedContentView();
-    return p(
-      { class: componentUi.restricted },
-      `Private data: ${value}`,
-    );
-  },
+  () =>
+    p({ class: componentUi.restricted }, function* () {
+      return `Private data: ${yield* RestrictedContentView.value()}`;
+    }),
 );
 
 export const {
@@ -50,27 +48,23 @@ export const {
 } = craftService(
   { name: 'componentCompositionDemoView', providedIn: 'toProvide' },
   function* () {
-    yield* state(
+    const canReadRestrictedData = yield* state(
       'canReadRestrictedData',
       false,
-      ({ update, state }) => ({
-        restriction: craftUse(craftComputed('restriction', function* () {
-          return (yield* state()) ? 'accessible' : noAccess;
-        })),
+      ({ update }) => ({
         toggle: () => update((v) => !v),
       }),
     );
+    yield* craftComputed('restriction', function* () {
+      return (yield* canReadRestrictedData()) ? 'accessible' : noAccess;
+    });
 
-    yield* state(
-      'lastHandledException',
-      '',
-      ({ set }) => ({
-        showNoAccessText: () =>
-          set(
-            'NO_ACCESS handled by catchTag (the boundary renders no template).',
-          ),
-      }),
-    );
+    yield* state('lastHandledException', '', ({ set }) => ({
+      showNoAccessText: () =>
+        set(
+          'NO_ACCESS handled by catchTag (the boundary renders no template).',
+        ),
+    }));
   },
 );
 
@@ -78,7 +72,6 @@ export const componentCompositionDemo = craftComponent(
   'componentCompositionDemo',
   {
     providers: [provideComponentCompositionDemoView()],
-    host: { class: componentUi.host },
   },
   () =>
     section({ class: componentUi.page }, [
@@ -100,17 +93,15 @@ export const componentCompositionDemo = craftComponent(
       restrictedContent.pipe(
         withProviders([
           provideRestrictedData(function* () {
-            const restriction =
-              yield* ComponentCompositionDemoView.canReadRestrictedData.restriction();
-            return yield* restriction();
+            return yield* ComponentCompositionDemoView.restriction();
           }),
         ]),
         catchTag.exhaustive({
           NO_ACCESS: function* () {
             yield* ComponentCompositionDemoView.lastHandledException.showNoAccessText();
-            return;
           },
         }),
       )({}),
+      headingSection([componentProvidersDemo()]),
     ]),
 );

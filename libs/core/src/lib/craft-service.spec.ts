@@ -69,7 +69,7 @@ describe('craftService', () => {
 
   it('should expose every named primitive the factory yields, under its name', () => {
     const { DirectUserQuery } = craftService(
-      { name: 'DirectUserQuery', providedIn: 'global' },
+      { name: 'DirectUserQuery', providedIn: 'function' },
       function* (inputs: { userId: () => string }) {
         yield* query('userQuery', {
           params: inputs.userId,
@@ -433,15 +433,15 @@ describe('scope', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: {
-        $provided: { initialValue: number };
-        step: number;
+        $provided: { initialValue: number; step: number };
       }) {
         yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
-            increment: () => update((value) => value + inputs.step),
-            readStep: () => inputs.step,
+            increment: () =>
+              update((value) => value + inputs.$provided.step),
+            readStep: () => inputs.$provided.step,
             readProvidedInitialValue: () => inputs.$provided.initialValue,
           }),
         );
@@ -449,11 +449,11 @@ describe('scope', () => {
     );
 
     TestBed.configureTestingModule({
-      providers: [provideCounter({ initialValue: 10 })],
+      providers: [provideCounter({ initialValue: 10, step: 2 })],
     });
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(Counter({ step: 2 })).counter;
+      const counter = craftUse(Counter()).counter;
 
       expect(craftUse(counter())).toBe(10);
       expect(craftUse(counter.readStep())).toBe(2);
@@ -557,11 +557,99 @@ describe('scope', () => {
     });
   });
 
-  it('should only allow $provided on provider-capable scopes', () => {
+  it('creates provider-scoped service instances lazily on first resolution', () => {
+    let factoryRuns = 0;
+    const { LazyCounter, provideLazyCounter } = craftService(
+      { name: 'LazyCounter', providedIn: 'toProvide' },
+      function* () {
+        factoryRuns++;
+        yield* state('counter', 0);
+      },
+    );
+
+    const providers = provideLazyCounter();
+    expect(factoryRuns).toBe(0);
+
+    TestBed.configureTestingModule({ providers: [providers] });
+    expect(factoryRuns).toBe(0);
+
+    TestBed.runInInjectionContext(() => {
+      craftUse(LazyCounter());
+      expect(factoryRuns).toBe(1);
+      craftUse(LazyCounter());
+      expect(factoryRuns).toBe(1);
+    });
+  });
+
+  it('restricts factory inputs to the service scope', () => {
+    const { FunctionService } = craftService(
+      { name: 'FunctionService', providedIn: 'function' },
+      function* (inputs: { requestId: string }) {
+        yield* craftExpose('requestId', inputs.requestId);
+      },
+    );
+    expectTypeOf(FunctionService({ requestId: 'request-1' })).toMatchTypeOf<
+      Generator
+    >();
+
+    if (false) {
+      craftService(
+        { name: 'FunctionServiceWithProvided', providedIn: 'function' },
+        // @ts-expect-error Function services receive all values as call-site inputs.
+        function* (inputs: {
+          requestId: string;
+          $provided: { initialValue: number };
+        }) {
+          yield* craftExpose('requestId', inputs.requestId);
+          yield* craftExpose('initialValue', inputs.$provided.initialValue);
+        },
+      );
+    }
+
+    if (false) {
+      // @ts-expect-error Function helper inputs cannot contain the provider-only $provided key.
+      FunctionService({
+        requestId: 'request-2',
+        $provided: { initialValue: 3 },
+      });
+    }
+
+    if (false) {
+      craftService(
+        { name: 'GlobalService', providedIn: 'global' },
+        // @ts-expect-error A global singleton cannot take call-site factory inputs.
+        function* (inputs: { requestId: string }) {
+          yield* craftExpose('requestId', inputs.requestId);
+        },
+      );
+    }
+
+    if (false) {
+      craftService(
+        { name: 'ProvidedService', providedIn: 'toProvide' },
+        // @ts-expect-error Provider-scoped services receive configuration through $provided.
+        function* (inputs: { requestId: string }) {
+          yield* craftExpose('requestId', inputs.requestId);
+        },
+      );
+    }
+
+    if (false) {
+      craftService(
+        { name: 'ManualRootService', providedIn: 'manuallyProvidedAtRoot' },
+        // @ts-expect-error Root-provided services receive configuration through $provided.
+        function* (inputs: { requestId: string }) {
+          yield* craftExpose('requestId', inputs.requestId);
+        },
+      );
+    }
+  });
+
+  it('should allow $provided only on provider-capable scopes', () => {
     if (false) {
       craftService(
         { name: 'Counter', providedIn: 'global' },
-        //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
+        //@ts-expect-error Global services cannot accept factory inputs.
         function* (inputs: { $provided: { initialValue: number } }) {
           yield* state(
             'counter',
@@ -573,16 +661,40 @@ describe('scope', () => {
 
     if (false) {
       craftService(
-        { name: 'Counter', providedIn: 'function' },
-        //@ts-expect-error $provided should stay reserved to toProvide/manuallyProvidedAtRoot craftService scopes
-        function* (inputs: { $provided: { initialValue: number } }) {
-          yield* state(
-            'counter',
-            inputs.$provided.initialValue,
-          );
+        { name: 'FunctionCounter', providedIn: 'function' },
+        // @ts-expect-error Function-scoped inputs cannot use $provided.
+        function* (inputs: {
+          initialValue: number;
+          $provided: { step: number };
+        }) {
+          yield* state('counter', inputs.initialValue + inputs.$provided.step);
         },
       );
     }
+  });
+
+  it('passes function call-site inputs to the factory', () => {
+    const { FunctionService } = craftService(
+      { name: 'FunctionService', providedIn: 'function' },
+      function* (inputs: {
+        requestId: string;
+        initialValue: number;
+      }) {
+        yield* craftExpose('requestId', inputs.requestId);
+        yield* craftExpose('initialValue', inputs.initialValue);
+      },
+    );
+
+    TestBed.runInInjectionContext(() => {
+      const service = craftUse(
+        FunctionService({
+          requestId: 'request-3',
+          initialValue: 8,
+        }),
+      );
+      expect(service.requestId).toBe('request-3');
+      expect(service.initialValue).toBe(8);
+    });
   });
 
   it('should enable to create an abstract craftService by passing a name/scope', () => {
@@ -945,42 +1057,32 @@ describe('injectService should enable to binding inputs', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: {
-        $provided: { initialValue: number };
-        step: number;
+        $provided: { initialValue: number; step: number };
       }) {
         yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
-            increment: () => update((value) => value + inputs.step),
+            increment: () =>
+              update((value) => value + inputs.$provided.step),
           }),
         );
       },
     );
 
     TestBed.configureTestingModule({
-      providers: [provideCounter({ initialValue: 10 })],
+      providers: [provideCounter({ initialValue: 10, step: 2 })],
     });
 
     if (false) {
       craftUse(
-        // @ts-expect-error $provided should not be a public inject binding
-        Counter({
-          step: 2,
-          $provided: { initialValue: 99 },
-        }),
+        // @ts-expect-error Provider-scoped services don't accept call-site inputs.
+        Counter({ initialValue: 99, step: 3 }),
       ).counter;
     }
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(
-        Reflect.apply(Counter, undefined, [
-          {
-            step: 2,
-            $provided: { initialValue: 99 },
-          },
-        ]) as ReturnType<typeof Counter>,
-      ).counter;
+      const counter = craftUse(Counter()).counter;
 
       expect(craftUse(counter())).toBe(10);
       counter.increment();
@@ -990,7 +1092,7 @@ describe('injectService should enable to binding inputs', () => {
 
   it('should enable to bind a signal input', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
@@ -1015,7 +1117,7 @@ describe('injectService should enable to binding inputs', () => {
 
   it('should enable to bind an optional signal input and not bind an optional input', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       // ! inputs can only be set in the first params
 
       function* (inputs: {
@@ -1046,7 +1148,7 @@ describe('injectService should enable to binding inputs', () => {
   it('should enable to bind a signal input', () => {
     // todoBefore mettre inputs/method ? pour simpliéfier le binding ? et permet de rajouter un provide plus tard
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
@@ -1072,7 +1174,7 @@ describe('injectService should enable to binding inputs', () => {
 
   it('should return a string as an error "Inputs Error, xxx is not provided" if an input is not provided', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
@@ -1094,7 +1196,7 @@ describe('injectService should enable to binding inputs', () => {
   });
   it('should provide a string token to say that the input is already provided', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
@@ -1137,14 +1239,14 @@ describe('service should enable to binding inputs', () => {
     const { Counter, provideCounter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
       function* (inputs: {
-        $provided: { initialValue: number };
-        step: number;
+        $provided: { initialValue: number; step: number };
       }) {
         yield* state(
           'counter',
           inputs.$provided.initialValue,
           ({ update }) => ({
-            increment: () => update((value) => value + inputs.step),
+            increment: () =>
+              update((value) => value + inputs.$provided.step),
           }),
         );
       },
@@ -1153,7 +1255,7 @@ describe('service should enable to binding inputs', () => {
     const { CounterExtended, provideCounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
-        const counter = (yield* Counter({ step: 2 })).counter;
+        const counter = (yield* Counter()).counter;
 
         yield* craftExpose('read', () => craftUse(counter()));
         yield* craftExpose('increment', () => counter.increment());
@@ -1163,17 +1265,14 @@ describe('service should enable to binding inputs', () => {
     // eslint-disable-next-line no-constant-condition
     if (false) {
       craftUse(
-        // @ts-expect-error $provided should not be a public Counter binding
-        Counter({
-          step: 2,
-          $provided: { initialValue: 99 },
-        }),
+        // @ts-expect-error Provider-scoped services don't accept call-site inputs.
+        Counter({ initialValue: 99, step: 3 }),
       ).counter;
     }
 
     TestBed.configureTestingModule({
       providers: [
-        provideCounter({ initialValue: 10 }),
+        provideCounter({ initialValue: 10, step: 2 }),
         provideCounterExtended(),
       ],
     });
@@ -1189,7 +1288,7 @@ describe('service should enable to binding inputs', () => {
 
   it('should enable to bind a raw input', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
         yield* state(
           'counter',
@@ -1227,7 +1326,7 @@ describe('service should enable to binding inputs', () => {
 
   it('should enable to bind a signal input', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
         yield* state(
           'counter',
@@ -1265,7 +1364,7 @@ describe('service should enable to binding inputs', () => {
 
   it('should enable to bind an optional input and not bind an optional input', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       function* (inputs: {
         initialValue: MaybeSignal<number>;
         optionalProperty1?: MaybeSignal<number>;
@@ -1310,7 +1409,7 @@ describe('service should enable to binding inputs', () => {
 
   it('should return a string as an error "Inputs Error, xxx is not provided" if an input is not provided or blocks the yield', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
         yield* state(
           'counter',
@@ -1337,7 +1436,7 @@ describe('service should enable to binding inputs', () => {
   });
   it('should provide a string token to say that the input is already provided', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
         yield* state(
           'counter',
@@ -1935,9 +2034,8 @@ describe('injectService/Service should expose an optional parameter that can be 
     const { NestedPropConsumer } = craftService(
       { name: 'NestedPropConsumer', providedIn: 'global' },
       function* () {
-        const loadingSignal = yield* NestedPropApi.userQuery.isLoading();
-        expectTypeOf(loadingSignal).toEqualTypeOf<typeof isLoading>();
-        yield* craftExpose('isLoading', loadingSignal);
+        // Yielded on its own, the nested member is exposed as `isLoading`.
+        yield* NestedPropApi.userQuery.isLoading();
       },
     );
 
@@ -2050,7 +2148,7 @@ describe('injectService/Service should expose an optional parameter that can be 
 describe('typing can track all dependencies (direct and child dependencies)', () => {
   it('should enable to track Counter global scope', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
         yield* state(
           'counter',
@@ -2066,7 +2164,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     type CounterDependencies = GetServiceDependencies<typeof Counter>;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
-      providedIn: 'global';
+      providedIn: 'function';
       browserBoundary: false;
       appStart: false;
       dependencies: {};
@@ -2076,10 +2174,12 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   it('should enable to track Counter scope', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      function* (inputs: { initialValue: MaybeSignal<number> }) {
+      function* (inputs: {
+        $provided: { initialValue: MaybeSignal<number> };
+      }) {
         yield* state(
           'counter',
-          toValue(inputs.initialValue),
+          toValue(inputs.$provided.initialValue),
           ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
@@ -2141,10 +2241,12 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
   it('should enable to track CounterExtended dependencies', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      function* (inputs: { initialValue: MaybeSignal<number> }) {
+      function* (inputs: {
+        $provided: { initialValue: MaybeSignal<number> };
+      }) {
         yield* state(
           'counter',
-          toValue(inputs.initialValue),
+          toValue(inputs.$provided.initialValue),
           ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
@@ -2156,9 +2258,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
     const { CounterExtended } = craftService(
       { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
-        const partialCounter = (yield* Counter({
-          initialValue: signal(10),
-        })).counter;
+        const partialCounter = (yield* Counter()).counter;
 
         yield* craftExpose('partialCounter', partialCounter);
       },
@@ -2239,10 +2339,12 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
 
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      function* (inputs: { initialValue: MaybeSignal<number> }) {
+      function* (inputs: {
+        $provided: { initialValue: MaybeSignal<number> };
+      }) {
         yield* state(
           'counter',
-          toValue(inputs.initialValue),
+          toValue(inputs.$provided.initialValue),
           ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
@@ -2256,9 +2358,7 @@ describe('typing can track all dependencies (direct and child dependencies)', ()
       function* () {
         const manuallyProvidedAtRoot1 = (yield* ManuallyProvidedAtRoot1()).manuallyProvidedAtRoot1;
         const manuallyProvidedAtRoot2 = (yield* ManuallyProvidedAtRoot2()).manuallyProvidedAtRoot2;
-        const partialCounter = (yield* Counter({
-          initialValue: signal(10),
-        })).counter;
+        const partialCounter = (yield* Counter()).counter;
 
         yield* craftExpose('partialCounter', partialCounter);
         yield* craftExpose('manuallyProvidedAtRoot1', manuallyProvidedAtRoot1);
@@ -2302,7 +2402,7 @@ describe('typing can track all derived dependencies (only the properties that ar
   // todo simuler un composant/directive pour le inject?
   it('should enable to track Counter global scope', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
         yield* state(
           'counter',
@@ -2318,7 +2418,7 @@ describe('typing can track all derived dependencies (only the properties that ar
     type CounterDependencies = GetServiceDependencies<typeof Counter>;
 
     expectTypeOf<CounterDependencies>().toEqualTypeOf<{
-      providedIn: 'global';
+      providedIn: 'function';
       browserBoundary: false;
       appStart: false;
       dependencies: {};
@@ -2328,10 +2428,12 @@ describe('typing can track all derived dependencies (only the properties that ar
   it('should enable to track derived properties from Counter dependency (without internal reactions)', () => {
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      function* (inputs: { initialValue: MaybeSignal<number> }) {
+      function* (inputs: {
+        $provided: { initialValue: MaybeSignal<number> };
+      }) {
         const counter = yield* state(
           'counter',
-          toValue(inputs.initialValue),
+          toValue(inputs.$provided.initialValue),
           ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
@@ -2346,9 +2448,7 @@ describe('typing can track all derived dependencies (only the properties that ar
       { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         const partialCounter = yield* Counter(
-          {
-            initialValue: signal(10),
-          },
+          {},
           ({ counter, increment }) => ({
             counter,
             incrementCounter: increment,
@@ -2388,10 +2488,12 @@ describe('typing can track all derived dependencies (only the properties that ar
     const triggerDecrementObservable = new Subject<void>();
     const { Counter } = craftService(
       { name: 'Counter', providedIn: 'toProvide' },
-      function* (inputs: { initialValue: MaybeSignal<number> }) {
+      function* (inputs: {
+        $provided: { initialValue: MaybeSignal<number> };
+      }) {
         const counter = yield* state(
           'counter',
-          toValue(inputs.initialValue),
+          toValue(inputs.$provided.initialValue),
           ({ update }) => ({
             increment: () => update((v) => v + 1),
             decrement: () => update((v) => v - 1),
@@ -2406,9 +2508,7 @@ describe('typing can track all derived dependencies (only the properties that ar
       { name: 'CounterExtended', providedIn: 'toProvide' },
       function* () {
         const partialCounter = yield* Counter(
-          {
-            initialValue: signal(10),
-          },
+          {},
           function* ({ counter, increment, decrement }) {
             const stateRef = yield* counter();
             const triggerDecrementRef = yield* decrement();

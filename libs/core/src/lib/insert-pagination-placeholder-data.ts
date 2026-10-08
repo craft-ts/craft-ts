@@ -167,7 +167,8 @@ export type PaginationBuildContext<
  * ```
  *
  * @example
- * With custom outputs via `build`:
+ * With custom outputs via `build` (a plain function, or a generator that
+ * yields primitives):
  * ```typescript
  * const usersQuery = yield* query(
  *   {
@@ -199,7 +200,9 @@ export function insertPaginationPlaceholderData<
   ExtraOutputs extends Record<string, unknown> = {},
 >(
   config: { initialValue: PageState },
-  build?: (context: PaginationBuildContext<PageState>) => ExtraOutputs,
+  build?: (
+    context: PaginationBuildContext<PageState>,
+  ) => ExtraOutputs | Generator<any, ExtraOutputs, any>,
 ) {
   // The returned factory is generic over the query's shape (GroupIdentifier,
   // ResourceParams, Exceptions, PreviousInsertionsOutputs) so it adapts to any
@@ -458,7 +461,7 @@ export function insertPaginationPlaceholderData<
       PrimitiveName,
       Exceptions['params'] | Exceptions['loader']
     >;
-    const extra = build({
+    const built = build({
       ...publicBaseOutputs,
       state,
       settledState,
@@ -471,6 +474,9 @@ export function insertPaginationPlaceholderData<
       hasException,
       exceptions,
     });
+    // `build` may be a generator, so that it can yield primitives
+    // (`yield* craftComputed(...)`) like any other Craft factory.
+    const extra = isGenerator(built) ? craftUse(built) : built;
 
     return {
       ...baseOutputs,

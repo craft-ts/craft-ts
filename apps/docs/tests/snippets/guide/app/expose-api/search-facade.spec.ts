@@ -28,8 +28,7 @@ const { SearchApi } = craftService(
 const { SearchFacade } = craftService(
   { name: 'SearchFacade', providedIn: 'global' },
   function* () {
-    const isLoading = yield* SearchApi.usersQuery.isLoading();
-    yield* craftExpose('isLoading', isLoading);
+    yield* SearchApi.usersQuery.isLoading();
   },
 );
 // #endregion search-facade

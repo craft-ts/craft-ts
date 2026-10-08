@@ -59,6 +59,13 @@ before calling:
 
 
 
+A shortcut hands back the member it designates, and a reactive member (a
+`state`, a `craftComputed`, a query's `status`…) is **read**: `yield*
+SearchApi.usersQuery.isLoading()` is the loading flag itself, not a reader to
+call a second time. Yielded on its own, as above, the member is also exposed by
+the consumer under its own name (`isLoading`). Objects and methods are returned
+as they are; a method is called, with or without arguments.
+
 The dependency graph records only the accessed nested property
 (`derivedPropertiesUsed: { usersQuery: { isLoading: ... } }`), not the full
 `usersQuery` object. Testing utilities therefore only require the used
@@ -107,6 +114,21 @@ const isLoading = yield* Counter.OmitInputs.userQuery.isLoading();
 
 
 This keeps the dependency graph precise, which is important for both type inference and testing.
+
+When a service factory wants one member as part of its own API, yield the
+property shortcut directly. When it wants the full service, yield the service
+directly. Both forms expose under the natural lower-camel-case key:
+
+```typescript
+function* () {
+  yield* I18n.translate(); // exposes `translate`
+  yield* ClientCurrency(); // exposes `clientCurrency`
+}
+```
+
+Use `craftExpose('label', value)` when the public key differs from the source
+name or when exposing a value that is not a service dependency. The
+`craft-ts/prefer-direct-craft-service-exposure` rule flags same-name wrappers.
 
 ## See Also
 

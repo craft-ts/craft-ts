@@ -1,4 +1,4 @@
-import { craftService, craftExpose } from '@craft-ts/core';
+import { craftService } from '@craft-ts/core';
 import {
   craftComponent,
   div,
@@ -33,10 +33,9 @@ export const { TypeSafeI18nDemoView, provideTypeSafeI18nDemoView } =
   craftService(
     { name: 'typeSafeI18nDemoView', providedIn: 'toProvide' },
     function* () {
-      const { language, translate } = yield* I18n();
-      yield* craftExpose('language', language);
-      yield* craftExpose('translate', translate);
-      yield* craftExpose('clientCurrency', yield* ClientCurrency());
+      yield* I18n.language();
+      yield* I18n.translate();
+      yield* ClientCurrency();
     },
   );
 
@@ -49,33 +48,35 @@ export const TypeSafeI18nDemo = craftComponent(
       provideClientUnits(),
     ],
   },
-  function* () {
-    const { language, translate, clientCurrency } =
-      yield* TypeSafeI18nDemoView();
-    return section({ class: example.stack, 'aria-labelledby': 'i18n-title' }, [
+  () =>
+    section({ class: example.stack, 'aria-labelledby': 'i18n-title' }, [
       div({ class: example.stack }, [
         heading(
-          { class: example.title, id: 'i18n-title' },
-          translate('page.title'),
+          {
+            class: example.title,
+            id: 'i18n-title',
+            'aria-label': I18n.translate('page.title'),
+          },
+          TypeSafeI18nDemoView.translate('page.title'),
         ),
         p(
           { class: example.text, 'data-exampleText': 'muted' },
-          translate('page.intro'),
+          TypeSafeI18nDemoView.translate('page.intro'),
         ),
       ]),
       div({ class: example.toolbar }, [
         label(
           { class: example.label, htmlFor: 'i18n-language' },
-          translate('page.language'),
+          TypeSafeI18nDemoView.translate('page.language'),
         ),
         select(
           'i18n-language',
           {
             class: example.select,
             id: 'i18n-language',
-            value: language,
+            value: TypeSafeI18nDemoView.language,
             'aria-label': 'Language',
-            change: language.change,
+            change: TypeSafeI18nDemoView.language.change,
           },
           [
             option({ value: 'en-US' }, 'English'),
@@ -88,10 +89,12 @@ export const TypeSafeI18nDemo = craftComponent(
           {
             class: example.select,
             id: 'i18n-client',
-            value: clientCurrency.client,
+            value: TypeSafeI18nDemoView.clientCurrency.client,
             'aria-label': 'Client',
             *change(event: Event) {
-              yield* clientCurrency.changeClient(eventClientId(event));
+              yield* TypeSafeI18nDemoView.clientCurrency.client.changeClient(
+                eventClientId(event),
+              );
             },
           },
           [
@@ -104,7 +107,7 @@ export const TypeSafeI18nDemo = craftComponent(
         div({ class: example.box }, [
           strong({ class: example.label }, 'Money + date'),
           p(
-            translate('page.order', {
+            TypeSafeI18nDemoView.translate('page.order', {
               amount: 1234567.89,
               // The schema turns this ISO string into the `Date` the formatter
               // wants, so the call site never builds one.
@@ -115,18 +118,18 @@ export const TypeSafeI18nDemo = craftComponent(
         ]),
         div({ class: example.box }, [
           strong({ class: example.label }, 'Plural + fraction'),
-          p(translate('page.items', { count: 1.5 })),
-          p(translate('page.items', { count: 1 })),
+          p(TypeSafeI18nDemoView.translate('page.items', { count: 1.5 })),
+          p(TypeSafeI18nDemoView.translate('page.items', { count: 1 })),
         ]),
         div({ class: example.box }, [
           strong({ class: example.label }, 'Custom token'),
-          p(translate('page.status', { status: 'paid' })),
-          p(translate('page.custom')),
+          p(TypeSafeI18nDemoView.translate('page.status', { status: 'paid' })),
+          p(TypeSafeI18nDemoView.translate('page.custom')),
         ]),
         div({ class: example.box }, [
           strong({ class: example.label }, 'Number profiles'),
           p(
-            translate('page.metrics', {
+            TypeSafeI18nDemoView.translate('page.metrics', {
               revenue: 1234567,
               visitors: 98765,
               rate: 0.27523334,
@@ -136,7 +139,7 @@ export const TypeSafeI18nDemo = craftComponent(
         div({ class: example.box }, [
           strong({ class: example.label }, 'Date profiles'),
           p(
-            translate('page.dates', {
+            TypeSafeI18nDemoView.translate('page.dates', {
               shortDate: ORDER_DATE,
               timestamp: ORDER_DATE,
             }),
@@ -144,12 +147,17 @@ export const TypeSafeI18nDemo = craftComponent(
         ]),
         div({ class: example.box }, [
           strong({ class: example.label }, 'Relative time'),
-          p(translate('page.relative', { daysAgo: LAST_SYNC_DAYS })),
+          p(
+            TypeSafeI18nDemoView.translate('page.relative', {
+              daysAgo: LAST_SYNC_DAYS,
+            }),
+          ),
         ]),
       ]),
-      div({ class: example.note }, [span(translate('page.custom'))]),
-    ]);
-  },
+      div({ class: example.note }, [
+        span(TypeSafeI18nDemoView.translate('page.custom')),
+      ]),
+    ]),
 );
 
 export default TypeSafeI18nDemo;

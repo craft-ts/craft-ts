@@ -9,6 +9,7 @@ import {
 } from '../host/craft-compat';
 import type { GetDeps } from '../branded-component/branded-component';
 import { REACTIVE_VALUE_TYPE, rawReactiveFacade } from '../reactive-read';
+import { executeYieldable } from '../yieldable';
 import {
   ɵinjectCraftNodeEffectFactoryIn,
   craftNodeDirective,
@@ -735,7 +736,11 @@ export function CraftFieldDirective<
     set: (next: any) => void;
   },
 >(field: Field): BoundCraftFieldDirective<Field> {
-  if (!isCraftField(field)) {
+  // A service shortcut (`View.titleForm.form`) is not the field yet: the
+  // service only exists once the node is rendered, so the field is resolved
+  // from the node's injector at mount.
+  const isShortcut = !isCraftField(field) && typeof field === 'function';
+  if (!isCraftField(field) && !isShortcut) {
     throw new TypeError('CraftFieldDirective requires a CraftField.');
   }
 
@@ -747,16 +752,26 @@ export function CraftFieldDirective<
     'CraftFieldDirective',
     [],
     (context) => {
+      const resolvedField: unknown = isShortcut
+        ? executeYieldable(
+            field as unknown as () => unknown,
+            [],
+            context.injector as Injector,
+          )
+        : field;
+      if (!isCraftField(resolvedField)) {
+        throw new TypeError('CraftFieldDirective requires a CraftField.');
+      }
       const releaseBinding = bindCraftField(
         context.element as HTMLElement,
-        field as unknown as CraftField<CraftFieldValueOf<Field>>,
+        resolvedField as unknown as CraftField<CraftFieldValueOf<Field>>,
         context.renderer,
         context.injector,
         injectCraftFieldValueControlIn(context.injector),
         injectCraftFieldCheckboxControlIn(context.injector),
         ɵinjectCraftNodeEffectFactoryIn(context.injector),
       );
-      const source = (field as Field & CraftFieldExceptionSourceCarrier)[
+      const source = (resolvedField as CraftFieldExceptionSourceCarrier)[
         CRAFT_FIELD_EXCEPTION_SOURCE
       ];
       const boundary = ɵinjectCraftFieldExceptionBoundaryIn(context.injector);
