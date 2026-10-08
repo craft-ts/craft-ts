@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>CraftTS — présentation</title>
+<style>
+  :root{
+    --bg:#0a0c16; --panel:#10131f; --line:rgba(255,255,255,.09);
+    --text:#eef0ff; --dim:#8b90ad; --red:#ff5470; --green:#37d99b; --amber:#ffb84d;
+    --indigo:#6a67ff; --pink:#ff5fa8; --orange:#ff9a3c;
+    --brand:linear-gradient(90deg,#6a67ff,#ff5fa8 62%,#ff9a3c);
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-family:var(--sans);color:var(--text)}
+  #stage{position:relative;width:1920px;height:1080px;overflow:hidden;
+    background:
+      radial-gradient(1100px 700px at 12% -8%, rgba(106,103,255,.20), transparent 60%),
+      radial-gradient(1000px 700px at 100% 108%, rgba(255,95,168,.14), transparent 60%),
+      var(--bg);}
+  .scene{position:absolute;inset:0;visibility:hidden}
+  .grad{background:var(--brand);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .abs{position:absolute}
+
+  /* ---------- intro ---------- */
+  #intro .logo{left:830px;top:210px;width:260px;height:260px}
+  #intro .word{left:0;width:1920px;top:480px;text-align:center;font-size:150px;font-weight:800;letter-spacing:-4px;line-height:1}
+  #intro .word span{display:inline-block}
+  #intro .tag1,#intro .tag2{left:0;width:1920px;text-align:center;font-size:54px;font-weight:600;letter-spacing:-.5px}
+  #intro .tag1{top:700px}
+  #intro .tag2{top:772px}
+  #intro .motto{left:0;width:1920px;top:930px;text-align:center;font-family:var(--mono);font-size:26px;color:var(--dim);letter-spacing:.5px}
+
+  /* ---------- problème ---------- */
+  #problem .h1{left:0;width:1920px;top:380px;text-align:center;font-size:84px;font-weight:800;letter-spacing:-2px;line-height:1.12}
+  #problem .kick{left:100px;top:84px;font-size:26px;font-weight:700;letter-spacing:3px;color:var(--dim)}
+  #problem .h2{left:100px;top:126px;font-size:68px;font-weight:800;letter-spacing:-1.5px}
+  .card{position:absolute;top:300px;width:520px;height:520px;border-radius:32px;background:var(--panel);border:1.5px solid var(--line);padding:44px}
+  .card .n{font-size:26px;font-weight:700;letter-spacing:3px;color:var(--dim)}
+  .card .ic{margin-top:30px;width:92px;height:92px;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:800;background:rgba(255,84,112,.14);color:var(--red);font-family:var(--mono)}
+  .card h3{margin-top:34px;font-size:40px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+  .card p{margin-top:16px;font-size:30px;line-height:1.35;color:var(--dim)}
+  .card .foot{position:absolute;left:44px;bottom:40px;font-size:26px;font-weight:700;color:var(--red)}
+
+  /* ---------- chapitres ---------- */
+  .head .kicker{position:absolute;left:100px;top:62px;font-size:26px;font-weight:700;letter-spacing:3px;color:var(--dim)}
+  .head .title{position:absolute;left:100px;top:100px;font-size:72px;font-weight:800;letter-spacing:-2px}
+  .pill{position:absolute;right:100px;top:94px;height:64px;width:360px}
+  .pill span{position:absolute;inset:0;border-radius:32px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;letter-spacing:2.5px}
+  .pill .pA{background:rgba(255,84,112,.16);color:var(--red);border:1.5px solid rgba(255,84,112,.55)}
+  .pill .pB{background:var(--brand);color:#fff}
+  .panel{position:absolute;top:236px;height:684px;border-radius:26px;background:var(--panel);border:1.5px solid var(--line);overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+  .panel .bar{height:58px;border-bottom:1.5px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 24px;font-size:22px;color:var(--dim);font-family:var(--mono)}
+  .panel .bar i{width:14px;height:14px;border-radius:50%;background:#2a2f47;display:inline-block}
+  .panel .bar b{margin-left:14px;font-weight:600}
+  .code{left:100px;width:1120px}
+  .out{left:1260px;width:560px}
+  .cbody{position:relative;height:624px;padding-top:22px;--sq:0}
+  .fbar{position:absolute;left:0;right:0;border-left:5px solid var(--green);background:rgba(55,217,155,.11)}
+  .page{position:absolute;left:0;right:0;top:22px}
+  .ln{position:relative;height:46px;line-height:46px;font-family:var(--mono);font-size:27px;white-space:pre;padding-left:84px}
+  .ln .g{position:absolute;left:0;width:56px;text-align:right;color:#4a5072;font-size:22px}
+  .ln .b{position:absolute;left:84px;top:0;opacity:0}
+  .kw{color:#c792ff}.st{color:#8fe3a8}.cm{color:#6c7399;font-style:italic}.ty{color:#ffcb6b}.fn{color:#7ab8ff}.nu{color:#ff9a7a}.dc{color:#ffb4d6}
+  .sq{position:relative;display:inline-block}
+  .sq::after{content:'';position:absolute;left:0;bottom:-2px;height:6px;width:calc(var(--sq)*100%);overflow:hidden;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='6'%3E%3Cpath d='M0 3 Q2 0 4 3 T8 3' fill='none' stroke='%23ff5470' stroke-width='2'/%3E%3C/svg%3E") repeat-x}
+  .obody{position:relative;height:624px}
+  .layer{position:absolute;inset:0;padding:30px}
+  .badge{display:inline-block;padding:10px 18px;border-radius:14px;font-size:22px;font-weight:700;letter-spacing:.5px}
+  .badge.red{background:rgba(255,84,112,.15);color:var(--red)}
+  .badge.green{background:rgba(55,217,155,.15);color:var(--green)}
+  .caption{position:absolute;left:100px;right:100px;top:958px;height:70px;text-align:center;font-size:38px;font-weight:600;letter-spacing:-.3px;color:#dfe2ff}
+  .caption div{position:absolute;left:0;right:0;top:0}
+  .takeaway{position:absolute;left:100px;right:100px;top:946px;text-align:center;font-size:48px;font-weight:800;letter-spacing:-1px}
+
+  /* mock navigateur */
+  .browser{border:1.5px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;height:470px;position:relative}
+  .urlbar{height:48px;background:#eceef6;display:flex;align-items:center;padding:0 16px;font-size:20px;color:#555b78;gap:12px;font-family:var(--mono)}
+  .urlbar i{width:12px;height:12px;border-radius:50%;background:#c6cbe0}
+  .bview{position:relative;height:422px;padding:34px;color:#1a1d33}
+  .bview h4{font-size:32px;font-weight:800;margin-bottom:22px}
+  .row{display:flex;justify-content:space-between;font-size:26px;padding:12px 0;border-bottom:1px solid #e5e8f4}
+  .row.tot{font-weight:800;border:none}
+  .btn{margin-top:22px;height:64px;border-radius:14px;background:#4a49e8;color:#fff;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .crash{position:absolute;inset:0;background:#1a0f14;padding:38px;color:#ff8da1}
+  .crash .big{font-size:40px;font-weight:800;color:#ff5470;margin-bottom:18px}
+  .crash code{font-family:var(--mono);font-size:26px;line-height:1.4;display:block}
+  .spin{width:54px;height:54px;border-radius:50%;border:6px solid #e1e4f2;border-top-color:#4a49e8}
+
+  /* terminal */
+  .term{font-family:var(--mono);font-size:21px;line-height:1.6;color:#c9cdea}
+  .term .p{color:var(--dim)}
+  .term .e{color:var(--red);font-weight:700}
+  .term .o{color:var(--green);font-weight:700}
+  .term .d{color:#8f95b8;padding-left:30px}
+  .term .hl{color:#ffcb6b}
+  .term .okb{position:absolute;left:30px;right:30px;top:104px}
+
+  /* UI cards */
+  .uicard{border-radius:22px;background:#fff;color:#1a1d33;padding:36px;height:420px;position:relative}
+  .uicard .av{width:84px;height:84px;border-radius:50%;background:#dfe2f1;margin-bottom:26px}
+  .uicard h4{font-size:36px;font-weight:800;line-height:1.15}
+  .uicard p{font-size:26px;color:#5b6180;margin-top:14px;line-height:1.35}
+  .chip{display:inline-block;font-family:var(--mono);font-size:24px;font-weight:700;padding:12px 18px;border-radius:12px;background:rgba(255,184,77,.14);color:var(--amber);margin:0 10px 12px 0}
+  .union h5{font-size:22px;letter-spacing:2px;font-weight:700;color:var(--dim);margin-bottom:22px}
+
+  /* même principe */
+  #same .kick{left:100px;top:84px;font-size:26px;font-weight:700;letter-spacing:3px;color:var(--dim)}
+  #same .h2{left:100px;top:126px;font-size:72px;font-weight:800;letter-spacing:-2px}
+  #same .sub{left:100px;top:226px;font-size:34px;color:var(--dim)}
+  .tile{position:absolute;width:830px;height:290px;border-radius:28px;background:var(--panel);border:1.5px solid var(--line);padding:38px 42px}
+  .tile .ic{position:absolute;left:42px;top:42px;width:84px;height:84px;border-radius:24px;background:rgba(106,103,255,.18);color:#a9a7ff;font-size:40px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .tile h3{margin-left:118px;font-size:42px;font-weight:800;letter-spacing:-1px;margin-top:4px}
+  .tile p{margin-left:118px;margin-top:10px;font-size:27px;color:#b9bdd9;line-height:1.35}
+  .tile .code1{position:absolute;left:42px;right:42px;bottom:28px;font-family:var(--mono);font-size:23px;color:var(--dim);padding:14px 20px;border-radius:14px;background:rgba(255,255,255,.04)}
+  .tile .code1 b{color:var(--green)} .tile .code1 u{color:var(--red);text-decoration:none;font-weight:700}
+
+  /* bilan + fin */
+  #outro .row2{position:absolute;left:260px;width:1400px;height:130px;border-radius:26px;background:var(--panel);border:1.5px solid var(--line);display:flex;align-items:center;padding:0 44px;font-size:44px;font-weight:700;letter-spacing:-.8px}
+  #outro .row2 .l{width:560px}
+  #outro .row2 .ar{width:80px;color:var(--dim);font-size:40px}
+  #outro .row2 .r{color:var(--green)}
+  #outro .row2 .x{width:56px;height:56px;border-radius:16px;background:rgba(255,84,112,.16);color:var(--red);display:flex;align-items:center;justify-content:center;margin-right:22px;font-size:32px}
+  #outro .row2 .l{display:flex;align-items:center}
+  #outro .big{left:0;width:1920px;top:400px;text-align:center;font-size:92px;font-weight:800;letter-spacing:-2.5px;line-height:1.12}
+  #outro .end .logo{left:880px;top:170px;width:160px;height:160px}
+  #outro .end .nm{left:0;width:1920px;top:350px;text-align:center;font-size:110px;font-weight:800;letter-spacing:-3px}
+  #outro .end .ln1{left:0;width:1920px;top:500px;text-align:center;font-size:44px;font-weight:600}
+  #outro .end .inst{left:460px;width:1000px;top:600px;height:96px;border-radius:20px;background:var(--panel);border:1.5px solid var(--line);font-family:var(--mono);font-size:32px;display:flex;align-items:center;justify-content:center;color:#d6d9f5}
+  #outro .end .url{left:0;width:1920px;top:740px;text-align:center;font-size:44px;font-weight:700}
+  #outro .end .beta{left:0;width:1920px;top:830px;text-align:center;font-size:28px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 0 INTRO -->
+  <section class="scene" id="intro">
+    <img class="abs logo" src="assets/logo.png" />
+    <div class="abs word" id="word"></div>
+    <div class="abs tag1">Le code métier du front,</div>
+    <div class="abs tag2">enfin défendu par le <span class="grad">compilateur</span>.</div>
+    <div class="abs motto">Declare. Yield. Derive. Compile — no surprises.</div>
+  </section>
+
+  <!-- 1 PROBLÈME -->
+  <section class="scene" id="problem">
+    <div class="abs h1" id="pbH1">Les bugs qui coûtent cher<br/>se cachent dans le <span class="grad">métier</span>,<br/>pas dans l’UI.</div>
+    <div class="abs kick" id="pbKick">AU FOND, TROIS PIÈGES CLASSIQUES</div>
+    <div class="abs h2" id="pbH2">Ils compilent. Ils passent. Puis ils cassent.</div>
+    <div class="card" style="left:100px"><div class="n">PIÈGE 1</div><div class="ic">!</div><h3>Le provider oublié</h3><p>Une dépendance n’est jamais fournie.</p><div class="foot">Découvert par un client</div></div>
+    <div class="card" style="left:700px"><div class="n">PIÈGE 2</div><div class="ic">404</div><h3>L’erreur jamais gérée</h3><p>Le cas d’échec que personne n’a prévu.</p><div class="foot">Découvert par un client</div></div>
+    <div class="card" style="left:1300px"><div class="n">PIÈGE 3</div><div class="ic">✔</div><h3>Le test mal branché</h3><p>Il passe… sans exercer la vraie chaîne.</p><div class="foot">Découvert par un client</div></div>
+  </section>
+
+  <!-- 2-4 CHAPITRES (générés) -->
+  <div id="chapters"></div>
+
+  <!-- 5 MÊME PRINCIPE -->
+  <section class="scene" id="same">
+    <div class="abs kick">MÊME LOGIQUE, PARTOUT</div>
+    <div class="abs h2">Ce que tu déclares, le compilateur le vérifie.</div>
+    <div class="tile" style="left:100px;top:300px"><div class="ic">Aa</div><h3>Traductions</h3><p>Une clé absente d’une locale, ou un pluriel oublié : erreur de compilation.</p><div class="code1">t('checkout.total') &nbsp;<b>fr ✔</b> &nbsp;<u>en ✖ clé manquante</u></div></div>
+    <div class="tile" style="left:990px;top:300px"><div class="ic">◐</div><h3>Design system typé</h3><p>Aucune valeur en string, aucune classe construite à l’exécution.</p><div class="code1">color: <u>'#ff5470'</u> &nbsp;<u>✖ hors design system</u></div></div>
+    <div class="tile" style="left:100px;top:630px"><div class="ic">⇢</div><h3>Routing</h3><p>Routes, paramètres, guards et navigation non bloquante, typés de bout en bout.</p><div class="code1">navigate('user/:userId', <u>{}</u>) &nbsp;<u>✖ userId requis</u></div></div>
+    <div class="tile" style="left:990px;top:630px"><div class="ic">◎</div><h3>Observabilité</h3><p>Quand ça casse : l’état exact de l’app et la chaîne causale jusqu’au clic.</p><div class="code1">clic <b>→</b> mutation <b>→</b> exception <b>→</b> écran</div></div>
+  </section>
+
+  <!-- 6 BILAN + FIN -->
+  <section class="scene" id="outro">
+    <div class="row2" style="top:250px"><div class="l"><span class="x">✖</span>Provider oublié</div><div class="ar">→</div><div class="r">ne compile pas</div></div>
+    <div class="row2" style="top:410px"><div class="l"><span class="x">✖</span>Exception non gérée</div><div class="ar">→</div><div class="r">ne compile pas</div></div>
+    <div class="row2" style="top:570px"><div class="l"><span class="x">✖</span>Test incomplet</div><div class="ar">→</div><div class="r">ne démarre pas</div></div>
+    <div class="abs big" id="bigline">Le compilateur garde<br/>la porte du <span class="grad">code métier</span>.</div>
+    <div class="end" id="endcard">
+      <img class="abs logo" src="assets/logo.png" />
+      <div class="abs nm">Craft<span class="grad">TS</span></div>
+      <div class="abs ln1">Déclare. Laisse le compilateur défendre ton métier.</div>
+      <div class="abs inst">npm i @craft-ts/core@beta @craft-ts/component@beta</div>
+      <div class="abs url grad" style="width:auto;left:0;right:0;text-align:center"><span class="grad">craft-ts.github.io/craft</span></div>
+      <div class="abs beta">Beta — l’API bougera encore. Les retours sont bienvenus.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* =========================================================================
+   Moteur : tout est une fonction pure du temps t (secondes).
+   ========================================================================= */
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const E={
+  out:x=>1-Math.pow(1-x,3),
+  inout:x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2,
+  back:x=>{const c1=1.25,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)},
+};
+const P=(t,a,d,e=E.out)=>e(clamp((t-a)/d));                       // progression 0→1
+const win=(t,a,b,fi=.45,fo=.45)=>Math.min(P(t,a,fi,x=>x),1-P(t,b-fo,fo,x=>x)); // fenêtre d'opacité
+const show=(el,o)=>{o=clamp(o);el.style.opacity=o;el.style.visibility=o<.002?'hidden':'visible'};
+const move=(el,x=0,y=0,s=1,r=0)=>{el.style.transform=`translate(${x}px,${y}px) scale(${s}) rotate(${r}deg)`};
+// interpolation par clés : [{t,v}], transition eased de `d` secondes après chaque clé
+function seq(t,keys,d=.5){
+  let prev=keys[0].v,cur=keys[0].v;
+  for(let i=0;i<keys.length;i++){ if(t>=keys[i].t){ prev=i?keys[i-1].v:keys[0].v; cur=keys[i].v; var kt=keys[i].t; } }
+  if(kt===undefined) return keys[0].v;
+  const dur=(keys.find(k=>k.t===kt).d)||d;
+  return lerp(prev,cur,E.inout(clamp((t-kt)/dur)));
+}
+const hex=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const mix=(a,b,t)=>{const A=hex(a),B=hex(b);return `rgb(${A.map((v,i)=>Math.round(lerp(v,B[i],t))).join(',')})`};
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+/* ---------- coloration syntaxique minimale ---------- */
+const TOK=/(\/\/.*$)|('[^']*'|`[^`]*`)|\b(const|let|function|return|await|async|if|export|import|from|yield|class|private|new)\b|(@\w+)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-zA-Z_$][\w$]*)(?=\()|(\b\d+\b)/g;
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function hl(src){
+  return src.split(/(‹e›.*?‹\/e›)/).map(seg=>{
+    let err=false; if(seg.startsWith('‹e›')){err=true;seg=seg.slice(3,-4)}
+    let out='',last=0,m; TOK.lastIndex=0;
+    while((m=TOK.exec(seg))){
+      out+=esc(seg.slice(last,m.index));
+      const cls=m[1]?'cm':m[2]?'st':m[3]?'kw':m[4]?'dc':m[5]?'ty':m[6]?'fn':'nu';
+      out+=`<span class="${cls}">${esc(m[0])}</span>`; last=m.index+m[0].length;
+    }
+    out+=esc(seg.slice(last));
+    return err?`<span class="sq">${out}</span>`:out;
+  }).join('');
+}
+
+/* =========================================================================
+   Chapitres « piège → garde-fou »
+   ========================================================================= */
+const CHAPTERS=[
+/* ------------------------------------------------ 1 : DI ------------ */
+{ id:'ch1', dur:15.5, kicker:'PIÈGE 1 / 3', title:'Le provider oublié',
+  takeaway:'Une dépendance oubliée ne part plus en <span class="grad">production</span>.',
+  files:['Checkout.ts — sans garde-fou','Checkout.ts — CraftTS'],
+  outTitles:['Navigateur · production','Compilateur · CI'],
+  pages:[
+    [ '@Injectable()','export class Checkout {','  private pricing = inject(Pricing);','  total = () => this.pricing.total();','}','','// app.config.ts','providers: [Checkout],   // Pricing ? oublié' ],
+    [ 'const { Checkout, provideCheckout } = craftService(',"  { name: 'Checkout', providedIn: 'toProvide' },",'  function* () {','    const pricing = yield* Pricing();','    // …','  },',');','','// app.config.ts',{c:'providers: [‹e›provideCheckout()‹/e›],',fix:'providers: [provideCheckout(), providePricing()],'} ],
+  ],
+  phase:[{t:0,v:0},{t:7.0,v:1}],
+  page:[{t:0,v:0},{t:7.0,v:1}],
+  focus:[{t:0,a:0,b:99},{t:1.6,a:2,b:2},{t:3.6,a:7,b:7},{t:5.2,a:0,b:99},{t:7.0,a:0,b:99},{t:7.9,a:3,b:3},{t:9.0,a:9,b:9}],
+  att:[{t:0,v:.5},{t:1.3,v:1},{t:5.0,v:0},{t:7.0,v:1},{t:9.6,v:0}],
+  squig:[{t:0,v:0},{t:9.2,v:1,d:.7},{t:11.4,v:0,d:.3}],
+  fix:[{t:0,v:0},{t:11.5,v:1,d:.5}],
+  captions:[
+    [1.0,3.4,'Un service injecte <b>Pricing</b>…'],
+    [3.6,6.9,'…mais personne ne l’a fourni. <b>Ça compile quand même.</b>'],
+    [7.6,9.2,'Avec CraftTS, la dépendance est <b>déclarée</b> dans le service…'],
+    [9.4,11.3,'…donc l’oubli est <b>détecté avant le déploiement</b>.'],
+    [11.7,13.0,'Une ligne ajoutée. Le build repasse.'],
+  ],
+  out(u,L){ // L = layers
+    const a=seq(u,[{t:0,v:0},{t:7.0,v:1}]);
+    show(L.br,1-a); show(L.tm,a);
+    // navigateur : clic → crash
+    const crash=P(u,5.4,.35,x=>x);
+    show(L.crash,crash);
+    show(L.spin,0);
+    show(L.badge,P(u,5.9,.4));
+    // terminal
+    show(L.tmErr,P(u,9.6,.3)*(1-P(u,12.0,.3)));
+    show(L.tmOk,P(u,12.1,.4));
+  }},
+/* ------------------------------------------------ 2 : exceptions -- */
+{ id:'ch2', dur:18.5, kicker:'PIÈGE 2 / 3', title:'L’erreur jamais gérée',
+  takeaway:'Chaque échec déclaré a une réponse. <span class="grad">Sinon, ça ne compile pas.</span>',
+  files:['getUser.ts — sans garde-fou','user.query.ts — CraftTS','user.route.ts — CraftTS'],
+  outTitles:['Application · production','Compilateur · CI'],
+  pages:[
+    [ 'async function getUser(id: string) {','  const res = await fetch(`/api/users/${id}`);','  return res.json();','}','','const user = await getUser(route.id);','title.textContent = `Bonjour, ${user.name}`;' ],
+    [ 'exceptions: [','  function* ({ status }) {','    if (!(yield* status(404))) return;',"    return craftException({ _tag: 'USER_NOT_FOUND' });",'  },','  function* ({ status }) {','    if (!(yield* status(403))) return;',"    return craftException({ _tag: 'USER_DISABLED' });",'  },','],' ],
+    [ "craftRoute('user/:userId', {",'  ‹e›handleExceptions‹/e›: {','    USER_NOT_FOUND: redirectToUsers,',{c:'    // USER_DISABLED ?',fix:'    USER_DISABLED: showDisabledScreen,'},'  },','});' ],
+  ],
+  phase:[{t:0,v:0},{t:8.0,v:1}],
+  page:[{t:0,v:0},{t:8.0,v:1},{t:11.6,v:2}],
+  focus:[{t:0,a:0,b:99},{t:1.7,a:1,b:2},{t:4.0,a:5,b:6},{t:5.6,a:0,b:99},{t:8.0,a:0,b:99},{t:8.7,a:3,b:3},{t:9.8,a:7,b:7},{t:11.6,a:0,b:99},{t:12.2,a:1,b:1},{t:14.4,a:3,b:3}],
+  att:[{t:0,v:.5},{t:1.3,v:1},{t:5.0,v:0},{t:8.0,v:1},{t:10.0,v:0},{t:11.6,v:1},{t:12.6,v:0}],
+  squig:[{t:0,v:0},{t:12.3,v:1,d:.7},{t:14.2,v:0,d:.3}],
+  fix:[{t:0,v:0},{t:14.3,v:1,d:.5}],
+  captions:[
+    [1.0,3.6,'On appelle l’API et on renvoie le JSON, <b>quoi qu’il arrive</b>.'],
+    [3.9,5.5,'Le 404 coule <b>jusqu’à l’écran</b>.'],
+    [5.7,7.8,'Personne n’a déclaré ce cas. <b>Personne ne l’a géré.</b>'],
+    [8.3,10.0,'Chaque échec métier est <b>déclaré… et devient un type</b>.'],
+    [10.2,11.5,'Deux codes atteignables.'],
+    [11.8,14.0,'La route doit répondre à chacun. <b>Sinon le compilateur refuse.</b>'],
+    [14.6,16.0,'Le cas manquant est ajouté : l’utilisateur voit un vrai message.'],
+  ],
+  out(u,L){
+    const r=seq(u,[{t:0,v:0},{t:10.0,v:1},{t:12.6,v:2},{t:15.7,v:3}],.55);
+    const vis=i=>clamp(1.15-2*Math.abs(r-i));
+    show(L.ui0,vis(0)); show(L.union,vis(1)); show(L.tm,vis(2)); show(L.ui1,vis(3));
+    // A : Bonjour, undefined + étiquette
+    show(L.bad,P(u,5.4,.4)); show(L.tag404,P(u,5.9,.4));
+    // union : chips en cascade
+    $$('.chip',L.union).forEach((c,i)=>{const q=P(u,10.3+i*.35,.4);c.style.opacity=q;move(c,0,(1-q)*12)});
+    show(L.tmErr,P(u,12.7,.3)*(1-P(u,14.5,.3)));
+    show(L.tmOk,P(u,14.6,.4));
+    // titre du panneau
+    L.setTitle(u<8?0:1);
+  }},
+/* ------------------------------------------------ 3 : tests ------- */
+{ id:'ch3', dur:16, kicker:'PIÈGE 3 / 3', title:'Le test mal branché',
+  takeaway:'Un test ne démarre pas tant que le <span class="grad">graphe n’est pas couvert</span>.',
+  files:['checkout.spec.ts — sans garde-fou','checkout.spec.ts — CraftTS'],
+  outTitles:['Graphe de dépendances','Graphe de dépendances'],
+  pages:[
+    [ '// checkout.spec.ts','TestBed.configureTestingModule({','  providers: [','    Checkout,','    { provide: Pricing, useValue: fakePricing },','  ],','});','',"it('calcule le total', () => { … });   // ✔" ],
+    [ '// checkout.spec.ts','const { sut } = await ‹e›setupCraftServiceTestingByRegister‹/e›(','  Checkout,','  {','    Checkout: provideCheckout(),','    Pricing: { total: vi.fn(() => 100) },',{c:'    // Tax ?',fix:"    Tax: 'real',"},'  },',');' ],
+  ],
+  phase:[{t:0,v:0},{t:6.8,v:1}],
+  page:[{t:0,v:0},{t:6.8,v:1}],
+  focus:[{t:0,a:0,b:99},{t:1.6,a:4,b:4},{t:3.2,a:8,b:8},{t:5.2,a:0,b:99},{t:6.8,a:0,b:99},{t:7.6,a:5,b:5},{t:8.6,a:6,b:6}],
+  att:[{t:0,v:.5},{t:1.3,v:1},{t:4.2,v:0},{t:6.8,v:1},{t:9.2,v:0}],
+  squig:[{t:0,v:0},{t:8.9,v:1,d:.7},{t:10.9,v:0,d:.3}],
+  fix:[{t:0,v:0},{t:11.0,v:1,d:.5}],
+  captions:[
+    [1.0,3.0,'On configure le module de test <b>à la main</b>.'],
+    [3.2,4.3,'Pricing est mocké : <b>le test passe</b>.'],
+    [4.5,6.6,'Mais Tax, plus loin dans le graphe, <b>n’a jamais été exercé</b>.'],
+    [7.3,8.8,'Ici, le register doit <b>couvrir tout le graphe</b> de dépendances.'],
+    [9.2,10.8,'Tax manque : <b>le test ne se lance même pas</b>.'],
+    [11.4,13.2,'Une ligne, et le graphe est couvert de bout en bout.'],
+  ],
+  out(u,L){
+    const tax=seq(u,[{t:0,v:0},{t:4.4,v:1},{t:6.8,v:2},{t:11.6,v:3}],.6);
+    const name=$('.tax',L.graph);
+    const base=tax<1?mix('#ff5470','#ff5470',0):tax<2?mix('#ff5470','#ffb84d',tax-1):mix('#ffb84d','#37d99b',clamp(tax-2));
+    const c=base;
+    const hide=clamp(tax); // 0→1 apparition
+    L.taxG.style.opacity=hide; L.taxE.style.opacity=hide;
+    L.taxR.setAttribute('stroke',tax<1?'#ff5470':mix(tax<2?'#ff5470':tax<3?'#ffb84d':'#37d99b','#ffb84d',0)) ;
+    L.taxR.setAttribute('stroke',c);
+    L.taxR.setAttribute('fill',c.replace('rgb','rgba').replace(')',',.12)'));
+    L.taxR.setAttribute('stroke-dasharray',tax<3?'10 8':'0');
+    L.taxT.textContent=tax<1.5?'jamais exercé · TVA ignorée en prod':tax<2.5?'non couvert':'couvert · réel';
+    L.taxT.setAttribute('fill',c);
+    // bandeau d'état
+    const s=seq(u,[{t:0,v:0},{t:3.4,v:1},{t:9.2,v:2},{t:11.8,v:3}],.4);
+    const idx=Math.round(s), op=idx>0?clamp(1-2*Math.abs(s-idx)):0;
+    L.strip.style.opacity=op;
+    const txt=['','✔ 1 test passé','✖ Register incomplet — Tax','✔ Graphe couvert de bout en bout'][idx];
+    const col=['#fff','#37d99b','#ff5470','#37d99b'][idx];
+    L.strip.textContent=txt;L.strip.style.color=col;L.strip.style.background=col.replace('#','').length?({"#37d99b":'rgba(55,217,155,.15)',"#ff5470":'rgba(255,84,112,.15)'}[col]||'transparent'):'';
+    L.pricingT.textContent='mocké';
+  }},
+];
+
+/* ---------- construction des chapitres ---------- */
+const LH=46;
+function buildChapter(cfg){
+  const el=document.createElement('section'); el.className='scene'; el.id=cfg.id;
+  el.innerHTML=`
+    <div class="head">
+      <div class="kicker">${cfg.kicker}</div>
+      <div class="title">${cfg.title}</div>
+      <div class="pill"><span class="pA">SANS GARDE-FOU</span><span class="pB">AVEC CRAFTTS</span></div>
+    </div>
+    <div class="panel code"><div class="bar"><i></i><i></i><i></i><b class="fname"></b></div>
+      <div class="cbody"><div class="fbar"></div></div></div>
+    <div class="panel out"><div class="bar"><b class="otitle"></b></div><div class="obody"></div></div>
+    <div class="caption"></div>
+    <div class="takeaway">${cfg.takeaway}</div>`;
+  $('#chapters').appendChild(el);
+  const cbody=$('.cbody',el);
+  cfg.$={el,cbody,fbar:$('.fbar',el),codeP:$('.code',el),outP:$('.out',el),
+    pillA:$('.pA',el),pillB:$('.pB',el),head:$('.head',el),cap:$('.caption',el),take:$('.takeaway',el),
+    fname:$('.fname',el),otitle:$('.otitle',el),obody:$('.obody',el)};
+  // pages de code
+  cfg.$.pages=cfg.pages.map(lines=>{
+    const pg=document.createElement('div'); pg.className='page';
+    pg.innerHTML=lines.map((l,i)=>{
+      const o=typeof l==='string'?{c:l}:l;
+      return `<div class="ln"><span class="g">${i+1}</span><span class="a">${hl(o.c)}</span>${o.fix?`<span class="b">${hl(o.fix)}</span>`:''}</div>`;
+    }).join('');
+    cbody.appendChild(pg); return pg;
+  });
+  // légendes
+  cfg.$.caps=cfg.captions.map(c=>{const d=document.createElement('div');d.innerHTML=c[2];cfg.$.cap.appendChild(d);return d});
+  cfg.$.L=buildOut(cfg);
+}
+
+function buildOut(cfg){
+  const ob=cfg.$.obody, L={};
+  const layer=h=>{const d=document.createElement('div');d.className='layer';d.innerHTML=h;ob.appendChild(d);return d};
+  const termErr=(lines)=>`<div class="term">${lines}</div>`;
+  if(cfg.id==='ch1'){
+    L.br=layer(`<div class="browser"><div class="urlbar"><i></i><i></i>monshop.fr/checkout</div>
+      <div class="bview"><h4>Votre panier</h4>
+        <div class="row"><span>Casque audio</span><b>89,00 €</b></div>
+        <div class="row"><span>Livraison</span><b>11,00 €</b></div>
+        <div class="row tot"><span>Total</span><b>100,00 €</b></div>
+        <div class="btn">Payer</div>
+        <div class="crash"><div class="big">Uncaught</div><code>NullInjectorError:<br/>No provider for Pricing!</code></div>
+      </div></div>
+      <div style="margin-top:30px"><span class="badge red">PRODUCTION · signalé par un client</span></div>`);
+    L.crash=$('.crash',L.br); L.badge=$('.badge',L.br); L.spin=document.createElement('div');
+    L.tm=layer(`<div class="term"><div><span class="p">$</span> tsc --noEmit</div><br/>
+      <div class="err"><div class="e">✖ app.config.ts:10</div>
+      <div class="e">Provider manquant : <span class="hl">Pricing</span></div>
+      <div class="d">Checkout en dépend (ligne 4)</div>
+      <div class="d">→ ajoute providePricing()</div><br/>
+      <div class="e">Build bloqué. Rien n’est déployé.</div></div>
+      <div class="okb"><div class="o">✔ Aucune erreur</div><div class="d">Toutes les dépendances sont fournies.</div><br/><div class="o">Prêt à déployer.</div></div></div>`);
+    L.tmErr=$('.err',L.tm); L.tmOk=$('.okb',L.tm);
+  }
+  if(cfg.id==='ch2'){
+    L.ui0=layer(`<div class="uicard"><div class="av"></div><h4 class="bad">Bonjour, undefined</h4><p>Profil utilisateur</p>
+       <div style="position:absolute;left:36px;bottom:34px;font-family:var(--mono);font-size:22px;color:#8a8fae">GET /api/users/42 → <b class="tag404" style="color:#e0375a">404</b></div></div>
+       <div style="margin-top:26px"><span class="badge red tag404">404 jamais déclaré ni géré</span></div>`);
+    L.bad=$('.bad',L.ui0); L.tag404=$('.badge',L.ui0);
+    L.union=layer(`<div class="union"><h5>CODES ATTEIGNABLES — exceptions().loader</h5>
+       <div class="chip">USER_NOT_FOUND</div><div class="chip">USER_DISABLED</div></div>`);
+    L.tm=layer(`<div class="term"><div><span class="p">$</span> tsc --noEmit</div><br/>
+      <div class="err"><div class="e">✖ user.route.ts:2</div>
+      <div class="e">handleExceptions incomplet</div>
+      <div class="d">Gestionnaire manquant pour</div>
+      <div class="d"><span class="hl">USER_DISABLED</span></div><br/>
+      <div class="e">Build bloqué.</div></div>
+      <div class="okb"><div class="o">✔ Toutes les exceptions</div><div class="o">sont gérées</div><div class="d">2 codes · 2 gestionnaires</div></div></div>`);
+    L.tmErr=$('.err',L.tm); L.tmOk=$('.okb',L.tm);
+    L.ui1=layer(`<div class="uicard"><div class="av" style="background:#ffe0e6"></div><h4>Ce compte est désactivé</h4><p>Contacte le support.</p>
+       <div class="btn" style="position:absolute;left:36px;right:36px;bottom:36px">Contacter le support</div></div>
+       <div style="margin-top:26px"><span class="badge green">USER_DISABLED · géré</span></div>`);
+    L.setTitle=i=>{cfg.$.otitle.textContent=cfg.outTitles[i]};
+  }
+  if(cfg.id==='ch3'){
+    L.graph=layer(`<div class="strip badge" style="position:absolute;left:30px;right:30px;top:18px;text-align:center;font-size:26px;opacity:0"></div>
+      <svg viewBox="0 0 500 590" width="500" height="590" style="position:absolute;left:30px;top:44px">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5a6088"/></marker></defs>
+        <line x1="250" y1="168" x2="250" y2="236" stroke="#5a6088" stroke-width="3" marker-end="url(#ah)"/>
+        <line class="taxE" x1="250" y1="368" x2="250" y2="436" stroke="#5a6088" stroke-width="3" marker-end="url(#ah)"/>
+        <rect x="60" y="60" width="380" height="108" rx="24" fill="rgba(106,103,255,.14)" stroke="#6a67ff" stroke-width="3"/>
+        <text x="250" y="110" text-anchor="middle" fill="#eef0ff" font-size="36" font-weight="800" font-family="-apple-system,Helvetica">Checkout</text>
+        <text x="250" y="146" text-anchor="middle" fill="#a9a7ff" font-size="24" font-family="-apple-system,Helvetica">service testé</text>
+        <rect x="60" y="238" width="380" height="108" rx="24" fill="rgba(255,255,255,.05)" stroke="#6b7298" stroke-width="3"/>
+        <text x="250" y="288" text-anchor="middle" fill="#eef0ff" font-size="36" font-weight="800" font-family="-apple-system,Helvetica">Pricing</text>
+        <text class="pricingT" x="250" y="324" text-anchor="middle" fill="#8b90ad" font-size="24" font-family="-apple-system,Helvetica">mocké</text>
+        <g class="taxG"><rect class="taxR" x="60" y="438" width="380" height="124" rx="24" stroke-width="3"/>
+        <text x="250" y="490" text-anchor="middle" fill="#eef0ff" font-size="36" font-weight="800" font-family="-apple-system,Helvetica">Tax</text>
+        <text class="taxT" x="250" y="532" text-anchor="middle" font-size="22" font-family="-apple-system,Helvetica"></text></g>
+      </svg>`);
+    L.strip=$('.strip',L.graph); L.taxG=$('.taxG',L.graph); L.taxE=$('.taxE',L.graph); L.taxR=$('.taxR',L.graph); L.taxT=$('.taxT',L.graph); L.pricingT=$('.pricingT',L.graph);
+  }
+  return L;
+}
+
+/* ---------- mise à jour d'un chapitre ---------- */
+function updateChapter(cfg,u){
+  const S=cfg.$;
+  // en-tête + panneaux : entrées échelonnées et sobres
+  const hp=P(u,.25,.55); show(S.head,hp); move(S.head,0,(1-hp)*14);
+  const cp=P(u,.6,.6); show(S.codeP,cp); move(S.codeP,0,(1-cp)*22);
+  const op=P(u,.95,.6); show(S.outP,op); move(S.outP,0,(1-op)*22);
+  // phase
+  const ph=seq(u,cfg.phase,.5);
+  show(S.pillA,1-ph); show(S.pillB,ph);
+  const col=mix('#ff5470','#37d99b',ph);
+  S.fbar.style.borderLeftColor=col; S.fbar.style.background=col.replace('rgb','rgba').replace(')',',.11)');
+  S.codeP.style.borderColor=col.replace('rgb','rgba').replace(')',',.35)');
+  S.fname.textContent=cfg.files[Math.round(seq(u,cfg.page,.01))]||'';
+  // focus (un seul regard à la fois) : code ⟷ résultat
+  const att=seq(u,cfg.att,.6);
+  S.codeP.style.opacity=cp*lerp(.42,1,att); S.outP.style.opacity=op*lerp(.42,1,1-att);
+  // pages
+  const pg=seq(u,cfg.page,.5);
+  S.pages.forEach((p,i)=>show(p,clamp(1.15-2*Math.abs(pg-i))));
+  // focus ligne
+  const f=cfg.focus;
+  const fa=seq(u,f.map(k=>({t:k.t,v:k.a})),.55), fb=seq(u,f.map(k=>({t:k.t,v:k.b})),.55);
+  S.pages.forEach(p=>{$$('.ln',p).forEach((ln,i)=>{
+    const dist=Math.max(fa-i,i-fb,0); ln.style.opacity=lerp(.26,1,clamp(1-dist/.9));
+  })});
+  const lo=fa<0?0:Math.max(fa,0), hi=Math.min(fb,cfg.pages[Math.round(pg)].length-1);
+  const allLit=fa<=0.01&&fb>=50;
+  S.fbar.style.top=(22+lo*LH)+'px'; S.fbar.style.height=((hi-lo+1)*LH)+'px';
+  S.fbar.style.opacity=allLit?0:1;
+  // squiggle + fix
+  S.cbody.style.setProperty('--sq',clamp(seq(u,cfg.squig,.6)).toFixed(3));
+  const fx=seq(u,cfg.fix,.5);
+  $$('.ln',S.cbody).forEach(ln=>{const a=$('.a',ln),b=$('.b',ln); if(b){a.style.opacity=1-fx;b.style.opacity=fx;ln.style.background=`rgba(55,217,155,${(.2*Math.sin(Math.PI*fx)).toFixed(3)})`}});
+  // panneau de sortie
+  cfg.$.L.setTitle?0:(S.otitle.textContent=cfg.outTitles[ph>.5?1:0]);
+  if(cfg.id==='ch1'||cfg.id==='ch3') S.otitle.textContent=cfg.outTitles[ph>.5?1:0];
+  cfg.out(u,S.L);
+  // légendes
+  cfg.captions.forEach((c,i)=>{const d=S.caps[i];const o=win(u,c[0],c[1],.3,.3);show(d,o);move(d,0,(1-P(u,c[0],.3))*8)});
+  // conclusion
+  const tk=P(u,cfg.dur-2.4,.5); show(S.take,tk*(1-P(u,cfg.dur-.4,.35,x=>x))); move(S.take,0,(1-tk)*14);
+}
+
+/* =========================================================================
+   Scènes simples
+   ========================================================================= */
+const word=$('#word'); 'CraftTS'.split('').forEach((ch,i)=>{const s=document.createElement('span');s.textContent=ch;if(i>=5)s.className='grad';word.appendChild(s)});
+function updateIntro(u){
+  const lp=P(u,.3,1.0,E.back); show($('#intro .logo'),P(u,.3,.7)); move($('#intro .logo'),0,0,lerp(.82,1,lp),lerp(-10,0,lp));
+  $$('#word span').forEach((s,i)=>{const p=P(u,1.3+i*.05,.6);show(s,p);move(s,0,(1-p)*26)});
+  const t1=P(u,2.6,.6),t2=P(u,3.1,.6);
+  show($('#intro .tag1'),t1);move($('#intro .tag1'),0,(1-t1)*16);
+  show($('#intro .tag2'),t2);move($('#intro .tag2'),0,(1-t2)*16);
+  show($('#intro .motto'),P(u,4.4,.7));
+}
+function updateProblem(u){
+  const a=win(u,.3,2.7,.6,.4); show($('#pbH1'),a); move($('#pbH1'),0,(1-P(u,.3,.6))*18);
+  show($('#pbKick'),P(u,2.5,.5)); show($('#pbH2'),P(u,2.7,.5)); move($('#pbH2'),0,(1-P(u,2.7,.5))*12);
+  const cards=$$('#problem .card'); const starts=[4.3,5.6,6.9];
+  cards.forEach((c,i)=>{
+    const p=P(u,starts[i],.55); const active=i===0?(u<starts[1]?1:0):i===1?(u>=starts[1]&&u<starts[2]?1:0):(u>=starts[2]?1:0);
+    const settle=P(u,7.8,.5); // à la fin, les trois sont à égalité
+    const lit=lerp(lerp(.5,1,active),1,settle);
+    c.style.opacity=p*lit; c.style.visibility=p<.002?'hidden':'visible'; move(c,0,(1-p)*34,lerp(.985,1,lit));
+    c.style.borderColor=`rgba(255,84,112,${(.55*active*(1-settle)).toFixed(3)})`;
+  });
+}
+function updateSame(u){
+  show($('#same .kick'),P(u,.3,.5)); show($('#same .h2'),P(u,.5,.5)); move($('#same .h2'),0,(1-P(u,.5,.5))*12);
+  const tiles=$$('#same .tile'), st=[1.6,3.0,4.4,5.8];
+  tiles.forEach((t,i)=>{
+    const p=P(u,st[i],.55); const next=st[i+1]??99;
+    const active=(u>=st[i]&&u<next)?1:0; const settle=P(u,7.2,.5);
+    const lit=lerp(lerp(.5,1,active),1,settle);
+    t.style.opacity=p*lit; t.style.visibility=p<.002?'hidden':'visible'; move(t,0,(1-p)*28,lerp(.985,1,lit));
+    t.style.borderColor=`rgba(106,103,255,${(.7*active*(1-settle)).toFixed(3)})`;
+  });
+}
+function updateOutro(u){
+  const rows=$$('#outro .row2'), st=[.5,1.6,2.7];
+  rows.forEach((r,i)=>{const p=P(u,st[i],.5);const out=1-P(u,4.6,.5);show(r,p*out);move(r,0,(1-p)*24+(1-out)*-10)});
+  const b=win(u,5.3,8.0,.6,.5); show($('#bigline'),b); move($('#bigline'),0,(1-P(u,5.3,.6))*16);
+  const e=P(u,8.3,.6); show($('#endcard'),e);
+  $$('#endcard > *').forEach((c,i)=>{const p=P(u,8.3+i*.25,.55);c.style.opacity=p;move(c,0,(1-p)*16)});
+}
+
+/* ========================================================================= */
+const TL=[]; let cursor=0;
+function add(id,dur,fn){TL.push({id,start:cursor,dur,fn});cursor+=dur}
+add('intro',6.0,updateIntro);
+add('problem',8.6,updateProblem);
+CHAPTERS.forEach(cfg=>{buildChapter(cfg);add(cfg.id,cfg.dur,u=>updateChapter(cfg,u))});
+add('same',9.4,updateSame);
+add('outro',12.4,updateOutro);
+window.DURATION=cursor;
+
+window.__render=function(t){
+  TL.forEach(s=>{
+    const el=document.getElementById(s.id), u=t-s.start;
+    const o=u<0||u>s.dur?0:Math.min(clamp(u/.4),1-clamp((u-(s.dur-.4))/.4));
+    const last=s.id==='outro';
+    el.style.opacity=last?Math.min(clamp(u/.4),1-clamp((u-(s.dur-.8))/.8)):o;
+    el.style.visibility=(u<0||u>s.dur)?'hidden':'visible';
+    if(u>=0&&u<=s.dur) s.fn(u);
+  });
+};
+window.__ready=document.fonts.ready.then(()=>true);
+window.__render(0);
+</script>
+</body>
+</html>
