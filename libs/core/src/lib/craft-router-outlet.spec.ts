@@ -1676,3 +1676,164 @@ describe('resolveComponentInput', () => {
     expect(await resolveComponentInput({ component: target })).toBe(target);
   });
 });
+
+// Effects run synchronously, so a state published as several writes wakes a reader on
+// each one. Every case notes what an effect sees on each of its runs: a change of the
+// outlet is ONE run, showing a state that exists, never a mixture of two.
+describe('CraftRouterOutlet publishing a change', () => {
+  let deferred: {
+    promise: Promise<RouteChainOutcome>;
+    resolve: (outcome: RouteChainOutcome) => void;
+  };
+
+  function setup(): CraftRouterOutletController {
+    let resolve!: (outcome: RouteChainOutcome) => void;
+    const promise = new Promise<RouteChainOutcome>((r) => (resolve = r));
+    deferred = { promise, resolve };
+    TestBed.configureTestingModule({
+      providers: [
+        ...provideCraftRouter([]),
+        provideCraftRouterRuntimeValue(stubRouter()),
+        serviceRuntimeOverrides({ CraftRouteChainRunner: () => deferred.promise }),
+      ],
+    });
+    return TestBed.runInInjectionContext(() =>
+      createCraftRouterOutletController(),
+    );
+  }
+
+  function witness(read: () => string): { seen: string[]; stop(): void } {
+    const seen: string[] = [];
+    const watch = TestBed.runInInjectionContext(() =>
+      craftWatch(() => {
+        seen.push(read());
+      }),
+    );
+    seen.length = 0;
+    return { seen, stop: () => watch.destroy() };
+  }
+
+  const name = (value: unknown) =>
+    (value as { name?: string } | null | undefined)?.name ?? '-';
+
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('announces a plain route as loaded together with its component', () => {
+    const outlet = setup();
+    const { seen, stop } = witness(
+      () => `${name(outlet.targetComponent())}:${outlet.state()}`,
+    );
+
+    outlet.activateMatch(
+      makeMatch(undefined),
+      TestBed.inject(EnvironmentInjector),
+    );
+
+    expect(seen).toEqual(['TargetCmp:loaded']);
+    stop();
+  });
+
+  it('publishes both data sinks of a route before the page uses either', async () => {
+    const outlet = setup();
+    const meta = makeMeta({ stayMs: 0, blankMs: 0 });
+    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    const { seen, stop } = witness(
+      () => `${String(meta.guardDataSink?.())}/${String(meta.resolveDataSink?.())}`,
+    );
+
+    deferred.resolve({ kind: 'data', guardData: 'guard', resolveData: 'resolve' });
+    await flush();
+
+    expect(seen).toEqual(['guard/resolve']);
+    stop();
+  });
+
+  it('clears every exception sink of a route as one step', () => {
+    const outlet = setup();
+    const first = signal<unknown | null>('first');
+    const second = signal<unknown | null>('second');
+    const meta = makeMeta({ exceptionSinks: { FIRST: first, SECOND: second } });
+    const { seen, stop } = witness(
+      () => `${String(first())}/${String(second())}`,
+    );
+
+    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+
+    expect(seen).toEqual(['null/null']);
+    stop();
+  });
+
+  it('blanks the previous page and the state together', () => {
+    const outlet = setup();
+    outlet.displayedComponent.set(ErrCmp);
+    outlet.activateMatch(
+      makeMatch(makeMeta({ stayMs: 300, blankMs: 300 })),
+      TestBed.inject(EnvironmentInjector),
+    );
+    const { seen, stop } = witness(
+      () => `${outlet.state()}:${name(outlet.displayedComponent())}`,
+    );
+
+    vi.advanceTimersByTime(300);
+
+    expect(seen).toEqual(['blank:-']);
+    stop();
+  });
+
+  it('gives the error component and its target as one step', async () => {
+    const outlet = setup();
+    outlet.activateMatch(
+      makeMatch(
+        makeMeta({
+          stayMs: 0,
+          blankMs: 0,
+          errorComponent: { component: ErrCmp, componentDeps: {} },
+        }),
+      ),
+      TestBed.inject(EnvironmentInjector),
+    );
+    const { seen, stop } = witness(
+      () =>
+        `${name(outlet.errorComponent())}:${outlet.errorTarget() ? 'target' : '-'}`,
+    );
+
+    deferred.resolve({
+      kind: 'global',
+      exception: craftException({ _tag: 'USER_DISABLED' }),
+    });
+    await flush();
+
+    expect(seen).toEqual(['ErrCmp:target']);
+    stop();
+  });
+
+  it('drops a deactivated page, its state and its components as one step', async () => {
+    const outlet = setup();
+    outlet.activateMatch(
+      makeMatch(undefined),
+      TestBed.inject(EnvironmentInjector),
+    );
+    const { seen, stop } = witness(
+      () =>
+        [
+          outlet.state(),
+          name(outlet.displayedComponent()),
+          outlet.displayedTarget() ? 'target' : '-',
+          name(outlet.targetComponent()),
+        ].join(':'),
+    );
+
+    outlet.deactivate();
+    await flush();
+
+    expect(seen).toEqual(['idle:-:-:-']);
+    stop();
+  });
+});

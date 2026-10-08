@@ -35,6 +35,19 @@ describe('style-file-boundary', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it('allows the same split when the import spells the extension out', async () => {
+    const result = await lint(
+      boundaryRule,
+      `
+      import { bp } from './breakpoints.style.ts';
+      export const used = bp;
+    `,
+      'badge.style.ts',
+    );
+
+    expect(result.messages).toEqual([]);
+  });
+
   it('refuses an application import, including a transitive one', async () => {
     const result = await lint(
       boundaryRule,

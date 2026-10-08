@@ -1,0 +1,60 @@
+{
+  "name": "craft-ts-docs-ui",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/docs-ui/src",
+  "projectType": "library",
+  "tags": [
+    "scope:docs-ui",
+    "integration:craft"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/libs/docs-ui",
+        "main": "libs/docs-ui/src/index.ts",
+        "tsConfig": "libs/docs-ui/tsconfig.lib.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs libs/docs-ui/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/docs-ui/tsconfig.spec.json --noEmit --pretty false"
+      },
+      "inputs": [
+        "{workspaceRoot}/tsconfig.base.json",
+        "{projectRoot}/tsconfig.spec.json",
+        "{projectRoot}/src/**/*.ts"
+      ]
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "maxWarnings": -1
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "vite --config libs/docs-ui/vite.preview.config.ts --port 4410"
+      }
+    },
+    "typecheck-preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p libs/docs-ui/tsconfig.preview.json --noEmit --pretty false"
+      }
+    }
+  }
+}

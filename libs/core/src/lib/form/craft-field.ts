@@ -1,4 +1,4 @@
-import { computed, isSignal, signal, Signal, WritableSignal } from '../host/craft-compat';
+import { batch, computed, isSignal, signal, Signal, WritableSignal } from '../host/craft-compat';
 import type { AnyCraftException } from '../craft-exception';
 
 export type CraftFieldError = AnyCraftException;
@@ -412,13 +412,18 @@ function createCraftFieldInternals<T>(
   const syncers = new Set<ControlSyncer<T>>();
 
   // ---------- Field methods ----------
-  const set = (next: T): void => {
-    setRaw(next);
-    if (!localDirty()) localDirty.set(true);
-    if (options.kind === 'child') {
-      options.link.parent.__propagateDirty(true);
-    }
-  };
+  // Every write below changes what a field says about itself and what each ancestor
+  // says about it. Effects run synchronously, so each one is a batch: a reader woken
+  // between two of its writes would see the new value of a field still pristine, a
+  // child touched under a parent that is not.
+  const set = (next: T): void =>
+    batch(() => {
+      setRaw(next);
+      if (!localDirty()) localDirty.set(true);
+      if (options.kind === 'child') {
+        options.link.parent.__propagateDirty(true);
+      }
+    });
 
   const patch = (fn: (current: T) => Partial<T>): void => {
     const current = readRaw();
@@ -430,72 +435,80 @@ function createCraftFieldInternals<T>(
     }
   };
 
-  const propagateDirty = (childIsDirty: boolean) => {
-    if (childIsDirty) {
-      childDirty.set(true);
-    } else {
-      recomputeChildDirty();
-    }
-    if (options.kind === 'child') {
-      options.link.parent.__propagateDirty(dirty());
-    }
-  };
+  const propagateDirty = (childIsDirty: boolean) =>
+    batch(() => {
+      if (childIsDirty) {
+        childDirty.set(true);
+      } else {
+        recomputeChildDirty();
+      }
+      if (options.kind === 'child') {
+        options.link.parent.__propagateDirty(dirty());
+      }
+    });
 
-  const propagateTouched = (childIsTouched: boolean) => {
-    if (childIsTouched) {
-      childTouched.set(true);
-    } else {
-      recomputeChildTouched();
-    }
-    if (options.kind === 'child') {
-      options.link.parent.__propagateTouched(touched());
-    }
-  };
+  const propagateTouched = (childIsTouched: boolean) =>
+    batch(() => {
+      if (childIsTouched) {
+        childTouched.set(true);
+      } else {
+        recomputeChildTouched();
+      }
+      if (options.kind === 'child') {
+        options.link.parent.__propagateTouched(touched());
+      }
+    });
 
-  const markTouched = () => {
-    if (!localTouched()) localTouched.set(true);
-    if (options.kind === 'child') options.link.parent.__propagateTouched(true);
-  };
+  const markTouched = () =>
+    batch(() => {
+      if (!localTouched()) localTouched.set(true);
+      if (options.kind === 'child') options.link.parent.__propagateTouched(true);
+    });
 
-  const markUntouched = () => {
-    localTouched.set(false);
-    if (options.kind === 'child') options.link.parent.__propagateTouched(false);
-  };
+  const markUntouched = () =>
+    batch(() => {
+      localTouched.set(false);
+      if (options.kind === 'child') options.link.parent.__propagateTouched(false);
+    });
 
-  const markDirty = () => {
-    if (!localDirty()) localDirty.set(true);
-    if (options.kind === 'child') options.link.parent.__propagateDirty(true);
-  };
+  const markDirty = () =>
+    batch(() => {
+      if (!localDirty()) localDirty.set(true);
+      if (options.kind === 'child') options.link.parent.__propagateDirty(true);
+    });
 
-  const markPristine = () => {
-    localDirty.set(false);
-    if (options.kind === 'child') options.link.parent.__propagateDirty(false);
-  };
+  const markPristine = () =>
+    batch(() => {
+      localDirty.set(false);
+      if (options.kind === 'child') options.link.parent.__propagateDirty(false);
+    });
 
-  const resetCascade = () => {
-    localDirty.set(false);
-    localTouched.set(false);
-    childDirty.set(false);
-    childTouched.set(false);
-    for (const child of children.values()) {
-      child.__resetCascade();
-    }
-    resetTriggerCount.update((v) => v + 1);
-    for (const syncer of syncers) {
-      syncer.resync?.();
-    }
-  };
+  const resetCascade = () =>
+    batch(() => {
+      localDirty.set(false);
+      localTouched.set(false);
+      childDirty.set(false);
+      childTouched.set(false);
+      for (const child of children.values()) {
+        child.__resetCascade();
+      }
+      resetTriggerCount.update((v) => v + 1);
+      for (const syncer of syncers) {
+        syncer.resync?.();
+      }
+    });
 
-  const reset = (initialValue?: T): void => {
-    if (initialValue !== undefined) {
-      setRaw(initialValue);
-    }
-    resetCascade();
-    if (options.kind === 'child') {
-      options.link.parent.__propagateDirty(false);
-      options.link.parent.__propagateTouched(false);
-    }
-  };
+  const reset = (initialValue?: T): void =>
+    batch(() => {
+      if (initialValue !== undefined) {
+        setRaw(initialValue);
+      }
+      resetCascade();
+      if (options.kind === 'child') {
+        options.link.parent.__propagateDirty(false);
+        options.link.parent.__propagateTouched(false);
+      }
+    });
 
   // ---------- Registration helpers ----------
   const registerControl = (syncer: ControlSyncer<T>): (() => void) => {

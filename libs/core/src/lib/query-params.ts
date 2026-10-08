@@ -1,5 +1,6 @@
 import {
   assertInInjectionContext,
+  batch,
   computed,
   DestroyRef,
   inject,
@@ -505,8 +506,11 @@ function createQueryParamsRef<
   ) as WritableSignal<QueryParamsToState<QueryParamsType>>;
   const locationWatch = craftWatch(() => {
     const rawParams = parseSearchParams(location().search);
-    queryParamsFromUrl.set(rawParams);
-    queryParamsState.set(decodeQueryParamsState(rawParams));
+    // The state and the exceptions of its parse both come from this URL: one change.
+    batch(() => {
+      queryParamsFromUrl.set(rawParams);
+      queryParamsState.set(decodeQueryParamsState(rawParams));
+    });
   });
   inject(DestroyRef).onDestroy(() => locationWatch.destroy());
 

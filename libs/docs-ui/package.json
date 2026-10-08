@@ -1,0 +1,36 @@
+{
+  "name": "@craft-ts/docs-ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Documentation components for craft-ts: the Herbier design system, one component per element a docs page can use, the frame that holds them, and the build-time pipeline that turns a Markdown folder into data for them",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json",
+    "./node": {
+      "types": "./src/node.d.ts",
+      "default": "./src/node.js"
+    },
+    "./style": {
+      "types": "./src/style.d.ts",
+      "default": "./src/style.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "peerDependencies": {
+    "@craft-ts/component": "^0.8.8",
+    "@craft-ts/core": "^0.8.8",
+    "@craft-ts/style": "^0.8.8"
+  },
+  "sideEffects": [
+    "**/*.style.js"
+  ]
+}

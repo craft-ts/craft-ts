@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  craftExpose,
   craftService,
   CraftSsrTimeoutError,
   CraftUnhandledSsrResolutionError,
@@ -17,6 +18,7 @@ import {
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   button,
+  content,
   CraftRouterOutlet,
   craftComponent,
   div,
@@ -28,10 +30,12 @@ import {
   loadCraftComponent,
   pendingNode,
   provideCraftRootComponent,
+  renderContent,
   renderCraft,
   startCraft,
   span,
   ul,
+  type ContentSlot,
   type CraftComponent,
   type Input,
   withComponentProviders,
@@ -607,6 +611,122 @@ describe('Craft SSR and hydration', () => {
       source: 'routeWithoutPolicy',
       route: 'missing-policy',
     });
+  });
+
+  it('gives projected content keys of its own, so two slots of one declarer never share them', async () => {
+    const Box = craftComponent(
+      'ProjectionBox',
+      {},
+      (input: { readonly body: ContentSlot }) =>
+        div({ class: 'box' }, renderContent('body', input.body)),
+    );
+    // One component declares the content of two boxes, and has a paragraph of its
+    // own first: all three used to be numbered from the declarer, starting at 0.
+    const page = craftComponent('ProjectionPage', {}, () =>
+      div([
+        p({ class: 'own' }, 'own'),
+        Box({ body: content(() => p({ class: 'first' }, 'first slot')) }),
+        Box({ body: content(() => p({ class: 'second' }, 'second slot')) }),
+      ]),
+    );
+    const config = configFor(page);
+    const rendered = await renderCraft({ config });
+    document.body.innerHTML = rendered.html;
+    const host = document.querySelector('craft-root')!;
+
+    const keys = [...host.querySelectorAll('[data-craft-hk]')].map((node) =>
+      node.getAttribute('data-craft-hk'),
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+
+    const hydrated = hydrateCraft({ config, host });
+    expect(hydrated.mismatches).toEqual([]);
+    expect(host.textContent).toBe('ownfirst slotsecond slot');
+    hydrated.destroy();
+  });
+
+  it('hydrates content projected through two components, one inside the other', async () => {
+    const Box = craftComponent(
+      'NestedBox',
+      {},
+      (input: { readonly body: ContentSlot }) =>
+        div({ class: 'box' }, renderContent('body', input.body)),
+    );
+    // What a docs page is: a frame that projects the page, whose page projects the
+    // body of each callout.
+    const Inner = craftComponent('NestedInner', {}, () =>
+      div({ class: 'inner' }, [
+        p('before'),
+        Box({ body: content(() => p({ class: 'deep' }, 'deep slot')) }),
+      ]),
+    );
+    const Frame = craftComponent(
+      'NestedFrame',
+      {},
+      (input: { readonly body: ContentSlot }) =>
+        div({ class: 'frame' }, [
+          p('chrome'),
+          div({ class: 'article' }, renderContent('body', input.body)),
+        ]),
+    );
+    const root = craftComponent('NestedRoot', {}, () =>
+      Frame({ body: content(() => Inner({})) }),
+    );
+    const config = configFor(root);
+    const rendered = await renderCraft({ config });
+    document.body.innerHTML = rendered.html;
+    const host = document.querySelector('craft-root')!;
+    const before = host.textContent;
+
+    const hydrated = hydrateCraft({ config, host });
+    expect(hydrated.mismatches).toEqual([]);
+    expect(host.textContent).toBe(before);
+    expect(host.textContent).toBe('chromebeforedeep slot');
+    hydrated.destroy();
+  });
+
+  it('keeps projected content when the component that declares it renders again after hydration', async () => {
+    const { RerenderView, provideRerenderView } = craftService(
+      { name: 'rerenderView', providedIn: 'toProvide' },
+      function* () {
+        const ticks = yield* state('ticks', 0, ({ update }) => ({
+          tick: () => update((value) => value + 1),
+        }));
+        yield* craftExpose('tick', ticks.tick);
+      },
+    );
+    const Frame = craftComponent(
+      'RerenderFrame',
+      {},
+      (input: { readonly body: ContentSlot }) =>
+        div({ class: 'frame' }, renderContent('body', input.body)),
+    );
+    const root = craftComponent(
+      'RerenderRoot',
+      { providers: [provideRerenderView()] },
+      function* () {
+        const view = yield* RerenderView();
+        // Reading the state here makes this template run again when it changes.
+        const ticks = yield* view.ticks();
+        return div([
+          Frame({ body: content(() => p({ class: 'projected' }, `projected ${ticks}`)) }),
+          button({ class: 'tick', click: view.tick }, 'tick'),
+        ]);
+      },
+    );
+    const config = configFor(root);
+    const rendered = await renderCraft({ config });
+    document.body.innerHTML = rendered.html;
+    const host = document.querySelector('craft-root')!;
+
+    const hydrated = hydrateCraft({ config, host });
+    expect(hydrated.mismatches).toEqual([]);
+    expect(host.querySelector('.projected')?.textContent).toBe('projected 0');
+
+    (host.querySelector('.tick') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(host.querySelector('.projected')?.textContent).toBe('projected 1');
+    hydrated.destroy();
   });
 
   it('remounts only a mismatched subtree and keeps a sibling node', async () => {

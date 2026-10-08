@@ -8,6 +8,7 @@ import {
   provideStorageService,
   SessionStorageService,
 } from './browser-boundaries';
+import { craftWatch } from './host/craft-signal';
 import { state } from './state';
 import { query } from './query';
 import { source$ } from './source$';
@@ -563,5 +564,32 @@ describe('machine history with an async resource', () => {
       expect(craftUse(machine.context.details.value())).toEqual({ id: 'a' }),
     );
     expect(loads).toEqual(['a', 'b', 'a']);
+  });
+});
+
+describe('machine history publishing a moment', () => {
+  beforeEach(() => {
+    resetHistoryTestBed();
+  });
+
+  // The history records a moment as a new entry AND moves the cursor onto it. Effects
+  // run synchronously, so a reader woken between the two sees the cursor behind the
+  // entry that was just appended: a "forward" that does not exist.
+  it('moves onto a recorded moment without a forward step ever showing', () => {
+    const machine = TestBed.runInInjectionContext(createMachine);
+    const seen: string[] = [];
+    const watch = TestBed.runInInjectionContext(() =>
+      craftWatch(() => {
+        seen.push(
+          `${craftUse(machine.canGoBack())}|${craftUse(machine.canGoForward())}`,
+        );
+      }),
+    );
+    seen.length = 0;
+
+    machine.context.edit$.emit();
+
+    expect(seen).toEqual(['true|false']);
+    watch.destroy();
   });
 });

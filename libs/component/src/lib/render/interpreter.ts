@@ -60,6 +60,7 @@ import {
   ɵinjectCraftMatch,
   ɵinjectCraftChildMatch,
   ɵrunInInjectionContext,
+  ɵcraftBatch,
   craftUse,
 } from '@craft-ts/core';
 import {
@@ -1022,13 +1023,24 @@ function isElementNode(node: unknown): node is Element {
   );
 }
 
+/** Is this node still being claimed from server HTML, rather than created? */
+function isHydrating(context: RenderContext): context is RenderContext & {
+  readonly hydration: NonNullable<RenderContext['hydration']>;
+} {
+  return (
+    context.mode === 'hydrate' &&
+    context.hydration !== undefined &&
+    !context.hydration.finished
+  );
+}
+
 function mountComment(
   parent: NativeParent,
   value: string,
   before: NativeNode | null,
   context: RenderContext,
 ): Comment {
-  if (context.mode === 'hydrate' && context.hydration) {
+  if (isHydrating(context)) {
     try {
       return context.hydration.claimBoundary(
         context.identity.hydrationKey,
@@ -1054,7 +1066,7 @@ function createElementForRender(
   before: NativeNode | null,
   context: RenderContext,
 ): { readonly element: Element; readonly context: RenderContext } {
-  if (context.mode === 'hydrate' && context.hydration) {
+  if (isHydrating(context)) {
     try {
       return {
         element: context.hydration.claimElement(
@@ -1105,7 +1117,7 @@ function createTextForRender(
   context: RenderContext,
   compare: boolean,
 ): { readonly text: Text; readonly context: RenderContext } {
-  if (context.mode === 'hydrate' && context.hydration) {
+  if (isHydrating(context)) {
     try {
       return {
         text: context.hydration.claimText(
@@ -1695,6 +1707,15 @@ function applyStyles(
   }
 }
 
+/** Is the dialog open modally? `:modal` is missing from some DOM implementations. */
+function isModalDialog(dialog: HTMLDialogElement): boolean {
+  try {
+    return dialog.matches(':modal');
+  } catch {
+    return dialog.open;
+  }
+}
+
 function flattenAttributes(
   props: Readonly<Record<string, unknown>>,
 ): Map<string, unknown> {
@@ -1892,6 +1913,7 @@ class ElementRenderedNode implements RenderedNode {
       nested,
     );
     this.reapplySelectValue(initial);
+    this.openDialog(initial);
   }
 
   /**
@@ -1956,6 +1978,7 @@ class ElementRenderedNode implements RenderedNode {
         contentScope: undefined,
       }),
     );
+    this.openDialog(node);
     return true;
   }
 
@@ -2226,9 +2249,30 @@ class ElementRenderedNode implements RenderedNode {
       cancel();
       close();
     };
+  }
+
+  /**
+   * Opens or closes a dialog node according to its `open` prop. It runs **after**
+   * the children are mounted: `showModal()` moves focus into the dialog (to the
+   * element marked `autofocus`, else the first control), and a dialog that is
+   * still empty has nothing to move it to, so the focus would stay on the
+   * dialog itself.
+   */
+  private openDialog(
+    nextNode: ElementNodeBase<any, any, any, any, any, any, any, any>,
+  ): void {
+    if (this.tag !== 'dialog') return;
+    const dialog = this.node as HTMLDialogElement;
     const open = nextNode.props['open'];
-    if (open && typeof dialog.showModal === 'function' && !dialog.open) {
-      dialog.showModal();
+    if (open && typeof dialog.showModal === 'function') {
+      // `open` is also written as an attribute by the property pass, which opens
+      // a dialog *non-modally*: it sits in the flow instead of the top layer and
+      // `showModal()` below would never run, because `dialog.open` is already
+      // true. Close that first, then open it for real.
+      if (!isModalDialog(dialog)) {
+        if (dialog.open) dialog.removeAttribute('open');
+        dialog.showModal();
+      }
     } else if (
       open === false &&
       typeof dialog.close === 'function' &&
@@ -2392,6 +2436,15 @@ class ProjectionRenderedNode implements RenderedNode {
     this.styleRelease = contentStyle.release;
     this.projectionContext = childContext(this.declarationContext, {
       contentScope: contentStyle.scope,
+      // The nodes were declared elsewhere, so they read their lexical context; but
+      // they live here, and their hydration keys come from where they are mounted.
+      // Numbered from the declarer, every slot it declares would start again at 0
+      // and collide with the declarer's own nodes and with its other slots.
+      identity: childCraftRenderIdentity(
+        context.identity,
+        'projection',
+        node.slotName ?? 'slot',
+      ),
     });
     this.view = createFragment(
       parent,
@@ -4880,12 +4933,18 @@ class ComponentRenderedNode implements RenderedNode {
     }
 
     const props = node.props as Record<string, unknown>;
-    this.propKeys.forEach((key, index) => {
-      this.propSources[index].set(props[key]);
+    // One update, not one per input: effects run synchronously, so each separate write
+    // would run the component's template again with the others still the old value, and
+    // a component with twelve inputs would be drawn thirteen times for one change —
+    // each of them patching its own children the same way.
+    ɵcraftBatch(() => {
+      this.propKeys.forEach((key, index) => {
+        this.propSources[index].set(props[key]);
+      });
+      this.hostPropsSource.set(
+        hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
+      );
     });
-    this.hostPropsSource.set(
-      hostPropsFromComponentProps(props as Readonly<Record<string, unknown>>),
-    );
     return true;
   }
 

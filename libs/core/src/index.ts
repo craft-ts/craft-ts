@@ -168,6 +168,7 @@ export type {
 export {
   CRAFT_SIGNAL as ɵCRAFT_SIGNAL,
   ɵbrandAsCraftSignal,
+  craftBatch as ɵcraftBatch,
   craftComputed as ɵcraftComputed,
   craftWatch as ɵcraftWatch,
 } from './lib/host/craft-signal';

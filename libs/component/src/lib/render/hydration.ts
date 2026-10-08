@@ -38,6 +38,12 @@ export type HydrationCursor = Readonly<{
   claimText(key: string, expected?: string): Text;
   claimBoundary(key: string, label: string): Comment;
   recordMismatch(error: HydrationMismatchError): void;
+  /**
+   * True once `finish()` ran. A node created after that — a branch that turns on, a
+   * slot that is drawn again — is a new node, not a server one: it must not claim
+   * what the server left, which by then belongs to nodes that already exist.
+   */
+  readonly finished: boolean;
   finish(): void;
 }>;
 
@@ -56,6 +62,7 @@ export function createHydrationCursor(
   const text = new Map<string, TextClaim>();
   const claimed = new Set<Node>();
   const mismatches: HydrationMismatchError[] = [];
+  let finished = false;
 
   for (const element of host.querySelectorAll<Element>('[data-craft-hk]')) {
     const key = element.getAttribute('data-craft-hk');
@@ -155,7 +162,11 @@ export function createHydrationCursor(
       mismatches.push(error);
       onMismatch?.(error);
     },
+    get finished() {
+      return finished;
+    },
     finish() {
+      finished = true;
       for (const entry of text.values()) {
         if (claimed.has(entry.text)) {
           entry.start.remove();
