@@ -17,6 +17,13 @@ function isCallableSignal(value: unknown): boolean {
 /** Runtime/type brand carried by named reactive values exposed to templates. */
 export const YIELDABLE_VALUE = Symbol('craft-yieldable-value');
 
+/**
+ * Shared brand used by Craft methods that are safe to delegate with `yield*`.
+ * Lives here, next to the facade that has to recognise it, and is re-exported
+ * by `yieldable.ts`.
+ */
+export const YIELDABLE_METHOD = Symbol('craft-yieldable-method');
+
 /** Internal marker used by the synchronous Craft generator driver. */
 export const REACTIVE_READ_REQUEST = Symbol('craft-reactive-read-request');
 
@@ -901,7 +908,11 @@ function createFacade(
         const child = Reflect.get(target, property, receiver);
         if (
           (property === 'reload' || property === 'refresh') &&
-          typeof child === 'function'
+          typeof child === 'function' &&
+          // An insertion that publishes its own `reload` is already a
+          // yieldable method: wrapping it again would hand back an undriven
+          // generator instead of the result.
+          !(YIELDABLE_METHOD in child)
         ) {
           const action = function* yieldableReactiveAction(
             ...args: unknown[]

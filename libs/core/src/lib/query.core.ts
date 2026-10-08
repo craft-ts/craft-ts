@@ -599,6 +599,15 @@ export type InsertionParams<
   patch: YieldableInsertionWrite<[
     patchFn: (currentState: ResourceState) => Partial<ResourceState>,
   ], ResourceState>;
+  /**
+   * Re-runs the loader with the params in force. Resolves to `false` when
+   * there is nothing to reload (no request yet, or the resource is destroyed).
+   *
+   * Private to insertions on purpose: the primitive does not expose `reload`
+   * publicly. An insertion that wants a public reload publishes it itself,
+   * `() => ({ reload: () => reload() })`.
+   */
+  reload: YieldableInsertionWrite<[], boolean>;
   insertions: keyof PreviousInsertionsOutputs extends string
     ? YieldableInsertionMethods<PreviousInsertionsOutputs>
     : never;

@@ -495,11 +495,16 @@ export type ResourceLikeQueryRef<
   MergeObjects<
     [
       {
-        readonly resource: CraftResourceRef<
-          Value,
-          Params,
-          Name,
-          ResourceLikeExceptionUnion<QueryException>
+        // `reload` is deliberately absent: it is a private write of the
+        // insertion context, published (or not) by an insertion.
+        readonly resource: Omit<
+          CraftResourceRef<
+            Value,
+            Params,
+            Name,
+            ResourceLikeExceptionUnion<QueryException>
+          >,
+          'reload'
         >;
         readonly value: Signal<Value | undefined>;
         readonly status: Signal<CraftResourceStatus>;
@@ -1229,7 +1234,7 @@ export function query<
  *   - `equalParams` (optional): Controls params comparison ('default' | 'useIdentifier' | custom function)
  *   - Additional ResourceOptions like `equal`, `injector`, etc.
  * @param insertion1 - Optional single insertion factory to add custom methods, computed values or side effects to the query.
- *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`).
+ *   The insertion receives a context with resource signals (`state`, `exceptions`, `hasException`, `resource`) and mutators (`set`, `update`, `patch`, `reload`). `reload` stays private to insertions: publish it from an insertion (`({ reload }) => ({ reload: () => reload() })`) to make it public.
  *   To attach several insertions, compose them with `insertQueryPipe`:
  *   `query('name', config, insertQueryPipe(insertion1, insertion2))` —
  *   each member then also sees the previous members' outputs on `context.insertions`.
@@ -2204,6 +2209,16 @@ function createQueryRef<
     attachCraftSettledValue(name, queryOutputWithoutInsertions);
   }
 
+  // Captured before the reactive facade wraps the resource and before the
+  // insertions are merged onto it: an insertion that publishes its own
+  // `reload` overwrites `resourceTarget.reload`, and the private `reload`
+  // must keep reaching the real one. Grouped (by-id) resources have no single
+  // request to re-run.
+  const resourceReloadFn = (
+    resourceTarget as { reload?: () => boolean }
+  ).reload?.bind(resourceTarget);
+  const rawResourceReload = (): boolean => resourceReloadFn?.() ?? false;
+
   const publicQueryContext = createYieldableReactiveFacade(
     queryOutputWithoutInsertions,
     { name, primitive: 'query', path: name },
@@ -2281,6 +2296,7 @@ function createQueryRef<
                   ...patchFn(current),
                 })),
               ),
+            reload: () => yieldableInvocation(rawResourceReload()),
             __primitiveKind: 'query',
           } as any,
         ],

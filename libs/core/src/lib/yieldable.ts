@@ -11,16 +11,18 @@ import {
   type ResolveGeneratorResult,
 } from './craft-generator-runtime';
 import {
+  YIELDABLE_METHOD,
   YIELDABLE_VALUE,
   type NamedYieldableValue,
   type YieldableReactiveProperties,
   type YieldableReactiveValue,
 } from './reactive-read';
 
-export { YIELDABLE_VALUE, type NamedYieldableValue } from './reactive-read';
-
-/** Shared brand used by Craft methods that are safe to delegate with `yield*`. */
-export const YIELDABLE_METHOD = Symbol('craft-yieldable-method');
+export {
+  YIELDABLE_METHOD,
+  YIELDABLE_VALUE,
+  type NamedYieldableValue,
+} from './reactive-read';
 
 /** Brand used by insertion-owned synchronous selectors/read helpers. */
 export const NON_YIELDABLE_INSERTION_METHOD = Symbol(
