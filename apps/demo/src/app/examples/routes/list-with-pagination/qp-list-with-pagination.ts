@@ -84,52 +84,48 @@ const QpListWithPagination = craftComponent(
   {
     providers: [provideQpListWithPaginationView()],
   },
-  function* () {
-    const { pagination, updatePageSize, usersQuery } =
-      yield* QpListWithPaginationView();
-    return div([
-      heading([
-        'Route QueryParams pagination: ',
-        StatusComponent({
-          status: usersQuery.currentPageStatus,
-        }),
-      ]).pipe(
-        pendingNode({
-          fallback: () => heading('Route QueryParams pagination: Loading…'),
-        }),
-      ),
-      table({ class: example.table },
-        tbody(
-          forNode(
-            usersQuery.currentPageData,
-            { track: (user) => user.id },
-                    (user) =>
-                      tr({ class: example.tableRow }, [
-                        td({ class: example.td }, function* () {
-                          return (yield* user()).id;
-                        }),
-                        td({ class: example.td }, function* () {
-                          return (yield* user()).name;
-                        }),
-                      ]),
+  () => div([
+        heading([
+          'Route QueryParams pagination: ',
+          StatusComponent({
+            status: QpListWithPaginationView.usersQuery.currentPageStatus,
+          }),
+        ]).pipe(
+          pendingNode({
+            fallback: () => heading('Route QueryParams pagination: Loading…'),
+          }),
+        ),
+        table({ class: example.table },
+          tbody(
+            forNode(
+              QpListWithPaginationView.usersQuery.currentPageData,
+              { track: (user) => user.id },
+                      (user) =>
+                        tr({ class: example.tableRow }, [
+                          td({ class: example.td }, function* () {
+                            return (yield* user()).id;
+                          }),
+                          td({ class: example.td }, function* () {
+                            return (yield* user()).name;
+                          }),
+                        ]),
+            ),
           ),
         ),
-      ),
-      div({ class: example.pagination, 'data-testid': 'pagination' }, [
-        select('pageSize',
-          {
-            'aria-label': 'Page size',
-            value: pagination.pageSize,
-            change: updatePageSize,
-          },
-          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
-        ),
-        button('previousPage', { type: 'button', click: pagination.previousPage }, 'Previous'),
-        span({ class: example.currentPage, 'data-testid': 'current-page' }, pagination.page),
-        button('nextPage', { type: 'button', click: pagination.nextPage }, 'Next'),
+        div({ class: example.pagination, 'data-testid': 'pagination' }, [
+          select('pageSize',
+            {
+              'aria-label': 'Page size',
+              value: QpListWithPaginationView.pagination.pageSize,
+              change: QpListWithPaginationView.updatePageSize,
+            },
+            [2, 4, 8, 16].map((size) => option({ value: size }, size)),
+          ),
+          button('previousPage', { type: 'button', click: QpListWithPaginationView.pagination.previousPage }, 'Previous'),
+          span({ class: example.currentPage, 'data-testid': 'current-page' }, QpListWithPaginationView.pagination.page),
+          button('nextPage', { type: 'button', click: QpListWithPaginationView.pagination.nextPage }, 'Next'),
+        ]),
       ]),
-    ]);
-  },
 );
 
 export default QpListWithPagination;

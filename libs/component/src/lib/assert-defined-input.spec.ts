@@ -11,6 +11,7 @@ import {
   span,
   type Input,
   type CraftNodeChildren,
+  withComponentProviders,
 } from '../index';
 import type { CraftNodeChildrenExceptions } from './render/vnode';
 import { renderCraftComponent } from './testing';
@@ -32,8 +33,10 @@ describe('assertDefinedInput', () => {
       provideAssertDefinedInputTypeChildView,
     } = craftService(
       { name: 'assertDefinedInputTypeChildView', providedIn: 'toProvide' },
-      function* (inputs: { readonly sourceValue: CraftServiceInput<'ready'> }) {
-        const { sourceValue } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly sourceValue: CraftServiceInput<'ready'> };
+      }) {
+        const { sourceValue } = inputs.$provided;
         yield* craftExpose('sourceValue', sourceValue);
       },
     );
@@ -41,13 +44,17 @@ describe('assertDefinedInput', () => {
     const value = signal<'ready' | undefined>('ready');
     const child = craftComponent(
       'assertDefinedInputTypeChild',
-      { providers: [provideAssertDefinedInputTypeChildView()] },
+      {},
       function* (inputs: { readonly sourceValue: Input<'ready'> }) {
-        const { sourceValue } = yield* AssertDefinedInputTypeChildView(inputs);
+        const { sourceValue } = yield* AssertDefinedInputTypeChildView();
         return span(function* () {
           return yield* sourceValue();
         });
       },
+    ).pipe(
+      withComponentProviders(({ sourceValue }) => [
+        provideAssertDefinedInputTypeChildView({ sourceValue }),
+      ]),
     );
     const source = child({
       sourceValue: assertDefinedInput(
@@ -87,8 +94,10 @@ describe('assertDefinedInput', () => {
       provideAssertDefinedInputRuntimeChildView,
     } = craftService(
       { name: 'assertDefinedInputRuntimeChildView', providedIn: 'toProvide' },
-      function* (inputs: { readonly sourceValue: CraftServiceInput<'ready'> }) {
-        const { sourceValue } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly sourceValue: CraftServiceInput<'ready'> };
+      }) {
+        const { sourceValue } = inputs.$provided;
         yield* craftExpose('sourceValue', sourceValue);
       },
     );
@@ -96,14 +105,18 @@ describe('assertDefinedInput', () => {
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputRuntimeChild',
-      { providers: [provideAssertDefinedInputRuntimeChildView()] },
+      {},
       function* (inputs: { readonly sourceValue: Input<'ready'> }) {
         const { sourceValue } =
-          yield* AssertDefinedInputRuntimeChildView(inputs);
+          yield* AssertDefinedInputRuntimeChildView();
         return span(function* () {
           return yield* sourceValue();
         });
       },
+    ).pipe(
+      withComponentProviders(({ sourceValue }) => [
+        provideAssertDefinedInputRuntimeChildView({ sourceValue }),
+      ]),
     );
     const {
       AssertDefinedInputRuntimeRootView,
@@ -169,8 +182,12 @@ describe('assertDefinedInput', () => {
         name: 'assertDefinedInputValueCatchChildView',
         providedIn: 'toProvide',
       },
-      function* (inputs: { readonly sourceValue: CraftServiceInput<'ready' | 'idle'> }) {
-        const { sourceValue } = inputs;
+      function* (inputs: {
+        readonly $provided: {
+          readonly sourceValue: CraftServiceInput<'ready' | 'idle'>;
+        };
+      }) {
+        const { sourceValue } = inputs.$provided;
         yield* craftExpose('sourceValue', sourceValue);
       },
     );
@@ -178,14 +195,18 @@ describe('assertDefinedInput', () => {
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputValueCatchChild',
-      { providers: [provideAssertDefinedInputValueCatchChildView()] },
+      {},
       function* (inputs: { readonly sourceValue: Input<'ready' | 'idle'> }) {
         const { sourceValue } =
-          yield* AssertDefinedInputValueCatchChildView(inputs);
+          yield* AssertDefinedInputValueCatchChildView();
         return span(function* () {
           return yield* sourceValue();
         });
       },
+    ).pipe(
+      withComponentProviders(({ sourceValue }) => [
+        provideAssertDefinedInputValueCatchChildView({ sourceValue }),
+      ]),
     );
     const status = assertDefinedInput(function* () {
       return value();
@@ -240,8 +261,10 @@ describe('assertDefinedInput', () => {
       provideAssertDefinedInputUnhandledChildView,
     } = craftService(
       { name: 'assertDefinedInputUnhandledChildView', providedIn: 'toProvide' },
-      function* (inputs: { readonly sourceValue: CraftServiceInput<'ready'> }) {
-        const { sourceValue } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly sourceValue: CraftServiceInput<'ready'> };
+      }) {
+        const { sourceValue } = inputs.$provided;
         yield* craftExpose('sourceValue', sourceValue);
       },
     );
@@ -249,14 +272,18 @@ describe('assertDefinedInput', () => {
     const value = signal<'ready' | undefined>(undefined);
     const child = craftComponent(
       'assertDefinedInputUnhandledChild',
-      { providers: [provideAssertDefinedInputUnhandledChildView()] },
+      {},
       function* (inputs: { readonly sourceValue: Input<'ready'> }) {
         const { sourceValue } =
-          yield* AssertDefinedInputUnhandledChildView(inputs);
+          yield* AssertDefinedInputUnhandledChildView();
         return span(function* () {
           return yield* sourceValue();
         });
       },
+    ).pipe(
+      withComponentProviders(({ sourceValue }) => [
+        provideAssertDefinedInputUnhandledChildView({ sourceValue }),
+      ]),
     );
     const {
       AssertDefinedInputUnhandledRootView,

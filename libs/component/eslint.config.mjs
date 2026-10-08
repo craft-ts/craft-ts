@@ -4,6 +4,17 @@ import craftRules from '../dev-tools/src/eslint-rules/index.cjs';
 export default [
   ...baseConfig,
   {
+    files: ['**/src/**/*.ts'],
+    ignores: ['**/src/**/*.spec.ts', '**/src/**/*.test.ts'],
+    plugins: {
+      'craft-ts': craftRules,
+    },
+    rules: {
+      'craft-ts/require-direct-craft-component-template': 'error',
+      'craft-ts/require-craft-service-input-scope': 'error',
+    },
+  },
+  {
     // Les libs implémentent les garde-fous : elles s'y soumettent aussi, à
     // l'exception documentée près.
     files: ['**/src/**/*.ts'],

@@ -49,6 +49,22 @@ export default [
     },
   },
   {
+    // These specific lessons intentionally show insertion callbacks and
+    // generator templates as part of their API walkthrough.
+    files: [
+      '**/src/client/app-shell.ts',
+      '**/src/client/effect-server-middleware-demo.ts',
+      '**/src/client/portable-server-function-demo.ts',
+      '**/src/client/public-products-demo.ts',
+      '**/src/client/server-function-demo.ts',
+      '**/src/client/simple-list-demo.ts',
+    ],
+    rules: {
+      'craft-ts/no-craft-use': 'off',
+      'craft-ts/require-direct-craft-component-template': 'off',
+    },
+  },
+  {
     // These demos intentionally showcase lower-level primitive APIs and
     // dynamic lazy imports; the production-only rules are too strict here.
     files: ['**/src/client/app.routes.ts'],

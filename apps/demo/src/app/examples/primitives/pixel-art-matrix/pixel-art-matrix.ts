@@ -116,76 +116,73 @@ const PixelArtMatrix = craftComponent(
   {
     providers: [providePixelArtMatrixView()],
   },
-  function* () {
-    const { activeColor, grid } = yield* PixelArtMatrixView();
-    return section({ class: example.card }, [
-      header({ class: example.stack }, [
-        heading({ class: example.title }, 'Pixel Art Workshop (Matrix)'),
-        p(
-          { class: example.text, 'data-exampleText': 'muted' },
-          '2D matrix: click paints, right-click paints a row, long-press paints a column.',
-        ),
-      ]),
-      div(
-        { class: pixel.palette },
-        forNode(COLORS, { track: (color) => color }, (color) =>
-          button('color', { type: 'button',
-            class: pixel.swatch,
-            style: function* () {
-              return assign(pixelVars.fill, pixelColor(yield* color()));
-            },
-            'aria-label': function* () {
-              return `Color ${yield* color()}`;
-            },
-            *click() {
-              yield* activeColor.setColor(yield* color());
-            },
-          }),
-        ),
-      ),
-      button('reset', { type: 'button', class: example.button, click: grid.reset }, 'Reset'),
-      div(
-        { class: pixel.matrix },
-        forNode(grid, { track: trackGridRow }, (row, rowIndex) =>
-          div({ class: pixel.row, 'data-testid': 'matrix-row' }, [
-            forNode(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
-              button('cell', { type: 'button',
-                class: pixel.matrixCell,
-                'data-testid': 'matrix-cell',
-                style: function* () {
-                  return assign(pixelVars.fill, pixelColor((yield* cell()).color));
-                },
-                'aria-label': function* () {
-                  return `Cell ${rowIndex + 1}, ${columnIndex + 1}`;
-                },
-                longPressDuration: LONG_PRESS_DURATION_MS,
-                *onLongPress() {
-                  yield* grid.paintColumn(columnIndex, (yield* cell()).color);
-                },
-                *click() {
-                  yield* grid.paint(rowIndex, columnIndex);
-                },
-                *contextmenu(event: MouseEvent) {
-                  event.preventDefault();
-                  yield* grid.paintRow(rowIndex, (yield* cell()).color);
-                },
-              }).pipe(longPress),
-            ),
-            button('addCell',
-              { type: 'button',
-                class: pixel.addCell,
-                *click() {
-                  yield* grid.addCell(rowIndex);
-                },
+  () => section({ class: example.card }, [
+        header({ class: example.stack }, [
+          heading({ class: example.title }, 'Pixel Art Workshop (Matrix)'),
+          p(
+            { class: example.text, 'data-exampleText': 'muted' },
+            '2D matrix: click paints, right-click paints a row, long-press paints a column.',
+          ),
+        ]),
+        div(
+          { class: pixel.palette },
+          forNode(COLORS, { track: (color) => color }, (color) =>
+            button('color', { type: 'button',
+              class: pixel.swatch,
+              style: function* () {
+                return assign(pixelVars.fill, pixelColor(yield* color()));
               },
-              '+',
-            ),
-          ]),
+              'aria-label': function* () {
+                return `Color ${yield* color()}`;
+              },
+              *click() {
+                yield* PixelArtMatrixView.activeColor.setColor(yield* color());
+              },
+            }),
+          ),
         ),
-      ),
-      button('addRow', { type: 'button', class: example.button, click: grid.addRow }, 'Add row'),
-    ]);
-  },
+        button('reset', { type: 'button', class: example.button, click: PixelArtMatrixView.grid.reset }, 'Reset'),
+        div(
+          { class: pixel.matrix },
+          forNode(PixelArtMatrixView.grid, { track: trackGridRow }, (row, rowIndex) =>
+            div({ class: pixel.row, 'data-testid': 'matrix-row' }, [
+              forNode(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
+                button('cell', { type: 'button',
+                  class: pixel.matrixCell,
+                  'data-testid': 'matrix-cell',
+                  style: function* () {
+                    return assign(pixelVars.fill, pixelColor((yield* cell()).color));
+                  },
+                  'aria-label': function* () {
+                    return `Cell ${rowIndex + 1}, ${columnIndex + 1}`;
+                  },
+                  longPressDuration: LONG_PRESS_DURATION_MS,
+                  *onLongPress() {
+                    yield* PixelArtMatrixView.grid.paintColumn(columnIndex, (yield* cell()).color);
+                  },
+                  *click() {
+                    yield* PixelArtMatrixView.grid.paint(rowIndex, columnIndex);
+                  },
+                  *contextmenu(event: MouseEvent) {
+                    event.preventDefault();
+                    yield* PixelArtMatrixView.grid.paintRow(rowIndex, (yield* cell()).color);
+                  },
+                }).pipe(longPress),
+              ),
+              button('addCell',
+                { type: 'button',
+                  class: pixel.addCell,
+                  *click() {
+                    yield* PixelArtMatrixView.grid.addCell(rowIndex);
+                  },
+                },
+                '+',
+              ),
+            ]),
+          ),
+        ),
+        button('addRow', { type: 'button', class: example.button, click: PixelArtMatrixView.grid.addRow }, 'Add row'),
+      ]),
 );
 
 export default PixelArtMatrix;

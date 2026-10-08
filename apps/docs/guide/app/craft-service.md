@@ -4,8 +4,8 @@ A service is a factory with a **name** and a **scope** — not a class. It packa
 primitives and dependencies behind an explicit API, and keeps the whole
 dependency graph visible to the compiler.
 
-**Use it when** logic outgrows a single component field, or when two places need
-the same behaviour.
+**Use it when** a component or route needs an owned state/context service, or
+when reusable domain logic should be composed by other services.
 Use a small adapter when a dependency is owned by the runtime environment
 rather than by your application.
 
@@ -45,11 +45,25 @@ const { TodoStore } = craftService(
 // const { todos } = yield* TodoStore();
 ```
 
-- `craftPrivate(primitive)` keeps a primitive internal. It works on any
-  generator, a `craftGen` helper creating several primitives included.
-- `craftExpose(name, value)` exposes what is not a named primitive: a function,
-  a constant, a member of an injected service.
-- The services a factory injects (`yield* ApiService()`) are not exposed.
+- `craftPrivate(generator)` keeps its yielded values internal. It works for a
+  primitive, a service dependency, or a `craftGen` helper creating several
+  primitives.
+- `craftExpose(name, value)` exposes a standalone value or gives a value a
+  deliberate public name.
+- Yield a service directly to expose it under its lower-camel-case name. Yield
+  one of its members with the property shortcut to expose only that member:
+
+  ```typescript
+  function* () {
+    yield* I18n.translate();
+    yield* I18n.language();
+    yield* ClientCurrency();
+  }
+  ```
+
+  This exposes `translate`, `language`, and `clientCurrency`. Dependencies
+  consumed inside nested callbacks are tracked without becoming service API
+  members.
 - Two exposed primitives cannot share a name: the service throws when it is
   created.
 
@@ -59,7 +73,20 @@ case.
 
 ## Service inputs
 
-Service inputs that can change should be consumed as yieldable readers
+Factory inputs must match the service scope. Call-site inputs belong to a
+`function` service. Global services have no factory inputs; provider-scoped
+services receive their instance configuration only through `$provided`.
+`abstract` declares a contract and has no concrete factory to configure.
+
+| Scope | Factory inputs |
+| --- | --- |
+| `global` | None |
+| `toProvide` | `$provided` only |
+| `manuallyProvidedAtRoot` | `$provided` only |
+| `function` | Call-site inputs only |
+| `abstract` | No concrete factory |
+
+Values that can change should be consumed as yieldable readers
 (`CraftServiceInput<T>`), the service counterpart of a component `Input<T>`.
 Yield them so the input-to-service edge stays in the dependency graph:
 
@@ -67,7 +94,7 @@ Yield them so the input-to-service edge stays in the dependency graph:
 import { craftService, query, type CraftServiceInput } from '@craft-ts/core';
 
 const { UserQuery } = craftService(
-  { name: 'UserQuery', providedIn: 'global' },
+  { name: 'UserQuery', providedIn: 'function' },
   function* (inputs: { userId: CraftServiceInput<string | undefined> }) {
     yield* query('userQuery', {
       params: function* () {
@@ -79,9 +106,60 @@ const { UserQuery } = craftService(
 );
 ```
 
-The call site still accepts a resolved value, a signal, or a Craft
-reader — the service boundary adapts it into that reader. Inside the factory,
-always `yield* inputs.x()`.
+The call site still accepts a resolved value, a signal, or a Craft reader — the
+service boundary adapts it into that reader. Inside the factory, always
+`yield* inputs.x()`.
+
+Use `function` when each call should create a fresh service context, such as a
+reusable query helper called with different parameters by other services. Do
+not use it as a component's state store: repeated helper calls create distinct
+contexts. Pass all per-call values as ordinary inputs, such as
+`UserQuery({ userId })`.
+
+Provider-scoped services have no call-site bindings. Put their values under
+`$provided` and pass them when registering the service. When values come from a
+component's own inputs, use `withComponentProviders` so each rendered component
+instance gets one configured service scope:
+
+```typescript
+import {
+  craftComponent,
+  p,
+  withComponentProviders,
+  type Input,
+} from '@craft-ts/component';
+import {
+  craftComputed,
+  craftService,
+  type CraftServiceInput,
+} from '@craft-ts/core';
+
+const { ProfileContext, provideProfileContext } = craftService(
+  { name: 'ProfileContext', providedIn: 'toProvide' },
+  function* (inputs: {
+    $provided: { profileId: CraftServiceInput<string> };
+  }) {
+    yield* craftComputed('profileId', function* () {
+      return yield* inputs.$provided.profileId();
+    });
+  },
+);
+
+const Profile = craftComponent(
+  'Profile',
+  {},
+  (_inputs: { profileId: Input<string> }) => p(ProfileContext.profileId),
+).pipe(
+  withComponentProviders(({ profileId }) => [
+    provideProfileContext({ profileId }),
+  ]),
+);
+```
+
+Registering `provideProfileContext(...)` does not run the service factory.
+Angular creates and caches that scoped instance the first time its token is
+resolved. `appStart: true` is the eager exception: startup resolution runs the
+service during app initialization.
 
 ## What you get
 
@@ -106,11 +184,11 @@ generator and compose with `yield* X()`.
 
 ## Supported scopes
 
-A service declares how many instances of it exist through `scope`:
-`function`, `toProvide`, `global`, `manuallyProvidedAtRoot` or `abstract`.
-Default to `function`.
-
-Each scope and when to pick it: **[Service scopes](/guide/app/service-scopes)**.
+`scope` determines where a service instance lives and how it receives
+configuration: `function`, `toProvide`, `global`, `manuallyProvidedAtRoot` or
+`abstract`. Choose `toProvide` for state/context owned by a component or route,
+and `function` for reusable per-call logic. The full decision guide is
+**[Service scopes](/guide/app/service-scopes)**.
 
 ## The common case
 
@@ -182,9 +260,47 @@ compiles.
 consumers do not need in `craftPrivate(...)`; consumers that need more can
 yield more.
 
+**Using `craftExpose` for a same-name service value.** Yield the service or its
+property directly (`yield* ClientCurrency()` or `yield* I18n.language()`). The
+`craft-ts/prefer-direct-craft-service-exposure` rule reports wrappers that only
+repeat that name, including a dependency wrapped in `craftPrivate(...)` before
+being exposed. Keep `craftExpose` for standalone or computed values. A member
+already returned by a public primitive cannot be re-exposed under another
+name; consumers should keep using its nested path.
+
+The same rule rejects `craftExpose` inside `state`, `queryParams`, `mutation`,
+`query`, and `asyncProcess` declarations or callbacks. Declare and yield
+services and primitives in the `craftService` generator body so their public
+names and dependencies stay visible there. A `craftExpose` that repeats the
+primitive's declared name is also redundant because the primitive is already
+exposed under that name.
+
+Members returned by a public primitive are already available below that
+primitive. If `state('searchInput', ...)` returns a `setSearchInput` method,
+consumers can use `DebouncedWebSearchView.searchInput.setSearchInput(...)`.
+Do not flatten it with
+`craftExpose('setSearchInput', searchInput.setSearchInput)`; the same rule
+reports that duplicate path. Remove the exposure and update its callers to
+the nested member.
+
 **Exposing a `craftMethod` to be yielded.** A `craftMethod` taken from a service
 runs when it is called. To hand consumers a generator they `yield*`, expose the
 `craftGen` itself: `yield* craftExpose('load', craftGen(function* () { … }))`.
+
+**Exposing a derived value as a generator.** A zero-argument generator whose
+only statement returns a value derived from `yield*` reads models a reactive
+value. Declare it directly with `craftComputed` instead of exposing the
+generator function (or wrapping it in `craftGen`):
+
+```typescript
+yield* craftComputed('system', function* () {
+  return DEMO_CLIENTS[yield* clientCurrency.client()].units;
+});
+```
+
+`craft-ts/prefer-craft-computed-for-reactive-generator` flags this shape.
+Parameterized generators and multi-step generators remain valid for
+operations and workflows.
 
 ## See Also
 

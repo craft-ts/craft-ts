@@ -58,6 +58,32 @@ describe('no-reused-primitive-method', () => {
     ]);
   });
 
+  it('reports repeated methods exposed by a craft service', async () => {
+    const { messages } = await lint(`
+      import { craftService, state } from '@craft-ts/core';
+
+      const { View } = craftService(
+        { name: 'view', providedIn: 'global' },
+        function* () {
+          const searchFailure = yield* state('searchFailure', '', ({ set }) => ({
+            show: (message: string) => set(message),
+          }));
+
+          catchTag.exhaustive({
+            TransientHttpError: function* () { yield* searchFailure.show('a'); },
+            HttpError: function* () { yield* searchFailure.show('b'); },
+            HttpResponseDecodeError: function* () { yield* searchFailure.show('c'); },
+            SearchHttpError: function* () { yield* searchFailure.show('d'); },
+          });
+        },
+      );
+      void View;
+    `);
+
+    expect(messages).toHaveLength(3);
+    expect(messages[0]).toContain("Primitive method 'searchFailure.show'");
+  });
+
   it('counts an explicit generator call and supports a simple primitive alias', async () => {
     const { messages } = await lint(`
       import { state } from '@craft-ts/core';

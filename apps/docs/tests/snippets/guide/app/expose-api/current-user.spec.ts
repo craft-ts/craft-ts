@@ -23,7 +23,7 @@ const { UsersApi } = craftService(
 const { CurrentUser } = craftService(
   { name: 'CurrentUser', providedIn: 'global' },
   function* () {
-    yield* craftExpose('currentUser', yield* UsersApi.currentUser());
+    yield* UsersApi.currentUser();
   },
 );
 // #endregion current-user

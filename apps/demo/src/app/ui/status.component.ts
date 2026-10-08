@@ -1,20 +1,12 @@
-import { craftComponent, span, type Input } from '@craft-ts/component';
 import {
-  craftService,
-  craftComputed,
-  type CraftResourceStatus,
-} from '@craft-ts/core';
-import { status as styles, TONE_OF_STATUS } from './status.style';
-
-const STATUS_VIEW = {
-  idle: ['🛌', 'Idle'],
-  error: ['❌', 'Error'],
-  loading: ['⏳', 'Loading'],
-  reloading: ['🔄', 'Reloading'],
-  resolved: ['✅', 'Loaded'],
-  local: ['📦', 'Local'],
-  exception: ['⚠️', 'Exception'],
-} satisfies Record<string, readonly [string, string]>;
+  craftComponent,
+  span,
+  withComponentProviders,
+  type Input,
+} from '@craft-ts/component';
+import { type CraftResourceStatus } from '@craft-ts/core';
+import { status as styles } from './status.style';
+import { StatusView, provideStatusView } from './status-view';
 
 /**
  * The witness component for level 1.
@@ -30,38 +22,20 @@ const STATUS_VIEW = {
  *   attribute, and the five tones are five rules the emitter already knows
  *   about — which is what will let the matrix count them in wave 2.
  */
-export const { StatusView, provideStatusView } = craftService(
-  { name: 'statusView', providedIn: 'toProvide' },
-  function* (inputs: { readonly status: Input<CraftResourceStatus> }) {
-    const { status } = inputs;
-    yield* craftComputed('statusEmoji', function* () {
-      return STATUS_VIEW[yield* status()][0];
-    });
-    yield* craftComputed('statusTone', function* () {
-      return TONE_OF_STATUS[yield* status()];
-    });
-    yield* craftComputed('statusLabel', function* () {
-      return STATUS_VIEW[yield* status()][1];
-    });
-  },
-);
-
 export const StatusComponent = craftComponent(
   'StatusComponent',
-  { providers: [provideStatusView()] },
-  function* (inputs: { readonly status: Input<CraftResourceStatus> }) {
-    const { statusEmoji, statusTone, statusLabel } = yield* StatusView(inputs);
-    return span({ class: styles.container }, [
-      span({ class: styles.emoji }, statusEmoji),
+  {},
+  (_inputs: { readonly status: Input<CraftResourceStatus> }) =>
+    span({ class: styles.container }, [
+      span({ class: styles.emoji }, StatusView.statusEmoji),
       span(
         {
           class: styles.badge,
-          'data-status': statusTone,
+          'data-status': StatusView.statusTone,
         },
-        statusLabel,
+        StatusView.statusLabel,
       ),
-    ]);
-  },
-);
+    ]),
+).pipe(withComponentProviders(({ status }) => [provideStatusView({ status })]));
 
 export type StatusComponent = typeof StatusComponent;

@@ -217,6 +217,14 @@ function staticTextContent(node) {
   if (node.type === 'CallExpression') {
     const call = parseHyperscriptCall(node);
     if (call) return staticTextContent(call.children);
+    if (
+      node.callee.type === 'MemberExpression' &&
+      !node.callee.computed &&
+      node.callee.property.type === 'Identifier' &&
+      node.callee.property.name === 'translate'
+    ) {
+      return 'dynamic text';
+    }
     if (node.callee.type === 'Identifier' && node.arguments.length > 0) {
       return staticTextContent(node.arguments[node.arguments.length - 1]);
     }

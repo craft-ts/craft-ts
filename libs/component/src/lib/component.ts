@@ -27,7 +27,11 @@ import {
   type ValidComponentFactoryInputs,
 } from './types';
 import type { CssVarsContractOfMeta } from './css-vars.type';
-import type { ComponentNode, ComponentTemplateChannels } from './render/vnode';
+import type {
+  ComponentNode,
+  ComponentTemplateChannels,
+  CraftNodeChildren,
+} from './render/vnode';
 import type { HostProps } from './hyperscript';
 import { currentCraftRenderContext, pipeCraftNode } from './render/vnode';
 import { ɵasGeneratorTemplate } from './factory-runtime';
@@ -68,6 +72,16 @@ type ValidContentStyles<
   : unknown;
 
 type IsAny<Value> = 0 extends 1 & Value ? true : false;
+
+/**
+ * The linter enforces direct templates where the project enables that rule.
+ * Keep generator adapters typed for teaching examples that intentionally opt
+ * out of the rule.
+ */
+type ValidDirectComponentTemplate<Template extends ComponentFactory> =
+  ReturnType<Template> extends CraftNodeChildren | Generator<any, any, any>
+    ? unknown
+    : never;
 
 /**
  * A template may only render an async source (`settledValue`, or a
@@ -188,8 +202,8 @@ type ComponentOf<
 >;
 
 /**
- * Declares a component: one function taking the component's inputs, reaching
- * its services with `yield*`, and returning what it renders.
+ * Declares a component with an inline, synchronous template factory that
+ * directly returns the rendered children.
  *
  * Local state does not live here — it lives in a `craftService` the component
  * provides, so a rerender reads the same instance instead of building a new one.
@@ -202,6 +216,7 @@ export function craftComponent<
   name: Name,
   meta: Meta & ValidContentStyles<Meta, Template>,
   template: Template &
+    ValidDirectComponentTemplate<Template> &
     ValidComponentFactoryInputs<Template, Meta> &
     ValidInheritedCssVars<Meta, NoInfer<Template>> &
     ValidPendingSources<NoInfer<Template>> &
@@ -357,6 +372,16 @@ function mergeComponentComposition(
     ...(existing?.providers ?? []),
     ...(next?.providers ?? []),
   ];
+  // Keep declaration order even when static providers and input factories mix.
+  const componentProviders =
+    existing?.componentProviders || next?.componentProviders
+      ? (inputs: object) => [
+          ...(existing?.componentProviders?.(inputs) ??
+            existing?.providers ??
+            []),
+          ...(next?.componentProviders?.(inputs) ?? next?.providers ?? []),
+        ]
+      : undefined;
   const catchHandlers = next?.catchHandlers ?? existing?.catchHandlers;
   const catchTagHandlers = next?.catchTagHandlers ?? existing?.catchTagHandlers;
   const catchNodePosition =
@@ -368,6 +393,7 @@ function mergeComponentComposition(
 
   return {
     ...(providers.length ? { providers } : {}),
+    ...(componentProviders ? { componentProviders } : {}),
     ...(catchHandlers ? { catchHandlers } : {}),
     ...(catchTagHandlers ? { catchTagHandlers } : {}),
     ...(catchNodePosition ? { catchNodePosition } : {}),

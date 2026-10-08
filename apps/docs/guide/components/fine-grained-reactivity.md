@@ -128,6 +128,18 @@ structural work. A branch or list can change without making the parent
 component rebuild unrelated siblings. Use these helpers for structure and
 binding callbacks for values on existing nodes.
 
+With the named `ifNode` overload, the condition callback can return a
+yieldable reader invocation directly. The renderer drives the generator and
+reads the reactive value for the condition:
+
+```ts
+ifNode(
+  'showEmpty',
+  () => SearchView.searchQuery.showEmpty(),
+  () => p('No books found.'),
+);
+```
+
 ### Progressive `forNode` rendering
 
 See the dedicated [Progressive `forNode` rendering](/guide/components/schedule-for)

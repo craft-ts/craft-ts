@@ -15,7 +15,6 @@ import {
   queryParams,
   craftComputed,
   craftException,
-  craftUse,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 
@@ -57,19 +56,23 @@ export const { ExceptionQueryParamsView, provideExceptionQueryParamsView } =
             },
           },
         },
-        ({ exceptions }) => ({
-          hasParseException: craftUse(
-            craftComputed('hasParseException', function* () {
+        function* ({ exceptions }) {
+          return {
+            hasParseException: yield* craftComputed(
+              'hasParseException',
+              function* () {
               return (yield* exceptions()).parse.mode !== undefined;
-            }),
-          ),
-          parseExceptionMessage: craftUse(
-            craftComputed('parseExceptionMessage', function* () {
+              },
+            ),
+            parseExceptionMessage: yield* craftComputed(
+              'parseExceptionMessage',
+              function* () {
               const exception = (yield* exceptions()).parse.mode;
               return exception ? formatParseException(exception) : '';
-            }),
-          ),
-        }),
+              },
+            ),
+          };
+        },
       );
       yield* craftMethod('navigate', function* (mode: string) {
         void router.navigate({
@@ -87,48 +90,44 @@ const ExceptionQueryParamsComponent = craftComponent(
   {
     providers: [provideExceptionQueryParamsView()],
   },
-  function* () {
-    const { modeQueryParams, navigate } = yield* ExceptionQueryParamsView();
-
-    return section({ class: example.card }, [
-      heading({ class: example.subtitle }, 'QueryParams decode exception'),
-      div({ class: example.row }, [
-        button(
-          'success',
-          {
-            class: example.button,
-            type: 'button',
-            *click() {
-              navigate('success');
+  () => section({ class: example.card }, [
+        heading({ class: example.subtitle }, 'QueryParams decode exception'),
+        div({ class: example.row }, [
+          button(
+            'success',
+            {
+              class: example.button,
+              type: 'button',
+              *click() {
+                yield* ExceptionQueryParamsView.navigate('success');
+              },
             },
-          },
-          'Navigate success',
-        ),
-        button(
-          'exception',
-          {
-            class: example.button,
-            type: 'button',
-            *click() {
-              navigate('exception');
+            'Navigate success',
+          ),
+          button(
+            'exception',
+            {
+              class: example.button,
+              type: 'button',
+              *click() {
+                yield* ExceptionQueryParamsView.navigate('exception');
+              },
             },
+            'Navigate exception',
+          ),
+        ]),
+        p([
+          strong('Parsed value: '),
+          function* () {
+            return String((yield* ExceptionQueryParamsView.modeQueryParams()).mode);
           },
-          'Navigate exception',
+        ]),
+        ifNode(
+          ExceptionQueryParamsView.modeQueryParams.hasParseException,
+          () => p([strong('Exception: '), ExceptionQueryParamsView.modeQueryParams.parseExceptionMessage]),
+          () => p([strong('Exception: '), 'none']),
         ),
       ]),
-      p([
-        strong('Parsed value: '),
-        function* () {
-          return String((yield* modeQueryParams()).mode);
-        },
-      ]),
-      ifNode(
-        modeQueryParams.hasParseException,
-        () => p([strong('Exception: '), modeQueryParams.parseExceptionMessage]),
-        () => p([strong('Exception: '), 'none']),
-      ),
-    ]);
-  },
 );
 
 export default ExceptionQueryParamsComponent;

@@ -20,6 +20,7 @@ import {
   span,
   strong,
   summary,
+  withComponentProviders,
   ul,
 } from '@craft-ts/component';
 import { assign, unit } from '@craft-ts/style';
@@ -41,9 +42,7 @@ import { TierLegend } from './tier-legend';
 
 export const ReviewLiveEvidence = craftComponent(
   'ReviewLiveEvidence',
-  {
-    providers: [provideReviewLiveEvidenceView()],
-  },
+  {},
   function* (inputs: Inputs) {
     const {
       canShowBypass,
@@ -104,7 +103,7 @@ export const ReviewLiveEvidence = craftComponent(
       foldHidden,
       noImageHidden,
       captionText,
-    } = yield* ReviewLiveEvidenceView(inputs);
+    } = yield* ReviewLiveEvidenceView();
     return [
       ifNode(canShowBypass, () =>
         BypassCardEvidence({
@@ -534,4 +533,6 @@ export const ReviewLiveEvidence = craftComponent(
       ),
     ];
   },
+).pipe(
+  withComponentProviders((inputs) => [provideReviewLiveEvidenceView(inputs)]),
 );

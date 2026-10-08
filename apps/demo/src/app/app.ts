@@ -24,8 +24,6 @@ import {
   type CraftRouterLinkInput,
   state,
   craftService,
-  craftUse,
-  craftExpose,
 } from '@craft-ts/core';
 import { demoEnabledRoutePaths } from './app.routes';
 import { demoShell } from './demo-shell.style';
@@ -143,14 +141,14 @@ export const { AppView, provideAppView } = craftService(
     const navOpen = yield* state(
       'navOpen',
       false,
-      ({ set, update, state: navOpenState }) => ({
+      ({ set, update }) => ({
         toggle: () => update((open) => !open),
         close: () => set(false),
-        navToggleLabel: craftUse(craftComputed('navToggleLabel', function* () {
-          return (yield* navOpenState()) ? 'Close examples' : 'Browse examples';
-        })),
       }),
     );
+    yield* craftComputed('navToggleLabel', function* () {
+      return (yield* navOpen()) ? 'Close examples' : 'Browse examples';
+    });
     yield* craftMethod('clearCache', function* () {
       yield* GlobalPersisterHandlerService.clearAllCache();
       yield* BrowserWindow.alert('Cache cleared! The page will reload.');
@@ -159,7 +157,6 @@ export const { AppView, provideAppView } = craftService(
        
       yield* BrowserLocation.reload();
     });
-    yield* craftExpose('closeNav', navOpen.close);
   },
 );
 
@@ -168,9 +165,8 @@ export const App = craftComponent(
   {
     providers: [provideAppView()],
   },
-  function* () {
-    const { clearCache, navOpen, closeNav } = yield* AppView();
-    return div({ class: demoShell.root }, [
+  () =>
+    div({ class: demoShell.root }, [
       skipLink('main', 'Skip to content'),
       div(
         'demo-banner',
@@ -215,59 +211,58 @@ export const App = craftComponent(
             class: demoShell.navToggle,
             'data-testid': 'nav-toggle',
             type: 'button',
-            'aria-expanded': navOpen,
+            'aria-expanded': AppView.navOpen,
           },
-          navOpen.navToggleLabel,
+          AppView.navToggleLabel,
         ).pipe(
           eventAction({
-            click: { action: navOpen.toggle, stopPropagation: true },
+            click: { action: AppView.navOpen.toggle, stopPropagation: true },
           }),
         ),
         ifNode(
-          navOpen,
-          () =>
-            div(
-              'navPanel',
-              {
-                class: demoShell.navPanel,
-                'data-testid': 'nav-panel',
-              },
-              forNode(
-                VISIBLE_NAV_GROUPS,
-                { track: (group) => group.label },
-                (group) =>
-                  div({ class: demoShell.navGroup }, [
-                    strong({ class: demoShell.navGroupTitle }, function* () {
-                      return (yield* group()).label;
-                    }),
-                    div(
-                      { class: demoShell.navLinks },
-                      forNode(
-                        function* () {
-                          return (yield* group()).links;
+          'app-nav-panel-open',
+          AppView.navOpen,
+          () => div(
+          'navPanel',
+          {
+            class: demoShell.navPanel,
+            'data-testid': 'nav-panel',
+          },
+          forNode(
+            VISIBLE_NAV_GROUPS,
+            { track: (group) => group.label },
+            (group) =>
+              div({ class: demoShell.navGroup }, [
+                strong({ class: demoShell.navGroupTitle }, function* () {
+                  return (yield* group()).label;
+                }),
+                div(
+                  { class: demoShell.navLinks },
+                  forNode(
+                    function* () {
+                      return (yield* group()).links;
+                    },
+                    { track: ([, link]) => link.to },
+                    (entry) =>
+                      a(
+                        'navLink',
+                        {
+                          class: demoShell.navLink,
+                          click: AppView.navOpen.close,
                         },
-                        { track: ([, link]) => link.to },
-                        (entry) =>
-                          a(
-                            'navLink',
-                            {
-                              class: demoShell.navLink,
-                              click: closeNav,
-                            },
-                            function* () {
-                              return (yield* entry())[0];
-                            },
-                          ).pipe(
-                            CraftRouterLink(function* () {
-                              return (yield* entry())[1];
-                            }),
-                          ),
+                        function* () {
+                          return (yield* entry())[0];
+                        },
+                      ).pipe(
+                        CraftRouterLink(function* () {
+                          return (yield* entry())[1];
+                        }),
                       ),
-                    ),
-                  ]),
-              ),
-            ),
-          () => [],
+                  ),
+                ),
+              ]),
+          ),
+          ),
         ),
       ]),
       main(
@@ -279,10 +274,9 @@ export const App = craftComponent(
         {
           class: demoShell.clearCache,
           type: 'button',
-          click: clearCache,
+          click: AppView.clearCache,
         },
         '🗑️ Clear Cache',
       ),
-    ]);
-  },
+    ]),
 );

@@ -154,7 +154,11 @@ export type NamedCraftPrimitiveGen<
 export type WithoutExposeRequests<Yielded> = Exclude<
   Yielded,
   CraftExposeRequest<any, any>
->;
+> extends infer Remaining
+  ? Remaining extends { readonly exposure?: unknown }
+    ? Omit<Remaining, 'exposure'> & { readonly exposure?: never }
+    : Remaining
+  : never;
 
 /**
  * Keeps the primitives created by `generator` internal to the enclosing
@@ -184,7 +188,20 @@ export function craftPrivate<Yielded, Result>(
 }
 
 function stripExposeRequest(value: unknown): unknown {
-  if (!isCraftExposeRequest(value)) return value;
+  if (!isCraftExposeRequest(value)) {
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      'exposure' in value
+    ) {
+      const { exposure: _exposure, ...dependencyRequest } = value as Record<
+        string,
+        unknown
+      >;
+      return dependencyRequest;
+    }
+    return value;
+  }
   // Object rest copies own enumerable symbol keys too, so the tracked-deps
   // marker (and anything else the request carries) survives.
   const {

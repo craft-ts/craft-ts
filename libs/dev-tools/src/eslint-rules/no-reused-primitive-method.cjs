@@ -3,6 +3,7 @@ const EFFECT_PACKAGE = '@craft-ts/effect';
 const {
   collectPrimitiveMethodUsages,
 } = require('./primitive-method-equivalence.cjs');
+const { isServiceExposure } = require('./craft-service-exposure-utils.cjs');
 
 const PRIMITIVES = new Set([
   'asyncProcess',
@@ -47,6 +48,7 @@ module.exports = {
   },
 
   create(context) {
+    const serviceNames = new Set();
     const primitiveNames = new Map();
     const pipeNames = new Set();
     const primitiveBindings = new Map();
@@ -66,6 +68,9 @@ module.exports = {
           }
           const imported = getIdentifierName(specifier.imported);
           if (!imported) continue;
+          if (imported === 'craftService') {
+            serviceNames.add(specifier.local.name);
+          }
           if (PRIMITIVES.has(imported)) {
             primitiveNames.set(specifier.local.name, imported);
           }
@@ -110,6 +115,47 @@ module.exports = {
           };
           primitiveBindings.set(property.value.name, binding);
         }
+      },
+
+      CallExpression(node) {
+        if (
+          node.callee.type !== 'Identifier' ||
+          !serviceNames.has(node.callee.name) ||
+          !node.arguments[1]
+        ) {
+          return;
+        }
+
+        // Methods exposed by a primitive nested in a service remain owned by
+        // that primitive. Register those bindings too; the normal usage pass
+        // then catches repeated calls/references inside the service factory.
+        walk(node.arguments[1], (candidate) => {
+          if (
+            candidate.type !== 'CallExpression' ||
+            !isServiceExposure(candidate)
+          ) {
+            return;
+          }
+          const primitiveCall = getPrimitiveCall(candidate, primitiveNames);
+          if (!primitiveCall) return;
+          const methods = getExposedMethods(primitiveCall, pipeNames);
+          if (methods.size === 0) return;
+          const declaration =
+            candidate.parent?.type === 'YieldExpression'
+              ? candidate.parent.parent
+              : undefined;
+          if (
+            declaration?.type === 'VariableDeclarator' &&
+            declaration.id.type === 'Identifier'
+          ) {
+            primitiveBindings.set(declaration.id.name, {
+              id: `${declaration.id.name}:${candidate.start}`,
+              name: declaration.id.name,
+              primitive: primitiveCall.primitive,
+              methods,
+            });
+          }
+        });
       },
 
       'Program:exit'(program) {

@@ -13,12 +13,12 @@ import {
 import {
   craftService,
   craftComputed,
+  craftMethod,
   craftSleep,
   query,
   settled,
-  craftUse,
 } from '@craft-ts/core';
-import { componentUi, pendingDemo } from './component-demos.style';
+import { pendingDemo } from './component-demos.style';
 
 interface DemoUser {
   readonly id: number;
@@ -56,22 +56,24 @@ export const { PendingNodeDemoView, providePendingNodeDemoView } = craftService(
           return { items: USERS };
         },
       },
-      ({ resource }) => ({
-        teams: craftUse(craftComputed('teams', function* () {
-          const list = yield* settled(resource);
-          return [...new Set(list.items.map((user) => user.team))]
-            .sort()
-            .join(' · ');
-        })),
-        total: craftUse(craftComputed('total', function* () {
-          const list = yield* settled(resource);
-          return `${list.items.length} people`;
-        })),
-      }),
+      () => ({}),
     );
 
-    yield* users.call(undefined); // trigger first call
+    yield* craftComputed('teams', function* () {
+      const list = yield* settled(users);
+      return [...new Set(list.items.map((user) => user.team))]
+        .sort()
+        .join(' · ');
+    });
+    yield* craftComputed('total', function* () {
+      const list = yield* settled(users);
+      return `${list.items.length} people`;
+    });
+    yield* craftMethod('reload', function* () {
+      yield* users.call(undefined);
+    });
 
+    yield* users.call(undefined); // trigger first call
   },
 );
 
@@ -79,11 +81,9 @@ export const pendingNodeDemo = craftComponent(
   'pendingNodeDemo',
   {
     providers: [providePendingNodeDemoView()],
-    host: { class: componentUi.host },
   },
-  function* () {
-    const { users } = yield* PendingNodeDemoView();
-    return section({ class: pendingDemo.page }, [
+  () =>
+    section({ class: pendingDemo.page }, [
       heading('settledValue + pendingNode'),
       p(
         'The template reads an always-resolved value; the pendingNode owns the loading state.',
@@ -93,16 +93,14 @@ export const pendingNodeDemo = craftComponent(
         {
           type: 'button',
           class: pendingDemo.actionButton,
-          *click() {
-            yield* users.call(undefined);
-          },
+          click: PendingNodeDemoView.reload,
         },
         'Reload',
       ),
       div([
         ul({ class: pendingDemo.list }, [
-          li(['Teams: ', span(users.teams)]),
-          li({ class: pendingDemo.count }, users.total),
+          li(['Teams: ', span(PendingNodeDemoView.teams)]),
+          li({ class: pendingDemo.count }, PendingNodeDemoView.total),
         ]),
       ]).pipe(
         // One boundary covers both computeds. Remove this line and
@@ -111,8 +109,7 @@ export const pendingNodeDemo = craftComponent(
           fallback: () => p({ class: pendingDemo.skeleton }, 'Loading teams…'),
         }),
       ),
-    ]);
-  },
+    ]),
 );
 
 export default pendingNodeDemo;

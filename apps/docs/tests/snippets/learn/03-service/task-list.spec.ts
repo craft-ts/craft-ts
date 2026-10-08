@@ -16,8 +16,8 @@ const newTask = (title: string): Task => ({
 // #region task-list
 import { craftComputed, craftService, craftUse, state } from '@craft-ts/core';
 
-export const { TaskList } = craftService(
-  { name: 'TaskList', providedIn: 'function' },
+export const { TaskList, provideTaskList } = craftService(
+  { name: 'TaskList', providedIn: 'toProvide' },
   function* () {
     yield* state('tasks', [] as Task[], ({ state, update }) => ({
       add: (title: string) => update((current) => [...current, newTask(title)]),
@@ -25,9 +25,11 @@ export const { TaskList } = craftService(
         update((current) =>
           current.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
         ),
-      remaining: craftUse(craftComputed('remaining', function* () {
-        return (yield* state()).filter((t) => !t.done).length;
-      })),
+      remaining: craftUse(
+        craftComputed('remaining', function* () {
+          return (yield* state()).filter((t) => !t.done).length;
+        }),
+      ),
     }));
   },
 );
@@ -36,7 +38,7 @@ export const { TaskList } = craftService(
 describe('Learn 03 TaskList service', () => {
   it('toggles a task and updates remaining', async () => {
     const { sut } = await setupCraftServiceTestingByRegister(TaskList, {
-      TaskList: 'real',
+      TaskList: provideTaskList(),
     });
 
     sut.tasks.add('Move logic out');

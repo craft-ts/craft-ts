@@ -16,7 +16,8 @@ object, or `'notReached'`.
 
 Here is the service under test — the one from [step 4](/learn/04-compose), with
 its scope changed to `toProvide` so it has a `provideTaskStats()` to mount in
-the test:
+the test. The component-owned `TaskList` also uses `toProvide`, so each
+component instance and template test can resolve their own configured provider:
 
 <<< @/tests/snippets/learn/10-testing/task-stats.spec.ts#task-stats
 
@@ -46,8 +47,8 @@ asks for that. Had it yielded the whole `TaskApi`, the register would demand
 
 ## Testing a component
 
-Here is the component under test, from steps 2 and 3 — one function that yields
-`TaskList` and returns the nodes:
+Here is the component under test, from steps 2 and 3 — it provides its own
+`TaskList` instance, yields the service, and returns the nodes:
 
 <<< @/tests/snippets/learn/10-testing/tasks.spec.ts#tasks-component
 

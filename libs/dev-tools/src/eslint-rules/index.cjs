@@ -4,12 +4,16 @@ const craftMethodNameMatch = require('./craft-method-name-match.cjs');
 const craftComputedNameMatch = require('./craft-computed-name-match.cjs');
 const craftPrimitiveNameMatch = require('./craft-primitive-name-match.cjs');
 const noCraftServiceReturn = require('./no-craft-service-return.cjs');
+const requireCraftServiceInputScope = require('./require-craft-service-input-scope.cjs');
+const preferDirectCraftServiceExposure = require('./prefer-direct-craft-service-exposure.cjs');
+const preferCraftComputedForReactiveGenerator = require('./prefer-craft-computed-for-reactive-generator.cjs');
 const craftSourceNameMatch = require('./craft-source-name-match.cjs');
 const craftSignalSourceNameMatch = require('./craft-signal-source-name-match.cjs');
 const noCraftComputedSideEffects = require('./no-craft-computed-side-effects.cjs');
 const provideHostNameMatchComponent = require('./provide-host-name-match-component.cjs');
 const preferCraftHttpTransport = require('./prefer-craft-http-transport.cjs');
 const noCraftServiceComponentSameFile = require('./no-craft-service-component-same-file.cjs');
+const noTemplateElementsInCraftService = require('./no-template-elements-in-craft-service.cjs');
 const maxCraftDeclarationsPerFile = require('./max-craft-declarations-per-file.cjs');
 const maxCraftComponentLines = require('./max-craft-component-lines.cjs');
 const noRawCssValue = require('./no-raw-css-value.cjs');
@@ -38,6 +42,8 @@ const noRawCraftRouterUrl = require('./no-raw-craft-router-url.cjs');
 const noTypeAssertionsInTemplate = require('./no-type-assertions-in-template.cjs');
 const noExplicitCraftTemplateReturnType = require('./no-explicit-craft-template-return-type.cjs');
 const noExtractedCraftComponentParts = require('./no-extracted-craft-component-parts.cjs');
+const requireDirectCraftComponentTemplate = require('./require-direct-craft-component-template.cjs');
+const requireFixedComponentProviderList = require('./require-fixed-component-provider-list.cjs');
 const noTypeAssertionsInCraftCode = require('./no-type-assertions-in-craft-code.cjs');
 const noEphemeralTemplateFormState = require('./no-ephemeral-template-form-state.cjs');
 const requireFormForInputAction = require('./require-form-for-input-action.cjs');
@@ -129,6 +135,7 @@ const noTrustForwardedHeaders = require('./no-trust-forwarded-headers.cjs');
 const noEffectImportInFrontend = require('./no-effect-import-in-frontend.cjs');
 const requireI18nText = require('./require-i18n-text.cjs');
 const noI18nComposition = require('./no-i18n-composition.cjs');
+const requireCatchTagExhaustiveReaction = require('./require-catch-tag-exhaustive-reaction.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 const securityRules = require('./security-config.cjs');
 
@@ -140,12 +147,17 @@ const plugin = {
     'craft-computed-name-match': craftComputedNameMatch,
     ...craftPrimitiveNameMatch,
     'no-craft-service-return': noCraftServiceReturn,
+    'require-craft-service-input-scope': requireCraftServiceInputScope,
+    'prefer-direct-craft-service-exposure': preferDirectCraftServiceExposure,
+    'prefer-craft-computed-for-reactive-generator':
+      preferCraftComputedForReactiveGenerator,
     'craft-source-name-match': craftSourceNameMatch,
     'craft-signal-source-name-match': craftSignalSourceNameMatch,
     'no-craft-computed-side-effects': noCraftComputedSideEffects,
     'provide-host-name-match-component': provideHostNameMatchComponent,
     'prefer-craft-http-transport': preferCraftHttpTransport,
     'no-craft-service-component-same-file': noCraftServiceComponentSameFile,
+    'no-template-elements-in-craft-service': noTemplateElementsInCraftService,
     'max-craft-declarations-per-file': maxCraftDeclarationsPerFile,
     'max-craft-component-lines': maxCraftComponentLines,
     'no-raw-css-value': noRawCssValue,
@@ -176,6 +188,9 @@ const plugin = {
     'no-type-assertions-in-template': noTypeAssertionsInTemplate,
     'no-explicit-craft-template-return-type': noExplicitCraftTemplateReturnType,
     'no-extracted-craft-component-parts': noExtractedCraftComponentParts,
+    'require-direct-craft-component-template':
+      requireDirectCraftComponentTemplate,
+    'require-fixed-component-provider-list': requireFixedComponentProviderList,
     'no-type-assertions-in-craft-code': noTypeAssertionsInCraftCode,
     'no-ephemeral-template-form-state': noEphemeralTemplateFormState,
     'require-form-for-input-action': requireFormForInputAction,
@@ -183,6 +198,7 @@ const plugin = {
       requireAssertExhaustiveRouteExceptions,
     'require-pending-component-di-check': requirePendingComponentDiCheck,
     'require-craft-exception-handler': requireCraftExceptionHandler,
+    'require-catch-tag-exhaustive-reaction': requireCatchTagExhaustiveReaction,
     'require-exception-component-di-check': requireExceptionComponentDiCheck,
     'require-child-route-mount-check': requireChildRouteMountCheck,
     'require-lazy-load-with-retry': requireLazyLoadWithRetry,

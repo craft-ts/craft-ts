@@ -15,6 +15,7 @@ import {
   strong,
   ul,
   type Input,
+  withComponentProviders,
   type Output,
 } from '@craft-ts/component';
 import {
@@ -61,7 +62,8 @@ type Inputs = {
 export const { ReviewTemplateEvidenceView, provideReviewTemplateEvidenceView } =
   craftService(
     { name: 'reviewTemplateEvidenceView', providedIn: 'toProvide' },
-    function* (inputs: Inputs) {
+    function* (serviceInputs: { readonly $provided: Inputs }) {
+      const inputs = serviceInputs.$provided;
       const { card, sourceDetail, fileUrl, t } = inputs;
       const effects = yield* craftComputed('effects', function* () {
         const card = yield* inputs.card();
@@ -200,9 +202,7 @@ export const { ReviewTemplateEvidenceView, provideReviewTemplateEvidenceView } =
 
 export const ReviewTemplateEvidence = craftComponent(
   'ReviewTemplateEvidence',
-  {
-    providers: [provideReviewTemplateEvidenceView()],
-  },
+  {},
   function* (inputs: Inputs) {
     const {
       card,
@@ -229,7 +229,7 @@ export const ReviewTemplateEvidence = craftComponent(
       previousEvidenceUnavailable,
       previousDecisionText,
       codeDiff,
-    } = yield* ReviewTemplateEvidenceView(inputs);
+    } = yield* ReviewTemplateEvidenceView();
     return section(
       {
         class: templateEvidence.root,
@@ -475,4 +475,8 @@ export const ReviewTemplateEvidence = craftComponent(
       ],
     );
   },
+).pipe(
+  withComponentProviders((inputs) => [
+    provideReviewTemplateEvidenceView(inputs),
+  ]),
 );

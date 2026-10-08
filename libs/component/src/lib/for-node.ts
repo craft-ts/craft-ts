@@ -39,8 +39,8 @@ type ForSource =
   | null
   | undefined
   | (() => readonly unknown[] | null | undefined)
-  | Generator<unknown, readonly unknown[] | null | undefined, unknown>
-  | (() => Generator<unknown, readonly unknown[] | null | undefined, unknown>);
+  | Generator<any, readonly unknown[] | null | undefined, any>
+  | (() => Generator<any, readonly unknown[] | null | undefined, any>);
 
 type ForItemFromValue<Value> = [NonNullable<Value>] extends [never]
   ? never

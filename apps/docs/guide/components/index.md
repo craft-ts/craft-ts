@@ -155,6 +155,8 @@ const EditablePanel = Panel.pipe(WithPermission);
 ```
 
 The same mechanism carries `withProviders(...)` and the exception handlers below.
+Use [`withComponentProviders(...)`](/guide/components/customization#providers-configured-by-component-inputs)
+to configure instance-local services from the component's typed input readers.
 See [Directives and `.pipe(...)`](/guide/components/directives).
 
 ## Mounting the root

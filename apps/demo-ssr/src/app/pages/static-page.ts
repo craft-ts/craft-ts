@@ -26,9 +26,8 @@ export const { SsrStaticPageView, provideSsrStaticPageView } = craftService(
 export const StaticPage = craftComponent(
   'SsrStaticPage',
   { providers: [provideSsrStaticPageView()] },
-  function* () {
-    const { counter } = yield* SsrStaticPageView();
-    return page(
+  () =>
+    page(
       'Mode `block` sans donnée asynchrone',
       'HTML statique rendu par le serveur',
       'Le contenu principal existe entièrement dans la réponse initiale. Le bouton ci-dessous prouve que l’hydratation a ensuite attaché le comportement.',
@@ -49,9 +48,9 @@ export const StaticPage = craftComponent(
             {
               class: pageStyle.button,
               type: 'button',
-              click: counter.increment,
+              click: SsrStaticPageView.counter.increment,
             },
-            ['Tester l’hydratation · ', span(counter)],
+            ['Tester l’hydratation · ', span(SsrStaticPageView.counter)],
           ),
         ]),
         article({ class: pageStyle.card }, [
@@ -63,6 +62,5 @@ export const StaticPage = craftComponent(
           ]),
         ]),
       ]),
-    );
-  },
+    ),
 );

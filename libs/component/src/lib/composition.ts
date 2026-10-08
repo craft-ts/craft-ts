@@ -5,11 +5,40 @@ import type { HostProps } from './hyperscript';
 import { craftDirective } from './directive';
 import {
   COMPONENT_OPERATOR,
+  CRAFT_COMPONENT,
+  type ComponentFactory,
   type ComponentExceptionGenerator,
   type ComponentOperator,
   type ComponentInitializationExceptionsOf,
   type CraftComponent,
+  type TemplateInput,
 } from './types';
+
+/** Creates a fixed provider list once per rendered component, from its input readers. */
+export function withComponentProviders<
+  Factory extends ComponentFactory,
+  const Providers extends readonly CraftServiceProvider[],
+>(
+  providers: (inputs: TemplateInput<Factory>) => Providers,
+): (component: {
+  readonly [CRAFT_COMPONENT]: { readonly template: Factory };
+}) => ComponentOperator<Providers> {
+  return () => {
+    const componentProviders = providers as (inputs: object) => Providers;
+    const operator = craftDirective(
+      'withComponentProviders',
+      {},
+      {},
+      { componentProviders },
+    ) as unknown as ComponentOperator<Providers>;
+
+    Object.defineProperty(operator, COMPONENT_OPERATOR, {
+      value: { kind: 'providers', componentProviders },
+      enumerable: false,
+    });
+    return operator;
+  };
+}
 
 /** Adds a component-local provider scope to the component invocation. */
 export function withProviders<

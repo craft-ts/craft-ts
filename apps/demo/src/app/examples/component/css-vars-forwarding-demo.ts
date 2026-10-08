@@ -17,10 +17,10 @@ import { cssVarsDemo, forwarding } from './css-vars.style';
 const ForwardingExample = craftComponent(
   'ForwardingExample',
   {},
-  ({ label }: { readonly label: Input<string> }) =>
+  (input: { readonly label: Input<string> }) =>
     div({ class: forwarding.root }, [
       TokenCard({
-        label,
+        label: input.label,
         tone: function* () {
           return null;
         },

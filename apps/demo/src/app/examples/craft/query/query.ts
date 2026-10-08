@@ -6,6 +6,7 @@ import {
   ifNode,
   p,
   pre,
+  withComponentProviders,
   type Input,
 } from '@craft-ts/component';
 import {
@@ -25,7 +26,7 @@ import { ApiService } from './api.service';
 import { example } from '../../shared/example.style';
 
 const { UserQuery } = craftService(
-  { name: 'UserQuery', providedIn: 'global' },
+  { name: 'UserQuery', providedIn: 'function' },
   function* (inputs: { userId: CraftServiceInput<string> }) {
     yield* query(
       'userQuery',
@@ -46,51 +47,62 @@ const { UserQuery } = craftService(
   },
 );
 
-export const { CraftGlobalQueryView, provideCraftGlobalQueryView } =
-  craftService(
-    { name: 'craftGlobalQueryView', providedIn: 'toProvide' },
-    function* (inputs: { readonly userId: CraftServiceInput<string> }) {
-      const { userId } = inputs;
+export const { UserQueryView, provideUserQueryView } = craftService(
+  { name: 'userQueryView', providedIn: 'toProvide' },
+  function* (inputs: {
+    readonly $provided: { readonly userId: CraftServiceInput<string> };
+  }) {
+    const { userId } = inputs.$provided;
 
-      const { userQuery: user } = yield* UserQuery({
-        userId,
-      });
+    const { userQuery: user } = yield* UserQuery({
+      userId,
+    });
 
-      const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-        navigate,
-      }));
+    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
+      navigate,
+    }));
 
-      yield* craftMethod('navigate', function* (offset: number) {
-        void router.navigate({
-          to: 'craft/query/:userId',
-          params: {
-            userId: String(Number((yield* userId()) ?? '0') + offset),
-          },
-        });
+    yield* craftMethod('navigate', function* (offset: number) {
+      void router.navigate({
+        to: 'craft/query/:userId',
+        params: {
+          userId: String(Number((yield* userId()) ?? '0') + offset),
+        },
       });
-      yield* craftComputed('hasUser', () => user.hasValue());
-      yield* craftComputed('userValueJson', function* () {
-        return JSON.stringify(yield* user.value(), null, 2);
-      });
-      yield* craftExpose('user', user);
-    },
-  );
+    });
+    yield* craftComputed('hasUser', () => user.hasValue());
+    yield* craftComputed('userValueJson', function* () {
+      return JSON.stringify(yield* user.value(), null, 2);
+    });
+    yield* craftExpose('user', user);
+  },
+);
 
 const CraftGlobalQuery = craftComponent(
   'CraftGlobalQuery',
-  {
-    providers: [provideCraftGlobalQueryView()],
-  },
-  function* (inputs: { readonly userId: Input<string> }) {
-    const { user, hasUser, userValueJson, navigate } =
-      yield* CraftGlobalQueryView(inputs);
-    return div({ class: example.card }, [
+  {},
+  (_inputs: { readonly userId: Input<string> }) =>
+    div({ class: example.card }, [
       heading({ class: example.title }, 'User query'),
       div({ class: example.result }, [
         'User ',
-        StatusComponent({ status: user.status }),
-        ifNode(hasUser, () =>
-          pre('QueryValue', { class: example.code }, userValueJson),
+        StatusComponent({
+          status: function* () {
+            const { user } = yield* UserQueryView();
+            return yield* user.status();
+          },
+        }),
+        ifNode(
+          'hasUser',
+          function* () {
+            const { hasUser } = yield* UserQueryView();
+            return yield* hasUser();
+          },
+          () =>
+            pre('QueryValue', { class: example.code }, function* () {
+              const { userValueJson } = yield* UserQueryView();
+              return yield* userValueJson();
+            }),
         ),
       ]),
       p(
@@ -104,7 +116,7 @@ const CraftGlobalQuery = craftComponent(
             class: example.button,
             type: 'button',
             *click() {
-              navigate(-1);
+              (yield* UserQueryView()).navigate(-1);
             },
           },
           'Previous user',
@@ -116,14 +128,15 @@ const CraftGlobalQuery = craftComponent(
             'data-exampleButton': 'primary',
             type: 'button',
             *click() {
-              navigate(1);
+              (yield* UserQueryView()).navigate(1);
             },
           },
           'Next user',
         ),
       ]),
-    ]);
-  },
+    ]),
+).pipe(
+  withComponentProviders(({ userId }) => [provideUserQueryView({ userId })]),
 );
 
 export default CraftGlobalQuery;

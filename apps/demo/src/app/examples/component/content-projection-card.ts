@@ -1,4 +1,3 @@
-import { craftService, craftExpose } from '@craft-ts/core';
 import {
   content,
   craftComponent,
@@ -20,25 +19,21 @@ type CardInput = {
   }>;
 };
 
-export const { CardView, provideCardView } = craftService(
-  { name: 'cardView', providedIn: 'toProvide' },
-  function* (input: CardInput) {
-    yield* craftExpose('header', input.header ??
-      content(() =>
-        heading({ class: projectionDemo.fallback }, 'Default title'),
-      ));
-    yield* craftExpose('body', input.body);
-  },
-);
-
 export const card = craftComponent(
   'card',
-  { providers: [provideCardView()] },
-  function* (input: CardInput) {
-    const { header, body } = yield* CardView(input);
-    return section({ class: projectionDemo.card }, [
-      renderContent('header', header),
-      section({ class: projectionDemo.body }, renderContent('body', body)),
-    ]);
-  },
+  {},
+  (input: CardInput) =>
+    section({ class: projectionDemo.card }, [
+      renderContent(
+        'header',
+        input.header ??
+          content(() =>
+            heading({ class: projectionDemo.fallback }, 'Default title'),
+          ),
+      ),
+      section(
+        { class: projectionDemo.body },
+        renderContent('body', input.body),
+      ),
+    ]),
 );

@@ -10,7 +10,6 @@ import {
   p,
 } from '@craft-ts/component';
 import {
-  craftService,
   CraftRouterLink,
   type CraftRouterLinkInput,
 } from '@craft-ts/core';
@@ -26,21 +25,11 @@ const EXAMPLE_LINKS = [
   ['Translate in an Effect', { to: 'i18n' }],
 ] satisfies readonly (readonly [string, CraftRouterLinkInput])[];
 
-export const { AppView, provideAppView } = craftService(
-  { name: 'appView', providedIn: 'toProvide' },
-  function* () {
-    // Nothing to expose.
-  },
-);
-
 export const App = craftComponent(
   'App',
-  {
-    providers: [provideAppView()],
-  },
-  function* () {
-    yield* AppView();
-    return div({ class: shell.root }, [
+  {},
+  () =>
+    div({ class: shell.root }, [
       div({ class: shell.header }, [
         heading({ class: shell.title }, 'Users & access — EffectTS + CraftTS'),
         p(
@@ -57,6 +46,5 @@ export const App = craftComponent(
         ),
       ),
       main({ class: shell.content }, headingSection(CraftRouterOutlet())),
-    ]);
-  },
+    ]),
 );

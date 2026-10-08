@@ -11,17 +11,14 @@ import {
 } from '@craft-ts/core';
 import type { Equal, Expect } from '@craft-ts/dev-tools/testing';
 import { describe, expect, it, vi } from 'vitest';
-import CraftGlobalQuery, {
-  CraftGlobalQueryView,
-  provideCraftGlobalQueryView,
-} from './query';
+import CraftGlobalQuery, { UserQueryView, provideUserQueryView } from './query';
 import { ApiService } from './api.service';
 
 // A handler that calls a service method with arguments leaves no trace in the
 // template's type: the contract can no longer name the member behind a click.
 // What the element renders is still asserted above.
 describe('Craft query template', () => {
-  type QueryLogic = GetServiceOutput<typeof CraftGlobalQueryView>;
+  type QueryLogic = GetServiceOutput<typeof UserQueryView>;
   type QueryTemplate = ComponentTemplateOf<typeof CraftGlobalQuery>;
 
   type _UserQueryDependsOnApiService = Expect<
@@ -133,24 +130,18 @@ describe('Craft query logic', () => {
       value: () => ({ id: currentUserId, name: `User ${currentUserId}` }),
     };
     const userQuery = vi.fn((_: { userId: () => string | undefined }) => user);
-    const result = await setupCraftServiceTestingByRegister(
-      CraftGlobalQueryView,
-      {
-        craftGlobalQueryView: provideCraftGlobalQueryView(),
-        UserQuery: { $self: userQuery },
-        ApiService: 'notReached',
-        ConsoleService: 'notReached',
-        StoragePersister: 'notReached',
-        CraftRouter: { navigate },
-      } as never,
-      {
-        bindings: {
-          userId: function* () {
-            return currentUserId;
-          },
+    const result = await setupCraftServiceTestingByRegister(UserQueryView, {
+      userQueryView: provideUserQueryView({
+        userId: function* () {
+          return currentUserId;
         },
-      } as never,
-    );
+      }),
+      UserQuery: { $self: userQuery },
+      ApiService: 'notReached',
+      ConsoleService: 'notReached',
+      StoragePersister: 'notReached',
+      CraftRouter: { navigate },
+    } as never);
 
     return { ...result, navigate, userQuery };
   }

@@ -125,9 +125,10 @@ type HasComponentDependencies<Value> =
  *
  * Inputs deliberately use the same read contract as Craft primitives: callers
  * can pass a primitive reader directly and component logic/templates consume
- * it with `yield* input()`.
+ * it with `yield* input()`. Its reactive-read contract is also accepted by
+ * CraftServiceInput<T> when passed through a provider's configuration.
  */
-export type Input<T> = Yieldable<[], T> & {
+export type Input<T> = Yieldable<[], T, ReactiveReadRequest<T>> & {
   readonly [INPUT_BRAND]?: T;
 };
 
@@ -422,12 +423,8 @@ export type ContentDependencies<Slots extends object> =
   CraftNodeChildrenDependencies<SlotOutput<NonNullable<Slots[keyof Slots]>>>;
 
 /**
- * A component is one function: its parameters are the component inputs, its
- * body may `yield*` services, and it returns the rendered children.
- *
- * The historical name is kept for the generic slots that used to carry a
- * separate logic factory: there is only one function now, so `Factory` and
- * `Template` always denote the same one.
+ * A template may be either a direct renderer or an internal generator adapter.
+ * Public craftComponent templates are narrowed by ValidDirectComponentTemplate.
  */
 export type ComponentFactory = (...args: any[]) => any;
 
@@ -524,10 +521,7 @@ export type FactoryYielded<Factory extends ComponentFactory> =
     ? Yielded
     : never;
 
-/**
- * The one function a component is made of: inputs in, children out, services
- * reached with `yield*` on the way.
- */
+/** A component template may be a direct renderer or generator adapter. */
 export type ComponentTemplate<
   Output extends CraftNodeChildren = CraftNodeChildren,
 > = (...args: any[]) => Output | Generator<any, Output, any>;
@@ -811,6 +805,10 @@ export type ComponentExceptionGenerator = (
 
 export type ComponentCompositionDefinition = {
   readonly providers?: readonly CraftServiceProvider[];
+  /** Resolved once per rendered instance; input readers keep the scope reactive. */
+  readonly componentProviders?: (
+    inputs: object,
+  ) => readonly CraftServiceProvider[];
   readonly catchHandlers?: Readonly<
     Record<string, ComponentExceptionHandlerEntry>
   >;
@@ -908,6 +906,17 @@ export type ProviderExceptions<Providers> =
         ?
             | ExtractCraftGenExceptions<Yielded>
             | Extract<Output, { readonly _tag: string }>
+        : never
+      : never;
+
+type ProviderYielded<Providers> =
+  Providers extends readonly (infer Provider)[]
+    ? ProviderYielded<Provider>
+    : Providers extends {
+          readonly [CRAFT_SERVICE_PROVIDER_BRAND]?: infer Metadata;
+        }
+      ? Metadata extends { readonly yielded: infer Yielded }
+        ? Yielded
         : never
       : never;
 
@@ -1366,12 +1375,22 @@ type MergePipedComponentDependencies<
   Existing extends object,
   Recomputed extends object,
 > = Simplify<
-  Omit<Recomputed, 'missingProvider'> & {
+  Omit<Recomputed, 'missingProvider' | 'provided' | 'deps'> & {
+    deps: DependencyMap<Existing, 'deps'> & DependencyMap<Recomputed, 'deps'>;
+    provided: DependencyMap<Existing, 'provided'> &
+      DependencyMap<Recomputed, 'provided'>;
     missingProvider: Simplify<
-      MissingProviderMap<Existing> & MissingProviderMap<Recomputed>
+      Omit<
+        MissingProviderMap<Existing> & MissingProviderMap<Recomputed>,
+        | keyof DependencyMap<Existing, 'provided'>
+        | keyof DependencyMap<Recomputed, 'provided'>
+      >
     >;
   }
 >;
+
+type DependencyMap<Dependencies, Key extends string> =
+  Dependencies extends Record<Key, infer Map extends object> ? Map : {};
 
 type ComponentFieldExceptionsAfterOperator<ExistingFieldExceptions, Directive> =
   Directive extends FieldErrorDirective<
@@ -1420,7 +1439,9 @@ type PipedComponent<
       MergePipedComponentDependencies<
         ExistingComponentDeps,
         CraftComponentDependencies<
-          FactoryYielded<RootFactory> | FactoryYielded<NextFactory>,
+          | FactoryYielded<RootFactory>
+          | FactoryYielded<NextFactory>
+          | ProviderYielded<ComponentOperatorProviders<Directive>>,
           unknown,
           ProvidersFromMeta<Meta> | ComponentOperatorProviders<Directive>,
           PropsFromFactory<NextFactory>,

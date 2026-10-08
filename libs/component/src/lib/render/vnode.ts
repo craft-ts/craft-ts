@@ -15,10 +15,15 @@ import type {
   ExtractCraftGenExceptions,
   ExtractCraftPendingSources,
   FieldValidationCasesOf,
+  ServiceDependencyMapFromYielded,
   ServiceHelperDependencyMapOf,
   SsrMode,
 } from '@craft-ts/core';
-import { CRAFT_NODE_DIRECTIVE, isCraftNodeDirective } from '@craft-ts/core';
+import {
+  CRAFT_NODE_DIRECTIVE,
+  isCraftNodeDirective,
+  isGenerator,
+} from '@craft-ts/core';
 import type {
   CraftComponent,
   CraftDirectiveTemplateDependencies,
@@ -197,8 +202,10 @@ type CraftNodeChildrenDependenciesOf<Value> =
       ? {}
       : Value extends readonly (infer Child)[]
         ? CraftNodeChildrenDependenciesOf<Child>
-        : Value extends object
-          ? typeof CRAFT_NODE_DEPS extends keyof Value
+      : Value extends object
+          ? Value extends Generator<infer Yielded, any, any>
+            ? ServiceDependencyMapFromYielded<Yielded>
+            : typeof CRAFT_NODE_DEPS extends keyof Value
             ? Value extends CraftNodeDepsCarrier<
                 infer Dependencies extends object
               >
@@ -383,7 +390,7 @@ type ChannelCarryingProps<Channels extends CraftChannels> = Readonly<
 export type CraftTextValue = string | number | bigint | boolean;
 
 /**
- * A text binding. Two shapes, both already supported by the renderer:
+ * Text bindings supported by the renderer:
  *
  * - a plain read — `() => user.name()`;
  * - a generator — the projected form of a `craftComputed` bound by reference
@@ -402,6 +409,19 @@ export type CraftTextBinding =
       | undefined,
       any
     >);
+
+/**
+ * A directly-called service shortcut can yield once to resolve its service,
+ * then return the reactive reader that should be bound as text.
+ */
+export type CraftTextServiceShortcut = Generator<
+  any,
+  | CraftTextBinding
+  | CraftTextValue
+  | null
+  | undefined,
+  any
+>;
 
 type ElementNodeExceptions<
   Children extends CraftNodeChildren,
@@ -829,6 +849,11 @@ export interface ReactiveTextNode {
   readonly binding: CraftTextBinding;
 }
 
+export interface ServiceShortcutTextNode {
+  readonly kind: 'service-shortcut-text';
+  readonly shortcut: CraftTextServiceShortcut;
+}
+
 export interface ComponentNode<
   Props extends object = object,
   ComponentDeps extends object = {},
@@ -1193,6 +1218,7 @@ export type CraftNode =
   | ElementNodeBase<any>
   | TextNode
   | ReactiveTextNode
+  | ServiceShortcutTextNode
   | ComponentNode<any, any, any, any, any, any>
   | CraftDirectiveNode<any>
   | ForNode<any, any, any, any, any, any>
@@ -1214,6 +1240,7 @@ export type CraftNodeChild =
   | { readonly kind: CraftNode['kind'] }
   | CraftTextValue
   | CraftTextBinding
+  | CraftTextServiceShortcut
   | null
   | undefined
   | readonly CraftNodeChild[];
@@ -1507,6 +1534,7 @@ export function isCraftNode(value: unknown): value is CraftNode {
   return (
     value.kind === 'element' ||
     value.kind === 'text' ||
+    value.kind === 'service-shortcut-text' ||
     value.kind === 'component' ||
     value.kind === 'angular' ||
     value.kind === 'directive' ||
@@ -1884,6 +1912,14 @@ export function normalizeChildren(children: CraftNodeChildren): CraftNode[] {
         kind: 'reactive-text',
         binding: child,
       });
+      return;
+    }
+
+    if (isGenerator(child)) {
+      result.push({
+        kind: 'service-shortcut-text',
+        shortcut: child as CraftTextServiceShortcut,
+      } as unknown as CraftNode);
       return;
     }
 

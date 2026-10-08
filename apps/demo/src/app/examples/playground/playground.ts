@@ -193,7 +193,6 @@ export const { PlaygroundView, providePlaygroundView } = craftService(
       return _pgtodosvalue ?? [];
     });
     yield* craftExpose('pg', pg);
-    yield* craftExpose('setTitle', titleInput.setTitle);
   },
 );
 
@@ -202,96 +201,91 @@ const PlaygroundComponent = craftComponent(
   {
     providers: [providePlaygroundView()],
   },
-  function* () {
-    const { pg, add, isAdding, todos, titleInput, setTitle } =
-      yield* PlaygroundView();
-
-    return div({ class: example.centered }, [
-      heading({ class: example.title }, 'Playground'),
-      p(
-        { class: example.text, 'data-exampleText': 'muted' },
-        'Sandbox for testing @craft-ts — ready to share on StackBlitz',
-      ),
-      div({ class: example.row }, [
-        input('title', {
-          class: example.input,
-          type: 'text',
-          placeholder: 'New todo title…',
-          value: titleInput,
-          *input(event) {
-            yield* setTitle(event.target.value);
-          },
-          *keydown(event) {
-            if (event.key === 'Enter') add();
-          },
-        }),
-        button(
-          'add',
-          {
-            class: example.button,
-            type: 'button',
-            disabled: pg.addTodo.isLoading,
-            click: add,
-          },
-          ifNode(
-            isAdding,
-            () => 'Adding…',
-            () => 'Add',
+  () => div({ class: example.centered }, [
+        heading({ class: example.title }, 'Playground'),
+        p(
+          { class: example.text, 'data-exampleText': 'muted' },
+          'Sandbox for testing @craft-ts — ready to share on StackBlitz',
+        ),
+        div({ class: example.row }, [
+          input('title', {
+            class: example.input,
+            type: 'text',
+            placeholder: 'New todo title…',
+            value: PlaygroundView.titleInput,
+            *input(event) {
+              yield* PlaygroundView.titleInput.setTitle(event.target.value);
+            },
+            *keydown(event) {
+              if (event.key === 'Enter') yield* PlaygroundView.add();
+            },
+          }),
+          button(
+            'add',
+            {
+              class: example.button,
+              type: 'button',
+              disabled: PlaygroundView.pg.addTodo.isLoading,
+              click: PlaygroundView.add,
+            },
+            ifNode(
+              PlaygroundView.isAdding,
+              () => 'Adding…',
+              () => 'Add',
+            ),
+          ),
+        ]),
+        div(
+          { class: example.list },
+          forNode(
+            PlaygroundView.todos,
+            { track: (todo) => todo.id, empty: () => p('No todos yet.') },
+            (todo) =>
+              div({ class: example.item }, [
+                button(
+                  'toggle',
+                  {
+                    class: example.button,
+                    'data-exampleButton': 'ghost',
+                    type: 'button',
+                    *click() {
+                      yield* PlaygroundView.pg.toggleTodo.mutate((yield* todo()).id);
+                    },
+                  },
+                  function* () {
+                    return TODO_ICONS[String((yield* todo()).completed)];
+                  },
+                ),
+                span(
+                  {
+                    class: example.itemTitle,
+                    'data-exampleText': function* () {
+                      return TODO_STATE[String((yield* todo()).completed)];
+                    },
+                  },
+                  function* () {
+                    return (yield* todo()).title;
+                  },
+                ),
+                button(
+                  'delete',
+                  {
+                    class: example.button,
+                    'data-exampleButton': 'ghost',
+                    type: 'button',
+                    'aria-label': function* () {
+                      return `Delete ${(yield* todo()).title}`;
+                    },
+                    *click() {
+                      yield* PlaygroundView.pg.deleteTodo.mutate((yield* todo()).id);
+                    },
+                  },
+                  '🗑️',
+                ),
+              ]),
           ),
         ),
       ]),
-      div(
-        { class: example.list },
-        forNode(
-          todos,
-          { track: (todo) => todo.id, empty: () => p('No todos yet.') },
-          (todo) =>
-            div({ class: example.item }, [
-              button(
-                'toggle',
-                {
-                  class: example.button,
-                  'data-exampleButton': 'ghost',
-                  type: 'button',
-                  *click() {
-                    yield* pg.toggleTodo.mutate((yield* todo()).id);
-                  },
-                },
-                function* () {
-                  return TODO_ICONS[String((yield* todo()).completed)];
-                },
-              ),
-              span(
-                {
-                  class: example.itemTitle,
-                  'data-exampleText': function* () {
-                    return TODO_STATE[String((yield* todo()).completed)];
-                  },
-                },
-                function* () {
-                  return (yield* todo()).title;
-                },
-              ),
-              button(
-                'delete',
-                {
-                  class: example.button,
-                  'data-exampleButton': 'ghost',
-                  type: 'button',
-                  'aria-label': function* () {
-                    return `Delete ${(yield* todo()).title}`;
-                  },
-                  *click() {
-                    yield* pg.deleteTodo.mutate((yield* todo()).id);
-                  },
-                },
-                '🗑️',
-              ),
-            ]),
-        ),
-      ),
-    ]);
-  },
 );
 
 export default PlaygroundComponent;

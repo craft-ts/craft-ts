@@ -101,9 +101,19 @@ cannot be inferred safely. Preserve unrelated user changes.
 - Adapt Angular, framework, and third-party tokens once with `toCraftService`.
 - Use the generated `X()` helper in components and `yield* X(...)` in generators.
 - Use `CraftRouter` directly instead of wrapping Angular Router.
-- Prefer `scope: 'function'` for a dependency used by one function and
-  `scope: 'toProvide'` for feature-owned services.
-- Place `provideX(...)` near the route or feature owning the instance.
+- Use `providedIn: 'toProvide'` for state or context owned by a component,
+  feature, or route—even if only one component uses it. Pass component inputs
+  once through `withComponentProviders`; consumers call `X()` without them.
+- Use `providedIn: 'function'` for reusable logic composed by other services
+  when each invocation needs its own inputs and service context. Every helper
+  call creates a fresh context; do not use it as a cached component store.
+  Pass all of its values as ordinary call-site inputs; `$provided` is only for
+  services with a provider scope.
+- Use `providedIn: 'global'` only for app-wide singleton services; global
+  factories have no inputs. Use `abstract` for contracts selected downstream.
+- Place `provideX(...)` near the component, route, or feature that owns a
+  `toProvide` instance. Providers are lazy: registration does not run the
+  factory until the service token is first resolved (`appStart: true` is eager).
 - Resolve every generated `CRAFT_IMPLEMENTATION_REQUIRED` companion.
 - Wrap dependent primitives in `yield* track(...)`.
 - Use `query` for reads and `mutation` for writes. Keep mutations with the

@@ -53,6 +53,8 @@ export default [
     // catalogue, where they should guide production code.
     files: ['**/src/app/examples/**/*.ts'],
     rules: {
+      // The catalogue may explain legacy APIs, but authored examples follow
+      // the same template and generator constraints as the rest of the app.
       'craft-ts/no-craft-service-component-same-file': 'off',
       'craft-ts/prefer-deep-yieldable-for-item': 'off',
       'craft-ts/prefer-route-query-params-for-filter-state': 'off',

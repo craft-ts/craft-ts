@@ -19,8 +19,6 @@ import {
   craftComputed,
   craftMethod,
   state,
-  craftUse,
-  craftExpose,
 } from '@craft-ts/core';
 import { assign } from '@craft-ts/style';
 import { example } from '../../shared/example.style';
@@ -92,61 +90,38 @@ export const { PixelArtView, providePixelArtView } = craftService(
             },
           };
         }),
-        ({ state, update }) => ({
-          clearAll: () =>
-            update((current) =>
-              current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
+        function* ({ state, update }) {
+          return {
+            clearAll: () =>
+              update((current) =>
+                current.map((cell) => ({ ...cell, color: EMPTY_COLOR })),
+              ),
+            paintedCount: yield* craftComputed(
+              'paintedCount',
+              function* () {
+                return (yield* state()).filter(
+                  ({ color }) => color !== EMPTY_COLOR,
+                ).length;
+              },
             ),
-          paintedCount: craftUse(craftComputed('paintedCount', function* () {
-            return (yield* state()).filter(({ color }) => color !== EMPTY_COLOR)
-              .length;
-          })),
-          totalPaintActions: craftUse(craftComputed('totalPaintActions', function* () {
-            return (yield* state()).reduce(
-              (total, { paintCount }) => total + paintCount,
-              0,
-            );
-          })),
-        }),
+            totalPaintActions: yield* craftComputed(
+              'totalPaintActions',
+              function* () {
+                return (yield* state()).reduce(
+                  (total, { paintCount }) => total + paintCount,
+                  0,
+                );
+              },
+            ),
+          };
+        },
       ),
     );
-    const paintCell = yield* craftMethod('paintCell', function* (index: number) {
+    yield* craftMethod('paintCell', function* (index: number) {
       const cell = cells.selectCell(index);
       if (!cell) return;
       yield* cell.paint();
     });
-    const pixelGrid = forNode(
-      INDEXES,
-      { track: (index) => index },
-      (_item, currentIndex) =>
-        button('cell', {
-          type: 'button',
-          class: pixel.cell,
-          'data-testid': 'pixel-cell',
-          style: function* () {
-            return assign(
-              pixelVars.fill,
-              pixelColor(cellColor(cells.selectCell(currentIndex))),
-            );
-          },
-          title: `Cell ${currentIndex + 1}`,
-          *click() {
-            paintCell(currentIndex);
-          },
-        }),
-    );
-    const renderedPixelGrid =
-      SCHEDULE_MODE === 'frame'
-        ? pixelGrid.pipe(
-            scheduleFor({
-              enabled: true,
-              strategy: 'frame',
-              frameBudgetMs: 4,
-            }),
-          )
-        : pixelGrid;
-
-    yield* craftExpose('renderedPixelGrid', renderedPixelGrid);
   },
 );
 
@@ -155,10 +130,8 @@ const PixelArt = craftComponent(
   {
     providers: [providePixelArtView()],
   },
-  function* () {
-    const { ui, cells, renderedPixelGrid } = yield* PixelArtView();
-
-    return section({ class: example.card }, [
+  () =>
+    section({ class: example.card }, [
       header({ class: example.stack }, [
         heading({ class: example.title }, 'Pixel Art Workshop'),
         p({ class: example.text, 'data-exampleText': 'muted' }, `${CELL_COUNT} cells with simple state and per-cell insertions.`),
@@ -176,7 +149,7 @@ const PixelArt = craftComponent(
               return `Choose ${yield* color()}`;
             },
             *click() {
-              yield* ui.setActiveColor(yield* color());
+              yield* PixelArtView.ui.setActiveColor(yield* color());
             },
           }),
         ),
@@ -186,21 +159,52 @@ const PixelArt = craftComponent(
         {
           type: 'button',
           class: example.button,
-          click: cells.clearAll,
+          click: PixelArtView.cells.clearAll,
         },
         'Clear',
       ),
       p({ class: example.row }, [
         span(function* () {
-          return `Painted cells: ${yield* cells.paintedCount()}/${INDEXES.length}`;
+          return `Painted cells: ${yield* PixelArtView.cells.paintedCount()}/${INDEXES.length}`;
         }),
         span(function* () {
-          return ` · Clicks: ${yield* cells.totalPaintActions()}`;
+          return ` · Clicks: ${yield* PixelArtView.cells.totalPaintActions()}`;
         }),
       ]),
-      div({ class: pixel.grid, role: 'grid' }, renderedPixelGrid),
-    ]);
-  },
+      div(
+        { class: pixel.grid, role: 'grid' },
+        forNode(
+          INDEXES,
+          { track: (index) => index },
+          (_item, currentIndex) =>
+            button('cell', {
+              type: 'button',
+              class: pixel.cell,
+              'data-testid': 'pixel-cell',
+              style: function* () {
+                return assign(
+                  pixelVars.fill,
+                  pixelColor(
+                    cellColor(
+                      yield* PixelArtView.cells.selectCell(currentIndex),
+                    ),
+                  ),
+                );
+              },
+              title: `Cell ${currentIndex + 1}`,
+              *click() {
+                yield* PixelArtView.paintCell(currentIndex);
+              },
+            }),
+        ).pipe(
+          scheduleFor({
+            enabled: SCHEDULE_MODE === 'frame',
+            strategy: 'frame',
+            frameBudgetMs: 4,
+          }),
+        ),
+      ),
+    ]),
 );
 
 export default PixelArt;

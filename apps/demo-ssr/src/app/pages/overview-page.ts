@@ -37,9 +37,8 @@ export const { SsrOverviewPageView, provideSsrOverviewPageView } = craftService(
 export const OverviewPage = craftComponent(
   'SsrOverviewPage',
   { providers: [provideSsrOverviewPageView()] },
-  function* () {
-    const { resolvedProducts } = yield* SsrOverviewPageView();
-    return page(
+  () =>
+    page(
       'Rendu côté serveur · démonstration',
       'Comprendre SSR par l’expérience',
       'Chaque page expose une décision différente : attendre la donnée, afficher un fallback, ou laisser le navigateur la charger après hydratation.',
@@ -82,15 +81,14 @@ export const OverviewPage = craftComponent(
           ),
           ul({ class: pageStyle.list }, [
             function* () {
-              return `Produits rendus : ${(yield* resolvedProducts()).length}`;
+              return `Produits rendus : ${(yield* (yield* SsrOverviewPageView.resolvedProducts())()).length}`;
             },
             function* () {
-              const first = (yield* resolvedProducts())[0];
+              const first = (yield* (yield* SsrOverviewPageView.resolvedProducts())())[0];
               return `Premier produit : ${first?.name ?? 'aucun'}`;
             },
           ]),
         ]),
       ]),
-    );
-  },
+    ),
 );

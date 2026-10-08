@@ -1,5 +1,5 @@
 import { craftComponent, div, ifNode, p, heading } from '@craft-ts/component';
-import { craftService, craftComputed, CraftGlobalError, craftExpose } from '@craft-ts/core';
+import { craftService, craftComputed, CraftGlobalError } from '@craft-ts/core';
 import { example } from './examples/shared/example.style';
 
 function isDisabledError(value: unknown): boolean {
@@ -19,7 +19,6 @@ export const { MyGlobalErrorScreenView, provideMyGlobalErrorScreenView } =
       yield* craftComputed('disabled', () => {
         return isDisabledError(error());
       });
-      yield* craftExpose('error', error);
     },
   );
 
@@ -28,26 +27,25 @@ export const MyGlobalErrorScreen = craftComponent(
   {
     providers: [provideMyGlobalErrorScreenView()],
   },
-  function* () {
-    const { disabled } = yield* MyGlobalErrorScreenView();
-
-    return div({ class: example.alert, 'data-exampleAlert': 'danger' }, [
+  () =>
+    div({ class: example.alert, 'data-exampleAlert': 'danger' }, [
       heading({ class: example.subtitle }, [
         '⚠️ ',
         ifNode(
-          disabled,
+          'global-error-title-disabled',
+          MyGlobalErrorScreenView.disabled,
           () => 'Account disabled',
           () => 'Something went wrong',
         ),
       ]),
       p(
         ifNode(
-          disabled,
+          'global-error-message-disabled',
+          MyGlobalErrorScreenView.disabled,
           () =>
             'This account has been disabled. Contact support to restore access.',
           () => 'An unexpected error occurred while loading this page.',
         ),
       ),
-    ]);
-  },
+    ]),
 );

@@ -97,7 +97,47 @@ module.exports = {
 
       const calleeType = checker.getTypeAtLocation(tsNode);
       const signature = calleeType.getCallSignatures?.()[0];
-      return signature ? returnsGenerator(signature.getReturnType()) : false;
+      if (!signature) return false;
+      const returnType = signature.getReturnType();
+      return (
+        returnsGenerator(returnType) &&
+        !returnsReactiveTextReader(returnType) &&
+        !isTranslationReaderCall(node)
+      );
+    }
+
+    function isTranslationReaderCall(node) {
+      return (
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.property.type === 'Identifier' &&
+        node.callee.property.name === 'translate'
+      );
+    }
+
+    // A service shortcut can return a generator whose result is itself a
+    // reactive reader (for example, `View.translate('page.title')`). The
+    // template renderer consumes that outer generator and binds the reader;
+    // it is already a complete text binding and must not be rewritten to
+    // `yield*` in the template.
+    function returnsReactiveTextReader(type) {
+      if (type.isUnion?.()) {
+        return type.types.every((part) => returnsReactiveTextReader(part));
+      }
+
+      let typeArguments = type.typeArguments ?? type.aliasTypeArguments;
+      try {
+        typeArguments ??= checker.getTypeArguments(type);
+      } catch {
+        return false;
+      }
+
+      const resultType = typeArguments?.[1];
+      return Boolean(
+        resultType
+          ?.getCallSignatures?.()
+          .some((signature) => returnsGenerator(signature.getReturnType())),
+      );
     }
 
     function returnsGenerator(type) {

@@ -18,12 +18,10 @@ export const { DemoSendContextView, provideDemoSendContextView } = craftService(
 const DemoSendContextComponent = craftComponent(
   'DemoSendContextComponent',
   { providers: [provideDemoSendContextView()] },
-  function* () {
-    const { counters } = yield* DemoSendContextView();
-    return div([
+  () => div([
       heading('Demo send context'),
       headingSection(
-        forNode(counters, { track: (index) => index }, () =>
+        forNode(DemoSendContextView.counters, { track: (index) => index }, () =>
           SendContextCounterComponent({
             initialValue: function* () {
               return 1;
@@ -31,8 +29,7 @@ const DemoSendContextComponent = craftComponent(
           }),
         ),
       ),
-    ]);
-  },
+    ]),
 );
 
 export default DemoSendContextComponent;

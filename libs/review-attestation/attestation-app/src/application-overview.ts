@@ -13,6 +13,7 @@ import {
   small,
   strong,
   textarea,
+  withComponentProviders,
   type Input,
   type Output,
 } from '@craft-ts/component';
@@ -37,11 +38,14 @@ const initialSelection = (): readonly string[] => [];
 export const { ApplicationOverviewView, provideApplicationOverviewView } =
   craftService(
     { name: 'applicationOverviewView', providedIn: 'toProvide' },
-    function* (inputs: {
-      readonly captures: Input<readonly ApplicationCaptureInventoryItem[]>;
-      readonly decide: Output<(value: ApplicationVerdict) => void>;
-      readonly inspect: Output<(subject: string) => void>;
+    function* (serviceInputs: {
+      readonly $provided: {
+        readonly captures: Input<readonly ApplicationCaptureInventoryItem[]>;
+        readonly decide: Output<(value: ApplicationVerdict) => void>;
+        readonly inspect: Output<(subject: string) => void>;
+      };
     }) {
+      const inputs = serviceInputs.$provided;
       const { captures, decide, inspect } = inputs;
       const category = yield* state('category', 'happy-path', ({ set }) => ({
         choose: set,
@@ -196,9 +200,7 @@ export const { ApplicationOverviewView, provideApplicationOverviewView } =
 
 export const ApplicationOverview = craftComponent(
   'ApplicationOverview',
-  {
-    providers: [provideApplicationOverviewView()],
-  },
+  {},
   function* (inputs: {
     readonly captures: Input<readonly ApplicationCaptureInventoryItem[]>;
     readonly decide: Output<(value: ApplicationVerdict) => void>;
@@ -223,7 +225,7 @@ export const ApplicationOverview = craftComponent(
       next,
       rows,
       selected,
-    } = yield* ApplicationOverviewView(inputs);
+    } = yield* ApplicationOverviewView();
     return div([
       p(
         {
@@ -494,4 +496,6 @@ export const ApplicationOverview = craftComponent(
       ),
     ]);
   },
+).pipe(
+  withComponentProviders((inputs) => [provideApplicationOverviewView(inputs)]),
 );

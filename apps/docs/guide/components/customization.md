@@ -164,6 +164,56 @@ variadic component `.pipe(...)` overload is currently kept permissive to avoid
 excessive TypeScript instantiation depth; runtime dispatch still rejects an
 unhandled exception code.
 
+## Providers configured by component inputs
+
+Use `withComponentProviders` when a component-local service needs the component's
+inputs. Its callback receives the template's typed `Input<T>` readers and runs
+once per rendered instance. Each instance owns its provider configuration and DI
+scope. Updating an input, the template, or a host prop keeps that scope and its
+services alive.
+
+Before, a provider configured in metadata can only refer to values available
+outside the component instance:
+
+```ts
+const Profile = craftComponent(
+  'Profile',
+  { providers: [provideProfileContext({ profileId: selectedProfileId })] },
+  (_inputs: { profileId: Input<string> }) => p(ProfileContext.label),
+);
+```
+
+After, pass the component's reader through `$provided`. The service consumes it
+as `CraftServiceInput<T>` inside a reactive primitive:
+
+<<< @/tests/snippets/guide/components/component-providers.spec.ts#component-providers
+
+The providers satisfy local dependencies and contribute their own dependencies
+and exception codes to the component's type contract. Chain another `.pipe(...)`
+to add an exception handler while preserving type inference.
+
+The list and its order must stay fixed. Put reactive variation in the values
+passed to services, such as the reader used by a `craftComputed` or query's
+`params`. Do not conditionally add, remove, or reorder providers. The recommended
+ESLint preset enforces this with
+[`craft-ts/require-fixed-component-provider-list`](/guide/routing/eslint-rules#fixed-component-provider-lists).
+The callback must be a concise arrow returning an array literal, without spreads
+or provider-selection branches. Helpers may contain their own implementation
+logic; the rule checks the declared list only.
+
+`withProviders` remains available with its existing reactive provider lifecycle
+described above. `withComponentProviders` selects a stable component scope; when
+combining provider operators, their entries retain declaration order and readers
+carry subsequent value changes.
+
+Use a `toProvide` service for state or context owned by this component, even if
+this component is its only consumer. `withComponentProviders` passes its inputs
+once into that service's `$provided` configuration; the component and its
+children then resolve the same `X()` instance without repeating those inputs.
+Use a `function` service for reusable per-call logic composed by other services,
+where each `X(inputs)` call should get a fresh context. See
+[service scopes](/guide/app/service-scopes) for the full choice.
+
 ## Choosing an exception utility
 
 Craft exposes three complementary utilities. The important distinction is

@@ -69,8 +69,6 @@ export const { AppStartLog } = craftService(
       yield* Console.log('This is a log from the appStart callback');
       return new Promise((resolve) => setTimeout(resolve, 1000));
     });
-
-    return 1;
   },
 );
 ```

@@ -387,6 +387,7 @@ function eagerlyResolveBrandedProviders(
   providers: readonly CraftServiceProvider[],
   injector: EnvironmentInjector,
   branded = false,
+  stable = false,
 ): {
   readonly exception?: AnyCraftException;
   readonly overrides: readonly Provider[];
@@ -401,6 +402,7 @@ function eagerlyResolveBrandedProviders(
         provider,
         injector,
         branded || CRAFT_SERVICE_PROVIDER_BRAND in provider,
+        stable,
       );
       overrides.push(...result.overrides);
       trackers.push(...result.trackers);
@@ -417,6 +419,15 @@ function eagerlyResolveBrandedProviders(
     const token = Reflect.get(provider, 'provide');
     const useFactory = Reflect.get(provider, 'useFactory');
     if (token !== undefined && branded && typeof useFactory === 'function') {
+      if (stable) {
+        // Use the injector cache: sibling services must share this instance,
+        // and input reads must not turn into scope-recreation dependencies.
+        const value = injector.get(token);
+        if (isCraftException(value)) {
+          return { exception: value, overrides, trackers };
+        }
+        continue;
+      }
       // Resolve Craft providers through a computed so signals read by their
       // factories remain dependencies of the component render effect.
       const resolved = computed(() =>
@@ -709,7 +720,38 @@ function runResolvedAction(
     : resolved;
 }
 
+const resolvedTemplateGeneratorBindings = new WeakMap<object, unknown>();
+
+function resolveTemplateGenerator(
+  iterator: Generator<unknown, unknown, unknown>,
+  context: RenderContext,
+): unknown {
+  const key = iterator as object;
+  let resolved: unknown;
+  if (resolvedTemplateGeneratorBindings.has(key)) {
+    resolved = resolvedTemplateGeneratorBindings.get(key);
+  } else {
+    resolved = executeTemplateCallback(() => iterator, [], context);
+    resolvedTemplateGeneratorBindings.set(key, resolved);
+  }
+
+  return typeof resolved === 'function'
+    ? readResolvedBinding(
+        executeTemplateCallback(
+          resolved as (...args: any[]) => unknown,
+          [],
+          context,
+        ),
+        context,
+      )
+    : resolved;
+}
+
 function resolveTemplateValue(value: unknown, context: RenderContext): unknown {
+  if (isGenerator(value)) {
+    return resolveTemplateGenerator(value, context);
+  }
+
   return typeof value === 'function'
     ? readResolvedBinding(
         executeTemplateCallback(
@@ -740,7 +782,7 @@ function resolveTemplateContext(
   return Object.fromEntries(
     Object.entries(context).map(([key, value]) => [
       key,
-      typeof value === 'function'
+      typeof value === 'function' || isGenerator(value)
         ? resolveTemplateValue(value, renderContext)
         : value,
     ]),
@@ -1549,7 +1591,7 @@ function containsRenderBinding(
   value: unknown,
   seen = new Set<object>(),
 ): boolean {
-  if (typeof value === 'function') return true;
+  if (typeof value === 'function' || isGenerator(value)) return true;
   if (typeof value !== 'object' || value === null || seen.has(value)) {
     return false;
   }
@@ -1873,7 +1915,7 @@ class ElementRenderedNode implements RenderedNode {
       return;
     }
     const resolved =
-      typeof value === 'function'
+      typeof value === 'function' || isGenerator(value)
         ? untracked(() => resolveTemplateValue(value, this.context))
         : value;
     applyAttribute(
@@ -1932,7 +1974,7 @@ class ElementRenderedNode implements RenderedNode {
       }
     }
     for (const [key, value] of nextAttributes) {
-      if (typeof value === 'function') {
+      if (typeof value === 'function' || isGenerator(value)) {
         this.updateBinding(
           `attribute:${key}`,
           value,
@@ -1945,8 +1987,10 @@ class ElementRenderedNode implements RenderedNode {
       }
       if (
         typeof value !== 'function' &&
+        !isGenerator(value) &&
         (!Object.is(previousAttributes.get(key), value) ||
-          typeof previousAttributes.get(key) === 'function')
+          typeof previousAttributes.get(key) === 'function' ||
+          isGenerator(previousAttributes.get(key)))
       ) {
         applyAttribute(renderer, this.node, key, value, this.context);
       }
@@ -4012,6 +4056,9 @@ class ComponentRenderedNode implements RenderedNode {
   private componentFallbackException: AnyCraftException | undefined;
   private readonly styleReleases: (() => void)[];
   private providerTrackers: readonly (() => unknown)[] = [];
+  private readonly componentProviders:
+    | readonly CraftServiceProvider[]
+    | undefined;
   private readonly templateOnly: boolean;
   private readonly traceState: TemplateTraceState;
   private readonly componentRenderContext: RenderContext;
@@ -4236,6 +4283,10 @@ class ComponentRenderedNode implements RenderedNode {
         ];
 
     this.templateArgs = args;
+    const componentProviders = composition?.componentProviders;
+    this.componentProviders = componentProviders
+      ? untracked(() => componentProviders(args[0] as object))
+      : undefined;
     if (!composition) {
       this.registerRuntimeTargets(
         definition,
@@ -4263,13 +4314,13 @@ class ComponentRenderedNode implements RenderedNode {
             'component-render',
             composition
               ? (onCleanup: (cleanup: () => void) => void) => {
-                  // Composition providers and public inputs are the only
-                  // dependencies that should recreate the component scope.
-                  // Template signals (for example a query status) are tracked
-                  // by the dedicated template effect created by
-                  // refreshComposedComponent().
-                  this.propSources.forEach((source) => source());
-                  this.hostPropsSource();
+                  // Input-bound providers own a stable scope. Template and host
+                  // updates are tracked by the dedicated template effect below.
+                  // Preserve the reactive scope lifecycle of withProviders.
+                  if (!composition.componentProviders) {
+                    this.propSources.forEach((source) => source());
+                    this.hostPropsSource();
+                  }
                   untracked(() =>
                     this.refreshComposedComponent(
                       definition,
@@ -4367,7 +4418,7 @@ class ComponentRenderedNode implements RenderedNode {
         ...provideHostName(`component:${definition.name}`),
         provideCraftRenderIdentity(componentRenderContext.identity),
         ...(definition.meta.providers ?? []),
-        ...(composition.providers ?? []),
+        ...(this.componentProviders ?? composition.providers ?? []),
         {
           provide: ElementRef,
           useValue: new ElementRef(componentElement),
@@ -4441,8 +4492,10 @@ class ComponentRenderedNode implements RenderedNode {
     });
     try {
       const providerResolution = eagerlyResolveBrandedProviders(
-        composition.providers ?? [],
+        this.componentProviders ?? composition.providers ?? [],
         environmentInjector,
+        false,
+        this.componentProviders !== undefined,
       );
       this.providerTrackers = providerResolution.trackers;
       if (providerResolution.exception) {
@@ -5331,6 +5384,31 @@ function mountNode(
         created.context,
       );
     }
+    case 'service-shortcut-text': {
+      const resolved = executeTemplateCallback(
+        () => node.shortcut,
+        [],
+        context,
+      );
+      if (typeof resolved === 'function') {
+        const created = createTextForRender('', parent, before, context, false);
+        return new ReactiveTextRenderedNode(
+          created.text,
+          resolved as CraftTextBinding,
+          created.context,
+        );
+      }
+      const value =
+        resolved === null || resolved === undefined || resolved === false
+          ? ''
+          : String(resolved);
+      const created = createTextForRender(value, parent, before, context, true);
+      return new TextRenderedNode(
+        created.text,
+        value,
+        created.context.renderer,
+      );
+    }
     case 'element': {
       const created = createElementForRender(node.tag, parent, before, context);
       if (created.context.rootScope) {
@@ -5432,7 +5510,7 @@ class HostPropertyBindings {
       }
     }
     for (const [key, value] of nextAttributes) {
-      if (typeof value === 'function') {
+      if (typeof value === 'function' || isGenerator(value)) {
         this.updateBinding(
           `attribute:${key}`,
           value,
@@ -5444,7 +5522,8 @@ class HostPropertyBindings {
         this.destroyBinding(`attribute:${key}`);
         if (
           !Object.is(previousAttributes.get(key), value) ||
-          typeof previousAttributes.get(key) === 'function'
+          typeof previousAttributes.get(key) === 'function' ||
+          isGenerator(previousAttributes.get(key))
         ) {
           applyAttribute(renderer, this.host, key, value, this.context);
         }

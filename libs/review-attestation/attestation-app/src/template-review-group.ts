@@ -22,6 +22,7 @@ import {
   ul,
   type Input,
   type Output,
+  withComponentProviders,
 } from '@craft-ts/component';
 import { craftService, craftPrivate, craftComputed } from '@craft-ts/core';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
@@ -44,33 +45,38 @@ import { reviewBits, templateReviewGroup } from './review-card.style';
 export const { TemplateReviewGroupState, provideTemplateReviewGroupState } =
   craftService(
     { name: 'templateReviewGroupState', providedIn: 'toProvide' },
-    function* (inputs: {
-      group: Input<TemplateReviewGroup>;
-      selectedIds: Input<readonly string[]>;
-      note: Input<string>;
-      rejectionOpen: Input<boolean>;
-      busy: Input<boolean>;
-      agentAvailable: Input<boolean>;
-      agentBusy: Input<boolean>;
-      agentFailed: Input<boolean>;
-      agentResults: Input<NonNullable<ReviewApiQueue['templateAgentResults']>>;
-      groupIndex: Input<number>;
-      groupTotal: Input<number>;
-      toggleCard: Output<(id: string) => void>;
-      selectAll: Output<() => void>;
-      selectHuman: Output<() => void>;
-      clearSelection: Output<() => void>;
-      requestReject: Output<() => void>;
-      cancelReject: Output<() => void>;
-      submitReject: Output<() => void>;
-      accept: Output<() => void>;
-      delegate: Output<() => void>;
-      previousGroup: Output<() => void>;
-      nextGroup: Output<() => void>;
-      writeNote: Output<(value: string) => void>;
-      locale: Input<Locale>;
-      t: Input<Messages>;
+    function* (serviceInputs: {
+      readonly $provided: {
+        group: Input<TemplateReviewGroup>;
+        selectedIds: Input<readonly string[]>;
+        note: Input<string>;
+        rejectionOpen: Input<boolean>;
+        busy: Input<boolean>;
+        agentAvailable: Input<boolean>;
+        agentBusy: Input<boolean>;
+        agentFailed: Input<boolean>;
+        agentResults: Input<
+          NonNullable<ReviewApiQueue['templateAgentResults']>
+        >;
+        groupIndex: Input<number>;
+        groupTotal: Input<number>;
+        toggleCard: Output<(id: string) => void>;
+        selectAll: Output<() => void>;
+        selectHuman: Output<() => void>;
+        clearSelection: Output<() => void>;
+        requestReject: Output<() => void>;
+        cancelReject: Output<() => void>;
+        submitReject: Output<() => void>;
+        accept: Output<() => void>;
+        delegate: Output<() => void>;
+        previousGroup: Output<() => void>;
+        nextGroup: Output<() => void>;
+        writeNote: Output<(value: string) => void>;
+        locale: Input<Locale>;
+        t: Input<Messages>;
+      };
     }) {
+      const inputs = serviceInputs.$provided;
       const {
         group,
         selectedIds,
@@ -215,9 +221,7 @@ export const { TemplateReviewGroupState, provideTemplateReviewGroupState } =
 
 export const TemplateReviewGroupView = craftComponent(
   'TemplateReviewGroupView',
-  {
-    providers: [provideTemplateReviewGroupState()],
-  },
+  {},
   function* (inputs: {
     group: Input<TemplateReviewGroup>;
     selectedIds: Input<readonly string[]>;
@@ -273,7 +277,7 @@ export const TemplateReviewGroupView = craftComponent(
       actionDisabled,
       showActions,
       noAgent,
-    } = yield* TemplateReviewGroupState(inputs);
+    } = yield* TemplateReviewGroupState();
     return article({ class: templateReviewGroup.root, 'aria-busy': busy }, [
       header(
         {
@@ -575,4 +579,6 @@ export const TemplateReviewGroupView = craftComponent(
       ]),
     ]);
   },
+).pipe(
+  withComponentProviders((inputs) => [provideTemplateReviewGroupState(inputs)]),
 );

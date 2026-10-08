@@ -49,11 +49,10 @@ const { UserRequirement, provideUser } = craftService(
 
 // 2. A guard that resolves the user.
 const { Auth } = craftService({ name: 'Auth', providedIn: 'global' }, function* () {
-  const auth = yield* query('auth', {
+  yield* query('auth', {
     params: () => true,
     loader: async () => ({}) as User,
   });
-  return auth;
 });
 
 export const { demoRoutes } = craftRoutes('demo', [
@@ -61,8 +60,8 @@ export const { demoRoutes } = craftRoutes('demo', [
     componentDeps: {} as import('./query').GenDeps_GlobalQuery,
     loadComponent: ({ withRetry }) => withRetry(import('./query')),
     canActivate: function* () {
-      const user = yield* Auth();
-      const userValue = user.value();
+      const auth = yield* Auth.auth();
+      const userValue = auth.value();
       if (!userValue) {
         return false;
       }

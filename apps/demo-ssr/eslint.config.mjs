@@ -34,6 +34,10 @@ export default [
       'craft-ts': craftRules,
     },
     rules: {
+      'craft-ts/no-craft-use': 'error',
+      'craft-ts/prefer-direct-craft-service-exposure': 'error',
+      'craft-ts/require-craft-service-input-scope': 'error',
+      'craft-ts/require-direct-craft-component-template': 'error',
       'craft-ts/no-explicit-effect-type': 'error',
       'craft-ts/prefer-inline-effect-insertion': 'error',
       'craft-ts/no-explicit-craft-insertion-type': 'error',

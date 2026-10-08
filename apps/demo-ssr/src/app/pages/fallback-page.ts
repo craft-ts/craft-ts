@@ -40,9 +40,8 @@ export const { SsrFallbackPageView, provideSsrFallbackPageView } = craftService(
 export const FallbackPage = craftComponent(
   'SsrFallbackPage',
   { providers: [provideSsrFallbackPageView()] },
-  function* () {
-    const { resolved } = yield* SsrFallbackPageView();
-    return page(
+  () =>
+    page(
       'Route SSR : `fallback`',
       'Shell serveur, contenu différé',
       'Le serveur rend la structure et le pending block. La query est autorisée à démarrer côté serveur, mais la page peut répondre avec son fallback sans la bloquer.',
@@ -58,7 +57,7 @@ export const FallbackPage = craftComponent(
             'Le titre et cette carte sont dans la réponse initiale.',
           ),
           span({ class: pageStyle.pendingBox }, function* () {
-            const value = yield* resolved();
+            const value = yield* SsrFallbackPageView.resolved();
             return hasMessage(value) ? value.message : '';
           }),
         ]),
@@ -79,8 +78,7 @@ export const FallbackPage = craftComponent(
             ]),
         }),
       ),
-    );
-  },
+    ),
 );
 
 function hasMessage(value: unknown): value is { message: string } {

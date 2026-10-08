@@ -29,8 +29,7 @@ const { CounterHost } = craftService(
   function* () {
     const startAt = yield* craftPrivate(state('startAt', 5));
     const count = yield* Counter.count({ initialValue: startAt });
-    const defaultCount = yield* Counter.OmitInputs.count();
-    yield* craftExpose('count', count);
+    const defaultCount = yield* craftPrivate(Counter.OmitInputs.count());
     yield* craftExpose('defaultCount', defaultCount);
   },
 );

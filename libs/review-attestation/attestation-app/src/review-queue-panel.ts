@@ -15,6 +15,7 @@ import {
   strong,
   ul,
   type Input,
+  withComponentProviders,
   type Output,
 } from '@craft-ts/component';
 import type {
@@ -72,7 +73,8 @@ type Inputs = {
 export const { ReviewQueuePanelView, provideReviewQueuePanelView } =
   craftService(
     { name: 'reviewQueuePanelView', providedIn: 'toProvide' },
-    function* (inputs: Inputs) {
+    function* (serviceInputs: { readonly $provided: Inputs }) {
+      const inputs = serviceInputs.$provided;
       const {
         queueValue,
         regenerating,
@@ -185,9 +187,7 @@ export const { ReviewQueuePanelView, provideReviewQueuePanelView } =
 
 export const ReviewQueuePanel = craftComponent(
   'ReviewQueuePanel',
-  {
-    providers: [provideReviewQueuePanelView()],
-  },
+  {},
   function* (inputs: Inputs) {
     const {
       t,
@@ -219,7 +219,7 @@ export const ReviewQueuePanel = craftComponent(
       movePrevious,
       cards,
       moveNext,
-    } = yield* ReviewQueuePanelView(inputs);
+    } = yield* ReviewQueuePanelView();
     return aside(
       {
         class: shell.queuePanel,
@@ -514,4 +514,6 @@ export const ReviewQueuePanel = craftComponent(
       ],
     );
   },
+).pipe(
+  withComponentProviders((inputs) => [provideReviewQueuePanelView(inputs)]),
 );

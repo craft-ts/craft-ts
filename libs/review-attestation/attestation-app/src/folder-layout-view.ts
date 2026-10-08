@@ -10,6 +10,7 @@ import {
   span,
   strong,
   ul,
+  withComponentProviders,
   type Input,
 } from '@craft-ts/component';
 import {
@@ -85,13 +86,16 @@ const withoutSide = (ids: readonly string[], side: FolderLayoutSide) =>
 export const { FolderLayoutViewState, provideFolderLayoutViewState } =
   craftService(
     { name: 'folderLayoutViewState', providedIn: 'toProvide' },
-    function* (inputs: {
-      readonly entries: Input<readonly FolderLayoutEntry[]>;
-      readonly sourceGraphHash: Input<string>;
-      readonly configHash: Input<string>;
-      readonly moves: Input<number>;
-      readonly reviews: Input<number>;
+    function* (serviceInputs: {
+      readonly $provided: {
+        readonly entries: Input<readonly FolderLayoutEntry[]>;
+        readonly sourceGraphHash: Input<string>;
+        readonly configHash: Input<string>;
+        readonly moves: Input<number>;
+        readonly reviews: Input<number>;
+      };
     }) {
+      const inputs = serviceInputs.$provided;
       const { entries, moves, reviews } = inputs;
       const trees = yield* craftComputed('trees', function* () {
         return folderLayoutTrees(yield* entries());
@@ -205,9 +209,7 @@ export const { FolderLayoutViewState, provideFolderLayoutViewState } =
 
 export const FolderLayoutView = craftComponent(
   'FolderLayoutView',
-  {
-    providers: [provideFolderLayoutViewState()],
-  },
+  {},
   function* (inputs: {
     readonly entries: Input<readonly FolderLayoutEntry[]>;
     readonly sourceGraphHash: Input<string>;
@@ -226,7 +228,7 @@ export const FolderLayoutView = craftComponent(
       revealFolders,
       folderIds,
       proposedRows,
-    } = yield* FolderLayoutViewState(inputs);
+    } = yield* FolderLayoutViewState();
     return section({ class: folderLayout.view, 'data-folder-layout': 'view' }, [
       div({ class: folderLayout.summary }, [
         strong('Folder layout proposal'),
@@ -281,6 +283,8 @@ export const FolderLayoutView = craftComponent(
       }),
     ]);
   },
+).pipe(
+  withComponentProviders((inputs) => [provideFolderLayoutViewState(inputs)]),
 );
 
 interface TreeBindings {

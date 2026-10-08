@@ -1,5 +1,8 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { ESLint } from 'eslint';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { existsSync, realpathSync } from 'node:fs';
@@ -12,6 +15,7 @@ import {
 import type { CreateAgent } from './create-project';
 
 const temporaryDirectories: string[] = [];
+const require = createRequire(import.meta.url);
 
 afterEach(async () => {
   await Promise.all(
@@ -479,6 +483,42 @@ describe('createCraftProject', () => {
       await readFile(join(result.directory, 'GEMINI.md'), 'utf8'),
     ).toContain('CraftTS project');
   });
+
+  it.each(['plain', 'effect'] as const)(
+    'enables fixed component provider lists in a generated %s app',
+    async (mode) => {
+      const result = await createFixture(mode, []);
+      const config = await readFile(
+        join(result.directory, 'eslint.config.mjs'),
+        'utf8',
+      );
+      // Resolve the generated config against this checkout's packages, without
+      // installing another copy of the starter dependencies in the fixture.
+      const localConfig = config.replace(
+        /from '([^']+)'/g,
+        (_match, specifier: string) => {
+          const resolved = require.resolve(
+            specifier === '@craft-ts/dev-tools/eslint-rules'
+              ? '../../eslint-rules/index.cjs'
+              : specifier,
+          );
+          return `from '${pathToFileURL(resolved).href}'`;
+        },
+      );
+      const configPath = join(result.directory, 'eslint.local.config.mjs');
+      await writeFile(configPath, localConfig);
+      const eslint = new ESLint({
+        cwd: result.directory,
+        overrideConfigFile: configPath,
+      });
+      const effective = await eslint.calculateConfigForFile(
+        join(result.directory, 'src/app/home-page.ts'),
+      );
+      expect(
+        effective.rules['craft-ts/require-fixed-component-provider-list'],
+      ).toEqual([2]);
+    },
+  );
 
   it('ships a design system the build plugin can actually emit', async () => {
     const result = await createFixture('plain', ['codex']);

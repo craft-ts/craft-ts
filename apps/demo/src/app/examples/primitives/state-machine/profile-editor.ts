@@ -31,7 +31,6 @@ import {
   transitionStep,
   withBackNavigation,
   withStateMachineHistory,
-  craftUse,
   craftExpose,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
@@ -105,11 +104,16 @@ export const {
               update: ({ mutationParams }) => mutationParams,
               reload: { onMutationException: true },
             }),
-            ({ resource }) => ({
-              profileSource: craftUse(craftComputed('profileSource', function* () {
-                return (yield* resource.value()) ?? INITIAL_PROFILE;
-              })),
-            }),
+            function* ({ resource }) {
+              return {
+                profileSource: yield* craftComputed(
+                  'profileSource',
+                  function* () {
+                    return (yield* resource.value()) ?? INITIAL_PROFILE;
+                  },
+                ),
+              };
+            },
           ),
         );
 
@@ -120,18 +124,21 @@ export const {
             ({ set }) => ({
               restoreFromCancel: on$(restore$, (profile) => set(profile)),
             }),
-            ({ update, state: current }) => ({
-              setName: (name: string) =>
-                update((profile) => ({ ...profile, name })),
-              setEmail: (email: string) =>
-                update((profile) => ({ ...profile, email })),
-              isValid: craftUse(craftComputed('isValid', function* () {
-                const profile = yield* current();
-                return (
-                  profile.name.trim().length > 0 && profile.email.includes('@')
-                );
-              })),
-            }),
+            function* ({ update, state: current }) {
+              return {
+                setName: (name: string) =>
+                  update((profile) => ({ ...profile, name })),
+                setEmail: (email: string) =>
+                  update((profile) => ({ ...profile, email })),
+                isValid: yield* craftComputed('isValid', function* () {
+                  const profile = yield* current();
+                  return (
+                    profile.name.trim().length > 0 &&
+                    profile.email.includes('@')
+                  );
+                }),
+              };
+            },
           ),
         );
 
@@ -216,61 +223,62 @@ export const {
           },
           withBackNavigation(),
         ),
-        ({ context, currentStep, currentStepWithContext, insertions }) => {
-          const stepState = (step: string) =>
-            craftUse(craftComputed('computed', `${step}Step`, function* () {
+        function* ({ context, currentStep, currentStepWithContext, insertions }) {
+          function* stepState(step: string) {
+            return yield* craftComputed('computed', `${step}Step`, function* () {
               return (yield* currentStep()) === step ? 'active' : null;
-            }));
+            });
+          }
 
           return {
-            profileLabel: craftUse(craftComputed('profileLabel', function* () {
+            profileLabel: yield* craftComputed('profileLabel', function* () {
               const profile =
                 (yield* context.saveProfile.value()) ??
                 (yield* context.profileQuery.value()) ??
                 INITIAL_PROFILE;
               return `${profile.name} <${profile.email}>`;
-            })),
+            }),
             profileIsLoading: context.profileQuery.isLoading,
-            draftName: craftUse(craftComputed('draftName', function* () {
+            draftName: yield* craftComputed('draftName', function* () {
               return (yield* context.draft()).name;
-            })),
-            draftEmail: craftUse(craftComputed('draftEmail', function* () {
+            }),
+            draftEmail: yield* craftComputed('draftEmail', function* () {
               return (yield* context.draft()).email;
-            })),
-            readingStep: stepState('reading'),
-            editingStep: stepState('editing'),
-            savingStep: stepState('saving'),
-            isReading: craftUse(craftComputed('isReading', function* () {
+            }),
+            readingStep: yield* stepState('reading'),
+            editingStep: yield* stepState('editing'),
+            savingStep: yield* stepState('saving'),
+            isReading: yield* craftComputed('isReading', function* () {
               return (yield* currentStepWithContext()).step === 'reading';
-            })),
-            isEditing: craftUse(craftComputed('isEditing', function* () {
+            }),
+            isEditing: yield* craftComputed('isEditing', function* () {
               return (yield* currentStepWithContext()).step === 'editing';
-            })),
-            stepHint: craftUse(craftComputed('stepHint', function* () {
+            }),
+            stepHint: yield* craftComputed('stepHint', function* () {
               const current = yield* currentStepWithContext();
               return current.step === 'saving'
                 ? ''
                 : 'hint' in current && typeof current.hint === 'string'
                   ? current.hint
                   : '';
-            })),
-            submitBlocked: craftUse(craftComputed('submitBlocked', function* () {
+            }),
+            submitBlocked: yield* craftComputed('submitBlocked', function* () {
               return (
                 !(yield* context.draft.isValid()) ||
                 (yield* permissions.readOnly())
               );
-            })),
-            historyLabel: craftUse(craftComputed('historyLabel', function* () {
+            }),
+            historyLabel: yield* craftComputed('historyLabel', function* () {
               const entries = yield* insertions.history();
               const cursor = yield* insertions.historyCursor();
               return `step ${cursor + 1} of ${entries.length}`;
-            })),
-            backDisabled: craftUse(craftComputed('backDisabled', function* () {
+            }),
+            backDisabled: yield* craftComputed('backDisabled', function* () {
               return !(yield* insertions.canGoBack());
-            })),
-            forwardDisabled: craftUse(craftComputed('forwardDisabled', function* () {
+            }),
+            forwardDisabled: yield* craftComputed('forwardDisabled', function* () {
               return !(yield* insertions.canGoForward());
-            })),
+            }),
             requestEdit: () => context.edit$.emit(),
             requestCancel: function* () {
               const persisted =
@@ -311,172 +319,169 @@ const ProfileEditorStateMachine = craftComponent(
   {
     providers: [provideProfileEditorStateMachineView()],
   },
-  function* () {
-    const { machine, permissions } = yield* ProfileEditorStateMachineView();
-    return section({ class: example.card }, [
-      heading({ class: example.title }, 'State machine — profile editor'),
-      p(
-        { class: example.text, 'data-exampleText': 'muted' },
-        'reading → editing → saving → reading. Every move goes through transit(), while the save is driven by reactive sources.',
-      ),
-
-      div({ class: editor.steps }, [
-        span(
-          { class: editor.step, 'data-editorStep': machine.readingStep },
-          'reading',
+  () => section({ class: example.card }, [
+        heading({ class: example.title }, 'State machine — profile editor'),
+        p(
+          { class: example.text, 'data-exampleText': 'muted' },
+          'reading → editing → saving → reading. Every move goes through transit(), while the save is driven by reactive sources.',
         ),
-        span(
-          { class: editor.step, 'data-editorStep': machine.editingStep },
-          'editing',
-        ),
-        span(
-          { class: editor.step, 'data-editorStep': machine.savingStep },
-          'saving',
-        ),
-      ]),
 
-      p({ class: editor.hint }, machine.stepHint),
-
-      ifNode(
-        machine.isReading,
-        () =>
-          ifNode(
-            machine.profileIsLoading,
-            () =>
-              div({ class: editor.loadingPanel }, [
-                span({ class: example.spinner, 'aria-hidden': 'true' }),
-                p('Loading profile…'),
-              ]),
-            () =>
-              div({ class: editor.panel }, [
-                p(['Saved profile: ', machine.profileLabel]),
-                div({ class: example.row }, [
-                  button(
-                    'edit',
-                    {
-                      class: example.button,
-                      'data-exampleButton': 'primary',
-                      type: 'button',
-                      click: machine.requestEdit,
-                    },
-                    'Edit',
-                  ),
-                ]),
-              ]),
+        div({ class: editor.steps }, [
+          span(
+            { class: editor.step, 'data-editorStep': ProfileEditorStateMachineView.machine.readingStep },
+            'reading',
           ),
-        () =>
-          ifNode(
-            machine.isEditing,
-            () =>
-              div({ class: editor.panel }, [
-                div({ class: editor.field }, [
-                  label(
-                    'profile-name-label',
-                    { class: editor.label, for: 'profile-name' },
-                    'Name',
-                  ),
-                  input('profile-name', {
-                    class: example.input,
-                    'data-exampleField': 'wide',
-                    id: 'profile-name',
-                    type: 'text',
-                    value: machine.draftName,
-                    *input(event) {
-                      yield* machine.setName(eventValue(event));
-                    },
-                  }),
-                ]),
-                div({ class: editor.field }, [
-                  label(
-                    'profile-email-label',
-                    { class: editor.label, for: 'profile-email' },
-                    'Email',
-                  ),
-                  input('profile-email', {
-                    class: example.input,
-                    'data-exampleField': 'wide',
-                    id: 'profile-email',
-                    type: 'email',
-                    value: machine.draftEmail,
-                    *input(event) {
-                      yield* machine.setEmail(eventValue(event));
-                    },
-                  }),
-                ]),
-                ifNode(machine.submitBlocked, () =>
-                  p(
-                    { class: example.text, 'data-exampleText': 'error' },
-                    'Save is blocked: the draft is invalid, or the profile is read-only.',
-                  ),
-                ),
-                div({ class: example.row }, [
-                  button(
-                    'save',
-                    {
-                      class: example.button,
-                      'data-exampleButton': 'primary',
-                      type: 'button',
-                      click: machine.requestSubmit,
-                    },
-                    'Save',
-                  ),
-                  button(
-                    'cancel',
-                    {
-                      type: 'button',
-                      class: example.button,
-                      click: machine.requestCancel,
-                    },
-                    'Cancel',
-                  ),
-                ]),
-              ]),
-            () => div({ class: editor.panel }, [p('Saving…')]),
+          span(
+            { class: editor.step, 'data-editorStep': ProfileEditorStateMachineView.machine.editingStep },
+            'editing',
           ),
-      ),
+          span(
+            { class: editor.step, 'data-editorStep': ProfileEditorStateMachineView.machine.savingStep },
+            'saving',
+          ),
+        ]),
 
-      div({ class: editor.toolbar }, [
-        button(
-          'history-back',
-          {
-            type: 'button',
-            class: example.button,
-            disabled: machine.backDisabled,
-            click: machine.back,
-          },
-          '← Back',
-        ),
-        button(
-          'history-forward',
-          {
-            type: 'button',
-            class: example.button,
-            disabled: machine.forwardDisabled,
-            click: machine.forward,
-          },
-          'Forward →',
-        ),
-        span(machine.historyLabel),
-      ]),
+        p({ class: editor.hint }, ProfileEditorStateMachineView.machine.stepHint),
 
-      div({ class: editor.toolbar }, [
-        button(
-          'toggle-read-only',
-          {
-            type: 'button',
-            class: example.button,
-            click: permissions.readOnly.toggle,
-          },
-          'Toggle read-only',
-        ),
         ifNode(
-          permissions.readOnly,
-          () => span('read-only: on — saving is blocked'),
-          () => span('read-only: off'),
+          ProfileEditorStateMachineView.machine.isReading,
+          () =>
+            ifNode(
+              ProfileEditorStateMachineView.machine.profileIsLoading,
+              () =>
+                div({ class: editor.loadingPanel }, [
+                  span({ class: example.spinner, 'aria-hidden': 'true' }),
+                  p('Loading profile…'),
+                ]),
+              () =>
+                div({ class: editor.panel }, [
+                  p(['Saved profile: ', ProfileEditorStateMachineView.machine.profileLabel]),
+                  div({ class: example.row }, [
+                    button(
+                      'edit',
+                      {
+                        class: example.button,
+                        'data-exampleButton': 'primary',
+                        type: 'button',
+                        click: ProfileEditorStateMachineView.machine.requestEdit,
+                      },
+                      'Edit',
+                    ),
+                  ]),
+                ]),
+            ),
+          () =>
+            ifNode(
+              ProfileEditorStateMachineView.machine.isEditing,
+              () =>
+                div({ class: editor.panel }, [
+                  div({ class: editor.field }, [
+                    label(
+                      'profile-name-label',
+                      { class: editor.label, for: 'profile-name' },
+                      'Name',
+                    ),
+                    input('profile-name', {
+                      class: example.input,
+                      'data-exampleField': 'wide',
+                      id: 'profile-name',
+                      type: 'text',
+                      value: ProfileEditorStateMachineView.machine.draftName,
+                      *input(event) {
+                        yield* ProfileEditorStateMachineView.machine.setName(eventValue(event));
+                      },
+                    }),
+                  ]),
+                  div({ class: editor.field }, [
+                    label(
+                      'profile-email-label',
+                      { class: editor.label, for: 'profile-email' },
+                      'Email',
+                    ),
+                    input('profile-email', {
+                      class: example.input,
+                      'data-exampleField': 'wide',
+                      id: 'profile-email',
+                      type: 'email',
+                      value: ProfileEditorStateMachineView.machine.draftEmail,
+                      *input(event) {
+                        yield* ProfileEditorStateMachineView.machine.setEmail(eventValue(event));
+                      },
+                    }),
+                  ]),
+                  ifNode(ProfileEditorStateMachineView.machine.submitBlocked, () =>
+                    p(
+                      { class: example.text, 'data-exampleText': 'error' },
+                      'Save is blocked: the draft is invalid, or the profile is read-only.',
+                    ),
+                  ),
+                  div({ class: example.row }, [
+                    button(
+                      'save',
+                      {
+                        class: example.button,
+                        'data-exampleButton': 'primary',
+                        type: 'button',
+                        click: ProfileEditorStateMachineView.machine.requestSubmit,
+                      },
+                      'Save',
+                    ),
+                    button(
+                      'cancel',
+                      {
+                        type: 'button',
+                        class: example.button,
+                        click: ProfileEditorStateMachineView.machine.requestCancel,
+                      },
+                      'Cancel',
+                    ),
+                  ]),
+                ]),
+              () => div({ class: editor.panel }, [p('Saving…')]),
+            ),
         ),
+
+        div({ class: editor.toolbar }, [
+          button(
+            'history-back',
+            {
+              type: 'button',
+              class: example.button,
+              disabled: ProfileEditorStateMachineView.machine.backDisabled,
+              click: ProfileEditorStateMachineView.machine.back,
+            },
+            '← Back',
+          ),
+          button(
+            'history-forward',
+            {
+              type: 'button',
+              class: example.button,
+              disabled: ProfileEditorStateMachineView.machine.forwardDisabled,
+              click: ProfileEditorStateMachineView.machine.forward,
+            },
+            'Forward →',
+          ),
+          span(ProfileEditorStateMachineView.machine.historyLabel),
+        ]),
+
+        div({ class: editor.toolbar }, [
+          button(
+            'toggle-read-only',
+            {
+              type: 'button',
+              class: example.button,
+              click: ProfileEditorStateMachineView.permissions.readOnly.toggle,
+            },
+            'Toggle read-only',
+          ),
+          ifNode(
+            ProfileEditorStateMachineView.permissions.readOnly,
+            () => span('read-only: on — saving is blocked'),
+            () => span('read-only: off'),
+          ),
+        ]),
       ]),
-    ]);
-  },
 );
 
 export default ProfileEditorStateMachine;

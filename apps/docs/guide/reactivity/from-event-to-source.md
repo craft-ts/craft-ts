@@ -112,18 +112,18 @@ on the event handle:
 const { Click } = craftService(
   { name: 'Click', providedIn: 'global' },
   function* () {
-    const click = yield* fromEventToSource$(button, 'click');
-    return click;
+    yield* fromEventToSource$(button, 'click');
   },
 );
 
 const counter = yield* state('counter', 0, ({ set }) => ({
-  click: on$(Click, () => set(1)),
+  click: on$(Click.click, () => set(1)),
 }));
 ```
 
-`on$(Click, ...)` tracks `Click`. Calling `dispose()` only removes the DOM
-listener and does not alter dependency metadata.
+The service exposes the event source as `Click.click`. `on$(Click.click, ...)`
+tracks that source. Calling `dispose()` only removes the DOM listener and does
+not alter dependency metadata.
 
 ### Automatic Cleanup
 

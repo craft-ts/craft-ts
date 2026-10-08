@@ -22,10 +22,27 @@ Use this skill when a task touches dependency injection, service architecture, o
    - Classify each dependency as authored business logic, external Angular/framework token, or third-party adapter.
 
 2. Choose the right primitive:
-   - Business/domain logic -> `craftService({ name, scope }, function* () { ... })`.
+   - State or context owned by a component, feature, or route ->
+     `craftService({ name, providedIn: 'toProvide' }, function* () { ... })`.
+     Mount `provideX()` at that owner; use `withComponentProviders` when the
+     configuration comes from component inputs. Consumers resolve `X()` without
+     repeating those inputs.
+   - Reusable logic composed by other services, where each invocation should
+     have its own inputs and service context ->
+     `craftService({ name, providedIn: 'function' }, function* (inputs) { ... })`.
+     Each `X(inputs)` call creates a new context; it is not a cached component
+     store. All values are ordinary call-site inputs; function services have
+     no provider and cannot declare `$provided`.
+   - App-wide singleton -> `providedIn: 'global'`, with no factory inputs.
+   - A contract chosen by the mounting site -> `providedIn: 'abstract'`.
    - Existing Angular/third-party token -> `toCraftService({ name, scope, token })`.
    - Existing token requiring `inject(...)` internally -> `toCraftService({ name, scope: 'global', inject: () => inject(TOKEN) })`.
-   - Dependencies that must be provided per feature/route/test -> `scope: 'toProvide'` or `scope: 'manuallyProvidedAtRoot'`.
+   - Explicit root configuration, including a configured dependency of a
+     global service -> `providedIn: 'manuallyProvidedAtRoot'`.
+
+   Factory inputs follow the scope: `global` has none; `toProvide` and
+   `manuallyProvidedAtRoot` accept only `$provided`; `function` accepts only
+   call-site inputs; `abstract` has no concrete factory.
 
 3. Preserve the public interface deliberately:
    - Expose the smallest useful surface from adapters.
@@ -39,6 +56,8 @@ Use this skill when a task touches dependency injection, service architecture, o
 
 5. Update DI registration:
    - Add `provideX(...)` where the selected scope requires it.
+   - For component-owned inputs, use `withComponentProviders` to pass them once
+     into a `toProvide` service.
    - Keep route-level providers close to the route that owns the instance.
    - Re-export cumulative route provider names only when child route files need them.
 

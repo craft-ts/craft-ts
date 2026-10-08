@@ -66,7 +66,7 @@ type SatisfyDependencies<Deps, SatisfiedNames extends string> = {
   [K in keyof Deps as K extends SatisfiedNames ? never : K]: Deps[K];
 };
 
-type TrackedCraftMethod<
+export type TrackedCraftMethod<
   Callable,
   Yielded,
   Config = never,

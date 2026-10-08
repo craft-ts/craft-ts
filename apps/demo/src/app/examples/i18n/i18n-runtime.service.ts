@@ -26,7 +26,6 @@ export const { I18n } = craftService(
 
     const translate = runtime.bind(language);
 
-    yield* craftExpose('setLocale', language.setLocale);
     yield* craftExpose('translate', translate);
   },
 );

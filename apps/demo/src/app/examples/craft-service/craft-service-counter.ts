@@ -1,10 +1,4 @@
-import {
-  button,
-  craftComponent,
-  div,
-  p,
-  heading,
-} from '@craft-ts/component';
+import { button, craftComponent, div, p, heading } from '@craft-ts/component';
 import { craftService, state, craftExpose } from '@craft-ts/core';
 import { example } from '../shared/example.style';
 
@@ -32,18 +26,43 @@ const CraftServiceCounterComponent = craftComponent(
   {
     providers: [provideCraftServiceCounterView(), provideCounter()],
   },
-  function* () {
-    const { counter } = yield* CraftServiceCounterView();
-    return div({ class: example.centered }, [
-      heading({ class: example.title }, 'craftService Counter (toProvide scope)'),
-      p({ class: example.bigValue }, counter),
+  () =>
+    div({ class: example.centered }, [
+      heading(
+        { class: example.title },
+        'craftService Counter (toProvide scope)',
+      ),
+      p({ class: example.bigValue }, CraftServiceCounterView.counter),
       div({ class: example.row }, [
-        button('decrement', { class: example.button, type: 'button', click: counter.decrement }, '-'),
-        button('reset', { class: example.button, type: 'button', click: counter.reset }, 'Reset'),
-        button('increment', { class: example.button, type: 'button', click: counter.increment }, '+'),
+        button(
+          'decrement',
+          {
+            class: example.button,
+            type: 'button',
+            click: CraftServiceCounterView.counter.decrement,
+          },
+          '-',
+        ),
+        button(
+          'reset',
+          {
+            class: example.button,
+            type: 'button',
+            click: CraftServiceCounterView.counter.reset,
+          },
+          'Reset',
+        ),
+        button(
+          'increment',
+          {
+            class: example.button,
+            type: 'button',
+            click: CraftServiceCounterView.counter.increment,
+          },
+          '+',
+        ),
       ]),
-    ]);
-  },
+    ]),
 );
 
 export default CraftServiceCounterComponent;

@@ -19,9 +19,8 @@ import {
   craftSleep,
   mutation,
   settled,
-  craftUse,
 } from '@craft-ts/core';
-import { componentUi, pendingDemo } from './component-demos.style';
+import { pendingDemo } from './component-demos.style';
 
 const pendingStatusMessage = (
   className: typeof pendingDemo.skeleton,
@@ -70,12 +69,14 @@ export const {
           return { reference: params.reference, amount: 4200 };
         }),
       },
-      ({ resource }) => ({
-        summary: craftUse(craftComputed('summary', function* () {
-          const invoice = yield* settled(resource);
-          return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
-        })),
-      }),
+      function* ({ resource }) {
+        return {
+          summary: yield* craftComputed('summary', function* () {
+            const invoice = yield* settled(resource);
+            return `${invoice.reference} — ${(invoice.amount / 100).toFixed(2)} €`;
+          }),
+        };
+      },
     );
 
   },
@@ -85,82 +86,78 @@ export const pendingNodeExceptionDemo = craftComponent(
   'pendingNodeExceptionDemo',
   {
     providers: [providePendingNodeExceptionDemoView()],
-    host: { class: componentUi.host },
   },
-  function* () {
-    const { issue } = yield* PendingNodeExceptionDemoView();
-    return section({ class: pendingDemo.page }, [
-      heading('settledValue — the failing path'),
-      p(
-        'The same read suspends to the pendingNode, then fails to the catchNode.',
-      ),
-      div({ class: pendingDemo.actions }, [
-        button(
-          'issueSuccess',
-          {
-            type: 'button',
-            class: pendingDemo.actionButton,
-            *click() {
-              yield* issue.mutate({
-                reference: 'INV-2026-014',
-                reject: false,
-              });
-            },
-          },
-          'Issue (success)',
+  () => section({ class: pendingDemo.page }, [
+        heading('settledValue — the failing path'),
+        p(
+          'The same read suspends to the pendingNode, then fails to the catchNode.',
         ),
-        button(
-          'issueRejected',
-          {
-            type: 'button',
-            class: pendingDemo.actionButton,
-            *click() {
-              yield* issue.mutate({
-                reference: 'INV-2026-015',
-                reject: true,
-              });
+        div({ class: pendingDemo.actions }, [
+          button(
+            'issueSuccess',
+            {
+              type: 'button',
+              class: pendingDemo.actionButton,
+              *click() {
+                yield* PendingNodeExceptionDemoView.issue.mutate({
+                  reference: 'INV-2026-014',
+                  reject: false,
+                });
+              },
             },
-          },
-          'Issue (rejected)',
-        ),
-      ]),
-      div([
-        ul({ class: pendingDemo.list }, [
-          li(['Invoice: ', strong(issue.summary)]),
+            'Issue (success)',
+          ),
+          button(
+            'issueRejected',
+            {
+              type: 'button',
+              class: pendingDemo.actionButton,
+              *click() {
+                yield* PendingNodeExceptionDemoView.issue.mutate({
+                  reference: 'INV-2026-015',
+                  reject: true,
+                });
+              },
+            },
+            'Issue (rejected)',
+          ),
         ]),
-      ])
-        .pipe(
-          pendingNode({
-            fallback: () =>
-              pendingStatusMessage(
-                pendingDemo.skeleton,
-                'Waiting for an invoice…',
-              ),
-            reloading: () =>
-              pendingStatusMessage(
-                pendingDemo.reloading,
-                'Re-issuing…',
-              ),
-          }),
-        )
-        .pipe(
-          // The mutation exposes this code at runtime, while its current
-          // settled-value type only carries the pending source.
-          catchNode.exhaustive({
-            // A catchNode handler receives the exception as `AnyCraftException`:
-            // its `code` is known, its payload is not. Reach for `matchNode`
-            // when the fallback needs the payload itself.
-            // `showSource: false` replaces the row instead of appending to it —
-            // the summary line has nothing to show once the source failed.
-            INVOICE_REJECTED: () =>
-              p(
-                { class: pendingDemo.error },
-                'Invoice rejected (INVOICE_REJECTED)',
-              ),
-          }),
-        ),
-    ]);
-  },
+        div([
+          ul({ class: pendingDemo.list }, [
+            li(['Invoice: ', strong(PendingNodeExceptionDemoView.issue.summary)]),
+          ]),
+        ])
+          .pipe(
+            pendingNode({
+              fallback: () =>
+                pendingStatusMessage(
+                  pendingDemo.skeleton,
+                  'Waiting for an invoice…',
+                ),
+              reloading: () =>
+                pendingStatusMessage(
+                  pendingDemo.reloading,
+                  'Re-issuing…',
+                ),
+            }),
+          )
+          .pipe(
+            // The mutation exposes this code at runtime, while its current
+            // settled-value type only carries the pending source.
+            catchNode.exhaustive({
+              // A catchNode handler receives the exception as `AnyCraftException`:
+              // its `code` is known, its payload is not. Reach for `matchNode`
+              // when the fallback needs the payload itself.
+              // `showSource: false` replaces the row instead of appending to it —
+              // the summary line has nothing to show once the source failed.
+              INVOICE_REJECTED: () =>
+                p(
+                  { class: pendingDemo.error },
+                  'Invoice rejected (INVOICE_REJECTED)',
+                ),
+            }),
+          ),
+      ]),
 );
 
 export default pendingNodeExceptionDemo;

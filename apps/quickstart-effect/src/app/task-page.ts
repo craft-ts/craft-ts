@@ -7,7 +7,7 @@ import {
   p,
   span,
 } from '@craft-ts/component';
-import { craftService, craftComputed, craftUse } from '@craft-ts/core';
+import { craftService, craftComputed } from '@craft-ts/core';
 import { queryEffect } from '@craft-ts/effect';
 import { loadTask } from './task-domain';
 import { taskPage } from './foundation.style';
@@ -21,23 +21,24 @@ export const { QuickstartTaskPageView, provideQuickstartTaskPageView } = craftSe
         method: (taskId: string) => taskId,
         loader: ({ params }) => loadTask(params),
       },
-      ({ resource, exceptions }) => ({
-        hasTask: craftUse(craftComputed('hasTask', () => resource.hasValue())),
-        hasTaskException: craftUse(craftComputed('hasTaskException', function* () {
-          return Boolean((yield* exceptions()).loader);
-        })),
-        title: craftUse(craftComputed('title', function* () {
-          return (yield* resource.value())?.title ?? 'Loading…';
-        })),
-        exception: craftUse(craftComputed('exception', function* () {
-          return (yield* exceptions()).loader;
-        })),
-        exceptionTag: craftUse(craftComputed('exceptionTag', function* () {
-          return (yield* exceptions()).loader?._tag ?? 'Unknown';
-        })),
-      }),
     );
 
+    yield* craftComputed('hasTask', () => taskQuery.resource.hasValue());
+    yield* craftComputed('hasTaskException', function* () {
+      return Boolean((yield* taskQuery.exceptions()).loader);
+    });
+    yield* craftComputed('title', function* () {
+      return (yield* taskQuery.resource.value())?.title ?? 'Loading…';
+    });
+    yield* craftComputed('exception', function* () {
+      return (yield* taskQuery.exceptions()).loader;
+    });
+    yield* craftComputed('exceptionTag', function* () {
+      return (yield* taskQuery.exceptions()).loader?._tag ?? 'Unknown';
+    });
+    yield* craftComputed('taskStatus', function* () {
+      return yield* taskQuery.status();
+    });
     yield* taskQuery.call('task-1');
   },
 );
@@ -45,39 +46,44 @@ export const { QuickstartTaskPageView, provideQuickstartTaskPageView } = craftSe
 const QuickstartTaskPage = craftComponent(
   'QuickstartTaskPage',
   { providers: [provideQuickstartTaskPageView()] },
-  function* () {
-    const { taskQuery } = yield* QuickstartTaskPageView();
-    return [
-      div([
-        heading(function* () {
-          return `EffectTS + CraftTS (${yield* taskQuery.status()})`;
-        }),
-        p('One Effect domain operation, one Layer, one Craft query.'),
-        ifNode(taskQuery.isLoading, () => p('Loading task…')),
-        ifNode(taskQuery.hasTask, () =>
-          p(function* () {
-            return `Task: ${yield* taskQuery.title()}`;
-          }),
-        ),
-        ifNode(taskQuery.hasTaskException, () =>
+  () =>
+    div([
+      heading([
+        'EffectTS + CraftTS (',
+        QuickstartTaskPageView.taskStatus,
+        ')',
+      ]),
+      p('One Effect domain operation, one Layer, one Craft query.'),
+      ifNode(
+        'quickstart-loading',
+        QuickstartTaskPageView.taskQuery.isLoading,
+        () => p('Loading task…'),
+      ),
+      ifNode(
+        'quickstart-has-task',
+        QuickstartTaskPageView.hasTask,
+        () => p(`Task: ${QuickstartTaskPageView.title}`),
+      ),
+      ifNode(
+        'quickstart-task-exception',
+        QuickstartTaskPageView.hasTaskException,
+        () =>
           p([
             'Business error: ',
-            span({ class: taskPage.error }, taskQuery.exceptionTag),
+            span({ class: taskPage.error }, QuickstartTaskPageView.exceptionTag),
           ]),
-        ),
-        button(
-          'reloadTask',
-          {
-            type: 'button',
-            *click() {
-              yield* taskQuery.call('task-1');
-            },
+      ),
+      button(
+        'reloadTask',
+        {
+          type: 'button',
+          *click() {
+            yield* QuickstartTaskPageView.taskQuery.call(undefined, 'task-1');
           },
-          'Reload task',
-        ),
-      ]),
-    ];
-  },
+        },
+        'Reload task',
+      ),
+    ]),
 );
 
 export default QuickstartTaskPage;

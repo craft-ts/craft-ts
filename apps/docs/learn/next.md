@@ -41,7 +41,7 @@ npx nx architecture demo
 
 ## When your app grows
 
-- [Service scopes](/guide/app/service-scopes) — when `function` stops being enough
+- [Service scopes](/guide/app/service-scopes) — choosing component, per-call, and app-wide lifetimes
 - [Scaling routes](/guide/routing/scaling) — splitting collections before
   TypeScript's instantiation ceiling bites
 - [Lazy services](/guide/app/lazy-services) and [App start](/guide/app/app-start)

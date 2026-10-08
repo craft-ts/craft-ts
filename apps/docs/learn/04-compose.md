@@ -4,6 +4,10 @@
 
 This is the step that makes everything else obvious. Take your time here.
 
+This example gives `TaskList` a fresh context inside each `TaskStats` call. For
+state owned by a component or route, use `toProvide` as in [step 3](/learn/03-service)
+so repeated reads resolve the same configured instance.
+
 ## The problem `yield*` solves
 
 Dependencies are easy to hide when a service reaches into a runtime container.

@@ -44,9 +44,8 @@ export const { SsrClientOnlyPageView, provideSsrClientOnlyPageView } = craftServ
 export const ClientOnlyPage = craftComponent(
   'SsrClientOnlyPage',
   { providers: [provideSsrClientOnlyPageView()] },
-  function* () {
-    const { resolved } = yield* SsrClientOnlyPageView();
-    return page(
+  () =>
+    page(
       'Route SSR : `client`',
       'Contenu réservé au navigateur',
       'La source ne démarre pas pendant renderCraft. Le navigateur la lance après hydrateCraft, ce qui permet d’utiliser viewport et localStorage sans bloquer le SSR.',
@@ -58,7 +57,7 @@ export const ClientOnlyPage = craftComponent(
           ),
           h2({ class: pageStyle.cardTitle }, 'Donnée navigateur'),
           div({ class: pageStyle.pendingBox }, function* () {
-            const value = yield* resolved();
+            const value = yield* (yield* SsrClientOnlyPageView.resolved())();
             return `${value.width}px · ${value.visits} visite(s)`;
           }),
         ]),
@@ -82,6 +81,5 @@ export const ClientOnlyPage = craftComponent(
             ]),
         }),
       ),
-    );
-  },
+    ),
 );

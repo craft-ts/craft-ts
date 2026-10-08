@@ -207,7 +207,6 @@ describe('primitive list with pagination template', () => {
         register: {
           ApiService: 'notReached',
           StoragePersister: 'notReached',
-          statusView: 'notReached',
           listWithPaginationView: result.context,
         },
       },
@@ -237,7 +236,6 @@ describe('primitive list with pagination template', () => {
         register: {
           ApiService: 'notReached',
           StoragePersister: 'notReached',
-          statusView: 'notReached',
           listWithPaginationView: result.context,
         },
       },
@@ -267,7 +265,6 @@ describe('primitive list with pagination template', () => {
         register: {
           ApiService: 'notReached',
           StoragePersister: 'notReached',
-          statusView: 'notReached',
           listWithPaginationView: result.context,
         },
       },

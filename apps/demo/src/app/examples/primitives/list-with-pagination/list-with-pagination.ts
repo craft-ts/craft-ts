@@ -24,7 +24,6 @@ import {
   query,
   queryParams,
   craftComputed,
-  craftUse,
 } from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 import { StatusComponent } from '../../../ui/status.component';
@@ -71,14 +70,16 @@ export const { ListWithPaginationView, provideListWithPaginationView } =
           ),
           insertPaginationPlaceholderData(
             { initialValue: Array<User>() },
-            ({ currentPageStatus }) => ({
-              isCurrentPageResolved: craftUse(craftComputed(
-                'isCurrentPageResolved',
-                function* () {
-                  return (yield* currentPageStatus()) === 'resolved';
-                },
-              )),
-            }),
+            function* ({ currentPageStatus }) {
+              return {
+                isCurrentPageResolved: yield* craftComputed(
+                  'isCurrentPageResolved',
+                  function* () {
+                    return (yield* currentPageStatus()) === 'resolved';
+                  },
+                ),
+              };
+            },
           ),
         ),
       );
@@ -97,99 +98,94 @@ const ListWithPagination = craftComponent(
   {
     providers: [provideListWithPaginationView()],
   },
-  function* () {
-    const { pagination, usersQuery, updatePageSize } =
-      yield* ListWithPaginationView();
-
-    // `currentPageStatus` is a settled read: it suspends whenever the page on
-    // screen has no value of its own — on the first load, and again on every
-    // page change. The badge and the table each get their OWN boundary, so a
-    // page change suspends the badge alone while the table keeps showing the
-    // previous page's rows, which is the whole point of the placeholder
-    // insertion. One boundary around both would hide them.
-    return div([
-      heading([
-        'User Management: ',
-        span({}, [
-          StatusComponent({
-            status: usersQuery.currentPageStatus,
-          }),
-        ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
-      ]),
-      table({ class: example.table },
-        tbody(
-          forNode(
-            usersQuery.currentPageData,
-            {
-              track: (user) => user.id,
-              empty: () =>
-                tr(
-                  td({ class: example.td }, ifNode(
-                      usersQuery.isCurrentPageResolved,
-                      () => 'No users found',
-                      () => 'Loading…',
+  () => // `currentPageStatus` is a settled read: it suspends whenever the page on
+  // screen has no value of its own — on the first load, and again on every
+  // page change. The badge and the table each get their OWN boundary, so a
+  // page change suspends the badge alone while the table keeps showing the
+  // previous page's rows, which is the whole point of the placeholder
+  // insertion. One boundary around both would hide them.
+  div([
+        heading([
+          'User Management: ',
+          span({}, [
+            StatusComponent({
+              status: ListWithPaginationView.usersQuery.currentPageStatus,
+            }),
+          ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
+        ]),
+        table({ class: example.table },
+          tbody(
+            forNode(
+              ListWithPaginationView.usersQuery.currentPageData,
+              {
+                track: (user) => user.id,
+                empty: () =>
+                  tr(
+                    td({ class: example.td }, ifNode(
+                        ListWithPaginationView.usersQuery.isCurrentPageResolved,
+                        () => 'No users found',
+                        () => 'Loading…',
+                      ),
                     ),
                   ),
-                ),
-            },
-            (user) =>
-              tr({ class: example.tableRow }, [
-                td({ class: example.td }, function* () {
-                  return (yield* user()).id;
-                }),
-                td({ class: example.td }, function* () {
-                  return (yield* user()).name;
-                }),
-              ]),
-          ),
-        ),
-        // Only reached on the very first load: once a page has been shown, the
-        // placeholder keeps `currentPageData` non-empty, so the empty slot (and
-        // the settled read inside it) never runs again.
-      ).pipe(pendingNode({ fallback: () => div('⏳ Loading users…') })),
-      div({ class: example.pagination, 'data-testid': 'pagination' }, [
-        select(
-          'PageSize',
-          {
-            class: example.select,
-            'aria-label': 'Page size',
-            value: function* () {
-              return String((yield* pagination()).pageSize);
-            },
-            change: updatePageSize,
-          },
-          [2, 4, 8, 16].map((size) =>
-            option(
-              {
-                value: String(size),
-                selected: function* () {
-                  return size === (yield* pagination()).pageSize;
-                },
               },
-              size,
+              (user) =>
+                tr({ class: example.tableRow }, [
+                  td({ class: example.td }, function* () {
+                    return (yield* user()).id;
+                  }),
+                  td({ class: example.td }, function* () {
+                    return (yield* user()).name;
+                  }),
+                ]),
             ),
           ),
-        ),
-        button(
-          'PreviousPage',
-          { type: 'button', class: example.button, click: pagination.previousPage },
-          'Previous',
-        ),
-        span(
-          'CurrentPage',
-          { class: example.currentPage, 'data-testid': 'current-page' },
-          function* () {
-            return (yield* pagination()).page;
-          },
-        ),
-        button(
-          'NextPage',
-          { type: 'button', class: example.button, click: pagination.nextPage },
-          'Next',
-        ),
+          // Only reached on the very first load: once a page has been shown, the
+          // placeholder keeps `currentPageData` non-empty, so the empty slot (and
+          // the settled read inside it) never runs again.
+        ).pipe(pendingNode({ fallback: () => div('⏳ Loading users…') })),
+        div({ class: example.pagination, 'data-testid': 'pagination' }, [
+          select(
+            'PageSize',
+            {
+              class: example.select,
+              'aria-label': 'Page size',
+              value: function* () {
+                return String((yield* ListWithPaginationView.pagination()).pageSize);
+              },
+              change: ListWithPaginationView.updatePageSize,
+            },
+            [2, 4, 8, 16].map((size) =>
+              option(
+                {
+                  value: String(size),
+                  selected: function* () {
+                    return size === (yield* ListWithPaginationView.pagination()).pageSize;
+                  },
+                },
+                size,
+              ),
+            ),
+          ),
+          button(
+            'PreviousPage',
+            { type: 'button', class: example.button, click: ListWithPaginationView.pagination.previousPage },
+            'Previous',
+          ),
+          span(
+            'CurrentPage',
+            { class: example.currentPage, 'data-testid': 'current-page' },
+            function* () {
+              return (yield* ListWithPaginationView.pagination()).page;
+            },
+          ),
+          button(
+            'NextPage',
+            { type: 'button', class: example.button, click: ListWithPaginationView.pagination.nextPage },
+            'Next',
+          ),
+        ]),
       ]),
-    ]);
-  },
 );
 
 export default ListWithPagination;

@@ -3,11 +3,12 @@ import {
   type CraftServiceApi,
   type ServiceTrackingMetadata,
 } from './craft-service';
-import { craftMethod } from './craft-method';
+import { craftPrivate } from './craft-primitive-gen';
+import { craftMethod, type TrackedCraftMethod } from './craft-method';
 import { StoragePersister } from './storage-persister.service';
 
-export type GlobalPersisterHandlerServiceApi = {
-  clearAllCache(): void;
+type GlobalPersisterHandlerServiceApi = {
+  clearAllCache: TrackedCraftMethod<() => void, never, 'clearAllCache'>;
 };
 
 type GlobalPersisterHandlerServiceCraftApi = CraftServiceApi<
@@ -53,7 +54,7 @@ const globalPersisterHandlerService: GlobalPersisterHandlerServiceCraftApi =
       providedIn: 'toProvide',
     },
     function* () {
-      const persister = yield* StoragePersister();
+      const persister = yield* craftPrivate(StoragePersister());
 
       yield* craftMethod('clearAllCache', function* (): Generator<never, void> {
         persister.clearAllCache();

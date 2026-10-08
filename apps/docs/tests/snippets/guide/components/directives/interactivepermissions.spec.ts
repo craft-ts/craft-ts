@@ -12,8 +12,10 @@ type User = { id?: string; name: string; permissions: readonly string[] };
 
 const { UserPanelView, provideUserPanelView } = craftService(
   { name: 'userPanelView', providedIn: 'toProvide' },
-  function* (inputs: { readonly user: CraftServiceInput<User> }) {
-    yield* craftExpose('user', inputs.user);
+  function* (inputs: {
+    readonly $provided: { readonly user: CraftServiceInput<User> };
+  }) {
+    yield* craftExpose('user', inputs.$provided.user);
   },
 );
 

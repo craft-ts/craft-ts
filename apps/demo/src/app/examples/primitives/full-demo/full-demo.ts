@@ -94,81 +94,77 @@ const FullDemo = craftComponent(
   {
     providers: [provideFullDemoView()],
   },
-  function* () {
-    const { todos, addTodo, removeTodo, titleForm } = yield* FullDemoView();
-
-    return div({ class: example.page }, [
-      heading({ class: example.title }, [
-        'Full primitives demo ',
-        StatusComponent({ status: todos.status }),
-      ]),
-      p(
-        { class: example.text, 'data-exampleText': 'muted' },
-        'Query, mutations, optimistic interaction and functional rendering.',
-      ),
-      form(
-        'AddTodoForm',
-        {
-          class: example.row,
-          *submit(event) {
-            event.preventDefault();
-            yield* titleForm.form.submit();
-          },
-        },
-        [
-          input('TodoNameToAddInput', {
-            class: example.input,
-            type: 'text',
-            placeholder: 'New todo',
-          }).pipe(CraftFieldDirective(titleForm.form)),
-          button(
-            'AddTodoButton',
-            {
-              class: example.button,
-              'data-exampleButton': 'primary',
-              type: 'submit',
-              disabled: addTodo.isLoading,
-            },
-            'Add',
-          ),
-        ],
-      ).pipe(
-        fieldErrorNode.exhaustive({
-          required: () =>
-            p(
-              { class: example.text, 'data-exampleText': 'error' },
-              'A todo title is required.',
-            ),
-        }),
-      ),
-      ul(
-        { class: example.list },
-        forNode(
-          todos.value,
-          { track: (todo) => todo.id, empty: () => p('No todos.') },
-          (todo) =>
-            li({ class: example.item }, [
-              span('TodoTitle', {}, function* () {
-                return (yield* todo()).title;
-              }),
-              button(
-                'RemoveTodoButton',
-                {
-                  class: example.button,
-                  'data-exampleButton': 'danger',
-                  type: 'button',
-                  disabled: removeTodo.isLoading,
-                  *click() {
-                    yield* removeTodo.mutate((yield* todo()).id);
-                  },
-                },
-                'Remove',
-              ),
-            ]),
+  () => div({ class: example.page }, [
+        heading({ class: example.title }, [
+          'Full primitives demo ',
+          StatusComponent({ status: FullDemoView.todos.status }),
+        ]),
+        p(
+          { class: example.text, 'data-exampleText': 'muted' },
+          'Query, mutations, optimistic interaction and functional rendering.',
         ),
-      ),
-    ]);
-  },
+        form(
+          'AddTodoForm',
+          {
+            class: example.row,
+            *submit(event) {
+              event.preventDefault();
+              yield* FullDemoView.titleForm.form.submit();
+            },
+          },
+          [
+            input('TodoNameToAddInput', {
+              class: example.input,
+              type: 'text',
+              placeholder: 'New todo',
+            }).pipe(CraftFieldDirective(FullDemoView.titleForm.form)),
+            button(
+              'AddTodoButton',
+              {
+                class: example.button,
+                'data-exampleButton': 'primary',
+                type: 'submit',
+                disabled: FullDemoView.addTodo.isLoading,
+              },
+              'Add',
+            ),
+          ],
+        ).pipe(
+          fieldErrorNode.exhaustive({
+            required: () =>
+              p(
+                { class: example.text, 'data-exampleText': 'error' },
+                'A todo title is required.',
+              ),
+          }),
+        ),
+        ul(
+          { class: example.list },
+          forNode(
+            FullDemoView.todos.value,
+            { track: (todo) => todo.id, empty: () => p('No todos.') },
+            (todo) =>
+              li({ class: example.item }, [
+                span('TodoTitle', {}, function* () {
+                  return (yield* todo()).title;
+                }),
+                button(
+                  'RemoveTodoButton',
+                  {
+                    class: example.button,
+                    'data-exampleButton': 'danger',
+                    type: 'button',
+                    disabled: FullDemoView.removeTodo.isLoading,
+                    *click() {
+                      yield* FullDemoView.removeTodo.mutate((yield* todo()).id);
+                    },
+                  },
+                  'Remove',
+                ),
+              ]),
+          ),
+        ),
+      ]),
 );
 
 export default FullDemo;

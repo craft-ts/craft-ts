@@ -12,6 +12,7 @@ import {
   small,
   summary,
   textarea,
+  withComponentProviders,
   ul,
   type Input,
   type Output,
@@ -61,7 +62,8 @@ type Inputs = {
 export const { ReviewActionDialogsView, provideReviewActionDialogsView } =
   craftService(
     { name: 'reviewActionDialogsView', providedIn: 'toProvide' },
-    function* (inputs: Inputs) {
+    function* (serviceInputs: { readonly $provided: Inputs }) {
+      const inputs = serviceInputs.$provided;
       const {
         queueValue,
         t,
@@ -177,9 +179,7 @@ export const { ReviewActionDialogsView, provideReviewActionDialogsView } =
 
 export const ReviewActionDialogs = craftComponent(
   'ReviewActionDialogs',
-  {
-    providers: [provideReviewActionDialogsView()],
-  },
+  {},
   function* (inputs: Inputs) {
     const {
       isRegenerationOpen,
@@ -213,7 +213,7 @@ export const ReviewActionDialogs = craftComponent(
       closeReviewSession,
       closeReviewLabel,
       isHandoffCopied,
-    } = yield* ReviewActionDialogsView(inputs);
+    } = yield* ReviewActionDialogsView();
     return [
       ifNode(isRegenerationOpen, () =>
         div({ class: dialog.backdrop }, [
@@ -529,4 +529,6 @@ export const ReviewActionDialogs = craftComponent(
       ),
     ];
   },
+).pipe(
+  withComponentProviders((inputs) => [provideReviewActionDialogsView(inputs)]),
 );

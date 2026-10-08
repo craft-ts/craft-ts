@@ -188,6 +188,7 @@ module.exports = {
   isServiceExposure,
   isServiceFactory,
   isStringLiteral,
+  stringValue,
   primitiveName,
   serviceFactoryOf,
   unwrap,

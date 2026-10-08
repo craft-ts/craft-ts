@@ -133,28 +133,35 @@ import {
   on$,
 } from '@craft-ts/core';
 
-const { Search } = craftService({ name: 'Search', scope: 'component' }, function* () {
-  // prefetch the module at the first emission of the source
-  const searchModule = yield* asyncProcess('searchModule', {
-    method: on$(searchFocused$, () => undefined),
-    loader: function* () {
-      return yield* craftLazy(({ withRetry }) =>
-        withRetry(import('./search')),
-      );
-    },
-  });
+const { Search, provideSearch } = craftService(
+  { name: 'Search', providedIn: 'toProvide' },
+  function* () {
+    // prefetch the module at the first emission of the source
+    const searchModule = yield* asyncProcess('searchModule', {
+      method: on$(searchFocused$, () => undefined),
+      loader: function* () {
+        return yield* craftLazy(({ withRetry }) =>
+          withRetry(import('./search')),
+        );
+      },
+    });
 
-  // run a search on a user action — triggerSearch(q) sets the params
-  yield* asyncProcess('searchResult', {
-    method: (q: string) => q,
-    loader: function* ({ params: q }) {
-      const { search } = yield* craftUntilSettled(searchModule); // wait for the chunk
-      return yield* search(q);
-    },
-  });
-
-});
+    // run a search on a user action — triggerSearch(q) sets the params
+    yield* asyncProcess('searchResult', {
+      method: (q: string) => q,
+      loader: function* ({ params: q }) {
+        const { search } = yield* craftUntilSettled(searchModule); // wait for the chunk
+        return yield* search(q);
+      },
+    });
+  },
+);
 ```
+
+Mount `provideSearch()` on the component or route that owns this loading and
+search state. `toProvide` gives that owner one lazy instance. If its
+configuration comes from component inputs, pass it once with
+`withComponentProviders`; the service itself is then resolved with `Search()`.
 
 
 

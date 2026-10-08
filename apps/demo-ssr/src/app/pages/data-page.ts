@@ -49,9 +49,8 @@ export const { SsrDataPageView, provideSsrDataPageView } = craftService(
 export const DataPage = craftComponent(
   'SsrDataPage',
   { providers: [provideSsrDataPageView()] },
-  function* () {
-    const { resolved } = yield* SsrDataPageView();
-    return page(
+  () =>
+    page(
       'Route SSR : `block`',
       'Query résolue avant la réponse',
       'La route déclare explicitement qu’elle attend ses données. Le HTML initial contient déjà la valeur résolue et le snapshot la transfère à hydrateCraft.',
@@ -61,7 +60,7 @@ export const DataPage = craftComponent(
           h2({ class: pageStyle.cardTitle }, 'Données prêtes'),
           div({ class: pageStyle.metric }, [
             strong({ class: pageStyle.metricValue }, function* () {
-              return (yield* resolved()).visitors.toLocaleString('fr-FR');
+              return (yield* (yield* SsrDataPageView.resolved())()).visitors.toLocaleString('fr-FR');
             }),
             span({ class: pageStyle.muted }, 'visiteurs servis aujourd’hui'),
           ]),
@@ -76,13 +75,13 @@ export const DataPage = craftComponent(
             p({ class: pageStyle.dataRow }, [
               strong('Région · '),
               function* () {
-                return (yield* resolved()).region;
+                return (yield* (yield* SsrDataPageView.resolved())()).region;
               },
             ]),
             p({ class: pageStyle.dataRow }, [
               strong('Généré à · '),
               function* () {
-                return (yield* resolved()).generatedAt;
+                return (yield* (yield* SsrDataPageView.resolved())()).generatedAt;
               },
             ]),
           ]),
@@ -97,6 +96,5 @@ export const DataPage = craftComponent(
             ]),
         }),
       ),
-    );
-  },
+    ),
 );

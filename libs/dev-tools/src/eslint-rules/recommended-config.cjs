@@ -1,4 +1,5 @@
 module.exports = {
+  'craft-ts/require-fixed-component-provider-list': 'error',
   'craft-ts/craft-method-name-match': 'warn',
   'craft-ts/craft-computed-name-match': 'warn',
   'craft-ts/craft-state-name-match': 'warn',
@@ -8,6 +9,9 @@ module.exports = {
   'craft-ts/craft-query-params-name-match': 'warn',
   // A craftService exposes the named primitives it yields; it never returns.
   'craft-ts/no-craft-service-return': 'error',
+  'craft-ts/require-craft-service-input-scope': 'error',
+  'craft-ts/prefer-direct-craft-service-exposure': 'error',
+  'craft-ts/prefer-craft-computed-for-reactive-generator': 'error',
   'craft-ts/craft-source-name-match': 'warn',
   'craft-ts/craft-signal-source-name-match': 'warn',
   'craft-ts/craft-component-name-match': 'warn',
@@ -25,6 +29,7 @@ module.exports = {
   'craft-ts/prefer-craft-http-transport': 'error',
   'craft-ts/no-server-function-outside-resource': 'error',
   'craft-ts/no-craft-service-component-same-file': 'warn',
+  'craft-ts/no-template-elements-in-craft-service': 'error',
   'craft-ts/max-craft-declarations-per-file': 'error',
   'craft-ts/max-craft-component-lines': 'warn',
   'craft-ts/no-raw-css-value': 'error',
@@ -67,6 +72,7 @@ module.exports = {
   'craft-ts/no-type-assertions-in-template': 'error',
   'craft-ts/no-explicit-craft-template-return-type': 'error',
   'craft-ts/no-extracted-craft-component-parts': 'error',
+  'craft-ts/require-direct-craft-component-template': 'error',
   'craft-ts/no-ephemeral-template-form-state': 'error',
   'craft-ts/require-form-for-input-action': 'error',
   'craft-ts/template-element-name-unique': 'error',
@@ -87,6 +93,7 @@ module.exports = {
   'craft-ts/require-assert-exhaustive-route-exceptions': 'warn',
   'craft-ts/require-pending-component-di-check': 'warn',
   'craft-ts/require-craft-exception-handler': 'warn',
+  'craft-ts/require-catch-tag-exhaustive-reaction': 'error',
   'craft-ts/require-exception-component-di-check': 'warn',
   // These aggregate proofs are too expensive for broad app configs and can
   // trigger TS2589 when route graphs are large.

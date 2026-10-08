@@ -40,16 +40,13 @@ const CounterChild = craftComponent(
   {
     providers: [provideCounterChildView(), provideCounter()],
   },
-  function* () {
-    const { counter } = yield* CounterChildView();
-    return div({ class: example.box }, [
-      span({ class: example.subtitle }, counter),
+  () => div({ class: example.box }, [
+      span({ class: example.subtitle }, CounterChildView.counter),
       div({ class: example.row }, [
-        button('decrement', { class: example.button, type: 'button', 'aria-label': 'Decrement', click: counter.decrement }, '-'),
-        button('increment', { class: example.button, type: 'button', 'aria-label': 'Increment', click: counter.increment }, '+'),
+        button('decrement', { class: example.button, type: 'button', 'aria-label': 'Decrement', click: CounterChildView.counter.decrement }, '-'),
+        button('increment', { class: example.button, type: 'button', 'aria-label': 'Increment', click: CounterChildView.counter.increment }, '+'),
       ]),
-    ]);
-  },
+    ]),
 );
 
 // The component itself exposes no instance any more: what the parent wants to
@@ -114,38 +111,41 @@ const RegisterForDemo = craftComponent(
       provideRegisterForCounter(),
     ],
   },
-  function* () {
-    const { counterChildIds, counters, childTotal, serviceTotal } =
-      yield* RegisterForDemoView();
-    return section({ class: example.card }, [
-      heading({ class: example.title }, 'craftRegisterFor: control child counters'),
-      p(
-        'The parent observes the Counter instances created in its children. Removing a child also removes its registration.',
-      ),
-      div({ class: example.row }, [
-        button('incrementAll',
-          { class: example.button, type: 'button', click: counters.incrementAllChildCounter },
-          'Increment all',
+  () => section({ class: example.card }, [
+        heading({ class: example.title }, 'craftRegisterFor: control child counters'),
+        p(
+          'The parent observes the Counter instances created in its children. Removing a child also removes its registration.',
         ),
-        button('decrementAll',
-          { class: example.button, type: 'button', click: counters.decrementAllChildCounter },
-          'Decrement all',
-        ),
-        button('addChild', { class: example.button, type: 'button', click: counterChildIds.addChild }, 'Add a child'),
-        button('removeChild', { class: example.button, type: 'button', click: counterChildIds.removeChild }, 'Remove a child'),
-        span(
-          { class: example.hint },
-          function* () {
-            return `services: ${yield* serviceTotal()} · components: ${yield* childTotal()}`;
-          },
+        div({ class: example.row }, [
+          button('incrementAll',
+            { class: example.button, type: 'button', click: RegisterForDemoView.counters.incrementAllChildCounter },
+            'Increment all',
+          ),
+          button('decrementAll',
+            { class: example.button, type: 'button', click: RegisterForDemoView.counters.decrementAllChildCounter },
+            'Decrement all',
+          ),
+          button('addChild', { class: example.button, type: 'button', click: RegisterForDemoView.counterChildIds.addChild }, 'Add a child'),
+          button('removeChild', { class: example.button, type: 'button', click: RegisterForDemoView.counterChildIds.removeChild }, 'Remove a child'),
+          span(
+            { class: example.hint },
+            function* () {
+              return `services: ${yield* RegisterForDemoView.serviceTotal()} · components: ${yield* RegisterForDemoView.childTotal()}`;
+            },
+          ),
+        ]),
+        div(
+          { class: example.tiles },
+          forNode(
+            function* () {
+              const { counterChildIds } = yield* RegisterForDemoView();
+              return yield* counterChildIds();
+            },
+            { track: (id) => id },
+            () => CounterChild({}),
+          ),
         ),
       ]),
-      div(
-        { class: example.tiles },
-        forNode(counterChildIds, { track: (id) => id }, () => CounterChild({})),
-      ),
-    ]);
-  },
 );
 
 export default RegisterForDemo;

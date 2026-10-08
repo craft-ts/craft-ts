@@ -142,7 +142,10 @@ module.exports = {
         }
 
         if (node.arguments.length === 0 && isReactiveRead(node)) {
-          if (!isInsideBindingOrAction(node, template)) {
+          if (
+            !isInsideBindingOrAction(node, template) &&
+            !isStructuralConditionSource(node)
+          ) {
             context.report({ node, messageId: 'directRead' });
           }
           return;
@@ -243,6 +246,29 @@ module.exports = {
         current = current.parent;
       }
       return false;
+    }
+
+    // A service shortcut passed directly to the named `ifNode` overload is
+    // already a lazy Craft condition. It is consumed by the structural node,
+    // so it is not an eager template read that needs another callback.
+    function isStructuralConditionSource(node) {
+      let current = node;
+      while (
+        current &&
+        current.type !== 'ArrowFunctionExpression' &&
+        current.type !== 'FunctionExpression'
+      ) {
+        current = current.parent;
+      }
+      const call = current?.parent;
+      return (
+        call?.type === 'CallExpression' &&
+        call.callee.type === 'Identifier' &&
+        call.callee.name === 'ifNode' &&
+        call.arguments[0]?.type === 'Literal' &&
+        typeof call.arguments[0].value === 'string' &&
+        call.arguments[1] === current
+      );
     }
 
     function isInsideReactiveBinding(node, template) {

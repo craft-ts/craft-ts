@@ -13,6 +13,7 @@ import {
   type CorrelationIdMetadata,
 } from './correlation-id';
 import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
+import { craftPrivate } from './craft-primitive-gen';
 import type { Injector } from './host/craft-compat';
 import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
 import { getCurrentCraftInjector } from './host/craft-injector';
@@ -307,7 +308,7 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
     MethodResult<ConsoleServiceApi[Key]>,
     unknown
   > {
-    const consoleService = yield* ConsoleService();
+    const consoleService = yield* craftPrivate(ConsoleService());
     const {
       from,
       tags,
@@ -1103,7 +1104,7 @@ export const BrowserCrypto: BrowserBoundaryDsl<
   getRandomValues: function* <TypedArray extends ArrayBufferView>(
     typedArray: TypedArray,
   ): Generator<BrowserCryptoYield, TypedArray, unknown> {
-    const cryptoService = yield* BrowserCryptoService();
+    const cryptoService = yield* craftPrivate(BrowserCryptoService());
 
     return cryptoService.getRandomValues(typedArray);
   },

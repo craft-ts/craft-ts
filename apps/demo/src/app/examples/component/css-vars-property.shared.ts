@@ -1,5 +1,4 @@
 import { craftComponent, div, span, type Input } from '@craft-ts/component';
-import { craftComputed, craftUse } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { meter, meterVars } from './css-vars.style';
 
@@ -18,21 +17,19 @@ export const RegisteredMeter = craftComponent('RegisteredMeter', {}, () =>
 export const AssignedMeter = craftComponent(
   'AssignedMeter',
   {},
-  ({ value }: { readonly value: Input<number> }) => {
-    const label = craftUse(craftComputed('label', function* () {
-      return `Assigned value: ${yield* value()}%`;
-    }));
-    return div({ class: meter.root }, [
-      span(label),
+  (input: { readonly value: Input<number> }) =>
+    div({ class: meter.root }, [
+      span(function* () {
+        return `Assigned value: ${yield* input.value()}%`;
+      }),
       div(
         { class: meter.track },
         div({
           class: meter.fill,
           style: function* () {
-            return assign(meterVars.value, unit.pct(yield* value()));
+            return assign(meterVars.value, unit.pct(yield* input.value()));
           },
         }),
       ),
-    ]);
-  },
+    ]),
 );

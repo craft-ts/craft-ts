@@ -8,6 +8,7 @@ import {
   section,
   small,
   span,
+  withComponentProviders,
   type Input,
   type Output,
 } from '@craft-ts/component';
@@ -55,7 +56,8 @@ type Inputs = {
 export const { ReviewDecisionPanelView, provideReviewDecisionPanelView } =
   craftService(
     { name: 'reviewDecisionPanelView', providedIn: 'toProvide' },
-    function* (inputs: Inputs) {
+    function* (serviceInputs: { readonly $provided: Inputs }) {
+      const inputs = serviceInputs.$provided;
       const {
         card,
         t,
@@ -115,9 +117,7 @@ export const { ReviewDecisionPanelView, provideReviewDecisionPanelView } =
 
 export const ReviewDecisionPanel = craftComponent(
   'ReviewDecisionPanel',
-  {
-    providers: [provideReviewDecisionPanelView()],
-  },
+  {},
   function* (inputs: Inputs) {
     const {
       previousRejectionVisible,
@@ -139,7 +139,7 @@ export const ReviewDecisionPanel = craftComponent(
       card,
       decide,
       acceptWithNoteDisabled,
-    } = yield* ReviewDecisionPanelView(inputs);
+    } = yield* ReviewDecisionPanelView();
     return div({ class: reviewCard.decision }, [
       section(
         {
@@ -430,4 +430,6 @@ export const ReviewDecisionPanel = craftComponent(
       ]),
     ]);
   },
+).pipe(
+  withComponentProviders((inputs) => [provideReviewDecisionPanelView(inputs)]),
 );

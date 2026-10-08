@@ -29,6 +29,7 @@ describe('require-yieldable-reactive-read', () => {
 
       function* invalid() { return counter(); }
       function invalidBlock() { const value = counter(); return value; }
+      const ordinaryArrow = () => counter();
       function* valid() { return yield* counter(); }
       function testBoundary() { return craftUse(counter()); }
       declare function craftUse<T>(value: Generator<unknown, T, unknown>): T;
@@ -37,7 +38,31 @@ describe('require-yieldable-reactive-read', () => {
     expect(messages).toEqual([
       'Craft reactive values must be read with `yield*` inside a generator function.',
       'A function that reads a Craft reactive value must be a generator and delegate the read with `yield*`.',
+      'A function that reads a Craft reactive value must be a generator and delegate the read with `yield*`.',
     ]);
+  });
+
+  it('allows a reactive reader returned by a named ifNode condition callback', async () => {
+    const messages = await lintFixture(`
+      declare const RAW_REACTIVE_VALUE: unique symbol;
+      type Reader<T> = (() => Generator<unknown, T, unknown>) & {
+        readonly [RAW_REACTIVE_VALUE]: () => T;
+      };
+      declare const showDebouncing: Reader<boolean>;
+      declare function ifNode(...args: unknown[]): unknown;
+      declare function p(value: string): unknown;
+      declare function craftComponent(...args: unknown[]): unknown;
+
+      craftComponent('Demo', {}, () =>
+        ifNode(
+          'showDebouncing',
+          () => showDebouncing(),
+          () => p('Waiting for debounce…'),
+        ),
+      );
+    `);
+
+    expect(messages).toEqual([]);
   });
 });
 

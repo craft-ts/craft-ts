@@ -1,4 +1,4 @@
-import { craftComputed, craftService, state, craftUse, craftExpose } from '@craft-ts/core';
+import { craftComputed, craftService, state } from '@craft-ts/core';
 import {
   compactNumber,
   dateLong,
@@ -44,25 +44,21 @@ const DEMO_CLIENTS: Record<
 export const { ClientCurrency, provideClientCurrency } = craftService(
   { name: 'ClientCurrency', providedIn: 'toProvide' },
   function* () {
-    // The currency derives from this state and nothing else, so it belongs to
-    // the primitive's insertion rather than to a computed beside it.
-    // No cast: it would erase what each member yields, and a reader typed
-    // `Generator<unknown, …>` swallows the service request of whoever reads it
-    // — the token's dependency map would come back empty.
     const client = yield* state(
       'client',
       initialClient(),
-      ({ state: selected, set }) => ({
+      ({ set }) => ({
         changeClient: (next: DemoClientId) => set(next),
-        currency: craftUse(craftComputed('currency', function* () {
-          const clientDetails = DEMO_CLIENTS[yield* selected()];
-          return { code: clientDetails.currency, name: clientDetails.name };
-        })),
       }),
     );
 
-    yield* craftExpose('changeClient', client.changeClient);
-    yield* craftExpose('currency', client.currency);
+    // Keep the generator-backed derived value in the service body; the state
+    // insertion callback is synchronous and must not unwrap it with craftUse.
+    yield* craftComputed('currency', function* () {
+      const clientDetails = DEMO_CLIENTS[yield* client()];
+      return { code: clientDetails.currency, name: clientDetails.name };
+    });
+
   },
 );
 
@@ -75,14 +71,9 @@ export const { ClientUnits, provideClientUnits } = craftService(
   { name: 'ClientUnits', providedIn: 'toProvide' },
   function* () {
     const clientCurrency = yield* ClientCurrency();
-    // A plain reader rather than a `craftComputed`: the value it derives from
-    // belongs to another service, and the reactive read happens where it is
-    // consumed.
-    const system = function* () {
+    yield* craftComputed('system', function* () {
       return DEMO_CLIENTS[yield* clientCurrency.client()].units;
-    };
-
-    yield* craftExpose('system', system);
+    });
   },
 );
 

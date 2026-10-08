@@ -140,7 +140,14 @@ module.exports = {
 
     function isReactiveRead(node) {
       const type = getCalleeType(node);
-      return hasBrand(type, REACTIVE_READ_BRAND) || hasBrand(type, INPUT_BRAND);
+      // CraftServiceInput is a reader whose generator yields exactly one
+      // ReactiveReadRequest. It is a safe dependency inside craftComputed,
+      // even though the callable is not projected with the template brands.
+      return (
+        hasBrand(type, REACTIVE_READ_BRAND) ||
+        hasBrand(type, INPUT_BRAND) ||
+        hasAlias(type, 'CraftServiceInput')
+      );
     }
 
     function isKnownAsyncApi(node) {
@@ -199,6 +206,15 @@ module.exports = {
       return checker
         .getPropertiesOfType(type)
         .some((property) => String(property.escapedName).includes(brandName));
+    }
+
+    function hasAlias(type, aliasName) {
+      if (!type) return false;
+      if (type.aliasSymbol?.name === aliasName) return true;
+      if (type.isUnion?.() || type.isIntersection?.()) {
+        return type.types.some((part) => hasAlias(part, aliasName));
+      }
+      return false;
     }
 
     function returnsGenerator(type) {

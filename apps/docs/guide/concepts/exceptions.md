@@ -199,6 +199,51 @@ catchTag.exhaustive({
 });
 ```
 
+Every handler must do that work. An empty generator or a bare `return;` only
+removes the exception from the component/route contract; it does not show the
+user what failed. The `craft-ts/require-catch-tag-exhaustive-reaction` ESLint
+rule rejects both patterns. If a primitive exposes the error through
+`exceptions()`, `matchNode.exhaustive` can render each case directly. If the
+component must handle its initialization exception with `catchTag`, make the
+handler perform a real action that updates the view model so the template can
+show the result. Use `catchNode.exhaustive` for an initialization fallback.
+
+Before — all four HTTP errors are swallowed, so the component cannot tell the
+user what happened:
+
+```ts
+catchTag.exhaustive({
+  TransientHttpError: function* () { return; },
+  HttpError: function* () { return; },
+  HttpResponseDecodeError: function* () { return; },
+  SearchHttpError: function* () { return; },
+});
+```
+
+After — each handler records a user-facing message, and the template displays
+that message as an alert:
+
+```ts
+catchTag.exhaustive({
+  TransientHttpError: function* () {
+    yield* SearchView.showSearchFailure('The search is still unavailable after retries.');
+  },
+  HttpError: function* () {
+    yield* SearchView.showSearchFailure('The HTTP request failed. Try again shortly.');
+  },
+  HttpResponseDecodeError: function* () {
+    yield* SearchView.showSearchFailure('The search service returned unreadable data.');
+  },
+  SearchHttpError: function* () {
+    yield* SearchView.showSearchFailure('The search service rejected this request.');
+  },
+});
+
+ifNode(searchQuery.hasSearchError, () =>
+  p({ role: 'alert' }, searchQuery.searchFailureMessage),
+);
+```
+
 Either way, handling a code at the component **removes it** from the component's
 contract and from the route's. Whatever you don't handle is **residual**, and it flows up
 into the route's exception union — where `handleExceptions` must cover it:

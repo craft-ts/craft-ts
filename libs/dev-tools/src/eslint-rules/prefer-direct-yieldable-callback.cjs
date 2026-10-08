@@ -35,6 +35,9 @@ module.exports = {
         if (node !== template && isNestedCraftComponent(node)) {
           return 'skip';
         }
+        if (isCatchTagExhaustive(node)) {
+          return 'skip';
+        }
 
         if (!isRedundantGenerator(node)) {
           return;
@@ -127,6 +130,18 @@ module.exports = {
         node.type === 'CallExpression' &&
         node.callee.type === 'Identifier' &&
         node.callee.name === 'craftComponent'
+      );
+    }
+
+    function isCatchTagExhaustive(node) {
+      return (
+        node.type === 'CallExpression' &&
+        node.callee.type === 'MemberExpression' &&
+        !node.callee.computed &&
+        node.callee.object.type === 'Identifier' &&
+        node.callee.object.name === 'catchTag' &&
+        node.callee.property.type === 'Identifier' &&
+        node.callee.property.name === 'exhaustive'
       );
     }
 

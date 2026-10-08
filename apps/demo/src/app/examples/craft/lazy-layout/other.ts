@@ -41,9 +41,12 @@ const { UsersApiOnError } = craftService(
   },
 );
 
-const { Test2 } = craftService({ name: 'test2', providedIn: 'global' }, function* () {
-  // Nothing to expose.
-});
+const { Test2 } = craftService(
+  { name: 'test2', providedIn: 'global' },
+  function* () {
+    // Nothing to expose.
+  },
+);
 
 export const { OtherView, provideOtherView } = craftService(
   { name: 'otherView', providedIn: 'toProvide' },
@@ -59,13 +62,12 @@ export const OtherComponent = craftComponent(
   {
     providers: [provideOtherView(), provideOtherService()],
   },
-  function* () {
-    const { other, users } = yield* OtherView();
-    return div([
-      p(() => other.getValue()),
+  () =>
+    div([
+      p(OtherView.other.getValue),
       p(function* () {
+        const { users } = yield* OtherView();
         return `Query status: ${yield* users.query.status()}`;
       }),
-    ]);
-  },
+    ]),
 );

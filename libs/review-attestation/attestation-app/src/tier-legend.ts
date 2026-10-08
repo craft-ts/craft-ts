@@ -1,4 +1,11 @@
-import { craftComponent, li, span, ul, type Input } from '@craft-ts/component';
+import {
+  craftComponent,
+  li,
+  span,
+  ul,
+  withComponentProviders,
+  type Input,
+} from '@craft-ts/component';
 import { craftComputed, craftService } from '@craft-ts/core';
 import { TIERS } from '@craft-ts/style-testing/review/frame';
 import type { Messages } from './messages';
@@ -43,13 +50,16 @@ const legendEntry = (
  */
 export const { TierLegendView, provideTierLegendView } = craftService(
   { name: 'tierLegendView', providedIn: 'toProvide' },
-  function* (inputs: {
-    readonly showing: Input<boolean>;
-    readonly changedCount: Input<number>;
-    readonly coveredCount: Input<number>;
-    readonly chromeNames: Input<readonly string[]>;
-    readonly t: Input<Messages>;
+  function* (serviceInputs: {
+    readonly $provided: {
+      readonly showing: Input<boolean>;
+      readonly changedCount: Input<number>;
+      readonly coveredCount: Input<number>;
+      readonly chromeNames: Input<readonly string[]>;
+      readonly t: Input<Messages>;
+    };
   }) {
+    const inputs = serviceInputs.$provided;
     const { showing, changedCount, coveredCount, chromeNames, t } = inputs;
     yield* craftComputed('hiddenLegend', function* () {
       return !(yield* showing());
@@ -87,9 +97,7 @@ export const { TierLegendView, provideTierLegendView } = craftService(
 
 export const TierLegend = craftComponent(
   'TierLegend',
-  {
-    providers: [provideTierLegendView()],
-  },
+  {},
   function* (inputs: {
     readonly showing: Input<boolean>;
     readonly changedCount: Input<number>;
@@ -105,7 +113,7 @@ export const TierLegend = craftComponent(
       occludedHidden,
       occludedLabel,
       pickedLabel,
-    } = yield* TierLegendView(inputs);
+    } = yield* TierLegendView();
     return ul({ class: tierLegend.root, hidden: hiddenLegend }, [
       legendEntry('subject', { label: subjectLabel }),
       legendEntry('changed', {
@@ -119,4 +127,4 @@ export const TierLegend = craftComponent(
       legendEntry('picked', { label: pickedLabel }),
     ]);
   },
-);
+).pipe(withComponentProviders((inputs) => [provideTierLegendView(inputs)]));

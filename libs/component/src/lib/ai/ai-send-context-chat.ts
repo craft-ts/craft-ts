@@ -16,6 +16,7 @@ import {
 import { craftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
+import { withComponentProviders } from '../composition';
 import { DestroyRef, inject } from '../host-runtime';
 import { forNode } from '../for-node';
 import {
@@ -181,10 +182,12 @@ type ChatFactoryContext = Omit<ChatContext, 'onClose'> & {
 const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
   { name: 'aiSendContextChatState', providedIn: 'toProvide' },
   function* (input: {
-    readonly context: CraftServiceInput<SendContextUiContext>;
-    readonly onClose: Output<() => void>;
+    readonly $provided: {
+      readonly context: CraftServiceInput<SendContextUiContext>;
+      readonly onClose: Output<() => void>;
+    };
   }) {
-    const { context, onClose } = input;
+    const { context, onClose } = input.$provided;
     const temporalRuntime = yield* CraftTemporalRuntime();
 
     // Reactive values carry `unique symbol`s that declaration emit cannot name
@@ -749,10 +752,8 @@ const { AiSendContextChatState, provideAiSendContextChatState } = craftService(
 
 export const AiSendContextChat = craftComponent(
   'AiSendContextChat',
-  {
-    providers: [provideAiSendContextChatState()],
-  },
-  function* (inputs: {
+  {},
+  function* (_inputs: {
     readonly context: Input<SendContextUiContext>;
     readonly onClose: Output<() => void>;
   }) {
@@ -789,7 +790,7 @@ export const AiSendContextChat = craftComponent(
       sendPayload,
       retrySend,
       copyPayload,
-    } = yield* AiSendContextChatState(inputs);
+    } = yield* AiSendContextChatState();
     return div({ class: [aiTheme.root, aiChat.overlay] }, [
       div(
         {
@@ -1176,6 +1177,10 @@ export const AiSendContextChat = craftComponent(
       ),
     ]);
   },
+).pipe(
+  withComponentProviders(({ context, onClose }) => [
+    provideAiSendContextChatState({ context, onClose }),
+  ]),
 ) as unknown as CraftComponent<
   {
     readonly context: InputValue<SendContextUiContext>;

@@ -120,139 +120,133 @@ const GranularMutationCraft = craftComponent(
   {
     providers: [provideGranularMutationCraftView(), provideGranularMutation()],
   },
-  function* () {
-    const {
-      store: { users, updateUserName, pagination },
-      updatePageSize,
-    } = yield* GranularMutationCraftView();
-    return div({ class: example.page }, [
-      main([
-        div([
-          div({ class: example.panel }, [
-            heading({ class: example.title }, [
-              'User Management: ',
-              // `currentPageStatus` is a settled read: it suspends whenever the
-              // page on screen has no value of its own. Its own boundary keeps
-              // the suspension off the rows, which the placeholder insertion
-              // keeps showing across a page change.
-              span({}, [
-                StatusComponent({
-                  status: users.currentPageStatus,
-                }),
-              ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
-            ]),
-            div([
-              table({ class: example.table }, [
-                thead([
-                  tr({ class: example.tableRow }, [
-                    th({ class: example.th }, 'ID'),
-                    th({ class: example.th }, 'Name'),
-                    th({ class: example.th }, 'Action'),
+  () => div({ class: example.page }, [
+        main([
+          div([
+            div({ class: example.panel }, [
+              heading({ class: example.title }, [
+                'User Management: ',
+                // `currentPageStatus` is a settled read: it suspends whenever the
+                // page on screen has no value of its own. Its own boundary keeps
+                // the suspension off the rows, which the placeholder insertion
+                // keeps showing across a page change.
+                span({}, [
+                  StatusComponent({
+                    status: GranularMutationCraftView.store.users.currentPageStatus,
+                  }),
+                ]).pipe(pendingNode({ fallback: () => span({}, '⏳') })),
+              ]),
+              div([
+                table({ class: example.table }, [
+                  thead([
+                    tr({ class: example.tableRow }, [
+                      th({ class: example.th }, 'ID'),
+                      th({ class: example.th }, 'Name'),
+                      th({ class: example.th }, 'Action'),
+                    ]),
                   ]),
-                ]),
-                tbody(
-                  forNode(
-                    users.currentPageData,
-                    { track: (user) => user.id },
-                    (user) =>
-                      tr({ class: example.tableRow }, [
-                        td({ class: example.td }, function* () {
-                          return (yield* user()).id; // todoR use new API
-                        }),
-                        td({ class: example.td }, function* () {
-                          return (yield* user()).name;
-                        }),
-                        td(
-                          { class: example.td },
-                          button(
-                            'UpdateUserName',
-                            {
-                              type: 'button',
-                              class: example.button,
-                              'data-exampleButton': 'subtle',
-                              'data-testid': 'update-user',
-                              disabled: function* () {
-                                return yield* updateUserName
-                                  .selectOrCreate((yield* user()).id)
-                                  .isLoading();
-                              },
-                              *click() {
-                                yield* updateUserName.mutate(yield* user());
-                              },
-                            },
-                            [
-                              'Update Name',
-                              StatusComponent({
-                                status: function* () {
-                                  return yield* updateUserName
+                  tbody(
+                    forNode(
+                      GranularMutationCraftView.store.users.currentPageData,
+                      { track: (user) => user.id },
+                      (user) =>
+                        tr({ class: example.tableRow }, [
+                          td({ class: example.td }, function* () {
+                            return (yield* user()).id; // todoR use new API
+                          }),
+                          td({ class: example.td }, function* () {
+                            return (yield* user()).name;
+                          }),
+                          td(
+                            { class: example.td },
+                            button(
+                              'UpdateUserName',
+                              {
+                                type: 'button',
+                                class: example.button,
+                                'data-exampleButton': 'subtle',
+                                'data-testid': 'update-user',
+                                disabled: function* () {
+                                  return yield* GranularMutationCraftView.store.updateUserName
                                     .selectOrCreate((yield* user()).id)
-                                    .status();
+                                    .isLoading();
                                 },
-                              }),
-                            ],
+                                *click() {
+                                  yield* GranularMutationCraftView.store.updateUserName.mutate(yield* user());
+                                },
+                              },
+                              [
+                                'Update Name',
+                                StatusComponent({
+                                  status: function* () {
+                                    return yield* GranularMutationCraftView.store.updateUserName
+                                      .selectOrCreate((yield* user()).id)
+                                      .status();
+                                  },
+                                }),
+                              ],
+                            ),
                           ),
-                        ),
-                      ]),
+                        ]),
+                    ),
                   ),
+                ]),
+              ]),
+              div({ class: example.pagination, 'data-testid': 'pagination' }, [
+                select(
+                  'PageSize',
+                  {
+                    class: example.select,
+                    'aria-label': 'Page size',
+                    value: function* () {
+                      return String((yield* GranularMutationCraftView.store.pagination()).pageSize);
+                    },
+                    *change(event) {
+                      yield* GranularMutationCraftView.updatePageSize(event);
+                    },
+                  },
+                  [2, 4, 8, 16].map((size) =>
+                    option(
+                      {
+                        value: String(size),
+                        selected: function* () {
+                          return size === (yield* GranularMutationCraftView.store.pagination()).pageSize;
+                        },
+                      },
+                      size,
+                    ),
+                  ),
+                ),
+                button(
+                  'PreviousPage',
+                  {
+                    type: 'button',
+                    class: example.button,
+                    click: GranularMutationCraftView.store.pagination.previousPage,
+                  },
+                  'Previous',
+                ),
+                span(
+                  'CurrentPage',
+                  { class: example.currentPage, 'data-testid': 'current-page' },
+                  function* () {
+                    return (yield* GranularMutationCraftView.store.pagination()).page;
+                  },
+                ),
+                button(
+                  'NextPage',
+                  {
+                    type: 'button',
+                    class: example.button,
+                    click: GranularMutationCraftView.store.pagination.nextPage,
+                  },
+                  'Next',
                 ),
               ]),
-            ]),
-            div({ class: example.pagination, 'data-testid': 'pagination' }, [
-              select(
-                'PageSize',
-                {
-                  class: example.select,
-                  'aria-label': 'Page size',
-                  value: function* () {
-                    return String((yield* pagination()).pageSize);
-                  },
-                  *change(event) {
-                    updatePageSize(event);
-                  },
-                },
-                [2, 4, 8, 16].map((size) =>
-                  option(
-                    {
-                      value: String(size),
-                      selected: function* () {
-                        return size === (yield* pagination()).pageSize;
-                      },
-                    },
-                    size,
-                  ),
-                ),
-              ),
-              button(
-                'PreviousPage',
-                {
-                  type: 'button',
-                  class: example.button,
-                  click: pagination.previousPage,
-                },
-                'Previous',
-              ),
-              span(
-                'CurrentPage',
-                { class: example.currentPage, 'data-testid': 'current-page' },
-                function* () {
-                  return (yield* pagination()).page;
-                },
-              ),
-              button(
-                'NextPage',
-                {
-                  type: 'button',
-                  class: example.button,
-                  click: pagination.nextPage,
-                },
-                'Next',
-              ),
             ]),
           ]),
         ]),
       ]),
-    ]);
-  },
 );
 
 export default GranularMutationCraft;

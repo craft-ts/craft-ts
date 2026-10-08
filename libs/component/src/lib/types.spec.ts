@@ -30,6 +30,7 @@ import {
 import { loadCraftComponent } from './bridge';
 import { overrideService } from '@craft-ts/core';
 import { craftComponent } from './component';
+import { withComponentProviders } from './composition';
 import { projection } from './types';
 import { craftDirective } from './directive';
 import { deferNode } from './defer-node';
@@ -134,10 +135,12 @@ it('infers component input and output props from the branded context', () => {
   const { UserCardView, provideUserCardView } = craftService(
     { name: 'userCardView', providedIn: 'toProvide' },
     function* (inputs: {
-          readonly user: CraftServiceInput<User>;
-          readonly onPick: Output<(user: User) => void>;
-        }) {
-      const { user, onPick } = inputs;
+      readonly $provided: {
+        readonly user: CraftServiceInput<User>;
+        readonly onPick: Output<(user: User) => void>;
+      };
+    }) {
+      const { user, onPick } = inputs.$provided;
       yield* craftExpose('user', user);
       yield* craftExpose('onPick', onPick);
     },
@@ -145,12 +148,12 @@ it('infers component input and output props from the branded context', () => {
 
   const userCard = craftComponent(
     'userCard',
-    { providers: [provideUserCardView()] },
+    {},
     function* (inputs: {
       readonly user: Input<User>;
       readonly onPick: Output<(user: User) => void>;
     }) {
-      const { user, onPick } = yield* UserCardView(inputs);
+      const { user, onPick } = yield* UserCardView();
       return p(
         {
           *click() {
@@ -162,6 +165,10 @@ it('infers component input and output props from the branded context', () => {
         },
       );
     },
+  ).pipe(
+    withComponentProviders(({ user, onPick }) => [
+      provideUserCardView({ user, onPick }),
+    ]),
   );
 
   type _UserCardProps = Expect<
@@ -226,8 +233,10 @@ it('requires component inputs to use reactive Input readers', () => {
 it('does not expose ordinary context callbacks as component outputs', () => {
   const { InternalActionView, provideInternalActionView } = craftService(
     { name: 'internalActionView', providedIn: 'toProvide' },
-    function* (inputs: { readonly name: CraftServiceInput<string> }) {
-      const { name } = inputs;
+    function* (inputs: {
+      readonly $provided: { readonly name: CraftServiceInput<string> };
+    }) {
+      const { name } = inputs.$provided;
       yield* craftExpose('name', name);
       yield* craftExpose('reset', () => undefined);
     },
@@ -235,13 +244,15 @@ it('does not expose ordinary context callbacks as component outputs', () => {
 
   const internalAction = craftComponent(
     'internalAction',
-    { providers: [provideInternalActionView()] },
+    {},
     function* (inputs: { readonly name: Input<string> }) {
-      const { name } = yield* InternalActionView(inputs);
+      const { name } = yield* InternalActionView();
       return p(function* () {
         return yield* name();
       });
     },
+  ).pipe(
+    withComponentProviders(({ name }) => [provideInternalActionView({ name })]),
   );
 
   type _InternalActionProps = Expect<
@@ -285,11 +296,13 @@ it('extracts projection contracts and propagates projected dependencies', () => 
   );
   const { TypedActionView, provideTypedActionView } = craftService(
     { name: 'typedActionView', providedIn: 'toProvide' },
-    function* (input: { readonly key: string; readonly trigger: () => void }) {
-      yield* craftExpose('key', input.key);
+    function* (input: {
+      readonly $provided: { readonly key: string; readonly trigger: () => void };
+    }) {
+      yield* craftExpose('key', input.$provided.key);
       yield* craftExpose('contract', {
         kind: 'action',
-        trigger: input.trigger,
+        trigger: input.$provided.trigger,
       } satisfies ActionContract);
     },
   );
@@ -297,13 +310,16 @@ it('extracts projection contracts and propagates projected dependencies', () => 
   const action = craftComponent(
     'typedAction',
     {
-      providers: [provideTypedActionView()],
       projection: projection<ActionContract>(),
     },
     function* (input: { readonly key: string; readonly trigger: () => void }) {
-      const { contract } = yield* TypedActionView(input);
+      const { contract } = yield* TypedActionView();
       return button({ click: contract.trigger }, 'action');
     },
+  ).pipe(
+    withComponentProviders(({ key, trigger }) => [
+      provideTypedActionView({ key, trigger }),
+    ]),
   );
   type _Contract = Expect<
     Expect<
@@ -522,8 +538,10 @@ it('carries inferred dependencies from the component through the lazy route frag
 
   const { TrackedView, provideTrackedView } = craftService(
     { name: 'trackedView', providedIn: 'toProvide' },
-    function* (inputs: { readonly label: CraftServiceInput<string> }) {
-      const { label } = inputs;
+    function* (inputs: {
+      readonly $provided: { readonly label: CraftServiceInput<string> };
+    }) {
+      const { label } = inputs.$provided;
 
       const service = yield* TypeSpecService();
       yield* craftExpose('label', label);
@@ -533,11 +551,13 @@ it('carries inferred dependencies from the component through the lazy route frag
 
   const trackedComponent = craftComponent(
     'trackedComponent',
-    { providers: [provideTrackedView()] },
+    {},
     function* (inputs: { readonly label: Input<string> }) {
-      const { label, service } = yield* TrackedView(inputs);
+      const { label, service } = yield* TrackedView();
       return p(`${label()}: ${service.value}`);
     },
+  ).pipe(
+    withComponentProviders(({ label }) => [provideTrackedView({ label })]),
   );
 
   const lazyFragment = loadCraftComponent(async () => trackedComponent);
@@ -558,8 +578,10 @@ it('carries inferred dependencies from the component through the lazy route frag
       ? true
       : false
   >;
-  type _OnlyExpectedDependencyWasInferred = Expect<
-    Equal<keyof ComponentDependencies['deps'], 'trackedView'>
+  // withComponentProviders registers TrackedView and carries the dependency
+  // needed by its provider factory into the component's DI requirements.
+  type _ProviderAndFactoryDependenciesWereInferred = Expect<
+    Equal<keyof ComponentDependencies['deps'], 'trackedView' | 'TypeSpecService'>
   >;
   type _PublicInputWasInferred = Expect<
     Equal<keyof ComponentDependencies['publicProperties'], 'label'>
@@ -999,8 +1021,10 @@ it('includes dependencies of Craft components rendered in nested templates', () 
 it('keeps the component props untouched when a directive is piped', () => {
   const { CardView, provideCardView } = craftService(
     { name: 'cardView', providedIn: 'toProvide' },
-    function* (inputs: { readonly user: CraftServiceInput<User> }) {
-      const { user } = inputs;
+    function* (inputs: {
+      readonly $provided: { readonly user: CraftServiceInput<User> };
+    }) {
+      const { user } = inputs.$provided;
       yield* craftExpose('user', user);
       yield* craftExpose('label', 'card');
     },
@@ -1008,15 +1032,17 @@ it('keeps the component props untouched when a directive is piped', () => {
 
   const card = craftComponent(
     'card',
-    { providers: [provideCardView()] },
+    {},
     function* (inputs: { readonly user: Input<User> }) {
-      const { user } = yield* CardView(inputs);
+      const { user } = yield* CardView();
       return p(function* () {
         return (yield* user()).name;
       });
     },
-  ).pipe(
-    craftDirective(
+  )
+    .pipe(withComponentProviders(({ user }) => [provideCardView({ user })]))
+    .pipe(
+      craftDirective(
       'withPermission',
       {},
       {
@@ -1025,8 +1051,8 @@ it('keeps the component props untouched when a directive is piped', () => {
           label: `${base.label} (restricted)`,
         })),
       },
-    ),
-  );
+      ),
+    );
 
   // A directive enriches or restricts a service façade; it never adds a prop.
   expectTypeOf<PropsOf<typeof card>>().toEqualTypeOf<{
@@ -1296,21 +1322,27 @@ it('keeps exact child component references and validates their props', () => {
   const { ContractPropsChildView, provideContractPropsChildView } =
     craftService(
       { name: 'contractPropsChildView', providedIn: 'toProvide' },
-      function* (inputs: { readonly value: CraftServiceInput<number> }) {
-        const { value } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly value: CraftServiceInput<number> };
+      }) {
+        const { value } = inputs.$provided;
         yield* craftExpose('value', value);
       },
     );
 
   const child = craftComponent(
     'contractPropsChild',
-    { providers: [provideContractPropsChildView()] },
+    {},
     function* (inputs: { readonly value: Input<number> }) {
-      const { value } = yield* ContractPropsChildView(inputs);
+      const { value } = yield* ContractPropsChildView();
       return p(function* () {
         return String(yield* value());
       });
     },
+  ).pipe(
+    withComponentProviders(({ value }) => [
+      provideContractPropsChildView({ value }),
+    ]),
   );
   const node = child({
     value: function* () {
@@ -1566,19 +1598,25 @@ it('checks output callback arguments on a child component', () => {
   const { ContractOutputChildView, provideContractOutputChildView } =
     craftService(
       { name: 'contractOutputChildView', providedIn: 'toProvide' },
-      function* (inputs: { readonly onSelected: Output<(id: number) => void> }) {
-        const { onSelected } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly onSelected: Output<(id: number) => void> };
+      }) {
+        const { onSelected } = inputs.$provided;
         yield* craftExpose('onSelected', onSelected);
       },
     );
 
   const child = craftComponent(
     'contractOutputChild',
-    { providers: [provideContractOutputChildView()] },
+    {},
     function* (inputs: { readonly onSelected: Output<(id: number) => void> }) {
-      const { onSelected } = yield* ContractOutputChildView(inputs);
+      const { onSelected } = yield* ContractOutputChildView();
       return p('child');
     },
+  ).pipe(
+    withComponentProviders(({ onSelected }) => [
+      provideContractOutputChildView({ onSelected }),
+    ]),
   );
   const onSelected = function* (id: number) {
     return id;
@@ -1619,19 +1657,25 @@ it('diagnoses imperative output callbacks in the template contract', () => {
     provideContractImperativeOutputChildView,
   } = craftService(
     { name: 'contractImperativeOutputChildView', providedIn: 'toProvide' },
-    function* (inputs: { readonly onSelected: Output<(id: number) => void> }) {
-      const { onSelected } = inputs;
+    function* (inputs: {
+      readonly $provided: { readonly onSelected: Output<(id: number) => void> };
+    }) {
+      const { onSelected } = inputs.$provided;
       yield* craftExpose('onSelected', onSelected);
     },
   );
 
   const child = craftComponent(
     'contractImperativeOutputChild',
-    { providers: [provideContractImperativeOutputChildView()] },
+    {},
     function* (inputs: { readonly onSelected: Output<(id: number) => void> }) {
-      yield* ContractImperativeOutputChildView(inputs);
+      yield* ContractImperativeOutputChildView();
       return p('child');
     },
+  ).pipe(
+    withComponentProviders(({ onSelected }) => [
+      provideContractImperativeOutputChildView({ onSelected }),
+    ]),
   );
   const {
     ContractImperativeOutputParentView,

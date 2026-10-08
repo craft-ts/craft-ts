@@ -49,7 +49,7 @@ under: the service's API is every named primitive its factory yields.
 
 ```typescript
 const { UserQuery } = craftService(
-  { name: 'UserQueryWithState', providedIn: 'global' },
+  { name: 'UserQueryWithState', providedIn: 'function' },
   function* (inputs: { userId: CraftServiceInput<string | undefined> }) {
     yield* query('userQuery', {
       params: function* () {

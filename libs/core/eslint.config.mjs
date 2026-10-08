@@ -14,6 +14,7 @@ export default [
     },
     rules: {
       ...craftRules.configs.security.rules,
+      'craft-ts/require-craft-service-input-scope': 'error',
     },
   },
   {

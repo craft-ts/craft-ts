@@ -1,4 +1,8 @@
-import { craftService, craftExpose, type CraftServiceInput } from '@craft-ts/core';
+import {
+  craftService,
+  craftExpose,
+  type CraftServiceInput,
+} from '@craft-ts/core';
 import {
   article,
   craftComponent,
@@ -12,16 +16,19 @@ import {
   type Input,
   heading,
   headingSection,
+  withComponentProviders,
 } from '@craft-ts/component';
 import { example } from '../../shared/example.style';
 
 export const { LazyLayoutView, provideLazyLayoutView } = craftService(
   { name: 'lazyLayoutView', providedIn: 'toProvide' },
   function* (inputs: {
+    readonly $provided: {
       readonly teamId: CraftServiceInput<string>;
       readonly someParentRouteData: CraftServiceInput<string>;
-    }) {
-    const { teamId, someParentRouteData } = inputs;
+    };
+  }) {
+    const { teamId, someParentRouteData } = inputs.$provided;
 
     yield* craftExpose('teamId', teamId);
     yield* craftExpose('someParentRouteData', someParentRouteData);
@@ -30,15 +37,12 @@ export const { LazyLayoutView, provideLazyLayoutView } = craftService(
 
 const LazyLayoutComponent = craftComponent(
   'LazyLayoutComponent',
-  {
-    providers: [provideLazyLayoutView()],
-  },
-  function* (inputs: {
+  {},
+  (inputs: {
     readonly teamId: Input<string>;
     readonly someParentRouteData: Input<string>;
-  }) {
-    const { teamId, someParentRouteData } = yield* LazyLayoutView(inputs);
-    return section({ class: example.stack }, [
+  }) =>
+    section({ class: example.stack }, [
       header({ class: example.hero }, [
         span('Inherited parent bindings'),
         heading(
@@ -54,17 +58,20 @@ const LazyLayoutComponent = craftComponent(
             p([
               strong('Layout route: '),
               function* () {
-                return `/craft/lazy-layout/${yield* teamId()}`;
+                return `/craft/lazy-layout/${yield* inputs.teamId()}`;
               },
             ]),
-            p([strong('Parent route input: '), teamId]),
-            p([strong('Parent route data: '), someParentRouteData]),
+            p([strong('Parent route input: '), inputs.teamId]),
+            p([strong('Parent route data: '), inputs.someParentRouteData]),
           ]),
           CraftRouterOutlet(),
         ]),
       ),
-    ]);
-  },
+    ]),
+).pipe(
+  withComponentProviders(({ teamId, someParentRouteData }) => [
+    provideLazyLayoutView({ teamId, someParentRouteData }),
+  ]),
 );
 
 export default LazyLayoutComponent;

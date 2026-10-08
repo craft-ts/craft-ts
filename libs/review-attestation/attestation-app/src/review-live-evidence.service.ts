@@ -59,7 +59,8 @@ export type Inputs = {
 export const { ReviewLiveEvidenceView, provideReviewLiveEvidenceView } =
   craftService(
     { name: 'reviewLiveEvidenceView', providedIn: 'toProvide' },
-    function* (inputs: Inputs) {
+    function* (serviceInputs: { readonly $provided: Inputs }) {
+      const inputs = serviceInputs.$provided;
       const {
         card,
         t,

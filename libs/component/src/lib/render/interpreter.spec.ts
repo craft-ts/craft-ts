@@ -39,7 +39,7 @@ import {
 import { mountCraftComponent } from '../bridge';
 import { craftComponent } from '../component';
 import { craftDirective } from '../directive';
-import { withHostProps } from '../composition';
+import { withComponentProviders, withHostProps } from '../composition';
 import { eventAction } from '../event-action';
 import { content, renderContent } from '../project';
 import { deferNode } from '../defer-node';
@@ -987,32 +987,38 @@ describe('functional component interpreter', () => {
       craftService(
         { name: 'runtimeToolbarActionView', providedIn: 'toProvide' },
         function* (input: {
-          readonly key: string;
-          readonly content: ContentSlot;
-          readonly trigger: () => void;
+          readonly $provided: {
+            readonly key: string;
+            readonly content: ContentSlot;
+            readonly trigger: () => void;
+          };
         }) {
-          yield* craftExpose('key', input.key);
+          yield* craftExpose('key', input.$provided.key);
           yield* craftExpose('contract', {
             kind: 'toolbar-action',
-            trigger: input.trigger,
+            trigger: input.$provided.trigger,
             disabled: () => false,
           } satisfies ActionContract);
-          yield* craftExpose('content', input.content);
+          yield* craftExpose('content', input.$provided.content);
         },
       );
 
     const action = craftComponent(
       'runtimeToolbarAction',
-      { providers: [provideRuntimeToolbarActionView()] },
+      {},
       function* (input: {
         readonly key: string;
         readonly content: ContentSlot;
         readonly trigger: () => void;
       }) {
         const { contract, content: label } =
-          yield* RuntimeToolbarActionView(input);
+          yield* RuntimeToolbarActionView();
         return button({ click: contract.trigger }, renderContent(label));
       },
+    ).pipe(
+      withComponentProviders(({ key, content, trigger }) => [
+        provideRuntimeToolbarActionView({ key, content, trigger }),
+      ]),
     );
     const toolbar = craftComponent(
       'runtimeToolbar',
@@ -1736,7 +1742,7 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  it('renders named conditional elements and updates their visibility', async () => {
+  it('renders a named conditional from a directly returned reader', async () => {
     const { NamedConditionalView, provideNamedConditionalView } = craftService(
       { name: 'namedConditionalView', providedIn: 'toProvide' },
       function* () {
@@ -1750,7 +1756,8 @@ describe('functional component interpreter', () => {
       function* () {
         const { enabled } = yield* NamedConditionalView();
         return ifNode(
-          enabled,
+          'enabled',
+          () => enabled(),
           () =>
             button(
               'increment',
@@ -1911,8 +1918,10 @@ describe('functional component interpreter', () => {
     }, 'inputText');
     const { LabelView, provideLabelView } = craftService(
       { name: 'labelView', providedIn: 'toProvide' },
-      function* (inputs: { readonly text: CraftServiceInput<string> }) {
-        const { text } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly text: CraftServiceInput<string> };
+      }) {
+        const { text } = inputs.$provided;
 
         factoryRuns += 1;
         yield* craftExpose('text', text);
@@ -1922,13 +1931,15 @@ describe('functional component interpreter', () => {
     let factoryRuns = 0;
     const label = craftComponent(
       'label',
-      { providers: [provideLabelView()] },
+      {},
       function* (inputs: { readonly text: Input<string> }) {
-        const { text } = yield* LabelView(inputs);
+        const { text } = yield* LabelView();
         return p(function* () {
           return yield* text();
         });
       },
+    ).pipe(
+      withComponentProviders(({ text }) => [provideLabelView({ text })]),
     );
     const {
       nativeElement: element,
@@ -1986,8 +1997,10 @@ describe('functional component interpreter', () => {
   it('merges host classes supplied at a component call site', async () => {
     const { EditableStatusView, provideEditableStatusView } = craftService(
       { name: 'editableStatusView', providedIn: 'toProvide' },
-      function* (inputs: { readonly status: CraftServiceInput<string> }) {
-        const { status } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly status: CraftServiceInput<string> };
+      }) {
+        const { status } = inputs.$provided;
         yield* craftExpose('status', status);
       },
     );
@@ -1995,15 +2008,18 @@ describe('functional component interpreter', () => {
     const editableStatusComponent = craftComponent(
       'editableStatusComponent',
       {
-        providers: [provideEditableStatusView()],
         host: { class: 'status-base' },
       },
       function* (inputs: { readonly status: Input<string> }) {
-        const { status } = yield* EditableStatusView(inputs);
+        const { status } = yield* EditableStatusView();
         return span(function* () {
           return yield* status();
         });
       },
+    ).pipe(
+      withComponentProviders(({ status }) => [
+        provideEditableStatusView({ status }),
+      ]),
     );
     const { DirectivePageView, provideDirectivePageView } = craftService(
       { name: 'directivePageView', providedIn: 'toProvide' },
@@ -2121,22 +2137,26 @@ describe('functional component interpreter', () => {
     );
     const { GuardedView, provideGuardedView } = craftService(
       { name: 'guardedView', providedIn: 'toProvide' },
-      function* (inputs: { readonly user: CraftServiceInput<string> }) {
-        const { user } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly user: CraftServiceInput<string> };
+      }) {
+        const { user } = inputs.$provided;
         yield* craftExpose('user', user);
       },
     );
 
     const guarded = craftComponent(
       'guarded',
-      { providers: [provideGuardedView()] },
+      {},
       function* (inputs: { readonly user: Input<string> }) {
-        const { user } = yield* GuardedView(inputs);
+        const { user } = yield* GuardedView();
         return p(function* () {
           return yield* user();
         });
       },
-    ).pipe(guard);
+    )
+      .pipe(withComponentProviders(({ user }) => [provideGuardedView({ user })]))
+      .pipe(guard);
     const {
       nativeElement: element,
       flush,
@@ -2161,8 +2181,10 @@ describe('functional component interpreter', () => {
     const granted = signal(false);
     const { CardView, provideCardView } = craftService(
       { name: 'cardView', providedIn: 'toProvide' },
-      function* (inputs: { readonly user: CraftServiceInput<string> }) {
-        const { user } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly user: CraftServiceInput<string> };
+      }) {
+        const { user } = inputs.$provided;
         yield* craftExpose('user', user);
         yield* craftExpose('label', 'editable');
       },
@@ -2181,12 +2203,14 @@ describe('functional component interpreter', () => {
 
     const card = craftComponent(
       'card',
-      { providers: [provideCardView()] },
+      {},
       function* (inputs: { readonly user: Input<string> }) {
-        const { label } = yield* CardView(inputs);
+        const { label } = yield* CardView();
         return p(label);
       },
-    ).pipe(withPermission);
+    )
+      .pipe(withComponentProviders(({ user }) => [provideCardView({ user })]))
+      .pipe(withPermission);
     const { nativeElement: element, destroy } = await renderCraftComponent(
       card,
       {
@@ -2216,19 +2240,25 @@ describe('functional component interpreter', () => {
     );
     const { PanelView, providePanelView } = craftService(
       { name: 'panelView', providedIn: 'toProvide' },
-      function* (inputs: { readonly visible: CraftServiceInput<boolean> }) {
-        const { visible } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly visible: CraftServiceInput<boolean> };
+      }) {
+        const { visible } = inputs.$provided;
         yield* craftExpose('visible', visible);
       },
     );
 
     const panel = craftComponent(
       'panel',
-      { providers: [providePanelView()] },
+      {},
       function* (inputs: { readonly visible: Input<boolean> }) {
-        yield* PanelView(inputs);
+        yield* PanelView();
         return p('conditional').pipe(when);
       },
+    ).pipe(
+      withComponentProviders(({ visible }) => [
+        providePanelView({ visible }),
+      ]),
     );
     const {
       nativeElement: element,
@@ -2423,8 +2453,10 @@ describe('functional component interpreter', () => {
 
     const { GreetingView, provideGreetingView } = craftService(
       { name: 'greetingView', providedIn: 'toProvide' },
-      function* (inputs: { readonly name: CraftServiceInput<string> }) {
-        const { name } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly name: CraftServiceInput<string> };
+      }) {
+        const { name } = inputs.$provided;
 
         const service = yield* Greeting();
         yield* craftExpose('name', name);
@@ -2436,16 +2468,17 @@ describe('functional component interpreter', () => {
       'greeting',
       {
         providers: [
-          provideGreetingView(),
           { provide: PREFIX, useValue: 'Bonjour' },
         ],
       },
       function* (inputs: { readonly name: Input<string> }) {
-        const { name, service } = yield* GreetingView(inputs);
+        const { name, service } = yield* GreetingView();
         return p(function* () {
           return `${service.prefix} ${yield* name()}`;
         });
       },
+    ).pipe(
+      withComponentProviders(({ name }) => [provideGreetingView({ name })]),
     );
 
     const {
@@ -2495,10 +2528,12 @@ describe('functional component interpreter', () => {
     const { UserCardView, provideUserCardView } = craftService(
       { name: 'userCardView', providedIn: 'toProvide' },
       function* (inputs: {
-        readonly name: CraftServiceInput<string>;
-        readonly onPick: Output<(name: string) => void>;
+        readonly $provided: {
+          readonly name: CraftServiceInput<string>;
+          readonly onPick: Output<(name: string) => void>;
+        };
       }) {
-        const { name, onPick } = inputs;
+        const { name, onPick } = inputs.$provided;
         yield* craftExpose('name', name);
         yield* craftExpose('onPick', onPick);
       },
@@ -2507,12 +2542,12 @@ describe('functional component interpreter', () => {
     const picked = vi.fn();
     const userCard = craftComponent(
       'userCard',
-      { providers: [provideUserCardView()] },
+      {},
       function* (inputs: {
         readonly name: Input<string>;
         readonly onPick: Output<(name: string) => void>;
       }) {
-        const { name, onPick } = yield* UserCardView(inputs);
+        const { name, onPick } = yield* UserCardView();
         return button(
           {
             *click() {
@@ -2524,6 +2559,10 @@ describe('functional component interpreter', () => {
           },
         );
       },
+    ).pipe(
+      withComponentProviders(({ name, onPick }) => [
+        provideUserCardView({ name, onPick }),
+      ]),
     );
     const { ParentView, provideParentView } = craftService(
       { name: 'parentView', providedIn: 'toProvide' },

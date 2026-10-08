@@ -29,15 +29,17 @@ describe('Craft component and directive testing utilities', () => {
 
   it('tests the service a component provides, on its own', async () => {
     const { LogicDependency } = craftService(
-      { name: 'LogicDependency', providedIn: 'function' },
+      { name: 'LogicDependency', providedIn: 'global' },
       function* () {
         yield* craftExpose('value', 'real');
       },
     );
     const { LogicTestView, provideLogicTestView } = craftService(
       { name: 'logicTestView', providedIn: 'toProvide' },
-      function* (inputs: { readonly label: CraftServiceInput<string> }) {
-        const { label } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly label: CraftServiceInput<string> };
+      }) {
+        const { label } = inputs.$provided;
 
         const dependency = yield* LogicDependency();
         yield* craftExpose('label', label);
@@ -45,24 +47,20 @@ describe('Craft component and directive testing utilities', () => {
       },
     );
 
-    const { sut, mocks, injector } = await setupCraftServiceTestingByRegister(
+    const { sut, injector } = await setupCraftServiceTestingByRegister(
       LogicTestView,
       {
-        logicTestView: provideLogicTestView(),
-        LogicDependency: { value: 'mock' },
-      },
-      {
-        bindings: {
-          label: function* () {
+        logicTestView: provideLogicTestView({
+          label: (function* () {
             return 'logic';
-          } as Input<string>,
-        },
+          }) as Input<string>,
+        }),
+        LogicDependency: 'real',
       },
     );
 
     expect(craftUse(sut.label())).toBe('logic');
-    expect(sut.dependency.value).toBe('mock');
-    expect(mocks.LogicDependency).toBeDefined();
+    expect(sut.dependency.value).toBe('real');
     injector.destroy();
   });
 

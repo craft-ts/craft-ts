@@ -47,6 +47,47 @@ describe('no-craft-use', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it.each(['craftService', 'craftComponent', 'craftMethod', 'craftEffect'])(
+    'reports unwrapping a named primitive nested inside %s',
+    async (owner) => {
+      const result = await lintFixture(`
+        import { ${owner}, craftComputed, craftUse } from '@craft-ts/core';
+
+        ${owner}('owner', function* () {
+          const cells = yield* state(
+            'cells',
+            [],
+            insertStatePipe(({ state }) => ({
+              paintedCount: craftUse(craftComputed('paintedCount', function* () {
+                return (yield* state()).length;
+              })),
+            })),
+          );
+        });
+      `);
+
+      expect(result.messages).toEqual([
+        `\`craftUse(craftComputed(...))\` is forbidden inside \`${owner}\`. Declare the primitive in the generator body with \`yield* craftComputed(...)\` instead.`,
+      ]);
+    },
+  );
+
+  it('reports an aliased owner imported from @craft-ts/component', async () => {
+    const result = await lintFixture(`
+      import { craftComponent as component } from '@craft-ts/component';
+      import { craftEffect, craftUse } from '@craft-ts/core';
+
+      component('Owner', {}, () => {
+        craftUse(craftEffect('log', function* () {}));
+        return div();
+      });
+    `);
+
+    expect(result.messages).toEqual([
+      '`craftUse(craftEffect(...))` is forbidden inside `craftComponent`. Declare the primitive in the generator body with `yield* craftEffect(...)` instead.',
+    ]);
+  });
+
   it('still reports a craftUse that reads a reactive value', async () => {
     const result = await lintFixture(`
       import { craftComputed, craftUse } from '@craft-ts/core';

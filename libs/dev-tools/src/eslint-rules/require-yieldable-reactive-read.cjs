@@ -79,10 +79,39 @@ function isConsumed(node) {
     parent = parent.parent;
   }
   if (parent?.type === 'YieldExpression' && parent.delegate) return true;
+  if (
+    parent?.type === 'ArrowFunctionExpression' &&
+    parent.body === node &&
+    isNamedIfNodeConditionCallback(parent)
+  ) {
+    return true;
+  }
+  if (
+    parent?.type === 'CallExpression' &&
+    parent.callee.type === 'Identifier' &&
+    parent.callee.name === 'ifNode' &&
+    parent.arguments[0]?.type === 'Literal' &&
+    typeof parent.arguments[0].value === 'string' &&
+    parent.arguments[1] === node
+  ) {
+    return true;
+  }
   return (
     parent?.type === 'CallExpression' &&
     parent.callee.type === 'Identifier' &&
     parent.callee.name === 'craftUse'
+  );
+}
+
+function isNamedIfNodeConditionCallback(callback) {
+  const call = callback.parent;
+  return (
+    call?.type === 'CallExpression' &&
+    call.callee.type === 'Identifier' &&
+    call.callee.name === 'ifNode' &&
+    call.arguments[0]?.type === 'Literal' &&
+    typeof call.arguments[0].value === 'string' &&
+    call.arguments[1] === callback
   );
 }
 

@@ -20,7 +20,6 @@ import {
   source$,
   state,
   transitionStep,
-  craftUse,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 import { editor } from './editor.style';
@@ -35,9 +34,9 @@ export const { TextEditorStateMachineView, provideTextEditorStateMachineView } =
         // The context reacts declaratively to sources. There are no state
         // mutations in the transition declarations below.
         function* () {
-          const edit$ = yield* source$<void>('text.edit');
-          const commit$ = yield* source$<void>('text.commit');
-          const cancel$ = yield* source$<void>('text.cancel');
+          const edit$ = yield* source$<void>('edit$');
+          const commit$ = yield* source$<void>('commit$');
+          const cancel$ = yield* source$<void>('cancel$');
 
           const text = yield* state(
             'text',
@@ -94,14 +93,14 @@ export const { TextEditorStateMachineView, provideTextEditorStateMachineView } =
           };
         },
 
-        ({ currentStep }) => {
+        function* ({ currentStep }) {
           return {
-            readingStep: craftUse(craftComputed('readingStep', function* () {
+            readingStep: yield* craftComputed('readingStep', function* () {
               return (yield* currentStep()) === 'reading' ? 'active' : null;
-            })),
-            editingStep: craftUse(craftComputed('editingStep', function* () {
+            }),
+            editingStep: yield* craftComputed('editingStep', function* () {
               return (yield* currentStep()) === 'editing' ? 'active' : null;
-            })),
+            }),
           };
         },
       );
@@ -114,78 +113,73 @@ const TextEditorStateMachine = craftComponent(
   {
     providers: [provideTextEditorStateMachineView()],
   },
-  function* () {
-    const {
-      machine: { currentStepWithContext, editingStep, readingStep },
-    } = yield* TextEditorStateMachineView();
-    return section({ class: example.card }, [
-      heading(
-        { class: example.title },
-        'State machine — declarative text editor',
-      ),
-      p(
-        { class: example.text, 'data-exampleText': 'muted' },
-        'The transitions only move between reading and editing. The text state reacts to change, commit, and cancel with declarative patch reactions.',
-      ),
+  () => section({ class: example.card }, [
+        heading(
+          { class: example.title },
+          'State machine — declarative text editor',
+        ),
+        p(
+          { class: example.text, 'data-exampleText': 'muted' },
+          'The transitions only move between reading and editing. The text state reacts to change, commit, and cancel with declarative patch reactions.',
+        ),
 
-      div({ class: editor.steps }, [
-        span({ class: editor.step, 'data-editorStep': readingStep }, 'reading'),
-        span({ class: editor.step, 'data-editorStep': editingStep }, 'editing'),
-      ]),
+        div({ class: editor.steps }, [
+          span({ class: editor.step, 'data-editorStep': TextEditorStateMachineView.machine.readingStep }, 'reading'),
+          span({ class: editor.step, 'data-editorStep': TextEditorStateMachineView.machine.editingStep }, 'editing'),
+        ]),
 
-      matchNode.exhaustive(currentStepWithContext, 'step', {
-        reading: (reading) =>
-          div({ class: editor.panel }, [
-            p(['Committed value: ', reading.text.committedValue]),
-            p(['Current value: ', reading.text.value]),
-            button(
-              'text-edit',
-              {
-                class: example.button,
-                'data-exampleButton': 'primary',
-                type: 'button',
-                click: () => reading.edit$.emit(),
-              },
-              'Edit',
-            ),
-          ]),
-        editing: (editing) =>
-          div({ class: editor.panel }, [
-            labelText('Value'),
-            input('text-input', {
-              class: example.input,
-              'data-exampleField': 'wide',
-              type: 'text',
-              value: editing.text.value,
-              input: function* (event) {
-                yield* editing.text.change(event.target.value);
-              },
-            }),
-            div({ class: example.row }, [
+        matchNode.exhaustive(TextEditorStateMachineView.machine.currentStepWithContext, 'step', {
+          reading: (reading) =>
+            div({ class: editor.panel }, [
+              p(['Committed value: ', reading.text.committedValue]),
+              p(['Current value: ', reading.text.value]),
               button(
-                'text-commit',
+                'text-edit',
                 {
                   class: example.button,
                   'data-exampleButton': 'primary',
                   type: 'button',
-                  click: () => editing.commit$.emit(),
+                  click: () => reading.edit$.emit(),
                 },
-                'Commit',
-              ),
-              button(
-                'text-cancel',
-                {
-                  type: 'button',
-                  class: example.button,
-                  click: () => editing.cancel$.emit(),
-                },
-                'Cancel',
+                'Edit',
               ),
             ]),
-          ]),
-      }),
-    ]);
-  },
+          editing: (editing) =>
+            div({ class: editor.panel }, [
+              labelText('Value'),
+              input('text-input', {
+                class: example.input,
+                'data-exampleField': 'wide',
+                type: 'text',
+                value: editing.text.value,
+                input: function* (event) {
+                  yield* editing.text.change(event.target.value);
+                },
+              }),
+              div({ class: example.row }, [
+                button(
+                  'text-commit',
+                  {
+                    class: example.button,
+                    'data-exampleButton': 'primary',
+                    type: 'button',
+                    click: () => editing.commit$.emit(),
+                  },
+                  'Commit',
+                ),
+                button(
+                  'text-cancel',
+                  {
+                    type: 'button',
+                    class: example.button,
+                    click: () => editing.cancel$.emit(),
+                  },
+                  'Cancel',
+                ),
+              ]),
+            ]),
+        }),
+      ]),
 );
 
 function labelText(text: string) {

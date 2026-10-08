@@ -4,6 +4,7 @@ import {
   p,
   type Input,
   heading,
+  withComponentProviders,
 } from '@craft-ts/component';
 import {
   craftExpose,
@@ -15,43 +16,53 @@ import {
 export const { SendContextCounterView, provideSendContextCounterView } =
   craftService(
     { name: 'sendContextCounterView', providedIn: 'toProvide' },
-    function* (inputs: { readonly initialValue: CraftServiceInput<number> }) {
-      const { initialValue } = inputs;
+    function* (inputs: {
+      readonly $provided: { readonly initialValue: CraftServiceInput<number> };
+    }) {
+      const { initialValue } = inputs.$provided;
 
-      yield* state(
-        'counter',
-        yield* initialValue(),
-        ({ update }) => ({
-          increment: () => update((value) => value + 1),
-          decrement: () => update((value) => value - 1),
-        }),
-      );
+      yield* state('counter', yield* initialValue(), ({ update }) => ({
+        increment: () => update((value) => value + 1),
+        decrement: () => update((value) => value - 1),
+      }));
       yield* craftExpose('initialValue', initialValue);
     },
   );
 
 export const SendContextCounterComponent = craftComponent(
   'SendContextCounterComponent',
-  { providers: [provideSendContextCounterView()] },
-  function* (inputs: { readonly initialValue: Input<number> }) {
-    const { counter } = yield* SendContextCounterView(inputs);
-    return [
-      heading('Counter'),
-      p(function* () {
-        return `Value: ${yield* counter()}`;
-      }),
-      button(
-        'increment',
-        { type: 'button', click: counter.increment },
-        'Increment',
-      ),
-      button(
-        'decrement',
-        { type: 'button', click: counter.decrement },
-        'Decrement',
-      ),
-    ];
-  },
+  {},
+  (_inputs: { readonly initialValue: Input<number> }) => [
+    heading('Counter'),
+    p(function* () {
+      const { counter } = yield* SendContextCounterView();
+      return `Value: ${yield* counter()}`;
+    }),
+    button(
+      'increment',
+      {
+        type: 'button',
+        click: function* () {
+          yield* (yield* SendContextCounterView()).counter.increment();
+        },
+      },
+      'Increment',
+    ),
+    button(
+      'decrement',
+      {
+        type: 'button',
+        click: function* () {
+          yield* (yield* SendContextCounterView()).counter.decrement();
+        },
+      },
+      'Decrement',
+    ),
+  ],
+).pipe(
+  withComponentProviders(({ initialValue }) => [
+    provideSendContextCounterView({ initialValue }),
+  ]),
 );
 
 export type SendContextCounterComponent = typeof SendContextCounterComponent;

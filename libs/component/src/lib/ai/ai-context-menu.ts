@@ -1,5 +1,6 @@
 import { craftService, craftUse, fromEventToSource$ } from '@craft-ts/core';
 import { craftComponent } from '../component';
+import { withComponentProviders } from '../composition';
 import { button, div, span } from '../hyperscript';
 import type { CraftComponent, Input, InputValue, Output } from '../types';
 import { assign, unit } from '@craft-ts/style';
@@ -13,7 +14,8 @@ import { aiMenu, aiTheme, menuPosition } from './ai-overlay.style';
  */
 const { AiContextMenuDismissal, provideAiContextMenuDismissal } = craftService(
   { name: 'aiContextMenuDismissal', providedIn: 'toProvide' },
-  function* (onDismiss: Output<() => void>) {
+  function* (inputs: { $provided: { onDismiss: Output<() => void> } }) {
+    const { onDismiss } = inputs.$provided;
     // Clicks inside the menu stop propagating, so anything reaching the
     // document is an outside click.
     fromEventToSource$<MouseEvent>(document, 'click').subscribe(() =>
@@ -35,9 +37,7 @@ const { AiContextMenuDismissal, provideAiContextMenuDismissal } = craftService(
  */
 export const AiContextMenu = craftComponent(
   'AiContextMenu',
-  {
-    providers: [provideAiContextMenuDismissal()],
-  },
+  {},
   function* (inputs: {
     readonly x: Input<number>;
     readonly y: Input<number>;
@@ -45,7 +45,7 @@ export const AiContextMenu = craftComponent(
     readonly onDismiss: Output<() => void>;
   }) {
     const { x, y, onSelect } = inputs;
-    yield* AiContextMenuDismissal(inputs.onDismiss);
+    yield* AiContextMenuDismissal();
     return div(
       'aiContextMenu',
       {
@@ -73,6 +73,10 @@ export const AiContextMenu = craftComponent(
       ),
     );
   },
+).pipe(
+  withComponentProviders(({ onDismiss }) => [
+    provideAiContextMenuDismissal({ onDismiss }),
+  ]),
 ) as unknown as CraftComponent<
   {
     readonly x: InputValue<number>;

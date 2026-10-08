@@ -54,8 +54,7 @@ dependency of the containing primitive.
 const { Reset } = craftService(
   { name: 'Reset', providedIn: 'global' },
   function* () {
-    const reset$ = yield* source$<void>('reset$');
-    return reset$;
+    yield* source$<void>('reset$');
   },
 );
 
@@ -64,8 +63,9 @@ const counter = yield* state('counter', 0, ({ set }) => ({
 }));
 ```
 
-`on$(Reset, ...)` is the dependency edge. `yield* Reset()` can then be used
-to expose the same source for producing events with `reset.emit()`.
+`on$(Reset.reset$, ...)` is the dependency edge. The service exposes the
+yielded source under `reset$`; consumers can emit through
+`yield* Reset.reset$()`.
 
 ## Primary Use Case
 
@@ -206,24 +206,22 @@ console.log(filters()); // []
 ### Using on$ in a craft service
 
 ```typescript
-import { craftService, state, source$, craftExpose } from '@craft-ts/core';
+import { craftPrivate, craftService, state, source$, craftExpose } from '@craft-ts/core';
 import { on$ } from '@craft-ts/core';
 
 const { Filters } = craftService({ name: 'Filters', providedIn: 'global' }, function* () {
-  const reset = source$<void>('reset');
-  const { search } = state('search', '', ({ set }) => ({
+  const reset = yield* craftPrivate(source$<void>('reset'));
+  yield* state('search', '', ({ set }) => ({
     set,
     // Internal: reset on source emission
     handleReset: on$(reset, () => set('')),
   }));
-  const category = state('all', ({ set }) => ({
+  yield* state('category', 'all', ({ set }) => ({
     set,
     // Internal: reset on source emission
     handleReset: on$(reset, () => set('all')),
   }));
 
-  yield* craftExpose('search', search);
-  yield* craftExpose('category', category);
   yield* craftExpose('resetFilters', () => reset.emit());
 });
 

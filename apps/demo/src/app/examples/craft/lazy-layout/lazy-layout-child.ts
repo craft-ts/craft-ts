@@ -1,10 +1,15 @@
-import { craftService, craftExpose, type CraftServiceInput } from '@craft-ts/core';
+import {
+  craftService,
+  craftExpose,
+  type CraftServiceInput,
+} from '@craft-ts/core';
 import {
   article,
   craftComponent,
   h,
   p,
   span,
+  withComponentProviders,
   type Input,
   heading,
 } from '@craft-ts/component';
@@ -14,10 +19,12 @@ import { example } from '../../shared/example.style';
 export const { LazyLayoutChildView, provideLazyLayoutChildView } = craftService(
   { name: 'lazyLayoutChildView', providedIn: 'toProvide' },
   function* (inputs: {
+    readonly $provided: {
       readonly teamId: CraftServiceInput<string>;
       readonly someParentRouteData: CraftServiceInput<string>;
-    }) {
-    const { teamId, someParentRouteData } = inputs;
+    };
+  }) {
+    const { teamId, someParentRouteData } = inputs.$provided;
 
     yield* craftExpose('teamId', teamId);
     yield* craftExpose('someParentRouteData', someParentRouteData);
@@ -26,32 +33,31 @@ export const { LazyLayoutChildView, provideLazyLayoutChildView } = craftService(
 
 const LazyLayoutChildComponent = craftComponent(
   'LazyLayoutChildComponent',
-  {
-    providers: [provideLazyLayoutChildView()],
-  },
-  function* (inputs: {
+  {},
+  (inputs: {
     readonly teamId: Input<string>;
     readonly someParentRouteData: Input<string>;
-  }) {
-    const { teamId, someParentRouteData } = yield* LazyLayoutChildView(inputs);
-    return [
-      article({ class: example.tealCard }, [
-        span('Child component'),
-        heading(
-          { class: example.subtitle },
-          'Input binding inside a lazy feature',
-        ),
-        p('The inherited parent values are available as typed SFC inputs.'),
-        h('dl', { class: example.definitions }, [
-          h('dt', { class: example.term }, 'teamId'),
-          h('dd', { class: example.definition }, teamId),
-          h('dt', { class: example.term }, 'someParentRouteData'),
-          h('dd', { class: example.definition }, someParentRouteData),
-        ]),
+  }) => [
+    article({ class: example.tealCard }, [
+      span('Child component'),
+      heading(
+        { class: example.subtitle },
+        'Input binding inside a lazy feature',
+      ),
+      p('The inherited parent values are available as typed SFC inputs.'),
+      h('dl', { class: example.definitions }, [
+        h('dt', { class: example.term }, 'teamId'),
+        h('dd', { class: example.definition }, inputs.teamId),
+        h('dt', { class: example.term }, 'someParentRouteData'),
+        h('dd', { class: example.definition }, inputs.someParentRouteData),
       ]),
-      OtherComponent({}),
-    ];
-  },
+    ]),
+    OtherComponent({}),
+  ],
+).pipe(
+  withComponentProviders(({ teamId, someParentRouteData }) => [
+    provideLazyLayoutChildView({ teamId, someParentRouteData }),
+  ]),
 );
 
 export default LazyLayoutChildComponent;

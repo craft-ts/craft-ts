@@ -19,7 +19,6 @@ const { TaskList } = craftService(
   function* () {
     const api = yield* TaskApi(); // tracked
     const tasks = yield* state('tasks', []); // tracked
-    return tasks;
   },
 );
 ```

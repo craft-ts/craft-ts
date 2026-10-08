@@ -13,8 +13,8 @@ useSnippetHarness();
 
 type Task = { id: string; title: string; done: boolean };
 
-const { TaskList } = craftService(
-  { name: 'TaskList', providedIn: 'function' },
+const { TaskList, provideTaskList } = craftService(
+  { name: 'TaskList', providedIn: 'toProvide' },
   function* () {
     yield* state('tasks', [] as Task[], ({ update: _update }) => ({
       remaining: () => 0,
@@ -28,29 +28,33 @@ const { TaskList } = craftService(
 // #region tasks-component
 import { craftComponent, forNode, h1, li, ul } from '@craft-ts/component';
 
-export const Tasks = craftComponent('Tasks', {}, function* () {
-  const { tasks } = yield* TaskList();
+export const Tasks = craftComponent(
+  'Tasks',
+  { providers: [provideTaskList()] },
+  function* () {
+    const { tasks } = yield* TaskList();
 
-  return [
-    h1(function* () {
-      return `Tasks — ${yield* tasks.remaining()} left`;
-    }),
-    ul(
-      forNode(tasks, { track: (task) => task.id }, (task) =>
-        li(function* () {
-          return (yield* task()).title;
-        }),
+    return [
+      h1(function* () {
+        return `Tasks — ${yield* tasks.remaining()} left`;
+      }),
+      ul(
+        forNode(tasks, { track: (task) => task.id }, (task) =>
+          li(function* () {
+            return (yield* task()).title;
+          }),
+        ),
       ),
-    ),
-  ];
-});
+    ];
+  },
+);
 // #endregion tasks-component
 
 describe('Learn 10 Tasks component', () => {
   it('tests the service without the DOM', async () => {
     // #region tasks-service-test
     const { sut } = await setupCraftServiceTestingByRegister(TaskList, {
-      TaskList: 'real',
+      TaskList: provideTaskList(),
     });
 
     expect(craftUse(sut.tasks.remaining())).toBe(0);

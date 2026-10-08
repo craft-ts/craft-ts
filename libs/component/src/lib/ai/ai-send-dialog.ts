@@ -12,6 +12,7 @@ import {
 import { craftService } from '@craft-ts/core';
 import { liveRegion } from '../a11y';
 import { craftComponent } from '../component';
+import { withComponentProviders } from '../composition';
 import {
   button,
   dialog,
@@ -158,10 +159,12 @@ function formatPrompt(
 const { AiSendDialogState, provideAiSendDialogState } = craftService(
   { name: 'aiSendDialogState', providedIn: 'toProvide' },
   function* (input: {
+    readonly $provided: {
       readonly payload: CraftServiceInput<AiDialogPayload>;
       readonly onClose: Output<() => void>;
-    }) {
-    const { payload, onClose } = input;
+    };
+  }) {
+    const { payload, onClose } = input.$provided;
     const temporalRuntime = yield* CraftTemporalRuntime();
     type InstructionState = (() => string) & {
       setInstruction: (value: string) => Generator<never, unknown, unknown>;
@@ -321,10 +324,8 @@ const { AiSendDialogState, provideAiSendDialogState } = craftService(
  */
 export const AiSendDialog = craftComponent(
   'AiSendDialog',
-  {
-    providers: [provideAiSendDialogState()],
-  },
-  function* (inputs: {
+  {},
+  function* (_inputs: {
     readonly payload: Input<AiDialogPayload>;
     readonly onClose: Output<() => void>;
   }) {
@@ -339,7 +340,7 @@ export const AiSendDialog = craftComponent(
       captureInProgress,
       captureError,
       copy,
-    } = yield* AiSendDialogState(inputs);
+    } = yield* AiSendDialogState();
     return dialog(
       {
         class: [aiTheme.root, aiDialog.overlay],
@@ -548,6 +549,10 @@ export const AiSendDialog = craftComponent(
       ),
     );
   },
+).pipe(
+  withComponentProviders(({ payload, onClose }) => [
+    provideAiSendDialogState({ payload, onClose }),
+  ]),
 ) as unknown as CraftComponent<
   {
     readonly payload: InputValue<AiDialogPayload>;

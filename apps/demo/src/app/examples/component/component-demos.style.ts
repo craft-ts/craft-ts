@@ -115,7 +115,6 @@ const callout = (
 ) => [py(space(3)), px(space(4)), radius(radii.lg), color(ink), bg(surface)];
 
 export const componentUi = craftStyles('componentDemo', {
-  host: [display.block],
   page: [
     display.grid,
     gap(space(4)),

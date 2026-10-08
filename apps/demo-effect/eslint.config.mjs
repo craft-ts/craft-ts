@@ -47,6 +47,10 @@ export default [
     // the examples can contrast those primitives with the URL-backed form.
     files: ['**/src/app/examples/effect/**/*.ts'],
     rules: {
+      // These lessons keep their generator templates and insertion examples
+      // visible; the standalone app shell follows the current conventions.
+      'craft-ts/no-craft-use': 'off',
+      'craft-ts/require-direct-craft-component-template': 'off',
       'craft-ts/prefer-route-query-params-for-filter-state': 'off',
       'craft-ts/prefer-deep-yieldable-for-item': 'off',
       'craft-ts/no-hardcoded-design-values': 'off',

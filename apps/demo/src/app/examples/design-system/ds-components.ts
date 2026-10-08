@@ -16,6 +16,7 @@ import {
   craftComponent,
   type Input,
   type Output,
+  withComponentProviders,
 } from '@craft-ts/component';
 import { button } from './components.style';
 
@@ -35,12 +36,14 @@ export type Size = 'sm' | 'md' | 'lg';
 export const { DsButtonView, provideDsButtonView } = craftService(
   { name: 'dsButtonView', providedIn: 'toProvide' },
   function* (inputs: {
+      readonly $provided: {
       readonly label: CraftServiceInput<string>;
       readonly tone: CraftServiceInput<Tone>;
       readonly size: CraftServiceInput<Size>;
       readonly press: Output<() => void>;
+      };
     }) {
-    const { label, tone, size, press } = inputs;
+    const { label, tone, size, press } = inputs.$provided;
     yield* craftExpose('label', label);
     yield* craftExpose('tone', tone);
     yield* craftExpose('size', size);
@@ -50,26 +53,28 @@ export const { DsButtonView, provideDsButtonView } = craftService(
 
 export const DsButton = craftComponent(
   'DsButton',
-  { providers: [provideDsButtonView()] },
-  function* (inputs: {
+  {},
+  (inputs: {
     readonly label: Input<string>;
     readonly tone: Input<Tone>;
     readonly size: Input<Size>;
     readonly press: Output<() => void>;
-  }) {
-    const { label, tone, size, press } = yield* DsButtonView(inputs);
-    return buttonEl(
+  }) =>
+    buttonEl(
       'dsButton',
       {
         type: 'button',
         class: button.root,
-        'data-tone': tone,
-        'data-size': size,
-        click: press,
+        'data-tone': inputs.tone,
+        'data-size': inputs.size,
+        click: inputs.press,
       },
-      label,
-    );
-  },
+      inputs.label,
+    ),
+).pipe(
+  withComponentProviders(({ label, tone, size, press }) => [
+    provideDsButtonView({ label, tone, size, press }),
+  ]),
 );
 
 export type DsButton = typeof DsButton;
@@ -78,10 +83,12 @@ export type DsButton = typeof DsButton;
 export const { DsGhostButtonView, provideDsGhostButtonView } = craftService(
   { name: 'dsGhostButtonView', providedIn: 'toProvide' },
   function* (inputs: {
+      readonly $provided: {
       readonly label: CraftServiceInput<string>;
       readonly press: Output<() => void>;
+      };
     }) {
-    const { label, press } = inputs;
+    const { label, press } = inputs.$provided;
     yield* craftExpose('label', label);
     yield* craftExpose('press', press);
   },
@@ -89,22 +96,24 @@ export const { DsGhostButtonView, provideDsGhostButtonView } = craftService(
 
 export const DsGhostButton = craftComponent(
   'DsGhostButton',
-  { providers: [provideDsGhostButtonView()] },
-  function* (inputs: {
+  {},
+  (inputs: {
     readonly label: Input<string>;
     readonly press: Output<() => void>;
-  }) {
-    const { label, press } = yield* DsGhostButtonView(inputs);
-    return buttonEl(
+  }) =>
+    buttonEl(
       'dsGhostButton',
       {
         type: 'button',
         class: button.ghost,
-        click: press,
+        click: inputs.press,
       },
-      label,
-    );
-  },
+      inputs.label,
+    ),
+).pipe(
+  withComponentProviders(({ label, press }) => [
+    provideDsGhostButtonView({ label, press }),
+  ]),
 );
 
 export type DsGhostButton = typeof DsGhostButton;

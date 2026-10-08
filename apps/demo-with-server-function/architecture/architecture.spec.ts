@@ -127,7 +127,9 @@ describe('architecture', () => {
     const layer = graph
       .serverFunctionMiddlewares()
       .find((node) => node.label === 'demo.portable-audit');
-    expect(layer?.details?.['composition']).toBe('pipe');
+    expect(
+      (layer?.details as Record<string, unknown> | undefined)?.['composition'],
+    ).toBe('pipe');
 
     const composed = graph.graph.edges.filter(
       (edge) =>
@@ -150,7 +152,11 @@ describe('architecture', () => {
     const effectAudit = graph
       .serverFunctionMiddlewares()
       .find((node) => node.label === 'demo.effect-audit');
-    expect(effectAudit?.details?.['composition']).toBe('use');
+    expect(
+      (effectAudit?.details as Record<string, unknown> | undefined)?.[
+        'composition'
+      ],
+    ).toBe('use');
   });
 
   it('models the client middleware chain and where it is attached', () => {

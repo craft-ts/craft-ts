@@ -26,7 +26,6 @@ import {
   mutation,
   state,
   type ValidatedFormValue,
-  craftUse,
   craftPrivate,
   craftExpose,
 } from '@craft-ts/core';
@@ -65,12 +64,14 @@ export const { LoginFormView, provideLoginFormView } = craftService(
             validators: [cRequired(), cMinLength({ minLength: 6 })],
           })),
         ),
-        ({ field }) => ({
-          showSuccess: craftUse(craftComputed(
-            'showSuccess',
-            () => submitted.hasValue() && field.valid(),
-          )),
-        }),
+        function* ({ field }) {
+          return {
+            showSuccess: yield* craftComputed(
+              'showSuccess',
+              () => submitted.hasValue() && field.valid(),
+            ),
+          };
+        },
       ),
     );
     yield* craftExpose('email', fieldControl('email'));
@@ -83,63 +84,59 @@ const LoginFormComponent = craftComponent(
   {
     providers: [provideLoginFormView()],
   },
-  function* () {
-    const { loginForm, email, password } = yield* LoginFormView();
-
-    return (
-      // exceptions are volontary handled at different place for demo reasons
-      form(
-        'login',
-        {
-          class: example.card,
-          *submit(event) {
-            event.preventDefault();
-            yield* loginForm.form.submit();
+  () => (
+        // exceptions are volontary handled at different place for demo reasons
+        form(
+          'login',
+          {
+            class: example.card,
+            *submit(event) {
+              event.preventDefault();
+              yield* LoginFormView.loginForm.form.submit();
+            },
           },
-        },
-        [
-          heading({ class: example.title }, 'Login form'),
-          div({ class: example.fieldset }, [
-            label({ ...email.label, class: example.label, htmlFor: 'email' }, 'Email'),
-            input('email', { ...email.input, class: example.input, 'data-exampleField': 'wide', type: 'email' }).pipe(
-              CraftFieldDirective(loginForm.form.selectEmail()),
+          [
+            heading({ class: example.title }, 'Login form'),
+            div({ class: example.fieldset }, [
+              label({ ...LoginFormView.email.label, class: example.label, htmlFor: 'email' }, 'Email'),
+              input('email', { ...LoginFormView.email.input, class: example.input, 'data-exampleField': 'wide', type: 'email' }).pipe(
+                CraftFieldDirective(LoginFormView.loginForm.form.selectEmail()),
+              ),
+              p({ ...LoginFormView.email.description, class: example.hint }, 'We never share your email.'),
+            ]),
+            div({ class: example.fieldset }, [
+              label({ ...LoginFormView.password.label, class: example.label, htmlFor: 'password' }, 'Password'),
+              input('password', { ...LoginFormView.password.input, class: example.input, 'data-exampleField': 'wide', type: 'password' })
+                .pipe(CraftFieldDirective(LoginFormView.loginForm.form.selectPassword()))
+                .pipe(
+                  fieldErrorNode.partial({
+                    required: () =>
+                      p({ class: example.text, 'data-exampleText': 'error' }, 'Password is required.'),
+                  }),
+                ),
+              p({ ...LoginFormView.password.description, class: example.hint }, 'Use at least 6 characters.'),
+            ]),
+            ifNode(LoginFormView.loginForm.form.showSuccess, () =>
+              p('✅ Login form submitted.'),
             ),
-            p({ ...email.description, class: example.hint }, 'We never share your email.'),
-          ]),
-          div({ class: example.fieldset }, [
-            label({ ...password.label, class: example.label, htmlFor: 'password' }, 'Password'),
-            input('password', { ...password.input, class: example.input, 'data-exampleField': 'wide', type: 'password' })
-              .pipe(CraftFieldDirective(loginForm.form.selectPassword()))
-              .pipe(
-                fieldErrorNode.partial({
-                  required: () =>
-                    p({ class: example.text, 'data-exampleText': 'error' }, 'Password is required.'),
-                }),
-              ),
-            p({ ...password.description, class: example.hint }, 'Use at least 6 characters.'),
-          ]),
-          ifNode(loginForm.form.showSuccess, () =>
-            p('✅ Login form submitted.'),
-          ),
-          button('submit', { class: example.button, 'data-exampleButton': 'primary', type: 'submit' }, 'Sign in'),
-        ],
-      ).pipe(
-        fieldErrorNode.exhaustive({
-          email: {
-            required: () => p({ class: example.text, 'data-exampleText': 'error' }, 'Email is required.'),
-            email: () => p({ class: example.text, 'data-exampleText': 'error' }, 'Enter a valid email.'),
-          },
-          password: {
-            minLength: ({ exception }) =>
-              p(
-                { class: example.text, 'data-exampleText': 'error' },
-                `Use at least ${exception.payload} characters.`,
-              ),
-          },
-        }),
-      )
-    );
-  },
+            button('submit', { class: example.button, 'data-exampleButton': 'primary', type: 'submit' }, 'Sign in'),
+          ],
+        ).pipe(
+          fieldErrorNode.exhaustive({
+            email: {
+              required: () => p({ class: example.text, 'data-exampleText': 'error' }, 'Email is required.'),
+              email: () => p({ class: example.text, 'data-exampleText': 'error' }, 'Enter a valid email.'),
+            },
+            password: {
+              minLength: ({ exception }) =>
+                p(
+                  { class: example.text, 'data-exampleText': 'error' },
+                  `Use at least ${exception.payload} characters.`,
+                ),
+            },
+          }),
+        )
+      ),
 );
 
 export default LoginFormComponent;

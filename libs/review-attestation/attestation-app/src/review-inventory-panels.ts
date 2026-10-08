@@ -20,6 +20,7 @@ import {
   strong,
   ul,
   type Input,
+  withComponentProviders,
   type Output,
 } from '@craft-ts/component';
 import type { ReviewApiQueue } from '@craft-ts/style-testing/review';
@@ -81,7 +82,8 @@ type Inputs = {
 export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
   craftService(
     { name: 'reviewInventoryPanelsView', providedIn: 'toProvide' },
-    function* (inputs: Inputs) {
+    function* (serviceInputs: { readonly $provided: Inputs }) {
+      const inputs = serviceInputs.$provided;
       const {
         devtoolView,
         t,
@@ -205,9 +207,7 @@ export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
 
 export const ReviewInventoryPanels = craftComponent(
   'ReviewInventoryPanels',
-  {
-    providers: [provideReviewInventoryPanelsView()],
-  },
+  {},
   function* (inputs: Inputs) {
     const {
       devtoolView,
@@ -232,7 +232,7 @@ export const ReviewInventoryPanels = craftComponent(
       templateObligations,
       diagnostics,
       fileUrl,
-    } = yield* ReviewInventoryPanelsView(inputs);
+    } = yield* ReviewInventoryPanelsView();
     return [
       main(
         {
@@ -585,4 +585,8 @@ export const ReviewInventoryPanels = craftComponent(
       ),
     ];
   },
+).pipe(
+  withComponentProviders((inputs) => [
+    provideReviewInventoryPanelsView(inputs),
+  ]),
 );

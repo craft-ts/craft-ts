@@ -196,7 +196,6 @@ describe('primitive granular mutation template', () => {
         register: {
           ApiService: 'notReached',
           StoragePersister: 'notReached',
-          statusView: 'notReached',
           granularMutationView: result.context,
         },
       },
@@ -224,7 +223,6 @@ describe('primitive granular mutation template', () => {
         register: {
           ApiService: 'notReached',
           StoragePersister: 'notReached',
-          statusView: 'notReached',
           granularMutationView: result.context,
         },
       },
@@ -247,7 +245,6 @@ describe('primitive granular mutation template', () => {
         register: {
           ApiService: 'notReached',
           StoragePersister: 'notReached',
-          statusView: 'notReached',
           granularMutationView: result.context,
         },
       },

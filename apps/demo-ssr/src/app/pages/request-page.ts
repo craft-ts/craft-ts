@@ -26,16 +26,18 @@ export const { SsrRequestPageView, provideSsrRequestPageView } = craftService(
 export const RequestPage = craftComponent(
   'SsrRequestPage',
   { providers: [provideSsrRequestPageView()] },
-  function* () {
-    const { name } = yield* SsrRequestPageView();
-    return page(
+  () =>
+    page(
       'Données de la requête disponibles au SSR',
       'Personnalisation par URL',
       'Le serveur et le navigateur utilisent la même route Craft. La première réponse lit la query string, puis les navigations suivantes restent côté client.',
       section({ class: pageStyle.grid }, [
         article({ class: pageStyle.card, 'data-ssrCard': 'accent' }, [
           span({ class: pageStyle.badge }, 'SSR'),
-          h2({ class: pageStyle.cardTitle }, `Bonjour ${name} !`),
+          h2(
+            { class: pageStyle.cardTitle },
+            `Bonjour ${SsrRequestPageView.name} !`,
+          ),
           p(
             { class: pageStyle.text },
             'Cette salutation a été résolue pendant le rendu de la route.',
@@ -46,7 +48,7 @@ export const RequestPage = craftComponent(
               class: pageStyle.input,
               id: 'name',
               name: 'name',
-              value: name,
+              value: SsrRequestPageView.name,
             }),
             button(
               'requestSubmitButton',
@@ -63,6 +65,5 @@ export const RequestPage = craftComponent(
           ),
         ]),
       ]),
-    );
-  },
+    ),
 );

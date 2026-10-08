@@ -23,15 +23,12 @@ const GREEN: Tone = 'green';
 export const TokenCard = craftComponent(
   'TokenCard',
   {},
-  ({
-    label,
-    tone,
-  }: {
+  (input: {
     readonly label: Input<string>;
     readonly tone: Input<Tone | null>;
   }) =>
-    article({ class: tokenCard.root, 'data-tokenCard': tone }, [
-      span({ class: tokenCard.label }, label),
+    article({ class: tokenCard.root, 'data-tokenCard': input.tone }, [
+      span({ class: tokenCard.label }, input.label),
       span(
         { class: tokenCard.contract },
         'ink, bg, radius: typed, each with an initial value',

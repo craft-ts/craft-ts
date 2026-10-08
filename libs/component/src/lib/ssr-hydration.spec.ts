@@ -34,6 +34,7 @@ import {
   ul,
   type CraftComponent,
   type Input,
+  withComponentProviders,
 } from '../index';
 
 function configFor(component: CraftComponent<any>) {
@@ -49,8 +50,10 @@ describe('Craft SSR and hydration', () => {
   it('renders deterministic HTML, CSS and a serializable state snapshot', async () => {
     const { SsrCounterView, provideSsrCounterView } = craftService(
       { name: 'ssrCounterView', providedIn: 'toProvide' },
-      function* (inputs: { readonly initial: CraftServiceInput<number> }) {
-        const { initial } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly initial: CraftServiceInput<number> };
+      }) {
+        const { initial } = inputs.$provided;
 
         yield* state('count', yield* initial(), ({ update }) => ({
           increment: () => update((value) => value + 1),
@@ -61,11 +64,10 @@ describe('Craft SSR and hydration', () => {
     const counter = craftComponent(
       'SsrCounter',
       {
-        providers: [provideSsrCounterView()],
         styles: ':scope { color: rebeccapurple; }',
       },
       function* (inputs: { readonly initial: Input<number> }) {
-        const { count } = yield* SsrCounterView(inputs);
+        const { count } = yield* SsrCounterView();
         return div([
           p({ class: 'value' }, function* () {
             return String(yield* count());
@@ -80,6 +82,10 @@ describe('Craft SSR and hydration', () => {
           ),
         ]);
       },
+    ).pipe(
+      withComponentProviders(({ initial }) => [
+        provideSsrCounterView({ initial }),
+      ]),
     );
     const config = configFor(counter);
 
@@ -707,8 +713,10 @@ describe('Craft SSR and hydration', () => {
   it('keeps concurrent request state isolated', async () => {
     const { IsolatedAppView, provideIsolatedAppView } = craftService(
       { name: 'isolatedAppView', providedIn: 'toProvide' },
-      function* (inputs: { readonly initial: CraftServiceInput<number> }) {
-        const { initial } = inputs;
+      function* (inputs: {
+        readonly $provided: { readonly initial: CraftServiceInput<number> };
+      }) {
+        const { initial } = inputs.$provided;
 
         yield* state('value', yield* initial());
       },
@@ -716,13 +724,17 @@ describe('Craft SSR and hydration', () => {
 
     const app = craftComponent(
       'IsolatedApp',
-      { providers: [provideIsolatedAppView()] },
+      {},
       function* (inputs: { readonly initial: Input<number> }) {
-        const { value } = yield* IsolatedAppView(inputs);
+        const { value } = yield* IsolatedAppView();
         return p(function* () {
           return String(yield* value());
         });
       },
+    ).pipe(
+      withComponentProviders(({ initial }) => [
+        provideIsolatedAppView({ initial }),
+      ]),
     );
     const config = configFor(app);
 
