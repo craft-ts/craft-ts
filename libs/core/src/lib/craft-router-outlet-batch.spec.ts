@@ -81,7 +81,7 @@ describe('the router outlet publishing a page', () => {
     // injectMatch() hands out) in one template.
     const match = runInInjectionContext(outlet.displayedInjector()!, () =>
       ɵinjectCraftMatch(),
-    );
+    )!;
     const seen: string[] = [];
     const watch = TestBed.runInInjectionContext(() =>
       craftWatch(() => {

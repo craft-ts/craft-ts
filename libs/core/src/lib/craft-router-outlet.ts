@@ -327,9 +327,11 @@ export class CraftRouterOutletController {
       canReuseActivation(this._match, activated, this._meta)
     ) {
       // The page reads its inputs and the live match in one template: they move together.
+      const liveMatch = this._liveMatch;
+      const childMatch = this._childMatch;
       craftBatch(() => {
-        this._liveMatch!.set(activated);
-        this._childMatch!.set(child);
+        liveMatch.set(activated);
+        childMatch.set(child);
         this.displayedProps.set(collectMatchProps(activated));
       });
       this.publishViewTransitionPayload();

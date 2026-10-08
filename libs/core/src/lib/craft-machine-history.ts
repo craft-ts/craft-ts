@@ -1,4 +1,8 @@
-import { craftComputed as createCraftComputed, craftSignal } from './host/craft-signal';
+import {
+  craftBatch as batch,
+  craftComputed as createCraftComputed,
+  craftSignal,
+} from './host/craft-signal';
 import { StorageService } from './browser-boundaries';
 import type { CraftUnique } from './craft-unique';
 import type { GetServiceYields } from './craft-service';
@@ -351,15 +355,20 @@ export function withStateMachineHistory(
       // over and over, and `back()` would walk through duplicates.
       if (isSameMoment(entries()[cursor()], entry)) return;
 
-      entries.update((current) => {
-        // Recording after a rewind drops the forward entries: the machine took
-        // a different branch, and keeping the old one would let `forward()`
-        // walk into a future that no longer happened.
-        const kept = current.slice(0, cursor() + 1);
-        const next = [...kept, entry];
-        return next.length > limit ? next.slice(next.length - limit) : next;
+      // The entry and the cursor onto it are one change: published apart, a reader
+      // woken in between sees the cursor behind the entry just appended, a "forward"
+      // that does not exist.
+      batch(() => {
+        entries.update((current) => {
+          // Recording after a rewind drops the forward entries: the machine took
+          // a different branch, and keeping the old one would let `forward()`
+          // walk into a future that no longer happened.
+          const kept = current.slice(0, cursor() + 1);
+          const next = [...kept, entry];
+          return next.length > limit ? next.slice(next.length - limit) : next;
+        });
+        cursor.set(entries().length - 1);
       });
-      cursor.set(entries().length - 1);
       writePersisted(storage, storageKey, entries(), cursor());
     };
 

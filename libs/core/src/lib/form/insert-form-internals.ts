@@ -1,4 +1,5 @@
 import {
+  batch,
   computed,
   Injector,
   isSignal,
@@ -342,14 +343,18 @@ export function createSubmissionController(): SubmissionController {
     hasAttemptedSubmit: attempted.asReadonly(),
     submitting: submitting.asReadonly(),
     setAttemptedSubmit: () => attempted.set(true),
-    setSubmitting: (next: boolean) => {
-      if (next) attempted.set(true);
-      submitting.set(next);
-    },
-    reset: () => {
-      attempted.set(false);
-      submitting.set(false);
-    },
+    // "Submitting" implies "attempted": publish the pair as one, or a reader woken
+    // between the two writes sees a form submitting that never tried.
+    setSubmitting: (next: boolean) =>
+      batch(() => {
+        if (next) attempted.set(true);
+        submitting.set(next);
+      }),
+    reset: () =>
+      batch(() => {
+        attempted.set(false);
+        submitting.set(false);
+      }),
   };
 }
 

@@ -1,4 +1,5 @@
 import {
+  batch,
   inject,
   signal,
   ResourceOptions,
@@ -296,44 +297,50 @@ export function resourceById<
   > = {
     changes: changesTracker,
     state: stateSignal,
-    reset: () => {
-      destroyAllLinkedParams();
-      Object.values(resourceByGroup()).forEach((resource) =>
-        (resource as CraftResourceRef<State, ResourceParams>).destroy(),
-      );
-      resourceByGroup.set({});
-    },
-    resetResource: (id: GroupIdentifier) => {
-      destroyLinkedParams(id);
-      resourceByGroup.update((state) => {
-        const newState = { ...state };
-        newState[id]?.destroy();
-        delete newState[id];
-        return newState;
-      });
-    },
-    set: (payload: Partial<Record<GroupIdentifier, State>>) => {
-      // Remove existing keys that are not in the payload
-      const currentResources = resourceByGroup();
-      Object.keys(currentResources).forEach((id) => {
-        if (!(id in payload)) {
-          resourcesHandler.resetResource(id as GroupIdentifier);
-        }
-      });
+    // `state` is the record of every resource's value, and each of these touches
+    // several resources: one batch each, or a reader of `state` is woken on a record
+    // made of some ids already replaced and some not yet.
+    reset: () =>
+      batch(() => {
+        destroyAllLinkedParams();
+        Object.values(resourceByGroup()).forEach((resource) =>
+          (resource as CraftResourceRef<State, ResourceParams>).destroy(),
+        );
+        resourceByGroup.set({});
+      }),
+    resetResource: (id: GroupIdentifier) =>
+      batch(() => {
+        destroyLinkedParams(id);
+        resourceByGroup.update((state) => {
+          const newState = { ...state };
+          newState[id]?.destroy();
+          delete newState[id];
+          return newState;
+        });
+      }),
+    set: (payload: Partial<Record<GroupIdentifier, State>>) =>
+      batch(() => {
+        // Remove existing keys that are not in the payload
+        const currentResources = resourceByGroup();
+        Object.keys(currentResources).forEach((id) => {
+          if (!(id in payload)) {
+            resourcesHandler.resetResource(id as GroupIdentifier);
+          }
+        });
 
-      // Set or create resources from the payload
-      Object.entries(payload).forEach(([id, value]) => {
-        const existingResource = resourceByGroup()[id as GroupIdentifier];
-        if (existingResource) {
-          existingResource.set(value as State);
-        } else {
-          // If the resource doesn't exist, create it with the provided value as default
-          resourcesHandler.addById(id as GroupIdentifier, {
-            defaultValue: value as State,
-          });
-        }
-      });
-    },
+        // Set or create resources from the payload
+        Object.entries(payload).forEach(([id, value]) => {
+          const existingResource = resourceByGroup()[id as GroupIdentifier];
+          if (existingResource) {
+            existingResource.set(value as State);
+          } else {
+            // If the resource doesn't exist, create it with the provided value as default
+            resourcesHandler.addById(id as GroupIdentifier, {
+              defaultValue: value as State,
+            });
+          }
+        });
+      }),
     update: (
       payload: (
         state: Partial<Record<GroupIdentifier, State>>,
