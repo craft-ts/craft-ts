@@ -992,6 +992,78 @@ describe('streams migration', () => {
     expect(await read('q.ts')).toContain("from 'rxjs'");
   });
 
+  it('moves the type and guard names that have a core counterpart', async () => {
+    const { read, result } = await migrate({
+      's.ts': `
+        import { isObservable, of } from 'rxjs';
+        import type { Observer, SubscriptionLike } from 'rxjs';
+
+        export function watch(input: unknown, observer: Partial<Observer<number>>): SubscriptionLike | undefined {
+          return isObservable(input) ? of(1).subscribe(observer) : undefined;
+        }
+      `,
+    });
+    const output = await read('s.ts');
+
+    expect(result.exitCode).toBe(0);
+    expect(output).toContain('isObservableLike(input)');
+    expect(output).toContain('Partial<StreamObserver<number>>');
+    expect(output).toContain('Unsubscribable | undefined');
+    expect(output).toContain("from '@craft-ts/core'");
+    expect(output).not.toContain("from 'rxjs");
+  });
+
+  it('leaves the rest of the import block alone and puts the new import where rxjs was', async () => {
+    const { read } = await migrate({
+      'u.ts': `import {
+  zeta,
+  alpha,
+} from './other';
+import { of } from 'rxjs';
+import { map } from 'rxjs/operators';
+import type { Thing } from '@craft-ts/core';
+import { last } from './last';
+
+export const out = of(1).pipe(map((n) => n + 1));
+export { zeta, alpha, last };
+export type { Thing };
+`,
+    });
+    const output = await read('u.ts');
+
+    // Untouched: same order, same multi-line shape.
+    expect(
+      output.startsWith("import {\n  zeta,\n  alpha,\n} from './other';\n"),
+    ).toBe(true);
+    expect(output).toContain("import { last } from './last';");
+    // The type-only core import is not given value names.
+    expect(output).toContain("import type { Thing } from '@craft-ts/core';");
+    // The new import sits right after './other', where the rxjs ones were.
+    expect(output.indexOf("'@craft-ts/stream'")).toBeGreaterThan(
+      output.indexOf("'./other'"),
+    );
+    expect(output.indexOf("'@craft-ts/stream'")).toBeLessThan(
+      output.indexOf("'@craft-ts/core'"),
+    );
+    expect(output).not.toContain("from 'rxjs");
+  });
+
+  it('blocks the operator function types with the way out', async () => {
+    const { result } = await migrate({
+      't.ts': `
+        import type { MonoTypeOperatorFunction } from 'rxjs';
+        export type Same<T> = MonoTypeOperatorFunction<T>;
+      `,
+    });
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'RXJS_SYMBOL_UNSUPPORTED',
+        message: expect.stringContaining('StreamOperator<A, Y, A, Y>'),
+      }),
+    );
+  });
+
   it('blocks forkJoin outside the array/object form', async () => {
     const { result } = await migrate({
       'r.ts': `

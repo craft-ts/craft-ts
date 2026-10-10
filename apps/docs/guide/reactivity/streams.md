@@ -514,6 +514,8 @@ temporal runtime — `x.pipe(…, publish())` becomes `connectable(x.pipe(…))`
 `publishReplay` / `publishBehavior` / `multicast` get their `connector`), and the operators and creators with the same name (`interval`, `timer`, `fromEvent`, `defer`,
 `throwError`, `concat`, `first`, `last`, `reduce`, `auditTime`, `expand`, …) move over unchanged.
 
+`isObservable` becomes `isObservableLike`, `Observer` becomes `StreamObserver`, and `SubscriptionLike` / `Unsubscribable` / `Subscribable` move to `@craft-ts/core`. The operator-function types (`OperatorFunction`, `MonoTypeOperatorFunction`, `ObservableInput`, …) block their file with the replacement to write by hand, since a craft operator also carries a yielded type. New imports take the place of the rxjs ones; the rest of the import block is left exactly as it was.
+
 The deprecated operators with no equivalent (`retryWhen`, `repeatWhen`, `mergeScan`,
 `switchScan`, `windowTime`, `windowToggle`, `windowWhen`, `bufferToggle`, `using`,
 `onErrorResumeNext`, `publishLast`, `timeoutWith`, `sequenceEqual`, `animationFrames`, `pluck`,

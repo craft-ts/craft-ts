@@ -260,6 +260,40 @@ const UNSUPPORTED_HINTS = new Map<string, string>([
   ['concatMapTo', 'use `concatMap(() => inner)`'],
   ['mergeMapTo', 'use `mergeMap(() => inner)`'],
   ['switchMapTo', 'use `switchMap(() => inner)`'],
+  [
+    'OperatorFunction',
+    'use `StreamOperator<AIn, YIn, AOut, YOut>`: it also carries the yielded type (dependencies, exceptions)',
+  ],
+  [
+    'MonoTypeOperatorFunction',
+    'use `StreamOperator<A, Y, A, Y>` (or a generic `<A, Y>(stream: CraftStream<A, Y>) => CraftStream<A, Y>`)',
+  ],
+  ['UnaryFunction', 'write the function type out: `(source: T) => R`'],
+  [
+    'ObservableInput',
+    'use `Subscribable<T> | PromiseLike<T> | Iterable<T>`, or accept a `CraftStream<T, Y>` to keep its type',
+  ],
+  ['ObservedValueOf', 'use `StreamValue<S>`'],
+  [
+    'Subscriber',
+    'use `StreamSink<T>` inside an operator, `StreamObserver<T>` for a consumer',
+  ],
+  [
+    'TeardownLogic',
+    'return an `Unsubscribable` or a cleanup function from the stream setup',
+  ],
+  [
+    'Notification',
+    'use `materialize()` / `dematerialize()` and their notification values',
+  ],
+  [
+    'ObservableNotification',
+    'use `materialize()` / `dematerialize()` and their notification values',
+  ],
+  [
+    'SchedulerLike',
+    'there is one scheduler, the temporal runtime: drop the parameter',
+  ],
 ]);
 
 /**
@@ -277,6 +311,18 @@ const PASSTHROUGH_NAMES = new Set([
 const RENAMED_TYPES = new Map([
   ['WebSocketSubject', 'WebSocketStream'],
   ['WebSocketSubjectConfig', 'WebSocketConfig'],
+]);
+
+/**
+ * rxjs names with a direct `@craft-ts/core` counterpart (same name or renamed),
+ * wherever they are used: a value, a call or a type.
+ */
+const CORE_RENAMES = new Map([
+  ['isObservable', 'isObservableLike'],
+  ['Observer', 'StreamObserver'],
+  ['SubscriptionLike', 'Unsubscribable'],
+  ['Unsubscribable', 'Unsubscribable'],
+  ['Subscribable', 'Subscribable'],
 ]);
 
 /** The rxjs entry points whose imports are migrated (or diagnosed). */
@@ -629,6 +675,7 @@ export function migrateStreamsInFile(sourceFile: SourceFile): {
         name === 'lastValueFrom' ||
         PASSTHROUGH_NAMES.has(name) ||
         RENAMED_TYPES.has(name) ||
+        CORE_RENAMES.has(name) ||
         DROPPABLE_SCHEDULERS.has(name)
       ) {
         context.locals.set(name, name);
@@ -1721,6 +1768,25 @@ function collectEdits(
     context.needsStream.add(replacement);
   }
 
+  // isObservable -> isObservableLike, Observer -> StreamObserver, … (core).
+  for (const identifier of sourceFile.getDescendantsOfKind(
+    SyntaxKind.Identifier,
+  )) {
+    const text = identifier.getText();
+    const renamed = CORE_RENAMES.get(text);
+    if (!renamed || !locals.has(text)) continue;
+    const parent = identifier.getParent();
+    if (Node.isImportSpecifier(parent)) continue;
+    if (
+      Node.isPropertyAccessExpression(parent) &&
+      parent.getNameNode() === identifier
+    ) {
+      continue;
+    }
+    if (renamed !== text) replace(identifier, renamed);
+    context.needsCore.add(renamed);
+  }
+
   // `ajax`, `AjaxError`, `AjaxResponse`… move over unchanged: import whatever
   // the file actually references (as a call, a receiver, a type or `instanceof`).
   for (const passthrough of PASSTHROUGH_NAMES) {
@@ -1891,22 +1957,54 @@ function applyEdits(context: FileContext): void {
   }
   sourceFile.replaceWithText(text);
 
-  // Imports.
-  for (const declaration of rxjsImports(sourceFile)) declaration.remove();
-  addNamedImports(sourceFile, '@craft-ts/stream', context.needsStream);
-  addNamedImports(sourceFile, '@craft-ts/core', context.needsCore);
-  sourceFile.organizeImports();
+  // Imports. The new ones take the place of the first rxjs import; nothing
+  // else in the import block is reordered or reprinted, so the diff of a
+  // migrated file only shows what the migration changed.
+  const declarations = sourceFile.getImportDeclarations();
+  const rxjsDeclarations = rxjsImports(sourceFile);
+  const anchor = Math.max(
+    0,
+    declarations.findIndex((declaration) =>
+      rxjsDeclarations.includes(declaration),
+    ),
+  );
+  for (const declaration of rxjsDeclarations) declaration.remove();
+  let position = anchor;
+  position += addNamedImports(
+    sourceFile,
+    '@craft-ts/stream',
+    context.needsStream,
+    position,
+  );
+  addNamedImports(sourceFile, '@craft-ts/core', context.needsCore, position);
 }
 
+/**
+ * Adds `names` to the module's value import — reusing one that is already
+ * there — or inserts a new declaration at `position`. Returns how many
+ * declarations it inserted.
+ */
 function addNamedImports(
   sourceFile: SourceFile,
   moduleSpecifier: string,
   names: ReadonlySet<string>,
-): void {
-  if (names.size === 0) return;
-  let declaration = sourceFile.getImportDeclaration(moduleSpecifier);
+  position: number,
+): number {
+  if (names.size === 0) return 0;
+  const declaration = sourceFile
+    .getImportDeclarations()
+    .find(
+      (candidate) =>
+        candidate.getModuleSpecifierValue() === moduleSpecifier &&
+        !candidate.isTypeOnly() &&
+        !candidate.getNamespaceImport(),
+    );
   if (!declaration) {
-    declaration = sourceFile.addImportDeclaration({ moduleSpecifier });
+    sourceFile.insertImportDeclaration(position, {
+      moduleSpecifier,
+      namedImports: [...names].sort(),
+    });
+    return 1;
   }
   const existing = new Set(
     declaration.getNamedImports().map((item) => item.getName()),
@@ -1914,6 +2012,7 @@ function addNamedImports(
   declaration.addNamedImports(
     [...names].filter((name) => !existing.has(name)).sort(),
   );
+  return 0;
 }
 
 // --- plumbing --------------------------------------------------------------
