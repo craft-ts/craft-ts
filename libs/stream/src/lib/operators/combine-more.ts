@@ -158,6 +158,8 @@ export function partition(
 ): [AnyCraftStream, AnyCraftStream] {
   return [
     source.pipe(filter(predicate)),
-    source.pipe(filter((value: unknown, index: number) => !predicate(value, index))),
+    source.pipe(
+      filter((value: unknown, index: number) => !predicate(value, index)),
+    ),
   ] as never;
 }

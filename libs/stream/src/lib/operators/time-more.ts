@@ -53,7 +53,9 @@ export function audit(
             if (window) return;
             let opened: AnyCraftStream;
             try {
-              opened = from(durationSelector(value as never) as never) as AnyCraftStream;
+              opened = from(
+                durationSelector(value as never) as never,
+              ) as AnyCraftStream;
             } catch (error) {
               sink.error(error);
               return;
@@ -130,10 +132,11 @@ export function delayWhen(
   return ((source: AnyCraftStream) =>
     source.pipe(
       mergeMap((value: unknown, index: number) =>
-        (from(durationSelector(value as never, index) as never) as AnyCraftStream).pipe(
-          take(1),
-          mapTo(value),
-        ),
+        (
+          from(
+            durationSelector(value as never, index) as never,
+          ) as AnyCraftStream
+        ).pipe(take(1), mapTo(value)),
       ),
     )) as never;
 }

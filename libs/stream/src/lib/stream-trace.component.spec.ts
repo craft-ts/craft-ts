@@ -20,8 +20,10 @@ import {
 // stream's whole life back to the gesture that started it.
 describe('stream trace in a rendered component', () => {
   it('links a stream started by a click to that click', async () => {
-    const seen: Array<{ event: StreamTraceEvent; context: StreamTraceContext }> =
-      [];
+    const seen: Array<{
+      event: StreamTraceEvent;
+      context: StreamTraceContext;
+    }> = [];
     const live = subject<number>();
 
     const Panel = craftComponent('StreamPanel', {}, function* () {

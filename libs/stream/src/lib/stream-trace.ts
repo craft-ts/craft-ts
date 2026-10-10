@@ -106,10 +106,9 @@ let streamSequence = 0;
 function injectObservers(injector: Injector): readonly StreamTraceObserver[] {
   try {
     return (
-      (injector.get(
-        STREAM_TRACE as never,
-        null as never,
-      ) as unknown as readonly StreamTraceObserver[] | null) ?? []
+      (injector.get(STREAM_TRACE as never, null as never) as unknown as
+        | readonly StreamTraceObserver[]
+        | null) ?? []
     );
   } catch {
     return [];
@@ -118,7 +117,11 @@ function injectObservers(injector: Injector): readonly StreamTraceObserver[] {
 
 function takeSnapshot(injector: Injector, error: unknown): void {
   if (isCraftControlFlow(error)) return;
-  if (typeof error === 'object' && error !== null && reportedDefects.has(error)) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    reportedDefects.has(error)
+  ) {
     return;
   }
   try {
@@ -135,7 +138,9 @@ function currentCorrelationId(injector: Injector): string | null {
       () =>
         getCurrentStartCorrelationId() ??
         untracked(
-          () => ɵinjectCorrelationIdServiceIn(injector)?.lastCorrelationId() ?? null,
+          () =>
+            ɵinjectCorrelationIdServiceIn(injector)?.lastCorrelationId() ??
+            null,
         ),
     );
   } catch {

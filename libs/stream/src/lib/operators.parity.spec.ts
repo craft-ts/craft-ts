@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+} from 'vitest';
 import {
   VirtualCraftTemporalRuntime,
   activateCraftTemporalRuntime,
@@ -80,7 +87,10 @@ function hot<A>() {
   const source = subject<A>();
   return {
     source,
-    stream: fromSubscribable(source as Subject<A, never>) as CraftStream<A, never>,
+    stream: fromSubscribable(source as Subject<A, never>) as CraftStream<
+      A,
+      never
+    >,
   };
 }
 
@@ -133,7 +143,9 @@ describe('aggregates', () => {
 
 describe('emptiness and predicates', () => {
   it('every stops at the first failure', () => {
-    expect(record(of(2, 4).pipe(every((n: number) => n % 2 === 0))).values).toEqual([true]);
+    expect(
+      record(of(2, 4).pipe(every((n: number) => n % 2 === 0))).values,
+    ).toEqual([true]);
     const result = record(of(2, 3, 4).pipe(every((n: number) => n % 2 === 0)));
     expect(result.values).toEqual([false]);
     expect(result.completed).toBe(1);
@@ -145,23 +157,37 @@ describe('emptiness and predicates', () => {
   });
 
   it('find and findIndex give undefined / -1 when nothing matches', () => {
-    expect(record(of(1, 2, 3).pipe(find((n: number) => n > 1))).values).toEqual([2]);
-    expect(record(of(1).pipe(find((n: number) => n > 5))).values).toEqual([undefined]);
-    expect(record(of(1, 2, 3).pipe(findIndex((n: number) => n > 1))).values).toEqual([1]);
-    expect(record(of(1).pipe(findIndex((n: number) => n > 5))).values).toEqual([-1]);
+    expect(record(of(1, 2, 3).pipe(find((n: number) => n > 1))).values).toEqual(
+      [2],
+    );
+    expect(record(of(1).pipe(find((n: number) => n > 5))).values).toEqual([
+      undefined,
+    ]);
+    expect(
+      record(of(1, 2, 3).pipe(findIndex((n: number) => n > 1))).values,
+    ).toEqual([1]);
+    expect(record(of(1).pipe(findIndex((n: number) => n > 5))).values).toEqual([
+      -1,
+    ]);
   });
 
   it('find narrows with a type guard', () => {
     const stream = of<string | number>('a', 1).pipe(
       find((value): value is number => typeof value === 'number'),
     );
-    expectTypeOf(stream).toEqualTypeOf<CraftStream<number | undefined, never>>();
+    expectTypeOf(stream).toEqualTypeOf<
+      CraftStream<number | undefined, never>
+    >();
   });
 
   it('single emits the only match; none or several are defects', () => {
     expect(record(of(7).pipe(single())).values).toEqual([7]);
-    expect(record(of(1, 2, 3).pipe(single((n: number) => n === 2))).values).toEqual([2]);
-    expect(record(empty().pipe(single())).errors[0]).toBeInstanceOf(EmptyStreamError);
+    expect(
+      record(of(1, 2, 3).pipe(single((n: number) => n === 2))).values,
+    ).toEqual([2]);
+    expect(record(empty().pipe(single())).errors[0]).toBeInstanceOf(
+      EmptyStreamError,
+    );
     expect(record(of(1, 2).pipe(single())).errors[0]).toBeInstanceOf(
       StreamSequenceError,
     );
@@ -174,7 +200,9 @@ describe('emptiness and predicates', () => {
       StreamOutOfRangeError,
     );
     // An explicit `undefined` default is still a default.
-    expect(record(of('a').pipe(elementAt(5, undefined))).values).toEqual([undefined]);
+    expect(record(of('a').pipe(elementAt(5, undefined))).values).toEqual([
+      undefined,
+    ]);
   });
 
   it('throwIfEmpty raises a defect only on an empty source', () => {
@@ -183,7 +211,9 @@ describe('emptiness and predicates', () => {
       EmptyStreamError,
     );
     const custom = new Error('nothing');
-    expect(record(empty().pipe(throwIfEmpty(() => custom))).errors[0]).toBe(custom);
+    expect(record(empty().pipe(throwIfEmpty(() => custom))).errors[0]).toBe(
+      custom,
+    );
   });
 });
 
@@ -199,7 +229,9 @@ describe('shaping values', () => {
   it('distinctUntilKeyChanged compares one property', () => {
     const rows = of({ id: 1, n: 'a' }, { id: 1, n: 'b' }, { id: 2, n: 'c' });
     expect(
-      record(rows.pipe(distinctUntilKeyChanged('id'))).values.map((row) => row.n),
+      record(rows.pipe(distinctUntilKeyChanged('id'))).values.map(
+        (row) => row.n,
+      ),
     ).toEqual(['a', 'c']);
   });
 
@@ -242,7 +274,9 @@ describe('creators', () => {
 
 describe('forkJoin', () => {
   it('emits the last value of each input once all have completed', () => {
-    expect(record(forkJoin([of(1, 2), of('a', 'b')])).values).toEqual([[2, 'b']]);
+    expect(record(forkJoin([of(1, 2), of('a', 'b')])).values).toEqual([
+      [2, 'b'],
+    ]);
     expect(record(forkJoin({ n: of(1, 2), s: of('x') })).values).toEqual([
       { n: 2, s: 'x' },
     ]);
@@ -267,7 +301,10 @@ describe('forkJoin', () => {
   it('carries the exceptions of every input in its type', () => {
     const stream = forkJoin([of(1), fail(boom())] as const);
     expectTypeOf(stream).toEqualTypeOf<
-      CraftStream<[number, never], CraftGenExceptionMarker<ReturnType<typeof boom>>>
+      CraftStream<
+        [number, never],
+        CraftGenExceptionMarker<ReturnType<typeof boom>>
+      >
     >();
     expect(record(stream).exceptions).toHaveLength(1);
   });
@@ -308,20 +345,22 @@ describe('…With and …All', () => {
   });
 
   it('zipAll and combineLatestAll combine the collected inner streams', () => {
-    expect(
-      record(of(of(1, 2), of(10, 20)).pipe(zipAll())).values,
-    ).toEqual([
+    expect(record(of(of(1, 2), of(10, 20)).pipe(zipAll())).values).toEqual([
       [1, 10],
       [2, 20],
     ]);
-    expect(
-      record(of(of(1), of(2)).pipe(combineLatestAll())).values,
-    ).toEqual([[1, 2]]);
+    expect(record(of(of(1), of(2)).pipe(combineLatestAll())).values).toEqual([
+      [1, 2],
+    ]);
   });
 
   it('unsubscribing while collecting releases the source', async () => {
     const result = record(
-      interval(10).pipe(take(2), map((n) => of(n)), zipAll()),
+      interval(10).pipe(
+        take(2),
+        map((n) => of(n)),
+        zipAll(),
+      ),
     );
     await clock.advanceBy(100);
     expect(result.values).toEqual([[0, 1]]);

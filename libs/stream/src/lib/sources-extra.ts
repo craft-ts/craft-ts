@@ -241,7 +241,10 @@ export function defer(
 }
 
 /** Emits `count` consecutive integers starting at `start`, then completes. */
-export function range(start: number, count: number): CraftStream<number, never> {
+export function range(
+  start: number,
+  count: number,
+): CraftStream<number, never> {
   return createCraftStream<number, never>((_context, sink) => {
     for (let n = 0; n < count; n += 1) {
       if (sink.closed) return;

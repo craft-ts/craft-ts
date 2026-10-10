@@ -338,7 +338,9 @@ export function throwIfEmpty(errorFactory?: () => unknown): Same {
               return;
             }
             guarded(sink, () =>
-              sink.error(errorFactory ? errorFactory() : new EmptyStreamError()),
+              sink.error(
+                errorFactory ? errorFactory() : new EmptyStreamError(),
+              ),
             );
           },
         }),
