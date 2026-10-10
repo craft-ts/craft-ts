@@ -12,7 +12,7 @@ import {
   type Unsubscribable,
 } from '@craft-ts/core';
 import type { CraftStreamPipe } from './craft-stream-pipe.generated';
-import { traceStreamRoot } from './stream-trace';
+import { traceStreamRoot, type StreamTraceEvent } from './stream-trace';
 
 // ---------------------------------------------------------------------------
 // The CraftStream carrier.
@@ -44,6 +44,8 @@ export type StreamContext = {
   readonly temporal: CraftTemporalRuntime;
   /** Label shown in stream traces. */
   readonly name?: string;
+  /** Set by a traced root subscription: receives the events of `traceStage` markers. */
+  readonly trace?: (event: StreamTraceEvent) => void;
 };
 
 /** Receiving end of a running stream. Terminal notifications are exclusive. */
@@ -200,7 +202,7 @@ function attachStreamApi<A, Y>(run: StreamRun<A>): CraftStream<A, Y> {
         context,
         observerToSink(observer),
         'subscribe',
-        (sink) => run(context, sink),
+        (sink, ctx) => run(ctx, sink),
       );
     },
     pipe: ((...operators: Array<(stream: AnyCraftStream) => AnyCraftStream>) =>

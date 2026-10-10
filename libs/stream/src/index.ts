@@ -86,6 +86,7 @@ export {
   skipWhile,
   switchAll,
   takeLast,
+  traceStage,
 } from './lib/operators/more';
 export {
   empty,

@@ -150,7 +150,7 @@ export function streamSignal<const Name extends string, A, Y>(
         () => !current,
       ),
       'signal',
-      (sink) => (stream as AnyCraftStream)[STREAM_RUN](context, sink),
+      (sink, ctx) => (stream as AnyCraftStream)[STREAM_RUN](ctx, sink),
     );
     subscription = {
       unsubscribe: () => {

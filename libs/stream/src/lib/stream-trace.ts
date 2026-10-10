@@ -58,6 +58,14 @@ export type StreamTraceEvent =
   | Readonly<{ kind: 'exception'; exception: unknown }>
   | Readonly<{ kind: 'error'; error: unknown }>
   | Readonly<{ kind: 'complete' }>
+  /** A notification passing a `traceStage(label)` marker inside the pipeline. */
+  | Readonly<{
+      kind: 'stage';
+      stage: string;
+      notification: 'next' | 'exception' | 'error' | 'complete';
+      value?: unknown;
+      index?: number;
+    }>
   /** The consumer left before any terminal notification. */
   | Readonly<{ kind: 'unsubscribe' }>;
 
@@ -80,6 +88,14 @@ export function provideStreamTrace(observer: StreamTraceObserver): Provider {
  * up: the root must not snapshot them a second time.
  */
 const reportedDefects = new WeakSet<object>();
+
+/** Reports a stage notification to the root subscription this context belongs to, if traced. */
+export function emitStageTrace(
+  context: StreamContext,
+  event: Extract<StreamTraceEvent, { kind: 'stage' }>,
+): void {
+  context.trace?.(event);
+}
 
 export function ɵmarkDefectReported(error: unknown): void {
   if (typeof error === 'object' && error !== null) reportedDefects.add(error);
@@ -136,10 +152,10 @@ export function traceStreamRoot<A>(
   context: StreamContext,
   sink: StreamSink<A>,
   root: StreamTraceRoot,
-  start: (sink: StreamSink<A>) => Unsubscribable,
+  start: (sink: StreamSink<A>, context: StreamContext) => Unsubscribable,
 ): Unsubscribable {
   const injector = context.injector;
-  if (!injector) return start(sink);
+  if (!injector) return start(sink, context);
 
   let development = true;
   try {
@@ -149,7 +165,7 @@ export function traceStreamRoot<A>(
   } catch {
     development = true;
   }
-  if (!development) return start(sink);
+  if (!development) return start(sink, context);
 
   const observers = injectObservers(injector);
   const traceContext: StreamTraceContext | undefined =
@@ -202,8 +218,14 @@ export function traceStreamRoot<A>(
     },
   };
 
+  // A derived context (prototype chain keeps the lazy getters) so a context
+  // shared by several subscriptions never mixes their stage events.
+  const tracedContext: StreamContext = traceContext
+    ? Object.create(context, { trace: { value: emit } })
+    : context;
+
   emit({ kind: 'subscribe' });
-  const subscription = start(traced);
+  const subscription = start(traced, tracedContext);
   return {
     unsubscribe: () => {
       if (!settled) {

@@ -122,8 +122,8 @@ export function toSubscribable<A, Y>(
   const context = captureStreamContext(options);
   return {
     subscribe: (observer) =>
-      traceStreamRoot(context, observerToSink(observer), 'adapter', (sink) =>
-        (stream as AnyCraftStream)[STREAM_RUN](context, sink),
+      traceStreamRoot(context, observerToSink(observer), 'adapter', (sink, ctx) =>
+        (stream as AnyCraftStream)[STREAM_RUN](ctx, sink),
       ),
   };
 }

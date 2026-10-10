@@ -195,7 +195,7 @@ export function toStream<A, Y>(
               },
             }),
             'adapter',
-            (sink) => (stream as AnyCraftStream)[STREAM_RUN](context, sink),
+            (sink, ctx) => (stream as AnyCraftStream)[STREAM_RUN](ctx, sink),
           ),
         ),
         (subscription) => Effect.sync(() => subscription.unsubscribe()),

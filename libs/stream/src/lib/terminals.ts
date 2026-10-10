@@ -78,7 +78,7 @@ function drain<A, Y, R>(
       context,
       createSink(collect(settle), () => outcome !== undefined),
       'program',
-      (sink) => (stream as AnyCraftStream)[STREAM_RUN](context, sink),
+      (sink, ctx) => (stream as AnyCraftStream)[STREAM_RUN](ctx, sink),
     );
 
     if (!outcome) {
@@ -313,6 +313,6 @@ export function subscribe<
       complete: () => observer.complete?.(),
     }),
     'subscribe',
-    (sink) => (stream as AnyCraftStream)[STREAM_RUN](context, sink),
+    (sink, ctx) => (stream as AnyCraftStream)[STREAM_RUN](ctx, sink),
   );
 }

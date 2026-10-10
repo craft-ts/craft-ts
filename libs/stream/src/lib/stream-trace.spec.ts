@@ -19,6 +19,8 @@ import {
   provideStreamTrace,
   streamSignal,
   subscribe,
+  toSubscribable,
+  traceStage,
   type StreamTraceContext,
   type StreamTraceEvent,
 } from '../index';
@@ -171,6 +173,96 @@ describe('provideStreamTrace', () => {
     });
 
     expect(next).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('traceStage', () => {
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  const stages = (seen: Seen[]) =>
+    seen
+      .filter((entry) => entry.event.kind === 'stage')
+      .map((entry) => {
+        const event = entry.event as Extract<
+          StreamTraceEvent,
+          { kind: 'stage' }
+        >;
+        return `${event.stage}:${event.notification}${
+          event.notification === 'next' ? `=${String(event.value)}` : ''
+        }`;
+      });
+
+  it('reports what passes each marker, in pipeline order', () => {
+    const trace = collector();
+    TestBed.configureTestingModule({ providers: [trace.provider] });
+
+    const values: number[] = [];
+    TestBed.runInInjectionContext(() => {
+      subscribe(
+        of(1, 2).pipe(
+          traceStage('source'),
+          map((n) => n * 10),
+          traceStage('scaled'),
+        ),
+        { next: (value) => values.push(value) },
+      );
+    });
+
+    expect(values).toEqual([10, 20]);
+    expect(stages(trace.seen)).toEqual([
+      'source:next=1',
+      'scaled:next=10',
+      'source:next=2',
+      'scaled:next=20',
+      'source:complete',
+      'scaled:complete',
+    ]);
+  });
+
+  it('shows a defect at the stage it went through', () => {
+    const trace = collector();
+    TestBed.configureTestingModule({ providers: [trace.provider] });
+    const failing = createCraftStream<number>((_context, sink) => {
+      sink.error(new Error('late'));
+    });
+
+    TestBed.runInInjectionContext(() => {
+      subscribe(failing.pipe(traceStage('after-source')), {
+        error: () => undefined,
+      });
+    });
+
+    expect(stages(trace.seen)).toEqual(['after-source:error']);
+  });
+
+  it('is a plain pass-through when nothing traces', () => {
+    const values: number[] = [];
+    TestBed.runInInjectionContext(() => {
+      subscribe(of(1, 2).pipe(traceStage('quiet')), {
+        next: (value) => values.push(value),
+      });
+    });
+
+    expect(values).toEqual([1, 2]);
+  });
+
+  it('keeps the stage events of two subscriptions of one shared context apart', () => {
+    const trace = collector();
+    TestBed.configureTestingModule({ providers: [trace.provider] });
+
+    TestBed.runInInjectionContext(() => {
+      const shared = toSubscribable(of(1).pipe(traceStage('s')));
+      shared.subscribe({});
+      shared.subscribe({});
+    });
+
+    const ids = trace.seen
+      .filter((entry) => entry.event.kind === 'stage')
+      .map((entry) => entry.context.streamId);
+    expect(ids).toHaveLength(4);
+    expect(new Set(ids).size).toBe(2);
   });
 });
 

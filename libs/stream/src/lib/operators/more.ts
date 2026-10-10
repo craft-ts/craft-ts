@@ -14,6 +14,7 @@ import {
   type StreamValue,
   type StreamYielded,
 } from '../craft-stream';
+import { emitStageTrace } from '../stream-trace';
 import { combineLatest, merge } from './combine';
 import {
   concatMap,
@@ -354,6 +355,61 @@ export function finalize(callback: () => void): Same {
     createCraftStream<unknown, unknown>((context, sink, teardown) => {
       teardown.add(callback);
       return source[STREAM_RUN](context, sink);
+    }),
+  ) as never;
+}
+
+/**
+ * Marks a point of the pipeline in stream traces (`provideStreamTrace`): every
+ * notification passing it is reported as a `stage` event carrying `label`, so a
+ * long pipeline shows where a value, an exception or a defect went through.
+ * It never alters the stream, and costs one property read when nothing traces.
+ */
+export function traceStage(label: string): Same {
+  return fromSetup((source) =>
+    createCraftStream<unknown, unknown>((context, sink) => {
+      let index = 0;
+      return source[STREAM_RUN](
+        context,
+        forwardSink<unknown>(sink, {
+          next: (value) => {
+            emitStageTrace(context, {
+              kind: 'stage',
+              stage: label,
+              notification: 'next',
+              value,
+              index: index++,
+            });
+            sink.next(value);
+          },
+          exception: (exception) => {
+            emitStageTrace(context, {
+              kind: 'stage',
+              stage: label,
+              notification: 'exception',
+              value: exception,
+            });
+            sink.exception(exception);
+          },
+          error: (error) => {
+            emitStageTrace(context, {
+              kind: 'stage',
+              stage: label,
+              notification: 'error',
+              value: error,
+            });
+            sink.error(error);
+          },
+          complete: () => {
+            emitStageTrace(context, {
+              kind: 'stage',
+              stage: label,
+              notification: 'complete',
+            });
+            sink.complete();
+          },
+        }),
+      );
     }),
   ) as never;
 }

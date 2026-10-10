@@ -404,6 +404,10 @@ provideStreamTrace((event, context) => {
 });
 ```
 
+- `traceStage('label')` marks a point inside a pipeline: every notification that
+  passes it is reported as a `stage` event (`stage`, `notification`, `value`), so
+  a long pipeline shows where a value, an exception or a defect went through. It
+  never alters the stream and is a plain pass-through when nothing traces.
 - `name` comes from the `{ name }` option of `subscribe` / `captureStreamContext`;
   `streamSignal` passes its own.
 - `startCorrelationId` is the user gesture that was current when the stream
@@ -413,6 +417,14 @@ provideStreamTrace((event, context) => {
   notification.
 - Observers are passive: they run in the stream's injector, cannot alter the
   stream, and one that throws is ignored.
+
+```ts
+source$.pipe(
+  traceStage('raw'),
+  map(parse),
+  traceStage('parsed'),
+)
+```
 
 **A defect takes an app snapshot.** A stream that ends with a defect (`error`,
 never a typed exception) triggers `provideTakeAppSnapshot`, even when the defect
