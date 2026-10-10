@@ -125,6 +125,7 @@ apps/
 │                               (`architecture/` — static graph Vitest suite)
 ├── demo-effect/                dedicated EffectTS + CraftTS examples
 ├── demo-ssr/                   server-side rendering and hydration
+├── demo-stream/                typed streams and their observability
 ├── demo-with-server-function/  the server-function proof of concept
 ├── quickstart-effect/          minimal executable EffectTS starter
 ├── log-server/                 local JSONL log ingestion (@craft-ts/log-server)
@@ -190,6 +191,12 @@ Start the dedicated EffectTS + CraftTS demo:
 
 ```bash
 npx nx serve demo-effect
+```
+
+Start the typed streams demo (search, ticker, defect, stream trace):
+
+```bash
+npx nx serve demo-stream
 ```
 
 Start the minimal EffectTS + CraftTS quickstart:
