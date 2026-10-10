@@ -449,6 +449,60 @@ in app snapshots, tagged with its host.
 All of it is development-only, like `provideCraftHttpTrace`: under
 `provideCraftProduction()` a root subscription runs unwrapped.
 
+## Time and testing
+
+Every timer in `@craft-ts/stream` — `interval`, `timer`, `debounce`, `throttle`, `delay`,
+`timeout`, `retry`, `repeat`, the buffers, `ajax`'s timeout, `observeOn` / `subscribeOn` — goes
+through the **temporal runtime** of the stream's context, the same one `craftSleep`,
+`asyncProcess` and `query` use. There is no raw `setTimeout` in the library. Two consequences:
+
+- **One clock to drive.** A test activates a `VirtualCraftTemporalRuntime` once and every
+  stream timer — and every other craft timer — follows it:
+
+  ```ts
+  const clock = new VirtualCraftTemporalRuntime();
+  const restore = activateCraftTemporalRuntime(clock);
+
+  const seen: number[] = [];
+  interval(100).pipe(take(3)).subscribe({ next: (n) => seen.push(n) });
+
+  await clock.advanceBy(300);
+  expect(seen).toEqual([0, 1, 2]);
+  restore();
+  ```
+
+- **Cleanup comes with the subscription.** A timer is a task on the runtime, cancelled when the
+  subscription ends or the owner's `DestroyRef` is destroyed; `clock.pendingTasks()` shows what is
+  still waiting, which is how a test proves nothing leaked.
+
+Operators that wait add `RuntimeTemporalAwaitRequest` to the stream's `Y`: a stream that may
+suspend cannot be consumed in place by a synchronous host.
+
+`timestamp()` reads the runtime's civil time and `timeInterval()` its monotonic time, so both are
+deterministic under the virtual clock.
+
+### Effect's clock
+
+Effect has its own `Clock`: an `Effect.sleep`, a `Schedule` or a `Stream.schedule` inside an Effect
+program keeps real time unless told otherwise, and would need real waiting (or Effect's
+`TestClock`) in a test. `@craft-ts/stream-effect` provides a Layer that points it at the temporal
+runtime:
+
+```ts
+import { provideLayer } from '@craft-ts/effect';
+import { craftTemporalClock } from '@craft-ts/stream-effect';
+
+provideLayer(craftTemporalClock());
+```
+
+It is opt-in, so apply it where Effect time and craft time should be the same time (an app, or a
+route). `Effect.sleep` then runs as a cancellable task on the runtime — interrupting the fiber
+cancels it — and a `VirtualCraftTemporalRuntime` drives it. Effect resumes its fibers on its own
+scheduler, so a test lets a few macrotasks pass after each `advanceBy`.
+
+`fromEffectSchedule` does not need the Layer: it only asks a `Schedule` for its next delay and
+waits on the temporal runtime itself.
+
 ## Interop with RxJS
 
 `Subscribable` is structural: an RxJS `Observable` is assignable to it, so
