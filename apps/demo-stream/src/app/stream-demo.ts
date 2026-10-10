@@ -24,6 +24,7 @@ import {
   traceStage,
 } from '@craft-ts/stream';
 import { provideSearchApi, SearchApi } from './search-api';
+import { demo } from './stream-demo.style';
 import { traceLines } from './trace-log';
 
 function eventValue(event: Event): string {
@@ -87,11 +88,12 @@ const StreamDemo = craftComponent(
   'StreamDemo',
   { providers: [provideSearchApi(), provideStreamDemoView()] },
   () =>
-    div([
-      heading('Typed streams'),
-      section([
-        heading('Live search'),
+    div({ class: demo.page }, [
+      heading({ class: demo.title }, 'Typed streams'),
+      section({ class: demo.card }, [
+        heading({ class: demo.title }, 'Live search'),
         p(
+          { class: demo.hint },
           'Debounced, deduplicated, switchMap to a typed API. Type "boom" for a typed exception.',
         ),
         input('search', {
@@ -120,18 +122,20 @@ const StreamDemo = craftComponent(
           }),
         ]),
       ]),
-      section([
-        heading('Ticker'),
-        button(
-          'start-ticker',
-          { type: 'button', click: StreamDemoView.ticker.start },
-          'Start',
-        ),
-        button(
-          'stop-ticker',
-          { type: 'button', click: StreamDemoView.ticker.stop },
-          'Stop',
-        ),
+      section({ class: demo.card }, [
+        heading({ class: demo.title }, 'Ticker'),
+        div({ class: demo.row }, [
+          button(
+            'start-ticker',
+            { type: 'button', click: StreamDemoView.ticker.start },
+            'Start',
+          ),
+          button(
+            'stop-ticker',
+            { type: 'button', click: StreamDemoView.ticker.stop },
+            'Stop',
+          ),
+        ]),
         p(['Status: ', span(StreamDemoView.ticker.status)]),
         p([
           'Tick: ',
@@ -140,13 +144,15 @@ const StreamDemo = craftComponent(
           }),
         ]),
       ]),
-      section([
-        heading('Defect'),
-        button(
-          'raise-defect',
-          { type: 'button', click: StreamDemoView.defect.start },
-          'Raise a defect',
-        ),
+      section({ class: demo.card }, [
+        heading({ class: demo.title }, 'Defect'),
+        div({ class: demo.row }, [
+          button(
+            'raise-defect',
+            { type: 'button', click: StreamDemoView.defect.start },
+            'Raise a defect',
+          ),
+        ]),
         p(['Status: ', span(StreamDemoView.defect.status)]),
         p([
           'Error: ',
@@ -155,10 +161,15 @@ const StreamDemo = craftComponent(
           }),
         ]),
       ]),
-      section([
-        heading('Stream trace'),
-        p('Every root subscription, with the gesture that started it.'),
-        pre({ 'data-testid': 'trace' }, () => traceLines().join('\n')),
+      section({ class: demo.card }, [
+        heading({ class: demo.title }, 'Stream trace'),
+        p(
+          { class: demo.hint },
+          'Every root subscription, with the gesture that started it.',
+        ),
+        pre({ class: demo.trace, 'data-testid': 'trace' }, () =>
+          traceLines().join('\n'),
+        ),
       ]),
     ]),
 );
