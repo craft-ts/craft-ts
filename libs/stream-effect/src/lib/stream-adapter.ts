@@ -11,6 +11,7 @@ import {
   createCraftStream,
   createSink,
   STREAM_RUN,
+  traceStreamRoot,
   type AnyCraftStream,
   type CraftStream,
   type StreamContextOptions,
@@ -174,7 +175,7 @@ export function toStream<A, Y>(
     (queue) =>
       Effect.acquireRelease(
         Effect.sync(() =>
-          (stream as AnyCraftStream)[STREAM_RUN](
+          traceStreamRoot(
             context,
             createSink<unknown>({
               next: (value) => {
@@ -193,6 +194,8 @@ export function toStream<A, Y>(
                 Queue.endUnsafe(queue);
               },
             }),
+            'adapter',
+            (sink) => (stream as AnyCraftStream)[STREAM_RUN](context, sink),
           ),
         ),
         (subscription) => Effect.sync(() => subscription.unsubscribe()),

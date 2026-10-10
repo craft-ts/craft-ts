@@ -20,6 +20,7 @@ import {
   type CraftStream,
   type StreamExceptions,
 } from './craft-stream';
+import { traceStreamRoot } from './stream-trace';
 
 export type StreamSignalStatus =
   | 'idle'
@@ -124,8 +125,9 @@ export function streamSignal<const Name extends string, A, Y>(
 
     // Each run owns its callbacks: a superseded run can no longer write.
     let current = true;
-    const run = (stream as AnyCraftStream)[STREAM_RUN](
-      captureStreamContext({ injector, destroyRef }),
+    const context = captureStreamContext({ injector, destroyRef, name });
+    const run = traceStreamRoot(
+      context,
       createSink<unknown>(
         {
           next: (next) => {
@@ -147,6 +149,8 @@ export function streamSignal<const Name extends string, A, Y>(
         },
         () => !current,
       ),
+      'signal',
+      (sink) => (stream as AnyCraftStream)[STREAM_RUN](context, sink),
     );
     subscription = {
       unsubscribe: () => {

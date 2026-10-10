@@ -18,6 +18,15 @@ export {
   type StreamValue,
   type StreamYielded,
 } from './lib/craft-stream';
+export {
+  provideStreamTrace,
+  STREAM_TRACE,
+  traceStreamRoot,
+  type StreamTraceContext,
+  type StreamTraceEvent,
+  type StreamTraceObserver,
+  type StreamTraceRoot,
+} from './lib/stream-trace';
 export type { CraftStreamPipe } from './lib/craft-stream-pipe.generated';
 export {
   fromEvent,

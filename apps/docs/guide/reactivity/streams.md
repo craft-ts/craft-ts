@@ -377,6 +377,52 @@ feed.latest.exception(); // the typed exception, or undefined
 The stream's service dependencies are folded into the service's verified
 dependency tree, and its exceptions into the host's exception types.
 
+## Observability
+
+Streams plug into the same cross-cutting mechanisms as the rest of craft (see
+[Observability](/guide/advanced/observability)), with no change to the pipeline.
+
+**Handlers go through `provideFnWrapper`.** Every handler an operator runs —
+`map`, `mergeMap`, `catchTag`, `tap`, … plain function or generator — is
+executed through the injector's function wrappers, like a service method or a
+query loader. Correlation tracking, `provideTakeAppSnapshot` and your own
+wrappers therefore see stream work. With no wrapper installed the handler runs
+as is, and a synchronous pipeline stays synchronous.
+
+**`provideStreamTrace` observes root subscriptions.** A _root_ is where a stream
+is consumed: `subscribe`, a program terminal, `streamSignal`, an adapter. Inner
+streams (`mergeMap`, `switchMap`, …) are part of their root, not roots
+themselves.
+
+```ts
+import { provideStreamTrace } from '@craft-ts/stream';
+
+provideStreamTrace((event, context) => {
+  // context: { streamId, name, root, startCorrelationId }
+  // event.kind: 'subscribe' | 'next' | 'exception' | 'error' | 'complete' | 'unsubscribe'
+  console.debug(context.name ?? context.streamId, event.kind);
+});
+```
+
+- `name` comes from the `{ name }` option of `subscribe` / `captureStreamContext`;
+  `streamSignal` passes its own.
+- `startCorrelationId` is the user gesture that was current when the stream
+  started — the link between "the user clicked Save" and "this feed emitted
+  four seconds later".
+- `unsubscribe` is reported only when the consumer leaves before any terminal
+  notification.
+- Observers are passive: they run in the stream's injector, cannot alter the
+  stream, and one that throws is ignored.
+
+**A defect takes an app snapshot.** A stream that ends with a defect (`error`,
+never a typed exception) triggers `provideTakeAppSnapshot`, even when the defect
+comes from a source rather than a handler. A handler that already went through a
+snapshot wrapper is not snapshotted a second time. `streamSignal` also appears
+in app snapshots, tagged with its host.
+
+All of it is development-only, like `provideCraftHttpTrace`: under
+`provideCraftProduction()` a root subscription runs unwrapped.
+
 ## Interop with RxJS
 
 `Subscribable` is structural: an RxJS `Observable` is assignable to it, so

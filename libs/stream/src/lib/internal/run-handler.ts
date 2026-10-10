@@ -3,6 +3,7 @@ import {
   driveCraftProgramAsync,
   isCraftException,
   isCraftGenShortCircuit,
+  injectFnWrapper,
   isGenerator,
   pumpCraftProgramSync,
   ɵInjector as Injector,
@@ -13,6 +14,7 @@ import {
   type Unsubscribable,
 } from '@craft-ts/core';
 import type { StreamContext } from '../craft-stream';
+import { ɵmarkDefectReported } from '../stream-trace';
 
 /** What a handler (a plain function or a craft generator) settled to. */
 export type HandlerOutcome =
@@ -55,7 +57,10 @@ function valueOutcome(value: unknown): HandlerOutcome {
     : { kind: 'value', value };
 }
 
-function failureOutcome(error: unknown): HandlerOutcome {
+function failureOutcome(error: unknown, reported: boolean): HandlerOutcome {
+  // A function wrapper (snapshot, error reporting…) already saw this error on
+  // its way up; the root subscription must not report it again.
+  if (reported) ɵmarkDefectReported(error);
   return isCraftGenShortCircuit(error)
     ? { kind: 'exception', exception: error.exception }
     : { kind: 'error', error };
@@ -65,6 +70,10 @@ function failureOutcome(error: unknown): HandlerOutcome {
  * Runs a handler: `invoke` returns a value or a craft generator. A generator is
  * pumped synchronously and only goes async across real suspensions (a
  * `craftSleep`, a promise), so a synchronous handler settles in the same tick.
+ * The handler goes through the injector's function wrappers
+ * (`provideFnWrapper`), like every other craft function: correlation ids,
+ * snapshots and user wrappers all apply. With none registered it is invoked
+ * as is.
  * `settle` is called exactly once unless the returned handle is unsubscribed
  * first, in which case it is never called.
  */
@@ -94,8 +103,15 @@ export function runHandler(
   const inContext = <T>(fn: () => T): T =>
     context.injector ? runInInjectionContext(context.injector, fn) : fn();
 
+  // Resolved once per handler run, in the stream's injector. A different
+  // function back means at least one wrapper is installed.
+  const wrapped = context.injector
+    ? inContext(() => injectFnWrapper()(invoke))
+    : invoke;
+  const reported = wrapped !== invoke;
+
   try {
-    const result = inContext(invoke);
+    const result = inContext(wrapped);
 
     if (!isGenerator(result)) {
       deliver(valueOutcome(result));
@@ -113,10 +129,10 @@ export function runHandler(
 
     driveCraftProgramAsync(result, injector, first, options).then(
       (settled) => deliver(stepToOutcome(settled)),
-      (error) => deliver(failureOutcome(error)),
+      (error) => deliver(failureOutcome(error, reported)),
     );
   } catch (error) {
-    deliver(failureOutcome(error));
+    deliver(failureOutcome(error, reported));
   }
 
   return handle;

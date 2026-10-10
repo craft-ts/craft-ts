@@ -12,6 +12,7 @@ import {
   type Unsubscribable,
 } from '@craft-ts/core';
 import type { CraftStreamPipe } from './craft-stream-pipe.generated';
+import { traceStreamRoot } from './stream-trace';
 
 // ---------------------------------------------------------------------------
 // The CraftStream carrier.
@@ -41,6 +42,8 @@ export type StreamContext = {
   readonly destroyRef: DestroyRef | undefined;
   /** Clock for the temporal operators (virtual in tests). */
   readonly temporal: CraftTemporalRuntime;
+  /** Label shown in stream traces. */
+  readonly name?: string;
 };
 
 /** Receiving end of a running stream. Terminal notifications are exclusive. */
@@ -192,7 +195,13 @@ function attachStreamApi<A, Y>(run: StreamRun<A>): CraftStream<A, Y> {
   const stream: CraftStream<A, Y> = {
     [STREAM_RUN]: run,
     subscribe(observer) {
-      return run(captureStreamContext(), observerToSink(observer));
+      const context = captureStreamContext();
+      return traceStreamRoot(
+        context,
+        observerToSink(observer),
+        'subscribe',
+        (sink) => run(context, sink),
+      );
     },
     pipe: ((...operators: Array<(stream: AnyCraftStream) => AnyCraftStream>) =>
       operators.reduce<AnyCraftStream>(
@@ -261,6 +270,8 @@ export type StreamContextOptions = {
   /** Injector resolving dependencies; defaults to the ambient injection context. */
   readonly injector?: Injector;
   readonly destroyRef?: DestroyRef;
+  /** Label shown in stream traces (`provideStreamTrace`). */
+  readonly name?: string;
 };
 
 /**
@@ -300,6 +311,7 @@ export function captureStreamContext(
   return {
     injector,
     destroyRef,
+    name: options.name,
     get temporal() {
       return (temporal ??= resolveTemporal());
     },

@@ -78,7 +78,13 @@ function record<A, Y>(
   return recorded;
 }
 
-const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+// Effect hands work over through its own scheduler, so one macrotask is not
+// always enough for a fiber to subscribe or a chunk to arrive: give it several.
+const settle = async () => {
+  for (let turn = 0; turn < 5; turn += 1) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+};
 
 describe('fromStream', () => {
   it('emits the values of a synchronous stream, flattening chunks, then completes — in place', () => {

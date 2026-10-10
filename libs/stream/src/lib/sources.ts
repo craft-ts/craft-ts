@@ -15,6 +15,7 @@ import {
   type CraftStream,
   type StreamContextOptions,
 } from './craft-stream';
+import { traceStreamRoot } from './stream-trace';
 
 /** Emits `values` in order, then completes. */
 export function of<A>(...values: A[]): CraftStream<A, never> {
@@ -121,6 +122,8 @@ export function toSubscribable<A, Y>(
   const context = captureStreamContext(options);
   return {
     subscribe: (observer) =>
-      (stream as AnyCraftStream)[STREAM_RUN](context, observerToSink(observer)),
+      traceStreamRoot(context, observerToSink(observer), 'adapter', (sink) =>
+        (stream as AnyCraftStream)[STREAM_RUN](context, sink),
+      ),
   };
 }

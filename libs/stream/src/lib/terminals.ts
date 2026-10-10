@@ -19,6 +19,7 @@ import {
   type StreamContextOptions,
   type StreamSink,
 } from './craft-stream';
+import { traceStreamRoot } from './stream-trace';
 
 // ---------------------------------------------------------------------------
 // Terminals: where a pipeline's type is finally CONSUMED.
@@ -73,9 +74,11 @@ function drain<A, Y, R>(
       resolveOutcome?.(value);
     };
 
-    const subscription: Unsubscribable = (stream as AnyCraftStream)[STREAM_RUN](
+    const subscription: Unsubscribable = traceStreamRoot(
       context,
       createSink(collect(settle), () => outcome !== undefined),
+      'program',
+      (sink) => (stream as AnyCraftStream)[STREAM_RUN](context, sink),
     );
 
     if (!outcome) {
@@ -237,6 +240,8 @@ export type SubscribeObserver<A, Y> = {
 
 export type SubscribeOptions = {
   readonly injector?: Injector;
+  /** Label shown in stream traces (`provideStreamTrace`). */
+  readonly name?: string;
 };
 
 type ServiceNamesOf<Y> = keyof CompleteServiceDependencyMapFromYielded<Y> &
@@ -299,7 +304,7 @@ export function subscribe<
     else observer.error?.(value);
   };
 
-  return (stream as AnyCraftStream)[STREAM_RUN](
+  return traceStreamRoot(
     context,
     createSink<unknown>({
       next: (value) => observer.next?.(value as A),
@@ -307,5 +312,7 @@ export function subscribe<
       error: (error) => observer.error?.(error),
       complete: () => observer.complete?.(),
     }),
+    'subscribe',
+    (sink) => (stream as AnyCraftStream)[STREAM_RUN](context, sink),
   );
 }
