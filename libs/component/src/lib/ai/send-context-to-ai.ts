@@ -255,9 +255,9 @@ export function createAiContextMenuController({
     ...(session?.activeClip ? { activeClipId: session.activeClip.id } : {}),
   });
   if (session) {
-    const subscription = session.snapshot$.subscribe((value) =>
-      snapshotSignal.set(value),
-    );
+    const subscription = session.snapshot$.subscribe({
+      next: (value) => snapshotSignal.set(value),
+    });
     destroyRef.onDestroy(() => subscription.unsubscribe());
   }
 

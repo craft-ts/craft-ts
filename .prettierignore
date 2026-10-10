@@ -4,3 +4,4 @@
 /.nx/cache
 /.nx/workspace-data
 .angular
+/libs/stream/src/lib/craft-stream-pipe.generated.ts

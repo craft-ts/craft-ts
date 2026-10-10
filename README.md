@@ -21,7 +21,7 @@
 
 ## What is craft-ts?
 
-craft-ts is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional.
+craft-ts is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. It has no RxJS dependency: anything subscribable — an RxJS `Observable` included — is accepted structurally, and `@craft-ts/stream` brings typed streams of its own.
 
 It is designed to keep application behavior close to where it is used while making dependency graphs visible to the compiler and to tests.
 

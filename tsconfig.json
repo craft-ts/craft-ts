@@ -25,6 +25,12 @@
       "path": "./libs/effect"
     },
     {
+      "path": "./libs/stream"
+    },
+    {
+      "path": "./libs/stream-effect"
+    },
+    {
       "path": "./libs/attest"
     },
     {

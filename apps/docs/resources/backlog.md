@@ -3,7 +3,8 @@
 - [ ] For query/mutation/AsyncProcess insertions, expose a set and state similar to other primitive states that will simplify creating reusable insertions. (for persister one more property isStable ? To invalidate state while mutating)
 - [ ] Improve storage persister (better invalidation, handle storing state)
 - [x] Explore to make Source similar to Subject/ReplaySubject
-- [ ] Add support for RxJs source without having an explicit dependency on RxJs and accepts Observable as params for mutation/query/asyncProcess
+- [x] Accept any RxJS-shaped source (`Subscribable`) without an explicit dependency on RxJs — core ships a structural contract and `@craft-ts/stream` interops both ways
+- [ ] Accept an Observable/`Subscribable` as params for mutation/query/asyncProcess
 - [ ] Clean internal code
 - [ ] Explore explicit type safe error in primitive / use eslint to force handling it (create adapter for OpenApi contract, TS-Rest contract...)
 - [ ] Explore a way to handle selectedIds (that can be used for bulk delete ...), creating a dedicated state, or a dedicated insertion. It will expose all selected, some selected, toggleOne/toggleAll...

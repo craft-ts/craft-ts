@@ -198,6 +198,9 @@ const { windowSize } = state<WindowSize>(
 
 ## With Operators
 
+craft-ts does not depend on RxJS; this example uses it as _your own_ optional
+dependency.
+
 ```typescript
 import { debounceTime, map } from 'rxjs/operators';
 

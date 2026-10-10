@@ -14,7 +14,7 @@ import {
   Type,
   untracked,
 } from './host/craft-compat';
-import type { Observable } from 'rxjs';
+import type { Subscribable } from './stream-kernel/subscribable';
 import {
   isGenerator,
   NOT_EXPOSED,
@@ -487,7 +487,7 @@ type RequiredKeys<ObjectType extends object> = Exclude<
   OptionalKeys<ObjectType>
 >;
 
-type AppStartResult = Observable<unknown> | Promise<unknown> | void;
+type AppStartResult = Subscribable<unknown> | Promise<unknown> | void;
 
 type AppStartCapableScope = 'global' | RealCapableScope;
 

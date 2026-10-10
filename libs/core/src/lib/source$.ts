@@ -44,9 +44,32 @@ export type SourceInstance<
     callback: (value: T) => void,
   ) => ReturnType<EventEmitter<T>['subscribe']>;
   asReadonly: () => ReadonlySource$<T, Name>;
+  /**
+   * @deprecated Use `source$(name, { replay: 1 })` — the replay is then part of
+   * the source itself instead of a derived view.
+   */
   preserveLastValue: () => PreservedSource$<T, Name>;
   value: Signal<T | undefined>;
 };
+
+/**
+ * Memory of a source, for late subscribers.
+ * - `replay: n` — a new subscriber first receives the last `n` emitted values
+ *   (oldest first), then live emissions.
+ * - `initial: v` — the source starts holding `v`: `value()` is `v` before any
+ *   emission and a new subscriber receives the current value first (implies
+ *   `replay >= 1`).
+ */
+export type SourceOptions<T> = {
+  replay?: number;
+  initial?: T;
+};
+
+/** A source created with `{ initial }`: its `value` signal is never `undefined`. */
+export type SourceWithInitial$<T, Name extends string = string> = Omit<
+  Source$<T, Name>,
+  'value'
+> & { value: Signal<T> };
 
 export type Source$<T, Name extends string = string> = SourceInstance<T, Name> &
   NamedCraftPrimitiveGen<Name, SourceInstance<T, Name>>;
@@ -56,7 +79,9 @@ export type PreservedSource$<
   Name extends string = string,
 > = SourceDependencyCarrier<Name> & {
   emit: (value: T) => void;
-  subscribe: (callback: (value: T) => void) => void;
+  subscribe: (
+    callback: (value: T) => void,
+  ) => ReturnType<EventEmitter<T>['subscribe']>;
   asReadonly: () => ReadonlySource$<T, Name>;
   value: Signal<T | undefined>;
 };
@@ -82,6 +107,10 @@ export type ReadonlySource$<
  * @param name - Name matching the variable/property this source is assigned to (used for host
  * tagging and dev-tools snapshot reporting, consistent with `craftComputed`/`craftEffect`)
  *
+ * @param options - Memory for late subscribers: `{ replay: n }` replays the last `n`
+ * values, `{ initial: v }` seeds the source with `v` (`value()` is never `undefined`,
+ * and a new subscriber receives the current value first).
+ *
  * @returns {Source$<T>} A source object that is also a named primitive
  * generator. Use it directly with `emit()`/`subscribe()`, or consume it with
  * `yield*` to obtain `{ [name]: source }` and propagate its dependency metadata.
@@ -89,7 +118,7 @@ export type ReadonlySource$<
  * - `subscribe(callback: (value: T) => void)` - Subscribes to emissions with automatic cleanup
  * - `value: Signal<T | undefined>` - A read-only signal containing the last emitted value
  * - `asReadonly()` - Returns a read-only version (only `subscribe` and `value`)
- * - `preserveLastValue()` - Returns a variant that immediately emits the last value to new subscribers
+ * - `preserveLastValue()` - Deprecated, use `{ replay: 1 }`. Returns a variant that immediately emits the last value to new subscribers
  *
  * @example
  * Yieldable source service
@@ -161,6 +190,15 @@ export type ReadonlySource$<
  */
 export function source$<T, Name extends string = string>(
   name: Name,
+  options: SourceOptions<T> & { initial: T },
+): SourceWithInitial$<T, Name>;
+export function source$<T, Name extends string = string>(
+  name: Name,
+  options?: SourceOptions<T>,
+): Source$<T, Name>;
+export function source$<T, Name extends string = string>(
+  name: Name,
+  options: SourceOptions<T> = {},
 ): Source$<T, Name> {
   assertInInjectionContext(source$);
   const injector = inject(Injector);
@@ -169,7 +207,14 @@ export function source$<T, Name extends string = string>(
   const sourceRef$ = new EventEmitter<T>();
   const destroyRef = inject(DestroyRef);
 
-  const sourceAsSignal = signal<T | undefined>(undefined);
+  const hasInitial = 'initial' in options;
+  const replayCapacity = Math.max(
+    Math.floor(options.replay ?? 0),
+    hasInitial ? 1 : 0,
+  );
+  const history: T[] = hasInitial ? [options.initial as T] : [];
+  let hasEmitted = hasInitial;
+  const sourceAsSignal = signal<T | undefined>(options.initial);
   const sendContextSession = ɵinjectSendContextSession();
 
   const registry = ɵinjectAppSnapshotRegistry();
@@ -193,44 +238,46 @@ export function source$<T, Name extends string = string>(
     );
   }
 
+  const subscribeWithReplay = (callback: (value: T) => void) => {
+    for (const value of history.slice()) callback(value);
+    return sourceRef$.subscribe(callback);
+  };
+
+  const emit = (value: T) => {
+    sendContextSession?.capture('custom', 'emitted', {
+      name,
+      payload: value,
+      source: 'source$',
+    });
+    hasEmitted = true;
+    if (replayCapacity > 0) {
+      history.push(value);
+      if (history.length > replayCapacity) history.shift();
+    }
+    sourceRef$.emit(value);
+    sourceAsSignal.set(value);
+    return yieldableInvocation<never, void>(undefined);
+  };
+
   const source = {
     ...SourceBranded,
-    emit: (value: T) => {
-      sendContextSession?.capture('custom', 'emitted', {
-        name,
-        payload: value,
-        source: 'source$',
-      });
-      sourceRef$.emit(value);
-      sourceAsSignal.set(value);
-      return yieldableInvocation<never, void>(undefined);
-    },
-    subscribe: (callback: (value: T) => void) => sourceRef$.subscribe(callback),
+    emit,
+    subscribe: subscribeWithReplay,
     preserveLastValue: () => {
-      const sourceWithLastValueRef = new EventEmitter<T>();
-      const subscriptionWithLastLastValue = sourceRef$.subscribe((value) => {
-        sourceWithLastValueRef.emit(value);
-      });
-
-      destroyRef.onDestroy(() => subscriptionWithLastLastValue.unsubscribe());
+      // A view over the same source whose late subscribers receive the last
+      // emitted value first — nothing when no value was emitted yet.
+      const subscribeWithLastValue = (callback: (value: T) => void) => {
+        if (hasEmitted) callback(sourceAsSignal() as T);
+        return sourceRef$.subscribe(callback);
+      };
 
       return {
         ...SourceBranded,
-        emit: (value: T) => {
-          sourceWithLastValueRef.emit(value);
-          sourceAsSignal.set(value);
-          return yieldableInvocation<never, void>(undefined);
-        },
-        subscribe: (callback: (value: T) => void) => {
-          sourceWithLastValueRef.subscribe(callback);
-          sourceWithLastValueRef.emit(sourceAsSignal() as T);
-        },
+        emit,
+        subscribe: subscribeWithLastValue,
         asReadonly: () => ({
           ...SourceBranded,
-          subscribe: (callback: (value: T) => void) => {
-            sourceWithLastValueRef.subscribe(callback);
-            sourceWithLastValueRef.emit(sourceAsSignal() as T);
-          },
+          subscribe: subscribeWithLastValue,
           value: sourceAsSignal.asReadonly(),
         }),
         value: sourceAsSignal.asReadonly(),
@@ -239,8 +286,7 @@ export function source$<T, Name extends string = string>(
     value: sourceAsSignal.asReadonly(),
     asReadonly: () => ({
       ...SourceBranded,
-      subscribe: (callback: (value: T) => void) =>
-        sourceRef$.subscribe(callback),
+      subscribe: subscribeWithReplay,
       value: sourceAsSignal.asReadonly(),
     }),
   } as unknown as SourceInstance<T, Name>;

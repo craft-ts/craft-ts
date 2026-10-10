@@ -6,7 +6,7 @@ import {
   runInInjectionContext,
   untracked,
 } from './host/craft-compat';
-import { takeUntilDestroyed } from './host/craft-compat';
+import { untilDestroyed } from './stream-kernel';
 import { InsertionsStateFactory } from './query.core';
 import { ɵcreateHostTaggedInjector } from './craft-service';
 import { Source$ as SourceDollarType, source$ } from './source$';
@@ -431,7 +431,7 @@ function createInsertSelectItemRuntime(
                     [
                       ɵprovidePrimitiveMethodRuntimeContext(
                         primitiveKind,
-                      { ...insertionContext, state: selectedStateSignal },
+                        { ...insertionContext, state: selectedStateSignal },
                         value as (...args: never[]) => unknown,
                       ),
                     ],
@@ -526,9 +526,8 @@ function createInsertSelectItemRuntime(
 
     if (insertionSnapshotRegistry) {
       const destroyRef = inject(DestroyRef);
-      insertionSnapshotRegistry.trigger$
-        .pipe(takeUntilDestroyed(destroyRef))
-        .subscribe(() => {
+      untilDestroyed(insertionSnapshotRegistry.trigger$, destroyRef).subscribe({
+        next: () => {
           const rawState = readInsertionState(state);
           if (!Array.isArray(rawState)) return;
           const snapshot = rawState.map((rawItem, i) => {
@@ -539,7 +538,8 @@ function createInsertSelectItemRuntime(
             key: selectItemMethodName,
             value: snapshot,
           });
-        });
+        },
+      });
     }
 
     return {
@@ -648,10 +648,12 @@ function createInsertSelectPropertyRuntime(
                 return yieldableInvocation(updateProperty(updateFn));
               },
               patch: (patchFn: (currentState: unknown) => Partial<unknown>) => {
-                return yieldableInvocation(updateProperty((current) => ({
-                  ...(current as object),
-                  ...patchFn(current),
-                })));
+                return yieldableInvocation(
+                  updateProperty((current) => ({
+                    ...(current as object),
+                    ...patchFn(current),
+                  })),
+                );
               },
               insertions: Object.entries(acc.rawInsertionsOutput).reduce(
                 (previous, [key, value]) => {
@@ -756,7 +758,7 @@ function createInsertSelectPropertyRuntime(
                     [
                       ɵprovidePrimitiveMethodRuntimeContext(
                         primitiveKind,
-                      { ...insertionContext, state: selectedPropertySignal },
+                        { ...insertionContext, state: selectedPropertySignal },
                         value as (...args: never[]) => unknown,
                       ),
                     ],
@@ -821,9 +823,8 @@ function createInsertSelectPropertyRuntime(
 
     if (insertionSnapshotRegistry) {
       const destroyRef = inject(DestroyRef);
-      insertionSnapshotRegistry.trigger$
-        .pipe(takeUntilDestroyed(destroyRef))
-        .subscribe(() => {
+      untilDestroyed(insertionSnapshotRegistry.trigger$, destroyRef).subscribe({
+        next: () => {
           const proxy = selectPropertyItem();
           const rawPropertyValue = readInsertionState(state) as Record<
             string,
@@ -839,7 +840,8 @@ function createInsertSelectPropertyRuntime(
             key: selectPropertyMethodName,
             value: snapshotSelectProxy(proxy, rawPropValue),
           });
-        });
+        },
+      });
     }
 
     return {
