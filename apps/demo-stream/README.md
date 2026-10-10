@@ -20,4 +20,7 @@ The trace line of a stream started by a click carries that click's correlation i
 (`StreamDemo:button:start-ticker:click:<uuid>`); the live search starts at load, so it
 reads `no gesture`. Observability providers are development-only.
 
-Not used here on purpose: `provideCraftDevTools()` — see the note in the PR / commit message.
+Not used here: `provideCraftDevTools()`. Registered in this app it fails at bootstrap with
+`CraftCircularDependencyError: service-runtime-overrides → service-runtime-overrides` (its
+`SERVICE_RUNTIME_OVERRIDES` factory resolves a service, which reads the overrides again). The error
+does not involve streams; the app registers its own observability providers instead.
