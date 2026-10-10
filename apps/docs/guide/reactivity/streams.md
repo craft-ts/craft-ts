@@ -475,6 +475,10 @@ through the **temporal runtime** of the stream's context, the same one `craftSle
   subscription ends or the owner's `DestroyRef` is destroyed; `clock.pendingTasks()` shows what is
   still waiting, which is how a test proves nothing leaked.
 
+The wiring to native timers is covered too: `operators.realtime.spec.ts` runs `interval`, `timer`,
+`debounce`, `delay`, `timeout`, `retry` and `bufferTime` on the real runtime with short delays,
+asserting ordering and lower bounds only, and that cancelled work leaves no task behind.
+
 Operators that wait add `RuntimeTemporalAwaitRequest` to the stream's `Y`: a stream that may
 suspend cannot be consumed in place by a synchronous host.
 
