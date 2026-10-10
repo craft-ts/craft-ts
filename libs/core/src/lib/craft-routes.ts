@@ -7,14 +7,13 @@ import {
   type Signal,
   type WritableSignal,
 } from './host/craft-compat';
-import { toObservable } from './host/craft-compat';
 import {
-  filter,
   firstValueFrom,
-  isObservable,
-  take,
-  type Observable,
-} from 'rxjs';
+  isObservableLike,
+  signalChanges,
+  type Subscribable,
+  type SubscribableValue,
+} from './stream-kernel';
 import type {
   ActivatedRouteSnapshot,
   Data,
@@ -80,7 +79,7 @@ import { ɵinjectCraftMatch, type CraftUrlTree } from './craft-router-tokens';
 import { craftComputed } from './host/craft-signal';
 import { provideCraftSsrPolicy, type CraftSsrPolicy } from './craft-ssr';
 
-type MaybeAsync<T> = T | Promise<T> | Observable<T>;
+type MaybeAsync<T> = T | Promise<T> | Subscribable<T>;
 
 /** Type-only carrier for providers passed to loadCraftComponent(...). */
 export const CRAFT_ROUTE_ADDITIONAL_PROVIDERS = Symbol(
@@ -342,10 +341,10 @@ type UnwrapCanActivateReturn<T> =
     ? UnwrapCanActivateReturn<Output>
     : T extends Promise<infer Inner>
       ? UnwrapCanActivateReturn<Inner>
-      : T extends Observable<infer Inner>
+      : T extends Signal<infer Inner>
         ? UnwrapCanActivateReturn<Inner>
-        : T extends Signal<infer Inner>
-          ? UnwrapCanActivateReturn<Inner>
+        : T extends Subscribable<unknown>
+          ? UnwrapCanActivateReturn<SubscribableValue<T>>
           : T;
 
 type ExtractCanActivateGuardData<Guard> = Guard extends (
@@ -773,7 +772,7 @@ type CraftRouteCanActivateResult =
   | GuardResult
   | object
   | Promise<GuardResult | object>
-  | Observable<GuardResult | object | undefined>
+  | Subscribable<GuardResult | object | undefined>
   | Signal<GuardResult | object | undefined>;
 
 type CraftRouteCanActivateGuard = (
@@ -2446,24 +2445,17 @@ function* settlePublicGuardValue(
       [GUARD_AWAIT_REQUEST_MARKER]: true,
       kind: 'promise',
       value: firstValueFrom(
-        toObservable(value).pipe(
-          filter((next) => next !== undefined),
-          take(1),
-        ),
+        signalChanges(value),
+        (next) => next !== undefined,
       ),
     };
   }
 
-  if (isObservable(value)) {
+  if (isObservableLike(value)) {
     return yield {
       [GUARD_AWAIT_REQUEST_MARKER]: true,
       kind: 'promise',
-      value: firstValueFrom(
-        value.pipe(
-          filter((next) => next !== undefined),
-          take(1),
-        ),
-      ),
+      value: firstValueFrom(value, (next) => next !== undefined),
     };
   }
 
@@ -2575,7 +2567,7 @@ function createLoadComponent(
     loadRouteWithRetry(
       async (helpers) => {
         const result = loadComponent(helpers);
-        return isObservable(result) ? firstValueFrom(result) : await result;
+        return isObservableLike(result) ? firstValueFrom(result) : await result;
       },
       'component',
       routePath,

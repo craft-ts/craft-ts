@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "target": "es2022",
+    "module": "preserve",
+    "erasableSyntaxOnly": false,
+    "paths": {
+      "@craft-ts/core": ["../../libs/core/src/index.ts"],
+      "@craft-ts/component": ["../../libs/component/src/index.ts"],
+      "@craft-ts/stream": ["../../libs/stream/src/index.ts"],
+      "@craft-ts/style": ["../../libs/style/src/index.ts"]
+    }
+  },
+  "files": [],
+  "include": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.spec.json" }
+  ]
+}

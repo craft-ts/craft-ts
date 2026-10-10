@@ -21,7 +21,7 @@
 
 ## What is craft-ts?
 
-craft-ts is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. RxJS remains optional.
+craft-ts is a Signal-first toolkit for modeling state, asynchronous work, services, forms, dependency injection, and routes with explicit dependencies and strong TypeScript inference. It has no RxJS dependency: anything subscribable — an RxJS `Observable` included — is accepted structurally, and `@craft-ts/stream` brings typed streams of its own.
 
 It is designed to keep application behavior close to where it is used while making dependency graphs visible to the compiler and to tests.
 
@@ -125,6 +125,7 @@ apps/
 │                               (`architecture/` — static graph Vitest suite)
 ├── demo-effect/                dedicated EffectTS + CraftTS examples
 ├── demo-ssr/                   server-side rendering and hydration
+├── demo-stream/                typed streams and their observability
 ├── demo-with-server-function/  the server-function proof of concept
 ├── quickstart-effect/          minimal executable EffectTS starter
 ├── log-server/                 local JSONL log ingestion (@craft-ts/log-server)
@@ -190,6 +191,12 @@ Start the dedicated EffectTS + CraftTS demo:
 
 ```bash
 npx nx serve demo-effect
+```
+
+Start the typed streams demo (search, ticker, defect, stream trace):
+
+```bash
+npx nx serve demo-stream
 ```
 
 Start the minimal EffectTS + CraftTS quickstart:

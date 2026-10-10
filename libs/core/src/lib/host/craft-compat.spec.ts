@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { firstValueFrom, take } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   assertInInjectionContext,
@@ -13,7 +12,6 @@ import {
   Injector,
   isDevMode,
   signal,
-  toObservable,
   ɵsetCraftDevMode,
   ɵsetCraftInjectFallback,
 } from './craft-compat';
@@ -130,38 +128,6 @@ describe('inject fallback', () => {
     expect(() =>
       craftUse(craftEffect('fallback-effect', () => undefined, { injector: host })),
     ).not.toThrow();
-  });
-});
-
-describe('toObservable', () => {
-  it('emits the initial value once', async () => {
-    const count = signal(7);
-    const values: number[] = [];
-    const sub = toObservable(count).subscribe((value) => values.push(value));
-    expect(values).toEqual([7]);
-    count.set(8);
-    expect(values).toEqual([7, 8]);
-    sub.unsubscribe();
-  });
-
-  it('stops after the given injector is destroyed', async () => {
-    const count = signal(0);
-    const injector = createEnvironmentInjector([], Injector.NULL);
-    const values: number[] = [];
-    toObservable(count, { injector }).subscribe((value) => values.push(value));
-    count.set(1);
-    expect(values).toEqual([0, 1]);
-    injector.destroy();
-    count.set(2);
-    expect(values).toEqual([0, 1]);
-  });
-
-  it('can be consumed with take(1) after a single initial emit', async () => {
-    const ready = signal(true);
-    const value = await firstValueFrom(
-      toObservable(ready).pipe(take(1)),
-    );
-    expect(value).toBe(true);
   });
 });
 

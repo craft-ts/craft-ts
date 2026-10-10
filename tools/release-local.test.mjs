@@ -362,7 +362,7 @@ test('mirrors the frontend Effect demo and pins CraftTS, i18n, and Effect depend
       manifest.devDependencies['@craft-ts/dev-tools'],
       '0.7.0-beta.11',
     );
-    assert.equal(manifest.devDependencies.rxjs, '^7.8.0');
+    assert.equal(manifest.devDependencies.rxjs, undefined);
     assert.equal(manifest.devDependencies.tslib, '^2.3.0');
     assert.equal(
       readFileSync(join(target, '.gitignore'), 'utf8')

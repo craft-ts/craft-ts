@@ -6,6 +6,7 @@ export * from './scripts/primitives/migrate-primitive-generators.js';
 export * from './scripts/primitives/migrate-yieldable-reactive-reads.js';
 export * from './scripts/migrate.js';
 export * from './scripts/primitives/migration-diagnostic.js';
+export * from './scripts/streams/migrate-streams.js';
 export * from './scripts/routes/migrate-routes.js';
 export * from './scripts/routes/migration-diagnostic.js';
 export * from './scripts/routes/route-command.js';

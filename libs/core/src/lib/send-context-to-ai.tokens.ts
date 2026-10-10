@@ -5,7 +5,7 @@ import {
   type Signal,
 } from './host/craft-compat';
 import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
-import { BehaviorSubject, type Observable } from 'rxjs';
+import { behaviorSubject, type Subscribable } from './stream-kernel';
 import { provideCraftDomEventHook } from './dom-event-hook';
 import {
   provideCraftHttpTrace,
@@ -135,8 +135,8 @@ export interface SendContextSessionSnapshot {
 }
 
 export interface SendContextSession {
-  readonly events$: Observable<readonly SendContextEvent[]>;
-  readonly snapshot$: Observable<SendContextSessionSnapshot>;
+  readonly events$: Subscribable<readonly SendContextEvent[]>;
+  readonly snapshot$: Subscribable<SendContextSessionSnapshot>;
   readonly eventSignal?: Signal<readonly SendContextEvent[]>;
   readonly clipsSignal?: Signal<readonly SendContextClip[]>;
   readonly events: readonly SendContextEvent[];
@@ -164,7 +164,7 @@ export interface SendContextSession {
 }
 
 export interface SendContextRecordController {
-  readonly clips$: Observable<readonly SendContextClip[]>;
+  readonly clips$: Subscribable<readonly SendContextClip[]>;
   readonly clips: readonly SendContextClip[];
   startRecord(label?: string): SendContextClip;
   stopRecord(): SendContextClip | undefined;
@@ -417,8 +417,8 @@ export function createSendContextSession(
   let sequence = 0;
   let activeClipId: string | undefined;
   let wasTruncated = false;
-  const eventsSubject = new BehaviorSubject<readonly SendContextEvent[]>([]);
-  const snapshotSubject = new BehaviorSubject<SendContextSessionSnapshot>({
+  const eventsSubject = behaviorSubject<readonly SendContextEvent[]>([]);
+  const snapshotSubject = behaviorSubject<SendContextSessionSnapshot>({
     events: [],
     clips: [],
   });
@@ -468,8 +468,8 @@ export function createSendContextSession(
   };
 
   const session: SendContextSession = {
-    events$: eventsSubject.asObservable(),
-    snapshot$: snapshotSubject.asObservable(),
+    events$: eventsSubject.asSubscribable(),
+    snapshot$: snapshotSubject.asSubscribable(),
     get events() {
       return eventList;
     },
@@ -660,14 +660,14 @@ export function createSendContextSession(
 export function createSendContextRecordController(
   session: SendContextSession,
 ): SendContextRecordController {
-  const clipsSubject = new BehaviorSubject<readonly SendContextClip[]>(
+  const clipsSubject = behaviorSubject<readonly SendContextClip[]>(
     session.clips,
   );
-  const subscription = session.snapshot$.subscribe(({ clips }) =>
-    clipsSubject.next(clips),
-  );
+  const subscription = session.snapshot$.subscribe({
+    next: ({ clips }) => clipsSubject.next(clips),
+  });
   return {
-    clips$: clipsSubject.asObservable(),
+    clips$: clipsSubject.asSubscribable(),
     get clips() {
       return session.clips;
     },

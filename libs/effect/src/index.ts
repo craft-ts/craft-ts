@@ -10,6 +10,12 @@ export {
   runEffect,
   runYieldedEffect,
 } from './lib/run-effect';
+export type {
+  CraftEffectGen,
+  CraftSyncEffectGen,
+  EffectExceptionMarkers,
+  EffectExceptionOf,
+} from './lib/effect-exceptions';
 export {
   assertNoRequirements,
   type AssertNoRequirements,

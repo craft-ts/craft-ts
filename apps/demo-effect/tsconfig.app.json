@@ -18,6 +18,12 @@
       "path": "../../libs/effect/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/stream/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/stream-effect/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/core/tsconfig.lib.json"
     },
     {

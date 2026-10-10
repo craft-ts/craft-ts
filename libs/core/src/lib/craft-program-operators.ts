@@ -58,32 +58,32 @@ export type CraftProgramOperator<YIn, AIn, YOut, AOut> = (
 ) => Generator<YOut, AOut, unknown>;
 
 /** `Yielded` with the phantom exception markers removed (real runtime yields). */
-type StripGenExceptionMarkers<Yielded> = Exclude<
+export type StripGenExceptionMarkers<Yielded> = Exclude<
   Yielded,
   CraftGenExceptionMarker<any>
 >;
 
 /** Rebuilds a marker for `Exception`, or `never` when nothing remains to advertise. */
-type MarkerFor<Exception> = [Exception] extends [never]
+export type MarkerFor<Exception> = [Exception] extends [never]
   ? never
   : CraftGenExceptionMarker<Exception>;
 
 type HandlerGen = (exception: any) => Generator<any, any, unknown>;
 
-type HandlerYielded<Handler> = Handler extends (
+export type HandlerYielded<Handler> = Handler extends (
   ...args: any[]
 ) => Generator<infer Yielded, any, any>
   ? Yielded
   : never;
 
-type HandlerOutput<Handler> = Handler extends (
+export type HandlerOutput<Handler> = Handler extends (
   ...args: any[]
 ) => Generator<any, infer Output, any>
   ? Output
   : never;
 
 /** The exceptions a handler may itself produce (nested programs + returned exceptions). */
-type HandlerExceptions<HYielded, HOutput> = Extract<
+export type HandlerExceptions<HYielded, HOutput> = Extract<
   ExtractCraftGenExceptions<HYielded> | ExtractCraftException<HOutput>,
   AnyCraftException
 >;
@@ -296,6 +296,9 @@ function retrySchedule(policy: CraftRetryPolicy): CraftTemporalSchedule {
           },
   };
 }
+
+/** The schedule a {@link CraftRetryPolicy} describes (shared with the stream `retry`). */
+export const ɵretrySchedule = retrySchedule;
 
 function delayAwaitRequest(delayMs: number): RuntimeTemporalAwaitRequest {
   return Object.assign(createTemporalSleepRequest(delayMs), {
