@@ -104,8 +104,22 @@ const squares = of(1, 2, 3, 4).pipe(
 | `debounce`, `throttle`, `auditTime`, `delay`, `timeout`, `retry`, `repeat`              | [Time](#time)                                                      |
 | `buffer`, `bufferCount`, `bufferTime`, `bufferWhen`, `sample`, `groupBy`, `window`, `windowCount` | [Group](#grouping-and-sampling) values                  |
 | `expand`                                                                                | Recursively project: results feed back in (bound it)               |
+| `count`, `min`, `max`, `every`, `isEmpty`, `find`, `findIndex`                          | Aggregate or answer a question about the whole stream              |
+| `single`, `elementAt`, `throwIfEmpty`, `skipLast`, `mapTo`, `distinctUntilKeyChanged`   | Select one value, hold back the tail, replace, deduplicate by key  |
+| `timestamp`, `timeInterval`, `audit`, `sampleTime`, `delayWhen`                         | Stamp values, or time them from a clock or a notifier stream       |
+| `zipWith`, `raceWith`, `zipAll`, `combineLatestAll`                                     | More combination forms; `…All` collects a stream **of streams**    |
+| `traceStage`                                                                            | Mark a point of the pipeline in [stream traces](#observability)    |
 | `catchTag`, `catchTag.exhaustive`, `mapException`, `orElse`                             | Work on the typed exception channel                                |
 | `share`, `shareReplay`                                                                  | One upstream run for many subscribers                              |
+
+Creators beyond `of`/`from`/`interval`: `range`, `iif` (a branch per subscription),
+`forkJoin` (the last value of each input, as a tuple or record) and `partition` (two
+cold halves by a predicate; a type guard narrows both).
+
+A stream that cannot give the value an operator promises ends with a typed **defect**,
+never a hang: `EmptyStreamError` (`first`, `last`, `single`, `throwIfEmpty`),
+`StreamSequenceError` (`single` found several), `StreamOutOfRangeError` (`elementAt`).
+`min`/`max`/`forkJoin` of an empty input simply complete without a value.
 
 ### Handlers that yield services
 
@@ -499,6 +513,11 @@ form (selector forms become `connect(...)`) are translated. Subjects become `sub
 temporal runtime — `x.pipe(…, publish())` becomes `connectable(x.pipe(…))` (and
 `publishReplay` / `publishBehavior` / `multicast` get their `connector`), and the operators and creators with the same name (`interval`, `timer`, `fromEvent`, `defer`,
 `throwError`, `concat`, `first`, `last`, `reduce`, `auditTime`, `expand`, …) move over unchanged.
+
+The deprecated operators with no equivalent (`retryWhen`, `repeatWhen`, `mergeScan`,
+`switchScan`, `windowTime`, `windowToggle`, `windowWhen`, `bufferToggle`, `using`,
+`onErrorResumeNext`, `publishLast`, `timeoutWith`, `sequenceEqual`, `animationFrames`, `pluck`,
+`…MapTo`) block their file with a diagnostic that names the replacement. `exhaust` becomes `exhaustAll`.
 
 Semantic changes are reported as **review notices** on a migrated file: `catchError(() => x$)`
 becomes `orElse(() => x$)`, which continues on a *typed* exception of a craft stream and does

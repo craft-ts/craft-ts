@@ -839,6 +839,27 @@ describe('streams migration', () => {
         export const withSubject = rx.of(1).pipe(multicast(new rx.Subject<number>(), (shared) => shared));
         export const wrapped = unknownSource.pipe(rxMap(() => 1));
       `,
+      'parity.ts': `
+        import { Subject, forkJoin, iif, of, partition, range, timer, zip } from 'rxjs';
+        import { audit, combineLatestAll, count, delayWhen, distinctUntilKeyChanged, elementAt, every, exhaust, find, isEmpty, mapTo, max, min, raceWith, sampleTime, single, skipLast, timestamp, zipWith } from 'rxjs/operators';
+
+        const gate = new Subject<number>();
+        export const totals = forkJoin([of(1, 2), of('a')]);
+        export const named = forkJoin({ n: of(1), s: of('x') });
+        export const picked = iif(() => true, range(1, 3), of(0));
+        export const [evens, odds] = partition(of(1, 2, 3), (n) => n % 2 === 0);
+        export const stats = of(3, 1, 2).pipe(count(), mapTo('done'));
+        export const extremes = of(3, 1, 2).pipe(min(), max());
+        export const checks = of(1, 2).pipe(every((n) => n > 0), isEmpty());
+        export const lookup = of(1, 2, 3).pipe(find((n) => n > 1), single(), elementAt(0), skipLast(0));
+        export const keyed = of({ id: 1 }, { id: 1 }).pipe(distinctUntilKeyChanged('id'));
+        export const stamped = of(1).pipe(timestamp());
+        export const paired = of(1).pipe(zipWith(of('a')), raceWith(of([1, 'a'] as [number, string])));
+        export const timed = of(1, 2).pipe(audit(() => timer(10)), delayWhen(() => gate), sampleTime(5));
+        export const inner = of(of(1), of(2)).pipe(combineLatestAll());
+        export const zipped = of(of(1), of(2)).pipe(exhaust());
+        export const joined = zip(of(1), of(2));
+      `,
       'counter.ts': `
         import { BehaviorSubject, NEVER, Observable, Subject, asyncScheduler, bindCallback, concat, defer, from, generate, interval, of, scheduled, throwError } from 'rxjs';
         import { fromFetch } from 'rxjs/fetch';
@@ -906,7 +927,13 @@ describe('streams migration', () => {
         },
       },
     });
-    const files = ['counter.ts', 'extra.ts'].map((name) =>
+    // The compile check below only proves something about files that were migrated.
+    for (const name of ['counter.ts', 'extra.ts', 'parity.ts']) {
+      expect(await readFile(join(root, name), 'utf8')).not.toMatch(
+        /from 'rxjs/,
+      );
+    }
+    const files = ['counter.ts', 'extra.ts', 'parity.ts'].map((name) =>
       project.addSourceFileAtPath(join(root, name)),
     );
     const own = project
@@ -923,6 +950,60 @@ describe('streams migration', () => {
 
     expect(own).toEqual([]);
   }, 60_000);
+
+  it('migrates the operators added for RxJS parity, renaming exhaust', async () => {
+    const { read, result } = await migrate({
+      'p.ts': `
+        import { forkJoin, iif, of, partition, range } from 'rxjs';
+        import { count, exhaust, mapTo, zipWith } from 'rxjs/operators';
+
+        const other = of('a');
+        export const joined = forkJoin([of(1), other]);
+        export const chosen = iif(() => true, range(1, 2), of(0));
+        export const [yes, no] = partition(of(1, 2), (n) => n > 1);
+        export const out = of(1).pipe(count(), mapTo('x'), zipWith(other), exhaust());
+      `,
+    });
+    const output = await read('p.ts');
+
+    expect(result.exitCode).toBe(0);
+    expect(output).toContain("from '@craft-ts/stream'");
+    expect(output).not.toContain("from 'rxjs");
+    expect(output).toContain('forkJoin([of(1), other])');
+    expect(output).toContain('exhaustAll()');
+    expect(output).not.toContain('exhaust()');
+  });
+
+  it('blocks a deprecated operator with the way out', async () => {
+    const { result, read } = await migrate({
+      'q.ts': `
+        import { of } from 'rxjs';
+        import { retryWhen } from 'rxjs/operators';
+        export const out = of(1).pipe(retryWhen((errors) => errors));
+      `,
+    });
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'RXJS_SYMBOL_UNSUPPORTED',
+        message: expect.stringContaining('use `retry` with a policy'),
+      }),
+    );
+    expect(await read('q.ts')).toContain("from 'rxjs'");
+  });
+
+  it('blocks forkJoin outside the array/object form', async () => {
+    const { result } = await migrate({
+      'r.ts': `
+        import { forkJoin, of } from 'rxjs';
+        export const out = forkJoin(of(1), of(2));
+      `,
+    });
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({ code: 'RXJS_CALL_FORM_UNSUPPORTED' }),
+    );
+  });
 
   it('fails --check while rxjs imports remain, and --fail-on-manual on blockers', async () => {
     const root = await fixture({

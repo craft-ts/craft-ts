@@ -148,12 +148,39 @@ const SAME_NAME_STREAM = new Set([
   'fromFetch',
   'webSocket',
   'connect',
+  'count',
+  'min',
+  'max',
+  'every',
+  'isEmpty',
+  'find',
+  'findIndex',
+  'single',
+  'elementAt',
+  'throwIfEmpty',
+  'skipLast',
+  'mapTo',
+  'distinctUntilKeyChanged',
+  'timestamp',
+  'timeInterval',
+  'range',
+  'iif',
+  'forkJoin',
+  'partition',
+  'zipWith',
+  'raceWith',
+  'zipAll',
+  'combineLatestAll',
+  'audit',
+  'delayWhen',
+  'sampleTime',
 ]);
 
 /** Renamed on the way. */
 const RENAMED_STREAM = new Map([
   ['debounceTime', 'debounce'],
   ['throttleTime', 'throttle'],
+  ['exhaust', 'exhaustAll'],
 ]);
 
 const SUBJECT_FACTORIES = new Map([
@@ -180,6 +207,9 @@ const STREAM_CREATORS = new Set([
   'fromFetch',
   'webSocket',
   'ajax',
+  'range',
+  'iif',
+  'forkJoin',
 ]);
 
 const TYPE_ONLY = new Set(['Observable', 'Subscription']);
@@ -211,7 +241,26 @@ const PUBLISH_FAMILY = new Set([
  * rxjs export the codemod knows of has a translation. A symbol outside every
  * table is reported without a hint.
  */
-const UNSUPPORTED_HINTS = new Map<string, string>();
+const UNSUPPORTED_HINTS = new Map<string, string>([
+  ['retryWhen', 'use `retry` with a policy (delay, backoff) or `catchTag`'],
+  ['repeatWhen', 'use `repeat` with its options'],
+  ['mergeScan', 'use `scan` over `mergeMap`, or `expand`'],
+  ['switchScan', 'use `scan` over `switchMap`'],
+  ['windowTime', 'use `bufferTime`, or `windowCount`'],
+  ['windowToggle', 'use `bufferWhen` / `windowCount`'],
+  ['windowWhen', 'use `bufferWhen`'],
+  ['bufferToggle', 'use `bufferWhen`'],
+  ['using', 'use `defer` and `finalize` for the resource'],
+  ['onErrorResumeNext', 'use `catchTag` / `orElse` on the typed exceptions'],
+  ['publishLast', 'use `connectable` with a `replaySubject(1)` connector'],
+  ['timeoutWith', 'use `timeout` and `catchTag` on its exception'],
+  ['sequenceEqual', 'use `zip` + `every`, or compare `toArray()` results'],
+  ['animationFrames', 'use `fromEvent` on a frame source, or `interval`'],
+  ['pluck', 'use `map((value) => value.key)`'],
+  ['concatMapTo', 'use `concatMap(() => inner)`'],
+  ['mergeMapTo', 'use `mergeMap(() => inner)`'],
+  ['switchMapTo', 'use `switchMap(() => inner)`'],
+]);
 
 /**
  * Names that move to `@craft-ts/stream` unchanged, wherever they are used (as
@@ -1383,9 +1432,77 @@ function collectEdits(
       name === 'concat' ||
       name === 'concatWith' ||
       name === 'mergeWith' ||
-      name === 'combineLatestWith'
+      name === 'combineLatestWith' ||
+      name === 'zipWith' ||
+      name === 'raceWith'
     ) {
       for (const argument of args) asStream(argument, name);
+      context.needsStream.add(name);
+      continue;
+    }
+
+    if (name === 'forkJoin') {
+      const container = args[0];
+      if (
+        args.length !== 1 ||
+        !(
+          Node.isArrayLiteralExpression(container) ||
+          Node.isObjectLiteralExpression(container)
+        )
+      ) {
+        block(
+          'RXJS_CALL_FORM_UNSUPPORTED',
+          'forkJoin(...) migrates only with one array or object literal argument.',
+          name,
+        );
+        continue;
+      }
+      const members = Node.isArrayLiteralExpression(container)
+        ? container.getElements()
+        : container
+            .getProperties()
+            .map((property) =>
+              Node.isPropertyAssignment(property)
+                ? property.getInitializer()
+                : undefined,
+            );
+      if (members.some((member) => !member)) {
+        block(
+          'RXJS_CALL_FORM_UNSUPPORTED',
+          'forkJoin({ ... }) with shorthand or spread members.',
+          name,
+        );
+        continue;
+      }
+      for (const member of members) asStream(member as Expression, name);
+      context.needsStream.add(name);
+      continue;
+    }
+
+    if (name === 'iif') {
+      if (args.length < 2 || args.length > 3) {
+        block(
+          'RXJS_CALL_FORM_UNSUPPORTED',
+          'iif(...) migrates only with a condition and one or two streams.',
+          name,
+        );
+        continue;
+      }
+      for (const argument of args.slice(1)) asStream(argument, name);
+      context.needsStream.add(name);
+      continue;
+    }
+
+    if (name === 'partition') {
+      if (args.length !== 2) {
+        block(
+          'RXJS_CALL_FORM_UNSUPPORTED',
+          'partition(...) with a thisArg, or the operator form.',
+          name,
+        );
+        continue;
+      }
+      asStream(args[0], name);
       context.needsStream.add(name);
       continue;
     }

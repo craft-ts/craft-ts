@@ -212,3 +212,4 @@ export {
   zipAll,
   zipWith,
 } from './lib/operators/combine-more';
+export { audit, delayWhen, sampleTime } from './lib/operators/time-more';

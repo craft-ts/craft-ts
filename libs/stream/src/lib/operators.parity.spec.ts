@@ -9,8 +9,10 @@ import {
   type Subject,
 } from '@craft-ts/core';
 import {
+  audit,
   combineLatestAll,
   count,
+  delayWhen,
   distinctUntilKeyChanged,
   elementAt,
   empty,
@@ -31,12 +33,14 @@ import {
   partition,
   raceWith,
   range,
+  sampleTime,
   single,
   skipLast,
   StreamOutOfRangeError,
   StreamSequenceError,
   take,
   throwIfEmpty,
+  timer,
   timeInterval,
   timestamp,
   zipAll,
@@ -322,5 +326,71 @@ describe('…With and …All', () => {
     await clock.advanceBy(100);
     expect(result.values).toEqual([[0, 1]]);
     result.unsubscribe();
+  });
+});
+
+describe('stream-driven time', () => {
+  it('audit closes its window when the duration stream emits, then emits the latest', async () => {
+    const live = hot<number>();
+    const result = record(live.stream.pipe(audit(() => timer(50))));
+    live.source.next(1);
+    await clock.advanceBy(20);
+    live.source.next(2);
+    expect(result.values).toEqual([]);
+    await clock.advanceBy(40);
+    expect(result.values).toEqual([2]);
+    live.source.next(3);
+    await clock.advanceBy(60);
+    expect(result.values).toEqual([2, 3]);
+  });
+
+  it('audit emits at once when the duration ends synchronously', () => {
+    const live = hot<number>();
+    const result = record(live.stream.pipe(audit(() => of(0))));
+    live.source.next(1);
+    live.source.next(2);
+    expect(result.values).toEqual([1, 2]);
+  });
+
+  it('audit flushes the held value on completion', () => {
+    const live = hot<number>();
+    const result = record(live.stream.pipe(audit(() => timer(1000))));
+    live.source.next(9);
+    live.source.complete();
+    expect(result.values).toEqual([9]);
+    expect(result.completed).toBe(1);
+  });
+
+  it('audit carries the exceptions of the duration stream', () => {
+    const live = hot<number>();
+    const stream = live.stream.pipe(audit(() => fail(boom())));
+    expectTypeOf(stream).toEqualTypeOf<
+      CraftStream<number, CraftGenExceptionMarker<ReturnType<typeof boom>>>
+    >();
+    const result = record(stream);
+    live.source.next(1);
+    expect(result.exceptions).toHaveLength(1);
+  });
+
+  it('sampleTime emits the latest value each period, only when there is a new one', async () => {
+    const live = hot<string>();
+    const result = record(live.stream.pipe(sampleTime(100)));
+    live.source.next('a');
+    live.source.next('b');
+    await clock.advanceBy(100);
+    await clock.advanceBy(100);
+    live.source.next('c');
+    await clock.advanceBy(100);
+    expect(result.values).toEqual(['b', 'c']);
+    result.unsubscribe();
+  });
+
+  it('delayWhen releases each value when its own duration emits', async () => {
+    const result = record(
+      of(30, 10, 20).pipe(delayWhen((ms: number) => timer(ms))),
+    );
+    await clock.advanceBy(100);
+    expect(result.values).toEqual([10, 20, 30]);
+    expect(result.completed).toBe(1);
   });
 });
