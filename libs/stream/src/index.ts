@@ -43,7 +43,9 @@ export {
   fromIterable,
   fromPromise,
   generate,
+  iif,
   never,
+  range,
   throwError,
   type GenerateOptions,
 } from './lib/sources-extra';
@@ -183,3 +185,30 @@ export {
   type WebSocketConfig,
   type WebSocketStream,
 } from './lib/sources-io';
+export {
+  count,
+  distinctUntilKeyChanged,
+  elementAt,
+  every,
+  find,
+  findIndex,
+  isEmpty,
+  mapTo,
+  max,
+  min,
+  single,
+  skipLast,
+  StreamOutOfRangeError,
+  StreamSequenceError,
+  throwIfEmpty,
+  timeInterval,
+  timestamp,
+} from './lib/operators/aggregate';
+export {
+  combineLatestAll,
+  forkJoin,
+  partition,
+  raceWith,
+  zipAll,
+  zipWith,
+} from './lib/operators/combine-more';

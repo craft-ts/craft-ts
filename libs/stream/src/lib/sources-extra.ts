@@ -239,3 +239,42 @@ export function defer(
     } as Parameters<Subscribable<unknown>['subscribe']>[0]) as Unsubscribable;
   });
 }
+
+/** Emits `count` consecutive integers starting at `start`, then completes. */
+export function range(start: number, count: number): CraftStream<number, never> {
+  return createCraftStream<number, never>((_context, sink) => {
+    for (let n = 0; n < count; n += 1) {
+      if (sink.closed) return;
+      sink.next(start + n);
+    }
+    sink.complete();
+  });
+}
+
+/**
+ * Subscribes to `whenTrue` or `whenFalse` depending on `condition`, evaluated at
+ * each subscription. The result's `Y` covers both branches. A missing branch is
+ * an empty stream.
+ */
+export function iif<A, YA, B = never, YB = never>(
+  condition: () => boolean,
+  whenTrue: CraftStream<A, YA>,
+  whenFalse?: CraftStream<B, YB>,
+): CraftStream<A | B, YA | YB> {
+  return createCraftStream<unknown, unknown>((context, sink) => {
+    let chosen: CraftStream<unknown, unknown> | undefined;
+    try {
+      chosen = (condition() ? whenTrue : whenFalse) as
+        | CraftStream<unknown, unknown>
+        | undefined;
+    } catch (error) {
+      sink.error(error);
+      return;
+    }
+    if (!chosen) {
+      sink.complete();
+      return;
+    }
+    return chosen[STREAM_RUN](context, sink);
+  }) as never;
+}

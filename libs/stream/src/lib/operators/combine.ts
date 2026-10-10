@@ -21,7 +21,7 @@ import {
 type Slot = { readonly stream: AnyCraftStream; readonly key: PropertyKey };
 
 /** Subscribes every input with the same sink; returns the subscriptions. */
-function subscribeAll(
+export function subscribeAll(
   context: StreamContext,
   slots: readonly Slot[],
   make: (slot: Slot, position: number) => StreamSink<unknown>,
@@ -40,7 +40,7 @@ function subscribeAll(
   };
 }
 
-function toSlots(
+export function toSlots(
   streams: readonly AnyCraftStream[] | Record<string, AnyCraftStream>,
 ): { slots: Slot[]; isRecord: boolean } {
   if (Array.isArray(streams)) {
@@ -55,7 +55,7 @@ function toSlots(
   };
 }
 
-function shape(
+export function shape(
   isRecord: boolean,
   slots: readonly Slot[],
   values: readonly unknown[],
