@@ -1,5 +1,4 @@
 import {
-  CraftGenShortCircuit,
   driveCraftProgramAsync,
   isCraftException,
   isCraftGenShortCircuit,
@@ -136,11 +135,4 @@ export function runHandler(
   }
 
   return handle;
-}
-
-/** Re-throws an exception outcome as the short-circuit a craft program expects. */
-export function throwIfException(outcome: HandlerOutcome): void {
-  if (outcome.kind === 'exception') {
-    throw new CraftGenShortCircuit(outcome.exception);
-  }
 }

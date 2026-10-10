@@ -470,6 +470,41 @@ describe('groupBy and window hand failures to their inner streams', () => {
     }
   });
 
+  it('window: an exception from the opening stream reaches the window and the result', () => {
+    const live = subject<number, never>();
+    const opening = subject<number, never>();
+    const inner: string[] = [];
+    const outer: string[] = [];
+    fromSubscribable(live)
+      .pipe(window(fromSubscribable(opening)))
+      .subscribe({
+        next: (win: CraftStream<number, never>) =>
+          win.subscribe({ exception: () => inner.push('exception') }),
+        exception: () => outer.push('exception'),
+      });
+
+    (opening as Subject<number, unknown>).exception(boom);
+
+    expect(inner).toEqual(['exception']);
+    expect(outer).toEqual(['exception']);
+  });
+
+  it('window: completing the source completes the current window', () => {
+    const live = subject<number, never>();
+    const opening = subject<number, never>();
+    const inner: string[] = [];
+    fromSubscribable(live)
+      .pipe(window(fromSubscribable(opening)))
+      .subscribe({
+        next: (win: CraftStream<number, never>) =>
+          win.subscribe({ complete: () => inner.push('complete') }),
+      });
+
+    live.complete();
+
+    expect(inner).toEqual(['complete']);
+  });
+
   it('window: a failing opening stream fails the current window and the result', () => {
     const live = subject<number, never>();
     const opening = subject<number, never>();
@@ -487,5 +522,21 @@ describe('groupBy and window hand failures to their inner streams', () => {
 
     expect(inner).toEqual(['error']);
     expect(outer).toEqual(['error']);
+  });
+});
+
+describe('combinations of no inputs complete at once', () => {
+  it.each([
+    ['merge()', () => merge()],
+    ['combineLatest([])', () => combineLatest([])],
+    ['zip()', () => zip()],
+    ['race()', () => race()],
+    ['forkJoin([])', () => forkJoin([])],
+    ['concat()', () => concat()],
+  ])('%s', (_name, build) => {
+    const { seen } = observe(build() as AnyCraftStream);
+
+    expect(seen.values).toEqual([]);
+    expect(seen.completed).toBe(1);
   });
 });

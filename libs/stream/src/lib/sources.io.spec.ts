@@ -153,6 +153,56 @@ describe('ajax', () => {
     );
   });
 
+  it('keeps a Content-Type the caller set, whatever its case', async () => {
+    const fetchSpy = vi.fn(() => Promise.resolve(jsonResponse({})));
+    vi.stubGlobal('fetch', fetchSpy);
+    record(
+      ajax({
+        url: '/api',
+        method: 'POST',
+        body: { a: 1 },
+        headers: { 'content-type': 'application/vnd.api+json' },
+      }),
+    );
+    await settle();
+
+    const init = (
+      fetchSpy.mock.calls as unknown as Array<[string, RequestInit]>
+    )[0][1];
+    expect(init.headers).toEqual({
+      'content-type': 'application/vnd.api+json',
+    });
+  });
+
+  it('sends a string or FormData body as it is, with no JSON encoding', async () => {
+    const fetchSpy = vi.fn(() => Promise.resolve(jsonResponse({})));
+    vi.stubGlobal('fetch', fetchSpy);
+    const form = new FormData();
+    form.append('a', '1');
+    record(ajax({ url: '/text', method: 'POST', body: 'plain text' }));
+    record(ajax({ url: '/form', method: 'POST', body: form }));
+    await settle();
+
+    const calls = fetchSpy.mock.calls as unknown as Array<
+      [string, RequestInit]
+    >;
+    expect(calls[0][1].body).toBe('plain text');
+    expect(calls[1][1].body).toBe(form);
+    expect(calls[1][1].headers).toEqual({});
+  });
+
+  it('a network failure is a defect, and so is a failing getJSON', async () => {
+    const network = new TypeError('Failed to fetch');
+    vi.stubGlobal('fetch', () => Promise.reject(network));
+    const down = record(ajax('/down'));
+    const getJson = record(ajax.getJSON('/down'));
+    await settle();
+
+    expect(down.errors).toEqual([network]);
+    expect(getJson.errors).toEqual([network]);
+    expect(down.completed).toBe(0);
+  });
+
   it('put, patch, delete and get use their method', async () => {
     const fetchSpy = vi.fn(() => Promise.resolve(jsonResponse({})));
     vi.stubGlobal('fetch', fetchSpy);
