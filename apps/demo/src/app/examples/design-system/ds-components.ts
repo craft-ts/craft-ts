@@ -1,4 +1,3 @@
-import { craftService, craftExpose, type CraftServiceInput } from '@craft-ts/core';
 /**
  * The components of the mini design system.
  *
@@ -16,7 +15,6 @@ import {
   craftComponent,
   type Input,
   type Output,
-  withComponentProviders,
 } from '@craft-ts/component';
 import { button } from './components.style';
 
@@ -33,24 +31,6 @@ export type Size = 'sm' | 'md' | 'lg';
  * strings and no way to enumerate them; this one has one class, and the fifteen
  * combinations are rules the emitter already wrote.
  */
-export const { DsButtonView, provideDsButtonView } = craftService(
-  { name: 'dsButtonView', providedIn: 'toProvide' },
-  function* (inputs: {
-      readonly $provided: {
-      readonly label: CraftServiceInput<string>;
-      readonly tone: CraftServiceInput<Tone>;
-      readonly size: CraftServiceInput<Size>;
-      readonly press: Output<() => void>;
-      };
-    }) {
-    const { label, tone, size, press } = inputs.$provided;
-    yield* craftExpose('label', label);
-    yield* craftExpose('tone', tone);
-    yield* craftExpose('size', size);
-    yield* craftExpose('press', press);
-  },
-);
-
 export const DsButton = craftComponent(
   'DsButton',
   {},
@@ -71,29 +51,11 @@ export const DsButton = craftComponent(
       },
       inputs.label,
     ),
-).pipe(
-  withComponentProviders(({ label, tone, size, press }) => [
-    provideDsButtonView({ label, tone, size, press }),
-  ]),
 );
 
 export type DsButton = typeof DsButton;
 
 /** The same geometry without the fill — a second class, not a second component. */
-export const { DsGhostButtonView, provideDsGhostButtonView } = craftService(
-  { name: 'dsGhostButtonView', providedIn: 'toProvide' },
-  function* (inputs: {
-      readonly $provided: {
-      readonly label: CraftServiceInput<string>;
-      readonly press: Output<() => void>;
-      };
-    }) {
-    const { label, press } = inputs.$provided;
-    yield* craftExpose('label', label);
-    yield* craftExpose('press', press);
-  },
-);
-
 export const DsGhostButton = craftComponent(
   'DsGhostButton',
   {},
@@ -110,10 +72,6 @@ export const DsGhostButton = craftComponent(
       },
       inputs.label,
     ),
-).pipe(
-  withComponentProviders(({ label, press }) => [
-    provideDsGhostButtonView({ label, press }),
-  ]),
 );
 
 export type DsGhostButton = typeof DsGhostButton;

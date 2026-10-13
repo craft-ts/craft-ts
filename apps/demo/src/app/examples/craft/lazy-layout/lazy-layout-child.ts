@@ -1,35 +1,14 @@
 import {
-  craftService,
-  craftExpose,
-  type CraftServiceInput,
-} from '@craft-ts/core';
-import {
   article,
   craftComponent,
   h,
   p,
   span,
-  withComponentProviders,
   type Input,
   heading,
 } from '@craft-ts/component';
 import { OtherComponent } from './other';
 import { example } from '../../shared/example.style';
-
-export const { LazyLayoutChildView, provideLazyLayoutChildView } = craftService(
-  { name: 'lazyLayoutChildView', providedIn: 'toProvide' },
-  function* (inputs: {
-    readonly $provided: {
-      readonly teamId: CraftServiceInput<string>;
-      readonly someParentRouteData: CraftServiceInput<string>;
-    };
-  }) {
-    const { teamId, someParentRouteData } = inputs.$provided;
-
-    yield* craftExpose('teamId', teamId);
-    yield* craftExpose('someParentRouteData', someParentRouteData);
-  },
-);
 
 const LazyLayoutChildComponent = craftComponent(
   'LazyLayoutChildComponent',
@@ -54,10 +33,6 @@ const LazyLayoutChildComponent = craftComponent(
     ]),
     OtherComponent({}),
   ],
-).pipe(
-  withComponentProviders(({ teamId, someParentRouteData }) => [
-    provideLazyLayoutChildView({ teamId, someParentRouteData }),
-  ]),
 );
 
 export default LazyLayoutChildComponent;
