@@ -1,3 +1,89 @@
+## 0.9.0 (2026-10-13)
+
+### 🚀 Features
+
+- **codemod:** core renames, operator-type hints and a minimal import diff ([dd8042dc8](https://github.com/craft-ts/craft-ts/commit/dd8042dc8))
+- **component:** drive a component from one service-aware template ([60d6fbab6](https://github.com/craft-ts/craft-ts/commit/60d6fbab6))
+- **component:** lier un membre de service au point d'usage ([2f5ea1e53](https://github.com/craft-ts/craft-ts/commit/2f5ea1e53))
+- **component:** export and replay debug sessions ([0b1f9b0ad](https://github.com/craft-ts/craft-ts/commit/0b1f9b0ad))
+- **component:** require session recording opt-in ([7ecf75c1e](https://github.com/craft-ts/craft-ts/commit/7ecf75c1e))
+- **core:** add hash location routing ([#12](https://github.com/craft-ts/craft-ts/pull/12))
+- **core:** expose a craftService's named primitives, forbid return ([e0feb673c](https://github.com/craft-ts/craft-ts/commit/e0feb673c))
+- **core:** craftExpose exposes any value on a craftService ([17fda6118](https://github.com/craft-ts/craft-ts/commit/17fda6118))
+- **core:** accept service property shortcuts in insertFormSubmit ([56b1a90e6](https://github.com/craft-ts/craft-ts/commit/56b1a90e6))
+- **core:** deep service shortcuts that read reactive members ([b2e04c293](https://github.com/craft-ts/craft-ts/commit/b2e04c293))
+- **core:** keep reload private to insertions ([8ec219c77](https://github.com/craft-ts/craft-ts/commit/8ec219c77))
+- **demo-stream:** a real app exercising typed streams and their observability ([43a3a384e](https://github.com/craft-ts/craft-ts/commit/43a3a384e))
+- **demo-stream:** style the demo with the design system ([01b0069d5](https://github.com/craft-ts/craft-ts/commit/01b0069d5))
+- **dev-tools:** migrate-service-auto-expose codemod ([dd78ceaba](https://github.com/craft-ts/craft-ts/commit/dd78ceaba))
+- **dev-tools:** no-craft-service-return and primitive name-match rules ([ec4c8977b](https://github.com/craft-ts/craft-ts/commit/ec4c8977b))
+- **dev-tools:** tell a reactive read from an action in no-imperative-template-action-chain ([fc3d38ef2](https://github.com/craft-ts/craft-ts/commit/fc3d38ef2))
+- **dev-tools:** link every service read in the graph and warn on unused services ([618bd93f0](https://github.com/craft-ts/craft-ts/commit/618bd93f0))
+- **dev-tools:** link every service read in the graph and warn on unused services ([1d11ecb94](https://github.com/craft-ts/craft-ts/commit/1d11ecb94))
+- **docs-herbier:** the docs drawn with docs-ui, next to the VitePress site ([44d2d34c2](https://github.com/craft-ts/craft-ts/commit/44d2d34c2))
+- **docs-herbier:** move between pages without loading them ([be80d1f6f](https://github.com/craft-ts/craft-ts/commit/be80d1f6f))
+- **docs-ui:** documentation components baseline (renamed from storm-ui) ([ba3898836](https://github.com/craft-ts/craft-ts/commit/ba3898836))
+- **docs-ui:** Herbier foundation, icons, and restyled callout, code and prose ([06a8bc418](https://github.com/craft-ts/craft-ts/commit/06a8bc418))
+- **docs-ui:** button, icon button, badge and kbd ([a8bb602e9](https://github.com/craft-ts/craft-ts/commit/a8bb602e9))
+- **docs-ui:** navigation, tabs, copy button and code groups ([99ccabb20](https://github.com/craft-ts/craft-ts/commit/99ccabb20))
+- **docs-ui:** field, switch, toast, dialog, menu and tooltip ([347801fa6](https://github.com/craft-ts/craft-ts/commit/347801fa6))
+- **docs-ui:** layout, home, 404, search, footer, decor and site model ([ae7eaa20c](https://github.com/craft-ts/craft-ts/commit/ae7eaa20c))
+- **docs-ui:** lint presets, preview harness, layout fixes ([7da34ff1e](https://github.com/craft-ts/craft-ts/commit/7da34ff1e))
+- **docs-ui:** site model, node entry, modal dialog fix, plan status ([562ad14b3](https://github.com/craft-ts/craft-ts/commit/562ad14b3))
+- **docs-ui:** seasonal variants of Herbier, chosen like the light/dark mode ([6b646bf4e](https://github.com/craft-ts/craft-ts/commit/6b646bf4e))
+- **docs-ui:** the craft-ts logo, recoloured by season and by day or night ([7a005c346](https://github.com/craft-ts/craft-ts/commit/7a005c346))
+- **docs-ui:** draw the craft-ts logo from its own pixels, with real gradients ([ed232c748](https://github.com/craft-ts/craft-ts/commit/ed232c748))
+- **stream:** typed streams replacing RxJS, Effect adapters and migration codemod ([2e920b116](https://github.com/craft-ts/craft-ts/commit/2e920b116))
+- **stream:** observability hooks for typed streams ([8c44676df](https://github.com/craft-ts/craft-ts/commit/8c44676df))
+- **stream:** traceStage operator to mark pipeline points in traces ([4d8f365c6](https://github.com/craft-ts/craft-ts/commit/4d8f365c6))
+- **stream:** aggregate, emptiness, forkJoin, partition and other missing RxJS operators ([76643c32b](https://github.com/craft-ts/craft-ts/commit/76643c32b))
+- **stream:** audit, sampleTime, delayWhen and codemod coverage for the new operators ([c0c8d631b](https://github.com/craft-ts/craft-ts/commit/c0c8d631b))
+- **stream-effect:** craftTemporalClock — one clock for craft and Effect ([f3c62e7e3](https://github.com/craft-ts/craft-ts/commit/f3c62e7e3))
+
+### 🩹 Fixes
+
+- migrate demo and review app services to exposed APIs ([a69fe9e03](https://github.com/craft-ts/craft-ts/commit/a69fe9e03))
+- make the merged branch typecheck, lint and test clean ([7c6ffcdc7](https://github.com/craft-ts/craft-ts/commit/7c6ffcdc7))
+- prepare Craft 0.9.0 release gates ([73794adc4](https://github.com/craft-ts/craft-ts/commit/73794adc4))
+- clear Craft 0.9.0 release gates ([2f44fa1a7](https://github.com/craft-ts/craft-ts/commit/2f44fa1a7))
+- restore typed template testing and mutation insertion ([0115fc740](https://github.com/craft-ts/craft-ts/commit/0115fc740))
+- declare mutation computations in owner generator ([36a17e2cb](https://github.com/craft-ts/craft-ts/commit/36a17e2cb))
+- keep menu and quickstart views reactive ([f77f3e430](https://github.com/craft-ts/craft-ts/commit/f77f3e430))
+- unblock release checks for pagination and pnpm ([b5684e4f0](https://github.com/craft-ts/craft-ts/commit/b5684e4f0))
+- order dependent typechecks in release preflight ([3afc9c35c](https://github.com/craft-ts/craft-ts/commit/3afc9c35c))
+- **attestation-app:** enforce ESLint and architecture rules ([34bf6473c](https://github.com/craft-ts/craft-ts/commit/34bf6473c))
+- **component:** start session recording at app launch ([ca25e3664](https://github.com/craft-ts/craft-ts/commit/ca25e3664))
+- **core:** give each scope its own service inputs ([3bc95397e](https://github.com/craft-ts/craft-ts/commit/3bc95397e))
+- **core:** slot helpers yield never, untyped exposure names its cause ([0f341dffb](https://github.com/craft-ts/craft-ts/commit/0f341dffb))
+- **core:** on$ takes a service exposing one source, inputs yield read requests ([99012c92f](https://github.com/craft-ts/craft-ts/commit/99012c92f))
+- **core:** publish a router outlet change as one step ([208fe2db0](https://github.com/craft-ts/craft-ts/commit/208fe2db0))
+- **core:** publish a form field change as one step ([0036706d9](https://github.com/craft-ts/craft-ts/commit/0036706d9))
+- **core:** follow the URL in queryParams as one step ([2559c6d09](https://github.com/craft-ts/craft-ts/commit/2559c6d09))
+- **core:** replace the records of a resourceById as one step ([1a8d24eee](https://github.com/craft-ts/craft-ts/commit/1a8d24eee))
+- **core:** record a machine moment and move its cursor as one step ([842515181](https://github.com/craft-ts/craft-ts/commit/842515181))
+- **core:** keep injected services internal by default ([d039a855d](https://github.com/craft-ts/craft-ts/commit/d039a855d))
+- **core:** restore typed shortcut and test behavior ([83ad76014](https://github.com/craft-ts/craft-ts/commit/83ad76014))
+- **demo-ssr:** follow the transfer addresses the service scope adds ([e857c4f35](https://github.com/craft-ts/craft-ts/commit/e857c4f35))
+- **dev-tools:** read the template where a component now keeps it ([2cf940e50](https://github.com/craft-ts/craft-ts/commit/2cf940e50))
+- **dev-tools:** two more rules were reading declarations as bindings ([c14b1a3cd](https://github.com/craft-ts/craft-ts/commit/c14b1a3cd))
+- **dev-tools:** only consume craftComputed imported from core ([d27ae6909](https://github.com/craft-ts/craft-ts/commit/d27ae6909))
+- **dev-tools:** primitive unwrap sees through type assertions ([9f799af59](https://github.com/craft-ts/craft-ts/commit/9f799af59))
+- **dev-tools:** route verification fixture uses a generator service ([e09b09791](https://github.com/craft-ts/craft-ts/commit/e09b09791))
+- **dev-tools:** dependency graph sees primitives through craftPrivate/craftUse ([43f64191c](https://github.com/craft-ts/craft-ts/commit/43f64191c))
+- **dev-tools:** scaffolders emit services without return ([a4bd2efd3](https://github.com/craft-ts/craft-ts/commit/a4bd2efd3))
+- **docs-ui:** a closed search dialog no longer shows at the foot of the page ([16b6aae29](https://github.com/craft-ts/craft-ts/commit/16b6aae29))
+- **docs-ui:** light a single section in the top bar ([2b6bb4420](https://github.com/craft-ts/craft-ts/commit/2b6bb4420))
+- **docs-ui:** a menu row states its own face, so a button row is not grey ([c0b29bb5d](https://github.com/craft-ts/craft-ts/commit/c0b29bb5d))
+- **release:** sync lockfile with published packages ([fc53884f6](https://github.com/craft-ts/craft-ts/commit/fc53884f6))
+
+### ❤️ Thank You
+
+- Claude Opus 5
+- Claude Opus 5.5
+- Claude Sonnet 5.5
+- Romain
+- RomainDood
+
 ## 0.8.8 (2026-09-25)
 
 ### 🚀 Features
