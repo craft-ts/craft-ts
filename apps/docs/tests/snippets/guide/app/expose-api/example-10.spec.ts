@@ -5,33 +5,35 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-10
-import { craftExpose, craftService, state } from '@craft-ts/core';
+import { craftComputed, craftService, state } from '@craft-ts/core';
 
 const { Counter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
   function* () {
-    const counter = yield* state('counter', 0, ({ update }) => ({
+    yield* state('counter', 0, ({ update }) => ({
       increment: () => update((value) => value + 1),
       decrement: () => update((value) => value - 1),
     }));
-    yield* craftExpose('increment', counter.increment);
-    yield* craftExpose('decrement', counter.decrement);
   },
 );
 
 const { CounterExtended, provideCounterExtended } = craftService(
   { name: 'CounterExtended', providedIn: 'toProvide' },
   function* () {
-    // Only `counter` and `incrementCounter` reach this service: `decrement`
-    // is neither usable here nor part of the dependency.
-    const { counter, incrementCounter } = yield* Counter(
+    // Only `counter` reaches this service; `decrement` is not part of the
+    // dependency, while the nested increment method remains available.
+    const { counter } = yield* Counter(
       undefined,
-      ({ counter, increment }) => ({ counter, incrementCounter: increment }),
+      ({ counter }) => ({ counter }),
     );
-    yield* craftExpose('count', counter);
-    yield* craftExpose('increment', incrementCounter);
+    yield* craftComputed('count', function* () {
+      return yield* counter();
+    });
+    yield* Counter.counter.increment();
   },
 );
+void CounterExtended;
+void provideCounterExtended;
 // #endregion example-10
 
 describe('guide/app/expose-api.md #example-10', () => {

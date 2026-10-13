@@ -361,7 +361,10 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
 
     // Read from the environment before the first paint, so nothing renders in
     // the wrong language or the wrong theme and then corrects itself.
-    const { locale, ide, theme: themePreference } = yield* ReviewPreferences();
+    const { ide, theme: themePreference, locale } = yield* ReviewPreferences(
+      undefined,
+      ({ ide, theme, locale }) => ({ ide, theme, locale }),
+    );
     /** The explicit theme, or no attribute: `system` leaves the media query in charge. */
     yield* craftComputed('themeAttribute', function* () {
       const choice = yield* themePreference();
@@ -1016,8 +1019,9 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       },
     });
 
-    const { closeReview, closeReviewSession, closeReviewFailed } =
-      yield* CloseReview();
+    const closeReview = yield* CloseReview.closeReview();
+    yield* CloseReview.closeReviewFailed();
+    yield* CloseReview.closeReviewSession();
 
     // Infer the query before delegating to it: combining both expressions can
     // exceed TypeScript's union complexity limit when this file is checked first.
@@ -2047,7 +2051,6 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
     });
 
     yield* craftExpose('review', review);
-    yield* craftExpose('closeReview', closeReview);
     yield* craftExpose('selectedVisualTest', selectedVisualTest);
     yield* craftExpose('activeTemplateGroupIndex', activeTemplateGroupIndex);
     yield* craftExpose('activeIndex', activeIndex);
@@ -2063,13 +2066,11 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
       'iterationPreparationNotStarted',
       iterationPreparationNotStarted,
     );
-    yield* craftExpose('closeReviewFailed', closeReviewFailed);
     yield* craftExpose(
       'folderLayoutApplyDialogOpen',
       folderLayoutApplyDialogOpen,
     );
     yield* craftExpose('regenerationFailed', regenerationFailed);
-    yield* craftExpose('closeReviewSession', closeReviewSession);
     yield* craftExpose('devtoolView', devtoolView);
     yield* craftExpose('findings', findings);
     yield* craftExpose('replay', replay);
@@ -2077,7 +2078,6 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
     yield* craftExpose('fellBack', fellBack);
     yield* craftExpose('overlayLabel', overlayLabel);
     yield* craftExpose('rememberCaret', rememberCaret);
-    yield* craftExpose('locale', locale);
     yield* craftExpose('fileUrl', fileUrl);
     yield* craftExpose('sourceUrl', sourceUrl);
     yield* craftExpose('noteState', noteState);

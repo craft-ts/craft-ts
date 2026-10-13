@@ -18,6 +18,7 @@ const TYPED_PRELUDE = `
   type Reader<T> = (() => Generator<unknown, T, unknown>) & {
     readonly [RAW_REACTIVE_VALUE]: () => T;
   };
+  type DeepReader<T> = Reader<T> & { readonly __craftDeepYieldable: true };
   declare const View: {
     readonly lastActionLabel: {
       recordConfirm(): Generator<unknown, void, unknown>;
@@ -28,6 +29,10 @@ const TYPED_PRELUDE = `
       readonly isOpen: Reader<boolean>;
     };
     readonly user: Reader<{ id: number }>;
+    readonly diagnostic: {
+      readonly filePath: DeepReader<string>;
+      readonly line: DeepReader<number>;
+    };
     readonly save: (id: number) => Generator<unknown, void, unknown>;
   };
   declare function toolbarAction(...args: unknown[]): unknown;
@@ -121,6 +126,42 @@ describe('no-imperative-template-action-chain', () => {
         trigger: function* () {
           yield* View.lastActionLabel.text();
           yield* View.dialogOpen.isOpen();
+        },
+      }));
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
+  it('allows sequential reads from a deep-yieldable object', async () => {
+    const messages = await lintTyped(`${TYPED_PRELUDE}
+      declare function fileUrl(file: string, line: number): string;
+
+      craftComponent('Demo', {}, () => toolbarAction({
+        trigger: function* () {
+          const file = yield* View.diagnostic.filePath();
+          const line = yield* View.diagnostic.line();
+          return fileUrl(file, line);
+        },
+      }));
+    `);
+
+    expect(messages).toEqual([]);
+  });
+
+  it('allows field accessor methods for source locations', async () => {
+    const messages = await lintTyped(`${TYPED_PRELUDE}
+      declare const source: {
+        readonly filePath: () => Generator<unknown, string, unknown>;
+        readonly line: () => Generator<unknown, number, unknown>;
+      };
+      declare function fileUrl(file: string, line: number): string;
+
+      craftComponent('Demo', {}, () => toolbarAction({
+        trigger: function* () {
+          const file = yield* source.filePath();
+          const line = yield* source.line();
+          return fileUrl(file, line);
         },
       }));
     `);

@@ -48,7 +48,7 @@ describe('no-craft-use', () => {
   });
 
   it.each(['craftService', 'craftComponent', 'craftMethod', 'craftEffect'])(
-    'reports unwrapping a named primitive nested inside %s',
+    'allows a derived-property insertion nested inside %s',
     async (owner) => {
       const result = await lintFixture(`
         import { ${owner}, craftComputed, craftUse } from '@craft-ts/core';
@@ -66,11 +66,39 @@ describe('no-craft-use', () => {
         });
       `);
 
-      expect(result.messages).toEqual([
-        `\`craftUse(craftComputed(...))\` is forbidden inside \`${owner}\`. Declare the primitive in the generator body with \`yield* craftComputed(...)\` instead.`,
-      ]);
+      expect(result.messages).toEqual([]);
     },
   );
+
+  it('allows a direct resource insertion nested inside a Craft owner', async () => {
+    const result = await lintFixture(`
+      import { craftService, craftComputed, craftUse, mutation } from '@craft-ts/core';
+
+      craftService('owner', function* () {
+        yield* mutation('save', {}, ({ hasException }) => ({
+          failed: craftUse(craftComputed('failed', function* () {
+            return yield* hasException();
+          })),
+        }));
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('still reports craftUse in the Craft owner body', async () => {
+    const result = await lintFixture(`
+      import { craftService, craftComputed, craftUse } from '@craft-ts/core';
+
+      craftService('owner', function* () {
+        const value = craftUse(craftComputed('value', () => 1));
+      });
+    `);
+
+    expect(result.messages).toEqual([
+      '`craftUse(craftComputed(...))` is forbidden inside `craftService`. Declare the primitive in the generator body with `yield* craftComputed(...)` instead.',
+    ]);
+  });
 
   it('reports an aliased owner imported from @craft-ts/component', async () => {
     const result = await lintFixture(`

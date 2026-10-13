@@ -52,6 +52,18 @@ describe('runSecurityCheck', () => {
     expect(passed).toBe(true);
   });
 
+  it('never scans generated .scratch artifacts', async () => {
+    const rootDir = await fixture({
+      'src/app.ts': 'export const safe = true;\n',
+      '.scratch/docs-dist/assets/framework.js': 'element.innerHTML = value;\n',
+    });
+
+    const { passed, diagnostics } = runSecurityCheck({ rootDir });
+
+    expect(diagnostics).toEqual([]);
+    expect(passed).toBe(true);
+  });
+
   it('does not treat an outerHTML comparison as an HTML assignment', async () => {
     const rootDir = await fixture({
       'src/app.ts':

@@ -78,7 +78,7 @@ const QuickstartTaskPage = craftComponent(
         {
           type: 'button',
           *click() {
-            yield* QuickstartTaskPageView.taskQuery.call(undefined, 'task-1');
+            yield* QuickstartTaskPageView.taskQuery.call('task-1');
           },
         },
         'Reload task',

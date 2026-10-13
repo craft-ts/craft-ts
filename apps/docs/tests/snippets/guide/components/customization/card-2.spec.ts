@@ -15,8 +15,8 @@ import { titleSheet } from './card-2.style';
 const CardTitle = craftComponent(
   'CardTitle',
   {},
-  ({ text }: { readonly text: Input<string> }) =>
-    h2({ class: titleSheet.root }, text),
+  (props: { readonly text: Input<string> }) =>
+    h2({ class: titleSheet.root }, props.text),
 );
 
 const Card = craftComponent('Card', {}, function* () {

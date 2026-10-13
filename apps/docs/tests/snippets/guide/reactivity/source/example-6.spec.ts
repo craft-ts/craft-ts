@@ -5,7 +5,7 @@ import { useSnippetHarness } from '../../../snippet-harness';
 useSnippetHarness();
 
 // #region example-6
-import { craftService, on$, source$, state, craftExpose } from '@craft-ts/core';
+import { craftService, on$, source$, state } from '@craft-ts/core';
 
 const { Reset } = craftService(
   { name: 'Reset', providedIn: 'global' },
@@ -23,10 +23,10 @@ const { Counter } = craftService(
       reset: on$(Reset, () => set(0)),
     }));
 
-    const { reset$ } = yield* Reset();
-    yield* craftExpose('reset$', reset$);
+    yield* Reset.reset$();
   },
 );
+void Counter;
 // #endregion example-6
 
 describe('guide/reactivity/source.md #example-6', () => {

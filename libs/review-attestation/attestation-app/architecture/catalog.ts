@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "55b0310ad27b98b5",
+  "graphHash": "24c7ab5c6349a447",
   "routes": [
     "",
     "application",
@@ -137,6 +137,7 @@ export const architectureCatalog = {
     "closeIterationDialog",
     "closeRegenerationDialog",
     "closeReview",
+    "closeReviewFailed",
     "closeReviewLabel",
     "closeReviewSession",
     "clusterMembersLabel",
@@ -175,7 +176,6 @@ export const architectureCatalog = {
     "evidenceHidden",
     "evidenceView",
     "expandFolders",
-    "failed",
     "fellBack",
     "fidelitySentence",
     "findings",
@@ -476,20 +476,163 @@ export const architectureCatalog = {
   ],
   "uniques": [],
   "providers": [
-    "craftRouterOutletState"
+    "aiContextMenuDismissal",
+    "aiSendContextChatState",
+    "aiSendDialogState",
+    "applicationOverviewView",
+    "craftRouterOutletState",
+    "folderLayoutViewState",
+    "reviewActionDialogsView",
+    "reviewDecisionPanelView",
+    "reviewInventoryPanelsView",
+    "reviewLiveEvidenceView",
+    "reviewQueuePanelView",
+    "reviewTemplateEvidenceView",
+    "templateReviewGroupState",
+    "tierLegendView"
   ],
   "routeProviders": {},
   "componentProviders": {
+    "AiContextMenu": [
+      "aiContextMenuDismissal"
+    ],
+    "AiSendContextChat": [
+      "aiSendContextChatState"
+    ],
+    "AiSendDialog": [
+      "aiSendDialogState"
+    ],
     "CraftRouterOutlet": [
       "craftRouterOutletState"
+    ],
+    "ApplicationOverview": [
+      "applicationOverviewView"
+    ],
+    "FolderLayoutView": [
+      "folderLayoutViewState"
+    ],
+    "ReviewActionDialogs": [
+      "reviewActionDialogsView"
+    ],
+    "ReviewDecisionPanel": [
+      "reviewDecisionPanelView"
+    ],
+    "ReviewInventoryPanels": [
+      "reviewInventoryPanelsView"
+    ],
+    "ReviewLiveEvidence": [
+      "reviewLiveEvidenceView"
+    ],
+    "ReviewQueuePanel": [
+      "reviewQueuePanelView"
+    ],
+    "ReviewTemplateEvidence": [
+      "reviewTemplateEvidenceView"
+    ],
+    "TemplateReviewGroupView": [
+      "templateReviewGroupState"
+    ],
+    "TierLegend": [
+      "tierLegendView"
     ]
   },
   "providedOn": {
+    "aiContextMenuDismissal": [
+      {
+        "kind": "component",
+        "name": "AiContextMenu",
+        "file": "libs/component/src/lib/ai/ai-context-menu.ts"
+      }
+    ],
+    "aiSendContextChatState": [
+      {
+        "kind": "component",
+        "name": "AiSendContextChat",
+        "file": "libs/component/src/lib/ai/ai-send-context-chat.ts"
+      }
+    ],
+    "aiSendDialogState": [
+      {
+        "kind": "component",
+        "name": "AiSendDialog",
+        "file": "libs/component/src/lib/ai/ai-send-dialog.ts"
+      }
+    ],
     "craftRouterOutletState": [
       {
         "kind": "component",
         "name": "CraftRouterOutlet",
         "file": "libs/component/src/lib/craft-router-outlet.ts"
+      }
+    ],
+    "applicationOverviewView": [
+      {
+        "kind": "component",
+        "name": "ApplicationOverview",
+        "file": "libs/review-attestation/attestation-app/src/application-overview.ts"
+      }
+    ],
+    "folderLayoutViewState": [
+      {
+        "kind": "component",
+        "name": "FolderLayoutView",
+        "file": "libs/review-attestation/attestation-app/src/folder-layout-view.ts"
+      }
+    ],
+    "reviewActionDialogsView": [
+      {
+        "kind": "component",
+        "name": "ReviewActionDialogs",
+        "file": "libs/review-attestation/attestation-app/src/review-action-dialogs.ts"
+      }
+    ],
+    "reviewDecisionPanelView": [
+      {
+        "kind": "component",
+        "name": "ReviewDecisionPanel",
+        "file": "libs/review-attestation/attestation-app/src/review-decision-panel.ts"
+      }
+    ],
+    "reviewInventoryPanelsView": [
+      {
+        "kind": "component",
+        "name": "ReviewInventoryPanels",
+        "file": "libs/review-attestation/attestation-app/src/review-inventory-panels.ts"
+      }
+    ],
+    "reviewLiveEvidenceView": [
+      {
+        "kind": "component",
+        "name": "ReviewLiveEvidence",
+        "file": "libs/review-attestation/attestation-app/src/review-live-evidence.ts"
+      }
+    ],
+    "reviewQueuePanelView": [
+      {
+        "kind": "component",
+        "name": "ReviewQueuePanel",
+        "file": "libs/review-attestation/attestation-app/src/review-queue-panel.ts"
+      }
+    ],
+    "reviewTemplateEvidenceView": [
+      {
+        "kind": "component",
+        "name": "ReviewTemplateEvidence",
+        "file": "libs/review-attestation/attestation-app/src/review-template-evidence.ts"
+      }
+    ],
+    "templateReviewGroupState": [
+      {
+        "kind": "component",
+        "name": "TemplateReviewGroupView",
+        "file": "libs/review-attestation/attestation-app/src/template-review-group.ts"
+      }
+    ],
+    "tierLegendView": [
+      {
+        "kind": "component",
+        "name": "TierLegend",
+        "file": "libs/review-attestation/attestation-app/src/tier-legend.ts"
       }
     ]
   },

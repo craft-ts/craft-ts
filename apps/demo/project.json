@@ -25,6 +25,7 @@
     },
     "build-local-types": {
       "executor": "nx:run-commands",
+      "parallelism": false,
       "options": {
         "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/component/tsconfig.lib.json libs/style/tsconfig.lib.json libs/review-attestation/tsconfig.lib.json --force --pretty false"
       },

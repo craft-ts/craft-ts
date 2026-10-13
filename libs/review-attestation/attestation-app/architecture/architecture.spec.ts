@@ -17,8 +17,8 @@ describe('architecture', () => {
 
   it('keeps the base rules, the style rules included', () => {
     assertDeclarativeArchitecture(graph.graph, {
-      // The AI overlay's mutation, shared by every app: nothing to refresh.
-      allow: ['sendContextToAi'],
+      // Neither the AI overlay nor closing a review session changes the queue.
+      allow: ['sendContextToAi', 'closeReview'],
       waivers: architectureWaiverList,
     });
   });

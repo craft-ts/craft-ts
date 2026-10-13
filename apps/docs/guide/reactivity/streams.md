@@ -393,7 +393,7 @@ dependency tree, and its exceptions into the host's exception types.
 
 ## Observability
 
-Streams plug into the same cross-cutting mechanisms as the rest of craft (see
+Streams plug into the same cross-cutting mechanisms as the rest of CraftTS (see
 [Observability](/guide/advanced/observability)), with no change to the pipeline.
 
 **Handlers go through `provideFnWrapper`.** Every handler an operator runs —

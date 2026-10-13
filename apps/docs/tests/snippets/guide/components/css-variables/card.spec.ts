@@ -15,13 +15,13 @@ import { card, meter, meterVars, panel } from './card.style';
 const Card = craftComponent(
   'Card',
   {},
-  ({ progress }: { readonly progress: Input<number> }) =>
+  (props: { readonly progress: Input<number> }) =>
     article({ class: card.root }, [
       'Card',
       div({
         class: meter.fill,
         style: function* () {
-          return assign(meterVars.value, unit.pct(yield* progress()));
+          return assign(meterVars.value, unit.pct(yield* props.progress()));
         },
       }),
     ]),

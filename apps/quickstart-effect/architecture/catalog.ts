@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "37e9624edd025683",
+  "graphHash": "b13ae3ed915d308d",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -56,6 +56,7 @@ export const architectureCatalog = {
     "setStatus",
     "status",
     "taskQuery",
+    "taskStatus",
     "title"
   ],
   "sources": [
@@ -66,7 +67,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:311>"
+      "url": "<unresolved:ai-send-context-chat.ts:314>"
     }
   ],
   "uniques": [],

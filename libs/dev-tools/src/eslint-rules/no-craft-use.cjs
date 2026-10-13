@@ -34,6 +34,23 @@ module.exports = {
       ['craftMethod', 'craftMethod'],
       ['craftEffect', 'craftEffect'],
     ]);
+    const insertionPipes = new Set([
+      'insertAsyncProcessPipe',
+      'insertMutationPipe',
+      'insertQueryParamsPipe',
+      'insertQueryPipe',
+      'insertStatePipe',
+    ]);
+    const insertionPrimitives = new Set([
+      'asyncProcess',
+      'asyncProcessEffect',
+      'mutation',
+      'mutationEffect',
+      'query',
+      'queryEffect',
+      'queryParams',
+      'state',
+    ]);
 
     return {
       ImportDeclaration(node) {
@@ -76,7 +93,7 @@ module.exports = {
             return;
           }
           const owner = enclosingOwner(node);
-          if (owner) {
+          if (owner && !isInsidePrimitiveInsertion(node)) {
             context.report({
               node,
               messageId: 'insideCraftBody',
@@ -113,6 +130,24 @@ module.exports = {
         }
       }
       return undefined;
+    }
+
+    function isInsidePrimitiveInsertion(node) {
+      const ancestors = context.sourceCode.getAncestors(node);
+      return ancestors.some((ancestor) => {
+        if (ancestor.type !== 'CallExpression') return false;
+        const callee =
+          ancestor.callee.type === 'Identifier' ? ancestor.callee.name : '';
+        if (insertionPipes.has(callee)) return true;
+        if (!insertionPrimitives.has(callee)) return false;
+
+        return ancestor.arguments.some(
+          (argument, index) =>
+            index >= 2 &&
+            argument.range[0] <= node.range[0] &&
+            argument.range[1] >= node.range[1],
+        );
+      });
     }
   },
 };

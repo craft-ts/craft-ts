@@ -26,8 +26,9 @@ export const { TaskList } = craftService(
 export const { TaskStats, provideTaskStats } = craftService(
   { name: 'TaskStats', providedIn: 'toProvide' },
   function* () {
+    const { tasks } = yield* TaskList(undefined, ({ tasks }) => ({ tasks }));
     yield* craftComputed('done', function* () {
-      return (yield* TaskList.tasks()).filter((task) => task.done).length;
+      return (yield* tasks()).filter((task) => task.done).length;
     });
   },
 );

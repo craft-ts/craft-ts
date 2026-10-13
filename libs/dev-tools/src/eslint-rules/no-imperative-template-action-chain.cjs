@@ -1,5 +1,6 @@
 const CORE_PACKAGE = '@craft-ts/core';
 const REACTIVE_VALUE_BRAND = 'RAW_REACTIVE_VALUE';
+const READ_ONLY_FIELD_ACCESSORS = new Set(['file', 'filePath', 'line']);
 
 const MEMBER_ACTIONS = new Map([
   ['call', 'query.call'],
@@ -109,13 +110,23 @@ module.exports = {
     function getDelegatedAction(node) {
       if (!checker || !nodeMap) return undefined;
       if (node.callee.type !== 'MemberExpression') return undefined;
+      const member = getPropertyName(
+        node.callee.property,
+        node.callee.computed,
+      );
+      if (!member || READ_ONLY_FIELD_ACCESSORS.has(member)) return undefined;
       return sourceCode.getText(node.callee).split('.').slice(-2).join('.');
     }
 
     function isReactiveRead(node) {
       if (!checker || !nodeMap) return false;
-      const tsNode = nodeMap.get(node.callee);
-      return Boolean(tsNode) && hasBrand(checker.getTypeAtLocation(tsNode));
+      const calleeNode = nodeMap.get(node.callee);
+      const callNode = nodeMap.get(node);
+      return (
+        (Boolean(calleeNode) &&
+          hasBrand(checker.getTypeAtLocation(calleeNode))) ||
+        (Boolean(callNode) && hasBrand(checker.getTypeAtLocation(callNode)))
+      );
     }
 
     function hasBrand(type) {
@@ -124,9 +135,13 @@ module.exports = {
       }
       return checker
         .getPropertiesOfType(type)
-        .some((property) =>
-          String(property.escapedName).includes(REACTIVE_VALUE_BRAND),
-        );
+        .some((property) => {
+          const name = String(property.escapedName);
+          return (
+            name.includes(REACTIVE_VALUE_BRAND) ||
+            name === '__craftDeepYieldable'
+          );
+        });
     }
 
     function getAction(node) {

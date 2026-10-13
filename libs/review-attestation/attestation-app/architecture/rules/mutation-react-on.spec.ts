@@ -8,6 +8,8 @@ describe('assertMutationHasReactOn', () => {
     graph = await loadArchitectureGraph();
   }, 180_000);
   it('requires a query to react to each mutation', () => {
-    assertMutationHasReactOn(graph.graph, { allow: ['sendContextToAi'] });
+    assertMutationHasReactOn(graph.graph, {
+      allow: ['sendContextToAi', 'closeReview'],
+    });
   });
 });

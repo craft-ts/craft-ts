@@ -15,6 +15,13 @@
         "command": "tsc -p libs/docs-ui/tsconfig.lib.json --noEmit --declaration false --declarationMap false --composite false --pretty false"
       }
     },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": {
+        "command": "tsc -p libs/docs-ui/tsconfig.lib.json --noEmit --declaration false --declarationMap false --composite false --pretty false"
+      }
+    },
     "test": {
       "executor": "nx:run-commands",
       "options": {

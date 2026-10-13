@@ -21,6 +21,7 @@ import {
 } from '@craft-ts/component';
 
 import { ReviewAppModel } from './review-app.model';
+import { ReviewPreferences } from './preferences.service';
 
 import { reviewTheme } from './review-app.style';
 
@@ -38,6 +39,10 @@ import { notice, reviewBits, reviewCard } from './review-card.style';
 import { shell } from './review-shell.style';
 
 export const ReviewApp = craftComponent('ReviewApp', {}, function* () {
+  const { locale } = yield* ReviewPreferences(
+    undefined,
+    ({ locale }) => ({ locale }),
+  );
   const {
     themeAttribute,
     noteState,
@@ -145,7 +150,6 @@ export const ReviewApp = craftComponent('ReviewApp', {}, function* () {
     handleNoteInput,
     previewMentionFromEvent,
     pasteReasonText,
-    locale,
     fileUrl,
     sourceUrl,
     t,
