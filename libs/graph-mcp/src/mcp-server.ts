@@ -396,7 +396,7 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
     'graph.violations',
     {
       description:
-        'The architecture rules assertArchitecture enforces, as named rules with their messages, after the waivers the project declares in architecture/waivers.ts. An empty list means the graph passes; `waived` lists what a waiver excused, with its reason.',
+        'The architecture rules assertArchitecture enforces, as named rules with their messages, after the waivers the project declares in architecture/waivers.ts. An empty list means the graph passes; `warnings` lists what is reported without failing (a rule such as no-unused-service); `waived` lists what a waiver excused, with its reason.',
       inputSchema: {
         target: z.enum(['development', 'production']).optional(),
       },
@@ -421,6 +421,7 @@ export function createGraphMcpServer(store: GraphStore): McpServer {
             (sum, rule) => sum + rule.messages.length,
             0,
           ),
+          warnings: report.warnings,
           waived: report.waived,
         };
       }),

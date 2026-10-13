@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { STYLE_ARCHITECTURE_RULES } from './architecture-style-rules.ts';
+import { SERVICE_ARCHITECTURE_RULES } from './architecture-service-rules.ts';
 import {
   applyArchitectureWaivers,
   type ArchitectureRuleName,
@@ -4118,6 +4119,7 @@ export function assertArchitecture(
   options: {
     readonly target?: ArchitectureCheckTarget;
     readonly waivers?: readonly ArchitectureWaiver<any>[];
+    readonly severity?: ArchitectureViolationsOptions['severity'];
   } = {},
 ): void {
   const target = options.target ?? 'development';
@@ -4127,23 +4129,35 @@ export function assertArchitecture(
   if (target !== 'development' && target !== 'production') {
     throw new Error(`Unknown architecture check target "${target}".`);
   }
-  assertDeclarativeArchitecture(graph, { waivers: options.waivers });
+  assertDeclarativeArchitecture(graph, {
+    waivers: options.waivers,
+    severity: options.severity,
+  });
 }
 
 export type DeclarativeArchitectureOptions = MutationReactOnOptions & {
   /** Deliberate, reasoned bypasses — see `architecture/waivers.ts`. */
   readonly waivers?: readonly ArchitectureWaiver<any>[];
+  /** Per-rule severity: `'off'` skips a rule, `'error'` makes a warning fail. */
+  readonly severity?: ArchitectureViolationsOptions['severity'];
 };
 
 export function assertDeclarativeArchitecture(
   graph: DependencyGraph,
   options: DeclarativeArchitectureOptions = {},
 ): void {
-  const { waivers, ...mutationReactOn } = options;
-  const messages = architectureViolations(graph, {
+  const { waivers, severity, ...mutationReactOn } = options;
+  const report = architectureReport(graph, {
     mutationReactOn,
     waivers,
-  }).flatMap((violation) => violation.messages);
+    severity,
+  });
+  for (const warning of report.warnings) {
+    for (const message of warning.messages) {
+      console.warn(`[craft architecture] warning ${warning.rule}: ${message}`);
+    }
+  }
+  const messages = report.violations.flatMap((violation) => violation.messages);
   if (messages.length === 0) return;
   throw new Error(messages.join('\n'));
 }
@@ -4304,15 +4318,34 @@ export type ArchitectureRuleViolations = {
   messages: string[];
 };
 
+/**
+ * How a rule's findings count: `error` fails the check, `warn` is reported
+ * without failing it, `off` does not run the rule.
+ */
+export type ArchitectureRuleSeverity = 'error' | 'warn' | 'off';
+
+/**
+ * Rules that report, not fail, unless the project says otherwise. They flag
+ * what is probably dead, not what is wrong, so they must not stop a build the
+ * first day they run.
+ */
+export const DEFAULT_ARCHITECTURE_RULE_SEVERITY: Partial<
+  Record<ArchitectureRuleName, ArchitectureRuleSeverity>
+> = { 'no-unused-service': 'warn' };
+
 export type ArchitectureViolationsOptions = {
   target?: ArchitectureCheckTarget;
   mutationReactOn?: MutationReactOnOptions;
   waivers?: readonly ArchitectureWaiver<any>[];
+  /** Per-rule severity; a rule left out keeps its default (`error` unless listed above). */
+  severity?: Partial<Record<ArchitectureRuleName, ArchitectureRuleSeverity>>;
 };
 
 export type ArchitectureReport = {
   /** What fails, grouped by rule — waiver problems under `architecture-waivers`. */
   violations: ArchitectureRuleViolations[];
+  /** What is reported without failing: rules whose severity is `warn`. */
+  warnings: ArchitectureRuleViolations[];
   /** What a waiver excused, with the reason the waiver gave. */
   waived: (WaivableFinding & { reason: string })[];
 };
@@ -4382,16 +4415,29 @@ export function architectureReport(
   for (const [rule, find] of STYLE_ARCHITECTURE_RULES) {
     for (const finding of find(graph)) findings.push({ rule, ...finding });
   }
+  const severityOf = (rule: string): ArchitectureRuleSeverity =>
+    options.severity?.[rule as ArchitectureRuleName] ??
+    DEFAULT_ARCHITECTURE_RULE_SEVERITY[rule as ArchitectureRuleName] ??
+    'error';
+  for (const [rule, find] of SERVICE_ARCHITECTURE_RULES) {
+    if (severityOf(rule) === 'off') continue;
+    for (const finding of find(graph)) findings.push({ rule, ...finding });
+  }
 
   // A rule that asserts on the whole graph names no target, so a waiver can
   // only excuse it wholesale; a targeted waiver would otherwise read as stale.
   const wholeGraphRules = new Set<string>(rules.map(([rule]) => rule));
-  const untargetable = (options.waivers ?? []).filter(
+  // A rule switched off reports nothing, so a waiver for it would read as
+  // stale: it is not read at all.
+  const activeWaivers = (options.waivers ?? []).filter(
+    (waiver) => severityOf(waiver.rule) !== 'off',
+  );
+  const untargetable = activeWaivers.filter(
     (waiver) => wholeGraphRules.has(waiver.rule) && waiver.target !== '*',
   );
   const outcome = applyArchitectureWaivers(
-    findings,
-    (options.waivers ?? []).filter((waiver) => !untargetable.includes(waiver)),
+    findings.filter((finding) => severityOf(finding.rule) !== 'off'),
+    activeWaivers.filter((waiver) => !untargetable.includes(waiver)),
   );
   const problems = [
     ...untargetable.map(
@@ -4401,16 +4447,21 @@ export function architectureReport(
     ...outcome.problems,
   ];
   const byRule = new Map<string, string[]>();
+  const warningsByRule = new Map<string, string[]>();
   for (const finding of outcome.violations) {
-    const messages = byRule.get(finding.rule) ?? [];
+    const into = severityOf(finding.rule) === 'warn' ? warningsByRule : byRule;
+    const messages = into.get(finding.rule) ?? [];
     messages.push(finding.message);
-    byRule.set(finding.rule, messages);
+    into.set(finding.rule, messages);
   }
   if (problems.length > 0) {
     byRule.set('architecture-waivers', problems);
   }
+  const grouped = (map: ReadonlyMap<string, string[]>) =>
+    [...map].map(([rule, messages]) => ({ rule, messages }));
   return {
-    violations: [...byRule].map(([rule, messages]) => ({ rule, messages })),
+    violations: grouped(byRule),
+    warnings: grouped(warningsByRule),
     waived: [...outcome.waived],
   };
 }
