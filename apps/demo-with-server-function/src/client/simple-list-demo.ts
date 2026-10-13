@@ -28,7 +28,6 @@ import {
   queryParams,
   state,
   craftUse,
-  craftExpose,
 } from '@craft-ts/core';
 import { getUsers } from '../users/list.fn-client';
 import { demoPage } from './demo.style';
@@ -112,8 +111,6 @@ export const { SimpleListDemoView, provideSimpleListDemoView } = craftService(
       event?.preventDefault();
       yield* usersFilter.patch({ filter: (yield* searchInput()).trim() });
     });
-
-    yield* craftExpose('setSearchInput', searchInput.setSearchInput);
   },
 );
 
@@ -123,7 +120,7 @@ const SimpleListDemo = craftComponent(
     providers: [provideSimpleListDemoView()],
   },
   function* () {
-    const { searchInput, setSearchInput, usersQuery, users, submitSearch } =
+    const { searchInput, usersQuery, users, submitSearch } =
       yield* SimpleListDemoView();
     return main({ class: demoPage.shell }, [
       header({ class: demoPage.hero }, [
@@ -167,7 +164,7 @@ const SimpleListDemo = craftComponent(
                 autocomplete: 'off',
                 'aria-label': 'User filter',
                 *input(event) {
-                  yield* setSearchInput(event.target.value);
+                  yield* searchInput.setSearchInput(event.target.value);
                 },
               }),
               button(

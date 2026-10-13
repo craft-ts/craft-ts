@@ -67,6 +67,7 @@
     "@swc-node/register": "^1.11.1",
     "@swc/core": "^1.15.8",
     "@swc/helpers": "~0.5.11",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "20.19.9",
     "@types/pngjs": "^6.0.5",
     "@typescript-eslint/utils": "^8.67.0",
@@ -82,6 +83,7 @@
     "eslint-plugin-playwright": "^1.6.2",
     "jsdom": "^27.1.0",
     "jsonc-eslint-parser": "^2.1.0",
+    "markdown-it": "^14.3.0",
     "mdn-data": "^2.33.0",
     "nx": "23.1.1",
     "pixelmatch": "^7.2.0",
@@ -91,6 +93,7 @@
     "prettier": "~3.6.2",
     "redis": "^6.2.1",
     "rxjs": "~7.8.0",
+    "shiki": "^2.5.0",
     "tslib": "^2.3.0",
     "typescript": "6.0.3",
     "typescript-eslint": "^8.67.0",
@@ -98,7 +101,8 @@
     "vite": "^8.2.2",
     "vitepress": "^1.6.4",
     "vitepress-plugin-llms": "^1.13.5",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "yaml": "^2.9.0"
   },
   "workspaces": [
     "apps/log-server",

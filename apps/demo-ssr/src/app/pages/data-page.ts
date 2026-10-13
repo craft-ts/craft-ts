@@ -60,7 +60,7 @@ export const DataPage = craftComponent(
           h2({ class: pageStyle.cardTitle }, 'Données prêtes'),
           div({ class: pageStyle.metric }, [
             strong({ class: pageStyle.metricValue }, function* () {
-              return (yield* (yield* SsrDataPageView.resolved())()).visitors.toLocaleString('fr-FR');
+              return (yield* SsrDataPageView.resolved()).visitors.toLocaleString('fr-FR');
             }),
             span({ class: pageStyle.muted }, 'visiteurs servis aujourd’hui'),
           ]),
@@ -75,13 +75,13 @@ export const DataPage = craftComponent(
             p({ class: pageStyle.dataRow }, [
               strong('Région · '),
               function* () {
-                return (yield* (yield* SsrDataPageView.resolved())()).region;
+                return (yield* SsrDataPageView.resolved()).region;
               },
             ]),
             p({ class: pageStyle.dataRow }, [
               strong('Généré à · '),
               function* () {
-                return (yield* (yield* SsrDataPageView.resolved())()).generatedAt;
+                return (yield* SsrDataPageView.resolved()).generatedAt;
               },
             ]),
           ]),

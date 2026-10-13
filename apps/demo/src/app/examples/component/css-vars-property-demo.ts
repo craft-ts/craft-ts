@@ -31,9 +31,7 @@ export const CssVarsPropertyDemo = craftComponent(
       div({ class: cssVarsDemo.grid }, [
         RegisteredMeter(),
         AssignedMeter({
-          value: function* () {
-            return yield* CssVarsPropertyDemoView.meterValue();
-          },
+          value: CssVarsPropertyDemoView.meterValue,
         }),
       ]),
       button(

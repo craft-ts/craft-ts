@@ -36,6 +36,9 @@ type LoginData = {
   password: string;
 };
 
+const email = fieldControl('email');
+const password = fieldControl('password');
+
 export const { LoginFormView, provideLoginFormView } = craftService(
   { name: 'loginFormView', providedIn: 'toProvide' },
   function* () {
@@ -45,7 +48,7 @@ export const { LoginFormView, provideLoginFormView } = craftService(
         return params;
       },
     }));
-    yield* state(
+    const loginForm = yield* state(
       'loginForm',
       { email: '', password: '' } satisfies LoginData,
       insertForm(
@@ -74,8 +77,8 @@ export const { LoginFormView, provideLoginFormView } = craftService(
         },
       ),
     );
-    yield* craftExpose('email', fieldControl('email'));
-    yield* craftExpose('password', fieldControl('password'));
+    yield* craftExpose('emailField', loginForm.form.selectEmail());
+    yield* craftExpose('passwordField', loginForm.form.selectPassword());
   },
 );
 
@@ -98,23 +101,17 @@ const LoginFormComponent = craftComponent(
           [
             heading({ class: example.title }, 'Login form'),
             div({ class: example.fieldset }, [
-              label({ ...LoginFormView.email.label, class: example.label, htmlFor: 'email' }, 'Email'),
-              input('email', { ...LoginFormView.email.input, class: example.input, 'data-exampleField': 'wide', type: 'email' }).pipe(
-                CraftFieldDirective(LoginFormView.loginForm.form.selectEmail()),
+              label({ ...email.label, class: example.label, htmlFor: 'email' }, 'Email'),
+              input('email', { ...email.input, class: example.input, 'data-exampleField': 'wide', type: 'email' }).pipe(
+                CraftFieldDirective(LoginFormView.emailField),
               ),
-              p({ ...LoginFormView.email.description, class: example.hint }, 'We never share your email.'),
+              p({ ...email.description, class: example.hint }, 'We never share your email.'),
             ]),
             div({ class: example.fieldset }, [
-              label({ ...LoginFormView.password.label, class: example.label, htmlFor: 'password' }, 'Password'),
-              input('password', { ...LoginFormView.password.input, class: example.input, 'data-exampleField': 'wide', type: 'password' })
-                .pipe(CraftFieldDirective(LoginFormView.loginForm.form.selectPassword()))
-                .pipe(
-                  fieldErrorNode.partial({
-                    required: () =>
-                      p({ class: example.text, 'data-exampleText': 'error' }, 'Password is required.'),
-                  }),
-                ),
-              p({ ...LoginFormView.password.description, class: example.hint }, 'Use at least 6 characters.'),
+              label({ ...password.label, class: example.label, htmlFor: 'password' }, 'Password'),
+              input('password', { ...password.input, class: example.input, 'data-exampleField': 'wide', type: 'password' })
+                .pipe(CraftFieldDirective(LoginFormView.passwordField)),
+              p({ ...password.description, class: example.hint }, 'Use at least 6 characters.'),
             ]),
             ifNode(LoginFormView.loginForm.form.showSuccess, () =>
               p('✅ Login form submitted.'),
@@ -128,6 +125,7 @@ const LoginFormComponent = craftComponent(
               email: () => p({ class: example.text, 'data-exampleText': 'error' }, 'Enter a valid email.'),
             },
             password: {
+              required: () => p({ class: example.text, 'data-exampleText': 'error' }, 'Password is required.'),
               minLength: ({ exception }) =>
                 p(
                   { class: example.text, 'data-exampleText': 'error' },

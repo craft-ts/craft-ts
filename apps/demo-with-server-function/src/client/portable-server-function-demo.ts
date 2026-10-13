@@ -25,7 +25,6 @@ import {
   craftMethod,
   query,
   state,
-  craftExpose,
 } from '@craft-ts/core';
 import { getPortableUsers } from '../users/portable-list.fn-client';
 import { demoPage } from './demo.style';
@@ -83,8 +82,6 @@ export const {
       const value = yield* usersQuery.value();
       return value === undefined ? '—' : value.users.length.toString();
     });
-
-    yield* craftExpose('setSearchInput', searchInput.setPortableSearchInput);
   },
 );
 
@@ -96,7 +93,6 @@ const PortableServerFunctionDemo = craftComponent(
   function* () {
     const {
       searchInput,
-      setSearchInput,
       usersQuery,
       submitSearch,
       resultCount,
@@ -149,7 +145,7 @@ const PortableServerFunctionDemo = craftComponent(
                 autocomplete: 'off',
                 'aria-label': 'User filter',
                 *input(event) {
-                  yield* setSearchInput(event.target.value);
+                  yield* searchInput.setPortableSearchInput(event.target.value);
                 },
               }),
               button(

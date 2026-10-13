@@ -57,7 +57,7 @@ export const ClientOnlyPage = craftComponent(
           ),
           h2({ class: pageStyle.cardTitle }, 'Donnée navigateur'),
           div({ class: pageStyle.pendingBox }, function* () {
-            const value = yield* (yield* SsrClientOnlyPageView.resolved())();
+            const value = yield* SsrClientOnlyPageView.resolved();
             return `${value.width}px · ${value.visits} visite(s)`;
           }),
         ]),

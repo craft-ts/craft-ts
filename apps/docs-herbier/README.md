@@ -1,15 +1,13 @@
 # docs-herbier
 
-The documentation of `@craft-ts`, drawn with `@craft-ts/docs-ui` (the Herbier theme) instead of
-VitePress. It reads the Markdown of [`apps/docs`](../docs) **in place** — nothing is copied — and
-takes its navigation from the VitePress configuration of that app, so the two sites show the same
-pages under the same sections and can be put side by side.
+The documentation of `@craft-ts`, drawn with `@craft-ts/docs-ui` (the Herbier theme). It reads
+the Markdown of [`apps/docs`](../docs) **in place** — nothing is copied — and does not depend on
+VitePress: the navigation (top bar and sidebars) is its own, in `src/server/site.ts`.
 
 ```bash
 nx serve docs-herbier      # http://localhost:4420  — a page is parsed and drawn when asked for
 nx build docs-herbier      # dist/apps/docs-herbier
 nx preview docs-herbier    # http://localhost:4421/craft/  — the built site, served under its base
-nx serve docs              # the VitePress site, http://localhost:5173, to compare
 ```
 
 ## How a page is made
@@ -28,7 +26,11 @@ the prerender script bundled for Node, then the script itself, which writes ever
 ## What is the site's own
 
 `src/components`: the author's note, the "Start with an agent" card and the template migrator —
-the three things the VitePress theme carried as Vue components. Everything else is `docs-ui`.
+the three things the old VitePress theme carried as Vue components. Everything else is `docs-ui`.
+
+`src/server/site.ts` is the site's navigation: the sections of the top bar and the sidebars, by
+path prefix. A page that no sidebar lists still renders, but has no entry highlighted and no
+previous/next; `src/server/site.spec.ts` fixes the list of such pages so a new one fails the test.
 
 ## Settings
 

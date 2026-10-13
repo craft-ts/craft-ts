@@ -213,8 +213,27 @@ module.exports = {
       return localWrappers?.get(node.callee.name);
     }
 
+    // A chain such as `store.users.selectOrCreate(id).isLoading()` is one
+    // shortcut: a single `yield*` in front of it delegates every call it holds.
+    // The calls that feed a later call of the chain are therefore delegated
+    // whenever the outermost call of the chain is.
     function isDelegated(node) {
-      const parent = skipParens(node.parent);
+      let outermost = node;
+      for (;;) {
+        const member = skipParens(outermost.parent);
+        const call = skipParens(member?.parent);
+        if (
+          member?.type !== 'MemberExpression' ||
+          member.object !== outermost ||
+          call?.type !== 'CallExpression' ||
+          call.callee !== member
+        ) {
+          break;
+        }
+        outermost = call;
+      }
+
+      const parent = skipParens(outermost.parent);
       return parent?.type === 'YieldExpression' && parent.delegate;
     }
 

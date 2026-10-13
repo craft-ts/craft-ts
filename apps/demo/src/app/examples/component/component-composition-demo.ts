@@ -92,9 +92,7 @@ export const componentCompositionDemo = craftComponent(
       p(ComponentCompositionDemoView.lastHandledException),
       restrictedContent.pipe(
         withProviders([
-          provideRestrictedData(function* () {
-            return yield* ComponentCompositionDemoView.restriction();
-          }),
+          provideRestrictedData(ComponentCompositionDemoView.restriction),
         ]),
         catchTag.exhaustive({
           NO_ACCESS: function* () {

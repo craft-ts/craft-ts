@@ -23,10 +23,9 @@ export default [
     },
   },
   {
-    // Two relative imports that are the point of the file: the preview harness loads the style
-    // plugin by path (a Vite config is read before any alias exists), and the navigation spec reads
-    // the VitePress configuration of `apps/docs`, which it checks the site model against.
-    files: ['vite.preview.config.ts', 'src/site/build.spec.ts'],
+    // A relative import that is the point of the file: the preview harness loads the style
+    // plugin by path (a Vite config is read before any alias exists).
+    files: ['vite.preview.config.ts'],
     rules: { '@nx/enforce-module-boundaries': 'off' },
   },
 ];

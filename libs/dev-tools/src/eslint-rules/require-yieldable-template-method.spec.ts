@@ -127,6 +127,61 @@ describe('require-yieldable-template-method', () => {
     );
     expect(result.messages).toEqual([]);
   });
+
+  it('does not report the inner calls of a chain delegated as a whole', async () => {
+    const result = await lintFixture(`
+        type Invocation<T> = Generator<void, T, unknown>;
+        type Selected = { isLoading: () => Invocation<boolean> };
+        declare const store: {
+          users: {
+            selectOrCreate: (id: number) => Invocation<Selected> & Selected;
+          };
+        };
+        declare function craftComponent(...args: unknown[]): unknown;
+
+        craftComponent('Demo', {}, () =>
+          button({
+            disabled: function* () {
+              return yield* store.users
+                .selectOrCreate(1)
+                .isLoading();
+            },
+          }, 'Remove'),
+        );
+      `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('delegates an undelegated chain once, however many calls it holds', async () => {
+    const result = await lintFixture(
+      `
+        type Invocation<T> = Generator<void, T, unknown>;
+        type Selected = { isLoading: () => Invocation<boolean> };
+        declare const store: {
+          users: {
+            selectOrCreate: (id: number) => Invocation<Selected> & Selected;
+          };
+        };
+        declare function craftComponent(...args: unknown[]): unknown;
+
+        craftComponent('Demo', {}, () =>
+          button({
+            disabled: function* () {
+              return store.users.selectOrCreate(1).isLoading();
+            },
+          }, 'Remove'),
+        );
+      `,
+      true,
+    );
+
+    expect(result.output).toContain(
+      'return yield* store.users.selectOrCreate(1).isLoading();',
+    );
+    expect(result.output).not.toContain('yield* yield*');
+    expect(result.messages).toEqual([]);
+  });
 });
 
 async function lintFixture(source: string, fix = false) {

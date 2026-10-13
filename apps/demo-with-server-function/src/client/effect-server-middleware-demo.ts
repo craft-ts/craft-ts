@@ -81,7 +81,6 @@ export const {
       event?.preventDefault();
       yield* runScenario('none');
     }
-    yield* craftExpose('setFilter', filter.setEffectMiddlewareFilter);
     yield* craftExpose('runScenario', runScenario);
     yield* craftExpose('submit', submit);
   },
@@ -95,7 +94,6 @@ const EffectServerMiddlewareDemo = craftComponent(
   function* () {
     const {
       filter,
-      setFilter,
       usersQuery,
       hasUsers,
       hasServerError,
@@ -139,7 +137,7 @@ const EffectServerMiddlewareDemo = craftComponent(
                 autocomplete: 'off',
                 'aria-label': 'User filter',
                 *input(event) {
-                  yield* setFilter(event.target.value);
+                  yield* filter.setEffectMiddlewareFilter(event.target.value);
                 },
               }),
               button(

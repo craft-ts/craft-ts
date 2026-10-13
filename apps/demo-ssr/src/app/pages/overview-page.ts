@@ -81,10 +81,10 @@ export const OverviewPage = craftComponent(
           ),
           ul({ class: pageStyle.list }, [
             function* () {
-              return `Produits rendus : ${(yield* (yield* SsrOverviewPageView.resolvedProducts())()).length}`;
+              return `Produits rendus : ${(yield* SsrOverviewPageView.resolvedProducts()).length}`;
             },
             function* () {
-              const first = (yield* (yield* SsrOverviewPageView.resolvedProducts())())[0];
+              const first = (yield* SsrOverviewPageView.resolvedProducts())[0];
               return `Premier produit : ${first?.name ?? 'aucun'}`;
             },
           ]),
