@@ -32,7 +32,6 @@ import type { StaticLocatorCriteria } from './locator';
 import type {
   CraftNodeChildren,
   CraftNodeChildrenDependencies,
-  CraftNodeChildrenCssVars,
   CraftNodeChildrenPendingSources,
   CraftNodeChildrenHeadingNeed,
   CraftNodeChildrenSettledExceptions,
@@ -46,14 +45,6 @@ import type {
   ContentDependenciesFromProps,
   ElementNodeBase,
 } from './render/vnode';
-import type {
-  CssVarContract,
-  CssVarsAfterCall,
-  CssVarsCallProps,
-  CssVarsContractOfMeta,
-  CssVarsMetaDeclaration,
-  MergeCssVarContracts,
-} from './css-vars.type';
 import type {
   FieldErrorDirective,
   FieldErrorExhaustiveCheck,
@@ -87,7 +78,6 @@ declare const COMPONENT_FIELD_EXCEPTIONS: unique symbol;
 declare const COMPONENT_PROJECTION_CONTRACT: unique symbol;
 declare const COMPONENT_OPERATOR_PROVIDERS: unique symbol;
 declare const COMPONENT_OPERATOR_CODES: unique symbol;
-export const CONTENT_STYLE_POLICY = Symbol('craft-content-style-policy');
 export const CONTENT_OUTPUT = Symbol('craft-content-output');
 export const CONTENT_REQUIREMENT = Symbol('craft-content-requirement');
 export const CONTENT_RENDERABLE = Symbol('craft-content-renderable');
@@ -345,8 +335,6 @@ export type YieldableTemplateContext<Context> = Context extends {
 /** Public call-site shape of an {@link Input}. */
 export type InputValue<T> = Yieldable<[], T>;
 
-export type ContentStylePolicy = 'isolated' | 'allow-container-styles';
-
 /** A lazily evaluated, declaration-context-preserving piece of Craft content. */
 export type RenderableContent<
   Output extends CraftNodeChildren = CraftNodeChildren,
@@ -358,10 +346,6 @@ export type RenderableContent<
 export type ContentSlot<Output extends CraftNodeChildren = CraftNodeChildren> =
   RenderableContent<Output>;
 
-export type ContentOptions = {
-  readonly allowContainerStyles?: boolean;
-};
-
 export type ContentRequirement = {
   readonly selector: ContentSelector;
 };
@@ -369,21 +353,6 @@ export type ContentRequirement = {
 /** A content slot whose DOM shape is checked at each component call site. */
 export type RequiredContent<Requirement extends ContentRequirement> =
   RenderableContent & { readonly [CONTENT_REQUIREMENT]: Requirement };
-
-/**
- * Styles explicitement exposés par un composant à son contenu projeté.
- *
- * `styles` s'applique au template propre du composant. `contentStyles` ne
- * s'applique qu'à un contenu rendu via `renderContent(slotName, content)` lorsque
- * le parent a activé `allowContainerStyles` sur ce fragment.
- *
- * Le contenu projeté conserve l'injecteur de son lieu de déclaration. Ces
- * styles peuvent affecter les nœuds DOM ordinaires du fragment, mais ne
- * traversent pas les frontières des composants Craft ou Angular imbriqués.
- */
-export type ContentStyles<SlotName extends string> = Partial<
-  Record<SlotName, string>
->;
 
 /** Contraintes DOM statiques qu'un fragment projeté doit satisfaire. */
 export type ContentSelector = {
@@ -548,10 +517,6 @@ export type TemplateDependencies<Template> = Template extends (
   ? CraftNodeChildrenDependencies<TemplateChildren<Template>>
   : {};
 
-export type TemplateCssVars<Template> = Template extends (...args: any[]) => any
-  ? CraftNodeChildrenCssVars<TemplateChildren<Template>>
-  : import('./css-vars.type').EmptyCssVarContract;
-
 /** Async sources a template renders without covering them with a `pendingNode`. */
 export type TemplatePendingSources<Template> = Template extends (
   ...args: any[]
@@ -674,42 +639,9 @@ type ComponentProvider = (CraftProvider & any) | (CraftProvider & any)[];
 
 export interface ComponentMeta<
   Providers extends readonly ComponentProvider[] = readonly ComponentProvider[],
-  SlotName extends string = string,
 > {
   readonly providers?: Providers;
   readonly host?: Readonly<Record<string, unknown>>;
-  /**
-   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
-   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
-   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
-   * rule needs a `-- reason`, and the directive is attested in Review Attest.
-   */
-  readonly styles?: string | readonly string[];
-  /**
-   * CSS text imported from an external stylesheet with the build text loader.
-   *
-   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
-   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
-   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
-   * rule needs a `-- reason`, and the directive is attested in Review Attest.
-   */
-  readonly stylesUrl?: string | readonly string[];
-  /**
-   * Explicit contract for opaque external styles.
-   *
-   * @deprecated Declare typed variables with `cssVars` from `@craft-ts/style`
-   * and write them with `assign(...)` on `style:`.
-   */
-  readonly cssVars?: CssVarsMetaDeclaration;
-  /**
-   * Styles exposed explicitly to opted-in projected fragments, by slot.
-   *
-   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
-   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
-   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
-   * rule needs a `-- reason`, and the directive is attested in Review Attest.
-   */
-  readonly contentStyles?: ContentStyles<SlotName>;
   /**
    * The contract this component answers once a host projects it into a slot.
    * Type-only: `projection<Contract>()` carries the contract, nothing else.
@@ -731,22 +663,6 @@ export interface ComponentMeta<
 }
 
 export interface DirectiveMeta {
-  /**
-   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
-   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
-   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
-   * rule needs a `-- reason`, and the directive is attested in Review Attest.
-   */
-  readonly styles?: string | readonly string[];
-  /**
-   * CSS text imported from an external stylesheet with the build text loader.
-   *
-   * @deprecated Style a component with `@craft-ts/style` — a `craftStyles` sheet
-   * in a `*.style.ts`, bound through `class:`. Still accepted so that a bypass
-   * stays *possible*, but `craft-ts/no-component-css` rejects it: disabling that
-   * rule needs a `-- reason`, and the directive is attested in Review Attest.
-   */
-  readonly stylesUrl?: string | readonly string[];
   /** Optional behavior mounted against the concrete DOM node being decorated. */
   readonly node?: {
     readonly inputs?: readonly string[];
@@ -754,9 +670,13 @@ export interface DirectiveMeta {
   };
 }
 
-export interface StyleOwner {
+/**
+ * Who owns a scope in a component's definition: the component first, then each
+ * directive piped onto it. `registrationTarget` is what the directive registers
+ * under in the injector.
+ */
+export interface ScopeOwner {
   readonly name: string;
-  readonly styles?: string | readonly string[];
   readonly definition?: object;
   readonly registrationTarget?: unknown;
 }
@@ -766,7 +686,7 @@ export interface ComponentDefinition {
   readonly meta: ComponentMeta;
   readonly template: ComponentTemplate;
   readonly service: readonly CraftServiceTransform[];
-  readonly styleOwners: readonly StyleOwner[];
+  readonly scopeOwners: readonly ScopeOwner[];
   readonly scopeDefinition: object;
   readonly composition?: ComponentCompositionDefinition;
 }
@@ -869,15 +789,8 @@ type PublicComponentProps<Props extends object> = {
     : Props[Key];
 };
 
-type ComponentCallProps<
-  Props extends object,
-  Contract extends CssVarContract,
-> = PublicComponentProps<Props> & HostProps & CssVarsCallProps<Contract>;
-
-export type ComponentCssVars<Meta, Template> = MergeCssVarContracts<
-  CssVarsContractOfMeta<Meta>,
-  TemplateCssVars<Template>
->;
+type ComponentCallProps<Props extends object> = PublicComponentProps<Props> &
+  HostProps;
 
 type CraftInputExceptionsOf<Value> =
   Value extends CraftInputExceptionsCarrier<infer Exceptions extends string>
@@ -1337,8 +1250,6 @@ type ComponentCallNode<
   Component extends CraftComponent<any, ComponentDeps>,
   Meta,
   InputProps extends object = {},
-  CssVars extends
-    CssVarContract = import('./css-vars.type').EmptyCssVarContract,
   Channels extends CraftChannels = EmptyChannels,
 > =
   ComponentInputExceptionsOf<
@@ -1350,7 +1261,6 @@ type ComponentCallNode<
         Component,
         ContentDependenciesFromProps<CallProps>,
         InputExceptions,
-        CssVars,
         never,
         never,
         Channels
@@ -1491,10 +1401,7 @@ export interface CraftComponent<
     // test or a parent wants to reach is the service the component provides.
     CraftRegistrationTarget<Name, 'component', undefined> {
   <
-    CallProps extends ComponentCallProps<
-      Props,
-      ComponentCssVars<Meta, Template>
-    > = ComponentCallProps<Props, ComponentCssVars<Meta, Template>>,
+    CallProps extends ComponentCallProps<Props> = ComponentCallProps<Props>,
   >(
     ...args: keyof Props extends never
       ? [
@@ -1523,7 +1430,6 @@ export interface CraftComponent<
     >,
     Meta,
     Props,
-    CssVarsAfterCall<ComponentCssVars<Meta, Template>, CallProps>,
     ComponentTemplateChannels<Template>
   >;
   readonly [CRAFT_COMPONENT]: ComponentDefinition & {
@@ -1601,23 +1507,6 @@ export interface CraftComponent<
     ): CraftComponent<any, any>;
   };
 }
-
-export type ComponentCssVarsOf<Component> =
-  Component extends CraftComponent<
-    any,
-    any,
-    any,
-    infer Meta,
-    any,
-    any,
-    infer Template,
-    any,
-    any,
-    any,
-    any
-  >
-    ? ComponentCssVars<Meta, Template>
-    : import('./css-vars.type').EmptyCssVarContract;
 
 export type ComponentNameOf<Component> =
   Component extends CraftComponent<

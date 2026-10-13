@@ -9,9 +9,6 @@ const STYLE_MODULE = '@craft-ts/style';
  * that has not been typechecked yet while it is being written. The message
  * points at the exact replacement, because a rule that only says "no" sends an
  * agent looking for a way round.
- *
- * It extends `no-hardcoded-design-values` to style-helper arguments rather than
- * duplicating it: same intent, one more position.
  */
 const REPLACEMENTS = {
   length: 'a scale step or a unit — space(4), unit.rem(1.5), radii.md',

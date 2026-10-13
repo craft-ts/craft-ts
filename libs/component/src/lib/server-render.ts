@@ -5,7 +5,6 @@ import {
   provideCraftCspNonce,
   provideCraftSsrRuntime,
   ɵinjectCraftSecurityPolicy,
-  ɵinjectCraftCspNonce,
   captureCraftTransferSnapshot,
   createCraftSecurityPolicy,
   createCraftRenderIdentity,
@@ -30,7 +29,6 @@ import {
   mountInterpretedComponentWithOptions,
   type MountedCraftComponent,
 } from './render/interpreter';
-import { createServerStyleCollector } from './render/server-style-collector';
 import { CraftSsrCoordinator } from './render/ssr-coordinator';
 import { createStringDomAdapter } from './render/string-dom';
 import { CRAFT_COMPONENT, type CraftComponent, type PropsOf } from './types';
@@ -43,21 +41,16 @@ export type RenderCraftOptions = Readonly<{
   props?: object;
   timeoutMs?: number;
   signal?: AbortSignal;
-  includeStyles?: boolean;
   includeSnapshotScript?: boolean;
   mode?: CraftRuntimeMode;
   securityPolicy?: CraftSecurityPolicyInput;
-  /**
-   * Nonce CSP de la requête. Il est reporté sur les styles rendus, ce qui
-   * permet une politique sans `'unsafe-inline'`.
-   */
+  /** Nonce CSP de la requête, lisible par l'application via `CraftCspNonce`. */
   cspNonce?: string;
 }>;
 
 export type RenderCraftResult = Readonly<{
   html: string;
   rootHtml: string;
-  styles: string;
   snapshot: CraftTransferSnapshot;
 }>;
 
@@ -117,7 +110,6 @@ export async function renderCraft(
     const identity = createCraftRenderIdentity([root[CRAFT_COMPONENT].name, 0]);
     const host = dom.createHost();
     dom.adapter.setAttribute(host, 'data-craft-hk', identity.hydrationKey);
-    const serverStyles = createServerStyleCollector();
     mounted = mountInterpretedComponentWithOptions(
       root,
       host,
@@ -128,38 +120,30 @@ export async function renderCraft(
         identity,
         emitHydrationKeys: true,
         ssr: coordinator,
-        serverStyles,
       },
     );
 
     await coordinator.untilSettled(timeoutMs, controller.signal);
 
-    const styles = serverStyles.cssText();
     const registry = ɵrunInInjectionContext(injector, () => ɵinjectCraftPrimitiveRegistry());
     const snapshot = captureCraftTransferSnapshot(
       registry,
       { policy: securityPolicy.transfer },
     );
     const rootHtml = dom.serialize(host);
-    const htmlSize = byteLength(rootHtml) + byteLength(styles);
+    const htmlSize = byteLength(rootHtml);
     if (htmlSize > securityPolicy.ssr.maxHtmlBytes) {
       throw new Error(
         `CRAFT_SSR_HTML_TOO_LARGE: generated HTML exceeds ${securityPolicy.ssr.maxHtmlBytes} bytes.`,
       );
     }
-    const nonce = ɵrunInInjectionContext(injector, () => ɵinjectCraftCspNonce());
-    const styleHtml =
-      options.includeStyles === false || !styles
-        ? ''
-        : `<style data-craft-ssr${nonce ? ` nonce="${escapeAttribute(nonce)}"` : ''}>${escapeStyleText(styles)}</style>`;
     const snapshotHtml =
       options.includeSnapshotScript === false
         ? ''
         : `<script id="${CRAFT_TRANSFER_SCRIPT_ID}" type="application/json">${serializeCraftTransferSnapshot(snapshot, securityPolicy.transfer)}</script>`;
     return {
-      html: `${styleHtml}${rootHtml}${snapshotHtml}`,
+      html: `${rootHtml}${snapshotHtml}`,
       rootHtml,
-      styles,
       snapshot,
     };
   } finally {
@@ -207,17 +191,6 @@ export async function renderToString<Component extends CraftComponent<any>>(
     ...(options.cspNonce ? { cspNonce: options.cspNonce } : {}),
   });
   return result.html;
-}
-
-function escapeStyleText(value: string): string {
-  return value.replace(/<\/style/gi, '<\\/style');
-}
-
-function escapeAttribute(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 function byteLength(value: string): number {

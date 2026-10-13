@@ -485,7 +485,7 @@ checks exported arrow functions.
 - `craft-ts/no-explicit-craft-insertion-type`: forbids explicit parameter and return annotations on callbacks passed to `insert*Pipe`; let the primitive infer the insertion context and derived output
 - `craft-ts/no-craft-primitive-type-assertion`: forbids chained assertions such as `as unknown as Generator<...>` around Craft primitive generators, which can hide the inferred output and dependency contract
 - `craft-ts/prefer-insert-deep-yieldable`: rejects adapting a property of a primitive result with `deepYieldable(...)`; add `insertDeepYieldable()` to the primitive and read the property directly
-- `craft-ts/no-imperative-template-action-chain`: forbids chaining multiple Craft actions in one template event callback; emit one `source$` event and let the query, mutation, and state react through `on$`.
+- `craft-ts/no-imperative-template-action-chain`: forbids chaining multiple Craft actions in one template event callback, or in a generator passed as a component prop (`trigger: function* () { … }`); emit one `source$` event and let the query, mutation, and state react through `on$`. With type information, any `yield*` of a service method counts as an action (`yield* View.label.recordConfirm()`), whatever its name; `yield*` of a reactive reader does not (`const user = yield* View.user()`), so a handler can read as many values as it needs around a single action
 - `craft-ts/prefer-route-query-params-for-filter-state`: warns when a local `state()` is used directly or through a local derivation as `params` for `query`, `queryEffect`, `asyncProcess`, or `asyncProcessEffect`; use `queryParams()` for values that should survive reloads and be represented in the URL. The graph-wide counterpart, which also sees cross-file dependencies, is [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state).
 - `craft-ts/no-imperative-storage-in-craft-method`: forbids direct storage access and imperative location changes in a `craftMethod`; use `insertReactOnMutation(...)` with `optimisticUpdate: () => undefined` to clear the affected query and let its persistence follow the query state.
 - `craft-ts/no-transition-actions`: forbids `query.call(...)`, `mutation.mutate(...)`, and `asyncProcess.method(...)` inside `transitionStep(...)`; validate the event and emit a source, then let the resource react to that source.
@@ -503,12 +503,11 @@ checks exported arrow functions.
 - `craft-ts/require-pending-component-di-check`: generates the independent `RouteCheckedDI` check for each `pendingComponent`
 - `craft-ts/no-raw-class`: requires every `class:` binding — on an element, in `attrs`, on a component `host` — to trace back to a sheet imported from a `*.style` module: `sheet.key`, a `const` bound to one, an array of them, a typed input (a parameter or a member of one), or a function that only returns one. A string, a template literal, a conditional or an object of booleans is refused. A class assembled at render time is a visual state nothing recorded, so the [visual matrix](/guide/style/testing) would enumerate what the sheets declare while the DOM shows something else; and a sheet declared outside a `*.style.ts` is never evaluated by the build, so its class has no CSS. Make the variation an axis and set a `data-*` attribute
 - `craft-ts/no-inline-style`: restricts `style:` to `assign(...)` from `@craft-ts/style` — or an array of them, an object spreading only them, a conditional whose branches are all of them, or a function that only returns them. What varies at runtime is a typed variable (`cssVars` + `assign`), read by a sheet; `attrs.style` is always refused
-- `craft-ts/no-component-css`: forbids `meta.styles`, `meta.stylesUrl` and `meta.contentStyles` on `craftComponent` / `craftDirective`, and every `.css` import except `virtual:craft-style.css`. Global rules go in [`craftGlobalStyles`](/guide/style/foundation), fonts in `defineFont`
+- `craft-ts/no-component-css`: forbids every `.css` import except `virtual:craft-style.css`. Global rules go in [`craftGlobalStyles`](/guide/style/foundation), fonts in `defineFont`
 - `craft-ts/no-forbidden-eslint-disable`: requires a reason on every directive that disables a design-system rule — `// eslint-disable-next-line craft-ts/no-raw-class -- markdown output carries its own classes`. The reason is what the reviewer decides on in Review Attest. It also forbids disabling the rules listed in `.craft/eslint-disable-policy.json`. A blanket `eslint-disable` silences this rule too, so it cannot be reported here; Review Attest lists it
 - `craft-ts/no-raw-css-value`: forbids a string or number literal as an argument to a `@craft-ts/style` helper — `p('12px')`, `bg('red')`. If the scale is missing the step, add it to the scale; if the value genuinely cannot be proven, `unsafeLength('13px', reason)` compiles and makes the debt countable in the [graph](/guide/style/testing#what-the-graph-adds)
 - `craft-ts/no-free-has`: forbids a hand-written `:has()` in styles. It reaches across the component boundary, so what a component looks like depends on markup it does not own — a state the matrix cannot enumerate. Use the `descendant` axis, which is a closed set and carries its own test driver
 - `craft-ts/style-file-boundary`: restricts a `*.style.ts` to style-vocabulary imports. The [build plugin](/guide/style/setup) imports the file in Node to read what it registered, so an application import would run application code at build time
-- `craft-ts/craft-css-token-registry`: reports a custom property registered with `@property` by two different components. A custom property may have only one owner; two silently fight over its syntax and initial value. Part of the `legacyComponentCss` preset (see below)
 - `craft-ts/require-effect-adapters`: requires the Effect-aware adapters — `queryEffect`, `mutationEffect`, `asyncProcessEffect`, and `transitionGuardEffect` — instead of the plain primitives and `transitionGuard` in an Effect application. See [Choose the right adapter](/guide/advanced/effect#choose-the-right-adapter)
 - `craft-ts/craft-signal-source-name-match`: requires `signalSource(name, ...)` to take a string literal matching the variable, class property or object property it is assigned to, so the name in a trace is the name in the source. A computed name defeats the [architecture graph](/guide/testing/architecture), which reads these names statically
 - `craft-ts/require-child-route-mount-check`: adds the missing `assertChildRouteMounts(...)` call + import (Quick Fix) for any `craftRoutes(...)` collection that mounts lazy `loadChildren`, so a `.withParent`-pinned child mounted under the wrong path is a compile error
@@ -658,9 +657,6 @@ extracted factories, `h('tag')`), not only `craftComponent` argument 3.
 - `valid-aria`, `role-has-required-aria`, `target-blank-noopener`
 - `prefer-relative-heading`, `require-route-heading-outline`,
   `require-outlet-heading-section`, `no-heading-level-skip`
-- `require-focus-visible`, `require-reduced-motion` (CSS of `craftComponent`) —
-  superseded by the `craft.base` layer of [`@craft-ts/style`](/guide/style/foundation),
-  which lays both once for the document; they are no longer in `recommended`
 
 See [Accessibility](/guide/components/accessibility).
 
@@ -928,28 +924,19 @@ at `'error'`, in **every** file: none of them waits for a file to import
 `@craft-ts/style`.
 
 To migrate a project in steps, turn the three binding rules off in **its own**
-ESLint config, with a `TODO` comment the migration removes, and keep
-the rules that read the legacy component CSS on in the meantime:
+ESLint config, with a `TODO` comment the migration removes:
 
 ```js
 {
   // TODO: remove once this project is migrated to @craft-ts/style.
   files: ['**/src/**/*.ts'],
   rules: {
-    ...craftRules.configs.legacyComponentCss.rules,
     'craft-ts/no-raw-class': 'off',
     'craft-ts/no-inline-style': 'off',
     'craft-ts/no-component-css': 'off',
   },
 },
 ```
-
-`legacyComponentCss` groups the rules that read a component's CSS text —
-`craft-css-vars-contract`, `craft-styles-scope-safe`, `craft-css-var-naming`,
-`craft-css-token-registry`, `no-hardcoded-design-values`,
-`no-important-in-component-styles`, `require-focus-visible`,
-`require-reduced-motion`. They left `recommended` because `no-component-css`
-leaves them nothing to read.
 
 A genuine bypass — a third-party widget that ships its own CSS, HTML rendered
 from markdown — stays possible, one line at a time, with a reason:

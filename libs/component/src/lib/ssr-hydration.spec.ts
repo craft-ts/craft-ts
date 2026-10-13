@@ -67,9 +67,7 @@ describe('Craft SSR and hydration', () => {
 
     const counter = craftComponent(
       'SsrCounter',
-      {
-        styles: ':scope { color: rebeccapurple; }',
-      },
+      {},
       function* (inputs: { readonly initial: Input<number> }) {
         const { count } = yield* SsrCounterView();
         return div([
@@ -113,7 +111,6 @@ describe('Craft SSR and hydration', () => {
     );
     expect(first.rootHtml).toContain('data-craft-hk="SsrCounter/0/0"');
     expect(first.rootHtml).toContain('>42<');
-    expect(first.styles).toContain('color: rebeccapurple');
     expect(Object.values(first.snapshot.values)).toContain(42);
     expect(first.html).not.toContain('</script><script');
   });

@@ -133,8 +133,7 @@ rule below.
 ::: tip One `cssVars` for the theme and for a component
 The same `cssVars` declares a design system's theme and a single component's
 styling API — per-instance variants, inheritance, forwarding, runtime values.
-See [Typed CSS variables](../components/css-variables.md). The deprecated
-`meta.cssVars` on `craftComponent` is a different, CSS-string mechanism.
+See [Typed CSS variables](../components/css-variables.md).
 :::
 
 ## `seal` — closing a tree

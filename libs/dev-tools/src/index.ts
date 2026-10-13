@@ -26,6 +26,7 @@ export * from './scripts/style-graph.js';
 export * from './scripts/style-contrast.js';
 export * from './scripts/style-architecture.js';
 export * from './scripts/architecture-style-rules.js';
+export * from './scripts/architecture-service-rules.js';
 export * from './scripts/architecture-waivers.js';
 export * from './scripts/style-report.js';
 export * from './scripts/security-check.js';

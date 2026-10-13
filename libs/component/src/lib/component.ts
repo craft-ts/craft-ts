@@ -17,16 +17,14 @@ import {
   type CraftComponent,
   type FactoryYielded,
   type PropsFromFactory,
-  type StyleOwner,
+  type ScopeOwner,
   type TemplateDependencies,
-  type TemplateCssVars,
   type TemplateHeadingNeed,
   type TemplateInput,
   type TemplatePendingSources,
   type TemplateSettledExceptions,
   type ValidComponentFactoryInputs,
 } from './types';
-import type { CssVarsContractOfMeta } from './css-vars.type';
 import type {
   ComponentNode,
   ComponentTemplateChannels,
@@ -41,35 +39,6 @@ type ProvidersFromMeta<Meta extends ComponentMeta> = Meta extends {
 }
   ? Providers
   : readonly [];
-
-function mergeStyles(
-  ...sources: readonly (string | readonly string[] | undefined)[]
-): readonly string[] {
-  return sources.flatMap((source) =>
-    typeof source === 'string' ? [source] : (source ?? []),
-  );
-}
-
-type ContentSlotNamesForFactory<Factory extends ComponentFactory> = {
-  [Key in keyof TemplateInput<Factory>]: NonNullable<
-    TemplateInput<Factory>[Key]
-  > extends (...args: any[]) => any
-    ? Key
-    : never;
-}[keyof TemplateInput<Factory>] &
-  string;
-
-type ValidContentStyles<
-  Meta extends ComponentMeta,
-  Factory extends ComponentFactory,
-> = Meta extends { readonly contentStyles?: infer Styles }
-  ? Exclude<
-      keyof NonNullable<Styles>,
-      ContentSlotNamesForFactory<NoInfer<Factory>>
-    > extends never
-    ? unknown
-    : never
-  : unknown;
 
 type IsAny<Value> = 0 extends 1 & Value ? true : false;
 
@@ -154,25 +123,6 @@ type ValidHeadingNeed<Template> =
             readonly ERROR_child_heading_rendered_outside_a_headingSection: 'heading-from-child';
           };
 
-type ValidInheritedCssVars<Meta extends ComponentMeta, Template> =
-  Exclude<
-    TemplateCssVars<Template>['inherited'],
-    CssVarsContractOfMeta<Meta>['declared']
-  > extends infer Missing
-    ? [Missing] extends [never]
-      ? unknown
-      : // A template whose children were never narrowed (or a variable still
-        // being inferred) leaves nothing to name: only a concrete set of variable
-        // names is worth an error.
-        IsAny<Missing> extends true
-        ? unknown
-        : string extends Missing
-          ? unknown
-          : {
-              readonly ERROR_css_var_marked_inherit_is_not_declared_here: Missing;
-            }
-    : never;
-
 type ComponentOf<
   Name extends string,
   Meta extends ComponentMeta,
@@ -214,11 +164,10 @@ export function craftComponent<
   Template extends ComponentFactory,
 >(
   name: Name,
-  meta: Meta & ValidContentStyles<Meta, Template>,
+  meta: Meta,
   template: Template &
     ValidDirectComponentTemplate<Template> &
     ValidComponentFactoryInputs<Template, Meta> &
-    ValidInheritedCssVars<Meta, NoInfer<Template>> &
     ValidPendingSources<NoInfer<Template>> &
     ValidSettledExceptions<NoInfer<Template>> &
     ValidHeadingNeed<NoInfer<Template>> &
@@ -229,7 +178,7 @@ export function craftComponent<
     meta,
     template,
     service: [],
-    styleOwners: [{ name, styles: mergeStyles(meta.styles, meta.stylesUrl) }],
+    scopeOwners: [{ name }],
     scopeDefinition: undefined,
   });
 }
@@ -243,7 +192,7 @@ function createCraftComponent<
   readonly meta: Meta;
   readonly template: Template;
   readonly service: readonly CraftServiceTransform[];
-  readonly styleOwners: readonly StyleOwner[];
+  readonly scopeOwners: readonly ScopeOwner[];
   readonly scopeDefinition: object | undefined;
   readonly composition?: ComponentCompositionDefinition;
 }): ComponentOf<Name, Meta, Template> {
@@ -283,7 +232,7 @@ function createCraftComponent<
   }) as unknown as ComponentOf<Name, Meta, Template>;
 
   const scopeDefinition = definition.scopeDefinition ?? {};
-  const styleOwners = definition.styleOwners.map((owner, index) =>
+  const scopeOwners = definition.scopeOwners.map((owner, index) =>
     index === 0 && !owner.definition
       ? { ...owner, definition: scopeDefinition }
       : owner,
@@ -293,7 +242,7 @@ function createCraftComponent<
     value: {
       ...definition,
       scopeDefinition,
-      styleOwners,
+      scopeOwners,
     },
     enumerable: false,
   });
@@ -327,11 +276,10 @@ function createCraftComponent<
             ...(currentDefinition.service ?? []),
             ...(applied.service ?? []),
           ],
-          styleOwners: [
-            ...currentDefinition.styleOwners,
+          scopeOwners: [
+            ...currentDefinition.scopeOwners,
             {
               name: applied.name,
-              styles: mergeStyles(applied.meta.styles, applied.meta.stylesUrl),
               definition: applied,
               registrationTarget: resolvedDirective,
             },
@@ -351,10 +299,6 @@ function createCraftComponent<
 
 type DirectiveDefinition = {
   readonly name: string;
-  readonly meta: {
-    readonly styles?: string | readonly string[];
-    readonly stylesUrl?: string | readonly string[];
-  };
   readonly service: readonly CraftServiceTransform[];
   readonly template?: (baseTemplate: ComponentTemplate) => ComponentTemplate;
   readonly componentOperator?: ComponentCompositionDefinition;

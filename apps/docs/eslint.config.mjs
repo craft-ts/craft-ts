@@ -40,7 +40,6 @@ export default [
       'craft-ts/require-assert-exhaustive-route-exceptions': 'off',
       'craft-ts/no-type-assertions-in-craft-code': 'off',
       'craft-ts/app-start-registry-match': 'off',
-      'craft-ts/no-hardcoded-design-values': 'off',
       'craft-ts/no-craft-service-component-same-file': 'off',
       'craft-ts/craft-component-name-match': 'off',
       '@typescript-eslint/no-empty-function': 'off',

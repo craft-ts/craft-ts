@@ -33,6 +33,7 @@ export const ARCHITECTURE_RULE_NAMES = [
   'style-obligations-discharged',
   'no-dangling-css-vars',
   'no-global-stylesheet',
+  'no-unused-service',
 ] as const;
 
 export type ArchitectureRuleName = (typeof ARCHITECTURE_RULE_NAMES)[number];
@@ -51,6 +52,7 @@ export type ArchitectureWaiverTarget<
   | `file:${string}`
   | `obligation:${string}`
   | `css-var:${string}`
+  | `service:${C['services'][number]}`
   | 'graph:style-dump'
   | '*';
 

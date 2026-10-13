@@ -1,7 +1,6 @@
 import type {
   CraftNodeChildrenDependencies,
   CraftNodeDependencies,
-  CraftNodeChildrenCssVars,
   CraftNodeChildrenHandledExceptionCodes,
   CraftNodeChildren,
   ElementNode,
@@ -175,8 +174,7 @@ export function h<
   CraftNodeChildrenHandledExceptionCodes<
     HChildren<Tag, PropsOrChildren, MaybeChildren>
   >,
-  never,
-  CraftNodeChildrenCssVars<HChildren<Tag, PropsOrChildren, MaybeChildren>>
+  never
 > {
   const props = looksLikeChildren(propsOrChildren)
     ? {}
@@ -203,8 +201,7 @@ export function h<
     CraftNodeChildrenHandledExceptionCodes<
       HChildren<Tag, PropsOrChildren, MaybeChildren>
     >,
-    never,
-    CraftNodeChildrenCssVars<HChildren<Tag, PropsOrChildren, MaybeChildren>>
+    never
   >;
 
   Object.defineProperty(node, 'pipe', {
@@ -247,8 +244,7 @@ function hNamed<
   Name,
   string,
   CraftNodeChildrenHandledExceptionCodes<Children>,
-  never,
-  CraftNodeChildrenCssVars<Children>
+  never
 > {
   const node = h<Tag, Props & ElementPropsContext<Tag>, Children>(
     tag,
@@ -262,8 +258,7 @@ function hNamed<
     Name,
     string,
     CraftNodeChildrenHandledExceptionCodes<Children>,
-    never,
-    CraftNodeChildrenCssVars<Children>
+    never
   >;
   (node as { localName?: Name }).localName = name;
   return node;
@@ -282,8 +277,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     string | undefined,
     string,
     CraftNodeChildrenHandledExceptionCodes<Children>,
-    never,
-    CraftNodeChildrenCssVars<Children>
+    never
   >;
   <
     const Props extends ElementPropsContext<Tag>,
@@ -301,8 +295,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     string | undefined,
     string,
     CraftNodeChildrenHandledExceptionCodes<Children>,
-    never,
-    CraftNodeChildrenCssVars<Children>
+    never
   >;
   <const Name extends string, const Props extends ElementPropsContext<Tag>>(
     name: Name,
@@ -315,8 +308,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     Name,
     string,
     CraftNodeChildrenHandledExceptionCodes<readonly []>,
-    never,
-    CraftNodeChildrenCssVars<readonly []>
+    never
   >;
   <
     const Name extends string,
@@ -336,8 +328,7 @@ export interface TagHelper<Tag extends keyof HTMLElementTagNameMap> {
     Name,
     string,
     CraftNodeChildrenHandledExceptionCodes<Children>,
-    never,
-    CraftNodeChildrenCssVars<Children>
+    never
   >;
 }
 
@@ -458,8 +449,7 @@ type InputNode<
   Name,
   string,
   CraftNodeChildrenHandledExceptionCodes<Children>,
-  never,
-  CraftNodeChildrenCssVars<Children>
+  never
 >;
 
 export interface InputTagHelper {
@@ -506,8 +496,7 @@ export interface RequiredAltTagHelper<Tag extends 'img' | 'area'> {
     string | undefined,
     string,
     CraftNodeChildrenHandledExceptionCodes<Children>,
-    never,
-    CraftNodeChildrenCssVars<Children>
+    never
   >;
   <const Name extends string, const Props extends object>(
     name: Name,
@@ -520,8 +509,7 @@ export interface RequiredAltTagHelper<Tag extends 'img' | 'area'> {
     Name,
     string,
     CraftNodeChildrenHandledExceptionCodes<readonly []>,
-    never,
-    CraftNodeChildrenCssVars<readonly []>
+    never
   >;
   <
     const Name extends string,
@@ -541,8 +529,7 @@ export interface RequiredAltTagHelper<Tag extends 'img' | 'area'> {
     Name,
     string,
     CraftNodeChildrenHandledExceptionCodes<Children>,
-    never,
-    CraftNodeChildrenCssVars<Children>
+    never
   >;
 }
 

@@ -173,25 +173,19 @@ describe('no-inline-style', () => {
 });
 
 describe('no-component-css', () => {
-  it('reports meta CSS and .css imports, and lets the emitted sheet through', async () => {
+  it('reports .css imports, and lets the emitted sheet through', async () => {
     const messages = await lint(
       componentCssRule,
       `
       import 'virtual:craft-style.css';
       import './styles.css';
       import sheet from './widget.css?inline';
-      craftComponent('x', { styles: '.x{}', stylesUrl: sheet, contentStyles: {} }, () => null);
-      craftDirective('y', { styles: ['.y{}'] });
       const later = () => import('./late.css');
     `,
     );
     expect(ids(messages)).toEqual([
       'cssImport',
       'cssImport',
-      'metaCss',
-      'metaCss',
-      'metaCss',
-      'metaCss',
       'cssImport',
     ]);
   });
@@ -236,7 +230,7 @@ describe('disabling a style rule needs a reason', () => {
 });
 
 describe('the recommended preset', () => {
-  it('makes the design-system rules errors and moves meta-CSS rules to legacyComponentCss', () => {
+  it('makes the design-system rules errors', () => {
     const recommended = plugin.configs.recommended.rules;
     for (const rule of [
       'no-raw-class',
@@ -247,8 +241,5 @@ describe('the recommended preset', () => {
       expect(recommended[`craft-ts/${rule}`]).toBe('error');
       expect(plugin.rules[rule]).toBeDefined();
     }
-    const legacy = Object.keys(plugin.configs.legacyComponentCss.rules);
-    expect(legacy).toContain('craft-ts/require-focus-visible');
-    for (const rule of legacy) expect(recommended[rule]).toBeUndefined();
   });
 });

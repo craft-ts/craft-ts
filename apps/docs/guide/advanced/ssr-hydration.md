@@ -33,8 +33,8 @@ return new Response(
 );
 ```
 
-The result separates `rootHtml`, collected `styles`, and the transfer
-`snapshot`; `html` combines all three. `renderToString(component, options)` is
+The result separates `rootHtml` and the transfer `snapshot`; `html` combines
+both. `renderToString(component, options)` is
 the smaller API when no application config is needed.
 
 All app initializers are run before the server render. Aborting the request
@@ -59,9 +59,7 @@ const app = startCraft({ config: appConfig });
 Hydration restores the snapshot before creating primitives, claims elements,
 text markers, and block boundaries by their structural keys, and attaches
 bindings and listeners. A resolved transferred query therefore does not issue
-the same initial request again. The transfer script and server style element
-are removed after a successful first pass; the normal client style registry
-then owns the styles.
+the same initial request again. The transfer script is removed after a successful first pass.
 
 Call `app.destroy()` when the application host is removed. Pass `host`,
 `snapshot`, or `onMismatch` when the defaults are not appropriate.

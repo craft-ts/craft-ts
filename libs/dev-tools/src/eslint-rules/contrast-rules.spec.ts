@@ -1,17 +1,13 @@
 /**
- * The two guard rails under the static contrast analysis.
+ * The guard rail under the static contrast analysis.
  *
- * Both exist for the same reason and it is worth stating once: the analysis is
- * silent about what it cannot see. A `:hover` written by hand and a `color`
- * set in raw CSS do not produce a wrong answer, they produce **no** answer,
- * and the run then comes back clean on styles nobody proved. That is the worst
- * shape a check can have, so the rules are errors rather than warnings.
+ * The analysis is silent about what it cannot see. A `:hover` written by hand
+ * does not produce a wrong answer, it produces **no** answer, and the run then
+ * comes back clean on styles nobody proved. That is the worst shape a check can
+ * have, so the rule is an error rather than a warning.
  *
- * They live in the `typedCss` preset and not in `recommended`, which is the
- * other half of the same judgement and is measured at the bottom of the file:
- * a project writing its CSS with `meta.styles` makes no contrast claim, and
- * failing its build over `color:` would be the preset telling people their
- * own framework is wrong.
+ * It lives in the `typedCss` preset and not in `recommended`, which is the other
+ * half of the same judgement and is measured at the bottom of the file.
  */
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -21,7 +17,6 @@ import tsParser from '@typescript-eslint/parser';
 import { describe, expect, it } from 'vitest';
 
 const hoverRule = require('./prefer-hover-axis.cjs');
-const textColorRule = require('./no-unmodelled-text-color.cjs');
 
 describe('prefer-hover-axis', () => {
   it('flags a hand-written :hover and names the replacement', async () => {
@@ -56,84 +51,22 @@ describe('prefer-hover-axis', () => {
   });
 });
 
-describe('no-unmodelled-text-color', () => {
-  const component = (css: string) => `
-    export const Widget = craftComponent('Widget', { styles: \`${css}\` },
-      () => ({}), () => div());
-  `;
-
-  it('flags each of the four properties the proof is made of', async () => {
-    for (const [css, property] of [
-      ['.a { color: #333; }', 'color'],
-      ['.a { background-color: #fff; }', 'background-color'],
-      ['.a { font-size: 14px; }', 'font-size'],
-      ['.a { font-weight: 600; }', 'font-weight'],
-    ] as const) {
-      const result = await lint(textColorRule, component(css), 'widget.ts');
-      expect(result.messages, property).toHaveLength(1);
-      expect(result.messages[0]?.message).toContain(`'${property}'`);
-    }
-  });
-
-  it('does not mistake border-color for color', async () => {
-    const result = await lint(
-      textColorRule,
-      component('.a { border-color: #333; padding: 4px; }'),
-      'widget.ts',
-    );
-    expect(result.messages).toEqual([]);
-  });
-
-  it('says what to write instead and how to opt a surface out', async () => {
-    const result = await lint(
-      textColorRule,
-      component('.a { color: #333; }'),
-      'widget.ts',
-    );
-    expect(result.messages[0]?.message).toContain('color(theme.ink)');
-    expect(result.messages[0]?.message).toContain('uncovered');
-    expect(result.messages[0]?.message).toContain(
-      'does not add an indeterminate row',
-    );
-  });
-
-  it('stays quiet on a surface declared as not covered', async () => {
-    // The option documents and suppresses this lint boundary. It cannot add a
-    // contrast result for CSS the graph never receives, so callers must not
-    // present the strict report as covering this file.
-    const result = await lint(
-      textColorRule,
-      component('.a { color: #333; }'),
-      'legacy-widget.ts',
-      [{ uncovered: ['legacy-'] }],
-    );
-    expect(result.messages).toEqual([]);
-  });
-});
-
-describe('where the two rules are switched on', () => {
+describe('where the rule is switched on', () => {
   const plugin = require('./index.cjs');
 
-  it('keeps them out of recommended', () => {
-    // `meta.styles` is a supported way to write a component's CSS, not an
-    // escape hatch. Failing every project that uses it would be this preset
-    // telling people their own framework is wrong.
+  it('keeps it out of recommended', () => {
     expect(plugin.configs.recommended.rules).not.toHaveProperty(
       'craft-ts/prefer-hover-axis',
     );
-    expect(plugin.configs.recommended.rules).not.toHaveProperty(
-      'craft-ts/no-unmodelled-text-color',
-    );
   });
 
-  it('makes them errors in the typedCss preset', () => {
-    // What they protect is a *claim*. Once a project runs style:check, styles
+  it('makes it an error in the typedCss preset', () => {
+    // What it protects is a *claim*. Once a project runs style:check, styles
     // the analysis cannot see turn a clean run into a statement about half
-    // the application — so the rules come on with the thing that makes the
-    // claim, and they are errors rather than warnings.
+    // the application — so the rule comes on with the thing that makes the
+    // claim, and it is an error rather than a warning.
     expect(plugin.configs.typedCss.rules).toEqual({
       'craft-ts/prefer-hover-axis': 'error',
-      'craft-ts/no-unmodelled-text-color': 'error',
     });
   });
 });

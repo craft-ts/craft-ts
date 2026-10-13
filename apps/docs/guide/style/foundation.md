@@ -120,10 +120,3 @@ defineFont('body', {
 `size-adjust` matches the average glyph width, so lines break at the same
 place; `ascent-override`, `descent-override` and `line-gap-override` keep the
 line height.
-
-## What this replaces in the ESLint rules
-
-`require-focus-visible` and `require-reduced-motion` used to read each
-component's CSS text to check that a focus ring and a reduced-motion branch
-were there. The base layer guarantees both for the whole document, so a
-component no longer has anything to prove.

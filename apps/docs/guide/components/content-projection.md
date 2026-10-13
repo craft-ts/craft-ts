@@ -187,8 +187,7 @@ inherited properties — `color`, fonts — and variables declared with
 
 Nothing reaches into the content: a caller that does not read
 `styledCardVars.accent` is unaffected by it, and a nested Craft component keeps
-its own classes. The deprecated `contentStyles` meta — CSS strings pushed into a
-slot — is refused by `no-component-css`.
+its own classes.
 
 ## Pitfalls
 

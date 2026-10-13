@@ -1071,142 +1071,6 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  it('applies opted-in content styles through a dedicated projection scope', async () => {
-    type CardInput = {
-      readonly body: RequiredContent<{
-        readonly selector: {
-          readonly tag: 'p';
-          readonly class: 'projected-value';
-        };
-      }>;
-    };
-    const {
-      ContentStyleProjectedChildView,
-      provideContentStyleProjectedChildView,
-    } = craftService(
-      { name: 'contentStyleProjectedChildView', providedIn: 'toProvide' },
-      function* () {
-        // Nothing to expose.
-      },
-    );
-
-    const projectedChild = craftComponent(
-      'contentStyleProjectedChild',
-      { providers: [provideContentStyleProjectedChildView()] },
-      function* () {
-        yield* ContentStyleProjectedChildView();
-        return p({ class: 'projected-value' }, 'child');
-      },
-    );
-    const card = craftComponent(
-      'contentStyleCard',
-      {
-        styles: '.projected-value { color: blue; }',
-        contentStyles: {
-          body: ':scope { display: block; } .projected-value { color: red; }',
-        },
-      },
-      function* (input: CardInput) {
-        const { body } = input;
-        return section(renderContent('body', body));
-      },
-    );
-    const { ContentStylePageView, provideContentStylePageView } = craftService(
-      { name: 'contentStylePageView', providedIn: 'toProvide' },
-      function* () {
-        // Nothing to expose.
-      },
-    );
-
-    const page = craftComponent(
-      'contentStylePage',
-      { providers: [provideContentStylePageView()] },
-      function* () {
-        yield* ContentStylePageView();
-        return card({
-          body: content(
-            () => [
-              p({ class: 'projected-value' }, 'ordinary'),
-              projectedChild({}),
-            ],
-            { allowContainerStyles: true },
-          ),
-        });
-      },
-    );
-    const {
-      nativeElement: element,
-      flush,
-      destroy,
-    } = await renderCraftComponent(page);
-
-    const ordinary = element.querySelector('p.projected-value') as HTMLElement;
-    expect(ordinary.getAttribute('data-craft-content')).toBe(
-      'contentStyleCard::content::body',
-    );
-    expect(ordinary.getAttribute('data-craft-root')).toBe('contentStylePage');
-    const projectedChildNode = element.querySelectorAll('p.projected-value')[1];
-    expect(projectedChildNode?.hasAttribute('data-craft-content')).toBe(false);
-    expect(projectedChildNode?.getAttribute('data-craft-root')).toContain(
-      'contentStyleProjectedChild',
-    );
-    const contentSheet = Array.from(
-      document.querySelectorAll<HTMLStyleElement>('style[data-craft-sheet]'),
-    ).find((style) => style.textContent?.includes('data-craft-content'));
-    expect(contentSheet?.textContent).toContain(
-      '@scope ([data-craft-content~="contentStyleCard::content::body"])',
-    );
-    expect(contentSheet?.textContent).toContain('to ([data-craft-root])');
-
-    destroy();
-    expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
-      0,
-    );
-  });
-
-  it('keeps content styles isolated unless the slot opts in', async () => {
-    const card = craftComponent(
-      'isolatedContentStyleCard',
-      { contentStyles: { body: ':scope { color: red; }' } },
-      function* (input: { readonly body: ContentSlot }) {
-        const { body } = input;
-        return renderContent('body', body);
-      },
-    );
-    const {
-      IsolatedContentStylePageView,
-      provideIsolatedContentStylePageView,
-    } = craftService(
-      { name: 'isolatedContentStylePageView', providedIn: 'toProvide' },
-      function* () {
-        // Nothing to expose.
-      },
-    );
-
-    const page = craftComponent(
-      'isolatedContentStylePage',
-      { providers: [provideIsolatedContentStylePageView()] },
-      function* () {
-        yield* IsolatedContentStylePageView();
-        return card({ body: () => p({ class: 'isolated' }, 'content') });
-      },
-    );
-    const {
-      nativeElement: element,
-      flush,
-      destroy,
-    } = await renderCraftComponent(page);
-
-    expect(element.querySelector('p.isolated')).not.toBeNull();
-    expect(
-      element.querySelector('p.isolated')?.getAttribute('data-craft-content'),
-    ).toBeNull();
-    expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
-      0,
-    );
-    destroy();
-  });
-
   it('keeps projected child components on the declarative injector chain', async () => {
     const { RuntimeProjectedChildView, provideRuntimeProjectedChildView } =
       craftService(
@@ -1828,7 +1692,6 @@ describe('functional component interpreter', () => {
       'scopedChild',
       {
         providers: [provideScopedChildView()],
-        styles: '.child { color: red; }',
       },
       function* () {
         yield* ScopedChildView();
@@ -1848,7 +1711,6 @@ describe('functional component interpreter', () => {
       'scopedParent',
       {
         providers: [provideScopedParentView()],
-        styles: '.parent { color: blue; }',
       },
       function* () {
         yield* ScopedParentView();
@@ -1868,45 +1730,6 @@ describe('functional component interpreter', () => {
     expect(
       element.querySelector('.child-inner')?.hasAttribute('data-craft-root'),
     ).toBe(false);
-    expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
-      2,
-    );
-
-    destroy();
-    expect(document.querySelectorAll('style[data-craft-sheet]')).toHaveLength(
-      0,
-    );
-  });
-
-  it('registers stylesUrl content in the component style scope', async () => {
-    const { StylesUrlView, provideStylesUrlView } = craftService(
-      { name: 'stylesUrlView', providedIn: 'toProvide' },
-      function* () {
-        // Nothing to expose.
-      },
-    );
-
-    const component = craftComponent(
-      'stylesUrlComponent',
-      {
-        providers: [provideStylesUrlView()],
-        stylesUrl: '.external { color: red; }',
-      },
-      function* () {
-        yield* StylesUrlView();
-        return div({ class: 'external' }, 'external');
-      },
-    );
-    const {
-      nativeElement: element,
-      flush,
-      destroy,
-    } = await renderCraftComponent(component);
-
-    expect(
-      document.querySelector<HTMLStyleElement>('style[data-craft-sheet]')
-        ?.textContent,
-    ).toContain('.external { color: red; }');
 
     destroy();
   });

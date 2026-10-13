@@ -142,8 +142,7 @@ craftComponent(
 
 The meta carries no CSS. A component's look lives in a `*.style.ts` sheet beside
 it — see [Styling a component: the only way](/guide/components/styles).
-`styles`, `stylesUrl` and `contentStyles` still exist on the type, deprecated,
-and `craft-ts/no-component-css` refuses them.
+`craft-ts/no-component-css` refuses any `.css` import.
 
 ## Composing behaviour
 

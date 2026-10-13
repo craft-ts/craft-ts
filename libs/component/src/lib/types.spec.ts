@@ -334,9 +334,7 @@ it('extracts projection contracts and propagates projected dependencies', () => 
 
   const card = craftComponent(
     'typedCard',
-    {
-      contentStyles: { body: ':scope { color: red; }' },
-    },
+    {},
     function* (input: {
       readonly body: RequiredContent<{
         readonly selector: {
@@ -437,7 +435,7 @@ it('extracts projection contracts and propagates projected dependencies', () => 
 it('checks the declared selector contract for projected content', () => {
   const card = craftComponent(
     'selectorContractCard',
-    { contentStyles: { body: ':scope { display: block; }' } },
+    {},
     function* (input: {
       readonly body: RequiredContent<{
         readonly selector: {
