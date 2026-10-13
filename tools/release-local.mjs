@@ -299,7 +299,6 @@ export function syncEffectDemoWorkspace(
   targetManifest.dependencies.effect = effectVersion;
   delete targetManifest.dependencies['@craft-ts/dev-tools'];
   targetManifest.devDependencies['@craft-ts/dev-tools'] = version;
-  targetManifest.devDependencies.rxjs = '^7.8.0';
   targetManifest.devDependencies.tslib = '^2.3.0';
   writeJson(targetManifestPath, targetManifest);
 

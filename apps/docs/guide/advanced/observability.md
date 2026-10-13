@@ -26,6 +26,7 @@ The three pillars `craft-ts` exposes for that are:
 - [`provideTemplateTrace`](#providetemplatetrace) — observe effective component and template renders
 - [`provideCraftRouterTrace`](#providecraftroutertrace) — observe navigation events and Craft route stages
 - [`provideCraftHttpTrace`](#providecrafthttptrace) — wrap every `CraftHttpClient` request
+- [`provideStreamTrace`](/guide/reactivity/streams#observability) — observe every typed stream subscription; stream handlers also go through `provideFnWrapper`
 - [`provideTakeAppSnapshot`](#providetakeappsnapshot) — capture all active state when something goes wrong
 - [`provideCraftDomEventHook`](#craft-dom-event-hooks) — observe or wrap every DOM action declared in a Craft template
 - [`provideCorrelationIdTracking`](#providecorrelationidtracking) — link a user gesture to every async operation it triggered

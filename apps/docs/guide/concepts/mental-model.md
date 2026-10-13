@@ -190,7 +190,11 @@ const { UserProfile } = craftService(
 
 ### Signals, not RxJS
 
-100% signal-based. RxJS is optional and only appears where you ask for it.
+100% signal-based. craft-ts has no RxJS dependency: anything subscribable — an
+RxJS `Observable` included — works structurally, and when you do want streams
+(operators, multicast, typed exceptions), `@craft-ts/stream` provides them with
+the same typed dependencies and exceptions as the rest of craft-ts. See
+[Typed streams](/guide/reactivity/streams).
 
 ### Declarative code is legible code
 

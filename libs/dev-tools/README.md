@@ -113,6 +113,7 @@ The individual stages are available for focused work:
 ```bash
 craft-migrate-primitives --project tsconfig.app.json --root src --write
 craft-migrate-services --project tsconfig.app.json --root src --write
+craft-migrate-streams --project tsconfig.app.json --root src --write
 craft-migrate-routes --project tsconfig.app.json --root src --write
 craft-migrate-components --project tsconfig.app.json --root src --write
 craft-migrate-architecture --project tsconfig.app.json --root src --write

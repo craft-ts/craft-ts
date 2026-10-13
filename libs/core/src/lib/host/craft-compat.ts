@@ -1,4 +1,8 @@
-import { Observable, type MonoTypeOperatorFunction } from 'rxjs';
+import {
+  completionOf,
+  isObservableLike,
+  type Subscribable,
+} from '../stream-kernel/subscribable';
 import {
   createCraftInjector,
   getCurrentCraftInjector,
@@ -130,7 +134,7 @@ export type ResourceStreamingLoader<T, P> = (
   params: ResourceLoaderParams<P>,
 ) =>
   | Promise<Signal<ResourceStreamItem<T> | { value: T } | undefined>>
-  | Observable<{ value: T } | ResourceStreamItem<T>>
+  | Subscribable<{ value: T } | ResourceStreamItem<T>>
   | Signal<{ value: T } | ResourceStreamItem<T> | undefined>;
 export type InputSignal<T> = Signal<T>;
 export type InputSignalWithTransform<T, TransformT = unknown> = Signal<T> & {
@@ -285,7 +289,12 @@ export class ApplicationInitStatus {
   ) {
     this.donePromise = new Promise<void>((resolve, reject) => {
       try {
-        const results = initializers.map((initializer) => run(initializer));
+        const results = initializers.map((initializer) => {
+          const result = run(initializer);
+          // A stream-shaped result (`appStart` may return one) is awaited until
+          // it completes, like a Promise.
+          return isObservableLike(result) ? completionOf(result) : result;
+        });
         void Promise.all(results).then(() => {
           this._done = true;
           resolve();
@@ -780,55 +789,4 @@ export function isWritableSignal(
   return (
     isSignal(value) && typeof (value as { set?: unknown }).set === 'function'
   );
-}
-
-export function takeUntilDestroyed<T>(
-  destroyRef?: DestroyRef,
-): MonoTypeOperatorFunction<T> {
-  const ref = destroyRef ?? inject(DestroyRef, { optional: true });
-  return (source) =>
-    new Observable<T>((subscriber) => {
-      const subscription = source.subscribe(subscriber);
-      const release = ref?.onDestroy(() => subscription.unsubscribe());
-      return () => {
-        release?.();
-        subscription.unsubscribe();
-      };
-    });
-}
-
-export type ToObservableOptions = {
-  injector?: InjectorHandle;
-};
-
-export function toObservable<T>(
-  source: Signal<T>,
-  options?: ToObservableOptions,
-): Observable<T> {
-  return new Observable<T>((subscriber) => {
-    const start = () => {
-      const watch = craftWatch(() => {
-        subscriber.next(source());
-      });
-      let release: (() => void) | undefined;
-      try {
-        const destroyRef = inject(DestroyRef, { optional: true });
-        release = destroyRef?.onDestroy(() => {
-          watch.destroy();
-          if (!subscriber.closed) {
-            subscriber.complete();
-          }
-        });
-      } catch {
-        release = undefined;
-      }
-      return () => {
-        release?.();
-        watch.destroy();
-      };
-    };
-    return options?.injector
-      ? asCraftInjector(options.injector).run(start)
-      : start();
-  });
 }

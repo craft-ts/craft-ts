@@ -55,7 +55,9 @@ describe('send context session', () => {
   it('exports a selected clip and publishes observable snapshots', () => {
     const session = createSendContextSession();
     const values: unknown[][] = [];
-    session.events$.subscribe((events) => values.push([...events]));
+    session.events$.subscribe({
+      next: (events) => values.push([...events]),
+    });
     const clip = session.startRecord('export');
     session.capture('http', 'started', { operationId: 'op-1' });
     session.stopRecord();

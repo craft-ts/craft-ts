@@ -5,7 +5,7 @@ import {
   type Injector,
 } from './host/craft-compat';
 import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
-import { Subject } from 'rxjs';
+import { subject } from './stream-kernel';
 import { provideFnWrapper } from './fn-wrapper';
 import { isCraftControlFlow } from './craft-control-flow';
 import { ɵinjectCraftRuntimeMode } from './craft-runtime-mode';
@@ -90,8 +90,8 @@ export interface InsertionSnapshotReport {
 }
 
 export class InsertionSnapshotRegistry {
-  readonly trigger$ = new Subject<void>();
-  readonly allInsertionSnapshot$ = new Subject<InsertionSnapshotReport>();
+  readonly trigger$ = subject<void>();
+  readonly allInsertionSnapshot$ = subject<InsertionSnapshotReport>();
 }
 
 const appSnapshotRegistryService = ɵcraftValueService(
@@ -207,8 +207,10 @@ export function triggerAndCollectInsertions(
 ): Record<string, unknown> | undefined {
   if (!registry) return undefined;
   const snapshots: Record<string, unknown> = {};
-  const sub = registry.allInsertionSnapshot$.subscribe(({ key, value }) => {
-    snapshots[key] = value;
+  const sub = registry.allInsertionSnapshot$.subscribe({
+    next: ({ key, value }) => {
+      snapshots[key] = value;
+    },
   });
   registry.trigger$.next();
   sub.unsubscribe();

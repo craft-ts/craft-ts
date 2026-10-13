@@ -1,0 +1,43 @@
+{
+  "name": "@craft-ts/stream",
+  "version": "0.8.8",
+  "description": "Typed, craft-native streams — operators accumulate service dependencies and typed exceptions in their type",
+  "author": "Romain Geffrault",
+  "license": "MIT",
+  "homepage": "https://craft-ts.github.io/craft/",
+  "bugs": {
+    "url": "https://github.com/craft-ts/craft-ts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/craft-ts/craft-ts.git"
+  },
+  "keywords": [
+    "stream",
+    "reactive",
+    "operators",
+    "typed errors",
+    "craft-ts",
+    "typescript"
+  ],
+  "peerDependencies": {
+    "@craft-ts/core": "^0.8.8"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    }
+  }
+}

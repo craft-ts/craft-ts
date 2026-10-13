@@ -265,7 +265,9 @@ rule. The temporal runtime implementation itself is the explicit exception.
 - Browser background-tab throttling is not simulated by the virtual runtime.
 - Microtasks and macrotasks remain distinct; advancing virtual time flushes the
   microtasks caused by the tasks it executes.
-- RxJS schedulers are not automatically replaced by the Craft runtime.
+- RxJS schedulers are not replaced by the Craft runtime. The time operators of
+  [`@craft-ts/stream`](/guide/reactivity/streams#time) (`debounce`, `throttle`, `delay`,
+  `timeout`, `retry`, `repeat`, `bufferTime`) do use it, and follow the virtual clock.
 - A timeout does not cancel an external resource unless that resource accepts
   and observes an abort signal.
 - Timers created by third-party APIs remain outside Craft ownership.

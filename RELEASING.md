@@ -10,6 +10,8 @@ from it rather than from a hand-kept enumeration.
 | `@craft-ts/core`                  | `craft-ts-core`           | `libs/core`                      |
 | `@craft-ts/component`             | `craft-ts-component`      | `libs/component`                 |
 | `@craft-ts/effect`                | `craft-ts-effect`         | `libs/effect`                    |
+| `@craft-ts/stream`                | `craft-ts-stream`         | `libs/stream`                    |
+| `@craft-ts/stream-effect`         | `craft-ts-stream-effect`  | `libs/stream-effect`             |
 | `@craft-ts/dev-tools`             | `dev-tools`               | `libs/dev-tools`                 |
 | `@craft-ts/deploy`                | `craft-ts-deploy`         | `libs/deploy`                    |
 | `@craft-ts/cli`                   | `craft-ts-cli`            | `libs/cli`                       |

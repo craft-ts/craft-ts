@@ -359,8 +359,17 @@ function migrateSingleEmissionRxResources(
   }
 
   if (!changed) return false;
-  ensureCoreImports(sourceFile, ['query']);
-  ensureNamedImport(sourceFile, 'rxjs', 'firstValueFrom');
+  // `firstValueFrom` comes from core's structural stream kernel: it accepts any
+  // Subscribable (an rxjs Observable included), so the project needs no rxjs of
+  // its own. A file that already imports it from rxjs keeps that import.
+  const alreadyFromRxjs = sourceFile
+    .getImportDeclaration('rxjs')
+    ?.getNamedImports()
+    .some((item) => item.getName() === 'firstValueFrom');
+  ensureCoreImports(
+    sourceFile,
+    alreadyFromRxjs ? ['query'] : ['query', 'firstValueFrom'],
+  );
   removeNamedImportIfUnused(sourceFile, '@angular/core/rxjs-interop', 'rxResource');
   removeNamedImportIfUnused(sourceFile, 'rxjs', 'from');
   removeNamedImportIfUnused(sourceFile, 'rxjs', 'of');

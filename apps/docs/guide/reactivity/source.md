@@ -14,7 +14,7 @@ automatic cleanup and signal-based value tracking.
 - Event emission and subscription capabilities
 - Automatic subscription cleanup via `DestroyRef`
 - Signal-based value tracking for reactive access
-- Optional last value preservation for late subscribers
+- Optional memory for late subscribers (`{ replay }`, `{ initial }`)
 - Read-only variants for encapsulation
 
 ## Import
@@ -26,7 +26,14 @@ import { craftComputed, source$ } from '@craft-ts/core';
 ## Signature
 
 ```typescript
-function source$<T>(name: string): Source$<T>;
+function source$<T>(name: string, options?: SourceOptions<T>): Source$<T>;
+
+type SourceOptions<T> = {
+  /** A new subscriber first receives the last `replay` emitted values. */
+  replay?: number;
+  /** Starts the source holding this value; `value()` is then never `undefined`. */
+  initial?: T;
+};
 ```
 
 ### Parameters
@@ -53,7 +60,7 @@ The yielded value is the source instance. Its source API is unchanged:
 - **`subscribe(callback: (value: T) => void)`** - Subscribes to emissions with a callback
 - **`value: Signal<T | undefined>`** - A read-only signal containing the last emitted value (or `undefined` if no value has been emitted)
 - **`asReadonly()`** - Returns a read-only version of the source (only `subscribe` and `value`)
-- **`preserveLastValue()`** - Returns a source variant that immediately emits the last value to new subscribers
+- **`preserveLastValue()`** - _Deprecated, use `{ replay: 1 }`._ Returns a source variant that immediately emits the last value to new subscribers (nothing when no value was emitted yet)
 
 ## Types
 
@@ -135,9 +142,30 @@ const uppercased = craftUse(craftComputed('uppercased', function* () {
 }));
 ```
 
-### Last Value Preservation
+### Replay and initial value
 
-Use `preserveLastValue()` to ensure late subscribers receive the most recent value:
+Give the source a memory with options, instead of deriving a variant:
+
+```typescript
+const notifications$ = source$<string>('notifications$', { replay: 2 });
+notifications$.emit('a');
+notifications$.emit('b');
+notifications$.emit('c');
+// A late subscriber receives 'b' then 'c', then live emissions.
+notifications$.subscribe((message) => console.log(message));
+
+// `initial` seeds the source: `value()` is typed `T` (never undefined) and a
+// subscriber receives the current value first.
+const theme$ = source$<'light' | 'dark'>('theme$', { initial: 'light' });
+theme$.value(); // 'light'
+```
+
+`replay` keeps the last `n` values; `initial` implies `replay >= 1`.
+
+### Last Value Preservation (deprecated)
+
+`preserveLastValue()` predates the options above and is kept for compatibility;
+prefer `{ replay: 1 }`. It makes late subscribers receive the most recent value:
 
 ```typescript
 const counter$ = source$<number>('counter$');

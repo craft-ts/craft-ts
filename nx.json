@@ -79,6 +79,8 @@
       "craft-ts-core",
       "craft-ts-component",
       "craft-ts-effect",
+      "craft-ts-stream",
+      "craft-ts-stream-effect",
       "dev-tools",
       "craft-ts-deploy",
       "craft-ts-cli",

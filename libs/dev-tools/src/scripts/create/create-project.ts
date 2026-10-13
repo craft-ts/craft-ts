@@ -852,7 +852,6 @@ function packageJson(context: TemplateContext): string {
       '@types/node': '^22.0.0',
       'aria-query': '^5.3.2',
       jsdom: '^27.1.0',
-      rxjs: '^7.8.0',
       tslib: '^2.3.0',
       ...(hasEffect
         ? {

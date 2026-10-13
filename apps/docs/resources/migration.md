@@ -74,10 +74,15 @@ debugged one stage at a time:
 ```shell
 npx craft-migrate-primitives --project tsconfig.app.json --root src --write
 npx craft-migrate-services --project tsconfig.app.json --root src --write
+npx craft-migrate-streams --project tsconfig.app.json --root src --write
 npx craft-migrate-routes --project tsconfig.app.json --root src --write
 npx craft-migrate-components --project tsconfig.app.json --root src --write
 npx craft-migrate-architecture --project tsconfig.app.json --root src --write
 ```
+
+`craft-migrate-streams` rewrites RxJS pipelines to [`@craft-ts/stream`](/guide/reactivity/streams#migrating-from-rxjs).
+It is not part of the aggregate `craft-migrate` run: it is all-or-nothing per file and leaves
+any file it cannot fully migrate untouched, with a diagnostic.
 
 For a pasted HTML or Web Component snippet, use the standalone template
 converter:

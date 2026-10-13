@@ -71,14 +71,56 @@ making runtime state, dependency relationships, and application events easier
 to inspect and reason about. Feedback will help determine whether these ideas
 should become part of a DevTools experience or evolve as separate tools.
 
-## Exploring a typed RxJS-like library
+## Typed streams (`@craft-ts/stream`)
 
-I am also studying the possibility of creating a typed RxJS-like library built
-around the principles of `@craft-ts/core`. The goal would be to preserve the
-advantages of the existing RxJS ecosystem while providing stronger typing,
-treating errors as exceptions, and integrating observability natively with
-CraftTS. It would also include dependency tracking, making reactive
-relationships explicit and inspectable.
+A typed RxJS-like library built around the principles of `@craft-ts/core` now
+exists: `CraftStream<A, Y>` is a cold push stream whose type accumulates the
+service dependencies of its operators' handlers and the typed exceptions they
+may raise — readable at the terminal, where `subscribe` refuses to compile
+without a handler for every exception. See [Typed streams](/guide/reactivity/streams).
+
+Delivered: the carrier and `.pipe` (up to 14 operators); per-value operators (`map`,
+`filter`, `tap`, `scan`); selection (`take`, `skip`, `takeWhile`, `distinctUntilChanged`,
+`startWith`, `pairwise`, `takeUntil`, `takeUntilDestroyed`); flattening (`switchMap`,
+`exhaustMap`, `concatMap`, `mergeMap`); combination (`combineLatest`, `merge`, `zip`,
+`race`, `withLatestFrom`); time (`debounce`, `throttle`, `delay`, `timeout`, `retry`,
+`repeat`, `auditTime`); sources (`interval`, `timer`, `fromEvent`); grouping (`buffer`,
+`bufferCount`, `bufferTime`, `bufferWhen`, `sample`, `groupBy`, `window`, `windowCount`,
+`expand`); exceptions (`catchTag` and `.exhaustive`, `mapException`, `orElse`);
+multicast (`share`, `shareReplay`); the terminals (`lastValueFrom`, `firstValueFrom`,
+`toArray`, `runForEach`, `subscribe`, `streamSignal`); the Effect adapters
+(`@craft-ts/stream-effect`); and the `craft-migrate-streams` codemod. Core no longer
+depends on RxJS.
+
+Also delivered: the everyday operators (`first`, `last`, `takeLast`, `reduce`, `skipWhile`,
+`skipUntil`, `distinct`, `defaultIfEmpty`, `ignoreElements`, `endWith`, `finalize`,
+`switchAll`/`mergeAll`/`concatAll`/`exhaustAll`, `concat`, `concatWith`, `mergeWith`,
+`combineLatestWith`) and the creators `defer`, `throwError`, `never`. The codemod now also
+moves `lastValueFrom`, `throwError` and `asyncScheduler`-taking calls over.
+
+Also delivered: `materialize` / `dematerialize` (with a `'X'` notification for typed
+exceptions), `observeOn` / `subscribeOn` (they hop onto the temporal runtime — craft's one
+scheduler, so there is no scheduler argument), and the connectable family (`connectable`,
+`publish`, `publishReplay`, `publishBehavior`, `multicast`, `refCount`). The codemod
+translates all of them, dropping rxjs scheduler arguments with a review notice.
+
+Also delivered: the creators `from` (a stream, a Subscribable, a Promise or an iterable),
+`fromPromise`, `fromIterable`, `generate`, `bindCallback` / `bindNodeCallback` and `fromFetch`;
+the codemod translates `from`, `scheduled`, `generate` (positional form included),
+`bindCallback`, `fromFetch`, and a publish-family operator wherever it sits in a pipe.
+
+Also delivered: `ajax` (`getJSON`, `get`, `post`, `put`, `patch`, `delete`, `AjaxError`) and
+`webSocket` — stream-shaped network sources on `fetch` and the platform `WebSocket` — and the
+`connect(selector, { connector })` operator, which is where the selector forms of `publish`,
+`publishReplay` and `multicast` land. The codemod now also expands aliased and namespace
+imports (renaming every reference), and wraps a `.pipe` receiver whose type it cannot
+establish in `from(...)` with a review notice instead of refusing the file.
+
+The codemod's one remaining boundary is the one every all-or-nothing migration has: a symbol
+that is in none of its tables (a future rxjs export, a third-party operator) leaves the file
+untouched, with a diagnostic naming the symbol — and an alias that clashes with another name
+in the file, a namespace used as a plain value, or an operator taking a form that cannot be
+expressed (a `publishReplay` with three arguments before its selector) do the same.
 
 ## Longer-term exploration: type-safe server functions
 

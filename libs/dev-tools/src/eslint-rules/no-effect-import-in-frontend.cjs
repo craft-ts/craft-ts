@@ -5,6 +5,7 @@ const EFFECT_IMPORT_PREFIXES = [
   '@effect/',
   '@craft-ts/effect',
   '@craft-ts/i18n-effect',
+  '@craft-ts/stream-effect',
 ];
 
 function isEffectImport(source) {

@@ -4,8 +4,7 @@ import {
   Injector,
   runInInjectionContext,
 } from './host/craft-compat';
-import { toObservable } from './host/craft-compat';
-import { filter, take } from 'rxjs';
+import { waitUntilTrue } from './stream-kernel';
 import type { AnyCraftException } from './craft-exception';
 import { CraftGenShortCircuit, isCraftGenShortCircuit } from './craft-gen';
 import {
@@ -69,7 +68,9 @@ function isTaggedForeignYieldOutcome(
   value: unknown,
 ): value is TaggedForeignYieldOutcome {
   return (
-    typeof value === 'object' && value !== null && FOREIGN_YIELD_OUTCOME in value
+    typeof value === 'object' &&
+    value !== null &&
+    FOREIGN_YIELD_OUTCOME in value
   );
 }
 
@@ -229,6 +230,58 @@ function isResourceSettled(resource: GuardAwaitResourceLike): boolean {
   return status === 'resolved' || status === 'exception' || status === 'error';
 }
 
+// Awaits a promise request. When the request carries a `cancel` hook it is
+// called — and the wait rejected with `TemporalCancelledError` — as soon as the
+// program is aborted or its injector destroyed, so the producer behind the
+// promise (a stream subscription, say) is released instead of leaking.
+function awaitPromiseRequest(
+  value: PromiseLike<unknown>,
+  cancel: (() => void) | undefined,
+  injector: Injector,
+  abortSignal: AbortSignal | undefined,
+): Promise<unknown> {
+  if (!cancel) return Promise.resolve(value);
+
+  return new Promise<unknown>((resolve, reject) => {
+    let settled = false;
+    // Assigned after `cleanup`/`onCancel`, which both release it.
+    // eslint-disable-next-line prefer-const
+    let releaseDestroy: (() => void) | undefined;
+
+    const cleanup = () => {
+      settled = true;
+      abortSignal?.removeEventListener('abort', onCancel);
+      releaseDestroy?.();
+    };
+    const onCancel = () => {
+      if (settled) return;
+      cleanup();
+      cancel();
+      reject(new TemporalCancelledError());
+    };
+
+    if (abortSignal?.aborted) {
+      onCancel();
+      return;
+    }
+    abortSignal?.addEventListener('abort', onCancel, { once: true });
+    releaseDestroy = injector.get(DestroyRef, null)?.onDestroy(onCancel);
+
+    Promise.resolve(value).then(
+      (result) => {
+        if (settled) return;
+        cleanup();
+        resolve(result);
+      },
+      (error) => {
+        if (settled) return;
+        cleanup();
+        reject(error);
+      },
+    );
+  });
+}
+
 // Bridges a single await-request to a Promise: `'promise'` requests await
 // the thenable directly; `'settle'` requests subscribe to the resource's settled
 // status (computed off its signals, observed on `injector`) and resolve on the
@@ -251,35 +304,27 @@ export function awaitCraftProgramRequest(
   }
 
   if (isPromiseAwaitRequest(request)) {
-    return Promise.resolve(request.value);
+    return awaitPromiseRequest(
+      request.value,
+      request.cancel,
+      injector,
+      abortSignal,
+    );
   }
 
   if (request.kind === 'promise') {
-    return Promise.resolve(request.value);
+    return awaitPromiseRequest(
+      request.value,
+      request.cancel,
+      injector,
+      abortSignal,
+    );
   }
 
-  return new Promise<unknown>((resolve, reject) => {
-    try {
-      const settled$ = runInInjectionContext(injector, () =>
-        toObservable(
-          computed(() => isResourceSettled(request.resource)),
-          {
-            injector,
-          },
-        ),
-      ).pipe(
-        filter((settled) => settled),
-        take(1),
-      );
-
-      settled$.subscribe({
-        next: () => resolve(undefined),
-        error: reject,
-      });
-    } catch (error) {
-      reject(error);
-    }
-  });
+  return waitUntilTrue(
+    computed(() => isResourceSettled(request.resource)),
+    injector,
+  ).then(() => undefined);
 }
 
 // Resumes `iterator` across every await it hits until it settles (completes or

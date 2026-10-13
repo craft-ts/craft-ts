@@ -27,13 +27,7 @@
   ],
   "peerDependencies": {
     "effect": ">=4.0.0-rc.112 || >=4.0.0",
-    "rxjs": "^7.8.0",
     "tslib": "^2.3.0"
-  },
-  "peerDependenciesMeta": {
-    "rxjs": {
-      "optional": true
-    }
   },
   "dependencies": {
     "alien-signals": "^3.2.1"

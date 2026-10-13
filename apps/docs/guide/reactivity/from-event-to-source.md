@@ -429,6 +429,9 @@ const { searchResults } = state('searchResults', [], ({ set }) => ({
 
 ### Debounced Input
 
+craft-ts does not depend on RxJS; this example uses it as _your own_ optional
+dependency, through the structural `Subscribable` contract.
+
 ```typescript
 import { debounceTime } from 'rxjs/operators';
 

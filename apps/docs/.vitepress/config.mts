@@ -344,6 +344,7 @@ const guideSidebar = [
         link: '/guide/reactivity/from-event-to-source',
       },
       { text: 'sourceFromEvent', link: '/guide/reactivity/source-from-event' },
+      { text: 'Typed streams', link: '/guide/reactivity/streams' },
       {
         text: 'afterRecomputation',
         link: '/guide/reactivity/after-recomputation',

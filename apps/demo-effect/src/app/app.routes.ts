@@ -13,6 +13,7 @@ import {
   type EffectRequirementsCheckedDI,
   type ProvidedEffectServicesOfRoute,
 } from '@craft-ts/effect';
+import { craftTemporalClock } from '@craft-ts/stream-effect';
 import type { Effect } from 'effect';
 import type { AppProvidedEffectServices } from './app.config';
 import { SupportTeamLive } from './shared/access-domain';
@@ -101,6 +102,18 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
           ({ default: component }) => component,
         ),
       [provideLayer(I18nLive)],
+    ),
+  },
+  {
+    path: 'stream-interop',
+    ...loadCraftComponent(
+      ({ withRetry }) =>
+        withRetry(import('./examples/effect/effect-stream-interop')).then(
+          ({ default: component }) => component,
+        ),
+      // Effect's Clock follows craft's temporal runtime: `Effect.sleep` in this
+      // page is the same time as every craft timer, and a test can drive it.
+      [provideLayer(craftTemporalClock())],
     ),
   },
   {
@@ -209,6 +222,16 @@ type _CheckEffectI18nDI = RouteCheckedDI<
   'component: effect-i18n'
 >;
 type _CanRunEffectI18n = CanRun<_CheckEffectI18nDI>;
+
+type _CheckEffectStreamInteropDI = RouteCheckedDI<
+  ComponentDepsOf<
+    (typeof import('./examples/effect/effect-stream-interop'))['default']
+  >,
+  'CraftRouter',
+  never,
+  'component: effect-stream-interop'
+>;
+type _CanRunEffectStreamInterop = CanRun<_CheckEffectStreamInteropDI>;
 
 type _CheckEffectFunctionDI = RouteCheckedDI<
   ComponentDepsOf<

@@ -1,5 +1,5 @@
 import { Injector, type Provider } from './host/craft-compat';
-import type { Observable } from 'rxjs';
+import type { Subscribable } from './stream-kernel/subscribable';
 import type { ConcreteServiceScope } from './craft-service.shared';
 import { injectFnWrapper } from './fn-wrapper';
 import {
@@ -42,6 +42,12 @@ export const CRAFT_PROMISE_AWAIT_REQUEST_MARKER = Symbol(
 export type RuntimePromiseAwaitRequest = Readonly<{
   [CRAFT_PROMISE_AWAIT_REQUEST_MARKER]: true;
   value: PromiseLike<unknown>;
+  /**
+   * Releases whatever produces `value`. Called when the awaiting program is
+   * aborted or its injector destroyed — a generator is never `return()`ed, so
+   * without this hook a promise backed by a subscription would leak it.
+   */
+  cancel?: () => void;
 }>;
 
 export function isPromiseAwaitRequest(
@@ -131,7 +137,7 @@ export function provideServiceYieldWrapper(
   return { provide: SERVICE_YIELD_WRAPPER, useValue: wrapper, multi: true };
 }
 
-type AppStartResult = Observable<unknown> | Promise<unknown> | void;
+type AppStartResult = Subscribable<unknown> | Promise<unknown> | void;
 
 type AnyGeneratorFunction = (
   ...args: never[]
@@ -232,6 +238,8 @@ export type RuntimeGuardAwaitRequest =
       [GUARD_AWAIT_REQUEST_MARKER]: true;
       kind: 'promise';
       value: PromiseLike<unknown>;
+      /** See {@link RuntimePromiseAwaitRequest.cancel}. */
+      cancel?: () => void;
     }>;
 
 export type RuntimeAwaitRequest =

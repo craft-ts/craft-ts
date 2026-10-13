@@ -280,6 +280,9 @@ export * from './lib/craft-target-runtime';
 export * from './lib/craft-node-directive';
 export * from './lib/fn-wrapper';
 export {
+  GUARD_AWAIT_REQUEST_MARKER,
+  isGenerator,
+  type RuntimeGuardAwaitRequest,
   executeGeneratorCompatibleFactory,
   type GeneratorOnlyFactory,
   type ResolveGeneratorResult,
@@ -295,18 +298,23 @@ export {
   type ServiceYieldWrapper,
 } from './lib/craft-generator-runtime';
 export {
+  awaitCraftProgramRequest,
   driveCraftProgramAsync,
   executeGeneratorCompatibleFactoryAsync,
+  pumpCraftProgramSync,
   // Foreign-yield bridge: lets a package such as `@craft-ts/effect` claim yields
   // core does not understand, without core ever depending on `effect`.
   setForeignYieldBridge,
   ɵsetForeignYieldBridge,
+  type CraftProgramPumpOptions,
   type CraftProgramSettledStep,
+  type CraftProgramStep,
   type ForeignYieldBridge,
   type ForeignYieldContext,
   type ForeignYieldOutcome,
 } from './lib/craft-program-runtime';
 export * from './lib/host-tag';
+export * from './lib/stream-kernel';
 export * from './lib/source$';
 export * from './lib/from-event-to-source$';
 export * from './lib/on$';

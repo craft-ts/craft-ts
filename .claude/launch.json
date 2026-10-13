@@ -59,6 +59,18 @@
       ],
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "demo-stream",
+      "runtimeExecutable": "/Users/romaingeffrault/.nvm/versions/node/v22.23.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/nx/bin/nx.js",
+        "serve",
+        "demo-stream",
+        "--port",
+        "4210"
+      ],
+      "port": 4210
     }
   ]
 }

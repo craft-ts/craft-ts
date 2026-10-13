@@ -39,6 +39,15 @@ describe('no-effect-import-in-frontend', () => {
     ).resolves.toHaveLength(2);
   });
 
+  it('rejects the stream/Effect adapter, but not plain @craft-ts/stream', async () => {
+    await expect(
+      lint(`import { fromStream } from '@craft-ts/stream-effect';`),
+    ).resolves.toHaveLength(1);
+    await expect(
+      lint(`import { map } from '@craft-ts/stream';`),
+    ).resolves.toEqual([]);
+  });
+
   it('accepts plain Craft and non-Effect imports', async () => {
     await expect(
       lint(

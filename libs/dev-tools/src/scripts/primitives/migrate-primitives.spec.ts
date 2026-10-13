@@ -331,6 +331,10 @@ describe('primitives migration', () => {
     );
     expect(output).not.toContain('rxResource');
     expect(output).not.toContain("from 'rxjs/operators'");
+    expect(output).toMatch(
+      /import \{[^}]*\bfirstValueFrom\b[^}]*\} from '@craft-ts\/core'/,
+    );
+    expect(output).not.toMatch(/\bfirstValueFrom\b[^;]*from 'rxjs'/);
     expect(result.diagnostics).toEqual([]);
   });
 

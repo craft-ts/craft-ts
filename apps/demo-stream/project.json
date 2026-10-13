@@ -1,0 +1,66 @@
+{
+  "name": "demo-stream",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/demo-stream/src",
+  "tags": ["scope:demo", "type:app"],
+  "targets": {
+    "build-local-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/component/tsconfig.lib.json libs/stream/tsconfig.lib.json --pretty false"
+      },
+      "cache": false
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
+      "options": {
+        "cwd": "apps/demo-stream",
+        "command": "tsc -p tsconfig.app.json --noEmit --pretty false"
+      },
+      "cache": true
+    },
+    "typecheck-spec": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/demo-stream",
+        "command": "tsc -p tsconfig.spec.json --noEmit --pretty false"
+      },
+      "cache": true
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/demo-stream"],
+      "options": {
+        "command": "npx vite build --config apps/demo-stream/vite.config.ts"
+      },
+      "configurations": {
+        "production": {
+          "command": "npx vite build --config apps/demo-stream/vite.config.ts --mode production"
+        },
+        "development": {
+          "command": "npx vite build --config apps/demo-stream/vite.config.ts --mode development"
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
+      "options": {
+        "command": "npx vite --config apps/demo-stream/vite.config.ts",
+        "forwardAllArgs": true
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-lib-vitest.mjs apps/demo-stream/vitest.config.ts",
+        "forwardAllArgs": true
+      }
+    }
+  }
+}

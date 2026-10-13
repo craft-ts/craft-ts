@@ -35,6 +35,20 @@ export const releasePackages = [
     distRoot: 'dist/libs/effect',
   },
   {
+    key: 'stream',
+    name: '@craft-ts/stream',
+    project: 'craft-ts-stream',
+    sourceManifest: 'libs/stream/package.json',
+    distRoot: 'dist/libs/stream',
+  },
+  {
+    key: 'stream_effect',
+    name: '@craft-ts/stream-effect',
+    project: 'craft-ts-stream-effect',
+    sourceManifest: 'libs/stream-effect/package.json',
+    distRoot: 'dist/libs/stream-effect',
+  },
+  {
     key: 'dev_tools',
     name: '@craft-ts/dev-tools',
     project: 'dev-tools',
