@@ -909,16 +909,19 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
           return result;
         },
       },
-      ({ resource, hasException }) => ({
-        decisionFailed: craftUse(
-          craftComputed('decisionFailed', function* () {
-            return (
-              String(yield* resource.status()) === 'exception' ||
-              (yield* hasException())
-            );
-          }),
-        ),
-      }),
+      function* ({ resource, hasException }) {
+        return {
+          decisionFailed: yield* craftComputed(
+            'decisionFailed',
+            function* () {
+              return (
+                String(yield* resource.status()) === 'exception' ||
+                (yield* hasException())
+              );
+            },
+          ),
+        };
+      },
     );
     const { decisionFailed } = decision;
 
@@ -934,16 +937,16 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
           }));
         },
       },
-      ({ resource, hasException }) => ({
-        reopenFailed: craftUse(
-          craftComputed('reopenFailed', function* () {
+      function* ({ resource, hasException }) {
+        return {
+          reopenFailed: yield* craftComputed('reopenFailed', function* () {
             return (
               String(yield* resource.status()) === 'exception' ||
               (yield* hasException())
             );
           }),
-        ),
-      }),
+        };
+      },
     );
     const { reopenFailed } = reopen;
 
@@ -959,16 +962,19 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
           }));
         },
       },
-      ({ resource, hasException }) => ({
-        regenerationFailed: craftUse(
-          craftComputed('regenerationFailed', function* () {
-            return (
-              String(yield* resource.status()) === 'exception' ||
-              (yield* hasException())
-            );
-          }),
-        ),
-      }),
+      function* ({ resource, hasException }) {
+        return {
+          regenerationFailed: yield* craftComputed(
+            'regenerationFailed',
+            function* () {
+              return (
+                String(yield* resource.status()) === 'exception' ||
+                (yield* hasException())
+              );
+            },
+          ),
+        };
+      },
     );
     const { regenerationFailed } = regenerate;
 
@@ -984,16 +990,19 @@ export const { ReviewAppModel, provideReviewAppModel } = craftService(
           }));
         },
       },
-      ({ resource, hasException }) => ({
-        iterationHandoffFailed: craftUse(
-          craftComputed('iterationHandoffFailed', function* () {
-            return (
-              String(yield* resource.status()) === 'exception' ||
-              (yield* hasException())
-            );
-          }),
-        ),
-      }),
+      function* ({ resource, hasException }) {
+        return {
+          iterationHandoffFailed: yield* craftComputed(
+            'iterationHandoffFailed',
+            function* () {
+              return (
+                String(yield* resource.status()) === 'exception' ||
+                (yield* hasException())
+              );
+            },
+          ),
+        };
+      },
     );
     const { iterationHandoffFailed } = iterationHandoff;
 
