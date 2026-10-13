@@ -63,6 +63,13 @@ type LogicDependenciesOf<Component> =
     ? Omit<Dependencies, 'missingProvider'> & { missingProvider: {} }
     : {};
 
+type ComponentProvidedServiceNames<Component> =
+  LogicDependenciesOf<Component> extends {
+    provided: infer Provided extends object;
+  }
+    ? Extract<keyof Provided, string>
+    : never;
+
 type ServiceNamesFromNodeMap<Dependencies extends object> =
   IsAny<Dependencies> extends true
     ? never
@@ -168,6 +175,19 @@ type TemplateOptions<Inputs, Contract> = TestBedOptions & {
   inputs: Inputs;
   register: RegisterForContract<Contract>;
   detectChanges?: boolean;
+};
+
+type TemplateOptionsWithProviderOverrides<
+  Component,
+  Inputs,
+  Contract,
+> = Omit<TemplateOptions<Inputs, Contract>, 'register'> & {
+  // Components install these services themselves; the register may still
+  // replace one explicitly when a template test needs a focused fake.
+  register: RegisterForContract<Contract> &
+    Partial<
+      RegisterForNames<ComponentProvidedServiceNames<Component>>
+    >;
 };
 
 type RegisterRuntimeEntry =
@@ -519,12 +539,27 @@ function setupCraftComponentTemplateTestImpl<
   options: TemplateOptions<Inputs, Contract>,
 ): Promise<TemplateTestResult<Component, Inputs>>;
 
+function setupCraftComponentTemplateTestImpl<
+  Component extends CraftComponent<any>,
+  const Contract extends
+    CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
+  Inputs = unknown,
+>(
+  component: Component,
+  options: TemplateOptionsWithProviderOverrides<Component, Inputs, Contract>,
+): Promise<TemplateTestResult<Component, Inputs>>;
+
 async function setupCraftComponentTemplateTestImpl<
   Component extends CraftComponent<any>,
   const Contract extends
     CraftComponentTemplateDepsOf<Component> = CraftComponentTemplateDepsOf<Component>,
   Inputs = unknown,
->(component: Component, options: TemplateOptions<Inputs, Contract>) {
+>(
+  component: Component,
+  options:
+    | TemplateOptions<Inputs, Contract>
+    | TemplateOptionsWithProviderOverrides<Component, Inputs, Contract>,
+) {
   const { host, mounted, mocks, parent } = componentTemplateMount(
     component,
     options.inputs,

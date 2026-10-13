@@ -210,7 +210,7 @@ describe('craft mutation template', () => {
           StoragePersister: 'notReached',
           UserMutation: 'notReached',
           mutationCraftView: result.context,
-        } as never,
+        },
       },
     );
 
@@ -246,7 +246,7 @@ describe('craft mutation template', () => {
           StoragePersister: 'notReached',
           UserMutation: 'notReached',
           mutationCraftView: withUser.context,
-        } as never,
+        },
       },
     );
 
@@ -268,7 +268,7 @@ describe('craft mutation template', () => {
           StoragePersister: 'notReached',
           UserMutation: 'notReached',
           mutationCraftView: withoutUser.context,
-        } as never,
+        },
       });
 
     try {
@@ -290,7 +290,7 @@ describe('craft mutation template', () => {
           StoragePersister: 'notReached',
           UserMutation: 'notReached',
           mutationCraftView: result.context,
-        } as never,
+        },
       },
     );
 
@@ -340,7 +340,7 @@ describe('craft mutation logic', () => {
             return user.id;
           } as Input<string>,
         },
-      } as never,
+      },
     );
 
     await vi.waitFor(() => expect(getItemById).toHaveBeenCalledWith(user.id));

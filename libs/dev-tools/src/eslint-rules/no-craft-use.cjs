@@ -44,7 +44,6 @@ module.exports = {
     const insertionPrimitives = new Set([
       'asyncProcess',
       'asyncProcessEffect',
-      'mutation',
       'mutationEffect',
       'query',
       'queryEffect',

@@ -58,7 +58,7 @@ const Counter = craftComponent(
 it('tests the derived disabled state', async () => {
   const { sut } = await setupCraftServiceTestingByRegister(CounterView, {
     counterView: provideCounterView(),
-  } as never);
+  });
 
   expect(craftUse(sut.counter.disabled())).toBe(true);
 

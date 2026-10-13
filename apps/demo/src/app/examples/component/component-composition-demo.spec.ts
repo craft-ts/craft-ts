@@ -7,9 +7,7 @@ import { componentCompositionDemo } from './component-composition-demo';
 // que le clic passe bien par le raccourci et que le rendu suit.
 describe('componentCompositionDemo', () => {
   it('bascule l accès depuis le binding de son service', async () => {
-    const rendered = await renderCraftComponent(
-      componentCompositionDemo as never,
-    );
+    const rendered = await renderCraftComponent(componentCompositionDemo);
 
     const initial = rendered.element.textContent ?? '';
 

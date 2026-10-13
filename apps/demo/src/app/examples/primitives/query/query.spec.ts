@@ -163,7 +163,7 @@ describe('Query logic', () => {
             return currentUserId;
           },
         },
-      } as never,
+      },
     );
 
     await vi.waitFor(() =>

@@ -284,7 +284,7 @@ describe('craft granular mutation logic', () => {
         StoragePersister: storage,
         Router: 'real',
       } as never,
-      { providers: [provideRouter([])] } as never,
+      { providers: [provideRouter([])] },
     );
 
     await vi.waitFor(() =>

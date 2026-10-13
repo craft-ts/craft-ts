@@ -316,7 +316,7 @@ describe('primitive list with pagination logic', () => {
         ApiService: { getDataList },
         StoragePersister: storage,
       } as never,
-      { providers: [provideRouter([])] } as never,
+      { providers: [provideRouter([])] },
     );
 
     await vi.waitFor(() =>

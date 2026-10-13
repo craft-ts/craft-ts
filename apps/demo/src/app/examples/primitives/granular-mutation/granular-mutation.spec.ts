@@ -291,7 +291,7 @@ describe('primitive granular mutation logic', () => {
         ApiService: { getDataList, updateItem },
         StoragePersister: storage,
       } as never,
-      { providers: [provideRouter([])] } as never,
+      { providers: [provideRouter([])] },
     );
 
     await vi.waitFor(() =>

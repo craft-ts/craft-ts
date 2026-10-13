@@ -207,7 +207,7 @@ describe('primitive mutation template', () => {
           CraftRouter: 'notReached',
           StoragePersister: 'notReached',
           mutationDemoView: result.context,
-        } as never,
+        },
       },
     );
 
@@ -240,7 +240,7 @@ describe('primitive mutation template', () => {
           CraftRouter: 'notReached',
           StoragePersister: 'notReached',
           mutationDemoView: withUser.context,
-        } as never,
+        },
       },
     );
 
@@ -261,7 +261,7 @@ describe('primitive mutation template', () => {
           CraftRouter: 'notReached',
           StoragePersister: 'notReached',
           mutationDemoView: withoutUser.context,
-        } as never,
+        },
       });
 
     try {
@@ -282,7 +282,7 @@ describe('primitive mutation template', () => {
           CraftRouter: 'notReached',
           StoragePersister: 'notReached',
           mutationDemoView: result.context,
-        } as never,
+        },
       },
     );
 
@@ -327,7 +327,7 @@ describe('primitive mutation logic', () => {
             return user.id;
           },
         },
-      } as never,
+      },
     );
 
     await vi.waitFor(() => expect(getItemById).toHaveBeenCalledWith(user.id));

@@ -70,7 +70,25 @@ describe('no-craft-use', () => {
     },
   );
 
-  it('allows a direct resource insertion nested inside a Craft owner', async () => {
+  it('allows a generator resource insertion nested inside a Craft owner', async () => {
+    const result = await lintFixture(`
+      import { craftService, craftComputed, mutation } from '@craft-ts/core';
+
+      craftService('owner', function* () {
+        yield* mutation('save', {}, function* ({ hasException }) {
+          return {
+            failed: yield* craftComputed('failed', function* () {
+              return yield* hasException();
+            }),
+          };
+        });
+      });
+    `);
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('reports craftUse in a direct resource insertion nested inside a Craft owner', async () => {
     const result = await lintFixture(`
       import { craftService, craftComputed, craftUse, mutation } from '@craft-ts/core';
 
@@ -83,7 +101,9 @@ describe('no-craft-use', () => {
       });
     `);
 
-    expect(result.messages).toEqual([]);
+    expect(result.messages).toEqual([
+      '`craftUse(craftComputed(...))` is forbidden inside `craftService`. Declare the primitive in the generator body with `yield* craftComputed(...)` instead.',
+    ]);
   });
 
   it('still reports craftUse in the Craft owner body', async () => {
