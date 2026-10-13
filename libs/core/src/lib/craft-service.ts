@@ -79,6 +79,7 @@ import type {
   ServiceTrackedDepsRequest,
 } from './craft-primitive-gen';
 import {
+  isYieldableValue,
   markNamedReactiveProperties,
   markYieldableMethod,
   yieldableInvocation,
@@ -3997,14 +3998,14 @@ function* readShortcutMember(
   member: unknown,
 ): Generator<unknown, unknown, unknown> {
   if (
-    !isYieldableReactiveValue(member) ||
+    !isYieldableValue(member) ||
     typeof (member as { type?: unknown }).type === 'string'
   ) {
     return member;
   }
   // Some readers (those of a selected item) answer a plain call with the value
   // itself rather than a generator to drive.
-  const read = (member as () => unknown)();
+  const read = (member as unknown as () => unknown)();
   return isGenerator(read) ? yield* read : read;
 }
 
@@ -4013,7 +4014,7 @@ function* readShortcutMember(
  * reader nor a raw signal, both of which a shortcut hands back to be read.
  */
 function isShortcutMethod(member: unknown): boolean {
-  if (typeof member !== 'function' || isYieldableReactiveValue(member)) {
+  if (typeof member !== 'function' || isYieldableValue(member)) {
     return false;
   }
   const isSignal =
