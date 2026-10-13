@@ -47,7 +47,6 @@ const roundTrip = async (route: string) => {
     config: appConfig,
     props,
     url: `/craft${route}`,
-    includeStyles: false,
     mode: MODE,
   });
   document.body.innerHTML = rendered.html;

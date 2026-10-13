@@ -56,7 +56,6 @@ import {
   type CraftRenderIdentity,
   ɵinjectCraftSsrPolicy,
   ɵinjectCraftSecurityPolicy,
-  ɵinjectCraftCspNonce,
   ɵinjectCraftMatch,
   ɵinjectCraftChildMatch,
   ɵrunInInjectionContext,
@@ -88,7 +87,6 @@ import {
   CONTENT_DECLARATION_CONTEXT,
   type CraftComponent,
 } from '../types';
-import { cssVarStyles, type CssVarDisposition } from '../css-vars';
 import {
   normalizeChildren,
   mergeHostProps,
@@ -136,11 +134,6 @@ import {
 } from '../for-scheduling';
 import { executeCraftComponentFactoryAsync } from '../factory-runtime';
 import {
-  CraftStyleRegistry,
-  createCraftStyleRegistry,
-  ɵinjectCraftStyleRegistry,
-} from './style-registry';
-import {
   isCraftMultiUrlAttribute,
   isCraftResourceUrlAttribute,
   isCraftSafeHtml,
@@ -151,7 +144,7 @@ import {
   safeUrlList,
   CraftDomSecurityError,
 } from '../security';
-import { scopeCss, scopeIdFor, validateStyleScope } from './style-scope';
+import { scopeIdFor } from './scope-id';
 import {
   CRAFT_LOCATOR_CONTENT_NAMES,
   directCraftContentNames,
@@ -161,7 +154,6 @@ import {
 import { HydrationMismatchError, type HydrationCursor } from './hydration';
 import { setNodeHydrationKey } from './hydration-metadata';
 import type { CraftSsrCoordinator } from './ssr-coordinator';
-import type { CraftServerStyleCollector } from './server-style-collector';
 
 declare const ngDevMode: boolean | undefined;
 
@@ -175,12 +167,6 @@ interface RenderContext {
   readonly componentName?: string;
   readonly ownerScope?: string;
   readonly rootScope?: string;
-  readonly styleRoot?: Document | ShadowRoot;
-  readonly styles?: CraftStyleRegistry;
-  /** Styles exposed by the currently rendered Craft component, by slot. */
-  readonly contentStyles?: Readonly<Partial<Record<string, string>>>;
-  /** Marker applied to ordinary nodes in an opted-in projection. */
-  readonly contentScope?: string;
   /**
    * Reports an exception to the nearest `catchNode`. `token` identifies the
    * reporter: the boundary keeps its fallback up until every reporter has
@@ -211,7 +197,6 @@ interface RenderContext {
   readonly hydration?: HydrationCursor;
   readonly emitHydrationKeys?: boolean;
   readonly ssr?: CraftSsrCoordinator;
-  readonly serverStyles?: CraftServerStyleCollector;
 }
 
 interface TemplateTraceState {
@@ -485,93 +470,6 @@ function findResourceException(
 
 function scopeTokens(parent: string | undefined, own: string): string {
   return [parent, own].filter(Boolean).join(' ');
-}
-
-function styleValues(
-  styles: string | readonly string[] | undefined,
-): readonly string[] {
-  return typeof styles === 'string' ? [styles] : (styles ?? []);
-}
-
-function acquireStyles(
-  context: RenderContext,
-  owners: readonly {
-    readonly name: string;
-    readonly styles?: string | readonly string[];
-    readonly definition?: object;
-  }[],
-  ownerScope: string,
-): (() => void)[] {
-  if (context.serverStyles) {
-    return owners.flatMap((owner, index) => {
-      const css = styleValues(owner.styles);
-      if (!css.length) return [];
-      const scope = scopeIdFor(owner.definition ?? {}, owner.name);
-      const dev = typeof ngDevMode === 'undefined' || ngDevMode;
-      if (dev) validateStyleScope(scope, css.join('\n'));
-      return [
-        context.serverStyles!.acquire(
-          `craft:${ownerScope}:${scope}`,
-          scopeCss(ownerScope, css.join('\n')),
-          index,
-        ),
-      ];
-    });
-  }
-  if (!context.styleRoot || !context.styles) return [];
-  const registry = context.styles;
-  const releases: (() => void)[] = [];
-  owners.forEach((owner, index) => {
-    const css = styleValues(owner.styles);
-    if (!css.length) return;
-    const scope = scopeIdFor(owner.definition ?? {}, owner.name);
-    const dev = typeof ngDevMode === 'undefined' || ngDevMode;
-    if (dev) validateStyleScope(scope, css.join('\n'));
-    releases.push(
-      registry.acquire(
-        context.styleRoot!,
-        `craft:${ownerScope}:${scope}`,
-        scopeCss(ownerScope, css.join('\n')),
-        index,
-      ),
-    );
-  });
-  return releases;
-}
-
-function contentScopeId(ownerScope: string, slotName: string): string {
-  return `${ownerScope}::content::${slotName}`;
-}
-
-function acquireContentStyle(
-  context: RenderContext,
-  slotName: string | undefined,
-  stylePolicy: ProjectionNode['stylePolicy'],
-): { readonly scope?: string; readonly release: () => void } {
-  if (
-    stylePolicy !== 'allow-container-styles' ||
-    !slotName ||
-    !context.ownerScope ||
-    !context.contentStyles?.[slotName] ||
-    (!context.serverStyles && (!context.styleRoot || !context.styles))
-  ) {
-    return { release: () => undefined };
-  }
-
-  const scope = contentScopeId(context.ownerScope, slotName);
-  const css = scopeCss(scope, context.contentStyles[slotName], {
-    rootAttribute: 'data-craft-content',
-    limitSelector: '[data-craft-root]',
-  });
-  const release = context.serverStyles
-    ? context.serverStyles.acquire(`craft:content:${scope}`, css, 1000)
-    : context.styles!.acquire(
-        context.styleRoot!,
-        `craft:content:${scope}`,
-        css,
-        1000,
-      );
-  return { scope, release };
 }
 
 interface RenderedNode {
@@ -1342,7 +1240,6 @@ class CraftDirectiveRenderedNode implements RenderedNode {
   private readonly view: FragmentRenderedNode;
   private readonly descriptor;
   private readonly effectRef: EffectRef;
-  private readonly styleReleases: (() => void)[];
   private readonly registrationReleases: (() => void)[];
   private readonly scopedInjector: EnvironmentInjector | undefined;
 
@@ -1358,19 +1255,6 @@ class CraftDirectiveRenderedNode implements RenderedNode {
     this.node = node;
     this.context = context;
     this.descriptor = signal(node);
-    const owners = node.directives.map((directive) => ({
-      name: directive[CRAFT_DIRECTIVE].name,
-      styles: [
-        ...styleValues(directive[CRAFT_DIRECTIVE].meta.styles),
-        ...styleValues(directive[CRAFT_DIRECTIVE].meta.stylesUrl),
-      ],
-      definition: directive[CRAFT_DIRECTIVE],
-    }));
-    this.styleReleases = acquireStyles(
-      context,
-      owners,
-      context.ownerScope ?? '',
-    );
     this.registrationReleases = node.directives.map((directive) =>
       ɵregisterCraftTarget(
         context.injector,
@@ -1440,7 +1324,6 @@ class CraftDirectiveRenderedNode implements RenderedNode {
     this.registrationReleases.forEach((release) => release());
     this.effectRef.destroy();
     this.view.destroy();
-    this.styleReleases.forEach((release) => release());
     this.scopedInjector?.destroy();
   }
 }
@@ -1552,7 +1435,6 @@ const HOST_PROPERTY_NAMES = new Set([
 
 function isHostProperty(key: string): boolean {
   return (
-    key === 'cssVars' ||
     HOST_PROPERTY_NAMES.has(key) ||
     key.startsWith('data-') ||
     key.startsWith('aria-') ||
@@ -1565,19 +1447,9 @@ function isHostProperty(key: string): boolean {
 function hostPropsFromComponentProps(
   props: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, unknown>> {
-  const hostProps = Object.fromEntries(
-    Object.entries(props).filter(
-      ([key]) => key !== 'cssVars' && isHostProperty(key),
-    ),
+  return Object.fromEntries(
+    Object.entries(props).filter(([key]) => isHostProperty(key)),
   );
-  const vars = cssVarStyles(
-    props['cssVars'] as
-      | Readonly<Record<`--${string}`, CssVarDisposition>>
-      | undefined,
-  );
-  return Object.keys(vars).length
-    ? mergeHostProps({ style: vars }, hostProps)
-    : hostProps;
 }
 
 function className(value: unknown, context: RenderContext): string {
@@ -1898,12 +1770,10 @@ class ElementRenderedNode implements RenderedNode {
       this.tag === 'dialog'
         ? childContext(context, {
             rootScope: undefined,
-            contentScope: undefined,
             headingLevel: 1,
           })
         : childContext(context, {
             rootScope: undefined,
-            contentScope: undefined,
           });
     this.children = patchRenderedChildren(
       this.node,
@@ -1975,7 +1845,6 @@ class ElementRenderedNode implements RenderedNode {
       null,
       childContext(this.context, {
         rootScope: undefined,
-        contentScope: undefined,
       }),
     );
     this.openDialog(node);
@@ -2410,7 +2279,6 @@ class FragmentRenderedNode implements RenderedNode {
 class ProjectionRenderedNode implements RenderedNode {
   readonly kind = 'projection';
   private readonly view: FragmentRenderedNode;
-  private readonly styleRelease: () => void;
   private node: ProjectionNode;
   private readonly declarationContext: RenderContext;
   private readonly projectionContext: RenderContext;
@@ -2428,14 +2296,7 @@ class ProjectionRenderedNode implements RenderedNode {
     this.declarationContext =
       (node.declarationContext as RenderContext | undefined) ??
       lexicalContext(context);
-    const contentStyle = acquireContentStyle(
-      context,
-      node.slotName,
-      node.stylePolicy,
-    );
-    this.styleRelease = contentStyle.release;
     this.projectionContext = childContext(this.declarationContext, {
-      contentScope: contentStyle.scope,
       // The nodes were declared elsewhere, so they read their lexical context; but
       // they live here, and their hydration keys come from where they are mounted.
       // Numbered from the declarer, every slot it declares would start again at 0
@@ -2508,7 +2369,6 @@ class ProjectionRenderedNode implements RenderedNode {
   destroy(): void {
     this.effectRef.destroy();
     this.view.destroy();
-    this.styleRelease();
   }
 }
 
@@ -4107,7 +3967,6 @@ class ComponentRenderedNode implements RenderedNode {
   private syncTemplateFlushRelease: (() => void) | undefined;
   private componentFallbackVisible = false;
   private componentFallbackException: AnyCraftException | undefined;
-  private readonly styleReleases: (() => void)[];
   private providerTrackers: readonly (() => unknown)[] = [];
   private readonly componentProviders:
     | readonly CraftServiceProvider[]
@@ -4145,19 +4004,12 @@ class ComponentRenderedNode implements RenderedNode {
     const composition = definition.composition;
     const ownScope = scopeIdFor(definition.scopeDefinition, definition.name);
     this.traceState = { renderCount: 0 };
-    this.styleReleases = acquireStyles(
-      context,
-      definition.styleOwners,
-      ownScope,
-    );
     const componentRenderContext = childContext(context, {
       ownerScope: ownScope,
       rootScope: scopeTokens(context.rootScope, ownScope),
       componentName: definition.name,
-      contentStyles: definition.meta.contentStyles,
-      contentScope: undefined,
       declarationContext: declarationContext ?? context,
-      directiveNames: definition.styleOwners
+      directiveNames: definition.scopeOwners
         .slice(1)
         .map((owner) => owner.name),
       traceState: this.traceState,
@@ -4729,7 +4581,7 @@ class ComponentRenderedNode implements RenderedNode {
         factoryContext,
         componentHostName(injector, definition.name),
       ),
-      ...definition.styleOwners.flatMap((owner) =>
+      ...definition.scopeOwners.flatMap((owner) =>
         owner.registrationTarget === undefined
           ? []
           : [
@@ -5014,7 +4866,6 @@ class ComponentRenderedNode implements RenderedNode {
     this.effectRef.destroy();
     this.hostBindings?.destroy();
     this.view.destroy();
-    this.styleReleases.forEach((release) => release());
     this.environmentInjector?.destroy();
   }
 }
@@ -5477,13 +5328,6 @@ function mountNode(
           created.context.rootScope,
         );
       }
-      if (created.context.contentScope) {
-        created.context.renderer.setAttribute(
-          created.element,
-          'data-craft-content',
-          created.context.contentScope,
-        );
-      }
       return new ElementRenderedNode(
         created.element,
         node.tag,
@@ -5708,10 +5552,7 @@ export type InterpretedRenderOptions = Readonly<{
   identity?: CraftRenderIdentity;
   hydration?: HydrationCursor;
   emitHydrationKeys?: boolean;
-  styleRoot?: Document | ShadowRoot;
-  styles?: CraftStyleRegistry;
   ssr?: CraftSsrCoordinator;
-  serverStyles?: CraftServerStyleCollector;
 }>;
 
 export function mountInterpretedComponent<Props extends object>(
@@ -5722,21 +5563,12 @@ export function mountInterpretedComponent<Props extends object>(
 ): MountedCraftComponent<Props> {
   const craftInjector = ɵcraftInjectorFromHost(injector);
   const renderer = createBrowserDomAdapter(host.ownerDocument);
-  const rootNode = host.getRootNode();
-  const styleRoot: Document | ShadowRoot =
-    (typeof Document !== 'undefined' && rootNode instanceof Document) ||
-    (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
-      ? (rootNode as Document | ShadowRoot)
-      : (host.ownerDocument ?? document);
-  const styles =
-    ɵinjectCraftStyleRegistry() ??
-    createCraftStyleRegistry({ nonce: ɵinjectCraftCspNonce() ?? undefined });
   return mountInterpretedComponentWithOptions(
     component,
     host,
     craftInjector,
     props,
-    { renderer, styleRoot, styles },
+    { renderer },
   );
 }
 
@@ -5765,10 +5597,7 @@ export function mountInterpretedComponentWithOptions<Props extends object>(
         identity,
         hydration: options.hydration,
         emitHydrationKeys: options.emitHydrationKeys,
-        styleRoot: options.styleRoot,
-        styles: options.styles,
         ssr: options.ssr,
-        serverStyles: options.serverStyles,
       },
       host,
     );
@@ -5798,15 +5627,6 @@ export function mountInterpretedComponentTemplate<Context>(
 ): MountedCraftTemplate<Context> {
   const craftInjector = ɵcraftInjectorFromHost(injector);
   const renderer = createBrowserDomAdapter(host.ownerDocument);
-  const rootNode = host.getRootNode();
-  const styleRoot: Document | ShadowRoot =
-    (typeof Document !== 'undefined' && rootNode instanceof Document) ||
-    (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
-      ? (rootNode as Document | ShadowRoot)
-      : (host.ownerDocument ?? document);
-  const styles =
-    ɵinjectCraftStyleRegistry() ??
-    createCraftStyleRegistry({ nonce: ɵinjectCraftCspNonce() ?? undefined });
   let instance: ComponentRenderedNode;
   try {
     instance = new ComponentRenderedNode(
@@ -5817,8 +5637,6 @@ export function mountInterpretedComponentTemplate<Context>(
       {
         renderer,
         injector: craftInjector,
-        styleRoot,
-        styles,
         mode: 'create',
         identity: createCraftRenderIdentity([
           component[CRAFT_COMPONENT].name,

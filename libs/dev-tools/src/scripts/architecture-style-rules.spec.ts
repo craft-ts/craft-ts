@@ -270,7 +270,7 @@ describe('the source half', () => {
   let root: string;
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('finds meta CSS, component and global .css imports, and stylesheet links', () => {
+  it('finds component and global .css imports, and stylesheet links', () => {
     root = mkdtempSync(join(tmpdir(), 'craft-style-arch-'));
     mkdirSync(join(root, 'src'));
     writeFileSync(
@@ -283,7 +283,7 @@ describe('the source half', () => {
     );
     writeFileSync(
       join(root, 'src/card.ts'),
-      "import './card.css';\nexport const Card = craftComponent('Card', { styles: '.x{}' }, () => null);\n",
+      "import './card.css';\nexport const Card = craftComponent('Card', {}, () => null);\n",
     );
     writeFileSync(
       join(root, 'index.html'),
@@ -296,7 +296,6 @@ describe('the source half', () => {
     };
     const rules = rulesOf(graph);
     expect(rules['style-only-design-system']).toEqual([
-      expect.stringContaining('Card: meta.styles carries CSS text'),
       expect.stringContaining("Card: imports './card.css'"),
     ]);
     expect(rules['no-global-stylesheet']).toEqual([

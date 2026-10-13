@@ -1,16 +1,11 @@
 # Typed styles
 
-::: tip Two style systems, and which to pick
+::: tip The only way to style a component
 This section is `@craft-ts/style`: typed values, CSS emitted at build time, and
 a visual matrix you can enumerate. It costs a Vite plugin — see
-[Activating the style system](./setup.md) — and a design system to declare.
-
-[`meta.styles`](../components/styles.md) is the other one: a string of CSS
-shipped with the component and scoped with `@scope`, with no build step. It is
-the shortest path to a component's own appearance.
-
-Pick `meta.styles` for a component whose look is settled and local. Pick this
-one when the variants are a matrix you need to prove you covered. They coexist.
+[Activating the style system](./setup.md) — and a design system to declare. A
+component's meta carries no CSS; see
+[Styling a component: the only way](../components/styles.md).
 :::
 
 `@craft-ts/style` makes a component's visual surface **derivable** instead of

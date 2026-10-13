@@ -29,7 +29,6 @@ export interface ArchitectureFinding {
 
 const EMITTED_SHEET = 'virtual:craft-style.css';
 const CSS_IMPORT = /\.css(\?.*)?$/;
-const META_CSS_FIELDS = new Set(['styles', 'stylesUrl', 'contentStyles']);
 const COMPONENT_FACTORIES = new Set(['craftComponent', 'craftDirective']);
 
 const location = (graph: DependencyGraph, filePath?: string, line?: number) =>
@@ -43,13 +42,6 @@ const hasStyleDump = (graph: DependencyGraph): boolean =>
 // ─── source scan ────────────────────────────────────────────────────────────
 
 interface SourceFacts {
-  /** craftComponent / craftDirective carrying CSS text on its meta. */
-  readonly metaCss: readonly {
-    readonly component: string;
-    readonly field: string;
-    readonly filePath: string;
-    readonly line: number;
-  }[];
   /** `.css` imports other than the emitted sheet. */
   readonly cssImports: readonly {
     readonly source: string;
@@ -80,14 +72,13 @@ function sourceFacts(graph: DependencyGraph): SourceFacts | undefined {
           ts.sys,
           dirname(graph.tsConfigFilePath),
         ).fileNames;
-    const metaCss: SourceFacts['metaCss'][number][] = [];
     const cssImports: SourceFacts['cssImports'][number][] = [];
     for (const filePath of files) {
       if (filePath.endsWith('.d.ts') || /\.(spec|test)\.ts$/.test(filePath)) {
         continue;
       }
       const text = readFileSync(filePath, 'utf8');
-      if (!text.includes('.css') && !/styles|contentStyles/.test(text)) {
+      if (!text.includes('.css')) {
         continue;
       }
       const source = ts.createSourceFile(
@@ -129,25 +120,6 @@ function sourceFacts(graph: DependencyGraph): SourceFacts | undefined {
               ? nameArgument.text
               : '(anonymous)';
           components.push(name);
-          for (const argument of node.arguments) {
-            if (!ts.isObjectLiteralExpression(argument)) continue;
-            for (const property of argument.properties) {
-              const key =
-                property.name &&
-                (ts.isIdentifier(property.name) ||
-                  ts.isStringLiteral(property.name))
-                  ? property.name.text
-                  : undefined;
-              if (key && META_CSS_FIELDS.has(key)) {
-                metaCss.push({
-                  component: name,
-                  field: key,
-                  filePath,
-                  line: lineOf(property),
-                });
-              }
-            }
-          }
         }
         ts.forEachChild(node, visit);
       };
@@ -159,7 +131,7 @@ function sourceFacts(graph: DependencyGraph): SourceFacts | undefined {
         cssImports.push({ ...entry, filePath, components });
       }
     }
-    facts = { metaCss, cssImports };
+    facts = { cssImports };
   }
   sourceCache.set(graph, facts);
   return facts;
@@ -230,12 +202,6 @@ export function styleOnlyDesignSystemFindings(
   }
 
   const facts = sourceFacts(graph);
-  for (const entry of facts?.metaCss ?? []) {
-    findings.push({
-      target: entry.component,
-      message: `${location(graph, entry.filePath, entry.line)}${entry.component}: meta.${entry.field} carries CSS text outside the design system. Move it into a *.style.ts sheet.`,
-    });
-  }
   for (const entry of facts?.cssImports ?? []) {
     if (entry.components.length === 0) continue;
     for (const component of entry.components) {

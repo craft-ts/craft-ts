@@ -9,9 +9,6 @@ import {
   CONTENT_DECLARATION_CONTEXT,
   CONTENT_OUTPUT,
   CONTENT_RENDERABLE,
-  CONTENT_STYLE_POLICY,
-  type ContentOptions,
-  type ContentStylePolicy,
   type InputValue,
   type ProjectionUnit,
   type RenderableContent,
@@ -26,49 +23,14 @@ type RenderableContentOutput<Value> =
     ? ContentOutput<Value>
     : CraftNodeChildren;
 
-function contentStylePolicy(value: unknown): ContentStylePolicy {
-  return (value as Partial<Record<typeof CONTENT_STYLE_POLICY, unknown>>)[
-    CONTENT_STYLE_POLICY
-  ] === 'allow-container-styles'
-    ? 'allow-container-styles'
-    : 'isolated';
-}
-
-function defineContentPolicy(
-  renderer: (...args: any[]) => unknown,
-  policy: ContentStylePolicy,
-): void {
-  Object.defineProperty(renderer, CONTENT_STYLE_POLICY, {
-    value: policy,
-    enumerable: false,
-    configurable: false,
-    writable: false,
-  });
-}
-
-/** Brands deferred DOM content and records the caller's style opt-in. */
-export function content<
-  Output extends CraftNodeChildren,
-  const Options extends ContentOptions | undefined = undefined,
->(
+/** Brands deferred DOM content and records the context it was declared in. */
+export function content<Output extends CraftNodeChildren>(
   renderer: () => Output,
-  options?: Options,
 ): RenderableContent<Output> & {
   readonly [CONTENT_RENDERABLE]: true;
   readonly [CONTENT_DECLARATION_CONTEXT]: unknown;
-  readonly [CONTENT_STYLE_POLICY]: Options extends {
-    readonly allowContainerStyles: true;
-  }
-    ? 'allow-container-styles'
-    : 'isolated';
   readonly [CONTENT_OUTPUT]: Output;
 } {
-  defineContentPolicy(
-    renderer,
-    options?.allowContainerStyles === true
-      ? 'allow-container-styles'
-      : 'isolated',
-  );
   Object.defineProperty(renderer, CONTENT_DECLARATION_CONTEXT, {
     value: currentCraftRenderContext(),
     enumerable: false,
@@ -78,11 +40,6 @@ export function content<
   return renderer as RenderableContent<Output> & {
     readonly [CONTENT_RENDERABLE]: true;
     readonly [CONTENT_DECLARATION_CONTEXT]: unknown;
-    readonly [CONTENT_STYLE_POLICY]: Options extends {
-      readonly allowContainerStyles: true;
-    }
-      ? 'allow-container-styles'
-      : 'isolated';
     readonly [CONTENT_OUTPUT]: Output;
   };
 }
@@ -141,10 +98,6 @@ export function renderContent(
           value as Partial<Record<typeof CONTENT_DECLARATION_CONTEXT, unknown>>
         )[CONTENT_DECLARATION_CONTEXT] ?? currentCraftRenderContext())
       : currentCraftRenderContext();
-  const policy =
-    typeof value === 'function' && !isYieldableReader
-      ? contentStylePolicy(value)
-      : 'isolated';
 
   return {
     kind: 'projection',
@@ -153,7 +106,6 @@ export function renderContent(
         | ProjectionUnit
         | CraftNodeChildren,
     ...(slotName ? { slotName } : {}),
-    stylePolicy: policy,
     declarationContext,
   };
 }

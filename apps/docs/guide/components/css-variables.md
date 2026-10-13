@@ -50,11 +50,3 @@ never write one by hand. Two rules follow from the registration:
   suite catches it;
 - a prefix belongs to one sheet: `cssVars` throws when two sheets declare the
   same prefix.
-
-## `meta.cssVars`
-
-The `cssVars` field of `craftComponent`'s meta — a contract extracted from a
-CSS string, with `required()`, `inherit`, `omit` and `forward()` at the call
-site — belongs to the component CSS that `no-component-css` refuses. It is
-`@deprecated`, kept only so that an [attested bypass](/guide/components/styles#the-one-real-exception)
-stays possible.

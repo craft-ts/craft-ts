@@ -239,8 +239,7 @@ WCAG 2.2 AA remain a job for axe / AccessLint in application CI.
 
 ## CSS
 
-The `require-focus-visible` and `require-reduced-motion` rules apply to the
-`styles` of a `craftComponent`: if you style `button` / `a` / `input`, define
-`:focus-visible`; if you animate, gate it with `prefers-reduced-motion`.
-Contrast goes through tokens (`no-hardcoded-design-values`), not a second CSS
-linter.
+The focus ring and the reduced-motion branch are laid once for the whole
+document by the `craft.base` layer of [`@craft-ts/style`](/guide/style/foundation),
+so a component has nothing to prove. Contrast goes through tokens and the
+[static contrast analysis](/guide/style/contrast), not a second CSS linter.

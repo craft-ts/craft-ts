@@ -38,7 +38,6 @@ describe('Craft server renderer without browser globals', () => {
       'NodeSsrApp',
       {
         providers: [provideNodeSsrAppView()],
-        styles: ':scope { display: block; }',
       },
       function* () {
         const { title, resolved } = yield* NodeSsrAppView();
@@ -58,6 +57,5 @@ describe('Craft server renderer without browser globals', () => {
 
     expect(rendered.rootHtml).toContain('server');
     expect(rendered.rootHtml).toContain('resolved in node');
-    expect(rendered.styles).toContain('display: block');
   });
 });

@@ -53,7 +53,6 @@ export default [
       'craft-ts/require-direct-craft-component-template': 'off',
       'craft-ts/prefer-route-query-params-for-filter-state': 'off',
       'craft-ts/prefer-deep-yieldable-for-item': 'off',
-      'craft-ts/no-hardcoded-design-values': 'off',
     },
   },
   {

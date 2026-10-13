@@ -22,12 +22,10 @@ import {
 import type {
   ComponentFieldExceptionsOf,
   ComponentInitializationExceptionsOf,
-  ComponentCssVarsOf,
   ComponentNameOf,
   CraftComponent,
   PropsOf,
 } from './types';
-import type { CssVarContract } from './css-vars.type';
 
 export type CraftMountRef<Props extends object> = MountedCraftComponent<Props>;
 
@@ -76,49 +74,6 @@ type RequireHandledRouteFieldExceptions<Component> =
             'fieldErrorNode.exhaustive is required before routing component field exceptions': ComponentFieldExceptionsOf<Component>;
           };
 
-export type CraftRouteCssVarsCarrier<
-  Contract extends CssVarContract = CssVarContract,
-  Name extends string = string,
-> = {
-  readonly __craftRouteCssVars__?: {
-    readonly component: Name;
-    readonly contract: Contract;
-  };
-};
-
-type RouteCssVarErrors<Value> = Value extends {
-  readonly _routes: infer Routes;
-}
-  ? RouteCssVarErrors<Routes>
-  : Value extends readonly (infer Route)[]
-    ? RouteCssVarErrors<Route>
-    : Value extends CraftRouteCssVarsCarrier<
-          infer Contract,
-          infer Name extends string
-        >
-      ? [Contract['required']] extends [never]
-        ? never
-        : {
-            readonly component: Name;
-            readonly missing: Contract['required'];
-          }
-      : Value extends { readonly children?: infer Children }
-        ? RouteCssVarErrors<NonNullable<Children>>
-        : never;
-
-type AssertCssVarsSatisfied<Routes> = [RouteCssVarErrors<Routes>] extends [
-  never,
-]
-  ? unknown
-  : { readonly ERROR_unsatisfied_css_vars: RouteCssVarErrors<Routes> };
-
-/** Compile-time proof that no required CSS variable reaches a route root. */
-export function assertCssVarsSatisfied<Routes>(
-  routes: Routes & AssertCssVarsSatisfied<Routes>,
-): Routes {
-  return routes;
-}
-
 export function loadCraftComponent<
   const Component extends CraftComponent<any>,
   const AdditionalProviders extends NonNullable<
@@ -133,11 +88,7 @@ export function loadCraftComponent<
   providers: NonNullable<Route['providers']>;
 } & ComponentDepsCarrier<ComponentDepsOf<Component>> &
   ComponentExceptionsCarrier<ComponentInitializationExceptionsOf<Component>> &
-  CraftRouteAdditionalProvidersCarrier<AdditionalProviders> &
-  CraftRouteCssVarsCarrier<
-    ComponentCssVarsOf<Component>,
-    ComponentNameOf<Component>
-  > {
+  CraftRouteAdditionalProvidersCarrier<AdditionalProviders> {
   let loadedComponent: Component | undefined;
 
   const fragment = {

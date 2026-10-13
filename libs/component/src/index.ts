@@ -18,14 +18,7 @@ export { createStringDomAdapter } from './lib/render/string-dom';
 // Side-effect only: the router resolves them through the generated services.
 import './lib/craft-defaults';
 export * from './lib/component';
-export * from './lib/css-vars';
 export * from './lib/security';
-export type {
-  CssVarContract,
-  CssVarsOf,
-  CssVarsContractOfMeta,
-  CssVarsAfterCall,
-} from './lib/css-vars.type';
 export * from './lib/composition';
 export * from './lib/catch-node';
 export * from './lib/pending-node';
@@ -47,7 +40,6 @@ export * from './lib/template';
 export * from './lib/hyperscript';
 export * from './lib/a11y';
 export * from './lib/a11y-control';
-export * from './lib/render/style-registry';
 export * from './lib/testing';
 export type {
   CraftLocatorResult,
@@ -82,22 +74,16 @@ export type {
   YieldableTemplateCallback,
   YieldableTemplateContext,
   TemplateMethodUse,
-  TemplateCssVars,
-  ComponentCssVars,
-  ComponentCssVarsOf,
   ComponentNameOf,
   ComponentInitializationExceptionsOf,
   ComponentFieldExceptionsOf,
   ComponentInitializationExceptionCodes,
-  ContentOptions,
   ContentSlot,
   ContentRequirement,
   ContentRequirementOf,
   ContentRequirementsOfContext,
   ContentSelector,
   ContentSelectorCondition,
-  ContentStyles,
-  ContentStylePolicy,
   RequiredContent,
   RenderableContent,
   ProjectionContractOf,
@@ -126,6 +112,4 @@ export type {
   CatchNode,
   MatchNode,
   TemplateNode,
-  CraftNodeCssVarsCarrier,
 } from './lib/render/vnode';
-export { CRAFT_NODE_CSS_VARS } from './lib/render/vnode';

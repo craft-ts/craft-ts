@@ -235,8 +235,8 @@ with its reason — never a pass:
 External stylesheets, inline styles outside CraftTS, `canvas`, text inside SVG,
 generated pseudo-element content, filters and blend modes do not necessarily
 enter the typed style dump. The analyser cannot emit an `indeterminate` for a
-declaration it never receives. The `typedCss` ESLint preset guards the raw
-component styles it can see, but this is not a general CSS crawler.
+declaration it never receives. The `typedCss` ESLint preset refuses hand-written
+`:hover`, but this is not a general CSS crawler.
 
 The large-text threshold is calculated from CSS pixels and weight. The analyser
 does not inspect the script, font face or cap height, so it does not detect CJK
@@ -290,17 +290,14 @@ result to review or waive.
 You have two honest moves, and inventing a colour is not one of them.
 
 - **Bring the surface into the model.** A `background-color` set in raw CSS is
-  the common case; `no-unmodelled-text-color` points at it.
+  the common case.
 - **Give the text a surface it can be measured against.** Text over a hero
   image has no ratio because it has no single background — put it on a panel,
   or accept that it cannot be proven.
 
 If a surface lives entirely outside the observable graph, it will not create an
-indeterminate to clear. You may add its path to the
-`no-unmodelled-text-color` rule's `uncovered` option as an explicit lint
-exemption. This does **not** add a row to the contrast report. Keep the
-exclusion visible in review and do not describe the strict check as covering
-it.
+indeterminate to clear. Keep that exclusion visible in review and do not
+describe the strict check as covering it.
 
 ## Migrating an existing project
 
@@ -312,8 +309,8 @@ needed for visual scenarios and attestation.
 1. Name each palette: `definePalette('ui', spec)`. Nothing else changes.
 2. Turn hand-written `:hover` rules into `when(interaction.hover, …)` and add
    `interaction` to those sheets' budgets. `prefer-hover-axis` finds them.
-3. Enable `craftRules.configs.typedCss.rules` in ESLint. It finds raw hover and
-   contrast properties in component styles that would otherwise be invisible.
+3. Enable `craftRules.configs.typedCss.rules` in ESLint. It refuses the raw hover
+   that the analysis would otherwise not see.
 4. Add `dumpPath: '.craft/style-graph.json'` to `craftStyle()` in
    `vite.config.ts` and keep `virtual:craft-style.css` imported at app entry.
 5. Make `style:check` build the app, then run the strict analysis:

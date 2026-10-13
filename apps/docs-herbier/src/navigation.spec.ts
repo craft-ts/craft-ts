@@ -61,7 +61,6 @@ const arrive = async (route: string) => {
     config: appConfig,
     props,
     url: `${site.base}${route.replace(/^\//, '')}`,
-    includeStyles: false,
     mode: 'production',
   });
   document.body.innerHTML = rendered.html;

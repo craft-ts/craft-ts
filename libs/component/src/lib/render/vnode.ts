@@ -30,7 +30,6 @@ import type {
   ComponentInitializationExceptionsOf,
   ComponentFieldExceptionsOf,
   CraftTemplate,
-  ContentStylePolicy,
   InputValue,
 } from '../types';
 import { isCraftDirective, type CraftDirective } from '../types';
@@ -39,7 +38,6 @@ import {
   isEventActionDirective,
   type EventActionOptions,
 } from '../event-action';
-import type { CssVarContract, EmptyCssVarContract } from '../css-vars.type';
 import {
   CATCH_NODE_DIRECTIVE,
   type CatchDirective,
@@ -86,7 +84,6 @@ type CraftHostType<T> = Function & {
 };
 
 export declare const CRAFT_NODE_DEPS: unique symbol;
-export const CRAFT_NODE_CSS_VARS: unique symbol = Symbol('craft-node-css-vars');
 export const CRAFT_NODE_DIRECTIVES = Symbol('craft-node-directives');
 declare const CRAFT_NODE_EXCEPTIONS: unique symbol;
 declare const CRAFT_NODE_HANDLED_EXCEPTIONS: unique symbol;
@@ -114,13 +111,6 @@ export function currentCraftRenderContext(): unknown {
 
 export type CraftNodeDepsCarrier<Dependencies extends object = {}> = {
   readonly [CRAFT_NODE_DEPS]?: Dependencies;
-};
-
-/** Type-only contract propagated from descendant component calls. */
-export type CraftNodeCssVarsCarrier<
-  Contract extends CssVarContract = EmptyCssVarContract,
-> = {
-  readonly __craftNodeCssVars__?: Contract;
 };
 
 type IsAny<Value> = 0 extends 1 & Value ? true : false;
@@ -258,61 +248,6 @@ export type CraftNodeDependencies<Props, Children> =
 // dependencies beside that carrier: the merge is what collects them.
 export type CraftNodeChildrenDependencies<Value> =
   MergedCraftNodeChildrenDependencies<Value>;
-
-type CraftNodeChildrenCssVarsOf<
-  Value,
-  Depth extends unknown[] = [],
-> = Depth['length'] extends 8
-  ? never
-  : IsAny<Value> extends true
-    ? never
-    : Value extends readonly (infer Child)[]
-      ? CraftNodeChildrenCssVarsOf<Child, [...Depth, unknown]>
-      : Value extends CraftNodeCssVarsCarrier<infer Contract>
-        ? Contract
-        : never;
-
-type CssVarField<
-  Contracts,
-  Key extends keyof CssVarContract,
-> = Contracts extends CssVarContract ? Contracts[Key] : never;
-
-export type CraftNodeChildrenCssVars<Value> = [CraftNodeChildren] extends [
-  Value,
-]
-  ? EmptyCssVarContract
-  : IsAny<Value> extends true
-    ? CssVarContract
-    : [CraftNodeChildrenCssVarsOf<Value>] extends [never]
-      ? EmptyCssVarContract
-      : {
-          readonly required: CssVarField<
-            CraftNodeChildrenCssVarsOf<Value>,
-            'required'
-          >;
-          readonly optional: CssVarField<
-            CraftNodeChildrenCssVarsOf<Value>,
-            'optional'
-          >;
-          readonly declared: CssVarField<
-            CraftNodeChildrenCssVarsOf<Value>,
-            'declared'
-          >;
-          readonly inherited: CssVarField<
-            CraftNodeChildrenCssVarsOf<Value>,
-            'inherited'
-          >;
-          readonly nonInherited: CssVarField<
-            CraftNodeChildrenCssVarsOf<Value>,
-            'nonInherited'
-          >;
-          readonly unknownCss: true extends CssVarField<
-            CraftNodeChildrenCssVarsOf<Value>,
-            'unknownCss'
-          >
-            ? true
-            : false;
-        };
 
 /**
  * Every channel set reachable from a value the tree holds — children, or a prop
@@ -496,7 +431,6 @@ export interface ElementNode<
   Exceptions extends string = string,
   HandledExceptions extends string = string,
   FieldExceptions = never,
-  CssVars extends CssVarContract = EmptyCssVarContract,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
 > extends ElementNodeBase<
@@ -510,8 +444,7 @@ export interface ElementNode<
       FieldExceptions,
       PendingSources,
       SettledExceptions
-    >,
-    CraftNodeCssVarsCarrier<CssVars> {
+    > {
   readonly [CRAFT_NODE_EXCEPTIONS]: ElementNodeExceptions<Children, Exceptions>;
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]:
     | FieldExceptions
@@ -532,7 +465,6 @@ export interface ElementNode<
       Exceptions,
       HandledExceptions,
       FieldExceptions,
-      CssVars,
       PendingSources,
       SettledExceptions
     >,
@@ -689,7 +621,6 @@ type PipedCraftNodeDirective<
   Exceptions,
   string,
   FieldExceptions | FieldValidationCasesOf<Directive>,
-  EmptyCssVarContract,
   PendingSources,
   SettledExceptions
 >;
@@ -870,12 +801,10 @@ export interface ComponentNode<
   > = CraftComponent<any, ComponentDeps, any, any, any, any, any, any, any>,
   ContentDependencies extends object = ContentDependenciesFromProps<Props>,
   InputExceptions extends string = never,
-  CssVars extends CssVarContract = EmptyCssVarContract,
   PendingSources extends string = never,
   SettledExceptions extends string = never,
   Channels extends CraftChannels = EmptyChannels,
 > extends CraftNodeDepsCarrier<ComponentDeps & ContentDependencies>,
-    CraftNodeCssVarsCarrier<CssVars>,
     CraftChannelsCarrier<ComponentNodeChannels<Props, Channels>>,
     CraftNodeExceptionsCarrier<
       ComponentInitializationExceptionsOf<Component> | InputExceptions
@@ -1003,9 +932,6 @@ export interface ForNode<
     | ForSchedulePolicy
     | undefined,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeCssVarsCarrier<
-      CraftNodeChildrenCssVars<ItemChildren | EmptyChildren>
-    >,
     CraftChannelsCarrier<
       CraftNodeChildrenChannels<ItemChildren | EmptyChildren>
     >,
@@ -1062,9 +988,6 @@ export interface IfNode<
   TrueChildren extends CraftNodeChildren = CraftNodeChildren,
   FalseChildren extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeCssVarsCarrier<
-      CraftNodeChildrenCssVars<TrueChildren | FalseChildren>
-    >,
     // A union, not a product: what the two branches demand is the sum of what
     // each demands, and a discharge in either branch is not a discharge for
     // the other. Task 16 tags the branches so the *variant* contract can tell
@@ -1105,7 +1028,6 @@ export interface HeadingNode<
   Props extends object = Readonly<Record<string, unknown>>,
   Need extends string = never,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
     CraftChannelsCarrier<CraftNodeChildrenChannels<Children>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
@@ -1138,7 +1060,6 @@ export interface HeadingSectionNode<
   Dependencies extends object = {},
   Children extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
     CraftChannelsCarrier<CraftNodeChildrenChannels<Children>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
@@ -1160,7 +1081,6 @@ export interface DeferNode<
   Dependencies extends object = {},
   Children extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Children>>,
     CraftChannelsCarrier<CraftNodeChildrenChannels<Children>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Children>>,
     CraftNodeSettledExceptionsCarrier<
@@ -1291,7 +1211,7 @@ export type ContentHeadingNeedFromProps<Props extends object> =
  * site, and since a template's children are themselves component nodes, that
  * nests until TypeScript gives up with TS2589. Reading `Template` once — and
  * letting each child node hand back the channel it already carries — keeps the
- * work flat, which is the same reason `ComponentCssVars` is written this way.
+ * work flat.
  */
 export type ComponentTemplateChannels<Template> = Template extends (
   ...args: any[]
@@ -1326,7 +1246,6 @@ export interface ProjectionNode<
   Dependencies extends object = {},
   Output extends CraftNodeChildren = CraftNodeChildren,
 > extends CraftNodeDepsCarrier<Dependencies>,
-    CraftNodeCssVarsCarrier<CraftNodeChildrenCssVars<Output>>,
     CraftChannelsCarrier<CraftNodeChildrenChannels<Output>>,
     CraftNodePendingCarrier<CraftNodeChildrenPendingSources<Output>>,
     CraftNodeSettledExceptionsCarrier<
@@ -1338,7 +1257,6 @@ export interface ProjectionNode<
   readonly kind: 'projection';
   readonly render: () => Output;
   readonly slotName?: string;
-  readonly stylePolicy: ContentStylePolicy;
   readonly declarationContext?: unknown;
 }
 
@@ -1352,7 +1270,6 @@ export interface TemplateNode<
     CraftNodeSettledExceptionsCarrier<
       CraftNodeChildrenSettledExceptions<Output>
     > {
-  readonly __craftNodeCssVars__?: CraftNodeChildrenCssVars<Output>;
   readonly [CRAFT_NODE_FIELD_EXCEPTIONS]?: CraftNodeChildrenRawFieldExceptions<Output>;
   readonly kind: 'template';
   readonly template: CraftTemplate<Context, Output>;
