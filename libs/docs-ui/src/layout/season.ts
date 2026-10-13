@@ -18,7 +18,7 @@ import {
   type SeasonNames,
 } from '../foundation/season.ts';
 import { DocIcon, type IconName } from '../icon/icon.ts';
-import { DocMenuView } from '../menu/menu.ts';
+import { DocMenuView, provideDocMenuView } from '../menu/menu.ts';
 import { menuUi } from '../menu/menu.style.ts';
 
 const stored = (): SeasonChoice | undefined => {
@@ -109,10 +109,10 @@ const glyph = (name: IconName) =>
  */
 export const DocSeasonPicker = craftComponent(
   'DocSeasonPicker',
-  {},
+  { providers: [provideDocMenuView()] },
   function* (props: SeasonPickerInput) {
     const view = yield* DocSeasonView();
-    const menu = yield* DocMenuView({ menuId: props.menuId });
+    const menu = yield* DocMenuView();
     const id = yield* props.menuId();
     const label = yield* props.label();
     const names = yield* props.names();
@@ -161,7 +161,7 @@ export const DocSeasonPicker = craftComponent(
             return `${label}: ${names[current]}`;
           },
           title: label,
-          click: () => menu.toggle(),
+          click: () => menu.toggle(id),
         },
         [
           DocIcon({

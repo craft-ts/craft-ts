@@ -12,7 +12,6 @@ import {
   craftService,
   fromEventToSource$,
   state,
-  type CraftServiceInput,
 } from '@craft-ts/core';
 import { DocIcon } from '../icon/icon.ts';
 import { NAVIGATED_EVENT } from '../site/navigated.ts';
@@ -39,10 +38,10 @@ export interface MenuInput {
  * the ones the first render opened. They are not set up on the server, where
  * there is no document to listen to.
  */
-export const { DocMenuView } = craftService(
-  { name: 'docMenuView', providedIn: 'function' },
-  function* (inputs: { readonly menuId: CraftServiceInput<string> }) {
-    const menuId = yield* inputs.menuId();
+export const { DocMenuView, provideDocMenuView } = craftService(
+  { name: 'docMenuView', providedIn: 'toProvide' },
+  function* () {
+    let activeMenuId = '';
     const open = yield* state('open', false, ({ update }) => ({
       toggle: () => update((value) => !value),
       close: () => update(() => false),
@@ -50,9 +49,12 @@ export const { DocMenuView } = craftService(
     if (typeof document !== 'undefined') {
       fromEventToSource$<PointerEvent>(document, 'pointerdown').subscribe(
         (event) => {
-          const inside = (event.target as Element | null)?.closest(
-            `[data-doc-menu="${menuId}"]`,
-          );
+          const menuId = activeMenuId;
+          const inside = menuId
+            ? (event.target as Element | null)?.closest(
+                `[data-doc-menu="${menuId}"]`,
+              )
+            : null;
           if (!inside) open.close();
         },
       );
@@ -63,8 +65,14 @@ export const { DocMenuView } = craftService(
       );
       fromEventToSource$<Event>(document, NAVIGATED_EVENT).subscribe(() => open.close());
     }
-    yield* craftExpose('toggle', open.toggle);
-    yield* craftExpose('close', open.close);
+    yield* craftExpose('toggle', (menuId: string) => {
+      activeMenuId = menuId;
+      open.toggle();
+    });
+    yield* craftExpose('close', () => {
+      activeMenuId = '';
+      open.close();
+    });
   },
 );
 
@@ -75,9 +83,9 @@ export const { DocMenuView } = craftService(
  */
 export const DocMenu = craftComponent(
   'DocMenu',
-  {},
+  { providers: [provideDocMenuView()] },
   function* (props: MenuInput) {
-    const view = yield* DocMenuView({ menuId: props.menuId });
+    const view = yield* DocMenuView();
     const id = yield* props.menuId();
     const label = yield* props.label();
     const items = yield* props.items();
@@ -111,7 +119,7 @@ export const DocMenu = craftComponent(
           'aria-haspopup': 'menu',
           'aria-controls': `${id}-panel`,
           'aria-expanded': isOpen,
-          click: () => view.toggle(),
+          click: () => view.toggle(id),
         },
         [
           span(label),

@@ -62,7 +62,10 @@ const QuickstartTaskPage = craftComponent(
       ifNode(
         'quickstart-has-task',
         QuickstartTaskPageView.hasTask,
-        () => p(`Task: ${QuickstartTaskPageView.title}`),
+        () =>
+          p(function* () {
+            return `Task: ${yield* QuickstartTaskPageView.title()}`;
+          }),
       ),
       ifNode(
         'quickstart-task-exception',
