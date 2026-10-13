@@ -271,21 +271,9 @@ const TaskRow = craftComponent(
     ]),
 ).pipe(withComponentProviders(({ task }) => [provideTaskRowView({ task })]));
 
-export const {
-  TaskBoardStateMachineListView,
-  provideTaskBoardStateMachineListView,
-} = craftService(
-  { name: 'taskBoardStateMachineListView', providedIn: 'toProvide' },
-  function* () {
-    // Nothing to expose.
-  },
-);
-
 const TaskBoardStateMachineList = craftComponent(
   'TaskBoardStateMachineList',
-  {
-    providers: [provideTaskBoardStateMachineListView()],
-  },
+  {},
   () =>
     section({ class: example.card }, [
       heading({ class: example.title }, 'State machine — one per row'),
