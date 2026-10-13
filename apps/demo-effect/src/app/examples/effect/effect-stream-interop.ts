@@ -12,11 +12,12 @@ import {
   strong,
 } from '@craft-ts/component';
 import { craftComputed, craftService, craftUse } from '@craft-ts/core';
-import { queryEffect } from '@craft-ts/effect';
+import { effectService, queryEffect } from '@craft-ts/effect';
 import { interval, map, streamSignal, take } from '@craft-ts/stream';
 import { fromStream, toStream } from '@craft-ts/stream-effect';
 import { Effect, Stream } from 'effect';
 import { example } from '../../effect-demo.style';
+import { StreamInteropClock } from './effect-stream-interop-clock';
 
 export const { EffectStreamInteropView, provideEffectStreamInteropView } =
   craftService(
@@ -44,9 +45,15 @@ export const { EffectStreamInteropView, provideEffectStreamInteropView } =
         {
           method: (_run: number) => _run,
           loader: () =>
-            Stream.runCollect(ticks).pipe(
-              Effect.map((chunk) => ({ ticks: Array.from(chunk).join(', ') })),
-            ),
+            Effect.gen(function* () {
+              const { currentTimeMillis } = yield* effectService(
+                StreamInteropClock,
+                ({ currentTimeMillis }) => ({ currentTimeMillis }),
+              );
+              const collectedAt = yield* currentTimeMillis;
+              const chunk = yield* Stream.runCollect(ticks);
+              return { ticks: Array.from(chunk).join(', '), collectedAt };
+            }),
         },
         ({ resource }) => ({
           ticksText: craftUse(

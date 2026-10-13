@@ -118,7 +118,7 @@ export const { ReviewDecisionPanelView, provideReviewDecisionPanelView } =
 export const ReviewDecisionPanel = craftComponent(
   'ReviewDecisionPanel',
   {},
-  function* (inputs: Inputs) {
+  function* (_inputs: Inputs) {
     const {
       previousRejectionVisible,
       t,

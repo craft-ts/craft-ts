@@ -9,14 +9,10 @@
   ],
   "targets": {
     "build": {
-      "executor": "@nx/js:tsc",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
       "options": {
-        "outputPath": "dist/libs/docs-ui",
-        "main": "libs/docs-ui/src/index.ts",
-        "tsConfig": "libs/docs-ui/tsconfig.lib.json"
+        "command": "tsc -p libs/docs-ui/tsconfig.lib.json --noEmit --declaration false --declarationMap false --composite false --pretty false"
       }
     },
     "test": {

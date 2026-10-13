@@ -115,9 +115,6 @@ function renderBlock(
       // where an absolute level is the content, not a composition accident.
       // One helper per level keeps every class a plain member, so the set of
       // classes a page can carry stays enumerable.
-      /* eslint-disable craft-ts/prefer-relative-heading --
-         A Markdown page states its own outline: `###` is an h3 whatever component
-         it ends up under. A relative level would re-number the author's headings. */
       switch (block.level) {
         case 1:
           return h1({ id: block.id, class: proseUi.h1 }, children);
@@ -132,7 +129,6 @@ function renderBlock(
         case 6:
           return h6({ id: block.id, class: proseUi.h4 }, children);
       }
-      /* eslint-enable craft-ts/prefer-relative-heading */
       return null as never;
     }
     case 'paragraph':

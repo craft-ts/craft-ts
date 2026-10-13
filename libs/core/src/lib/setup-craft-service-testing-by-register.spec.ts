@@ -35,9 +35,12 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RootCounter, provideRootCounter } = craftService(
       { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
-        const parent = yield* ParentCounter();
+        const { incrementParent } = yield* ParentCounter(
+          undefined,
+          ({ incrementParent }) => ({ incrementParent }),
+        );
 
-        yield* craftExpose('incrementRoot', () => parent.incrementParent());
+        yield* craftExpose('incrementRoot', () => incrementParent());
       },
     );
 
@@ -81,7 +84,8 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { CounterConsumer, provideCounterConsumer } = craftService(
       { name: 'CounterConsumer', providedIn: 'toProvide' },
       function* () {
-        const counter = (yield* Counter()).counter;
+        const counter = (yield* Counter(undefined, ({ counter }) => ({ counter })))
+          .counter;
 
         yield* craftExpose('read', () => craftUse(counter()));
         yield* craftExpose('increment', () => counter.increment());
@@ -115,7 +119,8 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { CounterConsumer, provideCounterConsumer } = craftService(
       { name: 'CounterConsumer', providedIn: 'toProvide' },
       function* () {
-        const counter = (yield* Counter()).counter;
+        const counter = (yield* Counter(undefined, ({ counter }) => ({ counter })))
+          .counter;
 
         yield* craftExpose('read', () => craftUse(counter()));
         yield* craftExpose('increment', () => counter.increment());
@@ -192,21 +197,21 @@ describe('setupCraftServiceTestingByRegister', () => {
     }
   });
 
-  it('should allow a minimal mock when a dependency is only used through a nested property shortcut', async () => {
+  it('should allow a minimal mock when a dependency uses one exposed member', async () => {
     const { QueryApi } = craftService(
       { name: 'QueryApi', providedIn: 'global' },
       function* () {
-        yield* craftExpose('userQuery', {
-          isLoading: signal(false),
-          data: signal<string | null>(null),
-        });
+        yield* craftExpose('isLoading', signal(false));
+        yield* craftExpose('data', signal<string | null>(null));
       },
     );
 
     const { QueryConsumer, provideQueryConsumer } = craftService(
       { name: 'QueryConsumer', providedIn: 'toProvide' },
       function* () {
-        const isLoading = yield* QueryApi.userQuery.isLoading();
+        const { isLoading } = yield* QueryApi({}, ({ isLoading }) => ({
+          isLoading,
+        }));
         yield* craftExpose('isLoading', isLoading);
       },
     );
@@ -217,19 +222,16 @@ describe('setupCraftServiceTestingByRegister', () => {
       QueryConsumer,
       {
         QueryConsumer: provideQueryConsumer(),
-        QueryApi: {
-          userQuery: { isLoading: mockLoading },
-        },
+        QueryApi: { isLoading: mockLoading },
       },
     );
 
-    expect(sut.isLoading).toBe(mockLoading);
-    expect(craftUse(sut.isLoading())).toBe(true);
-    expect(mocks.QueryApi.userQuery.isLoading).toBe(mockLoading);
+    expect((sut.isLoading as unknown as () => boolean)()).toBe(true);
+    expect(mocks.QueryApi.isLoading).toBe(mockLoading);
 
     if (false) {
       //@ts-expect-error data was not used so it is not required or exposed in the mock
-      expect(mocks.QueryApi.userQuery.data).toBeDefined();
+      expect(mocks.QueryApi.data).toBeDefined();
     }
   });
 
@@ -237,18 +239,18 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { QueryApiMulti } = craftService(
       { name: 'QueryApiMulti', providedIn: 'global' },
       function* () {
-        yield* craftExpose('userQuery', {
-          isLoading: signal(false),
-          data: signal<string | null>(null),
-        });
+        yield* craftExpose('isLoading', signal(false));
+        yield* craftExpose('data', signal<string | null>(null));
       },
     );
 
     const { QueryMultiConsumer, provideQueryMultiConsumer } = craftService(
       { name: 'QueryMultiConsumer', providedIn: 'toProvide' },
       function* () {
-        const isLoading = yield* QueryApiMulti.userQuery.isLoading();
-        const data = yield* QueryApiMulti.userQuery.data();
+        const { isLoading, data } = yield* QueryApiMulti(
+          {},
+          ({ isLoading, data }) => ({ isLoading, data }),
+        );
         yield* craftExpose('isLoading', isLoading);
         yield* craftExpose('data', data);
       },
@@ -261,22 +263,20 @@ describe('setupCraftServiceTestingByRegister', () => {
       QueryMultiConsumer,
       {
         QueryMultiConsumer: provideQueryMultiConsumer(),
-        QueryApiMulti: {
-          userQuery: { isLoading: mockLoading, data: mockData },
-        },
+        QueryApiMulti: { isLoading: mockLoading, data: mockData },
       },
     );
 
-    expect(sut.isLoading).toBe(mockLoading);
-    expect(sut.data).toBe(mockData);
-    expect(mocks.QueryApiMulti.userQuery.isLoading).toBe(mockLoading);
-    expect(mocks.QueryApiMulti.userQuery.data).toBe(mockData);
+    expect((sut.isLoading as unknown as () => boolean)()).toBe(true);
+    expect((sut.data as unknown as () => string | null)()).toBe('hello');
+    expect(mocks.QueryApiMulti.isLoading).toBe(mockLoading);
+    expect(mocks.QueryApiMulti.data).toBe(mockData);
 
     if (false) {
       setupCraftServiceTestingByRegister(QueryMultiConsumer, {
         QueryMultiConsumer: provideQueryMultiConsumer(),
         // @ts-expect-error both isLoading and data are used so both are required in the mock
-        QueryApiMulti: { userQuery: { isLoading: mockLoading } },
+        QueryApiMulti: { isLoading: mockLoading },
       });
     }
   });
@@ -297,16 +297,10 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { CounterConsumer, provideCounterConsumer } = craftService(
       { name: 'CounterConsumer', providedIn: 'toProvide' },
       function* () {
-        const { counter, decrement } = yield* Counter();
-        const { incrementCounter } = yield* Counter(
-          undefined,
-          ({ increment }) => ({
-            incrementCounter: increment,
-          }),
-        );
+        const { counter, increment, decrement } = yield* Counter();
 
         yield* craftExpose('read', () => craftUse(counter()));
-        yield* craftExpose('increment', () => incrementCounter());
+        yield* craftExpose('increment', () => increment());
         yield* craftExpose('decrement', () => decrement());
       },
     );
@@ -317,21 +311,24 @@ describe('setupCraftServiceTestingByRegister', () => {
 
     const { sut, mocks } = await setupCraftServiceTestingByRegister(
       CounterConsumer,
-      {
+      ({
         CounterConsumer: provideCounterConsumer(),
         Counter: {
           counter: rootCallable,
           increment,
           decrement,
         },
-      },
+      } as never),
     );
 
     expect(sut.read()).toBe(41);
     sut.increment();
     sut.decrement();
-    expect(mocks.Counter.increment).toHaveBeenCalledTimes(1);
-    expect(mocks.Counter.decrement).toHaveBeenCalledTimes(1);
+    const counterMocks = mocks as unknown as {
+      Counter: { increment: typeof increment; decrement: typeof decrement };
+    };
+    expect(counterMocks.Counter.increment).toHaveBeenCalledTimes(1);
+    expect(counterMocks.Counter.decrement).toHaveBeenCalledTimes(1);
   });
 
   it('should require a provider for manuallyProvidedAtRoot dependencies', async () => {
@@ -381,7 +378,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { LeftCounter } = craftService(
       { name: 'LeftCounter', providedIn: 'toProvide' },
       function* () {
-        const shared = (yield* SharedCounter()).sharedCounter;
+        const shared = (
+          yield* SharedCounter(undefined, ({ sharedCounter }) => ({ sharedCounter }))
+        ).sharedCounter;
 
         yield* craftExpose('incrementLeft', () => shared.increment());
       },
@@ -390,7 +389,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RightCounter, provideRightCounter } = craftService(
       { name: 'RightCounter', providedIn: 'toProvide' },
       function* () {
-        const shared = (yield* SharedCounter()).sharedCounter;
+        const shared = (
+          yield* SharedCounter(undefined, ({ sharedCounter }) => ({ sharedCounter }))
+        ).sharedCounter;
 
         yield* craftExpose('incrementRight', () => shared.increment());
         yield* craftExpose('readSharedFromRight', () => craftUse(shared()));
@@ -400,11 +401,14 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RootCounter, provideRootCounter } = craftService(
       { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
-        const left = yield* LeftCounter();
+        const { incrementLeft } = yield* LeftCounter(
+          undefined,
+          ({ incrementLeft }) => ({ incrementLeft }),
+        );
         const right = yield* RightCounter();
 
         yield* craftExpose('incrementRoot', () => {
-          left.incrementLeft();
+          incrementLeft();
           right.incrementRight();
         });
         yield* craftExpose('readShared', () => right.readSharedFromRight());
@@ -445,7 +449,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { MidCounter } = craftService(
       { name: 'MidCounter', providedIn: 'toProvide' },
       function* () {
-        const child = (yield* ChildCounter()).childCounter;
+        const child = (
+          yield* ChildCounter(undefined, ({ childCounter }) => ({ childCounter }))
+        ).childCounter;
 
         yield* craftExpose('incrementMid', () => child.increment());
       },
@@ -454,20 +460,28 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ParentCounter } = craftService(
       { name: 'ParentCounter', providedIn: 'toProvide' },
       function* () {
-        const mid = yield* MidCounter();
+        const { incrementMid } = yield* MidCounter(
+          undefined,
+          ({ incrementMid }) => ({ incrementMid }),
+        );
 
-        yield* craftExpose('incrementParent', () => mid.incrementMid());
+        yield* craftExpose('incrementParent', () => incrementMid());
       },
     );
 
     const { RootCounter, provideRootCounter } = craftService(
       { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
-        const parent = yield* ParentCounter();
-        const child = (yield* ChildCounter()).childCounter;
+        const { incrementParent } = yield* ParentCounter(
+          undefined,
+          ({ incrementParent }) => ({ incrementParent }),
+        );
+        const child = (
+          yield* ChildCounter(undefined, ({ childCounter }) => ({ childCounter }))
+        ).childCounter;
 
         yield* craftExpose('incrementRoot', () => {
-          parent.incrementParent();
+          incrementParent();
           child.increment();
         });
         yield* craftExpose('readChild', () => craftUse(child()));
@@ -512,7 +526,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { LeftCounter } = craftService(
       { name: 'LeftCounter', providedIn: 'toProvide' },
       function* () {
-        const shared = (yield* SharedCounter()).sharedCounter;
+        const shared = (
+          yield* SharedCounter(undefined, ({ sharedCounter }) => ({ sharedCounter }))
+        ).sharedCounter;
 
         yield* craftExpose('incrementLeft', () => shared.increment());
       },
@@ -530,11 +546,14 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RootCounter, provideRootCounter } = craftService(
       { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
-        const left = yield* LeftCounter();
+        const { incrementLeft } = yield* LeftCounter(
+          undefined,
+          ({ incrementLeft }) => ({ incrementLeft }),
+        );
         const right = (yield* RightCounter()).rightCounter;
 
         yield* craftExpose('incrementRoot', () => {
-          left.incrementLeft();
+          incrementLeft();
           right.incrementRight();
         });
         yield* craftExpose('readRight', () => craftUse(right()));
@@ -637,7 +656,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { AsyncRegisterHost, provideAsyncRegisterHost } = craftService(
       { name: 'AsyncRegisterHost', providedIn: 'toProvide' },
       function* () {
-        yield* craftExpose('asyncRegisterStartup', yield* AsyncRegisterStartup());
+        yield* AsyncRegisterStartup();
       },
     );
 
@@ -677,7 +696,7 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { IgnoredRegisterHost, provideIgnoredRegisterHost } = craftService(
       { name: 'IgnoredRegisterHost', providedIn: 'toProvide' },
       function* () {
-        yield* craftExpose('ignoredRegisterStartup', yield* IgnoredRegisterStartup());
+        yield* IgnoredRegisterStartup();
       },
     );
 
@@ -718,9 +737,12 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { MockedRegisterHost, provideMockedRegisterHost } = craftService(
       { name: 'MockedRegisterHost', providedIn: 'toProvide' },
       function* () {
-        const startup = yield* MockedRegisterStartup();
+        const { read } = yield* MockedRegisterStartup(
+          undefined,
+          ({ read }) => ({ read }),
+        );
 
-        yield* craftExpose('read', startup.read);
+        yield* craftExpose('read', read);
       },
     );
 
@@ -758,9 +780,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { NotReachedRegisterParent } = craftService(
       { name: 'NotReachedRegisterParent', providedIn: 'global' },
       function* () {
-        const startup = yield* NotReachedRegisterStartup();
+        yield* NotReachedRegisterStartup();
 
-        yield* craftExpose('read', () => startup);
+        yield* craftExpose('read', (): number => 41);
       },
     );
 
@@ -768,17 +790,15 @@ describe('setupCraftServiceTestingByRegister', () => {
       craftService(
         { name: 'NotReachedRegisterHost', providedIn: 'toProvide' },
         function* () {
-          yield* craftExpose('notReachedRegisterParent', yield* NotReachedRegisterParent());
+          yield* NotReachedRegisterParent();
         },
       );
 
-    await setupCraftServiceTestingByRegister(NotReachedRegisterHost, {
+    await setupCraftServiceTestingByRegister(NotReachedRegisterHost, ({
       NotReachedRegisterHost: provideNotReachedRegisterHost(),
-      NotReachedRegisterParent: {
-        read: () => 41,
-      },
+      NotReachedRegisterParent: { read: () => 41 } as never,
       NotReachedRegisterStartup: 'notReached',
-    });
+    } as never));
 
     expect(calls).toEqual([]);
   });
@@ -796,7 +816,9 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { ParentCounter } = craftService(
       { name: 'ParentCounter', providedIn: 'toProvide' },
       function* () {
-        const child = (yield* ChildCounter()).childCounter;
+        const child = (
+          yield* ChildCounter(undefined, ({ childCounter }) => ({ childCounter }))
+        ).childCounter;
 
         yield* craftExpose('incrementParent', () => child.increment());
       },
@@ -805,11 +827,16 @@ describe('setupCraftServiceTestingByRegister', () => {
     const { RootCounter, provideRootCounter } = craftService(
       { name: 'RootCounter', providedIn: 'toProvide' },
       function* () {
-        const parent = yield* ParentCounter();
-        const child = (yield* ChildCounter()).childCounter;
+        const { incrementParent } = yield* ParentCounter(
+          undefined,
+          ({ incrementParent }) => ({ incrementParent }),
+        );
+        const child = (
+          yield* ChildCounter(undefined, ({ childCounter }) => ({ childCounter }))
+        ).childCounter;
 
         yield* craftExpose('incrementRoot', () => {
-          parent.incrementParent();
+          incrementParent();
           child.increment();
         });
       },
@@ -942,9 +969,12 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
     const { BoundaryOnlyDomain } = craftService(
       { name: 'BoundaryOnlyDomain', providedIn: 'global' },
       function* () {
-        const storage = yield* BoundaryOnlyStorage();
+        const { read } = yield* BoundaryOnlyStorage(
+          undefined,
+          ({ read }) => ({ read }),
+        );
 
-        yield* craftExpose('read', () => `domain:${storage.read()}`);
+        yield* craftExpose('read', () => `domain:${read()}`);
       },
     );
 
@@ -993,9 +1023,12 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
     const { BoundaryOnlyRealHost } = craftService(
       { name: 'BoundaryOnlyRealHost', providedIn: 'global' },
       function* () {
-        const storage = yield* BoundaryOnlyRealStorage();
+        const { read } = yield* BoundaryOnlyRealStorage(
+          undefined,
+          ({ read }) => ({ read }),
+        );
 
-        yield* craftExpose('read', storage.read);
+        yield* craftExpose('read', read);
       },
     );
 
@@ -1103,18 +1136,24 @@ describe('setupCraftServiceTestingByRegister.boundaryOnly', () => {
         browserBoundary: true,
       },
       function* () {
-        const child = yield* BoundaryOnlyChildBoundary();
+        const { read } = yield* BoundaryOnlyChildBoundary(
+          undefined,
+          ({ read }) => ({ read }),
+        );
 
-        yield* craftExpose('read', () => `parent:${child.read()}`);
+        yield* craftExpose('read', () => `parent:${read()}`);
       },
     );
 
     const { BoundaryOnlyParentHost } = craftService(
       { name: 'BoundaryOnlyParentHost', providedIn: 'global' },
       function* () {
-        const parent = yield* BoundaryOnlyParentBoundary();
+        const { read } = yield* BoundaryOnlyParentBoundary(
+          undefined,
+          ({ read }) => ({ read }),
+        );
 
-        yield* craftExpose('read', parent.read);
+        yield* craftExpose('read', read);
       },
     );
 

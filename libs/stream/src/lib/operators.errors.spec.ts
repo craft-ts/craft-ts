@@ -390,7 +390,7 @@ describe('buffering and expand misuse is a defect, never a hang', () => {
       subscribe(observer: { next?(v: number): void; complete?(): void }) {
         observer.next?.(n + 1);
         observer.complete?.();
-        return { unsubscribe() {} };
+        return { unsubscribe: vi.fn() };
       },
     });
     const { seen } = observe(

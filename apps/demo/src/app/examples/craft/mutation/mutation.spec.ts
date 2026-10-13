@@ -210,7 +210,7 @@ describe('craft mutation template', () => {
           StoragePersister: 'notReached',
           UserMutation: 'notReached',
           mutationCraftView: result.context,
-        },
+        } as never,
       },
     );
 
@@ -246,7 +246,7 @@ describe('craft mutation template', () => {
           StoragePersister: 'notReached',
           UserMutation: 'notReached',
           mutationCraftView: withUser.context,
-        },
+        } as never,
       },
     );
 
@@ -268,7 +268,7 @@ describe('craft mutation template', () => {
           StoragePersister: 'notReached',
           UserMutation: 'notReached',
           mutationCraftView: withoutUser.context,
-        },
+        } as never,
       });
 
     try {
@@ -290,7 +290,7 @@ describe('craft mutation template', () => {
           StoragePersister: 'notReached',
           UserMutation: 'notReached',
           mutationCraftView: result.context,
-        },
+        } as never,
       },
     );
 
@@ -320,8 +320,16 @@ describe('craft mutation logic', () => {
     const result = await setupCraftServiceTestingByRegister(
       MutationCraftView,
       {
-        mutationCraftView: provideMutationCraftView(),
-        UserMutation: provideUserMutation(),
+        mutationCraftView: provideMutationCraftView({
+          userId: function* () {
+            return user.id;
+          },
+        }),
+        UserMutation: provideUserMutation({
+          userId: function* () {
+            return user.id;
+          },
+        }),
         ApiService: { getItemById, updateItem },
         StoragePersister: storage,
         CraftRouter: { navigate },

@@ -180,7 +180,7 @@ export const { ReviewActionDialogsView, provideReviewActionDialogsView } =
 export const ReviewActionDialogs = craftComponent(
   'ReviewActionDialogs',
   {},
-  function* (inputs: Inputs) {
+  function* (_inputs: Inputs) {
     const {
       isRegenerationOpen,
       t,

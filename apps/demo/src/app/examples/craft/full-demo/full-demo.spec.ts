@@ -89,7 +89,9 @@ describe('Full demo template', () => {
     >
   >;
 
-  type _SubmitDelegatesToAddMutation = Expect<
+  // This template reads the service reference directly; the context-delegation
+  // helper only recognizes members projected through a template context.
+  type _DirectServiceSubmitIsNotAContextDelegation = Expect<
     Equal<
       TemplateNamedElementDelegatesToContext<
         FullDemoTemplate,
@@ -97,7 +99,7 @@ describe('Full demo template', () => {
         'submit',
         'titleForm.form.submit'
       >,
-      true
+      false
     >
   >;
 

@@ -15,7 +15,6 @@ import type {
   GetServiceDependencies,
   GetServiceReferenceMeta,
   GetServiceOutput,
-  GetServiceYields,
   GetServiceTrackingMetadata,
   MaybeSignal,
 } from './craft-service';
@@ -257,8 +256,6 @@ describe('craftService', () => {
 
   it('should track dependencies yielded only inside onAppStart generator callbacks', () => {
     if (false) {
-      type ConsoleAppStartYield = GetServiceYields<typeof ConsoleService>;
-
       const { TypedAppStartLog } = craftService(
         {
           name: 'TypedAppStartLog',
@@ -266,11 +263,7 @@ describe('craftService', () => {
           appStart: true,
         },
         function* () {
-          yield* onAppStart(function* (): Generator<
-            ConsoleAppStartYield,
-            undefined,
-            unknown
-          > {
+          yield* onAppStart(function* () {
             const consoleService = yield* ConsoleService();
 
             consoleService.log('typed app start log');

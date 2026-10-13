@@ -188,7 +188,7 @@ export const { ReviewQueuePanelView, provideReviewQueuePanelView } =
 export const ReviewQueuePanel = craftComponent(
   'ReviewQueuePanel',
   {},
-  function* (inputs: Inputs) {
+  function* (_inputs: Inputs) {
     const {
       t,
       queueTitle,

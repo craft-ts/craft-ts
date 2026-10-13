@@ -147,7 +147,7 @@ const PixelArtMatrix = craftComponent(
           forNode(PixelArtMatrixView.grid, { track: trackGridRow }, (row, rowIndex) =>
             div({ class: pixel.row, 'data-testid': 'matrix-row' }, [
               forNode(row, { track: (cell) => cell.id }, (cell, columnIndex) =>
-                button('cell', { type: 'button',
+                button('pixelArtMatrixCell', { type: 'button',
                   class: pixel.matrixCell,
                   'data-testid': 'matrix-cell',
                   style: function* () {

@@ -2,7 +2,7 @@
 import { defineConfig } from 'vite';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { craftStyle } from '../style/src/plugin/vite.ts';
+import { craftStyle } from '@craft-ts/style/vite';
 
 /**
  * The preview harness: every component of the package in a browser, light and

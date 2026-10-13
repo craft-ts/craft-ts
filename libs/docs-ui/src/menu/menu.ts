@@ -39,8 +39,8 @@ export interface MenuInput {
  * the ones the first render opened. They are not set up on the server, where
  * there is no document to listen to.
  */
-export const { DocMenuView, provideDocMenuView } = craftService(
-  { name: 'docMenuView', providedIn: 'toProvide' },
+export const { DocMenuView } = craftService(
+  { name: 'docMenuView', providedIn: 'function' },
   function* (inputs: { readonly menuId: CraftServiceInput<string> }) {
     const menuId = yield* inputs.menuId();
     const open = yield* state('open', false, ({ update }) => ({
@@ -75,7 +75,7 @@ export const { DocMenuView, provideDocMenuView } = craftService(
  */
 export const DocMenu = craftComponent(
   'DocMenu',
-  { providers: [provideDocMenuView()] },
+  {},
   function* (props: MenuInput) {
     const view = yield* DocMenuView({ menuId: props.menuId });
     const id = yield* props.menuId();

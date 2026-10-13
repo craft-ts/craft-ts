@@ -24,7 +24,19 @@ module.exports = {
         if (!isCraftComponentCall(node, sourceCode)) return;
 
         const template = node.arguments[2];
+        // A named template is useful to wrappers such as directive-test
+        // components, which decorate and then forward an existing template.
+        // Synchronous generators are also a supported CraftComponent form:
+        // they resolve service dependencies before returning the template.
+        // The rule constrains inline non-generator templates, where setup can
+        // otherwise be hidden in the factory callback.
         if (template?.type !== 'ArrowFunctionExpression') {
+          if (
+            template?.type !== 'FunctionExpression' ||
+            (template.generator && !template.async)
+          ) {
+            return;
+          }
           context.report({ node: template ?? node, messageId: 'direct' });
           return;
         }

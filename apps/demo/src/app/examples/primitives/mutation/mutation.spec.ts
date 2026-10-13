@@ -207,7 +207,7 @@ describe('primitive mutation template', () => {
           CraftRouter: 'notReached',
           StoragePersister: 'notReached',
           mutationDemoView: result.context,
-        },
+        } as never,
       },
     );
 
@@ -240,7 +240,7 @@ describe('primitive mutation template', () => {
           CraftRouter: 'notReached',
           StoragePersister: 'notReached',
           mutationDemoView: withUser.context,
-        },
+        } as never,
       },
     );
 
@@ -261,7 +261,7 @@ describe('primitive mutation template', () => {
           CraftRouter: 'notReached',
           StoragePersister: 'notReached',
           mutationDemoView: withoutUser.context,
-        },
+        } as never,
       });
 
     try {
@@ -282,7 +282,7 @@ describe('primitive mutation template', () => {
           CraftRouter: 'notReached',
           StoragePersister: 'notReached',
           mutationDemoView: result.context,
-        },
+        } as never,
       },
     );
 
@@ -312,7 +312,11 @@ describe('primitive mutation logic', () => {
     const result = await setupCraftServiceTestingByRegister(
       MutationDemoView,
       {
-        mutationDemoView: provideMutationDemoView(),
+        mutationDemoView: provideMutationDemoView({
+          userId: function* () {
+            return user.id;
+          },
+        }),
         ApiService: { getItemById, updateItem },
         StoragePersister: storage,
         CraftRouter: { navigate },

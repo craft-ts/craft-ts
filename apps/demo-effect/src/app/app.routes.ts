@@ -14,7 +14,8 @@ import {
   type ProvidedEffectServicesOfRoute,
 } from '@craft-ts/effect';
 import { craftTemporalClock } from '@craft-ts/stream-effect';
-import type { Effect } from 'effect';
+import { StreamInteropClockLive } from './examples/effect/effect-stream-interop-clock';
+import { Layer, type Effect } from 'effect';
 import type { AppProvidedEffectServices } from './app.config';
 import { SupportTeamLive } from './shared/access-domain';
 import type { checkUserAccess, loadTeamOverview } from './shared/access-domain';
@@ -113,7 +114,11 @@ export const { demoEffectRoutes } = craftRoutes('demo-effect', [
         ),
       // Effect's Clock follows craft's temporal runtime: `Effect.sleep` in this
       // page is the same time as every craft timer, and a test can drive it.
-      [provideLayer(craftTemporalClock())],
+      [
+        provideLayer(
+          Layer.provideMerge(StreamInteropClockLive, craftTemporalClock()),
+        ),
+      ],
     ),
   },
   {

@@ -15,7 +15,7 @@ export const AiSendContextLauncher: CraftComponent<{
 }> = craftComponent(
   'AiSendContextLauncher',
   {},
-  ({ onOpen }: { readonly onOpen: Output<() => void> }) =>
+  (inputs: { readonly onOpen: Output<() => void> }) =>
     button(
       'aiContextLauncher',
       {
@@ -23,7 +23,7 @@ export const AiSendContextLauncher: CraftComponent<{
         class: [aiTheme.root, aiLauncher.root],
         title: 'Send context to AI',
         'aria-label': 'Open AI context chat',
-        click: () => onOpen(),
+        click: () => inputs.onOpen(),
       },
       [span({ 'aria-hidden': 'true' }, '✨'), span('AI context')],
     ),

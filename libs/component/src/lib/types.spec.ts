@@ -1782,7 +1782,7 @@ it('reports dynamic component unions and conditional branch failures', () => {
   );
   const dynamic = {
     kind: 'component',
-    // eslint-disable-next-line no-constant-condition -- this fixture preserves a union of both branches.
+
     component: (true ? first : second) as typeof first | typeof second,
     props: {},
   } as ComponentNode<{}, {}, typeof first | typeof second>;
@@ -1830,7 +1830,7 @@ it('reports dynamic component unions and conditional branch failures', () => {
   const branchParent = craftComponent(
     'contractBranchParent',
     {},
-    // eslint-disable-next-line no-constant-condition -- this fixture checks conditional branch diagnostics.
+
     () => (true ? p('ok') : missingBranch()),
   );
   type BranchContract = SetupTestComponentTemplate<typeof branchParent>;

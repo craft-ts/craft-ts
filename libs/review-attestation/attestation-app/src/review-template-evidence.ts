@@ -203,7 +203,7 @@ export const { ReviewTemplateEvidenceView, provideReviewTemplateEvidenceView } =
 export const ReviewTemplateEvidence = craftComponent(
   'ReviewTemplateEvidence',
   {},
-  function* (inputs: Inputs) {
+  function* (_inputs: Inputs) {
     const {
       card,
       evidenceHidden,

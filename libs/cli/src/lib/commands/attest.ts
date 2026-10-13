@@ -45,7 +45,6 @@ import {
   reportOn,
   serialiseLedger,
   storeVisual,
-  storeTemplateEvidence,
   loadTemplateEvidence,
   templateEvidenceValue,
   testSubjectId,

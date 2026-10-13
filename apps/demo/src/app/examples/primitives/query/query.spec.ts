@@ -148,7 +148,11 @@ describe('Query logic', () => {
     const result = await setupCraftServiceTestingByRegister(
       GlobalQueryView,
       {
-        globalQueryView: provideGlobalQueryView(),
+        globalQueryView: provideGlobalQueryView({
+          userId: function* () {
+            return currentUserId;
+          },
+        }),
         ApiService: { getItemById },
         CraftRouter: { navigate },
         StoragePersister: storage,

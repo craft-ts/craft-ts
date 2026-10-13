@@ -486,6 +486,12 @@ type ServiceBoundaryOnlyBoundaryRegisterShape<Target extends ServiceReference> =
           : Name
         : never]:
         | RegisterRealEntry
+          | RequiredUsedMockImplementation<
+              DependencyNodeDerivedPropertiesUsed<
+                RegisterNodeMap<Target>[Name]
+              >
+            >
+          | CompleteMockImplementation<DependencyOutputForName<Target, Name>>
         | MockImplementationForNode<Target, Name, RegisterNodeMap<Target>[Name]>
         | RegisterNotReachedEntry;
     }>

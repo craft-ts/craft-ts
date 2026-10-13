@@ -268,7 +268,7 @@ describe('Craft component and directive testing utilities', () => {
     expect(brandedStatusElement.textContent).toBe('Updated');
 
     // This branch exists only to assert the type error for an unrendered brand.
-    // eslint-disable-next-line no-constant-condition
+
     if (false) {
       // @ts-expect-error the content brand is not rendered by this template
       result.locator('span', { content: 'missing' });

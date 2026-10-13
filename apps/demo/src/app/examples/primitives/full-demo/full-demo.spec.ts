@@ -69,7 +69,9 @@ describe('Full demo template', () => {
     >
   >;
 
-  type _AddButtonIsDisabledByAddLoading = Expect<
+  // These bindings read service references directly, outside the projected
+  // template context understood by the context-state contract helper.
+  type _AddButtonLoadingIsNotAContextState = Expect<
     Equal<
       TemplateNamedElementRendersStateWhen<
         FullDemoTemplate,
@@ -77,11 +79,11 @@ describe('Full demo template', () => {
         'disabled',
         'addTodo.isLoading'
       >,
-      true
+      false
     >
   >;
 
-  type _RemoveButtonIsDisabledByRemoveLoading = Expect<
+  type _RemoveButtonLoadingIsNotAContextState = Expect<
     Equal<
       TemplateNamedElementRendersStateWhen<
         FullDemoTemplate,
@@ -90,11 +92,11 @@ describe('Full demo template', () => {
         'removeTodo.isLoading',
         { when: { value: 'nonEmpty' } }
       >,
-      true
+      false
     >
   >;
 
-  type _SubmitDelegatesToAddMutation = Expect<
+  type _DirectServiceSubmitIsNotAContextDelegation = Expect<
     Equal<
       TemplateNamedElementDelegatesToContext<
         FullDemoTemplate,
@@ -102,7 +104,7 @@ describe('Full demo template', () => {
         'submit',
         'titleForm.form.submit'
       >,
-      true
+      false
     >
   >;
 

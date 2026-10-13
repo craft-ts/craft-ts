@@ -98,7 +98,7 @@ export const { TierLegendView, provideTierLegendView } = craftService(
 export const TierLegend = craftComponent(
   'TierLegend',
   {},
-  function* (inputs: {
+  function* (_inputs: {
     readonly showing: Input<boolean>;
     readonly changedCount: Input<number>;
     readonly coveredCount: Input<number>;

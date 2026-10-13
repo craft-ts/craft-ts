@@ -208,7 +208,7 @@ export const { ReviewInventoryPanelsView, provideReviewInventoryPanelsView } =
 export const ReviewInventoryPanels = craftComponent(
   'ReviewInventoryPanels',
   {},
-  function* (inputs: Inputs) {
+  function* (_inputs: Inputs) {
     const {
       devtoolView,
       applicationCaptures,

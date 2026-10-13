@@ -7,6 +7,8 @@ import {
 } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { craftTemporalClock } from '@craft-ts/stream-effect';
+import { Layer } from 'effect';
+import { StreamInteropClockLive } from './effect-stream-interop-clock';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import EffectStreamInteropComponent from './effect-stream-interop';
 
@@ -58,7 +60,9 @@ describe('demo: Effect streams and craft streams', () => {
 
   const mount = () => {
     const injector = TestBed.rootInjector.createChild([
-      provideLayer(craftTemporalClock()),
+      provideLayer(
+        Layer.provideMerge(StreamInteropClockLive, craftTemporalClock()),
+      ),
     ]);
     const mounted = mountCraftComponent(
       EffectStreamInteropComponent,

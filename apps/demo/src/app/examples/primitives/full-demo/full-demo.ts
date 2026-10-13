@@ -109,7 +109,7 @@ const FullDemo = craftComponent(
             class: example.row,
             *submit(event) {
               event.preventDefault();
-              yield* FullDemoView.titleForm.form.submit();
+            yield* FullDemoView.titleForm.form.submit();
             },
           },
           [
@@ -124,7 +124,7 @@ const FullDemo = craftComponent(
                 class: example.button,
                 'data-exampleButton': 'primary',
                 type: 'submit',
-                disabled: FullDemoView.addTodo.isLoading,
+              disabled: FullDemoView.addTodo.isLoading,
               },
               'Add',
             ),
@@ -154,7 +154,7 @@ const FullDemo = craftComponent(
                     class: example.button,
                     'data-exampleButton': 'danger',
                     type: 'button',
-                    disabled: FullDemoView.removeTodo.isLoading,
+                  disabled: FullDemoView.removeTodo.isLoading,
                     *click() {
                       yield* FullDemoView.removeTodo.mutate((yield* todo()).id);
                     },
@@ -164,7 +164,7 @@ const FullDemo = craftComponent(
               ]),
           ),
         ),
-      ]),
+    ]),
 );
 
 export default FullDemo;

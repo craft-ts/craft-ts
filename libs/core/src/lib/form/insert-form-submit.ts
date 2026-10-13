@@ -63,7 +63,13 @@ type MutationSubmitExceptions<
     >;
 
 type SubmitExceptionUnion<SubmitCraftResource> =
-  SubmitCraftResource extends ResourceLikeMutationRef<
+  SubmitCraftResource extends {
+    exceptions: YieldableReactiveValue<{
+      list: (infer ExceptionList)[];
+    }>;
+  }
+    ? ExceptionList
+    : SubmitCraftResource extends ResourceLikeMutationRef<
     any,
     any,
     any,
@@ -87,12 +93,6 @@ type SubmitExceptionUnion<SubmitCraftResource> =
         >
       ? MutationSubmitExceptions<MutationExceptions, GroupIdentifier>
       : SubmitCraftResource extends {
-            exceptions: YieldableReactiveValue<{
-              list: (infer ExceptionList)[];
-            }>;
-          }
-        ? ExceptionList
-        : SubmitCraftResource extends {
               exceptions: Signal<{ list: (infer ExceptionList)[] }>;
             }
           ? ExceptionList

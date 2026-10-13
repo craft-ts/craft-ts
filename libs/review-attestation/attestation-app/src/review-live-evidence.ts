@@ -43,7 +43,7 @@ import { TierLegend } from './tier-legend';
 export const ReviewLiveEvidence = craftComponent(
   'ReviewLiveEvidence',
   {},
-  function* (inputs: Inputs) {
+  function* (_inputs: Inputs) {
     const {
       canShowBypass,
       bypassLabel,

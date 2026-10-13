@@ -1,13 +1,14 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "094794f2129e2d4d",
+  "graphHash": "d99f3cb01a0003f6",
   "routes": [
     "",
     "access",
     "effect-function",
     "i18n",
     "playground",
+    "stream-interop",
     "sync-members",
     "team"
   ],
@@ -25,18 +26,19 @@ export const architectureCatalog = {
     "SessionService",
     "StoragePersister",
     "StorageService",
+    "StreamInteropClock",
     "TeamContextService",
     "TodoStore",
     "aiContextMenuDismissal",
     "aiSendContextChatState",
     "aiSendDialogState",
-    "appView",
     "craftRouterOutletState",
     "effectFunctionView",
     "effectI18nView",
     "effectLayerScopeView",
     "effectPlaygroundView",
     "effectSharedServiceView",
+    "effectStreamInteropView",
     "effectSyncMembersView",
     "effectYieldView"
   ],
@@ -53,6 +55,7 @@ export const architectureCatalog = {
     "EffectLayerScopeComponent",
     "EffectPlaygroundComponent",
     "EffectSharedServiceComponent",
+    "EffectStreamInteropComponent",
     "EffectSyncMembersComponent",
     "EffectYieldComponent",
     "craftPending"
@@ -67,6 +70,7 @@ export const architectureCatalog = {
     "captureError",
     "captureInProgress",
     "clearAllCache",
+    "collected",
     "copied",
     "dataQuery",
     "englishPressed",
@@ -108,6 +112,7 @@ export const architectureCatalog = {
     "summary",
     "teamName",
     "teamOverviewQuery",
+    "ticksText",
     "titleInput",
     "todosQuery",
     "toggleTodoMutation",
@@ -126,7 +131,7 @@ export const architectureCatalog = {
   "httpEndpoints": [
     {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:311>"
+      "url": "<unresolved:ai-send-context-chat.ts:314>"
     }
   ],
   "uniques": [],
@@ -134,21 +139,18 @@ export const architectureCatalog = {
     "aiContextMenuDismissal",
     "aiSendContextChatState",
     "aiSendDialogState",
-    "appView",
     "craftRouterOutletState",
     "effectFunctionView",
     "effectI18nView",
     "effectLayerScopeView",
     "effectPlaygroundView",
     "effectSharedServiceView",
+    "effectStreamInteropView",
     "effectSyncMembersView",
     "effectYieldView"
   ],
   "routeProviders": {},
   "componentProviders": {
-    "App": [
-      "appView"
-    ],
     "EffectSharedServiceComponent": [
       "effectSharedServiceView"
     ],
@@ -163,6 +165,9 @@ export const architectureCatalog = {
     ],
     "EffectYieldComponent": [
       "effectYieldView"
+    ],
+    "EffectStreamInteropComponent": [
+      "effectStreamInteropView"
     ],
     "EffectSyncMembersComponent": [
       "effectSyncMembersView"
@@ -184,13 +189,6 @@ export const architectureCatalog = {
     ]
   },
   "providedOn": {
-    "appView": [
-      {
-        "kind": "component",
-        "name": "App",
-        "file": "apps/demo-effect/src/app/app.ts"
-      }
-    ],
     "effectSharedServiceView": [
       {
         "kind": "component",
@@ -224,6 +222,13 @@ export const architectureCatalog = {
         "kind": "component",
         "name": "EffectYieldComponent",
         "file": "apps/demo-effect/src/app/examples/effect/effect-profile-lookup.ts"
+      }
+    ],
+    "effectStreamInteropView": [
+      {
+        "kind": "component",
+        "name": "EffectStreamInteropComponent",
+        "file": "apps/demo-effect/src/app/examples/effect/effect-stream-interop.ts"
       }
     ],
     "effectSyncMembersView": [
@@ -294,6 +299,10 @@ export const architectureCatalog = {
       "SessionService": [
         "apps/demo-effect/src/app/shared/access-domain.ts",
         "apps/demo-effect/src/app/shared/access-domain.ts"
+      ],
+      "StreamInteropClock": [
+        "apps/demo-effect/src/app/examples/effect/effect-stream-interop-clock.ts",
+        "apps/demo-effect/src/app/examples/effect/effect-stream-interop-clock.ts"
       ],
       "TeamContextService": [
         "apps/demo-effect/src/app/shared/access-domain.ts",
