@@ -16,6 +16,7 @@ import {
 } from './host/craft-compat';
 import type { Subscribable } from './stream-kernel/subscribable';
 import {
+  isGeneratorFunction,
   isGenerator,
   NOT_EXPOSED,
   runCraftGenerator,
@@ -1330,6 +1331,7 @@ export type ServiceYieldRequest<
       ? never
     : {
         readonly name: ExposureName;
+        readonly internal?: boolean;
         readonly value?: Exposure;
         readonly resolve?: any;
       };
@@ -2241,7 +2243,9 @@ type YieldHelper<
           ServiceYieldRequest<
             Scope,
             MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
-            Metadata
+            Metadata,
+            Uncapitalize<Name>,
+            MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>
           >,
           MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
           unknown
@@ -2255,7 +2259,9 @@ type YieldHelper<
           ServiceYieldRequest<
             Scope,
             MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, Config, Output>,
-            Metadata
+            Metadata,
+            Uncapitalize<Name>,
+            MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, Config, Output>
           >,
           MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, Config, Output>,
           unknown
@@ -2775,6 +2781,7 @@ export type ResolvedServiceOutput<
 >;
 
 export type ServiceRuntimeOverride =
+  | { readonly kind: 'notReached' }
   | {
       readonly kind: 'useValue';
       readonly value: unknown;
@@ -4081,7 +4088,11 @@ function* driveShortcut(
         Object(owner),
         [...step.args],
       );
-      value = isGenerator(result) ? yield* result : result;
+      value = isGeneratorFunction(result)
+        ? yield* result()
+        : isGenerator(result)
+          ? yield* result
+          : result;
       owner = value;
     } else {
       value = yield* readShortcutMember(value);
@@ -4253,6 +4264,7 @@ function createHelper(
     const serviceValue = (yield createYieldRequest(
       definition,
       bindings,
+      uncapitalizeFirst(definition.name),
     )) as unknown;
 
     if (!expose) {
@@ -4313,8 +4325,11 @@ function createHelper(
             Object(serviceValue),
             callArgs,
           );
-
-          return isGenerator(result) ? yield* result : result;
+          return isGeneratorFunction(result)
+            ? yield* result()
+            : isGenerator(result)
+              ? yield* result
+              : result;
         };
 
         const propertyHelper = new Proxy(propertyHelperFn, {
@@ -4496,13 +4511,33 @@ function createProviders(
     {
       provide: concreteToken,
       ɵcraftCollection: definition.collection,
-      useFactory: () =>
-        createConcreteServiceInstance(
+      useFactory: () => {
+        const injector = inject(Injector);
+        const override = getServiceRuntimeOverride(injector, definition.name);
+        if (override?.kind === 'notReached') {
+          throw new Error(
+            `Craft service "${definition.name}" was registered as notReached but was resolved.`,
+          );
+        }
+        if (override?.kind === 'useValue') return override.value;
+        if (override?.kind === 'instantiate') {
+          if (override.instance === undefined) {
+            override.instance = createConcreteServiceInstance(
+              definition,
+              injector,
+              undefined,
+              providedConfig,
+            );
+          }
+          return override.instance;
+        }
+        return createConcreteServiceInstance(
           definition,
-          inject(Injector),
+          injector,
           undefined,
           providedConfig,
-        ),
+        );
+      },
     },
   ];
 
@@ -4621,6 +4656,10 @@ function createYieldRequest(
             // A deep shortcut exposes the member it designates, under that
             // member's own name.
             name: path.length > 0 ? path[path.length - 1] : exposedAs,
+            ...(path.length === 0 &&
+            exposedAs === uncapitalizeFirst(definition.name)
+              ? { internal: true }
+              : {}),
             resolve: (service: unknown) => {
               if (
                 path.length === 0 &&
@@ -4633,7 +4672,9 @@ function createYieldRequest(
                 service,
               );
               // A method reached through a shortcut is called, not exposed.
-              return isShortcutMethod(member) ? NOT_EXPOSED : member;
+              return path.length > 0 && isShortcutMethod(member)
+                ? NOT_EXPOSED
+                : member;
             },
           },
         }
@@ -4658,6 +4699,11 @@ function resolveConcreteService(
   const serviceOverride = getServiceRuntimeOverride(injector, definition.name);
 
   if (serviceOverride) {
+    if (serviceOverride.kind === 'notReached') {
+      throw new Error(
+        `Craft service "${definition.name}" was registered as notReached but was resolved.`,
+      );
+    }
     if (serviceOverride.kind === 'useValue') {
       return trackResolvedService(
         definition,

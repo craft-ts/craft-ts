@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { TestBed } from './host/craft-test-bed';
 import { craftService } from './craft-service';
+import { craftExpose } from './craft-primitive-gen';
 import { craftUse } from './craft-use';
 import { state } from './state';
 import { mutation } from './mutation';
@@ -23,7 +24,8 @@ const { Store, provideStore } = craftService(
 const { Holder, provideHolder } = craftService(
   { name: 'Holder', providedIn: 'toProvide' },
   function* () {
-    yield* Store();
+    const store = yield* Store();
+    yield* craftExpose('store', store);
   },
 );
 

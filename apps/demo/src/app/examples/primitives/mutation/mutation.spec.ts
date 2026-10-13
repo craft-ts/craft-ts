@@ -152,25 +152,47 @@ function createTemplateContext(
       name.set(newName);
     }),
   );
+  const nameInput = Object.assign(
+    markYieldableValue(
+      vi.fn(function* () {
+        return name();
+      }),
+      'nameInput',
+    ),
+    { setName },
+  );
   const goTo = vi.fn();
   const userQuery = {
     status: markYieldableValue(
-      vi.fn(() => (user ? ('resolved' as const) : ('idle' as const))),
+      vi.fn(function* () {
+        return user ? ('resolved' as const) : ('idle' as const);
+      }),
       'status',
     ),
-    hasUser: markYieldableValue(signal(user !== undefined), 'hasUser'),
+    hasUser: markYieldableValue(
+      vi.fn(function* () {
+        return user !== undefined;
+      }),
+      'hasUser',
+    ),
     value: markYieldableValue(
-      vi.fn(() => user),
+      vi.fn(function* () {
+        return user;
+      }),
       'value',
     ),
   };
   const updateUserName = {
     isLoading: markYieldableValue(
-      vi.fn(() => mutationLoading),
+      vi.fn(function* () {
+        return mutationLoading;
+      }),
       'isLoading',
     ),
     status: markYieldableValue(
-      vi.fn(() => (mutationLoading ? ('loading' as const) : ('idle' as const))),
+      vi.fn(function* () {
+        return mutationLoading ? ('loading' as const) : ('idle' as const);
+      }),
       'status',
     ),
   };
@@ -181,13 +203,20 @@ function createTemplateContext(
       updateUserName,
       update,
       goTo,
-      // A service member is read with `yield*`, so the fake is a reader too.
-      nameInput: markYieldableValue(
+      hasUser: markYieldableValue(
         vi.fn(function* () {
-          return name();
+          return user !== undefined;
         }),
-        'nameInput',
+        'hasUser',
       ),
+      userValueJson: markYieldableValue(
+        vi.fn(function* () {
+          return JSON.stringify(user, null, 2);
+        }),
+        'userValueJson',
+      ),
+      // A service member is read with `yield*`, so the fake is a reader too.
+      nameInput,
       setName,
     },
     update: updateSpy,

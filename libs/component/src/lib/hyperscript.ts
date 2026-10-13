@@ -131,6 +131,7 @@ function looksLikeChildren(value: unknown): boolean {
     value === undefined ||
     Array.isArray(value) ||
     typeof value !== 'object' ||
+    ('next' in value && typeof (value as { next?: unknown }).next === 'function') ||
     ('kind' in value && typeof (value as { kind?: unknown }).kind === 'string')
   );
 }

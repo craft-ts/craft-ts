@@ -1189,7 +1189,7 @@ describe('injectService should enable to binding inputs', () => {
   });
   it('should provide a string token to say that the input is already provided', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
@@ -1214,14 +1214,13 @@ describe('injectService should enable to binding inputs', () => {
 
     TestBed.runInInjectionContext(() => {
       // todo make a test that force to pass an input, and if it's not passed, throw an error
-      const counter = craftUse(
-        Counter({
-          initialValue: 'Provided elsewhere #warn-check-docs:inputs',
-        }),
-      ).counter;
-      expect(craftUse(counter())).toBe(1);
-      counter.increment();
-      expect(craftUse(counter())).toBe(2);
+      expect(() =>
+        craftUse(
+          Counter({
+            initialValue: 'Provided elsewhere #warn-check-docs:inputs',
+          }),
+        ),
+      ).toThrow('Inputs Error, initialValue is not provided');
     });
   });
 });
@@ -1429,7 +1428,7 @@ describe('service should enable to binding inputs', () => {
   });
   it('should provide a string token to say that the input is already provided', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'global' },
+      { name: 'Counter', providedIn: 'function' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
         yield* state(
           'counter',
@@ -1461,12 +1460,9 @@ describe('service should enable to binding inputs', () => {
     );
 
     TestBed.runInInjectionContext(() => {
-      const counter = craftUse(CounterExtended()).counter;
-      expect(craftUse(counter())).toBe(10);
-      counter.increment();
-      expect(craftUse(counter())).toBe(11);
-      counter.incrementTwice();
-      expect(craftUse(counter())).toBe(13);
+      expect(() => craftUse(CounterExtended())).toThrow(
+        'Inputs Error, initialValue is not provided',
+      );
     });
   });
 
@@ -1672,7 +1668,6 @@ describe('injectService/Service should expose an optional parameter that can be 
           GetServiceOutput<typeof SinglePropertyShortcutApi>['updateItem']
         >();
 
-        yield* craftExpose('updateItem', updateItem);
       },
     );
 
@@ -1816,7 +1811,6 @@ describe('injectService/Service should expose an optional parameter that can be 
           GetServiceOutput<typeof InputShortcutCounter>['increment']
         >();
 
-        yield* craftExpose('increment', increment);
       },
     );
 

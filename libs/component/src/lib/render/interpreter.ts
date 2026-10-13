@@ -1,5 +1,6 @@
 import {
   CRAFT_SERVICE_PROVIDER_BRAND,
+  SERVICE_RUNTIME_OVERRIDES,
   ɵinjectCraftDomEventHooks,
   CRAFT_NODE_DIRECTIVE,
   provideCraftNodeEffectFactory,
@@ -373,6 +374,7 @@ function eagerlyResolveBrandedProviders(
   providers: readonly CraftServiceProvider[],
   injector: EnvironmentInjector,
   branded = false,
+  serviceName?: string,
   stable = false,
 ): {
   readonly exception?: AnyCraftException;
@@ -384,10 +386,15 @@ function eagerlyResolveBrandedProviders(
 
   for (const provider of providers) {
     if (Array.isArray(provider)) {
+      const providerMetadata = Reflect.get(
+        provider,
+        CRAFT_SERVICE_PROVIDER_BRAND,
+      ) as { readonly name?: string } | undefined;
       const result = eagerlyResolveBrandedProviders(
         provider,
         injector,
-        branded || CRAFT_SERVICE_PROVIDER_BRAND in provider,
+        branded || providerMetadata !== undefined,
+        serviceName ?? providerMetadata?.name,
         stable,
       );
       overrides.push(...result.overrides);
@@ -405,6 +412,13 @@ function eagerlyResolveBrandedProviders(
     const token = Reflect.get(provider, 'provide');
     const useFactory = Reflect.get(provider, 'useFactory');
     if (token !== undefined && branded && typeof useFactory === 'function') {
+      if (
+        typeof serviceName === 'string' &&
+        injector.get(SERVICE_RUNTIME_OVERRIDES).get(serviceName)?.kind ===
+          'notReached'
+      ) {
+        continue;
+      }
       if (stable) {
         // Use the injector cache: sibling services must share this instance,
         // and input reads must not turn into scope-recreation dependencies.
@@ -4400,6 +4414,7 @@ class ComponentRenderedNode implements RenderedNode {
         this.componentProviders ?? composition.providers ?? [],
         environmentInjector,
         false,
+        undefined,
         this.componentProviders !== undefined,
       );
       this.providerTrackers = providerResolution.trackers;

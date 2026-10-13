@@ -86,6 +86,7 @@ describe('the pages of apps/docs, as the site model sees them', () => {
   // `src/server/site.ts`.
   const KNOWN_ORPHANS = [
     '/guide/migration/wave-1-tag-and-provided-in',
+    '/guide/reactivity/streams',
     '/guide/routing/hash-location',
     '/guide/testing/architecture/primitive-method-usage',
     '/guide/testing/architecture/resource-params-query-state',

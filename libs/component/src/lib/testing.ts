@@ -14,6 +14,7 @@ import {
   getServiceMetaData,
   runServiceAppStart,
   SERVICE_RUNTIME_OVERRIDES,
+  type ServiceRuntimeOverride,
   type CraftServiceProvider,
   type CompleteServiceDependencyMapFromYielded,
   type FlattenDependencyTree,
@@ -216,11 +217,15 @@ function createRuntimeProviders(
   register: Record<string, RegisterRuntimeEntry>,
 ): { providers: CraftServiceProvider[]; mocks: Record<string, unknown> } {
   const providers: CraftServiceProvider[] = [];
-  const overrides = new Map<string, { kind: 'useValue'; value: unknown }>();
+  const overrides = new Map<string, ServiceRuntimeOverride>();
   const mocks: Record<string, unknown> = {};
 
   for (const [name, entry] of Object.entries(register)) {
-    if (entry === 'real' || entry === 'provided' || entry === 'notReached') {
+    if (entry === 'notReached') {
+      overrides.set(name, { kind: 'notReached' });
+      continue;
+    }
+    if (entry === 'real' || entry === 'provided') {
       continue;
     }
 

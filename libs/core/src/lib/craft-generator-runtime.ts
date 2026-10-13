@@ -183,6 +183,7 @@ type RuntimeServiceYieldRequest<Result = unknown> = Readonly<{
   name: string;
   readonly exposure?: {
     readonly name: string;
+    readonly internal?: boolean;
     readonly resolve: (service: Result) => unknown;
   };
   providedIn: ConcreteServiceScope;
@@ -322,17 +323,23 @@ export function runCraftGenerator({
       if (collectExposed && exposure) {
         const exposed = exposure.resolve(instance);
         if (exposed !== NOT_EXPOSED) {
-          if (
-            Object.prototype.hasOwnProperty.call(
-              collectExposed.record,
-              exposure.name,
-            )
-          ) {
+          const existing = Object.getOwnPropertyDescriptor(
+            collectExposed.record,
+            exposure.name,
+          );
+          if (existing?.enumerable && !exposure.internal) {
             throw new Error(
               `${collectExposed.owner} exposes "${exposure.name}" twice. Rename one exposure or keep it internal with craftPrivate(...).`,
             );
           }
-          collectExposed.record[exposure.name] = exposed;
+          if (!existing?.enumerable || !exposure.internal) {
+            Object.defineProperty(collectExposed.record, exposure.name, {
+              configurable: true,
+              enumerable: !exposure.internal,
+              value: exposed,
+              writable: true,
+            });
+          }
         }
       }
       onServiceResolved?.(instance);
@@ -350,17 +357,21 @@ export function runCraftGenerator({
       // lazily through the injector. Nothing to do at runtime — except
       // recording the exposure a named primitive carries on the same request.
       if (collectExposed && isExposeRequest(yielded)) {
-        if (
-          Object.prototype.hasOwnProperty.call(
-            collectExposed.record,
-            yielded.name,
-          )
-        ) {
+        const existing = Object.getOwnPropertyDescriptor(
+          collectExposed.record,
+          yielded.name,
+        );
+        if (existing?.enumerable) {
           throw new Error(
             `${collectExposed.owner} exposes "${yielded.name}" twice. Each named primitive yielded by a craftService is exposed under its name, so names must be unique; rename one, or wrap it in craftPrivate(...) to keep it internal.`,
           );
         }
-        collectExposed.record[yielded.name] = yielded.ref;
+        Object.defineProperty(collectExposed.record, yielded.name, {
+          configurable: true,
+          enumerable: true,
+          value: yielded.ref,
+          writable: true,
+        });
       }
       current = iterator.next(undefined);
       continue;

@@ -135,25 +135,35 @@ function createTemplateContext(
   const name = signal('');
   const userQuery = {
     status: markYieldableValue(
-      vi.fn(() => (user ? ('resolved' as const) : ('idle' as const))),
+      vi.fn(function* () {
+        return user ? ('resolved' as const) : ('idle' as const);
+      }),
       'status',
     ),
     hasValue: markYieldableValue(
-      vi.fn(() => user !== undefined),
+      vi.fn(function* () {
+        return user !== undefined;
+      }),
       'hasValue',
     ),
     value: markYieldableValue(
-      vi.fn(() => user),
+      vi.fn(function* () {
+        return user;
+      }),
       'value',
     ),
   };
   const updateUserName = {
     isLoading: markYieldableValue(
-      vi.fn(() => mutationLoading),
+      vi.fn(function* () {
+        return mutationLoading;
+      }),
       'isLoading',
     ),
     status: markYieldableValue(
-      vi.fn(() => (mutationLoading ? ('loading' as const) : ('idle' as const))),
+      vi.fn(function* () {
+        return mutationLoading ? ('loading' as const) : ('idle' as const);
+      }),
       'status',
     ),
   };
@@ -173,11 +183,14 @@ function createTemplateContext(
     }),
   );
   // A service member is read with `yield*`, so the fake is a reader too.
-  const nameInput = markYieldableValue(
-    vi.fn(function* () {
-      return name();
-    }),
-    'nameInput',
+  const nameInput = Object.assign(
+    markYieldableValue(
+      vi.fn(function* () {
+        return name();
+      }),
+      'nameInput',
+    ),
+    { setName },
   );
 
   return {
@@ -185,7 +198,18 @@ function createTemplateContext(
       store: { user: userQuery, updateUserName },
       nameInput,
       setName,
-      hasUser: markYieldableValue(signal(user !== undefined), 'hasUser'),
+      hasUser: markYieldableValue(
+        vi.fn(function* () {
+          return user !== undefined;
+        }),
+        'hasUser',
+      ),
+      userValueJson: markYieldableValue(
+        vi.fn(function* () {
+          return JSON.stringify(user, null, 2);
+        }),
+        'userValueJson',
+      ),
       updateUserNameFn,
       navigate,
     },
