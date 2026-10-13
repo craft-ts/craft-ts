@@ -56,6 +56,9 @@
     }
   ],
   "targetDefaults": {
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
     "test": {
       "cache": true
     },
