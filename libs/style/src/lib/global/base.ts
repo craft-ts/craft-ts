@@ -1,10 +1,8 @@
 /**
  * The good defaults craft-ts ships, in the `craft.base` layer.
  *
- * Each one used to be a per-component obligation that a linter tried to
- * re-prove from CSS text (`require-focus-visible`, `require-reduced-motion`).
- * Stated once here, for the whole document, they no longer depend on every
- * component remembering them:
+ * Each one is stated once here, for the whole document, so none depends on
+ * every component remembering it:
  *
  * - `color-scheme` follows the `scheme` axis, so form controls and scrollbars
  *   match the page instead of staying light in dark mode.

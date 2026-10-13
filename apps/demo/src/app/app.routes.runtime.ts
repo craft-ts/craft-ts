@@ -1,9 +1,6 @@
 // FICHIER GÉNÉRÉ : ne pas modifier directement. Éditer app.routes.ts.
 // Les routes et checks DI non sélectionnés sont volontairement retirés de cet overlay.
-import {
-  assertCssVarsSatisfied,
-  loadCraftComponent,
-} from '@craft-ts/component';
+import { loadCraftComponent } from '@craft-ts/component';
 import {
   assertExhaustiveRouteExceptions,
   craftExceptionHandler,
@@ -498,7 +495,6 @@ declare module '@craft-ts/core' {
 }
 
 assertExhaustiveRouteExceptions(demoRoutes);
-assertCssVarsSatisfied(demoRoutes);
 declare module '@craft-ts/core' {
   interface CraftGlobalExceptionRegistry {
     'guard-demo': {

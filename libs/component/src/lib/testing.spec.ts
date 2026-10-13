@@ -97,7 +97,6 @@ describe('Craft component and directive testing utilities', () => {
       'templateTestComponent',
       {
         providers: [provideTemplateTestView()],
-        styles: '.template-root { color: red; }',
       },
       function* () {
         const { label } = yield* TemplateTestView();
@@ -117,10 +116,8 @@ describe('Craft component and directive testing utilities', () => {
     expect(result.nativeElement.textContent).toContain('mocked label');
     expect(result.nativeElement.textContent).toContain('mock child');
     expect(result.nativeElement.querySelector('.template-root')).not.toBeNull();
-    expect(document.querySelector('style[data-craft-sheet]')).not.toBeNull();
     result.destroy();
     expect(result.nativeElement.textContent).toBe('');
-    expect(document.querySelector('style[data-craft-sheet]')).toBeNull();
   });
 
   it('finds controls by role and accessible name', async () => {
@@ -472,7 +469,7 @@ describe('Craft component and directive testing utilities', () => {
   it('mounts directive templates and supports input updates', async () => {
     const directive = craftDirective(
       'conditionalTestDirective',
-      { styles: '.directive-root { color: blue; }' },
+      {},
       {
         template:
           (baseTemplate) => (inputs: { readonly visible: Input<boolean> }) =>

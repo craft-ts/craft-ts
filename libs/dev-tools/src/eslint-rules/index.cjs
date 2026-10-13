@@ -23,7 +23,6 @@ const noInlineStyle = require('./no-inline-style.cjs');
 const noComponentCss = require('./no-component-css.cjs');
 const noForbiddenEslintDisable = require('./no-forbidden-eslint-disable.cjs');
 const preferHoverAxis = require('./prefer-hover-axis.cjs');
-const noUnmodelledTextColor = require('./no-unmodelled-text-color.cjs');
 const styleFileBoundary = require('./style-file-boundary.cjs');
 const preferBrowserBoundaries = require('./prefer-browser-boundaries.cjs');
 const requireComponentMonitoring = require('./require-component-monitoring.cjs');
@@ -79,12 +78,6 @@ const requirePrimitiveContext = require('./require-primitive-context.cjs');
 const noThrow = require('./no-throw.cjs');
 const noRenderWrites = require('./no-render-writes.cjs');
 const requireReactiveTemplateBindings = require('./require-reactive-template-bindings.cjs');
-const craftCssVarsContract = require('./craft-css-vars-contract.cjs');
-const craftStylesScopeSafe = require('./craft-styles-scope-safe.cjs');
-const craftCssVarNaming = require('./craft-css-var-naming.cjs');
-const craftCssTokenRegistry = require('./craft-css-token-registry.cjs');
-const noHardcodedDesignValues = require('./no-hardcoded-design-values.cjs');
-const noImportantInComponentStyles = require('./no-important-in-component-styles.cjs');
 const preferNamedHtmlHelpers = require('./prefer-named-html-helpers.cjs');
 const imgHasAlt = require('./img-has-alt.cjs');
 const controlHasAccessibleName = require('./control-has-accessible-name.cjs');
@@ -104,8 +97,6 @@ const noPositiveTabindex = require('./no-positive-tabindex.cjs');
 const validAria = require('./valid-aria.cjs');
 const roleHasRequiredAria = require('./role-has-required-aria.cjs');
 const targetBlankNoopener = require('./target-blank-noopener.cjs');
-const requireFocusVisible = require('./require-focus-visible.cjs');
-const requireReducedMotion = require('./require-reduced-motion.cjs');
 const requireEffectAdapters = require('./require-effect-adapters.cjs');
 const syncEffectBody = require('./sync-effect-body.cjs');
 const serverFunctionClientMatch = require('./server-function-client-match.cjs');
@@ -167,7 +158,6 @@ const plugin = {
     'no-component-css': noComponentCss,
     'no-forbidden-eslint-disable': noForbiddenEslintDisable,
     'prefer-hover-axis': preferHoverAxis,
-    'no-unmodelled-text-color': noUnmodelledTextColor,
     'style-file-boundary': styleFileBoundary,
     'prefer-browser-boundaries': preferBrowserBoundaries,
     'require-component-monitoring': requireComponentMonitoring,
@@ -230,12 +220,6 @@ const plugin = {
     'no-throw': noThrow,
     'no-render-writes': noRenderWrites,
     'require-reactive-template-bindings': requireReactiveTemplateBindings,
-    'craft-css-vars-contract': craftCssVarsContract,
-    'craft-styles-scope-safe': craftStylesScopeSafe,
-    'craft-css-var-naming': craftCssVarNaming,
-    'craft-css-token-registry': craftCssTokenRegistry,
-    'no-hardcoded-design-values': noHardcodedDesignValues,
-    'no-important-in-component-styles': noImportantInComponentStyles,
     'prefer-named-html-helpers': preferNamedHtmlHelpers,
     'img-has-alt': imgHasAlt,
     'control-has-accessible-name': controlHasAccessibleName,
@@ -256,8 +240,6 @@ const plugin = {
     'valid-aria': validAria,
     'role-has-required-aria': roleHasRequiredAria,
     'target-blank-noopener': targetBlankNoopener,
-    'require-focus-visible': requireFocusVisible,
-    'require-reduced-motion': requireReducedMotion,
     'require-effect-adapters': requireEffectAdapters,
     'sync-effect-body': syncEffectBody,
     'server-function-client-match': serverFunctionClientMatch,
@@ -311,8 +293,6 @@ const a11yRuleSeverity = {
   'craft-ts/valid-aria': 'error',
   'craft-ts/role-has-required-aria': 'error',
   'craft-ts/target-blank-noopener': 'error',
-  'craft-ts/require-focus-visible': 'error',
-  'craft-ts/require-reduced-motion': 'error',
 };
 
 plugin.configs = {
@@ -369,49 +349,19 @@ plugin.configs = {
     },
   },
   /**
-   * The rules that read a component's CSS **text** — `meta.styles`,
-   * `stylesUrl`, `.css` files.
-   *
-   * Out of `recommended` since `no-component-css` forbids that text: with no
-   * CSS on the meta there is nothing left for them to read. The focus ring and
-   * the reduced-motion guard they used to re-prove per component are now laid
-   * once for the whole document by the `craft.base` layer of `@craft-ts/style`.
-   * Kept as a preset for a project that deliberately keeps legacy component
-   * CSS behind an attested `eslint-disable`.
-   */
-  legacyComponentCss: {
-    plugins: { 'craft-ts': plugin },
-    rules: {
-      'craft-ts/craft-css-vars-contract': 'error',
-      'craft-ts/craft-styles-scope-safe': 'error',
-      'craft-ts/craft-css-var-naming': 'warn',
-      'craft-ts/craft-css-token-registry': 'error',
-      'craft-ts/no-hardcoded-design-values': 'warn',
-      'craft-ts/no-important-in-component-styles': 'error',
-      'craft-ts/require-focus-visible': 'error',
-      'craft-ts/require-reduced-motion': 'error',
-    },
-  },
-  /**
    * What the static contrast analysis needs to be able to see.
    *
-   * Deliberately **not** in `recommended`. `meta.styles` is a supported way
-   * to write a component's CSS, not an escape hatch, and a project that uses
-   * it has made a legitimate choice; failing its build over `color:` would be
-   * this preset telling people their own framework is wrong.
-   *
-   * What the two rules protect is a *claim*. Once a project runs
-   * `style:check`, a `:hover` typed into a string and a `color` set in raw
-   * CSS are invisible to it — so the run comes back clean on styles nobody
-   * proved, which is worse than not running the check at all. Both are
-   * therefore `error` here and absent everywhere else: the preset comes on
-   * with typed CSS, and typed CSS is what makes the claim.
+   * Deliberately **not** in `recommended`. What the rule protects is a
+   * *claim*. Once a project runs `style:check`, a `:hover` typed into a string
+   * is invisible to it — so the run comes back clean on styles nobody proved,
+   * which is worse than not running the check at all. It is therefore `error`
+   * here and absent everywhere else: the preset comes on with typed CSS, and
+   * typed CSS is what makes the claim.
    */
   typedCss: {
     plugins: { 'craft-ts': plugin },
     rules: {
       'craft-ts/prefer-hover-axis': 'error',
-      'craft-ts/no-unmodelled-text-color': 'error',
     },
   },
 };

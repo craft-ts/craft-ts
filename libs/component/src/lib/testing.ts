@@ -646,8 +646,6 @@ async function setupCraftDirectiveTemplateTestImpl<
   const synthetic = craftComponent(
     `CraftDirectiveTemplate:${definition.name}`,
     {
-      styles: definition.meta.styles,
-      stylesUrl: definition.meta.stylesUrl,
       providers: definition.service,
     },
     decoratedTemplate as ComponentTemplate,

@@ -73,13 +73,6 @@ export default [
     },
   },
   {
-    files: ['**/src/client/app-shell.ts'],
-    rules: {
-      'craft-ts/require-focus-visible': 'off',
-      'craft-ts/require-reduced-motion': 'off',
-    },
-  },
-  {
     files: [
       '**/src/client/effect-server-middleware-demo.ts',
       '**/src/client/portable-server-function-demo.ts',

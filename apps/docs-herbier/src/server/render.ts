@@ -19,8 +19,6 @@ export const renderPage = async (
     // The per-request cap guards a server from a page it did not expect. This is a
     // build, over pages we wrote: a long reference page is allowed to be long.
     securityPolicy: { ssr: { maxHtmlBytes: 32_000_000, timeoutMs: 60_000 } },
-    // The stylesheet is a file the document links: the same one for every page.
-    includeStyles: false,
   });
   return renderDocument({ site, page, html: rendered.html, assets, dataId: DATA_ID });
 };

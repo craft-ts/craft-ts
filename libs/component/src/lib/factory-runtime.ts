@@ -14,7 +14,6 @@ import type {
 } from './types';
 import type { CraftNodeChildren } from './render/vnode';
 import { applyHostPropsToChildren, mergeHostProps } from './render/vnode';
-import { forwardedCssVarStyles } from './css-vars';
 import type { HostProps } from './hyperscript';
 
 const INVALID_YIELD =
@@ -112,12 +111,8 @@ export function renderCraftComponentTemplate(
   }
 
   const rendered = children as CraftNodeChildren;
-  const forwardedStyles = forwardedCssVarStyles(rendered);
-  const withForwardedDefaults = mergeHostProps(definition.meta.host ?? {}, {
-    style: forwardedStyles,
-  });
   const effectiveHostProps = mergeHostProps(
-    withForwardedDefaults,
+    definition.meta.host ?? {},
     hostProps ?? {},
   );
   return applyHostPropsToChildren(rendered, effectiveHostProps);

@@ -2,7 +2,6 @@ import {
   ɵinjectCraftPrimitiveRegistry,
   provideCraftHydrationRuntime,
   provideCraftPlatform,
-  ɵinjectCraftCspNonce,
   ɵinjectCraftSecurityPolicy,
   ɵrunInInjectionContext,
   createBrowserDomAdapter,
@@ -18,11 +17,6 @@ import {
   ɵrunCraftAppInitializers,
 } from './bootstrap';
 import { ɵinjectCraftRootComponent } from './craft-host-tokens';
-import {
-  createCraftStyleRegistry,
-  ɵinjectCraftStyleRegistry,
-  type CraftStyleRegistry,
-} from './render/style-registry';
 import {
   mountInterpretedComponentWithOptions,
   type MountedCraftComponent,
@@ -92,16 +86,6 @@ export function hydrateCraft(
       mismatches.push(error);
       options.onMismatch?.(error);
     });
-    const rootNode = host.getRootNode();
-    const styleRoot =
-      (typeof Document !== 'undefined' && rootNode instanceof Document) ||
-      (typeof ShadowRoot !== 'undefined' && rootNode instanceof ShadowRoot)
-        ? (rootNode as Document | ShadowRoot)
-        : host.ownerDocument;
-    const styles = ɵrunInInjectionContext(injector, () =>
-      ɵinjectCraftStyleRegistry() ??
-      createCraftStyleRegistry({ nonce: ɵinjectCraftCspNonce() ?? undefined }),
-    );
     mounted = mountInterpretedComponentWithOptions(
       root,
       host,
@@ -113,8 +97,6 @@ export function hydrateCraft(
         identity,
         hydration: cursor,
         emitHydrationKeys: true,
-        styleRoot,
-        styles,
       },
     );
     const finishHydration = () => {
@@ -122,11 +104,6 @@ export function hydrateCraft(
       (platform as { hydrating: boolean }).hydrating = false;
       if (options.removeTransferScript !== false) {
         host.ownerDocument.getElementById(CRAFT_TRANSFER_SCRIPT_ID)?.remove();
-      }
-      for (const style of host.ownerDocument.querySelectorAll(
-        'style[data-craft-ssr]',
-      )) {
-        style.remove();
       }
     };
     if (hydrationRuntime.hasPending()) {

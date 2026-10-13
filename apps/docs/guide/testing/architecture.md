@@ -622,13 +622,51 @@ graph (step 4):
 
 | rule                           | fails when                                                                                                                                                                     |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `style-only-design-system`     | an element's class does not reach a sheet of a `*.style.ts` (a string, a computed class, a sheet declared elsewhere), or a component carries `meta.styles` or imports a `.css` |
+| `style-only-design-system`     | an element's class does not reach a sheet of a `*.style.ts` (a string, a computed class, a sheet declared elsewhere), or a component imports a `.css` |
 | `style-obligations-discharged` | a sheet `requires(...)` an obligation nothing `provides(...)`                                                                                                                   |
 | `no-dangling-css-vars`         | a variable is read and never declared, or declared and never read (a read from `craftGlobalStyles` counts)                                                                     |
 | `no-global-stylesheet`         | an entry file imports a `.css`, or `index.html` links a stylesheet — the only one is `virtual:craft-style.css`                                                                |
 
 A component of pure composition, with no class at all, is not at fault. A class
 passed through an input typed `CraftClass` is accepted.
+
+### `no-unused-service`: a warning
+
+A service may be provided and carry state, but if nothing ever reads one of its
+members or fires one of its actions it does nothing a reader can see. The rule
+reports it:
+
+```
+[craft architecture] warning no-unused-service: Service toolbarActionView
+(src/content-projection-actions.ts:43) is provided but never used: nothing
+reads its members or triggers its actions.
+```
+
+It is counted from the references to the service's own binding (`View`, not
+`provideView`), so every way of reading counts: `yield* View()`, `View.member`
+in a template, a deep shortcut. Three things are never reported: a service with
+`appStart` (the app starting reads it), a service declared outside the
+project's directory (a library's readers are in other applications), and a
+reference from a spec file does not count as a read.
+
+It **warns** instead of failing: it flags what is probably dead, not what is
+wrong. `assertDeclarativeArchitecture` prints the warnings and still passes, and
+`architectureReport(...).warnings` returns them. Three ways to settle one:
+
+- **use or remove the service**, which is the point of the rule;
+- **waive one service** with a reason, `target: 'service:toolbarActionView'`,
+  see [Waivers](#waivers);
+- **change the rule's severity** for the whole app:
+
+```typescript
+assertDeclarativeArchitecture(graph.graph, {
+  waivers: architectureWaiverList,
+  severity: { 'no-unused-service': 'off' }, // or 'error' to make it fail
+});
+```
+
+`'off'` does not run the rule, and the waivers written for it are then not
+read, so they are not reported as stale.
 
 ### Waivers
 
@@ -654,7 +692,7 @@ export const architectureWaiverList = defineArchitectureWaivers(
 ```
 
 The target is a component name, `file:<path>`, `obligation:<id>`,
-`css-var:<name>`, or `'*'` for the whole rule — the only form a rule that
+`css-var:<name>`, `service:<name>`, or `'*'` for the whole rule — the only form a rule that
 checks the whole graph (`no-dependency-cycles`, …) accepts, and the one a
 project uses while it migrates. Two things keep the list honest: an **empty
 reason** is refused, and a waiver that no longer waives anything is **stale**
