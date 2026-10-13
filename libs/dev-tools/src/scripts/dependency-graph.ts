@@ -419,6 +419,11 @@ type ComponentInfo = {
   bindings: Map<string, ServiceInfo>;
 };
 
+type ServiceReference = {
+  service: ServiceInfo;
+  identifier: import('ts-morph').Identifier;
+};
+
 type RouteInfo = {
   node: DependencyGraphNode;
   sourceFile: SourceFile;
@@ -455,6 +460,8 @@ type GraphBuilder = {
   appConfigs: AppConfigInfo[];
   serviceByHelperKey: Map<string, ServiceInfo>;
   servicesByHelperName: Map<string, ServiceInfo[]>;
+  /** Every read of a service's accessor, for `linkServiceReferences`. */
+  serviceReferences: ServiceReference[];
   componentByVariable: Map<string, ComponentInfo>;
   componentByVariableKey: Map<string, ComponentInfo>;
   componentsByVariableName: Map<string, ComponentInfo[]>;
@@ -495,6 +502,7 @@ export function analyzeDependencyGraph(
     appConfigs: [],
     serviceByHelperKey: new Map(),
     servicesByHelperName: new Map(),
+    serviceReferences: [],
     componentByVariable: new Map(),
     componentByVariableKey: new Map(),
     componentsByVariableName: new Map(),
@@ -534,6 +542,7 @@ export function analyzeDependencyGraph(
   collectInteractiveTemplateElements(builder);
   collectStyledElements(builder);
   analyzeRoutes(builder);
+  linkServiceReferences(builder);
   analyzeInsertions(builder);
   collectCraftUniques(builder, sourceFiles);
   collectRouteChecks(builder);
@@ -1475,7 +1484,9 @@ function collectServices(
         getStringProperty(config, 'name') ??
         inferNameFromServiceDeclaration(call);
       if (!name) continue;
-      const node = addNode(builder, {
+      const node = addNode(
+        builder,
+        {
           id: `service:${sourceFile.getFilePath()}:${name}`,
           kind: 'service',
           label: name,
@@ -1529,6 +1540,325 @@ function collectServices(
   }
   for (const service of builder.services) {
     collectProvides(builder, service.node.id, service.call.getArguments()[0]);
+  }
+  collectServiceAccess(builder, sourceFiles);
+}
+
+/**
+ * Where each service is read, as `accessCount` / `accessSites` on its node,
+ * and where it is provided, as `provideCount`.
+ *
+ * Counted from the references to the service's own bindings, not from graph
+ * edges: a template reads `StatusView.statusEmoji` and a service reads
+ * `yield* ClientUnits()` without either leaving a relation behind, and only a
+ * reference sees every shape. A binding named `provide…` provisions the
+ * service; any other reference to its accessor reads it. Spec files do not
+ * count: a service only a test reads is still dead in the application.
+ */
+function collectServiceAccess(
+  builder: GraphBuilder,
+  sourceFiles: readonly SourceFile[],
+): void {
+  const accessorNames = new Set<string>();
+  const provisionNames = new Set<string>();
+  for (const service of builder.services) {
+    for (const helper of service.helpers) {
+      (isProvisionHelper(helper) ? provisionNames : accessorNames).add(helper);
+    }
+  }
+  const accessSites = new Map<
+    ServiceInfo,
+    { filePath: string; line: number }[]
+  >();
+  const provideCount = new Map<ServiceInfo, number>();
+
+  for (const sourceFile of sourceFiles) {
+    if (/\.(spec|test)\.tsx?$/.test(sourceFile.getFilePath())) continue;
+    for (const identifier of sourceFile.getDescendantsOfKind(
+      SyntaxKind.Identifier,
+    )) {
+      const text = identifier.getText();
+      const provision = provisionNames.has(text);
+      if (!provision && !accessorNames.has(text)) continue;
+      if (isServiceBindingSite(identifier)) continue;
+      const key = symbolKey(identifier.getSymbol());
+      const byName = builder.servicesByHelperName.get(text) ?? [];
+      // `other.Name` names a property, not the binding: only the compiler's
+      // own resolution may say it is one. The name match is for a binding it
+      // could not follow across a path mapping.
+      const isPropertyName = isMemberNamePosition(identifier);
+      const service =
+        (key && builder.serviceByHelperKey.get(key)) ||
+        (!isPropertyName && byName.length === 1 ? byName[0] : undefined);
+      if (!service) continue;
+      const own = service.call;
+      if (
+        own.getSourceFile() === sourceFile &&
+        identifier.getStart() >= own.getStart() &&
+        identifier.getEnd() <= own.getEnd()
+      ) {
+        continue;
+      }
+      if (provision) {
+        provideCount.set(service, (provideCount.get(service) ?? 0) + 1);
+        continue;
+      }
+      builder.serviceReferences.push({ service, identifier });
+      const sites = accessSites.get(service) ?? [];
+      sites.push({
+        filePath: sourceFile.getFilePath(),
+        line: identifier.getStartLineNumber(),
+      });
+      accessSites.set(service, sites);
+    }
+  }
+
+  for (const service of builder.services) {
+    if (!service.node.details) continue;
+    const sites = accessSites.get(service) ?? [];
+    service.node.details['accessCount'] = sites.length;
+    service.node.details['accessSites'] = sites.slice(0, 5);
+    service.node.details['provideCount'] = provideCount.get(service) ?? 0;
+  }
+}
+
+function isMemberNamePosition(
+  identifier: import('ts-morph').Identifier,
+): boolean {
+  const parent = identifier.getParent();
+  return (
+    (Node.isPropertyAccessExpression(parent) &&
+      parent.getNameNode() === identifier) ||
+    (Node.isPropertyAssignment(parent) && parent.getNameNode() === identifier)
+  );
+}
+
+function isProvisionHelper(helper: string): boolean {
+  return /^provide[A-Z]/.test(helper);
+}
+
+/**
+ * A name that declares, imports or re-exports a binding is not a read of it,
+ * and neither is `typeof X` in a type position.
+ */
+function isServiceBindingSite(
+  identifier: import('ts-morph').Identifier,
+): boolean {
+  const parent = identifier.getParent();
+  if (
+    Node.isImportSpecifier(parent) ||
+    Node.isExportSpecifier(parent) ||
+    Node.isImportClause(parent) ||
+    Node.isNamespaceImport(parent)
+  ) {
+    return true;
+  }
+  if (
+    (Node.isBindingElement(parent) || Node.isVariableDeclaration(parent)) &&
+    parent.getNameNode() === identifier
+  ) {
+    return true;
+  }
+  return identifier.getFirstAncestorByKind(SyntaxKind.TypeQuery) !== undefined;
+}
+
+/**
+ * The relations the call-driven analysis cannot see, from the references.
+ *
+ * `analyzeComponents` and `analyzeServiceBodies` link a service when they meet
+ * a *call* to it that they can bind. A template that reads
+ * `StatusView.statusEmoji`, a service that reads `yield* ClientUnits()` through
+ * an import, or `.pipe(withComponentProviders(...))` leaves no such call, and
+ * the graph would call the service unused. Every reference the access scan
+ * counted is therefore given its owner here, and an edge when none exists:
+ *
+ * - a read: `owner depends-on service`, and `uses-property` on the member read;
+ * - a provision in `withComponentProviders` / `withProviders`:
+ *   `component provides service`.
+ *
+ * An edge already drawn is left alone — it carries more than this pass knows
+ * (a loader role, a primitive owner). A reference with no owner (a helper
+ * function at module level) is counted on the service as `unownedAccessCount`.
+ */
+function linkServiceReferences(builder: GraphBuilder): void {
+  const ownerByCall = new Map<Node, DependencyGraphNode>();
+  for (const component of builder.components) {
+    ownerByCall.set(component.call, component.node);
+  }
+  for (const service of builder.services) {
+    ownerByCall.set(service.call, service.node);
+  }
+  const routeByObject = new Map<Node, DependencyGraphNode>();
+  for (const routes of builder.routeFiles.values()) {
+    for (const route of routes) routeByObject.set(route.object, route.node);
+  }
+  for (const config of builder.appConfigs) {
+    routeByObject.set(config.object, config.node);
+  }
+
+  const ownerOf = (node: Node): DependencyGraphNode | undefined => {
+    for (const ancestor of node.getAncestors()) {
+      const byCall = ownerByCall.get(ancestor);
+      if (byCall) return byCall;
+      const byRoute = routeByObject.get(ancestor);
+      if (byRoute) return byRoute;
+      // `craftComponent(...).pipe(withComponentProviders(...))`: the pipe is
+      // the parent of the component call's value, not an ancestor of its call.
+      if (Node.isCallExpression(ancestor)) {
+        const expression = ancestor.getExpression();
+        if (
+          Node.isPropertyAccessExpression(expression) &&
+          expression.getName() === 'pipe'
+        ) {
+          const receiver = expression.getExpression();
+          const piped = Node.isCallExpression(receiver)
+            ? ownerByCall.get(receiver)
+            : undefined;
+          if (piped) return piped;
+        }
+      }
+    }
+    return undefined;
+  };
+
+  const unowned = new Map<
+    ServiceInfo,
+    { filePath: string; line: number; in: string }[]
+  >();
+  for (const { service, identifier } of builder.serviceReferences) {
+    const owner = ownerOf(identifier);
+    if (!owner) {
+      const sites = unowned.get(service) ?? [];
+      sites.push({
+        filePath: identifier.getSourceFile().getFilePath(),
+        line: identifier.getStartLineNumber(),
+        in: enclosingDeclarationName(identifier),
+      });
+      unowned.set(service, sites);
+      continue;
+    }
+    if (owner.id === service.node.id) continue;
+
+    const members = readMemberPath(identifier);
+    const dependsOn = `${owner.id}:depends-on:${service.node.id}`;
+    if (!builder.edges.has(dependsOn)) {
+      addEdge(builder, owner.id, service.node.id, 'depends-on', 'ast', {
+        ...(members.length > 0 ? { member: members.join('.') } : {}),
+        access: members.length > 0 ? 'read' : 'reference',
+        via: 'reference',
+      });
+    }
+    if (owner.kind !== 'component') continue;
+    // A component's reads are listed member by member, as the call-driven
+    // analysis does for the ones it binds.
+    let parentId = service.node.id;
+    for (let index = 0; index < members.length; index += 1) {
+      const name = members[index] ?? '';
+      if (index > 0 && NON_DEPENDENCY_PROPERTY_NAMES.has(name)) break;
+      const path = members.slice(0, index + 1).join('.');
+      const property = addNode(builder, {
+        id: `property:${service.node.id}:${path}`,
+        kind: 'property',
+        label: `${service.node.label}.${path}`,
+        filePath: service.node.filePath,
+        line: service.node.line,
+        details: { usedIn: 'template' },
+      });
+      addEdge(builder, parentId, property.id, 'contains', 'type', {
+        property: name,
+      });
+      if (!builder.edges.has(`${owner.id}:uses-property:${property.id}`)) {
+        addEdge(builder, owner.id, property.id, 'uses-property', 'ast', {
+          property: name,
+          usage: 'template',
+        });
+      }
+      parentId = property.id;
+    }
+  }
+
+  for (const service of builder.services) {
+    if (!service.node.details) continue;
+    const sites = unowned.get(service) ?? [];
+    service.node.details['unownedAccessCount'] = sites.length;
+    service.node.details['unownedAccessSites'] = sites.slice(0, 5);
+  }
+  linkComponentProviders(builder, ownerOf);
+}
+
+/**
+ * The module-level declaration a reference sits in, for a read no graph node
+ * owns (a guard, a provider factory, a helper): the graph keeps the proof on
+ * the service, since it has no node to draw an edge from.
+ */
+function enclosingDeclarationName(node: Node): string {
+  for (const ancestor of node.getAncestors()) {
+    if (!Node.isSourceFile(ancestor.getParent())) continue;
+    if (Node.isVariableStatement(ancestor)) {
+      return ancestor.getDeclarations()[0]?.getName() ?? '(module)';
+    }
+    if (
+      Node.isFunctionDeclaration(ancestor) ||
+      Node.isClassDeclaration(ancestor)
+    ) {
+      return ancestor.getName() ?? '(module)';
+    }
+    return '(module)';
+  }
+  return '(module)';
+}
+
+/** `View.a.b.c` → `['a', 'b', 'c']`; a bare `View` or `View()` → `[]`. */
+function readMemberPath(identifier: import('ts-morph').Identifier): string[] {
+  const names: string[] = [];
+  let current: Node = identifier;
+  for (;;) {
+    const parent: Node | undefined = current.getParent();
+    if (
+      !parent ||
+      !Node.isPropertyAccessExpression(parent) ||
+      parent.getExpression() !== current
+    ) {
+      return names;
+    }
+    names.push(parent.getName());
+    current = parent;
+  }
+}
+
+const PROVIDER_OPERATORS = new Set(['withComponentProviders', 'withProviders']);
+
+/**
+ * `component provides service` for a provider listed in a component operator.
+ *
+ * `collectProvides` reads only the `providers:` key of the meta object, so
+ * the operator form — now the usual one — drew no edge, and the catalog's
+ * `componentProviders` came out empty for those components.
+ */
+function linkComponentProviders(
+  builder: GraphBuilder,
+  ownerOf: (node: Node) => DependencyGraphNode | undefined,
+): void {
+  for (const sourceFile of builder.project.getSourceFiles()) {
+    if (sourceFile.isDeclarationFile()) continue;
+    for (const operator of sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    )) {
+      const name = operator.getExpression().getText();
+      if (!PROVIDER_OPERATORS.has(name)) continue;
+      const owner = ownerOf(operator);
+      if (owner?.kind !== 'component') continue;
+      for (const call of operator.getDescendantsOfKind(
+        SyntaxKind.CallExpression,
+      )) {
+        const helper = findServiceForCall(builder, call);
+        if (!helper) continue;
+        addEdge(builder, owner.id, helper.node.id, 'provides', 'type', {
+          helper: call.getExpression().getText(),
+          via: name,
+        });
+      }
+    }
   }
 }
 
@@ -1757,7 +2087,9 @@ function collectAppConfigs(
             routeLoadErrorComponent: appConfigComponentName(routeLoadErrorCall),
             rootComponent: appConfigComponentName(rootComponentCall),
           },
-        }, object);
+        },
+        object,
+      );
       builder.appConfigs.push({ node, sourceFile, object });
       // The app config renders its root and fallback screens: they are the
       // application shell, whatever their file is called.
@@ -2694,9 +3026,9 @@ function isSheetClassType(type: Type, depth = 0): boolean {
     type
       .getIntersectionTypes()
       .some((member) =>
-        member.getProperties().some((property) =>
-          property.getName().startsWith('__@VARIANTS'),
-        ),
+        member
+          .getProperties()
+          .some((property) => property.getName().startsWith('__@VARIANTS')),
       )
   ) {
     return true;

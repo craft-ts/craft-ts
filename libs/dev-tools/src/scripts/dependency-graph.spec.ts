@@ -1001,3 +1001,245 @@ describe('analyzeDependencyGraph insertions', () => {
     ).toBe(true);
   });
 });
+
+describe('analyzeDependencyGraph service access', () => {
+  const accessOf = (
+    graph: ReturnType<typeof analyzeDependencyGraph>,
+    label: string,
+  ) => {
+    const details = nodeByLabel(graph, label)[0]?.details;
+    return {
+      access: details?.['accessCount'],
+      provided: details?.['provideCount'],
+    };
+  };
+
+  it('counts reads of the accessor, not its declaration, provision or type', async () => {
+    const root = await fixture({
+      'views.ts': `
+        ${CRAFT_STUBS}
+
+        export const { UsedView, provideUsedView } = craftService(
+          { name: 'usedView', providedIn: 'toProvide' },
+          function* () {},
+        );
+        export const { DeadView, provideDeadView } = craftService(
+          { name: 'deadView', providedIn: 'toProvide' },
+          function* () {},
+        );
+        export const { TypeOnlyView } = craftService(
+          { name: 'typeOnlyView', providedIn: 'global' },
+          function* () {},
+        );
+      `,
+      'page.ts': `
+        import { UsedView, provideUsedView, DeadView, provideDeadView, TypeOnlyView } from './views';
+
+        export const providers = [provideUsedView(), provideDeadView()];
+        export const label = () => UsedView.title;
+        export type Shape = typeof TypeOnlyView;
+      `,
+      'page.spec.ts': `
+        import { DeadView } from './views';
+        export const fromATest = DeadView;
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    expect(accessOf(graph, 'usedView')).toEqual({ access: 1, provided: 1 });
+    expect(accessOf(graph, 'deadView')).toEqual({ access: 0, provided: 1 });
+    expect(accessOf(graph, 'typeOnlyView')).toEqual({ access: 0, provided: 0 });
+  });
+
+  it('keeps two services of the same name apart', async () => {
+    const root = await fixture({
+      'one.ts': `
+        ${CRAFT_STUBS}
+        export const { Api } = craftService({ name: 'Api', providedIn: 'global' }, function* () {});
+      `,
+      'two.ts': `
+        ${CRAFT_STUBS}
+        export const { Api } = craftService({ name: 'Api', providedIn: 'global' }, function* () {});
+      `,
+      'use.ts': `
+        import { Api } from './one';
+        export const read = () => Api.list;
+      `,
+    });
+
+    const graph = analyzeDependencyGraph({
+      rootDir: root,
+      tsConfigFilePath: 'tsconfig.json',
+    });
+
+    const reads = nodeByLabel(graph, 'Api')
+      .map((node) => [
+        node.filePath?.split('/').pop(),
+        node.details?.['accessCount'],
+      ])
+      .sort();
+    expect(reads).toEqual([
+      ['one.ts', 1],
+      ['two.ts', 0],
+    ]);
+  });
+
+  describe('links what the call-driven analysis cannot see', () => {
+    const VIEWS = `
+      ${CRAFT_STUBS}
+      export const { StatusView, provideStatusView } = craftService(
+        { name: 'statusView', providedIn: 'toProvide' },
+        function* () {},
+      );
+      export const { UnitsView } = craftService(
+        { name: 'unitsView', providedIn: 'global' },
+        function* () {},
+      );
+    `;
+
+    const edgesBetween = (
+      graph: ReturnType<typeof analyzeDependencyGraph>,
+      from: string,
+      kind: string,
+      toLabel: string,
+    ) => {
+      const fromIds = new Set(nodeByLabel(graph, from).map((n) => n.id));
+      const toIds = new Set(
+        graph.nodes
+          .filter((n) => n.label === toLabel || n.label.endsWith('.' + toLabel))
+          .map((n) => n.id),
+      );
+      return graph.edges.filter(
+        (e) => e.kind === kind && fromIds.has(e.from) && toIds.has(e.to),
+      );
+    };
+
+    it('draws a template read that is not a call, member by member', async () => {
+      const root = await fixture({
+        'views.ts': VIEWS,
+        'badge.ts': `
+          ${CRAFT_STUBS}
+          import { StatusView } from './views';
+          export const Badge = craftComponent('Badge', {}, () =>
+            span({}, StatusView.emoji.label),
+          );
+        `,
+      });
+
+      const graph = analyzeDependencyGraph({
+        rootDir: root,
+        tsConfigFilePath: 'tsconfig.json',
+      });
+
+      expect(
+        edgesBetween(graph, 'Badge', 'depends-on', 'statusView'),
+      ).toHaveLength(1);
+      expect(
+        edgesBetween(graph, 'Badge', 'uses-property', 'statusView.emoji'),
+      ).toHaveLength(1);
+      expect(
+        edgesBetween(graph, 'Badge', 'uses-property', 'statusView.emoji.label'),
+      ).toHaveLength(1);
+    });
+
+    it('draws provides for withComponentProviders, and not for a service that is only read', async () => {
+      const root = await fixture({
+        'views.ts': VIEWS,
+        'badge.ts': `
+          ${CRAFT_STUBS}
+          declare function withComponentProviders(...args: unknown[]): unknown;
+          import { StatusView, provideStatusView } from './views';
+          export const Badge = craftComponent('Badge', {}, () =>
+            span({}, StatusView.emoji),
+          ).pipe(withComponentProviders(() => [provideStatusView()]));
+        `,
+      });
+
+      const graph = analyzeDependencyGraph({
+        rootDir: root,
+        tsConfigFilePath: 'tsconfig.json',
+      });
+
+      expect(edgesBetween(graph, 'Badge', 'provides', 'statusView')).toEqual([
+        expect.objectContaining({
+          details: {
+            helper: 'provideStatusView',
+            via: 'withComponentProviders',
+          },
+        }),
+      ]);
+      expect(edgesBetween(graph, 'Badge', 'provides', 'unitsView')).toEqual([]);
+    });
+
+    it('draws a service reading another through an import', async () => {
+      const root = await fixture({
+        'views.ts': VIEWS,
+        'consumer.ts': `
+          ${CRAFT_STUBS}
+          import { UnitsView } from './views';
+          export const { Money } = craftService(
+            { name: 'money', providedIn: 'global' },
+            function* () {
+              const units = yield* UnitsView();
+            },
+          );
+        `,
+      });
+
+      const graph = analyzeDependencyGraph({
+        rootDir: root,
+        tsConfigFilePath: 'tsconfig.json',
+      });
+
+      expect(
+        edgesBetween(graph, 'money', 'depends-on', 'unitsView').length,
+      ).toBeGreaterThan(0);
+    });
+
+    it('keeps the proof on the service when a read has no node to own it', async () => {
+      const root = await fixture({
+        'views.ts': VIEWS,
+        'guard.ts': `
+          ${CRAFT_STUBS}
+          import { UnitsView } from './views';
+          export const guard = () => UnitsView.ready;
+        `,
+      });
+
+      const graph = analyzeDependencyGraph({
+        rootDir: root,
+        tsConfigFilePath: 'tsconfig.json',
+      });
+
+      const details = nodeByLabel(graph, 'unitsView')[0]?.details;
+      expect(details?.['accessCount']).toBe(1);
+      expect(details?.['unownedAccessCount']).toBe(1);
+      expect(details?.['unownedAccessSites']).toEqual([
+        expect.objectContaining({ in: 'guard', line: expect.any(Number) }),
+      ]);
+    });
+
+    it('does not take `other.StatusView` for a read of the service', async () => {
+      const root = await fixture({
+        'views.ts': VIEWS,
+        'alias.ts': `
+          export const holder = { StatusView: 1 };
+          export const n = holder.StatusView;
+        `,
+      });
+
+      const graph = analyzeDependencyGraph({
+        rootDir: root,
+        tsConfigFilePath: 'tsconfig.json',
+      });
+
+      expect(
+        nodeByLabel(graph, 'statusView')[0]?.details?.['accessCount'],
+      ).toBe(0);
+    });
+  });
+});
