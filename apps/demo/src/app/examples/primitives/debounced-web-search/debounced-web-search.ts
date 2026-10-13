@@ -269,9 +269,7 @@ const DebouncedWebSearch = craftComponent(
         class: example.input,
         'data-exampleField': 'wide',
         type: 'search',
-        value: function* () {
-          return yield* DebouncedWebSearchView.searchInput();
-        },
+        value: DebouncedWebSearchView.searchInput,
         placeholder: 'Try “angular”, “dune” or “design patterns”…',
         'aria-label': 'Search books',
         *input(event) {
@@ -284,23 +282,19 @@ const DebouncedWebSearch = craftComponent(
         span([
           'Debounce: ',
           StatusComponent({
-            status: function* () {
-              return yield* DebouncedWebSearchView.debouncedSearch.statusValue();
-            },
+            status: DebouncedWebSearchView.debouncedSearch.statusValue,
           }),
         ]),
         span([
           'HTTP query: ',
           StatusComponent({
-            status: function* () {
-              return yield* DebouncedWebSearchView.searchQuery.status();
-            },
+            status: DebouncedWebSearchView.searchQuery.status,
           }),
         ]),
       ]),
       ifNode(
         'searchTooShort',
-        () => DebouncedWebSearchView.searchInput.tooShort(),
+        DebouncedWebSearchView.searchInput.tooShort,
         () =>
           p(
             { class: example.hint },
@@ -309,37 +303,29 @@ const DebouncedWebSearch = craftComponent(
       ),
       ifNode(
         'showDebouncing',
-        () => DebouncedWebSearchView.showDebouncing(),
+        DebouncedWebSearchView.showDebouncing,
         () => p({ class: example.hint }, 'Waiting for the debounce window…'),
       ),
       ifNode(
         'hasSearchError',
-        () => DebouncedWebSearchView.searchQuery.hasSearchError(),
+        DebouncedWebSearchView.searchQuery.hasSearchError,
         () =>
-          p({ class: example.error, role: 'alert' }, function* () {
-            return yield* DebouncedWebSearchView.searchQuery.searchFailureMessage();
-          }),
+          p({ class: example.error, role: 'alert' }, DebouncedWebSearchView.searchQuery.searchFailureMessage),
       ),
       ifNode(
         'showResults',
-        () => DebouncedWebSearchView.searchQuery.showResults(),
+        DebouncedWebSearchView.searchQuery.showResults,
         () => [
           heading({ class: example.subtitle }, [
-            function* () {
-              return yield* DebouncedWebSearchView.searchQuery.resultCount();
-            },
+            DebouncedWebSearchView.searchQuery.resultCount,
             ' results for “',
-            function* () {
-              return yield* DebouncedWebSearchView.searchInput();
-            },
+            DebouncedWebSearchView.searchInput,
             '”',
           ]),
           ul(
             { class: example.list },
             forNode(
-              function* () {
-                return yield* DebouncedWebSearchView.searchQuery.resultBooks();
-              },
+              DebouncedWebSearchView.searchQuery.resultBooks,
               { track: (book) => book.key },
               (book) =>
                 article({ class: bookSearch.book }, [
@@ -380,7 +366,7 @@ const DebouncedWebSearch = craftComponent(
       ),
       ifNode(
         'showEmpty',
-        () => DebouncedWebSearchView.searchQuery.showEmpty(),
+        DebouncedWebSearchView.searchQuery.showEmpty,
         () => p({ class: example.hint }, 'No books found.'),
       ),
     ]),

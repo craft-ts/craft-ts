@@ -2,23 +2,35 @@
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import config from '../../../../apps/docs/.vitepress/config.mts';
-import { createCodeHighlighter } from '../markdown/highlight.ts';
-import { buildSiteData, discoverPages, filesOfRoute, routeOfFile, type SiteData } from './pages.ts';
-import { searchEntries } from './search.ts';
-import { isCurrent, normalizePath, pagerFor, sidebarFor, sidebarPages, trailFor } from './site.ts';
-import { siteFromVitepress } from './vitepress.ts';
+import {
+  isCurrent,
+  normalizePath,
+  pagerFor,
+  searchEntries,
+  sidebarFor,
+  sidebarPages,
+  trailFor,
+} from '@craft-ts/docs-ui';
+import {
+  buildSiteData,
+  createCodeHighlighter,
+  discoverPages,
+  filesOfRoute,
+  routeOfFile,
+  type SiteData,
+} from '@craft-ts/docs-ui/node';
+import { siteAt } from './site.ts';
 
 /**
- * The real docs and the real VitePress configuration, run through the site
+ * The real docs and the real navigation of the site, run through the site
  * model. Where `corpus.spec.ts` says the *pages* survive the move, this says the
  * *navigation* does: every link of every sidebar leads to a page, every page is
  * reachable, and a search finds what a reader would look for.
  */
-const SRC_ROOT = path.resolve(import.meta.dirname, '../../../../apps/docs');
-const site = siteFromVitepress(config as never);
+const SRC_ROOT = path.resolve(import.meta.dirname, '../../../docs');
+const site = siteAt('/craft/');
 
-describe('siteFromVitepress, on the configuration of apps/docs', () => {
+describe('the navigation of the site, on the pages of apps/docs', () => {
   it('keeps the title, the base and the sections of the top bar', () => {
     expect(site.title).toBe('@craft-ts');
     expect(site.base).toBe('/craft/');
@@ -69,9 +81,9 @@ describe('the pages of apps/docs, as the site model sees them', () => {
   });
 
   // Pages that exist, are linked from other pages, and are in no sidebar: a reader
-  // who lands on one has no sidebar entry highlighted and no previous/next. VitePress
-  // has the same gap today. The list is fixed so a new orphan fails this test; the
-  // way to shrink it is to add the page to `apps/docs/.vitepress/config.mts`.
+  // who lands on one has no sidebar entry highlighted and no previous/next. The list is
+  // fixed so a new orphan fails this test; the way to shrink it is to add the page to
+  // `src/server/site.ts`.
   const KNOWN_ORPHANS = [
     '/guide/migration/wave-1-tag-and-provided-in',
     '/guide/routing/hash-location',

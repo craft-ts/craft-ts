@@ -15,7 +15,6 @@ import {
   craftMethod,
   insertReactOnMutation,
   state,
-  craftExpose,
 } from '@craft-ts/core';
 import { mutationEffect, queryEffect } from '@craft-ts/effect';
 import { Effect } from 'effect';
@@ -125,8 +124,6 @@ export const { EffectPlaygroundView, provideEffectPlaygroundView } =
         yield* addTodo.mutate(title);
         yield* titleInput.clearTitle();
       });
-
-      yield* craftExpose('setTitle', titleInput.setTitle);
     },
   );
 
@@ -143,7 +140,6 @@ const EffectPlaygroundComponent = craftComponent(
       titleInput,
       toggleTodoMutation,
       todosQuery,
-      setTitle,
     } = yield* EffectPlaygroundView();
     return div({ class: example.card, 'data-exampleTint': 'sky' }, [
       heading({ class: example.title }, 'Effect Playground'),
@@ -158,7 +154,7 @@ const EffectPlaygroundComponent = craftComponent(
           placeholder: 'New todo title…',
           value: titleInput,
           *input(event) {
-            yield* setTitle(event.target.value);
+            yield* titleInput.setTitle(event.target.value);
           },
           *keydown(event) {
             if (event.key === 'Enter') add();

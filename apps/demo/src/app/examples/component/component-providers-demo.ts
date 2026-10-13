@@ -126,18 +126,14 @@ export const componentProvidersDemo = craftComponent(
           instanceName: function* () {
             return 'Instance A';
           },
-          profileId: function* () {
-            return yield* ComponentProvidersDemoView.firstProfileId();
-          },
+          profileId: ComponentProvidersDemoView.firstProfileId,
         }),
         profileWithComponentProviders({
           'data-profile-instance': 'B',
           instanceName: function* () {
             return 'Instance B';
           },
-          profileId: function* () {
-            return yield* ComponentProvidersDemoView.secondProfileId();
-          },
+          profileId: ComponentProvidersDemoView.secondProfileId,
         }),
       ]),
     ]),

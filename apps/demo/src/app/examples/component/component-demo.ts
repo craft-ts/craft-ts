@@ -109,9 +109,7 @@ export const componentDemo = craftComponent(
       div(
         { class: componentUi.list },
         forNode(
-          function* () {
-            return yield* ComponentDemoView.items();
-          },
+          ComponentDemoView.items,
           {
             track: (user) => user.id,
             empty: () => p({ class: componentUi.error }, 'No users'),

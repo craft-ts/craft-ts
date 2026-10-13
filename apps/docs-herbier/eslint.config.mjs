@@ -23,9 +23,9 @@ export default [
     },
   },
   {
-    // The build side reads files and the VitePress configuration of `apps/docs`, on
-    // purpose, while the two sites are compared.
-    files: ['**/src/server/**/*.ts', '**/*.config.ts', '**/preview.mjs'],
+    // The Vite configs and the preview server load tooling by relative path (a config is
+    // read before any alias exists).
+    files: ['**/*.config.ts', '**/preview.mjs'],
     rules: { '@nx/enforce-module-boundaries': 'off' },
   },
 ];

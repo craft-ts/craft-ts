@@ -28,7 +28,6 @@ import {
   state,
   craftUse,
   craftPrivate,
-  craftExpose,
 } from '@craft-ts/core';
 import { CurrentUser, requireAdmin } from '../shared/authenticated-user';
 import { getAuthenticatedUsers } from '../users/authenticated-list.fn-client';
@@ -138,10 +137,6 @@ export const { ServerFunctionDemoView, provideServerFunctionDemoView } = craftSe
       if (!(yield* isAdmin())) return; // todo remove
       yield* usersQuery.call((yield* searchInput()).trim());
     });
-
-    yield* craftExpose('setSearchInput', searchInput.setSearchInput);
-    yield* craftExpose('notFound', usersQuery.notFound);
-    yield* craftExpose('notFoundMessage', usersQuery.notFoundMessage);
   },
 );
 
@@ -153,11 +148,8 @@ const ServerFunctionDemo = craftComponent(
   function* () {
     const {
       searchInput,
-      setSearchInput,
       usersQuery,
       currentUser,
-      notFound,
-      notFoundMessage,
       submitSearch,
     } = yield* ServerFunctionDemoView();
     return main({ class: demoPage.shell }, [
@@ -210,7 +202,7 @@ const ServerFunctionDemo = craftComponent(
                 autocomplete: 'off',
                 'aria-label': 'User filter',
                 *input(event) {
-                  yield* setSearchInput(event.target.value);
+                  yield* searchInput.setSearchInput(event.target.value);
                 },
               }),
               button(
@@ -258,11 +250,11 @@ const ServerFunctionDemo = craftComponent(
               ),
             ]),
           ),
-          ifNode(notFound, () =>
+          ifNode(usersQuery.notFound, () =>
             div({ class: demoPage.empty }, [
               strong({ class: demoPage.emptyTitle }, 'No users found'),
               span({ class: demoPage.emptyText }, function* () {
-                return yield* notFoundMessage();
+                return yield* usersQuery.notFoundMessage();
               }),
               span(
                 { class: demoPage.emptyText },
