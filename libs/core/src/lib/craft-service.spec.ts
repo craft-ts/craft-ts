@@ -1189,7 +1189,7 @@ describe('injectService should enable to binding inputs', () => {
   });
   it('should provide a string token to say that the input is already provided', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'function' },
+      { name: 'Counter', providedIn: 'global' },
       // ! inputs can only be set in the first params
 
       function* (inputs: { initialValue: MaybeSignal<number> }) {
@@ -1429,7 +1429,7 @@ describe('service should enable to binding inputs', () => {
   });
   it('should provide a string token to say that the input is already provided', () => {
     const { Counter } = craftService(
-      { name: 'Counter', providedIn: 'function' },
+      { name: 'Counter', providedIn: 'global' },
       function* (inputs: { initialValue: MaybeSignal<number> }) {
         yield* state(
           'counter',
@@ -2101,7 +2101,6 @@ describe('injectService/Service should expose an optional parameter that can be 
       function* () {
         const count = yield* OmitInputsYieldCounter.OmitInputs.count();
         expectTypeOf(count).toEqualTypeOf<number>();
-        yield* craftExpose('count', count);
       },
     );
 

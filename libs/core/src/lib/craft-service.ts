@@ -2241,9 +2241,7 @@ type YieldHelper<
           ServiceYieldRequest<
             Scope,
             MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
-            Metadata,
-            Uncapitalize<Name>,
-            MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>
+            Metadata
           >,
           MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, undefined, Output>,
           unknown
@@ -2257,9 +2255,7 @@ type YieldHelper<
           ServiceYieldRequest<
             Scope,
             MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, Config, Output>,
-            Metadata,
-            Uncapitalize<Name>,
-            MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, Config, Output>
+            Metadata
           >,
           MaybeErrorOutput<ServiceCallInputs<Scope, Inputs>, Config, Output>,
           unknown
@@ -4257,7 +4253,6 @@ function createHelper(
     const serviceValue = (yield createYieldRequest(
       definition,
       bindings,
-      uncapitalizeFirst(definition.name),
     )) as unknown;
 
     if (!expose) {
@@ -4637,10 +4632,8 @@ function createYieldRequest(
                 (owner, segment) => Reflect.get(Object(owner), segment),
                 service,
               );
-              // A method reached through a path is called, not exposed.
-              return path.length > 0 && isShortcutMethod(member)
-                ? NOT_EXPOSED
-                : member;
+              // A method reached through a shortcut is called, not exposed.
+              return isShortcutMethod(member) ? NOT_EXPOSED : member;
             },
           },
         }
