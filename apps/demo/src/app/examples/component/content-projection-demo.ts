@@ -15,7 +15,7 @@ import {
   headingSection,
 } from '@craft-ts/component';
 import { craftComponent } from '@craft-ts/component';
-import { craftService, state, craftExpose } from '@craft-ts/core';
+import { craftService, state, craftExpose, on$, source$ } from '@craft-ts/core';
 
 import { card } from './content-projection-card';
 import { toolbarAction, userBadge } from './content-projection-actions';
@@ -49,10 +49,12 @@ export const { ContentProjectionDemoView, provideContentProjectionDemoView } =
       const showToolbar = yield* state('showToolbar', true, ({ update }) => ({
         toggle: () => update((visible) => !visible),
       }));
+      const confirmed$ = yield* source$<void>('confirmed$');
       const dialogOpen = yield* state('dialogOpen', false, ({ set }) => ({
         open: () => set(true),
         closeFromToolbar: () => set(false),
-        closeFromConfirmation: () => set(false),
+        confirmed$,
+        closeOnConfirmation: on$(confirmed$, () => set(false)),
       }));
       const lastActionLabel = yield* state(
         'lastActionLabel',
@@ -61,7 +63,9 @@ export const { ContentProjectionDemoView, provideContentProjectionDemoView } =
           recordSave: () => set('Last action: Save'),
           recordCancel: () => set('Last action: Cancel'),
           recordDirect: () => set('Last action: Direct action'),
-          recordConfirm: () => set('Last action: Confirm'),
+          recordOnConfirmation: on$(confirmed$, () =>
+            set('Last action: Confirm'),
+          ),
         }),
       );
       const users = [
@@ -203,10 +207,7 @@ export const contentProjectionDemo = craftComponent(
                 toolbarAction({
                   key: 'confirm',
                   content: () => 'Confirm',
-                  trigger: function* () {
-                    yield* ContentProjectionDemoView.lastActionLabel.recordConfirm();
-                    yield* ContentProjectionDemoView.dialogOpen.closeFromConfirmation();
-                  },
+                  trigger: ContentProjectionDemoView.dialogOpen.confirmed$,
                 }),
               ],
             }),
