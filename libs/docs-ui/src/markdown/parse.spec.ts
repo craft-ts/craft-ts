@@ -167,6 +167,41 @@ describe('prose', () => {
     expect(page.outline.map((o) => o.level)).toEqual([2, 3, 2]);
   });
 
+  it('slugs headings the way VitePress does, so old anchors still land', async () => {
+    const page = await parse(
+      [
+        "## The syntax is valid — the placement is not",
+        "## 9. Call server functions",
+        "## Shaping a service's public API",
+        '## `catchTag(code, handler)`',
+        '## Café crème',
+      ].join('\n\n'),
+    );
+    const ids = page.blocks.map((b) => (b.t === 'heading' ? b.id : ''));
+    expect(ids).toEqual([
+      'the-syntax-is-valid-—-the-placement-is-not',
+      '_9-call-server-functions',
+      'shaping-a-service-s-public-api',
+      'catchtag-code-handler',
+      'cafe-creme',
+    ]);
+  });
+
+  it('reads a trailing {#id} as the heading id and keeps it out of the title', async () => {
+    const page = await parse(
+      '## God nodes and hotspots {#hotspots}\n\n## `report` {#report}\n\n## Not {#last} here\n',
+    );
+    const headings = page.blocks.filter(
+      (b): b is Extract<Block, { t: 'heading' }> => b.t === 'heading',
+    );
+    expect(headings.map((h) => h.id)).toEqual(['hotspots', 'report', 'not-last-here']);
+    expect(page.outline.map((o) => o.text)).toEqual([
+      'God nodes and hotspots',
+      'report',
+      'Not {#last} here',
+    ]);
+  });
+
   it('marks links external, keeps inline code, kbd and emphasis', async () => {
     const block = (await first(
       'See [guide](/guide/x), [npm](https://npmjs.com), `code`, <kbd>Esc</kbd>, **bold** and *soft*.',

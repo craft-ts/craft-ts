@@ -195,12 +195,42 @@ const textOf = (inlines: readonly Inline[]): string =>
     })
     .join('');
 
+// The id VitePress gives a heading (`@mdit-vue/shared`), so an anchor that was linked
+// before the move still lands: accents dropped, punctuation folded into one dash, a
+// leading digit prefixed with `_`. The em dash is not punctuation to it, and stays.
+// eslint-disable-next-line no-control-regex -- VitePress strips exactly these
+const CONTROL = /[\u0000-\u001f]/g;
+const SPECIAL = /[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g;
+const COMBINING = /[\u0300-\u036F]/g;
+
 const slugify = (text: string): string =>
   text
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .trim()
-    .replace(/\s+/g, '-');
+    .normalize('NFKD')
+    .replace(COMBINING, '')
+    .replace(CONTROL, '')
+    .replace(SPECIAL, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/^(\d)/, '_$1')
+    .toLowerCase();
+
+/** `## Report {#report}`: the id the author chose, written at the end of the heading. */
+const CUSTOM_ID = /\s*\{#([\w-]+)\}\s*$/;
+
+/**
+ * The heading's inline tokens without a trailing `{#id}`, and that id. The marker
+ * is in the last text token; one that sits elsewhere is ordinary text.
+ */
+const withoutCustomId = (
+  tokens: readonly Token[],
+): { tokens: readonly Token[]; id: string | undefined } => {
+  const last = tokens[tokens.length - 1];
+  const match = last?.type === 'text' ? CUSTOM_ID.exec(last.content) : null;
+  if (!last || !match) return { tokens, id: undefined };
+  const rest = last.content.slice(0, match.index);
+  const trimmed = rest === '' ? tokens.slice(0, -1) : [...tokens.slice(0, -1), { ...last, content: rest } as Token];
+  return { tokens: trimmed, id: match[1] };
+};
 
 const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
@@ -424,9 +454,11 @@ export async function parsePage(
       switch (token.type) {
         case 'heading_open': {
           const level = Number(token.tag.slice(1)) as 1 | 2 | 3 | 4 | 5 | 6;
-          const children = inlines(tokens[index + 1]?.children ?? []);
+          const written = withoutCustomId(tokens[index + 1]?.children ?? []);
+          const children = inlines(written.tokens);
           const text = textOf(children);
-          const id = uniqueId(text);
+          const id = written.id ?? uniqueId(text);
+          if (written.id) seen.set(id, (seen.get(id) ?? 0) + 1);
           if (level === 2 || level === 3) outline.push({ level, id, text });
           out.push({ t: 'heading', level, id, children });
           index += 2;
