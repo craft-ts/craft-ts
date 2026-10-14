@@ -47,4 +47,5 @@ export type {
   ParsedPage,
 } from './markdown/tree.ts';
 export * from './site/links.ts';
+export * from './site/check-links.ts';
 export * from './site/llms.ts';
