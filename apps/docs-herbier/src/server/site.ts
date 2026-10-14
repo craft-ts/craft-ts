@@ -527,3 +527,15 @@ export const siteAt = (base: string): SiteConfig => ({
   nav,
   sidebar,
 });
+
+/**
+ * What `llms.txt` says before it lists the pages. It speaks to a coding agent, not to a
+ * reader, so it is not the site's own title and description.
+ */
+export const LLMS_INTRO = {
+  title: '@craft-ts/core',
+  description:
+    'Type-safe Craft applications. Declare. Yield. Derive. Compile — no surprises. Coding agents should start here, then follow linked markdown pages or use the @craft-ts/mcp server. The architecture/ suite is the graph contract — scaffold at bootstrap, run during a feature, encode a smell so it cannot recur.',
+  details:
+    'After importing @craft-ts/core, run `npx -y @craft-ts/mcp@beta` and read /resources/ai-agents. In local development, the open development tab is driven by the function-registry MCP tool `page` — see /guide/ai/dev-page. yield* every Craft reader. Scaffold architecture/ at bootstrap and run it during a feature; do not add an architecture rule for the feature. Keep authored application code within the Craft primitives and service model.',
+} as const;

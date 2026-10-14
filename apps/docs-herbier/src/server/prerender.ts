@@ -3,19 +3,26 @@
  *
  * Run after the browser bundle is built, because the pages link its files. It
  * parses each Markdown page once, draws it with the same root component the
- * browser hydrates, and writes the page, the 404, the search index and
- * `llms.txt` next to the bundle.
+ * browser hydrates, and writes the page, the 404 and the search index next to the
+ * bundle. For a coding agent it also writes the Markdown of every page (`guide/a.md`),
+ * `llms.txt` and `llms-full.txt`.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import * as path from 'node:path';
-import { discoverPages } from '@craft-ts/docs-ui/node';
-import { renderLlmsTxt, type SearchEntry } from '@craft-ts/docs-ui';
+import { discoverPages, renderMarkdownSource } from '@craft-ts/docs-ui/node';
+import {
+  normalizePath,
+  renderLlmsFullTxt,
+  renderLlmsTxt,
+  withBase,
+  type SearchEntry,
+} from '@craft-ts/docs-ui';
 import { SEARCH_INDEX } from '../root.ts';
 import { createDocs, docsSource } from './docs.ts';
 import type { Assets } from './document.ts';
-import { pageDataFile } from '../page-data.ts';
+import { markdownFileOfRoute, pageDataFile } from '../page-data.ts';
 import { renderPage } from './render.ts';
-import { siteAt } from './site.ts';
+import { LLMS_INTRO, siteAt } from './site.ts';
 
 /** `/` is `index.html`, `/guide/` is `guide/index.html`, `/guide/a` is `guide/a.html`. */
 export const fileOfRoute = (route: string): string =>
@@ -60,18 +67,40 @@ const main = async (): Promise<void> => {
   const docs = await createDocs({ srcRoot, site: siteAt(base) });
 
   const entries: SearchEntry[] = [];
+  const markdown = new Map<string, string>();
   const pages = discoverPages(srcRoot);
-  for (const { route } of pages) {
+  for (const { route, file } of pages) {
     const loaded = await docs.load(route);
     if (!loaded) throw new Error(`No page for ${route}.`);
     entries.push(loaded.entry);
-    write(outDir, fileOfRoute(route), await renderPage(docs.site, loaded.data, assets));
+    write(outDir, fileOfRoute(route), await renderPage(docs.site, loaded.data, assets, true));
     // What a press on a link to this page fetches instead of the document.
     write(outDir, pageDataFile(route), JSON.stringify(loaded.data));
+    const markdownFile = markdownFileOfRoute(route);
+    if (markdownFile) {
+      const filePath = path.join(srcRoot, file);
+      const source = renderMarkdownSource(readFileSync(filePath, 'utf8'), {
+        srcRoot,
+        filePath,
+        url: `${origin}${withBase(base, `/${markdownFile}`)}`,
+      });
+      markdown.set(normalizePath(route, base), source);
+      write(outDir, markdownFile, source);
+    }
   }
   write(outDir, '404.html', await renderPage(docs.site, docs.notFound(), assets));
   write(outDir, SEARCH_INDEX, JSON.stringify(entries));
-  write(outDir, 'llms.txt', renderLlmsTxt(docs.site, entries, { origin }));
+  // A page is linked as its Markdown, where there is one: the agent reads it, not the layout.
+  const markdownLink = (page: SearchEntry): string | undefined => {
+    const file = markdownFileOfRoute(page.href);
+    return file ? withBase(base, `/${file}`) : undefined;
+  };
+  write(outDir, 'llms.txt', renderLlmsTxt(docs.site, entries, { origin, ...LLMS_INTRO, linkOf: markdownLink }));
+  write(
+    outDir,
+    'llms-full.txt',
+    renderLlmsFullTxt(docs.site, entries, (page) => markdown.get(normalizePath(page.href, base))),
+  );
   docs.close();
   console.log(`docs-herbier: ${pages.length} pages written to ${path.relative(process.cwd(), outDir)}`);
 };

@@ -10,6 +10,7 @@ export const renderPage = async (
   site: SiteConfig,
   page: PageData,
   assets: Assets,
+  agentFiles = false,
 ): Promise<string> => {
   const rendered = await renderCraft({
     config: appConfig,
@@ -20,5 +21,5 @@ export const renderPage = async (
     // build, over pages we wrote: a long reference page is allowed to be long.
     securityPolicy: { ssr: { maxHtmlBytes: 32_000_000, timeoutMs: 60_000 } },
   });
-  return renderDocument({ site, page, html: rendered.html, assets, dataId: DATA_ID });
+  return renderDocument({ site, page, html: rendered.html, assets, dataId: DATA_ID, agentFiles });
 };

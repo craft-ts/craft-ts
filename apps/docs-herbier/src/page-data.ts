@@ -11,6 +11,8 @@ export interface PageData {
   /** Where the page is served, without the base: `/guide/state/local-state`. */
   readonly route: string;
   readonly title: string;
+  /** What the page says about itself, from its frontmatter: the site's own when it has none. */
+  readonly description?: string;
   readonly blocks: readonly Block[];
   readonly outline: readonly Outline[];
   readonly hero?: HomeHero;
@@ -55,6 +57,28 @@ export const routeOfPath = (pathname: string, base: string): string | undefined 
   return route;
 };
 
-/** The `<title>` of a page: the site's own on the home page, else `page | site`. */
-export const documentTitle = (siteTitle: string, page: PageData): string =>
-  page.route === '/' ? siteTitle : `${page.title} | ${siteTitle}`;
+/**
+ * The `<title>` of a page: the site's own on the home page, `404 | site` on the
+ * not-found page, and the site's alone when a page has no title of its own.
+ */
+export const documentTitle = (siteTitle: string, page: PageData): string => {
+  if (page.route === '/') return siteTitle;
+  const title = page.kind === 'notFound' ? '404' : page.title;
+  return title ? `${title} | ${siteTitle}` : siteTitle;
+};
+
+/** The `<meta name="description">` of a page: its own, else the site's. */
+export const documentDescription = (
+  site: { readonly description?: string },
+  page: PageData,
+): string =>
+  page.kind === 'notFound' ? 'Not Found' : (page.description ?? site.description ?? '');
+
+/**
+ * Where the Markdown of a page is written, under the base: `/guide/a` is `guide/a.md`
+ * and `/guide/` is `guide.md`, as the old site served them. The home page has none.
+ */
+export const markdownFileOfRoute = (route: string): string | undefined => {
+  const bare = route.replace(/^\//, '').replace(/\/$/, '');
+  return bare === '' ? undefined : `${bare}.md`;
+};

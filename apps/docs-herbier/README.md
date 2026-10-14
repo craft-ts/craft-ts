@@ -20,8 +20,13 @@ nx preview docs-herbier    # http://localhost:4421/craft/  — the built site, s
    static site does.
 
 `nx build` is three steps in order: the browser bundle (it writes the manifest the pages link),
-the prerender script bundled for Node, then the script itself, which writes every page, `404.html`,
-`search-index.json` and `llms.txt`.
+the prerender script bundled for Node, then the script itself, which writes every page, `404.html`
+and `search-index.json`. For coding agents it also writes the Markdown of each page (`guide/a.md`,
+`guide.md` for `/guide/`, imports written out), `llms.txt` (linking those files) and `llms-full.txt`
+(all of them, in sidebar order).
+
+A heading's id is the one VitePress gave it (so an old anchor still lands), or the one written at
+its end: `## Report {#report}`.
 
 ## What is the site's own
 

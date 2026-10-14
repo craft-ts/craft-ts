@@ -1,7 +1,14 @@
 import { craftExpose, craftService, fromEventToSource$, state } from '@craft-ts/core';
 import { MODE_STORAGE_KEY, NAVIGATED_EVENT } from '@craft-ts/docs-ui';
 import { LOCKED_DARK_PATH } from './locked.ts';
-import { documentTitle, pageDataFile, routeOfPath, type PageData } from './page-data.ts';
+import {
+  documentDescription,
+  documentTitle,
+  markdownFileOfRoute,
+  pageDataFile,
+  routeOfPath,
+  type PageData,
+} from './page-data.ts';
 
 /** What the browser keeps with a history entry: how far the reader had scrolled. */
 interface Entry {
@@ -66,6 +73,32 @@ const whenDrawn = (change: () => void, then: () => void): void => {
   change();
   // A change that draws nothing (the same content) must not wait for the give-up.
   settle = setTimeout(finish, 250);
+};
+
+/**
+ * What the head says about the page, kept true as the reader moves: the description,
+ * and the Markdown an agent can read instead. A page the build gave that link keeps
+ * it, updated; one it did not (the 404) loses it.
+ */
+const syncHead = (base: string, page: PageData): void => {
+  const root = document.documentElement;
+  const description = document.head.querySelector('meta[name="description"]');
+  const text = documentDescription(
+    { description: root.getAttribute('data-site-description') ?? '' },
+    page,
+  );
+  if (description && text) description.setAttribute('content', text);
+  const file = page.kind === 'notFound' ? undefined : markdownFileOfRoute(page.route);
+  const alternate = document.head.querySelector('link[rel="alternate"][type="text/markdown"]');
+  if (alternate && file) alternate.setAttribute('href', `${base}${file}`);
+  else if (alternate) alternate.remove();
+  else if (file && document.head.querySelector('link[rel="describedby"]')) {
+    const link = document.createElement('link');
+    link.rel = 'alternate';
+    link.type = 'text/markdown';
+    link.href = `${base}${file}`;
+    document.head.append(link);
+  }
 };
 
 const scrollTo = (hash: string, y: number | undefined): void => {
@@ -156,6 +189,7 @@ export const { DocsNavigation, provideDocsNavigation } = craftService(
         route = target;
         lockMode(target.startsWith(LOCKED_DARK_PATH));
         document.title = documentTitle(site, page);
+        syncHead(base, page);
         whenDrawn(
           () => {
             shown.show(page);
