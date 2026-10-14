@@ -118,7 +118,8 @@ change; only affected projects and invalidated tasks run again. Do not use
 After showing the resolved version, it asks for confirmation and:
 
 1. updates the fifteen package manifests and `CHANGELOG.md`;
-2. rebuilds the fifteen npm packages and VitePress documentation;
+2. rebuilds the fifteen npm packages and the documentation (`docs-herbier`, the
+   site drawn with `@craft-ts/docs-ui`);
 3. mirrors `apps/demo/src` and `apps/demo/public` into `craft-ts-demo`;
 4. pins the three CraftTS packages used by the demo (`core`, `component`, and
    `dev-tools`) to the exact release version;
@@ -128,7 +129,9 @@ After showing the resolved version, it asks for confirmation and:
    `effect` to the workspace-compatible version range in the frontend Effect
    demo;
 7. removes and ignores the `package-lock.json` files in both demos;
-8. replaces the published documentation with the VitePress build;
+8. replaces the published documentation with the `docs-herbier` build
+   (`dist/apps/docs-herbier`: the pages, `llms.txt`, `llms-full.txt` and the
+   Markdown of each page);
 9. commits the four workspaces;
 10. publishes all fifteen packages to npm;
 11. pushes `main`, creates and pushes `v<version>`, and creates the GitHub Release;

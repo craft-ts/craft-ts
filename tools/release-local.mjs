@@ -321,6 +321,12 @@ function removeDemoPackageLock(targetDemoRoot) {
   }
 }
 
+/**
+ * What the documentation build writes that is not the site: the bundler's manifest, which
+ * the prerender read and nothing else does.
+ */
+const unpublishedDocumentationEntries = new Set(['.vite']);
+
 export function syncBuiltDocumentation(buildRoot, targetDocsRoot) {
   if (!existsSync(join(buildRoot, 'index.html'))) {
     throw new Error(
@@ -336,6 +342,7 @@ export function syncBuiltDocumentation(buildRoot, targetDocsRoot) {
   }
 
   for (const entry of readdirSync(buildRoot)) {
+    if (unpublishedDocumentationEntries.has(entry)) continue;
     cpSync(join(buildRoot, entry), join(targetDocsRoot, entry), {
       recursive: lstatSync(join(buildRoot, entry)).isDirectory(),
     });
@@ -702,7 +709,7 @@ async function main(args) {
     '-p',
     ...releasePackages.map(({ project }) => project),
   ]);
-  run('npx', ['nx', 'build', 'docs']);
+  run('npx', ['nx', 'build', 'docs-herbier']);
   run('node', ['tools/release.mjs', 'assert-manifests', release.version]);
   untrackGeneratedReleaseFiles(workspaceRoot);
   run('node', [
@@ -722,7 +729,7 @@ async function main(args) {
     release.version,
   );
   syncBuiltDocumentation(
-    join(workspaceRoot, 'apps/docs/.vitepress/dist'),
+    join(workspaceRoot, 'dist/apps/docs-herbier'),
     docsRepo,
   );
 
