@@ -146,7 +146,13 @@ export const homeUi = craftStyles('docHome', {
     gap(space(3)),
     marginBlockStart(space(8)),
   ],
-  figure: [display.block, maxInlineSize(unit.rem(16.375)), inlineSize(unit.pct(100))],
+  // Narrower than the single column on a small screen, so it sits in the middle of it.
+  figure: [
+    display.block,
+    maxInlineSize(unit.rem(16.375)),
+    inlineSize(unit.pct(100)),
+    marginInline.auto,
+  ],
   extra: [display.block, marginBlockStart(space(5))],
   caption: [
     display.block,

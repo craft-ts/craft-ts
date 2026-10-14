@@ -78,8 +78,6 @@ const components = (base: string): DocComponents => ({
   CraftTemplateMigrator: () => TemplateMigrator({}),
 });
 
-const FIGURE = 'Fig. 1. One state, branching into everything derived from it.';
-
 const body = (site: SiteConfig, page: PageData): CraftNodeChild => {
   const registry = components(site.base);
   const read = (blocks: PageData['blocks']): CraftNodeChild =>
@@ -96,7 +94,7 @@ const body = (site: SiteConfig, page: PageData): CraftNodeChild => {
       return div([
         DocHome({
           hero: function* () {
-            return { ...(page.hero as NonNullable<PageData['hero']>), plateCaption: FIGURE };
+            return page.hero as NonNullable<PageData['hero']>;
           },
           features: function* () {
             return page.features ?? [];
