@@ -14,7 +14,8 @@ import {
   type Input,
 } from '@craft-ts/component';
 import { DocLinkButton, type ButtonVariant } from '../button/button.ts';
-import { DocContours, DocForest, DocPlate } from '../decor/decor.ts';
+import { DocContours, DocForest } from '../decor/decor.ts';
+import { DocLogo } from '../logo/logo.ts';
 import { withBase } from '../site/site.ts';
 import { homeUi } from './home.style.ts';
 
@@ -38,7 +39,7 @@ export interface HomeHero {
   readonly text: string;
   readonly tagline: string;
   readonly actions: readonly HomeAction[];
-  /** The caption under the plate, the way a figure of a book has one. */
+  /** The caption under the mark, the way a figure of a book has one. */
   readonly plateCaption: string;
 }
 
@@ -51,7 +52,7 @@ export interface HomeInput {
 }
 
 /**
- * The front page: a plate with the promise on the left and a botanical figure on
+ * The front page: a plate with the promise on the left and the craft-ts mark on
  * the right, the forest along its foot, then the features in cards. Only the
  * first call to action is filled; the rest are quiet, so one thing is asked.
  */
@@ -75,10 +76,17 @@ export const DocHome = craftComponent('DocHome', {}, function* (props: HomeInput
       }),
   );
 
-  const cards = features.map((feature): CraftNodeChild => {
+  const cards = features.map((feature, index): CraftNodeChild => {
     const body: CraftNodeChild[] = [
+      span({ class: homeUi.cardContour, 'aria-hidden': 'true' }),
+      div({ class: homeUi.cardHead }, [
+        span({ class: homeUi.cardIndex, 'aria-hidden': 'true' }, String(index + 1).padStart(2, '0')),
+        span({ class: homeUi.cardBadge, 'aria-hidden': 'true' }, [span({ class: homeUi.cardGlyph })]),
+      ]),
       span({ class: homeUi.cardTitle }, feature.title),
       p({ class: homeUi.cardText }, feature.details),
+      // Only a door says where it leads; a statement has nothing to point at.
+      ...(feature.link ? [span({ class: homeUi.cardGo, 'aria-hidden': 'true' }, '\u2192')] : []),
     ];
     return feature.link
       ? a('docHomeFeature', { class: homeUi.card, href: withBase(base, feature.link) }, body)
@@ -96,7 +104,7 @@ export const DocHome = craftComponent('DocHome', {}, function* (props: HomeInput
           div({ class: homeUi.actions }, actions),
         ]),
         figure({ class: homeUi.figure }, [
-          DocPlate({}),
+          DocLogo({}),
           figcaption({ class: homeUi.caption }, hero.plateCaption),
           div({ class: homeUi.extra }, renderContent('extra', props.extra)),
         ]),

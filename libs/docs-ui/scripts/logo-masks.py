@@ -22,11 +22,12 @@ import numpy as np
 HERE=os.path.dirname(os.path.abspath(__file__))
 SRC=os.path.join(HERE,'../../../apps/docs/public/assets/craft-ts-logo.png')
 OUT=os.environ.get('LOGO_OUT') or os.path.join(HERE,'../src/logo/logo.art.style.ts')
-# The mark is drawn at 2.5rem (40px): 128px is three times that, enough for a dense screen.
-S=int(os.environ.get('LOGO_MASK_SIZE','128'))
+# The mark is drawn at 2.5rem (40px) in the navbar and at 16rem (262px) on the front page: 384px
+# is 1.5 times the larger one, enough for a dense screen (128px made the front page blurry).
+S=int(os.environ.get('LOGO_MASK_SIZE','384'))
 # The masks are alpha only: 8-bit alpha is quantised to this many levels and stored as a palette
 # PNG, a third of the size of RGBA with no step a reader can see (the bands overlap).
-LEVELS=int(os.environ.get('LOGO_ALPHA_LEVELS','64'))
+LEVELS=int(os.environ.get('LOGO_ALPHA_LEVELS','32'))
 im=Image.open(SRC).convert('RGBa').resize((S,S),Image.LANCZOS).convert('RGBA')
 a=np.asarray(im).astype(float)/255
 A=a[...,3]; rgb=a[...,:3]

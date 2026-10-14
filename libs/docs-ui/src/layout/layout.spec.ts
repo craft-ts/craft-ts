@@ -12,6 +12,7 @@ import { DocNotFound, DocHome } from './home.ts';
 import { defaultLabels, DocLayout } from './layout.ts';
 import { NAVIGATED_EVENT } from '../site/navigated.ts';
 import { menuUi } from '../menu/menu.style.ts';
+import { glyphMask } from '../decor/glyph.art.style.ts';
 
 afterEach(() => {
   document.documentElement.removeAttribute('data-mode');
@@ -401,7 +402,7 @@ describe('DocHome', () => {
       } as never,
     });
 
-  it('puts the promise first, one filled action, the plate and the features', async () => {
+  it('puts the promise first, one filled action, the mark and the features', async () => {
     const rendered = await home();
     expect(rendered.element.querySelector('h1')?.textContent).toBe(
       'Safe AI-first APP, by construction.',
@@ -417,6 +418,32 @@ describe('DocHome', () => {
     // The drawings are decoration: hidden from assistive technology.
     expect(rendered.element.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(1);
     rendered.destroy();
+  });
+
+  it('dresses each card with an index and an emblem, and an arrow only on a door', async () => {
+    const rendered = await home();
+    const door = rendered.element.querySelector('a[href="/craft/guide/x"]') as HTMLElement;
+    expect(door.textContent).toContain('01');
+    expect(door.textContent).toContain('\u2192');
+    const statement = [...rendered.element.querySelectorAll('div')].find((d) =>
+      d.textContent?.startsWith('02') && d.textContent.includes('Learn one'),
+    );
+    expect(statement?.textContent).not.toContain('\u2192');
+    // All of it is decoration: hidden from assistive technology.
+    for (const part of door.querySelectorAll('span[aria-hidden="true"]')) {
+      expect(part.getAttribute('aria-hidden')).toBe('true');
+    }
+    rendered.destroy();
+  });
+
+  it('draws a different emblem for each season, and one for the classic Herbier', () => {
+    const marks = (['classic', 'spring', 'summer', 'autumn', 'winter'] as const).map(glyphMask);
+    expect(new Set(marks).size).toBe(5);
+    const sheet = css();
+    expect(sheet).toContain('--herbier-cardGlyph');
+    for (const season of ['spring', 'summer', 'autumn', 'winter'] as const) {
+      expect(sheet).toContain(glyphMask(season));
+    }
   });
 
   it('draws the forest in five planes, each one a mask in the theme colour', () => {
