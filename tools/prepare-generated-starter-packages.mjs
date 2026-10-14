@@ -4,7 +4,11 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { appendJsExtensions, releasePackages } from './release.mjs';
+import {
+  appendJsExtensions,
+  assertRelativeImportsResolve,
+  releasePackages,
+} from './release.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const artifactRoot = resolve(
@@ -36,6 +40,7 @@ const manifest = {};
 for (const pkg of releasePackages) {
   const packageRoot = resolve(root, pkg.distRoot);
   appendJsExtensions(packageRoot);
+  assertRelativeImportsResolve(packageRoot, pkg.name);
   const output = execFileSync(
     'npm',
     ['pack', '--json', '--pack-destination', artifactRoot],

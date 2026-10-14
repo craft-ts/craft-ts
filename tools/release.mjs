@@ -6,6 +6,7 @@ import {
   readdirSync,
   existsSync,
   readFileSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -448,13 +449,72 @@ export function appendJsExtensions(root) {
         if (specifier.endsWith('.js')) return match;
         const candidate = join(dirname(path), `${specifier}.js`);
         const indexCandidate = join(dirname(path), specifier, 'index.js');
-        if (!existsSync(candidate) && !existsSync(indexCandidate)) {
-          return match;
+        if (existsSync(candidate)) {
+          return `${prefix}${quote}${specifier}.js${quote}`;
         }
-        return `${prefix}${quote}${specifier}.js${quote}`;
+        if (existsSync(indexCandidate)) {
+          return `${prefix}${quote}${specifier.replace(/\/$/, '')}/index.js${quote}`;
+        }
+        return match;
       },
     );
     if (updated !== source) writeFileSync(path, updated);
+  }
+}
+
+// `typeof import('./x')` is a type position, never a runtime import.
+const relativeSpecifierPattern =
+  /(?<!typeof\s+)(?:from\s+|import\s+|import\s*\(\s*|export\s+from\s+)(['"])(\.\.?\/[^'"]+)\1/g;
+
+/**
+ * Lists every relative import of a packed package's runtime files (`.js`) that
+ * does not point at an existing file, once extensions are appended. A
+ * directory import left as is, or an `X.js` with no file behind it, breaks
+ * consumers' bundlers. Declaration files are left out: their specifiers are
+ * resolved by TypeScript, not by a bundler. Comments and string or template
+ * literals (generators embed code that the package itself never imports) are
+ * ignored.
+ */
+export function unresolvedRelativeImports(root) {
+  const unresolved = [];
+  const walk = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules') walk(path);
+        continue;
+      }
+      if (!entry.name.endsWith('.js')) continue;
+      const source = readFileSync(path, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '')
+        .replace(/`(?:\\[\s\S]|[^`\\])*`/g, '``')
+        .replace(
+          /(\b(?:from|import)\s*\(?\s*)?("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')/g,
+          (match, lead) => (lead ? match : '""'),
+        );
+      for (const match of source.matchAll(relativeSpecifierPattern)) {
+        const target = join(dirname(path), match[2]);
+        if (!existsSync(target) || statSync(target).isDirectory()) {
+          unresolved.push(`${path}: ${match[2]}`);
+        }
+      }
+    }
+  };
+  walk(root);
+  return unresolved;
+}
+
+export function assertRelativeImportsResolve(root, label = root) {
+  const unresolved = unresolvedRelativeImports(root);
+  if (unresolved.length > 0) {
+    throw new Error(
+      `${label} has relative imports that do not resolve:\n${unresolved
+        .slice(0, 20)
+        .join(
+          '\n',
+        )}${unresolved.length > 20 ? `\n... ${unresolved.length - 20} more` : ''}`,
+    );
   }
 }
 
@@ -473,6 +533,7 @@ function packRelease(version, outputDirectory) {
       );
     }
     appendJsExtensions(packRoot);
+    assertRelativeImportsResolve(packRoot, pkg.name);
 
     const output = run(
       'npm',

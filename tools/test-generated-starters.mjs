@@ -11,7 +11,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { appendJsExtensions, releasePackages } from './release.mjs';
+import {
+  appendJsExtensions,
+  assertRelativeImportsResolve,
+  releasePackages,
+} from './release.mjs';
 import {
   cells,
   cellsForProfile,
@@ -99,10 +103,10 @@ function runAsync(command, args, cwd = root, extraEnv = {}) {
       cwd,
       stdio: 'inherit',
       env: {
-      ...process.env,
-      NX_DAEMON: 'false',
-      ...extraEnv,
-      ...(releaseVersion ? { CRAFT_RELEASE_VERSION: releaseVersion } : {}),
+        ...process.env,
+        NX_DAEMON: 'false',
+        ...extraEnv,
+        ...(releaseVersion ? { CRAFT_RELEASE_VERSION: releaseVersion } : {}),
       },
     });
     child.once('error', rejectPromise);
@@ -149,6 +153,7 @@ function prepareLocalReleasePackages() {
   for (const pkg of releasePackages) {
     const packageRoot = resolve(root, pkg.distRoot);
     appendJsExtensions(packageRoot);
+    assertRelativeImportsResolve(packageRoot, pkg.name);
     const output = execFileSync(
       'npm',
       ['pack', '--json', '--pack-destination', artifactRoot],

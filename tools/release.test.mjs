@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
+  appendJsExtensions,
   assertNpmPackExcludesTests,
+  assertRelativeImportsResolve,
   bumpReleaseVersion,
   compareReleaseVersions,
   extractChangelogEntry,
@@ -201,7 +211,10 @@ test('release preflight locks the static contrast guarantee', () => {
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   );
 
-  assert.match(packageJson.scripts['release:preflight'], /npm run contrast:test/);
+  assert.match(
+    packageJson.scripts['release:preflight'],
+    /npm run contrast:test/,
+  );
   assert.match(
     packageJson.scripts['contrast:test'],
     /src\/scripts\/contrast\.spec\.ts/,
@@ -214,7 +227,10 @@ test('release preflight locks the static contrast guarantee', () => {
     packageJson.scripts['contrast:test'],
     /style-contrast-report\.spec\.ts/,
   );
-  assert.match(packageJson.scripts['contrast:test'], /contrast-rules\.spec\.ts/);
+  assert.match(
+    packageJson.scripts['contrast:test'],
+    /contrast-rules\.spec\.ts/,
+  );
   assert.match(
     packageJson.scripts['contrast:test'],
     /design-system\.contrast\.spec\.ts/,
@@ -353,4 +369,84 @@ test('npm packs must not include the internal DevTools tests', () => {
   );
   assert.equal(manifest.files.includes('!tests/**'), true);
   assert.equal(manifest.files.includes('!src/**/*.spec.ts'), true);
+});
+
+test('appends .js to file imports and /index.js to directory imports', () => {
+  const root = mkdtempSync(join(tmpdir(), 'append-js-'));
+  try {
+    mkdirSync(join(root, 'lib', 'kernel'), { recursive: true });
+    writeFileSync(join(root, 'lib', 'kernel', 'index.js'), '');
+    writeFileSync(join(root, 'lib', 'kernel', 'index.d.ts'), '');
+    writeFileSync(join(root, 'lib', 'plain.js'), '');
+    writeFileSync(
+      join(root, 'index.js'),
+      [
+        "export * from './lib/kernel';",
+        "export * from './lib/plain';",
+        "import { x } from './lib/kernel/index';",
+        "export * from 'external';",
+        '',
+      ].join('\n'),
+    );
+    writeFileSync(join(root, 'index.d.ts'), "export * from './lib/kernel';\n");
+
+    appendJsExtensions(root);
+
+    assert.equal(
+      readFileSync(join(root, 'index.js'), 'utf8'),
+      [
+        "export * from './lib/kernel/index.js';",
+        "export * from './lib/plain.js';",
+        "import { x } from './lib/kernel/index.js';",
+        "export * from 'external';",
+        '',
+      ].join('\n'),
+    );
+    assert.equal(
+      readFileSync(join(root, 'index.d.ts'), 'utf8'),
+      "export * from './lib/kernel/index.js';\n",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('flags runtime imports that point nowhere, ignoring strings and comments', () => {
+  const root = mkdtempSync(join(tmpdir(), 'resolve-imports-'));
+  try {
+    writeFileSync(join(root, 'ok.js'), '');
+    writeFileSync(
+      join(root, 'good.js'),
+      [
+        "export * from './ok.js';",
+        'const template = "import x from \'./generated\';\\n";',
+        "// export * from './commented';",
+        "type T = typeof import('./type-only');",
+        '',
+      ].join('\n'),
+    );
+    assertRelativeImportsResolve(root);
+
+    writeFileSync(join(root, 'broken.js'), "export * from './kernel.js';\n");
+    assert.throws(
+      () => assertRelativeImportsResolve(root, '@craft-ts/core'),
+      /@craft-ts\/core has relative imports that do not resolve[\s\S]*\.\/kernel\.js/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('release preflight checks that packed imports resolve', () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+  assert.match(
+    packageJson.scripts['release:preflight'],
+    /npm run release:check-imports/,
+  );
+  assert.equal(
+    packageJson.scripts['release:check-imports'],
+    'node tools/check-package-imports.mjs --build',
+  );
 });
