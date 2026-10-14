@@ -184,12 +184,16 @@ function createNativeCraftInjector(
         }
         try {
           return parent.get(token);
-        } catch {
+        } catch (error) {
           const fallback = resolveDefault(token);
           if (fallback !== ɵNOT_FOUND) {
             return fallback as T;
           }
-          throw missingProviderError(token);
+          // The miss the parent raised is the miss of this lookup: rethrown, not built again
+          // at every level of the chain, where each Error costs a stack trace.
+          throw error instanceof Error && error.message === missingProviderMessage(token)
+            ? error
+            : missingProviderError(token);
         }
       }
       const fallback = resolveDefault(token);
@@ -444,6 +448,10 @@ function createProviderRecord(
   return record;
 }
 
+function missingProviderMessage(token: object): string {
+  return `No provider for Craft token "${tokenName(token)}".`;
+}
+
 function missingProviderError(token: object): Error {
-  return new Error(`No provider for Craft token "${tokenName(token)}".`);
+  return new Error(missingProviderMessage(token));
 }

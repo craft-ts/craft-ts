@@ -37,6 +37,37 @@ describe('CraftInjector', () => {
     );
   });
 
+  it('names the missing token the same through a chain of parents, raising one Error for the miss', () => {
+    const Missing = { debugName: 'Missing' };
+    const root = createCraftInjector([]);
+    const leaf = root.createChild([]).createChild([]).createChild([]);
+
+    const raised: Error[] = [];
+    const Native = globalThis.Error;
+    // Counts the Errors built while the lookup runs: each is a stack trace.
+    globalThis.Error = class extends Native {
+      constructor(message?: string) {
+        super(message);
+        raised.push(this);
+      }
+    } as ErrorConstructor;
+    try {
+      expect(() => leaf.get(Missing)).toThrowError('No provider for Craft token "Missing".');
+    } finally {
+      globalThis.Error = Native;
+    }
+    expect(raised).toHaveLength(1);
+  });
+
+  it('still falls back to a default found above when a child does not provide the token', () => {
+    const Name = { debugName: 'Name' };
+    const root = createCraftInjector([{ token: Name, useValue: 'root' }]);
+    const leaf = root.createChild([]).createChild([]);
+
+    expect(leaf.get(Name)).toBe('root');
+    expect(leaf.getOptional(Name)).toBe('root');
+  });
+
   it('lets a child override a parent token without changing the parent', () => {
     const Name = { debugName: 'Name' };
     const root = createCraftInjector([{ token: Name, useValue: 'root' }]);
