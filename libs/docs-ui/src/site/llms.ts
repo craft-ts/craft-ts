@@ -17,8 +17,17 @@ import {
 export interface LlmsOptions {
   /** The scheme and host the pages are served from: `https://craft-ts.github.io`. */
   readonly origin: string;
+  /** The name at the top, when it is not the site's: a model reads this one first. */
+  readonly title?: string;
+  /** The summary under the name, when it is not the site's `description`. */
+  readonly description?: string;
   /** Extra guidance for a model, written under the summary. */
   readonly details?: string;
+  /**
+   * Where a page is linked, under the base, when it is not the page itself: the
+   * Markdown a build wrote next to it. `undefined` for a page with none.
+   */
+  readonly linkOf?: (page: SearchEntry) => string | undefined;
 }
 
 const firstSentence = (text: string): string => {
@@ -43,46 +52,73 @@ const groupsOf = (
   return groups;
 };
 
+interface Section {
+  readonly name: string;
+  readonly pages: readonly SearchEntry[];
+}
+
+/**
+ * The pages in the order of the sidebar, one section per group, then the ones no
+ * sidebar lists under "Other". `llms.txt` and `llms-full.txt` both read in it.
+ */
+const sectionsOf = (site: SiteConfig, pages: readonly SearchEntry[]): readonly Section[] => {
+  const byRoute = new Map(
+    pages.map((page) => [normalizePath(page.href, site.base), page] as const),
+  );
+  const listed = new Set<string>();
+  const sections: Section[] = [];
+  for (const sidebar of Object.values(site.sidebar)) {
+    for (const group of groupsOf(sidebar)) {
+      const found: SearchEntry[] = [];
+      for (const link of group.links) {
+        const route = normalizePath(link, site.base);
+        const page = byRoute.get(route);
+        if (!page || listed.has(route)) continue;
+        listed.add(route);
+        found.push(page);
+      }
+      if (found.length > 0) sections.push({ name: group.name, pages: found });
+    }
+  }
+  const rest = pages.filter((page) => !listed.has(normalizePath(page.href, site.base)));
+  if (rest.length > 0) sections.push({ name: 'Other', pages: rest });
+  return sections;
+};
+
 export const renderLlmsTxt = (
   site: SiteConfig,
   pages: readonly SearchEntry[],
   options: LlmsOptions,
 ): string => {
-  const byRoute = new Map(
-    pages.map((page) => [normalizePath(page.href, site.base), page] as const),
-  );
-  const listed = new Set<string>();
-  const line = (route: string): string | undefined => {
-    const page = byRoute.get(normalizePath(route, site.base));
-    if (!page) return undefined;
-    listed.add(normalizePath(route, site.base));
-    const url = `${options.origin}${withBase(site.base, page.href)}`;
+  const line = (page: SearchEntry): string => {
+    const target = options.linkOf?.(page) ?? withBase(site.base, page.href);
     const summary = firstSentence(page.text.replace(page.title, '').trim());
-    return `- [${page.title}](${url})${summary ? `: ${summary}` : ''}`;
+    return `- [${page.title}](${options.origin}${target})${summary ? `: ${summary}` : ''}`;
   };
 
-  const out: string[] = [`# ${site.title}`];
-  if (site.description) out.push('', `> ${site.description}`);
+  const description = options.description ?? site.description;
+  const out: string[] = [`# ${options.title ?? site.title}`];
+  if (description) out.push('', `> ${description}`);
   if (options.details) out.push('', options.details);
-
-  const seen = new Set<string>();
-  for (const sidebar of Object.values(site.sidebar)) {
-    for (const group of groupsOf(sidebar)) {
-      const lines = group.links
-        .filter((link) => !seen.has(normalizePath(link, site.base)))
-        .flatMap((link) => {
-          seen.add(normalizePath(link, site.base));
-          const text = line(link);
-          return text ? [text] : [];
-        });
-      if (lines.length > 0) out.push('', `## ${group.name}`, '', ...lines);
-    }
+  for (const section of sectionsOf(site, pages)) {
+    out.push('', `## ${section.name}`, '', ...section.pages.map(line));
   }
-
-  const rest = pages
-    .filter((page) => !listed.has(normalizePath(page.href, site.base)))
-    .map((page) => line(page.href))
-    .filter((text): text is string => text !== undefined);
-  if (rest.length > 0) out.push('', '## Other', '', ...rest);
   return `${out.join('\n')}\n`;
 };
+
+/**
+ * `llms-full.txt`: every page's Markdown in one file, in the order of `llms.txt`,
+ * for a model that would rather read once than follow forty links.
+ */
+export const renderLlmsFullTxt = (
+  site: SiteConfig,
+  pages: readonly SearchEntry[],
+  markdownOf: (page: SearchEntry) => string | undefined,
+): string =>
+  `${sectionsOf(site, pages)
+    .flatMap((section) => section.pages)
+    .flatMap((page) => {
+      const markdown = markdownOf(page);
+      return markdown === undefined ? [] : [markdown.trimEnd()];
+    })
+    .join('\n\n---\n\n')}\n`;
