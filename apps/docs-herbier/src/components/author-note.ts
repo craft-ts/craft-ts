@@ -26,10 +26,13 @@ export const AuthorNote = craftComponent('AuthorNote', {}, function* (
     span({ class: authorNoteUi.frame }, [
       img({
         class: authorNoteUi.photo,
-        src: withBase(base, '/assets/romain-geffrault-original.png'),
+        // The portrait is drawn at 132px: a 264px copy (twice that, for dense screens) is 12 kB,
+        // where the original is 2 MB.
+        src: withBase(base, '/assets/romain-geffrault-264.webp'),
         alt: 'Romain Geffrault, creator of @craft-ts',
         width: 132,
         height: 132,
+        loading: 'lazy',
       }),
     ]),
     figure({ class: authorNoteUi.body }, [

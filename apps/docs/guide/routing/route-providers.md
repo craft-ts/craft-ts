@@ -126,7 +126,7 @@ declares a contract; each route provides a concrete implementation derived from 
 
 Abstract services now expose a `provideX(factory)` helper that takes a **generator factory**, tracks
 everything it yields, and binds the result to the requirement token. See
-[craftService → Abstract Providers](/guide/app/craft-service#abstract-providers).
+[Abstract services](/guide/app/abstract-services).
 
 ```ts
 const { User, provideUser } = craftService(

@@ -1,4 +1,5 @@
 import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
+import { getCurrentCraftInjector } from './host/craft-injector';
 
 export type CraftTransferPolicy = Readonly<{
   /**
@@ -149,12 +150,31 @@ export const CraftSecurityPolicy = craftSecurityPolicyService.CraftSecurityPolic
 export const provideCraftSecurityPolicyService =
   (value: CraftSecurityPolicy): unknown =>
     craftSecurityPolicyService.provideCraftSecurityPolicy(value);
-export const ɵinjectCraftSecurityPolicy = () => {
+/**
+ * The policy each injector resolved. The renderer asks for it on every attribute and every
+ * resource it sets, and an app that provides none gets the default only after a lookup that
+ * ends in a thrown `Error` (a stack trace each): about a thousand per page, for one answer.
+ * An injector's providers do not change, so its answer does not.
+ */
+const policyOfInjector = new WeakMap<object, CraftSecurityPolicy>();
+
+export const ɵinjectCraftSecurityPolicy = (): CraftSecurityPolicy => {
+  let injector: object | undefined;
   try {
-    return craftSecurityPolicyService.CRAFT_SECURITY_POLICY_META_DATA.inject() as CraftSecurityPolicy;
+    injector = getCurrentCraftInjector();
   } catch {
-    return DEFAULT_CRAFT_SECURITY_POLICY;
+    injector = undefined;
   }
+  const known = injector ? policyOfInjector.get(injector) : undefined;
+  if (known) return known;
+  let policy: CraftSecurityPolicy;
+  try {
+    policy = craftSecurityPolicyService.CRAFT_SECURITY_POLICY_META_DATA.inject() as CraftSecurityPolicy;
+  } catch {
+    policy = DEFAULT_CRAFT_SECURITY_POLICY;
+  }
+  if (injector) policyOfInjector.set(injector, policy);
+  return policy;
 };
 
 export function provideCraftSecurityPolicy(

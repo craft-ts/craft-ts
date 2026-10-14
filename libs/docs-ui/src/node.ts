@@ -9,6 +9,10 @@
  */
 export { parsePage, type ParseOptions } from './markdown/parse.ts';
 export {
+  renderMarkdownSource,
+  type MarkdownSourceOptions,
+} from './markdown/source.ts';
+export {
   createCodeHighlighter,
   type CodeHighlighter,
 } from './markdown/highlight.ts';

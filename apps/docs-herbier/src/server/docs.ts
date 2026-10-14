@@ -91,7 +91,12 @@ export const createDocs = async (options: {
       const data: PageData = {
         kind: home ? 'home' : 'doc',
         route,
-        title: home ? text(hero?.name) || site.title : entry.title,
+        // A page with no title of its own is titled by the site alone: the search entry
+        // falls back to the route, and a route is not a title.
+        title: home ? text(hero?.name) || site.title : entry.title === route ? '' : entry.title,
+        ...(text(parsed.frontmatter['description'])
+          ? { description: text(parsed.frontmatter['description']) }
+          : {}),
         blocks: page.blocks,
         outline: page.outline,
         ...(home

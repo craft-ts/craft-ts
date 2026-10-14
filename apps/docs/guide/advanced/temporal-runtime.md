@@ -274,7 +274,7 @@ rule. The temporal runtime implementation itself is the explicit exception.
 
 ## See also
 
-- [`retry`](/guide/advanced/program-operators#retrypolicy)
+- [`retry`](/guide/advanced/program-operators#retry-policy)
 - [`asyncProcess`](/guide/state/async-process)
 - [Testing services](/guide/testing/services)
 - [Generators and `yield*`](/guide/concepts/generators)

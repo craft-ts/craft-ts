@@ -1,5 +1,5 @@
 import { content, craftComponent, div, type CraftNodeChild } from '@craft-ts/component';
-import { craftExpose, craftService, state } from '@craft-ts/core';
+import { craftExpose, craftService, fromEventToSource$, state } from '@craft-ts/core';
 import {
   DocHome,
   DocLayout,
@@ -21,10 +21,15 @@ import type { DocsProps, PageData, SiteConfig } from './page-data.ts';
 /** Where the search index is written, next to the pages. */
 export const SEARCH_INDEX = 'search-index.json';
 
+/** What shows a reader is about to search: the button, reached by pointer, focus or touch. */
+const SEARCH_BUTTON = '[data-craft-name="docSearchButton"]';
+
 /**
- * The search index, fetched once the page is alive. It is the whole text of the
- * site, so it is not part of any page: a reader who never searches never pays
- * for it.
+ * The search index. It is the whole text of the site (a megabyte of JSON), so it is not
+ * part of any page and is not fetched with one: a reader who never searches never pays
+ * for it. It is fetched at the first sign of intent — the pointer over the search button,
+ * its focus, a touch, or ⌘K / Ctrl+K — which is a few hundred milliseconds before the
+ * dialog is open and typed in; whatever is typed meanwhile is answered as soon as it lands.
  */
 export const { DocsSearchIndex, provideDocsSearchIndex } = craftService(
   { name: 'docsSearchIndex', providedIn: 'toProvide' },
@@ -41,10 +46,23 @@ export const { DocsSearchIndex, provideDocsSearchIndex } = craftService(
         },
       }),
     );
-    // Only in a browser, and only after the first paint: the server has no one to search.
+    // Only in a browser: the server has no one to search.
     if (typeof window !== 'undefined') {
       const base = document.documentElement.getAttribute('data-base') ?? '/';
-      setTimeout(() => entries.load(`${base}${SEARCH_INDEX}`), 0);
+      let requested = false;
+      const request = () => {
+        if (requested) return;
+        requested = true;
+        entries.load(`${base}${SEARCH_INDEX}`);
+      };
+      for (const type of ['pointerover', 'pointerdown', 'focusin', 'touchstart']) {
+        fromEventToSource$<Event>(document, type).subscribe((event) => {
+          if ((event.target as Element | null)?.closest?.(SEARCH_BUTTON)) request();
+        });
+      }
+      fromEventToSource$<KeyboardEvent>(document, 'keydown').subscribe((event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') request();
+      });
     }
     yield* craftExpose('load', entries.load);
   },

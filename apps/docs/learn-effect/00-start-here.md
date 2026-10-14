@@ -78,7 +78,7 @@ the same Craft scope where the operation is used.
 Run the application with your normal frontend command. The executable version
 of this example is also covered by the docs test suite.
 
-### 5. Verify the boundary — 2 minutes
+### 5. Verify the boundary — 2 minutes {#5-verify-the-boundary}
 
 ```shell
 npx nx test docs

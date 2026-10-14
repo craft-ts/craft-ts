@@ -8,7 +8,7 @@
  * the same drawing painted twice. Nothing here is inline `<svg>` in a component.
  *
  * Kept in a `*.style.ts` because a style file cannot import a utility module;
- * these are constants and two pure functions, and nothing else.
+ * these are constants and a few pure functions, and nothing else.
  */
 
 /** One spruce, in a 40 x 107 box: a stack of boughs and a trunk. */
@@ -118,12 +118,71 @@ export const CONTOURS = {
 
 export type ContourSet = keyof typeof CONTOURS;
 
+type Point = readonly [number, number];
+
+/** The distance from `point` to the line through `from` and `to`. */
+const distanceToLine = (point: Point, from: Point, to: Point): number => {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const length = Math.hypot(dx, dy);
+  return length === 0
+    ? Math.hypot(point[0] - from[0], point[1] - from[1])
+    : Math.abs(dy * point[0] - dx * point[1] + to[0] * from[1] - to[1] * from[0]) / length;
+};
+
+/**
+ * Ramer-Douglas-Peucker: the points of a polyline that matter. A point is dropped when the
+ * line between its neighbours passes within `tolerance` of it, so the drawing moves by at
+ * most that much anywhere. The ends are kept.
+ */
+export const simplifyPolyline = (points: readonly Point[], tolerance: number): readonly Point[] => {
+  if (points.length < 3) return points;
+  const first = points[0] as Point;
+  const last = points[points.length - 1] as Point;
+  let farthest = 0;
+  let at = 0;
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const distance = distanceToLine(points[index] as Point, first, last);
+    if (distance > farthest) {
+      farthest = distance;
+      at = index;
+    }
+  }
+  if (farthest <= tolerance) return [first, last];
+  return [
+    ...simplifyPolyline(points.slice(0, at + 1), tolerance).slice(0, -1),
+    ...simplifyPolyline(points.slice(at), tolerance),
+  ];
+};
+
+/**
+ * The contours are polylines sampled every pixel or two, which is more points than a hairline
+ * can show. Redrawn within this much of the original (in frame units, for a stroke of 1) they
+ * lose a fifth of their points and nothing a reader can see.
+ */
+const CONTOUR_TOLERANCE = 0.3;
+
+const number = (value: number): string => String(Math.round(value * 10) / 10);
+
+/** `M x y L x y … Z`, with the points that matter and one decimal. */
+export const simplifyContour = (path: string, tolerance = CONTOUR_TOLERANCE): string => {
+  const points = [...path.matchAll(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g)].map(
+    (match): Point => [Number(match[1]), Number(match[2])],
+  );
+  const kept = simplifyPolyline(points, tolerance);
+  const [head, ...rest] = kept;
+  if (!head) return path;
+  return `M${number(head[0])} ${number(head[1])}${rest
+    .map(([x, y]) => ` L${number(x)} ${number(y)}`)
+    .join('')}${path.trimEnd().endsWith('Z') ? 'Z' : ''}`;
+};
+
 /** A set of contour lines as a mask: black strokes of one hairline weight. */
 export const contourMask = (set: ContourSet): string =>
   svg(
     '0 0 1200 780',
     `<g fill="none" stroke="#000" stroke-width="1">${CONTOURS[set]
-      .map((d) => `<path d="${d}"/>`)
+      .map((d) => `<path d="${simplifyContour(d)}"/>`)
       .join('')}</g>`,
   );
 

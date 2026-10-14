@@ -3,6 +3,8 @@ import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  describeBrokenLinks,
+  findBrokenLinks,
   isCurrent,
   normalizePath,
   pagerFor,
@@ -153,6 +155,12 @@ describe('the data a build derives from the pages', () => {
     const hits = searchEntries(data.searchIndex, 'insertions');
     expect(hits.length).toBeGreaterThan(0);
     expect(hits[0]?.entry.href).toMatch(/insertion/);
+  });
+
+  it('has no link that leads to a page or a heading that does not exist', () => {
+    // Neither the build nor the browser says so: a dead anchor just does not scroll. This is
+    // the one place that does, so a rename of a page or a heading fails here and not for a reader.
+    expect(describeBrokenLinks(findBrokenLinks(data.pages))).toEqual([]);
   });
 
   it('writes an llms.txt with one section per group of the sidebars and a link per page', () => {

@@ -375,6 +375,41 @@ test('mirrors the frontend Effect demo and pins CraftTS, i18n, and Effect depend
   }
 });
 
+test('local releases publish the docs-herbier build, not the VitePress one', () => {
+  const releaseLocal = readFileSync(
+    new URL('./release-local.mjs', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(releaseLocal, /\['nx', 'build', 'docs-herbier'\]/);
+  assert.match(releaseLocal, /'dist\/apps\/docs-herbier'/);
+  assert.doesNotMatch(releaseLocal, /\['nx', 'build', 'docs'\]/);
+  assert.doesNotMatch(releaseLocal, /\.vitepress\/dist/);
+});
+
+test('does not publish the bundler manifest the documentation build leaves behind', () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-docs-sync-'));
+  const build = join(temporaryRoot, 'build');
+  const target = join(temporaryRoot, 'target');
+
+  try {
+    write(join(build, 'index.html'), '<h1>new</h1>\n');
+    write(join(build, 'guide.md'), '# Guide\n');
+    write(join(build, 'static/client.js'), 'client\n');
+    write(join(build, '.vite/manifest.json'), '{}\n');
+    write(join(target, '.git/HEAD'), 'ref: refs/heads/main\n');
+
+    syncBuiltDocumentation(build, target);
+
+    assert.equal(existsSync(join(target, 'index.html')), true);
+    assert.equal(existsSync(join(target, 'guide.md')), true);
+    assert.equal(existsSync(join(target, 'static/client.js')), true);
+    assert.equal(existsSync(join(target, '.vite')), false);
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
 test('replaces published documentation while preserving repository metadata', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-docs-sync-'));
   const build = join(temporaryRoot, 'build');

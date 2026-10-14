@@ -206,6 +206,19 @@ test('release checks execute the documentation test suite', () => {
   assert.match(packageJson.scripts['release:preflight'], /\bnx test docs\b/);
 });
 
+test('release checks test and build the documentation that is published', () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+  const preflight = packageJson.scripts['release:preflight'];
+
+  // The pages, the links between them and the headings they point to (docs-herbier),
+  // the Markdown pipeline behind them (docs-ui), and the build that writes the site.
+  assert.match(preflight, /\bnx test docs-herbier\b/);
+  assert.match(preflight, /\bnx test craft-ts-docs-ui\b/);
+  assert.match(preflight, /\bnx build docs-herbier\b/);
+});
+
 test('release preflight locks the static contrast guarantee', () => {
   const packageJson = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),

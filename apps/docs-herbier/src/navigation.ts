@@ -1,7 +1,14 @@
 import { craftExpose, craftService, fromEventToSource$, state } from '@craft-ts/core';
 import { MODE_STORAGE_KEY, NAVIGATED_EVENT } from '@craft-ts/docs-ui';
 import { LOCKED_DARK_PATH } from './locked.ts';
-import { documentTitle, pageDataFile, routeOfPath, type PageData } from './page-data.ts';
+import {
+  documentDescription,
+  documentTitle,
+  markdownFileOfRoute,
+  pageDataFile,
+  routeOfPath,
+  type PageData,
+} from './page-data.ts';
 
 /** What the browser keeps with a history entry: how far the reader had scrolled. */
 interface Entry {
@@ -68,6 +75,32 @@ const whenDrawn = (change: () => void, then: () => void): void => {
   settle = setTimeout(finish, 250);
 };
 
+/**
+ * What the head says about the page, kept true as the reader moves: the description,
+ * and the Markdown an agent can read instead. A page the build gave that link keeps
+ * it, updated; one it did not (the 404) loses it.
+ */
+const syncHead = (base: string, page: PageData): void => {
+  const root = document.documentElement;
+  const description = document.head.querySelector('meta[name="description"]');
+  const text = documentDescription(
+    { description: root.getAttribute('data-site-description') ?? '' },
+    page,
+  );
+  if (description && text) description.setAttribute('content', text);
+  const file = page.kind === 'notFound' ? undefined : markdownFileOfRoute(page.route);
+  const alternate = document.head.querySelector('link[rel="alternate"][type="text/markdown"]');
+  if (alternate && file) alternate.setAttribute('href', `${base}${file}`);
+  else if (alternate) alternate.remove();
+  else if (file && document.head.querySelector('link[rel="describedby"]')) {
+    const link = document.createElement('link');
+    link.rel = 'alternate';
+    link.type = 'text/markdown';
+    link.href = `${base}${file}`;
+    document.head.append(link);
+  }
+};
+
 const scrollTo = (hash: string, y: number | undefined): void => {
   const id = hash.length > 1 ? decodeURIComponent(hash.slice(1)) : '';
   const target = id ? document.getElementById(id) : null;
@@ -118,6 +151,17 @@ export const { DocsNavigation, provideDocsNavigation } = craftService(
       let latest = 0;
       const cache = new Map<string, Promise<PageData | undefined>>();
       history.scrollRestoration = 'manual';
+      // A link to a place in a page, opened in a new tab or after a refresh: the browser's own
+      // scroll to it comes before the page is claimed and is lost, so it is taken again once
+      // the page has stopped drawing, unless the reader has already moved.
+      if (location.hash.length > 1) {
+        whenDrawn(
+          () => undefined,
+          () => {
+            if (window.scrollY === 0) scrollTo(location.hash, undefined);
+          },
+        );
+      }
 
       const load = (target: string): Promise<PageData | undefined> => {
         const known = cache.get(target);
@@ -156,6 +200,7 @@ export const { DocsNavigation, provideDocsNavigation } = craftService(
         route = target;
         lockMode(target.startsWith(LOCKED_DARK_PATH));
         document.title = documentTitle(site, page);
+        syncHead(base, page);
         whenDrawn(
           () => {
             shown.show(page);

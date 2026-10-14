@@ -158,6 +158,10 @@ export async function createCodeHighlighter(): Promise<CodeHighlighter> {
       lang: lang as BundledLanguage,
       theme: 'github-dark',
       includeExplanation: true,
+      // Off. The tokenizer gives up a line after 500 ms by default, and explaining a token runs it
+      // twice (with and without scopes): on a loaded machine the two stop in different places and
+      // the explanation reads a token that is not there. A build waits for the highlighting.
+      tokenizeTimeLimit: 0,
     });
     return tokens.map((line) =>
       line.flatMap((token): CodeToken[] => {
