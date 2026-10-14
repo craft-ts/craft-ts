@@ -14,6 +14,17 @@ import {
 
 const root = resolve(import.meta.dirname, '..');
 
+// A package without a `project.json` is built by Nx through its own
+// `package.json` script, i.e. through `pnpm run`. pnpm then reinstalls the
+// whole workspace and turns `node_modules` into its own layout (different
+// versions than the npm lockfile), which breaks the tests that run after this
+// step. Those packages are still checked when the release packs them.
+const hasNxBuildTarget = (pkg) =>
+  existsSync(
+    join(root, pkg.sourceManifest.replace(/package\.json$/, 'project.json')),
+  );
+const buildable = releasePackages.filter(hasNxBuildTarget);
+
 if (process.argv.includes('--build')) {
   execFileSync(
     'npx',
@@ -22,7 +33,7 @@ if (process.argv.includes('--build')) {
       'run-many',
       '-t',
       'build',
-      `--projects=${releasePackages.map((pkg) => pkg.project).join(',')}`,
+      `--projects=${buildable.map((pkg) => pkg.project).join(',')}`,
       '--skipSync',
       '--outputStyle=stream',
     ],
@@ -38,6 +49,10 @@ const scratch = mkdtempSync(join(tmpdir(), 'craft-package-imports-'));
 let failed = false;
 try {
   for (const pkg of releasePackages) {
+    if (process.argv.includes('--build') && !hasNxBuildTarget(pkg)) {
+      console.log(`${pkg.name}: skipped, checked when the release packs it.`);
+      continue;
+    }
     const source = resolve(root, pkg.distRoot);
     if (!existsSync(source)) {
       console.error(`${pkg.name}: ${pkg.distRoot} is missing, build it first.`);
