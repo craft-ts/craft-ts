@@ -1,4 +1,4 @@
-## Backlog
+# Backlog
 
 - [ ] For query/mutation/AsyncProcess insertions, expose a set and state similar to other primitive states that will simplify creating reusable insertions. (for persister one more property isStable ? To invalidate state while mutating)
 - [ ] Improve storage persister (better invalidation, handle storing state)

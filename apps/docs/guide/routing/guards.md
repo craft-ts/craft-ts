@@ -180,7 +180,7 @@ Order matters: guards run top-to-bottom and the first exception wins (fail-fast)
 
 Each route exception handler receives the typed exception and payload, the navigation phase, the
 typed `Router` helpers, and the five outcome constructors. See
-[Centralised Exception Handling](/guide/concepts/exceptions#handler-context) for the exhaustive list
+[Centralised Exception Handling](/guide/routing/exception-handling#handler-context) for the exhaustive list
 and examples.
 
 Use `redirectTo(...)` for typed internal routes:
