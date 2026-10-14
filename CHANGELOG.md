@@ -1,3 +1,18 @@
+## 0.9.2 (2026-10-14)
+
+### 🚀 Features
+
+- **docs-ui:** dress the home page with the craft-ts mark and numbered, emblemed cards ([6506129a0](https://github.com/craft-ts/craft-ts/commit/6506129a0))
+
+### 🩹 Fixes
+
+- **release:** sync lockfile with the published @craft-ts/dev-tools 0.9.1 ([ffcb360b0](https://github.com/craft-ts/craft-ts/commit/ffcb360b0))
+
+### ❤️ Thank You
+
+- Claude Sonnet 5.5
+- Romain
+
 ## 0.9.1 (2026-10-14)
 
 ### 🚀 Features

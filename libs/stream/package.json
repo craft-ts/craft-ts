@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/stream",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Typed, craft-native streams — operators accumulate service dependencies and typed exceptions in their type",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "typescript"
   ],
   "peerDependencies": {
-    "@craft-ts/core": "^0.9.1"
+    "@craft-ts/core": "^0.9.2"
   },
   "engines": {
     "node": ">=20.19.0"
