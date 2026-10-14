@@ -151,6 +151,17 @@ export const { DocsNavigation, provideDocsNavigation } = craftService(
       let latest = 0;
       const cache = new Map<string, Promise<PageData | undefined>>();
       history.scrollRestoration = 'manual';
+      // A link to a place in a page, opened in a new tab or after a refresh: the browser's own
+      // scroll to it comes before the page is claimed and is lost, so it is taken again once
+      // the page has stopped drawing, unless the reader has already moved.
+      if (location.hash.length > 1) {
+        whenDrawn(
+          () => undefined,
+          () => {
+            if (window.scrollY === 0) scrollTo(location.hash, undefined);
+          },
+        );
+      }
 
       const load = (target: string): Promise<PageData | undefined> => {
         const known = cache.get(target);
