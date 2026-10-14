@@ -562,20 +562,39 @@ function referenceAgentGuidance(config?: StarterConfig): string {
   const root =
     config.workspace.kind === 'nx' ? '../../.references' : '.references';
   const entries = [
-    config.references.craftTs ? `- CraftTS source: \`${root}/craft-ts\`` : '',
+    config.references.craftTs
+      ? `- CraftTS source: \`${root}/craft-ts\` (library code in \`libs/*/src\`, working examples in \`apps/demo*\`, documentation in \`apps/docs\`)`
+      : '',
     config.references.effectTs
       ? `- EffectTS source: \`${root}/effect-ts\`\nRead \`${root}/effect-ts/.patterns/effect.md\` for the Effect library patterns.`
       : '',
   ].filter(Boolean);
   return `
-## Local source references
+## Local source references (consult BEFORE writing code)
 
-The following repositories are vendored with git subtree for agent context only:
+The following repositories are vendored with git subtree and are the source of
+truth for how CraftTS and EffectTS work:
 ${entries.join('\n')}
-Use them to inspect implementations, types, tests and examples when the
-installed package or project documentation is not enough. Treat these
-directories as read-only reference material: do not edit them unless explicitly
-asked. The application must always import CraftTS and EffectTS from the npm
+
+**Mandatory.** Do not write CraftTS code from memory or from generic
+TypeScript habits: the API is specific (generator loaders, yielded readers,
+typed exceptions) and guessing it produces code that compiles badly or runs
+wrongly. Before writing or changing code that uses a CraftTS or EffectTS
+primitive (query, mutation, component, route, service, style, i18n, server
+function, stream, Effect layer...):
+
+1. Search the references first (\`grep -rn "<primitive>" ${root}/craft-ts/libs ${root}/craft-ts/apps\`)
+   and open the implementation, its \`.spec.ts\` files and the closest demo
+   in \`${root}/craft-ts/apps/demo*\`.
+2. Copy the idiom of that example; do not invent a signature, an option or an
+   import path. If a symbol is not found in the references or in the installed
+   package, do not use it.
+3. When the compiler or a lint rule rejects your code, read the reference
+   before retrying a variation.
+
+Say which reference file you relied on when you explain a non-trivial change.
+These directories are read-only: do not edit them unless explicitly asked.
+The application must always import CraftTS and EffectTS from the npm
 dependencies declared in \`package.json\`; do not add TypeScript, Vite or
 package \`file:\` aliases to these references.
 `;
@@ -657,6 +676,7 @@ ${config?.demoPages === false ? 'The starter is already domain-first.' : 'Before
 
 Read \`${projectSkillPath}\` before changing application
 code. ${i18n ? 'Translation keys live in `src/i18n/`; run `npm run i18n:check` and `npm run i18n:test` after changes.' : 'This starter has no i18n surface; do not add translation files unless the project configuration changes.'}
+${referenceAgentGuidance(config)}
 ${effectGuidance}
 
 ${
@@ -684,7 +704,7 @@ covered by the baseline helpers.
 Run the checks relevant to this generated configuration:
 
 ${verify.map((command) => `- \`${command}\``).join('\n')}
-${referenceAgentGuidance(config)}`;
+`;
 }
 
 const AGENTS_MD = agentsMd;
@@ -4009,7 +4029,11 @@ function agentFiles(
           '5. Keep visual',
         )
       : BASE_AGENT_SKILL;
-  const skill = `${baseSkill}${effectEnabled ? `\n${EFFECT_AGENT_SKILL}` : ''}${referenceAgentGuidance(config)}`;
+  const referenceGuidance = referenceAgentGuidance(config);
+  const skillBase = referenceGuidance
+    ? baseSkill.replace('## Workflow', `${referenceGuidance.trim()}\n\n## Workflow`)
+    : baseSkill;
+  const skill = `${skillBase}${effectEnabled ? `\n${EFFECT_AGENT_SKILL}` : ''}`;
   if (agent === 'codex') {
     return {
       '.agents/skills/craft-ts-project/SKILL.md': skill,

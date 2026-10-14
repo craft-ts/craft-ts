@@ -129,7 +129,7 @@ describe('createCraftProject', () => {
     expect(referenceUpdater).not.toContain('run build');
     expect(
       await readFile(join(result.directory, 'AGENTS.md'), 'utf8'),
-    ).toContain('agent context only');
+    ).toContain('consult BEFORE writing code');
     expect(
       await readFile(join(result.directory, 'src/app/app.ts'), 'utf8'),
     ).toContain("from '@craft-ts/component'");
@@ -197,6 +197,10 @@ describe('createCraftProject', () => {
     expect(agents).toContain('.references/effect-ts/.patterns/effect.md');
     expect(agents).toContain(
       'application must always import CraftTS and EffectTS from the npm',
+    );
+    expect(agents).toContain('consult BEFORE writing code');
+    expect(agents.indexOf('Local source references')).toBeLessThan(
+      agents.indexOf('## Workflow'),
     );
   });
 
