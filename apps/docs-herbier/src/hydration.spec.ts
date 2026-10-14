@@ -68,16 +68,61 @@ describe('a real page of apps/docs, drawn on the server and hydrated', () => {
     },
   );
 
-  it('keeps the page when the search index arrives after hydration', async () => {
+  describe('the search index', () => {
     const entries = [{ href: '/learn/', title: 'Learn', headings: [], text: 'Learn' }];
-    vi.stubGlobal('fetch', () => Promise.resolve({ json: () => Promise.resolve(entries) }));
-    try {
-      const { host, drawn, hydrated } = await roundTrip('/learn/');
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      expect(host.querySelector('main')?.textContent).toBe(drawn);
-      hydrated.destroy();
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    const wait = () => new Promise((resolve) => setTimeout(resolve, 150));
+    const stubFetch = () => {
+      const fetched: string[] = [];
+      vi.stubGlobal('fetch', (url: string) => {
+        fetched.push(url);
+        return Promise.resolve({ json: () => Promise.resolve(entries) });
+      });
+      return fetched;
+    };
+
+    it('is not fetched with the page: a reader who never searches never pays for it', async () => {
+      const fetched = stubFetch();
+      try {
+        const { hydrated } = await roundTrip('/learn/');
+        await wait();
+        expect(fetched).toEqual([]);
+        hydrated.destroy();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('is fetched once, as the pointer reaches the search button, and the page is kept', async () => {
+      const fetched = stubFetch();
+      try {
+        const { host, drawn, hydrated } = await roundTrip('/learn/');
+        const button = host.querySelector('[data-craft-name="docSearchButton"]') as HTMLElement;
+        expect(button).not.toBeNull();
+        button.dispatchEvent(new Event('pointerover', { bubbles: true }));
+        button.dispatchEvent(new Event('focusin', { bubbles: true }));
+        await wait();
+        expect(fetched).toEqual(['/search-index.json']);
+        expect(host.querySelector('main')?.textContent).toBe(drawn);
+        hydrated.destroy();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('is fetched on ⌘K or Ctrl+K, which opens the search without the button', async () => {
+      const fetched = stubFetch();
+      try {
+        const { hydrated } = await roundTrip('/learn/');
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true }));
+        await wait();
+        expect(fetched).toEqual([]);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+        await wait();
+        expect(fetched).toEqual(['/search-index.json']);
+        hydrated.destroy();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 });
