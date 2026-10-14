@@ -2,8 +2,8 @@ import {
   craftComponent,
   dialog,
   div,
-  heading as relativeHeading,
   headingRoot,
+  p,
   renderContent,
   type ContentSlot,
   type Input,
@@ -51,14 +51,12 @@ export const DocDialog = craftComponent(
           labelledBy: `${id}-title`,
           onClose: () => props.dismiss(),
         },
-        // A dialog is its own outline: the title inside it is its h1. The renderer
-        // resets the level at the native element; `headingRoot` says so to the types.
+        // A dialog is its own outline: a heading in its body starts again at h1. Its
+        // own title is not a heading: the page's h1 stays the only one in the HTML a
+        // crawler reads, and `aria-labelledby` names the dialog all the same.
         headingRoot([
           div({ class: dialogUi.header }, [
-            relativeHeading(
-              { id: `${id}-title`, class: dialogUi.title },
-              headingText,
-            ),
+            p({ id: `${id}-title`, class: dialogUi.title }, headingText),
             button(
               'docDialogClose',
               {
