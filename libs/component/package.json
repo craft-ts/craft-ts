@@ -1,6 +1,6 @@
 {
   "name": "@craft-ts/component",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Functional single-file components for CraftTS",
   "author": "Romain Geffrault",
   "license": "MIT",
@@ -13,8 +13,8 @@
     "url": "https://github.com/craft-ts/craft-ts.git"
   },
   "peerDependencies": {
-    "@craft-ts/core": "^0.9.0",
-    "@craft-ts/style": "^0.9.0",
+    "@craft-ts/core": "^0.9.1",
+    "@craft-ts/style": "^0.9.1",
     "tslib": "^2.3.0"
   },
   "engines": {

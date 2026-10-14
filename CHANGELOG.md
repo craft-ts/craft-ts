@@ -1,3 +1,32 @@
+## 0.9.1 (2026-10-14)
+
+### 🚀 Features
+
+- **docs-herbier:** publish the Markdown of each page, llms files and a per-page head ([4f1187dde](https://github.com/craft-ts/craft-ts/commit/4f1187dde))
+- **docs-ui:** give headings the ids VitePress gave them, and read {#id} ([1f0caaed7](https://github.com/craft-ts/craft-ts/commit/1f0caaed7))
+- **docs-ui:** write each page as the Markdown an agent reads ([527fe53a8](https://github.com/craft-ts/craft-ts/commit/527fe53a8))
+
+### 🩹 Fixes
+
+- **docs-herbier:** scroll to the anchor of a page opened with one ([e1e7e2fc6](https://github.com/craft-ts/craft-ts/commit/e1e7e2fc6))
+- **docs-ui:** keep the page's h1 the only one in the HTML ([936b75725](https://github.com/craft-ts/craft-ts/commit/936b75725))
+- **docs-ui:** do not time-limit syntax highlighting ([a433112d0](https://github.com/craft-ts/craft-ts/commit/a433112d0))
+- **release:** point directory imports at index.js and gate on resolution ([c92d4a84a](https://github.com/craft-ts/craft-ts/commit/c92d4a84a))
+- **release:** sync lockfile with the published @craft-ts/dev-tools 0.9.0 ([888a727e1](https://github.com/craft-ts/craft-ts/commit/888a727e1))
+- **release:** do not build script-built packages in the imports check ([dc1b5531c](https://github.com/craft-ts/craft-ts/commit/dc1b5531c))
+
+### 🔥 Performance
+
+- **core:** raise one error for a missing provider and remember the security policy ([80f5e1a09](https://github.com/craft-ts/craft-ts/commit/80f5e1a09))
+- **docs-herbier:** fetch the search index on the first sign of intent ([6e2b4a907](https://github.com/craft-ts/craft-ts/commit/6e2b4a907))
+- **docs-herbier:** serve the author portrait at the size it is drawn ([7358d6e01](https://github.com/craft-ts/craft-ts/commit/7358d6e01))
+- **docs-ui:** shrink the logo masks and simplify the contours ([823788597](https://github.com/craft-ts/craft-ts/commit/823788597))
+
+### ❤️ Thank You
+
+- Claude Sonnet 5.5
+- Romain
+
 ## 0.9.0 (2026-10-13)
 
 ### 🚀 Features
