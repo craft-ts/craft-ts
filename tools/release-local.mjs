@@ -225,16 +225,17 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
     'vite.config.standalone.ts',
   );
   if (!existsSync(standaloneViteConfig)) {
-    throw new Error(`Missing standalone demo Vite config: ${standaloneViteConfig}`);
+    throw new Error(
+      `Missing standalone demo Vite config: ${standaloneViteConfig}`,
+    );
   }
   cpSync(standaloneViteConfig, join(targetDemoRoot, 'vite.config.ts'));
 
-  const standaloneTsConfig = join(
-    sourceDemoRoot,
-    'tsconfig.standalone.json',
-  );
+  const standaloneTsConfig = join(sourceDemoRoot, 'tsconfig.standalone.json');
   if (!existsSync(standaloneTsConfig)) {
-    throw new Error(`Missing standalone demo TypeScript config: ${standaloneTsConfig}`);
+    throw new Error(
+      `Missing standalone demo TypeScript config: ${standaloneTsConfig}`,
+    );
   }
   cpSync(standaloneTsConfig, join(targetDemoRoot, 'tsconfig.json'));
 
@@ -596,9 +597,17 @@ function publishPackage(packageRoot, channel, otp) {
   run('npm', npmPublishArguments(packageRoot, channel, otp));
 }
 
+// The registry can take several minutes to list a freshly published version
+// on every package; a few seconds of retries made the check fail although
+// every `npm publish` had succeeded. Wait by time, not by attempt count.
+const VERIFY_INTERVAL_SECONDS = 15;
+const VERIFY_TIMEOUT_MS = Number(
+  process.env.CRAFT_RELEASE_VERIFY_TIMEOUT_MS ?? 10 * 60 * 1000,
+);
+
 function verifyPublishedArtifacts(version, manifestPath) {
-  const attempts = 6;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+  const deadline = Date.now() + VERIFY_TIMEOUT_MS;
+  for (let attempt = 1; ; attempt += 1) {
     const verification = parseMetadata(
       run(
         'node',
@@ -606,19 +615,23 @@ function verifyPublishedArtifacts(version, manifestPath) {
         { capture: true },
       ),
     );
-    if (releasePackages.every((pkg) => verification[pkg.key] === 'skip')) {
-      return;
-    }
+    const pending = releasePackages.filter(
+      (pkg) => verification[pkg.key] !== 'skip',
+    );
+    if (pending.length === 0) return;
 
-    if (attempt < attempts) {
-      process.stdout.write(
-        `npm registry is still propagating ${version}; retrying verification (${attempt}/${attempts - 1})...\n`,
+    if (Date.now() + VERIFY_INTERVAL_SECONDS * 1000 > deadline) {
+      throw new Error(
+        `npm registry verification failed after publication; still missing ${version} for: ${pending
+          .map((pkg) => pkg.name)
+          .join(', ')}.`,
       );
-      run('sleep', ['2']);
     }
+    process.stdout.write(
+      `npm registry is still propagating ${version} for ${pending.length} package(s); retrying verification (attempt ${attempt}, every ${VERIFY_INTERVAL_SECONDS}s)...\n`,
+    );
+    run('sleep', [String(VERIFY_INTERVAL_SECONDS)]);
   }
-
-  throw new Error('npm registry verification failed after publication.');
 }
 
 async function main(args) {
