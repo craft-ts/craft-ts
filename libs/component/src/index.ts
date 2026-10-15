@@ -41,6 +41,8 @@ export * from './lib/hyperscript';
 export * from './lib/a11y';
 export * from './lib/a11y-control';
 export * from './lib/testing';
+export * from './lib/testing-stability';
+export * from './lib/loop-guard-banner';
 export type {
   CraftLocatorResult,
   CraftTemplateLocatorApi,

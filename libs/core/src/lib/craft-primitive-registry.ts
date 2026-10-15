@@ -6,6 +6,7 @@ import {
 } from './host/craft-compat';
 import { ɵcraftValueService } from './craft-service';
 import { ɵHOST_TAG_LIST } from './craft-service';
+import { ɵcurrentInjector, ɵloopGuardPrimitiveCreated } from './loop-guard';
 
 /**
  * Primitives that hold a value the registry can read back and write into.
@@ -251,6 +252,16 @@ export function ɵregisterCraftPrimitive(
     }
   })();
 
+  // The dev loop guard counts creations here, before the instance exists: a
+  // tripped circuit breaker throws, and a refused instance must leave no entry.
+  const tracking = ɵloopGuardPrimitiveCreated({
+    kind: options.kind,
+    name: options.name,
+    hostTags,
+    ...(options.status ? { status: options.status } : {}),
+    injector: options.injector ?? ɵcurrentInjector(),
+  });
+
   const { address, release } = registry.register(
     ɵcraftPrimitiveAddress(hostTags, options.kind, options.name),
     {
@@ -276,7 +287,15 @@ export function ɵregisterCraftPrimitive(
   } catch {
     destroyRef = null;
   }
-  destroyRef?.onDestroy(release);
+  if (destroyRef) {
+    destroyRef.onDestroy(() => {
+      release();
+      tracking?.release();
+    });
+  } else {
+    // Nothing tells when it ends, so it cannot be judged as leaked.
+    tracking?.release();
+  }
 
   return { link: (ref: unknown) => registry.link(ref, address) };
 }
