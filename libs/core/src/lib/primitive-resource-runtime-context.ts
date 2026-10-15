@@ -1,5 +1,6 @@
 import {
   inject,
+  untracked,
   type Provider,
   type Signal,
 } from './host/craft-compat';
@@ -90,9 +91,17 @@ export function ɵobservePrimitiveResourceRuntimeContext(
   context: PrimitiveResourceRuntimeContext,
   name?: string,
 ): void {
-  for (const observer of injectPrimitiveResourceObservers()) {
-    observer(context);
-  }
+  // A primitive is created inside whatever computation is running the
+  // function that declares it (a component, a function-scoped service). An
+  // observer that reads the primitive (`context.get()`, a session capture)
+  // must not subscribe that computation to it: the first state change would
+  // re-run the declaring function, which creates another primitive, which is
+  // observed again — an endless remount loop.
+  untracked(() => {
+    for (const observer of injectPrimitiveResourceObservers()) {
+      observer(context);
+    }
+  });
 
   // The same handle, addressable: the observer sees every resource as it is
   // created, the registry lets tooling find one again by name afterwards.
