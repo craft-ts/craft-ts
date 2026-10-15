@@ -178,6 +178,38 @@ test('untracks generated release files without deleting their local copies', () 
   }
 });
 
+test('untracks nothing when there are no generated paths', () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-release-git-'));
+
+  try {
+    write(join(temporaryRoot, 'kept.json'), '{}\n');
+    execFileSync('git', ['init', '--quiet', temporaryRoot]);
+    execFileSync('git', ['-C', temporaryRoot, 'add', '--all']);
+    execFileSync('git', [
+      '-C',
+      temporaryRoot,
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.test',
+      'commit',
+      '--quiet',
+      '--message',
+      'initial',
+    ]);
+
+    assert.equal(untrackGeneratedReleaseFiles(temporaryRoot, []), false);
+    assert.equal(
+      execFileSync('git', ['-C', temporaryRoot, 'status', '--porcelain'], {
+        encoding: 'utf8',
+      }),
+      '',
+    );
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
 test('mirrors the complete demo source and pins CraftTS dependencies', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-demo-sync-'));
   const source = join(temporaryRoot, 'source');

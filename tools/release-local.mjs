@@ -31,6 +31,7 @@ const releaseCheckArtifacts = [
   '.craft/review-app-style-graph.json',
   'apps/demo/architecture/catalog.ts',
   'apps/demo-ssr/architecture/catalog.ts',
+  'apps/quickstart-effect/architecture/catalog.ts',
   'libs/review-attestation/attestation-app/architecture/catalog.ts',
 ];
 
@@ -488,6 +489,10 @@ export function untrackGeneratedReleaseFiles(
   path,
   generatedPaths = releaseGeneratedPaths,
 ) {
+  // `git ls-files --` with no pathspec lists every tracked file, and removing
+  // all of them from the index wrecks the release commit.
+  if (generatedPaths.length === 0) return false;
+
   const trackedFiles = git(path, ['ls-files', '-z', '--', ...generatedPaths], {
     capture: true,
   })
