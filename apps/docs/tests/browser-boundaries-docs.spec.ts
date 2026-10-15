@@ -1,4 +1,6 @@
-import docsConfig from '../.vitepress/config.mts';
+// The navigation of the site is data in docs-herbier; this spec pins what it lists.
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { siteAt } from '../../docs-herbier/src/server/site';
 import { readDoc } from './read-doc';
 
 type SidebarItem = {
@@ -7,10 +9,7 @@ type SidebarItem = {
   items?: SidebarItem[];
 };
 
-const sidebar = docsConfig.themeConfig?.sidebar as Record<
-  string,
-  SidebarItem[]
->;
+const sidebar = siteAt('/').sidebar as Record<string, SidebarItem[]>;
 
 const flatten = (items: SidebarItem[]): SidebarItem[] =>
   items.flatMap((item) => [item, ...flatten(item.items ?? [])]);
@@ -80,7 +79,7 @@ describe('docs sidebar', () => {
   });
 
   it('exposes every top-level nav entry', () => {
-    const nav = docsConfig.themeConfig?.nav as Array<{ text?: string }>;
+    const nav = siteAt('/').nav;
 
     expect(nav.map((entry) => entry.text)).toEqual([
       'Learn',

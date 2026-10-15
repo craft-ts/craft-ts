@@ -9,7 +9,7 @@ describe('coding agents docs', () => {
   const page = readDoc('../resources/ai-agents.md');
   const home = readDoc('../index.md');
   const homePrompt = readFileSync(
-    join(repoRoot, 'apps/docs/.vitepress/theme/CraftAgentPrompt.vue'),
+    join(repoRoot, 'apps/docs-herbier/src/components/agent-prompt.ts'),
     'utf8',
   );
   const learnNext = readDoc('../learn/next.md');
@@ -18,7 +18,7 @@ describe('coding agents docs', () => {
   const aiOverview = readDoc('../guide/ai/index.md');
   const mcpTools = readDoc('../guide/ai/mcp-tools.md');
   const docsConfig = readFileSync(
-    join(repoRoot, 'apps/docs/.vitepress/config.mts'),
+    join(repoRoot, 'apps/docs-herbier/src/server/site.ts'),
     'utf8',
   );
 
