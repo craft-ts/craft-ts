@@ -1,3 +1,26 @@
+## 0.9.3 (2026-10-15)
+
+### 🚀 Features
+
+- **core,component:** dev loop guard, page alert and expectRouteToSettle ([ce5b4af75](https://github.com/craft-ts/craft-ts/commit/ce5b4af75))
+- **dev-tools:** architecture rules requiring page stability tests ([767c36ae0](https://github.com/craft-ts/craft-ts/commit/767c36ae0))
+- **dev-tools:** eslint rule require-loop-sleep-or-stop ([2b1954a38](https://github.com/craft-ts/craft-ts/commit/2b1954a38))
+
+### 🩹 Fixes
+
+- **component,dev-tools:** stop publishing declarations that point outside the package ([805e1b7e0](https://github.com/craft-ts/craft-ts/commit/805e1b7e0))
+- **core:** run primitive observers untracked so provideSendContextToAi cannot loop a page ([1582acdc4](https://github.com/craft-ts/craft-ts/commit/1582acdc4))
+- **docs-herbier:** list the page stability guide in the testing sidebar ([23ab28f57](https://github.com/craft-ts/craft-ts/commit/23ab28f57))
+- **docs-ui:** drop the home figure caption and centre the mark on small screens ([c6f8b0200](https://github.com/craft-ts/craft-ts/commit/c6f8b0200))
+- **release:** wait up to 10 minutes for npm to list the published versions ([23d8e1d82](https://github.com/craft-ts/craft-ts/commit/23d8e1d82))
+- **release:** re-resolve the lockfile before npm ci ([c57892bf3](https://github.com/craft-ts/craft-ts/commit/c57892bf3))
+- **release:** never untrack the whole index when no path is generated ([085ecefbc](https://github.com/craft-ts/craft-ts/commit/085ecefbc))
+
+### ❤️ Thank You
+
+- Claude Sonnet 5.5
+- Romain
+
 ## 0.9.2 (2026-10-14)
 
 ### 🚀 Features
