@@ -1,4 +1,14 @@
 import type { Yieldable } from '@craft-ts/core';
+// Named here so the emitted declaration of `skipLink` imports them from the
+// package; without a name in scope TypeScript spells the type with a path into
+// the workspace build output (`../../../../dist/libs/style/src`).
+import type {
+  AxisPoint,
+  ChannelsOfSheet,
+  Conditional,
+  CraftClass,
+  Declaration,
+} from '@craft-ts/style';
 import { a, span } from './hyperscript';
 import {
   pipeCraftNode,

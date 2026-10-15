@@ -63,13 +63,15 @@ export const computed = ɵcomputed;
 export const createEnvironmentInjector = ɵcreateEnvironmentInjector;
 export const DestroyRef = CraftDestroyRef;
 export const ElementRef = ɵElementRef;
-export const EnvironmentInjector = ɵEnvironmentInjector;
-export const Injector = CraftInjectorToken;
+export const EnvironmentInjector: typeof ɵEnvironmentInjector =
+  ɵEnvironmentInjector;
+export const Injector: typeof CraftInjectorToken = CraftInjectorToken;
 export const inject = ɵinject;
 export const reflectComponentType: HostRuntimeApi['reflectComponentType'] =
   () => null;
 export const runInInjectionContext = ɵrunInInjectionContext;
 export const signal = ɵsignal;
 export const untracked = ɵuntracked;
-export const ɵEffectScheduler = CraftEffectScheduler;
-export const ɵINJECTOR_SCOPE = CraftInjectorScope;
+export const ɵEffectScheduler: typeof CraftEffectScheduler =
+  CraftEffectScheduler;
+export const ɵINJECTOR_SCOPE: typeof CraftInjectorScope = CraftInjectorScope;
