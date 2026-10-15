@@ -20,7 +20,7 @@ Do not scrape the HTML docs. Start from `llms.txt` or the MCP tools.
 ## 1. LLM files
 
 These follow the [llms.txt](https://llmstxt.org/) spec and are generated from
-this VitePress site at build time.
+this site at build time.
 
 - Index (curated links): https://craft-ts.github.io/craft/llms.txt
 - Concatenated docs: https://craft-ts.github.io/craft/llms-full.txt

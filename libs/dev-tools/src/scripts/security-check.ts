@@ -38,7 +38,7 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
 // as read-only context for coding agents. It is third-party code tracked in the
 // parent repository, and every generated starter carries it — scanning it reports
 // findings nobody in the project can act on.
-const IGNORED = new Set(['node_modules', '.git', 'dist', '.nx', '.angular', '.vitepress', '.scratch', 'coverage', 'test-results', 'tmp', 'temp', '.references']);
+const IGNORED = new Set(['node_modules', '.git', 'dist', '.nx', '.angular', '.scratch', 'coverage', 'test-results', 'tmp', 'temp', '.references']);
 const CONFIG_FILE = 'craft-security.json';
 /** Commentaire d'exemption ligne à ligne : `// craft-security-ignore <code>`. */
 const IGNORE_COMMENT = /craft-security-ignore(?:\s+([A-Z_]+))?/;

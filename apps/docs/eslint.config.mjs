@@ -3,9 +3,6 @@ import craftRules from '../../libs/dev-tools/src/eslint-rules/index.cjs';
 import { craftDemoRules } from '../demo/craft-eslint-rules.mjs';
 
 export default [
-  {
-    ignores: ['**/.vitepress/cache/**', '**/.vitepress/dist/**'],
-  },
   ...baseConfig,
   {
     files: ['**/tests/snippets/**/*.spec.ts'],

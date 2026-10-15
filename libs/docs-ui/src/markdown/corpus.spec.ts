@@ -12,7 +12,7 @@ import type { Block, Diagnostic } from './tree.ts';
  * to the constructs the unit tests happen to think of.
  */
 const SRC_ROOT = path.resolve(import.meta.dirname, '../../../../apps/docs');
-const SKIP = new Set(['node_modules', '.vitepress', 'public', 'tests', 'dist']);
+const SKIP = new Set(['node_modules', 'public', 'tests', 'dist']);
 
 const pages = (dir: string): string[] =>
   readdirSync(dir).flatMap((name) => {
@@ -82,8 +82,6 @@ describe('apps/docs corpus', () => {
 
     expect(files.length).toBeGreaterThan(100);
     // What `git grep '^:::'` finds in the tracked pages, before parsing anything.
-    // (A plain `grep -r` also reads the ignored `.vitepress/dist` copies and
-    // counts every container twice.)
     expect(counts.callout.get('tip')).toBe(42);
     expect(counts.callout.get('warning')).toBe(38);
     expect(counts.details).toBe(26);

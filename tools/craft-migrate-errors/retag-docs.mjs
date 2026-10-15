@@ -41,7 +41,7 @@ function* walk(dir) {
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) {
-      if (entry === 'node_modules' || entry === '.vitepress') continue;
+      if (entry === 'node_modules') continue;
       yield* walk(path);
     } else if (path.endsWith('.md')) {
       yield path;

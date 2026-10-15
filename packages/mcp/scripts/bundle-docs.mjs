@@ -14,7 +14,7 @@ const workspaceRoot = join(packageRoot, '../..');
 const docsRoot = join(workspaceRoot, 'apps/docs');
 const outFile = join(packageRoot, 'content/docs-index.json');
 
-const SKIP_DIRS = new Set(['.vitepress', 'node_modules', 'tests', 'public']);
+const SKIP_DIRS = new Set(['node_modules', 'tests', 'public']);
 
 function walkMarkdown(dir, acc = []) {
   for (const name of readdirSync(dir)) {

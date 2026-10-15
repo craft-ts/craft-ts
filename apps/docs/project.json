@@ -3,13 +3,6 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "targets": {
-    "dev": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "options": {
-        "command": "vitepress dev apps/docs"
-      }
-    },
     "test": {
       "executor": "nx:run-commands",
       "dependsOn": [
@@ -65,7 +58,6 @@
         "{workspaceRoot}/tsconfig.base.json",
         "{projectRoot}/tsconfig.spec.json",
         "{projectRoot}/tests/**/*.ts",
-        "{projectRoot}/.vitepress/config.mts",
         "{projectRoot}/vitest.config.mts"
       ],
       "cache": true
@@ -81,24 +73,10 @@
         "{projectRoot}/tests/snippets/guide/testing/architecture/**/*.ts"
       ]
     },
-    "build": {
-      "executor": "nx:run-commands",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "command": "vitepress build apps/docs"
-      }
-    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
         "maxWarnings": -1
-      }
-    },
-    "serve": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "options": {
-        "command": "vitepress dev apps/docs"
       }
     }
   },

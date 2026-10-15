@@ -11,6 +11,6 @@
     ],
     "erasableSyntaxOnly": false
   },
-  "include": ["vitest.config.mts", ".vitepress/config.mts", "tests/**/*.ts"],
+  "include": ["vitest.config.mts", "tests/**/*.ts"],
   "exclude": ["tests/snippets/guide/app/app-start/**/*.ts"]
 }

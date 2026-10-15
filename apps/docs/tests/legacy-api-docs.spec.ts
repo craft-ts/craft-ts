@@ -7,7 +7,7 @@ const docsRoot = fileURLToPath(new URL('..', import.meta.url));
 
 const walkMarkdown = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === '.vitepress' || entry.name === 'node_modules') {
+    if (entry.name === 'node_modules') {
       return [];
     }
     const path = join(dir, entry.name);

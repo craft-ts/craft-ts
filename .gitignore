@@ -55,9 +55,6 @@ Thumbs.db
 
 __screenshots__/
 
-## VitePress
-/apps/docs/.vitepress/cache
-/apps/docs/.vitepress/dist
 vitest.config.*.timestamp*
 
 # Attestation evidence: content-addressed, regenerable, never in git.

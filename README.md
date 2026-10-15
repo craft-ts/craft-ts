@@ -129,7 +129,8 @@ apps/
 ├── demo-with-server-function/  the server-function proof of concept
 ├── quickstart-effect/          minimal executable EffectTS starter
 ├── log-server/                 local JSONL log ingestion (@craft-ts/log-server)
-└── docs/                       VitePress documentation and its tests
+├── docs/                       the documentation pages (Markdown) and their tests
+└── docs-herbier/               the documentation site, drawn with @craft-ts/docs-ui
 libs/
 ├── core/            @craft-ts/core — primitives, services, routing, forms
 ├── component/       @craft-ts/component — the renderer and typed templates
@@ -239,10 +240,10 @@ Pour vérifier les bundles déployables :
 npm run production:check
 ```
 
-Start the documentation site at `http://localhost:5173`:
+Start the documentation site at `http://localhost:4420`:
 
 ```bash
-npx nx dev docs
+npx nx serve docs-herbier
 ```
 
 ### Make a change
@@ -260,7 +261,7 @@ npx nx test craft-ts-core
 npx nx lint craft-ts-core
 npx nx build craft-ts-core
 npx nx test docs
-npx nx build docs
+npx nx build docs-herbier
 npx nx architecture demo
 ```
 
@@ -398,15 +399,15 @@ npx nx format:write
 
 ### Documentation contributions
 
-Documentation pages live in `apps/docs/` and the sidebar is configured in `apps/docs/.vitepress/config.mts`.
+Documentation pages live in `apps/docs/` and the site is built by `apps/docs-herbier`, whose sidebar is `apps/docs-herbier/src/server/site.ts`.
 
 When documenting a public API:
 
 - place the page in the matching domain folder (`primitives`, `insertions`, `store`, `forms`, `utils`, or `type-safe-di-routes`);
 - show the relevant import statement;
 - favor complete, compilable examples;
-- add the page to the VitePress sidebar when necessary;
-- run both `npx nx test docs` and `npx nx build docs`.
+- add the page to the sidebar in `apps/docs-herbier/src/server/site.ts` when necessary;
+- run both `npx nx test docs` and `npx nx build docs-herbier`.
 
 ## Releases
 

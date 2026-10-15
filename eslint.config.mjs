@@ -9,8 +9,6 @@ export default [
       '**/dist',
       '**/out-tsc',
       '**/vitest.config.*.timestamp*',
-      '**/.vitepress/cache/**',
-      '**/.vitepress/dist/**',
     ],
   },
   {

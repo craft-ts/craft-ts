@@ -124,7 +124,7 @@ describe('guide/app/expose-api.md #current-user', () => {
 });
 ```
 
-Host services used only by the test (e.g. `CounterHost` that yields `Counter.count(...)`) stay **outside** the region so VitePress does not show them.
+Host services used only by the test (e.g. `CounterHost` that yields `Counter.count(...)`) stay **outside** the region so the docs do not show them.
 
 ## Markdown
 
@@ -136,7 +136,7 @@ Do not wrap `<<<` in a ` ``` ` fence. A blank line after the import is fine.
 
 ## Pitfalls
 
-- `#endregion` without the region name → VitePress prints the harness.
+- `#endregion` without the region name → the whole file is printed, harness included.
 - Two fences on one page both named `counter` → the second spec overwrites the first; Markdown then shows the wrong example. Use `counter-nested` / `counter-auth`.
 - Putting `it()` / `useSnippetHarness` inside the region → it appears on the site.
 - Extracting a `signal()` example to silence the update → lint fails (`prefer-craft-state`). Rewrite to `state()` first.

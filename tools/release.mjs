@@ -148,15 +148,14 @@ export const releaseTrackedFiles = [
   ...releasePackages.map(({ sourceManifest }) => sourceManifest),
 ].sort();
 
-// VitePress writes these files while running the documentation checks/build.
-// The directory is ignored, but old checkouts may still contain tracked files
-// from before that ignore rule was added.
-export const releaseGeneratedPaths = ['apps/docs/.vitepress/cache'];
+// Paths that checks write while they run and that must not count as release
+// changes. None today.
+export const releaseGeneratedPaths = [];
 
-export function filterReleaseChanges(paths) {
+export function filterReleaseChanges(paths, generatedPaths = releaseGeneratedPaths) {
   return paths.filter(
     (path) =>
-      !releaseGeneratedPaths.some(
+      !generatedPaths.some(
         (generatedPath) =>
           path === generatedPath || path.startsWith(`${generatedPath}/`),
       ),

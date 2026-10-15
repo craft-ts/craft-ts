@@ -1,11 +1,11 @@
 ---
 name: craft-ts-doc-update
-description: Author and update craft-ts VitePress docs in apps/docs — page shape, Learn vs Guide sections, and tested snippet regions (`<<<`). Use when editing apps/docs markdown, adding or converting TypeScript examples, touching tests/snippets, or when the user mentions documentation, a learn/guide page, or "mettre à jour la doc".
+description: Author and update the craft-ts docs in apps/docs — page shape, Learn vs Guide sections, and tested snippet regions (`<<<`). Use when editing apps/docs markdown, adding or converting TypeScript examples, touching tests/snippets, or when the user mentions documentation, a learn/guide page, or "mettre à jour la doc".
 ---
 
 # Updating craft-ts docs
 
-Docs live in `apps/docs` (VitePress). English only. The **spec is the source of truth** for complete examples; Markdown imports a named region. GitHub shows `<<<`, not the code — that is accepted.
+Docs live in `apps/docs` and are drawn by `apps/docs-herbier`. English only. The **spec is the source of truth** for complete examples; Markdown imports a named region. GitHub shows `<<<`, not the code — that is accepted.
 
 If this skill and the installed APIs disagree, prefer `apps/docs` pages that already use `<<<` and the corresponding spec under `apps/docs/tests/snippets/`.
 
@@ -18,7 +18,7 @@ If this skill and the installed APIs disagree, prefer `apps/docs` pages that alr
 | **Reference** | `reference/` | Index of names → guide pages. Do not dump tutorials here. |
 | **Resources** | `resources/` | Migration, examples, roadmap — not API teaching. |
 
-Add a new Guide/Learn page to the sidebar in `apps/docs/.vitepress/config.mts`. Outline depth is `[2, 3]`.
+Add a new Guide/Learn page to the sidebar in `apps/docs-herbier/src/server/site.ts` (`site.spec.ts` fails on a page that no sidebar lists). Outline depth is `[2, 3]`.
 
 ## Page shape
 
@@ -95,7 +95,7 @@ If an example uses a **forbidden** API but is **not** an anti-example, **update 
 
 1. Spec path mirrors the page: `apps/docs/tests/snippets/<learn-or-guide>/<page-without-md>/<slug>.spec.ts`
 2. Slug = exported name (`tasks-component`, `current-user`). If two `Counter`s share a page, **different files and region names** (`counter-nested`, `counter-auth`). Never overwrite.
-3. Region markers **must repeat the name**. Bare `#endregion` makes VitePress dump the whole file (harness included).
+3. Region markers **must repeat the name**. Bare `#endregion` makes the parser dump the whole file (harness included).
 
 ```ts
 // @vitest-environment jsdom

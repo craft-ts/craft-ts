@@ -170,13 +170,12 @@ test('release PRs are limited to manifests and changelog', () => {
   ]);
 });
 
-test('ignores generated VitePress cache changes during release validation', () => {
+test('ignores the generated paths it is given during release validation', () => {
   assert.deepEqual(
-    filterReleaseChanges([
-      'CHANGELOG.md',
-      'apps/docs/.vitepress/cache/deps/_metadata.json',
-      'libs/core/package.json',
-    ]),
+    filterReleaseChanges(
+      ['CHANGELOG.md', 'tmp/generated/file.json', 'libs/core/package.json'],
+      ['tmp/generated'],
+    ),
     ['CHANGELOG.md', 'libs/core/package.json'],
   );
 });

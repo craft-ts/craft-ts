@@ -38,7 +38,7 @@ export const filesOfRoute = (route: string): readonly string[] => {
  * Folders that hold no pages: dependencies, the generated copy of the old site,
  * static assets, and the code snippets the pages import.
  */
-const NOT_PAGES = new Set(['node_modules', '.vitepress', 'public', 'tests', 'dist']);
+const NOT_PAGES = new Set(['node_modules', 'public', 'tests', 'dist']);
 
 export interface DiscoverOptions {
   /** Files that are repository files, not pages: `README.md`. */
