@@ -668,6 +668,16 @@ assertDeclarativeArchitecture(graph.graph, {
 `'off'` does not run the rule, and the waivers written for it are then not
 read, so they are not reported as stale.
 
+### `route-needs-stability-test` and `looping-async-process-needs-budget`: warnings
+
+A page that loops fails nothing, so a test has to mount it and count. These two
+rules require that test: every routed page is named by an `expectRouteToSettle`
+call, and an `asyncProcess` that loops is named in its `budget.perKey`. They
+warn by default; raise them with `severity`, or waive one route
+(`target: 'route:app:sessions'`) or primitive
+(`target: 'primitive:asyncProcess:follow'`). See
+[page stability](/guide/testing/page-stability).
+
 ### Waivers
 
 A deliberate bypass — a third-party widget, HTML rendered from markdown — is a
