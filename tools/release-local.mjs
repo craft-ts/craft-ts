@@ -533,6 +533,34 @@ async function askForConfirmation(version, docsRepo, demoRepo, effectDemoRepo) {
   }
 }
 
+export function lockfileRefreshArguments() {
+  return [
+    'install',
+    '--package-lock-only',
+    '--ignore-scripts',
+    '--no-audit',
+    '--no-fund',
+  ];
+}
+
+/**
+ * A workspace package that depends on another one at the previous version
+ * (`packages/mcp` on `@craft-ts/dev-tools`) gets a nested registry copy in the
+ * lockfile. Once the release bumps the manifests, that copy is stale and
+ * `npm ci` refuses to install. Resolving the lock again, now that the previous
+ * version is on npm, brings it back in sync; the result is part of the release
+ * commit.
+ */
+function refreshLockfile() {
+  try {
+    run('npm', lockfileRefreshArguments());
+  } catch {
+    process.stdout.write(
+      '\nCould not refresh package-lock.json; continuing with the committed one.\n',
+    );
+  }
+}
+
 export function npmPublishArguments(packageRoot, channel, otp = '') {
   return [
     'publish',
@@ -664,6 +692,7 @@ async function main(args) {
   assertGitWorkspace(demoRepo, 'main', 'StackBlitz demo');
   assertGitWorkspace(effectDemoRepo, 'main', 'Effect StackBlitz demo');
 
+  refreshLockfile();
   run('npm', ['ci']);
   const release = resolveRelease(argument);
   const releaseIsPrepared = releaseIsAlreadyPrepared(release.version);
@@ -690,6 +719,7 @@ async function main(args) {
     `\nRelease plan\n- version: ${release.version}\n- npm channel: ${release.channel}\n- docs: ${docsRepo}\n- StackBlitz: ${demoRepo}\n- Effect StackBlitz: ${effectDemoRepo}\n`,
   );
   if (dryRun) {
+    run('git', ['restore', '--worktree', '--', 'package-lock.json']);
     process.stdout.write('\nDry run complete. No files were changed.\n');
     return;
   }

@@ -85,7 +85,11 @@ dist-tags are respectively `latest`, `beta`, and `next`.
 ## What the command does
 
 Before changing files, the command checks that all four workspaces are clean,
-on `main`, and synchronized with `origin/main`. It then runs `npm ci`, validates
+on `main`, and synchronized with `origin/main`. It then re-resolves
+`package-lock.json` (`npm install --package-lock-only`, so a workspace package
+pinned to the previous version does not leave a stale nested copy that
+makes `npm ci` fail; the result goes into the release commit, and a dry run
+restores it), runs `npm ci`, validates
 the release tooling, runs the unit tests for projects affected since the latest
 release tag, and completes the other release gates. E2E tests are temporarily
 disabled in local releases. The release

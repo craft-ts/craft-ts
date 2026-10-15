@@ -14,6 +14,7 @@ import test from 'node:test';
 
 import {
   gitSynchronizationError,
+  lockfileRefreshArguments,
   npmPublishArguments,
   parseReleaseArgument,
   releaseAffectedTestArguments,
@@ -445,4 +446,22 @@ test('replaces published documentation while preserving repository metadata', ()
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true });
   }
+});
+
+test('refreshes only the lockfile, without running scripts or touching node_modules', () => {
+  const args = lockfileRefreshArguments();
+  assert.equal(args[0], 'install');
+  assert.ok(args.includes('--package-lock-only'));
+  assert.ok(args.includes('--ignore-scripts'));
+});
+
+test('release-local refreshes the lockfile before npm ci and restores it on a dry run', () => {
+  const source = readFileSync(
+    new URL('./release-local.mjs', import.meta.url),
+    'utf8',
+  );
+  assert.ok(
+    source.indexOf('refreshLockfile();') < source.indexOf("run('npm', ['ci'])"),
+  );
+  assert.match(source, /'restore', '--worktree', '--', 'package-lock\.json'/);
 });
