@@ -699,6 +699,17 @@ suite is a graph contract: run \`npm run architecture\` after structural
 changes, and do not add a test per feature or a rule for a smell already
 covered by the baseline helpers.
 
+## Stability
+
+A page that loops fails nothing: it keeps drawing while it re-instantiates,
+reloads or hammers one URL. Give every routed page a test that mounts it and
+counts, \`expectRouteToSettle(routes, '/path')\` from
+\`@craft-ts/component/testing\`, and name each looping \`asyncProcess\` in its
+\`budget.perKey\`. A loop driven by \`yield*\` must suspend on \`craftSleep\`.
+In development, \`provideCraftLoopGuard()\` reports a suspected loop on the
+console and in the page. A server endpoint needs its own latency budget, measured
+on a data set the size of production, not on fixtures.
+
 ## Verification
 
 Run the checks relevant to this generated configuration:

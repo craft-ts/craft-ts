@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { STYLE_ARCHITECTURE_RULES } from './architecture-style-rules.ts';
 import { SERVICE_ARCHITECTURE_RULES } from './architecture-service-rules.ts';
+import { STABILITY_ARCHITECTURE_RULES } from './architecture-stability-rules.ts';
 import {
   applyArchitectureWaivers,
   type ArchitectureRuleName,
@@ -4331,7 +4332,12 @@ export type ArchitectureRuleSeverity = 'error' | 'warn' | 'off';
  */
 export const DEFAULT_ARCHITECTURE_RULE_SEVERITY: Partial<
   Record<ArchitectureRuleName, ArchitectureRuleSeverity>
-> = { 'no-unused-service': 'warn' };
+> = {
+  'no-unused-service': 'warn',
+  // New obligations: reported first, raised to `error` once the tests exist.
+  'route-needs-stability-test': 'warn',
+  'looping-async-process-needs-budget': 'warn',
+};
 
 export type ArchitectureViolationsOptions = {
   target?: ArchitectureCheckTarget;
@@ -4419,7 +4425,13 @@ export function architectureReport(
     options.severity?.[rule as ArchitectureRuleName] ??
     DEFAULT_ARCHITECTURE_RULE_SEVERITY[rule as ArchitectureRuleName] ??
     'error';
-  for (const [rule, find] of SERVICE_ARCHITECTURE_RULES) {
+  for (const [rule, find] of [
+    ...SERVICE_ARCHITECTURE_RULES,
+    ...STABILITY_ARCHITECTURE_RULES,
+  ] as readonly (readonly [
+    string,
+    (graph: DependencyGraph) => readonly { target: string; message: string }[],
+  ])[]) {
     if (severityOf(rule) === 'off') continue;
     for (const finding of find(graph)) findings.push({ rule, ...finding });
   }

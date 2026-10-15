@@ -243,6 +243,7 @@ const guideSidebar = [
       { text: 'Testing components', link: '/guide/testing/components' },
       { text: 'Type-level tests', link: '/guide/testing/type-level' },
       { text: 'Browser boundaries', link: '/guide/testing/browser-boundaries' },
+      { text: 'Page stability', link: '/guide/testing/page-stability' },
       {
         text: 'Architecture rules',
         collapsed: true,

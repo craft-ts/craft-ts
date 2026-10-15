@@ -39,8 +39,8 @@ export interface HomeHero {
   readonly text: string;
   readonly tagline: string;
   readonly actions: readonly HomeAction[];
-  /** The caption under the mark, the way a figure of a book has one. */
-  readonly plateCaption: string;
+  /** The caption under the mark, the way a figure of a book has one. Left out, the mark has none. */
+  readonly plateCaption?: string;
 }
 
 export interface HomeInput {
@@ -105,7 +105,7 @@ export const DocHome = craftComponent('DocHome', {}, function* (props: HomeInput
         ]),
         figure({ class: homeUi.figure }, [
           DocLogo({}),
-          figcaption({ class: homeUi.caption }, hero.plateCaption),
+          ...(hero.plateCaption ? [figcaption({ class: homeUi.caption }, hero.plateCaption)] : []),
           div({ class: homeUi.extra }, renderContent('extra', props.extra)),
         ]),
       ]),
