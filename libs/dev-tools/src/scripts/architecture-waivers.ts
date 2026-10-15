@@ -34,6 +34,8 @@ export const ARCHITECTURE_RULE_NAMES = [
   'no-dangling-css-vars',
   'no-global-stylesheet',
   'no-unused-service',
+  'route-needs-stability-test',
+  'looping-async-process-needs-budget',
 ] as const;
 
 export type ArchitectureRuleName = (typeof ARCHITECTURE_RULE_NAMES)[number];
@@ -53,6 +55,8 @@ export type ArchitectureWaiverTarget<
   | `obligation:${string}`
   | `css-var:${string}`
   | `service:${C['services'][number]}`
+  | `route:${string}`
+  | `primitive:${string}`
   | 'graph:style-dump'
   | '*';
 
