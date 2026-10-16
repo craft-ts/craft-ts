@@ -135,14 +135,16 @@ export const DocNavbar = craftComponent('DocNavbar', {}, function* (
       ),
       ...(badge
         ? [
-            DocBadge({
-              tone: function* () {
-                return 'important' as const;
-              },
-              label: function* () {
-                return badge;
-              },
-            }),
+            span({ class: navbarUi.badge }, [
+              DocBadge({
+                tone: function* () {
+                  return 'important' as const;
+                },
+                label: function* () {
+                  return badge;
+                },
+              }),
+            ]),
           ]
         : []),
       DocSeasonPicker({

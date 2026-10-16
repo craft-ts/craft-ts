@@ -104,7 +104,7 @@ export const DocHome = craftComponent('DocHome', {}, function* (props: HomeInput
           div({ class: homeUi.actions }, actions),
         ]),
         figure({ class: homeUi.figure }, [
-          DocLogo({}),
+          div({ class: homeUi.mark }, [DocLogo({})]),
           ...(hero.plateCaption ? [figcaption({ class: homeUi.caption }, hero.plateCaption)] : []),
           div({ class: homeUi.extra }, renderContent('extra', props.extra)),
         ]),

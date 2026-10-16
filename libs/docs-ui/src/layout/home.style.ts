@@ -49,6 +49,7 @@ import {
   marginBlockStart,
   marginInline,
   maxInlineSize,
+  minInlineSize,
   num,
   p,
   position,
@@ -146,13 +147,10 @@ export const homeUi = craftStyles('docHome', {
     gap(space(3)),
     marginBlockStart(space(8)),
   ],
-  // Narrower than the single column on a small screen, so it sits in the middle of it.
-  figure: [
-    display.block,
-    maxInlineSize(unit.rem(16.375)),
-    inlineSize(unit.pct(100)),
-    marginInline.auto,
-  ],
+  figure: [display.block, minInlineSize(space(0)), marginInline.auto, inlineSize(unit.pct(100))],
+  // The mark alone is narrower than the single column on a small screen, so it sits in
+  // the middle of it; what stands under it (the site's card) has the whole column.
+  mark: [display.block, maxInlineSize(unit.rem(16.375)), marginInline.auto],
   extra: [display.block, marginBlockStart(space(5))],
   caption: [
     display.block,
