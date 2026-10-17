@@ -26,6 +26,9 @@ node_modules
 
 # local log server output
 /.logs
+/.debug-sessions
+/apps/log-server/.logs/
+/apps/log-server/.debug-sessions/
 
 # vendored source references for coding agents are tracked with git subtree
 

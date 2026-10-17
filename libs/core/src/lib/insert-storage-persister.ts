@@ -27,6 +27,8 @@ export type StoragePersisterOptions<
   ResourceState extends object | undefined = object | undefined,
   CacheTime = 300000,
 > = {
+  /** Do not restore or persist values when false. Defaults to true. */
+  enabled?: boolean;
   waitForParamsSrcToBeEqualToPreviousValue?: boolean;
   cacheTime?: CacheTime;
   staleTime?: number;
@@ -83,6 +85,7 @@ export function insertStoragePersister<
       | InsertionStateFactoryContext<StateType, PreviousInsertionsOutputs>;
     const rawContext = rawReactiveFacade(context) as typeof context;
     const persister = yield* StoragePersister();
+    if (options?.enabled === false) return { persister };
     const hasResourceById = 'resourceById' in context;
     const hasState = 'state' in context && !('resource' in context);
     const isUsingIdentifier =

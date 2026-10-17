@@ -14,6 +14,7 @@ import {
 import {
   craftService,
   craftComputed,
+  isGenerator,
   state,
 } from '@craft-ts/core';
 import { componentUi } from './component-demos.style';
@@ -47,7 +48,8 @@ const userCard = craftComponent(
             type: 'button',
             class: componentUi.button,
             *click() {
-              inputs.onRemove(yield* inputs.user());
+              const result = inputs.onRemove(yield* inputs.user());
+              if (isGenerator(result)) yield* result;
             },
             'aria-label': function* () {
               return `Remove ${(yield* inputs.user()).name}`;

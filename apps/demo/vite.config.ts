@@ -79,7 +79,7 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 4200,
+    port: Number(process.env['CRAFT_DEMO_PORT'] ?? '4200'),
     forwardConsole: true,
     fs: {
       allow: [path.resolve(root, '../..')],

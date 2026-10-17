@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftComponent } from '../component';
 import { mountCraftComponent } from '../bridge';
-import { div, span } from '../hyperscript';
+import { button, div, input, span } from '../hyperscript';
 import { renderCraftComponent } from '../testing';
 import {
   createEnvironmentInjector,
@@ -17,6 +17,7 @@ import {
 import { AiContextMenu } from './ai-context-menu';
 import {
   provideAiContextMenuController,
+  provideCraftDebugSessionCapture,
   provideSendContextToAi,
 } from './send-context-to-ai';
 import {
@@ -48,31 +49,144 @@ describe('provideSendContextToAi', () => {
 
   it('waits for Record when automatic recording is disabled', () => {
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: false })],
+      [
+        ...ɵgetCraftRootDefaultProviders(),
+        ...provideSendContextToAi({ recording: false }),
+      ],
       Injector.NULL,
       'SendContextRecordingDisabledTestRoot',
     );
-    const session = runInInjectionContext(parent, () => ɵinjectSendContextSession());
+    const session = runInInjectionContext(parent, () =>
+      ɵinjectSendContextSession(),
+    );
     expect(session?.activeClip).toBeUndefined();
     session?.capture('custom', 'emitted', { name: 'before-record' });
     expect(session?.events).toEqual([]);
     session?.startRecord();
     session?.capture('custom', 'emitted', { name: 'after-record' });
-    expect(session?.events.map((event) => event.name)).toEqual(['after-record']);
+    expect(session?.events.map((event) => event.name)).toEqual([
+      'after-record',
+    ]);
     parent.destroy();
   });
 
   it('starts an application session when automatic recording is enabled', () => {
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
+      [
+        ...ɵgetCraftRootDefaultProviders(),
+        ...provideSendContextToAi({ recording: true }),
+      ],
       Injector.NULL,
       'SendContextRecordingEnabledTestRoot',
     );
-    const session = runInInjectionContext(parent, () => ɵinjectSendContextSession());
+    const session = runInInjectionContext(parent, () =>
+      ɵinjectSendContextSession(),
+    );
     expect(session?.activeClip?.label).toBe('Application session');
     session?.capture('custom', 'emitted', { name: 'during-startup-session' });
-    expect(session?.events.map((event) => event.name)).toEqual(['during-startup-session']);
+    expect(session?.events.map((event) => event.name)).toEqual([
+      'during-startup-session',
+    ]);
     parent.destroy();
+  });
+
+  it('records the page scroll position with each replayable click', async () => {
+    const scrollX = vi.spyOn(window, 'scrollX', 'get').mockReturnValue(23);
+    const scrollY = vi.spyOn(window, 'scrollY', 'get').mockReturnValue(640);
+    const component = craftComponent('ScrolledClickCapture', {}, function* () {
+      return div({ id: 'scroll-pane' }, [
+        button({ click: () => undefined }, 'Save'),
+      ]);
+    });
+    const rendered = await renderCraftComponent(component, {
+      providers: [...provideSendContextToAi({ recording: true })] as never,
+    });
+
+    const scroller =
+      rendered.nativeElement.querySelector<HTMLElement>('#scroll-pane');
+    if (scroller) {
+      scroller.scrollLeft = 9;
+      scroller.scrollTop = 321;
+    }
+    rendered.nativeElement.querySelector('button')?.click();
+    const session = runInInjectionContext(rendered.injector, () =>
+      ɵinjectSendContextSession(),
+    );
+
+    try {
+      expect(
+        session?.events.find((event) => event.kind === 'dom')?.payload,
+      ).toMatchObject({
+        scrollX: 23,
+        scrollY: 640,
+        scrollAncestors: [
+          {
+            selector: '#scroll-pane',
+            scrollLeft: 9,
+            scrollTop: 321,
+          },
+        ],
+      });
+    } finally {
+      rendered.destroy();
+      scrollX.mockRestore();
+      scrollY.mockRestore();
+    }
+  });
+
+  it('omits form values by default and records only explicitly opted-in fields', async () => {
+    const component = craftComponent('PrivateInputCapture', {}, function* () {
+      return div([
+        input({
+          id: 'private-field',
+          value: 'not recorded',
+          input: () => undefined,
+        }),
+        input({
+          id: 'replay-field',
+          value: 'initial',
+          'data-debug-session-capture-value': 'true',
+          input: () => undefined,
+        }),
+        input({
+          id: 'password-field',
+          type: 'password',
+          value: 'never recorded',
+          'data-debug-session-capture-value': 'true',
+          input: () => undefined,
+        }),
+      ]);
+    });
+    const rendered = await renderCraftComponent(component, {
+      providers: [...provideCraftDebugSessionCapture()] as never,
+    });
+    const session = runInInjectionContext(rendered.injector, () =>
+      ɵinjectSendContextSession(),
+    );
+    const privateField =
+      rendered.nativeElement.querySelector<HTMLInputElement>('#private-field')!;
+    const replayField =
+      rendered.nativeElement.querySelector<HTMLInputElement>('#replay-field')!;
+    const passwordField =
+      rendered.nativeElement.querySelector<HTMLInputElement>(
+        '#password-field',
+      )!;
+
+    privateField.value = 'private value';
+    privateField.dispatchEvent(new Event('input', { bubbles: true }));
+    replayField.value = 'replay this';
+    replayField.dispatchEvent(new Event('input', { bubbles: true }));
+    passwordField.value = 'password value';
+    passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+    const values = session?.events
+      .filter((event) => event.kind === 'dom')
+      .map((event) => (event.payload as Record<string, unknown>)['value']);
+
+    try {
+      expect(values).toEqual([undefined, 'replay this', undefined]);
+    } finally {
+      rendered.destroy();
+    }
   });
 
   it('opens the AI context menu from the component host context', async () => {
@@ -148,7 +262,10 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
+      [
+        ...ɵgetCraftRootDefaultProviders(),
+        ...provideSendContextToAi({ recording: true }),
+      ],
       Injector.NULL,
       'SendContextAiTestRoot',
     );
@@ -183,7 +300,10 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
+      [
+        ...ɵgetCraftRootDefaultProviders(),
+        ...provideSendContextToAi({ recording: true }),
+      ],
       Injector.NULL,
       'SendContextAiLauncherRoot',
     );
@@ -250,7 +370,10 @@ describe('provideSendContextToAi', () => {
     );
 
     const parent = createEnvironmentInjector(
-      [...ɵgetCraftRootDefaultProviders(), ...provideSendContextToAi({ recording: true })],
+      [
+        ...ɵgetCraftRootDefaultProviders(),
+        ...provideSendContextToAi({ recording: true }),
+      ],
       Injector.NULL,
       'SendContextAiPersistenceRoot',
     );

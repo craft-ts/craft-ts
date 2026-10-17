@@ -1,25 +1,13 @@
 import type { SnapshotReport } from './take-app-snapshot';
-import {
-  inject,
-  type Provider,
-  type Signal,
-} from './host/craft-compat';
+import { type Signal } from './host/craft-compat';
 import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { behaviorSubject, type Subscribable } from './stream-kernel';
 import { provideCraftDomEventHook } from './dom-event-hook';
-import {
-  provideCraftHttpTrace,
-  type CraftHttpTraceContext,
-} from './craft-http-trace';
-import {
-  provideCraftRouterTrace,
-  type CraftRouterTraceContext,
-} from './craft-router-trace';
-import {
-  providePrimitiveResourceRuntimeObserver,
-  type PrimitiveResourceRuntimeContext,
-} from './primitive-resource-runtime-context';
+import { provideCraftHttpTrace } from './craft-http-trace';
+import { provideCraftRouterTrace } from './craft-router-trace';
+import { providePrimitiveResourceRuntimeObserver } from './primitive-resource-runtime-context';
 import { ɵinjectCorrelationIdService } from './correlation-id';
+import { ɵinjectCraftPrimitiveRegistry } from './craft-primitive-registry';
 
 export interface SendContextPayload {
   hostName: string;
@@ -61,6 +49,8 @@ export interface SendContextEvent {
   readonly id: string;
   readonly sequence: number;
   readonly timestamp: number;
+  /** Milliseconds since the recording started, measured with performance.now(). */
+  readonly elapsedMs?: number;
   readonly kind: SendContextEventKind;
   readonly phase: SendContextEventPhase;
   readonly name?: string;
@@ -71,21 +61,63 @@ export interface SendContextEvent {
   readonly state?: unknown;
   readonly targets?: readonly SendContextTarget[];
   readonly source?: string;
+  /** Present when a local archive combines events from multiple page tabs. */
+  readonly participantId?: string;
+  /** Event sequence within its originating page tab. */
+  readonly participantSequence?: number;
+  /** Wall-clock offset from the shared archive session start. */
+  readonly globalElapsedMs?: number;
+}
+
+export interface SendContextEnvironmentProfile {
+  readonly browser?: string;
+  readonly browserVersion?: string;
+  readonly engine?: 'chromium' | 'gecko' | 'webkit' | 'unknown';
+  readonly platform?: string;
+  readonly userAgent?: string;
+  readonly viewport?: Readonly<{ width: number; height: number }>;
+  readonly devicePixelRatio?: number;
+  readonly language?: string;
+  readonly languages?: readonly string[];
+  readonly timeZone?: string;
+  readonly screen?: Readonly<{ width: number; height: number }>;
+}
+
+export interface SendContextSessionParticipant {
+  readonly id: string;
+  readonly title: string;
+  readonly startUrl: string;
+  readonly viewport?: Readonly<{ width: number; height: number }>;
+  readonly environment?: SendContextEnvironmentProfile;
+  readonly state: 'visible' | 'hidden' | 'blurred';
+  readonly status: 'recording' | 'completed' | 'interrupted';
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly initialSnapshot?: Readonly<Record<string, unknown>>;
 }
 
 /** A portable, redacted recording that can be validated before replay. */
 export interface SendContextReplayExport {
   readonly format: 'craft-debug-session';
-  readonly version: 1;
+  /** Readers accept v1; all new exports use v2. */
+  readonly version: 1 | 2;
   readonly startUrl: string;
+  /** CSS-pixel viewport dimensions when session capture is initialized. */
+  readonly viewport?: Readonly<{ width: number; height: number }>;
   readonly exportedAt: number;
   readonly truncated: boolean;
   readonly events: readonly SendContextEvent[];
   readonly clips: readonly SendContextClip[];
+  /** Page tabs that contributed to an automatically shared local session. */
+  readonly participants?: readonly SendContextSessionParticipant[];
+  /** Primitive values captured immediately before the first recorded interaction. */
+  readonly initialSnapshot?: Readonly<Record<string, unknown>>;
 }
 
 export interface SendContextClip {
   readonly id: string;
+  /** Present when a local archive combines clips from multiple page tabs. */
+  readonly participantId?: string;
   readonly label: string;
   readonly startedAt: number;
   readonly stoppedAt?: number;
@@ -196,7 +228,7 @@ function asSendContextService<T>(
 
 const sendContextRetentionPolicyService = ɵcraftValueService(
   { name: 'SendContextRetentionPolicy', providedIn: 'toProvide' },
-  () => ({ maxEvents: 500, maxBytes: 2 * 1024 * 1024 }),
+  () => ({ maxEvents: Number.MAX_SAFE_INTEGER }),
 );
 const sendContextRedactorService = ɵcraftValueService(
   { name: 'SendContextRedactor', providedIn: 'toProvide' },
@@ -207,17 +239,29 @@ const sendContextValueSerializerService = ɵcraftValueService(
   () => defaultSendContextValueSerializer,
 );
 const sendContextEventSourceService = ɵcraftValueService(
-  { name: 'SendContextEventSources', providedIn: 'toProvide', collection: true },
+  {
+    name: 'SendContextEventSources',
+    providedIn: 'toProvide',
+    collection: true,
+  },
   (inputs: { $provided?: SendContextEventSource }) =>
     inputs.$provided ? [inputs.$provided] : [],
 );
 const sendContextEventEnricherService = ɵcraftValueService(
-  { name: 'SendContextEventEnrichers', providedIn: 'toProvide', collection: true },
+  {
+    name: 'SendContextEventEnrichers',
+    providedIn: 'toProvide',
+    collection: true,
+  },
   (inputs: { $provided?: SendContextEventEnricher }) =>
     inputs.$provided ? [inputs.$provided] : [],
 );
 const sendContextEventFilterService = ɵcraftValueService(
-  { name: 'SendContextEventFilters', providedIn: 'toProvide', collection: true },
+  {
+    name: 'SendContextEventFilters',
+    providedIn: 'toProvide',
+    collection: true,
+  },
   (inputs: { $provided?: SendContextEventFilter }) =>
     inputs.$provided ? [inputs.$provided] : [],
 );
@@ -234,8 +278,11 @@ const sendContextSessionService = ɵcraftValueService(
     });
     for (const source of yield* SendContextEventSources()) {
       const cleanup =
-        typeof source === 'function' ? source(session) : source.connect(session);
-      if (cleanup) (session as SendContextSessionWithInternals).addCleanup(cleanup);
+        typeof source === 'function'
+          ? source(session)
+          : source.connect(session);
+      if (cleanup)
+        (session as SendContextSessionWithInternals).addCleanup(cleanup);
     }
     return session;
   },
@@ -300,39 +347,64 @@ export const SendContextRetentionPolicy = retention.helper;
 export const provideSendContextRetentionPolicy = (
   value: SendContextRetentionPolicy,
 ): CraftServiceProvider => retention.provide!(value) as CraftServiceProvider;
-export const ɵinjectSendContextRetentionPolicy = (): SendContextRetentionPolicy =>
-  retention.metadata.inject();
+export const ɵinjectSendContextRetentionPolicy =
+  (): SendContextRetentionPolicy => retention.metadata.inject();
 export const SendContextRedactor = redactor.helper;
 export const provideSendContextRedactor = (
   value: SendContextRedactor,
 ): CraftServiceProvider => redactor.provide!(value) as CraftServiceProvider;
-export const ɵinjectSendContextRedactor = (): SendContextRedactor => redactor.metadata.inject();
+export const ɵinjectSendContextRedactor = (): SendContextRedactor =>
+  redactor.metadata.inject();
 export const SendContextValueSerializer = serializer.helper;
 export const provideSendContextValueSerializer = (
   value: SendContextValueSerializer,
-): CraftServiceProvider =>
-  serializer.provide!(value) as CraftServiceProvider;
-export const ɵinjectSendContextValueSerializer = (): SendContextValueSerializer => serializer.metadata.inject();
+): CraftServiceProvider => serializer.provide!(value) as CraftServiceProvider;
+export const ɵinjectSendContextValueSerializer =
+  (): SendContextValueSerializer => serializer.metadata.inject();
 export const SendContextEventSources = sources.helper;
-export const ɵinjectSendContextEventSources = (): readonly SendContextEventSource[] => {
-  try { return sources.metadata.inject(); } catch { return []; }
-};
+export const ɵinjectSendContextEventSources =
+  (): readonly SendContextEventSource[] => {
+    try {
+      return sources.metadata.inject();
+    } catch {
+      return [];
+    }
+  };
 export const SendContextEventEnrichers = enrichers.helper;
-export const ɵinjectSendContextEventEnrichers = (): readonly SendContextEventEnricher[] => {
-  try { return enrichers.metadata.inject(); } catch { return []; }
-};
+export const ɵinjectSendContextEventEnrichers =
+  (): readonly SendContextEventEnricher[] => {
+    try {
+      return enrichers.metadata.inject();
+    } catch {
+      return [];
+    }
+  };
 export const SendContextEventFilters = filters.helper;
-export const ɵinjectSendContextEventFilters = (): readonly SendContextEventFilter[] => {
-  try { return filters.metadata.inject(); } catch { return []; }
-};
+export const ɵinjectSendContextEventFilters =
+  (): readonly SendContextEventFilter[] => {
+    try {
+      return filters.metadata.inject();
+    } catch {
+      return [];
+    }
+  };
 export const SendContextSession = session.helper;
 export const ɵinjectSendContextSession = (): SendContextSession | null => {
-  try { return session.metadata.inject(); } catch { return null; }
+  try {
+    return session.metadata.inject();
+  } catch {
+    return null;
+  }
 };
 export const SendContextRecordController = recordController.helper;
-export const ɵinjectSendContextRecordController = (): SendContextRecordController | null => {
-  try { return recordController.metadata.inject(); } catch { return null; }
-};
+export const ɵinjectSendContextRecordController =
+  (): SendContextRecordController | null => {
+    try {
+      return recordController.metadata.inject();
+    } catch {
+      return null;
+    }
+  };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -341,7 +413,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function defaultSendContextRedactor(value: unknown): unknown {
   const seen = new WeakSet<object>();
   const visit = (current: unknown): unknown => {
-    if (current instanceof Error || current instanceof Date) return current;
+    if (current instanceof Error) {
+      return {
+        name: current.name,
+        message: redactSensitiveText(current.message),
+      };
+    }
+    if (current instanceof Date) return current;
     if (Array.isArray(current)) {
       if (seen.has(current)) return '[Circular]';
       seen.add(current);
@@ -352,13 +430,28 @@ export function defaultSendContextRedactor(value: unknown): unknown {
     seen.add(current);
     return Object.fromEntries(
       Object.entries(current).map(([key, entry]) =>
-        /password|passwd|secret|token|authorization|cookie/i.test(key)
+        /password|passwd|secret|token|authorization|cookie|api[-_]?key|private[-_]?key/i.test(
+          key,
+        )
           ? [key, '[REDACTED]']
           : [key, visit(entry)],
       ),
     );
   };
   return visit(value);
+}
+
+function redactSensitiveText(value: string): string {
+  return value
+    .replace(
+      /((?:password|passwd|secret|token|authorization|cookie|api[-_]?key|private[-_]?key)\s*[:=]\s*)(["']?)[^\s"'&,;]+/gi,
+      '$1[REDACTED]',
+    )
+    .replace(
+      /([?&](?:password|passwd|secret|token|authorization|cookie|api[-_]?key|private[-_]?key)=)[^&#\s]+/gi,
+      '$1[REDACTED]',
+    )
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[REDACTED_EMAIL]');
 }
 
 export function defaultSendContextValueSerializer(value: unknown): unknown {
@@ -407,7 +500,9 @@ export function createSendContextSession(
     readonly filters?: readonly SendContextEventFilter[];
   } = {},
 ): SendContextSession {
-  const retention = options.retentionPolicy ?? { maxEvents: 500 };
+  const retention = options.retentionPolicy ?? {
+    maxEvents: Number.MAX_SAFE_INTEGER,
+  };
   const redactor = options.redactor ?? defaultSendContextRedactor;
   const serializer = options.serializer ?? defaultSendContextValueSerializer;
   const enrichers = options.enrichers ?? [];
@@ -417,6 +512,16 @@ export function createSendContextSession(
   let sequence = 0;
   let activeClipId: string | undefined;
   let wasTruncated = false;
+  const eventSizes: number[] = [];
+  let retainedJsonSize = 2;
+  const startedAtMonotonic =
+    typeof performance === 'undefined' ? 0 : performance.now();
+  const startUrl =
+    typeof location === 'undefined' ? '' : redactReplayUrl(location.href);
+  const viewport =
+    typeof window === 'undefined'
+      ? undefined
+      : { width: window.innerWidth, height: window.innerHeight };
   const eventsSubject = behaviorSubject<readonly SendContextEvent[]>([]);
   const snapshotSubject = behaviorSubject<SendContextSessionSnapshot>({
     events: [],
@@ -440,8 +545,9 @@ export function createSendContextSession(
       return serializer(redactor(value, context), context);
     } catch (error) {
       return {
-        '[capture-error]':
+        '[capture-error]': redactSensitiveText(
           error instanceof Error ? error.message : String(error),
+        ),
       };
     }
   };
@@ -450,10 +556,13 @@ export function createSendContextSession(
     const maxBytes = retention.maxBytes;
     while (
       eventList.length > maxEvents ||
-      (maxBytes !== undefined && safeJson(eventList).length > maxBytes)
+      (maxBytes !== undefined && retainedJsonSize > maxBytes)
     ) {
       const removed = eventList.shift();
       if (!removed) break;
+      const removedSize = eventSizes.shift() ?? safeJson(removed).length;
+      retainedJsonSize -= removedSize + (eventList.length > 0 ? 1 : 0);
+      if (eventList.length === 0) retainedJsonSize = 2;
       wasTruncated = true;
       clipList = clipList.map((clip) =>
         clip.eventIds.includes(removed.id)
@@ -503,6 +612,12 @@ export function createSendContextSession(
         id: randomId('event'),
         sequence: ++sequence,
         timestamp: Date.now(),
+        elapsedMs: Math.max(
+          0,
+          (typeof performance === 'undefined'
+            ? startedAtMonotonic
+            : performance.now()) - startedAtMonotonic,
+        ),
       };
       const serialized: SendContextEvent = {
         ...full,
@@ -534,7 +649,13 @@ export function createSendContextSession(
             }
           : {}),
       };
-      eventList = [...eventList, serialized];
+      const serializedSize = safeJson(serialized).length;
+      if (eventList.length > 0) retainedJsonSize += 1;
+      retainedJsonSize += serializedSize;
+      // Keep the capture path append-only and O(1) by default. Snapshot
+      // subscribers are notified below even though the array identity stays put.
+      eventList.push(serialized);
+      eventSizes.push(serializedSize);
       if (activeClipId) {
         clipList = clipList.map((clip) =>
           clip.id === activeClipId
@@ -596,6 +717,8 @@ export function createSendContextSession(
     },
     clear() {
       eventList = [];
+      eventSizes.length = 0;
+      retainedJsonSize = 2;
       clipList = [];
       activeClipId = undefined;
       wasTruncated = false;
@@ -611,10 +734,25 @@ export function createSendContextSession(
       return safeJson({ events, ...(clip ? { clip } : { clips: clipList }) });
     },
     exportSessionJson() {
-      const events = eventList.filter((event) =>
-        !(event.kind === 'dom' && typeof event.name === 'string' &&
-          ['AiSendContextChat', 'AiSendContextLauncher', 'AiContextMenu', 'AiSendDialog']
-            .some((component) => event.name!.startsWith(`${component}:`))),
+      const initialSnapshotEvent = eventList.find(
+        (event) =>
+          event.kind === 'snapshot' &&
+          event.name === 'initial' &&
+          isRecord(event.state),
+      );
+      const events = eventList.filter(
+        (event) =>
+          event.id !== initialSnapshotEvent?.id &&
+          !(
+            event.kind === 'dom' &&
+            typeof event.name === 'string' &&
+            [
+              'AiSendContextChat',
+              'AiSendContextLauncher',
+              'AiContextMenu',
+              'AiSendDialog',
+            ].some((component) => event.name!.startsWith(`${component}:`))
+          ),
       );
       const includedIds = new Set(events.map((event) => event.id));
       const clips = clipList.map((clip) => ({
@@ -623,12 +761,20 @@ export function createSendContextSession(
       }));
       return safeJson({
         format: 'craft-debug-session',
-        version: 1,
-        startUrl: typeof location === 'undefined' ? '' : redactReplayUrl(location.href),
+        version: 2,
+        startUrl,
+        ...(viewport ? { viewport } : {}),
         exportedAt: Date.now(),
         truncated: wasTruncated || clipList.some((clip) => clip.truncated),
         events,
         clips,
+        ...(initialSnapshotEvent
+          ? {
+              initialSnapshot: initialSnapshotEvent.state as Readonly<
+                Record<string, unknown>
+              >,
+            }
+          : {}),
       } satisfies SendContextReplayExport);
     },
     exportSummary(clipId) {
@@ -663,7 +809,7 @@ export function createSendContextRecordController(
   const clipsSubject = behaviorSubject<readonly SendContextClip[]>(
     session.clips,
   );
-  const subscription = session.snapshot$.subscribe({
+  session.snapshot$.subscribe({
     next: ({ clips }) => clipsSubject.next(clips),
   });
   return {
@@ -701,7 +847,9 @@ export function provideSendContextEventFilter(
   ) => unknown)!(filter) as CraftServiceProvider;
 }
 
-export function provideSendContextSession(): CraftServiceProvider[] {
+export function provideSendContextSession(
+  options: Readonly<{ captureInputValues?: boolean }> = {},
+): CraftServiceProvider[] {
   const requireSession = (): SendContextSession => {
     const value = ɵinjectSendContextSession();
     if (!value) throw new Error('SendContextSession is not provided.');
@@ -709,8 +857,7 @@ export function provideSendContextSession(): CraftServiceProvider[] {
   };
   return [
     provideSendContextRetentionPolicy({
-      maxEvents: 500,
-      maxBytes: 2 * 1024 * 1024,
+      maxEvents: Number.MAX_SAFE_INTEGER,
     }),
     provideSendContextRedactor(defaultSendContextRedactor),
     provideSendContextValueSerializer(defaultSendContextValueSerializer),
@@ -724,12 +871,37 @@ export function provideSendContextSession(): CraftServiceProvider[] {
       const correlationId =
         ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
       const element = interaction.element;
-      const form = element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
-      const sensitive = form &&
-        (element instanceof HTMLInputElement && element.type === 'password' ||
-          /password|secret|token|authorization|cookie/i.test(`${element.getAttribute('name') ?? ''} ${element.id}`));
+      const link =
+        element instanceof HTMLAnchorElement
+          ? element
+          : element.closest('a[href]');
+      const form =
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLTextAreaElement ||
+        element instanceof HTMLSelectElement;
+      const sensitive =
+        form &&
+        ((element instanceof HTMLInputElement && element.type === 'password') ||
+          /password|secret|token|authorization|cookie/i.test(
+            `${element.getAttribute('name') ?? ''} ${element.id}`,
+          ));
       const event = interaction.event;
-      const value = form && !sensitive ? element.value : undefined;
+      const explicitlyOptedIn =
+        options.captureInputValues === true ||
+        element.getAttribute('data-debug-session-capture-value') === 'true';
+      const value =
+        form && !sensitive && explicitlyOptedIn ? element.value : undefined;
+      if (
+        !session.events.some(
+          (entry) => entry.kind === 'snapshot' && entry.name === 'initial',
+        )
+      ) {
+        session.capture('snapshot', 'emitted', {
+          name: 'initial',
+          correlationId,
+          state: ɵinjectCraftPrimitiveRegistry().capture(),
+        });
+      }
       session.capture('dom', 'emitted', {
         name: interaction.interactionName,
         correlationId,
@@ -738,11 +910,32 @@ export function provideSendContextSession(): CraftServiceProvider[] {
           eventName: interaction.eventName,
           interactionName: interaction.interactionName,
           selector: stableReplaySelector(element),
+          ...(link instanceof HTMLAnchorElement
+            ? { href: redactReplayUrl(link.href) }
+            : {}),
           ...(value === undefined ? {} : { value }),
-          ...(event instanceof KeyboardEvent ? { key: event.key, code: event.code } : {}),
-          ...(event instanceof MouseEvent ? { button: event.button, clientX: event.clientX, clientY: event.clientY } : {}),
+          ...(event instanceof KeyboardEvent
+            ? { key: event.key, code: event.code }
+            : {}),
+          ...(event instanceof MouseEvent
+            ? {
+                button: event.button,
+                clientX: event.clientX,
+                clientY: event.clientY,
+              }
+            : {}),
+          // Keep click coordinates meaningful when the user has scrolled the
+          // page: replay restores this viewport position before dispatch.
+          scrollX: window.scrollX,
+          scrollY: window.scrollY,
+          scrollAncestors: replayScrollAncestors(element),
         },
-        targets: [{ tagName: interaction.elementTag, selector: stableReplaySelector(element) }],
+        targets: [
+          {
+            tagName: interaction.elementTag,
+            selector: stableReplaySelector(element),
+          },
+        ],
       });
       return next();
     }),
@@ -837,7 +1030,9 @@ export function provideSendContextSession(): CraftServiceProvider[] {
       session.capture('primitive', 'emitted', {
         name: context.kind,
         correlationId,
-        state: readPrimitiveState(context),
+        // Keep the entire primitive graph together so a replay checkpoint can
+        // compare one consistent snapshot against the currently observed app.
+        state: ɵinjectCraftPrimitiveRegistry().capture(),
       });
     }),
   ] as CraftServiceProvider[];
@@ -847,29 +1042,122 @@ function stableReplaySelector(element: Element): string {
   const named = element.closest('[data-craft-name]');
   if (named?.getAttribute('data-craft-name')) {
     const rawName = named.getAttribute('data-craft-name')!;
-    const value = typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
-      ? CSS.escape(rawName)
-      : rawName.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-    const descendants: string[] = [];
-    let current: Element | null = element;
-    while (current && current !== named) {
-      const siblings = current.parentElement
-        ? Array.from(current.parentElement.children).filter((child) => child.tagName === current!.tagName)
-        : [];
-      descendants.unshift(`${current.tagName.toLowerCase()}:nth-of-type(${siblings.indexOf(current) + 1})`);
-      current = current.parentElement;
+    const value =
+      typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+        ? CSS.escape(rawName)
+        : rawName.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+    const namedSelector = `[data-craft-name="${value}"]${pathFromAncestor(element, named)}`;
+    const ancestor = findUniqueReplayAncestor(element);
+    if (ancestor) {
+      const scoped = `${ancestor.selector} > ${pathFromAncestor(element, ancestor.element)}`;
+      if (isUniqueReplaySelector(scoped)) return scoped;
     }
-    return `[data-craft-name="${value}"]${descendants.length ? ` > ${descendants.join(' > ')}` : ''}`;
+    if (isUniqueReplaySelector(namedSelector)) return namedSelector;
   }
-  if (element.id) return `#${CSS.escape(element.id)}`;
+  if (element.id) {
+    const escapedId =
+      typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+        ? CSS.escape(element.id)
+        : element.id.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+    return `#${escapedId}`;
+  }
   const parts: string[] = [];
   let current: Element | null = element;
   while (current && current !== document.body && parts.length < 6) {
-    const siblings = current.parentElement ? Array.from(current.parentElement.children).filter((child) => child.tagName === current!.tagName) : [];
-    parts.unshift(`${current.tagName.toLowerCase()}:nth-of-type(${siblings.indexOf(current) + 1})`);
+    const siblings = current.parentElement
+      ? Array.from(current.parentElement.children).filter(
+          (child) => child.tagName === current!.tagName,
+        )
+      : [];
+    parts.unshift(
+      `${current.tagName.toLowerCase()}:nth-of-type(${siblings.indexOf(current) + 1})`,
+    );
     current = current.parentElement;
   }
   return `body > ${parts.join(' > ')}`;
+}
+
+function replayScrollAncestors(element: Element): readonly Readonly<{
+  selector: string;
+  scrollLeft: number;
+  scrollTop: number;
+}>[] {
+  const ancestors: Array<{
+    selector: string;
+    scrollLeft: number;
+    scrollTop: number;
+  }> = [];
+  let current = element.parentElement;
+  while (current && current !== document.body && ancestors.length < 8) {
+    if (
+      current instanceof HTMLElement &&
+      (current.scrollLeft !== 0 || current.scrollTop !== 0)
+    ) {
+      ancestors.push({
+        selector: stableReplaySelector(current),
+        scrollLeft: current.scrollLeft,
+        scrollTop: current.scrollTop,
+      });
+    }
+    current = current.parentElement;
+  }
+  return ancestors;
+}
+
+/** Add a unique row identity when a named control is repeated in a list. */
+function findUniqueReplayAncestor(
+  element: Element,
+): Readonly<{ element: Element; selector: string }> | undefined {
+  const stableAttributes = [
+    'data-testid',
+    'data-user-id',
+    'data-item-id',
+    'id',
+  ] as const;
+  let ancestor = element.parentElement;
+  while (ancestor && ancestor !== document.body) {
+    for (const attribute of stableAttributes) {
+      const value = ancestor.getAttribute(attribute);
+      if (value === null) continue;
+      const escaped =
+        typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+          ? CSS.escape(value)
+          : value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+      const selector =
+        attribute === 'id' ? `#${escaped}` : `[${attribute}="${escaped}"]`;
+      if (isUniqueReplaySelector(selector))
+        return { element: ancestor, selector };
+    }
+    ancestor = ancestor.parentElement;
+  }
+  return undefined;
+}
+
+/** Build a stable child path with sibling positions under a unique container. */
+function pathFromAncestor(element: Element, ancestor: Element): string {
+  const parts: string[] = [];
+  let current: Element | null = element;
+  while (current && current !== ancestor) {
+    const siblings = current.parentElement
+      ? Array.from(current.parentElement.children).filter(
+          (child) => child.tagName === current!.tagName,
+        )
+      : [];
+    parts.unshift(
+      `${current.tagName.toLowerCase()}:nth-of-type(${siblings.indexOf(current) + 1})`,
+    );
+    current = current.parentElement;
+  }
+  return parts.join(' > ');
+}
+
+function isUniqueReplaySelector(selector: string): boolean {
+  try {
+    return document.querySelectorAll(selector).length === 1;
+  } catch {
+    // Ignore malformed selectors from app-provided attributes.
+    return false;
+  }
 }
 
 function redactReplayUrl(value: string): string {
@@ -891,11 +1179,3 @@ function redactReplayUrl(value: string): string {
 type SendContextSessionWithInternals = SendContextSession & {
   addCleanup(cleanup: () => void): void;
 };
-
-function readPrimitiveState(context: PrimitiveResourceRuntimeContext): unknown {
-  try {
-    return context.get();
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : String(error) };
-  }
-}

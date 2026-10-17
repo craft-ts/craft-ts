@@ -17,7 +17,9 @@ describe('log http server', () => {
     directory = mkdtempSync(join(tmpdir(), 'log-http-'));
     store = new LogStore({ directory });
     server = createLogHttpServer({ store });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) =>
+      server.listen(0, '127.0.0.1', resolve),
+    );
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
 
@@ -56,10 +58,18 @@ describe('log http server', () => {
   });
 
   it('answers CORS preflight', async () => {
-    const response = await fetch(`${baseUrl}/logs`, { method: 'OPTIONS' });
+    const response = await fetch(`${baseUrl}/logs`, {
+      method: 'OPTIONS',
+      headers: { origin: 'http://localhost:4210' },
+    });
 
     expect(response.status).toBe(204);
-    expect(response.headers.get('access-control-allow-origin')).toBe('*');
+    expect(response.headers.get('access-control-allow-origin')).toBe(
+      'http://localhost:4210',
+    );
+    expect(response.headers.get('access-control-allow-methods')).toContain(
+      'DELETE',
+    );
   });
 
   it('reports health with the target file', async () => {
@@ -80,7 +90,9 @@ describe('log http server', () => {
   it('rejects bodies over the limit with 413', async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     server = createLogHttpServer({ store, maxBodySize: 64 });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) =>
+      server.listen(0, '127.0.0.1', resolve),
+    );
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
     const response = await post({
@@ -97,6 +109,23 @@ describe('log http server', () => {
 
     expect(response.status).toBe(200);
     expect(store.size()).toBe(0);
+  });
+
+  it('rejects log deletion and writes from an unlisted browser origin', async () => {
+    await post({ entries: [{ level: 'log', message: 'keep me' }] });
+    const response = await fetch(`${baseUrl}/logs`, {
+      method: 'DELETE',
+      headers: { origin: 'https://attacker.example' },
+    });
+
+    expect(response.status).toBe(403);
+    expect(store.size()).toBeGreaterThan(0);
+
+    const preflight = await fetch(`${baseUrl}/logs`, {
+      method: 'OPTIONS',
+      headers: { origin: 'https://attacker.example' },
+    });
+    expect(preflight.status).toBe(403);
   });
 
   it('returns 404 for unknown routes', async () => {

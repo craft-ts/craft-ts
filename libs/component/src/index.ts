@@ -4,6 +4,8 @@ export * from './lib/ai/ai-send-context-chat';
 export * from './lib/ai/ai-send-context-launcher';
 export * from './lib/ai/send-context-prompt';
 export * from './lib/ai/debug-session-replay';
+export * from './lib/ai/debug-session-replay-signals';
+export * from './lib/ai/debug-session-replay-bridge';
 export * from './lib/ai/send-context-ui.tokens';
 export * from './lib/ai/send-context-to-ai';
 export * from './lib/assert-defined-input';
@@ -43,6 +45,11 @@ export * from './lib/a11y-control';
 export * from './lib/testing';
 export * from './lib/testing-stability';
 export * from './lib/loop-guard-banner';
+export {
+  captureDebugSessionEnvironment,
+  environmentDifferences,
+  identifyBrowser,
+} from './lib/ai/debug-session-environment';
 export type {
   CraftLocatorResult,
   CraftTemplateLocatorApi,
