@@ -124,7 +124,11 @@ describe('Query template', () => {
 });
 
 describe('Query logic', () => {
-  async function setup(currentUserId = '3') {
+  async function setup(currentUserId = '3', replay = false) {
+    const originalUrl = window.location.href;
+    if (replay) {
+      window.history.replaceState(null, '', '/?craft-debug-replay=1');
+    }
     const getItemById = vi.fn(function* (userId: string) {
       return { id: userId, name: `User ${userId}` };
     });
@@ -165,6 +169,7 @@ describe('Query logic', () => {
         },
       },
     );
+    if (replay) window.history.replaceState(null, '', originalUrl);
 
     await vi.waitFor(() =>
       expect(getItemById).toHaveBeenCalledWith(currentUserId),
@@ -214,6 +219,17 @@ describe('Query logic', () => {
           key: 'user-query',
         }),
       );
+    } finally {
+      injector.destroy();
+    }
+  });
+
+  it('does not restore cached query values during a debug replay launch', async () => {
+    const { storage, injector } = await setup('6', true);
+
+    try {
+      expect(storage.addQueryToPersist).not.toHaveBeenCalled();
+      expect(storage.addQueryByIdToPersist).not.toHaveBeenCalled();
     } finally {
       injector.destroy();
     }

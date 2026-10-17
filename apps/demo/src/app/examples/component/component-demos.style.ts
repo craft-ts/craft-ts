@@ -130,6 +130,7 @@ export const componentUi = craftStyles('componentDemo', {
     ...hairline(ui.border.control),
     radius(radii.md),
     cursor.pointer,
+    color(ui.text.body),
     bg(ui.surface.raised),
     when(buttonTone.primary, [
       borderColor(ui.border.primary),

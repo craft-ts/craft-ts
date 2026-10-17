@@ -8,6 +8,7 @@ import {
   pre,
   withComponentProviders,
   type Input,
+  isCraftDebugReplayLaunch,
 } from '@craft-ts/component';
 import {
   craftService,
@@ -44,6 +45,7 @@ export const { GlobalQueryView, provideGlobalQueryView } = craftService(
           storeName: 'demo-app',
           key: 'user-query',
         }),
+        { enabled: !isCraftDebugReplayLaunch() },
       ),
     );
     yield* craftComputed('hasUser', () => userQuery.hasValue());

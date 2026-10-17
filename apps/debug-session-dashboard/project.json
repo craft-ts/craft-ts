@@ -1,0 +1,51 @@
+{
+  "name": "debug-session-dashboard",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "craft",
+  "sourceRoot": "apps/debug-session-dashboard/src",
+  "tags": ["scope:debug-session", "type:app"],
+  "targets": {
+    "build-local-types": {
+      "executor": "nx:run-commands",
+      "parallelism": false,
+      "options": {
+        "command": "node_modules/.bin/tsc -b libs/core/tsconfig.lib.json libs/component/tsconfig.lib.json --force --pretty false"
+      },
+      "cache": false
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
+      "options": {
+        "cwd": "apps/debug-session-dashboard",
+        "command": "tsc -p tsconfig.app.json --noEmit --pretty false"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/debug-session-dashboard"],
+      "options": {
+        "command": "npx vite build --config apps/debug-session-dashboard/vite.config.ts"
+      },
+      "configurations": {
+        "production": {
+          "command": "npx vite build --config apps/debug-session-dashboard/vite.config.ts --mode production"
+        },
+        "development": {
+          "command": "npx vite build --config apps/debug-session-dashboard/vite.config.ts --mode development"
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-local-types"],
+      "options": {
+        "command": "npx vite --config apps/debug-session-dashboard/vite.config.ts",
+        "forwardAllArgs": true
+      }
+    }
+  }
+}
