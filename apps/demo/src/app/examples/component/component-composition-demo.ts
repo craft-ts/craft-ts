@@ -18,6 +18,7 @@ import {
 } from '@craft-ts/component';
 import { componentUi } from './component-demos.style';
 import { componentProvidersDemo } from './component-providers-demo';
+import { buttonUi } from '@craft-ts/ui/style';
 
 const noAccess = craftException({ _tag: 'NO_ACCESS' });
 const { RestrictedData, provideRestrictedData } = craftService(
@@ -83,8 +84,8 @@ export const componentCompositionDemo = craftComponent(
         'accessToggle',
         {
           type: 'button',
-          class: componentUi.button,
-          'data-componentButton': 'slate',
+          class: buttonUi.root,
+          'data-variant': 'tonal',
           click: ComponentCompositionDemoView.canReadRestrictedData.toggle,
         },
         'Toggle access',

@@ -6,6 +6,7 @@ import {
   heading,
   headingSection,
 } from '@craft-ts/component';
+import { sendContext } from './demo-send-context.style';
 import { SendContextCounterComponent } from './counter';
 
 export const { DemoSendContextView, provideDemoSendContextView } = craftService(
@@ -18,15 +19,18 @@ export const { DemoSendContextView, provideDemoSendContextView } = craftService(
 const DemoSendContextComponent = craftComponent(
   'DemoSendContextComponent',
   { providers: [provideDemoSendContextView()] },
-  () => div([
+  () => div({ class: sendContext.page }, [
       heading('Demo send context'),
       headingSection(
-        forNode(DemoSendContextView.counters, { track: (index) => index }, () =>
-          SendContextCounterComponent({
-            initialValue: function* () {
-              return 1;
-            },
-          }),
+        div(
+          { class: sendContext.grid },
+          forNode(DemoSendContextView.counters, { track: (index) => index }, () =>
+            SendContextCounterComponent({
+              initialValue: function* () {
+                return 1;
+              },
+            }),
+          ),
         ),
       ),
     ]),

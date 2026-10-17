@@ -12,8 +12,12 @@
 
 const STYLE_PACKAGE = '@craft-ts/style';
 
-/** `./badge.style`, `../ui/badge.style.ts`, `@app/ui/foundation.style.js`. */
-const STYLE_MODULE = /\.style(\.[cm]?[jt]s)?$/;
+/**
+ * `./badge.style`, `../ui/badge.style.ts`, `@app/ui/foundation.style.js` — and the
+ * `/style` entry of a framework package (`@craft-ts/ui/style`), which hands out
+ * sheets and no component.
+ */
+const STYLE_MODULE = /\.style(\.[cm]?[jt]s)?$|^@craft-ts\/[\w-]+\/style$/;
 
 const isStyleModule = (source) =>
   typeof source === 'string' && STYLE_MODULE.test(source);

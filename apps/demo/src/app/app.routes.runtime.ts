@@ -81,6 +81,14 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
   {
+    path: 'herbier',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/herbier/herbier-gallery')).then(
+        ({ HerbierGallery }) => HerbierGallery,
+      ),
+    ),
+  },
+  {
     path: '',
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(import('./examples/component/component-demo')).then(
@@ -436,6 +444,7 @@ type DemoRoutePath =
   | ''
   | 'design-system'
   | 'design-system/scroll'
+  | 'herbier'
   | 'i18n'
   | 'query/:userId'
   | 'debounced-web-search'
@@ -576,6 +585,14 @@ type _CanRunDesignSystem = CanRun<
     (typeof import('./examples/design-system/design-system-demo'))['designSystemDemo'],
     never,
     'path: "design-system"'
+  >
+>;
+
+type _CanRunHerbierGallery = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/herbier/herbier-gallery'))['HerbierGallery'],
+    never,
+    'path: "herbier"'
   >
 >;
 

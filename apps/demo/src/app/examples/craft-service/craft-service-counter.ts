@@ -1,6 +1,7 @@
 import { button, craftComponent, div, p, heading } from '@craft-ts/component';
 import { craftService, state, craftExpose } from '@craft-ts/core';
 import { example } from '../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 const { Counter, provideCounter } = craftService(
   { name: 'Counter', providedIn: 'toProvide' },
@@ -37,7 +38,7 @@ const CraftServiceCounterComponent = craftComponent(
         button(
           'decrement',
           {
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             type: 'button',
             click: CraftServiceCounterView.counter.decrement,
           },
@@ -46,7 +47,7 @@ const CraftServiceCounterComponent = craftComponent(
         button(
           'reset',
           {
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             type: 'button',
             click: CraftServiceCounterView.counter.reset,
           },
@@ -55,7 +56,7 @@ const CraftServiceCounterComponent = craftComponent(
         button(
           'increment',
           {
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             type: 'button',
             click: CraftServiceCounterView.counter.increment,
           },

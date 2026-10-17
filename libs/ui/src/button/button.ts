@@ -41,6 +41,7 @@ export const DocButton = craftComponent(
         type: 'button', // button-has-type
         class: buttonUi.root,
         'data-variant': input.variant,
+        'data-fit': 'fixed',
         'data-loading': function* () {
           return (yield* input.loading()) ? 'true' : 'false';
         },
@@ -117,6 +118,7 @@ export const DocLinkButton = craftComponent(
         class: buttonUi.root,
         href: input.href,
         'data-variant': input.variant,
+        'data-fit': 'fixed',
       },
       [span(input.label)],
     ),

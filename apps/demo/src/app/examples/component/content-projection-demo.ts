@@ -21,6 +21,7 @@ import { card } from './content-projection-card';
 import { toolbarAction, userBadge } from './content-projection-actions';
 import { dialog, toolbar } from './content-projection-overlays';
 import { componentUi, projectionDemo } from './component-demos.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 interface DemoUser {
   readonly id: number;
@@ -135,8 +136,8 @@ export const contentProjectionDemo = craftComponent(
             button(
               'ContentProjectionDemoView.showToolbar.toggle',
               {
-                class: componentUi.button,
-                'data-componentButton': 'primary',
+                class: buttonUi.root,
+                'data-variant': 'primary',
                 type: 'button',
                 click: ContentProjectionDemoView.showToolbar.toggle,
               },
@@ -176,8 +177,8 @@ export const contentProjectionDemo = craftComponent(
             button(
               'ContentProjectionDemoView.dialogOpen.open',
               {
-                class: componentUi.button,
-                'data-componentButton': 'primary',
+                class: buttonUi.root,
+                'data-variant': 'primary',
                 type: 'button',
                 click: ContentProjectionDemoView.dialogOpen.open,
               },

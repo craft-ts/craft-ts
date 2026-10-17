@@ -23,9 +23,10 @@ import {
   color,
   craftStyles,
   cssVars,
-  definePalette,
   defineStateAxis,
   display,
+  flexWrap,
+  math,
   easing,
   font,
   fontWeight,
@@ -57,40 +58,48 @@ import {
   when,
   clipOverflow,
 } from '@craft-ts/style';
+import { herbier, theme } from '@craft-ts/ui/style';
 
-const ui = definePalette('cssVarsDemo', {
+/**
+ * The Herbier theme, under the names this sheet already used: each entry is a
+ * `theme` variable, so the pages follow the light or dark side and the season.
+ * The registered variables below keep a typed initial value, which has to be a
+ * resolved colour — a palette token, never a `var()` — so the page sets the
+ * theme's own values over those initials (see `page`).
+ */
+const ui = {
   surface: {
-    page: { light: '#ffffff', dark: '#ffffff' },
-    panel: { light: '#f8fafc', dark: '#f8fafc' },
-    card: { light: '#ffffff', dark: '#ffffff' },
-    blue: { light: '#eff6ff', dark: '#eff6ff' },
-    pink: { light: '#fff1f2', dark: '#fff1f2' },
-    cyan: { light: '#ecfeff', dark: '#ecfeff' },
-    amber: { light: '#fefce8', dark: '#fefce8' },
-    badge: { light: '#e0e7ff', dark: '#e0e7ff' },
-    parent: { light: '#eef2ff', dark: '#eef2ff' },
-    track: { light: '#e2e8f0', dark: '#e2e8f0' },
-    fill: { light: '#7c3aed', dark: '#7c3aed' },
+    page: theme.raised,
+    panel: theme.navHover,
+    card: theme.raised,
+    blue: theme.infoSurface,
+    pink: theme.dangerSurface,
+    cyan: theme.tipSurface,
+    amber: theme.importantSurface,
+    badge: theme.selected,
+    parent: theme.navHover,
+    track: theme.line,
+    fill: theme.action,
   },
   text: {
-    strong: { light: '#172033', dark: '#172033' },
-    muted: { light: '#64748b', dark: '#64748b' },
-    nav: { light: '#475569', dark: '#475569' },
-    blue: { light: '#1e3a8a', dark: '#1e3a8a' },
-    pink: { light: '#9f1239', dark: '#9f1239' },
-    green: { light: '#166534', dark: '#166534' },
-    cyan: { light: '#155e75', dark: '#155e75' },
-    amber: { light: '#854d0e', dark: '#854d0e' },
-    badge: { light: '#3730a3', dark: '#3730a3' },
+    strong: theme.ink,
+    muted: theme.inkMuted,
+    nav: theme.inkMuted,
+    blue: theme.infoInk,
+    pink: theme.dangerInk,
+    green: theme.tipInk,
+    cyan: theme.tipInk,
+    amber: theme.importantInk,
+    badge: theme.link,
   },
   border: {
-    subtle: { light: '#dbe3f0', dark: '#dbe3f0' },
-    parent: { light: '#a5b4fc', dark: '#a5b4fc' },
+    subtle: theme.line,
+    parent: theme.lineStrong,
   },
   effect: {
-    shadow: { light: '#1720331a', dark: '#1720331a' },
+    shadow: theme.shadow,
   },
-});
+};
 
 const themed = { inherits: true };
 
@@ -98,8 +107,8 @@ const themed = { inherits: true };
 
 /** The card's public variables. Each one has a typed initial value. */
 export const tokenCardVars = cssVars('tokenCard', {
-  ink: kind.color(ui.text.strong, themed),
-  bg: kind.color(ui.surface.card, themed),
+  ink: kind.color(herbier.text.strong, themed),
+  bg: kind.color(herbier.surface.raised, themed),
   radius: kind.length(unit.px(16), themed),
 });
 
@@ -110,15 +119,15 @@ export const cardTone = defineStateAxis('tokenCard', ['blue', 'pink', 'green']);
 
 /** The badge's ink: set by a parent, read by the badge, inherited in between. */
 export const badgeVars = cssVars('inheritedBadge', {
-  ink: kind.color(ui.text.muted, themed),
+  ink: kind.color(herbier.text.muted, themed),
 });
 
 // ─── forwarding ─────────────────────────────────────────────────────────────
 
 /** The parent's own API, forwarded to the card inside it. */
 export const forwardingVars = cssVars('forwarding', {
-  ink: kind.color(ui.text.cyan, themed),
-  bg: kind.color(ui.surface.cyan, themed),
+  ink: kind.color(herbier.text.tip, themed),
+  bg: kind.color(herbier.surface.tip, themed),
 });
 
 // ─── @property ──────────────────────────────────────────────────────────────
@@ -135,8 +144,14 @@ export const cssVarsDemo = craftStyles('cssVarsDemo', {
     maxInlineSize(unit.rem(72)),
     marginInline.auto,
     color(ui.text.strong),
+    // The theme's values over the initial ones, for every card below.
+    set(tokenCardVars.ink, theme.ink),
+    set(tokenCardVars.bg, theme.raised),
+    set(badgeVars.ink, theme.inkMuted),
+    set(forwardingVars.ink, theme.tipInk),
+    set(forwardingVars.bg, theme.tipSurface),
   ],
-  nav: [display.flex, gap(space(2))],
+  nav: [display.flex, flexWrap.wrap, gap(space(2))],
   navLink: [
     py(space(2)),
     px(space(3)),
@@ -155,7 +170,7 @@ export const cssVarsDemo = craftStyles('cssVarsDemo', {
   muted: [color(ui.text.muted)],
   grid: [
     display.grid,
-    gridTemplateColumns(tracks.autoFit(unit.rem(15))),
+    gridTemplateColumns(tracks.autoFit(math.min(unit.pct(100), unit.rem(15)))),
     gap(space(4)),
   ],
   caseCard: [

@@ -25,6 +25,7 @@ import {
   craftExpose,
 } from '@craft-ts/core';
 import { example } from '../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 // -- Types --
 
@@ -223,7 +224,7 @@ const PlaygroundComponent = craftComponent(
           button(
             'add',
             {
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               type: 'button',
               disabled: PlaygroundView.pg.addTodo.isLoading,
               click: PlaygroundView.add,
@@ -245,8 +246,8 @@ const PlaygroundComponent = craftComponent(
                 button(
                   'toggle',
                   {
-                    class: example.button,
-                    'data-exampleButton': 'ghost',
+                    class: buttonUi.root,
+                    'data-variant': 'link',
                     type: 'button',
                     *click() {
                       yield* PlaygroundView.pg.toggleTodo.mutate((yield* todo()).id);
@@ -270,8 +271,8 @@ const PlaygroundComponent = craftComponent(
                 button(
                   'delete',
                   {
-                    class: example.button,
-                    'data-exampleButton': 'ghost',
+                    class: buttonUi.root,
+                    'data-variant': 'link',
                     type: 'button',
                     'aria-label': function* () {
                       return `Delete ${(yield* todo()).title}`;

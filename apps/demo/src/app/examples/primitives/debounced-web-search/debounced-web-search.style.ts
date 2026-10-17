@@ -11,7 +11,6 @@ import {
   borderWidth,
   color,
   craftStyles,
-  definePalette,
   display,
   fontWeight,
   gap,
@@ -25,12 +24,14 @@ import {
   space,
   unit,
 } from '@craft-ts/style';
+import { theme } from '@craft-ts/ui/style';
 
-const books = definePalette('bookSearch', {
-  surface: { cover: { light: '#e2e8f0', dark: '#e2e8f0' } },
-  text: { link: { light: '#2563eb', dark: '#2563eb' } },
-  border: { row: { light: '#e2e8f0', dark: '#e2e8f0' } },
-});
+/** The Herbier theme, under the names this sheet uses. */
+const books = {
+  surface: { cover: theme.line },
+  text: { link: theme.link },
+  border: { row: theme.line },
+};
 
 export const bookSearch = craftStyles('bookSearch', {
   book: [

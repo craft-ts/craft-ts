@@ -27,6 +27,14 @@ import {
 } from '@craft-ts/core';
 import { demoEnabledRoutePaths } from './app.routes';
 import { demoShell } from './demo-shell.style';
+import {
+  DocModeToggle,
+  provideDocModeView,
+  DocSeasonPicker,
+  provideDocSeasonView,
+  defaultSeasonNames,
+} from '@craft-ts/ui';
+import { badgeUi, buttonUi } from '@craft-ts/ui/style';
 
 const DOCS_URL = 'https://craft-ts.github.io/craft/';
 const FEEDBACK_URL = 'https://github.com/craft-ts/craft-ts/issues';
@@ -53,6 +61,7 @@ const NAV_GROUPS = [
     links: [
       ['Mini design system', { to: 'design-system' }],
       ['Context obligations', { to: 'design-system/scroll' }],
+      ['Herbier components', { to: 'herbier' }],
     ],
   },
   {
@@ -163,7 +172,7 @@ export const { AppView, provideAppView } = craftService(
 export const App = craftComponent(
   'App',
   {
-    providers: [provideAppView()],
+    providers: [provideAppView(), provideDocModeView(), provideDocSeasonView()],
   },
   () =>
     div({ class: demoShell.root }, [
@@ -173,7 +182,8 @@ export const App = craftComponent(
         { class: demoShell.banner, 'data-testid': 'demo-banner' },
         [
           div({ class: demoShell.bannerMain }, [
-            strong({ class: demoShell.bannerStrong }, 'Beta demo'),
+            span({ class: badgeUi.root, 'data-tone': 'important' }, 'Beta'),
+            strong({ class: demoShell.bannerStrong }, 'Demo'),
             span(' — the API and documentation may still evolve.'),
             a(
               'docs',
@@ -208,7 +218,8 @@ export const App = craftComponent(
         button(
           'navToggle',
           {
-            class: demoShell.navToggle,
+            class: buttonUi.root,
+            'data-variant': 'secondary',
             'data-testid': 'nav-toggle',
             type: 'button',
             'aria-expanded': AppView.navOpen,
@@ -264,19 +275,40 @@ export const App = craftComponent(
           ),
           ),
         ),
+        div({ class: demoShell.navTools }, [
+          DocSeasonPicker({
+            label: function* () {
+              return 'Season';
+            },
+            menuId: function* () {
+              return 'season-menu';
+            },
+            names: function* () {
+              return defaultSeasonNames;
+            },
+          }),
+          DocModeToggle({
+            label: function* () {
+              return 'Toggle light and dark';
+            },
+          }),
+        ]),
       ]),
       main(
         { id: 'main', class: demoShell.content, tabIndex: -1 },
         CraftRouterOutlet(),
       ),
-      button(
-        'clearCache',
-        {
-          class: demoShell.clearCache,
-          type: 'button',
-          click: AppView.clearCache,
-        },
-        '🗑️ Clear Cache',
-      ),
+      div({ class: demoShell.clearCache }, [
+        button(
+          'clearCache',
+          {
+            class: buttonUi.root,
+            'data-variant': 'danger',
+            type: 'button',
+            click: AppView.clearCache,
+          },
+          'Clear cache',
+        ),
+      ]),
     ]),
 );

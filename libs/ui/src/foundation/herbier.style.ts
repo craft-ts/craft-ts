@@ -54,7 +54,6 @@ import {
   type SheetItem,
 } from '@craft-ts/style';
 import { forestMask, plateMask } from '../decor/art.style.ts';
-import { glyphMask } from '../decor/glyph.art.style.ts';
 import {
   NO_MASK,
   PLANES,
@@ -309,8 +308,6 @@ export const theme = cssVars('herbier', {
   plateMoss: kind.url(url(NO_MASK), themed),
   plateSnow: kind.url(url(NO_MASK), themed),
   plateOchre: kind.url(url(plateMask('ochre')), themed),
-  // The emblem on the cards of the front page: a drawing of the season.
-  cardGlyph: kind.url(url(glyphMask('classic')), themed),
   codeLift: kind.color(herbier.effect.shadow, themed),
   infoSurface: kind.color(herbier.surface.info, themed),
   infoBorder: kind.color(herbier.border.info, themed),
@@ -574,7 +571,6 @@ const drawings = (name: Season) => [
   set(theme.plateMoss, url(seasonPlateMask(name, 'moss'))),
   set(theme.plateSnow, url(seasonPlateMask(name, 'snow'))),
   set(theme.plateOchre, url(seasonPlateMask(name, 'ochre'))),
-  set(theme.cardGlyph, url(glyphMask(name))),
 ];
 
 /**

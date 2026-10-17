@@ -63,7 +63,7 @@ import {
   borderColor,
   shadow,
 } from '@craft-ts/style';
-import { variant } from '../button/button.style.ts';
+import { variant } from '@craft-ts/ui/style';
 import {
   displayFont,
   duration,
@@ -71,7 +71,7 @@ import {
   sansFont,
   theme,
   weight,
-} from '../foundation/herbier.style.ts';
+} from '@craft-ts/ui/style';
 
 /** A small spaced label: the heading of a sidebar group, a table head. */
 export const eyebrow = [

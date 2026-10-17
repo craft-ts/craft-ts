@@ -29,6 +29,7 @@ const styleAlias = {
     'libs/component/src/style.ts',
   ),
   '@craft-ts/component': join(workspaceRoot, 'libs/component/src/index.ts'),
+  '@craft-ts/ui/style': join(workspaceRoot, 'libs/ui/src/style.ts'),
 };
 
 let cached: ReturnType<typeof createArchitectureGraph> | undefined;
@@ -48,7 +49,12 @@ export async function loadDemoArchitectureGraph() {
   // with the style dump, which the build regenerates.
   const styleDump = await loadStyleDump(join(workspaceRoot, 'apps/demo/src'), {
     alias: styleAlias,
-    include: [join(workspaceRoot, 'libs/component/src')],
+    // The sheets of the framework's components and of the design system the
+    // examples are written with live outside the demo's own source.
+    include: [
+      join(workspaceRoot, 'libs/component/src'),
+      join(workspaceRoot, 'libs/ui/src'),
+    ],
   });
   cached = createArchitectureGraph(
     mergeStyleDump(graph, styleDump),

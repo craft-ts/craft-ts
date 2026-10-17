@@ -37,7 +37,7 @@ import PhotoSkeleton from './photo-skeleton';
 // detail hero only mounts once this guard settles, so the shared-element morph
 // can't capture a hero that isn't in the DOM yet — instead you see the pending
 // UI. Cached global query, so the FIRST detail visit is slow and a revisit is
-// instant; use the 🗑️ Clear Cache button to replay the pending state.
+// instant; use the Clear cache button to replay the pending state.
 const { ViewTransitionAccess } = craftService(
   { name: 'ViewTransitionAccess', providedIn: 'global' },
   function* () {

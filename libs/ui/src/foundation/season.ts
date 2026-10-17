@@ -17,8 +17,8 @@ export type SeasonChoice = Season | 'auto';
 
 export const SEASON_CHOICES: readonly SeasonChoice[] = ['auto', ...SEASONS];
 
-export const SEASON_STORAGE_KEY = 'docs-season';
-export const MODE_STORAGE_KEY = 'docs-mode';
+export const SEASON_STORAGE_KEY = 'craft-season';
+export const MODE_STORAGE_KEY = 'craft-mode';
 
 /**
  * The season of a date, by the meteorological calendar of the northern hemisphere:

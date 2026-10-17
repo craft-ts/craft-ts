@@ -28,7 +28,8 @@
   "peerDependencies": {
     "@craft-ts/component": "^0.8.8",
     "@craft-ts/core": "^0.8.8",
-    "@craft-ts/style": "^0.8.8"
+    "@craft-ts/style": "^0.8.8",
+    "@craft-ts/ui": "*"
   },
   "sideEffects": [
     "**/*.style.js"

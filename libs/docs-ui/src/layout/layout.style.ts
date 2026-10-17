@@ -42,7 +42,7 @@ import {
   sansFont,
   scope,
   theme,
-} from '../foundation/herbier.style.ts';
+} from '@craft-ts/ui/style';
 
 /** Whether the page has a sidebar. A home page and a 404 do not. */
 export const sidebarAxis = defineStateAxis('sidebar', ['with', 'without'] as const);

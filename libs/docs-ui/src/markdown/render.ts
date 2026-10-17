@@ -35,9 +35,9 @@ import {
   type CraftNodeChild,
   type Input,
 } from '@craft-ts/component';
-import { calloutCaption, DocCallout } from '../callout/callout.ts';
-import { DocCode } from '../code/code.ts';
-import { DocCodeGroup } from '../code/code-group.ts';
+import { calloutCaption, DocCallout } from '@craft-ts/ui';
+import { DocCode } from '@craft-ts/ui';
+import { DocCodeGroup } from '@craft-ts/ui';
 import { proseUi } from '../prose/prose.style.ts';
 import type { Block, CodeBlock, Inline } from './tree.ts';
 

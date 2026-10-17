@@ -16,12 +16,16 @@ export default defineConfig({
   cacheDir: path.resolve(workspace, 'node_modules/.vite/libs/docs-ui-preview'),
   plugins: [
     craftStyle({
-      include: [path.resolve(workspace, 'libs/component/src')],
+      include: [
+        path.resolve(workspace, 'libs/component/src'),
+        path.resolve(workspace, 'libs/ui/src'),
+      ],
       alias: {
         '@craft-ts/style': path.resolve(workspace, 'libs/style/src/index.ts'),
         '@craft-ts/core': path.resolve(workspace, 'libs/core/src/index.ts'),
         '@craft-ts/component/style': path.resolve(workspace, 'libs/component/src/style.ts'),
         '@craft-ts/component': path.resolve(workspace, 'libs/component/src/index.ts'),
+        '@craft-ts/ui/style': path.resolve(workspace, 'libs/ui/src/style.ts'),
       },
     }),
   ],
@@ -39,6 +43,8 @@ export default defineConfig({
       { find: '@craft-ts/component/style', replacement: path.resolve(workspace, 'libs/component/src/style.ts') },
       { find: '@craft-ts/component', replacement: path.resolve(workspace, 'libs/component/src/index.ts') },
       { find: '@craft-ts/core', replacement: path.resolve(workspace, 'libs/core/src/index.ts') },
+      { find: '@craft-ts/ui/style', replacement: path.resolve(workspace, 'libs/ui/src/style.ts') },
+      { find: '@craft-ts/ui', replacement: path.resolve(workspace, 'libs/ui/src/index.ts') },
       { find: '@craft-ts/docs-ui', replacement: path.resolve(workspace, 'libs/docs-ui/src/index.ts') },
     ],
   },

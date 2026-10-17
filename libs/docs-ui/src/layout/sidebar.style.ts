@@ -23,7 +23,12 @@ import {
   fontStyle,
   fontWeight,
   gap,
+  insetBlockEnd,
   insetBlockStart,
+  insetInlineEnd,
+  insetInlineStart,
+  int,
+  zIndex,
   letterSpacing,
   lineWidth,
   listStyleType,
@@ -60,7 +65,7 @@ import {
   sansFont,
   theme,
   weight,
-} from '../foundation/herbier.style.ts';
+} from '@craft-ts/ui/style';
 
 /** The drawer is open. Below `md` the sidebar is a drawer; from `md` it is always there. */
 export const drawer = defineStateAxis('open', ['true'] as const);
@@ -74,7 +79,26 @@ export const sidebarUi = craftStyles('docSidebar', {
     borderInlineEndWidth(lineWidth.hairline),
     borderInlineEndStyle.solid,
     borderInlineEndColor(theme.line),
-    when(drawer.true, [display.block]),
+    // Open, the drawer covers the page under the bar and scrolls by itself: it is not
+    // a block above the text that the reader has to scroll through to reach it.
+    when(drawer.true, [
+      display.block,
+      position.fixed,
+      insetBlockStart(unit.rem(4.5)),
+      insetBlockEnd(space(0)),
+      insetInlineStart(space(0)),
+      insetInlineEnd(space(0)),
+      zIndex(int(20)),
+      provides(scrollPort.block),
+      // Left open and then widened past `md`, the drawer goes back to being the column:
+      // the state attribute outweighs a bare media rule, so the undoing is said here.
+      when(bp.medium, [
+        position.sticky,
+        insetBlockEnd.auto,
+        insetInlineStart.auto,
+        insetInlineEnd.auto,
+      ]),
+    ]),
     when(bp.medium, [
       display.block,
       position.sticky,

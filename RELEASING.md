@@ -124,7 +124,15 @@ After showing the resolved version, it asks for confirmation and:
 1. updates the fifteen package manifests and `CHANGELOG.md`;
 2. rebuilds the fifteen npm packages and the documentation (`docs-herbier`, the
    site drawn with `@craft-ts/docs-ui`);
-3. mirrors `apps/demo/src` and `apps/demo/public` into `craft-ts-demo`;
+3. mirrors `apps/demo/src` and `apps/demo/public` into `craft-ts-demo`, together
+   with the design system the examples are written with: `libs/ui/src` (without
+   its specs) is copied to `libs/ui/src` in `craft-ts-demo`, and the standalone
+   `tsconfig` and Vite config map `@craft-ts/ui` and `@craft-ts/ui/style` to it.
+   `@craft-ts/ui` is not published to npm; there is one copy of it, in this
+   repository, and the StackBlitz project gets the components from it. The
+   release test `keeps libs/ui exportable` fails if `libs/ui` imports anything
+   the exported project does not install (only `@craft-ts/core`,
+   `@craft-ts/component`, `@craft-ts/style`, and its own files are allowed);
 4. pins the three CraftTS packages used by the demo (`core`, `component`, and
    `dev-tools`) to the exact release version;
 5. mirrors `apps/demo-effect/src` into `craft-ts-demo-effect`;

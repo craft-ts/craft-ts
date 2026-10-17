@@ -6,8 +6,8 @@
  * `::: tip` become a `DocCallout` instead of a `<div class="tip custom-block">`,
  * and lets a test assert on the structure of a page without a browser.
  */
-import type { CalloutTone } from '../callout/callout.ts';
-import type { CodeLine } from '../code/code.ts';
+import type { CalloutTone } from '@craft-ts/ui';
+import type { CodeLine } from '@craft-ts/ui';
 
 export type Inline =
   | { readonly t: 'text'; readonly text: string }

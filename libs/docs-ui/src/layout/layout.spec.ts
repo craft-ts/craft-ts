@@ -10,9 +10,9 @@ import { renderCss } from '@craft-ts/style/vite';
 import type { SiteConfig } from '../site/site.ts';
 import { DocNotFound, DocHome } from './home.ts';
 import { defaultLabels, DocLayout } from './layout.ts';
-import { NAVIGATED_EVENT } from '../site/navigated.ts';
-import { menuUi } from '../menu/menu.style.ts';
-import { glyphMask } from '../decor/glyph.art.style.ts';
+import { NAVIGATED_EVENT } from '@craft-ts/ui';
+import { menuUi } from '@craft-ts/ui';
+import { glyphMask } from './glyph.art.style.ts';
 
 afterEach(() => {
   document.documentElement.removeAttribute('data-mode');
@@ -257,7 +257,7 @@ describe('DocLayout on a page of a section', () => {
     row(defaultLabels.seasons.winter).click();
     await rendered.flush();
     expect(document.documentElement.getAttribute('data-season')).toBe('winter');
-    expect(localStorage.getItem('docs-season')).toBe('winter');
+    expect(localStorage.getItem('craft-season')).toBe('winter');
     expect(row(defaultLabels.seasons.winter).getAttribute('aria-checked')).toBe('true');
     expect(row(defaultLabels.seasons.auto).getAttribute('aria-checked')).toBe('false');
     expect(
@@ -269,7 +269,7 @@ describe('DocLayout on a page of a section', () => {
     // "Automatic" forgets the choice: the date decides again.
     row(defaultLabels.seasons.auto).click();
     await rendered.flush();
-    expect(localStorage.getItem('docs-season')).toBeNull();
+    expect(localStorage.getItem('craft-season')).toBeNull();
     expect(['spring', 'summer', 'autumn', 'winter']).toContain(
       document.documentElement.getAttribute('data-season'),
     );
@@ -278,7 +278,7 @@ describe('DocLayout on a page of a section', () => {
   });
 
   it('starts from the season the reader stored, and writes it when the boot script did not', async () => {
-    localStorage.setItem('docs-season', 'autumn');
+    localStorage.setItem('craft-season', 'autumn');
     const rendered = await renderLayout('/guide/');
     expect(document.documentElement.getAttribute('data-season')).toBe('autumn');
     const checked = [...rendered.element.querySelectorAll('button[role="menuitemradio"]')].filter(
@@ -440,7 +440,7 @@ describe('DocHome', () => {
     const marks = (['classic', 'spring', 'summer', 'autumn', 'winter'] as const).map(glyphMask);
     expect(new Set(marks).size).toBe(5);
     const sheet = css();
-    expect(sheet).toContain('--herbier-cardGlyph');
+    expect(sheet).toContain('--docsHome-mask');
     for (const season of ['spring', 'summer', 'autumn', 'winter'] as const) {
       expect(sheet).toContain(glyphMask(season));
     }

@@ -1,5 +1,5 @@
 import { a, craftComponent, span, type CraftNodeChild, type Input } from '@craft-ts/component';
-import { DocIcon, type IconName } from '../icon/icon.ts';
+import { DocIcon, type IconName } from '@craft-ts/ui';
 import { navLinkUi } from './nav.style.ts';
 
 export interface NavLinkInput {

@@ -8,7 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { registeredAtoms, registeredClasses } from '@craft-ts/style';
+import { registeredClasses } from '@craft-ts/style';
 import {
   status,
   statusTone,
@@ -50,17 +50,29 @@ describe('the badge no longer builds a class at runtime', () => {
 });
 
 describe('the CSS the sheet produces', () => {
-  it('reads only variables it declared', () => {
-    const declared = new Set([v.bg.declaration.name, v.ink.declaration.name]);
-    const used = registeredAtoms()
-      .flatMap((atom) => [...atom.value.matchAll(/var\((--[^),]+)/g)])
-      .map((match) => match[1])
-      // The capture always starts with `--`; the guard is what tells the type,
-      // so `declared.has(...)` reads a custom property name and not a string.
-      .filter((name): name is `--${string}` => name.startsWith('--'));
+  it('reads only variables it declared, and the theme only to fill them', () => {
+    const declared = new Set<string>([
+      v.bg.declaration.name,
+      v.ink.declaration.name,
+    ]);
+    const badge = registeredClasses().find(
+      (registered) => registered.key === 'status-badge',
+    );
+    const reads = (badge?.rules ?? []).flatMap((rule) =>
+      [...rule.value.matchAll(/var\((--[^),]+)/g)].map((match) => ({
+        property: rule.property,
+        name: match[1],
+      })),
+    );
 
-    expect(used.length).toBeGreaterThan(0);
-    for (const name of used) expect(declared.has(name)).toBe(true);
+    expect(reads.length).toBeGreaterThan(0);
+    for (const { property, name } of reads) {
+      // The tone colours are the design system's theme variables, which the
+      // badge reads but does not declare — and only to write its own two.
+      const fillsOwnVariable =
+        property.startsWith('--status-') && name.startsWith('--herbier-');
+      expect(declared.has(name) || fillsOwnVariable).toBe(true);
+    }
   });
 
   it('writes the tone colours through the two variables, not through five classes', () => {

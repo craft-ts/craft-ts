@@ -39,7 +39,7 @@ test('shows the beta documentation and feedback banner', async ({ page }) => {
   await page.goto('/');
 
   const banner = page.locator('[data-testid="demo-banner"]');
-  await expect(banner).toContainText('Beta demo');
+  await expect(banner).toContainText('Beta');
   await expect(banner).toContainText('Your feedback is welcome');
   await expect(banner).toContainText(
     'read `yield*` as “I need…”',

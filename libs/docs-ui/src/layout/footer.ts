@@ -7,7 +7,7 @@ import {
   type CraftNodeChild,
   type Input,
 } from '@craft-ts/component';
-import { DocForest } from '../decor/decor.ts';
+import { DocForest } from '@craft-ts/ui';
 import { footerUi } from './footer.style.ts';
 
 export interface FooterLink {

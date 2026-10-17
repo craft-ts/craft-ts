@@ -12,7 +12,7 @@ import MarkdownIt from 'markdown-it';
 import { parse as parseYaml } from 'yaml';
 import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
 import type Token from 'markdown-it/lib/token.mjs';
-import type { CalloutTone } from '../callout/callout.ts';
+import type { CalloutTone } from '@craft-ts/ui';
 import {
   languageOf,
   type CodeHighlighter,

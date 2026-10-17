@@ -7,6 +7,11 @@ import { craftDemoRules } from './craft-eslint-rules.mjs';
 
 export default defineConfig([
   {
+    // The design system is copied here from the monorepo's `libs/ui`, where it is
+    // linted with its own presets; this config is the examples'.
+    ignores: ['libs/**'],
+  },
+  {
     files: ['**/*.ts'],
     extends: [
       eslint.configs.recommended,

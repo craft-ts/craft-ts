@@ -199,7 +199,35 @@ export function parseReleaseArgument(argument) {
     : { bump: '', version: argument };
 }
 
-export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
+/**
+ * The design system the demo is written with is a library of this workspace
+ * (`libs/ui`), not a published package: the export puts its sources next to the
+ * examples, at the same `libs/ui/src` path, and the specifiers `@craft-ts/ui` and
+ * `@craft-ts/ui/style` are mapped to them (`tsconfig.standalone.json`,
+ * `vite.config.standalone.ts`). There is one copy in the repository; the StackBlitz
+ * project gets the components, readable and editable, from it.
+ *
+ * Specs stay behind: they run against the workspace.
+ */
+export function syncUiLibrary(uiRoot, targetRoot) {
+  const source = join(uiRoot, 'src');
+  if (!existsSync(source)) {
+    throw new Error(`Missing UI library source directory: ${source}`);
+  }
+  const target = join(targetRoot, 'libs/ui/src');
+  rmSync(join(targetRoot, 'libs/ui'), { recursive: true, force: true });
+  cpSync(source, target, {
+    recursive: true,
+    filter: (path) => !/\.(spec|test)\.ts$/.test(path),
+  });
+}
+
+export function syncDemoWorkspace(
+  sourceDemoRoot,
+  targetDemoRoot,
+  version,
+  { uiRoot = join(workspaceRoot, 'libs/ui') } = {},
+) {
   const targetManifestPath = join(targetDemoRoot, 'package.json');
   const targetManifest = readJson(targetManifestPath);
   if (targetManifest.name !== 'craft-ts-demo') {
@@ -218,6 +246,7 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
     cpSync(source, target, { recursive: true });
   }
 
+  syncUiLibrary(uiRoot, targetDemoRoot);
   syncDemoEslint(sourceDemoRoot, targetDemoRoot, targetManifest);
   disableTargetLogForwarding(targetDemoRoot);
 
@@ -231,6 +260,13 @@ export function syncDemoWorkspace(sourceDemoRoot, targetDemoRoot, version) {
     );
   }
   cpSync(standaloneViteConfig, join(targetDemoRoot, 'vite.config.ts'));
+
+  // The page writes `data-mode` and `data-season` before the first paint (the
+  // design system's boot script), so it travels with the sources it belongs to.
+  const sourceIndex = join(sourceDemoRoot, 'index.html');
+  if (existsSync(sourceIndex)) {
+    cpSync(sourceIndex, join(targetDemoRoot, 'index.html'));
+  }
 
   const standaloneTsConfig = join(sourceDemoRoot, 'tsconfig.standalone.json');
   if (!existsSync(standaloneTsConfig)) {

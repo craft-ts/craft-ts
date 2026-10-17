@@ -28,13 +28,13 @@ import {
   withBase,
   type SiteConfig,
 } from '../site/site.ts';
-import { DocToastRegion, provideDocToastQueue } from '../toast/toast.ts';
+import { DocToastRegion, provideDocToastQueue } from '@craft-ts/ui';
 import { DocFooter, type FooterLink } from './footer.ts';
 import { layoutUi } from './layout.style.ts';
-import { NAVIGATED_EVENT } from '../site/navigated.ts';
-import { provideDocModeView, type Mode } from './mode.ts';
-import { defaultSeasonNames, type SeasonNames } from '../foundation/season.ts';
-import { provideDocSeasonView } from './season.ts';
+import { NAVIGATED_EVENT } from '@craft-ts/ui';
+import { provideDocModeView, type Mode } from '@craft-ts/ui';
+import { defaultSeasonNames, type SeasonNames } from '@craft-ts/ui';
+import { provideDocSeasonView } from '@craft-ts/ui';
 import { DocNavbar } from './navbar.ts';
 import { DocSearch } from './search.ts';
 import { DocSidebar } from './sidebar.ts';

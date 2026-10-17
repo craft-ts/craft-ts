@@ -4,7 +4,9 @@
  * A cell's colour is state, so it cannot be a class: it is the one value here
  * written at runtime, through the `pixel.fill` variable and `assign(...)`. The
  * domain keeps its colours as hex strings; `pixelColor(hex)` turns one of them
- * into the palette token the variable accepts.
+ * into the palette token the variable accepts. The colours of the workshop are
+ * the drawing's own data and keep their palette; the frames and the controls
+ * read the Herbier theme.
  */
 import {
   aspectRatio,
@@ -39,6 +41,7 @@ import {
   unit,
   type ColorValue,
 } from '@craft-ts/style';
+import { theme } from '@craft-ts/ui/style';
 
 const pixels = definePalette('pixelArt', {
   surface: {
@@ -48,12 +51,6 @@ const pixels = definePalette('pixelArt', {
     green: { light: '#22c55e', dark: '#22c55e' },
     blue: { light: '#3b82f6', dark: '#3b82f6' },
     yellow: { light: '#eab308', dark: '#eab308' },
-    control: { light: '#ffffff', dark: '#ffffff' },
-  },
-  text: { control: { light: '#0f172a', dark: '#0f172a' } },
-  border: {
-    cell: { light: '#cbd5e1', dark: '#cbd5e1' },
-    add: { light: '#64748b', dark: '#64748b' },
   },
 });
 
@@ -79,7 +76,7 @@ const cellFrame = [
   p(space(0)),
   borderWidth(lineWidth.hairline),
   borderStyle.solid,
-  borderColor(pixels.border.cell),
+  borderColor(theme.lineStrong),
   radius(unit.px(3)),
   cursor.pointer,
   bg(pixelVars.fill),
@@ -93,7 +90,7 @@ export const pixel = craftStyles('pixelArt', {
     p(space(0)),
     borderWidth(lineWidth.thick),
     borderStyle.solid,
-    borderColor(pixels.border.cell),
+    borderColor(theme.lineStrong),
     radius(radii.full),
     cursor.pointer,
     bg(pixelVars.fill),
@@ -121,10 +118,10 @@ export const pixel = craftStyles('pixelArt', {
     p(space(0)),
     borderWidth(lineWidth.hairline),
     borderStyle.dashed,
-    borderColor(pixels.border.add),
+    borderColor(theme.inkSubtle),
     radius(radii.md),
     cursor.pointer,
-    color(pixels.text.control),
-    bg(pixels.surface.control),
+    color(theme.ink),
+    bg(theme.raised),
   ],
 });

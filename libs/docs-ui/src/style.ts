@@ -1,11 +1,10 @@
 /**
- * The theme, and nothing that renders.
+ * The docs theme, and nothing that renders.
  *
  * A `*.style.ts` of an application may only import style vocabulary, because the
- * build plugin evaluates it in Node. The theme variables, the fonts and the
- * motion of Herbier are vocabulary of that kind; this entry hands them to such a
- * file without dragging in a single component.
+ * build plugin evaluates it in Node. The theme comes from `@craft-ts/ui/style`;
+ * what the docs add to it — the eyebrow caption of a section — is vocabulary of
+ * the same kind.
  */
-export * from './foundation/herbier.style.ts';
+export * from '@craft-ts/ui/style';
 export { eyebrow } from './nav/nav.style.ts';
-export { codeUi } from './code/code.style.ts';

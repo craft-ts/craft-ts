@@ -14,7 +14,7 @@ import {
   state,
 } from '@craft-ts/core';
 import { DocIcon } from '../icon/icon.ts';
-import { NAVIGATED_EVENT } from '../site/navigated.ts';
+import { NAVIGATED_EVENT } from './navigated.ts';
 import { menuUi } from './menu.style.ts';
 
 export interface MenuItem {

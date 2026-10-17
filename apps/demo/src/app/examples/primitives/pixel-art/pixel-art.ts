@@ -23,6 +23,7 @@ import {
 import { assign } from '@craft-ts/style';
 import { example } from '../../shared/example.style';
 import { pixel, pixelColor, pixelVars } from './pixel.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 const DEFAULT_GRID_SIZE = 16;
 const EMPTY_COLOR = '#f8fafc';
@@ -158,7 +159,7 @@ const PixelArt = craftComponent(
         'clear',
         {
           type: 'button',
-          class: example.button,
+          class: buttonUi.root, 'data-variant': 'secondary',
           click: PixelArtView.cells.clearAll,
         },
         'Clear',

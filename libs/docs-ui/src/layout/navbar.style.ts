@@ -65,38 +65,48 @@ import {
   sansFont,
   theme,
   weight,
-} from '../foundation/herbier.style.ts';
+} from '@craft-ts/ui/style';
 
 export const navbarUi = craftStyles('docNavbar', {
   root: [
     display.flex,
     alignItems.center,
-    gap(space(4)),
+    gap(space(2)),
     position.sticky,
     insetBlockStart(space(0)),
     zIndex(int(30)),
     blockSize(unit.rem(4.5)),
-    px(space(4)),
+    px(space(3)),
     bg(theme.surface),
     borderBlockEndWidth(lineWidth.hairline),
     borderBlockEndStyle.solid,
     borderBlockEndColor(theme.line),
+    // The bar fits a 320 px phone: the brand, four buttons, and nothing else.
+    when(bp.compact, [px(space(4)), gap(space(4))]),
     when(bp.medium, [px(space(8)), gap(space(8))]),
     when(bp.wide, [px(unit.rem(2.75)), gap(space(10))]),
   ],
   brand: [
     display.flex,
     alignItems.center,
-    gap(space(3)),
+    gap(space(2)),
     flexShrink(num(0)),
     color(theme.ink),
     textDecoration.none,
+    when(bp.compact, [gap(space(3))]),
   ],
   // The logo: it is its own shape, no tile behind it.
-  mark: [display.block, inlineSize(unit.rem(2.5)), flexShrink(num(0))],
+  mark: [
+    display.block,
+    inlineSize(unit.rem(2)),
+    flexShrink(num(0)),
+    when(bp.compact, [inlineSize(unit.rem(2.5))]),
+  ],
   name: [
     fontFamily(displayFont),
-    fontSize(unit.rem(1.5625)),
+    fontSize(unit.rem(1.125)),
+    whiteSpace.nowrap,
+    when(bp.compact, [fontSize(unit.rem(1.5625))]),
     fontWeight(weight.semibold),
     letterSpacing(unit.em(-0.015)),
     color(theme.ink),
@@ -139,11 +149,14 @@ export const navbarUi = craftStyles('docNavbar', {
   tools: [
     display.flex,
     alignItems.center,
-    gap(space(3)),
+    gap(space(2)),
     marginInlineStart(unit.px(0)),
     flexGrow(num(1)),
     justifyContent.flexEnd,
+    when(bp.compact, [gap(space(3))]),
   ],
+  // The status word: a phone has no room for it beside four buttons.
+  badge: [display.none, when(bp.compact, [display.block])],
   // The field-shaped button that opens the search.
   search: [
     display.flex,

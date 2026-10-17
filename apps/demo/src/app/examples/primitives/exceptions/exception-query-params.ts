@@ -17,6 +17,7 @@ import {
   craftException,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 function formatParseException(exception: {
   _tag: string;
@@ -96,7 +97,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           button(
             'success',
             {
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               type: 'button',
               *click() {
                 yield* ExceptionQueryParamsView.navigate('success');
@@ -107,7 +108,7 @@ const ExceptionQueryParamsComponent = craftComponent(
           button(
             'exception',
             {
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               type: 'button',
               *click() {
                 yield* ExceptionQueryParamsView.navigate('exception');

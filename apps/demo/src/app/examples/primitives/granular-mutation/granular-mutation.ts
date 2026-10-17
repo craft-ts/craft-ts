@@ -34,6 +34,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export const { GranularMutationView, provideGranularMutationView } =
   craftService(
@@ -149,8 +150,8 @@ const GranularMutation = craftComponent(
                           td({ class: example.td }, button(
                               'UpdateUserName',
                               { type: 'button',
-                                class: example.button,
-                                'data-exampleButton': 'subtle',
+                                class: buttonUi.root,
+                                'data-variant': 'tonal',
                                 'data-testid': 'update-user',
                                 disabled: function* () {
                                   // `isLoading()` is a reactive read: without
@@ -207,7 +208,7 @@ const GranularMutation = craftComponent(
                 ),
                 button(
                   'PreviousPage',
-                  { type: 'button', class: example.button, click: GranularMutationView.pagination.previousPage },
+                  { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: GranularMutationView.pagination.previousPage },
                   'Previous',
                 ),
                 span(
@@ -219,7 +220,7 @@ const GranularMutation = craftComponent(
                 ),
                 button(
                   'NextPage',
-                  { type: 'button', class: example.button, click: GranularMutationView.pagination.nextPage },
+                  { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: GranularMutationView.pagination.nextPage },
                   'Next',
                 ),
               ]),

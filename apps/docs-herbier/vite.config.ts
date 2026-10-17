@@ -100,6 +100,7 @@ export default defineConfig(({ command }) => ({
       // The sheets of the framework and of the docs theme live outside this app's root.
       include: [
         path.resolve(workspace, 'libs/component/src'),
+        path.resolve(workspace, 'libs/ui/src'),
         path.resolve(workspace, 'libs/docs-ui/src'),
       ],
       alias: {
@@ -107,6 +108,7 @@ export default defineConfig(({ command }) => ({
         '@craft-ts/core': path.resolve(workspace, 'libs/core/src/index.ts'),
         '@craft-ts/component/style': path.resolve(workspace, 'libs/component/src/style.ts'),
         '@craft-ts/component': path.resolve(workspace, 'libs/component/src/index.ts'),
+        '@craft-ts/ui/style': path.resolve(workspace, 'libs/ui/src/style.ts'),
         '@craft-ts/docs-ui/style': path.resolve(workspace, 'libs/docs-ui/src/style.ts'),
       },
     }),

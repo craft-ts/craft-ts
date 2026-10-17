@@ -1,0 +1,32 @@
+{
+  "name": "@craft-ts/ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Herbier design system for craft-ts: theme, seasons and the UI components built on it. Not published: the docs site reads it from the workspace, and the demo export copies its sources next to the examples.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json",
+    "./style": {
+      "types": "./src/style.d.ts",
+      "default": "./src/style.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "peerDependencies": {
+    "@craft-ts/component": "^0.9.3",
+    "@craft-ts/core": "^0.9.3",
+    "@craft-ts/style": "^0.9.3"
+  },
+  "sideEffects": [
+    "**/*.style.js"
+  ]
+}

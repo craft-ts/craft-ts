@@ -12,8 +12,8 @@ import {
   type Output,
 } from '@craft-ts/component';
 import { craftExpose, craftService, state } from '@craft-ts/core';
-import { DocDialog } from '../dialog/dialog.ts';
-import { DocField } from '../field/field.ts';
+import { DocDialog } from '@craft-ts/ui';
+import { DocField } from '@craft-ts/ui';
 import { searchEntries, type SearchEntry } from '../site/search.ts';
 import { withBase } from '../site/site.ts';
 import { searchUi } from './search.style.ts';

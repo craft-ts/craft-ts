@@ -23,6 +23,7 @@ import {
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 import { editor } from './editor.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export const { TextEditorStateMachineView, provideTextEditorStateMachineView } =
   craftService(
@@ -136,8 +137,8 @@ const TextEditorStateMachine = craftComponent(
               button(
                 'text-edit',
                 {
-                  class: example.button,
-                  'data-exampleButton': 'primary',
+                  class: buttonUi.root,
+                  'data-variant': 'primary',
                   type: 'button',
                   click: () => reading.edit$.emit(),
                 },
@@ -160,8 +161,8 @@ const TextEditorStateMachine = craftComponent(
                 button(
                   'text-commit',
                   {
-                    class: example.button,
-                    'data-exampleButton': 'primary',
+                    class: buttonUi.root,
+                    'data-variant': 'primary',
                     type: 'button',
                     click: () => editing.commit$.emit(),
                   },
@@ -171,7 +172,7 @@ const TextEditorStateMachine = craftComponent(
                   'text-cancel',
                   {
                     type: 'button',
-                    class: example.button,
+                    class: buttonUi.root, 'data-variant': 'secondary',
                     click: () => editing.cancel$.emit(),
                   },
                   'Cancel',

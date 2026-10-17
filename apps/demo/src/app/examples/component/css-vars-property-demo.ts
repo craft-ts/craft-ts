@@ -3,7 +3,7 @@ import { craftService, state } from '@craft-ts/core';
 import { CssVarsPageNav } from './css-vars-demo.shared';
 import { AssignedMeter, RegisteredMeter } from './css-vars-property.shared';
 import { cssVarsDemo } from './css-vars.style';
-import { example } from '../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 const { CssVarsPropertyDemoView, provideCssVarsPropertyDemoView } =
   craftService(
@@ -37,8 +37,8 @@ export const CssVarsPropertyDemo = craftComponent(
       button(
         'nudgeMeter',
         {
-          class: example.button,
-          'data-exampleButton': 'primary',
+          class: buttonUi.root,
+          'data-variant': 'primary',
           type: 'button',
           click: CssVarsPropertyDemoView.meterValue.nudge,
         },

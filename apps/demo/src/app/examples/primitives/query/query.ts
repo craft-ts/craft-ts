@@ -23,6 +23,7 @@ import {
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService } from './api.service';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export const { GlobalQueryView, provideGlobalQueryView } = craftService(
   { name: 'globalQueryView', providedIn: 'toProvide' },
@@ -109,7 +110,7 @@ const GlobalQuery = craftComponent(
         button(
           'GoToPreviousUser',
           {
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             type: 'button',
             click: function* () {
               (yield* GlobalQueryView()).navigatePrevious();
@@ -120,8 +121,8 @@ const GlobalQuery = craftComponent(
         button(
           'GoToNextUser',
           {
-            class: example.button,
-            'data-exampleButton': 'primary',
+            class: buttonUi.root,
+            'data-variant': 'primary',
             type: 'button',
             click: function* () {
               (yield* GlobalQueryView()).navigateNext();

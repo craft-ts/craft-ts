@@ -18,6 +18,7 @@ import {
   state,
 } from '@craft-ts/core';
 import { componentUi } from './component-demos.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 interface DemoUser {
   readonly id: number;
@@ -46,7 +47,7 @@ const userCard = craftComponent(
           'removeUser',
           {
             type: 'button',
-            class: componentUi.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             *click() {
               const result = inputs.onRemove(yield* inputs.user());
               if (isGenerator(result)) yield* result;
@@ -101,8 +102,8 @@ export const componentDemo = craftComponent(
         'addUser',
         {
           type: 'button',
-          class: componentUi.button,
-          'data-componentButton': 'primary',
+          class: buttonUi.root,
+          'data-variant': 'primary',
           click: ComponentDemoView.users.addUser,
           'data-testid': 'add-user',
         },
@@ -135,8 +136,8 @@ export const componentDemo = craftComponent(
               'loadDeferred',
               {
                 type: 'button',
-                class: componentUi.button,
-                'data-componentButton': 'primary',
+                class: buttonUi.root,
+                'data-variant': 'primary',
                 'data-testid': 'load-deferred',
               },
               'Load the deferred component',
