@@ -65,7 +65,7 @@ import {
   sansFont,
   theme,
   weight,
-} from '../foundation/herbier.style.ts';
+} from '@craft-ts/ui/style';
 
 /** The drawer is open. Below `md` the sidebar is a drawer; from `md` it is always there. */
 export const drawer = defineStateAxis('open', ['true'] as const);

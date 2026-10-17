@@ -1,4 +1,5 @@
-import { bootScript, withBase, type SiteConfig } from '@craft-ts/docs-ui';
+import { withBase, type SiteConfig } from '@craft-ts/docs-ui';
+import { bootScript } from '@craft-ts/ui';
 import { LOCKED_DARK_PATH } from '../locked.ts';
 import {
   documentDescription,

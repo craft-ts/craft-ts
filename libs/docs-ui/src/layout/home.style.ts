@@ -73,7 +73,8 @@ import {
   paddingBlockEnd,
   paddingBlockStart,
 } from '@craft-ts/style';
-import { contourMask } from '../decor/art.style.ts';
+import { contourMask } from '@craft-ts/ui/style';
+import { cardGlyph } from './card-glyph.style.ts';
 import {
   arriving,
   arrivingAfter,
@@ -86,7 +87,7 @@ import {
   sansFont,
   theme,
   weight,
-} from '../foundation/herbier.style.ts';
+} from '@craft-ts/ui/style';
 
 export const homeUi = craftStyles('docHome', {
   hero: [
@@ -252,7 +253,7 @@ export const homeUi = craftStyles('docHome', {
     maskRepeat.noRepeat,
     maskPosition.center,
     maskSize(unit.pct(100)),
-    maskImage(theme.cardGlyph),
+    maskImage(cardGlyph.mask),
   ],
   cardGo: [
     position.relative,

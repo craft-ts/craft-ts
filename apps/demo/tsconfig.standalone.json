@@ -12,7 +12,11 @@
     "useDefineForClassFields": false,
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "paths": {
+      "@craft-ts/ui": ["./libs/ui/src/index.ts"],
+      "@craft-ts/ui/style": ["./libs/ui/src/style.ts"]
+    }
   },
   "files": []
 }

@@ -9,32 +9,34 @@ import {
   span,
 } from '@craft-ts/component';
 import {
+  DocHome,
+  DocKbd,
+  DocLayout,
+  DocNavLink,
+  DocNotFound,
+  DocPage,
+  defaultLabels,
+  type SiteConfig,
+} from '../src/index.ts';
+import {
   DocBadge,
   DocButton,
   DocCallout,
   DocField,
   DocForest,
-  DocHome,
   DocIcon,
   DocIconButton,
-  DocKbd,
-  DocLayout,
   DocMenu,
-  DocNavLink,
-  DocNotFound,
-  DocPage,
   DocSwitch,
   DocTabs,
   DocToastQueue,
   DocToastRegion,
   DocTooltip,
   ICON_NAMES,
-  defaultLabels,
   provideDocModeView,
   provideDocToastQueue,
   type ButtonVariant,
-  type SiteConfig,
-} from '../src/index.ts';
+} from '@craft-ts/ui';
 import { sampleBlocks } from './sample.ts';
 
 const read =

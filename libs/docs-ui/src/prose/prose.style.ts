@@ -71,7 +71,7 @@ import {
   sansFont,
   theme,
   weight,
-} from '../foundation/herbier.style.ts';
+} from '@craft-ts/ui/style';
 
 /** How a row of blocks lays its children out. A plain row is `start`. */
 export const layout = defineStateAxis('layout', ['between', 'end'] as const);

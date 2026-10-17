@@ -10,15 +10,15 @@ import {
   type Input,
   type Output,
 } from '@craft-ts/component';
-import { DocBadge } from '../badge/badge.ts';
-import { DocIcon } from '../icon/icon.ts';
-import { DocLogo } from '../logo/logo.ts';
-import { DocMenu } from '../menu/menu.ts';
+import { DocBadge } from '@craft-ts/ui';
+import { DocIcon } from '@craft-ts/ui';
+import { DocLogo } from '@craft-ts/ui';
+import { DocMenu } from '@craft-ts/ui';
 import { activeNavIndex, isMenu, withBase, type NavEntry } from '../site/site.ts';
 import { DocKbd } from '../button/kbd.ts';
-import type { SeasonNames } from '../foundation/season.ts';
-import { DocModeToggle } from './mode.ts';
-import { DocSeasonPicker } from './season.ts';
+import type { SeasonNames } from '@craft-ts/ui';
+import { DocModeToggle } from '@craft-ts/ui';
+import { DocSeasonPicker } from '@craft-ts/ui';
 import { navbarUi } from './navbar.style.ts';
 
 export interface NavbarInput {

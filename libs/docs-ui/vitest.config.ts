@@ -27,6 +27,8 @@ export default defineConfig({
         'libs/style/src/plugin/vite.ts',
       ),
       '@craft-ts/style': path.join(workspaceRoot, 'libs/style/src/index.ts'),
+      '@craft-ts/ui/style': path.join(workspaceRoot, 'libs/ui/src/style.ts'),
+      '@craft-ts/ui': path.join(workspaceRoot, 'libs/ui/src/index.ts'),
       '@craft-ts/docs-ui/style': path.join(workspaceRoot, 'libs/docs-ui/src/style.ts'),
       '@craft-ts/docs-ui/node': path.join(workspaceRoot, 'libs/docs-ui/src/node.ts'),
       '@craft-ts/docs-ui': path.join(

@@ -15,6 +15,8 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       '@craft-ts/core': path.join(workspaceRoot, 'libs/core/src/index.ts'),
+      '@craft-ts/ui/style': path.join(workspaceRoot, 'libs/ui/src/style.ts'),
+      '@craft-ts/ui': path.join(workspaceRoot, 'libs/ui/src/index.ts'),
       // The subpath first: the bare entry would match it as a prefix.
       '@craft-ts/component/style': path.join(
         workspaceRoot,

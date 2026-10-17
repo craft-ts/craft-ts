@@ -30,6 +30,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export const { ListWithPaginationView, provideListWithPaginationView } =
   craftService(
@@ -169,7 +170,7 @@ const ListWithPagination = craftComponent(
           ),
           button(
             'PreviousPage',
-            { type: 'button', class: example.button, click: ListWithPaginationView.pagination.previousPage },
+            { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: ListWithPaginationView.pagination.previousPage },
             'Previous',
           ),
           span(
@@ -181,7 +182,7 @@ const ListWithPagination = craftComponent(
           ),
           button(
             'NextPage',
-            { type: 'button', class: example.button, click: ListWithPaginationView.pagination.nextPage },
+            { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: ListWithPaginationView.pagination.nextPage },
             'Next',
           ),
         ]),

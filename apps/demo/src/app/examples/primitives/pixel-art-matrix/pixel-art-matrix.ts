@@ -13,6 +13,7 @@ import { LONG_PRESS_DURATION_MS, longPress } from './long-press.directive';
 import { assign } from '@craft-ts/style';
 import { example } from '../../shared/example.style';
 import { pixel, pixelColor, pixelVars } from '../pixel-art/pixel.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 type Cell = {
   readonly id: number;
@@ -141,7 +142,7 @@ const PixelArtMatrix = craftComponent(
             }),
           ),
         ),
-        button('reset', { type: 'button', class: example.button, click: PixelArtMatrixView.grid.reset }, 'Reset'),
+        button('reset', { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: PixelArtMatrixView.grid.reset }, 'Reset'),
         div(
           { class: pixel.matrix },
           forNode(PixelArtMatrixView.grid, { track: trackGridRow }, (row, rowIndex) =>
@@ -181,7 +182,7 @@ const PixelArtMatrix = craftComponent(
             ]),
           ),
         ),
-        button('addRow', { type: 'button', class: example.button, click: PixelArtMatrixView.grid.addRow }, 'Add row'),
+        button('addRow', { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: PixelArtMatrixView.grid.addRow }, 'Add row'),
       ]),
 );
 

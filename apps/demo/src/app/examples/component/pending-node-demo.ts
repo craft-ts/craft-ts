@@ -19,6 +19,7 @@ import {
   settled,
 } from '@craft-ts/core';
 import { pendingDemo } from './component-demos.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 interface DemoUser {
   readonly id: number;
@@ -92,7 +93,7 @@ export const pendingNodeDemo = craftComponent(
         'reload',
         {
           type: 'button',
-          class: pendingDemo.actionButton,
+          class: buttonUi.root, 'data-variant': 'secondary',
           click: PendingNodeDemoView.reload,
         },
         'Reload',

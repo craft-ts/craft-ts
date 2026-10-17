@@ -21,6 +21,7 @@ import {
   settled,
 } from '@craft-ts/core';
 import { pendingDemo } from './component-demos.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 const pendingStatusMessage = (
   className: typeof pendingDemo.skeleton,
@@ -97,7 +98,7 @@ export const pendingNodeExceptionDemo = craftComponent(
             'issueSuccess',
             {
               type: 'button',
-              class: pendingDemo.actionButton,
+              class: buttonUi.root, 'data-variant': 'secondary',
               *click() {
                 yield* PendingNodeExceptionDemoView.issue.mutate({
                   reference: 'INV-2026-014',
@@ -111,7 +112,7 @@ export const pendingNodeExceptionDemo = craftComponent(
             'issueRejected',
             {
               type: 'button',
-              class: pendingDemo.actionButton,
+              class: buttonUi.root, 'data-variant': 'secondary',
               *click() {
                 yield* PendingNodeExceptionDemoView.issue.mutate({
                   reference: 'INV-2026-015',

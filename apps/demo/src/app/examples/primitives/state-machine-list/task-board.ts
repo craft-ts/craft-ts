@@ -30,6 +30,7 @@ import {
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 import { taskBoard } from './task-board.style';
+import { buttonUi, badgeUi } from '@craft-ts/ui/style';
 
 type Task = {
   readonly id: string;
@@ -170,7 +171,7 @@ const TaskRow = craftComponent(
           return title;
         }),
         span(
-          { class: example.badge, 'data-testid': 'task-step' },
+          { class: badgeUi.root, 'data-tone': 'info', 'data-testid': 'task-step' },
           function* () {
             const { machine } = yield* TaskRowView();
             return yield* machine.step();
@@ -196,8 +197,8 @@ const TaskRow = craftComponent(
         button(
           'task-start',
           {
-            class: example.button,
-            'data-exampleButton': 'primary',
+            class: buttonUi.root,
+            'data-variant': 'primary',
             type: 'button',
             disabled: function* () {
               const { machine } = yield* TaskRowView();
@@ -210,8 +211,8 @@ const TaskRow = craftComponent(
         button(
           'task-finish',
           {
-            class: example.button,
-            'data-exampleButton': 'primary',
+            class: buttonUi.root,
+            'data-variant': 'primary',
             type: 'button',
             disabled: function* () {
               const { machine } = yield* TaskRowView();
@@ -225,7 +226,7 @@ const TaskRow = craftComponent(
           'task-reopen',
           {
             type: 'button',
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             disabled: function* () {
               const { machine } = yield* TaskRowView();
               return yield* machine.reopenDisabled();
@@ -241,7 +242,7 @@ const TaskRow = craftComponent(
           'task-back',
           {
             type: 'button',
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             disabled: function* () {
               const { machine } = yield* TaskRowView();
               return yield* machine.backDisabled();
@@ -254,7 +255,7 @@ const TaskRow = craftComponent(
           'task-forward',
           {
             type: 'button',
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             disabled: function* () {
               const { machine } = yield* TaskRowView();
               return yield* machine.forwardDisabled();

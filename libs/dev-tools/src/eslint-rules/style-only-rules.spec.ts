@@ -68,6 +68,28 @@ describe('no-raw-class', () => {
     expect(messages).toEqual([]);
   });
 
+  it('accepts a sheet class imported from the style entry of a framework package', async () => {
+    const messages = await lint(
+      rawClassRule,
+      `
+      import { buttonUi } from '@craft-ts/ui/style';
+      button({ class: buttonUi.root, 'data-variant': 'primary' }, 'Save');
+    `,
+    );
+    expect(messages).toEqual([]);
+  });
+
+  it('does not take the component entry of that package for a sheet', async () => {
+    const messages = await lint(
+      rawClassRule,
+      `
+      import { buttonUi } from '@craft-ts/ui';
+      button({ class: buttonUi.root }, 'Save');
+    `,
+    );
+    expect(ids(messages)).toEqual(['untracedClass']);
+  });
+
   it('accepts a typed input', async () => {
     const messages = await lint(
       rawClassRule,

@@ -17,6 +17,7 @@ import {
   type CraftServiceInput,
 } from '@craft-ts/core';
 import { componentUi, projectionDemo } from './component-demos.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 const { ComponentProfileContext, provideComponentProfileContext } =
   craftService(
@@ -61,7 +62,7 @@ const profileWithComponentProviders = craftComponent(
         'incrementProfileCounter',
         {
           type: 'button',
-          class: componentUi.button,
+          class: buttonUi.root, 'data-variant': 'secondary',
           click: ComponentProfileContext.clicks.increment,
         },
         'Increment local counter',
@@ -105,7 +106,7 @@ export const componentProvidersDemo = craftComponent(
           'changeFirstProfile',
           {
             type: 'button',
-            class: componentUi.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             click: ComponentProvidersDemoView.firstProfileId.change,
           },
           'Change profile A',
@@ -114,7 +115,7 @@ export const componentProvidersDemo = craftComponent(
           'changeSecondProfile',
           {
             type: 'button',
-            class: componentUi.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             click: ComponentProvidersDemoView.secondProfileId.change,
           },
           'Change profile B',

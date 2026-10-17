@@ -8,7 +8,7 @@ import {
   type CraftNodeChild,
   type Input,
 } from '@craft-ts/component';
-import { DocIcon } from '../icon/icon.ts';
+import { DocIcon } from '@craft-ts/ui';
 import type { Crumb } from '../site/site.ts';
 import { breadcrumbUi } from './nav.style.ts';
 

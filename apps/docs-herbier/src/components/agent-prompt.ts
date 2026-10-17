@@ -1,5 +1,5 @@
 import { craftComponent, div, h, p, pre } from '@craft-ts/component';
-import { DocCopyButton } from '@craft-ts/docs-ui';
+import { DocCopyButton } from '@craft-ts/ui';
 import { agentPromptUi } from './agent-prompt.style.ts';
 
 /** The prompt an agent is given to set up a project. It is what "Copy" copies. */

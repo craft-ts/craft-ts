@@ -14,7 +14,6 @@ import {
   borderWidth,
   color,
   craftStyles,
-  definePalette,
   defineStateAxis,
   display,
   flex,
@@ -33,27 +32,29 @@ import {
   unit,
   when,
 } from '@craft-ts/style';
+import { theme } from '@craft-ts/ui/style';
 
-const editorUi = definePalette('stateEditor', {
+/** The Herbier theme, under the names this sheet uses. */
+const editorUi = {
   surface: {
-    step: { light: '#f8fafc', dark: '#f8fafc' },
-    stepActive: { light: '#eff6ff', dark: '#eff6ff' },
-    panel: { light: '#ffffff', dark: '#ffffff' },
-    hint: { light: '#f1f5f9', dark: '#f1f5f9' },
+    step: theme.navHover,
+    stepActive: theme.selected,
+    panel: theme.raised,
+    hint: theme.navHover,
   },
   text: {
-    step: { light: '#64748b', dark: '#64748b' },
-    stepActive: { light: '#1d4ed8', dark: '#1d4ed8' },
-    label: { light: '#334155', dark: '#334155' },
-    hint: { light: '#475569', dark: '#475569' },
+    step: theme.inkMuted,
+    stepActive: theme.link,
+    label: theme.ink,
+    hint: theme.inkMuted,
   },
   border: {
-    step: { light: '#cbd5e1', dark: '#cbd5e1' },
-    stepActive: { light: '#1d4ed8', dark: '#1d4ed8' },
-    panel: { light: '#e2e8f0', dark: '#e2e8f0' },
-    hint: { light: '#94a3b8', dark: '#94a3b8' },
+    step: theme.line,
+    stepActive: theme.action,
+    panel: theme.line,
+    hint: theme.decor,
   },
-});
+};
 
 /** The step the machine is in. Drives `data-editorStep` on each step. */
 export const stepState = defineStateAxis('editorStep', ['active']);

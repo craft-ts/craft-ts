@@ -40,6 +40,7 @@ import {
   kind,
   lineWidth,
   maxInlineSize,
+  minInlineSize,
   num,
   opacity,
   position,
@@ -79,6 +80,14 @@ export const variant = defineStateAxis('variant', [
   'link',
 ] as const);
 
+/**
+ * How wide a button is. A button sizes to its label; `fixed` is the call to
+ * action of a page — the hero of the docs — which keeps one width, whatever it
+ * says. The components (`DocButton`, `DocLinkButton`) are that call to action; a
+ * sheet put on a plain `<button>` is not, and needs no attribute.
+ */
+export const fit = defineStateAxis('fit', ['fixed'] as const);
+
 /** A button waiting for a result. `aria-busy` says it; this paints it. */
 export const loading = defineStateAxis('loading', ['true'] as const);
 
@@ -104,8 +113,13 @@ export const buttonUi = craftStyles(
       alignItems.center,
       justifyContent.center,
       gap(space(2)),
-      inlineSize(unit.pct(100)),
-      maxInlineSize(unit.rem(10.75)),
+      inlineSize.fitContent,
+      minInlineSize(unit.rem(5)),
+      when(fit.fixed, [
+        inlineSize(unit.pct(100)),
+        maxInlineSize(unit.rem(10.75)),
+        minInlineSize(space(0)),
+      ]),
       blockSize(unit.rem(2.625)),
       px(unit.rem(0.875)),
       position.relative,
@@ -238,7 +252,7 @@ export const buttonUi = craftStyles(
       ]),
     ],
   },
-  { axes: [variant, loading, { hover: interaction.hover }, { active: interaction.active }, { disabled: interaction.disabled }] },
+  { axes: [variant, fit, loading, { hover: interaction.hover }, { active: interaction.active }, { disabled: interaction.disabled }] },
 );
 
 /**

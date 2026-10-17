@@ -6,7 +6,8 @@
  * `assign(...)`: the artwork (`vtPhoto.art`, a gradient) and the
  * `view-transition-name` that pairs a tile with its hero (`vtPhoto.name`).
  * The gradients are typed — `photoArt(id)` — rather than CSS strings carried
- * in the photo data.
+ * in the photo data. The gradients are artwork and stay as they are; the text,
+ * the shadows and the placeholder read the Herbier theme.
  */
 import {
   aspectRatio,
@@ -48,6 +49,7 @@ import {
   clipOverflow,
   type ImageValue,
 } from '@craft-ts/style';
+import { theme } from '@craft-ts/ui/style';
 
 const art = definePalette('vtPhotos', {
   surface: {
@@ -70,14 +72,6 @@ const art = definePalette('vtPhotos', {
     nebulaB: { light: '#eaafc8', dark: '#eaafc8' },
     nebulaC: { light: '#7f7fd5', dark: '#7f7fd5' },
     placeholder: { light: '#e2e8f0', dark: '#e2e8f0' },
-  },
-  text: {
-    muted: { light: '#64748b', dark: '#64748b' },
-    link: { light: '#2563eb', dark: '#2563eb' },
-  },
-  effect: {
-    tile: { light: '#0f172a2e', dark: '#0f172a2e' },
-    hero: { light: '#0f172a40', dark: '#0f172a40' },
   },
 });
 
@@ -112,7 +106,7 @@ const artwork = [
   display.grid,
   placeItems.center,
   aspectRatio(num(4 / 3)),
-  bg(s.placeholder),
+  bg(theme.line),
   bgImage(vtPhoto.art),
   viewTransitionName(vtPhoto.name),
 ];
@@ -121,7 +115,7 @@ export const vt = craftStyles('viewTransitions', {
   intro: [display.grid, gap(space(2)), marginBlockEnd(space(6))],
   grid: [
     display.grid,
-    gridTemplateColumns(tracks.autoFill(unit.px(200))),
+    gridTemplateColumns(tracks.autoFill(unit.px(150))),
     gap(space(5)),
     p(space(0)),
     listStyleType.none,
@@ -130,23 +124,23 @@ export const vt = craftStyles('viewTransitions', {
     display.grid,
     gap(space(3)),
     textDecorationLine.none,
-    color(art.text.muted),
+    color(theme.inkMuted),
   ],
   art: [
     ...artwork,
     radius(unit.px(16)),
-    shadow({ y: unit.px(12), blur: unit.px(30), color: art.effect.tile }),
+    shadow({ y: unit.px(12), blur: unit.px(30), color: theme.shadow }),
   ],
   emoji: [fontSize(unit.rem(3))],
   meta: [display.grid, gap(space(1))],
   title: [fontWeight(num(700))],
-  subtitle: [font(text.sm), color(art.text.muted)],
+  subtitle: [font(text.sm), color(theme.inkMuted)],
   back: [
     display.inlineBlock,
     marginBlockEnd(space(6)),
     fontWeight(num(600)),
     textDecorationLine.none,
-    color(art.text.link),
+    color(theme.link),
   ],
   detail: [
     display.grid,
@@ -163,7 +157,7 @@ export const vt = craftStyles('viewTransitions', {
     clipOverflow.block,
     clipOverflow.inline,
     radius(unit.px(24)),
-    shadow({ y: unit.px(24), blur: unit.px(60), color: art.effect.hero }),
+    shadow({ y: unit.px(24), blur: unit.px(60), color: theme.shadow }),
   ],
   heroImage: [
     inlineSize(unit.pct(100)),
@@ -176,6 +170,6 @@ export const vt = craftStyles('viewTransitions', {
     display.block,
     blockSize(space(4)),
     radius(unit.rem(0.5)),
-    bg(s.placeholder),
+    bg(theme.line),
   ],
 });

@@ -116,9 +116,9 @@ describe('bootScript', () => {
   });
 
   it('restores a stored mode, and only a valid one', () => {
-    expect(boot({ month: 0, storage: { 'docs-mode': 'dark' } })['data-mode']).toBe('dark');
-    expect(boot({ month: 0, storage: { 'docs-mode': 'light' } })['data-mode']).toBe('light');
-    expect(boot({ month: 0, storage: { 'docs-mode': 'sepia' } })['data-mode']).toBeUndefined();
+    expect(boot({ month: 0, storage: { 'craft-mode': 'dark' } })['data-mode']).toBe('dark');
+    expect(boot({ month: 0, storage: { 'craft-mode': 'light' } })['data-mode']).toBe('light');
+    expect(boot({ month: 0, storage: { 'craft-mode': 'sepia' } })['data-mode']).toBeUndefined();
   });
 
   it('still sets the season of the date when storage is refused', () => {
@@ -131,7 +131,7 @@ describe('bootScript', () => {
     const darkPaths = ['/craft/learn-effect/'];
     const lesson = boot({
       month: 3,
-      storage: { 'docs-mode': 'light' },
+      storage: { 'craft-mode': 'light' },
       path: '/craft/learn-effect/intro.html',
       darkPaths,
     });
@@ -141,7 +141,7 @@ describe('bootScript', () => {
 
     const elsewhere = boot({
       month: 3,
-      storage: { 'docs-mode': 'light' },
+      storage: { 'craft-mode': 'light' },
       path: '/craft/guide/',
       darkPaths,
     });

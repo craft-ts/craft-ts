@@ -8,7 +8,8 @@ import {
   type ProjectionContractOf,
   type ProjectionSlot,
 } from '@craft-ts/component';
-import { componentUi, projectionDemo } from './component-demos.style';
+import { projectionDemo } from './component-demos.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export const userBadge = craftComponent(
   'userBadge',
@@ -29,8 +30,8 @@ export const toolbarAction = craftComponent(
     button(
       'action',
       {
-        class: componentUi.button,
-        'data-componentButton': 'primary',
+        class: buttonUi.root,
+        'data-variant': 'primary',
         type: 'button',
         disabled: input.disabled?.(),
         click: input.trigger,

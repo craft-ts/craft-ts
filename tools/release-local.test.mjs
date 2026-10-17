@@ -5,12 +5,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   gitSynchronizationError,
@@ -22,8 +24,11 @@ import {
   syncBuiltDocumentation,
   syncDemoWorkspace,
   syncEffectDemoWorkspace,
+  syncUiLibrary,
   untrackGeneratedReleaseFiles,
 } from './release-local.mjs';
+
+const workspaceRootForTests = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function write(path, contents) {
   mkdirSync(dirname(path), { recursive: true });
@@ -238,6 +243,12 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
     );
     write(join(source, 'src/app/app.routes.ts'), 'export const routes = [];\n');
     write(join(source, 'public/favicon.ico'), 'new-icon');
+    write(join(source, 'index.html'), '<craft-root></craft-root>\n');
+    const uiRoot = join(temporaryRoot, 'ui');
+    write(join(uiRoot, 'src/index.ts'), "export * from './button/button.ts';\n");
+    write(join(uiRoot, 'src/button/button.ts'), 'export const button = 1;\n');
+    write(join(uiRoot, 'src/button/button.spec.ts'), 'throw new Error();\n');
+    write(join(target, 'libs/ui/src/stale.ts'), 'obsolete\n');
     write(
       join(source, 'eslint.config.standalone.mjs'),
       "export default ['standalone'];\n",
@@ -272,8 +283,20 @@ test('mirrors the complete demo source and pins CraftTS dependencies', () => {
       }),
     );
 
-    syncDemoWorkspace(source, target, '0.6.0');
-    syncDemoWorkspace(source, target, '0.6.0');
+    syncDemoWorkspace(source, target, '0.6.0', { uiRoot });
+    syncDemoWorkspace(source, target, '0.6.0', { uiRoot });
+
+    // The design system travels with the examples, sources only.
+    assert.equal(
+      readFileSync(join(target, 'libs/ui/src/button/button.ts'), 'utf8'),
+      'export const button = 1;\n',
+    );
+    assert.equal(existsSync(join(target, 'libs/ui/src/button/button.spec.ts')), false);
+    assert.equal(existsSync(join(target, 'libs/ui/src/stale.ts')), false);
+    assert.equal(
+      readFileSync(join(target, 'index.html'), 'utf8'),
+      '<craft-root></craft-root>\n',
+    );
 
     assert.equal(
       readFileSync(join(target, 'src/app/examples/new.ts'), 'utf8'),
@@ -496,4 +519,72 @@ test('release-local refreshes the lockfile before npm ci and restores it on a dr
     source.indexOf('refreshLockfile();') < source.indexOf("run('npm', ['ci'])"),
   );
   assert.match(source, /'restore', '--worktree', '--', 'package-lock\.json'/);
+});
+
+test('copies the UI library sources without their specs', () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'craft-ui-sync-'));
+  try {
+    const uiRoot = join(temporaryRoot, 'ui');
+    const target = join(temporaryRoot, 'target');
+    write(join(uiRoot, 'src/style.ts'), 'export const theme = 1;\n');
+    write(join(uiRoot, 'src/a/a.spec.ts'), 'bad\n');
+    write(join(uiRoot, 'src/a/a.test.ts'), 'bad\n');
+    write(join(uiRoot, 'src/a/a.ts'), 'good\n');
+    write(join(uiRoot, 'package.json'), '{}\n');
+
+    syncUiLibrary(uiRoot, target);
+
+    assert.equal(existsSync(join(target, 'libs/ui/src/style.ts')), true);
+    assert.equal(existsSync(join(target, 'libs/ui/src/a/a.ts')), true);
+    assert.equal(existsSync(join(target, 'libs/ui/src/a/a.spec.ts')), false);
+    assert.equal(existsSync(join(target, 'libs/ui/src/a/a.test.ts')), false);
+    assert.equal(existsSync(join(target, 'libs/ui/package.json')), false);
+    assert.throws(
+      () => syncUiLibrary(join(temporaryRoot, 'missing'), target),
+      /Missing UI library source directory/,
+    );
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test('keeps libs/ui exportable: it only imports what the exported project has', () => {
+  // The export copies `libs/ui/src` next to the examples; the exported project
+  // installs core, component and style from npm and nothing else of this
+  // workspace. A file that reached for another library, or for a path outside
+  // `libs/ui/src`, would work here and break there.
+  const sourceRoot = join(workspaceRootForTests, 'libs/ui/src');
+  const installed = new Set([
+    '@craft-ts/core',
+    '@craft-ts/component',
+    '@craft-ts/style',
+  ]);
+  const files = [];
+  const walk = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.ts') && !/\.(spec|test)\.ts$/.test(entry.name))
+        files.push(path);
+    }
+  };
+  walk(sourceRoot);
+  assert.ok(files.length > 20, 'the UI library has sources to export');
+
+  const offenders = [];
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8');
+    const specifiers = [
+      ...text.matchAll(/(?:from|import)\s*\(?\s*'([^']+)'/g),
+    ].map((match) => match[1]);
+    for (const specifier of specifiers) {
+      if (specifier.startsWith('.')) {
+        const resolved = resolve(dirname(file), specifier);
+        if (!resolved.startsWith(sourceRoot)) offenders.push(`${file}: ${specifier}`);
+      } else if (!installed.has(specifier)) {
+        offenders.push(`${file}: ${specifier}`);
+      }
+    }
+  }
+  assert.deepEqual(offenders, []);
 });

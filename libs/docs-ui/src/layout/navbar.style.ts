@@ -65,7 +65,7 @@ import {
   sansFont,
   theme,
   weight,
-} from '../foundation/herbier.style.ts';
+} from '@craft-ts/ui/style';
 
 export const navbarUi = craftStyles('docNavbar', {
   root: [

@@ -48,6 +48,34 @@ describe('style-file-boundary', () => {
     expect(result.messages).toEqual([]);
   });
 
+  it('allows the design system\'s style entry, which carries sheets and no component', async () => {
+    const result = await lint(
+      boundaryRule,
+      `
+      import { craftStyles } from '@craft-ts/style';
+      import { theme } from '@craft-ts/ui/style';
+      export const sheet = craftStyles('page', {});
+      export const used = theme;
+    `,
+      'page.style.ts',
+    );
+
+    expect(result.messages).toEqual([]);
+  });
+
+  it('refuses the design system\'s component entry in a style file', async () => {
+    const result = await lint(
+      boundaryRule,
+      `
+      import { DocBadge } from '@craft-ts/ui';
+      export const used = DocBadge;
+    `,
+      'page.style.ts',
+    );
+
+    expect(result.messages).toHaveLength(1);
+  });
+
   it('refuses an application import, including a transitive one', async () => {
     const result = await lint(
       boundaryRule,

@@ -34,6 +34,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export const { provideGranularMutation, GranularMutation } = craftService(
   { name: 'GranularMutation', providedIn: 'toProvide' },
@@ -163,8 +164,8 @@ const GranularMutationCraft = craftComponent(
                               'UpdateUserName',
                               {
                                 type: 'button',
-                                class: example.button,
-                                'data-exampleButton': 'subtle',
+                                class: buttonUi.root,
+                                'data-variant': 'tonal',
                                 'data-testid': 'update-user',
                                 disabled: function* () {
                                   return yield* GranularMutationCraftView.store.updateUserName
@@ -221,7 +222,7 @@ const GranularMutationCraft = craftComponent(
                   'PreviousPage',
                   {
                     type: 'button',
-                    class: example.button,
+                    class: buttonUi.root, 'data-variant': 'secondary',
                     click: GranularMutationCraftView.store.pagination.previousPage,
                   },
                   'Previous',
@@ -237,7 +238,7 @@ const GranularMutationCraft = craftComponent(
                   'NextPage',
                   {
                     type: 'button',
-                    class: example.button,
+                    class: buttonUi.root, 'data-variant': 'secondary',
                     click: GranularMutationCraftView.store.pagination.nextPage,
                   },
                   'Next',

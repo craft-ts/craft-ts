@@ -20,6 +20,7 @@ import {
   state,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 type Scenario = 'success' | 'not-found' | 'consent-missing' | 'forbidden';
 export const { ExceptionsView, provideExceptionsView } = craftService(
@@ -111,7 +112,7 @@ const ExceptionsComponent = craftComponent(
           button(
             'success',
             {
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               type: 'button',
               *click() {
                 yield* ExceptionsView.userQuery.call('success');
@@ -122,7 +123,7 @@ const ExceptionsComponent = craftComponent(
           button(
             'notFound',
             {
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               type: 'button',
               *click() {
                 yield* ExceptionsView.userQuery.call('not-found');
@@ -133,7 +134,7 @@ const ExceptionsComponent = craftComponent(
           button(
             'consentMissing',
             {
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               type: 'button',
               *click() {
                 yield* ExceptionsView.userQuery.call('consent-missing');
@@ -144,7 +145,7 @@ const ExceptionsComponent = craftComponent(
           button(
             'forbidden',
             {
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               type: 'button',
               *click() {
                 yield* ExceptionsView.userQuery.call('forbidden');

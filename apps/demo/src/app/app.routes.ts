@@ -88,6 +88,16 @@ export const { demoRoutes } = craftRoutes('demo', [
     ),
   },
 
+  /* demo-route-end */ /* demo-route: herbier */
+  {
+    path: 'herbier',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/herbier/herbier-gallery')).then(
+        ({ HerbierGallery }) => HerbierGallery,
+      ),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: home */
   {
     path: '',
@@ -514,6 +524,7 @@ type DemoRoutePath =
   | ''
   | 'design-system'
   | 'design-system/scroll'
+  | 'herbier'
   | 'i18n'
   | 'query/:userId'
   | 'debounced-web-search'
@@ -662,6 +673,15 @@ type _CanRunDesignSystemScroll = CanRun<
     (typeof import('./examples/design-system/scroll'))['ScrollDemo'],
     never,
     'path: "design-system/scroll"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: herbier */
+type _CanRunHerbierGallery = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/herbier/herbier-gallery'))['HerbierGallery'],
+    never,
+    'path: "herbier"'
   >
 >;
 /* demo-check-end */

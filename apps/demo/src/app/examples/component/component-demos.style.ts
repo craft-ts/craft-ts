@@ -12,16 +12,12 @@ import {
   borderWidth,
   color,
   craftStyles,
-  cursor,
-  definePalette,
   defineStateAxis,
   display,
   flexWrap,
   font,
   fontWeight,
   gap,
-  inlineSize,
-  interaction,
   justifyContent,
   justifyItems,
   lineWidth,
@@ -41,55 +37,48 @@ import {
   unit,
   when,
 } from '@craft-ts/style';
+import { theme } from '@craft-ts/ui/style';
 
-const ui = definePalette('componentDemo', {
+/**
+ * The Herbier theme, under the names this sheet already used. Nothing here is a
+ * colour: each entry is a `theme` variable, so the examples follow the page's
+ * light or dark side and its season.
+ */
+const ui = {
   surface: {
-    raised: { light: '#ffffff', dark: '#ffffff' },
-    sunken: { light: '#f8fafc', dark: '#f8fafc' },
-    success: { light: '#dcfce7', dark: '#dcfce7' },
-    danger: { light: '#ffe4e6', dark: '#ffe4e6' },
-    info: { light: '#eff6ff', dark: '#eff6ff' },
-    badge: { light: '#dbeafe', dark: '#dbeafe' },
-    dialog: { light: '#faf5ff', dark: '#faf5ff' },
-    pending: { light: '#eef2ff', dark: '#eef2ff' },
-    error: { light: '#fef2f2', dark: '#fef2f2' },
-    reloading: { light: '#fef9c3', dark: '#fef9c3' },
-    primary: { light: '#2563eb', dark: '#2563eb' },
-    primaryHover: { light: '#1d4ed8', dark: '#1d4ed8' },
-    slate: { light: '#475569', dark: '#475569' },
+    raised: theme.raised,
+    sunken: theme.navHover,
+    success: theme.tipSurface,
+    danger: theme.dangerSurface,
+    info: theme.infoSurface,
+    badge: theme.selected,
+    dialog: theme.importantSurface,
+    pending: theme.infoSurface,
+    error: theme.dangerSurface,
+    reloading: theme.importantSurface,
   },
   text: {
-    body: { light: '#1e293b', dark: '#1e293b' },
-    muted: { light: '#475569', dark: '#475569' },
-    success: { light: '#166534', dark: '#166534' },
-    danger: { light: '#9f1239', dark: '#9f1239' },
-    error: { light: '#b91c1c', dark: '#b91c1c' },
-    info: { light: '#1e3a8a', dark: '#1e3a8a' },
-    pending: { light: '#4338ca', dark: '#4338ca' },
-    reloading: { light: '#854d0e', dark: '#854d0e' },
-    onPrimary: { light: '#ffffff', dark: '#ffffff' },
+    body: theme.ink,
+    muted: theme.inkMuted,
+    success: theme.tipInk,
+    danger: theme.dangerInk,
+    error: theme.dangerInk,
+    info: theme.infoInk,
+    pending: theme.infoInk,
+    reloading: theme.importantInk,
   },
   border: {
-    subtle: { light: '#e2e8f0', dark: '#e2e8f0' },
-    card: { light: '#cbd5e1', dark: '#cbd5e1' },
-    control: { light: '#94a3b8', dark: '#94a3b8' },
-    info: { light: '#bfdbfe', dark: '#bfdbfe' },
-    pending: { light: '#c7d2fe', dark: '#c7d2fe' },
-    error: { light: '#fecaca', dark: '#fecaca' },
-    dialog: { light: '#7c3aed', dark: '#7c3aed' },
-    primary: { light: '#2563eb', dark: '#2563eb' },
-    slate: { light: '#475569', dark: '#475569' },
+    subtle: theme.line,
+    card: theme.line,
+    info: theme.infoBorder,
+    pending: theme.infoBorder,
+    error: theme.dangerBorder,
+    dialog: theme.importantBorder,
   },
-});
+};
 
 /** A page that needs more room than the others. Drives `data-componentPage`. */
 export const pageWidth = defineStateAxis('componentPage', ['wide']);
-
-/** The kind of a demo button. The default is a neutral outline. */
-export const buttonTone = defineStateAxis('componentButton', [
-  'primary',
-  'slate',
-]);
 
 const hairline = (tint: typeof ui.border.card) => [
   borderWidth(lineWidth.hairline),
@@ -103,9 +92,9 @@ const panel = (
 ) => [
   display.grid,
   gap(space(3)),
-  p(space(5)),
+  p(space(4)),
   ...hairline(tint),
-  radius(radii.xl),
+  radius(radii.lg),
   bg(surface),
 ];
 
@@ -120,29 +109,7 @@ export const componentUi = craftStyles('componentDemo', {
     gap(space(4)),
     maxInlineSize(unit.rem(44)),
     marginInline.auto,
-    p(space(6)),
     when(pageWidth.wide, [maxInlineSize(unit.rem(52))]),
-  ],
-  button: [
-    inlineSize.fitContent,
-    py(space(2)),
-    px(space(4)),
-    ...hairline(ui.border.control),
-    radius(radii.md),
-    cursor.pointer,
-    bg(ui.surface.raised),
-    when(buttonTone.primary, [
-      borderColor(ui.border.primary),
-      color(ui.text.onPrimary),
-      bg(ui.surface.primary),
-      when(interaction.hover, [bg(ui.surface.primaryHover)]),
-    ]),
-    when(buttonTone.slate, [
-      borderColor(ui.border.slate),
-      color(ui.text.onPrimary),
-      bg(ui.surface.slate),
-    ]),
-    when(interaction.disabled, [cursor.notAllowed, opacity(num(0.55))]),
   ],
   list: [display.grid, gap(space(2))],
   user: [
@@ -167,8 +134,8 @@ export const projectionDemo = craftStyles('projectionDemo', {
   body: [
     display.grid,
     gap(space(3)),
-    p(space(4)),
-    radius(radii.lg),
+    p(space(3)),
+    radius(radii.md),
     bg(ui.surface.raised),
   ],
   content: [color(ui.text.body)],
@@ -176,9 +143,10 @@ export const projectionDemo = craftStyles('projectionDemo', {
   list: [display.grid, gap(space(2)), p(space(0)), listStyleType.none],
   row: [
     display.flex,
+    flexWrap.wrap,
     alignItems.center,
     justifyContent.spaceBetween,
-    gap(space(4)),
+    gap(space(2)),
     py(space(3)),
     px(space(3)),
     ...hairline(ui.border.subtle),
@@ -210,16 +178,6 @@ export const projectionDemo = craftStyles('projectionDemo', {
 export const pendingDemo = craftStyles('pendingDemo', {
   page: [display.grid, gap(space(4)), p(space(4)), justifyItems.start],
   actions: [display.flex, flexWrap.wrap, gap(space(2))],
-  actionButton: [
-    inlineSize.fitContent,
-    py(space(2)),
-    px(space(4)),
-    ...hairline(ui.border.pending),
-    radius(radii.lg),
-    fontWeight(num(650)),
-    cursor.pointer,
-    bg(ui.surface.raised),
-  ],
   list: [display.grid, gap(space(1)), paddingInlineStart(space(5))],
   count: [font(text.sm), opacity(num(0.72))],
   skeleton: [

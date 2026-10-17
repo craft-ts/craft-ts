@@ -8,6 +8,7 @@ import {
   craftExpose,
 } from '@craft-ts/core';
 import { example } from './examples/shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export const { MyRouteLoadErrorScreenView, provideMyRouteLoadErrorScreenView } =
   craftService(
@@ -42,7 +43,7 @@ export const MyRouteLoadErrorScreen = craftComponent(
         button(
           'retry',
           {
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             type: 'button',
             click: MyRouteLoadErrorScreenView.retry,
           },
@@ -51,7 +52,7 @@ export const MyRouteLoadErrorScreen = craftComponent(
         button(
           'reload',
           {
-            class: example.button,
+            class: buttonUi.root, 'data-variant': 'secondary',
             type: 'button',
             click: MyRouteLoadErrorScreenView.recovery.reload,
           },

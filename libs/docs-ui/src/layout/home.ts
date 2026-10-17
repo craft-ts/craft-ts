@@ -13,9 +13,9 @@ import {
   type CraftNodeChild,
   type Input,
 } from '@craft-ts/component';
-import { DocLinkButton, type ButtonVariant } from '../button/button.ts';
-import { DocContours, DocForest } from '../decor/decor.ts';
-import { DocLogo } from '../logo/logo.ts';
+import { DocLinkButton, type ButtonVariant } from '@craft-ts/ui';
+import { DocContours, DocForest } from '@craft-ts/ui';
+import { DocLogo } from '@craft-ts/ui';
 import { withBase } from '../site/site.ts';
 import { homeUi } from './home.style.ts';
 

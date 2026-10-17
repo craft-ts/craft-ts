@@ -9,7 +9,6 @@ import {
   borderStyle,
   borderWidth,
   craftStyles,
-  definePalette,
   display,
   fontWeight,
   gap,
@@ -21,11 +20,13 @@ import {
   radius,
   space,
 } from '@craft-ts/style';
+import { theme } from '@craft-ts/ui/style';
 
-const board = definePalette('taskBoard', {
-  surface: { row: { light: '#ffffff', dark: '#ffffff' } },
-  border: { row: { light: '#e2e8f0', dark: '#e2e8f0' } },
-});
+/** The Herbier theme, under the names this sheet uses. */
+const board = {
+  surface: { row: theme.raised },
+  border: { row: theme.line },
+};
 
 export const taskBoard = craftStyles('taskBoard', {
   row: [

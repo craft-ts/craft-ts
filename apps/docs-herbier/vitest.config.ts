@@ -15,6 +15,8 @@ export default defineConfig({
       '@craft-ts/component': lib('component'),
       '@craft-ts/style/vite': lib('style', 'src/plugin/vite.ts'),
       '@craft-ts/style': lib('style'),
+      '@craft-ts/ui/style': lib('ui', 'src/style.ts'),
+      '@craft-ts/ui': lib('ui'),
       '@craft-ts/docs-ui/node': lib('docs-ui', 'src/node.ts'),
       '@craft-ts/docs-ui/style': lib('docs-ui', 'src/style.ts'),
       '@craft-ts/docs-ui': lib('docs-ui'),

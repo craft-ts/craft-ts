@@ -212,8 +212,10 @@ test('release checks test and build the documentation that is published', () => 
   const preflight = packageJson.scripts['release:preflight'];
 
   // The pages, the links between them and the headings they point to (docs-herbier),
-  // the Markdown pipeline behind them (docs-ui), and the build that writes the site.
+  // the Markdown pipeline behind them (docs-ui), the design system both the docs and
+  // the exported demo are written with (ui), and the build that writes the site.
   assert.match(preflight, /\bnx test docs-herbier\b/);
+  assert.match(preflight, /\bnx test craft-ts-ui\b/);
   assert.match(preflight, /\bnx test craft-ts-docs-ui\b/);
   assert.match(preflight, /\bnx build docs-herbier\b/);
 });

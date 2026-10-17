@@ -32,6 +32,7 @@ import {
 } from '@craft-ts/core';
 import { StatusComponent } from '../../../ui/status.component';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export type Todo = { readonly id: number; readonly title: string };
 
@@ -163,8 +164,8 @@ const FullDemoCraft = craftComponent(
           button(
             'AddTodoButton',
             {
-              class: example.button,
-              'data-exampleButton': 'primary',
+              class: buttonUi.root,
+              'data-variant': 'primary',
               type: 'submit',
               disabled: FullDemoCraftView.todoStore.add.isLoading,
             },
@@ -193,8 +194,8 @@ const FullDemoCraft = craftComponent(
               button(
                 'RemoveTodoButton',
                 {
-                  class: example.button,
-                  'data-exampleButton': 'danger',
+                  class: buttonUi.root,
+                  'data-variant': 'danger',
                   type: 'button',
                   disabled: FullDemoCraftView.todoStore.remove.isLoading,
                   *click() {

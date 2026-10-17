@@ -90,7 +90,7 @@ test('shows the view-transition skeleton while the detail chain is pending', asy
   await page.goto('/view-transitions');
 
   page.once('dialog', (dialog) => void dialog.accept());
-  await page.getByRole('button', { name: '🗑️ Clear Cache' }).click();
+  await page.getByRole('button', { name: 'Clear cache' }).click();
   await page.waitForLoadState('domcontentloaded');
 
   await page.locator('a[href="/view-transitions/aurora"]').click();

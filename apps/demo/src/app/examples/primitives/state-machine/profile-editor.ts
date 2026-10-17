@@ -35,6 +35,7 @@ import {
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
 import { editor } from './editor.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 type Profile = {
   name: string;
@@ -360,8 +361,8 @@ const ProfileEditorStateMachine = craftComponent(
                     button(
                       'edit',
                       {
-                        class: example.button,
-                        'data-exampleButton': 'primary',
+                        class: buttonUi.root,
+                        'data-variant': 'primary',
                         type: 'button',
                         click: ProfileEditorStateMachineView.machine.requestEdit,
                       },
@@ -419,8 +420,8 @@ const ProfileEditorStateMachine = craftComponent(
                     button(
                       'save',
                       {
-                        class: example.button,
-                        'data-exampleButton': 'primary',
+                        class: buttonUi.root,
+                        'data-variant': 'primary',
                         type: 'button',
                         click: ProfileEditorStateMachineView.machine.requestSubmit,
                       },
@@ -430,7 +431,7 @@ const ProfileEditorStateMachine = craftComponent(
                       'cancel',
                       {
                         type: 'button',
-                        class: example.button,
+                        class: buttonUi.root, 'data-variant': 'secondary',
                         click: ProfileEditorStateMachineView.machine.requestCancel,
                       },
                       'Cancel',
@@ -446,7 +447,7 @@ const ProfileEditorStateMachine = craftComponent(
             'history-back',
             {
               type: 'button',
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               disabled: ProfileEditorStateMachineView.machine.backDisabled,
               click: ProfileEditorStateMachineView.machine.back,
             },
@@ -456,7 +457,7 @@ const ProfileEditorStateMachine = craftComponent(
             'history-forward',
             {
               type: 'button',
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               disabled: ProfileEditorStateMachineView.machine.forwardDisabled,
               click: ProfileEditorStateMachineView.machine.forward,
             },
@@ -470,7 +471,7 @@ const ProfileEditorStateMachine = craftComponent(
             'toggle-read-only',
             {
               type: 'button',
-              class: example.button,
+              class: buttonUi.root, 'data-variant': 'secondary',
               click: ProfileEditorStateMachineView.permissions.readOnly.toggle,
             },
             'Toggle read-only',

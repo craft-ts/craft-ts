@@ -10,7 +10,7 @@ import {
   type BundledLanguage,
   type Highlighter,
 } from 'shiki';
-import type { CodeLine, CodeToken, LineMark, TokenKind } from '../code/code.ts';
+import type { CodeLine, CodeToken, LineMark, TokenKind } from '@craft-ts/ui';
 
 const LANGUAGES = [
   'typescript',

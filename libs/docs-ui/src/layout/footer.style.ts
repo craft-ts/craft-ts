@@ -32,7 +32,7 @@ import {
   marginBlockStart,
   inlineSize,
 } from '@craft-ts/style';
-import { bp, sansFont, theme } from '../foundation/herbier.style.ts';
+import { bp, sansFont, theme } from '@craft-ts/ui/style';
 
 export const footerUi = craftStyles('docFooter', {
   root: [

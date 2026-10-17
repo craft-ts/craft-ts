@@ -1,4 +1,5 @@
-import type { Block, CodeLine, Inline } from '../src/index.ts';
+import type { Block, Inline } from '../src/index.ts';
+import type { CodeLine } from '@craft-ts/ui';
 
 const tok = (text: string, kind?: NonNullable<CodeLine['tokens'][number]['kind']>) =>
   kind ? { text, kind } : { text };

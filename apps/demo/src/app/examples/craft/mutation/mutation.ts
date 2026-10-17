@@ -29,6 +29,7 @@ import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 export const { provideUserMutation, UserMutation } = craftService(
   { name: 'UserMutation', providedIn: 'toProvide' },
@@ -161,7 +162,7 @@ const MutationCraft = craftComponent(
         'UpdateUserNameButton',
         {
           type: 'button',
-          class: example.button,
+          class: buttonUi.root, 'data-variant': 'secondary',
           'data-testid': 'update-user-name',
           disabled: function* () {
             const { store } = yield* MutationCraftView();
@@ -189,7 +190,7 @@ const MutationCraft = craftComponent(
       button(
         'PreviousUser',
         {
-          class: example.button,
+          class: buttonUi.root, 'data-variant': 'secondary',
           type: 'button',
           *click() {
             (yield* MutationCraftView()).navigate(-1);
@@ -200,7 +201,7 @@ const MutationCraft = craftComponent(
       button(
         'NextUser',
         {
-          class: example.button,
+          class: buttonUi.root, 'data-variant': 'secondary',
           type: 'button',
           *click() {
             (yield* MutationCraftView()).navigate(1);

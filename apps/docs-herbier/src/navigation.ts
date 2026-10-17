@@ -1,5 +1,5 @@
 import { craftExpose, craftService, fromEventToSource$, state } from '@craft-ts/core';
-import { MODE_STORAGE_KEY, NAVIGATED_EVENT } from '@craft-ts/docs-ui';
+import { MODE_STORAGE_KEY, NAVIGATED_EVENT } from '@craft-ts/ui';
 import { LOCKED_DARK_PATH } from './locked.ts';
 import {
   documentDescription,

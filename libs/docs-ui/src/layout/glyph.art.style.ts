@@ -3,7 +3,7 @@
  * the classic Herbier. Black strokes on a 24 wide frame, painted in a theme colour, so
  * a drawing serves day and night and the season only swaps which one is drawn.
  */
-import type { Season } from './seasons.art.style.ts';
+import type { Season } from '@craft-ts/ui/style';
 
 const STROKE =
   'fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';

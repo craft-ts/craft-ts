@@ -30,6 +30,7 @@ import {
   craftExpose,
 } from '@craft-ts/core';
 import { example } from '../../shared/example.style';
+import { buttonUi } from '@craft-ts/ui/style';
 
 type LoginData = {
   email: string;
@@ -116,7 +117,7 @@ const LoginFormComponent = craftComponent(
             ifNode(LoginFormView.loginForm.form.showSuccess, () =>
               p('✅ Login form submitted.'),
             ),
-            button('submit', { class: example.button, 'data-exampleButton': 'primary', type: 'submit' }, 'Sign in'),
+            button('submit', { class: buttonUi.root, 'data-variant': 'primary', type: 'submit' }, 'Sign in'),
           ],
         ).pipe(
           fieldErrorNode.exhaustive({
