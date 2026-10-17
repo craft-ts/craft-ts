@@ -2,6 +2,9 @@ import {
   provideCraftGlobalErrorComponent,
   provideCraftRootComponent,
   provideCraftRouteLoadErrorComponent,
+  provideCraftDebugSessionCapture,
+  provideCraftDebugReplayBridge,
+  provideCraftLoopGuard,
   provideSendContextToAi,
 } from '@craft-ts/component';
 import {
@@ -44,11 +47,17 @@ import { MyRouteLoadErrorScreen } from './my-route-load-error-screen';
 import { AppStartLog } from './run-on-app-start/run-on-app-start';
 import { provideDemoTracing } from './template-trace-demo';
 
+const localLogServerUrl =
+  import.meta.env['VITE_CRAFT_LOG_SERVER_URL'] ?? 'http://127.0.0.1:4319';
+const localReplayDashboardOrigin =
+  import.meta.env['VITE_CRAFT_REPLAY_DASHBOARD_ORIGIN'] ??
+  'http://localhost:4210';
+
 const developmentProviders = import.meta.env.DEV
   ? [
       // The log server, tracing, snapshots and MCP bridge are deliberately
       // absent from the production graph.
-      provideLogServerUrl(() => 'http://127.0.0.1:4319/logs'),
+      provideLogServerUrl(() => `${localLogServerUrl}/logs`),
       provideLogForwarding(),
       provideDemoTracing(),
       // eslint-disable-next-line craft-ts/prefer-browser-boundaries
@@ -57,7 +66,17 @@ const developmentProviders = import.meta.env.DEV
         ...event,
         application: 'demo',
       })),
-      provideSendContextToAi({ recording: true }),
+      provideCraftDebugSessionCapture({
+        webSocketUrl: `${localLogServerUrl.replace(/^http/, 'ws')}/sessions/ws`,
+      }),
+      provideCraftDebugReplayBridge({
+        parentOrigins: [
+          localReplayDashboardOrigin,
+          localReplayDashboardOrigin.replace('localhost', '127.0.0.1'),
+        ],
+      }),
+      provideCraftLoopGuard({ tripBreaker: true }),
+      provideSendContextToAi({ recording: false, capture: false }),
       provideMcpExperimentation(),
     ]
   : [];

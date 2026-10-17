@@ -70,11 +70,16 @@ was active, starts a fresh clip so the next reproduction can be captured.
 
 Use the timeline's `Record` control while reproducing an issue, then choose
 `Copy JSON` to copy the complete session. The export includes the starting URL,
-the event timeline, clips, and recorded HTTP request/response data. DOM events
-include a replay target and action; form values and relevant keyboard details
-are included when available. Password fields and fields whose names indicate
+the starting CSS viewport size, the event timeline, clips, and recorded HTTP
+request/response data. The replay dashboard keeps that viewport inside the
+target frame and scales it down to fit the available panel. DOM events include
+a replay target and action; form values and relevant keyboard details are
+included when available. Password fields and fields whose names indicate
 secrets are omitted, and the normal send-context redactor runs before data is
-exported. Events from the debugging overlay itself are excluded.
+exported. Link clicks retain the redacted absolute `href` alongside the router
+events, so an investigation can distinguish the destination that was clicked
+from the route the application actually reached. Events from the debugging
+overlay itself are excluded.
 
 In the local app, open the context panel, paste the JSON into **Replay a
 session**, and choose `Validate`. Invalid JSON, unsupported versions, and
@@ -106,8 +111,25 @@ application to native timers or animation-frame APIs are outside this virtual
 clock's control.
 
 Events that include a captured state can be compared with state observed after
-replay. A mismatch is reported in the panel so the interaction can be
-investigated; replay does not force the recorded state back into the app.
+replay. A mismatch in this context-panel replay is reported for investigation;
+it does not force the recorded state back into the app. For explicit recovery,
+use the local session dashboard: when a recorded same-origin link destination
+or primitive checkpoint is available, **Forcer l’état attendu et continuer**
+uses the Craft router, restores values for primitives that still exist, then
+continues at the next interaction. This is an opt-in recovery after reviewing
+the expected and observed values; redacted destinations cannot be navigated.
+If no direct recovery is available, the local dashboard can offer **Ignorer
+jusqu’au prochain point de reprise** when a later compatible primitive
+checkpoint exists and no HTTP request or Craft operation is still open across
+the interval. It restores that checkpoint, continues in pause, and labels the
+subsequent comparison as partial with the skipped interval. It never skips an
+unknown or still-open operation boundary.
+
+Replay currently compares recorded Craft function names, phases, and order.
+It does not invoke a missing Craft function from session data. The generic
+allowlisted function replay contract and interaction-level causal orchestrator
+are not part of this provider yet; exports remain data and are never evaluated
+as code.
 
 ## Send the context to an agent
 

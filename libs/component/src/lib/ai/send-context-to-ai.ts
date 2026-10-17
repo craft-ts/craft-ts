@@ -28,7 +28,9 @@ import {
   type GetDeps,
   type SendContextPayload,
   type SendContextSession,
-  type SendContextSessionSnapshot, ɵcraftValueService } from '@craft-ts/core';
+  type SendContextSessionSnapshot,
+  ɵcraftValueService,
+} from '@craft-ts/core';
 import { mountCraftComponent } from '../bridge';
 import type { Output } from '../types';
 import { AiContextMenu } from './ai-context-menu';
@@ -36,6 +38,10 @@ import { observeAiPerformance } from './ai-performance';
 import { AiSendDialog } from './ai-send-dialog';
 import { AiSendContextChat } from './ai-send-context-chat';
 import { AiSendContextLauncher } from './ai-send-context-launcher';
+import { connectDebugSessionPersistence } from './debug-session-persistence';
+import { connectDebugSessionScrollCapture } from './debug-session-scroll';
+import { connectDebugSessionViewportCapture } from './debug-session-viewport';
+import { isCraftDebugReplayLaunch } from './debug-session-replay-signals';
 import {
   provideSendContextChatActionsDefault,
   provideSendContextChatSectionsDefault,
@@ -449,15 +455,66 @@ export interface SendContextToAiOptions {
   readonly endpoint?: string;
   /** Start recording at app startup; false waits for the user to click Record. */
   readonly recording: boolean;
+  /** Set false when a separate `provideCraftDebugSessionCapture` is installed. */
+  readonly capture?: boolean;
 }
 
-export function provideSendContextToAi(
-  options: SendContextToAiOptions,
+/** Opt-in session capture without mounting the AI context menu or launcher. */
+export function provideCraftDebugSessionCapture(
+  options: Readonly<{
+    recording?: boolean;
+    webSocketUrl?: string;
+    /** Capture non-sensitive form values only after explicit opt-in. */
+    captureInputValues?: boolean;
+  }> = {},
 ): Provider[] {
+  const recording = options.recording ?? true;
   let session: SendContextSession | undefined;
+  let craftCallSequence = 0;
+  let emittingCraftCapture = false;
+  const captureCraftEvent = (
+    activeSession: SendContextSession,
+    phase: 'started' | 'succeeded' | 'failed',
+    details: Parameters<SendContextSession['capture']>[2],
+  ): void => {
+    // Publishing a session event notifies its Craft-backed observables. Those
+    // observables pass through this global wrapper too; ignore that nested
+    // work so the recorder cannot recursively record its own notifications.
+    if (emittingCraftCapture) return;
+    emittingCraftCapture = true;
+    try {
+      activeSession.capture('craft', phase, details);
+    } finally {
+      emittingCraftCapture = false;
+    }
+  };
+  const captureActionHost = (
+    hostTags: readonly string[],
+  ): string | undefined => {
+    if (
+      hostTags.some((tag) =>
+        [
+          'component:AiSendContextChat',
+          'component:AiSendContextLauncher',
+          'component:AiContextMenu',
+          'component:AiSendDialog',
+        ].some((prefix) => tag.startsWith(prefix)),
+      )
+    ) {
+      return undefined;
+    }
+    return [...hostTags]
+      .reverse()
+      .map((tag) => tag.replace(/#\d+$/, ''))
+      .find((tag) =>
+        /^(method|query|mutation|asyncProcess|queryParams):.+/.test(tag),
+      );
+  };
   return [
-    ...provideSendContextSession(),
-    ...(options.recording
+    ...provideSendContextSession({
+      captureInputValues: options.captureInputValues,
+    }),
+    ...(recording
       ? [
           provideAppInitializer(() => {
             ɵinjectSendContextSession();
@@ -466,9 +523,83 @@ export function provideSendContextToAi(
       : []),
     provideSendContextEventSource((createdSession) => {
       session = createdSession;
-      if (options.recording) createdSession.startRecord('Application session');
+      const disconnectScrollCapture = recording
+        ? connectDebugSessionScrollCapture(createdSession)
+        : undefined;
+      const disconnectViewportCapture = recording
+        ? connectDebugSessionViewportCapture(createdSession)
+        : undefined;
+      if (recording) {
+        createdSession.startRecord('Application session');
+        // Keep replay capture in memory for comparison without archiving a new
+        // session when the dashboard reloads the target URL.
+        if (options.webSocketUrl && !isCraftDebugReplayLaunch()) {
+          const disconnectPersistence = connectDebugSessionPersistence(
+            createdSession,
+            options.webSocketUrl,
+          );
+          return () => {
+            disconnectScrollCapture?.();
+            disconnectViewportCapture?.();
+            disconnectPersistence();
+          };
+        }
+      }
+      return () => {
+        disconnectScrollCapture?.();
+        disconnectViewportCapture?.();
+      };
     }),
     provideSendContextEventFilter(() => session?.activeClip !== undefined),
+    provideFnWrapper(
+      'Warning: dependency injection here is not type-safe and may fail at runtime',
+      function* (factory, thisArg, args) {
+        const activeSession = session;
+        if (emittingCraftCapture || !activeSession?.activeClip) {
+          return yield* factory.apply(thisArg, args);
+        }
+        let hostTags: readonly string[];
+        try {
+          hostTags = yield* HostTag();
+        } catch {
+          return yield* factory.apply(thisArg, args);
+        }
+        const actionHost = captureActionHost(hostTags);
+        if (!actionHost) return yield* factory.apply(thisArg, args);
+        const factoryName = factory.name.trim();
+        const name =
+          factoryName && factoryName !== 'current' ? factoryName : actionHost;
+        const operationId = `craft-call-${++craftCallSequence}`;
+        const details = {
+          name,
+          operationId,
+          payload: { comparable: true, host: actionHost },
+        };
+        captureCraftEvent(activeSession, 'started', details);
+        try {
+          const result = yield* factory.apply(thisArg, args);
+          captureCraftEvent(activeSession, 'succeeded', details);
+          return result;
+        } catch (error) {
+          captureCraftEvent(activeSession, 'failed', {
+            ...details,
+            response:
+              error instanceof Error ? { name: error.name } : { failed: true },
+          });
+          throw error;
+        }
+      },
+    ),
+  ];
+}
+
+export function provideSendContextToAi(
+  options: SendContextToAiOptions,
+): Provider[] {
+  return [
+    ...(options.capture === false
+      ? []
+      : provideCraftDebugSessionCapture({ recording: options.recording })),
     provideSendContextChatComponent(() => AiSendContextChat),
     provideSendContextContextMenuComponent(() => AiContextMenu),
     provideSendContextLauncherComponent(() => AiSendContextLauncher),

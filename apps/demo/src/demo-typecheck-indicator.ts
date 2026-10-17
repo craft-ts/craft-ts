@@ -8,6 +8,9 @@ import { typecheckIndicator } from './demo-typecheck-indicator.style';
  */
 export function startDemoTypecheckIndicator(): void {
   if (!import.meta.env.DEV) return;
+  // This dev-server health poll is infrastructure, not an application request
+  // in the recording. Avoid letting replay's strict HTTP guard block it.
+  if (new URLSearchParams(location.search).has('craft-debug-replay')) return;
 
   const indicator = document.createElement('div');
   const message = document.createElement('span');

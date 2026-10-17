@@ -68,12 +68,68 @@ describe('send context session', () => {
   });
 
   it('exports a versioned full session and marks un-clipped retention loss', () => {
-    const session = createSendContextSession({ retentionPolicy: { maxEvents: 1 } });
+    const session = createSendContextSession({
+      retentionPolicy: { maxEvents: 1 },
+    });
     session.capture('custom', 'emitted', { name: 'evicted' });
     session.capture('custom', 'emitted', { name: 'kept' });
-    const value = JSON.parse(session.exportSessionJson()) as Record<string, unknown>;
-    expect(value).toMatchObject({ format: 'craft-debug-session', version: 1, truncated: true });
+    const value = JSON.parse(session.exportSessionJson()) as Record<
+      string,
+      unknown
+    >;
+    expect(value).toMatchObject({
+      format: 'craft-debug-session',
+      version: 2,
+      truncated: true,
+    });
     expect(value.events).toHaveLength(1);
+    expect(
+      (value.events as Array<Record<string, unknown>>)[0]?.elapsedMs,
+    ).toEqual(expect.any(Number));
+  });
+
+  it('retains more than 500 events by default for faithful replay', () => {
+    const session = createSendContextSession();
+    for (let index = 0; index < 1_200; index += 1)
+      session.capture('custom', 'emitted', { name: `event-${index}` });
+
+    const exported = JSON.parse(session.exportSessionJson()) as {
+      truncated: boolean;
+      events: readonly unknown[];
+    };
+    expect(session.events).toHaveLength(1_200);
+    expect(exported.events).toHaveLength(1_200);
+    expect(exported.truncated).toBe(false);
+  });
+
+  it('exports the initial CSS viewport dimensions', () => {
+    const session = createSendContextSession();
+    const value = JSON.parse(session.exportSessionJson()) as Record<
+      string,
+      unknown
+    >;
+
+    expect(value['viewport']).toEqual({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+  });
+
+  it('exports the initial snapshot once as a v2 field', () => {
+    const session = createSendContextSession();
+    session.capture('snapshot', 'emitted', {
+      name: 'initial',
+      state: { 'state:counter#1': 3 },
+    });
+    session.capture('dom', 'emitted', {
+      name: 'counter:button:increment:click',
+    });
+    const value = JSON.parse(session.exportSessionJson()) as Record<
+      string,
+      unknown
+    >;
+    expect(value['initialSnapshot']).toEqual({ 'state:counter#1': 3 });
+    expect(value['events']).toHaveLength(1);
   });
 
   it('redacts sensitive object keys recursively', () => {
@@ -81,6 +137,18 @@ describe('send context session', () => {
       defaultSendContextRedactor({ nested: { password: 'x', ok: 1 } }),
     ).toEqual({
       nested: { password: '[REDACTED]', ok: 1 },
+    });
+  });
+
+  it('redacts secrets and email addresses from errors without retaining stacks', () => {
+    const error = new Error(
+      'Request failed for https://localhost/api?token=abc password=secret user@example.com',
+    );
+
+    expect(defaultSendContextRedactor(error)).toEqual({
+      name: 'Error',
+      message:
+        'Request failed for https://localhost/api?token=[REDACTED] password=[REDACTED] [REDACTED_EMAIL]',
     });
   });
 
