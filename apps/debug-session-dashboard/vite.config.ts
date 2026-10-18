@@ -12,10 +12,21 @@ export default defineConfig({
   cacheDir: '../../node_modules/.vite/apps/debug-session-dashboard',
   plugins: [
     craftStyle({
-      include: [path.resolve(root, '../../libs/component/src')],
+      // The Herbier sheets live in libs/ui; the framework's own components
+      // (AI overlay, pending indicator) in libs/component.
+      include: [
+        path.resolve(root, '../../libs/component/src'),
+        path.resolve(root, '../../libs/ui/src'),
+      ],
       alias: {
         '@craft-ts/style': path.resolve(root, '../../libs/style/src/index.ts'),
         '@craft-ts/core': path.resolve(root, '../../libs/core/src/index.ts'),
+        '@craft-ts/ui/style': path.resolve(root, '../../libs/ui/src/style.ts'),
+        // Before the package itself: an alias matches by prefix.
+        '@craft-ts/component/style': path.resolve(
+          root,
+          '../../libs/component/src/style.ts',
+        ),
         '@craft-ts/component': path.resolve(
           root,
           '../../libs/component/src/index.ts',
@@ -27,6 +38,12 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       '@craft-ts/core': path.resolve(root, '../../libs/core/src/index.ts'),
+      '@craft-ts/ui/style': path.resolve(root, '../../libs/ui/src/style.ts'),
+      '@craft-ts/ui': path.resolve(root, '../../libs/ui/src/index.ts'),
+      '@craft-ts/component/style': path.resolve(
+        root,
+        '../../libs/component/src/style.ts',
+      ),
       '@craft-ts/component': path.resolve(
         root,
         '../../libs/component/src/index.ts',

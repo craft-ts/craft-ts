@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const DEMO_ORIGIN =
   process.env['CRAFT_E2E_DEMO_ORIGIN'] ?? 'http://localhost:4201';
@@ -8,6 +8,17 @@ const SESSION_SERVER_ORIGIN =
   process.env['CRAFT_E2E_SESSION_SERVER_ORIGIN'] ?? 'http://127.0.0.1:4321';
 
 type SessionSummary = Readonly<{ id: string }>;
+
+/** The recording's details sit in the side panel, which is closed until asked for. */
+async function openDetails(dashboard: Page): Promise<void> {
+  const toggle = dashboard.getByRole('button', {
+    name: 'Journal',
+    exact: true,
+  });
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true')
+    await toggle.click();
+  await dashboard.getByRole('tab', { name: 'Détails' }).click();
+}
 type StoredSession = Readonly<{
   status?: string;
   participants?: readonly Readonly<{
@@ -53,7 +64,6 @@ test('captures browser environment and acknowledges page-close completion', asyn
     .not.toBe('');
   await page.close();
 
-  let archived: StoredSession | undefined;
   await expect
     .poll(async () => {
       const result = (await (
@@ -64,7 +74,7 @@ test('captures browser environment and acknowledges page-close completion', asyn
       return result.sessions.find((item) => item.id === sessionId)?.status;
     })
     .toBe('completed');
-  archived = (await (
+  const archived = (await (
     await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
   ).json()) as StoredSession;
   const environment = archived?.participants?.[0]?.environment;
@@ -205,11 +215,13 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
   await expect(
     dashboard.locator('iframe[data-replay-participant]'),
   ).toHaveCount(2);
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText('1 /');
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    '1 /',
+  );
 
   await secondTab.evaluate(() => {
     Object.defineProperty(document, 'hasFocus', {
@@ -422,12 +434,12 @@ test('switches the visible replay iframe when the recorded active tab changes', 
   );
 
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
-  await expect(dashboard.locator('.lab__environment-warning')).toContainText(
-    'Environnement différent de l’enregistrement',
-  );
+  await expect(
+    dashboard.locator('[data-lab="environment-warning"]'),
+  ).toContainText('Environnement différent de l’enregistrement');
   await expect(
     dashboard.locator('iframe[data-replay-participant]'),
   ).toHaveCount(2);
@@ -436,10 +448,12 @@ test('switches the visible replay iframe when the recorded active tab changes', 
   );
   await expect(lateFrame).not.toHaveAttribute('src', /localhost/);
   await expect(
-    dashboard.locator('.lab__replay-tile--focused .lab__replay-tile-name'),
+    dashboard.locator('[data-tile-focus="true"] [data-lab="replay-tile-name"]'),
   ).toHaveText('Fenêtre A');
   await expect(
-    dashboard.locator('.lab__replay-tile--focused .lab__replay-active-badge'),
+    dashboard.locator(
+      '[data-tile-focus="true"] [data-lab="replay-active-badge"]',
+    ),
   ).toHaveText('ACTIF');
   await expect(
     dashboard.locator('#replay-frame-placeholder-tab-b'),
@@ -454,13 +468,15 @@ test('switches the visible replay iframe when the recorded active tab changes', 
     timeout: 1_500,
   });
   await expect(
-    dashboard.locator('.lab__replay-tile--focused .lab__replay-tile-name'),
+    dashboard.locator('[data-tile-focus="true"] [data-lab="replay-tile-name"]'),
   ).toHaveText('Fenêtre B', { timeout: 1_500 });
   await expect(
-    dashboard.locator('.lab__replay-tile--focused .lab__replay-active-badge'),
+    dashboard.locator(
+      '[data-tile-focus="true"] [data-lab="replay-active-badge"]',
+    ),
   ).toHaveText('ACTIF');
   await expect(
-    dashboard.locator('.lab__replay-tile:not([hidden])'),
+    dashboard.locator('[data-lab="replay-tile"]:not([hidden])'),
   ).toHaveCount(2);
   await context.close();
 });
@@ -564,20 +580,20 @@ test('dims replay tabs recorded as hidden while keeping them in the all-tabs vie
   );
 
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
     { timeout: 20_000 },
   );
   await expect(
-    dashboard.locator('.lab__replay-tile:not([hidden])'),
+    dashboard.locator('[data-lab="replay-tile"]:not([hidden])'),
   ).toHaveCount(2);
   const hiddenOverlay = dashboard.locator(
-    '#replay-frame-card-hidden-tab .lab__replay-visibility-overlay',
+    '#replay-frame-card-hidden-tab [data-lab="replay-visibility-overlay"]',
   );
   await expect(hiddenOverlay).toBeVisible();
   await expect(hiddenOverlay).toHaveText('Non visible');
   const closedOverlay = dashboard.locator(
-    '#replay-frame-card-visible-tab .lab__replay-visibility-overlay',
+    '#replay-frame-card-visible-tab [data-lab="replay-visibility-overlay"]',
   );
   await expect(closedOverlay).toBeVisible();
   await expect(closedOverlay).toHaveText('Onglet fermé');
@@ -669,10 +685,10 @@ test('opens a replay for a complete tab in a globally truncated session', async 
 
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
   await expect(dashboard.getByLabel('Onglets à visionner')).toHaveValue('all');
-  await expect(dashboard.locator('.lab__left')).toContainText(
+  await expect(dashboard.locator('[data-lab="left"]')).toContainText(
     'archive tronquée, onglets incomplets exclus du replay',
   );
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
   await expect(
@@ -682,12 +698,14 @@ test('opens a replay for a complete tab in a globally truncated session', async 
     dashboard.locator('iframe[data-replay-participant="truncated-tab"]'),
   ).toHaveCount(0);
   await expect(
-    dashboard.locator('.lab__replay-tile--focused .lab__replay-active-badge'),
+    dashboard.locator(
+      '[data-tile-focus="true"] [data-lab="replay-active-badge"]',
+    ),
   ).toHaveCount(0);
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
   await expect(
     dashboard.locator(
-      '.lab__replay-tile--action-target .lab__replay-active-badge',
+      '[data-tile-action="true"] [data-lab="replay-active-badge"]',
     ),
   ).toHaveText('ACTION');
   await context.close();
@@ -874,15 +892,17 @@ test('replays every recorded user action and targets the recorded user', async (
 
   const dashboard = await context.newPage();
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
-  await expect(dashboard.locator('.lab__detail-page')).toBeVisible();
-  await expect(dashboard.locator('.lab__left')).toContainText(
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="left"]')).toContainText(
     `Format v2 · ${session.events.length} événements`,
   );
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
   expect(session.viewport).toBeDefined();
-  await expect(dashboard.locator('.lab__viewport-caption')).toContainText(
+  await expect(
+    dashboard.locator('[data-lab="viewport-caption"]'),
+  ).toContainText(
     `Viewport enregistré · ${session.viewport!.width} × ${session.viewport!.height} px`,
   );
   const replayFrame = dashboard.locator('#replay-target');
@@ -910,7 +930,6 @@ test('replays every recorded user action and targets the recorded user', async (
     'Lecture à vitesse réelle',
     'Pause',
     'Arrêter',
-    'Exporter la cible',
     'Plein écran',
     'Action suivante',
   ]) {
@@ -921,7 +940,7 @@ test('replays every recorded user action and targets the recorded user', async (
 
   const replayApp = dashboard.frameLocator('#replay-target');
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '1 / 5',
   );
   const clickMarker = dashboard.locator('#replay-click-marker');
@@ -941,31 +960,31 @@ test('replays every recorded user action and targets the recorded user', async (
   }
   await expect(replayApp.locator('[data-user-id="3"]')).toBeVisible();
   const secondInteraction = interactions[1];
-  await expect(dashboard.locator('.lab__next-action-name')).toContainText(
-    secondInteraction?.name ?? 'nom non disponible',
-  );
+  await expect(
+    dashboard.locator('[data-lab="next-action-name"]'),
+  ).toContainText(secondInteraction?.name ?? 'nom non disponible');
 
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '2 / 5',
   );
   await expect(replayApp.locator('[data-user-id="4"]')).toBeVisible();
 
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '3 / 5',
   );
   await expect(replayApp.locator('[data-user-id="3"]')).toHaveCount(0);
   await expect(replayApp.locator('[data-user-id="4"]')).toBeVisible();
 
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '4 / 5',
   );
   await expect(replayApp.getByTestId('nav-panel')).toBeVisible();
 
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '5 / 5',
   );
   await expect
@@ -986,6 +1005,7 @@ test('replays every recorded user action and targets the recorded user', async (
   await expect(
     dashboard.getByRole('button', { name: 'Arrêter' }),
   ).toBeDisabled();
+  await openDetails(dashboard);
   await expect(
     dashboard.getByRole('button', { name: 'Exporter la cible' }),
   ).toHaveAttribute('data-tooltip', /session de diagnostic/);
@@ -994,14 +1014,14 @@ test('replays every recorded user action and targets the recorded user', async (
     dashboard.getByRole('button', { name: 'Préparer le replay' }),
   ).toHaveCount(0);
   await dashboard.reload();
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
   await dashboard
     .getByRole('button', { name: 'Lecture à vitesse réelle' })
     .click();
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
-    '5 / 5 étapes · completed',
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    '5 / 5 étapes · terminé',
   );
   await expect
     .poll(async () =>
@@ -1126,27 +1146,28 @@ test('forces the recorded link destination after a replay divergence', async ({
 
   const dashboard = await context.newPage();
   await dashboard.goto(`${DASHBOARD_ORIGIN}/`);
+  await dashboard.getByRole('button', { name: 'Importer un fichier' }).click();
   await dashboard
     .getByRole('textbox', { name: 'Session JSON' })
     .fill(JSON.stringify(session));
   await dashboard.getByRole('button', { name: 'Valider la session' }).click();
-  await expect(dashboard.locator('.lab__detail-page')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
   await expect(
     dashboard.getByRole('button', { name: 'Préparer le replay' }),
   ).toHaveCount(0);
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
   const replayApp = dashboard.frameLocator('#replay-target');
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__diff')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="diff"]')).toBeVisible();
   const force = dashboard.getByRole('button', {
     name: 'Forcer l’état attendu et continuer',
   });
   await expect(force).toBeVisible();
   await force.click();
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Reprise forcée · navigation vers /pending-node',
   );
   await expect
@@ -1158,7 +1179,7 @@ test('forces the recorded link destination after a replay divergence', async ({
     )
     .toBe(`${DEMO_ORIGIN}/pending-node`);
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '3 / 3',
   );
   await expect(replayApp.getByTestId('nav-panel')).toBeVisible();
@@ -1206,11 +1227,11 @@ test('replays a pending-block route through its delayed Craft query', async ({
 
   const dashboard = await context.newPage();
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
-  await expect(dashboard.locator('.lab__detail-page')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
   await expect(
     dashboard.getByRole('button', { name: 'Préparer le replay' }),
   ).toHaveCount(0);
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
 
@@ -1225,10 +1246,10 @@ test('replays a pending-block route through its delayed Craft query', async ({
   await expect(replayApp.getByText('Loading teams…')).toBeVisible();
   await expect(replayApp.getByText('3 people')).toBeVisible();
   expect(Date.now() - replayStartedAt).toBeGreaterThanOrEqual(800);
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
-    '2 / 2 étapes · completed',
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    '2 / 2 étapes · terminé',
   );
-  await expect(dashboard.locator('.lab__diff')).toBeHidden();
+  await expect(dashboard.locator('[data-lab="diff"]')).toBeHidden();
 
   await context.close();
 });
@@ -1356,36 +1377,36 @@ test('skips a divergent interval to a compatible checkpoint and marks the replay
     .getByRole('textbox', { name: 'Session JSON' })
     .fill(JSON.stringify(recording));
   await dashboard.getByRole('button', { name: 'Valider la session' }).click();
-  await expect(dashboard.locator('.lab__detail-page')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
   await expect(
     dashboard.getByRole('button', { name: 'Préparer le replay' }),
   ).toHaveCount(0);
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__diff')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="diff"]')).toBeVisible();
 
   const skip = dashboard.getByRole('button', {
     name: 'Ignorer jusqu’au prochain point de reprise',
   });
   await expect(skip).toBeVisible();
   await skip.click();
-  await expect(dashboard.locator('.lab__status').first()).toContainText(
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay partiel · intervalle 1–2 ignoré',
   );
-  await expect(dashboard.locator('.lab__partial')).toContainText(
+  await expect(dashboard.locator('[data-lab="partial"]')).toContainText(
     'checkpoint resume-checkpoint',
   );
-  await expect(dashboard.locator('.lab__replay-progress')).toContainText(
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     '2 / 3',
   );
 
   const replayApp = dashboard.frameLocator('#replay-target');
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('.lab__diff')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="diff"]')).toBeVisible();
   await expect(replayApp.locator('[data-user-id="3"]')).toBeVisible();
-  await expect(dashboard.locator('.lab__partial')).toContainText(
+  await expect(dashboard.locator('[data-lab="partial"]')).toContainText(
     'Replay partiel',
   );
 

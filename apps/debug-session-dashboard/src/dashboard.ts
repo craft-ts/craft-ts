@@ -1,18 +1,23 @@
 import {
   button,
+  content,
   craftComponent,
+  details,
   div,
+  type CraftNodeChild,
   forNode,
   heading,
   input,
-  label,
+  li,
   option,
   p,
   pre,
   section,
   select,
   span,
+  summary,
   textarea,
+  ul,
 } from '@craft-ts/component';
 import {
   ɵcomputed as computed,
@@ -24,12 +29,54 @@ import {
 } from '@craft-ts/core';
 import {
   validateDebugSessionExport,
-  validateReplayExport,
+  getReplaySteps,
 } from '@craft-ts/component';
 import {
   captureDebugSessionEnvironment,
   environmentDifferences,
 } from '@craft-ts/component';
+import {
+  DocBadge,
+  DocCallout,
+  DocDialog,
+  DocLogo,
+  DocModeToggle,
+  DocSeasonPicker,
+  DocSwitch,
+  DocTabs,
+  provideDocModeView,
+  provideDocSeasonView,
+} from '@craft-ts/ui';
+import { assign, num, unit } from '@craft-ts/style';
+import { badgeUi, buttonUi } from '@craft-ts/ui/style';
+import {
+  frameVars,
+  markerVars,
+  progressVars,
+  ui,
+  viewportVars,
+} from './dashboard.style';
+
+type TypedVars = Readonly<Record<`--${string}`, string>>;
+
+/**
+ * The replay draws its frames with the DOM API, outside any template, so there
+ * is no `style:` binding to carry a variable. This is the one place a typed
+ * custom property is written onto an element: the value always comes from
+ * `assign(token, …)` and the sheet reads the variable. Never a raw property.
+ */
+function writeVars(element: HTMLElement, vars: TypedVars): void {
+  for (const [name, value] of Object.entries(vars))
+    element.style.setProperty(name, value);
+}
+
+function clearVars(
+  element: HTMLElement,
+  ...tokens: readonly { readonly declaration: { readonly name: string } }[]
+): void {
+  for (const token of tokens)
+    element.style.removeProperty(token.declaration.name);
+}
 
 const CHANNEL = 'craft-debug-replay';
 const REPLAY_QUERY_MARKER = 'craft-debug-replay';
@@ -52,6 +99,12 @@ const events = signal<readonly SendContextEvent[]>([]);
 const sessionParticipants = signal<readonly SendContextSessionParticipant[]>(
   [],
 );
+const replayableParticipants = computed(() => {
+  const continuations = replayParticipantContinuations();
+  return sessionParticipants().filter(
+    (participant) => !continuations.has(participant.id),
+  );
+});
 const currentEnvironment = captureDebugSessionEnvironment();
 const environmentWarning = computed(() => {
   const profiles = sessionParticipants()
@@ -67,13 +120,18 @@ const environmentWarning = computed(() => {
     ),
   ];
   return differences.length
-    ? `Environnement différent de l’enregistrement : ${differences.join(', ')}. Le user-agent n’est pas simulé et l’iframe utilise le navigateur actuel.`
+    ? `Environnement différent de l’enregistrement : ${differences.join(', ')}. Le user-agent n’est pas simulé et l’iframe utilise le navigateur actuel ; le schéma clair/sombre enregistré est appliqué quand il est disponible.`
     : '';
 });
 const selectedParticipantId = signal('all');
 const savedSessions = signal<readonly SessionSummary[]>([]);
 const pendingDeleteSessionId = signal<string | undefined>(undefined);
 const archiveStatus = signal('Connexion au serveur de sessions…');
+const archiveReachable = signal(true);
+const loadError = signal<string | undefined>(undefined);
+const importOpen = signal(false);
+const sidePanelOpen = signal(false);
+const showAllEvents = signal(false);
 const page = signal<'sessions' | 'detail'>('sessions');
 const targetUrl = signal(
   import.meta.env['VITE_CRAFT_REPLAY_TARGET_URL'] ?? 'http://localhost:4200/',
@@ -98,7 +156,10 @@ const partialReplay = signal<
   Readonly<{ from: number; to: number; checkpointEventId: string }> | undefined
 >(undefined);
 const replayIndex = signal(0);
+const eventTimelinePage = signal(0);
+const eventTimelinePageSize = 250;
 const replayState = signal('idle');
+const replayWarnings = signal<readonly string[]>([]);
 const replaySkeletonVisible = signal(false);
 const activeReplayParticipantId = signal<string | undefined>(undefined);
 const replayViewportScale = signal(1);
@@ -127,27 +188,61 @@ const visibleEvents = computed(() => {
           (right.globalElapsedMs ?? right.timestamp),
       );
   }
-  return events().filter((event) => event.participantId === selected);
+  const rootId = replayParticipantContinuations().get(selected) ?? selected;
+  const groupedIds = new Set([
+    rootId,
+    ...[...replayParticipantContinuations()].flatMap(([id, root]) =>
+      root === rootId ? [id] : [],
+    ),
+  ]);
+  return events().filter(
+    (event) => event.participantId && groupedIds.has(event.participantId),
+  );
 });
-const replayableEvents = computed(() =>
-  visibleEvents().filter(
-    (event) =>
-      event.phase === 'emitted' &&
-      (event.kind === 'dom' ||
-        event.kind === 'scroll' ||
-        event.kind === 'viewport'),
-  ),
+/**
+ * What deserves a look in a recording: a request, a navigation or a primitive
+ * that failed. The slow tasks the browser reported are marked in the full
+ * journal; everything else (clicks, scrolls, heartbeats) is the recording
+ * itself and stays out of the way.
+ */
+function eventSeverity(event: SendContextEvent): 'error' | 'slow' | undefined {
+  if (event.phase === 'failed') return 'error';
+  if (
+    event.kind === 'performance' &&
+    (event.name === 'browser.longtask' || event.name === 'browser.slow-event')
+  )
+    return 'slow';
+  return undefined;
+}
+// Slow tasks are context, not a verdict: they appear under "Tout afficher",
+// marked, but they neither fill the default journal nor raise the badge.
+const problemEvents = computed(() =>
+  visibleEvents().filter((event) => eventSeverity(event) === 'error'),
 );
+const errorCount = computed(() => problemEvents().length);
+const journalEvents = computed(() =>
+  showAllEvents() ? visibleEvents() : problemEvents(),
+);
+const visibleEventPage = computed(() => {
+  const start = eventTimelinePage() * eventTimelinePageSize;
+  return journalEvents().slice(start, start + eventTimelinePageSize);
+});
+const eventTimelinePageCount = computed(() =>
+  Math.max(1, Math.ceil(journalEvents().length / eventTimelinePageSize)),
+);
+const replayableEvents = computed(() => getReplaySteps(visibleEvents()));
 const activeReplayEventId = computed(
   () => replayableEvents()[Math.max(0, replayIndex() - 1)]?.id,
 );
 type ReplayFrameConnection = {
   readonly participantId: string;
+  readonly replayRunId: string;
   href: string;
   nonce: string;
   connected: boolean;
   started: boolean;
   status: string;
+  resumeIndex: number;
   session: SendContextReplayExport;
   startMode: 'url' | 'snapshot';
   timelineOriginMs?: number;
@@ -162,6 +257,7 @@ const replayViewports = new Map<
 const replayScales = new Map<string, number>();
 const completedReplayEventIds = new Set<string>();
 const handshakeTimers = new Map<string, number>();
+const replayDialogTimers = new Map<string, number>();
 let listenerInstalled = false;
 let hashListenerInstalled = false;
 let archiveRefreshTimer: ReturnType<typeof setInterval> | undefined;
@@ -247,16 +343,11 @@ function setNextActionCountdown(delayMs: number | undefined): void {
 function nextActionTimingLabel(): string {
   if (replayState() === 'playing') {
     const remaining = nextActionDelayMs();
-    if (remaining === undefined) return 'Synchronisation avec le replay…';
-    if (remaining <= 0) return 'La prochaine action arrive maintenant';
-    return `Prochaine action dans ${(remaining / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
+    if (remaining === undefined) return 'synchronisation…';
+    if (remaining <= 0) return 'maintenant';
+    return `dans ${(remaining / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
   }
-  if (replayState() === 'paused') return 'Lecture en pause';
-  if (replayState() === 'completed')
-    return 'Replay terminé · aucune action restante';
-  if (replayState() === 'ready')
-    return 'Prête · exécution immédiate en pas à pas';
-  return 'Prépare le replay pour voir et exécuter la prochaine action';
+  return '';
 }
 
 function updateReplayViewport(): void {
@@ -275,27 +366,56 @@ function updateReplayViewport(): void {
       sessionForParticipant(participantId)?.viewport ??
       session()?.viewport;
     if (!viewport) {
-      viewportFrame.style.removeProperty('width');
-      viewportFrame.style.removeProperty('height');
-      frame.style.removeProperty('width');
-      frame.style.removeProperty('height');
-      frame.style.removeProperty('transform');
+      clearVars(viewportFrame, viewportVars.width, viewportVars.height);
+      clearVars(
+        frame,
+        frameVars.width,
+        frameVars.height,
+        frameVars.scale,
+        frameVars.shiftX,
+        frameVars.shiftY,
+      );
       continue;
     }
 
     const availableWidth = card.clientWidth;
-    const availableHeight = Math.max(180, stage.clientHeight - 48);
+    // What the tile and the grid keep for themselves around the page: the
+    // title, the address, the gaps and the padding.
+    const grid = document.getElementById('replay-frame-grid');
+    const gridStyle = grid ? getComputedStyle(grid) : undefined;
+    const gridPadding = gridStyle
+      ? Number.parseFloat(gridStyle.paddingTop) +
+        Number.parseFloat(gridStyle.paddingBottom)
+      : 0;
+    const tileChrome = Math.max(
+      0,
+      card.offsetHeight - viewportFrame.offsetHeight,
+    );
+    const availableHeight = Math.max(
+      180,
+      stage.clientHeight - gridPadding - tileChrome,
+    );
     if (availableWidth < 1 || availableHeight < 1) continue;
     const scale = Math.min(
       1,
       availableWidth / viewport.width,
       availableHeight / viewport.height,
     );
-    viewportFrame.style.width = `${viewport.width * scale}px`;
-    viewportFrame.style.height = `${viewport.height * scale}px`;
-    frame.style.width = `${viewport.width}px`;
-    frame.style.height = `${viewport.height}px`;
-    frame.style.transform = `scale(${scale})`;
+    writeVars(viewportFrame, {
+      ...assign(viewportVars.width, unit.px(viewport.width * scale)),
+      ...assign(viewportVars.height, unit.px(viewport.height * scale)),
+    });
+    // The page is scaled around its centre; the shift puts its corner back.
+    writeVars(frame, {
+      ...assign(frameVars.width, unit.px(viewport.width)),
+      ...assign(frameVars.height, unit.px(viewport.height)),
+      ...assign(frameVars.scale, num(scale)),
+      ...assign(frameVars.shiftX, unit.px((-viewport.width * (1 - scale)) / 2)),
+      ...assign(
+        frameVars.shiftY,
+        unit.px((-viewport.height * (1 - scale)) / 2),
+      ),
+    });
     replayScales.set(participantId, scale);
     if (participantId === selectedParticipantId() || primaryScale === 1)
       primaryScale = scale;
@@ -361,10 +481,12 @@ async function refreshSavedSessions(): Promise<void> {
       sessions?: readonly SessionSummary[];
     };
     savedSessions.set(result.sessions ?? []);
+    archiveReachable.set(true);
     archiveStatus.set(
       `${savedSessions().length} session${savedSessions().length === 1 ? '' : 's'} dans l’archive locale`,
     );
   } catch {
+    archiveReachable.set(false);
     archiveStatus.set('Serveur d’archive arrêté · lance npm run logs:server');
   }
 }
@@ -389,6 +511,7 @@ async function deleteSavedSession(id: string): Promise<void> {
 
 async function loadSavedSession(id: string): Promise<void> {
   beginReplayLoadingIndicator();
+  loadError.set(undefined);
   if (loadedArchiveSessionId !== id) {
     session.set(undefined);
     events.set([]);
@@ -436,9 +559,9 @@ async function loadSavedSession(id: string): Promise<void> {
     }, 0);
   } catch (error) {
     endReplayLoadingIndicator();
-    status.set(
-      `Impossible de charger la session · ${error instanceof Error ? error.message : String(error)}`,
-    );
+    const message = `Impossible de charger la session · ${error instanceof Error ? error.message : String(error)}`;
+    status.set(message);
+    loadError.set(message);
   }
 }
 
@@ -477,6 +600,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function eventDiagnosticLabel(event: SendContextEvent): string {
+  const name = event.name ?? 'nom non disponible';
+  if (event.kind !== 'performance' || !isRecord(event.payload)) return name;
+  const payload = event.payload;
+  if (typeof payload['durationMs'] === 'number') {
+    const duration = `${payload['durationMs'].toFixed(0)} ms`;
+    if (event.name === 'browser.slow-event') {
+      const input = Number(payload['inputDelayMs'] ?? 0).toFixed(0);
+      const processing = Number(payload['processingMs'] ?? 0).toFixed(0);
+      const presentation = Number(payload['presentationDelayMs'] ?? 0).toFixed(
+        0,
+      );
+      return `${name} · ${String(payload['eventType'] ?? 'event')} · ${duration} (entrée ${input} / traitement ${processing} / affichage ${presentation} ms)`;
+    }
+    if (event.name === 'browser.longtask') return `${name} · ${duration}`;
+  }
+  if (event.name === 'browser.heartbeat') {
+    const delay = Number(payload['timerDelayMs'] ?? 0).toFixed(0);
+    return `${name} · retard ${delay} ms · ${String(payload['visibilityState'] ?? 'visibilité inconnue')}`;
+  }
+  return name;
+}
+
 function importJson(text: string): void {
   loadedArchiveCreatedAtMs = undefined;
   sessionText.set(text);
@@ -486,8 +632,10 @@ function importJson(text: string): void {
     session.set(undefined);
     events.set([]);
     status.set(result.error);
+    loadError.set(result.error);
     return;
   }
+  loadError.set(undefined);
   session.set(result.session);
   sessionParticipants.set(
     Array.isArray(result.session.participants)
@@ -495,6 +643,7 @@ function importJson(text: string): void {
       : [],
   );
   selectedParticipantId.set('all');
+  eventTimelinePage.set(0);
   replayViewport.set(result.session.viewport);
   updateReplayViewport();
   events.set(result.session.events);
@@ -519,13 +668,23 @@ function sessionForParticipant(
   if (participantId === 'default' || participants.length === 0) return imported;
   const participant = participants.find((item) => item.id === participantId);
   if (!participant) return imported;
+  const continuations = replayParticipantContinuations();
+  const groupedParticipantIds = new Set([
+    participantId,
+    ...[...continuations].flatMap(([continuationId, rootId]) =>
+      rootId === participantId ? [continuationId] : [],
+    ),
+  ]);
   const participantEvents = imported.events.filter(
     (event) =>
-      event.participantId === participantId ||
+      (event.participantId && groupedParticipantIds.has(event.participantId)) ||
       (participants.length === 1 && event.participantId === undefined),
   );
   const participantClips = imported.clips.filter(
-    (clip) => isRecord(clip) && clip['participantId'] === participantId,
+    (clip) =>
+      isRecord(clip) &&
+      typeof clip['participantId'] === 'string' &&
+      groupedParticipantIds.has(clip['participantId']),
   );
   const participantHistoryComplete = hasCompleteRetainedParticipantHistory(
     imported,
@@ -546,28 +705,89 @@ function sessionForParticipant(
   };
 }
 
-function sessionForReplay(): SendContextReplayExport | undefined {
-  const participants = sessionParticipants();
-  const selected = selectedParticipantId();
-  if (selected === 'all')
-    return participants.length <= 1 ? session() : undefined;
-  return sessionForParticipant(selected);
-}
-
 function replayParticipantIds(): readonly string[] {
   const participants = sessionParticipants();
   if (participants.length === 0) return ['default'];
   const selected = selectedParticipantId();
+  const continuations = replayParticipantContinuations();
   const candidates =
     selected === 'all'
       ? participants
       : participants.filter((participant) => participant.id === selected);
   return candidates
     .filter((participant) => {
+      if (continuations.has(participant.id)) return false;
       const replay = sessionForParticipant(participant.id);
       return replay !== undefined && !replay.truncated;
     })
     .map((participant) => participant.id);
+}
+
+/** Older recordings assigned a new participant id after a Clear Cache reload. */
+function replayParticipantContinuations(): ReadonlyMap<string, string> {
+  const participants = [...sessionParticipants()].sort(
+    (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
+  );
+  const continuations = new Map<string, string>();
+  for (let index = 1; index < participants.length; index += 1) {
+    const next = participants[index]!;
+    let nextStart: URL;
+    try {
+      nextStart = new URL(next.startUrl);
+    } catch {
+      continue;
+    }
+    const candidates = participants.slice(0, index).filter((previous) => {
+      if (previous.status !== 'completed') return false;
+      const gapMs = Date.parse(next.createdAt) - Date.parse(previous.updatedAt);
+      if (!Number.isFinite(gapMs) || gapMs < 0 || gapMs > 2_000) return false;
+      const previousEvents = events().filter(
+        (event) => event.participantId === previous.id,
+      );
+      const clearCacheAction = [...previousEvents]
+        .reverse()
+        .find(
+          (event) =>
+            event.kind === 'dom' &&
+            event.phase === 'emitted' &&
+            isRecord(event.payload) &&
+            event.payload['action'] === 'click' &&
+            ((event.name ?? '').toLowerCase().includes('clearcache') ||
+              String(event.payload['selector'] ?? '').includes('clearCache')),
+        );
+      if (!clearCacheAction) return false;
+      const actionAgeMs =
+        Date.parse(previous.updatedAt) - clearCacheAction.timestamp;
+      if (
+        !Number.isFinite(actionAgeMs) ||
+        actionAgeMs < 0 ||
+        actionAgeMs > 3_000
+      )
+        return false;
+      const lastRouteEvent = [...previousEvents]
+        .reverse()
+        .find(
+          (event) =>
+            event.kind === 'navigation' &&
+            event.phase === 'started' &&
+            event.name === 'NavigationEnd' &&
+            isRecord(event.payload),
+        );
+      const route = isRecord(lastRouteEvent?.payload)
+        ? lastRouteEvent.payload['url']
+        : undefined;
+      if (typeof route !== 'string') return false;
+      try {
+        return (
+          new URL(route, previous.startUrl).pathname === nextStart.pathname
+        );
+      } catch {
+        return false;
+      }
+    });
+    if (candidates.length === 1) continuations.set(next.id, candidates[0]!.id);
+  }
+  return continuations;
 }
 
 function replayFrameElementId(participantId: string): string {
@@ -592,6 +812,10 @@ function replayFrameCardId(participantId: string): string {
   return `replay-frame-card-${participantId}`;
 }
 
+function replayFrameUrlId(participantId: string): string {
+  return `replay-frame-url-${participantId}`;
+}
+
 function replayFramePlaceholderId(participantId: string): string {
   return `replay-frame-placeholder-${participantId}`;
 }
@@ -600,6 +824,81 @@ function replayMarkerId(participantId: string): string {
   return replayParticipantIds()[0] === participantId
     ? 'replay-click-marker'
     : `replay-click-marker-${participantId}`;
+}
+
+function replayDialogOverlayId(participantId: string): string {
+  return `replay-dialog-overlay-${participantId}`;
+}
+
+function hideReplayDialog(participantId: string): void {
+  const timer = replayDialogTimers.get(participantId);
+  if (timer !== undefined) window.clearTimeout(timer);
+  replayDialogTimers.delete(participantId);
+  const overlay = document.getElementById(replayDialogOverlayId(participantId));
+  if (overlay) overlay.hidden = true;
+}
+
+function showReplayDialog(participantId: string, value: unknown): void {
+  if (!value || typeof value !== 'object') return;
+  const dialog = value as Record<string, unknown>;
+  const overlay = document.getElementById(replayDialogOverlayId(participantId));
+  if (!overlay) return;
+  hideReplayDialog(participantId);
+  const method =
+    dialog['method'] === 'alert' ||
+    dialog['method'] === 'confirm' ||
+    dialog['method'] === 'prompt'
+      ? dialog['method']
+      : 'alert';
+  const title = overlay.querySelector<HTMLElement>(
+    '[data-lab="replay-dialog-title"]',
+  );
+  const message = overlay.querySelector<HTMLElement>(
+    '[data-lab="replay-dialog-message"]',
+  );
+  const result = overlay.querySelector<HTMLElement>(
+    '[data-lab="replay-dialog-result"]',
+  );
+  if (title)
+    title.textContent =
+      method === 'alert'
+        ? 'Alerte navigateur'
+        : method === 'confirm'
+          ? 'Confirmation navigateur'
+          : 'Saisie navigateur';
+  if (message)
+    message.textContent =
+      typeof dialog['message'] === 'string'
+        ? dialog['message']
+        : 'Dialogue sans message';
+  if (result) {
+    const recorded = dialog['recorded'] === true;
+    const answer = dialog['result'];
+    result.textContent = recorded
+      ? method === 'confirm'
+        ? answer === true
+          ? 'Réponse enregistrée : OK'
+          : 'Réponse enregistrée : Annuler'
+        : method === 'prompt'
+          ? typeof answer === 'string'
+            ? `Réponse enregistrée : ${answer}`
+            : answer === null
+              ? 'Réponse enregistrée : Annuler'
+              : 'Valeur saisie non enregistrée'
+          : 'Dialogue enregistré'
+      : 'Dialogue non présent dans cet enregistrement';
+  }
+  overlay.hidden = false;
+  const duration =
+    typeof dialog['durationMs'] === 'number' &&
+    Number.isFinite(dialog['durationMs'])
+      ? Math.max(0, Math.min(dialog['durationMs'], 60_000))
+      : 0;
+  if (duration > 0)
+    replayDialogTimers.set(
+      participantId,
+      window.setTimeout(() => hideReplayDialog(participantId), duration + 250),
+    );
 }
 
 function replayParticipantTitle(participantId: string): string {
@@ -619,46 +918,124 @@ function renderReplayFrames(): void {
   grid.replaceChildren();
   participantIds.forEach((participantId, index) => {
     const card = document.createElement('section');
-    card.className = 'lab__replay-tile';
+    card.className = ui.tile;
+    card.dataset['lab'] = 'replay-tile';
     card.hidden = participantId !== activeReplayParticipantId();
     card.id = replayFrameCardId(participantId);
     const title = document.createElement('h3');
-    title.className = 'lab__replay-tile-title';
+    title.className = ui.tileTitle;
+    title.dataset['lab'] = 'replay-tile-title';
     const participantName = document.createElement('span');
-    participantName.className = 'lab__replay-tile-name';
+    participantName.className = ui.tileName;
+    participantName.dataset['lab'] = 'replay-tile-name';
     participantName.textContent = replayParticipantTitle(participantId);
     const activeBadge = document.createElement('span');
-    activeBadge.className = 'lab__replay-active-badge';
-    activeBadge.textContent = 'ACTIF';
+    activeBadge.className = ui.tileBadge;
+    activeBadge.dataset['lab'] = 'replay-active-badge';
+    activeBadge.hidden = true;
     title.append(participantName, activeBadge);
     const viewportFrame = document.createElement('div');
-    viewportFrame.className = 'lab__viewport-frame';
+    viewportFrame.className = ui.viewport;
+    viewportFrame.dataset['lab'] = 'viewport-frame';
     viewportFrame.id = replayFrameWrapperId(participantId);
     const frame = document.createElement('iframe');
     frame.id =
       index === 0 ? 'replay-target' : replayFrameElementId(participantId);
+    frame.className = ui.frame;
     frame.dataset['replayParticipant'] = participantId;
     frame.title = `${replayParticipantTitle(participantId)} · replay`;
+    const recordedColorScheme = sessionParticipants().find(
+      (participant) => participant.id === participantId,
+    )?.environment?.colorScheme;
+    // The iframe inherits color-scheme from this dark dashboard. Pin its
+    // embedded preference to the recording when available; old exports have
+    // no theme metadata, so use light as the least surprising legacy default.
+    frame.dataset['frameScheme'] =
+      recordedColorScheme === 'dark' ? 'dark' : 'light';
     frame.addEventListener('load', () => handshake(participantId));
     const placeholder = document.createElement('div');
-    placeholder.className = 'lab__replay-frame-placeholder';
+    placeholder.className = ui.placeholder;
+    placeholder.dataset['lab'] = 'replay-frame-placeholder';
     placeholder.id = replayFramePlaceholderId(participantId);
     placeholder.hidden = true;
     const visibilityOverlay = document.createElement('div');
-    visibilityOverlay.className = 'lab__replay-visibility-overlay';
+    visibilityOverlay.className = ui.veil;
+    visibilityOverlay.dataset['lab'] = 'replay-visibility-overlay';
     visibilityOverlay.hidden = true;
     visibilityOverlay.setAttribute('aria-label', 'Onglet non visible');
     visibilityOverlay.textContent = 'Non visible';
     const marker = document.createElement('div');
-    marker.className = 'lab__click-marker';
+    marker.className = ui.marker;
+    marker.dataset['lab'] = 'click-marker';
     marker.id = replayMarkerId(participantId);
     marker.hidden = true;
     marker.setAttribute('aria-hidden', 'true');
-    viewportFrame.append(frame, visibilityOverlay, marker, placeholder);
-    card.append(title, viewportFrame);
+    const dialogOverlay = document.createElement('div');
+    dialogOverlay.className = ui.pageDialog;
+    dialogOverlay.dataset['lab'] = 'replay-dialog-overlay';
+    dialogOverlay.id = replayDialogOverlayId(participantId);
+    dialogOverlay.hidden = true;
+    dialogOverlay.setAttribute('role', 'status');
+    const dialogPanel = document.createElement('div');
+    dialogPanel.className = ui.pageDialogCard;
+    dialogPanel.dataset['lab'] = 'replay-dialog';
+    const dialogTitle = document.createElement('strong');
+    dialogTitle.className = ui.pageDialogTitle;
+    dialogTitle.dataset['lab'] = 'replay-dialog-title';
+    const dialogMessage = document.createElement('p');
+    dialogMessage.className = ui.pageDialogMessage;
+    dialogMessage.dataset['lab'] = 'replay-dialog-message';
+    const dialogResult = document.createElement('small');
+    dialogResult.className = ui.pageDialogResult;
+    dialogResult.dataset['lab'] = 'replay-dialog-result';
+    dialogPanel.append(dialogTitle, dialogMessage, dialogResult);
+    dialogOverlay.append(dialogPanel);
+    const url = document.createElement('p');
+    url.className = ui.tileUrl;
+    url.dataset['lab'] = 'replay-tile-url';
+    url.id = replayFrameUrlId(participantId);
+    url.textContent =
+      sessionParticipants().find(
+        (participant) => participant.id === participantId,
+      )?.startUrl ?? '';
+    url.title = url.textContent;
+    // One tab: the head already says what is shown. The title earns its place
+    // when several tabs share the stage.
+    title.hidden = participantIds.length === 1;
+    url.hidden = participantIds.length === 1;
+    viewportFrame.append(
+      frame,
+      visibilityOverlay,
+      marker,
+      dialogOverlay,
+      placeholder,
+    );
+    card.append(title, url, viewportFrame);
     grid.append(card);
   });
   updateReplayViewport();
+}
+
+function updateReplayFrameUrl(
+  participantId: string,
+  value: unknown,
+  expectedOrigin: string,
+): void {
+  if (typeof value !== 'string') return;
+  try {
+    const url = new URL(value);
+    if (url.origin !== expectedOrigin) return;
+    // The replay marker is added by the dashboard and is not part of the
+    // page's meaningful location.
+    url.searchParams.delete(REPLAY_QUERY_MARKER);
+    const displayUrl = url.href;
+    const element = document.getElementById(replayFrameUrlId(participantId));
+    if (!element) return;
+    element.textContent = displayUrl;
+    element.title = displayUrl;
+  } catch {
+    // Ignore malformed URLs from the embedded application.
+  }
 }
 
 function updateReplayTileIndicators(): void {
@@ -667,10 +1044,14 @@ function updateReplayTileIndicators(): void {
     if (!card) continue;
     const isRecordedActive = replayRecordedActiveParticipantId === id;
     const isActionTarget = replayActionParticipantId === id;
-    card.classList.toggle('lab__replay-tile--focused', isRecordedActive);
-    card.classList.toggle('lab__replay-tile--action-target', isActionTarget);
-    const badge = card.querySelector('.lab__replay-active-badge');
-    if (badge)
+    if (isRecordedActive) card.setAttribute('data-tile-focus', 'true');
+    else card.removeAttribute('data-tile-focus');
+    if (isActionTarget) card.setAttribute('data-tile-action', 'true');
+    else card.removeAttribute('data-tile-action');
+    const badge = card.querySelector<HTMLElement>(
+      '[data-lab="replay-active-badge"]',
+    );
+    if (badge) {
       badge.textContent =
         isRecordedActive && isActionTarget
           ? 'ACTIF · ACTION'
@@ -679,8 +1060,10 @@ function updateReplayTileIndicators(): void {
             : isActionTarget
               ? 'ACTION'
               : '';
+      badge.hidden = badge.textContent === '';
+    }
     const visibilityOverlay = card.querySelector<HTMLDivElement>(
-      '.lab__replay-visibility-overlay',
+      '[data-lab="replay-visibility-overlay"]',
     );
     if (visibilityOverlay) {
       const state = replayParticipantStates.get(id)?.state;
@@ -693,6 +1076,9 @@ function updateReplayTileIndicators(): void {
               ? 'Connexion interrompue'
               : undefined;
       visibilityOverlay.hidden = message === undefined;
+      if (state === 'hidden')
+        visibilityOverlay.setAttribute('data-veil', 'dim');
+      else visibilityOverlay.removeAttribute('data-veil');
       if (message) {
         visibilityOverlay.textContent = message;
         visibilityOverlay.setAttribute('aria-label', message);
@@ -789,8 +1175,12 @@ function prepareReplayVisibilityTimeline(): void {
         ];
       }),
   );
+  const continuedParticipantIds = new Set(
+    replayParticipantContinuations().values(),
+  );
   const terminalChanges = sessionParticipants().flatMap((participant) => {
     if (!replayVisibilityParticipantIds.includes(participant.id)) return [];
+    if (continuedParticipantIds.has(participant.id)) return [];
     const state: ReplayParticipantState | undefined =
       participant.status === 'completed'
         ? 'closed'
@@ -891,10 +1281,6 @@ function replaySessionStartAtMs(
     .reduce((minimum, value) => Math.min(minimum, value), Infinity);
 }
 
-function replayTimelineOriginMs(): number {
-  return replaySessionStartAtMs(sessionsForReplay());
-}
-
 function setReplayFramePlaceholder(
   participantId: string,
   message: string,
@@ -990,15 +1376,6 @@ function hasCompleteRetainedParticipantHistory(
   );
 }
 
-function selectedParticipantLabel(): string {
-  const selected = selectedParticipantId();
-  if (selected === 'all') return 'Tous les onglets';
-  const participant = sessionParticipants().find(
-    (item) => item.id === selected,
-  );
-  return participant?.title ?? participant?.startUrl ?? 'Onglet sélectionné';
-}
-
 function participantOptionLabel(
   participant: SendContextSessionParticipant,
 ): string {
@@ -1086,13 +1463,7 @@ function sessionsForReplay(): readonly Readonly<{
 function updateGlobalProgress(participantId: string, localIndex: number): void {
   const participantSession = sessionForParticipant(participantId);
   if (!participantSession) return;
-  const localActions = participantSession.events.filter(
-    (event) =>
-      event.phase === 'emitted' &&
-      (event.kind === 'dom' ||
-        event.kind === 'scroll' ||
-        event.kind === 'viewport'),
-  );
+  const localActions = getReplaySteps(participantSession.events);
   for (const event of localActions.slice(0, Math.max(0, localIndex)))
     completedReplayEventIds.add(event.id);
   const ordered = replayableEvents();
@@ -1123,6 +1494,15 @@ function updateGlobalReplayState(): void {
     connection ? [connection.status] : [],
   );
   if (states.includes('error')) replayState.set('error');
+  // The global cursor advances only after an interaction has settled and its
+  // participant has reported progress. Hidden iframe timers can delay the
+  // final "completed" status message even after every recorded action ran.
+  else if (
+    replayableEvents().length > 0 &&
+    replayIndex() >= replayableEvents().length &&
+    !hasDifference()
+  )
+    replayState.set('completed');
   else if (
     states.includes('playing') ||
     (replayPlaybackRequested &&
@@ -1176,7 +1556,10 @@ function selectParticipant(value: string): void {
   completedReplayEventIds.clear();
   connected.set(false);
   replayState.set('idle');
-  selectedParticipantId.set(value);
+  selectedParticipantId.set(
+    replayParticipantContinuations().get(value) ?? value,
+  );
+  eventTimelinePage.set(0);
   replayIndex.set(0);
   const participant = sessionParticipants().find((item) => item.id === value);
   replayViewport.set(participant?.viewport ?? session()?.viewport);
@@ -1209,6 +1592,24 @@ function installMessageListener(): void {
     )
       return;
     const participantId = connection.participantId;
+    if (typeof data['href'] === 'string')
+      updateReplayFrameUrl(participantId, data['href'], target.url.origin);
+    if (typeof data['currentHref'] === 'string')
+      updateReplayFrameUrl(
+        participantId,
+        data['currentHref'],
+        target.url.origin,
+      );
+    if (
+      data['type'] === 'interaction' ||
+      data['type'] === 'scroll-step' ||
+      data['type'] === 'viewport-step'
+    )
+      hideReplayDialog(participantId);
+    if (data['type'] === 'dialog') {
+      showReplayDialog(participantId, data['dialog']);
+      return;
+    }
     if (data['type'] === 'ready' && data['nonce'] === connection.nonce) {
       const handshakeTimer = handshakeTimers.get(participantId);
       if (handshakeTimer !== undefined) {
@@ -1228,6 +1629,8 @@ function installMessageListener(): void {
           type: 'start',
           session: connection.session,
           startMode: connection.startMode,
+          startIndex: connection.resumeIndex,
+          replayRunId: connection.replayRunId,
           ...(connection.timelineOriginMs === undefined
             ? {}
             : { timelineOriginMs: connection.timelineOriginMs }),
@@ -1236,6 +1639,8 @@ function installMessageListener(): void {
       );
       connection.started = true;
       connection.status = 'ready';
+      if (connection.resumeIndex > 0)
+        updateGlobalProgress(participantId, connection.resumeIndex);
       setReplayFramePlaceholder(participantId, '');
       updateGlobalReplayState();
       if (connected())
@@ -1248,7 +1653,15 @@ function installMessageListener(): void {
       } else if (replayPlaybackRequested) {
         send('play', {}, participantId);
       }
+    } else if (data['type'] === 'warning') {
+      const warning = String(data['message'] ?? 'Événement de replay ignoré.');
+      replayWarnings.update((warnings) =>
+        warnings.includes(warning)
+          ? warnings
+          : [...warnings, warning].slice(-5),
+      );
     } else if (data['type'] === 'error') {
+      hideReplayDialog(participantId);
       freezeReplayVisibilityClock();
       setNextActionCountdown(undefined);
       connection.status = 'error';
@@ -1260,6 +1673,8 @@ function installMessageListener(): void {
       );
     } else if (data['type'] === 'status') {
       const nextState = String(data['status'] ?? 'état inconnu');
+      if (nextState === 'stopped' || nextState === 'completed')
+        hideReplayDialog(participantId);
       connection.status = nextState;
       if (typeof data['index'] === 'number')
         updateGlobalProgress(participantId, data['index']);
@@ -1303,6 +1718,7 @@ function installMessageListener(): void {
         updateGlobalProgress(participantId, data['index']);
       const nextState =
         typeof data['state'] === 'string' ? data['state'] : 'paused';
+      if (nextState === 'completed') hideReplayDialog(participantId);
       connection.status = nextState;
       updateGlobalReplayState();
       setNextActionCountdown(
@@ -1312,9 +1728,16 @@ function installMessageListener(): void {
       );
       const total = replayableEvents().length;
       status.set(
-        `Replay · ${data['state'] === 'playing' ? 'lecture' : 'étape'} ${replayIndex()} / ${total}`,
+        replayState() === 'completed'
+          ? `Replay terminé · ${replayIndex()} / ${total}`
+          : `Replay · ${data['state'] === 'playing' ? 'lecture' : 'étape'} ${replayIndex()} / ${total}`,
       );
     } else if (data['type'] === 'interaction') {
+      if (typeof data['nextIndex'] === 'number')
+        connection.resumeIndex = Math.max(
+          connection.resumeIndex,
+          data['nextIndex'],
+        );
       setReplayActionTarget(participantId);
       const action = data['action'];
       const x = data['clientX'];
@@ -1331,22 +1754,36 @@ function installMessageListener(): void {
         typeof y === 'number' &&
         Number.isFinite(y)
       ) {
-        marker.style.left = `${x * scale}px`;
-        marker.style.top = `${y * scale}px`;
+        writeVars(marker, {
+          ...assign(markerVars.x, unit.px(x * scale)),
+          ...assign(markerVars.y, unit.px(y * scale)),
+        });
         marker.setAttribute(
           'aria-label',
           `Clic rejoué · ${String(data['name'] ?? 'interaction')}`,
         );
         marker.hidden = false;
-        marker.style.animation = 'none';
-        void marker.offsetWidth;
-        marker.style.animation = '';
+        // A second click on the same spot plays the ping again.
+        for (const ping of marker.getAnimations()) {
+          ping.cancel();
+          ping.play();
+        }
       }
     } else if (data['type'] === 'scroll-step') {
+      if (typeof data['nextIndex'] === 'number')
+        connection.resumeIndex = Math.max(
+          connection.resumeIndex,
+          data['nextIndex'],
+        );
       setReplayActionTarget(participantId);
       const marker = document.getElementById(replayMarkerId(participantId));
       if (marker) marker.hidden = true;
     } else if (data['type'] === 'viewport-step') {
+      if (typeof data['nextIndex'] === 'number')
+        connection.resumeIndex = Math.max(
+          connection.resumeIndex,
+          data['nextIndex'],
+        );
       setReplayActionTarget(participantId);
       const width = data['width'];
       const height = data['height'];
@@ -1400,7 +1837,7 @@ function installMessageListener(): void {
       connection.status = nextState;
       updateGlobalReplayState();
       status.set(
-        nextState === 'completed'
+        replayState() === 'completed' || nextState === 'completed'
           ? `Replay terminé · ${replayIndex()} / ${total}`
           : `Replay · étape ${replayIndex()} / ${total}`,
       );
@@ -1464,7 +1901,12 @@ function send(
     const frame = replayFrameFor(connection.participantId);
     if (!target.ok || !frame?.contentWindow) continue;
     frame.contentWindow.postMessage(
-      { channel: CHANNEL, type, ...payload },
+      {
+        channel: CHANNEL,
+        type,
+        replayRunId: connection.replayRunId,
+        ...payload,
+      },
       target.url.origin,
     );
   }
@@ -1513,6 +1955,7 @@ function startReplay(): void {
   stopReplayVisibilityClock();
   replayClockElapsedMs = 0;
   replayPlaybackRequested = false;
+  replayWarnings.set([]);
   replayFrameConnections.clear();
   replayIndex.set(0);
   replayState.set('preparing');
@@ -1523,6 +1966,7 @@ function startReplay(): void {
   prepareReplayVisibilityTimeline();
   installMessageListener();
   const timelineOriginMs = replaySessionStartAtMs(replaySessions);
+  const replayRunId = crypto.randomUUID();
   const sharedTimeline =
     selectedParticipantId() === 'all' && replaySessions.length > 1;
   status.set(
@@ -1555,11 +1999,13 @@ function startReplay(): void {
     );
     const connection: ReplayFrameConnection = {
       participantId,
+      replayRunId,
       href: target.url.href,
       nonce: '',
       connected: false,
       started: false,
       status: 'scheduled',
+      resumeIndex: 0,
       session: replaySession,
       startMode: mode,
       timelineOriginMs: participantTimelineOriginMs,
@@ -1587,670 +2033,1029 @@ function fileChanged(event: Event): void {
       .text()
       .then((text) => {
         importJson(text);
+        if (session()) importOpen.set(false);
         scheduleReplayPreparation();
       })
       .catch((error: unknown) => status.set(String(error)));
   }
 }
 
+const lit = <Value>(value: Value) =>
+  function* (): Generator<never, Value, never> {
+    return value;
+  };
+
+const sessionDate = new Intl.DateTimeFormat('fr-FR', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+const replayStateLabels: Readonly<Record<string, string>> = {
+  idle: 'en attente',
+  preparing: 'préparation…',
+  ready: 'prêt',
+  playing: 'lecture',
+  paused: 'en pause',
+  completed: 'terminé',
+  error: 'interrompu',
+};
+
+function plural(count: number, one: string, many = `${one}s`): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+function currentSessionTitle(): string {
+  const selected = savedSessions().find((item) => item.id === routeSessionId());
+  return selected
+    ? sessionDate.format(new Date(selected.createdAt))
+    : 'Session importée';
+}
+
+function progressLabel(): string {
+  const total = replayableEvents().length;
+  if (!total) return 'Aucune étape rejouable dans cette session.';
+  const state = replayStateLabels[replayState()] ?? replayState();
+  return `${replayIndex()} / ${total} étapes · ${state}`;
+}
+
+function nextActionLabel(): string {
+  const next = replayableEvents()[replayIndex()];
+  if (!next) return 'Aucune étape restante';
+  if (next.kind === 'scroll')
+    return `Ensuite · défilement ${next.name ?? ''}`.trim();
+  if (next.kind === 'viewport') {
+    const viewport = next.payload as
+      | { width?: unknown; height?: unknown }
+      | undefined;
+    return `Ensuite · viewport ${String(viewport?.width ?? '?')} × ${String(viewport?.height ?? '?')} px`;
+  }
+  return `Ensuite · ${next.name ?? 'nom non disponible'}`;
+}
+
+function journalSummary(): string {
+  if (showAllEvents()) return plural(visibleEvents().length, 'événement');
+  return errorCount() === 0
+    ? 'Aucune erreur dans cet enregistrement.'
+    : plural(errorCount(), 'erreur');
+}
+
+function eventElapsedLabel(item: SendContextEvent): string {
+  const firstTimestamp = visibleEvents()[0]?.timestamp ?? item.timestamp;
+  const elapsed =
+    selectedParticipantId() === 'all'
+      ? (item.globalElapsedMs ??
+        item.elapsedMs ??
+        item.timestamp - firstTimestamp)
+      : (item.elapsedMs ?? item.timestamp - firstTimestamp);
+  return elapsed >= 1000
+    ? `${(elapsed / 1000).toFixed(1)} s`
+    : `${elapsed.toFixed(0)} ms`;
+}
+
+function stopReplay(): void {
+  send('stop');
+  replayPlaybackRequested = false;
+  stopReplayVisibilityClock();
+  replayClockElapsedMs = 0;
+  updateActiveReplayFrame(0);
+  setNextActionCountdown(undefined);
+  difference.set(undefined);
+  status.set('Replay arrêté.');
+}
+
+function openImport(): void {
+  // A fresh sheet: not the last session that was opened.
+  sessionText.set('');
+  loadError.set(undefined);
+  importOpen.set(true);
+}
+
+function closeImport(): void {
+  importOpen.set(false);
+}
+
+function importPastedSession(): void {
+  loadedArchiveSessionId = undefined;
+  importJson(sessionText());
+  if (session()) importOpen.set(false);
+  scheduleReplayPreparation();
+}
+
+function setShowAllEvents(next: boolean): void {
+  showAllEvents.set(next);
+  eventTimelinePage.set(0);
+}
+
+function recordingCaption(): string {
+  const recorded = session();
+  if (!recorded)
+    return 'La session demandée est introuvable ou a été supprimée.';
+  const truncated = recorded.truncated
+    ? ' · archive tronquée, onglets incomplets exclus du replay'
+    : '';
+  return `Format v${recorded.version} · ${plural(events().length, 'événement')}${truncated}`;
+}
+
+function viewportCaption(): string {
+  if (selectedParticipantId() === 'all' && replayableParticipants().length > 1)
+    return `${replayParticipantIds().length} viewports participants · lecture synchronisée`;
+  const viewport = replayViewport() ?? session()?.viewport;
+  return viewport
+    ? `Viewport enregistré · ${viewport.width} × ${viewport.height} px · aperçu à ${Math.round(replayViewportScale() * 100)} %`
+    : 'Viewport non enregistré · aperçu adaptatif';
+}
+
 export const DebugSessionDashboard = craftComponent(
   'DebugSessionDashboard',
-  {},
+  { providers: [provideDocModeView(), provideDocSeasonView()] },
   () => {
     startArchiveRefresh();
-    return div({ class: 'lab' }, [
-      div({ class: 'lab__header' }, [
+
+    /* ── the bar ──────────────────────────────────────────────────────── */
+    const bar = div({ class: ui.bar }, [
+      div({ class: ui.brand }, [
+        div({ class: ui.brandMark }, [DocLogo({})]),
         div([
-          span({ class: 'lab__eyebrow' }, 'CRAFTTS · LOCAL SESSION LAB'),
-          heading('Investigation et replay'),
+          span({ class: ui.brandName }, 'craft-ts'),
+          span({ class: ui.brandKind }, ' · replay'),
         ]),
-        span({ class: 'lab__privacy' }, 'LOCAL · aucun envoi externe'),
       ]),
-      div(
-        {
-          class: 'lab__list-page',
-          hidden: computed(() => page() !== 'sessions'),
-        },
-        [
-          section({ class: 'panel' }, [
-            div({ class: 'lab__section-heading' }, [
-              div([
-                heading('Sessions locales'),
-                p(
-                  'Sélectionne une session pour consulter ses événements et la rejouer.',
+      div({ class: ui.barTools }, [
+        DocBadge({ tone: lit('tip'), label: lit('Local') }),
+        DocSeasonPicker({
+          label: lit('Saison'),
+          menuId: lit('season-menu'),
+          names: lit({
+            auto: 'Automatique',
+            spring: 'Printemps',
+            summer: 'Été',
+            autumn: 'Automne',
+            winter: 'Hiver',
+          }),
+        }),
+        DocModeToggle({ label: lit('Basculer entre clair et sombre') }),
+      ]),
+    ]);
+
+    /* ── page 1 : the sessions ────────────────────────────────────────── */
+    const sessionItems = forNode(
+      savedSessions,
+      { track: (saved) => saved.id },
+      (saved) =>
+        li({ class: ui.row }, [
+          button(
+            'savedSession',
+            {
+              type: 'button',
+              class: ui.rowOpen,
+              'data-lab': 'saved-session',
+              click: function* () {
+                const item = yield* saved();
+                if (routeSessionId() !== item.id)
+                  window.location.hash = sessionRoute(item.id);
+                else void loadSavedSession(item.id);
+              },
+            },
+            [
+              span({ class: ui.rowTitle }, [
+                span(function* () {
+                  return sessionDate.format(
+                    new Date((yield* saved()).createdAt),
+                  );
+                }),
+                span(
+                  {
+                    class: badgeUi.root,
+                    'data-tone': function* () {
+                      const item = yield* saved();
+                      return item.status === 'recording'
+                        ? 'tip'
+                        : item.status === 'interrupted'
+                          ? 'warning'
+                          : 'important';
+                    },
+                    hidden: function* () {
+                      const item = yield* saved();
+                      return item.status === 'completed' && !item.truncated;
+                    },
+                  },
+                  function* () {
+                    const item = yield* saved();
+                    return item.status === 'recording'
+                      ? 'En cours'
+                      : item.status === 'interrupted'
+                        ? 'Interrompue'
+                        : 'Tronquée';
+                  },
                 ),
               ]),
-              button(
-                'refreshSessions',
-                {
-                  type: 'button',
-                  click: () => void refreshSavedSessions(),
-                },
-                'Actualiser',
-              ),
-            ]),
-            p({ class: 'lab__archive-status', role: 'status' }, archiveStatus),
-            div(
-              { class: 'lab__saved-sessions' },
-              forNode(savedSessions, { track: (saved) => saved.id }, (saved) =>
-                div({ class: 'lab__saved-session-row' }, [
-                  button(
-                    'savedSession',
-                    {
-                      type: 'button',
-                      class: 'lab__saved-session',
-                      click: function* () {
-                        const item = yield* saved();
-                        if (routeSessionId() !== item.id)
-                          window.location.hash = sessionRoute(item.id);
-                        else void loadSavedSession(item.id);
-                      },
-                    },
-                    [
-                      span(function* () {
-                        const item = yield* saved();
-                        return new Intl.DateTimeFormat('fr-FR', {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        }).format(new Date(item.createdAt));
-                      }),
-                      span(function* () {
-                        const item = yield* saved();
-                        const state =
-                          item.status === 'recording'
-                            ? 'en cours'
-                            : item.status === 'completed'
-                              ? 'terminée'
-                              : 'interrompue';
-                        const participantCount = item.participantCount ?? 1;
-                        const participants =
-                          participantCount > 1
-                            ? ` · ${participantCount} onglets`
-                            : '';
-                        return `${state} · ${item.eventCount} événements${participants}${item.truncated ? ' · tronquée' : ''}`;
-                      }),
-                      span({ class: 'lab__saved-date' }, function* () {
-                        const item = yield* saved();
-                        return `Modifiée ${new Intl.DateTimeFormat('fr-FR', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        }).format(new Date(item.updatedAt))}`;
-                      }),
-                      span({ class: 'lab__saved-url' }, function* () {
-                        return (yield* saved()).startUrl;
-                      }),
-                    ],
-                  ),
-                  button(
-                    'deleteSavedSession',
-                    {
-                      type: 'button',
-                      class: 'lab__delete-session',
-                      hidden: function* () {
-                        const item = yield* saved();
-                        return pendingDeleteSessionId() === item.id;
-                      },
-                      'aria-label': function* () {
-                        return `Supprimer la session ${(yield* saved()).id}`;
-                      },
-                      'data-tooltip':
-                        'Supprime cette session de l’archive locale.',
-                      click: function* () {
-                        const item = yield* saved();
-                        pendingDeleteSessionId.set(item.id);
-                      },
-                    },
-                    'Supprimer',
-                  ),
-                  div(
-                    {
-                      class: 'lab__delete-confirmation',
-                      role: 'group',
-                      'aria-label': 'Confirmer la suppression de la session',
-                      hidden: function* () {
-                        const item = yield* saved();
-                        return pendingDeleteSessionId() !== item.id;
-                      },
-                    },
-                    [
-                      span('Supprimer cette session de l’archive locale ?'),
-                      button(
-                        'cancelDeleteSession',
-                        {
-                          type: 'button',
-                          class: 'lab__cancel-delete-session',
-                          click: () => pendingDeleteSessionId.set(undefined),
-                        },
-                        'Annuler',
-                      ),
-                      button(
-                        'confirmDeleteSession',
-                        {
-                          type: 'button',
-                          class: 'lab__confirm-delete-session',
-                          click: function* () {
-                            const item = yield* saved();
-                            void deleteSavedSession(item.id);
-                          },
-                        },
-                        'Supprimer définitivement',
-                      ),
-                    ],
-                  ),
-                ]),
-              ),
-            ),
-            p(
+              span({ class: ui.rowMeta }, function* () {
+                const item = yield* saved();
+                return [
+                  plural(item.participantCount ?? 1, 'onglet'),
+                  plural(item.eventCount, 'événement'),
+                ].join(' · ');
+              }),
+              span({ class: ui.rowUrl, 'data-lab': 'saved-url' }, function* () {
+                return (yield* saved()).startUrl;
+              }),
+            ],
+          ),
+          div({ class: ui.rowActions }, [
+            button(
+              'deleteSavedSession',
               {
-                class: 'lab__empty',
-                hidden: computed(() => savedSessions().length > 0),
+                type: 'button',
+                class: buttonUi.root,
+                'data-lab': 'delete-session',
+                'data-variant': 'link',
+                hidden: function* () {
+                  const item = yield* saved();
+                  return pendingDeleteSessionId() === item.id;
+                },
+                'aria-label': function* () {
+                  return `Supprimer la session ${(yield* saved()).id}`;
+                },
+                'data-tooltip': 'Supprime cette session de l’archive locale.',
+                click: function* () {
+                  pendingDeleteSessionId.set((yield* saved()).id);
+                },
               },
-              'Aucune session enregistrée pour le moment.',
+              'Supprimer',
+            ),
+            div(
+              {
+                class: ui.confirm,
+                'data-lab': 'delete-confirmation',
+                role: 'group',
+                'aria-label': 'Confirmer la suppression de la session',
+                hidden: function* () {
+                  const item = yield* saved();
+                  return pendingDeleteSessionId() !== item.id;
+                },
+              },
+              [
+                span('Supprimer de l’archive ?'),
+                button(
+                  'cancelDeleteSession',
+                  {
+                    type: 'button',
+                    class: buttonUi.root,
+                    'data-variant': 'secondary',
+                    'data-lab': 'cancel-delete-session',
+                    click: () => pendingDeleteSessionId.set(undefined),
+                  },
+                  'Annuler',
+                ),
+                button(
+                  'confirmDeleteSession',
+                  {
+                    type: 'button',
+                    class: buttonUi.root,
+                    'data-variant': 'danger',
+                    'data-lab': 'confirm-delete-session',
+                    click: function* () {
+                      void deleteSavedSession((yield* saved()).id);
+                    },
+                  },
+                  'Supprimer définitivement',
+                ),
+              ],
             ),
           ]),
-          section({ class: 'panel' }, [
-            heading('Importer une session'),
-            p(
-              'Importe un export JSON v1 ou v2. Les sessions tronquées restent consultables mais ne sont pas rejouables.',
-            ),
-            input('sessionFile', {
-              type: 'file',
-              accept: 'application/json,.json',
-              'aria-label': 'Importer une session JSON',
-              change: fileChanged,
-            }),
-            textarea('sessionJson', {
-              rows: 8,
-              placeholder: 'Colle un export craft-debug-session…',
-              value: sessionText,
-              input: (event: Event) =>
-                sessionText.set((event.target as HTMLTextAreaElement).value),
-              'aria-label': 'Session JSON',
-            }),
+        ]),
+    );
+
+    const importDialog = DocDialog({
+      heading: lit('Importer une session'),
+      dialogId: lit('import-session'),
+      open: function* () {
+        return importOpen();
+      },
+      dismiss: closeImport as never,
+      body: content(() => [
+        div({ class: ui.importFields }, [
+          p(
+            { class: ui.lede },
+            'Un export JSON v1 ou v2. Les sessions tronquées restent consultables mais ne sont pas rejouables.',
+          ),
+          input('sessionFile', {
+            type: 'file',
+            accept: 'application/json,.json',
+            'aria-label': 'Importer une session JSON',
+            change: fileChanged,
+          }),
+          textarea('sessionJson', {
+            class: ui.importText,
+            rows: 8,
+            placeholder: 'Ou colle un export craft-debug-session…',
+            value: sessionText,
+            input: (event: Event) =>
+              sessionText.set((event.target as HTMLTextAreaElement).value),
+            'aria-label': 'Session JSON',
+          }),
+          p(
+            {
+              class: ui.importError,
+              role: 'alert',
+              hidden: computed(() => loadError() === undefined),
+            },
+            computed(() => loadError() ?? ''),
+          ),
+          div({ class: ui.importActions }, [
             button(
               'importSession',
               {
                 type: 'button',
-                click: () => {
-                  loadedArchiveSessionId = undefined;
-                  importJson(sessionText());
-                  scheduleReplayPreparation();
-                },
+                class: buttonUi.root,
+                'data-variant': 'primary',
+                click: importPastedSession,
               },
               'Valider la session',
             ),
-            p({ class: 'lab__status', role: 'status' }, status),
           ]),
-        ],
-      ),
-      div(
-        {
-          class: 'lab__detail-page',
-          hidden: computed(() => page() !== 'detail'),
-        },
-        [
-          div({ class: 'lab__detail-heading' }, [
+        ]),
+      ]),
+    });
+
+    const listPage = div(
+      {
+        class: ui.scroll,
+        'data-lab': 'list-page',
+        hidden: computed(() => page() !== 'sessions'),
+      },
+      [
+        div({ class: ui.listPage }, [
+          div({ class: ui.listHead }, [
+            div([
+              heading({ class: ui.title }, 'Sessions'),
+              p(
+                { class: ui.lede },
+                computed(
+                  () =>
+                    `${plural(savedSessions().length, 'session')} · enregistrées sur cette machine, rien n’est envoyé.`,
+                ),
+              ),
+            ]),
             button(
-              'backToSessions',
+              'openImport',
               {
                 type: 'button',
-                click: () => {
-                  window.location.hash = '#/';
-                },
+                class: buttonUi.root,
+                'data-variant': 'secondary',
+                click: openImport,
               },
-              '← Toutes les sessions',
-            ),
-            heading(
-              computed(() => {
-                const selected = savedSessions().find(
-                  (item) => item.id === routeSessionId(),
-                );
-                if (selected) {
-                  return new Intl.DateTimeFormat('fr-FR', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  }).format(new Date(selected.createdAt));
-                }
-                return 'Session importée';
-              }),
+              'Importer un fichier',
             ),
           ]),
-          div({ class: 'lab__grid' }, [
-            div({ class: 'lab__left' }, [
-              section({ class: 'panel' }, [
-                heading('Détails de la session'),
-                p({ class: 'lab__status', role: 'status' }, status),
+          div({ class: ui.gap, hidden: computed(() => archiveReachable()) }, [
+            DocCallout({
+              tone: lit('warning'),
+              caption: lit('Archive injoignable'),
+              body: content(() => [
                 p(
-                  computed(
-                    () => session()?.startUrl ?? 'Aucune session chargée.',
-                  ),
-                ),
-                p(
-                  computed(() =>
-                    session()
-                      ? `Format v${session()!.version} · ${events().length} événements${session()!.truncated ? ' · archive tronquée, onglets incomplets exclus du replay' : ''}`
-                      : 'La session demandée est introuvable ou a été supprimée.',
-                  ),
+                  { 'data-lab': 'archive-status', role: 'status' },
+                  archiveStatus,
                 ),
               ]),
-              section({ class: 'panel' }, [
-                heading('Premier écart'),
-                p(
+            }),
+          ]),
+          ul({ class: ui.sessions }, sessionItems),
+          p(
+            {
+              class: ui.empty,
+              'data-lab': 'empty',
+              hidden: computed(
+                () => savedSessions().length > 0 || !archiveReachable(),
+              ),
+            },
+            'Aucune session pour le moment. Lance ton application avec l’enregistrement activé : ses sessions apparaissent ici.',
+          ),
+          importDialog,
+        ]),
+      ],
+    );
+
+    /* ── page 2 : the replay ──────────────────────────────────────────── */
+    const head = div({ class: ui.head }, [
+      button(
+        'backToSessions',
+        {
+          type: 'button',
+          class: buttonUi.root,
+          'data-variant': 'link',
+          click: () => {
+            window.location.hash = '#/';
+          },
+        },
+        '← Sessions',
+      ),
+      div({ class: ui.headTitle }, [
+        heading({ class: ui.headName }, computed(currentSessionTitle)),
+        p(
+          { class: ui.headUrl },
+          computed(() => session()?.startUrl ?? ''),
+        ),
+      ]),
+      div({ class: ui.headTools }, [
+        select(
+          'participantFilter',
+          {
+            class: ui.tabSelect,
+            value: selectedParticipantId,
+            hidden: computed(() => replayableParticipants().length <= 1),
+            change: (event: Event) =>
+              selectParticipant((event.target as HTMLSelectElement).value),
+            'aria-label': 'Onglets à visionner',
+          },
+          [
+            option({ value: 'all' }, 'Tous les onglets'),
+            forNode(
+              replayableParticipants,
+              { track: (participant) => participant.id },
+              (participant) =>
+                option(
                   {
-                    class: 'lab__partial',
-                    hidden: computed(() => partialReplay() === undefined),
+                    value: function* () {
+                      return (yield* participant()).id;
+                    },
                   },
-                  computed(() => {
-                    const partial = partialReplay();
-                    return partial
-                      ? `Replay partiel · portion ${partial.from}–${partial.to} ignorée · checkpoint ${partial.checkpointEventId}`
-                      : '';
-                  }),
+                  function* () {
+                    return participantOptionLabel(yield* participant());
+                  },
                 ),
+            ),
+          ],
+        ),
+        button(
+          'fullscreen',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            'aria-description': 'Affiche l’application cible en plein écran.',
+            'data-tooltip':
+              'Agrandit l’application cible en plein écran pour inspecter le replay.',
+            click: () => {
+              const participantId = replayParticipantIds()[0];
+              const frame = participantId
+                ? replayFrameFor(participantId)
+                : undefined;
+              void frame?.requestFullscreen?.();
+            },
+            disabled: computed(() => !connected()),
+          },
+          'Plein écran',
+        ),
+        button(
+          'toggleJournal',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': function* () {
+              return errorCount() > 0 ? 'tonal' : 'secondary';
+            },
+            'aria-expanded': function* () {
+              return sidePanelOpen() ? 'true' : 'false';
+            },
+            click: () => sidePanelOpen.set(!sidePanelOpen()),
+          },
+          'Journal',
+        ),
+      ]),
+    ]);
+
+    const notices = div({ class: ui.notices }, [
+      div(
+        {
+          class: ui.gap,
+          'data-lab': 'diff',
+          hidden: computed(() => !hasDifference()),
+        },
+        [
+          DocCallout({
+            tone: lit('warning'),
+            caption: lit('Le replay s’écarte de l’enregistrement'),
+            body: content(() => [
+              div({ class: ui.gap }, [
                 p(
-                  {
-                    class: 'lab__empty',
-                    hidden: computed(() => hasDifference()),
-                  },
-                  'Aucun écart signalé.',
+                  computed(
+                    () =>
+                      `Premier écart à l’événement ${difference()?.eventId ?? '?'}. La lecture est en pause.`,
+                  ),
                 ),
-                div(
-                  {
-                    class: 'lab__diff',
-                    hidden: computed(() => !hasDifference()),
-                  },
-                  [
+                details([
+                  summary('Voir le détail'),
+                  div({ class: ui.compare }, [
                     div([
-                      span('Attendu'),
+                      span({ class: ui.compareLabel }, 'Attendu'),
                       pre(
+                        { class: ui.code },
                         computed(() =>
                           JSON.stringify(difference()?.expected, null, 2),
                         ),
                       ),
                     ]),
                     div([
-                      span('Observé'),
+                      span({ class: ui.compareLabel }, 'Observé'),
                       pre(
+                        { class: ui.code },
                         computed(() =>
                           JSON.stringify(difference()?.actual, null, 2),
                         ),
                       ),
                     ]),
-                    button(
-                      'forceReplayRecovery',
-                      {
-                        type: 'button',
-                        class: 'lab__force-recovery',
-                        hidden: computed(() => !canForceRecovery()),
-                        click: () => {
-                          status.set('Application de la reprise forcée…');
-                          if (differenceParticipantId)
-                            send('force-recover', {}, differenceParticipantId);
-                        },
+                  ]),
+                ]),
+                div({ class: ui.gapActions }, [
+                  button(
+                    'forceReplayRecovery',
+                    {
+                      type: 'button',
+                      class: buttonUi.root,
+                      'data-variant': 'primary',
+                      'data-lab': 'force-recovery',
+                      hidden: computed(() => !canForceRecovery()),
+                      click: () => {
+                        status.set('Application de la reprise forcée…');
+                        if (differenceParticipantId)
+                          send('force-recover', {}, differenceParticipantId);
                       },
-                      'Forcer l’état attendu et continuer',
-                    ),
-                    button(
-                      'skipToCheckpoint',
-                      {
-                        type: 'button',
-                        class: 'lab__force-recovery',
-                        hidden: computed(() => !canSkipDifference()),
-                        click: () => {
-                          status.set('Restauration du prochain checkpoint…');
-                          if (differenceParticipantId)
-                            send(
-                              'skip-to-checkpoint',
-                              {},
-                              differenceParticipantId,
-                            );
-                        },
+                    },
+                    'Forcer l’état attendu et continuer',
+                  ),
+                  button(
+                    'skipToCheckpoint',
+                    {
+                      type: 'button',
+                      class: buttonUi.root,
+                      'data-variant': 'secondary',
+                      'data-lab': 'force-recovery',
+                      hidden: computed(() => !canSkipDifference()),
+                      click: () => {
+                        status.set('Restauration du prochain checkpoint…');
+                        if (differenceParticipantId)
+                          send(
+                            'skip-to-checkpoint',
+                            {},
+                            differenceParticipantId,
+                          );
                       },
-                      'Ignorer jusqu’au prochain point de reprise',
-                    ),
-                  ],
-                ),
-              ]),
-              section({ class: 'panel' }, [
-                heading(
-                  computed(() => `Événements · ${visibleEvents().length}`),
-                ),
-                label('Onglets à visionner'),
-                select(
-                  'participantFilter',
-                  {
-                    value: selectedParticipantId,
-                    change: (event: Event) =>
-                      selectParticipant(
-                        (event.target as HTMLSelectElement).value,
-                      ),
-                    'aria-label': 'Onglets à visionner',
-                  },
-                  [
-                    option({ value: 'all' }, 'Tous les onglets'),
-                    forNode(
-                      sessionParticipants,
-                      { track: (participant) => participant.id },
-                      (participant) =>
-                        option(
-                          {
-                            value: function* () {
-                              return (yield* participant()).id;
-                            },
-                          },
-                          function* () {
-                            const item = yield* participant();
-                            return participantOptionLabel(item);
-                          },
-                        ),
-                    ),
-                  ],
-                ),
-                p(
-                  { class: 'lab__participant-help' },
-                  computed(() =>
-                    sessionParticipants().length > 1 &&
-                    selectedParticipantId() === 'all'
-                      ? 'Tous les onglets rejouables sont affichés côte à côte. La lecture suit leur chronologie commune ; un onglet resté inactif conserve sa place sans recevoir d’action.'
-                      : sessionParticipants().length > 1
-                        ? `Onglet sélectionné · ${selectedParticipantLabel()}. Un onglet masqué reste dans la session sans générer d’événements tant qu’il est inactif.`
-                        : 'Cette session ne contient qu’un onglet participant.',
+                    },
+                    'Ignorer jusqu’au prochain point de reprise',
                   ),
-                ),
-                p(
-                  {
-                    class: 'lab__environment-warning',
-                    hidden: computed(() => !environmentWarning()),
-                    role: 'status',
-                  },
-                  environmentWarning,
-                ),
-                div(
-                  { class: 'lab__events' },
-                  forNode(
-                    visibleEvents,
-                    { track: (event) => event.id },
-                    (event) =>
-                      div(
-                        {
-                          class: function* () {
-                            const item = yield* event();
-                            return item.id === activeReplayEventId()
-                              ? 'lab__event lab__event--current'
-                              : 'lab__event';
-                          },
-                        },
-                        [
-                          span({ class: 'lab__event-kind' }, function* () {
-                            return `${(yield* event()).kind} · ${(yield* event()).phase}`;
-                          }),
-                          span(function* () {
-                            return (
-                              (yield* event()).name ?? 'nom non disponible'
-                            );
-                          }),
-                          span({ class: 'lab__event-time' }, function* () {
-                            const item = yield* event();
-                            const firstTimestamp =
-                              visibleEvents()[0]?.timestamp ?? item.timestamp;
-                            const elapsed =
-                              selectedParticipantId() === 'all'
-                                ? (item.globalElapsedMs ??
-                                  item.elapsedMs ??
-                                  item.timestamp - firstTimestamp)
-                                : (item.elapsedMs ??
-                                  item.timestamp - firstTimestamp);
-                            return `${elapsed.toFixed(1)} ms`;
-                          }),
-                        ],
-                      ),
-                  ),
-                ),
+                ]),
               ]),
             ]),
-            div({ class: 'lab__right' }, [
-              section({ class: 'panel' }, [
-                heading('Application cible et replay'),
-                label('URL locale instrumentée'),
-                input('targetUrl', {
-                  type: 'url',
-                  value: targetUrl,
-                  input: (event: Event) =>
-                    targetUrl.set((event.target as HTMLInputElement).value),
-                  change: () => scheduleReplayPreparation(),
-                  'aria-label': 'URL de l’application cible',
-                }),
-                label('Point de départ'),
-                select(
-                  'startMode',
-                  {
-                    value: startMode,
-                    change: (event: Event) => {
-                      startMode.set(
-                        (event.target as HTMLSelectElement).value === 'snapshot'
-                          ? 'snapshot'
-                          : 'url',
-                      );
-                      scheduleReplayPreparation();
-                    },
-                    'aria-label': 'Mode de démarrage',
-                  },
-                  [
-                    option({ value: 'url' }, 'Recharger l’URL enregistrée'),
-                    option(
-                      { value: 'snapshot' },
-                      'Restaurer le snapshot initial',
-                    ),
-                  ],
-                ),
-                div({ class: 'lab__actions' }, [
-                  button(
-                    'play',
-                    {
-                      type: 'button',
-                      'aria-description':
-                        'Rejoue les interactions en respectant les délais enregistrés.',
-                      'data-tooltip':
-                        'Lance le replay et respecte les délais réellement enregistrés entre les interactions.',
-                      click: playReplay,
-                      disabled: computed(
-                        () =>
-                          !connected() ||
-                          !replayableEvents()[replayIndex()] ||
-                          !['ready', 'paused'].includes(replayState()),
-                      ),
-                    },
-                    'Lecture à vitesse réelle',
-                  ),
-                  button(
-                    'pause',
-                    {
-                      type: 'button',
-                      'aria-description':
-                        'Met en pause la lecture chronométrée.',
-                      'data-tooltip':
-                        'Met en pause le replay. Tu peux le reprendre avec Lecture à vitesse réelle ou avancer avec Action suivante.',
-                      click: pauseReplay,
-                      disabled: computed(
-                        () => !connected() || replayState() !== 'playing',
-                      ),
-                    },
-                    'Pause',
-                  ),
-                  button(
-                    'restart',
-                    {
-                      type: 'button',
-                      'aria-label': 'Recommencer le replay depuis le début',
-                      'aria-description':
-                        'Recharge les pages enregistrées et relance le replay depuis la première interaction.',
-                      'data-tooltip':
-                        'Recommence le replay depuis le début en rechargeant les pages enregistrées.',
-                      'data-lab': 'replay-restart',
-                      click: startReplay,
-                      disabled: computed(
-                        () => !['ready', 'playing', 'paused', 'completed', 'error'].includes(replayState()),
-                      ),
-                    },
-                    'Recommencer',
-                  ),
-                  button(
-                    'stop',
-                    {
-                      type: 'button',
-                      'aria-description':
-                        'Arrête le replay et revient à la première interaction.',
-                      'data-tooltip':
-                        'Arrête la reproduction en cours et remet le curseur à la première interaction.',
-                      click: () => {
-                        send('stop');
-                        replayPlaybackRequested = false;
-                        stopReplayVisibilityClock();
-                        replayClockElapsedMs = 0;
-                        updateActiveReplayFrame(0);
-                        setNextActionCountdown(undefined);
-                        difference.set(undefined);
-                        status.set('Replay arrêté.');
-                      },
-                      disabled: computed(
-                        () =>
-                          !connected() ||
-                          !['ready', 'playing', 'paused'].includes(
-                            replayState(),
-                          ),
-                      ),
-                    },
-                    'Arrêter',
-                  ),
-                  button(
-                    'export',
-                    {
-                      type: 'button',
-                      'aria-description':
-                        'Exporte la session de diagnostic capturée par l’application cible, l’ajoute au dashboard et télécharge un fichier JSON.',
-                      'data-tooltip':
-                        'Récupère la session de diagnostic de l’application cible, l’ajoute au dashboard et télécharge le JSON.',
-                      click: () => {
-                        const participantId =
-                          selectedParticipantId() === 'all'
-                            ? replayParticipantIds()[0]
-                            : selectedParticipantId();
-                        if (participantId) send('export', {}, participantId);
-                        status.set('Export demandé à l’application cible…');
-                      },
-                    },
-                    'Exporter la cible',
-                  ),
-                  button(
-                    'fullscreen',
-                    {
-                      type: 'button',
-                      'aria-description':
-                        'Affiche l’application cible en plein écran.',
-                      'data-tooltip':
-                        'Agrandit l’application cible en plein écran pour inspecter le replay.',
-                      click: () => {
-                        const participantId = replayParticipantIds()[0];
-                        const frame = participantId
-                          ? replayFrameFor(participantId)
-                          : undefined;
-                        void frame?.requestFullscreen?.();
-                      },
-                      disabled: computed(() => !connected()),
-                    },
-                    'Plein écran',
-                  ),
-                ]),
-                div({ class: 'lab__next-action' }, [
-                  button(
-                    'step',
-                    {
-                      type: 'button',
-                      class: 'lab__action-next',
-                      'aria-description':
-                        'Exécute immédiatement l’interaction affichée sous ce bouton.',
-                      'data-tooltip':
-                        'Exécute tout de suite l’interaction affichée ci-dessous, sans attendre le délai enregistré.',
-                      click: stepNextReplayAction,
-                      disabled: computed(
-                        () =>
-                          !connected() ||
-                          !replayableEvents()[replayIndex()] ||
-                          !['ready', 'paused'].includes(replayState()),
-                      ),
-                    },
-                    'Action suivante',
-                  ),
-                  p(
-                    { class: 'lab__next-action-name' },
-                    computed(() => {
-                      const next = replayableEvents()[replayIndex()];
-                      if (!next) return 'Aucune étape restante';
-                      if (next.kind === 'scroll')
-                        return `Défilement à venir · ${next.name ?? 'position enregistrée'}`;
-                      if (next.kind === 'viewport') {
-                        const viewport = next.payload as
-                          | { width?: unknown; height?: unknown }
-                          | undefined;
-                        return `Viewport à venir · ${String(viewport?.width ?? '?')} × ${String(viewport?.height ?? '?')} px`;
-                      }
-                      return `Interaction à venir · ${next.name ?? 'nom non disponible'}`;
-                    }),
-                  ),
-                  p(
-                    {
-                      class: 'lab__next-action-timing',
-                      role: 'timer',
-                    },
-                    computed(nextActionTimingLabel),
-                  ),
-                ]),
-                p(
-                  { class: 'lab__replay-help' },
-                  'La lecture respecte les délais enregistrés et affiche le compte à rebours. « Action suivante » exécute immédiatement l’interaction affichée.',
-                ),
-                p(
-                  { class: 'lab__viewport-caption', 'aria-live': 'polite' },
-                  computed(() => {
-                    if (
-                      selectedParticipantId() === 'all' &&
-                      sessionParticipants().length > 1
-                    )
-                      return `${replayParticipantIds().length} viewports participants · lecture synchronisée`;
-                    const viewport = replayViewport() ?? session()?.viewport;
-                    return viewport
-                      ? `Viewport enregistré · ${viewport.width} × ${viewport.height} px · aperçu à ${Math.round(replayViewportScale() * 100)} %`
-                      : 'Viewport non enregistré · aperçu adaptatif';
-                  }),
-                ),
-                div({ class: 'lab__replay-stage', id: 'replay-stage' }, [
-                  div(
-                    {
-                      class: 'lab__replay-skeleton',
-                      hidden: computed(() => !replaySkeletonVisible()),
-                      'aria-hidden': 'true',
-                    },
-                    [
-                      div({ class: 'lab__skeleton-title' }),
-                      div({ class: 'lab__skeleton-viewport' }),
-                    ],
-                  ),
-                  div({ class: 'lab__replay-grid', id: 'replay-frame-grid' }),
-                ]),
-                p(
-                  { class: 'lab__replay-progress', role: 'status' },
-                  computed(() => {
-                    const total = replayableEvents().length;
-                    return total
-                      ? `${replayIndex()} / ${total} étapes · ${replayState()}`
-                      : 'Aucune étape rejouable dans cette session.';
-                  }),
-                ),
-              ]),
-            ]),
-          ]),
+          }),
         ],
       ),
+      div(
+        {
+          class: ui.gap,
+          'data-lab': 'partial',
+          hidden: computed(() => partialReplay() === undefined),
+        },
+        [
+          DocCallout({
+            tone: lit('info'),
+            caption: lit('Replay partiel'),
+            body: content(() => [
+              p(
+                computed(() => {
+                  const partial = partialReplay();
+                  return partial
+                    ? `Replay partiel · portion ${partial.from}–${partial.to} ignorée · checkpoint ${partial.checkpointEventId}`
+                    : '';
+                }),
+              ),
+            ]),
+          }),
+        ],
+      ),
+      div(
+        {
+          class: ui.gap,
+          'data-lab': 'problem',
+          hidden: computed(
+            () => loadError() === undefined && replayState() !== 'error',
+          ),
+        },
+        [
+          DocCallout({
+            tone: lit('danger'),
+            caption: lit('Impossible de poursuivre'),
+            body: content(() => [p(computed(() => loadError() ?? status()))]),
+          }),
+        ],
+      ),
+      div(
+        {
+          class: ui.gap,
+          'data-lab': 'replay-warning',
+          hidden: computed(() => replayWarnings().length === 0),
+        },
+        [
+          DocCallout({
+            tone: lit('important'),
+            caption: lit('À noter'),
+            body: content(() => [
+              p(computed(() => replayWarnings().join(' · '))),
+            ]),
+          }),
+        ],
+      ),
+    ]);
+
+    const stage = div({ class: ui.stage, id: 'replay-stage' }, [
+      div(
+        {
+          class: ui.skeleton,
+          hidden: computed(() => !replaySkeletonVisible()),
+          'aria-hidden': 'true',
+        },
+        [div({ class: ui.skeletonBlock })],
+      ),
+      div({ class: ui.grid, id: 'replay-frame-grid' }),
+    ]);
+
+    const canStep = computed(
+      () =>
+        !connected() ||
+        !replayableEvents()[replayIndex()] ||
+        !['ready', 'paused'].includes(replayState()),
+    );
+
+    const playbar = div({ class: ui.playbar }, [
+      div({ class: ui.transport }, [
+        button(
+          'play',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'primary',
+            'aria-label': 'Lecture à vitesse réelle',
+            'aria-description':
+              'Rejoue les interactions en respectant les délais enregistrés.',
+            'data-tooltip':
+              'Lance le replay et respecte les délais réellement enregistrés entre les interactions.',
+            click: playReplay,
+            disabled: canStep,
+          },
+          'Lecture',
+        ),
+        button(
+          'pause',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            'aria-description': 'Met en pause la lecture chronométrée.',
+            'data-tooltip':
+              'Met en pause le replay. Tu peux le reprendre avec Lecture à vitesse réelle ou avancer avec Action suivante.',
+            click: pauseReplay,
+            disabled: computed(
+              () => !connected() || replayState() !== 'playing',
+            ),
+          },
+          'Pause',
+        ),
+        button(
+          'restart',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            'data-lab': 'replay-restart',
+            'aria-label': 'Recommencer le replay depuis le début',
+            'aria-description':
+              'Recharge les pages enregistrées et relance le replay depuis la première interaction.',
+            'data-tooltip':
+              'Recommence le replay depuis le début en rechargeant les pages enregistrées.',
+            click: startReplay,
+            disabled: computed(
+              () =>
+                ![
+                  'ready',
+                  'playing',
+                  'paused',
+                  'completed',
+                  'error',
+                ].includes(replayState()),
+            ),
+          },
+          'Recommencer',
+        ),
+        button(
+          'step',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'tonal',
+            'data-lab': 'action-next',
+            'aria-description':
+              'Exécute immédiatement l’interaction affichée à droite.',
+            'data-tooltip':
+              'Exécute tout de suite l’interaction affichée à droite, sans attendre le délai enregistré.',
+            click: stepNextReplayAction,
+            disabled: canStep,
+          },
+          'Action suivante',
+        ),
+        button(
+          'stop',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'link',
+            'aria-description':
+              'Arrête le replay et revient à la première interaction.',
+            'data-tooltip':
+              'Arrête la reproduction en cours et remet le curseur à la première interaction.',
+            click: stopReplay,
+            disabled: computed(
+              () =>
+                !connected() ||
+                !['ready', 'playing', 'paused'].includes(replayState()),
+            ),
+          },
+          'Arrêter',
+        ),
+      ]),
+      div({ class: ui.progress }, [
+        div({ class: ui.progressTrack }, [
+          div({
+            class: ui.progressFill,
+            style: function* () {
+              const total = replayableEvents().length;
+              return assign(
+                progressVars.done,
+                unit.pct(total ? (replayIndex() / total) * 100 : 0),
+              );
+            },
+          }),
+        ]),
+        div({ class: ui.progressText }, [
+          p(
+            { 'data-lab': 'replay-progress', role: 'status' },
+            computed(progressLabel),
+          ),
+          p({ class: ui.next }, [
+            span({ 'data-lab': 'next-action-name' }, computed(nextActionLabel)),
+            span(
+              {
+                'data-lab': 'next-action-timing',
+                role: 'timer',
+                hidden: computed(() => nextActionTimingLabel() === ''),
+              },
+              computed(() => ` · ${nextActionTimingLabel()}`),
+            ),
+          ]),
+        ]),
+      ]),
+    ]);
+
+    /* ── the side panel: the journal, then the details ────────────────── */
+    const journalPane = () =>
+      div({ class: ui.sideBody }, [
+        div({ class: ui.pager }, [
+          p(computed(journalSummary)),
+          DocSwitch({
+            label: lit('Tout afficher'),
+            controlId: lit('journal-all'),
+            on: function* () {
+              return showAllEvents();
+            },
+            disabled: lit(false),
+            toggle: setShowAllEvents as never,
+          }),
+        ]),
+        div({ class: ui.scroll }, [
+          ul(
+            { class: ui.events, 'data-lab': 'events' },
+            forNode(visibleEventPage, { track: (event) => event.id }, (event) =>
+              li(
+                {
+                  class: ui.event,
+                  'data-entry': function* () {
+                    const item = yield* event();
+                    return (
+                      eventSeverity(item) ??
+                      (item.id === activeReplayEventId()
+                        ? 'current'
+                        : undefined)
+                    );
+                  },
+                },
+                [
+                  span({ class: ui.eventName }, function* () {
+                    return eventDiagnosticLabel(yield* event());
+                  }),
+                  span({ class: ui.eventMeta }, [
+                    span(function* () {
+                      const item = yield* event();
+                      return `${item.kind} · ${item.phase}`;
+                    }),
+                    span(function* () {
+                      return eventElapsedLabel(yield* event());
+                    }),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+        ]),
+        div(
+          {
+            class: ui.pager,
+            hidden: computed(() => eventTimelinePageCount() <= 1),
+          },
+          [
+            button(
+              'previousTimelinePage',
+              {
+                type: 'button',
+                class: buttonUi.root,
+                'data-variant': 'link',
+                disabled: computed(() => eventTimelinePage() === 0),
+                click: () =>
+                  eventTimelinePage.set(Math.max(0, eventTimelinePage() - 1)),
+              },
+              'Événements précédents',
+            ),
+            span(
+              computed(
+                () =>
+                  `${eventTimelinePage() + 1} / ${eventTimelinePageCount()}`,
+              ),
+            ),
+            button(
+              'nextTimelinePage',
+              {
+                type: 'button',
+                class: buttonUi.root,
+                'data-variant': 'link',
+                disabled: computed(
+                  () => eventTimelinePage() + 1 >= eventTimelinePageCount(),
+                ),
+                click: () =>
+                  eventTimelinePage.set(
+                    Math.min(
+                      eventTimelinePageCount() - 1,
+                      eventTimelinePage() + 1,
+                    ),
+                  ),
+              },
+              'Événements suivants',
+            ),
+          ],
+        ),
+      ]);
+
+    const fact = (name: string, value: CraftNodeChild, hook?: string) =>
+      div({ class: ui.fact }, [
+        p({ class: ui.factLabel }, name),
+        p({ class: ui.factValue, 'data-lab': hook }, value),
+      ]);
+
+    const detailsPane = () =>
+      div({ class: ui.sidePane, 'data-lab': 'left' }, [
+        fact(
+          'Page de départ',
+          computed(() => session()?.startUrl ?? 'Aucune session chargée.'),
+        ),
+        fact('Enregistrement', computed(recordingCaption)),
+        fact('État du replay', status, 'status'),
+        fact('Fenêtre', computed(viewportCaption), 'viewport-caption'),
+        p(
+          {
+            class: ui.lede,
+            'data-lab': 'environment-warning',
+            hidden: computed(() => !environmentWarning()),
+            role: 'status',
+          },
+          environmentWarning,
+        ),
+        div([
+          p({ class: ui.fieldLabel }, 'URL locale instrumentée'),
+          input('targetUrl', {
+            class: ui.fieldInput,
+            type: 'url',
+            value: targetUrl,
+            input: (event: Event) =>
+              targetUrl.set((event.target as HTMLInputElement).value),
+            change: () => scheduleReplayPreparation(),
+            'aria-label': 'URL de l’application cible',
+          }),
+        ]),
+        div([
+          p({ class: ui.fieldLabel }, 'Point de départ'),
+          select(
+            'startMode',
+            {
+              class: ui.tabSelect,
+              value: startMode,
+              change: (event: Event) => {
+                startMode.set(
+                  (event.target as HTMLSelectElement).value === 'snapshot'
+                    ? 'snapshot'
+                    : 'url',
+                );
+                scheduleReplayPreparation();
+              },
+              'aria-label': 'Mode de démarrage',
+            },
+            [
+              option({ value: 'url' }, 'Recharger l’URL enregistrée'),
+              option({ value: 'snapshot' }, 'Restaurer le snapshot initial'),
+            ],
+          ),
+        ]),
+        button(
+          'export',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            'aria-description':
+              'Exporte la session de diagnostic capturée par l’application cible, l’ajoute au dashboard et télécharge un fichier JSON.',
+            'data-tooltip':
+              'Récupère la session de diagnostic de l’application cible, l’ajoute au dashboard et télécharge le JSON.',
+            click: () => {
+              const participantId =
+                selectedParticipantId() === 'all'
+                  ? replayParticipantIds()[0]
+                  : selectedParticipantId();
+              if (participantId) send('export', {}, participantId);
+              status.set('Export demandé à l’application cible…');
+            },
+          },
+          'Exporter la cible',
+        ),
+      ]);
+
+    const side = section(
+      {
+        class: ui.side,
+        'data-lab': 'side',
+        'aria-label': 'Journal et détails',
+        hidden: computed(() => !sidePanelOpen()),
+      },
+      [
+        div({ class: ui.sideHead }, [
+          p(
+            { class: ui.factLabel },
+            computed(() =>
+              errorCount() > 0
+                ? plural(
+                    errorCount(),
+                    'erreur enregistrée',
+                    'erreurs enregistrées',
+                  )
+                : 'Rien à signaler',
+            ),
+          ),
+          button(
+            'closeJournal',
+            {
+              type: 'button',
+              class: buttonUi.root,
+              'data-variant': 'link',
+              'aria-label': 'Fermer le journal',
+              click: () => sidePanelOpen.set(false),
+            },
+            'Fermer',
+          ),
+        ]),
+        DocTabs({
+          group: lit('side'),
+          surface: lit('page' as const),
+          items: lit([
+            { id: 'journal', label: 'Journal', render: journalPane },
+            { id: 'details', label: 'Détails', render: detailsPane },
+          ]),
+        }),
+      ],
+    );
+
+    const detailPage = div(
+      {
+        class: ui.page,
+        'data-lab': 'detail-page',
+        hidden: computed(() => page() !== 'detail'),
+      },
+      [
+        head,
+        div({ class: ui.workspace }, [
+          div({ class: ui.main }, [notices, stage, playbar]),
+          side,
+        ]),
+      ],
+    );
+
+    return div({ class: ui.root }, [
+      bar,
+      div({ class: ui.page }, [listPage, detailPage]),
     ]);
   },
 );

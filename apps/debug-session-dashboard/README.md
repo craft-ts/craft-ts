@@ -15,6 +15,29 @@ npx vite --config apps/demo/vite.config.ts
 npx vite --config apps/debug-session-dashboard/vite.config.ts
 ```
 
+## The screens
+
+The dashboard is drawn with the Herbier design system (`@craft-ts/ui`): its
+theme, its buttons, callouts, badges, tabs, switch and dialog, in light or dark.
+The layout lives in `src/dashboard.style.ts`.
+
+- **Sessions** (`#/`) is a plain list: when it was recorded, how many tabs and
+  events, and a badge only when something is off (still recording, interrupted,
+  truncated). *Importer un fichier* opens a dialog for a JSON export.
+- **The replay** (`#/sessions/<id>`) is the page: the recorded app fills the
+  window, with a playback bar underneath (play, pause, next action, stop, and a
+  progress line that names the next action). A tab selector appears only when
+  the session has several replayable tabs.
+- **A gap with the recording** is the one thing that interrupts the replay: it
+  shows up as a callout above the stage, with the recovery actions and the
+  expected/observed values one click away.
+- **The journal** is a side panel, closed by default. It lists only the errors
+  of the recording (failed requests, navigations, primitives); *Tout afficher*
+  shows every event, with the slow tasks marked. The *Journal* button turns
+  tonal when the recording holds errors. The **Détails** tab holds the start
+  page, the replay state, the viewport, the target URL, the start mode and the
+  export of the target.
+
 Open `http://localhost:4210` and connect to the local demo in the iframe. The
 demo streams each redacted session event to `ws://127.0.0.1:4319/sessions/ws`.
 The server appends events under `.debug-sessions/`, updates `index.json`, and
@@ -25,7 +48,7 @@ and archived session details at `#/sessions/<id>`, so a detail URL survives a
 refresh. Manual JSON imports open a detail view too. Export remains available.
 
 Pages on the same origin and browser profile are grouped automatically into
-one archive session. The event list can show the merged timeline or filter to
+one archive session. The journal can show the merged timeline or filter to
 one participant tab. The default replay opens a synchronized iframe for each
 participant and follows the shared timeline, including participants that join
 later; selecting one participant remains available for focused inspection.
@@ -76,14 +99,35 @@ sessions can be inspected but cannot be replayed. V1 files remain importable;
 new files use v2 and carry monotonic elapsed offsets. Clicks on links retain the
 redacted absolute `href` in the DOM event, in addition to router events. This
 helps identify the intended destination even if navigation did not occur.
-Input and textarea values are omitted by default. To capture a specific field
-for replay, add `data-debug-session-capture-value="true"` to that element or
-explicitly set `captureInputValues: true` in
-`provideCraftDebugSessionCapture`. Password and secret-named fields remain
-excluded. Error stacks are never retained, and error messages are scrubbed for
-common secret assignments and email addresses. The dashboard can delete one
-archived session; the local server also prunes sessions older than 30 days or
-when the archive exceeds 100 sessions by default.
+Input, textarea, and select values are omitted by default. To capture
+non-sensitive values for replay, add `data-debug-session-capture-value="true"`
+to a field or set `captureInputValues: true` in
+`provideCraftDebugSessionCapture`. Password inputs and fields named or
+identified with `password`, `secret`, `token`, `authorization`, or `cookie`
+remain excluded unless sensitive capture is separately opted in. Set
+`captureSensitiveInputValues: true` alongside `captureInputValues: true` to
+include those fields, or add
+`data-debug-session-capture-sensitive-value="true"` to one specific field.
+Both global options default to false. The demo enables both only in its
+development providers; session data goes to the configured debug server, which
+defaults to loopback. Production providers do not install session capture.
+Sensitive values become part of the archive and any exported session, so
+review this setting before enabling it in a production build or sharing an
+export.
+
+Error stacks are never retained, and error messages are scrubbed for common
+secret assignments and email addresses. The dashboard can delete one archived
+session; the local server also prunes sessions older than 30 days or when the
+archive exceeds 100 sessions by default.
+
+Scroll capture samples movement at most every 100 ms and ignores changes of
+two pixels or less between samples. Before pointer, keyboard, or form actions,
+and when capture stops, it records the current final position so the next
+interaction starts at the recorded content. For element scrolling, selectors
+prefer a unique `id`, then a unique `data-replay-id`, `data-craft-name`,
+`data-testid`, `data-test`, or `data-cy` on the actual scrolling element.
+`data-replay-id` is the explicit stable hook when an element has no suitable
+`id`; structural `nth-of-type` paths are the fallback.
 
 When replay reports a difference, **Forcer l’état attendu et continuer** is
 available if the recording contains a link destination or a primitive
@@ -101,9 +145,36 @@ interaction to resume. The dashboard keeps a replay-partial annotation with
 the skipped interaction interval and checkpoint; a skip does not assert that
 the omitted portion matched the recording.
 
-Craft calls are currently compared by their recorded names, phases, and order.
-The replay does not invoke absent calls from exported data: session exports
-are not executable input. Interaction-level causal grouping and allowlisted
-replayable function identifiers are not yet provided by this bridge.
+Craft `method:*`, read-only `query:*`, and `mutation:*` invocation counts are not
+replay gates: route initialization, cache hits, missing legacy form values, and
+async view settling can change their order or count. Comparable primitive state
+and recorded HTTP results remain part of the replay and still report observable
+divergence. The replay does not invoke absent calls from exported data:
+session exports are not executable input. Interaction-level causal grouping
+and allowlisted replayable function identifiers are not yet provided by this
+bridge.
 The local server binds to `127.0.0.1`; set `DEBUG_SESSION_DIR` to choose another
 archive folder.
+
+## Styling and checks
+
+The dashboard has no CSS file and no inline CSS. Everything is drawn with the
+design system: `src/dashboard.style.ts` declares the sheet (`craftStyles`), the
+states are axes (`data-tile-focus`, `data-veil`, `data-frame-scheme`, `data-entry`)
+and what only the browser can know (the scaled size of a replayed page, where a
+click landed, how far the replay got) goes through typed custom properties
+written with `assign(...)`.
+
+Hooks for the end-to-end tests are `data-lab="…"` attributes, never classes.
+
+```bash
+npx nx run debug-session-dashboard:lint
+npx nx run debug-session-dashboard:architecture
+npx nx run debug-session-dashboard:typecheck-architecture
+```
+
+`eslint.config.mjs` takes the `style`, `a11y`, `security` and `typedCss` presets
+for every file under `src`, and `recommended` for the code. `architecture/`
+runs the declarative architecture rules, the design-system ones included.
+The block marked `TODO(replay-engine)` in the ESLint config lists what is still
+off for `dashboard.ts` and why.
