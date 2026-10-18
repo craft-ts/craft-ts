@@ -138,7 +138,7 @@ const FullDemoCraft = craftComponent(
     providers: [provideFullDemoCraftView(), provideTodoStore()],
   },
   () =>
-    div({ class: example.page }, [
+    div({ class: example.card }, [
       heading({ class: example.title }, [
         'Full craftService demo ',
         StatusComponent({ status: FullDemoCraftView.todoStore.todos.status }),
@@ -195,7 +195,7 @@ const FullDemoCraft = craftComponent(
                 'RemoveTodoButton',
                 {
                   class: buttonUi.root,
-                  'data-variant': 'danger',
+                  'data-variant': 'secondary',
                   type: 'button',
                   disabled: FullDemoCraftView.todoStore.remove.isLoading,
                   *click() {

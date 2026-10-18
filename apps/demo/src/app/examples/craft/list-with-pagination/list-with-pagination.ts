@@ -190,7 +190,7 @@ const ListWithPaginationCraft = craftComponent(
                 select(
                   'PageSize',
                   {
-                    class: example.select,
+                    class: example.pageSize,
                     'aria-label': 'Page size',
                     value: function* () {
                       return String((yield* ListWithPaginationCraftView.store.pagination()).pageSize);

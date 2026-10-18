@@ -146,69 +146,73 @@ const MutationCraft = craftComponent(
         { class: example.text, 'data-exampleText': 'muted' },
         'Reload to see the cached result; update the name optimistically.',
       ),
-      input('NameInput', {
-        class: example.input,
-        type: 'text',
-        placeholder: 'New name',
-        value: function* () {
-          const { nameInput } = yield* MutationCraftView();
-          return yield* nameInput();
-        },
-        *input(event) {
-          yield* (yield* MutationCraftView()).nameInput.setName(eventValue(event));
-        },
-      }),
-      button(
-        'UpdateUserNameButton',
-        {
-          type: 'button',
-          class: buttonUi.root, 'data-variant': 'secondary',
-          'data-testid': 'update-user-name',
-          disabled: function* () {
-            const { store } = yield* MutationCraftView();
-            return yield* store.updateUserName.isLoading();
+      div({ class: example.row }, [
+        input('NameInput', {
+          class: example.input,
+          type: 'text',
+          placeholder: 'New name',
+          value: function* () {
+            const { nameInput } = yield* MutationCraftView();
+            return yield* nameInput();
           },
-          *click() {
-            // This example intentionally demonstrates direct mutation wiring;
-            // the form-based variant is covered by the full-demo example.
-             
-            (yield* MutationCraftView()).updateUserNameFn(
-              (yield* (yield* MutationCraftView()).nameInput()) ?? '',
-            );
+          *input(event) {
+            yield* (yield* MutationCraftView()).nameInput.setName(eventValue(event));
           },
-        },
-        [
-          'Update name ',
-          StatusComponent({
-            status: function* () {
+        }),
+        button(
+          'UpdateUserNameButton',
+          {
+            type: 'button',
+            class: buttonUi.root, 'data-variant': 'secondary',
+            'data-testid': 'update-user-name',
+            disabled: function* () {
               const { store } = yield* MutationCraftView();
-              return yield* store.updateUserName.status();
+              return yield* store.updateUserName.isLoading();
             },
-          }),
-        ],
-      ),
-      button(
-        'PreviousUser',
-        {
-          class: buttonUi.root, 'data-variant': 'secondary',
-          type: 'button',
-          *click() {
-            (yield* MutationCraftView()).navigate(-1);
+            *click() {
+              // This example intentionally demonstrates direct mutation wiring;
+              // the form-based variant is covered by the full-demo example.
+             
+              (yield* MutationCraftView()).updateUserNameFn(
+                (yield* (yield* MutationCraftView()).nameInput()) ?? '',
+              );
+            },
           },
-        },
-        'Previous user',
-      ),
-      button(
-        'NextUser',
-        {
-          class: buttonUi.root, 'data-variant': 'secondary',
-          type: 'button',
-          *click() {
-            (yield* MutationCraftView()).navigate(1);
+          [
+            'Update name ',
+            StatusComponent({
+              status: function* () {
+                const { store } = yield* MutationCraftView();
+                return yield* store.updateUserName.status();
+              },
+            }),
+          ],
+        ),
+      ]),
+      div({ class: example.actions }, [
+        button(
+          'PreviousUser',
+          {
+            class: buttonUi.root, 'data-variant': 'secondary',
+            type: 'button',
+            *click() {
+              (yield* MutationCraftView()).navigate(-1);
+            },
           },
-        },
-        'Next user',
-      ),
+          'Previous user',
+        ),
+        button(
+          'NextUser',
+          {
+            class: buttonUi.root, 'data-variant': 'secondary',
+            type: 'button',
+            *click() {
+              (yield* MutationCraftView()).navigate(1);
+            },
+          },
+          'Next user',
+        ),
+      ]),
     ]),
 ).pipe(
   withComponentProviders(({ userId }) => [

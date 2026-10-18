@@ -24,6 +24,7 @@ import {
   defineStateAxis,
   display,
   font,
+  fontFamily,
   fontWeight,
   gap,
   kind,
@@ -40,7 +41,7 @@ import {
   when,
   whiteSpace,
 } from '@craft-ts/style';
-import { herbier, theme } from '@craft-ts/ui/style';
+import { herbier, sansFont, theme } from '@craft-ts/ui/style';
 
 /**
  * The Herbier theme's tones, one per status colour: a neutral, and the
@@ -82,9 +83,10 @@ export const status = craftStyles('status', {
   emoji: [display.inlineBlock, font(text.sm), lineHeight(num(1))],
 
   badge: [
-    px(space(2)),
+    px(unit.rem(0.625)),
     py(space(1)),
-    radius(radii.md),
+    radius(radii.full),
+    fontFamily(sansFont),
     font(text.xs),
     lineHeight(num(1)),
     fontWeight(num(500)),

@@ -105,8 +105,8 @@ const ListWithPagination = craftComponent(
   // page change suspends the badge alone while the table keeps showing the
   // previous page's rows, which is the whole point of the placeholder
   // insertion. One boundary around both would hide them.
-  div([
-        heading([
+  div({ class: example.panel }, [
+        heading({ class: example.title }, [
           'User Management: ',
           span({}, [
             StatusComponent({
@@ -149,7 +149,7 @@ const ListWithPagination = craftComponent(
           select(
             'PageSize',
             {
-              class: example.select,
+              class: example.pageSize,
               'aria-label': 'Page size',
               value: function* () {
                 return String((yield* ListWithPaginationView.pagination()).pageSize);

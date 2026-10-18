@@ -202,7 +202,7 @@ const PlaygroundComponent = craftComponent(
   {
     providers: [providePlaygroundView()],
   },
-  () => div({ class: example.centered }, [
+  () => div({ class: example.card }, [
         heading({ class: example.title }, 'Playground'),
         p(
           { class: example.text, 'data-exampleText': 'muted' },

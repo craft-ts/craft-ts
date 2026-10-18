@@ -7,9 +7,6 @@ import {
   alignItems,
   bg,
   borderColor,
-  borderInlineStartColor,
-  borderInlineStartStyle,
-  borderInlineStartWidth,
   borderStyle,
   borderWidth,
   color,
@@ -27,6 +24,7 @@ import {
   py,
   radii,
   radius,
+  shadow,
   space,
   textAlign,
   unit,
@@ -37,22 +35,20 @@ import { theme } from '@craft-ts/ui/style';
 /** The Herbier theme, under the names this sheet uses. */
 const editorUi = {
   surface: {
-    step: theme.navHover,
-    stepActive: theme.selected,
-    panel: theme.raised,
+    track: theme.navHover,
+    step: theme.clear,
+    stepActive: theme.raised,
+    panel: theme.surface,
     hint: theme.navHover,
   },
   text: {
     step: theme.inkMuted,
-    stepActive: theme.link,
+    stepActive: theme.ink,
     label: theme.ink,
     hint: theme.inkMuted,
   },
   border: {
-    step: theme.line,
-    stepActive: theme.action,
     panel: theme.line,
-    hint: theme.decor,
   },
 };
 
@@ -60,23 +56,30 @@ const editorUi = {
 export const stepState = defineStateAxis('editorStep', ['active']);
 
 export const editor = craftStyles('stateEditor', {
-  steps: [display.flex, gap(space(2))],
+  /** The steps are a segmented control: a track, and the current step lifted out of it. */
+  steps: [
+    display.flex,
+    gap(space(1)),
+    p(space(1)),
+    radius(radii.xl),
+    bg(editorUi.surface.track),
+  ],
   step: [
     flex(num(1)),
     py(space(2)),
     px(space(3)),
-    borderWidth(lineWidth.hairline),
-    borderStyle.solid,
-    borderColor(editorUi.border.step),
     radius(radii.lg),
     textAlign.center,
     fontWeight(num(600)),
     color(editorUi.text.step),
     bg(editorUi.surface.step),
     when(stepState.active, [
-      borderColor(editorUi.border.stepActive),
       color(editorUi.text.stepActive),
       bg(editorUi.surface.stepActive),
+      shadow(
+        { y: unit.px(1), blur: unit.px(3), color: theme.shadow },
+        { y: unit.px(1), blur: unit.px(1), color: theme.shadow },
+      ),
     ]),
   ],
   panel: [
@@ -106,9 +109,7 @@ export const editor = craftStyles('stateEditor', {
   hint: [
     py(space(3)),
     px(space(4)),
-    borderInlineStartWidth(unit.px(3)),
-    borderInlineStartStyle.solid,
-    borderInlineStartColor(editorUi.border.hint),
+    radius(radii.xl),
     color(editorUi.text.hint),
     bg(editorUi.surface.hint),
   ],

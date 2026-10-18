@@ -184,7 +184,7 @@ export const cssVarsDemo = craftStyles('cssVarsDemo', {
     radius(radii.xl),
     textDecorationLine.none,
     color(ui.text.strong),
-    bg(ui.surface.panel),
+    bg(ui.surface.card),
     when(interaction.hover, [
       shadow({ y: unit.rem(0.8), blur: unit.rem(2), color: ui.effect.shadow }),
     ]),

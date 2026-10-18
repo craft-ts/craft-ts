@@ -95,7 +95,7 @@ const FullDemo = craftComponent(
   {
     providers: [provideFullDemoView()],
   },
-  () => div({ class: example.page }, [
+  () => div({ class: example.card }, [
         heading({ class: example.title }, [
           'Full primitives demo ',
           StatusComponent({ status: FullDemoView.todos.status }),
@@ -153,7 +153,7 @@ const FullDemo = craftComponent(
                   'RemoveTodoButton',
                   {
                     class: buttonUi.root,
-                    'data-variant': 'danger',
+                    'data-variant': 'secondary',
                     type: 'button',
                   disabled: FullDemoView.removeTodo.isLoading,
                     *click() {

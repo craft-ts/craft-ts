@@ -135,69 +135,73 @@ const MutationDemoComponent = craftComponent(
         { class: example.text, 'data-exampleText': 'muted' },
         'Reload to see the cached result; update the name optimistically.',
       ),
-      input('NameInput', {
-        class: example.input,
-        type: 'text',
-        placeholder: 'New name',
-        value: function* () {
-          const { nameInput } = yield* MutationDemoView();
-          return yield* nameInput();
-        },
-        *input(event) {
-          yield* (yield* MutationDemoView()).nameInput.setName(eventValue(event));
-        },
-      }),
-      button(
-        'UpdateUserNameButton',
-        {
-          type: 'button',
-          class: buttonUi.root, 'data-variant': 'secondary',
-          'data-testid': 'update-user-name',
-          disabled: function* () {
-            const { updateUserName } = yield* MutationDemoView();
-            return yield* updateUserName.isLoading();
+      div({ class: example.row }, [
+        input('NameInput', {
+          class: example.input,
+          type: 'text',
+          placeholder: 'New name',
+          value: function* () {
+            const { nameInput } = yield* MutationDemoView();
+            return yield* nameInput();
           },
-          click: function* () {
-            // This example intentionally demonstrates direct mutation wiring;
-            // the form-based variant is covered by the full-demo example.
-             
-            (yield* MutationDemoView()).update(
-              yield* (yield* MutationDemoView()).nameInput(),
-            );
+          *input(event) {
+            yield* (yield* MutationDemoView()).nameInput.setName(eventValue(event));
           },
-        },
-        [
-          'Update name ',
-          StatusComponent({
-            status: function* () {
+        }),
+        button(
+          'UpdateUserNameButton',
+          {
+            type: 'button',
+            class: buttonUi.root, 'data-variant': 'secondary',
+            'data-testid': 'update-user-name',
+            disabled: function* () {
               const { updateUserName } = yield* MutationDemoView();
-              return yield* updateUserName.status();
+              return yield* updateUserName.isLoading();
             },
-          }),
-        ],
-      ),
-      button(
-        'PreviousUser',
-        {
-          class: buttonUi.root, 'data-variant': 'secondary',
-          type: 'button',
-          click: function* () {
-            (yield* MutationDemoView()).goTo(-1);
+            click: function* () {
+              // This example intentionally demonstrates direct mutation wiring;
+              // the form-based variant is covered by the full-demo example.
+             
+              (yield* MutationDemoView()).update(
+                yield* (yield* MutationDemoView()).nameInput(),
+              );
+            },
           },
-        },
-        'Previous user',
-      ),
-      button(
-        'NextUser',
-        {
-          class: buttonUi.root, 'data-variant': 'secondary',
-          type: 'button',
-          click: function* () {
-            (yield* MutationDemoView()).goTo(1);
+          [
+            'Update name ',
+            StatusComponent({
+              status: function* () {
+                const { updateUserName } = yield* MutationDemoView();
+                return yield* updateUserName.status();
+              },
+            }),
+          ],
+        ),
+      ]),
+      div({ class: example.actions }, [
+        button(
+          'PreviousUser',
+          {
+            class: buttonUi.root, 'data-variant': 'secondary',
+            type: 'button',
+            click: function* () {
+              (yield* MutationDemoView()).goTo(-1);
+            },
           },
-        },
-        'Next user',
-      ),
+          'Previous user',
+        ),
+        button(
+          'NextUser',
+          {
+            class: buttonUi.root, 'data-variant': 'secondary',
+            type: 'button',
+            click: function* () {
+              (yield* MutationDemoView()).goTo(1);
+            },
+          },
+          'Next user',
+        ),
+      ]),
     ]),
 ).pipe(
   withComponentProviders(({ userId }) => [provideMutationDemoView({ userId })]),

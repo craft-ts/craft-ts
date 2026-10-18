@@ -187,7 +187,7 @@ const GranularMutation = craftComponent(
                 select(
                   'PageSize',
                   {
-                    class: example.select,
+                    class: example.pageSize,
                     'aria-label': 'Page size',
                     value: function* () {
                       return String((yield* GranularMutationView.pagination()).pageSize);
