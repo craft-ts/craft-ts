@@ -2078,6 +2078,23 @@ export const DebugSessionDashboard = craftComponent(
                     'Pause',
                   ),
                   button(
+                    'restart',
+                    {
+                      type: 'button',
+                      'aria-label': 'Recommencer le replay depuis le début',
+                      'aria-description':
+                        'Recharge les pages enregistrées et relance le replay depuis la première interaction.',
+                      'data-tooltip':
+                        'Recommence le replay depuis le début en rechargeant les pages enregistrées.',
+                      'data-lab': 'replay-restart',
+                      click: startReplay,
+                      disabled: computed(
+                        () => !['ready', 'playing', 'paused', 'completed', 'error'].includes(replayState()),
+                      ),
+                    },
+                    'Recommencer',
+                  ),
+                  button(
                     'stop',
                     {
                       type: 'button',
