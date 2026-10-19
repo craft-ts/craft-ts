@@ -79,7 +79,7 @@ describe('craft router trace', () => {
     expect(() => runAppInitializers(injector)).not.toThrow();
 
     const router = runInInjectionContext(injector, () => craftUse(CraftRouter()));
-    await router.navigateByUrl('/home');
+    await router.navigateByUrl('/home', { replaceUrl: true });
 
     const events = traces.filter((trace) => trace.kind === 'routerEvent');
     expect(events.map((event) => event.eventName)).toEqual([
@@ -87,6 +87,10 @@ describe('craft router trace', () => {
       'NavigationEnd',
     ]);
     expect(events.map((event) => event.url)).toEqual(['/home', '/home']);
+    expect(events.map((event) => event.navigationOptions)).toEqual([
+      { replaceUrl: true },
+      { replaceUrl: true },
+    ]);
   });
 
   it('does not throw when Craft router is absent', () => {

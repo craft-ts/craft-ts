@@ -13,12 +13,14 @@ import {
   craftService,
   ɵgetCraftRootDefaultProviders,
   ɵinjectSendContextSession,
+  ɵregisterCraftReplayTarget,
 } from '@craft-ts/core';
 import { AiContextMenu } from './ai-context-menu';
 import {
   provideAiContextMenuController,
   provideCraftDebugSessionCapture,
   provideSendContextToAi,
+  ɵserializeReplayArgument,
 } from './send-context-to-ai';
 import {
   provideSendContextChatComponent,
@@ -45,6 +47,54 @@ describe('provideSendContextToAi', () => {
 
   afterEach(() => {
     document.body.replaceChildren();
+  });
+
+  it('marks non-serializable invocation arguments as unsupported', () => {
+    const circular: Record<string, unknown> = {};
+    circular['self'] = circular;
+
+    expect(ɵserializeReplayArgument(() => undefined)).toEqual({
+      $craftReplayUnsupported: 'function',
+    });
+    expect(ɵserializeReplayArgument(circular)).toEqual({
+      self: { $craftReplayUnsupported: 'circular-reference' },
+    });
+    expect(ɵserializeReplayArgument(undefined)).toEqual({
+      $craftReplayUndefined: true,
+    });
+    expect(ɵserializeReplayArgument({ id: 3, active: false })).toEqual({
+      id: 3,
+      active: false,
+    });
+    expect(ɵserializeReplayArgument(-0)).toEqual({ $craftReplayNumber: '-0' });
+    expect(ɵserializeReplayArgument(12n)).toEqual({ $craftReplayBigInt: '12' });
+  });
+
+  it('stores event targets as opaque Craft identities without row selectors', () => {
+    const target = document.createElement('button');
+    target.setAttribute('data-user-id', 'customer-private-id');
+    document.body.append(target);
+    const unregister = ɵregisterCraftReplayTarget(target, [
+      'UserList',
+      'item:customer-private-id',
+      'remove',
+    ]);
+    const event = new MouseEvent('click', { bubbles: true, clientX: 20 });
+    target.dispatchEvent(event);
+
+    const serialized = ɵserializeReplayArgument(event);
+    expect(serialized).toMatchObject({
+      $craftReplayEvent: {
+        type: 'click',
+        replayTarget: {
+          runtimeId: expect.any(String),
+          componentPath: [expect.any(String)],
+          localTargetPath: [],
+        },
+      },
+    });
+    expect(JSON.stringify(serialized)).not.toContain('customer-private-id');
+    unregister();
   });
 
   it('waits for Record when automatic recording is disabled', () => {

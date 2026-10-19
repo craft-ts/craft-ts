@@ -1,6 +1,7 @@
 import { TestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import { vi } from 'vitest';
+import { provideCraftHttpTrace, type CraftHttpTraceContext } from './craft-http-trace';
 import {
   CraftBinaryHttpClient,
   CraftHttpClient,
@@ -109,6 +110,41 @@ describe('CraftHttpClient', () => {
   });
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it('passes a stable replayKey through the traced HTTP request context', async () => {
+    const contexts: CraftHttpTraceContext[] = [];
+    TestBed.configureTestingModule({
+      providers: [
+        provideCraftHttpTrace(async (context, next) => {
+          contexts.push(context);
+          return next();
+        }),
+      ],
+    });
+    const { ReplayKeyApi } = craftService(
+      { name: 'ReplayKeyApi', providedIn: 'global' },
+      function* () {
+        const load = yield* CraftHttpClient.get(() => ({
+          url: '/api/replay-key',
+          replayKey: 'profile-a',
+          success: response<{ ok: boolean }>(),
+        }));
+        yield* craftExpose('load', load);
+      },
+    );
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+
+    await TestBed.runInInjectionContext(async () => {
+      const api = craftUse(ReplayKeyApi());
+      await api.load();
+    });
+
+    expect(contexts).toMatchObject([
+      { method: 'GET', url: '/api/replay-key', replayKey: 'profile-a' },
+    ]);
+  });
 
   it('should reject the previous explicit generic overload', () => {
     if (false) {

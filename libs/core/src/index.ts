@@ -88,14 +88,20 @@ export * from './lib/insert-typed-pipes';
 export * from './lib/insert-pagination-placeholder-data';
 export * from './lib/resource-by-id';
 export * from './lib/storage-persister.service';
+export {
+  ɵinjectPersistedStorageSnapshotRegistry,
+  type PersistedStorageSnapshotEntry,
+} from './lib/persisted-storage-snapshot';
 export * from './lib/global-persister-handler.service';
 export * from './lib/util/entities-util';
 export * from './lib/craft-method';
+export * from './lib/craft-method-replay-registry';
 export * from './lib/craft-computed';
 export * from './lib/craft-primitive-registry';
 export * from './lib/craft-runtime-mode';
 export * from './lib/loop-guard';
 export * from './lib/craft-replay';
+export * from './lib/craft-replay-transports';
 export * from './lib/craft-state-machine';
 export * from './lib/craft-machine-history';
 export {
@@ -270,6 +276,20 @@ export * from './lib/craft-http-trace';
 export * from './lib/craft-platform';
 export * from './lib/craft-hydration';
 export * from './lib/craft-render-identity';
+export type {
+  CraftReplayTarget,
+  CraftReplayTargetResolution,
+} from './lib/craft-replay-target';
+export {
+  ɵcaptureCraftReplayTarget,
+  ɵregisterCraftReplayTarget,
+  ɵresolveCraftReplayTarget,
+} from './lib/craft-replay-target';
+export type { CraftDeferReplayResolution } from './lib/craft-defer-replay';
+export {
+  ɵregisterCraftDeferReplayTarget,
+  ɵresolveCraftDeferReplayTarget,
+} from './lib/craft-defer-replay';
 export * from './lib/craft-transfer-snapshot';
 export * from './lib/craft-ssr';
 export * from './lib/take-app-snapshot';

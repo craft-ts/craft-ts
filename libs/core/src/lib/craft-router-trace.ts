@@ -9,7 +9,10 @@ import {
 import { ɵcraftValueService } from './craft-service';
 import type { CraftRoutePhase } from './craft-route-exceptions';
 import { isCraftDevelopment } from './craft-runtime-mode';
-import { ɵinjectCraftRouterRuntime, type CraftRouterEvent } from './craft-router-tokens';
+import {
+  ɵinjectCraftRouterRuntime,
+  type CraftRouterEvent,
+} from './craft-router-tokens';
 
 export type CraftRouterTraceStage =
   | 'match'
@@ -22,6 +25,10 @@ export type CraftRouterTraceContext = Readonly<{
   phase: 'event' | 'run';
   eventName?: string;
   event?: CraftRouterEvent;
+  navigationOptions?: Readonly<{
+    replaceUrl?: boolean;
+    skipLocationChange?: boolean;
+  }>;
   stage?: CraftRouterTraceStage;
   routePhase?: CraftRoutePhase;
   url?: string;
@@ -79,12 +86,13 @@ export function provideCraftRouterTrace(
       const router = ɵinjectCraftRouterRuntime();
       const events = router ? craftRouterEvents(router) : undefined;
 
-      if (!events || routerTraceListeners.has(injector)) {
+      if (!router || !events || routerTraceListeners.has(injector)) {
         return;
       }
       routerTraceListeners.add(injector);
 
       events.subscribe((event) => {
+        const extras = router.getCurrentNavigation()?.extras;
         executeCraftRouterTrace(
           injector,
           {
@@ -93,6 +101,19 @@ export function provideCraftRouterTrace(
             eventName: event.type,
             event,
             url: event.url,
+            ...(extras?.replaceUrl === undefined &&
+            extras?.skipLocationChange === undefined
+              ? {}
+              : {
+                  navigationOptions: {
+                    ...(extras.replaceUrl === undefined
+                      ? {}
+                      : { replaceUrl: extras.replaceUrl }),
+                    ...(extras.skipLocationChange === undefined
+                      ? {}
+                      : { skipLocationChange: extras.skipLocationChange }),
+                  },
+                }),
           },
           () => undefined,
         );

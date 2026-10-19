@@ -3,6 +3,7 @@ import { CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT } from './debug-session-replay-sig
 import { captureDebugSessionEnvironment } from './debug-session-environment';
 
 const SHARED_SESSION_ID_KEY = 'craft-debug-session-id';
+const PARTICIPANT_ID_KEY = 'craft-debug-session-participant-id';
 
 /** Streams redacted session snapshots and subsequent events to a local archive. */
 export function connectDebugSessionPersistence(
@@ -13,8 +14,11 @@ export function connectDebugSessionPersistence(
     return () => undefined;
 
   const storageKey = `${SHARED_SESSION_ID_KEY}:${location.origin}`;
+  const participantStorageKey = `${PARTICIPANT_ID_KEY}:${location.origin}`;
   let id: string | undefined;
-  const participantId = crypto.randomUUID();
+  let participantId = readOrCreateParticipantId(participantStorageKey);
+  let releaseParticipantLock: () => void = () => undefined;
+  let persistenceStarted = false;
   const createdAt = new Date(
     session.activeClip?.startedAt ?? Date.now(),
   ).toISOString();
@@ -313,6 +317,7 @@ export function connectDebugSessionPersistence(
       }
     }
     subscribe.unsubscribe();
+    releaseParticipantLock();
   };
 
   function persistFinishWithKeepalive(sessionId: string): void {
@@ -396,23 +401,7 @@ export function connectDebugSessionPersistence(
     CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT,
     onReplayPersistence,
   );
-  const locks = navigator.locks;
-  if (locks) {
-    void locks
-      .request(`craft-debug-session:${storageKey}`, readOrCreateSharedId)
-      .then((sharedId) => {
-        if (closed) return;
-        id = sharedId;
-        connect();
-      })
-      .catch(() => {
-        id = readOrCreateSharedId();
-        connect();
-      });
-  } else {
-    id = readOrCreateSharedId();
-    connect();
-  }
+  claimParticipantIdentity();
   return () => {
     window.removeEventListener('pagehide', finish);
     window.removeEventListener('storage', onStorage);
@@ -425,11 +414,80 @@ export function connectDebugSessionPersistence(
     );
     finish();
   };
+
+  function startPersistence(): void {
+    if (closed || persistenceStarted) return;
+    persistenceStarted = true;
+    const locks = navigator.locks;
+    if (locks) {
+      void locks
+        .request(`craft-debug-session:${storageKey}`, readOrCreateSharedId)
+        .then((sharedId) => {
+          if (closed) return;
+          id = sharedId;
+          connect();
+        })
+        .catch(() => {
+          id = readOrCreateSharedId();
+          connect();
+        });
+    } else {
+      id = readOrCreateSharedId();
+      connect();
+    }
+  }
+
+  function claimParticipantIdentity(): void {
+    const locks = navigator.locks;
+    if (!locks) {
+      startPersistence();
+      return;
+    }
+
+    let acquired = false;
+    void locks
+      .request(
+        `craft-debug-participant:${storageKey}:${participantId}`,
+        { ifAvailable: true },
+        async (lock) => {
+          if (!lock) return;
+          acquired = true;
+          if (closed) return;
+          await new Promise<void>((resolve) => {
+            releaseParticipantLock = resolve;
+            startPersistence();
+          });
+        },
+      )
+      .then(() => {
+        if (acquired || closed) return;
+        participantId = crypto.randomUUID();
+        try {
+          sessionStorage.setItem(participantStorageKey, participantId);
+        } catch {
+          // Keep the in-memory identity when browser storage is unavailable.
+        }
+        claimParticipantIdentity();
+      })
+      .catch(() => startPersistence());
+  }
 }
 
 function participantState(): 'visible' | 'hidden' | 'blurred' {
   if (document.visibilityState === 'hidden') return 'hidden';
   return document.hasFocus() ? 'visible' : 'blurred';
+}
+
+function readOrCreateParticipantId(storageKey: string): string {
+  try {
+    const existing = sessionStorage.getItem(storageKey);
+    if (existing && isUuid(existing)) return existing;
+    const created = crypto.randomUUID();
+    sessionStorage.setItem(storageKey, created);
+    return created;
+  } catch {
+    return crypto.randomUUID();
+  }
 }
 
 function isUuid(value: string): boolean {

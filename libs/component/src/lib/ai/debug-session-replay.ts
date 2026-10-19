@@ -3,6 +3,9 @@ import {
   VirtualCraftTemporalRuntime,
   type SendContextEvent,
   type SendContextReplayExport,
+  type CraftReplayTarget,
+  isCraftReplayTransportEvent,
+  ɵresolveCraftReplayTarget,
 } from '@craft-ts/core';
 
 export type ReplayValidation =
@@ -18,6 +21,12 @@ export function validateReplayExport(json: string): ReplayValidation {
   if (!validation.ok) return validation;
   const stepError = validateReplaySteps(validation.session.events);
   if (stepError) return { ok: false, error: stepError };
+  const invocationError = validateReplayInvocations(validation.session.events);
+  if (invocationError) return { ok: false, error: invocationError };
+  const httpIdentityError = validateConcurrentHttpReplayIdentity(
+    validation.session.events,
+  );
+  if (httpIdentityError) return { ok: false, error: httpIdentityError };
   if (validation.session.truncated) {
     return {
       ok: false,
@@ -37,6 +46,107 @@ export function validateReplayExport(json: string): ReplayValidation {
   return validation;
 }
 
+function validateReplayInvocations(
+  events: readonly SendContextEvent[],
+): string | undefined {
+  const missingInvocation = events.find((event) => {
+    if (event.kind !== 'craft' || event.phase !== 'started') return false;
+    const payload = isRecord(event.payload) ? event.payload : undefined;
+    return (
+      typeof payload?.['host'] === 'string' &&
+      payload['host'].startsWith('method:') &&
+      !isReplayInvocationEvent(event)
+    );
+  });
+  if (missingInvocation)
+    return `L’appel Craft ${missingInvocation.sequence} ne contient pas les données nécessaires au rejeu par invocation. Enregistre une nouvelle session avec la capture des arguments activée.`;
+
+  const unreplayableInvocation = events.find((event) => {
+    if (event.kind !== 'craft' || event.phase !== 'started') return false;
+    const payload = isRecord(event.payload) ? event.payload : undefined;
+    if (
+      typeof payload?.['host'] !== 'string' ||
+      !payload['host'].startsWith('method:')
+    )
+      return false;
+    const invocation = isRecord(payload['replayInvocation'])
+      ? payload['replayInvocation']
+      : undefined;
+    return (
+      Array.isArray(invocation?.['args']) &&
+      invocation['args'].some(hasUnreplayableReplayArgument)
+    );
+  });
+  if (unreplayableInvocation)
+    return `L’appel Craft ${unreplayableInvocation.sequence} contient un argument non sérialisable ou expurgé ; la session reste inspectable, mais ce replay est refusé.`;
+  return undefined;
+}
+
+function validateConcurrentHttpReplayIdentity(
+  events: readonly SendContextEvent[],
+): string | undefined {
+  const requests = events.flatMap((started) => {
+    if (
+      started.kind !== 'http' ||
+      started.phase !== 'started' ||
+      !started.operationId ||
+      !isRecord(started.payload) ||
+      started.payload['source'] !== 'craft-http-client'
+    )
+      return [];
+    const finished = events.find(
+      (candidate) =>
+        candidate.kind === 'http' &&
+        candidate.operationId === started.operationId &&
+        (candidate.phase === 'succeeded' || candidate.phase === 'failed'),
+    );
+    if (!finished || !isRecord(started.payload)) return [];
+    const timeOf = (event: SendContextEvent) =>
+      event.globalElapsedMs ?? event.elapsedMs ?? event.timestamp;
+    return [
+      {
+        identity: stableJson({
+          method: started.payload['method'],
+          url: started.payload['url'],
+          params: started.payload['params'],
+          payload: started.payload['payload'],
+        }),
+        replayKey:
+          typeof started.payload['replayKey'] === 'string'
+            ? started.payload['replayKey']
+            : undefined,
+        startedAt: timeOf(started),
+        finishedAt: timeOf(finished),
+      },
+    ];
+  });
+  const byIdentity = new Map<string, typeof requests>();
+  for (const request of requests) {
+    const group = byIdentity.get(request.identity) ?? [];
+    group.push(request);
+    byIdentity.set(request.identity, group);
+  }
+  for (const group of byIdentity.values()) {
+    for (let first = 0; first < group.length; first += 1) {
+      for (let second = first + 1; second < group.length; second += 1) {
+        const left = group[first]!;
+        const right = group[second]!;
+        const overlap =
+          left.startedAt < right.finishedAt &&
+          right.startedAt < left.finishedAt;
+        if (
+          overlap &&
+          (!left.replayKey ||
+            !right.replayKey ||
+            left.replayKey === right.replayKey)
+        )
+          return 'Two concurrent Craft HTTP requests have the same method, URL, parameters and body. Give each request a distinct replayKey before replaying this session.';
+      }
+    }
+  }
+  return undefined;
+}
+
 /** Parse a session for inspection, including retained data from truncated exports. */
 export function validateDebugSessionExport(json: string): ReplayValidation {
   let value: unknown;
@@ -47,13 +157,11 @@ export function validateDebugSessionExport(json: string): ReplayValidation {
   }
   if (!isRecord(value))
     return { ok: false, error: 'The session must be a JSON object.' };
-  if (
-    value['format'] !== 'craft-debug-session' ||
-    (value['version'] !== 1 && value['version'] !== 2)
-  ) {
+  if (value['format'] !== 'craft-debug-session' || value['version'] !== 5) {
     return {
       ok: false,
-      error: 'This debug session format or version is not supported.',
+      error:
+        'Cette session utilise un ancien format de rejeu. Enregistre une nouvelle session avec le format v5.',
     };
   }
   if (
@@ -99,6 +207,55 @@ export function validateDebugSessionExport(json: string): ReplayValidation {
   if (!events.every(isReplayEvent))
     return { ok: false, error: 'The session contains an invalid event.' };
   const validEvents = events as SendContextEvent[];
+  const transportProgress = new Map<
+    string,
+    { sequence: number; elapsedMs: number; transportId: string; kind: string }
+  >();
+  for (const event of validEvents) {
+    if (event.kind !== 'transport') continue;
+    const transportEvent = event.payload;
+    if (!isCraftReplayTransportEvent(transportEvent))
+      return {
+        ok: false,
+        error: `Transport event ${event.sequence} is invalid.`,
+      };
+    if (!transportEvent.replayable)
+      return {
+        ok: false,
+        error: `Transport event ${event.sequence} cannot be replayed: ${transportEvent.reason ?? 'unsupported data'}.`,
+      };
+    const previous = transportProgress.get(transportEvent.instanceId);
+    const eventElapsedMs = event.elapsedMs ?? transportEvent.elapsedMs;
+    if (
+      !Number.isFinite(eventElapsedMs) ||
+      transportEvent.elapsedMs !== eventElapsedMs ||
+      (previous &&
+        (transportEvent.sequence <= previous.sequence ||
+          eventElapsedMs < previous.elapsedMs)) ||
+      (previous &&
+        (transportEvent.transportId !== previous.transportId ||
+          transportEvent.transport !== previous.kind))
+    )
+      return {
+        ok: false,
+        error: `Transport instance ${transportEvent.instanceId} has unordered or inconsistent events.`,
+      };
+    transportProgress.set(transportEvent.instanceId, {
+      sequence: transportEvent.sequence,
+      elapsedMs: eventElapsedMs,
+      transportId: transportEvent.transportId,
+      kind: transportEvent.transport,
+    });
+    if (
+      transportEvent.data &&
+      new TextEncoder().encode(JSON.stringify(transportEvent.data)).byteLength >
+        1_048_576
+    )
+      return {
+        ok: false,
+        error: `Transport event ${event.sequence} exceeds the replay payload limit.`,
+      };
+  }
   const eventIds = new Set<string>();
   let previousSequence = 0;
   for (const event of validEvents) {
@@ -121,9 +278,29 @@ function validateReplaySteps(
   events: readonly SendContextEvent[],
 ): string | undefined {
   for (const event of events) {
+    if (event.kind === 'defer') {
+      const payload = isRecord(event.payload) ? event.payload : undefined;
+      if (
+        (event.phase !== 'started' &&
+          event.phase !== 'succeeded' &&
+          event.phase !== 'failed') ||
+        !payload ||
+        typeof payload['targetId'] !== 'string' ||
+        payload['targetId'].length === 0 ||
+        payload['targetId'].length > 128
+      )
+        return `Deferred activation event ${event.sequence} has an invalid target identity.`;
+      if (
+        event.phase !== 'started' &&
+        (typeof payload['activationEventId'] !== 'string' ||
+          (payload['outcome'] !== 'loaded' && payload['outcome'] !== 'error'))
+      )
+        return `Deferred result event ${event.sequence} has an invalid outcome.`;
+      continue;
+    }
     if (event.phase !== 'emitted') continue;
     const payload = isRecord(event.payload) ? event.payload : undefined;
-    if (event.kind === 'dom') {
+    if (event.kind === 'dom' || event.kind === 'hover') {
       if (
         !payload ||
         typeof payload['selector'] !== 'string' ||
@@ -134,6 +311,11 @@ function validateReplaySteps(
         payload['action'].length > 64
       )
         return `Interaction event ${event.sequence} has an invalid selector or action.`;
+      if (
+        payload['replayTarget'] !== undefined &&
+        !isCraftReplayTarget(payload['replayTarget'])
+      )
+        return `Interaction event ${event.sequence} has an invalid Craft target identity.`;
     } else if (event.kind === 'scroll') {
       if (
         !payload ||
@@ -153,6 +335,34 @@ function validateReplaySteps(
       if (!payload || !isValidViewport(payload['width'], payload['height']))
         return `Viewport event ${event.sequence} has invalid dimensions.`;
     }
+  }
+  const deferActivations = events.filter(
+    (event) => event.kind === 'defer' && event.phase === 'started',
+  );
+  for (const activation of deferActivations) {
+    const activationPayload = isRecord(activation.payload)
+      ? activation.payload
+      : undefined;
+    const results = events.filter((candidate) => {
+      if (
+        candidate.kind !== 'defer' ||
+        (candidate.phase !== 'succeeded' && candidate.phase !== 'failed') ||
+        !isRecord(candidate.payload)
+      )
+        return false;
+      return candidate.payload['activationEventId'] === activation.id;
+    });
+    if (results.length !== 1)
+      return `Deferred activation event ${activation.sequence} must have exactly one recorded result.`;
+    const resultPayload = isRecord(results[0]!.payload)
+      ? results[0]!.payload
+      : undefined;
+    if (
+      resultPayload?.['targetId'] !== activationPayload?.['targetId'] ||
+      (results[0]!.phase === 'succeeded') !==
+        (resultPayload?.['outcome'] === 'loaded')
+    )
+      return `Deferred activation event ${activation.sequence} has an inconsistent recorded result.`;
   }
   return undefined;
 }
@@ -178,6 +388,99 @@ function safeQuerySelector(selector: string): Element | null {
   } catch {
     return null;
   }
+}
+
+function isCraftReplayTarget(value: unknown): value is CraftReplayTarget {
+  return (
+    isRecord(value) &&
+    typeof value['runtimeId'] === 'string' &&
+    value['runtimeId'].length > 0 &&
+    Array.isArray(value['componentPath']) &&
+    value['componentPath'].length === 1 &&
+    value['componentPath'].every(
+      (segment) => typeof segment === 'string' && segment.length > 0 && segment.length <= 128,
+    ) &&
+    (value['stability'] === undefined ||
+      value['stability'] === 'stable' ||
+      value['stability'] === 'unstable') &&
+    Array.isArray(value['localTargetPath']) &&
+    value['localTargetPath'].length <= 128 &&
+    value['localTargetPath'].every(
+      (segment) =>
+        typeof segment === 'number' &&
+        Number.isSafeInteger(segment) &&
+        segment >= 0,
+    ) &&
+    (value['fallback'] === undefined ||
+      (isRecord(value['fallback']) &&
+        (value['fallback']['selector'] === undefined ||
+          (typeof value['fallback']['selector'] === 'string' &&
+            value['fallback']['selector'].length <= 2_048)) &&
+        (value['fallback']['clientX'] === undefined ||
+          isFiniteNumber(value['fallback']['clientX'])) &&
+        (value['fallback']['clientY'] === undefined ||
+          isFiniteNumber(value['fallback']['clientY']))))
+  );
+}
+
+async function waitForCraftReplayTarget(
+  target: CraftReplayTarget,
+  timeoutMs = 10_000,
+): Promise<ReturnType<typeof ɵresolveCraftReplayTarget>> {
+  const deadline = performance.now() + timeoutMs;
+  let result = ɵresolveCraftReplayTarget(target);
+  while (result.status === 'missing' && performance.now() < deadline) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+    result = ɵresolveCraftReplayTarget(target);
+  }
+  return result;
+}
+
+async function waitForReplayTarget(
+  selector: string,
+  timeoutMs = 10_000,
+): Promise<HTMLElement | null> {
+  const deadline = performance.now() + timeoutMs;
+  do {
+    const target = safeQuerySelector(selector);
+    if (target instanceof HTMLElement) return target;
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+  } while (performance.now() < deadline);
+  return null;
+}
+
+function isReplayDestinationCurrent(href: unknown): boolean {
+  if (typeof href !== 'string') return false;
+  try {
+    const recorded = new URL(href, location.href);
+    const current = new URL(location.href);
+    if (recorded.origin !== current.origin) return false;
+    recorded.searchParams.delete('craft-debug-replay');
+    current.searchParams.delete('craft-debug-replay');
+    return (
+      recorded.pathname === current.pathname &&
+      (!recorded.search || recorded.search === current.search) &&
+      (!recorded.hash || recorded.hash === current.hash)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasUnreplayableReplayArgument(value: unknown): boolean {
+  if (value === '[REDACTED]' || value === '[REDACTED_EMAIL]') return true;
+  if (Array.isArray(value)) return value.some(hasUnreplayableReplayArgument);
+  if (!isRecord(value)) return false;
+  if ('$craftReplayUnsupported' in value) return true;
+  const event = value['$craftReplayEvent'];
+  if (isRecord(event) && event['replayTarget'] !== undefined) {
+    if (
+      !isCraftReplayTarget(event['replayTarget']) ||
+      event['replayTarget']['stability'] === 'unstable'
+    )
+      return true;
+  }
+  return Object.values(value).some(hasUnreplayableReplayArgument);
 }
 
 function isReplayEvent(value: unknown): value is SendContextEvent {
@@ -206,33 +509,39 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function writeScrollAndWaitForEvent(
-  target: EventTarget,
-  write: () => void,
-): Promise<void> {
-  return new Promise((resolve) => {
-    let timeout: ReturnType<typeof setTimeout>;
-    const finish = () => {
-      target.removeEventListener('scroll', finish);
-      clearTimeout(timeout);
-      resolve();
-    };
-    timeout = setTimeout(finish, 100);
-    target.addEventListener('scroll', finish, { once: true });
-    write();
-  });
-}
-
 function hasReplayStateDifference(expected: unknown, actual: unknown): boolean {
   if (isRecord(expected) && isRecord(actual)) {
     // Route transitions add and remove registry entries while a checkpoint is
     // captured. Compare only primitive addresses that exist on both sides.
     const sharedKeys = Object.keys(expected).filter((key) => key in actual);
     return sharedKeys.some(
-      (key) => stableJson(expected[key]) !== stableJson(actual[key]),
+      (key) => !replaySnapshotValueMatches(expected[key], actual[key]),
     );
   }
-  return stableJson(expected) !== stableJson(actual);
+  return !replaySnapshotValueMatches(expected, actual);
+}
+
+function replaySnapshotValueMatches(
+  expected: unknown,
+  actual: unknown,
+): boolean {
+  // Session exports replace repeated references and over-deep values with
+  // these markers. They describe serialization limits, not the live value.
+  if (expected === '[Circular]' || expected === '[Depth limit]') return true;
+  if (Array.isArray(expected))
+    return (
+      Array.isArray(actual) &&
+      expected.length === actual.length &&
+      expected.every((value, index) =>
+        replaySnapshotValueMatches(value, actual[index]),
+      )
+    );
+  if (isRecord(expected) && isRecord(actual))
+    return Object.keys(expected).every(
+      (key) =>
+        key in actual && replaySnapshotValueMatches(expected[key], actual[key]),
+    );
+  return stableJson(expected) === stableJson(actual);
 }
 
 export type ReplayDifference = Readonly<{
@@ -276,10 +585,17 @@ export function createReplayController(
   options: Readonly<{
     /** Shared wall-clock origin used to synchronize participants from one archive. */
     timelineOriginMs?: number;
+    /** Resume after a target page reload without replaying completed actions. */
+    startIndex?: number;
     onDifference?: (event: SendContextEvent) => ReplayDifference | undefined;
     onError?: (message: string) => void;
+    onWarning?: (message: string) => void;
     observedEvents?: () => readonly SendContextEvent[];
     readState?: () => unknown;
+    /** Applies recorded primitive checkpoints at their original timeline position. */
+    restoreState?: (state: unknown, event?: SendContextEvent) => void;
+    /** Advances async replay adapters alongside the recorded event timeline. */
+    onTimelineAdvance?: (elapsedMs: number) => void | Promise<void>;
     prepare?: () => void | Promise<void>;
     onReplayDifference?: (difference: ReplayDifference) => void;
     onProgress?: (
@@ -289,12 +605,33 @@ export function createReplayController(
       nextDelayMs?: number,
     ) => void;
     onInteraction?: (event: SendContextEvent, target: HTMLElement) => void;
+    /** Activate a recorded deferNode by its stable semantic identity. */
+    onDeferActivation?: (
+      event: SendContextEvent,
+      targetId: string,
+    ) => Promise<'loaded' | 'error'>;
+    /** Invoke the recorded Craft method roots associated with this visual step. */
+    invokeRecordedMethod?: (event: SendContextEvent) => void | Promise<void>;
+    /** Explicit opt-in for the isolated pre-invocation DOM replay path. */
+    mode?: 'invocation' | 'legacy-dom';
+    /** Apply a recorded navigation through the application's router. */
+    navigateToRecordedRoute?: (
+      url: string,
+      options?: Readonly<{
+        replaceUrl?: boolean;
+        skipLocationChange?: boolean;
+      }>,
+    ) => void | Promise<void>;
     onScroll?: (event: SendContextEvent) => void;
     onViewport?: (event: SendContextEvent) => void | Promise<void>;
     forceRecovery?: (recovery: ReplayRecovery) => void | Promise<void>;
   }> = {},
 ): ReplayController {
-  const interactions = session.events.filter(isReplayStep);
+  const interactions = getReplaySteps(session.events);
+  // Invocation is the default. The old event-dispatch implementation is only
+  // available through an explicit compatibility mode and is never selected as
+  // a fallback when a recorded method cannot be identified.
+  const useInvocationReplay = options.mode !== 'legacy-dom';
   const timeOf = (event: SendContextEvent): number =>
     options.timelineOriginMs !== undefined &&
     typeof event.globalElapsedMs === 'number'
@@ -311,10 +648,18 @@ export function createReplayController(
   const restoreClock = activateCraftTemporalRuntime(clock);
   const baselineEvents = options.observedEvents?.().length ?? 0;
   let prepared = false;
-  let cursor = 0;
+  const startingCursor = Math.min(
+    interactions.length,
+    Math.max(0, Math.floor(options.startIndex ?? 0)),
+  );
+  let cursor = startingCursor;
   let running = false;
   let terminated = false;
   let playbackEpoch: number | undefined;
+  if (cursor > 0 && cursor < interactions.length) {
+    playbackEpoch =
+      performance.now() - (timeOf(interactions[cursor]!) - firstTime);
+  }
   let playbackPaused = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let playbackWaitTimer: ReturnType<typeof setTimeout> | undefined;
@@ -322,6 +667,43 @@ export function createReplayController(
   let playbackStepInFlight = false;
   const playbackResumeWaiters: Array<() => void> = [];
   let restoreFetch: (() => void) | undefined;
+  let recordedResponseResolver: RecordedResponseResolver | undefined;
+  const pendingInvocationTasks: Promise<void>[] = [];
+  let pendingInvocationError: unknown;
+  let restoreReplayScrollBlock: (() => void) | undefined;
+  const pendingScrollEvents = new Map<EventTarget, () => void>();
+  const writeAndWaitForScroll = (
+    target: EventTarget,
+    write: () => void,
+  ): Promise<void> =>
+    new Promise((resolve) => {
+      let timeout: ReturnType<typeof setTimeout>;
+      const finish = () => {
+        pendingScrollEvents.delete(target);
+        clearTimeout(timeout);
+        resolve();
+      };
+      timeout = setTimeout(finish, 100);
+      pendingScrollEvents.set(target, finish);
+      write();
+    });
+  if (useInvocationReplay && typeof window !== 'undefined') {
+    const blockApplicationScrollHandlers = (event: Event) => {
+      const eventTarget = event.target;
+      if (eventTarget instanceof EventTarget)
+        pendingScrollEvents.get(eventTarget)?.();
+      if (eventTarget === document)
+        pendingScrollEvents.get(window)?.();
+      event.stopImmediatePropagation();
+    };
+    window.addEventListener('scroll', blockApplicationScrollHandlers, true);
+    restoreReplayScrollBlock = () =>
+      window.removeEventListener(
+        'scroll',
+        blockApplicationScrollHandlers,
+        true,
+      );
+  }
   let pendingRecovery:
     | Readonly<{ recovery: ReplayRecovery; nextIndex: number }>
     | undefined;
@@ -337,14 +719,90 @@ export function createReplayController(
     resolvePlaybackWait = undefined;
     if (reset) playbackResumeWaiters.splice(0).forEach((resume) => resume());
     if (reset) {
+      recordedResponseResolver?.dispose();
+      recordedResponseResolver = undefined;
       restoreFetch?.();
       restoreFetch = undefined;
+      restoreReplayScrollBlock?.();
+      restoreReplayScrollBlock = undefined;
       restoreClock();
       if (resetClock) clock.reset(firstTime);
       playbackEpoch = undefined;
       playbackPaused = false;
       terminated = true;
     }
+  };
+  const installRecordedFetchReplay = (): void => {
+    if (restoreFetch || !useInvocationReplay || typeof window === 'undefined')
+      return;
+    recordedResponseResolver = createRecordedResponseResolver(session);
+    recordedResponseResolver.enableTimeline();
+    restoreFetch = installReplayNetworkGuard(
+      recordedResponseResolver,
+      (request) => {
+        stop(true);
+        options.onError?.(
+          `Replay stopped: no recorded response for ${request.method} ${request.url}`,
+        );
+      },
+    );
+  };
+  // Install before preparation and before the first visual step. Loaders
+  // triggered by route preparation must already receive recorded fetch results.
+  installRecordedFetchReplay();
+  const waitForPlaybackTime = async (
+    recordedTime: number,
+  ): Promise<boolean> => {
+    if (!running) return true;
+    while (!terminated) {
+      if (!running) {
+        await new Promise<void>((resolve) =>
+          playbackResumeWaiters.push(resolve),
+        );
+        continue;
+      }
+      if (playbackEpoch === undefined) return true;
+      const remaining = Math.max(
+        0,
+        recordedTime - firstTime - (performance.now() - playbackEpoch),
+      );
+      if (remaining === 0) return true;
+      await new Promise<void>((resolve) => {
+        resolvePlaybackWait = resolve;
+        playbackWaitTimer = setTimeout(() => {
+          playbackWaitTimer = undefined;
+          resolvePlaybackWait = undefined;
+          resolve();
+        }, remaining);
+      });
+    }
+    return false;
+  };
+  const restorePrimitiveChangesBetweenSteps = async (
+    event: SendContextEvent,
+    includeTrailing = false,
+  ): Promise<boolean> => {
+    const followingInteraction = interactions[cursor + 1];
+    if (!followingInteraction && !includeTrailing) return true;
+    const changes = session.events
+      .filter(
+        (candidate) =>
+          candidate.sequence > event.sequence &&
+          (followingInteraction === undefined ||
+            candidate.sequence < followingInteraction.sequence) &&
+          candidate.kind === 'primitive' &&
+          candidate.name === 'primitive-change' &&
+          candidate.state !== undefined,
+      )
+      .sort((left, right) => left.sequence - right.sequence);
+    for (const change of changes) {
+      if (!(await waitForPlaybackTime(timeOf(change)))) return false;
+      await clock.advanceTo(Math.max(clock.now(), timeOf(change)));
+      recordedResponseResolver?.advanceTo(timeOf(change));
+      await options.onTimelineAdvance?.(timeOf(change));
+      options.restoreState?.(change.state, change);
+    }
+    return true;
   };
   const step = async (): Promise<ReplayDifference | undefined> => {
     if (terminated) return undefined;
@@ -365,6 +823,100 @@ export function createReplayController(
         return undefined;
       }
     }
+    if (event.kind === 'defer' && event.phase === 'started') {
+      const payload = isRecord(event.payload) ? event.payload : {};
+      const targetId = payload['targetId'];
+      if (typeof targetId !== 'string' || !options.onDeferActivation) {
+        stop(true);
+        options.onError?.(
+          typeof targetId !== 'string'
+            ? `Deferred node identity is invalid at event ${event.sequence}.`
+            : 'Replay cannot activate a deferred node in this application.',
+        );
+        return undefined;
+      }
+      await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
+      recordedResponseResolver?.advanceTo(timeOf(event));
+      await options.onTimelineAdvance?.(timeOf(event));
+      const expected = session.events.find((candidate) => {
+        if (
+          candidate.kind !== 'defer' ||
+          (candidate.phase !== 'succeeded' && candidate.phase !== 'failed') ||
+          !isRecord(candidate.payload)
+        )
+          return false;
+        return candidate.payload['activationEventId'] === event.id;
+      });
+      const expectedOutcome = isRecord(expected?.payload)
+        ? expected.payload['outcome']
+        : undefined;
+      const activationResult = Promise.resolve()
+        .then(() => options.onDeferActivation!(event, targetId))
+        .then(
+          (outcome) => ({ outcome }),
+          (error: unknown) => ({ error }),
+        );
+      try {
+        // Deferred loaders can consume recorded HTTP, worker, and Craft timer
+        // results. Advance those causal events while the loader is in flight,
+        // through its recorded settlement point.
+        const causalEvents = session.events
+          .filter(
+            (candidate) =>
+              candidate.sequence > event.sequence &&
+              (expected === undefined ||
+                candidate.sequence <= expected.sequence),
+          )
+          .sort((left, right) => left.sequence - right.sequence);
+        for (const causalEvent of causalEvents) {
+          if (!(await waitForPlaybackTime(timeOf(causalEvent))))
+            return undefined;
+          await clock.advanceTo(Math.max(clock.now(), timeOf(causalEvent)));
+          recordedResponseResolver?.advanceTo(timeOf(causalEvent));
+          await options.onTimelineAdvance?.(timeOf(causalEvent));
+          if (
+            causalEvent.kind === 'primitive' &&
+            causalEvent.name === 'primitive-change' &&
+            causalEvent.state !== undefined
+          )
+            options.restoreState?.(causalEvent.state, causalEvent);
+          await Promise.resolve();
+          await Promise.resolve();
+        }
+        const result = await activationResult;
+        if ('error' in result) throw result.error;
+        const outcome = result.outcome;
+        if (expectedOutcome === 'error' && outcome === 'error')
+          options.onWarning?.(
+            `Le chargement différé ${targetId} a échoué comme pendant l’enregistrement.`,
+          );
+        else if (expectedOutcome && expectedOutcome !== outcome)
+          options.onWarning?.(
+            `Le nœud différé ${targetId} a produit ${outcome} au lieu de ${String(expectedOutcome)} pendant l’enregistrement.`,
+          );
+      } catch (error) {
+        stop(true);
+        options.onError?.(
+          error instanceof Error ? error.message : String(error),
+        );
+        return undefined;
+      }
+      if (!(await restorePrimitiveChangesBetweenSteps(event, true)))
+        return undefined;
+      cursor += 1;
+      if (cursor >= interactions.length) {
+        stop(true, false);
+        options.onProgress?.(cursor, interactions.length, 'completed');
+      } else {
+        options.onProgress?.(
+          cursor,
+          interactions.length,
+          running ? 'playing' : 'paused',
+          nextPlaybackDelayMs(),
+        );
+      }
+      return undefined;
+    }
     if (event.kind === 'viewport') {
       const payload = isRecord(event.payload) ? event.payload : {};
       if (
@@ -382,7 +934,8 @@ export function createReplayController(
         return undefined;
       }
       await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
-      if (cursor === 0 && running) playbackEpoch = performance.now();
+      if (playbackEpoch === undefined && cursor === startingCursor && running)
+        playbackEpoch = performance.now();
       try {
         await options.onViewport?.(event);
       } catch (error) {
@@ -392,6 +945,8 @@ export function createReplayController(
         );
         return undefined;
       }
+      if (!(await restorePrimitiveChangesBetweenSteps(event, true)))
+        return undefined;
       cursor += 1;
       if (cursor >= interactions.length) {
         stop(true, false);
@@ -420,7 +975,7 @@ export function createReplayController(
           window.scrollY !== payload['scrollY']
         ) {
           scrollSettlers.push(
-            writeScrollAndWaitForEvent(window, () =>
+            writeAndWaitForScroll(window, () =>
               window.scrollTo({
                 left: payload['scrollX'] as number,
                 top: payload['scrollY'] as number,
@@ -435,20 +990,20 @@ export function createReplayController(
         typeof payload['scrollLeft'] === 'number' &&
         typeof payload['scrollTop'] === 'number'
       ) {
-        const scroller = safeQuerySelector(payload['selector']);
-        if (!(scroller instanceof HTMLElement)) {
-          stop(true);
-          options.onError?.(
+        const scroller = await waitForReplayTarget(payload['selector']);
+        if (!scroller) {
+          // Scroll positions are presentation state. A selector generated from
+          // the old DOM can become stale after a route or layout change; keep
+          // replaying semantic interactions and report the skipped scroll.
+          options.onWarning?.(
             `Replay scroll target is invalid or not found: ${payload['selector']}`,
           );
-          return undefined;
-        }
-        if (
+        } else if (
           scroller.scrollLeft !== payload['scrollLeft'] ||
           scroller.scrollTop !== payload['scrollTop']
         ) {
           scrollSettlers.push(
-            writeScrollAndWaitForEvent(scroller, () => {
+            writeAndWaitForScroll(scroller, () => {
               scroller.scrollLeft = payload['scrollLeft'] as number;
               scroller.scrollTop = payload['scrollTop'] as number;
             }),
@@ -460,8 +1015,11 @@ export function createReplayController(
         return undefined;
       }
       await Promise.all(scrollSettlers);
-      if (cursor === 0 && running) playbackEpoch = performance.now();
+      if (playbackEpoch === undefined && cursor === startingCursor && running)
+        playbackEpoch = performance.now();
       options.onScroll?.(event);
+      if (!(await restorePrimitiveChangesBetweenSteps(event, true)))
+        return undefined;
       cursor += 1;
       if (cursor >= interactions.length) {
         stop(true, false);
@@ -477,24 +1035,58 @@ export function createReplayController(
       return undefined;
     }
     const observedBefore = options.observedEvents?.().length ?? baselineEvents;
-    const followingInteraction = session.events.find(
-      (candidate) =>
-        candidate.kind === 'dom' &&
-        candidate.phase === 'emitted' &&
-        candidate.sequence > event.sequence,
+    const payload = isRecord(event.payload) ? event.payload : {};
+    const href = typeof payload['href'] === 'string' ? payload['href'] : '';
+    const navigationForInteraction = (candidate: SendContextEvent): boolean => {
+      if (
+        !href ||
+        candidate.kind !== 'navigation' ||
+        candidate.phase !== 'started' ||
+        candidate.name !== 'NavigationStart' ||
+        !isRecord(candidate.payload) ||
+        typeof candidate.payload['url'] !== 'string'
+      )
+        return false;
+      try {
+        const recordedDestination = new URL(
+          candidate.payload['url'],
+          session.startUrl,
+        );
+        const clickedDestination = new URL(href, session.startUrl);
+        return (
+          recordedDestination.pathname === clickedDestination.pathname &&
+          recordedDestination.search === clickedDestination.search &&
+          recordedDestination.hash === clickedDestination.hash
+        );
+      } catch {
+        return false;
+      }
+    };
+    const followingInteraction = interactions.find(
+      (candidate) => candidate.sequence > event.sequence,
     );
     const intervalEvents = session.events.filter(
       (candidate) =>
-        candidate.sequence > event.sequence &&
-        (followingInteraction === undefined ||
-          candidate.sequence < followingInteraction.sequence) &&
-        ((candidate.kind === 'craft' && isComparable(candidate)) ||
-          candidate.state !== undefined),
+        ((candidate.sequence > event.sequence &&
+          (followingInteraction === undefined ||
+            candidate.sequence < followingInteraction.sequence)) ||
+          navigationForInteraction(candidate)) &&
+        // Non-comparable Craft calls still mark lifecycle boundaries. In
+        // particular, resource calls can be emitted when an async query
+        // settles; keep their recorded timestamp in the interval so the
+        // replay clock does not finish before that work has had a chance to
+        // settle. Only comparable calls participate in result comparison.
+        (candidate.kind === 'craft' ||
+          candidate.kind === 'transport' ||
+          (useInvocationReplay && candidate.kind === 'http') ||
+          candidate.state !== undefined ||
+          (useInvocationReplay &&
+            (isReplayInvocationEvent(candidate) ||
+              navigationForInteraction(candidate)))),
     );
     const expectedCalls = intervalEvents.filter(
       (candidate) => candidate.kind === 'craft' && isComparable(candidate),
     );
-    const payload = isRecord(event.payload) ? event.payload : {};
     const recovery = (state?: unknown): ReplayRecovery => ({
       ...(typeof payload['href'] === 'string' ? { href: payload['href'] } : {}),
       ...(state === undefined ? {} : { state }),
@@ -536,6 +1128,28 @@ export function createReplayController(
       stop();
       return completeDifference;
     };
+    if (event.kind === 'hover' && payload['action'] === 'leave') {
+      // A route change can remove the hovered node before its pointerout step
+      // reaches the dashboard. Leaving is only marker cleanup, so it does not
+      // need the old target to remain in the new route's DOM.
+      await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
+      options.onInteraction?.(event, document.body);
+      if (!(await restorePrimitiveChangesBetweenSteps(event, true)))
+        return undefined;
+      cursor += 1;
+      if (cursor >= interactions.length) {
+        stop(true, false);
+        options.onProgress?.(cursor, interactions.length, 'completed');
+      } else {
+        options.onProgress?.(
+          cursor,
+          interactions.length,
+          running ? 'playing' : 'paused',
+          nextPlaybackDelayMs(),
+        );
+      }
+      return undefined;
+    }
     if (
       typeof payload['selector'] !== 'string' ||
       typeof payload['action'] !== 'string'
@@ -546,30 +1160,143 @@ export function createReplayController(
       );
       return undefined;
     }
-    const target = safeQuerySelector(payload['selector']);
-    if (!(target instanceof HTMLElement)) {
-      stop(true);
-      options.onError?.(
-        `Replay target selector is invalid or not found: ${payload['selector']}`,
+    const action = payload['action'];
+    // A navigation can complete just before its progress message reaches the
+    // dashboard. After the target reloads, the recorded link no longer exists
+    // in the DOM. Treat that link action as consumed when its destination is
+    // already the current route, then continue from the next timeline event.
+    if (
+      (payload['action'] === 'click' || payload['action'] === 'pointerdown') &&
+      isReplayDestinationCurrent(payload['href'])
+    ) {
+      await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
+      if (!(await restorePrimitiveChangesBetweenSteps(event))) return undefined;
+      cursor += 1;
+      options.onProgress?.(
+        cursor,
+        interactions.length,
+        running ? 'playing' : 'paused',
+        nextPlaybackDelayMs(),
       );
       return undefined;
     }
-    restoreFetch ??= installReplayNetworkGuard(
-      createRecordedResponseResolver(session),
-      (request) => {
+    let target: HTMLElement | null;
+    const replayTarget = isCraftReplayTarget(payload['replayTarget'])
+      ? payload['replayTarget']
+      : undefined;
+    if (replayTarget) {
+      // Hover is presentation only, so a late or missing DOM target should
+      // fall back to the recorded coordinates promptly. Waiting for a target
+      // that may never render stalls single-step playback without adding any
+      // causal value.
+      const resolution =
+        event.kind === 'hover'
+          ? ɵresolveCraftReplayTarget(replayTarget)
+          : await waitForCraftReplayTarget(replayTarget);
+      target =
+        resolution.status === 'resolved' &&
+        resolution.element instanceof HTMLElement
+          ? resolution.element
+          : null;
+      if (!target && event.kind === 'hover') {
+        options.onWarning?.(
+          `Replay Craft hover target is ${resolution.status}; showing the recorded coordinates instead.`,
+        );
+      } else if (!target) {
         stop(true);
         options.onError?.(
-          `Replay stopped: no recorded response for ${request.method} ${request.url}`,
+          `Replay Craft target is ${resolution.status}; the interaction was not dispatched.`,
         );
-      },
-    );
+        return undefined;
+      }
+    } else if (event.kind === 'hover') {
+      // Unowned DOM keeps the explicit selector fallback. Craft-owned targets
+      // never silently fall through to a potentially different CSS match.
+      const candidate = safeQuerySelector(payload['selector']);
+      target = candidate instanceof HTMLElement ? candidate : null;
+      if (!target)
+        options.onWarning?.(
+          `Replay hover target selector was not found: ${payload['selector']}. Showing the recorded coordinates instead.`,
+        );
+    } else {
+      try {
+        document.querySelector(payload['selector']);
+      } catch {
+        stop(true);
+        options.onError?.(
+          `Replay target selector is invalid or not found: ${payload['selector']}`,
+        );
+        return undefined;
+      }
+      target = await waitForReplayTarget(payload['selector']);
+      if (!target) {
+        stop(true);
+        options.onError?.(
+          `Replay target selector is invalid or not found: ${payload['selector']}`,
+        );
+        return undefined;
+      }
+    }
     await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
+    recordedResponseResolver?.advanceTo(timeOf(event));
+    await options.onTimelineAdvance?.(timeOf(event));
+    if (event.kind === 'hover') {
+      // Hover is a visual cue only. Dispatching pointer events here would run
+      // application handlers a second time; the recorded Craft calls remain
+      // the sole source of their effects during invocation replay.
+      options.onInteraction?.(event, target ?? document.body);
+      if (!(await restorePrimitiveChangesBetweenSteps(event))) return undefined;
+      cursor += 1;
+      if (cursor >= interactions.length) {
+        // A visual-only hover can be the final replay step even when the
+        // preceding click started async route work. Drain the Craft calls
+        // causally linked to that click before declaring playback complete.
+        const trailingEvents = session.events.filter(
+          (candidate) =>
+            candidate.sequence > event.sequence &&
+            (candidate.kind === 'craft' ||
+              candidate.kind === 'http' ||
+              candidate.state !== undefined),
+        );
+        for (const trailingEvent of trailingEvents) {
+          if (!(await waitForPlaybackTime(timeOf(trailingEvent)))) break;
+          await clock.advanceTo(Math.max(clock.now(), timeOf(trailingEvent)));
+          recordedResponseResolver?.advanceTo(timeOf(trailingEvent));
+          await options.onTimelineAdvance?.(timeOf(trailingEvent));
+          if (
+            trailingEvent.kind === 'primitive' &&
+            trailingEvent.name === 'primitive-change' &&
+            trailingEvent.state !== undefined
+          )
+            options.restoreState?.(trailingEvent.state, trailingEvent);
+          await Promise.resolve();
+        }
+        await Promise.all(pendingInvocationTasks);
+        if (pendingInvocationError !== undefined) throw pendingInvocationError;
+        stop(true, false);
+        options.onProgress?.(cursor, interactions.length, 'completed');
+      } else {
+        options.onProgress?.(
+          cursor,
+          interactions.length,
+          running ? 'playing' : 'paused',
+          nextPlaybackDelayMs(),
+        );
+      }
+      return undefined;
+    }
+    if (!target) return undefined;
+    installRecordedFetchReplay();
     if (typeof payload['value'] === 'string' && 'value' in target) {
       (target as HTMLInputElement).value = payload['value'];
-      target.dispatchEvent(new Event('input', { bubbles: true }));
-      target.dispatchEvent(new Event('change', { bubbles: true }));
+      // The value is restored for presentation only. State changes are restored
+      // from the recorded primitive snapshot or produced by a Craft invocation.
+      if (!useInvocationReplay) {
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+      }
     }
-    const init: KeyboardEventInit & MouseEventInit = {
+    const init: KeyboardEventInit & MouseEventInit & PointerEventInit = {
       bubbles: true,
       cancelable: true,
       ...(typeof payload['key'] === 'string'
@@ -584,8 +1311,16 @@ export function createReplayController(
       ...(typeof payload['clientY'] === 'number'
         ? { clientY: payload['clientY'] }
         : {}),
+      ...(typeof payload['pointerId'] === 'number'
+        ? { pointerId: payload['pointerId'] }
+        : {}),
+      ...(typeof payload['pointerType'] === 'string'
+        ? { pointerType: payload['pointerType'] }
+        : {}),
+      ...(typeof payload['isPrimary'] === 'boolean'
+        ? { isPrimary: payload['isPrimary'] }
+        : {}),
     };
-    const action = payload['action'];
     const scrollSettlers: Promise<void>[] = [];
     if (
       typeof payload['scrollX'] === 'number' &&
@@ -594,7 +1329,7 @@ export function createReplayController(
         window.scrollY !== payload['scrollY'])
     ) {
       scrollSettlers.push(
-        writeScrollAndWaitForEvent(window, () =>
+        writeAndWaitForScroll(window, () =>
           window.scrollTo({
             left: payload['scrollX'] as number,
             top: payload['scrollY'] as number,
@@ -612,20 +1347,19 @@ export function createReplayController(
           typeof scrollState['scrollTop'] !== 'number'
         )
           continue;
-        const scroller = safeQuerySelector(scrollState['selector']);
-        if (!(scroller instanceof HTMLElement)) {
-          stop(true);
-          options.onError?.(
+        const scroller = await waitForReplayTarget(scrollState['selector']);
+        if (!scroller) {
+          options.onWarning?.(
             `Replay scroll target selector is invalid or not found: ${scrollState['selector']}`,
           );
-          return undefined;
+          continue;
         }
         if (
           scroller.scrollLeft !== scrollState['scrollLeft'] ||
           scroller.scrollTop !== scrollState['scrollTop']
         ) {
           scrollSettlers.push(
-            writeScrollAndWaitForEvent(scroller, () => {
+            writeAndWaitForScroll(scroller, () => {
               scroller.scrollLeft = scrollState['scrollLeft'] as number;
               scroller.scrollTop = scrollState['scrollTop'] as number;
             }),
@@ -637,16 +1371,85 @@ export function createReplayController(
     options.onInteraction?.(event, target);
     const native = action.startsWith('key')
       ? new KeyboardEvent(action, init)
-      : action.startsWith('pointer') ||
-          action.startsWith('mouse') ||
-          action === 'click'
-        ? new MouseEvent(action, init)
-        : new Event(action, init);
+      : action.startsWith('pointer') && typeof PointerEvent !== 'undefined'
+        ? new PointerEvent(action, init)
+        : action.startsWith('mouse') || action === 'click'
+          ? new MouseEvent(action, init)
+          : new Event(action, init);
+    let navigationTask: Promise<void> | undefined;
+    let navigationFailed = false;
+    let navigationError: unknown;
+    let replayInvocationsBySequence: Map<number, SendContextEvent> | undefined;
     // Preparation can reload or restore the target and take much longer than
     // any recorded gap. The interaction timeline begins when the first action
     // is dispatched, so setup time must not consume its recorded delays.
-    if (cursor === 0 && running) playbackEpoch = performance.now();
-    target.dispatchEvent(native);
+    if (cursor === startingCursor && running)
+      playbackEpoch = performance.now() - (timeOf(event) - firstTime);
+    if (!useInvocationReplay) {
+      target.dispatchEvent(native);
+    } else {
+      const navigation = intervalEvents.find(
+        (candidate) =>
+          candidate.kind === 'navigation' &&
+          candidate.phase === 'started' &&
+          typeof candidate.payload === 'object' &&
+          candidate.payload !== null &&
+          typeof (candidate.payload as Record<string, unknown>)['url'] ===
+            'string',
+      );
+      if (navigation) {
+        const payload = navigation.payload as Record<string, unknown>;
+        const recordedOptions = isRecord(payload['navigationOptions'])
+          ? payload['navigationOptions']
+          : {};
+        const navigationOptions = {
+          ...(typeof recordedOptions['replaceUrl'] === 'boolean'
+            ? { replaceUrl: recordedOptions['replaceUrl'] }
+            : {}),
+          ...(typeof recordedOptions['skipLocationChange'] === 'boolean'
+            ? { skipLocationChange: recordedOptions['skipLocationChange'] }
+            : {}),
+        };
+        // Start routing without holding the replay timeline. Guards, resolvers,
+        // or loaders can wait on virtual time and recorded events that follow
+        // NavigationStart; awaiting the router here would deadlock those waits.
+        navigationTask = Promise.resolve()
+          .then(() =>
+            options.navigateToRecordedRoute?.(
+              String(payload['url']),
+              navigationOptions,
+            ),
+          )
+          .then(
+            () => undefined,
+            (error: unknown) => {
+              navigationFailed = true;
+              navigationError = error;
+            },
+          );
+      } else {
+        const replayCalls = rootReplayInvocationEvents(intervalEvents);
+        const deferredActivationRecorded = session.events.some(
+          (candidate) =>
+            candidate.kind === 'defer' &&
+            candidate.phase === 'started' &&
+            candidate.sequence > event.sequence &&
+            (followingInteraction === undefined ||
+              candidate.sequence < followingInteraction.sequence),
+        );
+        if (
+          replayCalls.length === 0 &&
+          !deferredActivationRecorded &&
+          action === 'click'
+        )
+          options.onWarning?.(
+            `Aucun appel Craft ni activation différée enregistrés après le clic ${event.name ?? event.sequence}.`,
+          );
+        replayInvocationsBySequence = new Map(
+          replayCalls.map((call) => [call.sequence, call]),
+        );
+      }
+    }
     let expectedCallIndex = 0;
     const settleDeadline = Date.now() + 2500;
     const observedCalls = () =>
@@ -662,36 +1465,27 @@ export function createReplayController(
       }
       return observedCalls().length > index;
     };
-    const waitForPlaybackTime = async (
-      recordedTime: number,
-    ): Promise<boolean> => {
-      if (!running) return true;
-      while (!terminated) {
-        if (!running) {
-          await new Promise<void>((resolve) =>
-            playbackResumeWaiters.push(resolve),
-          );
-          continue;
-        }
-        if (playbackEpoch === undefined) return true;
-        const remaining = Math.max(
-          0,
-          recordedTime - firstTime - (performance.now() - playbackEpoch),
-        );
-        if (remaining === 0) return true;
-        await new Promise<void>((resolve) => {
-          resolvePlaybackWait = resolve;
-          playbackWaitTimer = setTimeout(() => {
-            playbackWaitTimer = undefined;
-            resolvePlaybackWait = undefined;
-            resolve();
-          }, remaining);
-        });
-      }
-      return false;
-    };
     let lastExpectedState: unknown;
     for (const intervalEvent of intervalEvents) {
+      // Start each recorded root call only when the timeline reaches its
+      // recorded position. The visual click above never dispatches to the app,
+      // and overlapping asynchronous roots can otherwise reorder state changes.
+      if (
+        replayInvocationsBySequence?.has(intervalEvent.sequence) &&
+        options.invokeRecordedMethod
+      ) {
+        const recordedCall = replayInvocationsBySequence.get(
+          intervalEvent.sequence,
+        )!;
+        pendingInvocationTasks.push(
+          Promise.resolve()
+            .then(() => options.invokeRecordedMethod!(recordedCall))
+            .then(() => undefined)
+            .catch((error: unknown) => {
+              pendingInvocationError ??= error;
+            }),
+        );
+      }
       const isCraftCall =
         intervalEvent.kind === 'craft' && isComparable(intervalEvent);
       // Keep the target's virtual timers aligned with the recording's wall
@@ -699,7 +1493,15 @@ export function createReplayController(
       // craftSleep immediately and reveal its value too early during playback.
       if (!(await waitForPlaybackTime(timeOf(intervalEvent)))) return undefined;
       await clock.advanceTo(Math.max(clock.now(), timeOf(intervalEvent)));
-      if (intervalEvent.state !== undefined && options.readState) {
+      recordedResponseResolver?.advanceTo(timeOf(intervalEvent));
+      await options.onTimelineAdvance?.(timeOf(intervalEvent));
+      const isRecordedPrimitiveChange =
+        intervalEvent.kind === 'primitive' &&
+        intervalEvent.name === 'primitive-change' &&
+        intervalEvent.state !== undefined;
+      if (isRecordedPrimitiveChange && options.restoreState) {
+        options.restoreState(intervalEvent.state, intervalEvent);
+      } else if (intervalEvent.state !== undefined && options.readState) {
         lastExpectedState = intervalEvent.state;
         const actualState = options.readState();
         if (hasReplayStateDifference(intervalEvent.state, actualState)) {
@@ -725,29 +1527,30 @@ export function createReplayController(
         expectedCallIndex += 1;
       }
     }
+    if (navigationTask) {
+      await navigationTask;
+      if (navigationFailed) throw navigationError;
+    }
     cursor += 1;
+    if (cursor >= interactions.length) {
+      await Promise.all(pendingInvocationTasks);
+      if (pendingInvocationError !== undefined) throw pendingInvocationError;
+    }
     if (options.observedEvents) {
       const observed = observedCalls();
-      const length = Math.max(expectedCalls.length, observed.length);
-      for (let index = 0; index < length; index += 1) {
-        const expected = expectedCalls[index];
-        const actual = observed[index];
-        if (
-          !expected ||
-          !actual ||
-          expected.phase !== actual.phase ||
-          expected.name !== actual.name
-        ) {
-          return reportDifference(
-            {
-              eventId: expected?.id ?? `observed-${actual?.sequence ?? index}`,
-              expected: expected ?? null,
-              actual: actual ?? null,
-            },
-            lastExpectedState,
-            cursor,
-          );
-        }
+      const mismatch = findCraftCallMismatch(expectedCalls, observed);
+      if (mismatch) {
+        return reportDifference(
+          {
+            eventId:
+              mismatch.expected?.id ??
+              `observed-${mismatch.actual?.sequence ?? cursor}`,
+            expected: mismatch.expected ?? null,
+            actual: mismatch.actual ?? null,
+          },
+          lastExpectedState,
+          cursor,
+        );
       }
     }
     if (cursor >= interactions.length) {
@@ -785,7 +1588,17 @@ export function createReplayController(
     timer = setTimeout(async () => {
       if (!running) return;
       playbackStepInFlight = true;
-      const difference = await step();
+      let difference: ReplayDifference | undefined;
+      try {
+        difference = await step();
+      } catch (error) {
+        playbackStepInFlight = false;
+        stop(true);
+        options.onError?.(
+          error instanceof Error ? error.message : String(error),
+        );
+        return;
+      }
       playbackStepInFlight = false;
       if (difference) {
         options.onReplayDifference?.(difference);
@@ -855,6 +1668,94 @@ export function createReplayController(
   };
 }
 
+function isReplayInvocationEvent(event: SendContextEvent): boolean {
+  if (event.kind !== 'craft' || event.phase !== 'started') return false;
+  const payload = isRecord(event.payload) ? event.payload : undefined;
+  const invocation =
+    payload && isRecord(payload['replayInvocation'])
+      ? payload['replayInvocation']
+      : undefined;
+  return (
+    typeof invocation?.['address'] === 'string' &&
+    Array.isArray(invocation['args'])
+  );
+}
+
+function rootReplayInvocationEvents(
+  events: readonly SendContextEvent[],
+): SendContextEvent[] {
+  const invocations = events.filter(isReplayInvocationEvent);
+  const operationIds = new Set(
+    invocations.flatMap((event) =>
+      typeof event.operationId === 'string' ? [event.operationId] : [],
+    ),
+  );
+  const roots = invocations.filter((event) => {
+    const payload = isRecord(event.payload) ? event.payload : undefined;
+    const invocation =
+      payload && isRecord(payload['replayInvocation'])
+        ? payload['replayInvocation']
+        : undefined;
+    const parentOperationId = invocation?.['parentOperationId'];
+    return (
+      typeof parentOperationId !== 'string' ||
+      !operationIds.has(parentOperationId)
+    );
+  });
+
+  // A single Craft call can pass through several wrapped layers. The runtime
+  // wrapper records each layer with the same correlation id and method address,
+  // often with an empty argument list before the real payload reaches it. The
+  // replay must invoke that call once, using the richest captured arguments.
+  const byCall = new Map<string, SendContextEvent[]>();
+  for (const event of roots) {
+    const payload = isRecord(event.payload) ? event.payload : undefined;
+    const invocation =
+      payload && isRecord(payload['replayInvocation'])
+        ? payload['replayInvocation']
+        : undefined;
+    const address = String(invocation?.['address'] ?? '');
+    const correlation = event.correlationId ?? event.id;
+    const key = `${correlation}\u0000${address}`;
+    const group = byCall.get(key) ?? [];
+    group.push(event);
+    byCall.set(key, group);
+  }
+  return [...byCall.values()]
+    .map((group) => {
+      const first = group.reduce((earliest, candidate) =>
+        candidate.sequence < earliest.sequence ? candidate : earliest,
+      );
+      const invocation = group.reduce((best, candidate) => {
+        const argsOf = (event: SendContextEvent): unknown[] => {
+          const payload = isRecord(event.payload) ? event.payload : undefined;
+          const invocation =
+            payload && isRecord(payload['replayInvocation'])
+              ? payload['replayInvocation']
+              : undefined;
+          return Array.isArray(invocation?.['args']) ? invocation['args'] : [];
+        };
+        const candidateArgs = argsOf(candidate);
+        const bestArgs = argsOf(best);
+        return candidateArgs.length > bestArgs.length ? candidate : best;
+      });
+      // Use the first wrapper's timeline position, while retaining the richer
+      // arguments captured by a later wrapper for the same causal call.
+      return {
+        ...invocation,
+        sequence: first.sequence,
+        timestamp: first.timestamp,
+        ...(first.elapsedMs === undefined
+          ? {}
+          : { elapsedMs: first.elapsedMs }),
+        ...(first.globalElapsedMs === undefined
+          ? {}
+          : { globalElapsedMs: first.globalElapsedMs }),
+      };
+    })
+    .sort((left, right) => left.sequence - right.sequence);
+}
+
 function findCompatibleSkip(
   session: SendContextReplayExport,
   afterSequence: number,
@@ -908,20 +1809,165 @@ function findCompatibleSkip(
 
 function isReplayStep(event: SendContextEvent): boolean {
   return (
-    event.phase === 'emitted' &&
-    (event.kind === 'dom' ||
-      event.kind === 'scroll' ||
-      event.kind === 'viewport')
+    (event.kind === 'defer' && event.phase === 'started') ||
+    (event.phase === 'emitted' &&
+      (event.kind === 'dom' ||
+        event.kind === 'hover' ||
+        event.kind === 'scroll' ||
+        event.kind === 'viewport'))
   );
 }
 
+/**
+ * Returns the replay timeline, including recoverable native events recorded by
+ * older source$ sessions before they carried a target selector.
+ */
+export function getReplaySteps(
+  events: readonly SendContextEvent[],
+): SendContextEvent[] {
+  return events.flatMap((event, index) => {
+    if (isReplayStep(event)) return [event];
+    if (
+      event.kind !== 'custom' ||
+      event.phase !== 'emitted' ||
+      event.source !== 'source$' ||
+      event.name !== 'pointerdown'
+    )
+      return [];
+
+    const recordedPayload = isRecord(event.payload) ? event.payload : {};
+    if (typeof recordedPayload['selector'] === 'string') return [];
+    const following = events
+      .slice(index + 1)
+      .find(
+        (candidate) =>
+          candidate.kind === 'dom' &&
+          candidate.phase === 'emitted' &&
+          candidate.participantId === event.participantId &&
+          isRecord(candidate.payload) &&
+          candidate.payload['action'] === 'click',
+      );
+    if (!following || !isRecord(following.payload)) return [];
+    const followingPayload = following.payload;
+    if (typeof followingPayload['selector'] !== 'string') return [];
+    const eventTime = replayEventTime(event);
+    const clickTime = replayEventTime(following);
+    if (clickTime < eventTime || clickTime - eventTime > 1_500) return [];
+
+    return [
+      {
+        ...event,
+        kind: 'dom',
+        payload: {
+          ...followingPayload,
+          action: 'pointerdown',
+          eventName: 'pointerdown',
+          interactionName: 'legacy-source$:pointerdown',
+        },
+      },
+    ];
+  });
+}
+
+function replayEventTime(event: SendContextEvent): number {
+  return event.globalElapsedMs ?? event.elapsedMs ?? event.timestamp;
+}
+
 function isComparable(event: SendContextEvent): boolean {
+  // Craft start/failure events are diagnostic traces, not replay actions. Older
+  // archives may contain the previous start/success pairs; their `host` marker
+  // keeps every generation of these call-boundary events out of replay matching.
+  if (
+    event.kind === 'craft' &&
+    typeof event.payload === 'object' &&
+    event.payload !== null &&
+    'host' in event.payload
+  )
+    return false;
+  // Primitive methods and queries can be called in a different order or count
+  // while routes, caches, and async views settle during replay. Their effects
+  // are checked through primitive state and recorded HTTP results instead.
+  if (
+    event.kind === 'craft' &&
+    (event.name?.startsWith('query:') ||
+      event.name?.startsWith('method:') ||
+      event.name?.startsWith('mutation:'))
+  )
+    return false;
   return !(
     typeof event.payload === 'object' &&
     event.payload !== null &&
     'comparable' in event.payload &&
     (event.payload as { comparable?: unknown }).comparable === false
   );
+}
+
+/**
+ * Invocations with the same host can overlap, so their start/finish callbacks
+ * may arrive in a different order during replay. Compare each contiguous host
+ * group by phase counts while keeping the order of different hosts strict.
+ */
+function findCraftCallMismatch(
+  expected: readonly SendContextEvent[],
+  actual: readonly SendContextEvent[],
+): { expected?: SendContextEvent; actual?: SendContextEvent } | undefined {
+  let expectedIndex = 0;
+  let actualIndex = 0;
+  while (expectedIndex < expected.length || actualIndex < actual.length) {
+    const expectedEvent = expected[expectedIndex];
+    const actualEvent = actual[actualIndex];
+    if (!expectedEvent || !actualEvent) {
+      return { expected: expectedEvent, actual: actualEvent };
+    }
+    if (
+      expectedEvent.name === actualEvent.name &&
+      expectedEvent.phase === actualEvent.phase
+    ) {
+      expectedIndex += 1;
+      actualIndex += 1;
+      continue;
+    }
+    if (expectedEvent.name !== actualEvent.name) {
+      return { expected: expectedEvent, actual: actualEvent };
+    }
+
+    const name = expectedEvent.name;
+    let expectedEnd = expectedIndex;
+    let actualEnd = actualIndex;
+    while (
+      expectedEnd < expected.length &&
+      expected[expectedEnd]?.name === name
+    )
+      expectedEnd += 1;
+    while (actualEnd < actual.length && actual[actualEnd]?.name === name)
+      actualEnd += 1;
+    const expectedGroup = expected.slice(expectedIndex, expectedEnd);
+    const actualGroup = actual.slice(actualIndex, actualEnd);
+    const phases: readonly SendContextEvent['phase'][] = [
+      'started',
+      'succeeded',
+      'failed',
+      'emitted',
+    ];
+    const phaseMismatch = phases.find(
+      (phase) =>
+        expectedGroup.filter((event) => event.phase === phase).length !==
+        actualGroup.filter((event) => event.phase === phase).length,
+    );
+    if (phaseMismatch) {
+      return {
+        expected:
+          expectedGroup.find((event) => event.phase === phaseMismatch) ??
+          expectedGroup[0],
+        actual:
+          actualGroup.find((event) => event.phase === phaseMismatch) ??
+          actualGroup[0],
+      };
+    }
+    expectedIndex = expectedEnd;
+    actualIndex = actualEnd;
+  }
+  return undefined;
 }
 
 function stableJson(value: unknown): string {
@@ -953,6 +1999,19 @@ export function installReplayNetworkGuard(
   const original = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init);
+    const requestUrl = new URL(request.url);
+    // The local Vite typecheck badge polls this development-only endpoint.
+    // It is infrastructure rather than recorded app traffic; satisfy it
+    // locally so it cannot stop an otherwise valid replay.
+    if (
+      request.method === 'GET' &&
+      requestUrl.origin === location.origin &&
+      requestUrl.pathname === '/__demo/typecheck'
+    ) {
+      return new Response(JSON.stringify({ status: 'passed' }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    }
     const response = await resolve(request);
     if (!response) {
       onUnmatched?.(request);
@@ -970,19 +2029,42 @@ export function installReplayNetworkGuard(
 /** Match requests in their recorded order using method, local path and body. */
 export function createRecordedResponseResolver(
   session: SendContextReplayExport,
-): (request: Request) => Promise<Response | undefined> {
+): RecordedResponseResolver {
   const firstInteractionSequence =
     session.events.find(
-      (event) => event.kind === 'dom' && event.phase === 'emitted',
+      (event) =>
+        (event.kind === 'dom' || event.kind === 'hover') &&
+        event.phase === 'emitted',
     )?.sequence ?? 0;
   const starts = session.events.filter(
     (event) =>
       event.kind === 'http' &&
       event.phase === 'started' &&
-      event.sequence > firstInteractionSequence,
+      event.sequence > firstInteractionSequence &&
+      isRecord(event.payload) &&
+      event.payload['source'] === 'browser-fetch',
   );
   let nextIndex = 0;
-  return async (request) => {
+  let currentElapsedMs = Number.NEGATIVE_INFINITY;
+  let timelineEnabled = false;
+  const pending: Array<{
+    dueMs: number;
+    resolve(response: Response): void;
+    reject(error: unknown): void;
+    response?: Response;
+    error?: unknown;
+  }> = [];
+  const resolvePending = (): void => {
+    const due = pending.filter((item) => item.dueMs <= currentElapsedMs);
+    for (let index = pending.length - 1; index >= 0; index--) {
+      if (pending[index]!.dueMs <= currentElapsedMs) pending.splice(index, 1);
+    }
+    for (const item of due) {
+      if (item.error !== undefined) item.reject(item.error);
+      else item.resolve(item.response!);
+    }
+  };
+  const resolver = (async (request: Request) => {
     const requestBody = await request
       .clone()
       .text()
@@ -1006,7 +2088,7 @@ export function createRecordedResponseResolver(
       )
     )
       return undefined;
-    const rawBody = payload['payload'];
+    const rawBody = payload['body'];
     if (
       rawBody === undefined
         ? requestBody !== ''
@@ -1021,16 +2103,110 @@ export function createRecordedResponseResolver(
     );
     if (!finish) return undefined;
     nextIndex += 1;
+    const response = recordedFetchResponse(finish);
+    const dueMs =
+      finish.globalElapsedMs ?? finish.elapsedMs ?? finish.timestamp;
+    if (!timelineEnabled || dueMs <= currentElapsedMs) {
+      if (response instanceof Error) throw response;
+      return response;
+    }
+    return new Promise<Response>((resolve, reject) => {
+      pending.push({
+        dueMs,
+        resolve,
+        reject,
+        ...(response instanceof Error ? { error: response } : { response }),
+      });
+    });
+  }) as RecordedResponseResolver;
+  resolver.enableTimeline = () => {
+    timelineEnabled = true;
+  };
+  resolver.advanceTo = (elapsedMs) => {
+    if (!Number.isFinite(elapsedMs)) return;
+    timelineEnabled = true;
+    currentElapsedMs = Math.max(currentElapsedMs, elapsedMs);
+    resolvePending();
+  };
+  resolver.dispose = () => {
+    for (const item of pending.splice(0))
+      item.reject(new Error('Replay stopped before the recorded response.'));
+  };
+  return resolver;
+}
+
+export type RecordedResponseResolver = ((
+  request: Request,
+) => Promise<Response | undefined>) & {
+  enableTimeline(): void;
+  advanceTo(elapsedMs: number): void;
+  dispose(): void;
+};
+
+function recordedFetchResponse(finished: SendContextEvent): Response | Error {
+  if (finished.phase === 'failed') {
+    const response = isRecord(finished.response) ? finished.response : {};
+    return new Error(
+      typeof response['message'] === 'string'
+        ? response['message']
+        : 'Recorded fetch failed.',
+    );
+  }
+  const response = isRecord(finished.response) ? finished.response : undefined;
+  if (response?.['source'] === 'browser-fetch-response') {
+    const status =
+      typeof response['status'] === 'number' &&
+      Number.isInteger(response['status']) &&
+      response['status'] >= 200 &&
+      response['status'] <= 599
+        ? response['status']
+        : 200;
+    const headers = isRecord(response['headers'])
+      ? Object.fromEntries(
+          Object.entries(response['headers']).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
+          ),
+        )
+      : { 'content-type': 'application/json' };
     return new Response(
-      typeof finish.response === 'string'
-        ? finish.response
-        : JSON.stringify(finish.response ?? null),
+      status === 204 || status === 205 || status === 304
+        ? null
+        : replayFetchBody(response['body']),
       {
-        status: finish.phase === 'failed' ? 500 : 200,
-        headers: { 'content-type': 'application/json' },
+        status,
+        statusText:
+          typeof response['statusText'] === 'string'
+            ? response['statusText']
+            : undefined,
+        headers,
       },
     );
-  };
+  }
+  return new Response(
+    typeof finished.response === 'string'
+      ? finished.response
+      : JSON.stringify(finished.response ?? null),
+    {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    },
+  );
+}
+
+function replayFetchBody(body: unknown): BodyInit | null {
+  if (typeof body === 'string') return body;
+  if (
+    isRecord(body) &&
+    body['encoding'] === 'base64' &&
+    typeof body['data'] === 'string'
+  ) {
+    const binary = atob(body['data']);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++)
+      bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  }
+  return null;
 }
 
 function matchesRequestUrl(
@@ -1069,7 +2245,15 @@ function matchesRequestUrl(
 
 function bodyMatches(expected: unknown, actual: string): boolean {
   try {
-    return matchesRedacted(expected, JSON.parse(actual));
+    const actualValue: unknown = JSON.parse(actual);
+    if (typeof expected === 'string') {
+      try {
+        return matchesRedacted(JSON.parse(expected), actualValue);
+      } catch {
+        return actual.includes(expected);
+      }
+    }
+    return matchesRedacted(expected, actualValue);
   } catch {
     return actual.includes(String(expected));
   }

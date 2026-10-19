@@ -70,7 +70,7 @@ describe('debug session local archive API', () => {
         },
         session: {
           format: 'craft-debug-session',
-          version: 2,
+          version: 5,
           startUrl: 'http://localhost:4200/',
           exportedAt: Date.now(),
           truncated: false,
@@ -330,7 +330,7 @@ describe('debug session local archive API', () => {
       id,
       {
         format: 'craft-debug-session',
-        version: 2,
+        version: 5,
         startUrl: 'http://localhost:4200/',
         exportedAt: Date.now(),
         truncated: false,
@@ -358,7 +358,7 @@ describe('debug session local archive API', () => {
       id,
       {
         format: 'craft-debug-session',
-        version: 2,
+        version: 5,
         startUrl: 'http://localhost:4200/',
         exportedAt: Date.now(),
         truncated: false,
@@ -411,7 +411,7 @@ function syncMessage(id: string, participantId: string, eventId: string) {
     },
     session: {
       format: 'craft-debug-session',
-      version: 2,
+      version: 5,
       startUrl: `http://localhost:4200/${participantId}`,
       viewport: { width: 390, height: 844 },
       exportedAt: Date.now(),

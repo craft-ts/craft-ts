@@ -160,10 +160,10 @@ export const { AppView, provideAppView } = craftService(
     });
     yield* craftMethod('clearCache', function* () {
       yield* GlobalPersisterHandlerService.clearAllCache();
+      // This button is an explicit development reset action; reload so every
+      // demo resource starts from the cleared cache. The session recorder
+      // captures this intentional alert and the replay bridge simulates it.
       yield* BrowserWindow.alert('Cache cleared! The page will reload.');
-      // This button is an explicit development reset action; reload after the
-      // confirmation so every demo resource starts from the cleared cache.
-       
       yield* BrowserLocation.reload();
     });
   },

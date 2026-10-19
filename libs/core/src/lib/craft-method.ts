@@ -13,6 +13,7 @@ import type {
 import { ɵcreateHostTaggedInjector } from './craft-service';
 import { isGenerator, runCraftGenerator } from './craft-generator-runtime';
 import { injectFnWrapper } from './fn-wrapper';
+import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
   markYieldableMethod,
   markYieldableValue,
@@ -156,17 +157,16 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   if (maybeFactory) {
     const self = selfOrFactory as This;
     const factory = wrapFn(maybeFactory);
+    const callable = (...args: Args) =>
+      executeCraftMethod(factory, methodInjector, self, args);
+    ɵregisterCraftReplayMethod(methodInjector, (_receiver, args) =>
+      callable(...(args as Args)),
+    );
 
     return createNamedPrimitiveGen(
       resolvedName,
       markYieldableValue(
-        markYieldableMethod(((...args: Args) =>
-          executeCraftMethod(
-            factory,
-            methodInjector,
-            self,
-            args,
-          )) as TrackedCraftMethod<
+        markYieldableMethod(callable as TrackedCraftMethod<
           CraftMethodWithoutReceiver<Args, Result>,
           Yielded
         >),
@@ -179,13 +179,17 @@ export function craftMethod<This, Args extends unknown[], Yielded, Result>(
   const factory = wrapFn(
     selfOrFactory as CraftMethodGenerator<This, Args, Yielded, Result>,
   );
+  const callable = function (this: This, ...args: Args) {
+    return executeCraftMethod(factory, methodInjector, this, args);
+  };
+  ɵregisterCraftReplayMethod(methodInjector, (receiver, args) =>
+    callable.apply(receiver as This, args as Args),
+  );
 
   return createNamedPrimitiveGen(
     resolvedName,
     markYieldableValue(
-      markYieldableMethod(function (this: This, ...args: Args) {
-        return executeCraftMethod(factory, methodInjector, this, args);
-      } as TrackedCraftMethod<
+      markYieldableMethod(callable as TrackedCraftMethod<
         CraftMethodWithReceiver<This, Args, Result>,
         Yielded
       >),

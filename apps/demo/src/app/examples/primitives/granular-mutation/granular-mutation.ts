@@ -17,6 +17,7 @@ import {
   tbody,
 } from '@craft-ts/component';
 import {
+  Console,
   craftService,
   insertQueryPipe,
   insertStoragePersister,
@@ -100,7 +101,40 @@ export const { GranularMutationView, provideGranularMutationView } =
       );
       function* isUpdatePending(user: User) {
         const pending = updateUserName.select(user.id);
-        return pending ? yield* pending.isLoading() : false;
+        if (!pending) return false;
+
+        const isLoading = (pending as unknown as Record<string, unknown>)[
+          'isLoading'
+        ];
+        let read: unknown;
+        try {
+          read = Reflect.apply(isLoading as (...args: never[]) => unknown, pending, []);
+        } catch (error) {
+          yield* Console.error('[DEBUG-granular-select]', {
+            selectedType: typeof pending,
+            selectedName: pending.constructor?.name,
+            selectedKeys: Object.keys(pending),
+            isLoadingType: typeof isLoading,
+            error,
+          });
+          throw error;
+        }
+
+        const isIterator =
+          read !== null &&
+          (typeof read === 'object' || typeof read === 'function') &&
+          typeof (read as { next?: unknown }).next === 'function';
+        if (!isIterator) {
+          yield* Console.error('[DEBUG-granular-select]', {
+            selectedType: typeof pending,
+            selectedName: pending.constructor?.name,
+            selectedKeys: Object.keys(pending),
+            isLoadingType: typeof isLoading,
+            readType: typeof read,
+            readIsIterator: isIterator,
+          });
+        }
+        return yield* (read as Generator<unknown, boolean, unknown>);
       }
       yield* craftExpose('isUpdatePending', isUpdatePending);
       yield* craftMethod('updatePageSize', function* (event: Event) {

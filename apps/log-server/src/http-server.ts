@@ -421,7 +421,7 @@ function isPortableSession(value: unknown): value is PortableDebugSession {
   return (
     isRecord(value) &&
     value['format'] === 'craft-debug-session' &&
-    value['version'] === 2 &&
+    value['version'] === 5 &&
     typeof value['startUrl'] === 'string' &&
     Array.isArray(value['events']) &&
     Array.isArray(value['clips']) &&

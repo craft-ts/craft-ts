@@ -2,12 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createSendContextSession,
   type SendContextReplayExport,
+  ɵcaptureCraftReplayTarget,
+  ɵregisterCraftReplayTarget,
 } from '@craft-ts/core';
 import {
   validateReplayExport,
   validateDebugSessionExport,
   createRecordedResponseResolver,
   createReplayController,
+  getReplaySteps,
   installReplayNetworkGuard,
 } from './debug-session-replay';
 
@@ -32,24 +35,398 @@ describe('debug session replay format', () => {
     });
     const exported = session.exportSessionJson();
     expect(validateReplayExport(exported)).toMatchObject({ ok: true });
-    expect(JSON.parse(exported)).toMatchObject({ version: 2 });
+    expect(JSON.parse(exported)).toMatchObject({ version: 5 });
     expect(exported).toContain('[REDACTED]');
   });
 
-  it('continues to import complete v1 fixtures', () => {
-    const fixture = JSON.stringify({
+  it('replays a deferred activation semantically and checks its recorded outcome', async () => {
+    const activation = {
+      id: 'defer-activation',
+      sequence: 1,
+      timestamp: 1_000,
+      elapsedMs: 0,
+      kind: 'defer',
+      phase: 'started',
+      payload: { targetId: 'stable-defer-target', trigger: 'interaction' },
+    } as const;
+    const outcome = {
+      id: 'defer-outcome',
+      sequence: 2,
+      timestamp: 1_010,
+      elapsedMs: 10,
+      kind: 'defer',
+      phase: 'succeeded',
+      payload: {
+        targetId: 'stable-defer-target',
+        activationEventId: 'defer-activation',
+        outcome: 'loaded',
+      },
+    } as const;
+    let finishActivation!: (outcome: 'loaded') => void;
+    const activationResult = new Promise<'loaded'>(
+      (resolve) => (finishActivation = resolve),
+    );
+    const activate = vi.fn(() => activationResult);
+    const onTimelineAdvance = vi.fn((elapsedMs: number) => {
+      if (elapsedMs >= 10) finishActivation('loaded');
+    });
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        events: [activation, outcome],
+      },
+      {
+        onDeferActivation: (_event, targetId) => {
+          expect(targetId).toBe('stable-defer-target');
+          return activate();
+        },
+        onTimelineAdvance,
+      },
+    );
+
+    await replay.step();
+
+    expect(activate).toHaveBeenCalledOnce();
+    expect(onTimelineAdvance).toHaveBeenCalledWith(10);
+    expect(replay.index()).toBe(1);
+    replay.stop();
+  });
+
+  it('warns when a click has no recorded Craft call or deferred activation', async () => {
+    document.body.innerHTML = '<button id="native-only">Load</button>';
+    const target = document.querySelector('#native-only')!;
+    const handler = vi.fn();
+    target.addEventListener('click', handler);
+    const onWarning = vi.fn();
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'native-only-click',
+            sequence: 1,
+            timestamp: 1_000,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'click',
+            payload: { selector: '#native-only', action: 'click' },
+          },
+        ],
+      },
+      { onWarning },
+    );
+
+    await replay.step();
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.stringContaining('Aucun appel Craft ni activation différée'),
+    );
+    replay.stop();
+  });
+
+  it('validates deferred activation identities and outcomes', () => {
+    const session = {
       format: 'craft-debug-session',
-      version: 1,
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 1_000,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'defer-activation',
+          sequence: 1,
+          timestamp: 1_000,
+          kind: 'defer',
+          phase: 'started',
+          payload: { targetId: 'stable-defer-target' },
+        },
+        {
+          id: 'defer-result',
+          sequence: 2,
+          timestamp: 1_010,
+          kind: 'defer',
+          phase: 'succeeded',
+          payload: {
+            targetId: 'stable-defer-target',
+            activationEventId: 'defer-activation',
+            outcome: 'loaded',
+          },
+        },
+      ],
+    };
+    expect(validateReplayExport(JSON.stringify(session))).toMatchObject({
+      ok: true,
+    });
+    expect(
+      validateReplayExport(
+        JSON.stringify({
+          ...session,
+          events: [
+            {
+              ...session.events[0],
+              payload: { targetId: '' },
+            },
+          ],
+        }),
+      ),
+    ).toMatchObject({ ok: false });
+    expect(
+      validateReplayExport(
+        JSON.stringify({ ...session, events: [session.events[0]] }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('recorded result'),
+    });
+  });
+
+  it('reports a deferred load that failed as recorded', async () => {
+    const events = [
+      {
+        id: 'defer-activation-error',
+        sequence: 1,
+        timestamp: 1_000,
+        kind: 'defer',
+        phase: 'started',
+        payload: { targetId: 'defer-error-target' },
+      },
+      {
+        id: 'defer-error-result',
+        sequence: 2,
+        timestamp: 1_010,
+        kind: 'defer',
+        phase: 'failed',
+        payload: {
+          targetId: 'defer-error-target',
+          activationEventId: 'defer-activation-error',
+          outcome: 'error',
+        },
+      },
+    ] as const;
+    const onWarning = vi.fn();
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        events,
+      },
+      { onDeferActivation: async () => 'error', onWarning },
+    );
+
+    await replay.step();
+
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.stringContaining('a échoué comme pendant l’enregistrement'),
+    );
+    expect(replay.index()).toBe(1);
+    replay.stop();
+  });
+
+  it('rejects exports from every earlier replay format', () => {
+    for (const version of [1, 2, 3, 4]) {
+      const fixture = JSON.stringify({
+        format: 'craft-debug-session',
+        version,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        events: [],
+        clips: [],
+      });
+      expect(validateReplayExport(fixture)).toMatchObject({ ok: false });
+    }
+  });
+
+  it('requires distinct replay keys for overlapping identical Craft HTTP requests', () => {
+    const startEvent = (
+      id: string,
+      sequence: number,
+      operationId: string,
+      elapsedMs: number,
+      replayKey?: string,
+    ) => ({
+      id,
+      sequence,
+      timestamp: elapsedMs,
+      elapsedMs,
+      kind: 'http',
+      phase: 'started',
+      operationId,
+      payload: {
+        source: 'craft-http-client',
+        method: 'GET',
+        url: '/same-request',
+        ...(replayKey === undefined ? {} : { replayKey }),
+      },
+    });
+    const finishEvent = (
+      id: string,
+      sequence: number,
+      operationId: string,
+      elapsedMs: number,
+    ) => ({
+      id,
+      sequence,
+      timestamp: elapsedMs,
+      elapsedMs,
+      kind: 'http',
+      phase: 'succeeded',
+      operationId,
+      response: { result: operationId },
+    });
+    const session = {
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 100,
+      truncated: false,
+      clips: [],
+      events: [
+        startEvent('first-start', 1, 'first', 0),
+        startEvent('second-start', 2, 'second', 10),
+        finishEvent('second-finish', 3, 'second', 50),
+        finishEvent('first-finish', 4, 'first', 100),
+      ],
+    };
+    const json = JSON.stringify(session);
+
+    expect(validateDebugSessionExport(json)).toMatchObject({ ok: true });
+    expect(validateReplayExport(json)).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('distinct replayKey'),
+    });
+    expect(
+      validateReplayExport(
+        JSON.stringify({
+          ...session,
+          events: [
+            startEvent('first-start', 1, 'first', 0, 'profile-a'),
+            startEvent('second-start', 2, 'second', 10, 'profile-b'),
+            finishEvent('second-finish', 3, 'second', 50),
+            finishEvent('first-finish', 4, 'first', 100),
+          ],
+        }),
+      ),
+    ).toMatchObject({ ok: true });
+  });
+
+  it('keeps sessions inspectable but refuses redacted or unsupported method arguments', () => {
+    const session = {
+      format: 'craft-debug-session',
+      version: 5,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
-      events: [],
       clips: [],
+      events: [
+        {
+          id: 'method-start',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'craft',
+          phase: 'started',
+          operationId: 'method-1',
+          payload: {
+            host: 'method:saveProfile',
+            replayInvocation: {
+              address: 'component:Profile#1 / method:saveProfile',
+              args: [{ password: '[REDACTED]' }],
+            },
+          },
+        },
+      ],
+    };
+    const json = JSON.stringify(session);
+
+    expect(validateDebugSessionExport(json)).toMatchObject({ ok: true });
+    expect(validateReplayExport(json)).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('non sérialisable ou expurgé'),
     });
-    expect(validateReplayExport(fixture)).toMatchObject({
+  });
+
+  it('validates transport instances and rejects non-replayable payloads', () => {
+    const base = {
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'transport-1',
+          sequence: 1,
+          timestamp: 1,
+          elapsedMs: 5,
+          kind: 'transport',
+          phase: 'emitted',
+          payload: {
+            transportId: 'notifications',
+            transport: 'websocket',
+            instanceId: 'socket-1',
+            direction: 'incoming',
+            messageType: 'message',
+            sequence: 1,
+            elapsedMs: 5,
+            data: { codec: 'text', value: 'hello' },
+            replayable: true,
+          },
+        },
+      ],
+    };
+    expect(validateReplayExport(JSON.stringify(base))).toMatchObject({
       ok: true,
-      session: { version: 1 },
     });
+    expect(
+      validateReplayExport(
+        JSON.stringify({
+          ...base,
+          events: [
+            {
+              ...base.events[0],
+              payload: {
+                ...base.events[0]!.payload,
+                replayable: false,
+                reason: 'message-too-large',
+              },
+            },
+          ],
+        }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('message-too-large'),
+    });
+    expect(
+      validateReplayExport(
+        JSON.stringify({
+          ...base,
+          events: [
+            {
+              ...base.events[0],
+              payload: { ...base.events[0]!.payload, sequence: 0 },
+            },
+          ],
+        }),
+      ),
+    ).toMatchObject({ ok: false, error: expect.stringContaining('invalid') });
   });
 
   it('accepts sessions with more than 10,000 events without dropping entries', () => {
@@ -63,7 +440,7 @@ describe('debug session replay format', () => {
     const validation = validateDebugSessionExport(
       JSON.stringify({
         format: 'craft-debug-session',
-        version: 2,
+        version: 5,
         startUrl: 'http://localhost/',
         exportedAt: 10_001,
         truncated: false,
@@ -79,7 +456,7 @@ describe('debug session replay format', () => {
   it('accepts recorded viewport metadata and rejects invalid dimensions', () => {
     const session = {
       format: 'craft-debug-session',
-      version: 2,
+      version: 5,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -102,7 +479,7 @@ describe('debug session replay format', () => {
   it('rejects replay actions without a selector or action', () => {
     const session = {
       format: 'craft-debug-session',
-      version: 2,
+      version: 5,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -129,7 +506,7 @@ describe('debug session replay format', () => {
     const errors: string[] = [];
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1,
       truncated: false,
@@ -156,7 +533,51 @@ describe('debug session replay format', () => {
     expect(replay.index()).toBe(0);
   });
 
-  it('matches only recorded HTTP requests and never falls through', async () => {
+  it('does not fall back to CSS when a Craft identity belongs to another runtime', async () => {
+    document.body.innerHTML = '<button id="same-looking-target"></button>';
+    const target = document.querySelector('button')!;
+    const unregister = ɵregisterCraftReplayTarget(target, ['Orders', 'delete']);
+    const replayTarget = ɵcaptureCraftReplayTarget(target)!;
+    unregister();
+    const errors: string[] = [];
+    const onInteraction = vi.fn();
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 1,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'foreign-target',
+          sequence: 1,
+          timestamp: 1,
+          elapsedMs: 0,
+          kind: 'dom' as const,
+          phase: 'emitted' as const,
+          payload: {
+            selector: '#same-looking-target',
+            action: 'click',
+            replayTarget: { ...replayTarget, runtimeId: 'another-runtime' },
+          },
+        },
+      ],
+    };
+    const replay = createReplayController(session, {
+      onError: (message) => errors.push(message),
+      onInteraction,
+    });
+
+    await replay.step();
+
+    expect(errors[0]).toContain('foreign-runtime');
+    expect(onInteraction).not.toHaveBeenCalled();
+    expect(replay.index()).toBe(0);
+    replay.stop();
+  });
+
+  it('matches only recorded browser fetches and never falls through', async () => {
     const started = {
       id: 'start',
       sequence: 1,
@@ -164,7 +585,11 @@ describe('debug session replay format', () => {
       kind: 'http',
       phase: 'started',
       operationId: 'op',
-      payload: { method: 'GET', url: 'https://example.test/api' },
+      payload: {
+        source: 'browser-fetch',
+        method: 'GET',
+        url: 'https://example.test/api',
+      },
     } as const;
     const finished = {
       id: 'end',
@@ -173,11 +598,16 @@ describe('debug session replay format', () => {
       kind: 'http',
       phase: 'succeeded',
       operationId: 'op',
-      response: { data: [1] },
+      response: {
+        source: 'browser-fetch-response',
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ data: [1] }),
+      },
     } as const;
     const resolver = createRecordedResponseResolver({
       format: 'craft-debug-session',
-      version: 1,
+      version: 5,
       startUrl: 'https://example.test/',
       exportedAt: 2,
       truncated: false,
@@ -189,6 +619,361 @@ describe('debug session replay format', () => {
     expect(
       await resolver(new Request('http://localhost/unrecorded')),
     ).toBeUndefined();
+  });
+
+  it('restores binary browser fetch responses byte for byte', async () => {
+    const resolver = createRecordedResponseResolver({
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 2,
+      truncated: false,
+      events: [
+        {
+          id: 'start',
+          sequence: 1,
+          timestamp: 1,
+          kind: 'http',
+          phase: 'started',
+          operationId: 'binary-op',
+          payload: {
+            source: 'browser-fetch',
+            method: 'GET',
+            url: 'http://localhost/api/file',
+          },
+        },
+        {
+          id: 'end',
+          sequence: 2,
+          timestamp: 2,
+          kind: 'http',
+          phase: 'succeeded',
+          operationId: 'binary-op',
+          response: {
+            source: 'browser-fetch-response',
+            status: 200,
+            headers: { 'content-type': 'application/octet-stream' },
+            body: { encoding: 'base64', data: 'AAEC/v8=' },
+          },
+        },
+      ],
+      clips: [],
+    });
+
+    const response = await resolver(new Request('http://localhost/api/file'));
+    expect(Array.from(new Uint8Array(await response!.arrayBuffer()))).toEqual([
+      0, 1, 2, 254, 255,
+    ]);
+  });
+
+  it('replays a recorded browser fetch failure without making a live request', async () => {
+    const resolver = createRecordedResponseResolver({
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 2,
+      truncated: false,
+      events: [
+        {
+          id: 'fetch-start',
+          sequence: 1,
+          timestamp: 1,
+          kind: 'http',
+          phase: 'started',
+          operationId: 'failed-fetch',
+          payload: {
+            source: 'browser-fetch',
+            method: 'GET',
+            url: 'http://localhost/api/failure',
+          },
+        },
+        {
+          id: 'fetch-failed',
+          sequence: 2,
+          timestamp: 2,
+          kind: 'http',
+          phase: 'failed',
+          operationId: 'failed-fetch',
+          response: { message: 'Recorded offline failure' },
+        },
+      ],
+      clips: [],
+    });
+    const fetchSpy = vi.fn(() => Promise.resolve(new Response('live')));
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const restoreFetch = installReplayNetworkGuard(resolver);
+    try {
+      await expect(
+        globalThis.fetch('http://localhost/api/failure'),
+      ).rejects.toThrow('Recorded offline failure');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      restoreFetch();
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('releases a recorded browser fetch response at its timeline position', async () => {
+    const resolver = createRecordedResponseResolver({
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 50,
+      truncated: false,
+      events: [
+        {
+          id: 'click',
+          sequence: 1,
+          timestamp: 1,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#search', action: 'click' },
+        },
+        {
+          id: 'fetch-start',
+          sequence: 2,
+          timestamp: 2,
+          elapsedMs: 2,
+          kind: 'http',
+          phase: 'started',
+          operationId: 'search',
+          payload: {
+            source: 'browser-fetch',
+            method: 'POST',
+            url: 'http://localhost/api/search',
+            body: '{"term":"recorded"}',
+          },
+        },
+        {
+          id: 'fetch-finish',
+          sequence: 3,
+          timestamp: 50,
+          elapsedMs: 50,
+          kind: 'http',
+          phase: 'succeeded',
+          operationId: 'search',
+          response: {
+            source: 'browser-fetch-response',
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+            body: '{"result":"recorded"}',
+          },
+        },
+      ],
+      clips: [],
+    });
+    resolver.enableTimeline();
+
+    let responseReady = false;
+    const responsePromise = resolver(
+      new Request('http://localhost/api/search', {
+        method: 'POST',
+        body: '{"term":"recorded"}',
+      }),
+    ).then((response) => {
+      responseReady = true;
+      return response;
+    });
+    await Promise.resolve();
+    expect(responseReady).toBe(false);
+
+    resolver.advanceTo(49);
+    await Promise.resolve();
+    expect(responseReady).toBe(false);
+
+    resolver.advanceTo(50);
+    await expect(
+      responsePromise.then((response) => response?.json()),
+    ).resolves.toEqual({
+      result: 'recorded',
+    });
+  });
+
+  it('shows a click without redispatching it and invokes root Craft calls in order', async () => {
+    document.body.innerHTML = '<button id="invocation-replay">Run</button>';
+    const target = document.querySelector('#invocation-replay')!;
+    const click = vi.fn();
+    target.addEventListener('click', click);
+    const invocations: string[] = [];
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom' as const,
+          phase: 'emitted' as const,
+          payload: { selector: '#invocation-replay', action: 'click' },
+        },
+        {
+          id: 'method-root',
+          sequence: 2,
+          timestamp: 11,
+          kind: 'craft' as const,
+          phase: 'started' as const,
+          operationId: 'root',
+          correlationId: 'click-correlation',
+          payload: {
+            host: 'method:openPanel',
+            replayInvocation: {
+              address: 'component:App#1 / method:openPanel',
+              args: [],
+            },
+          },
+        },
+        {
+          id: 'method-root-with-args',
+          sequence: 2.5,
+          timestamp: 11,
+          kind: 'craft' as const,
+          phase: 'started' as const,
+          operationId: 'root-with-args',
+          correlationId: 'click-correlation',
+          payload: {
+            host: 'method:openPanel',
+            replayInvocation: {
+              address: 'component:App#1 / method:openPanel',
+              args: ['settings'],
+            },
+          },
+        },
+        {
+          id: 'method-nested',
+          sequence: 3,
+          timestamp: 12,
+          kind: 'craft' as const,
+          phase: 'started' as const,
+          operationId: 'nested',
+          payload: {
+            host: 'method:setOpen',
+            replayInvocation: {
+              address: 'component:App#1 / method:setOpen',
+              args: [true],
+              parentOperationId: 'root',
+            },
+          },
+        },
+        {
+          id: 'method-next-root',
+          sequence: 4,
+          timestamp: 13,
+          kind: 'craft' as const,
+          phase: 'started' as const,
+          operationId: 'next-root',
+          payload: {
+            host: 'method:trackOpen',
+            replayInvocation: {
+              address: 'component:App#1 / method:trackOpen',
+              args: [true],
+            },
+          },
+        },
+      ],
+    } satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      invokeRecordedMethod: (event) =>
+        invocations.push(event.name ?? event.operationId ?? ''),
+    });
+
+    await replay.step();
+
+    expect(click).not.toHaveBeenCalled();
+    expect(invocations).toEqual(['root-with-args', 'next-root']);
+    expect(replay.index()).toBe(1);
+    replay.stop();
+  });
+
+  it('advances the recorded timeline while a deferred route load is still settling', async () => {
+    document.body.innerHTML = '<a id="navigate">Open route</a>';
+    const replayRef: {
+      current?: ReturnType<typeof createReplayController>;
+    } = {};
+    const loadChildren = vi.fn(async () => {
+      await new Promise<void>((resolve, reject) => {
+        const deadline = Date.now() + 250;
+        const poll = setInterval(() => {
+          if ((replayRef.current?.clock.now() ?? 0) >= 110) {
+            clearInterval(poll);
+            clearTimeout(timeout);
+            resolve();
+          } else if (Date.now() >= deadline) {
+            clearInterval(poll);
+            reject(
+              new Error('Deferred route load waited for the replay clock.'),
+            );
+          }
+        }, 1);
+        const timeout = setTimeout(() => {
+          clearInterval(poll);
+          reject(new Error('Deferred route load waited for the replay clock.'));
+        }, 300);
+      });
+    });
+    const navigateToRecordedRoute = vi.fn(() => loadChildren());
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 100,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'navigation-start',
+          sequence: 1,
+          timestamp: 101,
+          name: 'NavigationStart',
+          kind: 'navigation' as const,
+          phase: 'started' as const,
+          payload: {
+            url: '/slow-route',
+            navigationOptions: { replaceUrl: true },
+          },
+        },
+        {
+          id: 'navigation-click',
+          sequence: 2,
+          timestamp: 101,
+          kind: 'dom' as const,
+          phase: 'emitted' as const,
+          payload: {
+            selector: '#navigate',
+            action: 'click',
+            href: 'http://localhost/slow-route',
+          },
+        },
+        {
+          id: 'route-settled-checkpoint',
+          sequence: 3,
+          timestamp: 110,
+          kind: 'primitive' as const,
+          phase: 'emitted' as const,
+          state: { route: '/slow-route' },
+        },
+      ],
+    } satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      invokeRecordedMethod: () => undefined,
+      navigateToRecordedRoute,
+    });
+    replayRef.current = replay;
+
+    await expect(replay.step()).resolves.toBeUndefined();
+
+    expect(navigateToRecordedRoute).toHaveBeenCalledWith('/slow-route', {
+      replaceUrl: true,
+    });
+    expect(loadChildren).toHaveBeenCalledOnce();
+    expect(replay.clock.now()).toBe(110);
+    expect(replay.index()).toBe(1);
+    replay.stop();
   });
 
   it('rejects unknown live requests during replay', async () => {
@@ -209,14 +994,134 @@ describe('debug session replay format', () => {
     }
   });
 
-  it('advances the virtual clock one recorded interaction at a time', async () => {
+  it('installs the replay network guard when the controller is created', async () => {
+    const nativeFetch = globalThis.fetch;
+    const errors: string[] = [];
+    const session = {
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 1,
+      truncated: false,
+      events: [],
+      clips: [],
+    } as const satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      invokeRecordedMethod: () => undefined,
+      onError: (error) => errors.push(error),
+    });
+
+    try {
+      await expect(fetch('http://localhost/unrecorded')).rejects.toThrow(
+        /no recorded response/,
+      );
+      expect(errors[0]).toContain('no recorded response');
+    } finally {
+      replay.stop();
+    }
+    expect(globalThis.fetch).toBe(nativeFetch);
+  });
+
+  it('replays legacy source$ pointerdowns before comparing their Craft effects', async () => {
+    document.body.innerHTML =
+      '<button id="outside-menu">Open destination</button>';
+    const target = document.querySelector('#outside-menu')!;
+    const observed: Array<Record<string, unknown>> = [];
+    target.addEventListener('pointerdown', () => {
+      observed.push({
+        id: 'actual-close-start',
+        sequence: 1,
+        timestamp: 1,
+        kind: 'craft',
+        phase: 'started',
+        name: 'method:close',
+        payload: { comparable: true },
+      });
+      observed.push({
+        id: 'actual-close-end',
+        sequence: 2,
+        timestamp: 2,
+        kind: 'craft',
+        phase: 'succeeded',
+        name: 'method:close',
+        payload: { comparable: true },
+      });
+    });
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 3,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'legacy-pointerdown',
+          sequence: 1,
+          timestamp: 1,
+          elapsedMs: 0,
+          kind: 'custom',
+          phase: 'emitted',
+          name: 'pointerdown',
+          source: 'source$',
+          payload: { isTrusted: true },
+        },
+        {
+          id: 'close-start',
+          sequence: 2,
+          timestamp: 2,
+          elapsedMs: 1,
+          kind: 'craft',
+          phase: 'started',
+          name: 'method:close',
+          payload: { comparable: true },
+        },
+        {
+          id: 'close-end',
+          sequence: 3,
+          timestamp: 3,
+          elapsedMs: 2,
+          kind: 'craft',
+          phase: 'succeeded',
+          name: 'method:close',
+          payload: { comparable: true },
+        },
+        {
+          id: 'following-click',
+          sequence: 4,
+          timestamp: 126,
+          elapsedMs: 125,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: {
+            selector: '#outside-menu',
+            action: 'click',
+            clientX: 20,
+            clientY: 10,
+          },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      mode: 'legacy-dom',
+      observedEvents: () => observed as never,
+    });
+
+    await expect(replay.step()).resolves.toBeUndefined();
+
+    expect(observed).toHaveLength(2);
+    expect(replay.index()).toBe(1);
+    replay.stop();
+  });
+
+  it('keeps captured DOM actions visual while advancing the virtual clock', async () => {
     document.body.innerHTML = '<button id="replay-target">Go</button>';
     const target = document.querySelector('#replay-target')!;
     let clicks = 0;
     target.addEventListener('click', () => clicks++);
     const session = {
       format: 'craft-debug-session' as const,
-      version: 1 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 2_000,
       truncated: false,
@@ -236,13 +1141,292 @@ describe('debug session replay format', () => {
       timerRan = true;
     }, 500);
     await replay.step();
-    expect(clicks).toBe(1);
+    expect(clicks).toBe(0);
     expect(timerRan).toBe(false);
     expect(replay.clock.now()).toBe(1_000);
     await replay.step();
-    expect(clicks).toBe(2);
+    expect(clicks).toBe(0);
     expect(timerRan).toBe(true);
     expect(replay.clock.now()).toBe(2_000);
+    replay.stop();
+  });
+
+  it('does not dispatch pointerdown (including long press), keyboard, input, or change events in invocation replay', async () => {
+    document.body.innerHTML = '<input id="visual-only">';
+    const target = document.querySelector<HTMLInputElement>('#visual-only')!;
+    const actions = ['pointerdown', 'keydown', 'input', 'change'] as const;
+    const handlers = actions.map(() => vi.fn());
+    actions.forEach((action, index) =>
+      target.addEventListener(action, handlers[index]!),
+    );
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: actions.map((action, index) => ({
+        id: `visual-${action}`,
+        sequence: index + 1,
+        timestamp: 10 + index,
+        kind: 'dom' as const,
+        phase: 'emitted' as const,
+        payload: { selector: '#visual-only', action },
+      })),
+    };
+    const replay = createReplayController(session);
+
+    for (const _action of actions) await replay.step();
+
+    expect(handlers.every((handler) => handler.mock.calls.length === 0)).toBe(
+      true,
+    );
+    replay.stop();
+  });
+
+  it('replays hover as a visual-only step without dispatching or invoking handlers', async () => {
+    document.body.innerHTML = '<button id="hover-target">Open</button>';
+    const target = document.querySelector('#hover-target')!;
+    const dispatchSpy = vi.fn();
+    target.addEventListener('pointerover', dispatchSpy);
+    const onInteraction = vi.fn();
+    const invokeRecordedMethod = vi.fn();
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'hover-enter',
+          sequence: 1,
+          timestamp: 10,
+          elapsedMs: 0,
+          kind: 'hover' as const,
+          phase: 'emitted' as const,
+          name: 'hover:enter',
+          payload: {
+            action: 'enter',
+            selector: '#hover-target',
+            clientX: 25,
+            clientY: 15,
+          },
+        },
+        {
+          id: 'hover-leave',
+          sequence: 2,
+          timestamp: 20,
+          elapsedMs: 10,
+          kind: 'hover' as const,
+          phase: 'emitted' as const,
+          name: 'hover:leave',
+          payload: {
+            action: 'leave',
+            selector: '#hover-target',
+            clientX: 30,
+            clientY: 20,
+          },
+        },
+      ],
+    };
+    const replay = createReplayController(session, {
+      onInteraction,
+      invokeRecordedMethod,
+    });
+
+    expect(getReplaySteps(session.events)).toHaveLength(2);
+    await replay.step();
+
+    expect(onInteraction).toHaveBeenCalledWith(session.events[0], target);
+    target.remove();
+    await replay.step();
+    expect(onInteraction).toHaveBeenLastCalledWith(
+      session.events[1],
+      document.body,
+    );
+    expect(dispatchSpy).not.toHaveBeenCalled();
+    expect(invokeRecordedMethod).not.toHaveBeenCalled();
+    expect(replay.index()).toBe(2);
+    replay.stop();
+  });
+
+  it('shows a coordinate fallback and continues when a hover target is missing', async () => {
+    document.body.innerHTML = '<button id="next-hover">Next</button>';
+    const onInteraction = vi.fn();
+    const onWarning = vi.fn();
+    const onError = vi.fn();
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'missing-hover',
+          sequence: 1,
+          timestamp: 10,
+          elapsedMs: 0,
+          kind: 'hover' as const,
+          phase: 'emitted' as const,
+          name: 'hover:enter',
+          payload: {
+            action: 'enter',
+            selector: '#removed-before-replay',
+            clientX: 25,
+            clientY: 15,
+          },
+        },
+        {
+          id: 'next-hover',
+          sequence: 2,
+          timestamp: 20,
+          elapsedMs: 10,
+          kind: 'hover' as const,
+          phase: 'emitted' as const,
+          name: 'hover:enter',
+          payload: {
+            action: 'enter',
+            selector: '#next-hover',
+            clientX: 40,
+            clientY: 20,
+          },
+        },
+      ],
+    };
+    const replay = createReplayController(session, {
+      onInteraction,
+      onWarning,
+      onError,
+    });
+
+    await replay.step();
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.stringContaining('hover target selector was not found'),
+    );
+    expect(onInteraction).toHaveBeenCalledWith(
+      session.events[0],
+      document.body,
+    );
+    expect(replay.index()).toBe(1);
+
+    await replay.step();
+
+    expect(onInteraction).toHaveBeenLastCalledWith(
+      session.events[1],
+      document.querySelector('#next-hover'),
+    );
+    expect(replay.index()).toBe(2);
+    replay.stop();
+  });
+
+  it('drains a linked async Craft interval after the final visual hover', async () => {
+    document.body.innerHTML = '<button id="hover-target">Open</button>';
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'recorded-click',
+          sequence: 1,
+          timestamp: 10,
+          elapsedMs: 0,
+          correlationId: 'click-1',
+          kind: 'dom' as const,
+          phase: 'emitted' as const,
+          payload: {
+            action: 'click',
+            selector: '#hover-target',
+          },
+        },
+        {
+          id: 'final-hover',
+          sequence: 2,
+          timestamp: 20,
+          elapsedMs: 10,
+          kind: 'hover' as const,
+          phase: 'emitted' as const,
+          payload: {
+            action: 'enter',
+            selector: '#hover-target',
+          },
+        },
+        {
+          id: 'async-settled-call',
+          sequence: 3,
+          timestamp: 110,
+          elapsedMs: 100,
+          correlationId: 'async-1',
+          kind: 'craft' as const,
+          phase: 'started' as const,
+          payload: { comparable: false },
+        },
+      ],
+    } satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      invokeRecordedMethod: () => undefined,
+    });
+
+    await replay.step();
+    await replay.step();
+
+    expect(replay.clock.now()).toBe(100);
+    expect(replay.index()).toBe(2);
+    replay.stop();
+  });
+
+  it('applies captured native form values before replaying later Craft methods', async () => {
+    document.body.innerHTML = '<input id="title">';
+    const input = document.querySelector<HTMLInputElement>('#title')!;
+    const inputHandler = vi.fn();
+    const changeHandler = vi.fn();
+    input.addEventListener('input', inputHandler);
+    input.addEventListener('change', changeHandler);
+    const invokeRecordedMethod = vi.fn();
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'native-input',
+          sequence: 1,
+          timestamp: 10,
+          elapsedMs: 0,
+          kind: 'dom' as const,
+          phase: 'emitted' as const,
+          name: 'native:input',
+          payload: {
+            action: 'input',
+            selector: '#title',
+            value: 'Replay todo',
+            valueOnly: true,
+          },
+        },
+      ],
+    };
+    const replay = createReplayController(session, { invokeRecordedMethod });
+
+    await replay.step();
+
+    expect(input.value).toBe('Replay todo');
+    expect(inputHandler).not.toHaveBeenCalled();
+    expect(changeHandler).not.toHaveBeenCalled();
+    expect(invokeRecordedMethod).not.toHaveBeenCalled();
+    expect(replay.index()).toBe(1);
     replay.stop();
   });
 
@@ -251,11 +1435,11 @@ describe('debug session replay format', () => {
       '<div id="replay-scroller"><button id="scrolled-replay">Save</button></div>';
     const target = document.querySelector('#scrolled-replay')!;
     const scroller = document.querySelector<HTMLElement>('#replay-scroller')!;
-    let scrollTopAtClick = 0;
-    target.addEventListener('click', () => {
-      scrollTopAtClick = scroller.scrollTop;
-    });
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const clickHandler = vi.fn();
+    target.addEventListener('click', clickHandler);
+    const scrollTo = vi
+      .spyOn(window, 'scrollTo')
+      .mockImplementation(() => undefined);
     const recordedInteraction = {
       id: 'scroll-click',
       sequence: 1,
@@ -282,7 +1466,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 2,
+        version: 5,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -299,7 +1483,8 @@ describe('debug session replay format', () => {
       top: 640,
       behavior: 'instant',
     });
-    expect(scrollTopAtClick).toBe(321);
+    expect(scroller.scrollTop).toBe(321);
+    expect(clickHandler).not.toHaveBeenCalled();
     expect(onInteraction).toHaveBeenCalledWith(recordedInteraction, target);
     replay.stop();
     scrollTo.mockRestore();
@@ -323,7 +1508,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 2,
+        version: 5,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -367,7 +1552,7 @@ describe('debug session replay format', () => {
     };
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -401,7 +1586,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 2,
+        version: 5,
         startUrl: 'http://localhost/',
         exportedAt: 1_000,
         truncated: false,
@@ -440,39 +1625,42 @@ describe('debug session replay format', () => {
     target.addEventListener('click', () => {
       observedScrollAtClick = scroller.scrollTop;
     });
-    const replay = createReplayController({
-      format: 'craft-debug-session',
-      version: 2,
-      startUrl: 'http://localhost/',
-      exportedAt: 1_000,
-      truncated: false,
-      clips: [],
-      events: [
-        {
-          id: 'nested-scroll',
-          sequence: 1,
-          timestamp: 1_000,
-          elapsedMs: 0,
-          kind: 'scroll',
-          phase: 'emitted',
-          payload: {
-            target: 'element',
-            selector: '#nested-scroller',
-            scrollLeft: 0,
-            scrollTop: 260,
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'nested-scroll',
+            sequence: 1,
+            timestamp: 1_000,
+            elapsedMs: 0,
+            kind: 'scroll',
+            phase: 'emitted',
+            payload: {
+              target: 'element',
+              selector: '#nested-scroller',
+              scrollLeft: 0,
+              scrollTop: 260,
+            },
           },
-        },
-        {
-          id: 'following-click',
-          sequence: 2,
-          timestamp: 1_500,
-          elapsedMs: 500,
-          kind: 'dom',
-          phase: 'emitted',
-          payload: { selector: '#after-scroll', action: 'click' },
-        },
-      ],
-    });
+          {
+            id: 'following-click',
+            sequence: 2,
+            timestamp: 1_500,
+            elapsedMs: 500,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: { selector: '#after-scroll', action: 'click' },
+          },
+        ],
+      },
+      { mode: 'legacy-dom' },
+    );
 
     await replay.step();
     await replay.step();
@@ -482,14 +1670,14 @@ describe('debug session replay format', () => {
     replay.stop();
   });
 
-  it('waits for scroll-triggered actions before dispatching the recorded click', async () => {
+  it('blocks application scroll and click handlers during replay presentation', async () => {
     document.body.innerHTML =
       '<button id="load-after-scroll">Continue</button>';
     const target = document.querySelector('#load-after-scroll')!;
-    const order: string[] = [];
-    const onScroll = () => order.push('scroll-triggered-load');
-    window.addEventListener('scroll', onScroll, { once: true });
-    target.addEventListener('click', () => order.push('recorded-click'));
+    const scrollHandler = vi.fn();
+    const clickHandler = vi.fn();
+    window.addEventListener('scroll', scrollHandler, { once: true });
+    target.addEventListener('click', clickHandler);
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {
       window.setTimeout(() => {
         window.dispatchEvent(new Event('scroll'));
@@ -497,7 +1685,7 @@ describe('debug session replay format', () => {
     });
     const replay = createReplayController({
       format: 'craft-debug-session',
-      version: 2,
+      version: 5,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -521,8 +1709,9 @@ describe('debug session replay format', () => {
 
     await replay.step();
 
-    expect(order).toEqual(['scroll-triggered-load', 'recorded-click']);
-    window.removeEventListener('scroll', onScroll);
+    expect(scrollHandler).not.toHaveBeenCalled();
+    expect(clickHandler).not.toHaveBeenCalled();
+    window.removeEventListener('scroll', scrollHandler);
     replay.stop();
     scrollTo.mockRestore();
   });
@@ -548,7 +1737,7 @@ describe('debug session replay format', () => {
     target.addEventListener('click', () => order.push('recorded-click'));
     const replay = createReplayController({
       format: 'craft-debug-session',
-      version: 2,
+      version: 5,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -573,17 +1762,18 @@ describe('debug session replay format', () => {
 
     await replay.step();
 
-    expect(order).toEqual(['lazy-load', 'recorded-click']);
+    expect(order).toEqual([]);
     replay.stop();
   });
 
   it('does not reapply scroll positions that are already current', async () => {
     document.body.innerHTML = '<button id="already-scrolled">Continue</button>';
-    const target = document.querySelector('#already-scrolled')!;
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const scrollTo = vi
+      .spyOn(window, 'scrollTo')
+      .mockImplementation(() => undefined);
     const replay = createReplayController({
       format: 'craft-debug-session',
-      version: 2,
+      version: 5,
       startUrl: 'http://localhost/',
       exportedAt: 1_000,
       truncated: false,
@@ -638,7 +1828,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -676,6 +1866,7 @@ describe('debug session replay format', () => {
       ],
     } as const satisfies SendContextReplayExport;
     const replay = createReplayController(session, {
+      mode: 'legacy-dom',
       observedEvents: () => observed as never,
     });
     expect(await replay.step()).toBeUndefined();
@@ -689,7 +1880,7 @@ describe('debug session replay format', () => {
     target.addEventListener('click', () => undefined);
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -726,6 +1917,55 @@ describe('debug session replay format', () => {
     replay.stop();
   });
 
+  it('restores recorded primitive changes instead of comparing them', async () => {
+    document.body.innerHTML = '<button id="state-replay">Run</button>';
+    const target = document.querySelector('#state-replay')!;
+    target.addEventListener('click', () => undefined);
+    const restoreState = vi.fn();
+    const readState = vi.fn(() => ({ count: 0 }));
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'dom',
+          sequence: 1,
+          timestamp: 10,
+          elapsedMs: 0,
+          kind: 'dom' as const,
+          phase: 'emitted' as const,
+          payload: { selector: '#state-replay', action: 'click' },
+        },
+        {
+          id: 'state-change',
+          sequence: 2,
+          timestamp: 11,
+          elapsedMs: 1,
+          kind: 'primitive' as const,
+          phase: 'emitted' as const,
+          name: 'primitive-change',
+          state: { count: 1 },
+        },
+      ],
+    } satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      readState,
+      restoreState,
+    });
+
+    expect(await replay.step()).toBeUndefined();
+    expect(restoreState).toHaveBeenCalledWith(
+      { count: 1 },
+      expect.objectContaining({ id: 'state-change' }),
+    );
+    expect(readState).not.toHaveBeenCalled();
+    replay.stop();
+  });
+
   it('continues when a checkpoint contains primitives from a different route lifecycle', async () => {
     document.body.innerHTML =
       '<button id="route-change">Navigate</button><button id="after-route-change">Continue</button>';
@@ -737,7 +1977,7 @@ describe('debug session replay format', () => {
       });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -770,6 +2010,7 @@ describe('debug session replay format', () => {
       ],
     } as const satisfies SendContextReplayExport;
     const replay = createReplayController(session, {
+      mode: 'legacy-dom',
       readState: () => ({ shared: { value: 1 }, 'new-route/query': 'loading' }),
     });
 
@@ -788,7 +2029,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -829,6 +2070,7 @@ describe('debug session replay format', () => {
     } as const satisfies SendContextReplayExport;
     const forceRecovery = vi.fn();
     const replay = createReplayController(session, {
+      mode: 'legacy-dom',
       readState: () => ({ route: '/actual-route' }),
       forceRecovery,
     });
@@ -863,7 +2105,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -909,6 +2151,7 @@ describe('debug session replay format', () => {
     } as const satisfies SendContextReplayExport;
     const forceRecovery = vi.fn();
     const replay = createReplayController(session, {
+      mode: 'legacy-dom',
       readState: () => ({ count: 2 }),
       forceRecovery,
     });
@@ -935,7 +2178,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '<button id="blocked-skip">Run</button>';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -1052,7 +2295,7 @@ describe('debug session replay format', () => {
     const replay = createReplayController(
       {
         format: 'craft-debug-session',
-        version: 2,
+        version: 5,
         startUrl: 'http://localhost/',
         exportedAt: 14,
         truncated: false,
@@ -1074,7 +2317,7 @@ describe('debug session replay format', () => {
     document.body.innerHTML = '<button id="anonymous-craft">Run</button>';
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 10,
       truncated: false,
@@ -1137,7 +2380,7 @@ describe('debug session replay format', () => {
     target.addEventListener('click', () => undefined);
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1000,
       truncated: false,
@@ -1169,7 +2412,7 @@ describe('debug session replay format', () => {
       target.addEventListener('click', () => clicks++);
       const session = {
         format: 'craft-debug-session' as const,
-        version: 2 as const,
+        version: 5 as const,
         startUrl: 'http://localhost/',
         exportedAt: 1000,
         truncated: false,
@@ -1187,6 +2430,7 @@ describe('debug session replay format', () => {
       const playbackUpdates: Array<readonly [number, number, string, number?]> =
         [];
       const replay = createReplayController(session, {
+        mode: 'legacy-dom',
         onProgress: (index, total, state, nextDelayMs) =>
           playbackUpdates.push([index, total, state, nextDelayMs]),
       });
@@ -1246,7 +2490,7 @@ describe('debug session replay format', () => {
       });
       const session = {
         format: 'craft-debug-session' as const,
-        version: 2 as const,
+        version: 5 as const,
         startUrl: 'http://localhost/',
         exportedAt: 1000,
         truncated: false,
@@ -1291,6 +2535,7 @@ describe('debug session replay format', () => {
         ],
       } as const satisfies SendContextReplayExport;
       const replay = createReplayController(session, {
+        mode: 'legacy-dom',
         observedEvents: () => observed as never,
       });
 
@@ -1315,7 +2560,7 @@ describe('debug session replay format', () => {
       target.addEventListener('click', () => clicks++);
       const session = {
         format: 'craft-debug-session' as const,
-        version: 2 as const,
+        version: 5 as const,
         startUrl: 'http://localhost/',
         exportedAt: 1000,
         truncated: false,
@@ -1334,6 +2579,7 @@ describe('debug session replay format', () => {
         })),
       } as const satisfies SendContextReplayExport;
       const replay = createReplayController(session, {
+        mode: 'legacy-dom',
         prepare: () => new Promise((resolve) => setTimeout(resolve, 1000)),
       });
 
@@ -1358,7 +2604,9 @@ describe('debug session replay format', () => {
       const target = document.querySelector('#query-timing-replay')!;
       const observed: Array<Record<string, unknown>> = [];
       let resultVisible = false;
-      let replay: ReturnType<typeof createReplayController>;
+      const replayRef: {
+        current?: ReturnType<typeof createReplayController>;
+      } = {};
       target.addEventListener('click', () => {
         observed.push({
           id: 'query-start-actual',
@@ -1369,7 +2617,7 @@ describe('debug session replay format', () => {
           phase: 'started',
           name: 'userQuery',
         });
-        replay.clock.schedule(() => {
+        replayRef.current?.clock.schedule(() => {
           resultVisible = true;
           observed.push({
             id: 'query-success-actual',
@@ -1384,7 +2632,7 @@ describe('debug session replay format', () => {
       });
       const session = {
         format: 'craft-debug-session' as const,
-        version: 2 as const,
+        version: 5 as const,
         startUrl: 'http://localhost/',
         exportedAt: 1000,
         truncated: false,
@@ -1419,9 +2667,11 @@ describe('debug session replay format', () => {
           },
         ],
       } as const satisfies SendContextReplayExport;
-      replay = createReplayController(session, {
+      const replay = createReplayController(session, {
+        mode: 'legacy-dom',
         observedEvents: () => observed as never,
       });
+      replayRef.current = replay;
 
       replay.play();
       await vi.advanceTimersByTimeAsync(1999);
@@ -1444,7 +2694,7 @@ describe('debug session replay format', () => {
     });
     const session = {
       format: 'craft-debug-session' as const,
-      version: 2 as const,
+      version: 5 as const,
       startUrl: 'http://localhost/',
       exportedAt: 1,
       truncated: false,
@@ -1462,6 +2712,7 @@ describe('debug session replay format', () => {
       ],
     } as const satisfies SendContextReplayExport;
     const replay = createReplayController(session, {
+      mode: 'legacy-dom',
       prepare: () => {
         restored = true;
       },

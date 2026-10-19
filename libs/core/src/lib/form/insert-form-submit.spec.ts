@@ -1,6 +1,7 @@
 import {
   signal,
 } from '../host/craft-compat';
+import { ɵinjectCraftMethodReplayRegistry } from '../craft-method-replay-registry';
 import { TestBed } from '../host/craft-test-bed';
 import { craftException } from '../craft-exception';
 import { mutation } from '../mutation';
@@ -77,6 +78,34 @@ describe('insertFormSubmit', () => {
       // No config, no resource exception → submit ends clean.
       expect(craftUse(loginForm.form.hasSubmitExceptions())).toBe(false);
       expect(craftUse(loginForm.form.submitExceptions())).toEqual([]);
+    });
+  });
+
+  it('registers the exposed form submit method for deterministic replay', async () => {
+    await TestBed.runInInjectionContext(async () => {
+      const submitRef = craftUse(
+        mutation('submitRef', {
+          method: (value: ValidatedFormValue<LoginData>) => value,
+          loader: async ({ params }) => params,
+        }),
+      );
+      const loginForm = craftUse(
+        state(
+          'loginForm',
+          { id: '1', name: 'John', password: '1234' } satisfies LoginData,
+          insertForm(insertFormSubmit(submitRef)),
+        ),
+      );
+      const registry = ɵinjectCraftMethodReplayRegistry();
+      const address = registry
+        .addresses()
+        .find((candidate) => candidate.endsWith('form / method:submit'));
+
+      expect(address).toBeDefined();
+      const result = registry.invoke(address!, undefined, []);
+      if (result instanceof Promise) await result;
+
+      expect(craftUse(loginForm.form.hasAttemptedSubmit())).toBe(true);
     });
   });
 

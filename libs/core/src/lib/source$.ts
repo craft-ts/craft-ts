@@ -19,7 +19,13 @@ import {
 } from './craft-primitive-gen';
 import { yieldableInvocation } from './yieldable';
 import { SourceBranded } from './util/util';
-import { ɵinjectSendContextSession } from './send-context-to-ai.tokens';
+import {
+  ɵinjectSendContextSession,
+  ɵmarkReplayDomEventCaptured,
+  ɵreplayScrollAncestors,
+  ɵstableReplaySelector,
+  ɵwasReplayDomEventCaptured,
+} from './send-context-to-ai.tokens';
 
 export type SourceDependency<Name extends string> = {
   [K in Name]: ServiceDependencies<'function', {}>;
@@ -244,11 +250,26 @@ export function source$<T, Name extends string = string>(
   };
 
   const emit = (value: T) => {
-    sendContextSession?.capture('custom', 'emitted', {
-      name,
-      payload: value,
-      source: 'source$',
-    });
+    if (sendContextSession) {
+      if (value instanceof Event && ɵwasReplayDomEventCaptured(value)) {
+        // The Craft DOM hook already recorded this exact native event.
+      } else if (isReplayableNativeEvent(value)) {
+        const target = value.target;
+        const selector = ɵstableReplaySelector(target);
+        sendContextSession.capture(
+          'dom',
+          'emitted',
+          replayableDomEventDetails(name, value, target, selector),
+        );
+        ɵmarkReplayDomEventCaptured(value);
+      } else {
+        sendContextSession.capture('custom', 'emitted', {
+          name,
+          payload: value,
+          source: 'source$',
+        });
+      }
+    }
     hasEmitted = true;
     if (replayCapacity > 0) {
       history.push(value);
@@ -294,4 +315,55 @@ export function source$<T, Name extends string = string>(
   const generator = createNamedPrimitiveGen(name, source);
 
   return Object.assign(generator, source) as Source$<T, Name>;
+}
+
+function isReplayableNativeEvent(value: unknown): value is Event & {
+  target: Element;
+} {
+  if (!(value instanceof Event) || !(value.target instanceof Element))
+    return false;
+  return (
+    value.type === 'pointerdown' ||
+    value.type === 'keydown' ||
+    value.type === 'keyup'
+  );
+}
+
+function replayableDomEventDetails(
+  name: string,
+  event: Event,
+  target: Element,
+  selector: string,
+) {
+  return {
+    name,
+    source: 'source$',
+    payload: {
+      action: event.type,
+      eventName: event.type,
+      interactionName: `${name}:${event.type}`,
+      selector,
+      ...(event instanceof KeyboardEvent
+        ? { key: event.key, code: event.code }
+        : {}),
+      ...(event instanceof MouseEvent
+        ? {
+            button: event.button,
+            clientX: event.clientX,
+            clientY: event.clientY,
+          }
+        : {}),
+      ...(typeof PointerEvent !== 'undefined' && event instanceof PointerEvent
+        ? {
+            pointerId: event.pointerId,
+            pointerType: event.pointerType,
+            isPrimary: event.isPrimary,
+          }
+        : {}),
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+      scrollAncestors: ɵreplayScrollAncestors(target),
+    },
+    targets: [{ tagName: target.tagName, selector }],
+  };
 }

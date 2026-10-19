@@ -19,6 +19,10 @@ import {
   selfStoppingNestedEffect,
 } from './util/types/util';
 import { ResourceByIdRef } from './resource-by-id';
+import {
+  ɵinjectPersistedStorageSnapshotRegistry,
+  type PersistedStorageSnapshotEntry,
+} from './persisted-storage-snapshot';
 
 /**
  * The keys registered since the last time, plus the full key set they were
@@ -48,16 +52,30 @@ export function createStoragePersister(
   prefix: string,
   storage: StorageServiceApi,
 ): QueriesPersister {
+  let snapshotRegistry: ReturnType<
+    typeof ɵinjectPersistedStorageSnapshotRegistry
+  > | undefined;
+  try {
+    snapshotRegistry = ɵinjectPersistedStorageSnapshotRegistry();
+  } catch {
+    // Standalone persister use outside a Craft app has no session registry.
+  }
   const _injector = inject(Injector);
   const queriesMap = signal(
-    new Map<string, PersistedQuery & { storageKey: string }>(),
+    new Map<
+      string,
+      PersistedQuery & { storageKey: string; persistedStoreName: string }
+    >(),
     {
       equal: () => false,
     }
   );
 
   const queriesByIdMap = signal(
-    new Map<string, PersistedQueryById & { storageKey: string }>(),
+    new Map<
+      string,
+      PersistedQueryById & { storageKey: string; persistedStoreName: string }
+    >(),
     {
       equal: () => false,
     }
@@ -143,6 +161,15 @@ export function createStoragePersister(
               }
               if (isEqualParams) {
                 queryResource.set(queryValue);
+                snapshotRegistry?.recordRead({
+                  backend: prefix,
+                  storeName: data.persistedStoreName,
+                  key: data.key,
+                  kind: 'query',
+                  queryParams,
+                  value: queryValue,
+                  ...(typeof timestamp === 'number' ? { timestamp } : {}),
+                });
                 if (staleTime !== undefined && timestamp && isValueExpired(timestamp, staleTime)) {
                   queryResource.reload();
                 }
@@ -239,6 +266,116 @@ export function createStoragePersister(
   });
 
   return {
+    restorePersistedValues(entries): void {
+      for (const entry of entries) {
+        if (entry.backend !== prefix) continue;
+        if (entry.kind === 'query') {
+          for (const query of queriesMap().values()) {
+            if (
+              query.key !== entry.key ||
+              query.persistedStoreName !== entry.storeName ||
+              !isEqual(query.queryResourceParamsSrc(), entry.queryParams) ||
+              (query.validate && !query.validate(entry.value))
+            )
+              continue;
+            query.queryResource.set(entry.value);
+          }
+          continue;
+        }
+        if (!entry.resourceId) continue;
+        for (const query of queriesByIdMap().values()) {
+          if (
+            query.key !== entry.key ||
+            query.persistedStoreName !== entry.storeName ||
+            (query.validate && !query.validate(entry.value))
+          )
+            continue;
+          const existing = query.queryByIdResource()[entry.resourceId];
+          if (existing) {
+            existing.set(entry.value);
+          } else {
+            query.queryByIdResource.addById(entry.resourceId, {
+              ...(entry.queryParams === undefined
+                ? {}
+                : { defaultParam: entry.queryParams }),
+              defaultValue: entry.value,
+            });
+          }
+        }
+      }
+    },
+    capturePersistedValues(): readonly PersistedStorageSnapshotEntry[] {
+      const entries: PersistedStorageSnapshotEntry[] = [];
+      for (const query of queriesMap().values()) {
+        const raw = storage.getItem(query.storageKey);
+        if (!raw) continue;
+        try {
+          const stored = JSON.parse(raw) as {
+            queryParams?: unknown;
+            queryValue?: unknown;
+            timestamp?: unknown;
+          };
+          if (
+            typeof stored.timestamp === 'number' &&
+            query.cacheTime > 0 &&
+            isValueExpired(stored.timestamp, query.cacheTime)
+          )
+            continue;
+          if (query.validate && !query.validate(stored.queryValue)) continue;
+          entries.push({
+            backend: prefix,
+            storeName: query.persistedStoreName,
+            key: query.key,
+            kind: 'query',
+            ...(stored.queryParams === undefined
+              ? {}
+              : { queryParams: stored.queryParams }),
+            value: stored.queryValue,
+            ...(typeof stored.timestamp === 'number'
+              ? { timestamp: stored.timestamp }
+              : {}),
+          });
+        } catch {
+          // Malformed cache entries are not useful to a replay snapshot.
+        }
+      }
+      for (const query of queriesByIdMap().values()) {
+        const raw = storage.getItem(query.storageKey);
+        if (!raw) continue;
+        try {
+          const stored = JSON.parse(raw) as QueryByIdStored;
+          if (
+            !stored.queryByIdValue ||
+            typeof stored.queryByIdValue !== 'object'
+          )
+            continue;
+          for (const [id, resource] of Object.entries(stored.queryByIdValue)) {
+            if (
+              typeof resource.timestamp === 'number' &&
+              query.cacheTime > 0 &&
+              isValueExpired(resource.timestamp, query.cacheTime)
+            )
+              continue;
+            if (query.validate && !query.validate(resource.value)) continue;
+            entries.push({
+              backend: prefix,
+              storeName: query.persistedStoreName,
+              key: query.key,
+              kind: 'queryById',
+              resourceId: id,
+              queryParams: resource.params,
+              value: resource.value,
+              ...(typeof resource.timestamp === 'number'
+                ? { timestamp: resource.timestamp }
+                : {}),
+            });
+          }
+        } catch {
+          // Malformed cache entries are not useful to a replay snapshot.
+        }
+      }
+      return entries;
+    },
     addQueryToPersist(data: PersistedQuery): void {
       const {
         key,
@@ -255,7 +392,7 @@ export function createStoragePersister(
       const storedValue = storage.getItem(storageKey);
       if (storedValue && !waitForParamsSrcToBeEqualToPreviousValue) {
         try {
-          const { queryValue, timestamp } = JSON.parse(storedValue);
+          const { queryValue, queryParams, timestamp } = JSON.parse(storedValue);
           if (validate && !validate(queryValue)) {
             storage.removeItem(storageKey);
           } else if (
@@ -266,6 +403,15 @@ export function createStoragePersister(
             storage.removeItem(storageKey);
           } else {
             queryResource.set(queryValue);
+            snapshotRegistry?.recordRead({
+              backend: prefix,
+              storeName: storeName ?? prefix,
+              key,
+              kind: 'query',
+              ...(queryParams === undefined ? {} : { queryParams }),
+              value: queryValue,
+              ...(typeof timestamp === 'number' ? { timestamp } : {}),
+            });
             if (staleTime !== undefined && timestamp && isValueExpired(timestamp, staleTime)) {
               queryResource.reload();
             }
@@ -280,6 +426,7 @@ export function createStoragePersister(
           queryResource,
           queryResourceParamsSrc,
           storageKey,
+          persistedStoreName: storeName ?? prefix,
           waitForParamsSrcToBeEqualToPreviousValue,
           cacheTime,
           staleTime,
@@ -321,6 +468,20 @@ export function createStoragePersister(
                 defaultParam: resourceValue.params,
                 defaultValue: isValueValid ? resourceValue.value : undefined,
               });
+              if (isValueValid && resourceValue.value !== undefined) {
+                snapshotRegistry?.recordRead({
+                  backend: prefix,
+                  storeName: storeName ?? prefix,
+                  key,
+                  kind: 'queryById',
+                  resourceId: resourceKey,
+                  queryParams: resourceValue.params,
+                  value: resourceValue.value,
+                  ...(typeof resourceValue.timestamp === 'number'
+                    ? { timestamp: resourceValue.timestamp }
+                    : {}),
+                });
+              }
               const isStale = staleTime !== undefined && resourceValue.timestamp && isValueExpired(resourceValue.timestamp, staleTime);
               // The reload strategy can be improved to prioritize the current displayed resource
               if (resourceValue.reloadOnMount || (isValueValid && isStale)) {
@@ -335,6 +496,7 @@ export function createStoragePersister(
           queryByIdResource,
           queryResourceParamsSrc,
           storageKey,
+          persistedStoreName: storeName ?? prefix,
           cacheTime,
           staleTime,
           validate,

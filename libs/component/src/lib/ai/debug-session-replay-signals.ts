@@ -1,3 +1,5 @@
+import { hasReplayStorageRestoreMarker } from './debug-session-browser-storage';
+
 /** Query marker used for URL-mode replay launches. */
 export const CRAFT_DEBUG_REPLAY_QUERY_PARAM = 'craft-debug-replay';
 
@@ -6,11 +8,11 @@ export const CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT =
   'craft-debug-replay-persistence';
 
 export function isCraftDebugReplayLaunch(): boolean {
+  if (typeof window === 'undefined') return false;
   return (
-    typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get(
       CRAFT_DEBUG_REPLAY_QUERY_PARAM,
-    ) === '1'
+    ) === '1' || hasReplayStorageRestoreMarker()
   );
 }
 

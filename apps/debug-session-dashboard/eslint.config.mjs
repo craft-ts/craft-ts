@@ -35,28 +35,6 @@ export default [
     rules: { ...craftRules.configs.recommended.rules },
   },
   {
-    // TODO(replay-engine): `dashboard.ts` still holds the replay engine (the
-    // postMessage handshake with the replayed page, the archive HTTP calls, the
-    // DOM frames) in the same file as the view. Those parts are protocol and
-    // browser boundaries, not Craft state, so the rules that describe authored
-    // Craft code do not fit them yet. Splitting the engine out of the view and
-    // moving the archive onto a craftService is what retires this block.
-    // The design-system rules above stay on for the whole file.
-    files: ['**/src/dashboard.ts'],
-    rules: {
-      'craft-ts/prefer-browser-boundaries': 'off',
-      'craft-ts/no-async-await': 'off',
-      'craft-ts/no-throw': 'off',
-      'craft-ts/prefer-craft-http-transport': 'off',
-      'craft-ts/no-direct-temporal-globals': 'off',
-      'craft-ts/no-type-assertions-in-craft-code': 'off',
-      'craft-ts/max-craft-component-lines': 'off',
-      'craft-ts/require-direct-craft-component-template': 'off',
-      'craft-ts/prefer-deep-yieldable-for-item': 'off',
-      '@typescript-eslint/no-non-null-assertion': 'off',
-    },
-  },
-  {
     files: ['**/vite.config.ts', '**/vitest.config.ts'],
     rules: {
       '@nx/enforce-module-boundaries': 'off',

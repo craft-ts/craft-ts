@@ -1,10 +1,8 @@
-import {
-  computed,
-  signal,
-} from './host/craft-compat';
+import { computed, signal } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftResource } from './craft-resource';
+import { ɵsetCraftReplayMode } from './craft-replay';
 import { craftSignal } from './host/craft-signal';
 import { setupCraftServiceTest } from './setup-craft-service-test';
 
@@ -12,6 +10,7 @@ describe('craftResource', () => {
   beforeEach(() => {
     TestBed.resetTestingModule();
     vi.useRealTimers();
+    ɵsetCraftReplayMode(false);
   });
 
   function createResource() {
@@ -35,6 +34,29 @@ describe('craftResource', () => {
     expect(resource.status()).toBe('resolved');
     expect(resource.isLoading()).toBe(false);
   }, 30_000);
+
+  it('runs application loaders during replay so transport results can drive state', async () => {
+    const params = signal({ id: 1 });
+    const loader = vi.fn(({ params: p }: { params: { id: number } }) => ({
+      id: p.id,
+      name: `live-${p.id}`,
+    }));
+    ɵsetCraftReplayMode(true);
+    try {
+      const resource = TestBed.runInInjectionContext(() =>
+        craftResource({ params: () => params(), loader }),
+      );
+
+      params.set({ id: 2 });
+      await vi_waitForResolved(resource);
+
+      expect(loader).toHaveBeenCalledTimes(2);
+      expect(resource.value()).toEqual({ id: 2, name: 'live-2' });
+      expect(resource.status()).toBe('resolved');
+    } finally {
+      ɵsetCraftReplayMode(false);
+    }
+  });
 
   it('value and state are undefined while there is no value yet', () => {
     const resource = createResource();

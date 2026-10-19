@@ -80,6 +80,9 @@ export function preservedResource<T, R>(
     restore: (
       original as unknown as { restore: (value: T | undefined) => void }
     ).restore.bind(original),
+    restoreError: (
+      original as unknown as { restoreError: (error: unknown) => void }
+    ).restoreError.bind(original),
     asReadonly: () => resourceRef,
     paramSrc: config.params as Signal<R | undefined>,
     state,

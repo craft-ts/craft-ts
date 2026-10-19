@@ -1,7 +1,7 @@
 # CraftTS local session dashboard
 
-The dashboard is a separate CraftTS app. It reads `craft-debug-session` JSON in
-the browser, accepts v1 and v2 exports, and can browse sessions captured by the
+The dashboard is a separate CraftTS app. It reads `craft-debug-session` v5 JSON in
+the browser and can browse sessions captured by the
 loopback debug server. Session data stays on the local machine.
 
 ## Run it with the demo
@@ -85,20 +85,40 @@ and `provideCraftDebugReplayBridge({ parentOrigins: [...] })`.
 
 The bridge accepts only messages from its actual parent window and the exact
 origins listed by the target application. The dashboard rejects non-local
-target URLs. The URL mode reloads the recorded start URL before replay; snapshot
-mode restores the initial Craft primitive snapshot after the bridge handshake.
-URL-mode replay adds the `craft-debug-replay=1` query marker. Capture stays
-active in memory for comparison, but the provider does not open an archive
-WebSocket for that replay page. Replay pauses archive event persistence until
-it completes or is stopped. At a detected difference it remains paused so the
-session cannot be polluted by replay activity and can be inspected or recovered.
+target URLs. Both start modes restore recorded browser storage, Craft primitive
+values, and registered persister contents. URL mode uses the recorded start
+URL; snapshot mode uses the selected target URL and requires a Craft snapshot.
+The dashboard sends the v5 session to a replay-marked target before application
+bootstrap is released. If browser storage must be restored, the target restores
+it and reloads first. The bridge primes Craft and persister snapshots and
+installs recorded HTTP, fetch, WebSocket, and Worker outcomes before root
+components and loaders start. A missing method, ambiguous address, unavailable
+snapshot, or unrecorded transport fails explicitly without a live network
+fallback. Replay uses invocation mode: captured DOM actions and scroll changes
+are visual cues only; click, keyboard, pointer, input, change, and application
+scroll handlers are not dispatched. Field values are assigned for display.
+Capture stays active in memory for comparison, but the provider does not open an
+archive WebSocket for that replay page. Replay pauses archive event persistence
+until it completes or is stopped. At a detected difference it remains paused
+so the session can be inspected or recovered.
 The iframe must be permitted by the target app's `frame-ancestors` policy.
 
-Exports are redacted and retain the existing event/byte limits. Truncated
-sessions can be inspected but cannot be replayed. V1 files remain importable;
-new files use v2 and carry monotonic elapsed offsets. Clicks on links retain the
+For two concurrent `CraftHttpClient` requests with the same method, URL,
+parameters, and body, set distinct stable `replayKey` values in their request
+options. The key is serialized in the archive and must not contain a secret.
+The replay validator leaves sessions without distinct keys inspectable, but
+refuses to replay an overlapping identical request pair.
+
+Exports use format v5 and retain the existing event/byte limits. Truncated
+sessions can be inspected but cannot be replayed. Versions v1–v4 are rejected
+with an explicit unsupported-version message; there is no silent migration.
+Events carry monotonic elapsed offsets. Clicks on links retain the
 redacted absolute `href` in the DOM event, in addition to router events. This
 helps identify the intended destination even if navigation did not occur.
+Craft-rendered interaction targets use an opaque fingerprint of the interpreter
+render path. The replay resolves it against the current live render index and
+never substitutes a CSS match when that identity is missing or ambiguous. CSS
+selectors and viewport coordinates remain diagnostic and visual fallbacks.
 Input, textarea, and select values are omitted by default. To capture
 non-sensitive values for replay, add `data-debug-session-capture-value="true"`
 to a field or set `captureInputValues: true` in
@@ -114,6 +134,28 @@ defaults to loopback. Production providers do not install session capture.
 Sensitive values become part of the archive and any exported session, so
 review this setting before enabling it in a production build or sharing an
 export.
+
+The demo also opts into `captureBrowserStorage` only when its configured debug
+server URL points to loopback. This captures readable `localStorage`,
+`sessionStorage`, accessible cookies, and enumerable IndexedDB databases at
+startup. These values are not covered by the field redactor and can contain
+secrets; treat archives and exports as sensitive. The option defaults to false
+in `provideCraftDebugSessionCapture`. Replay preparation stops before app
+bootstrap if local/session storage or readable cookies could not be captured,
+if IndexedDB could not be enumerated, or if any database could not be captured.
+A Cookie Store API warning can fall back to `document.cookie`; successful
+fallback capture remains restorable. During replay, captured storage replaces
+target-origin entries and databases, including entries absent from the
+recording.
+
+Browser APIs limit what can be captured: JavaScript cannot read `HttpOnly`
+cookies, and `document.cookie` fallback cannot recover every cookie attribute.
+The Cookie Store API preserves more attributes when the browser provides it.
+IndexedDB enumeration depends on `IDBFactory.databases()`; databases that are
+blocked or cannot be serialized are reported as warnings and are not silently
+presented as captured. This remains a local development feature; disable the
+option and sensitive input capture before using session capture outside a
+trusted local environment.
 
 Error stacks are never retained, and error messages are scrubbed for common
 secret assignments and email addresses. The dashboard can delete one archived
@@ -176,5 +218,25 @@ npx nx run debug-session-dashboard:typecheck-architecture
 `eslint.config.mjs` takes the `style`, `a11y`, `security` and `typedCss` presets
 for every file under `src`, and `recommended` for the code. `architecture/`
 runs the declarative architecture rules, the design-system ones included.
-The block marked `TODO(replay-engine)` in the ESLint config lists what is still
-off for `dashboard.ts` and why.
+
+No file is exempt from them: there is no ESLint override, no `eslint-disable`
+and no architecture waiver. The replay engine is split by what it is:
+
+- `session-archive.service.ts` and `replay-route.service.ts` are `craftService`s:
+  the archive goes through `CraftHttpClient` (a `query` for the list and for one
+  session, a `mutation` for deletion that the list reacts to), refreshed by the
+  Craft temporal runtime; the route owns the address, resolves the temporal
+  runtime and the `BrowserLocation`/`BrowserCrypto` boundaries once, and turns an
+  answer of the archive into the open recording.
+- `replay-model.ts` (pure), `replay-state.ts` (the signals), `replay-playback.ts`,
+  `replay-bridge.ts` and `replay-session.ts` are the engine. They never touch the
+  browser: every payload that crosses a window boundary is checked where it
+  enters, so there is no type assertion and no `!` to excuse.
+- `replay-browser.ts` is where the engine meets the browser, and names no global
+  (`window`, `document`, `performance`, `crypto`, `location`). Time, ids and the
+  hash come from the platform the route service installs; the replayed page's
+  window, its frames and every DOM lookup come from the `replayHost` node
+  directive, mounted on the root element, which hands over the element's DOM
+  adapter and listens to `message` and `hashchange`.
+- The view is a tree of small components (`dashboard.ts`, `sessions-page.ts`,
+  `replay-page.ts`, …), none of which reaches the browser.

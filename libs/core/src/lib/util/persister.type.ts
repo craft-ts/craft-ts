@@ -1,5 +1,6 @@
 import { ResourceStatus, Signal } from '../host/craft-compat';
 import { ResourceByIdRef } from '../resource-by-id';
+import type { PersistedStorageSnapshotEntry } from '../persisted-storage-snapshot';
 
 /**
  * The resource surface the persister actually drives: it reads `status` and
@@ -49,4 +50,11 @@ export interface QueriesPersister {
   clearAllQueries(): void;
   clearAllQueriesById(): void;
   clearAllCache(): void;
+  /** Captures the registered persisted query values without scanning the backend. */
+  capturePersistedValues?():
+    | readonly PersistedStorageSnapshotEntry[]
+    | Promise<readonly PersistedStorageSnapshotEntry[]>;
+  restorePersistedValues?(
+    entries: readonly PersistedStorageSnapshotEntry[],
+  ): void | Promise<void>;
 }

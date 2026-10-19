@@ -55,6 +55,12 @@ import {
   childCraftRenderIdentity,
   createCraftRenderIdentity,
   type CraftRenderIdentity,
+  ɵregisterCraftReplayTarget,
+  ɵregisterCraftDeferReplayTarget,
+  ɵcaptureCraftReplayTarget,
+  ɵinjectSendContextSession,
+  ɵinjectCorrelationIdService,
+  isCraftReplaying,
   ɵinjectCraftSsrPolicy,
   ɵinjectCraftSecurityPolicy,
   ɵinjectCraftMatch,
@@ -195,6 +201,8 @@ interface RenderContext {
   readonly traceState?: TemplateTraceState;
   readonly mode: 'create' | 'hydrate';
   readonly identity: CraftRenderIdentity;
+  /** False when the current repeated item is addressed by its position. */
+  readonly replayTargetStable?: boolean;
   readonly hydration?: HydrationCursor;
   readonly emitHydrationKeys?: boolean;
   readonly ssr?: CraftSsrCoordinator;
@@ -833,11 +841,7 @@ class CraftNodeDirectiveMount {
           ),
         ),
         ...(context.fieldExceptionBoundary
-          ? [
-              provideCraftFieldExceptionBoundary(
-                context.fieldExceptionBoundary,
-              ),
-            ]
+          ? [provideCraftFieldExceptionBoundary(context.fieldExceptionBoundary)]
           : []),
       ],
       context.injector.get(EnvironmentInjector),
@@ -1656,7 +1660,11 @@ function applyAttribute(
       `Inline event attribute "${key}" is not allowed.`,
     );
   }
-  if (isCraftUrlAttribute(normalizedKey) && value !== null && value !== undefined) {
+  if (
+    isCraftUrlAttribute(normalizedKey) &&
+    value !== null &&
+    value !== undefined
+  ) {
     const policy = ɵinjectCraftSecurityPolicy();
     const urlOptions = {
       allowedOrigins: policy?.dom.allowedResourceOrigins ?? [],
@@ -1766,6 +1774,7 @@ class ElementRenderedNode implements RenderedNode {
   private dialogCleanup: (() => void) | undefined;
 
   private readonly node: Element;
+  private readonly unregisterReplayTarget: () => void;
   private tag: string;
   private context: RenderContext;
 
@@ -1778,6 +1787,11 @@ class ElementRenderedNode implements RenderedNode {
     this.node = node;
     this.tag = tag;
     this.context = context;
+    this.unregisterReplayTarget = ɵregisterCraftReplayTarget(
+      node,
+      context.identity.path,
+      context.replayTargetStable !== false,
+    );
     this.patchProperties(initial);
     this.installDialog(initial);
     const nested =
@@ -2166,6 +2180,7 @@ class ElementRenderedNode implements RenderedNode {
   }
 
   destroy(): void {
+    this.unregisterReplayTarget();
     this.dialogCleanup?.();
     this.bindings.forEach(({ effectRef }) => effectRef.destroy());
     this.bindings.clear();
@@ -2617,6 +2632,9 @@ class ForRenderedNode implements RenderedNode {
             this.context.identity,
             `item:${String(key)}`,
           ),
+          replayTargetStable:
+            this.context.replayTargetStable !== false &&
+            String(key) !== String(index),
         });
         entry = {
           key,
@@ -2678,7 +2696,10 @@ class ForRenderedNode implements RenderedNode {
 
     this.scheduler = createForScheduler(
       policy ?? { enabled: false, strategy: 'sync', frameBudgetMs: 4 },
-      () => runInInjectionContext(this.context.injector, () => ɵinjectCraftTemporalRuntime()),
+      () =>
+        runInInjectionContext(this.context.injector, () =>
+          ɵinjectCraftTemporalRuntime(),
+        ),
     );
     this.ownsScheduler = true;
   }
@@ -4229,84 +4250,90 @@ class ComponentRenderedNode implements RenderedNode {
       runInInjectionContext(
         composition ? parentInjector : this.environmentInjector!,
         () =>
-          craftUse(craftEffect(
-            'component-render',
-            composition
-              ? (onCleanup: (cleanup: () => void) => void) => {
-                  // Input-bound providers own a stable scope. Template and host
-                  // updates are tracked by the dedicated template effect below.
-                  // Preserve the reactive scope lifecycle of withProviders.
-                  if (!composition.componentProviders) {
-                    this.propSources.forEach((source) => source());
-                    this.hostPropsSource();
-                  }
-                  untracked(() =>
-                    this.refreshComposedComponent(
-                      definition,
-                      args,
-                      componentElement,
-                      parentInjector,
-                      additionalProviders,
-                      hostTarget,
-                      context,
-                      componentRenderContext,
-                      onCleanup,
-                    ),
-                  );
-                  this.providerTrackers.forEach((tracker) => tracker());
-                }
-              : () => {
-                  try {
-                    const callSiteHostProps = this.hostPropsSource();
-                    const hostProps = mergeHostProps(
-                      definition.meta.host ?? {},
-                      callSiteHostProps,
-                    );
-                    const renderContext = childContext(componentRenderContext, {
-                      injector: this.environmentInjector!,
-                      componentContext: this.resolvedServices,
-                    });
-                    this.traceState.renderCount += 1;
-                    this.latestTemplate = executeTemplateTrace(
-                      renderContext.injector,
-                      traceContext(
-                        renderContext,
-                        'component',
-                        this.traceState.renderCount === 1
-                          ? 'initialRender'
-                          : 'update',
-                        definition.name,
+          craftUse(
+            craftEffect(
+              'component-render',
+              composition
+                ? (onCleanup: (cleanup: () => void) => void) => {
+                    // Input-bound providers own a stable scope. Template and host
+                    // updates are tracked by the dedicated template effect below.
+                    // Preserve the reactive scope lifecycle of withProviders.
+                    if (!composition.componentProviders) {
+                      this.propSources.forEach((source) => source());
+                      this.hostPropsSource();
+                    }
+                    untracked(() =>
+                      this.refreshComposedComponent(
+                        definition,
+                        args,
+                        componentElement,
+                        parentInjector,
+                        additionalProviders,
+                        hostTarget,
+                        context,
+                        componentRenderContext,
+                        onCleanup,
                       ),
-                      () =>
-                        withCraftRenderContext(renderContext, () => {
-                          this.resolvedServices.length = 0;
-                          return renderCraftComponentTemplate(
-                            definition,
-                            args,
-                            callSiteHostProps,
-                            renderContext.injector,
-                            (instance) => this.resolvedServices.push(instance),
-                          );
-                        }),
                     );
-                    this.view.patchChildren(this.latestTemplate);
-                    this.hostBindings?.patch(hostProps);
-                    context.exceptionBoundaryResolved?.();
-                  } catch (error) {
-                    if (
-                      isCraftGenShortCircuit(error) &&
-                      context.exceptionBoundary?.(error.exception)
-                    ) {
-                      this.view.patchChildren([]);
-                      return;
-                    }
-                    if (isCraftGenShortCircuit(error)) {
-                      throw new CraftUnhandledExceptionError(error.exception);
-                    }
-                    throw error;
+                    this.providerTrackers.forEach((tracker) => tracker());
                   }
-                },
-          )),
+                : () => {
+                    try {
+                      const callSiteHostProps = this.hostPropsSource();
+                      const hostProps = mergeHostProps(
+                        definition.meta.host ?? {},
+                        callSiteHostProps,
+                      );
+                      const renderContext = childContext(
+                        componentRenderContext,
+                        {
+                          injector: this.environmentInjector!,
+                          componentContext: this.resolvedServices,
+                        },
+                      );
+                      this.traceState.renderCount += 1;
+                      this.latestTemplate = executeTemplateTrace(
+                        renderContext.injector,
+                        traceContext(
+                          renderContext,
+                          'component',
+                          this.traceState.renderCount === 1
+                            ? 'initialRender'
+                            : 'update',
+                          definition.name,
+                        ),
+                        () =>
+                          withCraftRenderContext(renderContext, () => {
+                            this.resolvedServices.length = 0;
+                            return renderCraftComponentTemplate(
+                              definition,
+                              args,
+                              callSiteHostProps,
+                              renderContext.injector,
+                              (instance) =>
+                                this.resolvedServices.push(instance),
+                            );
+                          }),
+                      );
+                      this.view.patchChildren(this.latestTemplate);
+                      this.hostBindings?.patch(hostProps);
+                      context.exceptionBoundaryResolved?.();
+                    } catch (error) {
+                      if (
+                        isCraftGenShortCircuit(error) &&
+                        context.exceptionBoundary?.(error.exception)
+                      ) {
+                        this.view.patchChildren([]);
+                        return;
+                      }
+                      if (isCraftGenShortCircuit(error)) {
+                        throw new CraftUnhandledExceptionError(error.exception);
+                      }
+                      throw error;
+                    }
+                  },
+            ),
+          ),
       ),
     );
   }
@@ -4474,17 +4501,9 @@ class ComponentRenderedNode implements RenderedNode {
 
     this.composedTemplateEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
-        craftUse(craftEffect('component-template', () => {
-          this.renderComposedTemplate(
-            definition,
-            args,
-            renderInjector,
-            renderContext,
-            context,
-            hostTarget,
-          );
-          if (composition.catchNodePosition && !this.componentExceptionEffect) {
-            this.installComponentExceptionEffect(
+        craftUse(
+          craftEffect('component-template', () => {
+            this.renderComposedTemplate(
               definition,
               args,
               renderInjector,
@@ -4492,8 +4511,21 @@ class ComponentRenderedNode implements RenderedNode {
               context,
               hostTarget,
             );
-          }
-        })),
+            if (
+              composition.catchNodePosition &&
+              !this.componentExceptionEffect
+            ) {
+              this.installComponentExceptionEffect(
+                definition,
+                args,
+                renderInjector,
+                renderContext,
+                context,
+                hostTarget,
+              );
+            }
+          }),
+        ),
       ),
     );
     this.syncTemplateFlushRelease?.();
@@ -4519,66 +4551,70 @@ class ComponentRenderedNode implements RenderedNode {
   ): void {
     this.componentExceptionEffect = untracked(() =>
       runInInjectionContext(renderInjector, () =>
-        craftUse(craftEffect(
-          'component-catch-node-resource-exceptions',
-          () => {
-            const exception = findResourceException(this.resolvedServices);
-            if (exception) {
-              if (
-                renderContext.handledResourceExceptionCodes?.has(exception._tag)
-              ) {
-                if (this.componentFallbackVisible) {
-                  this.componentFallbackVisible = false;
-                  this.componentFallbackException = undefined;
-                  untracked(() =>
-                    this.renderComposedTemplate(
-                      definition,
-                      args,
-                      renderInjector,
-                      renderContext,
-                      context,
-                      hostTarget,
-                    ),
-                  );
+        craftUse(
+          craftEffect(
+            'component-catch-node-resource-exceptions',
+            () => {
+              const exception = findResourceException(this.resolvedServices);
+              if (exception) {
+                if (
+                  renderContext.handledResourceExceptionCodes?.has(
+                    exception._tag,
+                  )
+                ) {
+                  if (this.componentFallbackVisible) {
+                    this.componentFallbackVisible = false;
+                    this.componentFallbackException = undefined;
+                    untracked(() =>
+                      this.renderComposedTemplate(
+                        definition,
+                        args,
+                        renderInjector,
+                        renderContext,
+                        context,
+                        hostTarget,
+                      ),
+                    );
+                  }
+                  return;
                 }
-                return;
+                if (
+                  this.componentFallbackVisible &&
+                  this.componentFallbackException === exception
+                ) {
+                  return;
+                }
+                this.componentFallbackVisible = true;
+                this.componentFallbackException = exception;
+                untracked(() =>
+                  this.renderComposedException(
+                    definition,
+                    exception,
+                    renderInjector,
+                    renderContext,
+                    context,
+                    hostTarget,
+                    true,
+                  ),
+                );
+              } else if (this.componentFallbackVisible) {
+                this.componentFallbackVisible = false;
+                this.componentFallbackException = undefined;
+                untracked(() =>
+                  this.renderComposedTemplate(
+                    definition,
+                    args,
+                    renderInjector,
+                    renderContext,
+                    context,
+                    hostTarget,
+                  ),
+                );
               }
-              if (
-                this.componentFallbackVisible &&
-                this.componentFallbackException === exception
-              ) {
-                return;
-              }
-              this.componentFallbackVisible = true;
-              this.componentFallbackException = exception;
-              untracked(() =>
-                this.renderComposedException(
-                  definition,
-                  exception,
-                  renderInjector,
-                  renderContext,
-                  context,
-                  hostTarget,
-                  true,
-                ),
-              );
-            } else if (this.componentFallbackVisible) {
-              this.componentFallbackVisible = false;
-              this.componentFallbackException = undefined;
-              untracked(() =>
-                this.renderComposedTemplate(
-                  definition,
-                  args,
-                  renderInjector,
-                  renderContext,
-                  context,
-                  hostTarget,
-                ),
-              );
-            }
-          },
-          { manualCleanup: true },
-        )),
+            },
+            { manualCleanup: true },
+          ),
+        ),
       ),
     );
   }
@@ -4894,6 +4930,8 @@ class DeferRenderedNode implements RenderedNode {
   private triggerTimer: TemporalTaskHandle | undefined;
   private loadedValue: unknown;
   private loadError: unknown;
+  private readonly replayTargetId: string;
+  private readonly unregisterReplayTarget: () => void;
 
   private node: DeferNode<unknown>;
   private readonly parent: NativeParent;
@@ -4917,7 +4955,27 @@ class DeferRenderedNode implements RenderedNode {
         : [],
       'craft-defer',
     );
-    this.installTrigger();
+    const triggerElement = this.firstElementInView();
+    const replayTarget = triggerElement
+      ? ɵcaptureCraftReplayTarget(triggerElement)
+      : undefined;
+    const registration = ɵregisterCraftDeferReplayTarget(
+      replayTarget
+        ? [
+            ...replayTarget.componentPath,
+            ...replayTarget.localTargetPath.map(String),
+          ]
+        : [...context.identity.path, 'defer'],
+      () => this.startLoad('replay', true),
+      replayTarget?.stability !== 'unstable' &&
+        context.replayTargetStable !== false,
+    );
+    this.replayTargetId = registration.id;
+    this.unregisterReplayTarget = registration.unregister;
+    // Replay drives this node from its recorded activation step. Installing
+    // native or browser triggers here would race that step and run the loader
+    // twice.
+    if (!isCraftReplaying()) this.installTrigger();
   }
 
   firstNode(): NativeNode {
@@ -4975,7 +5033,7 @@ class DeferRenderedNode implements RenderedNode {
 
   private installTrigger(): void {
     if (this.node.trigger === 'immediate') {
-      this.startLoad();
+      this.startLoad('immediate');
       return;
     }
 
@@ -4988,11 +5046,13 @@ class DeferRenderedNode implements RenderedNode {
           })
         | undefined;
       if (idleWindow?.requestIdleCallback) {
-        const handle = idleWindow.requestIdleCallback(() => this.startLoad());
+        const handle = idleWindow.requestIdleCallback(() =>
+          this.startLoad('idle'),
+        );
         this.triggerCleanup = () => idleWindow.cancelIdleCallback?.(handle);
       } else {
         this.triggerTimer = ɵinjectCraftTemporalRuntime().schedule(
-          () => this.startLoad(),
+          () => this.startLoad('idle'),
           0,
           {
             kind: 'defer-trigger',
@@ -5013,7 +5073,7 @@ class DeferRenderedNode implements RenderedNode {
         const observer = new IntersectionObserver((entries) => {
           if (entries.some((entry) => entry.isIntersecting)) {
             observer.disconnect();
-            this.startLoad();
+            this.startLoad('viewport');
           }
         });
         observer.observe(target);
@@ -5049,11 +5109,13 @@ class DeferRenderedNode implements RenderedNode {
             ),
           };
           runInInjectionContext(this.context.injector, () =>
-            executeDomEventHooks(hooks, interaction, () => this.startLoad()),
+            executeDomEventHooks(hooks, interaction, () =>
+              this.startLoad('interaction'),
+            ),
           );
           return;
         }
-        this.startLoad();
+        this.startLoad('interaction');
       };
       if (isElementNode(target)) {
         const tag = target.tagName.toLowerCase();
@@ -5082,7 +5144,7 @@ class DeferRenderedNode implements RenderedNode {
     }
 
     this.triggerTimer = ɵinjectCraftTemporalRuntime().schedule(
-      () => this.startLoad(),
+      () => this.startLoad(this.node.trigger),
       0,
       {
         kind: 'defer-trigger',
@@ -5113,10 +5175,34 @@ class DeferRenderedNode implements RenderedNode {
     }
   }
 
-  private startLoad(): void {
+  private startLoad(
+    trigger: string,
+    replay = false,
+  ): Promise<'loaded' | 'error'> {
     if (this.state !== 'placeholder' || this.destroyed) {
-      return;
+      return Promise.resolve('error');
     }
+    if (isCraftReplaying() && !replay) return Promise.resolve('error');
+    const session = runInInjectionContext(this.context.injector, () =>
+      ɵinjectSendContextSession(),
+    );
+    const activation =
+      session && !replay
+        ? session.capture('defer', 'started', {
+            name: trigger,
+            ...(trigger === 'interaction'
+              ? {
+                  correlationId: runInInjectionContext(
+                    this.context.injector,
+                    () =>
+                      ɵinjectCorrelationIdService()?.lastCorrelationId() ??
+                      undefined,
+                  ),
+                }
+              : {}),
+            payload: { targetId: this.replayTargetId, trigger },
+          })
+        : undefined;
     this.state = 'loading';
     this.triggerCleanup?.();
     this.triggerCleanup = undefined;
@@ -5134,16 +5220,16 @@ class DeferRenderedNode implements RenderedNode {
     );
 
     const loader = this.node.loader;
-    executeCraftComponentFactoryAsync(
+    return executeCraftComponentFactoryAsync(
       function* () {
         return yield* craftLazy(loader);
       },
       [],
       this.context.injector,
     )
-      .then((settled) => {
+      .then((settled): 'loaded' | 'error' => {
         if (this.destroyed) {
-          return;
+          return 'error';
         }
         if (settled.kind === 'shortCircuit') {
           this.state = 'error';
@@ -5156,7 +5242,18 @@ class DeferRenderedNode implements RenderedNode {
               : [],
           );
           this.setBusy(false);
-          return;
+          if (activation)
+            session?.capture('defer', 'failed', {
+              name: trigger,
+              operationId: activation.id,
+              payload: {
+                targetId: this.replayTargetId,
+                activationEventId: activation.id,
+                outcome: 'error',
+              },
+              response: settled.exception,
+            });
+          return 'error';
         }
 
         this.state = 'loaded';
@@ -5167,8 +5264,19 @@ class DeferRenderedNode implements RenderedNode {
           ]),
         );
         this.setBusy(false);
+        if (activation)
+          session?.capture('defer', 'succeeded', {
+            name: trigger,
+            operationId: activation.id,
+            payload: {
+              targetId: this.replayTargetId,
+              activationEventId: activation.id,
+              outcome: 'loaded',
+            },
+          });
+        return 'loaded';
       })
-      .catch((error: unknown) => {
+      .catch((error: unknown): 'loaded' | 'error' => {
         if (!this.destroyed) {
           this.state = 'error';
           this.loadError = error;
@@ -5181,11 +5289,24 @@ class DeferRenderedNode implements RenderedNode {
           );
           this.setBusy(false);
         }
+        if (activation)
+          session?.capture('defer', 'failed', {
+            name: trigger,
+            operationId: activation.id,
+            payload: {
+              targetId: this.replayTargetId,
+              activationEventId: activation.id,
+              outcome: 'error',
+            },
+            response: error,
+          });
+        return 'error';
       });
   }
 
   destroy(): void {
     this.destroyed = true;
+    this.unregisterReplayTarget();
     this.triggerCleanup?.();
     this.view.destroy();
   }

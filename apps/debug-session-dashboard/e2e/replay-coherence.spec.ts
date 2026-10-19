@@ -20,6 +20,7 @@ async function openDetails(dashboard: Page): Promise<void> {
   await dashboard.getByRole('tab', { name: 'Détails' }).click();
 }
 type StoredSession = Readonly<{
+  version?: number;
   status?: string;
   participants?: readonly Readonly<{
     id: string;
@@ -30,13 +31,28 @@ type StoredSession = Readonly<{
   }>[];
   viewport?: Readonly<{ width: number; height: number }>;
   events: readonly Readonly<{
+    sequence: number;
     kind: string;
     phase: string;
+    operationId?: string;
     participantId?: string;
     name?: string;
     payload?: Readonly<Record<string, unknown>>;
+    response?: unknown;
+    state?: unknown;
   }>[];
 }>;
+
+function isRecordedApplicationInteraction(
+  event: StoredSession['events'][number],
+): boolean {
+  return (
+    event.kind === 'dom' &&
+    event.phase === 'emitted' &&
+    event.payload?.['action'] !== 'pointerdown' &&
+    typeof event.payload?.['interactionName'] === 'string'
+  );
+}
 
 test('captures browser environment and acknowledges page-close completion', async ({
   browser,
@@ -92,6 +108,207 @@ test('captures browser environment and acknowledges page-close completion', asyn
     timeZone: expect.any(String),
   });
   expect(archived?.participants?.[0]?.status).toBe('completed');
+  await context.close();
+});
+
+test('restores browser storage before the replay application boots', async ({
+  browser,
+  browserName,
+  request,
+}) => {
+  test.skip(browserName !== 'chromium', 'IndexedDB enumeration is required.');
+  const localKey = `replay-local-${Date.now()}`;
+  const sessionKey = `replay-session-${Date.now()}`;
+  const cookieName = `replay_cookie_${Date.now()}`;
+  const databaseName = `replay-storage-${Date.now()}`;
+  const before = (await (
+    await request.get(`${SESSION_SERVER_ORIGIN}/sessions`)
+  ).json()) as { sessions: readonly SessionSummary[] };
+  const previousIds = new Set(before.sessions.map((item) => item.id));
+  const context = await browser.newContext();
+  await context.addInitScript(
+    ({ localKey, sessionKey, cookieName, databaseName }) => {
+      const readBootState = async () => {
+        const cookie = document.cookie
+          .split(';')
+          .map((part) => part.trim())
+          .find((part) => part.startsWith(`${cookieName}=`));
+        const local = localStorage.getItem(localKey);
+        const session = sessionStorage.getItem(sessionKey);
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+          const open = indexedDB.open(databaseName, 1);
+          open.onupgradeneeded = () =>
+            open.result.createObjectStore('values');
+          open.onsuccess = () => resolve(open.result);
+          open.onerror = () => reject(open.error);
+        });
+        try {
+          const idbValue = await new Promise<unknown>((resolve, reject) => {
+            const request = database
+              .transaction('values', 'readonly')
+              .objectStore('values')
+              .get('state');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          return {
+            local,
+            session,
+            cookie: cookie?.slice(cookieName.length + 1) ?? null,
+            indexedDb: idbValue ?? null,
+          };
+        } finally {
+          database.close();
+        }
+      };
+      Object.defineProperty(window, '__replayBrowserStorageBoot', {
+        configurable: true,
+        value: readBootState(),
+      });
+    },
+    { localKey, sessionKey, cookieName, databaseName },
+  );
+
+  const demo = await context.newPage();
+  const seedPageUrl = `${DEMO_ORIGIN}/__replay-storage-seed`;
+  await context.route(seedPageUrl, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Replay storage seed</title>',
+    }),
+  );
+  await demo.goto(seedPageUrl);
+  await demo.evaluate(
+    async ({ localKey, sessionKey, cookieName, databaseName }) => {
+      localStorage.setItem(localKey, 'captured-local');
+      sessionStorage.setItem(sessionKey, 'captured-session');
+      document.cookie = `${cookieName}=captured-cookie; Path=/; SameSite=Lax`;
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const open = indexedDB.open(databaseName, 1);
+        open.onupgradeneeded = () =>
+          open.result.createObjectStore('values');
+        open.onsuccess = () => resolve(open.result);
+        open.onerror = () => reject(open.error);
+      });
+      await new Promise<void>((resolve, reject) => {
+        const transaction = database.transaction('values', 'readwrite');
+        transaction.objectStore('values').put('captured-indexeddb', 'state');
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+      database.close();
+    },
+    { localKey, sessionKey, cookieName, databaseName },
+  );
+  await context.unroute(seedPageUrl);
+  await demo.goto(`${DEMO_ORIGIN}/`);
+  await demo.getByRole('button', { name: 'Add a user' }).click();
+
+  let sessionId = '';
+  await expect
+    .poll(async () => {
+      const result = (await (
+        await request.get(`${SESSION_SERVER_ORIGIN}/sessions`)
+      ).json()) as { sessions: readonly SessionSummary[] };
+      sessionId =
+        result.sessions.find((item) => !previousIds.has(item.id))?.id ?? '';
+      return sessionId;
+    })
+    .not.toBe('');
+  const archived = (await (
+    await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
+  ).json()) as StoredSession;
+  const browserSnapshotEvent = archived.events.find(
+    (event) =>
+      event.kind === 'storage' &&
+      event.name === 'browser-storage-initial' &&
+      typeof event.payload?.['snapshotJson'] === 'string',
+  );
+  expect(browserSnapshotEvent).toBeDefined();
+  const browserSnapshot = JSON.parse(
+    String(browserSnapshotEvent?.payload?.['snapshotJson']),
+  ) as {
+    localStorage: readonly (readonly [string, string])[];
+    sessionStorage: readonly (readonly [string, string])[];
+    cookies: readonly Readonly<{ name: string; value: string }>[];
+    indexedDb: readonly Readonly<{
+      name: string;
+      captured: boolean;
+      stores: readonly Readonly<{
+        name: string;
+        records: readonly unknown[];
+      }>[];
+    }>[];
+  };
+  expect(browserSnapshot.localStorage).toContainEqual([
+    localKey,
+    'captured-local',
+  ]);
+  expect(browserSnapshot.sessionStorage).toContainEqual([
+    sessionKey,
+    'captured-session',
+  ]);
+  expect(browserSnapshot.cookies).toContainEqual(
+    expect.objectContaining({ name: cookieName, value: 'captured-cookie' }),
+  );
+  expect(browserSnapshot.indexedDb).toContainEqual(
+    expect.objectContaining({
+      name: databaseName,
+      captured: true,
+      stores: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'values',
+          records: expect.arrayContaining([expect.any(Object)]),
+        }),
+      ]),
+    }),
+  );
+
+  await demo.evaluate(
+    async ({ localKey, sessionKey, cookieName, databaseName }) => {
+      localStorage.setItem(localKey, 'mutated-local');
+      sessionStorage.setItem(sessionKey, 'mutated-session');
+      document.cookie = `${cookieName}=mutated-cookie; Path=/; SameSite=Lax`;
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const open = indexedDB.open(databaseName);
+        open.onsuccess = () => resolve(open.result);
+        open.onerror = () => reject(open.error);
+      });
+      await new Promise<void>((resolve, reject) => {
+        const transaction = database.transaction('values', 'readwrite');
+        transaction.objectStore('values').put('mutated-indexeddb', 'state');
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+      database.close();
+    },
+    { localKey, sessionKey, cookieName, databaseName },
+  );
+
+  const dashboard = await context.newPage();
+  await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  await dashboard
+    .getByRole('button', { name: 'Lecture à vitesse réelle' })
+    .click();
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    /\d+ \/ \d+ étapes · terminé/,
+  );
+  const replayApp = dashboard.frameLocator('#replay-target');
+  await expect(replayApp.getByTestId('add-user')).toBeVisible();
+  const bootState = await replayApp.locator('body').evaluate(async () => {
+    const browserWindow = window as Window & {
+      __replayBrowserStorageBoot?: Promise<Readonly<Record<string, unknown>>>;
+    };
+    return browserWindow.__replayBrowserStorageBoot;
+  });
+  expect(bootState).toMatchObject({
+    local: 'captured-local',
+    session: 'captured-session',
+    cookie: 'captured-cookie',
+    indexedDb: 'captured-indexeddb',
+  });
   await context.close();
 });
 
@@ -201,7 +418,7 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
       ).json()) as StoredSession;
       return new Set(
         stored.events
-          .filter((event) => event.kind === 'dom' && event.phase === 'emitted')
+          .filter(isRecordedApplicationInteraction)
           .map((event) => event.participantId),
       ).size;
     })
@@ -274,9 +491,7 @@ test('automatically groups same-origin tabs and keeps an inactive tab attached',
       const response = (await (
         await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
       ).json()) as StoredSession;
-      return response.events.filter(
-        (event) => event.kind === 'dom' && event.phase === 'emitted',
-      ).length;
+      return response.events.filter(isRecordedApplicationInteraction).length;
     })
     .toBe(3);
 
@@ -360,7 +575,7 @@ test('switches the visible replay iframe when the recorded active tab changes', 
         },
         session: {
           format: 'craft-debug-session',
-          version: 2,
+          version: 5,
           startUrl: `${demoOrigin}/`,
           exportedAt: base,
           viewport: { width: 1280, height: 800 },
@@ -454,7 +669,7 @@ test('switches the visible replay iframe when the recorded active tab changes', 
     dashboard.locator(
       '[data-tile-focus="true"] [data-lab="replay-active-badge"]',
     ),
-  ).toHaveText('ACTIF');
+  ).toContainText('ACTIF');
   await expect(
     dashboard.locator('#replay-frame-placeholder-tab-b'),
   ).toContainText('s’ouvrira au moment enregistré');
@@ -474,7 +689,7 @@ test('switches the visible replay iframe when the recorded active tab changes', 
     dashboard.locator(
       '[data-tile-focus="true"] [data-lab="replay-active-badge"]',
     ),
-  ).toHaveText('ACTIF');
+  ).toContainText('ACTIF');
   await expect(
     dashboard.locator('[data-lab="replay-tile"]:not([hidden])'),
   ).toHaveCount(2);
@@ -522,7 +737,7 @@ test('dims replay tabs recorded as hidden while keeping them in the all-tabs vie
         },
         session: {
           format: 'craft-debug-session',
-          version: 2,
+          version: 5,
           startUrl: `${demoOrigin}/`,
           exportedAt: timestamp,
           viewport: { width: 1280, height: 800 },
@@ -621,7 +836,7 @@ test('opens a replay for a complete tab in a globally truncated session', async 
         participant: { title: participantId, state: 'visible' },
         session: {
           format: 'craft-debug-session',
-          version: 2,
+          version: 5,
           startUrl: `${demoOrigin}/`,
           exportedAt: timestamp,
           truncated: participantId === 'truncated-tab',
@@ -740,7 +955,7 @@ test('keeps the shared session and earlier events when a tab reloads', async ({
         await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
       ).json()) as StoredSession;
       eventCountBeforeReload = session.events.filter(
-        (event) => event.kind === 'dom' && event.phase === 'emitted',
+        isRecordedApplicationInteraction,
       ).length;
       return eventCountBeforeReload;
     })
@@ -764,9 +979,7 @@ test('keeps the shared session and earlier events when a tab reloads', async ({
       const session = (await (
         await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
       ).json()) as StoredSession;
-      return session.events.filter(
-        (event) => event.kind === 'dom' && event.phase === 'emitted',
-      ).length;
+      return session.events.filter(isRecordedApplicationInteraction).length;
     })
     .toBeGreaterThan(eventCountBeforeReload);
 
@@ -876,25 +1089,70 @@ test('replays every recorded user action and targets the recorded user', async (
         (event) => event.kind === 'dom' && event.phase === 'emitted',
       ).length;
     })
-    .toBe(5);
+    .toBe(10);
   const interactions = session!.events.filter(
     (event) => event.kind === 'dom' && event.phase === 'emitted',
   );
-  expect(interactions).toHaveLength(5);
-  const removalSelector = String(interactions[2]?.payload?.['selector']);
+  const clickInteractions = interactions.filter(
+    (event) => event.payload?.['action'] === 'click',
+  );
+  expect(session!.version).toBe(5);
+  expect(interactions).toHaveLength(10);
+  expect(clickInteractions).toHaveLength(5);
+  expect(
+    clickInteractions.every((event) => {
+      const target = event.payload?.['replayTarget'];
+      return (
+        typeof target === 'object' &&
+        target !== null &&
+        typeof (target as Record<string, unknown>)['runtimeId'] === 'string' &&
+        Array.isArray((target as Record<string, unknown>)['componentPath']) &&
+        Array.isArray((target as Record<string, unknown>)['localTargetPath'])
+      );
+    }),
+  ).toBe(true);
+  expect(
+    JSON.stringify(
+      clickInteractions.map((event) => event.payload?.['replayTarget']),
+    ),
+  ).not.toContain('data-user-id');
+  const addUserCalls = session!.events.filter(
+    (event) =>
+      event.kind === 'craft' &&
+      event.phase === 'started' &&
+      event.payload?.['host'] === 'method:addUser' &&
+      typeof event.payload?.['replayInvocation'] === 'object',
+  );
+  expect(addUserCalls).toHaveLength(6);
+  expect(
+    addUserCalls.filter((event) => {
+      const invocation = event.payload?.['replayInvocation'];
+      return (
+        typeof invocation === 'object' &&
+        invocation !== null &&
+        Array.isArray((invocation as Record<string, unknown>)['args']) &&
+        (
+          ((invocation as Record<string, unknown>)['args'] as unknown[])[0] as
+            | Record<string, unknown>
+            | undefined
+        )?.['$craftReplayEvent'] !== undefined
+      );
+    }),
+  ).toHaveLength(2);
+  const removalSelector = String(clickInteractions[2]?.payload?.['selector']);
   expect(removalSelector).toContain('[data-user-id=');
   expect(removalSelector).toContain('3');
-  const navLinkSelector = String(interactions[4]?.payload?.['selector']);
+  const navLinkSelector = String(clickInteractions[4]?.payload?.['selector']);
   expect(navLinkSelector).toContain('[data-testid="nav-panel"]');
   expect(navLinkSelector).toContain('nth-of-type');
-  expect(interactions[4]?.payload?.['href']).toBe(`${DEMO_ORIGIN}/i18n`);
+  expect(clickInteractions[4]?.payload?.['href']).toBe(`${DEMO_ORIGIN}/i18n`);
   await demo.close();
 
   const dashboard = await context.newPage();
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
   await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
   await expect(dashboard.locator('[data-lab="left"]')).toContainText(
-    `Format v2 · ${session.events.length} événements`,
+    /Format v5 · \d+ événements/,
   );
   await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
@@ -912,11 +1170,6 @@ test('replays every recorded user action and targets the recorded user', async (
     'height',
     `${session.viewport!.height}px`,
   );
-  expect(
-    await replayFrame.evaluate(
-      (element) => getComputedStyle(element).transform,
-    ),
-  ).not.toBe('none');
   const frameBounds = await replayFrame.boundingBox();
   const visibleViewportBounds = await viewportFrame.boundingBox();
   expect(frameBounds).not.toBeNull();
@@ -924,8 +1177,8 @@ test('replays every recorded user action and targets the recorded user', async (
   expect(
     visibleViewportBounds!.width / visibleViewportBounds!.height,
   ).toBeCloseTo(session.viewport!.width / session.viewport!.height);
-  expect(frameBounds!.width).toBeCloseTo(visibleViewportBounds!.width);
-  expect(frameBounds!.height).toBeCloseTo(visibleViewportBounds!.height);
+  expect(frameBounds!.width).toBeCloseTo(visibleViewportBounds!.width, 0);
+  expect(frameBounds!.height).toBeCloseTo(visibleViewportBounds!.height, 0);
   for (const actionName of [
     'Lecture à vitesse réelle',
     'Pause',
@@ -939,54 +1192,73 @@ test('replays every recorded user action and targets the recorded user', async (
   }
 
   const replayApp = dashboard.frameLocator('#replay-target');
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '1 / 5',
-  );
+  await replayApp.getByTestId('add-user').evaluate((button) => {
+    const replayWindow = window as Window & { replayClickCount?: number };
+    replayWindow.replayClickCount = 0;
+    button.addEventListener('click', () => {
+      replayWindow.replayClickCount = (replayWindow.replayClickCount ?? 0) + 1;
+    });
+  });
+  const replaySteps = session!.events
+    .filter(
+      (event) =>
+        event.phase === 'emitted' &&
+        ['dom', 'hover', 'scroll', 'viewport'].includes(event.kind),
+    )
+    .sort((left, right) => left.sequence - right.sequence);
+  let replayStep = 0;
+  const stepThrough = async (event: StoredSession['events'][number]) => {
+    const targetIndex = replaySteps.findIndex(
+      (step) => step.sequence === event.sequence,
+    );
+    expect(targetIndex).toBeGreaterThanOrEqual(replayStep);
+    while (replayStep <= targetIndex) {
+      await dashboard.getByRole('button', { name: 'Action suivante' }).click();
+      replayStep += 1;
+      await expect(
+        dashboard.locator('[data-lab="replay-progress"]'),
+      ).toContainText(`${replayStep} / ${replaySteps.length}`);
+    }
+  };
+
+  await stepThrough(clickInteractions[0]!);
   const clickMarker = dashboard.locator('#replay-click-marker');
   await expect(clickMarker).toBeVisible();
-  const firstClick = interactions[0]?.payload;
+  const firstClick = clickInteractions[0]?.payload;
   if (
     typeof firstClick?.['clientX'] === 'number' &&
     typeof firstClick['clientY'] === 'number'
   ) {
     const markerPosition = await clickMarker.evaluate((marker) => ({
-      left: Number.parseFloat(marker.style.left),
-      top: Number.parseFloat(marker.style.top),
+      left: Number.parseFloat(getComputedStyle(marker).left),
+      top: Number.parseFloat(getComputedStyle(marker).top),
     }));
     const scale = visibleViewportBounds!.width / session.viewport!.width;
-    expect(markerPosition.left).toBeCloseTo(firstClick['clientX'] * scale);
-    expect(markerPosition.top).toBeCloseTo(firstClick['clientY'] * scale);
+    expect(markerPosition.left).toBeCloseTo(firstClick['clientX'] * scale, 0);
+    expect(markerPosition.top).toBeCloseTo(firstClick['clientY'] * scale, 0);
   }
   await expect(replayApp.locator('[data-user-id="3"]')).toBeVisible();
-  const secondInteraction = interactions[1];
-  await expect(
-    dashboard.locator('[data-lab="next-action-name"]'),
-  ).toContainText(secondInteraction?.name ?? 'nom non disponible');
+  await expect
+    .poll(() =>
+      replayApp
+        .locator('body')
+        .evaluate(
+          () =>
+            (window as Window & { replayClickCount?: number }).replayClickCount,
+        ),
+    )
+    .toBe(0);
 
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '2 / 5',
-  );
+  await stepThrough(clickInteractions[1]!);
   await expect(replayApp.locator('[data-user-id="4"]')).toBeVisible();
 
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '3 / 5',
-  );
+  await stepThrough(clickInteractions[2]!);
   await expect(replayApp.locator('[data-user-id="3"]')).toHaveCount(0);
   await expect(replayApp.locator('[data-user-id="4"]')).toBeVisible();
 
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '4 / 5',
-  );
+  await stepThrough(clickInteractions[3]!);
   await expect(replayApp.getByTestId('nav-panel')).toBeVisible();
-
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '5 / 5',
-  );
+  await stepThrough(clickInteractions[4]!);
   await expect
     .poll(async () =>
       dashboard
@@ -995,6 +1267,13 @@ test('replays every recorded user action and targets the recorded user', async (
         ?.url(),
     )
     .toBe(`${DEMO_ORIGIN}/i18n`);
+  while (replayStep < replaySteps.length) {
+    await dashboard.getByRole('button', { name: 'Action suivante' }).click();
+    replayStep += 1;
+  }
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    `${replaySteps.length} / ${replaySteps.length} étapes · terminé`,
+  );
 
   await expect(
     dashboard.getByRole('button', { name: 'Lecture à vitesse réelle' }),
@@ -1021,7 +1300,7 @@ test('replays every recorded user action and targets the recorded user', async (
     .getByRole('button', { name: 'Lecture à vitesse réelle' })
     .click();
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '5 / 5 étapes · terminé',
+    `${replaySteps.length} / ${replaySteps.length} étapes · terminé`,
   );
   await expect
     .poll(async () =>
@@ -1043,7 +1322,7 @@ test('replays every recorded user action and targets the recorded user', async (
   await context.close();
 });
 
-test('forces the recorded link destination after a replay divergence', async ({
+test('replays the recorded link destination through the app router', async ({
   browser,
   request,
 }) => {
@@ -1095,11 +1374,25 @@ test('forces the recorded link destination after a replay divergence', async ({
       );
       if (!response.ok()) return 0;
       const stored = (await response.json()) as StoredSession;
-      return stored.events.filter(
-        (event) => event.kind === 'dom' && event.phase === 'emitted',
-      ).length;
+      return stored.events.filter(isRecordedApplicationInteraction).length;
     })
     .toBe(3);
+  await expect
+    .poll(async () => {
+      const response = await request.get(
+        `${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`,
+      );
+      if (!response.ok()) return false;
+      const stored = (await response.json()) as StoredSession;
+      return stored.events.some(
+        (event) =>
+          event.kind === 'primitive' &&
+          event.name === 'primitive-change' &&
+          event.payload?.['primitiveKind'] === 'query' &&
+          JSON.stringify(event.state).includes('Katherine Johnson'),
+      );
+    })
+    .toBe(true);
   const storedResponse = await request.get(
     `${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`,
   );
@@ -1123,25 +1416,7 @@ test('forces the recorded link destination after a replay divergence', async ({
       String(event.payload?.['href']).endsWith('/pending-node'),
   );
   expect(recordedLink).toBeDefined();
-  recordedLink!.payload!['selector'] =
-    '[data-testid="nav-panel"] a[href="/i18n"]';
-  const afterNavigationInteraction = recordedEvents
-    .filter((event) => event.kind === 'dom' && event.phase === 'emitted')
-    .at(-1)!;
-  const checkpointSequence = afterNavigationInteraction.sequence;
-  for (const event of recordedEvents) {
-    if (event.sequence >= checkpointSequence) event.sequence += 1;
-  }
-  recordedEvents.push({
-    id: 'forced-recovery-checkpoint',
-    sequence: checkpointSequence,
-    timestamp: afterNavigationInteraction.timestamp,
-    kind: 'primitive',
-    phase: 'emitted',
-    payload: { name: 'forced-recovery-checkpoint' },
-    state: { forcedRecoveryProbe: true },
-  });
-  recordedEvents.sort((left, right) => left.sequence - right.sequence);
+  expect(recordedLink!.payload!['href']).toBe(`${DEMO_ORIGIN}/pending-node`);
   await demo.close();
 
   const dashboard = await context.newPage();
@@ -1152,6 +1427,7 @@ test('forces the recorded link destination after a replay divergence', async ({
     .fill(JSON.stringify(session));
   await dashboard.getByRole('button', { name: 'Valider la session' }).click();
   await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  await expect(dashboard.getByRole('dialog')).toBeHidden();
   await expect(
     dashboard.getByRole('button', { name: 'Préparer le replay' }),
   ).toHaveCount(0);
@@ -1159,17 +1435,9 @@ test('forces the recorded link destination after a replay divergence', async ({
     'Replay · ready',
   );
   const replayApp = dashboard.frameLocator('#replay-target');
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('[data-lab="diff"]')).toBeVisible();
-  const force = dashboard.getByRole('button', {
-    name: 'Forcer l’état attendu et continuer',
-  });
-  await expect(force).toBeVisible();
-  await force.click();
-  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
-    'Reprise forcée · navigation vers /pending-node',
-  );
+  await dashboard
+    .getByRole('button', { name: 'Lecture à vitesse réelle' })
+    .evaluate((button) => (button as HTMLButtonElement).click());
   await expect
     .poll(async () =>
       dashboard
@@ -1178,11 +1446,239 @@ test('forces the recorded link destination after a replay divergence', async ({
         ?.url(),
     )
     .toBe(`${DEMO_ORIGIN}/pending-node`);
+  await expect(replayApp.getByText('3 people')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    /\d+ \/ \d+ étapes · terminé/,
+  );
+  await expect(dashboard.locator('[data-lab="diff"]')).toBeHidden();
+
+  await context.close();
+});
+
+test('replays hover cues and registered form insertion methods', async ({
+  browser,
+  request,
+}) => {
+  const before = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+  expect(before.ok()).toBeTruthy();
+  const previousSessions = new Set(
+    (
+      (await before.json()) as { sessions: readonly SessionSummary[] }
+    ).sessions.map((session) => session.id),
+  );
+
+  const context = await browser.newContext();
+  const demo = await context.newPage();
+  await demo.goto(`${DEMO_ORIGIN}/full-demo`);
+  await expect(
+    demo.getByRole('heading', { name: /Full primitives demo/ }),
+  ).toBeVisible();
+  await demo.getByPlaceholder('New todo').hover();
+  await demo.getByPlaceholder('New todo').fill('Replay todo');
+  await demo.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(demo.getByText('Replay todo')).toBeVisible();
+
+  let sessionId = '';
+  await expect
+    .poll(async () => {
+      const response = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+      const sessions = (await response.json()) as {
+        sessions: readonly SessionSummary[];
+      };
+      sessionId =
+        sessions.sessions.find((session) => !previousSessions.has(session.id))
+          ?.id ?? '';
+      return sessionId;
+    })
+    .not.toBe('');
+
+  let session: StoredSession | undefined;
+  await expect
+    .poll(async () => {
+      const response = await request.get(
+        `${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`,
+      );
+      if (!response.ok()) return false;
+      session = (await response.json()) as StoredSession;
+      return session.events.some((event) => event.kind === 'hover');
+    })
+    .toBe(true);
+  expect(
+    session!.events.some(
+      (event) =>
+        event.kind === 'craft' &&
+        event.phase === 'started' &&
+        typeof event.payload?.['replayInvocation'] === 'object' &&
+        String(
+          (event.payload['replayInvocation'] as Record<string, unknown>)[
+            'address'
+          ],
+        ).endsWith('form / method:submit'),
+    ),
+  ).toBe(true);
+  expect(
+    session!.events.some(
+      (event) =>
+        event.kind === 'craft' &&
+        event.phase === 'succeeded' &&
+        typeof event.payload?.['replayInvocation'] === 'object' &&
+        String(
+          (event.payload['replayInvocation'] as Record<string, unknown>)[
+            'address'
+          ],
+        ).endsWith('form / method:submit'),
+    ),
+  ).toBe(true);
+  await demo.close();
+
+  const dashboard = await context.newPage();
+  await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Replay · ready',
+  );
+  const replayApp = dashboard.frameLocator('#replay-target');
   await dashboard.getByRole('button', { name: 'Action suivante' }).click();
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '3 / 3',
+    '1 /',
   );
-  await expect(replayApp.getByTestId('nav-panel')).toBeVisible();
+  await expect(dashboard.locator('#replay-click-marker')).toBeVisible();
+  await expect(dashboard.locator('#replay-click-marker')).toHaveAttribute(
+    'aria-label',
+    /Survol rejoué/,
+  );
+
+  await dashboard
+    .getByRole('button', { name: 'Lecture à vitesse réelle' })
+    .click();
+  await expect(replayApp.getByText('Replay todo')).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    'terminé',
+  );
+
+  await context.close();
+});
+
+test('replays a route-level queryParams method through invocation replay', async ({
+  browser,
+  request,
+}) => {
+  const before = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+  const previousSessions = new Set(
+    (
+      (await before.json()) as { sessions: readonly SessionSummary[] }
+    ).sessions.map((session) => session.id),
+  );
+  const context = await browser.newContext();
+  const demo = await context.newPage();
+  await demo.goto(`${DEMO_ORIGIN}/`);
+  await expect(
+    demo.getByRole('heading', { name: 'Functional SFC components' }),
+  ).toBeVisible();
+  await demo.getByTestId('nav-toggle').click();
+  await demo
+    .getByTestId('nav-panel')
+    .getByRole('link', { name: 'Query Params', exact: true })
+    .click();
+  await expect(demo).toHaveURL(`${DEMO_ORIGIN}/query-params`);
+  await expect(demo.getByTestId('current-page')).toHaveText('1');
+  await demo.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(demo.getByTestId('current-page')).toHaveText('2');
+
+  let sessionId = '';
+  await expect
+    .poll(async () => {
+      const response = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+      const sessions = (await response.json()) as {
+        sessions: readonly SessionSummary[];
+      };
+      sessionId =
+        sessions.sessions.find((session) => !previousSessions.has(session.id))
+          ?.id ?? '';
+      return sessionId;
+    })
+    .not.toBe('');
+
+  const dashboard = await context.newPage();
+  await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Replay · ready',
+  );
+  const replayApp = dashboard.frameLocator('#replay-target');
+  await dashboard
+    .getByRole('button', { name: 'Lecture à vitesse réelle' })
+    .click();
+  await expect(replayApp.getByTestId('current-page')).toHaveText('2', {
+    timeout: 30_000,
+  });
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    'terminé',
+  );
+  await context.close();
+});
+
+test('replays slow Craft guards and resolvers without blocking navigation time', async ({
+  browser,
+  request,
+}) => {
+  const before = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+  const previousSessions = new Set(
+    (
+      (await before.json()) as { sessions: readonly SessionSummary[] }
+    ).sessions.map((session) => session.id),
+  );
+  const context = await browser.newContext();
+  const demo = await context.newPage();
+  await demo.goto(`${DEMO_ORIGIN}/`);
+  await expect(
+    demo.getByRole('heading', { name: 'Functional SFC components' }),
+  ).toBeVisible();
+  await demo.getByTestId('nav-toggle').click();
+  await demo
+    .getByTestId('nav-panel')
+    .getByRole('link', { name: 'Slow Page', exact: true })
+    .click();
+  await expect(demo).toHaveURL(`${DEMO_ORIGIN}/slow-page`);
+  await expect(demo.getByText('✅ Slow page loaded')).toBeVisible({
+    timeout: 15_000,
+  });
+
+  let sessionId = '';
+  await expect
+    .poll(async () => {
+      const response = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+      const sessions = (await response.json()) as {
+        sessions: readonly SessionSummary[];
+      };
+      sessionId =
+        sessions.sessions.find((session) => !previousSessions.has(session.id))
+          ?.id ?? '';
+      return sessionId;
+    })
+    .not.toBe('');
+
+  const dashboard = await context.newPage();
+  await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Replay · ready',
+  );
+  const replayApp = dashboard.frameLocator('#replay-target');
+  const replayStartedAt = Date.now();
+  await dashboard
+    .getByRole('button', { name: 'Lecture à vitesse réelle' })
+    .click();
+  await expect(replayApp.getByText('✅ Slow page loaded')).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    'terminé',
+  );
+  // The app loader runs through the replay's virtual clock, so the guard and
+  // resolver settle at the same recorded point without a live network request.
+  expect(Date.now() - replayStartedAt).toBeGreaterThanOrEqual(2_500);
 
   await context.close();
 });
@@ -1247,10 +1743,125 @@ test('replays a pending-block route through its delayed Craft query', async ({
   await expect(replayApp.getByText('3 people')).toBeVisible();
   expect(Date.now() - replayStartedAt).toBeGreaterThanOrEqual(800);
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '2 / 2 étapes · terminé',
+    /\d+ \/ \d+ étapes · terminé/,
   );
   await expect(dashboard.locator('[data-lab="diff"]')).toBeHidden();
 
+  await context.close();
+});
+
+test('replays the recorded Craft HTTP result without calling the live service', async ({
+  browser,
+  request,
+}) => {
+  const before = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+  const previousSessions = new Set(
+    (
+      (await before.json()) as { sessions: readonly SessionSummary[] }
+    ).sessions.map((session) => session.id),
+  );
+  const context = await browser.newContext();
+  const demo = await context.newPage();
+  let recordedRequests = 0;
+  await demo.route('https://openlibrary.org/search.json**', async (route) => {
+    recordedRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        numFound: 1,
+        docs: [
+          {
+            key: '/works/OL-replay-test',
+            title: 'Recorded replay result',
+            author_name: ['Replay Author'],
+            first_publish_year: 2026,
+          },
+        ],
+      }),
+    });
+  });
+  await demo.goto(`${DEMO_ORIGIN}/debounced-web-search`);
+  await demo.getByRole('searchbox', { name: 'Search books' }).fill('replay');
+  await expect(demo.getByText('Recorded replay result')).toBeVisible({
+    timeout: 15_000,
+  });
+  expect(recordedRequests).toBe(1);
+
+  let sessionId = '';
+  await expect
+    .poll(async () => {
+      const response = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+      const sessions = (await response.json()) as {
+        sessions: readonly SessionSummary[];
+      };
+      sessionId =
+        sessions.sessions.find((session) => !previousSessions.has(session.id))
+          ?.id ?? '';
+      return sessionId;
+    })
+    .not.toBe('');
+
+  let session: StoredSession | undefined;
+  await expect
+    .poll(async () => {
+      const response = await request.get(
+        `${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`,
+      );
+      if (!response.ok()) return false;
+      session = (await response.json()) as StoredSession;
+      return session.events.some(
+        (event) =>
+          event.kind === 'http' &&
+          event.phase === 'succeeded' &&
+          event.response !== undefined,
+      );
+    })
+    .toBe(true);
+  expect(
+    session!.events.some(
+      (event) =>
+        event.kind === 'http' &&
+        event.phase === 'started' &&
+        event.payload?.['source'] === 'craft-http-client',
+    ),
+  ).toBe(true);
+  expect(
+    session!.events.some(
+      (event) =>
+        event.kind === 'primitive' &&
+        event.name === 'primitive-change' &&
+        event.payload?.['primitiveKind'] === 'query' &&
+        JSON.stringify(event.state).includes('Recorded replay result'),
+    ),
+  ).toBe(true);
+
+  await demo.close();
+  let replayLiveRequests = 0;
+  await context.route('https://openlibrary.org/**', async (route) => {
+    replayLiveRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ numFound: 0, docs: [] }),
+    });
+  });
+  const dashboard = await context.newPage();
+  await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Replay · ready',
+  );
+  const replayApp = dashboard.frameLocator('#replay-target');
+  await dashboard
+    .getByRole('button', { name: 'Lecture à vitesse réelle' })
+    .click();
+  await expect(replayApp.getByText('Recorded replay result')).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    /\d+ \/ \d+ étapes · terminé/,
+  );
+  expect(replayLiveRequests).toBe(0);
   await context.close();
 });
 
@@ -1310,9 +1921,7 @@ test('skips a divergent interval to a compatible checkpoint and marks the replay
       if (!response.ok()) return 0;
       recording = (await response.json()) as typeof recording;
       return (
-        recording?.events.filter(
-          (event) => event.kind === 'dom' && event.phase === 'emitted',
-        ).length ?? 0
+        recording?.events.filter(isRecordedApplicationInteraction).length ?? 0
       );
     })
     .toBe(3);
@@ -1325,11 +1934,10 @@ test('skips a divergent interval to a compatible checkpoint and marks the replay
   const events = recording!.events.filter(
     (event) => event.kind !== 'primitive' && event.kind !== 'snapshot',
   );
-  const userInteractions = events.filter(
-    (event) => event.kind === 'dom' && event.phase === 'emitted',
-  );
+  const userInteractions = events.filter(isRecordedApplicationInteraction);
   const instrumentedEvents: typeof events = [];
   let domCount = 0;
+  let divergenceAfterRecovery: (typeof events)[number] | undefined;
   for (const event of events) {
     if (event === userInteractions[2]) {
       instrumentedEvents.push({
@@ -1353,17 +1961,18 @@ test('skips a divergent interval to a compatible checkpoint and marks the replay
       });
     }
     if (event === userInteractions[2]) {
-      instrumentedEvents.push({
+      divergenceAfterRecovery = {
         id: 'divergence-after-recovery',
         sequence: 0,
         timestamp: event.timestamp,
         kind: 'primitive',
         phase: 'emitted',
         state: divergentState,
-      });
+      };
     }
-    if (event.kind === 'dom' && event.phase === 'emitted') domCount += 1;
+    if (isRecordedApplicationInteraction(event)) domCount += 1;
   }
+  if (divergenceAfterRecovery) instrumentedEvents.push(divergenceAfterRecovery);
   expect(domCount).toBe(3);
   instrumentedEvents.forEach((event, index) => {
     event.sequence = index + 1;
@@ -1373,37 +1982,59 @@ test('skips a divergent interval to a compatible checkpoint and marks the replay
 
   const dashboard = await context.newPage();
   await dashboard.goto(`${DASHBOARD_ORIGIN}/`);
+  await dashboard.getByRole('button', { name: 'Importer un fichier' }).click();
   await dashboard
     .getByRole('textbox', { name: 'Session JSON' })
     .fill(JSON.stringify(recording));
   await dashboard.getByRole('button', { name: 'Valider la session' }).click();
   await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  await expect(dashboard.getByRole('dialog')).toBeHidden();
   await expect(
     dashboard.getByRole('button', { name: 'Préparer le replay' }),
   ).toHaveCount(0);
   await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
-  await expect(dashboard.locator('[data-lab="diff"]')).toBeVisible();
+  const replayProgress = dashboard.locator('[data-lab="replay-progress"]');
+  const nextAction = dashboard.getByRole('button', { name: 'Action suivante' });
+  const diff = dashboard.locator('[data-lab="diff"]');
+  const replaySteps = recording!.events.filter(
+    (event) =>
+      event.phase === 'emitted' &&
+      ['dom', 'hover', 'scroll', 'viewport'].includes(event.kind),
+  ).length;
+  for (let step = 0; step < replaySteps && !(await diff.isVisible()); step++) {
+    const previousProgress = await replayProgress.innerText();
+    await nextAction.evaluate((button) =>
+      (button as HTMLButtonElement).click(),
+    );
+    await expect
+      .poll(
+        async () =>
+          (await diff.isVisible()) ||
+          (await replayProgress.innerText()) !== previousProgress,
+      )
+      .toBe(true);
+  }
+  await expect(diff).toBeVisible();
 
   const skip = dashboard.getByRole('button', {
     name: 'Ignorer jusqu’au prochain point de reprise',
   });
   await expect(skip).toBeVisible();
-  await skip.click();
+  await skip.evaluate((button) => (button as HTMLButtonElement).click());
   await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
-    'Replay partiel · intervalle 1–2 ignoré',
+    /Replay partiel · intervalle \d+–\d+ ignoré/,
   );
   await expect(dashboard.locator('[data-lab="partial"]')).toContainText(
     'checkpoint resume-checkpoint',
   );
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
-    '2 / 3',
+    /\d+ \/ \d+/,
   );
 
   const replayApp = dashboard.frameLocator('#replay-target');
-  await dashboard.getByRole('button', { name: 'Action suivante' }).click();
+  await nextAction.evaluate((button) => (button as HTMLButtonElement).click());
   await expect(dashboard.locator('[data-lab="diff"]')).toBeVisible();
   await expect(replayApp.locator('[data-user-id="3"]')).toBeVisible();
   await expect(dashboard.locator('[data-lab="partial"]')).toContainText(

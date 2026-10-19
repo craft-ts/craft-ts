@@ -17,7 +17,7 @@ import {
   untracked,
 } from './host/craft-signal';
 import { CraftResourceRef } from './util/craft-resource-ref';
-import { isCraftReplaying } from './craft-replay';
+import { ɵisCraftRestoringState } from './craft-replay';
 import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
 
@@ -84,6 +84,10 @@ export function craftResource<Value, Params>(
         valueState.set(options.defaultValue);
       }
     });
+    // Loaders remain application logic during replay. Their external effects
+    // are replaced at the transport boundary (CraftHttpClient / fetch), while
+    // writing a recorded primitive snapshot must not start another load.
+    if (ɵisCraftRestoringState()) return;
     const loaderParams: ResourceLoaderParams<Params> = {
       params: params as Exclude<Params, undefined>,
       abortSignal: controller.signal,
@@ -163,7 +167,7 @@ export function craftResource<Value, Params>(
     // pair. Claiming the parameter without loading is what `set` already does
     // for a locally set value — "this value belongs to the params in force, do
     // not reload over it" — and it is the same statement here.
-    if (isCraftReplaying()) return;
+    if (ɵisCraftRestoringState()) return;
     if (params === undefined) {
       abortController?.abort();
       ++requestVersion;
@@ -192,7 +196,8 @@ export function craftResource<Value, Params>(
       : undefined;
   let paramsWatch: ReturnType<typeof craftWatch> | undefined;
   const platform = ɵinjectCraftPlatform();
-  const abortForRequest = () => abortController?.abort(platform?.requestSignal?.reason);
+  const abortForRequest = () =>
+    abortController?.abort(platform?.requestSignal?.reason);
   if (platform?.requestSignal) {
     platform.requestSignal.addEventListener('abort', abortForRequest, {
       once: true,
@@ -276,6 +281,23 @@ export function craftResource<Value, Params>(
    * FROM the loader, so it settles as resolved and the resource stays attached.
    */
   const restore = (next: Value | undefined): void => publish(next, 'resolved');
+  const restoreError = (nextError: unknown): void => {
+    abortController?.abort();
+    stopStream?.();
+    stopStream = undefined;
+    ++requestVersion;
+    if (options.params) {
+      currentParams = untracked(() => options.params!());
+      hasCurrentParams = true;
+    }
+    craftBatch(() => {
+      valueState.set(undefined);
+      errorState.set(
+        nextError instanceof Error ? nextError : new Error(String(nextError)),
+      );
+      statusState.set('error');
+    });
+  };
   const update = (
     updater: (value: Value | undefined) => Value | undefined,
   ): void => set(updater(untracked(valueState)));
@@ -302,6 +324,7 @@ export function craftResource<Value, Params>(
     update,
     set,
     restore,
+    restoreError,
     asReadonly: () => resourceRef,
     paramSrc: options.params as Signal<Params | undefined>,
     state: value,

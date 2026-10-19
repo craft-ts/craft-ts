@@ -54,6 +54,7 @@ import { FilterSource, IsEmptyObject } from './util/util.type';
 import { isSource } from './util/util';
 import { ɵprovideStateMethodRuntimeContext } from './state-method-runtime-context';
 import { ɵregisterCraftPrimitive } from './craft-primitive-registry';
+import { ɵregisterCraftReplayMethod } from './craft-method-replay-registry';
 import {
   createYieldableInsertionMethod,
   isNonYieldableInsertionMethod,
@@ -788,12 +789,28 @@ function createStateRef<StateType>(
             const wrappedFn = runInInjectionContext(methodInjector, () =>
               injectFnWrapper()(value as (...args: unknown[]) => unknown),
             );
-            exposedAcc[key] = createYieldableInsertionMethod(wrappedFn, {
+            const exposedMethod = createYieldableInsertionMethod(wrappedFn, {
               injector: methodInjector,
               invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
               multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
               onAppStartNotSupportedErrorMessage: STATE_APP_START_ERROR_MESSAGE,
             });
+            ɵregisterCraftReplayMethod(methodInjector, (_receiver, args) => {
+              const result = runInInjectionContext(methodInjector, () =>
+                exposedMethod(...args),
+              );
+              return isGenerator(result)
+                ? runCraftGenerator({
+                    iterator: result,
+                    injector: methodInjector,
+                    hostScope: 'function',
+                    invalidYieldErrorMessage: STATE_INVALID_YIELD_ERROR_MESSAGE,
+                    multipleAppStartErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+                    onAppStartNotSupportedErrorMessage: STATE_APP_START_ERROR_MESSAGE,
+                  }).value
+                : result;
+            });
+            exposedAcc[key] = exposedMethod;
           } else {
             exposedAcc[key] = value;
           }

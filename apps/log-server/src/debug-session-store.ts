@@ -65,7 +65,7 @@ type StoredSession = Omit<StoredDebugSessionSummary, 'participantCount'> & {
 
 export type PortableDebugSession = Readonly<{
   format: 'craft-debug-session';
-  version: 2;
+  version: 5;
   startUrl: string;
   viewport?: Readonly<{ width: number; height: number }>;
   exportedAt: number;
@@ -179,23 +179,29 @@ export class DebugSessionStore {
       : [];
     const known =
       this.eventKeys.get(effectiveId) ??
-      new Set(
-        previousEvents.map(
-          (event) =>
-            `${event['participantId'] ?? 'default'}:${event['participantSequence'] ?? event['sequence']}`,
-        ),
-      );
+      new Set(previousEvents.map((event) => storedEventKey(event)));
     let nextSequence =
       this.nextEventSequence.get(effectiveId) ??
       previousEvents.reduce(
         (highest, event) => Math.max(highest, Number(event['sequence']) || 0),
         0,
       );
+    let participantSequenceHighWater = highestParticipantSequence(
+      previousEvents,
+      participantId,
+    );
     const additions = incomingEvents.flatMap((event) => {
-      const participantSequence = Number(event['sequence']);
-      const key = `${participantId}:${participantSequence}`;
+      const key = storedEventKey(event, participantId);
       if (known.has(key)) return [];
       known.add(key);
+      const sourceSequence = Number(event['sequence']);
+      const participantSequence = Math.max(
+        participantSequenceHighWater + 1,
+        Number.isSafeInteger(sourceSequence) && sourceSequence > 0
+          ? sourceSequence
+          : 1,
+      );
+      participantSequenceHighWater = participantSequence;
       nextSequence += 1;
       return [
         {
@@ -296,12 +302,7 @@ export class DebugSessionStore {
     const previousEvents = this.liveEvents.get(id) ?? this.readEvents(id);
     const eventKeys =
       this.eventKeys.get(id) ??
-      new Set(
-        previousEvents.map(
-          (item) =>
-            `${item['participantId'] ?? 'default'}:${item['participantSequence'] ?? item['sequence']}`,
-        ),
-      );
+      new Set(previousEvents.map((item) => storedEventKey(item)));
     let nextSequence =
       this.nextEventSequence.get(id) ??
       previousEvents.reduce(
@@ -309,16 +310,27 @@ export class DebugSessionStore {
         0,
       );
     let initialSnapshot = current.initialSnapshot;
+    let participantSequenceHighWater = highestParticipantSequence(
+      previousEvents,
+      participantId,
+    );
     const additions = incoming.flatMap((event) => {
       if (!isSessionEvent(event)) return [];
       if (isInitialSnapshot(event)) {
         if (isRecord(event['state'])) initialSnapshot = event['state'];
         return [];
       }
-      const participantSequence = Number(event['sequence']);
-      const eventKey = `${participantId}:${participantSequence}`;
+      const eventKey = storedEventKey(event, participantId);
       if (eventKeys.has(eventKey)) return [];
       eventKeys.add(eventKey);
+      const sourceSequence = Number(event['sequence']);
+      const participantSequence = Math.max(
+        participantSequenceHighWater + 1,
+        Number.isSafeInteger(sourceSequence) && sourceSequence > 0
+          ? sourceSequence
+          : 1,
+      );
+      participantSequenceHighWater = participantSequence;
       nextSequence += 1;
       return [
         {
@@ -513,7 +525,7 @@ export class DebugSessionStore {
     });
     return {
       format: 'craft-debug-session',
-      version: 2,
+      version: 5,
       startUrl: stored.startUrl,
       ...(stored.viewport ? { viewport: stored.viewport } : {}),
       exportedAt: Date.parse(stored.updatedAt),
@@ -560,12 +572,7 @@ export class DebugSessionStore {
         const events = this.readEvents(session.id);
         this.eventKeys.set(
           session.id,
-          new Set(
-            events.map(
-              (event) =>
-                `${event['participantId'] ?? 'default'}:${event['participantSequence'] ?? event['sequence']}`,
-            ),
-          ),
+          new Set(events.map((event) => storedEventKey(event))),
         );
         this.nextEventSequence.set(
           session.id,
@@ -709,7 +716,7 @@ function assertPortableSession(
   if (
     !isRecord(value) ||
     value['format'] !== 'craft-debug-session' ||
-    value['version'] !== 2 ||
+    value['version'] !== 5 ||
     typeof value['startUrl'] !== 'string' ||
     (value['viewport'] !== undefined && !isValidViewport(value['viewport'])) ||
     !Array.isArray(value['events']) ||
@@ -753,11 +760,39 @@ function mergeParticipant(
       ? {
           ...existing,
           ...incoming,
+          title: existing.title,
+          startUrl: existing.startUrl,
+          viewport: existing.viewport ?? incoming.viewport,
+          environment: existing.environment ?? incoming.environment,
           createdAt: existing.createdAt,
-          initialSnapshot: incoming.initialSnapshot ?? existing.initialSnapshot,
+          initialSnapshot: existing.initialSnapshot ?? incoming.initialSnapshot,
         }
       : participant,
   );
+}
+
+function storedEventKey(
+  event: Record<string, unknown>,
+  participantId = typeof event['participantId'] === 'string'
+    ? event['participantId']
+    : 'default',
+): string {
+  return typeof event['id'] === 'string'
+    ? `${participantId}:id:${event['id']}`
+    : `${participantId}:sequence:${event['participantSequence'] ?? event['sequence']}`;
+}
+
+function highestParticipantSequence(
+  events: readonly Record<string, unknown>[],
+  participantId: string,
+): number {
+  return events.reduce((highest, event) => {
+    if (event['participantId'] !== participantId) return highest;
+    const sequence = Number(event['participantSequence'] ?? event['sequence']);
+    return Number.isSafeInteger(sequence)
+      ? Math.max(highest, sequence)
+      : highest;
+  }, 0);
 }
 
 function isEnvironmentProfile(

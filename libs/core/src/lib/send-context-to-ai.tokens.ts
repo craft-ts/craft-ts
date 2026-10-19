@@ -3,11 +3,32 @@ import { type Signal } from './host/craft-compat';
 import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 import { behaviorSubject, type Subscribable } from './stream-kernel';
 import { provideCraftDomEventHook } from './dom-event-hook';
-import { provideCraftHttpTrace } from './craft-http-trace';
+import {
+  provideCraftHttpTrace,
+  ɵinvokeCraftHttpTransport,
+} from './craft-http-trace';
 import { provideCraftRouterTrace } from './craft-router-trace';
 import { providePrimitiveResourceRuntimeObserver } from './primitive-resource-runtime-context';
 import { ɵinjectCorrelationIdService } from './correlation-id';
 import { ɵinjectCraftPrimitiveRegistry } from './craft-primitive-registry';
+import { ɵinjectPersistedStorageSnapshotRegistry } from './persisted-storage-snapshot';
+import {
+  connectCraftReplayTransportCapture,
+  injectCraftReplayTransports,
+} from './craft-replay-transports';
+import { ɵcaptureCraftReplayTarget } from './craft-replay-target';
+
+const capturedReplayDomEvents = new WeakSet<Event>();
+
+/** @internal Prevent the same native event from being recorded twice. */
+export function ɵwasReplayDomEventCaptured(event: Event): boolean {
+  return capturedReplayDomEvents.has(event);
+}
+
+/** @internal Mark a native event after recording its replay step. */
+export function ɵmarkReplayDomEventCaptured(event: Event): void {
+  capturedReplayDomEvents.add(event);
+}
 
 export interface SendContextPayload {
   hostName: string;
@@ -35,6 +56,7 @@ export type SendContextEventKind =
   | 'navigation'
   | 'primitive'
   | 'snapshot'
+  | 'storage'
   | 'custom'
   | (string & {});
 
@@ -81,6 +103,8 @@ export interface SendContextEnvironmentProfile {
   readonly languages?: readonly string[];
   readonly timeZone?: string;
   readonly screen?: Readonly<{ width: number; height: number }>;
+  /** Effective page theme, including an explicit document-level mode. */
+  readonly colorScheme?: 'light' | 'dark';
 }
 
 export interface SendContextSessionParticipant {
@@ -99,8 +123,8 @@ export interface SendContextSessionParticipant {
 /** A portable, redacted recording that can be validated before replay. */
 export interface SendContextReplayExport {
   readonly format: 'craft-debug-session';
-  /** Readers accept v1; all new exports use v2. */
-  readonly version: 1 | 2;
+  /** Runtime target identities and transport contracts are defined by v5. */
+  readonly version: 5;
   readonly startUrl: string;
   /** CSS-pixel viewport dimensions when session capture is initialized. */
   readonly viewport?: Readonly<{ width: number; height: number }>;
@@ -174,6 +198,8 @@ export interface SendContextSession {
   readonly events: readonly SendContextEvent[];
   readonly clips: readonly SendContextClip[];
   readonly activeClip: SendContextClip | undefined;
+  /** Milliseconds on this session's monotonic recording clock. */
+  elapsedTime(): number;
   emit(
     event: Omit<SendContextEvent, 'id' | 'sequence' | 'timestamp'>,
   ): SendContextEvent | undefined;
@@ -588,6 +614,14 @@ export function createSendContextSession(
     get activeClip() {
       return clipList.find((clip) => clip.id === activeClipId);
     },
+    elapsedTime() {
+      return Math.max(
+        0,
+        (typeof performance === 'undefined'
+          ? startedAtMonotonic
+          : performance.now()) - startedAtMonotonic,
+      );
+    },
     emit(event) {
       let enriched = event;
       for (const enrich of enrichers) {
@@ -612,12 +646,7 @@ export function createSendContextSession(
         id: randomId('event'),
         sequence: ++sequence,
         timestamp: Date.now(),
-        elapsedMs: Math.max(
-          0,
-          (typeof performance === 'undefined'
-            ? startedAtMonotonic
-            : performance.now()) - startedAtMonotonic,
-        ),
+        elapsedMs: enriched.elapsedMs ?? session.elapsedTime(),
       };
       const serialized: SendContextEvent = {
         ...full,
@@ -761,7 +790,7 @@ export function createSendContextSession(
       }));
       return safeJson({
         format: 'craft-debug-session',
-        version: 2,
+        version: 5,
         startUrl,
         ...(viewport ? { viewport } : {}),
         exportedAt: Date.now(),
@@ -848,7 +877,10 @@ export function provideSendContextEventFilter(
 }
 
 export function provideSendContextSession(
-  options: Readonly<{ captureInputValues?: boolean }> = {},
+  options: Readonly<{
+    captureInputValues?: boolean;
+    captureSensitiveInputValues?: boolean;
+  }> = {},
 ): CraftServiceProvider[] {
   const requireSession = (): SendContextSession => {
     const value = ɵinjectSendContextSession();
@@ -862,6 +894,29 @@ export function provideSendContextSession(
     provideSendContextRedactor(defaultSendContextRedactor),
     provideSendContextValueSerializer(defaultSendContextValueSerializer),
     sources.provide!() as CraftServiceProvider,
+    provideSendContextEventSource((createdSession) => {
+      let registry:
+        | ReturnType<typeof ɵinjectPersistedStorageSnapshotRegistry>
+        | undefined;
+      try {
+        registry = ɵinjectPersistedStorageSnapshotRegistry();
+      } catch {
+        return () => undefined;
+      }
+      return registry.onRead((entry) => {
+        if (!createdSession.activeClip) return;
+        createdSession.capture('storage', 'emitted', {
+          name: 'restored',
+          payload: entry,
+        });
+      });
+    }),
+    provideSendContextEventSource((createdSession) =>
+      connectCraftReplayTransportCapture(
+        createdSession,
+        injectCraftReplayTransports(),
+      ),
+    ),
     enrichers.provide!() as CraftServiceProvider,
     filters.provide!() as CraftServiceProvider,
     session.provide!() as CraftServiceProvider,
@@ -886,11 +941,20 @@ export function provideSendContextSession(
             `${element.getAttribute('name') ?? ''} ${element.id}`,
           ));
       const event = interaction.event;
+      if (ɵwasReplayDomEventCaptured(event)) return next();
       const explicitlyOptedIn =
         options.captureInputValues === true ||
-        element.getAttribute('data-debug-session-capture-value') === 'true';
+        element.getAttribute('data-debug-session-capture-value') === 'true' ||
+        element.getAttribute('data-debug-session-capture-sensitive-value') ===
+          'true';
+      const sensitiveCaptureAllowed =
+        options.captureSensitiveInputValues === true ||
+        element.getAttribute('data-debug-session-capture-sensitive-value') ===
+          'true';
       const value =
-        form && !sensitive && explicitlyOptedIn ? element.value : undefined;
+        form && explicitlyOptedIn && (!sensitive || sensitiveCaptureAllowed)
+          ? element.value
+          : undefined;
       if (
         !session.events.some(
           (entry) => entry.kind === 'snapshot' && entry.name === 'initial',
@@ -901,6 +965,24 @@ export function provideSendContextSession(
           correlationId,
           state: ɵinjectCraftPrimitiveRegistry().capture(),
         });
+        let storageRegistry:
+          | ReturnType<typeof ɵinjectPersistedStorageSnapshotRegistry>
+          | undefined;
+        try {
+          storageRegistry = ɵinjectPersistedStorageSnapshotRegistry();
+        } catch {
+          // Storage snapshots are optional when no persister is registered.
+        }
+        if (storageRegistry) {
+          void storageRegistry.capture().then((entries) => {
+            if (!session.activeClip) return;
+            session.capture('storage', 'emitted', {
+              name: 'initial-snapshot',
+              correlationId,
+              payload: { entries },
+            });
+          });
+        }
       }
       session.capture('dom', 'emitted', {
         name: interaction.interactionName,
@@ -909,7 +991,13 @@ export function provideSendContextSession(
           action: event.type,
           eventName: interaction.eventName,
           interactionName: interaction.interactionName,
-          selector: stableReplaySelector(element),
+          selector: ɵstableReplaySelector(element),
+          replayTarget: ɵcaptureCraftReplayTarget(
+            element,
+            event instanceof MouseEvent
+              ? { clientX: event.clientX, clientY: event.clientY }
+              : undefined,
+          ),
           ...(link instanceof HTMLAnchorElement
             ? { href: redactReplayUrl(link.href) }
             : {}),
@@ -928,15 +1016,16 @@ export function provideSendContextSession(
           // page: replay restores this viewport position before dispatch.
           scrollX: window.scrollX,
           scrollY: window.scrollY,
-          scrollAncestors: replayScrollAncestors(element),
+          scrollAncestors: ɵreplayScrollAncestors(element),
         },
         targets: [
           {
             tagName: interaction.elementTag,
-            selector: stableReplaySelector(element),
+            selector: ɵstableReplaySelector(element),
           },
         ],
       });
+      ɵmarkReplayDomEventCaptured(event);
       return next();
     }),
     provideCraftHttpTrace((context, next) => {
@@ -948,9 +1037,9 @@ export function provideSendContextSession(
         name: context.method,
         operationId,
         correlationId,
-        payload: context,
+        payload: { ...context, source: 'craft-http-client' },
       });
-      return next().then(
+      return ɵinvokeCraftHttpTransport(next).then(
         (response) => {
           session.capture('http', 'succeeded', {
             name: context.method,
@@ -1038,7 +1127,7 @@ export function provideSendContextSession(
   ] as CraftServiceProvider[];
 }
 
-function stableReplaySelector(element: Element): string {
+export function ɵstableReplaySelector(element: Element): string {
   const named = element.closest('[data-craft-name]');
   if (named?.getAttribute('data-craft-name')) {
     const rawName = named.getAttribute('data-craft-name')!;
@@ -1077,7 +1166,7 @@ function stableReplaySelector(element: Element): string {
   return `body > ${parts.join(' > ')}`;
 }
 
-function replayScrollAncestors(element: Element): readonly Readonly<{
+export function ɵreplayScrollAncestors(element: Element): readonly Readonly<{
   selector: string;
   scrollLeft: number;
   scrollTop: number;
@@ -1094,7 +1183,7 @@ function replayScrollAncestors(element: Element): readonly Readonly<{
       (current.scrollLeft !== 0 || current.scrollTop !== 0)
     ) {
       ancestors.push({
-        selector: stableReplaySelector(current),
+        selector: ɵstableReplaySelector(current),
         scrollLeft: current.scrollLeft,
         scrollTop: current.scrollTop,
       });
