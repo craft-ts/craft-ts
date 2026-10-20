@@ -2,6 +2,20 @@
 
 Date : 2026-10-19
 
+## Avancement
+
+- [x] Phase 1 : inventaire des comparaisons actuelles et caractérisation des
+      tolérances de snapshots. Voir
+      [`../debug-session-replay-comparison-inventory.md`](../debug-session-replay-comparison-inventory.md).
+- [x] Phase 2 : contrat versionné des scénarios dans un sidecar indépendant.
+      Voir [`../debug-session-replay-scenario.md`](../debug-session-replay-scenario.md).
+- [x] Phase 3 : règles explicites, comparaison métier stricte en mode scénario,
+      fixtures HTTP strictes et présentation des tolérances dans le dashboard.
+- [x] Phase 4 : `runReplayTest` et `runReplayTestOrThrow` avec verdicts
+      structurés, exécution sans récupération manuelle et garde réseau.
+- [x] Phase 5 : rapports de drift, proposition de recapture versionnée et états
+      de cycle de vie sans mise à jour automatique des références.
+
 ## Objectif
 
 Permettre aux scénarios de replay de rester utiles quand l’application évolue,

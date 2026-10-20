@@ -63,6 +63,18 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             : `Décalage détecté à l’événement ${difference()?.eventId ?? '?'}.`,
         ),
       ),
+      p(
+        {
+          hidden: computed(() => !difference()?.tolerances?.length),
+          'data-lab': 'applied-tolerances',
+        },
+        computed(() => {
+          const rules = difference()?.tolerances ?? [];
+          return `Règles évaluées avant cet écart : ${rules
+            .map((rule) => `${rule.kind} ${rule.path} (${rule.assertionId})`)
+            .join(', ')}.`;
+        }),
+      ),
       div({ class: ui.gapActions }, [
         button(
           'skipToCheckpoint',

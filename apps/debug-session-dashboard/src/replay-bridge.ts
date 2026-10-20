@@ -169,6 +169,31 @@ function onInteraction(
   const action = data['action'];
   const x = data['clientX'];
   const y = data['clientY'];
+  if (data['kind'] === 'gesture') {
+    if (
+      typeof x === 'number' &&
+      Number.isFinite(x) &&
+      typeof y === 'number' &&
+      Number.isFinite(y)
+    ) {
+      const scale = replayScales.get(participantId) ?? 1;
+      const trigger = String(data['trigger'] ?? data['name'] ?? 'geste');
+      const label =
+        trigger === 'longPress'
+          ? 'Appui long rejoué'
+          : trigger === 'dragStart'
+            ? 'Début du glissement rejoué'
+            : trigger === 'drop'
+              ? 'Dépôt rejoué'
+              : trigger === 'dragCancel'
+                ? 'Glissement annulé rejoué'
+                : trigger === 'swipe'
+                  ? 'Balayage rejoué'
+                  : `Geste rejoué · ${trigger}`;
+      showClickMarker(participantId, x * scale, y * scale, label);
+    }
+    return;
+  }
   if (data['kind'] === 'hover') {
     if (
       action === 'enter' &&

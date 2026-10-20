@@ -12,9 +12,603 @@ import {
   createReplayController,
   getReplaySteps,
   installReplayNetworkGuard,
+  runReplayTest,
+  runReplayTestOrThrow,
 } from './debug-session-replay';
 
 describe('debug session replay format', () => {
+  it('returns a structured test verdict and records applied tolerances', async () => {
+    document.body.innerHTML = '<button id="automated-replay">Run</button>';
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'automated-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#automated-replay', action: 'click' },
+        },
+        {
+          id: 'automated-checkpoint',
+          sequence: 2,
+          timestamp: 11,
+          kind: 'primitive',
+          phase: 'emitted',
+          state: { count: 2 },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const scenario = {
+      format: 'craft-replay-scenario',
+      schemaVersion: 1,
+      id: 'automated-list',
+      scenarioVersion: 1,
+      reason: 'Count is the business contract.',
+      checkpoints: [
+        {
+          id: 'list-loaded',
+          path: '/result',
+          expected: { count: 2, requestId: '[REDACTED]' },
+        },
+      ],
+      eventAssertions: [],
+      visualAssertions: [],
+      tolerances: [
+        { assertionId: 'list-loaded', path: '/requestId', kind: 'redacted' },
+      ],
+    };
+
+    const result = await runReplayTest(session, JSON.stringify(scenario), {
+      readState: () => ({
+        result: { count: 2, requestId: 'generated-at-runtime' },
+      }),
+    });
+    expect(result).toMatchObject({
+      status: 'passed',
+      scenarioId: 'automated-list',
+      scenarioVersion: 1,
+      comparedAssertions: ['list-loaded'],
+      appliedTolerances: [
+        {
+          assertionId: 'list-loaded',
+          rule: { kind: 'redacted', path: '/requestId' },
+        },
+      ],
+    });
+  });
+
+  it('throws a CI-friendly error for non-passing verdicts', async () => {
+    await expect(
+      runReplayTestOrThrow(
+        {
+          format: 'craft-debug-session',
+          version: 5,
+          startUrl: 'http://localhost/',
+          exportedAt: 1,
+          truncated: true,
+          clips: [],
+          events: [],
+        },
+        '{',
+        {},
+      ),
+    ).rejects.toMatchObject({
+      name: 'ReplayScenarioTestError',
+      result: { status: 'not-replayable' },
+    });
+  });
+
+  it('fails automation on a business checkpoint mismatch and rejects truncated sessions', async () => {
+    document.body.innerHTML = '<button id="automated-failure">Run</button>';
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'failure-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#automated-failure', action: 'click' },
+        },
+        {
+          id: 'failure-checkpoint',
+          sequence: 2,
+          timestamp: 11,
+          kind: 'primitive',
+          phase: 'emitted',
+          state: { count: 2 },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const scenario = {
+      format: 'craft-replay-scenario',
+      schemaVersion: 1,
+      id: 'failure',
+      scenarioVersion: 1,
+      reason: 'Count remains strict.',
+      checkpoints: [{ id: 'count', path: '/count', expected: 2 }],
+      eventAssertions: [],
+      visualAssertions: [],
+      tolerances: [],
+    };
+    expect(
+      await runReplayTest(session, JSON.stringify(scenario), {
+        readState: () => ({ count: 3 }),
+      }),
+    ).toMatchObject({
+      status: 'failed',
+      firstDifference: {
+        eventId: 'scenario:count',
+        expected: 2,
+        actual: 3,
+      },
+    });
+    expect(
+      await runReplayTest(
+        { ...session, truncated: true },
+        JSON.stringify(scenario),
+        { readState: () => ({ count: 2 }) },
+      ),
+    ).toMatchObject({
+      status: 'not-replayable',
+    });
+  });
+
+  it('keeps unlisted state checkpoints strict in test mode', async () => {
+    document.body.innerHTML = '<button id="strict-checkpoint">Run</button>';
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'strict-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#strict-checkpoint', action: 'click' },
+        },
+        {
+          id: 'strict-state',
+          sequence: 2,
+          timestamp: 11,
+          kind: 'snapshot',
+          phase: 'emitted',
+          state: { count: 2 },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const scenario = {
+      format: 'craft-replay-scenario',
+      schemaVersion: 1,
+      id: 'strict-default',
+      scenarioVersion: 1,
+      reason: 'Unlisted business state uses strict equality.',
+      checkpoints: [{ id: 'state-count', path: '/count', expected: 2 }],
+      eventAssertions: [],
+      visualAssertions: [],
+      tolerances: [],
+    };
+
+    expect(
+      await runReplayTest(session, JSON.stringify(scenario), {
+        readState: () => ({}),
+      }),
+    ).toMatchObject({
+      status: 'failed',
+      firstDifference: {
+        eventId: 'scenario:state-count',
+        expected: 2,
+        actual: null,
+      },
+    });
+  });
+
+  it('checks a declared invocation address and arguments in test mode', async () => {
+    document.body.innerHTML = '<button id="invocation-contract">Run</button>';
+    const observed: SendContextReplayExport['events'][number][] = [];
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'invocation-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#invocation-contract', action: 'click' },
+        },
+        {
+          id: 'invocation-start',
+          sequence: 2,
+          timestamp: 11,
+          kind: 'craft',
+          phase: 'started',
+          name: 'loadUsers',
+          operationId: 'recorded-op',
+          payload: {
+            host: 'method:loadUsers',
+            replayInvocation: {
+              address: 'component:Users#1 / method:loadUsers',
+              args: [{ page: 1 }],
+            },
+          },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const scenario = {
+      format: 'craft-replay-scenario',
+      schemaVersion: 1,
+      id: 'users-load',
+      scenarioVersion: 1,
+      reason: 'The requested page is part of the API contract.',
+      checkpoints: [],
+      eventAssertions: [
+        {
+          id: 'load-page-one',
+          kind: 'invocation',
+          expected: {
+            address: 'component:Users#1 / method:loadUsers',
+            args: [{ page: 1 }],
+          },
+        },
+      ],
+      visualAssertions: [],
+      tolerances: [],
+    };
+    const result = await runReplayTest(session, JSON.stringify(scenario), {
+      observedEvents: () => observed,
+      invokeRecordedMethod: (event) => {
+        observed.push({
+          ...event,
+          id: 'actual-invocation',
+          payload: {
+            host: 'method:loadUsers',
+            replayInvocation: {
+              address: 'component:Users#1 / method:loadUsers',
+              args: [{ page: 2 }],
+            },
+          },
+        });
+      },
+    });
+    expect(result).toMatchObject({
+      status: 'failed',
+      firstDifference: { eventId: 'scenario:load-page-one' },
+    });
+  });
+
+  it('checks declared outgoing transport messages in test mode', async () => {
+    document.body.innerHTML = '<button id="transport-contract">Run</button>';
+    const observed: SendContextReplayExport['events'][number][] = [];
+    const transportEvent = {
+      id: 'recorded-transport',
+      sequence: 2,
+      timestamp: 11,
+      elapsedMs: 1,
+      kind: 'transport',
+      phase: 'emitted',
+      payload: {
+        transportId: 'live-updates',
+        transport: 'websocket',
+        instanceId: 'socket-1',
+        direction: 'outgoing',
+        messageType: 'text',
+        sequence: 1,
+        elapsedMs: 1,
+        replayable: true,
+        data: { codec: 'text', value: 'subscribe' },
+      },
+    } as const;
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'transport-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#transport-contract', action: 'click' },
+        },
+        transportEvent,
+      ],
+    } as const satisfies SendContextReplayExport;
+    const scenario = {
+      format: 'craft-replay-scenario',
+      schemaVersion: 1,
+      id: 'subscribe-flow',
+      scenarioVersion: 1,
+      reason: 'The client must subscribe to the live feed.',
+      checkpoints: [],
+      eventAssertions: [
+        {
+          id: 'subscribe-message',
+          kind: 'transport',
+          expected: {
+            transportId: 'live-updates',
+            direction: 'outgoing',
+            data: { codec: 'text', value: 'subscribe' },
+          },
+        },
+      ],
+      visualAssertions: [],
+      tolerances: [],
+    };
+    const result = await runReplayTest(session, JSON.stringify(scenario), {
+      observedEvents: () => observed,
+      onTimelineAdvance: () => {
+        observed.push({
+          ...transportEvent,
+          id: 'actual-transport',
+          payload: {
+            ...transportEvent.payload,
+            data: { codec: 'text', value: 'unsubscribe' },
+          },
+        });
+      },
+    });
+    expect(result).toMatchObject({
+      status: 'failed',
+      firstDifference: { eventId: 'scenario:subscribe-message' },
+    });
+  });
+
+  it('checks declared HTTP request payloads instead of accepting a partial match', async () => {
+    document.body.innerHTML = '<button id="http-contract">Run</button>';
+    const observed: SendContextReplayExport['events'][number][] = [];
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'http-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#http-contract', action: 'click' },
+        },
+        {
+          id: 'http-start',
+          sequence: 2,
+          timestamp: 11,
+          elapsedMs: 1,
+          kind: 'http',
+          phase: 'started',
+          operationId: 'recorded-http',
+          payload: {
+            source: 'browser-fetch',
+            method: 'POST',
+            url: 'http://localhost/api/users',
+            body: '{"name":"Ada"}',
+          },
+        },
+        {
+          id: 'http-finish',
+          sequence: 3,
+          timestamp: 12,
+          elapsedMs: 2,
+          kind: 'http',
+          phase: 'succeeded',
+          operationId: 'recorded-http',
+          response: {
+            source: 'browser-fetch-response',
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+            body: '{}',
+          },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const scenario = {
+      format: 'craft-replay-scenario',
+      schemaVersion: 1,
+      id: 'create-user',
+      scenarioVersion: 1,
+      reason: 'The submitted user name is meaningful.',
+      checkpoints: [],
+      visualAssertions: [],
+      eventAssertions: [
+        {
+          id: 'submit-user',
+          kind: 'http',
+          expected: {
+            method: 'POST',
+            url: 'http://localhost/api/users',
+            body: '{"name":"Ada"}',
+          },
+        },
+      ],
+      tolerances: [],
+    };
+    const result = await runReplayTest(session, JSON.stringify(scenario), {
+      observedEvents: () => observed,
+      onTimelineAdvance: (elapsedMs) => {
+        if (elapsedMs === 1 && observed.length === 0)
+          observed.push({
+            id: 'actual-http',
+            sequence: 1,
+            timestamp: 11,
+            elapsedMs: 1,
+            kind: 'http',
+            phase: 'started',
+            operationId: 'actual-http-op',
+            payload: {
+              source: 'browser-fetch',
+              method: 'POST',
+              url: 'http://localhost/api/users',
+              body: '{"name":"Grace"}',
+            },
+          });
+      },
+    });
+    expect(result).toMatchObject({
+      status: 'failed',
+      firstDifference: { eventId: 'scenario:submit-user' },
+    });
+  });
+
+  it('fails on an unrecorded network request without calling the live fetch', async () => {
+    document.body.innerHTML = '<button id="network-guard">Run</button>';
+    const liveFetch = vi.fn(() => Promise.resolve(new Response('live')));
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = liveFetch as unknown as typeof fetch;
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'guard-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#network-guard', action: 'click' },
+        },
+        {
+          id: 'guard-call',
+          sequence: 2,
+          timestamp: 11,
+          kind: 'craft',
+          phase: 'started',
+          name: 'loadData',
+          operationId: 'guard-op',
+          payload: {
+            host: 'method:loadData',
+            replayInvocation: {
+              address: 'component:Home / method:loadData',
+              args: [],
+            },
+          },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const scenario = {
+      format: 'craft-replay-scenario',
+      schemaVersion: 1,
+      id: 'offline-boundary',
+      scenarioVersion: 1,
+      reason: 'Network requests must come from the archive.',
+      checkpoints: [{ id: 'guard-contract', path: '/ready', expected: true }],
+      eventAssertions: [],
+      visualAssertions: [],
+      tolerances: [],
+    };
+    try {
+      const result = await runReplayTest(session, JSON.stringify(scenario), {
+        invokeRecordedMethod: async () => {
+          await fetch('http://localhost/unrecorded');
+        },
+      });
+      expect(result).toMatchObject({
+        status: 'failed',
+        classification: 'environment-or-adapter-missing',
+      });
+      expect(liveFetch).not.toHaveBeenCalled();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('ignores informative DOM targets unless the scenario asserts them', async () => {
+    document.body.innerHTML = '';
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'missing-button-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#moved-by-redesign', action: 'click' },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const scenario = {
+      format: 'craft-replay-scenario',
+      schemaVersion: 1,
+      id: 'visual-insensitive',
+      scenarioVersion: 1,
+      reason: 'DOM placement is informative for this business test.',
+      checkpoints: [{ id: 'state', path: '/ready', expected: true }],
+      eventAssertions: [],
+      visualAssertions: [],
+      tolerances: [],
+    };
+    expect(
+      await runReplayTest(session, JSON.stringify(scenario), {
+        readState: () => ({ ready: true }),
+      }),
+    ).toMatchObject({ status: 'passed' });
+
+    const visualScenario = {
+      ...scenario,
+      id: 'visual-required',
+      visualAssertions: [
+        {
+          id: 'save-button',
+          targetId: 'save-button',
+          expected: { present: true, role: 'button' },
+        },
+      ],
+    };
+    expect(
+      await runReplayTest(session, JSON.stringify(visualScenario), {
+        readState: () => ({ ready: true }),
+      }),
+    ).toMatchObject({
+      status: 'failed',
+      classification: 'visual-only',
+      firstDifference: {
+        eventId: 'visual:save-button',
+        expected: { present: true, role: 'button' },
+        actual: { present: false },
+      },
+    });
+  });
+
   it('rejects invalid, incompatible and truncated exports', () => {
     expect(validateReplayExport('{')).toMatchObject({ ok: false });
     expect(
@@ -656,6 +1250,97 @@ describe('debug session replay format', () => {
     ).toBeUndefined();
   });
 
+  it('requires a local redaction tolerance for redacted HTTP fixtures', async () => {
+    const resolver = createRecordedResponseResolver(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 2,
+        truncated: false,
+        events: [
+          {
+            id: 'strict-start',
+            sequence: 1,
+            timestamp: 1,
+            kind: 'http',
+            phase: 'started',
+            operationId: 'strict-op',
+            payload: {
+              source: 'browser-fetch',
+              method: 'POST',
+              url: 'http://localhost/api/items?kind=book',
+              body: '{"name":"[REDACTED]"}',
+            },
+          },
+          {
+            id: 'strict-finish',
+            sequence: 2,
+            timestamp: 2,
+            kind: 'http',
+            phase: 'succeeded',
+            operationId: 'strict-op',
+            response: {
+              source: 'browser-fetch-response',
+              status: 200,
+              headers: {},
+              body: '{}',
+            },
+          },
+        ],
+        clips: [],
+      },
+      {
+        format: 'craft-replay-scenario',
+        schemaVersion: 1,
+        id: 'strict-fixture',
+        scenarioVersion: 1,
+        reason: 'Exercise strict fixture matching.',
+        checkpoints: [],
+        eventAssertions: [
+          {
+            id: 'request',
+            kind: 'http',
+            expected: {
+              method: 'POST',
+              url: 'http://localhost/api/items?kind=book',
+              body: { name: '[REDACTED]' },
+            },
+          },
+        ],
+        visualAssertions: [],
+        tolerances: [
+          { assertionId: 'request', path: '/body/name', kind: 'redacted' },
+        ],
+      },
+    );
+
+    expect(
+      await resolver(
+        new Request('http://localhost/api/items?kind=book&debug=1', {
+          method: 'POST',
+          body: '{"name":"Ada"}',
+        }),
+      ),
+    ).toBeUndefined();
+    expect(
+      await resolver(
+        new Request('http://localhost/api/items?kind=book', {
+          method: 'POST',
+          body: '{"name":"Ada","extra":true}',
+        }),
+      ),
+    ).toBeUndefined();
+    expect(
+      await resolver(
+        new Request('http://localhost/api/items?kind=book', {
+          method: 'POST',
+          body: '{"name":"Ada"}',
+        }),
+      ),
+    ).toBeInstanceOf(Response);
+  });
+
   it('restores binary browser fetch responses byte for byte', async () => {
     const resolver = createRecordedResponseResolver({
       format: 'craft-debug-session',
@@ -913,8 +1598,9 @@ describe('debug session replay format', () => {
       ],
     } satisfies SendContextReplayExport;
     const replay = createReplayController(session, {
-      invokeRecordedMethod: (event) =>
-        invocations.push(event.name ?? event.operationId ?? ''),
+      invokeRecordedMethod: (event) => {
+        invocations.push(event.name ?? event.operationId ?? '');
+      },
     });
 
     await replay.step();
@@ -1949,6 +2635,124 @@ describe('debug session replay format', () => {
       expected: { count: 1 },
       actual: { count: 2 },
     });
+    replay.stop();
+  });
+
+  it('uses a validated scenario checkpoint and its local redaction rule', async () => {
+    document.body.innerHTML = '<button id="scenario-replay">Run</button>';
+    document
+      .querySelector('#scenario-replay')!
+      .addEventListener('click', () => undefined);
+    const checkpoint = {
+      id: 'scenario-checkpoint',
+      sequence: 2,
+      timestamp: 11,
+      kind: 'primitive',
+      phase: 'emitted',
+      state: { count: 0 },
+    } as const;
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'scenario-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#scenario-replay', action: 'click' },
+        },
+        checkpoint,
+      ],
+    } as const satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      mode: 'legacy-dom',
+      readState: () => ({ count: 2, requestId: 'runtime-generated' }),
+      scenario: {
+        format: 'craft-replay-scenario',
+        schemaVersion: 1,
+        id: 'scenario',
+        scenarioVersion: 1,
+        reason: 'The identifier is generated for each run.',
+        checkpoints: [{ id: 'loaded', path: '/count', expected: 2 }],
+        eventAssertions: [],
+        visualAssertions: [],
+        tolerances: [],
+      },
+    });
+
+    expect(await replay.step()).toBeUndefined();
+    replay.stop();
+  });
+
+  it.each([
+    {
+      name: 'ignores root keys missing from the live registry',
+      expected: { count: 1 },
+      actual: {},
+      diverges: false,
+    },
+    {
+      name: 'ignores newly observed root and nested keys',
+      expected: { shared: { value: 1 } },
+      actual: { shared: { value: 1, added: true }, 'new-route/query': 'ready' },
+      diverges: false,
+    },
+    {
+      name: 'requires expected nested keys to remain present',
+      expected: { shared: { value: 1 } },
+      actual: { shared: {} },
+      diverges: true,
+    },
+    {
+      name: 'keeps array length and order strict',
+      expected: { shared: ['first', 'second'] },
+      actual: { shared: ['second', 'first'] },
+      diverges: true,
+    },
+  ])('characterizes snapshot comparison: $name', async (scenario) => {
+    document.body.innerHTML = '<button id="snapshot-comparison">Run</button>';
+    document
+      .querySelector('#snapshot-comparison')!
+      .addEventListener('click', () => undefined);
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 5 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'snapshot-comparison-click',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: '#snapshot-comparison', action: 'click' },
+        },
+        {
+          id: 'snapshot-comparison-checkpoint',
+          sequence: 2,
+          timestamp: 11,
+          kind: 'primitive',
+          phase: 'emitted',
+          state: scenario.expected,
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const replay = createReplayController(session, {
+      mode: 'legacy-dom',
+      readState: () => scenario.actual,
+    });
+
+    const difference = await replay.step();
+    expect(Boolean(difference)).toBe(scenario.diverges);
     replay.stop();
   });
 
