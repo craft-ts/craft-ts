@@ -1,23 +1,24 @@
-import { DestroyRef } from '@craft-ts/core';
+import { DestroyRef } from './host/craft-compat';
 import {
   CRAFT_TEMPORAL_RUNTIME,
-  craftNodeDirective,
-  executeYieldable,
-  runCraftReplayTrigger,
   type TemporalTaskHandle,
-} from '@craft-ts/core';
+} from './temporal-runtime';
+import { craftNodeDirective } from './craft-node-directive';
+import { executeYieldable } from './yieldable';
+import { runCraftReplayTrigger } from './craft-replay-trigger';
 
 export const LONG_PRESS_DURATION_MS = 450;
 
-type LongPressProps = {
-  readonly longPressDuration: number;
-  readonly onLongPress: (event: Event) => unknown;
-};
+export type LongPressProps = Readonly<{
+  longPressDuration?: number;
+  onLongPress: (event: Event) => unknown;
+}>;
 
 /**
- * Emits `onLongPress` when the host element is held down for
- * `longPressDuration` ms, and swallows the click that ends the press so the
- * host's own click handler does not fire on release.
+ * Emits `onLongPress` after the host stays pressed for `longPressDuration` ms.
+ * The release click is swallowed after a successful long press. During replay,
+ * the semantic trigger is recorded and its Craft invocations are replayed
+ * without redispatching pointer events or calling the handler again.
  */
 export const longPress = craftNodeDirective<LongPressProps>(
   'longPress',
@@ -79,10 +80,7 @@ export const longPress = craftNodeDirective<LongPressProps>(
     };
 
     const suppressClick = (event: Event) => {
-      if (!suppressClickOnce && !longPressTriggered) {
-        return;
-      }
-
+      if (!suppressClickOnce && !longPressTriggered) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       suppressClickOnce = false;

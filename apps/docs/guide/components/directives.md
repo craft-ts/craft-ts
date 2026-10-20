@@ -11,6 +11,41 @@ own service.
 
 Directives are applied from left to right.
 
+## Long press
+
+Use Craft's `longPress` directive for a press-and-hold action. A local timer
+does not record the semantic trigger that invocation replay needs:
+
+```ts
+// Avoid a custom pointerdown + timer + pointerup implementation.
+element.addEventListener('pointerdown', () => {
+  timer = setTimeout(onLongPress, 450);
+});
+element.addEventListener('pointerup', () => clearTimeout(timer));
+```
+
+The `prefer-craft-long-press` rule reports this pattern. Replace it with the
+shared directive, which handles release and pointer cancellation, suppresses
+the click after a successful hold, and records the semantic replay trigger:
+
+```ts
+import { button } from '@craft-ts/component';
+import { longPress } from '@craft-ts/core';
+
+button('item', {
+  *onLongPress() {
+    yield* Items.selectWithContextMenu();
+  },
+}).pipe(longPress);
+```
+
+For a different native gesture that calls Craft work, use the replay trigger
+helper around the semantic handler. `require-craft-replay-trigger` reports
+direct pointer, touch, keyboard, and other native event listeners whose
+callbacks contain Craft generators or `executeYieldable(...)` without this
+boundary. Craft template event bindings already receive normal interaction
+correlation from the renderer.
+
 ## Event actions and DOM modifiers
 
 `eventAction(...)` is an element directive. Use it when an element must adjust

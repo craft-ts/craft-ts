@@ -8,8 +8,12 @@ import {
   section,
   heading,
 } from '@craft-ts/component';
-import { craftService, state } from '@craft-ts/core';
-import { LONG_PRESS_DURATION_MS, longPress } from './long-press.directive';
+import {
+  craftService,
+  LONG_PRESS_DURATION_MS,
+  longPress,
+  state,
+} from '@craft-ts/core';
 import { assign } from '@craft-ts/style';
 import { example } from '../../shared/example.style';
 import { pixel, pixelColor, pixelVars } from '../pixel-art/pixel.style';
