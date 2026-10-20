@@ -163,6 +163,31 @@ function onInteraction(
   const action = data['action'];
   const x = data['clientX'];
   const y = data['clientY'];
+  if (data['kind'] === 'gesture') {
+    if (
+      typeof x === 'number' &&
+      Number.isFinite(x) &&
+      typeof y === 'number' &&
+      Number.isFinite(y)
+    ) {
+      const scale = replayScales.get(participantId) ?? 1;
+      const trigger = String(data['trigger'] ?? data['name'] ?? 'geste');
+      const label =
+        trigger === 'longPress'
+          ? 'Appui long rejoué'
+          : trigger === 'dragStart'
+            ? 'Début du glissement rejoué'
+            : trigger === 'drop'
+              ? 'Dépôt rejoué'
+              : trigger === 'dragCancel'
+                ? 'Glissement annulé rejoué'
+                : trigger === 'swipe'
+                  ? 'Balayage rejoué'
+                  : `Geste rejoué · ${trigger}`;
+      showClickMarker(participantId, x * scale, y * scale, label);
+    }
+    return;
+  }
   if (data['kind'] === 'hover') {
     if (
       action === 'enter' &&
@@ -184,7 +209,9 @@ function onInteraction(
     return;
   }
   if (
-    (action === 'click' || action === 'pointerdown' || action === 'mousedown') &&
+    (action === 'click' ||
+      action === 'pointerdown' ||
+      action === 'mousedown') &&
     typeof x === 'number' &&
     Number.isFinite(x) &&
     typeof y === 'number' &&
@@ -238,7 +265,8 @@ function onStep(
   setNextActionCountdown(undefined);
   const index = typeof data['index'] === 'number' ? data['index'] : 0;
   const total = replayableEvents().length;
-  const nextState = typeof data['state'] === 'string' ? data['state'] : 'paused';
+  const nextState =
+    typeof data['state'] === 'string' ? data['state'] : 'paused';
   updateGlobalProgress(connection.participantId, index);
   connection.status = nextState;
   updateGlobalReplayState();
@@ -256,7 +284,8 @@ function onProgress(
   const { participantId } = connection;
   if (typeof data['index'] === 'number')
     updateGlobalProgress(participantId, data['index']);
-  const nextState = typeof data['state'] === 'string' ? data['state'] : 'paused';
+  const nextState =
+    typeof data['state'] === 'string' ? data['state'] : 'paused';
   if (nextState === 'completed') hideReplayDialog(participantId);
   connection.status = nextState;
   updateGlobalReplayState();
@@ -419,9 +448,7 @@ function handle(
  * Starts listening to the replayed pages, once. `importText` is how an export
  * the page sends back becomes the open recording.
  */
-export function listenToReplayBridge(
-  importText: (text: string) => void,
-): void {
+export function listenToReplayBridge(importText: (text: string) => void): void {
   if (registers.bridgeListening) return;
   registers.bridgeListening = true;
   onWindowMessage((message) => {

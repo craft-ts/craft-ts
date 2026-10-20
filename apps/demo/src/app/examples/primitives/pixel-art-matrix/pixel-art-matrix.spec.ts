@@ -6,7 +6,7 @@ import {
   VirtualCraftTemporalRuntime,
 } from '@craft-ts/core';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LONG_PRESS_DURATION_MS } from './long-press.directive';
+import { LONG_PRESS_DURATION_MS } from '@craft-ts/core';
 import PixelArtMatrix from './pixel-art-matrix';
 
 const EMPTY = '#f8fafc';

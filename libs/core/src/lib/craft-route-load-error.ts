@@ -26,8 +26,12 @@ import {
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 import type { CraftExceptionComponentDescriptor } from './craft-route-exceptions';
 import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
+import { ɵinjectCorrelationIdServiceIn } from './correlation-id';
+import { isCraftReplaying } from './craft-replay';
+import { ɵinjectSendContextSession } from './send-context-to-ai.tokens';
 
 const CRAFT_ROUTE_DYNAMIC_IMPORT_RETRY_PARAM = '__craft_route_retry';
+let routeLoadSequence = 0;
 
 export const CRAFT_ROUTE_LOAD_ERROR_CODE = 'CRAFT_ROUTE_LOAD_ERROR' as const;
 export const CRAFT_ROUTE_LOAD_ERROR_PATH = '__craft/route-load-error';
@@ -76,11 +80,16 @@ const craftRouteLoadRetryService = ɵcraftValueService(
     inputs.$provided ?? createRouteLoadRetry(),
 ) as unknown as {
   CraftRouteLoadRetry: () => Generator<never, CraftRouteLoadRetry, unknown>;
-  provideCraftRouteLoadRetry: (value: CraftRouteLoadRetry) => CraftServiceProvider;
+  provideCraftRouteLoadRetry: (
+    value: CraftRouteLoadRetry,
+  ) => CraftServiceProvider;
   CRAFT_ROUTE_LOAD_RETRY_META_DATA: { inject(): CraftRouteLoadRetry };
 };
-export const CraftRouteLoadRetry = craftRouteLoadRetryService.CraftRouteLoadRetry;
-export const provideCraftRouteLoadRetry = (value: CraftRouteLoadRetry): CraftServiceProvider =>
+export const CraftRouteLoadRetry =
+  craftRouteLoadRetryService.CraftRouteLoadRetry;
+export const provideCraftRouteLoadRetry = (
+  value: CraftRouteLoadRetry,
+): CraftServiceProvider =>
   craftRouteLoadRetryService.provideCraftRouteLoadRetry(value);
 export const ɵinjectCraftRouteLoadRetry = (): CraftRouteLoadRetry =>
   craftRouteLoadRetryService.CRAFT_ROUTE_LOAD_RETRY_META_DATA.inject();
@@ -99,9 +108,11 @@ const craftRouteLoadErrorComponentService = ɵcraftValueService(
 };
 export const provideCraftRouteLoadErrorConfig = (
   value: CraftExceptionComponentDescriptor,
-): CraftServiceProvider => craftRouteLoadErrorComponentService.provideCraftRouteLoadErrorConfig(value);
-export const ɵinjectCraftRouteLoadErrorConfig = (): CraftExceptionComponentDescriptor | null =>
-  craftRouteLoadErrorComponentService.CRAFT_ROUTE_LOAD_ERROR_CONFIG_META_DATA.inject();
+): CraftServiceProvider =>
+  craftRouteLoadErrorComponentService.provideCraftRouteLoadErrorConfig(value);
+export const ɵinjectCraftRouteLoadErrorConfig =
+  (): CraftExceptionComponentDescriptor | null =>
+    craftRouteLoadErrorComponentService.CRAFT_ROUTE_LOAD_ERROR_CONFIG_META_DATA.inject();
 
 interface ActiveRouteLoadError {
   readonly exception: CraftRouteLoadError;
@@ -116,8 +127,9 @@ const craftActiveRouteLoadErrorService = ɵcraftValueService(
     inject(): WritableSignal<ActiveRouteLoadError | null>;
   };
 };
-export const ɵinjectActiveCraftRouteLoadError = (): WritableSignal<ActiveRouteLoadError | null> =>
-  craftActiveRouteLoadErrorService.CRAFT_ACTIVE_ROUTE_LOAD_ERROR_META_DATA.inject();
+export const ɵinjectActiveCraftRouteLoadError =
+  (): WritableSignal<ActiveRouteLoadError | null> =>
+    craftActiveRouteLoadErrorService.CRAFT_ACTIVE_ROUTE_LOAD_ERROR_META_DATA.inject();
 
 let craftRouteLoadErrorHostComponent: Type<unknown> | undefined;
 
@@ -144,12 +156,20 @@ const craftRouteLoadErrorService = ɵcraftValueService(
   { name: 'CraftRouteLoadError', providedIn: 'global' },
   () => computed(() => ɵinjectActiveCraftRouteLoadError()()?.exception ?? null),
 ) as unknown as {
-  CraftRouteLoadError: () => Generator<never, Signal<CraftRouteLoadError | null>, unknown>;
-  CRAFT_ROUTE_LOAD_ERROR_META_DATA: { inject(): Signal<CraftRouteLoadError | null> };
+  CraftRouteLoadError: () => Generator<
+    never,
+    Signal<CraftRouteLoadError | null>,
+    unknown
+  >;
+  CRAFT_ROUTE_LOAD_ERROR_META_DATA: {
+    inject(): Signal<CraftRouteLoadError | null>;
+  };
 };
-export const CraftRouteLoadError = craftRouteLoadErrorService.CraftRouteLoadError;
-export const ɵinjectCraftRouteLoadError = (): Signal<CraftRouteLoadError | null> =>
-  craftRouteLoadErrorService.CRAFT_ROUTE_LOAD_ERROR_META_DATA.inject();
+export const CraftRouteLoadError =
+  craftRouteLoadErrorService.CraftRouteLoadError;
+export const ɵinjectCraftRouteLoadError =
+  (): Signal<CraftRouteLoadError | null> =>
+    craftRouteLoadErrorService.CRAFT_ROUTE_LOAD_ERROR_META_DATA.inject();
 
 export interface CraftRouteLoadRecovery {
   retry(): Promise<boolean>;
@@ -162,17 +182,24 @@ const craftRouteLoadRecoveryService = ɵcraftValueService(
     const router = ɵinjectCraftRouterRuntime();
     return {
       retry: async () => {
-        const targetUrl = ɵinjectActiveCraftRouteLoadError()()?.exception.payload.targetUrl ?? router?.url;
+        const targetUrl =
+          ɵinjectActiveCraftRouteLoadError()()?.exception.payload.targetUrl ??
+          router?.url;
         return targetUrl && router ? router.navigateByUrl(targetUrl) : false;
       },
       reload: () => globalThis.location?.reload(),
     } satisfies CraftRouteLoadRecovery;
   },
 ) as unknown as {
-  CraftRouteLoadRecovery: () => Generator<never, CraftRouteLoadRecovery, unknown>;
+  CraftRouteLoadRecovery: () => Generator<
+    never,
+    CraftRouteLoadRecovery,
+    unknown
+  >;
   CRAFT_ROUTE_LOAD_RECOVERY_META_DATA: { inject(): CraftRouteLoadRecovery };
 };
-export const CraftRouteLoadRecovery = craftRouteLoadRecoveryService.CraftRouteLoadRecovery;
+export const CraftRouteLoadRecovery =
+  craftRouteLoadRecoveryService.CraftRouteLoadRecovery;
 export const ɵinjectCraftRouteLoadRecovery = (): CraftRouteLoadRecovery =>
   craftRouteLoadRecoveryService.CRAFT_ROUTE_LOAD_RECOVERY_META_DATA.inject();
 
@@ -209,7 +236,9 @@ export function createRouteLoadRetry(
   return createCraftLoadRetry<CraftRouteLoadRetryContext>(options);
 }
 
-function routeLoadRetryProvider(retry: CraftRouteLoadRetryConfig): CraftServiceProvider {
+function routeLoadRetryProvider(
+  retry: CraftRouteLoadRetryConfig,
+): CraftServiceProvider {
   if (isCraftLoadRetryType(retry)) {
     return provideCraftRouteLoadRetry(new retry());
   }
@@ -288,43 +317,86 @@ export function loadRouteWithRetry<T>(
   }
 
   return (async () => {
+    const captureContext = dependencies
+      ? runInInjectionContext(dependencies.injector, () => {
+          const session = ɵinjectSendContextSession();
+          return {
+            session: session?.activeClip ? session : null,
+            correlationId:
+              ɵinjectCorrelationIdServiceIn(
+                dependencies!.injector,
+              )?.lastCorrelationId() ?? undefined,
+          };
+        })
+      : { session: null, correlationId: undefined };
+    const operationId = `route-load:${++routeLoadSequence}`;
+    const targetUrl = dependencies?.router.url ?? '';
+    const capture = (
+      phaseName: 'started' | 'succeeded' | 'failed',
+      outcome?: 'loaded' | 'error',
+    ) => {
+      captureContext.session?.capture('route-load', phaseName, {
+        name: `route-load:${phase}:${routePath}`,
+        operationId,
+        ...(captureContext.correlationId
+          ? { correlationId: captureContext.correlationId }
+          : {}),
+        payload: {
+          phase,
+          routePath,
+          targetUrl,
+          ...(outcome ? { outcome } : {}),
+          ...(isCraftReplaying() ? { replay: true } : {}),
+        },
+      });
+    };
+    capture('started');
     try {
-      return await loader(INITIAL_LAZY_LOAD_HELPERS);
-    } catch (firstError) {
-      if (!dependencies) throw firstError;
-
-      const context: CraftRouteLoadRetryContext = {
-        phase,
-        routePath,
-        attempt: 1,
-        error: firstError,
-        targetUrl: dependencies.router.url,
-      };
-
-      let attempt = 1;
       try {
-        const retryHelpers = createRetryLazyLoadHelpers(
-          dependencies.dynamicImport,
-          CRAFT_ROUTE_DYNAMIC_IMPORT_RETRY_PARAM,
-        );
-        const retryLoader = () => {
-          attempt++;
-          return loader(retryHelpers);
+        const result = await loader(INITIAL_LAZY_LOAD_HELPERS);
+        capture('succeeded', 'loaded');
+        return result;
+      } catch (firstError) {
+        if (!dependencies) throw firstError;
+
+        const context: CraftRouteLoadRetryContext = {
+          phase,
+          routePath,
+          attempt: 1,
+          error: firstError,
+          targetUrl: dependencies.router.url,
         };
 
-        return await dependencies.retry.execute(retryLoader, context);
-      } catch (cause) {
-        const exception = createRouteLoadError({
-          ...context,
-          cause,
-          attempt,
-        });
-        Object.defineProperty(exception, 'routeInjector', {
-          value: dependencies.injector,
-          enumerable: false,
-        });
-        throw exception;
+        let attempt = 1;
+        try {
+          const retryHelpers = createRetryLazyLoadHelpers(
+            dependencies.dynamicImport,
+            CRAFT_ROUTE_DYNAMIC_IMPORT_RETRY_PARAM,
+          );
+          const retryLoader = () => {
+            attempt++;
+            return loader(retryHelpers);
+          };
+
+          const result = await dependencies.retry.execute(retryLoader, context);
+          capture('succeeded', 'loaded');
+          return result;
+        } catch (cause) {
+          const exception = createRouteLoadError({
+            ...context,
+            cause,
+            attempt,
+          });
+          Object.defineProperty(exception, 'routeInjector', {
+            value: dependencies.injector,
+            enumerable: false,
+          });
+          throw exception;
+        }
       }
+    } catch (firstError) {
+      capture('failed', 'error');
+      throw firstError;
     }
   })();
 }

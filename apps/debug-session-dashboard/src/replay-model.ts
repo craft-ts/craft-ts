@@ -16,11 +16,7 @@ export const REPLAY_CHANNEL = 'craft-debug-replay';
 export const REPLAY_QUERY_MARKER = 'craft-debug-replay';
 
 export type ReplayParticipantState =
-  | 'visible'
-  | 'hidden'
-  | 'blurred'
-  | 'closed'
-  | 'interrupted';
+  'visible' | 'hidden' | 'blurred' | 'closed' | 'interrupted';
 
 /** A pending timer the replay can cancel; its clock is the Craft temporal runtime's. */
 export type ReplayTimer = Readonly<{ cancel(): void }>;
@@ -93,8 +89,7 @@ export type ReplayDialogView = Readonly<{
 }>;
 
 export type LocalTarget =
-  | Readonly<{ ok: true; url: URL }>
-  | Readonly<{ ok: false; error: string }>;
+  Readonly<{ ok: true; url: URL }> | Readonly<{ ok: false; error: string }>;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -147,6 +142,21 @@ export function eventSeverity(
 
 export function eventDiagnosticLabel(event: SendContextEvent): string {
   const name = event.name ?? 'nom non disponible';
+  if (event.kind === 'route-load' && isRecord(event.payload)) {
+    const payload = event.payload;
+    const outcome = payload['outcome'];
+    return `Chargement route · ${String(payload['routePath'] ?? name)} · ${String(outcome ?? event.phase)}`;
+  }
+  if (event.kind === 'gesture' && isRecord(event.payload)) {
+    const trigger =
+      event.payload['trigger'] ??
+      (name.startsWith('gesture:') ? name.slice('gesture:'.length) : undefined);
+    if (trigger === 'longPress') return 'Appui long';
+    if (trigger === 'drop') return 'Dépôt';
+    if (trigger === 'dragCancel') return 'Glissement annulé';
+    if (trigger === 'swipe') return 'Balayage';
+    return `Geste · ${String(trigger ?? name)}`;
+  }
   if (event.kind !== 'performance' || !isRecord(event.payload)) return name;
   const payload = event.payload;
   const durationMs = payload['durationMs'];
@@ -335,21 +345,19 @@ export function alignSharedTimeline(
         allEvents.length ? Infinity : 0,
       )
     : 0;
-  return slices.map(
-    (item): ReplaySlice => ({
-      ...item,
-      session: {
-        ...item.session,
-        events: item.session.events.map((event) => ({
-          ...event,
-          globalElapsedMs: hasGlobalTimeline
-            ? event.globalElapsedMs
-            : event.timestamp - firstTimestamp,
-        })),
-      },
-      timelineOriginMs: timelineOrigin,
-    }),
-  );
+  return slices.map((item): ReplaySlice => ({
+    ...item,
+    session: {
+      ...item.session,
+      events: item.session.events.map((event) => ({
+        ...event,
+        globalElapsedMs: hasGlobalTimeline
+          ? event.globalElapsedMs
+          : event.timestamp - firstTimestamp,
+      })),
+    },
+    timelineOriginMs: timelineOrigin,
+  }));
 }
 
 /** What the recording says about when its tabs were created. */
@@ -420,6 +428,7 @@ export function participantStartAtMs(
           (event.kind === 'defer' && event.phase === 'started') ||
           (event.phase === 'emitted' &&
             (event.kind === 'dom' ||
+              event.kind === 'gesture' ||
               event.kind === 'hover' ||
               event.kind === 'scroll' ||
               event.kind === 'viewport')),
@@ -682,6 +691,19 @@ export function nextActionLabel(next: SendContextEvent | undefined): string {
   if (!next) return 'Aucune étape restante';
   if (next.kind === 'defer')
     return `Ensuite · chargement différé ${next.name ?? ''}`.trim();
+  if (next.kind === 'gesture') {
+    const payload = isRecord(next.payload) ? next.payload : {};
+    const trigger =
+      payload['trigger'] ??
+      (next.name?.startsWith('gesture:')
+        ? next.name.slice('gesture:'.length)
+        : undefined);
+    if (trigger === 'longPress') return 'Ensuite · Appui long';
+    if (trigger === 'drop') return 'Ensuite · Dépôt';
+    if (trigger === 'dragCancel') return 'Ensuite · glissement annulé';
+    if (trigger === 'swipe') return 'Ensuite · Balayage';
+    return `Ensuite · Geste ${String(trigger ?? next.name ?? '')}`.trim();
+  }
   if (next.kind === 'hover') {
     const payload = isRecord(next.payload) ? next.payload : {};
     return `Ensuite · survol ${String(payload['action'] ?? '')} ${String(payload['selector'] ?? '')}`.trim();
