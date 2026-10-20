@@ -282,6 +282,21 @@ export const eventTimelinePageCount = computed(() =>
   Math.max(1, Math.ceil(journalEvents().length / eventTimelinePageSize)),
 );
 export const replayableEvents = computed(() => getReplaySteps(visibleEvents()));
+/**
+ * When each replayable action happens, in milliseconds from the first one: the
+ * recorded timeline the replay keeps to when it plays at real speed.
+ */
+export const replayActionOffsetsMs = computed(() => {
+  const shared = selectedParticipantId() === 'all';
+  const times = replayableEvents().map((event) =>
+    shared
+      ? (event.globalElapsedMs ?? event.elapsedMs ?? event.timestamp)
+      : (event.elapsedMs ?? event.timestamp),
+  );
+  const origin = times[0] ?? 0;
+  let latest = 0;
+  return times.map((time) => (latest = Math.max(latest, time - origin)));
+});
 export const activeReplayEventId = computed(
   () => replayableEvents()[Math.max(0, replayIndex() - 1)]?.id,
 );

@@ -722,3 +722,14 @@ export function countdownLabel(remainingMs: number | undefined): string {
   if (remainingMs <= 0) return 'maintenant';
   return `dans ${(remainingMs / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
 }
+
+/** A duration read as a clock: 1:05, or 1:02:05 past the hour. */
+export function clockLabel(ms: number): string {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = String(seconds % 60).padStart(2, '0');
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}`
+    : `${minutes}:${rest}`;
+}

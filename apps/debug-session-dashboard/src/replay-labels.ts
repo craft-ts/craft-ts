@@ -1,10 +1,17 @@
 import type { SendContextEvent } from '@craft-ts/core';
-import { countdownLabel, plural, replayStateLabels, nextActionLabel } from './replay-model';
+import {
+  clockLabel,
+  countdownLabel,
+  plural,
+  replayStateLabels,
+  nextActionLabel,
+} from './replay-model';
 import {
   errorCount,
   events,
   nextActionDelayMs,
   replayableEvents,
+  replayActionOffsetsMs,
   replayableParticipants,
   replayIndex,
   replayParticipantIds,
@@ -33,6 +40,46 @@ export function progressLabel(): string {
   if (!total) return 'Aucune étape rejouable dans cette session.';
   const state = replayStateLabels[replayState()] ?? replayState();
   return `${replayIndex()} / ${total} étapes · ${state}`;
+}
+
+/** The whole recorded timeline, from the first action to the last. */
+export function replayDurationMs(): number {
+  return replayActionOffsetsMs().at(-1) ?? 0;
+}
+
+/**
+ * Where the replay is on that timeline: the last action it ran, moving on
+ * toward the next one as the countdown runs down.
+ */
+export function replayElapsedMs(): number {
+  const offsets = replayActionOffsetsMs();
+  const index = replayIndex();
+  const next = offsets[index];
+  if (next === undefined) return replayDurationMs();
+  const previous = index > 0 ? (offsets[index - 1] ?? 0) : 0;
+  const remaining =
+    replayState() === 'playing' ? nextActionDelayMs() : undefined;
+  return remaining === undefined
+    ? previous
+    : Math.min(next, Math.max(previous, next - remaining));
+}
+
+/** How far along the timeline, as a share of its duration. */
+export function replayElapsedShare(): number {
+  const total = replayDurationMs();
+  if (total > 0) return (replayElapsedMs() / total) * 100;
+  const steps = replayableEvents().length;
+  return steps > 0 && replayIndex() >= steps ? 100 : 0;
+}
+
+export function timeProgressLabel(): string {
+  if (!replayableEvents().length) return '';
+  return `Temps · ${clockLabel(replayElapsedMs())} / ${clockLabel(replayDurationMs())}`;
+}
+
+export function timeRemainingLabel(): string {
+  if (!replayableEvents().length) return '';
+  return `reste ${clockLabel(replayDurationMs() - replayElapsedMs())}`;
 }
 
 export function currentNextActionLabel(): string {

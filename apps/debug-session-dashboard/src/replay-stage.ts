@@ -13,6 +13,9 @@ import {
   currentNextActionLabel,
   nextActionTimingLabel,
   progressLabel,
+  replayElapsedShare,
+  timeProgressLabel,
+  timeRemainingLabel,
 } from './replay-labels';
 import { pauseReplay, playReplay } from './replay-playback';
 import { startReplay, stepNextReplayAction, stopReplay } from './replay-session';
@@ -177,6 +180,25 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
           computed(() => ` · ${nextActionTimingLabel()}`),
         ),
       ]),
+    ]),
+    div({ class: ui.progressTrack }, [
+      div({
+        class: ui.progressFill,
+        'data-lab': 'replay-time-fill',
+        style: function* () {
+          return assign(progressVars.done, unit.pct(replayElapsedShare()));
+        },
+      }),
+    ]),
+    div({ class: ui.progressText }, [
+      p(
+        { class: ui.progressLabel, 'data-lab': 'replay-time' },
+        computed(timeProgressLabel),
+      ),
+      p(
+        { class: ui.progressLabel, 'data-lab': 'replay-time-remaining' },
+        computed(timeRemainingLabel),
+      ),
     ]),
   ]);
 
