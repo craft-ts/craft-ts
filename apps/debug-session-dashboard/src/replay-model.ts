@@ -143,8 +143,13 @@ export function eventDiagnosticLabel(event: SendContextEvent): string {
     return `Chargement route · ${String(payload['routePath'] ?? name)} · ${String(outcome ?? event.phase)}`;
   }
   if (event.kind === 'gesture' && isRecord(event.payload)) {
-    const trigger = event.payload['trigger'];
+    const trigger =
+      event.payload['trigger'] ??
+      (name.startsWith('gesture:') ? name.slice('gesture:'.length) : undefined);
     if (trigger === 'longPress') return 'Appui long';
+    if (trigger === 'drop') return 'Dépôt';
+    if (trigger === 'dragCancel') return 'Glissement annulé';
+    if (trigger === 'swipe') return 'Balayage';
     return `Geste · ${String(trigger ?? name)}`;
   }
   if (event.kind !== 'performance' || !isRecord(event.payload)) return name;
@@ -656,7 +661,19 @@ export function nextActionLabel(next: SendContextEvent | undefined): string {
   if (!next) return 'Aucune étape restante';
   if (next.kind === 'defer')
     return `Ensuite · chargement différé ${next.name ?? ''}`.trim();
-  if (next.kind === 'gesture') return 'Ensuite · Appui long';
+  if (next.kind === 'gesture') {
+    const payload = isRecord(next.payload) ? next.payload : {};
+    const trigger =
+      payload['trigger'] ??
+      (next.name?.startsWith('gesture:')
+        ? next.name.slice('gesture:'.length)
+        : undefined);
+    if (trigger === 'longPress') return 'Ensuite · Appui long';
+    if (trigger === 'drop') return 'Ensuite · Dépôt';
+    if (trigger === 'dragCancel') return 'Ensuite · glissement annulé';
+    if (trigger === 'swipe') return 'Ensuite · Balayage';
+    return `Ensuite · Geste ${String(trigger ?? next.name ?? '')}`.trim();
+  }
   if (next.kind === 'hover') {
     const payload = isRecord(next.payload) ? next.payload : {};
     return `Ensuite · survol ${String(payload['action'] ?? '')} ${String(payload['selector'] ?? '')}`.trim();

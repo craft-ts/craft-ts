@@ -7,6 +7,7 @@ import { ɵinjectSendContextSession } from './send-context-to-ai.tokens';
 export type CraftReplayTrigger = Readonly<{
   name: string;
   target: Element;
+  coordinates?: Readonly<{ clientX: number; clientY: number }>;
   detail?: Readonly<Record<string, string | number | boolean | null>>;
 }>;
 
@@ -35,6 +36,7 @@ export function runCraftReplayTrigger<Result>(
       payload: {
         trigger: trigger.name,
         replayTarget,
+        ...(trigger.coordinates ?? {}),
         ...(trigger.detail ? { detail: trigger.detail } : {}),
       },
       targets: [{ tagName: trigger.target.tagName }],

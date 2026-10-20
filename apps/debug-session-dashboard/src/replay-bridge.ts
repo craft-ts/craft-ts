@@ -171,7 +171,20 @@ function onInteraction(
       Number.isFinite(y)
     ) {
       const scale = replayScales.get(participantId) ?? 1;
-      showClickMarker(participantId, x * scale, y * scale, 'Appui long rejoué');
+      const trigger = String(data['trigger'] ?? data['name'] ?? 'geste');
+      const label =
+        trigger === 'longPress'
+          ? 'Appui long rejoué'
+          : trigger === 'dragStart'
+            ? 'Début du glissement rejoué'
+            : trigger === 'drop'
+              ? 'Dépôt rejoué'
+              : trigger === 'dragCancel'
+                ? 'Glissement annulé rejoué'
+                : trigger === 'swipe'
+                  ? 'Balayage rejoué'
+                  : `Geste rejoué · ${trigger}`;
+      showClickMarker(participantId, x * scale, y * scale, label);
     }
     return;
   }

@@ -37,30 +37,30 @@ repères visuels.
 
 Les activations `deferNode` utilisent le type d’événement extensible du format
 v5 et ne changent pas sa structure requise ; aucune migration n’est nécessaire.
-Les déclencheurs natifs ne sont pas installés pendant le replay. Les effets
-uniquement liés à d’autres listeners natifs (appui long, scroll, saisie ou
-hover) restent hors de ce premier chemin sémantique.
+Les déclencheurs natifs ne sont pas redistribués pendant le replay. Les
+primitives `longPress`, `drag` et `swipe` enregistrent un repère sémantique et
+associent leurs appels Craft à ce déclencheur. Scroll, hover et saisie restent
+des états ou repères de présentation : leurs listeners natifs ne sont pas
+réexécutés.
 
 ## Inventaire des déclencheurs natifs
 
 | Famille                                                      | Capture actuelle                                                                                                                                                                                                                         | Replay v5                                                                                                                                                                                                                 |
 | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `deferNode` (`immediate`, `idle`, `viewport`, `interaction`) | Activation, déclencheur et issue enregistrés comme événements `defer`.                                                                                                                                                                   | Loader activé par identité et à l’instant capturé.                                                                                                                                                                        |
-| `longPress` (`pointerdown` puis timer)                       | Le listener direct de la directive n’est pas capturé comme étape DOM et aucun événement `longPress` ne relie le timer à son handler. L’appel Craft du handler peut apparaître dans la trace si son contexte d’invocation est capturable. | Le geste et son délai ne sont pas simulés. Sans étape de replay causale, la présence d’un appel dans la trace ne garantit pas qu’il sera rejoué. Il faut un événement sémantique dédié avant de prendre ce cas en charge. |
+| `longPress` (`pointerdown` puis timer)                       | La primitive core capture `gesture:longPress` au déclenchement et corrèle le handler Craft. | Le timer et `pointerdown` ne sont pas simulés ; le graphe d’invocations rejoue les appels Craft corrélés. Le tableau pixel art utilise la primitive core. |
+| `drag` et `swipe`                                             | Les directives core capturent `gesture:drop`, `gesture:dragCancel` ou `gesture:swipe`, avec coordonnées et métriques du mouvement. | Les événements pointer et les aperçus haute fréquence ne sont pas simulés ; les appels Craft des handlers terminaux sont rejoués par invocation. |
 | Scroll                                                       | Position d’écran ou de conteneur échantillonnée dans la timeline.                                                                                                                                                                        | Position restaurée pour présentation ; aucun événement `scroll` n’est distribué et les handlers de chargement ne s’exécutent pas.                                                                                         |
 | Hover                                                        | Entrée et sortie sémantiques capturées comme étapes `hover`.                                                                                                                                                                             | Repère visuel uniquement ; pas de `pointerover`/`pointerout` applicatif.                                                                                                                                                  |
 | Saisie native                                                | `input`/`change` capturés comme étapes DOM. La valeur n’est stockée qu’avec l’option de capture correspondante et selon les règles de données sensibles.                                                                                 | La valeur peut être restaurée pour présentation ; les événements `input`/`change` ne sont pas distribués, donc un listener natif qui produit seul l’effet métier ne le reproduit pas.                                     |
-| Routes différées (`loadCraftComponent`, `loadChildren`)      | La navigation et les appels Craft du chargement peuvent être observés ; l’issue de l’`import()` dynamique n’a pas d’événement dédié.                                                                                                     | La navigation est rejouée par le routeur, mais la résolution ou l’échec de l’`import()` dépend du chargeur et du cache du navigateur. Le replay n’en valide pas l’issue séparément.                                       |
+| Routes différées (`loadCraftComponent`, `loadChildren`)      | La navigation et le début puis l’issue du chargement sont enregistrés comme événements `route-load`.                                                                                                                                    | La navigation est rejouée par le routeur ; le replay compare l’issue chargée à celle de la session enregistrée et signale les écarts.                                                                                            |
 
 ## Résultats de l’audit des scénarios existants
 
-- `longPress` est une directive de démonstration, pas un événement du contrat de
-  replay. Son test unitaire vérifie bien le timer et `grid.paintColumn` en
-  exécution normale ; aucun scénario ne relie actuellement cet appui à une
-  étape sémantique de replay. Le scénario du contrôleur confirme que
-  `pointerdown` reste visuel et n’exécute pas le listener de l’application. Ne
-  pas traiter la seule trace éventuelle de la méthode comme preuve que l’appui
-  long est rejoué.
+- `longPress` est fourni par `@craft-ts/core`. Son repère `gesture:longPress`
+  précède les invocations du handler ; l’exemple pixel art et les diagnostics
+  ESLint utilisent ou recommandent cette primitive. `drag` et `swipe` suivent
+  le même contrat pour leurs handlers terminaux.
 - Les scénarios du moteur enregistrent puis activent explicitement les modes
   `immediate`, `idle` et `viewport`. Ils confirment que le replay n’installe
   pas leurs déclencheurs navigateur et n’appelle le loader qu’une fois à
@@ -73,10 +73,8 @@ hover) restent hors de ce premier chemin sémantique.
   couvrent le contrat de non-redistribution, pas les effets natifs dépendant de
   ces événements.
 - Les tests du routeur couvrent le chargement différé et les erreurs de
-  `loadChildren` en fonctionnement normal. Le scénario de replay fait attendre
-  la navigation sur un `loadChildren` différé pendant que la timeline avance ;
-  il ne capture pas l’issue d’un véritable `import()` de route. Ce dernier cas
-  reste à instrumenter séparément.
+  `loadChildren` en fonctionnement normal. Les événements `route-load`
+  capturent maintenant l’issue et le replay la compare au chargement courant.
 
 ## État initial et lancement
 

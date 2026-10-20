@@ -83,6 +83,7 @@ module.exports = {
   'craft-ts/no-reused-primitive-method': 'error',
   'craft-ts/prefer-craft-long-press': 'error',
   'craft-ts/require-craft-replay-trigger': 'error',
+  'craft-ts/prefer-craft-pointer-gestures': 'error',
   'craft-ts/prefer-query-method-over-state-trigger': 'error',
   'craft-ts/no-injection-token': 'error',
   'craft-ts/no-authored-craft-token': 'error',

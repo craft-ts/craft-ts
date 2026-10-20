@@ -61,6 +61,14 @@ export const longPress = craftNodeDirective<LongPressProps>(
               {
                 name: 'longPress',
                 target: context.element,
+                ...(hasPointerCoordinates(event)
+                  ? {
+                      coordinates: {
+                        clientX: event.clientX,
+                        clientY: event.clientY,
+                      },
+                    }
+                  : {}),
                 detail: {
                   durationMs: configuredDurationMs,
                   triggeredAtMs: temporalRuntime.now(),
@@ -119,3 +127,14 @@ export const longPress = craftNodeDirective<LongPressProps>(
     };
   },
 );
+
+function hasPointerCoordinates(
+  event: Event,
+): event is Event & { clientX: number; clientY: number } {
+  return (
+    'clientX' in event &&
+    typeof event.clientX === 'number' &&
+    'clientY' in event &&
+    typeof event.clientY === 'number'
+  );
+}

@@ -107,6 +107,7 @@ const noRedundantPrimitiveInsertion = require('./no-redundant-primitive-insertio
 const noReusedPrimitiveMethod = require('./no-reused-primitive-method.cjs');
 const preferCraftLongPress = require('./prefer-craft-long-press.cjs');
 const requireCraftReplayTrigger = require('./require-craft-replay-trigger.cjs');
+const preferCraftPointerGestures = require('./prefer-craft-pointer-gestures.cjs');
 const noEffectOutsideLoaders = require('./no-effect-outside-loaders.cjs');
 const noExplicitEffectType = require('./no-explicit-effect-type.cjs');
 const noExplicitCraftInsertionType = require('./no-explicit-craft-insertion-type.cjs');
@@ -253,6 +254,7 @@ const plugin = {
     'no-reused-primitive-method': noReusedPrimitiveMethod,
     'prefer-craft-long-press': preferCraftLongPress,
     'require-craft-replay-trigger': requireCraftReplayTrigger,
+    'prefer-craft-pointer-gestures': preferCraftPointerGestures,
     'no-effect-outside-loaders': noEffectOutsideLoaders,
     'no-explicit-effect-type': noExplicitEffectType,
     'no-explicit-craft-insertion-type': noExplicitCraftInsertionType,

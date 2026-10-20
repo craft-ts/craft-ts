@@ -413,6 +413,7 @@ export function provideCraftDebugReplayBridge(
               send(event.origin, 'interaction', {
                 kind: interaction.kind,
                 action: payload['action'],
+                trigger: payload['trigger'],
                 name: interaction.name,
                 nextIndex: (replay?.index() ?? 0) + 1,
                 clientX:

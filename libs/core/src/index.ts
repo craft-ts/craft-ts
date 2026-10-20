@@ -103,6 +103,7 @@ export * from './lib/loop-guard';
 export * from './lib/craft-replay';
 export * from './lib/craft-replay-trigger';
 export * from './lib/craft-long-press';
+export * from './lib/craft-pointer-gestures';
 export * from './lib/craft-replay-transports';
 export * from './lib/craft-state-machine';
 export * from './lib/craft-machine-history';

@@ -46,6 +46,51 @@ callbacks contain Craft generators or `executeYieldable(...)` without this
 boundary. Craft template event bindings already receive normal interaction
 correlation from the renderer.
 
+## Drag and swipe
+
+Use the core `drag` directive for pointer-based movement and `swipe` for a
+single directional action. Craft manages the pointer listeners, pointer
+capture, click suppression, and semantic replay markers:
+
+```ts
+import { div } from '@craft-ts/component';
+import { drag, swipe } from '@craft-ts/core';
+
+div({ class: 'draggable' }, 'Move me').pipe(
+  drag({
+    onDragPreview: (gesture) => previewOffset(gesture.deltaX, gesture.deltaY),
+    onDrop: function* (gesture) {
+      yield* Board.moveTo(gesture.end);
+    },
+  }),
+);
+
+div({ class: 'swipeable' }, 'Swipe me').pipe(
+  swipe({
+    onSwipe: function* (gesture) {
+      yield* Carousel.move(gesture.direction);
+    },
+  }),
+);
+```
+
+`onDragStart` and `onDragPreview` are transient presentation hooks. Put durable
+state changes in `onDrop`, `onDragCancel`, or `onSwipe`; Craft records those
+handlers behind semantic replay triggers. The optional second callback argument
+is the directive host element. By default, gestures that start on buttons,
+links, or form controls are ignored. Configure thresholds with `dragThreshold`,
+`swipeMinDistance`, and `swipeMaxDurationMs`, and the ignore selectors with
+`dragIgnoreSelector` or `swipeIgnoreSelector`.
+
+Set CSS `touch-action` to match the interaction: use `none` when the gesture
+must own touch movement, or preserve vertical page scrolling for horizontal
+swipes with `pan-y`.
+
+The `prefer-craft-pointer-gestures` ESLint rule flags files that combine native
+pointer listeners, coordinate tracking, and gesture phases. It has no autofix:
+move the interaction to `drag` or `swipe`, or wrap durable Craft work in
+`runCraftReplayTrigger(...)` when the gesture is genuinely custom.
+
 ## Event actions and DOM modifiers
 
 `eventAction(...)` is an element directive. Use it when an element must adjust
