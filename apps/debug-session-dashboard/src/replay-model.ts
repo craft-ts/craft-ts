@@ -27,6 +27,11 @@ export type ReplayDifference = Readonly<{
   eventId?: string;
   expected: unknown;
   actual: unknown;
+  tolerances?: readonly Readonly<{
+    assertionId: string;
+    path: string;
+    kind: 'ignore' | 'redacted' | 'number' | 'unordered' | 'url';
+  }>[];
   transport?: Readonly<{
     transportId: string;
     instanceId: string;
@@ -567,6 +572,7 @@ export function parseReplayDifference(
   const skip = value['skip'];
   const eventId = value['eventId'];
   const transport = value['transport'];
+  const rawTolerances = value['tolerances'];
   const href = isRecord(recovery) ? recovery['href'] : undefined;
   const checkpointEventId = isRecord(skip)
     ? skip['checkpointEventId']
@@ -592,6 +598,30 @@ export function parseReplayDifference(
     ...(typeof eventId === 'string' ? { eventId } : {}),
     expected: value['expected'],
     actual: 'actual' in value ? value['actual'] : value['observed'],
+    ...(Array.isArray(rawTolerances)
+      ? {
+          tolerances: rawTolerances.flatMap((item) => {
+            if (
+              !isRecord(item) ||
+              typeof item['assertionId'] !== 'string' ||
+              typeof item['path'] !== 'string' ||
+              !['ignore', 'redacted', 'number', 'unordered', 'url'].includes(
+                String(item['kind']),
+              )
+            )
+              return [];
+            return [
+              {
+                assertionId: item['assertionId'],
+                path: item['path'],
+                kind: item['kind'] as NonNullable<
+                  ReplayDifference['tolerances']
+                >[number]['kind'],
+              },
+            ];
+          }),
+        }
+      : {}),
     ...(transportDetail ? { transport: transportDetail } : {}),
     ...(isRecord(recovery)
       ? {

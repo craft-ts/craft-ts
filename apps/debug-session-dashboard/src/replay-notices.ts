@@ -48,6 +48,20 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
                   : `Premier écart à l’événement ${difference()?.eventId ?? '?'}. La lecture est en pause.`,
               ),
             ),
+            p(
+              {
+                hidden: computed(() => !difference()?.tolerances?.length),
+                'data-lab': 'applied-tolerances',
+              },
+              computed(() => {
+                const rules = difference()?.tolerances ?? [];
+                return `Règles évaluées avant cet écart : ${rules
+                  .map(
+                    (rule) => `${rule.kind} ${rule.path} (${rule.assertionId})`,
+                  )
+                  .join(', ')}.`;
+              }),
+            ),
             details([
               summary('Voir le détail'),
               div({ class: ui.compare }, [

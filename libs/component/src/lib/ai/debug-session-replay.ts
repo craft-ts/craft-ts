@@ -7,6 +7,13 @@ import {
   isCraftReplayTransportEvent,
   ɵresolveCraftReplayTarget,
 } from '@craft-ts/core';
+import {
+  compareReplayScenarioValue,
+  readReplayScenarioPath,
+  type ReplayScenario,
+  type ReplayScenarioTolerance,
+  validateReplayScenario,
+} from './debug-session-scenario';
 
 export type ReplayValidation =
   | Readonly<{
@@ -591,6 +598,7 @@ export type ReplayDifference = Readonly<{
   eventId: string;
   expected: unknown;
   actual: unknown;
+  tolerances?: readonly ReplayScenarioTolerance[];
   recovery?: ReplayRecovery;
   skip?: Readonly<{ checkpointEventId: string; index: number }>;
 }>;
@@ -668,8 +676,16 @@ export function createReplayController(
     onScroll?: (event: SendContextEvent) => void;
     onViewport?: (event: SendContextEvent) => void | Promise<void>;
     forceRecovery?: (recovery: ReplayRecovery) => void | Promise<void>;
+    /** Explicit sidecar contract for checkpoint assertions in test replay. */
+    scenario?: ReplayScenario;
+    /** Maximum time to wait for an expected async invocation; defaults to 2500 ms. */
+    settleTimeoutMs?: number;
   }> = {},
 ): ReplayController {
+  if (options.scenario) {
+    const validation = validateReplayScenario(JSON.stringify(options.scenario));
+    if (!validation.ok) throw new Error(validation.error);
+  }
   const interactions = getReplaySteps(session.events);
   // Invocation is the default. The old event-dispatch implementation is only
   // available through an explicit compatibility mode and is never selected as
@@ -776,7 +792,10 @@ export function createReplayController(
   const installRecordedFetchReplay = (): void => {
     if (restoreFetch || !useInvocationReplay || typeof window === 'undefined')
       return;
-    recordedResponseResolver = createRecordedResponseResolver(session);
+    recordedResponseResolver = createRecordedResponseResolver(
+      session,
+      options.scenario,
+    );
     recordedResponseResolver.enableTimeline();
     restoreFetch = installReplayNetworkGuard(
       recordedResponseResolver,
@@ -1232,7 +1251,16 @@ export function createReplayController(
     const replayTarget = isCraftReplayTarget(payload['replayTarget'])
       ? payload['replayTarget']
       : undefined;
-    if (isGesture && replayTarget) {
+    if (options.scenario) {
+      // Scenario runs treat DOM targets as diagnostic unless an explicit
+      // visual assertion checks them after the causal replay has completed.
+      const resolution = resolveScenarioInteractionTarget(event, replayTarget);
+      target = resolution.element ?? document.body ?? document.documentElement;
+      if (!resolution.element)
+        options.onWarning?.(
+          `Scenario replay skipped an informative target (${resolution.status}) for event ${event.id}.`,
+        );
+    } else if (isGesture && replayTarget) {
       const resolution = ɵresolveCraftReplayTarget(replayTarget);
       target =
         resolution.status === 'resolved' &&
@@ -1514,7 +1542,9 @@ export function createReplayController(
       }
     }
     let expectedCallIndex = 0;
-    const settleDeadline = Date.now() + 2500;
+    const settleDeadline =
+      Date.now() +
+      Math.max(0, Math.min(options.settleTimeoutMs ?? 2500, 30_000));
     const observedCalls = () =>
       options
         .observedEvents?.()
@@ -1614,7 +1644,11 @@ export function createReplayController(
         intervalEvent.state !== undefined;
       if (isRecordedPrimitiveChange && options.restoreState) {
         options.restoreState(intervalEvent.state, intervalEvent);
-      } else if (intervalEvent.state !== undefined && options.readState) {
+      } else if (
+        intervalEvent.state !== undefined &&
+        options.readState &&
+        !options.scenario
+      ) {
         lastExpectedState = intervalEvent.state;
         const actualState = options.readState();
         if (hasReplayStateDifference(intervalEvent.state, actualState)) {
@@ -1628,7 +1662,7 @@ export function createReplayController(
             cursor + 1,
           );
         }
-      } else if (intervalEvent.state !== undefined) {
+      } else if (intervalEvent.state !== undefined && !options.scenario) {
         lastExpectedState = intervalEvent.state;
         const difference = options.onDifference?.(intervalEvent);
         if (difference) {
@@ -2143,6 +2177,7 @@ export function installReplayNetworkGuard(
 /** Match requests in their recorded order using method, local path and body. */
 export function createRecordedResponseResolver(
   session: SendContextReplayExport,
+  scenario?: ReplayScenario,
 ): RecordedResponseResolver {
   const firstInteractionSequence =
     session.events.find(
@@ -2194,19 +2229,34 @@ export function createRecordedResponseResolver(
       typeof payload['url'] === 'string' ? (payload['url'] as string) : '';
     if (
       recordedMethod !== request.method.toUpperCase() ||
-      !matchesRequestUrl(
-        recordedUrl,
-        request.url,
-        payload['params'],
-        session.startUrl,
-      )
+      !(scenario
+        ? matchesRequestUrlStrict(
+            recordedUrl,
+            request.url,
+            payload['params'],
+            session.startUrl,
+          )
+        : matchesRequestUrl(
+            recordedUrl,
+            request.url,
+            payload['params'],
+            session.startUrl,
+          ))
     )
       return undefined;
     const rawBody = payload['body'];
     if (
       rawBody === undefined
         ? requestBody !== ''
-        : !bodyMatches(rawBody, requestBody)
+        : !(scenario
+            ? bodyMatchesStrict(
+                rawBody,
+                requestBody,
+                request,
+                payload,
+                scenario,
+              )
+            : bodyMatches(rawBody, requestBody))
     )
       return undefined;
     const finish = session.events.find(
@@ -2256,6 +2306,529 @@ export type RecordedResponseResolver = ((
   advanceTo(elapsedMs: number): void;
   dispose(): void;
 };
+
+export type ReplayTestResult = Readonly<{
+  status: 'passed' | 'failed' | 'partial' | 'not-replayable';
+  classification:
+    | 'none'
+    | 'invalid-scenario'
+    | 'capture-incomplete'
+    | 'stale-or-incompatible'
+    | 'environment-or-adapter-missing'
+    | 'visual-only'
+    | 'regression-or-contract-change';
+  scenarioId: string;
+  scenarioVersion: number;
+  firstDifference?: ReplayDifference;
+  error?: string;
+  comparedAssertions: readonly string[];
+  appliedTolerances: readonly Readonly<{
+    assertionId: string;
+    rule: ReplayScenarioTolerance;
+  }>[];
+}>;
+
+/** Run a validated scenario to completion without dashboard recovery controls. */
+export async function runReplayTest(
+  session: SendContextReplayExport,
+  scenarioJson: string,
+  options: Readonly<{
+    readState?: () => unknown;
+    observedEvents?: () => readonly SendContextEvent[];
+    invokeRecordedMethod?: (event: SendContextEvent) => void | Promise<void>;
+    onTimelineAdvance?: (elapsedMs: number) => void | Promise<void>;
+    onDeferActivation?: (
+      event: SendContextEvent,
+      targetId: string,
+    ) => Promise<'loaded' | 'error'>;
+    prepare?: () => void | Promise<void>;
+    settleTimeoutMs?: number;
+  }>,
+): Promise<ReplayTestResult> {
+  const scenarioValidation = validateReplayScenario(scenarioJson);
+  const fallbackScenarioId = 'invalid-scenario';
+  const scenario = scenarioValidation.ok
+    ? scenarioValidation.scenario
+    : undefined;
+  const scenarioValidationError = scenarioValidation.ok
+    ? undefined
+    : scenarioValidation.error;
+  const scenarioId = scenario?.id ?? fallbackScenarioId;
+  const scenarioVersion = scenario?.scenarioVersion ?? 0;
+  const appliedTolerances: Array<{
+    assertionId: string;
+    rule: ReplayScenarioTolerance;
+  }> = [];
+  const comparedAssertions = new Set<string>();
+  if (!scenario)
+    return {
+      status: 'not-replayable',
+      classification: 'invalid-scenario',
+      scenarioId,
+      scenarioVersion,
+      error: scenarioValidationError,
+      comparedAssertions: [],
+      appliedTolerances,
+    };
+  const archiveValidation = validateReplayExport(JSON.stringify(session));
+  if (!archiveValidation.ok)
+    return {
+      status: 'not-replayable',
+      classification: /truncated|incomplete|clip/i.test(archiveValidation.error)
+        ? 'capture-incomplete'
+        : /transport|adapter|unsupported/i.test(archiveValidation.error)
+          ? 'environment-or-adapter-missing'
+          : 'stale-or-incompatible',
+      scenarioId,
+      scenarioVersion,
+      error: archiveValidation.error,
+      comparedAssertions: [],
+      appliedTolerances,
+    };
+  const steps = getReplaySteps(session.events);
+  if (!steps.length)
+    return {
+      status: 'not-replayable',
+      classification: 'capture-incomplete',
+      scenarioId,
+      scenarioVersion,
+      error: 'Session contains no replayable interaction steps.',
+      comparedAssertions: [],
+      appliedTolerances,
+    };
+
+  let firstDifference: ReplayDifference | undefined;
+  let error: string | undefined;
+  let replay: ReplayController | undefined;
+  const observedBaseline = options.observedEvents?.().length ?? 0;
+  try {
+    replay = createReplayController(session, {
+      ...options,
+      mode: 'invocation',
+      scenario,
+      forceRecovery: undefined,
+      onError: (message) => {
+        error ??= message;
+      },
+    });
+    while (replay.index() < steps.length) {
+      const previousIndex = replay.index();
+      const difference = await replay.step();
+      if (difference) {
+        firstDifference = difference;
+        break;
+      }
+      if (error) break;
+      if (replay.index() === previousIndex) {
+        error = 'Replay stopped without completing its next interaction.';
+        break;
+      }
+    }
+  } catch (caught) {
+    error ??= caught instanceof Error ? caught.message : String(caught);
+  } finally {
+    replay?.stop();
+  }
+
+  if (!firstDifference && !error && scenario.checkpoints.length) {
+    if (!options.readState) {
+      error =
+        'Scenario declares business state assertions but no state reader was configured.';
+    } else {
+      const finalState = options.readState();
+      for (const assertion of scenario.checkpoints) {
+        const observed = readReplayScenarioPath(finalState, assertion.path);
+        const actual = observed.found ? observed.value : null;
+        const rules = scenario.tolerances.filter(
+          (tolerance) => tolerance.assertionId === assertion.id,
+        );
+        const comparison = compareReplayScenarioValue(
+          assertion.expected,
+          actual,
+          rules,
+        );
+        comparedAssertions.add(assertion.id);
+        for (const rule of comparison.applied)
+          appliedTolerances.push({ assertionId: assertion.id, rule });
+        if (!comparison.matches) {
+          firstDifference = {
+            eventId: `scenario:${assertion.id}`,
+            expected: assertion.expected,
+            actual,
+            ...(comparison.applied.length
+              ? { tolerances: comparison.applied }
+              : {}),
+          };
+          break;
+        }
+      }
+    }
+  }
+
+  if (!firstDifference && !error && scenario.eventAssertions.length) {
+    const observed = options.observedEvents?.().slice(observedBaseline);
+    if (!observed) {
+      error =
+        'Scenario declares invocation, HTTP, or transport assertions but no observed event source was configured.';
+    } else {
+      const consumed = new Set<number>();
+      for (const assertion of scenario.eventAssertions) {
+        const candidate = findScenarioObservedAssertion(
+          assertion,
+          observed,
+          consumed,
+        );
+        const actual = candidate
+          ? scenarioEventValue(candidate, assertion, observed)
+          : null;
+        if (candidate) consumed.add(observed.indexOf(candidate));
+        const projected = projectScenarioExpectedShape(
+          assertion.expected,
+          actual,
+        );
+        const rules = scenario.tolerances.filter(
+          (tolerance) => tolerance.assertionId === assertion.id,
+        );
+        const comparison = compareReplayScenarioValue(
+          assertion.expected,
+          projected,
+          rules,
+        );
+        comparedAssertions.add(assertion.id);
+        for (const rule of comparison.applied)
+          appliedTolerances.push({ assertionId: assertion.id, rule });
+        if (!comparison.matches) {
+          firstDifference = {
+            eventId: `scenario:${assertion.id}`,
+            expected: assertion.expected,
+            actual: candidate ? projected : null,
+            ...(comparison.applied.length
+              ? { tolerances: comparison.applied }
+              : {}),
+          };
+          break;
+        }
+      }
+    }
+  }
+
+  if (!firstDifference && !error) {
+    for (const assertion of scenario.visualAssertions) {
+      if (typeof document === 'undefined') {
+        error = `Visual assertion ${assertion.id} requires a browser document.`;
+        break;
+      }
+      const targetInfo = resolveScenarioVisualTarget(assertion.targetId);
+      const actual = scenarioVisualValue(targetInfo.element);
+      const rules = scenario.tolerances.filter(
+        (tolerance) => tolerance.assertionId === assertion.id,
+      );
+      const projected = projectScenarioExpectedShape(
+        assertion.expected,
+        actual,
+      );
+      const comparison = compareReplayScenarioValue(
+        assertion.expected,
+        projected,
+        rules,
+      );
+      comparedAssertions.add(assertion.id);
+      for (const rule of comparison.applied)
+        appliedTolerances.push({ assertionId: assertion.id, rule });
+      if (!comparison.matches) {
+        firstDifference = {
+          eventId: `visual:${assertion.id}`,
+          expected: assertion.expected,
+          actual: projected,
+          ...(comparison.applied.length
+            ? { tolerances: comparison.applied }
+            : {}),
+        };
+        break;
+      }
+    }
+  }
+
+  if (!firstDifference && !error) {
+    const missing = [
+      ...scenario.checkpoints.map((assertion) => assertion.id),
+      ...scenario.eventAssertions.map((assertion) => assertion.id),
+      ...scenario.visualAssertions.map((assertion) => assertion.id),
+    ].find((id) => !comparedAssertions.has(id));
+    if (missing) error = `Scenario assertion ${missing} was not evaluated.`;
+  }
+  const status = firstDifference || error ? 'failed' : 'passed';
+  return {
+    status,
+    classification:
+      status === 'passed'
+        ? 'none'
+        : firstDifference &&
+            scenario.visualAssertions.some(
+              (assertion) =>
+                `visual:${assertion.id}` === firstDifference?.eventId,
+            )
+          ? 'visual-only'
+          : /adapter|transport|environment|not recorded|no recorded|fetch/i.test(
+                error ?? '',
+              )
+            ? 'environment-or-adapter-missing'
+            : 'regression-or-contract-change',
+    scenarioId,
+    scenarioVersion,
+    ...(firstDifference ? { firstDifference } : {}),
+    ...(error ? { error } : {}),
+    comparedAssertions: [...comparedAssertions],
+    appliedTolerances,
+  };
+}
+
+export class ReplayScenarioTestError extends Error {
+  readonly result: ReplayTestResult;
+
+  constructor(result: ReplayTestResult) {
+    super(
+      `Replay scenario ${result.scenarioId}@${result.scenarioVersion} ${result.status}: ${result.error ?? result.firstDifference?.eventId ?? result.classification}`,
+    );
+    this.name = 'ReplayScenarioTestError';
+    this.result = result;
+  }
+}
+
+/** Throw on every non-green verdict so an unhandled call fails a CI test process. */
+export async function runReplayTestOrThrow(
+  session: SendContextReplayExport,
+  scenarioJson: string,
+  options: Parameters<typeof runReplayTest>[2],
+): Promise<ReplayTestResult & { status: 'passed' }> {
+  const result = await runReplayTest(session, scenarioJson, options);
+  if (result.status !== 'passed') throw new ReplayScenarioTestError(result);
+  return result as ReplayTestResult & { status: 'passed' };
+}
+
+function findScenarioObservedAssertion(
+  assertion: ReplayScenario['eventAssertions'][number],
+  observed: readonly SendContextEvent[],
+  consumed: ReadonlySet<number>,
+): SendContextEvent | undefined {
+  const expected = isRecord(assertion.expected) ? assertion.expected : {};
+  const index = observed.findIndex((candidate, candidateIndex) => {
+    if (consumed.has(candidateIndex)) return false;
+    if (assertion.kind === 'invocation') {
+      if (candidate.kind !== 'craft' || candidate.phase !== 'started')
+        return false;
+      const payload = isRecord(candidate.payload) ? candidate.payload : {};
+      const invocation = isRecord(payload['replayInvocation'])
+        ? payload['replayInvocation']
+        : {};
+      return invocation['address'] === expected['address'];
+    }
+    if (assertion.kind === 'http') {
+      if (candidate.kind !== 'http' || candidate.phase !== 'started')
+        return false;
+      const payload = isRecord(candidate.payload) ? candidate.payload : {};
+      return (
+        String(payload['method'] ?? '').toUpperCase() ===
+          String(expected['method'] ?? '').toUpperCase() &&
+        sameUrlEndpoint(
+          String(payload['url'] ?? ''),
+          String(expected['url'] ?? ''),
+        )
+      );
+    }
+    if (candidate.kind !== 'transport' || !isRecord(candidate.payload))
+      return false;
+    return (
+      candidate.payload['transportId'] === expected['transportId'] &&
+      candidate.payload['direction'] === expected['direction']
+    );
+  });
+  return index < 0 ? undefined : observed[index];
+}
+
+function scenarioEventValue(
+  event: SendContextEvent,
+  assertion: ReplayScenario['eventAssertions'][number],
+  observed: readonly SendContextEvent[],
+): unknown {
+  if (assertion.kind === 'invocation') {
+    const payload = isRecord(event.payload) ? event.payload : {};
+    return isRecord(payload['replayInvocation'])
+      ? payload['replayInvocation']
+      : null;
+  }
+  if (assertion.kind === 'http') {
+    const payload = isRecord(event.payload) ? event.payload : {};
+    const result: Record<string, unknown> = {
+      method: payload['method'],
+      url: payload['url'],
+      ...(payload['params'] === undefined ? {} : { params: payload['params'] }),
+      ...(payload['body'] === undefined
+        ? {}
+        : { body: parseScenarioBody(payload['body']) }),
+    };
+    if (isRecord(assertion.expected) && 'response' in assertion.expected) {
+      const finish = observed.find(
+        (candidate) =>
+          candidate.kind === 'http' &&
+          candidate.operationId === event.operationId &&
+          (candidate.phase === 'succeeded' || candidate.phase === 'failed'),
+      );
+      result['response'] = finish?.response ?? null;
+    }
+    return result;
+  }
+  return event.payload ?? null;
+}
+
+function parseScenarioBody(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
+
+function sameUrlEndpoint(left: string, right: string): boolean {
+  try {
+    const a = new URL(left);
+    const b = new URL(right);
+    return a.origin === b.origin && a.pathname === b.pathname;
+  } catch {
+    return false;
+  }
+}
+
+/** Project only fields named by the assertion; missing expected fields remain mismatches. */
+function projectScenarioExpectedShape(
+  expected: unknown,
+  actual: unknown,
+): unknown {
+  if (Array.isArray(expected)) {
+    if (!Array.isArray(actual) || expected.length !== actual.length)
+      return actual;
+    return expected.map((item, index) =>
+      projectScenarioExpectedShape(item, actual[index]),
+    );
+  }
+  if (isRecord(expected)) {
+    if (!isRecord(actual)) return actual;
+    return Object.fromEntries(
+      Object.keys(expected).map((key) => [
+        key,
+        Object.hasOwn(actual, key)
+          ? projectScenarioExpectedShape(expected[key], actual[key])
+          : undefined,
+      ]),
+    );
+  }
+  return actual;
+}
+
+function resolveScenarioInteractionTarget(
+  event: SendContextEvent,
+  replayTarget: CraftReplayTarget | undefined,
+): Readonly<{
+  element: HTMLElement | null;
+  status: 'resolved' | 'missing' | 'ambiguous' | 'invalid';
+}> {
+  if (replayTarget) {
+    const result = ɵresolveCraftReplayTarget(replayTarget);
+    return {
+      element:
+        result.status === 'resolved' && result.element instanceof HTMLElement
+          ? result.element
+          : null,
+      status:
+        result.status === 'resolved'
+          ? 'resolved'
+          : result.status === 'ambiguous'
+            ? 'ambiguous'
+            : 'missing',
+    };
+  }
+  const payload = isRecord(event.payload) ? event.payload : {};
+  if (typeof payload['selector'] !== 'string')
+    return { element: null, status: 'invalid' };
+  try {
+    const matches = document.querySelectorAll(payload['selector']);
+    if (matches.length > 1) return { element: null, status: 'ambiguous' };
+    const element = matches.item(0);
+    return element instanceof HTMLElement
+      ? { element, status: 'resolved' }
+      : { element: null, status: 'missing' };
+  } catch {
+    return { element: null, status: 'invalid' };
+  }
+}
+
+function resolveScenarioVisualTarget(targetId: string): Readonly<{
+  element: HTMLElement | null;
+  status: 'resolved' | 'missing' | 'ambiguous';
+}> {
+  const matches = Array.from(
+    document.querySelectorAll('[data-replay-id]'),
+  ).filter((element) => element.getAttribute('data-replay-id') === targetId);
+  if (matches.length > 1) return { element: null, status: 'ambiguous' };
+  const element = matches[0];
+  return element instanceof HTMLElement
+    ? { element, status: 'resolved' }
+    : { element: null, status: 'missing' };
+}
+
+function scenarioVisualValue(element: HTMLElement | null): unknown {
+  if (!element) return { present: false };
+  const explicitRole = element.getAttribute('role');
+  const role = explicitRole ?? implicitRole(element);
+  const labels =
+    (element instanceof HTMLInputElement ||
+      element instanceof HTMLSelectElement ||
+      element instanceof HTMLTextAreaElement) &&
+    element.labels
+      ? Array.from(element.labels)
+          .map((label) => label.textContent ?? '')
+          .join(' ')
+      : '';
+  const accessibleName =
+    element.getAttribute('aria-label') ||
+    labels.trim() ||
+    element.getAttribute('alt') ||
+    element.getAttribute('title') ||
+    element.textContent?.trim() ||
+    '';
+  return {
+    present: true,
+    tagName: element.tagName.toLowerCase(),
+    ...(role ? { role } : {}),
+    accessibleName,
+  };
+}
+
+function implicitRole(element: HTMLElement): string | undefined {
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'button' || tag === 'summary') return 'button';
+  if (tag === 'a' && element.hasAttribute('href')) return 'link';
+  if (tag === 'nav') return 'navigation';
+  if (tag === 'main') return 'main';
+  if (tag === 'header') return 'banner';
+  if (tag === 'footer') return 'contentinfo';
+  if (tag === 'textarea') return 'textbox';
+  if (tag === 'select')
+    return element.hasAttribute('multiple') ? 'listbox' : 'combobox';
+  if (tag === 'input') {
+    const type = (element as HTMLInputElement).type.toLowerCase();
+    if (type === 'button' || type === 'submit' || type === 'reset')
+      return 'button';
+    if (type === 'checkbox') return 'checkbox';
+    if (type === 'radio') return 'radio';
+    if (type === 'range') return 'slider';
+    if (type === 'number') return 'spinbutton';
+    if (type === 'search') return 'searchbox';
+    if (type !== 'hidden') return 'textbox';
+  }
+  return undefined;
+}
 
 function recordedFetchResponse(finished: SendContextEvent): Response | Error {
   if (finished.phase === 'failed') {
@@ -2355,6 +2928,97 @@ function matchesRequestUrl(
   } catch {
     return recorded === actual;
   }
+}
+
+/** Scenario mode requires the recorded origin, path, and every query pair. */
+function matchesRequestUrlStrict(
+  recorded: string,
+  actual: string,
+  params: unknown,
+  base: string,
+): boolean {
+  try {
+    const expected = new URL(recorded, base || location.href);
+    const received = new URL(actual);
+    if (isRecord(params))
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null)
+          expected.searchParams.set(key, String(value));
+      }
+    if (
+      expected.origin !== received.origin ||
+      expected.pathname !== received.pathname
+    )
+      return false;
+    const pairs = (url: URL): string[] =>
+      [...url.searchParams.entries()]
+        .map(([key, value]) => `${key}\0${value}`)
+        .sort();
+    const expectedPairs = pairs(expected);
+    const receivedPairs = pairs(received);
+    return (
+      expectedPairs.length === receivedPairs.length &&
+      expectedPairs.every((pair, index) => pair === receivedPairs[index])
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Scenario fixtures use exact JSON equality; diagnostic replay keeps legacy redaction matching. */
+function bodyMatchesStrict(
+  expected: unknown,
+  actual: string,
+  request: Request,
+  recordedPayload: Record<string, unknown>,
+  scenario: ReplayScenario,
+): boolean {
+  if (typeof expected !== 'string') return false;
+  try {
+    const recordedBody: unknown = JSON.parse(expected);
+    const actualBody: unknown = JSON.parse(actual);
+    if (stableJson(recordedBody) === stableJson(actualBody)) return true;
+    if (!containsRedactedValue(recordedBody)) return false;
+
+    const recordedUrl = String(recordedPayload['url'] ?? '');
+    const assertion = scenario.eventAssertions.find((candidate) => {
+      if (candidate.kind !== 'http' || !isRecord(candidate.expected))
+        return false;
+      const assertionExpected = candidate.expected;
+      return (
+        String(assertionExpected['method'] ?? '').toUpperCase() ===
+          request.method.toUpperCase() &&
+        typeof assertionExpected['url'] === 'string' &&
+        sameUrlEndpoint(assertionExpected['url'], request.url) &&
+        sameUrlEndpoint(recordedUrl, request.url) &&
+        'body' in assertionExpected
+      );
+    });
+    if (!assertion) return false;
+    const comparison = compareReplayScenarioValue(
+      assertion.expected,
+      {
+        method: request.method,
+        url: request.url,
+        body: actualBody,
+      },
+      scenario.tolerances.filter(
+        (tolerance) => tolerance.assertionId === assertion.id,
+      ),
+    );
+    return (
+      comparison.matches &&
+      comparison.applied.some((tolerance) => tolerance.kind === 'redacted')
+    );
+  } catch {
+    return expected === actual;
+  }
+}
+
+function containsRedactedValue(value: unknown): boolean {
+  if (value === '[REDACTED]') return true;
+  if (Array.isArray(value)) return value.some(containsRedactedValue);
+  return isRecord(value) && Object.values(value).some(containsRedactedValue);
 }
 
 function bodyMatches(expected: unknown, actual: string): boolean {
