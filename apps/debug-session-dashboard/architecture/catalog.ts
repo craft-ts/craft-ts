@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "0b2721736c512c0c",
+  "graphHash": "80e84f7c8e6458ee",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
