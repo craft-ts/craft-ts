@@ -3,6 +3,7 @@ import {
   CRAFT_TEMPORAL_RUNTIME,
   craftNodeDirective,
   executeYieldable,
+  runCraftReplayTrigger,
   type TemporalTaskHandle,
 } from '@craft-ts/core';
 
@@ -46,6 +47,7 @@ export const longPress = craftNodeDirective<LongPressProps>(
       cancelTimer();
       longPressTriggered = false;
       suppressClickOnce = false;
+      const configuredDurationMs = durationMs();
       timer = temporalRuntime.schedule(
         () => {
           timer = null;
@@ -53,10 +55,21 @@ export const longPress = craftNodeDirective<LongPressProps>(
           suppressClickOnce = true;
           const handler = context.props.onLongPress;
           if (typeof handler === 'function') {
-            executeYieldable(handler, [event], context.injector);
+            runCraftReplayTrigger(
+              context.injector,
+              {
+                name: 'longPress',
+                target: context.element,
+                detail: {
+                  durationMs: configuredDurationMs,
+                  triggeredAtMs: temporalRuntime.now(),
+                },
+              },
+              () => executeYieldable(handler, [event], context.injector),
+            );
           }
         },
-        durationMs(),
+        configuredDurationMs,
         {
           kind: 'long-press',
           owner: 'longPress',

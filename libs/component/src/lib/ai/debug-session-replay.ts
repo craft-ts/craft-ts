@@ -55,7 +55,14 @@ function validateReplayInvocations(
     return (
       typeof payload?.['host'] === 'string' &&
       payload['host'].startsWith('method:') &&
-      !isReplayInvocationEvent(event)
+      !isReplayInvocationEvent(event) &&
+      !events.some(
+        (trigger) =>
+          trigger.kind === 'gesture' &&
+          trigger.phase === 'emitted' &&
+          trigger.correlationId === event.correlationId &&
+          trigger.sequence < event.sequence,
+      )
     );
   });
   if (missingInvocation)
@@ -278,6 +285,27 @@ function validateReplaySteps(
   events: readonly SendContextEvent[],
 ): string | undefined {
   for (const event of events) {
+    if (event.kind === 'route-load') {
+      const payload = isRecord(event.payload) ? event.payload : undefined;
+      if (
+        !payload ||
+        (event.phase !== 'started' &&
+          event.phase !== 'succeeded' &&
+          event.phase !== 'failed') ||
+        (payload['phase'] !== 'component' && payload['phase'] !== 'children') ||
+        typeof payload['routePath'] !== 'string' ||
+        payload['routePath'].length === 0 ||
+        payload['routePath'].length > 2_048 ||
+        typeof payload['targetUrl'] !== 'string' ||
+        !event.operationId ||
+        (event.phase === 'started'
+          ? payload['outcome'] !== undefined
+          : payload['outcome'] !==
+            (event.phase === 'succeeded' ? 'loaded' : 'error'))
+      )
+        return `Route load event ${event.sequence} has invalid route identity or outcome.`;
+      continue;
+    }
     if (event.kind === 'defer') {
       const payload = isRecord(event.payload) ? event.payload : undefined;
       if (
@@ -300,7 +328,19 @@ function validateReplaySteps(
     }
     if (event.phase !== 'emitted') continue;
     const payload = isRecord(event.payload) ? event.payload : undefined;
-    if (event.kind === 'dom' || event.kind === 'hover') {
+    if (event.kind === 'gesture') {
+      const detail =
+        payload && isRecord(payload['detail']) ? payload['detail'] : undefined;
+      if (
+        typeof payload?.['trigger'] !== 'string' ||
+        payload['trigger'].length === 0 ||
+        payload['trigger'].length > 64 ||
+        !event.correlationId ||
+        !isCraftReplayTarget(payload['replayTarget']) ||
+        (payload['detail'] !== undefined && detail === undefined)
+      )
+        return `Gesture event ${event.sequence} has invalid trigger or target metadata.`;
+    } else if (event.kind === 'dom' || event.kind === 'hover') {
       if (
         !payload ||
         typeof payload['selector'] !== 'string' ||
@@ -398,7 +438,10 @@ function isCraftReplayTarget(value: unknown): value is CraftReplayTarget {
     Array.isArray(value['componentPath']) &&
     value['componentPath'].length === 1 &&
     value['componentPath'].every(
-      (segment) => typeof segment === 'string' && segment.length > 0 && segment.length <= 128,
+      (segment) =>
+        typeof segment === 'string' &&
+        segment.length > 0 &&
+        segment.length <= 128,
     ) &&
     (value['stability'] === undefined ||
       value['stability'] === 'stable' ||
@@ -692,8 +735,7 @@ export function createReplayController(
       const eventTarget = event.target;
       if (eventTarget instanceof EventTarget)
         pendingScrollEvents.get(eventTarget)?.();
-      if (eventTarget === document)
-        pendingScrollEvents.get(window)?.();
+      if (eventTarget === document) pendingScrollEvents.get(window)?.();
       event.stopImmediatePropagation();
     };
     window.addEventListener('scroll', blockApplicationScrollHandlers, true);
@@ -705,8 +747,7 @@ export function createReplayController(
       );
   }
   let pendingRecovery:
-    | Readonly<{ recovery: ReplayRecovery; nextIndex: number }>
-    | undefined;
+    Readonly<{ recovery: ReplayRecovery; nextIndex: number }> | undefined;
   let pendingSkip: ReplaySkip | undefined;
   const stop = (reset = false, resetClock = true): void => {
     if (running) playbackPaused = true;
@@ -1076,8 +1117,12 @@ export function createReplayController(
         // settles; keep their recorded timestamp in the interval so the
         // replay clock does not finish before that work has had a chance to
         // settle. Only comparable calls participate in result comparison.
+        (event.kind !== 'gesture' ||
+          (candidate.correlationId === event.correlationId &&
+            (candidate.kind === 'craft' || candidate.kind === 'http'))) &&
         (candidate.kind === 'craft' ||
           candidate.kind === 'transport' ||
+          (useInvocationReplay && candidate.kind === 'route-load') ||
           (useInvocationReplay && candidate.kind === 'http') ||
           candidate.state !== undefined ||
           (useInvocationReplay &&
@@ -1150,9 +1195,12 @@ export function createReplayController(
       }
       return undefined;
     }
+    const isGesture = event.kind === 'gesture';
     if (
-      typeof payload['selector'] !== 'string' ||
-      typeof payload['action'] !== 'string'
+      (!isGesture &&
+        (typeof payload['selector'] !== 'string' ||
+          typeof payload['action'] !== 'string')) ||
+      (isGesture && !isCraftReplayTarget(payload['replayTarget']))
     ) {
       stop(true);
       options.onError?.(
@@ -1160,7 +1208,7 @@ export function createReplayController(
       );
       return undefined;
     }
-    const action = payload['action'];
+    const action = isGesture ? 'gesture' : String(payload['action']);
     // A navigation can complete just before its progress message reaches the
     // dashboard. After the target reloads, the recorded link no longer exists
     // in the DOM. Treat that link action as consumed when its destination is
@@ -1184,7 +1232,18 @@ export function createReplayController(
     const replayTarget = isCraftReplayTarget(payload['replayTarget'])
       ? payload['replayTarget']
       : undefined;
-    if (replayTarget) {
+    if (isGesture && replayTarget) {
+      const resolution = ɵresolveCraftReplayTarget(replayTarget);
+      target =
+        resolution.status === 'resolved' &&
+        resolution.element instanceof HTMLElement
+          ? resolution.element
+          : document.body;
+      if (resolution.status !== 'resolved')
+        options.onWarning?.(
+          `Replay geste ${String(payload['trigger'])}: cible ${resolution.status}; aucun gestionnaire natif ne sera appelé.`,
+        );
+    } else if (replayTarget) {
       // Hover is presentation only, so a late or missing DOM target should
       // fall back to the recorded coordinates promptly. Waiting for a target
       // that may never render stalls single-step playback without adding any
@@ -1212,7 +1271,7 @@ export function createReplayController(
     } else if (event.kind === 'hover') {
       // Unowned DOM keeps the explicit selector fallback. Craft-owned targets
       // never silently fall through to a potentially different CSS match.
-      const candidate = safeQuerySelector(payload['selector']);
+      const candidate = safeQuerySelector(payload['selector'] as string);
       target = candidate instanceof HTMLElement ? candidate : null;
       if (!target)
         options.onWarning?.(
@@ -1220,7 +1279,7 @@ export function createReplayController(
         );
     } else {
       try {
-        document.querySelector(payload['selector']);
+        document.querySelector(payload['selector'] as string);
       } catch {
         stop(true);
         options.onError?.(
@@ -1228,7 +1287,7 @@ export function createReplayController(
         );
         return undefined;
       }
-      target = await waitForReplayTarget(payload['selector']);
+      target = await waitForReplayTarget(payload['selector'] as string);
       if (!target) {
         stop(true);
         options.onError?.(
@@ -1385,9 +1444,9 @@ export function createReplayController(
     // is dispatched, so setup time must not consume its recorded delays.
     if (cursor === startingCursor && running)
       playbackEpoch = performance.now() - (timeOf(event) - firstTime);
-    if (!useInvocationReplay) {
+    if (!useInvocationReplay && !isGesture) {
       target.dispatchEvent(native);
-    } else {
+    } else if (useInvocationReplay) {
       const navigation = intervalEvents.find(
         (candidate) =>
           candidate.kind === 'navigation' &&
@@ -1437,7 +1496,11 @@ export function createReplayController(
             (followingInteraction === undefined ||
               candidate.sequence < followingInteraction.sequence),
         );
-        if (
+        if (replayCalls.length === 0 && isGesture)
+          options.onWarning?.(
+            `Appui long enregistré (${String(payload['trigger'])}), mais aucun appel Craft rejouable n'est associé. Le handler natif n'a pas été exécuté.`,
+          );
+        else if (
           replayCalls.length === 0 &&
           !deferredActivationRecorded &&
           action === 'click'
@@ -1465,8 +1528,58 @@ export function createReplayController(
       }
       return observedCalls().length > index;
     };
+    const waitForObservedRouteLoad = async (
+      expected: SendContextEvent,
+    ): Promise<SendContextEvent | undefined> => {
+      const expectedPayload = isRecord(expected.payload)
+        ? expected.payload
+        : undefined;
+      if (!expectedPayload) return undefined;
+      const findObserved = () =>
+        options
+          .observedEvents?.()
+          .slice(observedBefore)
+          .find((candidate) => {
+            const actualPayload = isRecord(candidate.payload)
+              ? candidate.payload
+              : undefined;
+            return (
+              candidate.kind === 'route-load' &&
+              candidate.phase === expected.phase &&
+              actualPayload?.['replay'] === true &&
+              actualPayload['routePath'] === expectedPayload['routePath']
+            );
+          });
+      const deadline = Date.now() + 2_500;
+      while (Date.now() < deadline) {
+        const observed = findObserved();
+        if (observed) return observed;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return undefined;
+    };
     let lastExpectedState: unknown;
     for (const intervalEvent of intervalEvents) {
+      if (intervalEvent.kind === 'route-load') {
+        if (!(await waitForPlaybackTime(timeOf(intervalEvent))))
+          return undefined;
+        await clock.advanceTo(Math.max(clock.now(), timeOf(intervalEvent)));
+        const observed = await waitForObservedRouteLoad(intervalEvent);
+        const expectedPayload = isRecord(intervalEvent.payload)
+          ? intervalEvent.payload
+          : {};
+        const actualPayload = isRecord(observed?.payload)
+          ? observed.payload
+          : {};
+        if (
+          !observed ||
+          expectedPayload['outcome'] !== actualPayload['outcome']
+        )
+          options.onWarning?.(
+            `Route load ${String(expectedPayload['routePath'])} ${intervalEvent.phase}: recorded ${String(expectedPayload['outcome'] ?? 'started')}, replay ${String(actualPayload['outcome'] ?? 'not observed')}.`,
+          );
+        continue;
+      }
       // Start each recorded root call only when the timeline reaches its
       // recorded position. The visual click above never dispatches to the app,
       // and overlapping asynchronous roots can otherwise reorder state changes.
@@ -1812,6 +1925,7 @@ function isReplayStep(event: SendContextEvent): boolean {
     (event.kind === 'defer' && event.phase === 'started') ||
     (event.phase === 'emitted' &&
       (event.kind === 'dom' ||
+        event.kind === 'gesture' ||
         event.kind === 'hover' ||
         event.kind === 'scroll' ||
         event.kind === 'viewport'))

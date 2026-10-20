@@ -101,6 +101,7 @@ export * from './lib/craft-primitive-registry';
 export * from './lib/craft-runtime-mode';
 export * from './lib/loop-guard';
 export * from './lib/craft-replay';
+export * from './lib/craft-replay-trigger';
 export * from './lib/craft-replay-transports';
 export * from './lib/craft-state-machine';
 export * from './lib/craft-machine-history';
