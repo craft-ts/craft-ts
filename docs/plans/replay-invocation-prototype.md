@@ -52,6 +52,10 @@ hover) restent hors de ce premier chemin sémantique.
 | Saisie native                                                | `input`/`change` capturés comme étapes DOM. La valeur n’est stockée qu’avec l’option de capture correspondante et selon les règles de données sensibles.                                                                                 | La valeur peut être restaurée pour présentation ; les événements `input`/`change` ne sont pas distribués, donc un listener natif qui produit seul l’effet métier ne le reproduit pas.                                     |
 | Routes différées (`loadCraftComponent`, `loadChildren`)      | La navigation et les appels Craft du chargement peuvent être observés ; l’issue de l’`import()` dynamique n’a pas d’événement dédié.                                                                                                     | La navigation est rejouée par le routeur, mais la résolution ou l’échec de l’`import()` dépend du chargeur et du cache du navigateur. Le replay n’en valide pas l’issue séparément.                                       |
 
+Pour une stratégie de prise en charge de `longPress` sans redistribuer ses
+événements natifs ni exécuter son handler deux fois, voir le
+[plan de replay sémantique des appuis longs](./replay-long-press-semantique.md).
+
 ## Résultats de l’audit des scénarios existants
 
 - `longPress` est une directive de démonstration, pas un événement du contrat de

@@ -7,6 +7,7 @@ import {
   option,
   p,
   select,
+  span,
 } from '@craft-ts/component';
 import { rawReactiveValue, ɵcomputed as computed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
@@ -17,9 +18,14 @@ import { participantOptionLabel } from './replay-model';
 import { selectParticipant } from './replay-session';
 import {
   connected,
+  differenceHistoryOpen,
   errorCount,
+  pendingWarnings,
+  replayWarnings,
+  warningHistoryOpen,
   replayableParticipants,
   replayParticipantIds,
+  replayDifferences,
   routeSessionId,
   selectedParticipantId,
   session,
@@ -126,9 +132,64 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     'Journal',
   );
 
+  const differences = button(
+    'toggleDifferences',
+    {
+      type: 'button',
+      class: buttonUi.root,
+      'data-variant': function* () {
+        return replayDifferences().length > 0 ? 'tonal' : 'secondary';
+      },
+      'aria-label': function* () {
+        return `${replayDifferences().length} décalage(s) détecté(s)`;
+      },
+      'aria-expanded': function* () {
+        return differenceHistoryOpen() ? 'true' : 'false';
+      },
+      'data-lab': 'toggle-differences',
+      click: () => differenceHistoryOpen.set(!differenceHistoryOpen()),
+    },
+    [
+      span({ 'aria-hidden': 'true' }, '⚠'),
+      span(computed(() => String(replayDifferences().length))),
+    ],
+  );
+
+  const notes = div(
+    {
+      class: ui.noteAnchor,
+      hidden: computed(() => replayWarnings().length === 0),
+    },
+    [
+      button(
+        'toggleNotes',
+        {
+          type: 'button',
+          class: buttonUi.root,
+          'data-variant': function* () {
+            return pendingWarnings().length > 0 ? 'tonal' : 'secondary';
+          },
+          'aria-label': function* () {
+            return `${replayWarnings().length} note(s) du replay`;
+          },
+          'aria-expanded': function* () {
+            return warningHistoryOpen() ? 'true' : 'false';
+          },
+          'data-lab': 'toggle-notes',
+          click: () => warningHistoryOpen.set(!warningHistoryOpen()),
+        },
+        span({ class: ui.noteIcon, 'aria-hidden': 'true' }, '🗒'),
+      ),
+      span(
+        { class: ui.noteBadge, 'data-lab': 'notes-count', 'aria-hidden': 'true' },
+        computed(() => String(replayWarnings().length)),
+      ),
+    ],
+  );
+
   return div({ class: ui.head }, [
     back,
     title,
-    div({ class: ui.headTools }, [tabs, fullscreen, journal]),
+    div({ class: ui.headTools }, [tabs, fullscreen, notes, differences, journal]),
   ]);
 });

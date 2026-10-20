@@ -599,6 +599,10 @@ export function provideCraftDebugReplayBridge(
           });
           return;
         }
+        if (message.type === 'skip-wait') {
+          replay?.skipWait();
+          return;
+        }
         if (message.type === 'pause') {
           replay?.pause();
           send(event.origin, 'status', {

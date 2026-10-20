@@ -97,6 +97,41 @@ describe('debug session replay format', () => {
     replay.stop();
   });
 
+  it('skipWait starts the next action now instead of after the recorded delay', async () => {
+    document.body.innerHTML = '<button id="a">A</button><button id="b">B</button>';
+    const states: string[] = [];
+    const click = (id: string, sequence: number, timestamp: number) => ({
+      id: `click-${id}`,
+      sequence,
+      timestamp,
+      kind: 'dom' as const,
+      phase: 'emitted' as const,
+      name: 'click',
+      payload: { selector: `#${id}`, action: 'click' },
+    });
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        // A minute apart: without a skip the test would time out.
+        events: [click('a', 1, 1_000), click('b', 2, 61_000)],
+      },
+      { onProgress: (_i, _n, state) => states.push(state) },
+    );
+
+    replay.play();
+    await vi.waitFor(() => expect(replay.index()).toBe(1));
+    replay.skipWait();
+    await vi.waitFor(() => expect(replay.index()).toBe(2), { timeout: 3_000 });
+
+    expect(states).toContain('completed');
+    replay.stop();
+  });
+
   it('warns when a click has no recorded Craft call or deferred activation', async () => {
     document.body.innerHTML = '<button id="native-only">Load</button>';
     const target = document.querySelector('#native-only')!;

@@ -426,10 +426,15 @@ function isCraftReplayTarget(value: unknown): value is CraftReplayTarget {
 async function waitForCraftReplayTarget(
   target: CraftReplayTarget,
   timeoutMs = 10_000,
+  aborted?: () => boolean,
 ): Promise<ReturnType<typeof ɵresolveCraftReplayTarget>> {
   const deadline = performance.now() + timeoutMs;
   let result = ɵresolveCraftReplayTarget(target);
-  while (result.status === 'missing' && performance.now() < deadline) {
+  while (
+    result.status === 'missing' &&
+    performance.now() < deadline &&
+    !aborted?.()
+  ) {
     await new Promise<void>((resolve) => setTimeout(resolve, 25));
     result = ɵresolveCraftReplayTarget(target);
   }
@@ -439,13 +444,14 @@ async function waitForCraftReplayTarget(
 async function waitForReplayTarget(
   selector: string,
   timeoutMs = 10_000,
+  aborted?: () => boolean,
 ): Promise<HTMLElement | null> {
   const deadline = performance.now() + timeoutMs;
   do {
     const target = safeQuerySelector(selector);
     if (target instanceof HTMLElement) return target;
     await new Promise<void>((resolve) => setTimeout(resolve, 25));
-  } while (performance.now() < deadline);
+  } while (performance.now() < deadline && !aborted?.());
   return null;
 }
 
@@ -572,6 +578,11 @@ export type ReplayController = Readonly<{
     | undefined
   >;
   play(): void;
+  /**
+   * Stop waiting: the next interaction starts now, and the recorded timeline
+   * shifts so that the ones after it keep their spacing. Only while playing.
+   */
+  skipWait(): void;
   pause(): void;
   stop(): void;
 }>;
@@ -665,6 +676,14 @@ export function createReplayController(
   let playbackWaitTimer: ReturnType<typeof setTimeout> | undefined;
   let resolvePlaybackWait: (() => void) | undefined;
   let playbackStepInFlight = false;
+  // Bumped by `skipWait`; a wait that started earlier gives up when it changes.
+  let skipGeneration = 0;
+  const skippable = (): (() => boolean) | undefined => {
+    // Only invocation replay has a fallback for a target that never shows up.
+    if (!useInvocationReplay) return undefined;
+    const generation = skipGeneration;
+    return () => skipGeneration !== generation;
+  };
   const playbackResumeWaiters: Array<() => void> = [];
   let restoreFetch: (() => void) | undefined;
   let recordedResponseResolver: RecordedResponseResolver | undefined;
@@ -1192,7 +1211,7 @@ export function createReplayController(
       const resolution =
         event.kind === 'hover'
           ? ɵresolveCraftReplayTarget(replayTarget)
-          : await waitForCraftReplayTarget(replayTarget);
+          : await waitForCraftReplayTarget(replayTarget, undefined, skippable());
       target =
         resolution.status === 'resolved' &&
         resolution.element instanceof HTMLElement
@@ -1201,6 +1220,15 @@ export function createReplayController(
       if (!target && event.kind === 'hover') {
         options.onWarning?.(
           `Replay Craft hover target is ${resolution.status}; showing the recorded coordinates instead.`,
+        );
+      } else if (!target && useInvocationReplay) {
+        // Invocation replay reproduces Craft calls separately from DOM input.
+        // A target with an unstable render identity cannot safely be resolved
+        // to an element, but its native interaction is only a visual cue here;
+        // keep the timeline moving and use the recorded coordinates.
+        target = document.body;
+        options.onWarning?.(
+          `Replay Craft target is ${resolution.status}; showing the recorded coordinates instead.`,
         );
       } else if (!target) {
         stop(true);
@@ -1228,13 +1256,29 @@ export function createReplayController(
         );
         return undefined;
       }
-      target = await waitForReplayTarget(payload['selector']);
+      target = await waitForReplayTarget(
+        payload['selector'],
+        undefined,
+        skippable(),
+      );
       if (!target) {
-        stop(true);
-        options.onError?.(
-          `Replay target selector is invalid or not found: ${payload['selector']}`,
-        );
-        return undefined;
+        if (useInvocationReplay) {
+          // Native interactions are presentation cues during invocation replay:
+          // their handlers are deliberately not dispatched. A positional CSS
+          // selector can drift when runtime-only DOM (such as the loop-guard
+          // alert) is added, so keep the timeline moving and show the recorded
+          // coordinates instead of treating that missing cue as a replay gap.
+          target = document.body;
+          options.onWarning?.(
+            `Replay target selector was not found: ${payload['selector']}. Showing the recorded coordinates instead.`,
+          );
+        } else {
+          stop(true);
+          options.onError?.(
+            `Replay target selector is invalid or not found: ${payload['selector']}`,
+          );
+          return undefined;
+        }
       }
     }
     await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
@@ -1658,6 +1702,29 @@ export function createReplayController(
           nextPlaybackDelayMs(),
         );
         if (!playbackStepInFlight) void advance();
+      }
+    },
+    skipWait: () => {
+      if (!running || terminated) return;
+      skipGeneration += 1;
+      // The step in flight is waiting on the timeline up to the next action;
+      // idle, the timer is. Either way, the epoch moves so that time is now.
+      const upcoming =
+        interactions[cursor + (playbackStepInFlight ? 1 : 0)] ??
+        interactions[interactions.length - 1];
+      if (upcoming) {
+        const reached = performance.now() - (timeOf(upcoming) - firstTime);
+        if (playbackEpoch === undefined || reached < playbackEpoch)
+          playbackEpoch = reached;
+      }
+      if (playbackWaitTimer !== undefined) clearTimeout(playbackWaitTimer);
+      playbackWaitTimer = undefined;
+      resolvePlaybackWait?.();
+      resolvePlaybackWait = undefined;
+      if (!playbackStepInFlight && timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+        void advance();
       }
     },
     pause: stop,

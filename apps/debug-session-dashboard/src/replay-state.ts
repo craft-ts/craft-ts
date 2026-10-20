@@ -66,10 +66,44 @@ export const startMode = signal<ReplayStartMode>('url');
 export const status = signal('Importe une session v3 pour commencer.');
 export const connected = signal(false);
 export const difference = signal<ReplayDifference | undefined>(undefined);
+const AUTO_SKIP_STORAGE_KEY =
+  'craft-debug-session-dashboard:auto-skip-differences:v1';
+
+function readAutoSkipPreference(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(AUTO_SKIP_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export type ReplayDifferenceEntry = Readonly<{
+  id: number;
+  participantId: string;
+  eventId?: string;
+  expected: unknown;
+  actual: unknown;
+  transport?: ReplayDifference['transport'];
+  checkpointEventId?: string;
+  resolution: 'pending' | 'skipped' | 'recovered';
+}>;
+export const replayDifferences = signal<readonly ReplayDifferenceEntry[]>([]);
+export const differenceHistoryOpen = signal(false);
+export const autoSkipDifferences = signal(readAutoSkipPreference());
 export const partialReplay = signal<PartialReplay | undefined>(undefined);
 export const replayIndex = signal(0);
 export const replayState = signal('idle');
+/** Every note the replay made, kept so that they can all be read again. */
 export const replayWarnings = signal<readonly string[]>([]);
+/** The notes someone has already put away; they stay in the history. */
+export const dismissedWarnings = signal<readonly string[]>([]);
+export const warningHistoryOpen = signal(false);
+/** Which action each note was raised on: the actions already run at that point. */
+export const warningIndexes = new Map<string, number>();
+/** "Go to this action": the replay steps by itself until this many actions have run. */
+export const seekTarget = signal<number | undefined>(undefined);
+/** The session module's seek driver, called by the bridge after a step. */
+export const seekHooks: { drive: () => void } = { drive: () => undefined };
 export const replaySkeletonVisible = signal(false);
 export const activeReplayParticipantId = signal<string | undefined>(undefined);
 export const replayViewportScale = signal(1);
@@ -98,6 +132,10 @@ type ReplayRegisters = {
   visibilityParticipantIds: readonly string[];
   recordedActiveParticipantId: string | undefined;
   actionParticipantId: string | undefined;
+  /** A step sent for a seek is on its way and has not answered yet. */
+  seekStepping: boolean;
+  /** The next start keeps the notes: it is a seek, not a new replay. */
+  keepNotesOnStart: boolean;
 };
 
 export const registers: ReplayRegisters = {
@@ -117,6 +155,8 @@ export const registers: ReplayRegisters = {
   visibilityParticipantIds: [],
   recordedActiveParticipantId: undefined,
   actionParticipantId: undefined,
+  seekStepping: false,
+  keepNotesOnStart: false,
 };
 
 export const frameConnections = new Map<string, ReplayFrameConnection>();
@@ -245,17 +285,83 @@ export const replayableEvents = computed(() => getReplaySteps(visibleEvents()));
 export const activeReplayEventId = computed(
   () => replayableEvents()[Math.max(0, replayIndex() - 1)]?.id,
 );
+export const pendingWarnings = computed(() =>
+  replayWarnings().filter((warning) => !dismissedWarnings().includes(warning)),
+);
+
+export function dismissWarning(warning: string): void {
+  dismissedWarnings.update((dismissed) =>
+    dismissed.includes(warning) ? dismissed : [...dismissed, warning],
+  );
+}
+
+export function dismissAllWarnings(): void {
+  dismissedWarnings.set(replayWarnings());
+}
+
 export const hasDifference = computed(() => difference() !== undefined);
 export const canForceRecovery = computed(
   () => difference()?.recovery !== undefined,
 );
-export const canSkipDifference = computed(() => difference()?.skip !== undefined);
+export const canSkipDifference = computed(
+  () => difference()?.skip !== undefined,
+);
+
+export function rememberAutoSkipDifferences(enabled: boolean): void {
+  autoSkipDifferences.set(enabled);
+  try {
+    globalThis.localStorage?.setItem(AUTO_SKIP_STORAGE_KEY, String(enabled));
+  } catch {
+    // The current page still honors the choice when storage is unavailable.
+  }
+}
+
+export function recordReplayDifference(
+  participantId: string,
+  found: ReplayDifference,
+): void {
+  replayDifferences.update((entries) => [
+    ...entries,
+    {
+      id: entries.length + 1,
+      participantId,
+      ...(found.eventId === undefined ? {} : { eventId: found.eventId }),
+      expected: found.expected,
+      actual: found.actual,
+      ...(found.transport === undefined ? {} : { transport: found.transport }),
+      ...(found.skip === undefined
+        ? {}
+        : { checkpointEventId: found.skip.checkpointEventId }),
+      resolution: 'pending',
+    },
+  ]);
+}
+
+export function resolveLatestReplayDifference(
+  participantId: string,
+  resolution: 'skipped' | 'recovered',
+): void {
+  replayDifferences.update((entries) => {
+    let index = entries.length - 1;
+    while (
+      index >= 0 &&
+      (entries[index]?.resolution !== 'pending' ||
+        entries[index]?.participantId !== participantId)
+    )
+      index--;
+    if (index < 0) return entries;
+    return entries.map((entry, entryIndex) =>
+      entryIndex === index ? { ...entry, resolution } : entry,
+    );
+  });
+}
 
 /** What the tab calls itself; the page it runs when the recording does not say. */
 export function participantTitle(participantId: string): string {
   return (
-    sessionParticipants().find((participant) => participant.id === participantId)
-      ?.title ?? 'Application cible'
+    sessionParticipants().find(
+      (participant) => participant.id === participantId,
+    )?.title ?? 'Application cible'
   );
 }
 

@@ -365,6 +365,10 @@ export interface CraftStylePlugin {
   handleHotUpdate?(context: {
     readonly file: string;
     readonly server: {
+      readonly moduleGraph?: {
+        getModuleById(id: string): unknown;
+        invalidateModule(module: never): void;
+      };
       readonly ws: {
         send(message: {
           readonly type: 'full-reload';
@@ -433,6 +437,11 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
       // invalidating the cache alone would leave the browser on old CSS.
       if (context.file.endsWith(options.suffix ?? '.style.ts')) {
         cached = undefined;
+        // Vite keeps the transformed sheet in its module graph: without this
+        // the page reloads onto the old CSS and new atoms never reach it.
+        const graph = context.server.moduleGraph;
+        const sheet = graph?.getModuleById(RESOLVED_CSS_ID);
+        if (graph && sheet) graph.invalidateModule(sheet as never);
         context.server.ws.send({ type: 'full-reload', path: '*' });
       }
     },

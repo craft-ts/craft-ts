@@ -43,6 +43,7 @@ import {
   connected,
   continuations,
   difference,
+  differenceHistoryOpen,
   eventTimelinePage,
   events,
   frameConnections,
@@ -58,6 +59,13 @@ import {
   replayState,
   replayViewport,
   replayWarnings,
+  seekHooks,
+  seekTarget,
+  warningIndexes,
+  dismissedWarnings,
+  warningHistoryOpen,
+  replayDifferences,
+  rememberAutoSkipDifferences,
   routeSessionId,
   selectedParticipantId,
   session,
@@ -274,6 +282,8 @@ export function startReplay(): void {
     return;
   }
   difference.set(undefined);
+  replayDifferences.set([]);
+  differenceHistoryOpen.set(false);
   registers.differenceParticipantId = undefined;
   registers.actionParticipantId = undefined;
   registers.recordedActiveParticipantId = undefined;
@@ -281,7 +291,16 @@ export function startReplay(): void {
   stopReplayVisibilityClock();
   registers.clockElapsedMs = 0;
   registers.playbackRequested = false;
-  replayWarnings.set([]);
+  if (registers.keepNotesOnStart) {
+    registers.keepNotesOnStart = false;
+  } else {
+    replayWarnings.set([]);
+    dismissedWarnings.set([]);
+    warningIndexes.clear();
+    seekTarget.set(undefined);
+  }
+  registers.seekStepping = false;
+  warningHistoryOpen.set(false);
   frameConnections.clear();
   replayIndex.set(0);
   replayState.set('preparing');
@@ -293,8 +312,7 @@ export function startReplay(): void {
   listenToReplayBridge(importJson);
   const timelineOriginMs = replaySessionStartAtMs(slices, recordingClock());
   const replayRunId = newUuid();
-  const sharedTimeline =
-    selectedParticipantId() === 'all' && slices.length > 1;
+  const sharedTimeline = selectedParticipantId() === 'all' && slices.length > 1;
   status.set(
     sharedTimeline
       ? `Préparation de ${slices.length} onglets…`
@@ -366,7 +384,52 @@ export function stepNextReplayAction(): void {
   send('step', {}, participantId);
 }
 
+/** Stop waiting for the next action: it starts now. Only meaningful while playing. */
+export function skipReplayWait(): void {
+  if (replayState() === 'playing') send('skip-wait');
+}
+
+/**
+ * Replay again from the start, quickly, and stop right before the action a note
+ * was raised on, so the gap can be looked at. The notes are kept.
+ */
+export function seekReplayToWarning(warning: string): void {
+  const target = warningIndexes.get(warning);
+  if (target === undefined) return;
+  registers.keepNotesOnStart = true;
+  startReplay();
+  // `startReplay` refuses to start without slices: then nothing consumed it.
+  registers.keepNotesOnStart = false;
+  if (replayState() !== 'preparing') return;
+  seekTarget.set(target);
+  status.set(`Replay · retour à l’action ${target + 1}…`);
+}
+
+function driveSeek(): void {
+  const target = seekTarget();
+  if (target === undefined) return;
+  if (
+    difference() !== undefined ||
+    ['error', 'completed'].includes(replayState()) ||
+    replayIndex() >= target
+  ) {
+    seekTarget.set(undefined);
+    if (replayIndex() >= target && replayState() !== 'error')
+      status.set(
+        `Replay · arrêté avant l’action ${target + 1}. « Action suivante » l’exécute.`,
+      );
+    return;
+  }
+  if (!['ready', 'paused'].includes(replayState())) return;
+  if (registers.seekStepping) return;
+  registers.seekStepping = true;
+  stepNextReplayAction();
+}
+seekHooks.drive = driveSeek;
+
 export function stopReplay(): void {
+  seekTarget.set(undefined);
+  registers.seekStepping = false;
   send('stop');
   registers.playbackRequested = false;
   stopReplayVisibilityClock();
@@ -413,6 +476,8 @@ export function forceReplayRecovery(): void {
 
 /** Asks the replayed page to jump to the next checkpoint it can resume from. */
 export function skipToCheckpoint(): void {
+  if (!difference()?.skip) return;
+  rememberAutoSkipDifferences(true);
   status.set('Restauration du prochain checkpoint…');
   if (registers.differenceParticipantId)
     send('skip-to-checkpoint', {}, registers.differenceParticipantId);

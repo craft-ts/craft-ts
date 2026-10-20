@@ -155,13 +155,21 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
     ]),
     div({ class: ui.progressText }, [
       p(
-        { 'data-lab': 'replay-progress', role: 'status' },
+        {
+          class: ui.progressLabel,
+          'data-lab': 'replay-progress',
+          role: 'status',
+        },
         computed(progressLabel),
       ),
       p({ class: ui.next }, [
-        span({ 'data-lab': 'next-action-name' }, computed(currentNextActionLabel)),
+        span(
+          { class: ui.nextName, 'data-lab': 'next-action-name' },
+          computed(currentNextActionLabel),
+        ),
         span(
           {
+            class: ui.nextTiming,
             'data-lab': 'next-action-timing',
             role: 'timer',
             hidden: computed(() => nextActionTimingLabel() === ''),

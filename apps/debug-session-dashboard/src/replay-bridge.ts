@@ -49,6 +49,11 @@ import {
   replayViewport,
   replayViewports,
   replayWarnings,
+  seekHooks,
+  warningIndexes,
+  autoSkipDifferences,
+  recordReplayDifference,
+  resolveLatestReplayDifference,
   selectedParticipantId,
   status,
 } from './replay-state';
@@ -151,6 +156,7 @@ function onReady(connection: ReplayFrameConnection, origin: string): void {
   } else if (registers.playbackRequested) {
     send('play', {}, participantId);
   }
+  seekHooks.drive();
 }
 
 function onInteraction(
@@ -184,7 +190,9 @@ function onInteraction(
     return;
   }
   if (
-    (action === 'click' || action === 'pointerdown' || action === 'mousedown') &&
+    (action === 'click' ||
+      action === 'pointerdown' ||
+      action === 'mousedown') &&
     typeof x === 'number' &&
     Number.isFinite(x) &&
     typeof y === 'number' &&
@@ -224,11 +232,19 @@ function onDifference(
   difference.set(first);
   registers.playbackRequested = false;
   registers.differenceParticipantId = connection.participantId;
+  recordReplayDifference(connection.participantId, first);
   if (typeof data['index'] === 'number')
     updateGlobalProgress(connection.participantId, data['index']);
   if (typeof data['state'] === 'string') replayState.set(data['state']);
   if (replayState() !== 'playing') freezeReplayVisibilityClock();
-  status.set(`Premier écart détecté à l’événement ${first.eventId ?? '?'}.`);
+  if (autoSkipDifferences() && first.skip) {
+    status.set(
+      `Décalage à l’événement ${first.eventId ?? '?'} · reprise automatique au checkpoint ${first.skip.checkpointEventId}.`,
+    );
+    send('skip-to-checkpoint', {}, connection.participantId);
+  } else {
+    status.set(`Premier écart détecté à l’événement ${first.eventId ?? '?'}.`);
+  }
 }
 
 function onStep(
@@ -238,7 +254,8 @@ function onStep(
   setNextActionCountdown(undefined);
   const index = typeof data['index'] === 'number' ? data['index'] : 0;
   const total = replayableEvents().length;
-  const nextState = typeof data['state'] === 'string' ? data['state'] : 'paused';
+  const nextState =
+    typeof data['state'] === 'string' ? data['state'] : 'paused';
   updateGlobalProgress(connection.participantId, index);
   connection.status = nextState;
   updateGlobalReplayState();
@@ -247,6 +264,8 @@ function onStep(
       ? `Replay terminé · ${replayIndex()} / ${total}`
       : `Replay · étape ${replayIndex()} / ${total}`,
   );
+  registers.seekStepping = false;
+  seekHooks.drive();
 }
 
 function onProgress(
@@ -256,7 +275,8 @@ function onProgress(
   const { participantId } = connection;
   if (typeof data['index'] === 'number')
     updateGlobalProgress(participantId, data['index']);
-  const nextState = typeof data['state'] === 'string' ? data['state'] : 'paused';
+  const nextState =
+    typeof data['state'] === 'string' ? data['state'] : 'paused';
   if (nextState === 'completed') hideReplayDialog(participantId);
   connection.status = nextState;
   updateGlobalReplayState();
@@ -285,6 +305,7 @@ function onRecovered(
   updateGlobalReplayState();
   replayState.set('paused');
   difference.set(undefined);
+  resolveLatestReplayDifference(connection.participantId, 'recovered');
   const href = data['href'];
   const destination =
     typeof href === 'string'
@@ -312,6 +333,7 @@ function onSkipped(
   replayState.set('paused');
   partialReplay.set(skipped);
   difference.set(undefined);
+  resolveLatestReplayDifference(connection.participantId, 'skipped');
   status.set(
     `Replay partiel · intervalle ${skipped.from}–${skipped.to} ignoré · reprise en pause.`,
   );
@@ -350,8 +372,9 @@ function onStatus(
 
 function onWarning(data: Readonly<Record<string, unknown>>): void {
   const warning = String(data['message'] ?? 'Événement de replay ignoré.');
+  if (!warningIndexes.has(warning)) warningIndexes.set(warning, replayIndex());
   replayWarnings.update((warnings) =>
-    warnings.includes(warning) ? warnings : [...warnings, warning].slice(-5),
+    warnings.includes(warning) ? warnings : [...warnings, warning].slice(-50),
   );
 }
 
@@ -419,9 +442,7 @@ function handle(
  * Starts listening to the replayed pages, once. `importText` is how an export
  * the page sends back becomes the open recording.
  */
-export function listenToReplayBridge(
-  importText: (text: string) => void,
-): void {
+export function listenToReplayBridge(importText: (text: string) => void): void {
   if (registers.bridgeListening) return;
   registers.bridgeListening = true;
   onWindowMessage((message) => {
