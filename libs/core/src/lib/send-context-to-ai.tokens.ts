@@ -1204,6 +1204,9 @@ export function provideSendContextSession(
 }
 
 export function ɵstableReplaySelector(element: Element): string {
+  if (element === document.body) return 'body';
+  if (element === document.documentElement) return 'html';
+
   const named = element.closest('[data-craft-name]');
   if (named?.getAttribute('data-craft-name')) {
     const rawName = named.getAttribute('data-craft-name')!;

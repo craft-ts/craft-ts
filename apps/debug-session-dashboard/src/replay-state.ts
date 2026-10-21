@@ -287,7 +287,9 @@ export const eventTimelinePageCount = computed(() =>
 export const replayableEvents = computed(() => getReplaySteps(visibleEvents()));
 export const replayPlan = computed(() => {
   const current = session();
-  return current ? compileReplayPlan(current) : undefined;
+  return current
+    ? compileReplayPlan(current, undefined, hasValidReplaySelectorSyntax)
+    : undefined;
 });
 /**
  * When each replayable action happens, in milliseconds from the first one: the
@@ -295,6 +297,16 @@ export const replayPlan = computed(() => {
  */
 export const replayActionOffsetsMs = computed(() => {
   const shared = selectedParticipantId() === 'all';
+
+function hasValidReplaySelectorSyntax(selector: string): boolean {
+  if (typeof document === 'undefined') return true;
+  try {
+    document.createDocumentFragment().querySelector(selector);
+    return true;
+  } catch {
+    return false;
+  }
+}
   const times = replayableEvents().map((event) =>
     shared
       ? (event.globalElapsedMs ?? event.elapsedMs ?? event.timestamp)

@@ -112,6 +112,28 @@ function recordedSession(): SendContextReplayExport {
 }
 
 describe('debug session replay orchestrator', () => {
+  it('preflights malformed CSS selectors when a validator is provided', () => {
+    const recording = session([
+      event(1, {
+        id: 'invalid-selector',
+        kind: 'dom',
+        phase: 'emitted',
+        payload: { selector: 'body > ', action: 'keydown' },
+      }),
+    ]);
+
+    const plan = compileReplayPlan(recording, undefined, (selector) =>
+      selector !== 'body > ',
+    );
+
+    expect(plan.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'invalid-selector',
+        eventId: 'invalid-selector',
+      }),
+    );
+  });
+
   it('compiles commands with causal ordering and operation observations', () => {
     const plan = compileReplayPlan(recordedSession());
 

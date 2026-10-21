@@ -36,6 +36,7 @@ export type ReplayObservation = Readonly<{
 
 export type ReplayPlanIssue = Readonly<{
   code:
+    | 'invalid-selector'
     | 'missing-target'
     | 'missing-arguments'
     | 'missing-result'
@@ -308,6 +309,7 @@ export function compileReplayPlan(
   session: SendContextReplayExport,
   resolveTarget?: ReplayTargetResolver,
 ): ReplayPlan {
+  validateSelector?: (selector: string) => boolean,
   const events = [...session.events].sort((a, b) => a.sequence - b.sequence);
   const observations = events.map(asObservation);
   const issues: ReplayPlanIssue[] = [];
@@ -390,9 +392,8 @@ export function compileReplayPlan(
 
     let kind: ReplayCommand['kind'] = 'dispatch';
     let sourceEvent = step;
-    let payload: Record<string, unknown> = isRecord(step.payload)
-      ? { ...step.payload }
-      : {};
+    const stepPayload = isRecord(step.payload) ? step.payload : {};
+    let payload: Record<string, unknown> = { ...stepPayload };
     if (navigation) {
       kind = 'navigate';
       sourceEvent = navigation;
@@ -452,6 +453,21 @@ export function compileReplayPlan(
         eventId: step.id,
       });
 
+    const usesInteractionSelector = ['dom', 'hover'].includes(step.kind);
+    if (
+      validateSelector &&
+      typeof stepPayload['selector'] === 'string' &&
+      (usesInteractionSelector ||
+        (step.kind === 'scroll' && stepPayload['target'] === 'element')) &&
+      !validateSelector(stepPayload['selector'])
+    )
+      issues.push({
+        code: 'invalid-selector',
+        message: `${
+          usesInteractionSelector ? 'Interaction' : 'Scroll event'
+        } ${step.id} has an invalid CSS selector.`,
+        eventId: step.id,
+      });
     const targetKind: ReplayTargetKind | undefined =
       kind === 'navigate'
         ? 'route'

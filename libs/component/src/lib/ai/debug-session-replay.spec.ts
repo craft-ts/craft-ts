@@ -1870,6 +1870,32 @@ describe('debug session replay format', () => {
     });
   });
 
+  it('rejects syntactically invalid selectors during replay prevalidation', () => {
+    const session = {
+      format: 'craft-debug-session',
+      version: 6,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      events: [
+        {
+          id: 'invalid-body-selector',
+          sequence: 1,
+          timestamp: 1,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: { selector: 'body > ', action: 'keydown' },
+        },
+      ],
+      clips: [],
+    };
+
+    expect(validateReplayExport(JSON.stringify(session))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('invalid selector or action'),
+    });
+  });
+
   it('stops safely when an imported selector is syntactically invalid', async () => {
     const errors: string[] = [];
     const session = {
@@ -1897,8 +1923,42 @@ describe('debug session replay format', () => {
 
     await expect(replay.step()).resolves.toBeUndefined();
 
-    expect(errors[0]).toContain('selector is invalid or not found');
+    expect(errors[0]).toContain('Replay plan preflight failed');
+    expect(errors[0]).toContain('invalid CSS selector');
     expect(replay.index()).toBe(0);
+  });
+
+  it('replays a keyboard interaction recorded on the body element', async () => {
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 6 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 1,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'body-keydown',
+          sequence: 1,
+          timestamp: 1,
+          elapsedMs: 0,
+          kind: 'dom',
+          phase: 'emitted',
+          payload: {
+            selector: 'body',
+            action: 'keydown',
+            key: 'b',
+            code: 'KeyB',
+          },
+        },
+      ],
+    } as const satisfies SendContextReplayExport;
+    const replay = createReplayController(session, { mode: 'legacy-dom' });
+
+    await replay.step();
+
+    expect(replay.index()).toBe(1);
+    replay.stop();
   });
 
   it('does not fall back to CSS when a Craft identity belongs to another runtime', async () => {

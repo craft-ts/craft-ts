@@ -407,6 +407,7 @@ function validateReplaySteps(
         typeof payload['selector'] !== 'string' ||
         payload['selector'].length === 0 ||
         payload['selector'].length > 2_048 ||
+        !hasValidSelectorSyntax(payload['selector']) ||
         typeof payload['action'] !== 'string' ||
         payload['action'].length === 0 ||
         payload['action'].length > 64
@@ -427,6 +428,7 @@ function validateReplaySteps(
             ? typeof payload['selector'] !== 'string' ||
               payload['selector'].length === 0 ||
               payload['selector'].length > 2_048 ||
+              !hasValidSelectorSyntax(payload['selector']) ||
               !isFiniteNumber(payload['scrollLeft']) ||
               !isFiniteNumber(payload['scrollTop'])
             : true)
@@ -470,6 +472,16 @@ function validateReplaySteps(
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+function hasValidSelectorSyntax(selector: string): boolean {
+  if (typeof document === 'undefined') return true;
+  try {
+    document.createDocumentFragment().querySelector(selector);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isValidViewport(width: unknown, height: unknown): boolean {
@@ -765,7 +777,11 @@ export function createReplayController(
     const validation = validateReplayScenario(JSON.stringify(options.scenario));
     if (!validation.ok) throw new Error(validation.error);
   }
-  const orchestrationPlan = compileReplayPlan(session, options.resolveTarget);
+  const orchestrationPlan = compileReplayPlan(
+    session,
+    options.resolveTarget,
+    hasValidSelectorSyntax,
+  );
   const recordedSteps = getReplaySteps(session.events);
   const eventBySequence = new Map(
     session.events.map((event) => [event.sequence, event]),
@@ -2242,6 +2258,16 @@ export function createReplayController(
   };
   const advance = async (): Promise<void> => {
     if (!running) return;
+    const selectorIssue = orchestrationPlan.issues.find(
+      (issue) => issue.code === 'invalid-selector',
+    );
+    if (selectorIssue) {
+      stop(true);
+      options.onError?.(
+        `Replay plan preflight failed: ${selectorIssue.message}`,
+      );
+      return;
+    }
     const next = interactions[cursor];
     if (!next) {
       stop(true, false);
