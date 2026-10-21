@@ -12,6 +12,7 @@ import {
   currentHash,
   goToHash,
   installReplayPlatform,
+  isReplayWorkerMode,
   onHashChange,
 } from './replay-browser';
 import {
@@ -26,8 +27,14 @@ import {
   pendingDeleteSessionId,
   registers,
   routeSessionId,
+  thumbnailManifest,
 } from './replay-state';
+import { installReplayWorkerSurface } from './replay-worker';
 import { httpFailureReason, SessionArchive } from './session-archive.service';
+import {
+  ThumbnailArchive,
+  type ThumbnailManifest,
+} from './thumbnail-archive.service';
 
 /**
  * The address and the archive, together: the hash names the session to open,
@@ -50,13 +57,22 @@ export const { ReplayRoute } = craftService(
       now: () => temporal.now(),
       uuid: () => browserCrypto.randomUUID(),
       hash: () => browserLocation.hash(),
+      search: () => browserLocation.search(),
       navigate: (hash) => browserLocation.assign(hash),
     });
 
+    // Opened by the thumbnail worker: it replays and is photographed, it does
+    // not ask for thumbnails of its own.
+    const workerMode = isReplayWorkerMode();
+    if (workerMode) installReplayWorkerSurface();
+
     const archive = yield* SessionArchive();
+    const thumbnails = yield* ThumbnailArchive();
     const archivedValue = rawReactiveValue(archive.archived.value);
     const archivedException = rawReactiveValue(archive.archived.exception);
     const deletedValue = rawReactiveValue(archive.deleteSession.value);
+    const manifestValue = rawReactiveValue(thumbnails.thumbnailManifest.value);
+    const preparedValue = rawReactiveValue(thumbnails.prepareThumbnails.value);
 
     // The session the last load asked for, and the one a deletion is for: the
     // archive's answers do not say, and only the latest request is answered.
@@ -68,6 +84,8 @@ export const { ReplayRoute } = craftService(
 
     const open = (id: string): void => {
       requestedId = id;
+      thumbnails.stop();
+      thumbnailManifest.set(undefined);
       beginSessionLoad(id);
       archive.archived.call(id);
     };
@@ -83,7 +101,25 @@ export const { ReplayRoute } = craftService(
       if (archived === undefined || id === undefined) return;
       if (archived === openedArchive) return;
       openedArchive = archived;
-      untracked(() => completeSessionLoad(id, archived));
+      untracked(() => {
+        completeSessionLoad(id, archived);
+        if (!workerMode) thumbnails.watch(id);
+      });
+    });
+
+    // The manifest of the open recording: what the start answered, then what
+    // the archive says as the work goes on. An answer about another recording
+    // (the user moved on) is dropped.
+    const showManifest = (manifest: ThumbnailManifest): void => {
+      if (manifest.sessionId === requestedId) thumbnailManifest.set(manifest);
+    };
+    yield* craftEffect('showPreparedThumbnails', () => {
+      const manifest = preparedValue();
+      if (manifest !== undefined) untracked(() => showManifest(manifest));
+    });
+    yield* craftEffect('showThumbnailManifest', () => {
+      const manifest = manifestValue();
+      if (manifest !== undefined) untracked(() => showManifest(manifest));
     });
 
     yield* craftEffect('failArchivedSession', () => {
@@ -109,6 +145,10 @@ export const { ReplayRoute } = craftService(
       const wasDetailPage = page() === 'detail';
       page.set(id || importedSession ? 'detail' : 'sessions');
       if (id && id !== registers.loadedArchiveSessionId) open(id);
+      if (!id) {
+        thumbnails.stop();
+        thumbnailManifest.set(undefined);
+      }
       if (!id && !importedSession) {
         endReplayLoadingIndicator();
         if (wasDetailPage) leaveReplayPage();
@@ -118,7 +158,13 @@ export const { ReplayRoute } = craftService(
     onHashChange(handleHashChange);
     handleHashChange();
 
+    const retryThumbnails = (): void => {
+      if (requestedId !== undefined && !workerMode)
+        thumbnails.watch(requestedId, true);
+    };
+
     yield* craftExpose('open', open);
+    yield* craftExpose('retryThumbnails', retryThumbnails);
     yield* craftExpose('remove', remove);
   },
 );

@@ -398,13 +398,61 @@ export function skipReplayWait(): void {
 export function seekReplayToWarning(warning: string): void {
   const target = warningIndexes.get(warning);
   if (target === undefined) return;
-  registers.keepNotesOnStart = true;
-  startReplay();
-  // `startReplay` refuses to start without slices: then nothing consumed it.
-  registers.keepNotesOnStart = false;
-  if (replayState() !== 'preparing') return;
-  seekTarget.set(target);
-  status.set(`Replay · retour à l’action ${target + 1}…`);
+  seekReplayToIndex(target, { fromStart: true });
+}
+
+type SeekOptions = Readonly<{ participantId?: string; fromStart?: boolean }>;
+
+/**
+ * Brings the replay to the state it had once `target` actions had run: on from
+ * where it stands when it is ready, paused and not past that point, otherwise
+ * from the start, quickly. The notes are kept. `participantId` is the tab put
+ * in front once it is there; `fromStart` replays even when it could go on.
+ */
+export function seekReplayToIndex(
+  target: number,
+  { participantId, fromStart = false }: SeekOptions = {},
+): void {
+  const index = Math.max(0, Math.min(target, replayableEvents().length));
+  const continuing =
+    !fromStart &&
+    ['ready', 'paused'].includes(replayState()) &&
+    replayIndex() <= index &&
+    difference() === undefined;
+  if (!continuing) {
+    registers.keepNotesOnStart = true;
+    startReplay();
+    // `startReplay` refuses to start without slices: then nothing consumed it.
+    registers.keepNotesOnStart = false;
+    if (replayState() !== 'preparing') return;
+  }
+  seekTarget.set(index);
+  status.set(`Replay · retour à l’action ${index + 1}…`);
+  if (participantId && replayParticipantIds().includes(participantId))
+    activeReplayParticipantId.set(participantId);
+  if (continuing) driveSeek();
+}
+
+/**
+ * Brings the replay to the moment just after an action ran — the way a
+ * thumbnail names its moment. No event: the app as it opens. Returns whether
+ * the replay of the open recording has that action at all.
+ */
+export function seekReplayToEvent(
+  eventId: string | undefined,
+  participantId?: string,
+): boolean {
+  if (eventId === undefined) {
+    seekReplayToIndex(0, { participantId });
+    return true;
+  }
+  const position = replayableEvents().findIndex((item) => item.id === eventId);
+  if (position < 0) {
+    status.set('Cet aperçu ne correspond à aucune action de ce replay.');
+    return false;
+  }
+  seekReplayToIndex(position + 1, { participantId });
+  return true;
 }
 
 function driveSeek(): void {

@@ -129,6 +129,8 @@ export const tileAction = defineStateAxis('tile-action', ['true'] as const);
 export const veilMode = defineStateAxis('veil', ['dim'] as const);
 /** A note that has been put away, still readable in the history. */
 export const noteState = defineStateAxis('note', ['dismissed'] as const);
+/** The thumbnail is the moment the replay is at. */
+export const thumbState = defineStateAxis('thumb', ['current'] as const);
 /** The journal row is a failure or a slow task. */
 export const entry = defineStateAxis('entry', [
   'error',
@@ -870,6 +872,62 @@ export const ui = craftStyles('dashboard', {
     minInlineSize(space(0)),
   ],
   nextTiming: [flexShrink(num(0))],
+
+  /* ── thumbnails ────────────────────────────────────────────────────────── */
+  thumbs: [
+    display.grid,
+    gap(space(2)),
+    paddingBlockStart(space(2)),
+    px(space(4)),
+    flexShrink(num(0)),
+    when(bp.medium, [
+      paddingInlineStart(space(6)),
+      paddingInlineEnd(unit.rem(11)),
+    ]),
+  ],
+  thumbsHead: [
+    display.flex,
+    alignItems.center,
+    justifyContent.spaceBetween,
+    columnGap(space(3)),
+    ...small,
+  ],
+  thumbsRow: [
+    provides(scrollPort.inline),
+    display.flex,
+    gap(space(2)),
+    paddingBlockEnd(space(1)),
+    listStyleType.none,
+    marginBlock(space(0)),
+    paddingInlineStart(space(0)),
+  ],
+  thumb: [
+    display.grid,
+    gap(space(1)),
+    flexShrink(num(0)),
+    inlineSize(unit.rem(10)),
+    p(space(1)),
+    bg(theme.surface),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.line),
+    borderRadius(radii.md),
+    cursor.pointer,
+    textAlign.start,
+    when(interaction.hover, [borderColor(theme.action)]),
+    when(interaction.focus, [borderColor(theme.action)]),
+    when(thumbState.current, [
+      borderColor(theme.action),
+      bg(theme.selected),
+    ]),
+  ],
+  thumbImage: [
+    display.block,
+    inlineSize(unit.pct(100)),
+    borderRadius(radii.md),
+    bg(theme.selected),
+  ],
+  thumbCaption: [...small, whiteSpace.nowrap],
 
   /* ── gap with the recording ────────────────────────────────────────────── */
   gap: [display.grid, gap(space(3))],

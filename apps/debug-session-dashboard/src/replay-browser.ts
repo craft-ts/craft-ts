@@ -39,6 +39,8 @@ export type ReplayPlatform = Readonly<{
   now: () => number;
   uuid: () => string;
   hash: () => string;
+  /** The query string of the dashboard's own address. */
+  search: () => string;
   navigate: (hash: string) => void;
 }>;
 
@@ -49,6 +51,7 @@ const INERT_PLATFORM: ReplayPlatform = {
   now: () => 0,
   uuid: () => '',
   hash: () => '',
+  search: () => '',
   navigate: () => undefined,
 };
 
@@ -100,6 +103,24 @@ export function newUuid(): string {
 
 export function currentHash(): string {
   return platform.hash();
+}
+
+/**
+ * The dashboard was opened by the thumbnail worker (`?replay-worker=1`): a
+ * hidden browser that replays a recording to photograph it. It drives the page
+ * through a control surface rather than its buttons, and does not start
+ * workers of its own.
+ */
+export function isReplayWorkerMode(): boolean {
+  return new URLSearchParams(platform.search()).get('replay-worker') === '1';
+}
+
+/** Hands the worker's browser the control surface, on the page's global. */
+export function exposeReplayWorkerSurface(surface: object): void {
+  Object.defineProperty(globalThis, '__craftReplayWorker', {
+    value: surface,
+    configurable: true,
+  });
 }
 
 export function goToHash(hash: string): void {

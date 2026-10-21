@@ -13,6 +13,7 @@ import {
   getReplaySteps,
 } from '@craft-ts/component';
 import { currentHash } from './replay-browser';
+import type { ThumbnailManifest } from './thumbnail-archive.service';
 import {
   alignSharedTimeline,
   eventSeverity,
@@ -47,6 +48,11 @@ export const sessionParticipants = signal<
 >([]);
 export const selectedParticipantId = signal('all');
 export const loadError = signal<string | undefined>(undefined);
+
+/** The thumbnails the archive prepared for the open recording, as far as known. */
+export const thumbnailManifest = signal<ThumbnailManifest | undefined>(
+  undefined,
+);
 
 /* ── the page ───────────────────────────────────────────────────────────── */
 
@@ -291,12 +297,6 @@ export const replayPlan = computed(() => {
     ? compileReplayPlan(current, undefined, hasValidReplaySelectorSyntax)
     : undefined;
 });
-/**
- * When each replayable action happens, in milliseconds from the first one: the
- * recorded timeline the replay keeps to when it plays at real speed.
- */
-export const replayActionOffsetsMs = computed(() => {
-  const shared = selectedParticipantId() === 'all';
 
 function hasValidReplaySelectorSyntax(selector: string): boolean {
   if (typeof document === 'undefined') return true;
@@ -307,6 +307,12 @@ function hasValidReplaySelectorSyntax(selector: string): boolean {
     return false;
   }
 }
+/**
+ * When each replayable action happens, in milliseconds from the first one: the
+ * recorded timeline the replay keeps to when it plays at real speed.
+ */
+export const replayActionOffsetsMs = computed(() => {
+  const shared = selectedParticipantId() === 'all';
   const times = replayableEvents().map((event) =>
     shared
       ? (event.globalElapsedMs ?? event.elapsedMs ?? event.timestamp)

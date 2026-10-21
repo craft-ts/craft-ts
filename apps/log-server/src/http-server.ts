@@ -13,10 +13,14 @@ import type {
   StoredEnvironmentProfile,
 } from './debug-session-store.js';
 import { PORTABLE_DEBUG_SESSION_VERSION } from './debug-session-store.js';
+import type { ThumbnailService } from './thumbnails/thumbnail-service.js';
+import type { ThumbnailManifest } from './thumbnails/thumbnail-store.js';
 
 export type LogHttpServerOptions = {
   readonly store: LogStore;
   readonly sessionStore?: DebugSessionStore;
+  /** Prepares and serves the thumbnails of archived sessions. */
+  readonly thumbnails?: ThumbnailService;
   readonly host?: string;
   readonly port?: number;
   /** Reject bodies larger than this, in bytes. */
@@ -66,6 +70,7 @@ export function createLogHttpServer(options: LogHttpServerOptions): Server {
     for (const client of sessionsSocket.clients) client.terminate();
     sessionsSocket.close();
     options.sessionStore?.close();
+    void options.thumbnails?.close();
   });
   server.on('upgrade', (request, socket, head) => {
     const url = new URL(request.url ?? '/', 'http://localhost');
@@ -132,6 +137,7 @@ async function handleRequest(
   }
 
   if (request.method === 'GET' && url.pathname === '/sessions') {
+    options.thumbnails?.prune();
     sendJson(
       response,
       200,
@@ -140,6 +146,69 @@ async function handleRequest(
       },
       sessionCorsHeaders(request.headers.origin, allowedOrigins),
     );
+    return;
+  }
+
+  const thumbnailsMatch = /^\/sessions\/([0-9a-f-]{36})\/thumbnails$/i.exec(
+    url.pathname,
+  );
+  if (thumbnailsMatch) {
+    const id = thumbnailsMatch[1]!;
+    const headers = sessionCorsHeaders(request.headers.origin, allowedOrigins);
+    const service = options.thumbnails;
+    if (request.method === 'GET') {
+      sendJson(
+        response,
+        200,
+        service?.get(id) ?? noThumbnails(id, service?.available ?? false),
+        headers,
+      );
+      return;
+    }
+    if (request.method === 'POST') {
+      const manifest = service?.start(id, {
+        force: url.searchParams.get('force') === '1',
+      });
+      if (!manifest && service) {
+        sendJson(response, 404, { error: 'Session not found.' }, headers);
+        return;
+      }
+      sendJson(
+        response,
+        202,
+        manifest ?? noThumbnails(id, false),
+        headers,
+      );
+      return;
+    }
+    if (request.method === 'DELETE') {
+      service?.remove(id);
+      sendJson(response, 200, { deleted: true }, headers);
+      return;
+    }
+  }
+
+  const thumbnailImageMatch =
+    /^\/sessions\/([0-9a-f-]{36})\/thumbnails\/(\d{3,5}\.webp)$/i.exec(
+      url.pathname,
+    );
+  if (request.method === 'GET' && thumbnailImageMatch) {
+    const image = options.thumbnails?.image(
+      thumbnailImageMatch[1]!,
+      thumbnailImageMatch[2]!,
+    );
+    if (!image) {
+      sendJson(response, 404, { error: 'Thumbnail not found.' });
+      return;
+    }
+    response.writeHead(200, {
+      'content-type': 'image/webp',
+      'content-length': image.byteLength,
+      // Pictures are asked for with the manifest's key (`?k=`): under one key
+      // a file never changes, and a new run has a new key.
+      'cache-control': 'private, max-age=31536000, immutable',
+    });
+    response.end(image);
     return;
   }
 
@@ -220,6 +289,7 @@ async function handleRequest(
   );
   if (request.method === 'DELETE' && deleteSessionMatch) {
     const deleted = options.sessionStore?.delete(deleteSessionMatch[1]!);
+    if (deleted) options.thumbnails?.remove(deleteSessionMatch[1]!);
     sendJson(
       response,
       deleted ? 200 : 404,
@@ -473,7 +543,7 @@ function sessionCorsHeaders(
     ...(origin && isAllowedOrigin(origin, allowedOrigins)
       ? { 'access-control-allow-origin': origin }
       : {}),
-    'access-control-allow-methods': 'GET, DELETE, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
     'access-control-allow-headers': 'content-type',
     vary: 'Origin',
   };
@@ -491,6 +561,29 @@ function logsCorsHeaders(
     'access-control-allow-headers': 'content-type',
     'access-control-max-age': '86400',
     vary: 'Origin',
+  };
+}
+
+/** The answer for a recording whose pictures were never asked for. */
+function noThumbnails(
+  sessionId: string,
+  available: boolean,
+): Omit<ThumbnailManifest, 'status' | 'updatedAt'> & {
+  readonly status: ThumbnailManifest['status'] | 'none';
+} {
+  return {
+    sessionId,
+    key: '',
+    status: available ? 'none' : 'unavailable',
+    total: 0,
+    done: 0,
+    entries: [],
+    ...(available
+      ? {}
+      : {
+          error:
+            'Aperçus indisponibles : aucun navigateur pilotable n’est configuré sur le serveur.',
+        }),
   };
 }
 

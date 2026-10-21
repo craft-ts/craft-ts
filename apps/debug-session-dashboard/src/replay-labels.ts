@@ -6,6 +6,7 @@ import {
   replayStateLabels,
   nextActionLabel,
 } from './replay-model';
+import type { ThumbnailEntry } from './thumbnail-archive.service';
 import {
   errorCount,
   events,
@@ -21,6 +22,7 @@ import {
   selectedParticipantId,
   session,
   showAllEvents,
+  thumbnailManifest,
   visibleEvents,
 } from './replay-state';
 
@@ -123,4 +125,52 @@ export function viewportCaption(): string {
   return viewport
     ? `Viewport enregistré · ${viewport.width} × ${viewport.height} px · aperçu à ${Math.round(replayViewportScale() * 100)} %`
     : 'Viewport non enregistré · aperçu adaptatif';
+}
+
+/* ── the thumbnails ─────────────────────────────────────────────────────── */
+
+const thumbnailReasonLabels: Readonly<Record<string, string>> = {
+  start: 'Début',
+  end: 'Fin',
+  navigation: 'Navigation',
+  craft: 'Changement d’état',
+  checkpoint: 'Point de reprise',
+  interaction: 'Interaction',
+};
+
+/** What a thumbnail shows, in a few words: its most telling reason. */
+export function thumbnailReasonLabel(entry: ThumbnailEntry): string {
+  const order = ['start', 'end', 'navigation', 'craft', 'checkpoint', 'interaction'];
+  const reason = order.find((candidate) => entry.reasons.includes(candidate));
+  return reason ? (thumbnailReasonLabels[reason] ?? reason) : 'Étape';
+}
+
+export function thumbnailCaption(entry: ThumbnailEntry): string {
+  return `${clockLabel(entry.offsetMs)} · ${thumbnailReasonLabel(entry)}`;
+}
+
+/** Where the preparation of the thumbnails stands, for the line above them. */
+export function thumbnailsSummary(): string {
+  const manifest = thumbnailManifest();
+  if (!manifest) return '';
+  switch (manifest.status) {
+    case 'pending':
+      return 'Aperçus · en attente de préparation…';
+    case 'running':
+      return manifest.total > 0
+        ? `Aperçus · préparation ${manifest.done} / ${manifest.total}…`
+        : 'Aperçus · préparation…';
+    case 'ready':
+      return plural(manifest.entries.length, 'aperçu prêt', 'aperçus prêts');
+    case 'failed':
+      return `Aperçus · ${manifest.error ?? 'préparation échouée'}${
+        manifest.entries.length
+          ? ` · ${plural(manifest.entries.length, 'aperçu conservé', 'aperçus conservés')}`
+          : ''
+      }`;
+    case 'unavailable':
+      return `Aperçus indisponibles · ${manifest.error ?? 'préparation impossible'}`;
+    default:
+      return '';
+  }
 }

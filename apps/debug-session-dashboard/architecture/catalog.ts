@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "80e84f7c8e6458ee",
+  "graphHash": "e9dc10edf7a3149b",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -23,7 +23,8 @@ export const architectureCatalog = {
     "docTabsView",
     "docToastQueue",
     "replayRoute",
-    "sessionArchive"
+    "sessionArchive",
+    "thumbnailArchive"
   ],
   "components": [
     "AiContextMenu",
@@ -65,6 +66,7 @@ export const architectureCatalog = {
     "ReplayPlaybar",
     "ReplaySidePanel",
     "ReplayStage",
+    "ReplayThumbnails",
     "SessionsPage",
     "craftPending"
   ],
@@ -85,6 +87,7 @@ export const architectureCatalog = {
     "open",
     "openArchivedSession",
     "panelOffset",
+    "prepareThumbnails",
     "promptOptions",
     "reachable",
     "replayJson",
@@ -101,7 +104,10 @@ export const architectureCatalog = {
     "setPanelOffset",
     "setReplayStatus",
     "setStatus",
+    "showPreparedThumbnails",
+    "showThumbnailManifest",
     "status",
+    "thumbnailManifest",
     "toasts"
   ],
   "sources": [
@@ -124,8 +130,16 @@ export const architectureCatalog = {
       "url": "*/sessions/*"
     },
     {
+      "method": "GET",
+      "url": "*/sessions/*/thumbnails"
+    },
+    {
       "method": "POST",
-      "url": "<unresolved:ai-send-context-chat.ts:314>"
+      "url": "*/sessions/*/thumbnails*"
+    },
+    {
+      "method": "POST",
+      "url": "<unresolved:ai-send-context-chat.ts:271>"
     }
   ],
   "uniques": [],
