@@ -78,6 +78,8 @@ export type ReplayFrameConnection = {
   timelineOriginMs?: number;
   startOffsetMs: number;
   pendingStep?: boolean;
+  /** The page confirmed it created its replay: until then it drops commands. */
+  frameReady?: boolean;
 };
 
 export type VisibilityChange = Readonly<{

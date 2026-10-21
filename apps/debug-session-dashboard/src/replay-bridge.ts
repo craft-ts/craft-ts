@@ -151,6 +151,15 @@ function onReady(connection: ReplayFrameConnection, origin: string): void {
     status.set(
       `Replay · ready${scheduledCount() > 0 ? ` · ${scheduledCount()} onglet(s) s’ouvriront au moment enregistré` : ` · ${frameConnections.size} onglet(s) préparé(s)`}.`,
     );
+  // What waits for the tab is sent once the page says its replay exists
+  // (`status: ready`, see `onStatus`): a command sent right behind `start` would
+  // reach a page that has no replay yet, and be dropped without an answer.
+}
+
+/** The page created its replay: it can take the commands that were waiting. */
+function onFrameReady(connection: ReplayFrameConnection): void {
+  const { participantId } = connection;
+  connection.frameReady = true;
   if (connection.pendingStep) {
     connection.pendingStep = false;
     send('step', {}, participantId);
@@ -394,6 +403,7 @@ function onStatus(
   updateGlobalReplayState();
   if (nextState !== 'playing') setNextActionCountdown(undefined);
   status.set(`Replay · ${nextState}`);
+  if (nextState === 'ready' && connection.connected) onFrameReady(connection);
 }
 
 function onWarning(data: Readonly<Record<string, unknown>>): void {

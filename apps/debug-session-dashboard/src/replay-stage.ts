@@ -1,11 +1,6 @@
-import {
-  button,
-  craftComponent,
-  div,
-  p,
-  span,
-} from '@craft-ts/component';
+import { button, craftComponent, div, p, span } from '@craft-ts/component';
 import { ɵcomputed as computed } from '@craft-ts/core';
+import { DocIcon } from '@craft-ts/ui';
 import { assign, unit } from '@craft-ts/style';
 import { buttonUi } from '@craft-ts/ui/style';
 import { progressVars, ui } from './dashboard.style';
@@ -14,11 +9,18 @@ import {
   nextActionTimingLabel,
   progressLabel,
   replayElapsedShare,
+  seekProgressLabel,
+  seekShare,
   timeProgressLabel,
   timeRemainingLabel,
 } from './replay-labels';
 import { pauseReplay, playReplay } from './replay-playback';
-import { startReplay, stepNextReplayAction, stopReplay } from './replay-session';
+import {
+  cancelReplaySeek,
+  startReplay,
+  stepNextReplayAction,
+  stopReplay,
+} from './replay-session';
 import {
   connected,
   diagnosticReplay,
@@ -26,7 +28,9 @@ import {
   replayIndex,
   replaySkeletonVisible,
   replayState,
+  seekTarget,
 } from './replay-state';
+import { lit } from './view-helpers';
 
 /** Where the replayed pages are drawn, under a veil while they load. */
 export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
@@ -39,8 +43,54 @@ export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
     [div({ class: ui.skeletonBlock })],
   );
 
+  // Going to a thumbnail's moment: the replay runs fast, without the recorded
+  // delays, and the stage says so until it gets there.
+  // The wrapper carries `hidden`: the overlay's own `display` would win over it.
+  const seekOverlay = div(
+    { hidden: computed(() => seekTarget() === undefined) },
+    [
+      div({ class: ui.seekOverlay, 'data-lab': 'seek-overlay' }, [
+        div({ class: ui.seekCard }, [
+          div({ class: ui.seekIcons, 'aria-hidden': 'true' }, [
+            DocIcon({ name: lit('fastForward'), size: lit('lg') }),
+          ]),
+          p(
+            { class: ui.seekTitle, role: 'status' },
+            'Retour accéléré à l’étape choisie',
+          ),
+          div({ class: ui.seekBar }, [
+            div({ class: ui.progressTrack }, [
+              div({
+                class: ui.progressFill,
+                style: function* () {
+                  return assign(progressVars.done, unit.pct(seekShare()));
+                },
+              }),
+            ]),
+          ]),
+          p(
+            { class: ui.progressLabel, 'data-lab': 'seek-progress' },
+            computed(seekProgressLabel),
+          ),
+          button(
+            'cancelSeek',
+            {
+              type: 'button',
+              class: buttonUi.root,
+              'data-variant': 'secondary',
+              'data-lab': 'seek-cancel',
+              click: cancelReplaySeek,
+            },
+            [DocIcon({ name: lit('close'), size: lit('sm') }), span('Annuler')],
+          ),
+        ]),
+      ]),
+    ],
+  );
+
   return div({ class: ui.stage, id: 'replay-stage' }, [
     veil,
+    seekOverlay,
     div({ class: ui.grid, id: 'replay-frame-grid' }),
   ]);
 });

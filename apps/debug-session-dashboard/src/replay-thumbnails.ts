@@ -13,7 +13,12 @@ import {
 import { ɵcomputed as computed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import { thumbnailCaption, thumbnailReasonLabel, thumbnailsSummary } from './replay-labels';
+import {
+  thumbnailActionLabel,
+  thumbnailCaption,
+  thumbnailReasonLabel,
+  thumbnailsSummary,
+} from './replay-labels';
 import { ReplayRoute } from './replay-route.service';
 import { seekReplayToEvent } from './replay-session';
 import { replayIndex, replayableEvents, thumbnailManifest } from './replay-state';
@@ -44,6 +49,9 @@ const currentEntryIndex = computed(() => {
   return current;
 });
 
+/** Only a failed preparation can be tried again. */
+const retryHidden = computed(() => thumbnailManifest()?.status !== 'failed');
+
 /** Whether the strip has anything to say: the preparation started, or ended badly. */
 const hidden = computed(() => {
   const manifest = thumbnailManifest();
@@ -62,21 +70,20 @@ export const ReplayThumbnails = craftComponent(
         { 'data-lab': 'thumbnails-summary', role: 'status' },
         computed(thumbnailsSummary),
       ),
-      button(
-        'retryThumbnails',
-        {
-          type: 'button',
-          class: buttonUi.root,
-          'data-variant': 'link',
-          'data-lab': 'thumbnails-retry',
-          hidden: computed(() => {
-            const status = thumbnailManifest()?.status;
-            return status !== 'failed';
-          }),
-          click: route.retryThumbnails,
-        },
-        'Réessayer',
-      ),
+      // The button's own display wins over `hidden`: the wrapper carries it.
+      span({ hidden: retryHidden }, [
+        button(
+          'retryThumbnails',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'link',
+            'data-lab': 'thumbnails-retry',
+            click: route.retryThumbnails,
+          },
+          'Réessayer',
+        ),
+      ]),
     ]);
 
     const row = ul(
@@ -103,7 +110,8 @@ export const ReplayThumbnails = craftComponent(
                     : undefined;
                 },
                 'aria-label': function* () {
-                  return `Aller à : ${thumbnailCaption(yield* entry())}`;
+                  const item = yield* entry();
+                  return `${thumbnailActionLabel(item)} · ${thumbnailCaption(item)}`;
                 },
                 click: function* () {
                   const item = yield* entry();
@@ -125,11 +133,12 @@ export const ReplayThumbnails = craftComponent(
                         })
                       : '';
                   },
-                  loading: 'lazy',
-                  decoding: 'async',
                 }),
                 span({ class: ui.thumbCaption }, function* () {
                   return thumbnailCaption(yield* entry());
+                }),
+                span({ class: ui.thumbAction }, function* () {
+                  return thumbnailActionLabel(yield* entry());
                 }),
               ],
             ),

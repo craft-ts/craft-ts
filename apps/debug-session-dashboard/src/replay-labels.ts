@@ -21,6 +21,7 @@ import {
   replayViewportScale,
   selectedParticipantId,
   session,
+  seekTarget,
   showAllEvents,
   thumbnailManifest,
   visibleEvents,
@@ -145,6 +146,13 @@ export function thumbnailReasonLabel(entry: ThumbnailEntry): string {
   return reason ? (thumbnailReasonLabels[reason] ?? reason) : 'Étape';
 }
 
+/** What the button of a thumbnail does, in words. */
+export function thumbnailActionLabel(entry: ThumbnailEntry): string {
+  return entry.eventId === undefined
+    ? 'Aller au début'
+    : `Aller à l’étape ${entry.replayIndex}`;
+}
+
 export function thumbnailCaption(entry: ThumbnailEntry): string {
   return `${clockLabel(entry.offsetMs)} · ${thumbnailReasonLabel(entry)}`;
 }
@@ -173,4 +181,19 @@ export function thumbnailsSummary(): string {
     default:
       return '';
   }
+}
+
+/* ── the fast replay to a chosen moment ─────────────────────────────────── */
+
+/** How far the fast replay got toward the moment that was asked for. */
+export function seekProgressLabel(): string {
+  const target = seekTarget();
+  if (target === undefined) return '';
+  return `Étape ${Math.min(replayIndex(), target)} / ${target} · les délais enregistrés sont ignorés`;
+}
+
+/** The share of the way done, for the bar. */
+export function seekShare(): number {
+  const target = seekTarget();
+  return target ? Math.min(100, (replayIndex() / target) * 100) : 0;
 }

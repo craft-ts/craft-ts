@@ -47,6 +47,7 @@ const thumbnails = new ThumbnailService({
     : { unavailableReason: 'Aperçus désactivés (DEBUG_SESSION_THUMBNAILS=0).' }),
   params: {
     maxPoints: Number(process.env['DEBUG_SESSION_THUMBNAIL_MAX'] ?? '20'),
+    width: Number(process.env['DEBUG_SESSION_THUMBNAIL_WIDTH'] ?? '480'),
   },
 });
 const server = createLogHttpServer({

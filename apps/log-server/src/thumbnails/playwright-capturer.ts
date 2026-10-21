@@ -23,9 +23,9 @@ export type PlaywrightCapturerOptions = Readonly<{
   dashboardUrl: string;
   /** The module to load; overridable for tests. */
   loadPlaywright?: () => Promise<PlaywrightModule>;
-  /** How long to wait for the replay to be ready, and for each step. */
+  /** How long to wait for the replay to be ready. */
   readyTimeoutMs?: number;
-  stepTimeoutMs?: number;
+  stallTimeoutMs?: number;
 }>;
 
 /* The slice of Playwright this file uses, so that the server compiles without it. */
@@ -102,7 +102,7 @@ export function createPlaywrightCapturer(
   options: PlaywrightCapturerOptions,
 ): ThumbnailCapturer {
   const readyTimeoutMs = options.readyTimeoutMs ?? 60_000;
-  const stepTimeoutMs = options.stepTimeoutMs ?? 45_000;
+  const stallTimeoutMs = options.stallTimeoutMs ?? 45_000;
   return async (request, sink) => {
     let playwright: PlaywrightModule;
     try {
@@ -120,7 +120,7 @@ export function createPlaywrightCapturer(
       await capture(browser, request, sink, {
         dashboardUrl: options.dashboardUrl,
         readyTimeoutMs,
-        stepTimeoutMs,
+        stallTimeoutMs,
       });
     } finally {
       request.signal.removeEventListener('abort', stop);
@@ -154,7 +154,7 @@ async function capture(
   settings: {
     dashboardUrl: string;
     readyTimeoutMs: number;
-    stepTimeoutMs: number;
+    stallTimeoutMs: number;
   },
 ): Promise<void> {
   const { params, sessionId, signal } = request;
@@ -174,6 +174,7 @@ async function capture(
   const first = await waitForSnapshot(
     page,
     (worker) => worker.ready || worker.failed !== undefined,
+    undefined,
     settings.readyTimeoutMs,
     'le replay n’est pas prêt',
   );
@@ -195,6 +196,7 @@ async function capture(
     await waitForSnapshot(
       page,
       (worker) => worker.scale >= 0.99,
+      undefined,
       4_000,
       'la page ne tient pas à l’échelle 1',
     ).catch(() => undefined);
@@ -213,19 +215,12 @@ async function capture(
         point.replayIndex,
       );
     }
-    const reached = await waitForSnapshot(
+    const reached = await waitForAdvance(
       page,
-      (worker) =>
-        worker.failed !== undefined ||
-        worker.difference ||
-        (worker.replayIndex >= point.replayIndex &&
-          !worker.seeking &&
-          ['ready', 'paused', 'completed'].includes(worker.state)),
-      settings.stepTimeoutMs,
-      'le replay n’avance plus',
-    ).catch((error: unknown) => {
-      throw new ThumbnailCaptureError(message(error), point.replayIndex);
-    });
+      point.replayIndex,
+      settings.stallTimeoutMs,
+      signal,
+    );
     throwIfFailed(reached, point.replayIndex);
     if (reached.difference)
       throw new ThumbnailCaptureError(
@@ -275,24 +270,71 @@ function throwIfFailed(snapshot: WorkerSnapshot, replayIndex: number): void {
     throw new ThumbnailCaptureError(snapshot.failed, replayIndex);
 }
 
-async function waitForSnapshot(
+/**
+ * Waits until the replay has run `target` actions. A replay of several tabs
+ * can be slow to take an action (tabs open on their first one), so it is not
+ * the whole advance that is timed but the time without any new action.
+ */
+async function waitForAdvance(
   page: Page,
-  accept: (snapshot: WorkerSnapshot) => boolean,
+  target: number,
+  stallMs: number,
+  signal: AbortSignal,
+): Promise<WorkerSnapshot> {
+  let lastIndex = -1;
+  let lastChange = Date.now();
+  for (;;) {
+    if (signal.aborted) throw new ThumbnailCaptureError('Préparation annulée.');
+    const worker = await page.evaluate(
+      () =>
+        (window as unknown as WorkerWindow).__craftReplayWorker!.snapshot(),
+    );
+    if (
+      worker.failed !== undefined ||
+      worker.difference ||
+      (worker.replayIndex >= target &&
+        !worker.seeking &&
+        ['ready', 'paused', 'completed'].includes(worker.state))
+    )
+      return worker;
+    if (worker.replayIndex !== lastIndex) {
+      lastIndex = worker.replayIndex;
+      lastChange = Date.now();
+    } else if (Date.now() - lastChange > stallMs) {
+      throw new ThumbnailCaptureError(
+        `le replay n’avance plus depuis ${Math.round(stallMs / 1000)} s (action ${worker.replayIndex}, état ${worker.state})`,
+        worker.replayIndex,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+}
+
+/**
+ * Waits for the dashboard's worker surface to answer yes to `accept`. The
+ * predicate runs in the page, so it is sent as source: it may use nothing but
+ * its two arguments, the snapshot and `arg`.
+ */
+async function waitForSnapshot<Arg>(
+  page: Page,
+  accept: (snapshot: WorkerSnapshot, arg: Arg) => boolean,
+  arg: Arg,
   timeout: number,
   reason: string,
 ): Promise<WorkerSnapshot> {
-  const source = accept.toString();
   try {
     await page.waitForFunction(
-      (code: string) => {
+      (input: { code: string; arg: Arg }) => {
         const worker = (window as unknown as WorkerWindow).__craftReplayWorker;
         if (!worker) return false;
         // eslint-disable-next-line no-new-func
-        return (new Function(`return (${code})`)() as (s: unknown) => boolean)(
-          worker.snapshot(),
-        );
+        const test = new Function(`return (${input.code})`)() as (
+          snapshot: unknown,
+          arg: Arg,
+        ) => boolean;
+        return test(worker.snapshot(), input.arg);
       },
-      source,
+      { code: accept.toString(), arg },
       { timeout, polling: 100 },
     );
   } catch (error) {

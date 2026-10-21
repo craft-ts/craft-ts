@@ -20,6 +20,10 @@ npm run logs:server
 | `GET`    | `/sessions`     | List archived sessions, newest update first.    |
 | `GET`    | `/sessions/:id` | Load one session in replay export format.       |
 | `DELETE` | `/sessions/:id` | Delete one archived session and its event file. |
+| `GET`    | `/sessions/:id/thumbnails` | Manifest of the session's replay thumbnails.   |
+| `POST`   | `/sessions/:id/thumbnails` | Prepare them (`?force=1` to start over).        |
+| `GET`    | `/sessions/:id/thumbnails/:file` | One thumbnail, WebP.                      |
+| `DELETE` | `/sessions/:id/thumbnails` | Cancel the preparation, drop the pictures.      |
 | `WS`     | `/sessions/ws`  | Stream session start, events, and finish.       |
 
 `POST /logs` accepts three body shapes: a `{ clientId, entries: [...] }`
@@ -51,6 +55,10 @@ anything past `LOG_SERVER_MAX_FILES` is dropped.
 | `LOG_SERVER_ALLOWED_ORIGINS`   | local demo/dashboard origins | Exact browser origins allowed to access the server. |
 | `DEBUG_SESSION_MAX_SESSIONS`   | `100`                        | Maximum archived sessions retained.                 |
 | `DEBUG_SESSION_RETENTION_DAYS` | `30`                         | Delete sessions older than this many days.          |
+| `DEBUG_SESSION_DASHBOARD_URL`  | `http://localhost:4210/`     | Dashboard the thumbnail worker opens to replay.     |
+| `DEBUG_SESSION_THUMBNAILS`     | enabled                      | Set to `0` to disable the thumbnail worker.         |
+| `DEBUG_SESSION_THUMBNAIL_MAX`  | `20`                         | Most thumbnails kept per session.                   |
+| `DEBUG_SESSION_THUMBNAIL_WIDTH`| `480`                        | Thumbnail width, in pixels.                         |
 
 `LOG_SERVER_DIR` and `LOG_SERVER_MAX_FILES` must match what the MCP server uses,
 otherwise it reads a different set of files.
@@ -78,3 +86,27 @@ limits.
 
 The session WebSocket accepts only configured origins. The HTTP server binds to
 loopback by default. Set `DEBUG_SESSION_DIR` to choose another archive folder.
+
+## Replay thumbnails
+
+When the dashboard opens a finished session it asks the server to prepare
+thumbnails of the replay. The server drives a hidden Chromium (Playwright, loaded
+on first use — install it next to the server, or the feature answers
+`unavailable`) in a context of its own: it opens the dashboard on the session in
+worker mode (`?replay-worker=1`), asks the dashboard for the capture plan, has
+the replay advance to each moment, waits until the replayed page has stopped
+mutating (400 ms of quiet, 4 s at most), and photographs that page's frame at
+its recorded viewport. Pictures are scaled to the configured width and stored
+as WebP, one file each, with a `manifest.json`, under
+`<DEBUG_SESSION_DIR>/thumbnails/<session-id>/`.
+
+- One recording is prepared at a time; the others queue.
+- The cache key hashes the recording and the capture settings: a changed
+  recording or setting prepares again, an unchanged one is served as is.
+- A replay that diverges or fails keeps the pictures already taken and the
+  manifest says where it stopped (`stoppedAtReplayIndex`); `POST ?force=1`
+  retries.
+- Sessions that are still recording or truncated answer `unavailable`.
+- Deleting a session, or pruning it by age or count, removes its pictures.
+- Thumbnails can show anything the application displayed: they stay on this
+  machine, with the archive, and carry the same privacy caveats as the session.

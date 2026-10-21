@@ -383,6 +383,12 @@ export function stepNextReplayAction(): void {
     launchReplayParticipant(connection);
     return;
   }
+  if (connection?.connected && !connection.frameReady) {
+    // The page has not created its replay yet: it would drop the step. The
+    // step goes out when it says it is ready.
+    connection.pendingStep = true;
+    return;
+  }
   send('step', {}, participantId);
 }
 
@@ -453,6 +459,13 @@ export function seekReplayToEvent(
   }
   seekReplayToIndex(position + 1, { participantId });
   return true;
+}
+
+/** Stops going to a thumbnail's moment: the replay stays where it got to. */
+export function cancelReplaySeek(): void {
+  if (seekTarget() === undefined) return;
+  seekTarget.set(undefined);
+  status.set(`Accélération annulée · le replay est à l’étape ${replayIndex()}.`);
 }
 
 function driveSeek(): void {

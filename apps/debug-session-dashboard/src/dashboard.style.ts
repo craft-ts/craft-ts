@@ -602,6 +602,45 @@ export const ui = craftStyles('dashboard', {
     bg(theme.selectedHover),
     borderRadius(radii.lg),
   ],
+  // The fast replay to a thumbnail: the stage is veiled and says so.
+  seekOverlay: [
+    position.absolute,
+    zIndex(int(3)),
+    inset(space(0)),
+    display.grid,
+    placeItems.center,
+    borderRadius(radii.lg),
+    bg(theme.selected),
+    opacity(num(0.94)),
+  ],
+  seekCard: [
+    display.grid,
+    justifyItems.center,
+    gap(space(3)),
+    py(space(5)),
+    px(space(6)),
+    maxInlineSize(unit.rem(26)),
+    textAlign.center,
+    bg(theme.surface),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.action),
+    borderRadius(radii.lg),
+  ],
+  seekIcons: [
+    display.flex,
+    alignItems.center,
+    gap(space(2)),
+    color(theme.action),
+    ...animate(pulse, {
+      duration: unit.ms(700),
+      easing: easing.linear,
+      iterations: 'infinite',
+      direction: 'alternate',
+    }),
+  ],
+  seekTitle: [...font(text.sm), fontWeight(weight.medium), color(theme.ink)],
+  seekBar: [inlineSize(unit.pct(100))],
   grid: [
     display.grid,
     gridTemplateColumns(tracks.autoFit(math.min(unit.pct(100), unit.rem(22)))),
@@ -928,6 +967,13 @@ export const ui = craftStyles('dashboard', {
     bg(theme.selected),
   ],
   thumbCaption: [...small, whiteSpace.nowrap],
+  // The visible name of what the card does: the whole card is the button.
+  thumbAction: [
+    ...font(text.xs),
+    fontWeight(weight.medium),
+    color(theme.action),
+    whiteSpace.nowrap,
+  ],
 
   /* ── gap with the recording ────────────────────────────────────────────── */
   gap: [display.grid, gap(space(3))],

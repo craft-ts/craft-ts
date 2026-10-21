@@ -186,3 +186,41 @@ Estimation globale initiale : environ 1 à 2 semaines, à réviser après le pro
 - Quelle version/environnement Chromium doit être utilisée pour la fidélité des
   captures ?
 - Où le serveur local d’archive doit-il conserver les fichiers de cache ?
+
+## État de la réalisation (2026-10-21)
+
+Les étapes 1 à 6 sont en place ; l'étape 7 est couverte pour les cas simples.
+
+- **Worker** : dans le serveur d'archive (`apps/log-server/src/thumbnails/`),
+  Playwright chargé à la demande (absent → `unavailable`, le serveur démarre
+  quand même). Une seule tâche à la fois, file d'attente pour les autres.
+- **Surface de contrôle** : le dashboard ouvert avec `?replay-worker=1` installe
+  `window.__craftReplayWorker` (`snapshot`, `plan`, `advanceTo`) ; le worker ne
+  clique sur aucun bouton. Le replay accéléré réutilise le mécanisme de seek
+  existant (`seekTarget` + `driveSeek`).
+- **Points de capture** : `planThumbnailCapturePoints` (libs/component, pure,
+  testée) — début, fin de navigation/route, fin d'un appel Craft, checkpoint,
+  fin ; fusion des moments à moins de 1 s, plafond de 20.
+- **Stabilité** : `MutationObserver` dans la frame rejouée, 400 ms de calme,
+  4 s au maximum ; le délai d'arrêt du replay se mesure sans nouvelle action
+  (45 s), pas sur l'avance entière.
+- **Images** : élément `iframe` photographié à l'échelle 1, réduit à 480 px et
+  encodé en WebP (qualité 0,7) dans le navigateur, sans dépendance native.
+  Mesuré : 2–5 Ko par image, une session de 242 actions en ~12 s.
+  Les images quasi identiques à la précédente sont ignorées.
+- **Cache** : `<DEBUG_SESSION_DIR>/thumbnails/<id>/` (manifeste + WebP). Clé =
+  hash de la session + paramètres de capture ; supprimé avec la session.
+- **Interface** : bande de miniatures sous le rejeu, progression, erreur et
+  « Réessayer ». Un clic appelle `seekReplayToEvent` (continue depuis la
+  position courante si possible, sinon repart du début, accéléré).
+
+Réponses aux questions du prototype : le worker pilote le dashboard par une
+surface dédiée ; 20 aperçus par défaut ; 400 ms / 4 s ; Chromium fourni par
+Playwright (version notée dans le manifeste, **pas encore dans la clé de
+cache** — `?force=1` pour régénérer après une mise à jour) ; cache dans le
+dossier d'archive.
+
+Limites connues : une session multi-onglets dont le replay bloque (observé sur
+un enregistrement ancien, erreurs de l'app démo) s'arrête à l'action bloquée,
+garde les images déjà prises et l'indique ; le worker n'a pas été éprouvé sur
+une session multi-onglets rejouable ; le contenu des images n'est pas masqué.

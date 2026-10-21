@@ -23,7 +23,7 @@ export type ThumbnailParams = Readonly<{
 
 export const DEFAULT_THUMBNAIL_PARAMS: ThumbnailParams = {
   maxPoints: 20,
-  width: 320,
+  width: 480,
   quality: 0.7,
   quietMs: 400,
   maxWaitMs: 4_000,
