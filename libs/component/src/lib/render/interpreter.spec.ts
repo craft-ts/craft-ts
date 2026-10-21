@@ -1374,6 +1374,62 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
+  it('passes each native click correlation id through to its Craft method', async () => {
+    let session!: import('@craft-ts/core').SendContextSession;
+    const methodCorrelationIds: (string | null)[] = [];
+    const { CorrelatedClickView, provideCorrelatedClickView } = craftService(
+      { name: 'correlatedClickView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftMethod('save', function* () {
+          methodCorrelationIds.push(
+            injectCorrelationIdService().lastCorrelationId(),
+          );
+        });
+      },
+    );
+    const component = craftComponent(
+      'correlatedClick',
+      {
+        providers: [
+          provideCorrelatedClickView(),
+          ...provideSendContextSession(),
+        ],
+      },
+      function* () {
+        session = yield* SendContextSessionService();
+        const { save } = yield* CorrelatedClickView();
+        return button({ click: save }, 'Save');
+      },
+    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component, {
+      providers: [provideCorrelationIdTracking()] as never,
+    });
+    session.startRecord('correlated DOM clicks');
+
+    const target = element.querySelector('button')!;
+    target.click();
+    await flush();
+    target.click();
+    await flush();
+
+    const clicks = session.events.filter(
+      (event) => event.kind === 'dom' && event.payload?.['action'] === 'click',
+    );
+    expect(clicks).toHaveLength(2);
+    expect(clicks.map((event) => event.correlationId)).toEqual(
+      methodCorrelationIds,
+    );
+    expect(clicks[0]?.correlationId).toEqual(expect.any(String));
+    expect(clicks[1]?.correlationId).toEqual(expect.any(String));
+    expect(clicks[0]?.correlationId).not.toBe(clicks[1]?.correlationId);
+
+    destroy();
+  });
+
   it('drives generator callbacks assigned to primitive DOM properties', async () => {
     const { YieldablePropertyView, provideYieldablePropertyView } =
       craftService(

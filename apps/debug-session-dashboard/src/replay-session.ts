@@ -131,6 +131,17 @@ export function importJson(text: string): void {
       ? result.session.participants
       : [],
   );
+  const participants = sessionParticipants();
+  const canStartFromSnapshot =
+    participants.length === 0
+      ? result.session.initialSnapshot !== undefined
+      : participants.every(
+          (participant) =>
+            participant.initialSnapshot !== undefined ||
+            (participants.length === 1 &&
+              result.session.initialSnapshot !== undefined),
+        );
+  startMode.set(canStartFromSnapshot ? 'snapshot' : 'url');
   selectedParticipantId.set('all');
   eventTimelinePage.set(0);
   replayViewport.set(result.session.viewport);

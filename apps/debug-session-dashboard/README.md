@@ -1,6 +1,6 @@
 # CraftTS local session dashboard
 
-The dashboard is a separate CraftTS app. It reads `craft-debug-session` v5 JSON in
+The dashboard is a separate CraftTS app. It reads `craft-debug-session` JSON in
 the browser and can browse sessions captured by the
 loopback debug server. Session data stays on the local machine.
 
@@ -23,7 +23,7 @@ The layout lives in `src/dashboard.style.ts`.
 
 - **Sessions** (`#/`) is a plain list: when it was recorded, how many tabs and
   events, and a badge only when something is off (still recording, interrupted,
-  truncated). *Importer un fichier* opens a dialog for a JSON export.
+  truncated). _Importer un fichier_ opens a dialog for a JSON export.
 - **The replay** (`#/sessions/<id>`) is the page: the recorded app fills the
   window, with a playback bar underneath (play, pause, next action, stop, and a
   progress line that names the next action). A tab selector appears only when
@@ -32,8 +32,8 @@ The layout lives in `src/dashboard.style.ts`.
   shows up as a callout above the stage, with the recovery actions and the
   expected/observed values one click away.
 - **The journal** is a side panel, closed by default. It lists only the errors
-  of the recording (failed requests, navigations, primitives); *Tout afficher*
-  shows every event, with the slow tasks marked. The *Journal* button turns
+  of the recording (failed requests, navigations, primitives); _Tout afficher_
+  shows every event, with the slow tasks marked. The _Journal_ button turns
   tonal when the recording holds errors. The **Détails** tab holds the start
   page, the replay state, the viewport, the target URL, the start mode and the
   export of the target.
@@ -88,7 +88,10 @@ origins listed by the target application. The dashboard rejects non-local
 target URLs. Both start modes restore recorded browser storage, Craft primitive
 values, and registered persister contents. URL mode uses the recorded start
 URL; snapshot mode uses the selected target URL and requires a Craft snapshot.
-The dashboard sends the v5 session to a replay-marked target before application
+When every replayed participant has a snapshot, the dashboard selects snapshot
+mode automatically; a single-participant archive can use the export's
+page-level snapshot.
+The dashboard sends the normalized session to a replay-marked target before application
 bootstrap is released. If browser storage must be restored, the target restores
 it and reloads first. The bridge primes Craft and persister snapshots and
 installs recorded HTTP, fetch, WebSocket, and Worker outcomes before root
@@ -109,9 +112,13 @@ options. The key is serialized in the archive and must not contain a secret.
 The replay validator leaves sessions without distinct keys inspectable, but
 refuses to replay an overlapping identical request pair.
 
-Exports use format v5 and retain the existing event/byte limits. Truncated
-sessions can be inspected but cannot be replayed. Versions v1–v4 are rejected
-with an explicit unsupported-version message; there is no silent migration.
+Exports carry an explicit schema version and retain the existing event/byte
+limits. The current version is defined once in `@craft-ts/core`. The dashboard
+normalizes imports through a sequential migration registry before validating
+them. Unsupported versions and missing migration steps produce an explicit
+message; formats are never silently interpreted as the current schema. Add a
+version-to-version migration when a future schema change can safely preserve
+replay behavior. Truncated sessions can be inspected but cannot be replayed.
 Events carry monotonic elapsed offsets. Clicks on links retain the
 redacted absolute `href` in the DOM event, in addition to router events. This
 helps identify the intended destination even if navigation did not occur.
@@ -119,6 +126,9 @@ Craft-rendered interaction targets use an opaque fingerprint of the interpreter
 render path. The replay resolves it against the current live render index and
 never substitutes a CSS match when that identity is missing or ambiguous. CSS
 selectors and viewport coordinates remain diagnostic and visual fallbacks.
+Native `source$` pointer and keyboard events also capture the Craft render
+target when one is available, so their visual cue does not depend on a
+structural CSS selector.
 Input, textarea, and select values are omitted by default. To capture
 non-sensitive values for replay, add `data-debug-session-capture-value="true"`
 to a field or set `captureInputValues: true` in
@@ -134,6 +144,22 @@ defaults to loopback. Production providers do not install session capture.
 Sensitive values become part of the archive and any exported session, so
 review this setting before enabling it in a production build or sharing an
 export.
+
+For single native selects, the recording also keeps the pointer/keyboard
+intent that opens or closes the picker. Replay displays a temporary DOM
+representation of the available options for that interval; the application
+control remains a native `<select>`, and replay does not invoke its handlers a
+second time. The browser's own popup is not reopened because browsers require a
+fresh trusted user gesture for that UI.
+
+Opted-in checkbox and radio changes also retain their checked state. Native
+`<details>`, `<dialog>`, and popover open/close transitions are recorded and
+restored as presentation state. Date, time, and color picker intent gets a
+temporary replay cue; the operating system/browser picker itself is not
+reopened. File-picker intent gets the same cue, and a selected-file event keeps
+only the file count: file names and contents are never captured, and the replay
+warns that the selection cannot be restored. Other text-like controls,
+including range and number inputs, use the existing opt-in value capture.
 
 The demo also opts into `captureBrowserStorage` only when its configured debug
 server URL points to loopback. This captures readable `localStorage`,

@@ -14,6 +14,8 @@ import {
   type ReplayScenarioTolerance,
   validateReplayScenario,
 } from './debug-session-scenario';
+import { createDebugSessionNativeControlReplayPresentation } from './debug-session-native-control-replay';
+import { migrateDebugSessionExport } from './debug-session-format';
 
 export type ReplayValidation =
   | Readonly<{
@@ -163,21 +165,23 @@ function validateConcurrentHttpReplayIdentity(
 
 /** Parse a session for inspection, including retained data from truncated exports. */
 export function validateDebugSessionExport(json: string): ReplayValidation {
-  let value: unknown;
+  let parsed: unknown;
   try {
-    value = JSON.parse(json);
+    parsed = JSON.parse(json);
   } catch {
     return { ok: false, error: 'The pasted session is not valid JSON.' };
   }
-  if (!isRecord(value))
+  if (!isRecord(parsed))
     return { ok: false, error: 'The session must be a JSON object.' };
-  if (value['format'] !== 'craft-debug-session' || value['version'] !== 5) {
+  if (parsed['format'] !== 'craft-debug-session') {
     return {
       ok: false,
-      error:
-        'Cette session utilise un ancien format de rejeu. Enregistre une nouvelle session avec le format v5.',
+      error: 'Cette session ne déclare pas le format craft-debug-session.',
     };
   }
+  const normalized = migrateDebugSessionExport(parsed);
+  if (!normalized.ok) return normalized;
+  const value = normalized.value as unknown as Record<string, unknown>;
   if (
     !Array.isArray(value['events']) ||
     !Array.isArray(value['clips']) ||
@@ -292,25 +296,55 @@ function validateReplaySteps(
   events: readonly SendContextEvent[],
 ): string | undefined {
   for (const event of events) {
-    if (event.kind === 'route-load') {
+    if (event.kind === 'pending') {
       const payload = isRecord(event.payload) ? event.payload : undefined;
       if (
-        !payload ||
         (event.phase !== 'started' &&
           event.phase !== 'succeeded' &&
           event.phase !== 'failed') ||
-        (payload['phase'] !== 'component' && payload['phase'] !== 'children') ||
-        typeof payload['routePath'] !== 'string' ||
-        payload['routePath'].length === 0 ||
-        payload['routePath'].length > 2_048 ||
-        typeof payload['targetUrl'] !== 'string' ||
+        !payload ||
         !event.operationId ||
+        typeof payload['source'] !== 'string' ||
+        typeof payload['boundaryId'] !== 'number' ||
+        (payload['mode'] !== 'suspended' && payload['mode'] !== 'reloading') ||
         (event.phase === 'started'
+          ? payload['transition'] !== 'visible' ||
+            typeof payload['fallbackRendered'] !== 'boolean'
+          : event.phase === 'succeeded'
+            ? payload['transition'] !== 'settled'
+            : payload['transition'] !== 'destroyed')
+      )
+        return `Pending transition event ${event.sequence} has an invalid operation identity or transition.`;
+      continue;
+    }
+    if (event.kind === 'route-load') {
+      const payload = isRecord(event.payload) ? event.payload : undefined;
+      if (!payload)
+        return `Route load event ${event.sequence} is missing its payload.`;
+      if (
+        event.phase !== 'started' &&
+        event.phase !== 'succeeded' &&
+        event.phase !== 'failed'
+      )
+        return `Route load event ${event.sequence} has an invalid event phase.`;
+      if (payload['phase'] !== 'component' && payload['phase'] !== 'children')
+        return `Route load event ${event.sequence} has an invalid load phase.`;
+      if (
+        typeof payload['routePath'] !== 'string' ||
+        payload['routePath'].length > 2_048
+      )
+        return `Route load event ${event.sequence} has an invalid routePath (expected a string up to 2048 characters; the root route may be empty).`;
+      if (typeof payload['targetUrl'] !== 'string')
+        return `Route load event ${event.sequence} has an invalid targetUrl.`;
+      if (!event.operationId)
+        return `Route load event ${event.sequence} is missing its operationId.`;
+      if (
+        event.phase === 'started'
           ? payload['outcome'] !== undefined
           : payload['outcome'] !==
-            (event.phase === 'succeeded' ? 'loaded' : 'error'))
+            (event.phase === 'succeeded' ? 'loaded' : 'error')
       )
-        return `Route load event ${event.sequence} has invalid route identity or outcome.`;
+        return `Route load event ${event.sequence} has an invalid outcome for phase "${event.phase}".`;
       continue;
     }
     if (event.kind === 'defer') {
@@ -717,6 +751,9 @@ export function createReplayController(
   const clock = new VirtualCraftTemporalRuntime(firstTime);
   const restoreClock = activateCraftTemporalRuntime(clock);
   const baselineEvents = options.observedEvents?.().length ?? 0;
+  const observedRouteOperationIds = new Map<string, string>();
+  const usedObservedRouteOperationIds = new Set<string>();
+  const ambiguousRouteOperationIds = new Set<string>();
   let prepared = false;
   const startingCursor = Math.min(
     interactions.length,
@@ -749,6 +786,8 @@ export function createReplayController(
   const pendingInvocationTasks: Promise<void>[] = [];
   let pendingInvocationError: unknown;
   let restoreReplayScrollBlock: (() => void) | undefined;
+  const nativeControlPresentation =
+    createDebugSessionNativeControlReplayPresentation();
   const pendingScrollEvents = new Map<EventTarget, () => void>();
   const writeAndWaitForScroll = (
     target: EventTarget,
@@ -782,7 +821,8 @@ export function createReplayController(
       );
   }
   let pendingRecovery:
-    Readonly<{ recovery: ReplayRecovery; nextIndex: number }> | undefined;
+    | Readonly<{ recovery: ReplayRecovery; nextIndex: number }>
+    | undefined;
   let pendingSkip: ReplaySkip | undefined;
   const stop = (reset = false, resetClock = true): void => {
     if (running) playbackPaused = true;
@@ -801,6 +841,7 @@ export function createReplayController(
       restoreFetch = undefined;
       restoreReplayScrollBlock?.();
       restoreReplayScrollBlock = undefined;
+      nativeControlPresentation.dispose();
       restoreClock();
       if (resetClock) clock.reset(firstTime);
       playbackEpoch = undefined;
@@ -1158,9 +1199,14 @@ export function createReplayController(
         (event.kind !== 'gesture' ||
           (candidate.correlationId === event.correlationId &&
             (candidate.kind === 'craft' || candidate.kind === 'http'))) &&
+        (event.kind !== 'dom' ||
+          (candidate.kind !== 'craft' && candidate.kind !== 'http') ||
+          !event.correlationId ||
+          candidate.correlationId === event.correlationId) &&
         (candidate.kind === 'craft' ||
           candidate.kind === 'transport' ||
           (useInvocationReplay && candidate.kind === 'route-load') ||
+          (useInvocationReplay && candidate.kind === 'pending') ||
           (useInvocationReplay && candidate.kind === 'http') ||
           candidate.state !== undefined ||
           (useInvocationReplay &&
@@ -1298,7 +1344,11 @@ export function createReplayController(
       const resolution =
         event.kind === 'hover'
           ? ɵresolveCraftReplayTarget(replayTarget)
-          : await waitForCraftReplayTarget(replayTarget, undefined, skippable());
+          : await waitForCraftReplayTarget(
+              replayTarget,
+              undefined,
+              skippable(),
+            );
       target =
         resolution.status === 'resolved' &&
         resolution.element instanceof HTMLElement
@@ -1309,6 +1359,13 @@ export function createReplayController(
           `Replay Craft hover target is ${resolution.status}; showing the recorded coordinates instead.`,
         );
       } else if (!target && useInvocationReplay) {
+        if (resolution.status === 'foreign-runtime') {
+          stop(true);
+          options.onError?.(
+            `Replay Craft target is ${resolution.status}; the interaction cannot be replayed safely.`,
+          );
+          return undefined;
+        }
         // Invocation replay reproduces Craft calls separately from DOM input.
         // A target with an unstable render identity cannot safely be resolved
         // to an element, but its native interaction is only a visual cue here;
@@ -1344,7 +1401,7 @@ export function createReplayController(
         return undefined;
       }
       target = await waitForReplayTarget(
-        payload['selector'],
+        payload['selector'] as string,
         undefined,
         skippable(),
       );
@@ -1375,6 +1432,7 @@ export function createReplayController(
       // Hover is a visual cue only. Dispatching pointer events here would run
       // application handlers a second time; the recorded Craft calls remain
       // the sole source of their effects during invocation replay.
+      nativeControlPresentation.sync(event, target ?? document.body);
       options.onInteraction?.(event, target ?? document.body);
       if (!(await restorePrimitiveChangesBetweenSteps(event))) return undefined;
       cursor += 1;
@@ -1426,6 +1484,13 @@ export function createReplayController(
         target.dispatchEvent(new Event('input', { bubbles: true }));
         target.dispatchEvent(new Event('change', { bubbles: true }));
       }
+    }
+    if (
+      typeof payload['checked'] === 'boolean' &&
+      target instanceof HTMLInputElement &&
+      (target.type === 'checkbox' || target.type === 'radio')
+    ) {
+      target.checked = payload['checked'];
     }
     const init: KeyboardEventInit & MouseEventInit & PointerEventInit = {
       bubbles: true,
@@ -1499,6 +1564,7 @@ export function createReplayController(
       }
     }
     await Promise.all(scrollSettlers);
+    nativeControlPresentation.sync(event, target, options.onWarning);
     options.onInteraction?.(event, target);
     const native = action.startsWith('key')
       ? new KeyboardEvent(action, init)
@@ -1560,25 +1626,49 @@ export function createReplayController(
           );
       } else {
         const replayCalls = rootReplayInvocationEvents(intervalEvents);
+        const documentReloads = intervalEvents.filter(
+          isDocumentReloadInvocation,
+        );
+        const mismatchedCorrelations = intervalEvents.filter(
+          (candidate) =>
+            (candidate.kind === 'craft' || candidate.kind === 'http') &&
+            event.correlationId !== undefined &&
+            candidate.correlationId !== event.correlationId,
+        );
         const deferredActivationRecorded = session.events.some(
           (candidate) =>
             candidate.kind === 'defer' &&
             candidate.phase === 'started' &&
             candidate.sequence > event.sequence &&
             (followingInteraction === undefined ||
-              candidate.sequence < followingInteraction.sequence),
+              candidate.sequence < followingInteraction.sequence ||
+              (candidate.id === followingInteraction.id &&
+                followingInteraction.kind === 'defer')),
+        );
+        const routeLoadRecorded = intervalEvents.some(
+          (candidate) => candidate.kind === 'route-load',
         );
         if (replayCalls.length === 0 && isGesture)
           options.onWarning?.(
-            `Appui long enregistré (${String(payload['trigger'])}), mais aucun appel Craft rejouable n'est associé. Le handler natif n'a pas été exécuté.`,
+            `[Invocation non exécutée] Appui long enregistré (${String(payload['trigger'])}, corrélation ${event.correlationId ?? 'absente'}), mais aucun appel Craft rejouable n'est associé. Le handler natif n'a pas été exécuté.`,
+          );
+        else if (documentReloads.length > 0)
+          options.onWarning?.(
+            `Document reload recorded for ${event.name ?? event.sequence} is a session boundary and was not executed during replay. Resume from a new recording after the page reload.`,
+          );
+        else if (mismatchedCorrelations.length > 0)
+          options.onWarning?.(
+            `[Corrélation incompatible] Interaction ${event.name ?? event.sequence}, corrélation ${event.correlationId ?? 'absente'}; ${mismatchedCorrelations.length} appel(s) de l’intervalle portent une autre corrélation et n’ont pas été rejoués.`,
           );
         else if (
           replayCalls.length === 0 &&
           !deferredActivationRecorded &&
+          !routeLoadRecorded &&
+          documentReloads.length === 0 &&
           action === 'click'
         )
           options.onWarning?.(
-            `Aucun appel Craft ni activation différée enregistrés après le clic ${event.name ?? event.sequence}.`,
+            `[Invocation non exécutée] Aucun appel Craft ni activation différée enregistrés après le clic ${event.name ?? event.sequence} (corrélation ${event.correlationId ?? 'absente'}).`,
           );
         replayInvocationsBySequence = new Map(
           replayCalls.map((call) => [call.sequence, call]),
@@ -1609,11 +1699,16 @@ export function createReplayController(
         ? expected.payload
         : undefined;
       if (!expectedPayload) return undefined;
-      const findObserved = () =>
-        options
+      const expectedOperationId = expected.operationId;
+      const findObserved = () => {
+        const candidates = options
           .observedEvents?.()
-          .slice(observedBefore)
-          .find((candidate) => {
+          // Route loaders can run while the replay target resumes bootstrap,
+          // before the first interaction starts. Keep those observations in
+          // the run-wide comparison window instead of dropping them at each
+          // interaction boundary.
+          .slice(baselineEvents)
+          .filter((candidate) => {
             const actualPayload = isRecord(candidate.payload)
               ? candidate.payload
               : undefined;
@@ -1624,10 +1719,127 @@ export function createReplayController(
               actualPayload['routePath'] === expectedPayload['routePath']
             );
           });
+        if (!candidates?.length) return undefined;
+        const pairedOperationId = expectedOperationId
+          ? observedRouteOperationIds.get(expectedOperationId)
+          : undefined;
+        if (pairedOperationId) {
+          return candidates.find(
+            (candidate) => candidate.operationId === pairedOperationId,
+          );
+        }
+        const available = candidates.filter(
+          (candidate) =>
+            !candidate.operationId ||
+            !usedObservedRouteOperationIds.has(candidate.operationId),
+        );
+        const distinctAvailable = new Set(
+          available.flatMap((candidate) =>
+            candidate.operationId ? [candidate.operationId] : [],
+          ),
+        );
+        if (expectedOperationId && distinctAvailable.size > 1) {
+          ambiguousRouteOperationIds.add(expectedOperationId);
+          return undefined;
+        }
+        const observed = available[0];
+        if (expectedOperationId && observed?.operationId) {
+          observedRouteOperationIds.set(
+            expectedOperationId,
+            observed.operationId,
+          );
+          usedObservedRouteOperationIds.add(observed.operationId);
+        }
+        return observed;
+      };
       const deadline = Date.now() + 2_500;
       while (Date.now() < deadline) {
         const observed = findObserved();
         if (observed) return observed;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return undefined;
+    };
+    const missingRouteStarts: SendContextEvent[] = [];
+    const observedPendingOperationIds = new Map<string, string>();
+    const usedObservedPendingOperationIds = new Set<string>();
+    const ambiguousPendingOperationIds = new Set<string>();
+    const waitForObservedPending = async (
+      expected: SendContextEvent,
+    ): Promise<SendContextEvent | undefined> => {
+      const expectedPayload = isRecord(expected.payload)
+        ? expected.payload
+        : undefined;
+      if (!expectedPayload) return undefined;
+      const deadline = Date.now() + 2_500;
+      while (Date.now() < deadline) {
+        const candidates =
+          options
+            .observedEvents?.()
+            .slice(observedBefore)
+            .filter((candidate) => {
+              const payload = isRecord(candidate.payload)
+                ? candidate.payload
+                : undefined;
+              return (
+                candidate.kind === 'pending' &&
+                candidate.phase === expected.phase &&
+                payload?.['replay'] === true &&
+                payload['source'] === expectedPayload['source'] &&
+                payload['mode'] === expectedPayload['mode']
+              );
+            }) ?? [];
+        const pairedOperationId = expected.operationId
+          ? observedPendingOperationIds.get(expected.operationId)
+          : undefined;
+        const available = pairedOperationId
+          ? []
+          : candidates.filter(
+              (candidate) =>
+                !candidate.operationId ||
+                !usedObservedPendingOperationIds.has(candidate.operationId),
+            );
+        const distinctAvailable = new Set(
+          available.flatMap((candidate) =>
+            candidate.operationId ? [candidate.operationId] : [],
+          ),
+        );
+        if (expected.operationId && distinctAvailable.size > 1) {
+          ambiguousPendingOperationIds.add(expected.operationId);
+          return undefined;
+        }
+        const observed = pairedOperationId
+          ? candidates.find(
+              (candidate) => candidate.operationId === pairedOperationId,
+            )
+          : candidates.find(
+              (candidate) =>
+                !candidate.operationId ||
+                !usedObservedPendingOperationIds.has(candidate.operationId),
+            );
+        if (observed) {
+          if (
+            expected.phase === 'started' &&
+            expected.operationId &&
+            observed.operationId
+          )
+            observedPendingOperationIds.set(
+              expected.operationId,
+              observed.operationId,
+            );
+          if (observed.operationId)
+            usedObservedPendingOperationIds.add(observed.operationId);
+          else if (
+            expected.operationId &&
+            observed.operationId &&
+            !observedPendingOperationIds.has(expected.operationId)
+          )
+            observedPendingOperationIds.set(
+              expected.operationId,
+              observed.operationId,
+            );
+          return observed;
+        }
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       return undefined;
@@ -1645,12 +1857,44 @@ export function createReplayController(
         const actualPayload = isRecord(observed?.payload)
           ? observed.payload
           : {};
-        if (
+        if (!observed && intervalEvent.phase === 'started') {
+          missingRouteStarts.push(intervalEvent);
+        } else if (
           !observed ||
           expectedPayload['outcome'] !== actualPayload['outcome']
+        ) {
+          const category = observed
+            ? 'Résultat différent'
+            : intervalEvent.operationId &&
+                ambiguousRouteOperationIds.has(intervalEvent.operationId)
+              ? 'Corrélation ambiguë'
+              : 'Observation absente';
+          options.onWarning?.(
+            `[${category}] Chargement de route ${intervalEvent.operationId ?? intervalEvent.sequence} (${String(expectedPayload['routePath'])}) ${intervalEvent.phase}: attendu ${String(expectedPayload['outcome'] ?? 'started')} · corrélation ${intervalEvent.correlationId ?? 'absente'}; observé ${String(actualPayload['outcome'] ?? 'absent')} · opération ${observed?.operationId ?? 'absente'} · corrélation ${observed?.correlationId ?? 'absente'}.`,
+          );
+        }
+        continue;
+      }
+      if (intervalEvent.kind === 'pending') {
+        if (!(await waitForPlaybackTime(timeOf(intervalEvent))))
+          return undefined;
+        await clock.advanceTo(Math.max(clock.now(), timeOf(intervalEvent)));
+        const observed = await waitForObservedPending(intervalEvent);
+        const expectedPending = isRecord(intervalEvent.payload)
+          ? intervalEvent.payload
+          : {};
+        const actualPending = isRecord(observed?.payload)
+          ? observed.payload
+          : {};
+        if (
+          !observed ||
+          expectedPending['transition'] !== actualPending['transition'] ||
+          (intervalEvent.phase === 'started' &&
+            expectedPending['fallbackRendered'] !==
+              actualPending['fallbackRendered'])
         )
           options.onWarning?.(
-            `Route load ${String(expectedPayload['routePath'])} ${intervalEvent.phase}: recorded ${String(expectedPayload['outcome'] ?? 'started')}, replay ${String(actualPayload['outcome'] ?? 'not observed')}.`,
+            `[${observed ? 'Résultat différent' : intervalEvent.operationId && ambiguousPendingOperationIds.has(intervalEvent.operationId) ? 'Corrélation ambiguë' : 'Observation absente'}] Transition pending ${intervalEvent.operationId ?? intervalEvent.sequence} (${String(expectedPending['source'] ?? 'unknown')}) ${intervalEvent.phase}: attendu ${String(expectedPending['transition'])}${intervalEvent.phase === 'started' ? `, fallback affiché ${String(expectedPending['fallbackRendered'])}` : ''} · corrélation ${intervalEvent.correlationId ?? 'absente'}; observé ${observed ? `${String(actualPending['transition'])}${intervalEvent.phase === 'started' ? `, fallback affiché ${String(actualPending['fallbackRendered'])}` : ''} · opération ${observed.operationId ?? 'absente'} · corrélation ${observed.correlationId ?? 'absente'}` : 'plusieurs opérations candidates ou aucune observation'}.`,
           );
         continue;
       }
@@ -1717,6 +1961,33 @@ export function createReplayController(
         if (!(await waitForObservedCall(expectedCallIndex))) break;
         expectedCallIndex += 1;
       }
+    }
+    for (const missingStart of missingRouteStarts) {
+      const payload = isRecord(missingStart.payload)
+        ? missingStart.payload
+        : {};
+      const operationId = missingStart.operationId;
+      const operationObserved = options
+        .observedEvents?.()
+        .slice(observedBefore)
+        .some((candidate) => {
+          const candidatePayload = isRecord(candidate.payload)
+            ? candidate.payload
+            : undefined;
+          return (
+            candidate.kind === 'route-load' &&
+            (operationId
+              ? candidate.operationId ===
+                observedRouteOperationIds.get(operationId)
+              : candidatePayload?.['routePath'] === payload['routePath']) &&
+            (candidate.phase === 'succeeded' || candidate.phase === 'failed') &&
+            candidatePayload?.['replay'] === true
+          );
+        });
+      if (!operationObserved)
+        options.onWarning?.(
+          `[${operationId && ambiguousRouteOperationIds.has(operationId) ? 'Corrélation ambiguë' : 'Observation absente'}] Chargement de route ${operationId ?? missingStart.sequence} (${String(payload['routePath'])}, corrélation ${missingStart.correlationId ?? 'absente'}) : aucune phase observée associable sans ambiguïté à cette opération.`,
+        );
     }
     if (navigationTask) {
       await navigationTask;
@@ -1898,7 +2169,10 @@ function isReplayInvocationEvent(event: SendContextEvent): boolean {
 function rootReplayInvocationEvents(
   events: readonly SendContextEvent[],
 ): SendContextEvent[] {
-  const invocations = events.filter(isReplayInvocationEvent);
+  const invocations = events.filter(
+    (event) =>
+      isReplayInvocationEvent(event) && !isDocumentReloadInvocation(event),
+  );
   const operationIds = new Set(
     invocations.flatMap((event) =>
       typeof event.operationId === 'string' ? [event.operationId] : [],
@@ -1968,6 +2242,18 @@ function rootReplayInvocationEvents(
       };
     })
     .sort((left, right) => left.sequence - right.sequence);
+}
+
+function isDocumentReloadInvocation(event: SendContextEvent): boolean {
+  if (!isReplayInvocationEvent(event)) return false;
+  const payload = isRecord(event.payload) ? event.payload : undefined;
+  const invocation =
+    payload && isRecord(payload['replayInvocation'])
+      ? payload['replayInvocation']
+      : undefined;
+  const address =
+    typeof invocation?.['address'] === 'string' ? invocation['address'] : '';
+  return /BrowserLocationService\b.*\bmethod:reload\b/.test(address);
 }
 
 function findCompatibleSkip(

@@ -10,6 +10,9 @@ import {
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 
+/** Portable recording schema accepted by this standalone archive server. */
+export const PORTABLE_DEBUG_SESSION_VERSION = 5;
+
 export type StoredDebugSessionStatus =
   | 'recording'
   | 'completed'
@@ -65,7 +68,7 @@ type StoredSession = Omit<StoredDebugSessionSummary, 'participantCount'> & {
 
 export type PortableDebugSession = Readonly<{
   format: 'craft-debug-session';
-  version: 5;
+  version: typeof PORTABLE_DEBUG_SESSION_VERSION;
   startUrl: string;
   viewport?: Readonly<{ width: number; height: number }>;
   exportedAt: number;
@@ -525,7 +528,7 @@ export class DebugSessionStore {
     });
     return {
       format: 'craft-debug-session',
-      version: 5,
+      version: PORTABLE_DEBUG_SESSION_VERSION,
       startUrl: stored.startUrl,
       ...(stored.viewport ? { viewport: stored.viewport } : {}),
       exportedAt: Date.parse(stored.updatedAt),
@@ -716,7 +719,7 @@ function assertPortableSession(
   if (
     !isRecord(value) ||
     value['format'] !== 'craft-debug-session' ||
-    value['version'] !== 5 ||
+    value['version'] !== PORTABLE_DEBUG_SESSION_VERSION ||
     typeof value['startUrl'] !== 'string' ||
     (value['viewport'] !== undefined && !isValidViewport(value['viewport'])) ||
     !Array.isArray(value['events']) ||

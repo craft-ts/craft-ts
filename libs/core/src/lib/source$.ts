@@ -9,6 +9,7 @@ import {
 } from './host/craft-compat';
 import { ɵcreateHostTaggedInjector, ɵHOST_TAG_LIST } from './craft-service';
 import { ɵinjectAppSnapshotRegistry } from './take-app-snapshot';
+import { ɵcaptureCraftReplayTarget } from './craft-replay-target';
 import type {
   SERVICE_HELPER_DEPENDENCIES,
   ServiceDependencies,
@@ -343,6 +344,7 @@ function replayableDomEventDetails(
       eventName: event.type,
       interactionName: `${name}:${event.type}`,
       selector,
+      replayTarget: ɵcaptureCraftReplayTarget(target, { selector }),
       ...(event instanceof KeyboardEvent
         ? { key: event.key, code: event.code }
         : {}),

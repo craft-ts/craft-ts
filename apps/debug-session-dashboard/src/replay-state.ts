@@ -63,7 +63,9 @@ export const targetUrl = signal(
   import.meta.env['VITE_CRAFT_REPLAY_TARGET_URL'] ?? 'http://localhost:4200/',
 );
 export const startMode = signal<ReplayStartMode>('url');
-export const status = signal('Importe une session v3 pour commencer.');
+export const status = signal(
+  'Importe une session craft-debug-session pour commencer.',
+);
 export const connected = signal(false);
 export const difference = signal<ReplayDifference | undefined>(undefined);
 const AUTO_SKIP_STORAGE_KEY =

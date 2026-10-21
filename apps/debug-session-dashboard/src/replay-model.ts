@@ -308,15 +308,20 @@ export function participantSession(
     participantEvents,
     participantClips,
   );
-  const { initialSnapshot: _initialSnapshot, ...base } = imported;
+  const { initialSnapshot: globalInitialSnapshot, ...base } = imported;
+  // A standalone export has one page-level snapshot. When the archive wraps
+  // that export in a single participant, keep the snapshot with its slice;
+  // for a multi-participant archive the global snapshot is ambiguous and each
+  // participant must provide its own.
+  const initialSnapshot =
+    participant.initialSnapshot ??
+    (participants.length === 1 ? globalInitialSnapshot : undefined);
   return {
     ...base,
     truncated: imported.truncated && !participantHistoryComplete,
     startUrl: participant.startUrl,
     ...(participant.viewport ? { viewport: participant.viewport } : {}),
-    ...(participant.initialSnapshot
-      ? { initialSnapshot: participant.initialSnapshot }
-      : {}),
+    ...(initialSnapshot !== undefined ? { initialSnapshot } : {}),
     events: participantEvents,
     clips: participantClips,
   };

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createSendContextSession,
+  type SendContextEvent,
   type SendContextReplayExport,
   ɵcaptureCraftReplayTarget,
   ɵregisterCraftReplayTarget,
@@ -621,6 +622,317 @@ describe('debug session replay format', () => {
     ).toMatchObject({ ok: false });
   });
 
+  it('accepts the empty route path emitted for the root route', () => {
+    const rootRouteSession = {
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'root-route-started',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'route-load',
+          phase: 'started',
+          operationId: 'route-load:1',
+          payload: {
+            phase: 'component',
+            routePath: '',
+            targetUrl: '/',
+          },
+        },
+        {
+          id: 'root-route-succeeded',
+          sequence: 2,
+          timestamp: 11,
+          kind: 'route-load',
+          phase: 'succeeded',
+          operationId: 'route-load:1',
+          payload: {
+            phase: 'component',
+            routePath: '',
+            targetUrl: '/',
+            outcome: 'loaded',
+          },
+        },
+      ],
+    };
+
+    expect(
+      validateReplayExport(JSON.stringify(rootRouteSession)),
+    ).toMatchObject({ ok: true });
+  });
+
+  it('reports an invalid routePath directly', () => {
+    const session = {
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'invalid-route-path',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'route-load',
+          phase: 'started',
+          operationId: 'route-load:1',
+          payload: {
+            phase: 'component',
+            routePath: 42,
+            targetUrl: '/',
+          },
+        },
+      ],
+    };
+
+    expect(validateReplayExport(JSON.stringify(session))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('invalid routePath'),
+    });
+  });
+
+  it('validates bounded pending transitions without capturing application values', () => {
+    const pendingSession = {
+      format: 'craft-debug-session',
+      version: 5,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'pending-started',
+          sequence: 1,
+          timestamp: 10,
+          kind: 'pending',
+          phase: 'started',
+          operationId: 'pending:1:1',
+          payload: {
+            boundaryId: 1,
+            source: 'users',
+            mode: 'suspended',
+            transition: 'visible',
+            fallbackRendered: true,
+          },
+        },
+        {
+          id: 'pending-settled',
+          sequence: 2,
+          timestamp: 20,
+          kind: 'pending',
+          phase: 'succeeded',
+          operationId: 'pending:1:1',
+          payload: {
+            boundaryId: 1,
+            source: 'users',
+            mode: 'suspended',
+            transition: 'settled',
+          },
+        },
+      ],
+    };
+
+    expect(validateReplayExport(JSON.stringify(pendingSession))).toMatchObject({
+      ok: true,
+    });
+    const invalid = {
+      ...pendingSession,
+      events: pendingSession.events.map((event, index) =>
+        index === 0
+          ? { ...event, payload: { ...event.payload, source: 42 } }
+          : event,
+      ),
+    };
+    expect(validateReplayExport(JSON.stringify(invalid))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('Pending transition event'),
+    });
+  });
+
+  it('pairs replayed route phases by the observed operation identity', async () => {
+    document.body.innerHTML = '<button id="navigate">Navigate</button>';
+    const onWarning = vi.fn();
+    const observedEvents: SendContextEvent[] = [];
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'navigation-click',
+            sequence: 1,
+            timestamp: 10,
+            elapsedMs: 0,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'click',
+            payload: { selector: '#navigate', action: 'click' },
+          },
+          {
+            id: 'recorded-route-start',
+            sequence: 2,
+            timestamp: 11,
+            elapsedMs: 1,
+            kind: 'route-load',
+            phase: 'started',
+            operationId: 'recorded-route:1',
+            payload: {
+              phase: 'component',
+              routePath: 'users/:id',
+              targetUrl: '/users/1',
+            },
+          },
+          {
+            id: 'recorded-route-end',
+            sequence: 3,
+            timestamp: 12,
+            elapsedMs: 2,
+            kind: 'route-load',
+            phase: 'succeeded',
+            operationId: 'recorded-route:1',
+            payload: {
+              phase: 'component',
+              routePath: 'users/:id',
+              targetUrl: '/users/1',
+              outcome: 'loaded',
+            },
+          },
+        ],
+      },
+      {
+        observedEvents: () => observedEvents,
+        onWarning,
+        onInteraction: () => {
+          observedEvents.push(
+            {
+              id: 'observed-route-start',
+              sequence: 1,
+              timestamp: 10,
+              kind: 'route-load',
+              phase: 'started',
+              operationId: 'replay-route:9',
+              payload: { routePath: 'users/:id', replay: true },
+            },
+            {
+              id: 'observed-route-end',
+              sequence: 2,
+              timestamp: 20,
+              kind: 'route-load',
+              phase: 'succeeded',
+              operationId: 'replay-route:9',
+              payload: {
+                routePath: 'users/:id',
+                outcome: 'loaded',
+                replay: true,
+              },
+            },
+          );
+        },
+      },
+    );
+
+    await replay.step();
+
+    expect(onWarning).not.toHaveBeenCalled();
+    replay.stop();
+  });
+
+  it('maps pending operation identities across replay correlation IDs', async () => {
+    document.body.innerHTML = '<button id="pending-action">Run</button>';
+    const onWarning = vi.fn();
+    const observedEvents: SendContextEvent[] = [];
+    const pending = (id: string, phase: 'started' | 'succeeded') => ({
+      id,
+      sequence: phase === 'started' ? 1 : 2,
+      timestamp: 10 + (phase === 'started' ? 0 : 1),
+      kind: 'pending' as const,
+      phase,
+      operationId: 'recorded-pending:1',
+      correlationId: 'click-correlation',
+      payload: {
+        boundaryId: 1,
+        source: 'issue',
+        mode: 'reloading',
+        transition: phase === 'started' ? 'visible' : 'settled',
+        ...(phase === 'started' ? { fallbackRendered: true } : {}),
+      },
+    });
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'pending-click',
+            sequence: 0,
+            timestamp: 10,
+            kind: 'dom',
+            phase: 'emitted',
+            correlationId: 'click-correlation',
+            payload: { selector: '#pending-action', action: 'click' },
+          },
+          {
+            id: 'pending-trigger',
+            sequence: 0.5,
+            timestamp: 10,
+            kind: 'craft',
+            phase: 'started',
+            operationId: 'mutation:1',
+            correlationId: 'click-correlation',
+            payload: {
+              host: 'method:mutate',
+              replayInvocation: { address: 'component:Issue#1 / method:mutate', args: ['issue-1'] },
+            },
+          },
+          pending('pending-start', 'started'),
+          pending('pending-end', 'succeeded'),
+        ],
+      },
+      {
+        observedEvents: () => observedEvents,
+        onWarning,
+        invokeRecordedMethod: () => undefined,
+        onInteraction: () => {
+          observedEvents.push(
+            {
+              ...pending('observed-start', 'started'),
+              operationId: 'replay-pending:9',
+              correlationId: 'replay-click-correlation',
+              sequence: 1,
+              payload: { ...pending('observed-start', 'started').payload, replay: true },
+            },
+            {
+              ...pending('observed-end', 'succeeded'),
+              operationId: 'replay-pending:9',
+              correlationId: 'replay-click-correlation',
+              sequence: 2,
+              payload: { ...pending('observed-end', 'succeeded').payload, replay: true },
+            },
+          );
+        },
+      },
+    );
+
+    await replay.step();
+
+    expect(onWarning).not.toHaveBeenCalled();
+    replay.stop();
+  });
+
   it('exports complete versioned, redacted sessions', () => {
     const session = createSendContextSession();
     session.capture('dom', 'emitted', {
@@ -692,7 +1004,8 @@ describe('debug session replay format', () => {
   });
 
   it('skipWait starts the next action now instead of after the recorded delay', async () => {
-    document.body.innerHTML = '<button id="a">A</button><button id="b">B</button>';
+    document.body.innerHTML =
+      '<button id="a">A</button><button id="b">B</button>';
     const states: string[] = [];
     const click = (id: string, sequence: number, timestamp: number) => ({
       id: `click-${id}`,
@@ -760,6 +1073,232 @@ describe('debug session replay format', () => {
     expect(handler).not.toHaveBeenCalled();
     expect(onWarning).toHaveBeenCalledWith(
       expect.stringContaining('Aucun appel Craft ni activation différée'),
+    );
+    replay.stop();
+  });
+
+  it('accepts a deferred activation that is the next replay step after a click', async () => {
+    document.body.innerHTML = '<button id="deferred">Load</button>';
+    const onWarning = vi.fn();
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'deferred-click',
+            sequence: 1,
+            timestamp: 1_000,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'click',
+            payload: { selector: '#deferred', action: 'click' },
+          },
+          {
+            id: 'defer-started',
+            sequence: 2,
+            timestamp: 1_001,
+            kind: 'defer',
+            phase: 'started',
+            payload: { targetId: 'deferred-target' },
+          },
+          {
+            id: 'defer-succeeded',
+            sequence: 3,
+            timestamp: 1_002,
+            kind: 'defer',
+            phase: 'succeeded',
+            payload: {
+              targetId: 'deferred-target',
+              activationEventId: 'defer-started',
+              outcome: 'loaded',
+            },
+          },
+        ],
+      },
+      { onWarning },
+    );
+
+    await replay.step();
+
+    expect(onWarning).not.toHaveBeenCalledWith(
+      expect.stringContaining('Aucun appel Craft ni activation différée'),
+    );
+    replay.stop();
+  });
+
+  it('keeps a later defer activation with its preceding click, before the next interaction', async () => {
+    document.body.innerHTML =
+      '<button id="deferred">Load</button><button id="other">Other</button>';
+    const onWarning = vi.fn();
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'deferred-click',
+            sequence: 1,
+            timestamp: 1_000,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'click',
+            payload: { selector: '#deferred', action: 'click' },
+          },
+          {
+            id: 'method-started',
+            sequence: 2,
+            timestamp: 1_001,
+            kind: 'craft',
+            phase: 'started',
+            name: 'method:load',
+            payload: {
+              host: 'method:load',
+              replayInvocation: {
+                address: 'component:App#1 / method:load',
+                args: [],
+              },
+            },
+          },
+          {
+            id: 'defer-started',
+            sequence: 3,
+            timestamp: 1_002,
+            kind: 'defer',
+            phase: 'started',
+            payload: { targetId: 'deferred-target' },
+          },
+          {
+            id: 'other-click',
+            sequence: 4,
+            timestamp: 1_003,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'click',
+            payload: { selector: '#other', action: 'click' },
+          },
+        ],
+      },
+      { onWarning },
+    );
+
+    await replay.step();
+
+    expect(onWarning).not.toHaveBeenCalledWith(
+      expect.stringContaining('Aucun appel Craft ni activation différée'),
+    );
+    replay.stop();
+  });
+
+  it('does not attach a defer activation after the next click to the previous click', async () => {
+    document.body.innerHTML =
+      '<button id="first">First</button><button id="second">Second</button>';
+    const onWarning = vi.fn();
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'first-click',
+            sequence: 1,
+            timestamp: 1_000,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'click',
+            payload: { selector: '#first', action: 'click' },
+          },
+          {
+            id: 'second-click',
+            sequence: 2,
+            timestamp: 1_001,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'click',
+            payload: { selector: '#second', action: 'click' },
+          },
+          {
+            id: 'defer-started',
+            sequence: 3,
+            timestamp: 1_002,
+            kind: 'defer',
+            phase: 'started',
+            payload: { targetId: 'second-target' },
+          },
+        ],
+      },
+      { onWarning },
+    );
+
+    await replay.step();
+
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.stringContaining('Aucun appel Craft ni activation différée'),
+    );
+    replay.stop();
+  });
+
+  it('treats a document reload invocation as a non-replayable session boundary', async () => {
+    document.body.innerHTML = '<button id="reload">Reload</button>';
+    const invokeRecordedMethod = vi.fn();
+    const onWarning = vi.fn();
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 1_000,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'reload-click',
+            sequence: 1,
+            timestamp: 1_000,
+            kind: 'dom',
+            phase: 'emitted',
+            name: 'click',
+            correlationId: 'reload-click-id',
+            payload: { selector: '#reload', action: 'click' },
+          },
+          {
+            id: 'reload-method',
+            sequence: 2,
+            timestamp: 1_001,
+            kind: 'craft',
+            phase: 'started',
+            name: 'method:reload',
+            correlationId: 'reload-click-id',
+            payload: {
+              host: 'method:reload',
+              replayInvocation: {
+                address: 'service:BrowserLocationService#1 / method:reload',
+                args: [],
+              },
+            },
+          },
+        ],
+      },
+      { invokeRecordedMethod, onWarning },
+    );
+
+    await replay.step();
+
+    expect(invokeRecordedMethod).not.toHaveBeenCalled();
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.stringContaining('session boundary'),
     );
     replay.stop();
   });
@@ -880,6 +1419,23 @@ describe('debug session replay format', () => {
       });
       expect(validateReplayExport(fixture)).toMatchObject({ ok: false });
     }
+  });
+
+  it('reports when an export comes from a newer unsupported schema', () => {
+    const fixture = JSON.stringify({
+      format: 'craft-debug-session',
+      version: 6,
+      startUrl: 'http://localhost/',
+      exportedAt: 10,
+      truncated: false,
+      events: [],
+      clips: [],
+    });
+
+    expect(validateReplayExport(fixture)).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('plus récent'),
+    });
   });
 
   it('requires distinct replay keys for overlapping identical Craft HTTP requests', () => {
@@ -2148,6 +2704,221 @@ describe('debug session replay format', () => {
     expect(changeHandler).not.toHaveBeenCalled();
     expect(invokeRecordedMethod).not.toHaveBeenCalled();
     expect(replay.index()).toBe(1);
+    replay.stop();
+  });
+
+  it('shows the native select options in a replay-only presentation', async () => {
+    document.body.innerHTML =
+      '<select id="country"><option value="fr">France</option><option value="ca">Canada</option></select>';
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'select-open',
+            sequence: 1,
+            timestamp: 10,
+            elapsedMs: 0,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: { selector: '#country', action: 'select-open' },
+          },
+          {
+            id: 'select-close',
+            sequence: 2,
+            timestamp: 20,
+            elapsedMs: 10,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: {
+              selector: '#country',
+              action: 'change',
+              value: 'ca',
+              valueOnly: true,
+            },
+          },
+        ],
+      },
+      { invokeRecordedMethod: () => undefined },
+    );
+
+    await replay.step();
+    const overlay = document.querySelector<HTMLElement>(
+      '[data-craft-select-replay-overlay]',
+    );
+    expect(overlay?.textContent).toContain('France');
+    expect(overlay?.textContent).toContain('Canada');
+    expect(overlay?.getAttribute('aria-hidden')).toBe('true');
+
+    await replay.step();
+    expect(document.querySelector<HTMLSelectElement>('#country')?.value).toBe(
+      'ca',
+    );
+    expect(
+      document.querySelector('[data-craft-select-replay-overlay]'),
+    ).toBeNull();
+    replay.stop();
+  });
+
+  it('restores opted-in checkbox state and native disclosure state', async () => {
+    document.body.innerHTML =
+      '<input id="subscribe" type="checkbox"><details id="faq"><summary>FAQ</summary></details><dialog id="notice"></dialog><div id="help" popover></div>';
+    const checkbox = document.querySelector<HTMLInputElement>('#subscribe')!;
+    const dialog = document.querySelector<HTMLDialogElement>('#notice')!;
+    const dialogShowModal = vi.fn();
+    Object.defineProperty(dialog, 'showModal', {
+      configurable: true,
+      value: dialogShowModal,
+    });
+    const popover = document.querySelector<HTMLElement>('#help')!;
+    const popoverShow = vi.fn();
+    Object.defineProperty(popover, 'showPopover', {
+      configurable: true,
+      value: popoverShow,
+    });
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'check-subscribe',
+            sequence: 1,
+            timestamp: 10,
+            elapsedMs: 0,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: {
+              selector: '#subscribe',
+              action: 'change',
+              checked: true,
+            },
+          },
+          {
+            id: 'open-faq',
+            sequence: 2,
+            timestamp: 20,
+            elapsedMs: 10,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: {
+              selector: '#faq',
+              action: 'details-open',
+              stateKind: 'details',
+              open: true,
+            },
+          },
+          {
+            id: 'open-notice',
+            sequence: 3,
+            timestamp: 30,
+            elapsedMs: 20,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: {
+              selector: '#notice',
+              action: 'dialog-open',
+              stateKind: 'dialog',
+              open: true,
+              modal: true,
+            },
+          },
+          {
+            id: 'open-help',
+            sequence: 4,
+            timestamp: 40,
+            elapsedMs: 30,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: {
+              selector: '#help',
+              action: 'popover-open',
+              stateKind: 'popover',
+              open: true,
+            },
+          },
+        ],
+      },
+      { invokeRecordedMethod: () => undefined },
+    );
+
+    await replay.step();
+    expect(checkbox.checked).toBe(true);
+    await replay.step();
+    expect(document.querySelector('details')?.open).toBe(true);
+    await replay.step();
+    expect(dialogShowModal).toHaveBeenCalledOnce();
+    await replay.step();
+    expect(popoverShow).toHaveBeenCalledOnce();
+    replay.stop();
+  });
+
+  it('shows a replay cue for native pickers and warns that file selections cannot be restored', async () => {
+    document.body.innerHTML =
+      '<input id="birthday" type="date"><input id="attachment" type="file">';
+    const warnings: string[] = [];
+    const replay = createReplayController(
+      {
+        format: 'craft-debug-session',
+        version: 5,
+        startUrl: 'http://localhost/',
+        exportedAt: 10,
+        truncated: false,
+        clips: [],
+        events: [
+          {
+            id: 'date-open',
+            sequence: 1,
+            timestamp: 10,
+            elapsedMs: 0,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: {
+              selector: '#birthday',
+              action: 'picker-open',
+              controlType: 'date',
+            },
+          },
+          {
+            id: 'files-selected',
+            sequence: 2,
+            timestamp: 20,
+            elapsedMs: 10,
+            kind: 'dom',
+            phase: 'emitted',
+            payload: {
+              selector: '#attachment',
+              action: 'file-selection',
+              fileCount: 1,
+              replayable: false,
+            },
+          },
+        ],
+      },
+      {
+        invokeRecordedMethod: () => undefined,
+        onWarning: (message) => warnings.push(message),
+      },
+    );
+
+    await replay.step();
+    expect(
+      document.querySelector('[data-craft-select-replay-overlay]')?.textContent,
+    ).toContain('date');
+    await replay.step();
+    expect(warnings.join(' ')).toContain('ne peut pas être restaurée');
+    expect(
+      document.querySelector('[data-craft-select-replay-overlay]'),
+    ).toBeNull();
     replay.stop();
   });
 

@@ -20,6 +20,7 @@ import {
   type ReplayDifference,
   type ReplayFrameConnection,
 } from './replay-model';
+import { DEBUG_SESSION_EXPORT_VERSION } from '@craft-ts/core';
 import {
   freezeReplayVisibilityClock,
   hideReplayDialog,
@@ -456,8 +457,20 @@ function handle(
       const text = data['session'];
       if (typeof text !== 'string') break;
       importText(text);
-      status.set('Session v3 exportée dans le dashboard.');
-      saveTextFile('craft-debug-session-v5.json', 'application/json', text);
+      let exportedVersion: number = DEBUG_SESSION_EXPORT_VERSION;
+      try {
+        const exported = JSON.parse(text);
+        if (isRecord(exported) && Number.isSafeInteger(exported['version']))
+          exportedVersion = exported['version'] as number;
+      } catch {
+        // importText reports malformed exports in the dashboard state.
+      }
+      status.set(`Session v${exportedVersion} exportée dans le dashboard.`);
+      saveTextFile(
+        `craft-debug-session-v${DEBUG_SESSION_EXPORT_VERSION}.json`,
+        'application/json',
+        text,
+      );
       break;
     }
   }

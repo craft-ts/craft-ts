@@ -12,6 +12,7 @@ import type {
   PortableDebugSession,
   StoredEnvironmentProfile,
 } from './debug-session-store.js';
+import { PORTABLE_DEBUG_SESSION_VERSION } from './debug-session-store.js';
 
 export type LogHttpServerOptions = {
   readonly store: LogStore;
@@ -421,7 +422,7 @@ function isPortableSession(value: unknown): value is PortableDebugSession {
   return (
     isRecord(value) &&
     value['format'] === 'craft-debug-session' &&
-    value['version'] === 5 &&
+    value['version'] === PORTABLE_DEBUG_SESSION_VERSION &&
     typeof value['startUrl'] === 'string' &&
     Array.isArray(value['events']) &&
     Array.isArray(value['clips']) &&

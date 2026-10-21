@@ -9,7 +9,10 @@ import {
 } from './craft-http-trace';
 import { provideCraftRouterTrace } from './craft-router-trace';
 import { providePrimitiveResourceRuntimeObserver } from './primitive-resource-runtime-context';
-import { ɵinjectCorrelationIdService } from './correlation-id';
+import {
+  ɵcorrelationIdForDomEvent,
+  ɵinjectCorrelationIdService,
+} from './correlation-id';
 import { ɵinjectCraftPrimitiveRegistry } from './craft-primitive-registry';
 import { ɵinjectPersistedStorageSnapshotRegistry } from './persisted-storage-snapshot';
 import {
@@ -120,11 +123,14 @@ export interface SendContextSessionParticipant {
   readonly initialSnapshot?: Readonly<Record<string, unknown>>;
 }
 
+/** Current portable recording schema. Bump only with an explicit replay migration decision. */
+export const DEBUG_SESSION_EXPORT_VERSION = 5 as const;
+
 /** A portable, redacted recording that can be validated before replay. */
 export interface SendContextReplayExport {
   readonly format: 'craft-debug-session';
-  /** Runtime target identities and transport contracts are defined by v5. */
-  readonly version: 5;
+  /** Runtime target identities and transport contracts are defined by this schema version. */
+  readonly version: typeof DEBUG_SESSION_EXPORT_VERSION;
   readonly startUrl: string;
   /** CSS-pixel viewport dimensions when session capture is initialized. */
   readonly viewport?: Readonly<{ width: number; height: number }>;
@@ -790,7 +796,7 @@ export function createSendContextSession(
       }));
       return safeJson({
         format: 'craft-debug-session',
-        version: 5,
+        version: DEBUG_SESSION_EXPORT_VERSION,
         startUrl,
         ...(viewport ? { viewport } : {}),
         exportedAt: Date.now(),
@@ -924,7 +930,11 @@ export function provideSendContextSession(
     provideCraftDomEventHook((interaction, next) => {
       const session = requireSession();
       const correlationId =
-        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+        ɵcorrelationIdForDomEvent(
+          interaction.event,
+          ɵinjectCorrelationIdService(),
+          interaction.interactionName,
+        ) ?? undefined;
       const element = interaction.element;
       const link =
         element instanceof HTMLAnchorElement

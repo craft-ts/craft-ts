@@ -32,7 +32,7 @@ export const ImportDialog = craftComponent('ImportDialog', {}, () =>
       div({ class: ui.importFields }, [
         p(
           { class: ui.lede },
-          'Un export JSON v3. Les sessions tronquées restent consultables mais ne sont pas rejouables.',
+          'Un export JSON craft-debug-session. Les sessions tronquées restent consultables mais ne sont pas rejouables.',
         ),
         input('sessionFile', {
           type: 'file',
