@@ -5,6 +5,7 @@ export * from './lib/ai/ai-send-context-launcher';
 export * from './lib/ai/send-context-prompt';
 export * from './lib/ai/debug-session-replay';
 export * from './lib/ai/debug-session-orchestrator';
+export * from './lib/ai/debug-session-app-snapshot';
 export * from './lib/ai/debug-session-thumbnail-plan';
 export * from './lib/ai/debug-session-scenario';
 export * from './lib/ai/debug-session-replay-signals';

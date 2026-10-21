@@ -1,4 +1,8 @@
+import type { SendContextEvent, SendContextSession } from '@craft-ts/core';
+
 export const INITIAL_BROWSER_STORAGE_EVENT = 'browser-storage-initial';
+/** Emitted whenever the origin storage differs from its last capture. */
+export const BROWSER_STORAGE_CHECKPOINT_EVENT = 'browser-storage-checkpoint';
 
 type EncodedValue = null | boolean | number | string | EncodedValue[] | {
   readonly [key: string]: EncodedValue;
@@ -765,6 +769,147 @@ function asArray(value: EncodedValue | undefined): readonly EncodedValue[] {
   return Array.isArray(value) ? value : [];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function browserStorageOfEvent(
+  event: SendContextEvent,
+): BrowserStorageSnapshot | undefined {
+  if (!isRecord(event.payload)) return undefined;
+  if (typeof event.payload['snapshotJson'] !== 'string') return undefined;
+  try {
+    const snapshot = JSON.parse(
+      event.payload['snapshotJson'],
+    ) as Partial<BrowserStorageSnapshot>;
+    return snapshot.version === 1 &&
+      Array.isArray(snapshot.localStorage) &&
+      Array.isArray(snapshot.sessionStorage) &&
+      Array.isArray(snapshot.cookies) &&
+      Array.isArray(snapshot.indexedDb)
+      ? (snapshot as BrowserStorageSnapshot)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The origin storage captured before the first recorded interaction. */
+export function initialBrowserStorageSnapshot(
+  events: readonly SendContextEvent[],
+): BrowserStorageSnapshot | undefined {
+  const event = events.find(
+    (entry) =>
+      entry.kind === 'storage' && entry.name === INITIAL_BROWSER_STORAGE_EVENT,
+  );
+  return event && browserStorageOfEvent(event);
+}
+
+/**
+ * The origin storage as last captured before `beforeSequence` (the end of the
+ * recording when omitted): the latest checkpoint, else the initial capture.
+ */
+export function browserStorageSnapshotBefore(
+  events: readonly SendContextEvent[],
+  beforeSequence?: number,
+): Readonly<{
+  snapshot: BrowserStorageSnapshot;
+  source: 'checkpoint' | 'initial';
+}> | undefined {
+  const checkpoint = events
+    .filter(
+      (entry) =>
+        entry.kind === 'storage' &&
+        entry.name === BROWSER_STORAGE_CHECKPOINT_EVENT &&
+        (beforeSequence === undefined || entry.sequence < beforeSequence),
+    )
+    .sort((left, right) => right.sequence - left.sequence)
+    .map(browserStorageOfEvent)
+    .find((snapshot) => snapshot !== undefined);
+  if (checkpoint) return { snapshot: checkpoint, source: 'checkpoint' };
+  const initial = initialBrowserStorageSnapshot(events);
+  return initial && { snapshot: initial, source: 'initial' };
+}
+
+const STORAGE_CHECKPOINT_MAX_CHARS = 4_000_000;
+
+/**
+ * Re-captures the origin storage once the session goes quiet and records it
+ * when it changed, so a debug launch can restore it as of the chosen moment
+ * instead of as of the start. A capture that is too large is skipped rather
+ * than archived.
+ */
+export function connectBrowserStorageCheckpoints(
+  session: Pick<SendContextSession, 'events$' | 'capture'>,
+  options: Readonly<{
+    baseline: Promise<BrowserStorageSnapshot>;
+    capture?: () => Promise<BrowserStorageSnapshot>;
+    debounceMs?: number;
+  }>,
+): () => void {
+  const debounceMs = Math.max(250, options.debounceMs ?? 500);
+  const capture = options.capture ?? captureBrowserStorageSnapshot;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+  let capturing = false;
+  let dirty = false;
+  let last: Promise<string | undefined> = options.baseline.then(
+    (snapshot) => JSON.stringify(snapshot),
+    () => undefined,
+  );
+  const run = async (): Promise<void> => {
+    timer = undefined;
+    if (disposed) return;
+    if (capturing) {
+      dirty = true;
+      return;
+    }
+    capturing = true;
+    try {
+      const json = JSON.stringify(await capture());
+      const previous = await last;
+      if (disposed || json === previous) return;
+      last = Promise.resolve(json);
+      if (json.length > STORAGE_CHECKPOINT_MAX_CHARS) return;
+      session.capture('storage', 'emitted', {
+        name: BROWSER_STORAGE_CHECKPOINT_EVENT,
+        payload: { snapshotJson: json },
+      });
+    } catch {
+      // Storage that cannot be read now is simply not checkpointed.
+    } finally {
+      capturing = false;
+      if (dirty && !disposed) {
+        dirty = false;
+        schedule();
+      }
+    }
+  };
+  const schedule = (): void => {
+    if (disposed) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void run(), debounceMs);
+  };
+  const subscription = session.events$.subscribe({
+    next: (batch) => {
+      // Our own checkpoints must not trigger the next one.
+      if (
+        batch.some(
+          (event) =>
+            event.kind !== 'storage' ||
+            event.name !== BROWSER_STORAGE_CHECKPOINT_EVENT,
+        )
+      )
+        schedule();
+    },
+  });
+  return () => {
+    disposed = true;
+    if (timer) clearTimeout(timer);
+    subscription.unsubscribe();
+  };
 }

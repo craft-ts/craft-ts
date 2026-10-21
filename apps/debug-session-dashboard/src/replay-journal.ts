@@ -14,6 +14,7 @@ import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { eventElapsedLabel, journalSummary } from './replay-labels';
 import { eventDiagnosticLabel, eventSeverity } from './replay-model';
+import { launchDebugApp } from './replay-debug';
 import { setShowAllEvents } from './replay-session';
 import {
   activeReplayEventId,
@@ -76,6 +77,24 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
                 return eventElapsedLabel(yield* event());
               }),
             ]),
+            button(
+              'debugFromEvent',
+              {
+                type: 'button',
+                class: buttonUi.root,
+                'data-variant': 'link',
+                'data-lab': 'debug-from-event',
+                'aria-description':
+                  'Ouvre l’application en mode debug, à l’état qu’elle avait juste avant cet événement.',
+                'data-tooltip':
+                  'Ouvre l’application dans un nouvel onglet, à l’état d’avant cet événement.',
+                click: function* () {
+                  const item = yield* event();
+                  launchDebugApp(item.sequence, item.participantId);
+                },
+              },
+              'Déboguer ici',
+            ),
           ],
         ),
       ),

@@ -31,19 +31,20 @@ import {
 import type { ReplayTargetResolver } from './debug-session-orchestrator';
 import { startDebugSessionDialogReplay } from './debug-session-dialogs';
 import {
+  CRAFT_DEBUG_REPLAY_CHANNEL,
   isCraftDebugReplayLaunch,
   setCraftDebugReplayPersistencePaused,
 } from './debug-session-replay-signals';
+import { startDebugSnapshotLaunch } from './debug-session-snapshot-launch';
 import {
   clearReplayStorageRestoreMarker,
-  INITIAL_BROWSER_STORAGE_EVENT,
+  initialBrowserStorageSnapshot,
   markReplayStorageRestored,
   replayStorageWasRestored,
   restoreBrowserStorageSnapshot,
-  type BrowserStorageSnapshot,
 } from './debug-session-browser-storage';
 
-const CHANNEL = 'craft-debug-replay';
+const CHANNEL = CRAFT_DEBUG_REPLAY_CHANNEL;
 
 export type CraftDebugReplayBridgeOptions = Readonly<{
   /** Exact dashboard origins allowed to control this application. */
@@ -109,7 +110,16 @@ export function provideCraftDebugReplayBridge(
   );
   return [
     provideAppInitializer(() => {
-      if (typeof window === 'undefined' || window.parent === window) return;
+      if (typeof window === 'undefined') return;
+      // Opened by the dashboard in its own tab: a live debug launch, not a replay.
+      if (window.parent === window)
+        return startDebugSnapshotLaunch({
+          allowedOrigins,
+          registry: ɵinjectCraftPrimitiveRegistry(),
+          storageRegistry: ɵinjectPersistedStorageSnapshotRegistry(),
+          methods: ɵinjectCraftMethodReplayRegistry(),
+          reviveArgument: reviveReplayArgument,
+        });
       // URL-mode replay is enabled before the root component creates query,
       // mutation, and asyncProcess resources. Transport guards prevent startup
       // requests from reaching a live server before the session is delivered.
@@ -787,33 +797,6 @@ function reviveReplayArgument(value: unknown): unknown {
       reviveReplayArgument(entry),
     ]),
   );
-}
-
-function initialBrowserStorageSnapshot(
-  events: readonly SendContextEvent[],
-): BrowserStorageSnapshot | undefined {
-  const event = events.find(
-    (entry) =>
-      entry.kind === 'storage' &&
-      entry.name === INITIAL_BROWSER_STORAGE_EVENT &&
-      isRecord(entry.payload) &&
-      typeof entry.payload['snapshotJson'] === 'string',
-  );
-  if (!event || !isRecord(event.payload)) return undefined;
-  try {
-    const snapshot = JSON.parse(
-      String(event.payload['snapshotJson']),
-    ) as Partial<BrowserStorageSnapshot>;
-    return snapshot.version === 1 &&
-      Array.isArray(snapshot.localStorage) &&
-      Array.isArray(snapshot.sessionStorage) &&
-      Array.isArray(snapshot.cookies) &&
-      Array.isArray(snapshot.indexedDb)
-      ? (snapshot as BrowserStorageSnapshot)
-      : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /** Validates a recorded destination before it can reach the Craft router. */

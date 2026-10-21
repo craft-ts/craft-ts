@@ -224,6 +224,18 @@ export function saveTextFile(name: string, type: string, text: string): void {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Opens a page in a new tab that keeps its link to the dashboard (no
+ * `noopener`): the page asks its opener for the state to start from. Null when
+ * the browser blocked the tab.
+ */
+export function openLinkedTab(href: string): Window | null {
+  return (
+    host?.context.element.ownerDocument.defaultView?.open(href, '_blank') ??
+    null
+  );
+}
+
 /* ── the replayed page ──────────────────────────────────────────────────── */
 
 export function frameFor(participantId: string): HTMLIFrameElement | undefined {

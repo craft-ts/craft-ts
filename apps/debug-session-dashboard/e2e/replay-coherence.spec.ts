@@ -2136,3 +2136,261 @@ test('captures a clicked link destination while redacting secret query values', 
 
   await context.close();
 });
+
+test('opens the app live in its own tab from the replay position and from a journal event', async ({
+  browser,
+  request,
+}) => {
+  const before = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+  const previousSessions = new Set(
+    (
+      (await before.json()) as { sessions: readonly SessionSummary[] }
+    ).sessions.map((session) => session.id),
+  );
+  const context = await browser.newContext();
+  const demo = await context.newPage();
+  await demo.goto(`${DEMO_ORIGIN}/`);
+  await expect(
+    demo.getByRole('heading', { name: 'Functional SFC components' }),
+  ).toBeVisible();
+  await demo.getByTestId('nav-toggle').click();
+  await demo
+    .getByTestId('nav-panel')
+    .getByRole('link', { name: 'Pending Block', exact: true })
+    .click();
+  await expect(demo).toHaveURL(`${DEMO_ORIGIN}/pending-node`);
+  await expect(demo.getByText('3 people')).toBeVisible();
+  // Storage written after the start must come back in the debug tab.
+  await demo.evaluate(() => localStorage.setItem('debug-e2e-marker', 'late'));
+  await demo.getByTestId('nav-toggle').click();
+
+  let sessionId = '';
+  await expect
+    .poll(async () => {
+      const response = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+      const sessions = (await response.json()) as {
+        sessions: readonly SessionSummary[];
+      };
+      sessionId =
+        sessions.sessions.find((session) => !previousSessions.has(session.id))
+          ?.id ?? '';
+      return sessionId;
+    })
+    .not.toBe('');
+  await expect
+    .poll(async () => {
+      const response = await request.get(
+        `${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`,
+      );
+      if (!response.ok()) return false;
+      const stored = (await response.json()) as StoredSession;
+      return stored.events.some(
+        (event) =>
+          event.kind === 'primitive' &&
+          event.name === 'primitive-change' &&
+          JSON.stringify(event.state).includes('Katherine Johnson'),
+      );
+    })
+    .toBe(true);
+  await expect
+    .poll(async () => {
+      const response = await request.get(
+        `${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`,
+      );
+      if (!response.ok()) return false;
+      const stored = (await response.json()) as StoredSession;
+      return stored.events.some(
+        (event) =>
+          event.kind === 'storage' &&
+          event.name === 'browser-storage-checkpoint' &&
+          JSON.stringify(event.payload).includes('debug-e2e-marker'),
+      );
+    })
+    .toBe(true);
+  const session = await (
+    await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
+  ).json();
+  // Gone from the origin: only the recorded checkpoint can bring it back.
+  await demo.evaluate(() => localStorage.removeItem('debug-e2e-marker'));
+  await demo.close();
+
+  const dashboard = await context.newPage();
+  await dashboard.goto(`${DASHBOARD_ORIGIN}/`);
+  await dashboard.getByRole('button', { name: 'Importer un fichier' }).click();
+  await dashboard
+    .getByRole('textbox', { name: 'Session JSON' })
+    .fill(JSON.stringify(session));
+  await dashboard.getByRole('button', { name: 'Valider la session' }).click();
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Replay · ready',
+  );
+
+  // From the replay: once every action has run, the end of the recording.
+  await dashboard
+    .getByRole('button', { name: 'Lecture à vitesse réelle' })
+    .evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
+    /\d+ \/ \d+ étapes · terminé/,
+  );
+  const [fromReplay] = await Promise.all([
+    context.waitForEvent('page'),
+    dashboard
+      .locator('[data-lab="debug-app"]')
+      .evaluate((button) => (button as HTMLButtonElement).click()),
+  ]);
+  await expect(fromReplay).toHaveURL(
+    (url) =>
+      url.origin === DEMO_ORIGIN &&
+      url.pathname === '/pending-node' &&
+      !url.search.includes('craft-debug-snapshot'),
+  );
+  await expect(
+    fromReplay.getByRole('heading', { name: 'settledValue + pendingNode' }),
+  ).toBeVisible();
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Application lancée en mode debug',
+  );
+  await expect
+    .poll(() =>
+      fromReplay.evaluate(() => localStorage.getItem('debug-e2e-marker')),
+    )
+    .toBe('late');
+  await fromReplay.close();
+
+  // From the journal: the state just before an event of the list.
+  const toggle = dashboard.getByRole('button', { name: 'Journal', exact: true });
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true')
+    await toggle.evaluate((button) => (button as HTMLButtonElement).click());
+  await dashboard
+    .getByRole('switch', { name: 'Tout afficher' })
+    .evaluate((control) => (control as HTMLElement).click());
+  const [fromJournal] = await Promise.all([
+    context.waitForEvent('page'),
+    dashboard
+      .locator('[data-lab="debug-from-event"]')
+      .first()
+      .evaluate((button) => (button as HTMLButtonElement).click()),
+  ]);
+  await expect(fromJournal).toHaveURL(
+    (url) =>
+      url.origin === DEMO_ORIGIN &&
+      !url.search.includes('craft-debug-snapshot'),
+  );
+  await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
+    'Application lancée en mode debug',
+  );
+
+  await context.close();
+});
+
+test('relaunches the call whose request was still in flight at the chosen event', async ({
+  browser,
+  request,
+}) => {
+  const before = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+  const previousSessions = new Set(
+    (
+      (await before.json()) as { sessions: readonly SessionSummary[] }
+    ).sessions.map((session) => session.id),
+  );
+  const context = await browser.newContext();
+  const demo = await context.newPage();
+  await demo.goto(`${DEMO_ORIGIN}/`);
+  const removeButtons = demo.getByRole('button', { name: /^Remove User/ });
+  await expect(
+    demo.getByRole('button', { name: 'Add a user' }),
+  ).toBeVisible();
+  const initialUsers = await removeButtons.count();
+  await demo.getByRole('button', { name: 'Add a user' }).click();
+  await expect(removeButtons).toHaveCount(initialUsers + 1);
+
+  let sessionId = '';
+  await expect
+    .poll(async () => {
+      const response = await request.get(`${SESSION_SERVER_ORIGIN}/sessions`);
+      const sessions = (await response.json()) as {
+        sessions: readonly SessionSummary[];
+      };
+      sessionId =
+        sessions.sessions.find((session) => !previousSessions.has(session.id))
+          ?.id ?? '';
+      return sessionId;
+    })
+    .not.toBe('');
+  let session: (StoredSession & Record<string, unknown>) | undefined;
+  await expect
+    .poll(async () => {
+      const response = await request.get(
+        `${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`,
+      );
+      if (!response.ok()) return false;
+      session = (await response.json()) as StoredSession &
+        Record<string, unknown>;
+      return session.events.some(
+        (event) =>
+          event.kind === 'craft' &&
+          event.payload?.['host'] === 'method:addUser' &&
+          typeof event.payload?.['replayInvocation'] === 'object',
+      );
+    })
+    .toBe(true);
+  await demo.close();
+
+  // The recorded call, then a request it issued that never got its answer.
+  const events = [...session!.events];
+  const call = events.find(
+    (event) =>
+      event.kind === 'craft' && event.payload?.['host'] === 'method:addUser',
+  )!;
+  const last = Math.max(...events.map((event) => event.sequence));
+  const correlationId = (call as Record<string, unknown>)['correlationId'];
+  const synthetic = (sequence: number, extra: Record<string, unknown>) => ({
+    id: `e2e-${sequence}`,
+    sequence,
+    timestamp: Date.now(),
+    elapsedMs: 0,
+    ...extra,
+  });
+  const imported = {
+    ...session,
+    events: [
+      ...events,
+      synthetic(last + 1, {
+        kind: 'http',
+        phase: 'started',
+        operationId: 'e2e-http',
+        correlationId,
+        payload: { method: 'POST', url: `${DEMO_ORIGIN}/users` },
+      }),
+      synthetic(last + 2, { kind: 'custom', phase: 'emitted', name: 'e2e-end' }),
+    ],
+  };
+
+  const dashboard = await context.newPage();
+  await dashboard.goto(`${DASHBOARD_ORIGIN}/`);
+  await dashboard.getByRole('button', { name: 'Importer un fichier' }).click();
+  await dashboard
+    .getByRole('textbox', { name: 'Session JSON' })
+    .fill(JSON.stringify(imported));
+  await dashboard.getByRole('button', { name: 'Valider la session' }).click();
+  await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
+  const toggle = dashboard.getByRole('button', { name: 'Journal', exact: true });
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true')
+    await toggle.evaluate((button) => (button as HTMLButtonElement).click());
+  await dashboard
+    .getByRole('switch', { name: 'Tout afficher' })
+    .evaluate((control) => (control as HTMLElement).click());
+  const [debugTab] = await Promise.all([
+    context.waitForEvent('page'),
+    dashboard
+      .locator('[data-lab="debug-from-event"]')
+      .last()
+      .evaluate((button) => (button as HTMLButtonElement).click()),
+  ]);
+  // The user of the recording is restored, and the unanswered call ran again.
+  await expect(
+    debugTab.getByRole('button', { name: /^Remove User/ }),
+  ).toHaveCount(initialUsers + 2, { timeout: 20_000 });
+  await context.close();
+});

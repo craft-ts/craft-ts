@@ -13,6 +13,7 @@ import { rawReactiveValue, ɵcomputed as computed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { goToHash, requestFrameFullscreen } from './replay-browser';
+import { launchDebugAppAtReplay } from './replay-debug';
 import { sessionDate } from './replay-labels';
 import { participantOptionLabel } from './replay-model';
 import { selectParticipant } from './replay-session';
@@ -116,6 +117,23 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     'Plein écran',
   );
 
+  const debug = button(
+    'debugApp',
+    {
+      type: 'button',
+      class: buttonUi.root,
+      'data-variant': 'secondary',
+      'data-lab': 'debug-app',
+      'aria-description':
+        'Ouvre l’application en mode debug, à l’état où le replay est arrivé.',
+      'data-tooltip':
+        'Ouvre l’application dans un nouvel onglet, vivante, à l’état du replay en cours, pour investiguer.',
+      click: launchDebugAppAtReplay,
+      disabled: computed(() => !session()),
+    },
+    'Déboguer ici',
+  );
+
   const journal = button(
     'toggleJournal',
     {
@@ -190,6 +208,13 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
   return div({ class: ui.head }, [
     back,
     title,
-    div({ class: ui.headTools }, [tabs, fullscreen, notes, differences, journal]),
+    div({ class: ui.headTools }, [
+      tabs,
+      debug,
+      fullscreen,
+      notes,
+      differences,
+      journal,
+    ]),
   ]);
 });

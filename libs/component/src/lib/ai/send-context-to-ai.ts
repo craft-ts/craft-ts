@@ -47,6 +47,7 @@ import { connectDebugSessionPersistence } from './debug-session-persistence';
 import {
   captureBrowserStorageSnapshot,
   type BrowserStorageSnapshot,
+  connectBrowserStorageCheckpoints,
   INITIAL_BROWSER_STORAGE_EVENT,
 } from './debug-session-browser-storage';
 import { connectDebugSessionDialogCapture } from './debug-session-dialogs';
@@ -575,6 +576,11 @@ export function provideCraftDebugSessionCapture(
         isLoopbackWebSocketUrl(options.webSocketUrl)
       )
         startupStorageSnapshot = captureBrowserStorageSnapshot();
+      const disconnectBrowserStorageCheckpoints = startupStorageSnapshot
+        ? connectBrowserStorageCheckpoints(createdSession, {
+            baseline: startupStorageSnapshot,
+          })
+        : undefined;
       const disconnectDialogCapture = recording
         ? connectDebugSessionDialogCapture(createdSession, {
             capturePromptValues: options.capturePromptValues,
@@ -704,6 +710,7 @@ export function provideCraftDebugSessionCapture(
             disconnectPrimitiveCapture?.();
             disconnectPerformanceCapture?.();
             disconnectViewportCapture?.();
+            disconnectBrowserStorageCheckpoints?.();
             disconnectReplaySnapshots?.();
             disconnectPersistence();
           };
@@ -718,6 +725,7 @@ export function provideCraftDebugSessionCapture(
         disconnectPrimitiveCapture?.();
         disconnectPerformanceCapture?.();
         disconnectViewportCapture?.();
+        disconnectBrowserStorageCheckpoints?.();
         disconnectReplaySnapshots?.();
       };
     }),

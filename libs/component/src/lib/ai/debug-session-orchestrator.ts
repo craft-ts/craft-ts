@@ -244,7 +244,8 @@ function replayInvocation(
   };
 }
 
-function rootInvocations(
+/** Root method invocations, one per interaction and address, in recorded order. */
+export function rootInvocations(
   events: readonly SendContextEvent[],
 ): readonly SendContextEvent[] {
   const invocations = events.flatMap((event) =>
@@ -308,8 +309,8 @@ function asObservation(event: SendContextEvent): ReplayObservation {
 export function compileReplayPlan(
   session: SendContextReplayExport,
   resolveTarget?: ReplayTargetResolver,
-): ReplayPlan {
   validateSelector?: (selector: string) => boolean,
+): ReplayPlan {
   const events = [...session.events].sort((a, b) => a.sequence - b.sequence);
   const observations = events.map(asObservation);
   const issues: ReplayPlanIssue[] = [];
@@ -452,7 +453,6 @@ export function compileReplayPlan(
         message: `Interaction ${step.id} has no stable target selector.`,
         eventId: step.id,
       });
-
     const usesInteractionSelector = ['dom', 'hover'].includes(step.kind);
     if (
       validateSelector &&
@@ -468,6 +468,7 @@ export function compileReplayPlan(
         } ${step.id} has an invalid CSS selector.`,
         eventId: step.id,
       });
+
     const targetKind: ReplayTargetKind | undefined =
       kind === 'navigate'
         ? 'route'
