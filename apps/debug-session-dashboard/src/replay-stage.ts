@@ -4,16 +4,8 @@ import { DocIcon } from '@craft-ts/ui';
 import { assign, unit } from '@craft-ts/style';
 import { buttonUi } from '@craft-ts/ui/style';
 import { progressVars, ui } from './dashboard.style';
-import {
-  currentNextActionLabel,
-  nextActionTimingLabel,
-  progressLabel,
-  replayElapsedShare,
-  seekProgressLabel,
-  seekShare,
-  timeProgressLabel,
-  timeRemainingLabel,
-} from './replay-labels';
+import { aiChatAvailable, openAiChat } from './replay-ai-launcher';
+import { seekProgressLabel, seekShare } from './replay-labels';
 import { pauseReplay, playReplay } from './replay-playback';
 import {
   cancelReplaySeek,
@@ -30,9 +22,10 @@ import {
   replayState,
   seekTarget,
 } from './replay-state';
+import { ReplayTimeline } from './replay-timeline';
 import { lit } from './view-helpers';
 
-/** Where the replayed pages are drawn, under a veil while they load. */
+/** Where the replayed pages are drawn, under a veil while they load, with their timeline over them. */
 export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
   const veil = div(
     {
@@ -88,11 +81,14 @@ export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
     ],
   );
 
-  return div({ class: ui.stage, id: 'replay-stage' }, [
+  const stage = div({ class: ui.stage, id: 'replay-stage' }, [
     veil,
     seekOverlay,
     div({ class: ui.grid, id: 'replay-frame-grid' }),
   ]);
+
+  // The pages and the timeline that moves through them are one player.
+  return div({ class: ui.player }, [stage, ReplayTimeline({})]);
 });
 
 /** The transport: play, pause, restart, step, stop, and how far along it is. */
@@ -210,64 +206,25 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
     ),
   ]);
 
-  const progress = div({ class: ui.progress }, [
-    div({ class: ui.progressTrack }, [
-      div({
-        class: ui.progressFill,
-        style: function* () {
-          const total = replayableEvents().length;
-          return assign(
-            progressVars.done,
-            unit.pct(total ? (replayIndex() / total) * 100 : 0),
-          );
-        },
-      }),
-    ]),
-    div({ class: ui.progressText }, [
-      p(
-        {
-          class: ui.progressLabel,
-          'data-lab': 'replay-progress',
-          role: 'status',
-        },
-        computed(progressLabel),
-      ),
-      p({ class: ui.next }, [
-        span(
-          { class: ui.nextName, 'data-lab': 'next-action-name' },
-          computed(currentNextActionLabel),
-        ),
-        span(
-          {
-            class: ui.nextTiming,
-            'data-lab': 'next-action-timing',
-            role: 'timer',
-            hidden: computed(() => nextActionTimingLabel() === ''),
-          },
-          computed(() => ` · ${nextActionTimingLabel()}`),
-        ),
-      ]),
-    ]),
-    div({ class: ui.progressTrack }, [
-      div({
-        class: ui.progressFill,
-        'data-lab': 'replay-time-fill',
-        style: function* () {
-          return assign(progressVars.done, unit.pct(replayElapsedShare()));
-        },
-      }),
-    ]),
-    div({ class: ui.progressText }, [
-      p(
-        { class: ui.progressLabel, 'data-lab': 'replay-time' },
-        computed(timeProgressLabel),
-      ),
-      p(
-        { class: ui.progressLabel, 'data-lab': 'replay-time-remaining' },
-        computed(timeRemainingLabel),
-      ),
-    ]),
-  ]);
+  const assistant = button(
+    'aiChat',
+    {
+      type: 'button',
+      class: buttonUi.root,
+      'data-variant': 'secondary',
+      'data-lab': 'ai-chat',
+      'aria-description':
+        'Ouvre le chat qui envoie le contexte de la session à une IA.',
+      'data-tooltip':
+        'Ouvre le chat pour envoyer à une IA le contexte de cette session.',
+      click: openAiChat,
+      disabled: computed(() => !aiChatAvailable()),
+    },
+    [DocIcon({ name: lit('sparkle'), size: lit('sm') }), span('Contexte IA')],
+  );
 
-  return div({ class: ui.playbar }, [transport, progress]);
+  return div({ class: ui.playbar }, [
+    transport,
+    div({ class: ui.playbarEnd }, [assistant]),
+  ]);
 });

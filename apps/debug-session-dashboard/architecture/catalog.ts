@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "220a4170771f62d2",
+  "graphHash": "00475d4e228c08d8",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -27,6 +27,7 @@ export const architectureCatalog = {
     "thumbnailArchive"
   ],
   "components": [
+    "AiChatLauncherBridge",
     "AiContextMenu",
     "AiSendContextChat",
     "AiSendContextLauncher",
@@ -66,7 +67,9 @@ export const architectureCatalog = {
     "ReplayPlaybar",
     "ReplaySidePanel",
     "ReplayStage",
-    "ReplayThumbnails",
+    "ReplayThumbnailMarks",
+    "ReplayThumbnailsStatus",
+    "ReplayTimeline",
     "SessionsPage",
     "craftPending"
   ],
@@ -266,6 +269,27 @@ export const architectureCatalog = {
     "routes": {}
   },
   "browserBoundaryServices": [],
-  "scopes": {}
+  "scopes": {
+    "replayRoute": "global",
+    "sessionArchive": "global",
+    "thumbnailArchive": "global",
+    "aiContextMenuDismissal": "toProvide",
+    "aiSendContextChatState": "toProvide",
+    "aiSendDialogState": "toProvide",
+    "craftRouterOutletState": "toProvide",
+    "StorageService": "abstract",
+    "CraftLogServerUrl": "abstract",
+    "CraftFieldCheckboxControl": "abstract",
+    "CraftFieldValueControl": "abstract",
+    "GlobalPersisterHandlerService": "toProvide",
+    "ServerFunctionTransport": "abstract",
+    "StoragePersister": "abstract",
+    "docModeView": "toProvide",
+    "docSeasonView": "toProvide",
+    "docCopyView": "toProvide",
+    "docMenuView": "toProvide",
+    "docTabsView": "toProvide",
+    "docToastQueue": "toProvide"
+  }
 } as const;
 export type ArchitectureCatalog = typeof architectureCatalog;

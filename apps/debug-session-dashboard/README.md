@@ -25,9 +25,13 @@ The layout lives in `src/dashboard.style.ts`.
   events, and a badge only when something is off (still recording, interrupted,
   truncated). _Importer un fichier_ opens a dialog for a JSON export.
 - **The replay** (`#/sessions/<id>`) is the page: the recorded app fills the
-  window, with a playback bar underneath (play, pause, next action, stop, and a
-  progress line that names the next action). A tab selector appears only when
-  the session has several replayable tabs.
+  window, and the timeline lies over its foot, the way a video's controls do: a bar that shows how far the replay is and takes it to any moment with a
+  click (or the arrow keys, an action at a time), with the clock, the step and
+  the next action under it. The thumbnails the archive prepares are points on
+  that bar; hover or focus one to see its picture, click it to go there. Under
+  the frame, the playback bar holds play, pause, restart, next action, stop and
+  the assistant's _Contexte IA_ button. A tab selector appears only when the
+  session has several replayable tabs.
 - **A gap with the recording** is the one thing that interrupts the replay: it
   shows up as a callout above the stage, with the recovery actions and the
   expected/observed values one click away.

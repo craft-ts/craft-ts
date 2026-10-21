@@ -85,6 +85,13 @@ export function timeRemainingLabel(): string {
   return `reste ${clockLabel(replayDurationMs() - replayElapsedMs())}`;
 }
 
+/** What the timeline's bar reads out where it is, for those who do not see it. */
+export function scrubValueText(): string {
+  const total = replayableEvents().length;
+  if (!total) return 'Aucune étape rejouable';
+  return `${clockLabel(replayElapsedMs())} sur ${clockLabel(replayDurationMs())} · étape ${replayIndex()} sur ${total}`;
+}
+
 export function currentNextActionLabel(): string {
   return nextActionLabel(replayableEvents()[replayIndex()]);
 }

@@ -55,6 +55,7 @@ import {
   recordingClock,
   registers,
   replayableEvents,
+  replayActionOffsetsMs,
   replayIndex,
   replayParticipantIds,
   replayState,
@@ -459,6 +460,23 @@ export function seekReplayToEvent(
   }
   seekReplayToIndex(position + 1, { participantId });
   return true;
+}
+
+/**
+ * Brings the replay to a point of its timeline, `share` of the way through the
+ * recording (0 to 1): the state it had once every action recorded by then had
+ * run. The very start is the app as it opens, before any action.
+ */
+export function seekReplayToShare(share: number): void {
+  const offsets = replayActionOffsetsMs();
+  const duration = offsets.at(-1) ?? 0;
+  if (offsets.length === 0) return;
+  if (share < 0.01 || duration <= 0) {
+    seekReplayToIndex(duration <= 0 && share >= 0.99 ? offsets.length : 0);
+    return;
+  }
+  const moment = share * duration;
+  seekReplayToIndex(offsets.filter((offset) => offset <= moment).length);
 }
 
 /** Stops going to a thumbnail's moment: the replay stays where it got to. */

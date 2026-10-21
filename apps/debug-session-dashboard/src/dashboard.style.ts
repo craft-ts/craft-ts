@@ -11,7 +11,6 @@
  *   request, an unreachable archive: those get a tone. Everything else is plain
  *   ink on paper.
  */
-import { craftAiLauncherPosition } from '@craft-ts/component/style';
 import {
   alignContent,
   monospaceStack,
@@ -32,13 +31,13 @@ import {
   borderBlockEndColor,
   borderBlockEndStyle,
   borderBlockEndWidth,
+  bgImage,
   borderRadius,
   borderStyle,
   borderWidth,
   clipOverflow,
   color,
   columnGap,
-  craftGlobalStyles,
   craftStyles,
   cursor,
   defineStateAxis,
@@ -55,6 +54,7 @@ import {
   fontVariantNumeric,
   fontWeight,
   gap,
+  gradient,
   gridTemplateColumns,
   inlineSize,
   insetBlockEnd,
@@ -74,6 +74,7 @@ import {
   marginBlockEnd,
   marginBlockStart,
   marginInline,
+  marginInlineStart,
   maxBlockSize,
   maxInlineSize,
   minBlockSize,
@@ -84,6 +85,8 @@ import {
   p,
   paddingBlockEnd,
   paddingBlockStart,
+  rowGap,
+  translate,
   paddingInlineEnd,
   paddingInlineStart,
   placeItems,
@@ -94,7 +97,6 @@ import {
   py,
   radii,
   scrollPort,
-  set,
   shadow,
   space,
   text,
@@ -129,8 +131,10 @@ export const tileAction = defineStateAxis('tile-action', ['true'] as const);
 export const veilMode = defineStateAxis('veil', ['dim'] as const);
 /** A note that has been put away, still readable in the history. */
 export const noteState = defineStateAxis('note', ['dismissed'] as const);
-/** The thumbnail is the moment the replay is at. */
-export const thumbState = defineStateAxis('thumb', ['current'] as const);
+/** A thumbnail's point on the timeline: already behind the replay, or the one it is at. */
+export const markState = defineStateAxis('mark', ['passed', 'current'] as const);
+/** The picture that opens over the timeline while its point is hovered or focused. */
+export const markCardState = defineStateAxis('mark-card', ['open'] as const);
 /** The journal row is a failure or a slow task. */
 export const entry = defineStateAxis('entry', [
   'error',
@@ -172,6 +176,12 @@ export const progressVars = cssVars('dashboardProgress', {
   done: kind.percentage(unit.pct(0)),
 });
 
+/** Where a thumbnail's point sits on the timeline, and how far its picture slides to stay inside. */
+export const markVars = cssVars('dashboardTimelineMark', {
+  at: kind.percentage(unit.pct(0), { inherits: true }),
+  shift: kind.percentage(unit.pct(-50), { inherits: true }),
+});
+
 const pulse = keyframes('dashboardPulse', {
   from: [opacity(num(0.55))],
   to: [opacity(num(1))],
@@ -184,17 +194,6 @@ const ping = keyframes('dashboardPing', {
 
 /** The ink of a line of small print. */
 const small = [...font(text.xs), color(theme.inkMuted)];
-
-/**
- * The assistant's launcher is a fixed overlay on `<body>`. On the replay page it
- * sits in the corner the playbar keeps free for it.
- */
-craftGlobalStyles('dashboard', {
-  root: [
-    set(craftAiLauncherPosition.right, space(4)),
-    set(craftAiLauncherPosition.bottom, space(3)),
-  ],
-});
 
 export const ui = craftStyles('dashboard', {
   /* ── shell ─────────────────────────────────────────────────────────────── */
@@ -569,19 +568,30 @@ export const ui = craftStyles('dashboard', {
     borderBlockEndColor(theme.line),
     when(noteState.dismissed, [color(theme.inkSubtle)]),
   ],
-  stage: [
+  // The player: the replayed pages and, under them, the timeline that moves
+  // through the recording — one frame, the way a video sits with its controls.
+  player: [
     position.relative,
+    display.flex,
+    flexDirection.column,
     flexGrow(num(1)),
     minBlockSize(unit.rem(12)),
     marginInline(space(4)),
-    provides(scrollPort.block),
-    provides(scrollPort.inline),
     borderRadius(radii.lg),
     borderWidth(lineWidth.hairline),
     borderStyle.solid,
     borderColor(theme.line),
     bg(theme.selected),
+    clipOverflow.inline,
     when(bp.medium, [marginInline(space(6))]),
+  ],
+  stage: [
+    position.relative,
+    flexGrow(num(1)),
+    minBlockSize(unit.rem(10)),
+    provides(scrollPort.block),
+    provides(scrollPort.inline),
+    bg(theme.selected),
   ],
   skeleton: [
     position.absolute,
@@ -649,7 +659,10 @@ export const ui = craftStyles('dashboard', {
     gap(space(4)),
     minInlineSize(unit.pct(100)),
     minBlockSize(unit.pct(100)),
-    p(space(4)),
+    px(space(4)),
+    paddingBlockStart(space(4)),
+    // The timeline lies over the foot of the stage: the pages stop above it.
+    paddingBlockEnd(unit.rem(6.5)),
   ],
   tile: [
     display.grid,
@@ -848,29 +861,190 @@ export const ui = craftStyles('dashboard', {
     display.flex,
     flexWrap.wrap,
     alignItems.center,
+    justifyContent.spaceBetween,
     gap(space(3)),
-    paddingBlockStart(space(3)),
-    // A phone keeps the foot of the page free for the assistant's launcher.
-    paddingBlockEnd(space(16)),
+    py(space(3)),
     px(space(4)),
     flexShrink(num(0)),
-    when(bp.medium, [
-      paddingBlockEnd(space(3)),
-      paddingInlineStart(space(6)),
-      paddingInlineEnd(unit.rem(11)),
-    ]),
+    when(bp.medium, [px(space(6))]),
   ],
   transport: [display.flex, flexWrap.wrap, alignItems.center, gap(space(2))],
-  progress: [
+  // The assistant's button closes the row, on the side away from the transport.
+  playbarEnd: [display.flex, flexGrow(num(1)), justifyContent.flexEnd],
+
+  /* ── timeline ──────────────────────────────────────────────────────────── */
+  // Under the pages, inside the player. Above them in the stacking order: a
+  // thumbnail opens over the stage.
+  timeline: [
+    position.absolute,
+    insetInlineStart(space(0)),
+    insetInlineEnd(space(0)),
+    insetBlockEnd(space(0)),
+    zIndex(int(4)),
     display.grid,
+    // One column that may shrink under its content: the line below the bar can
+    // wrap, it cannot widen the bar past the player.
     gridTemplateColumns(tracks.list(tracks.minmax(space(0), tracks.fr(1)))),
     gap(space(1)),
-    // The bar claims a fixed basis and never its text's width: whether it
-    // wraps under the transport cannot depend on how long the next action is.
-    flexBasis(unit.rem(12)),
+    paddingBlockStart(space(8)),
+    paddingBlockEnd(space(2)),
+    px(space(3)),
+    // A fade into the dark code surface, the way a video's controls sit on it:
+    // light ink whatever the theme, since what is under it is the replayed page.
+    bgImage(gradient.linear(unit.deg(180), [theme.clear, theme.code])),
+    color(herbier.text.codePlain),
+  ],
+  scrubber: [position.relative, display.flex, alignItems.center, blockSize(unit.rem(1.75))],
+  // The whole bar is the control: a click anywhere on it goes to that moment.
+  scrubSlider: [
+    position.absolute,
+    inset(space(0)),
+    display.flex,
+    alignItems.center,
+    cursor.pointer,
+    borderRadius(radii.full),
+  ],
+  scrubTrack: [
+    inlineSize(unit.pct(100)),
+    blockSize(unit.px(4)),
+    borderRadius(radii.full),
+    bg(herbier.text.codeComment),
+    clipOverflow.inline,
+  ],
+  scrubFill: [
+    inlineSize(progressVars.done),
+    blockSize(unit.pct(100)),
+    bg(herbier.text.codeKeyword),
+    ...transitions([prop.inlineSize], {
+      duration: duration.normal,
+      easing: ease,
+    }),
+  ],
+  // Where the replay is: a knob riding the end of the fill.
+  scrubHead: [
+    position.absolute,
+    left(progressVars.done),
+    inlineSize(unit.rem(0.875)),
+    blockSize(unit.rem(0.875)),
+    marginInlineStart(unit.rem(-0.4375)),
+    borderRadius(radii.full),
+    bg(herbier.text.codeKeyword),
+    borderWidth(unit.px(2)),
+    borderStyle.solid,
+    borderColor(theme.code),
+    pointerEvents.none,
+    ...transitions([prop.left], {
+      duration: duration.normal,
+      easing: ease,
+    }),
+  ],
+  // The points sit over the bar and let everything but themselves through.
+  marks: [
+    position.absolute,
+    inset(space(0)),
+    listStyleType.none,
+    marginBlock(space(0)),
+    paddingInlineStart(space(0)),
+    pointerEvents.none,
+  ],
+  // A zero-size anchor on the track: the point and its picture hang from it.
+  mark: [
+    position.absolute,
+    left(markVars.at),
+    top(unit.pct(50)),
+    inlineSize(space(0)),
+    blockSize(space(0)),
+  ],
+  markPoint: [
+    position.absolute,
+    inlineSize(unit.rem(0.875)),
+    blockSize(unit.rem(0.875)),
+    marginInlineStart(unit.rem(-0.4375)),
+    marginBlockStart(unit.rem(-0.4375)),
+    p(space(0)),
+    borderRadius(radii.full),
+    borderWidth(unit.px(2)),
+    borderStyle.solid,
+    borderColor(herbier.text.codeKeyword),
+    bg(theme.code),
+    cursor.pointer,
+    pointerEvents.auto,
+    ...transitions([prop.scale, prop.backgroundColor], {
+      duration: duration.normal,
+      easing: ease,
+    }),
+    when(interaction.hover, [scale(num(1.35))]),
+    when(interaction.focus, [scale(num(1.35))]),
+    when(markState.passed, [bg(herbier.text.codeKeyword)]),
+    when(markState.current, [bg(herbier.text.codeKeyword), scale(num(1.35))]),
+  ],
+  // The picture: slid sideways by the point's own share, so the first one opens
+  // to the right, the last to the left, and none leaves the player.
+  markCard: [
+    position.absolute,
+    insetBlockEnd(unit.rem(1.1)),
+    left(space(0)),
+    translate(markVars.shift),
+    zIndex(int(5)),
+    display.none,
+    gap(space(1)),
+    inlineSize(unit.rem(11)),
+    p(space(1)),
+    borderRadius(radii.md),
+    borderWidth(lineWidth.hairline),
+    borderStyle.solid,
+    borderColor(theme.lineStrong),
+    bg(theme.raised),
+    shadow({ y: unit.px(8), blur: unit.px(24), color: theme.shadow }),
+    pointerEvents.none,
+    when(markCardState.open, [display.grid]),
+  ],
+  markImage: [
+    display.block,
+    inlineSize(unit.pct(100)),
+    borderRadius(radii.sm),
+    bg(theme.selected),
+  ],
+  markCaption: [...small, whiteSpace.nowrap],
+  markAction: [
+    ...font(text.xs),
+    fontWeight(weight.medium),
+    color(theme.action),
+    whiteSpace.nowrap,
+  ],
+  // One line under the bar: the clock, the step, the next action, the pictures.
+  timelineInfo: [
+    display.flex,
+    flexWrap.wrap,
+    alignItems.baseline,
+    columnGap(space(3)),
+    rowGap(space(0)),
+    ...font(text.xs),
+    color(herbier.text.codePlain),
+    fontVariantNumeric.tabularNums,
+  ],
+  timelineClock: [display.flex, columnGap(space(2)), whiteSpace.nowrap],
+  timelineStep: [
+    display.flex,
+    flexWrap.wrap,
     flexGrow(num(1)),
+    flexBasis(unit.rem(12)),
+    minInlineSize(space(0)),
+    columnGap(space(2)),
+    rowGap(space(0)),
+  ],
+  progressLabel: [flexShrink(num(0)), whiteSpace.nowrap],
+  next: [
+    display.flex,
+    minInlineSize(space(0)),
+    whiteSpace.nowrap,
+  ],
+  nextName: [
+    clipOverflow.inline,
+    textOverflow.ellipsis,
     minInlineSize(space(0)),
   ],
+  nextTiming: [flexShrink(num(0))],
   progressTrack: [
     blockSize(unit.px(4)),
     borderRadius(radii.full),
@@ -887,91 +1061,11 @@ export const ui = craftStyles('dashboard', {
       easing: ease,
     }),
   ],
-  // One line, always: a long next action is cut with an ellipsis, it never
-  // pushes the page around.
-  progressText: [
-    display.flex,
-    minInlineSize(space(0)),
-    alignItems.baseline,
-    justifyContent.spaceBetween,
-    columnGap(space(3)),
-    ...font(text.xs),
-    color(theme.inkMuted),
-    fontVariantNumeric.tabularNums,
-  ],
-  progressLabel: [flexShrink(num(0)), whiteSpace.nowrap],
-  next: [
-    display.flex,
-    minInlineSize(space(0)),
-    whiteSpace.nowrap,
-  ],
-  nextName: [
-    clipOverflow.inline,
-    textOverflow.ellipsis,
-    minInlineSize(space(0)),
-  ],
-  nextTiming: [flexShrink(num(0))],
-
-  /* ── thumbnails ────────────────────────────────────────────────────────── */
-  thumbs: [
-    display.grid,
-    gap(space(2)),
-    paddingBlockStart(space(2)),
-    px(space(4)),
-    flexShrink(num(0)),
-    when(bp.medium, [
-      paddingInlineStart(space(6)),
-      paddingInlineEnd(unit.rem(11)),
-    ]),
-  ],
-  thumbsHead: [
+  timelineNote: [
     display.flex,
     alignItems.center,
-    justifyContent.spaceBetween,
-    columnGap(space(3)),
-    ...small,
-  ],
-  thumbsRow: [
-    provides(scrollPort.inline),
-    display.flex,
-    gap(space(2)),
-    paddingBlockEnd(space(1)),
-    listStyleType.none,
-    marginBlock(space(0)),
-    paddingInlineStart(space(0)),
-  ],
-  thumb: [
-    display.grid,
-    gap(space(1)),
+    columnGap(space(2)),
     flexShrink(num(0)),
-    inlineSize(unit.rem(10)),
-    p(space(1)),
-    bg(theme.surface),
-    borderWidth(lineWidth.hairline),
-    borderStyle.solid,
-    borderColor(theme.line),
-    borderRadius(radii.md),
-    cursor.pointer,
-    textAlign.start,
-    when(interaction.hover, [borderColor(theme.action)]),
-    when(interaction.focus, [borderColor(theme.action)]),
-    when(thumbState.current, [
-      borderColor(theme.action),
-      bg(theme.selected),
-    ]),
-  ],
-  thumbImage: [
-    display.block,
-    inlineSize(unit.pct(100)),
-    borderRadius(radii.md),
-    bg(theme.selected),
-  ],
-  thumbCaption: [...small, whiteSpace.nowrap],
-  // The visible name of what the card does: the whole card is the button.
-  thumbAction: [
-    ...font(text.xs),
-    fontWeight(weight.medium),
-    color(theme.action),
     whiteSpace.nowrap,
   ],
 

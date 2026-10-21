@@ -212,6 +212,19 @@ export function firstSelectedFile(event: Event): File | undefined {
   return target instanceof HTMLInputElement ? target.files?.[0] : undefined;
 }
 
+/**
+ * How far along the control a pointer event landed, from 0 (its start) to 1
+ * (its end). The control is the one the handler is bound to.
+ */
+export function pointerShare(event: MouseEvent): number {
+  const control = event.currentTarget;
+  if (!(control instanceof HTMLElement)) return 0;
+  const box = control.getBoundingClientRect();
+  return box.width > 0
+    ? Math.min(1, Math.max(0, (event.clientX - box.left) / box.width))
+    : 0;
+}
+
 /** Offers a text as a download, the way a link to a blob does. */
 export function saveTextFile(name: string, type: string, text: string): void {
   const renderer = host?.context.renderer;
