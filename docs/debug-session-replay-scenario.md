@@ -59,6 +59,22 @@ assertion. Pour un checkpoint, ce chemin est relatif à sa valeur `expected`,
 pas au chemin d’état sélectionné. Les jokers, chemins secrets, chevauchements et tolérances
 numériques non bornées sont refusés. Aucune tolérance globale n’existe.
 
+Les archives peuvent aussi contenir des transitions `pending` sémantiques.
+Chaque opération de boundary émet `started` quand elle entre en état suspendu
+ou en rechargement, puis `succeeded` quand la lecture se règle. Si le boundary
+est détruit avant la fin, elle émet `failed` avec la transition `destroyed`. Le payload
+contient seulement la source,
+l’identité du boundary, le mode (`suspended` ou `reloading`), et l’indication
+que le fallback a été rendu ; il ne contient pas la valeur métier. Le replay
+apparie ces transitions par opération et avertit si l’état visible attendu
+n’apparaît pas.
+
+Une navigation Angular associée à un lien enregistré reste une étape de replay
+via le routeur. Un reload du document ferme la session courante : le replay ne
+l’exécute pas et demande de reprendre depuis une nouvelle capture. Le routeur
+observe `NavigationStart`, mais le retour/avance navigateur n’a pas encore de
+déclencheur explicite dans le replay et reste non vérifié.
+
 Valider avec `validateReplayScenario(json)`, puis lancer
 `runReplayTest(session, json, options)`. Le résultat structuré distingue un
 succès, un échec, une session partielle/non rejouable et une capture

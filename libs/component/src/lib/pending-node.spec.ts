@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { craftService, craftSignal as signal, craftUse, craftPrivate } from '@craft-ts/core';
+import {
+  craftService,
+  craftSignal as signal,
+  craftUse,
+  craftPrivate,
+  provideSendContextSession,
+  SendContextSession as SendContextSessionService,
+} from '@craft-ts/core';
 import {
   afterEach,
   beforeEach,
@@ -51,16 +58,19 @@ describe('pendingNode', () => {
   });
 
   it('shows the fallback until the source settles, then the subtree', async () => {
+    let session!: import('@craft-ts/core').SendContextSession;
     const { PendingRootView, providePendingRootView } = craftService(
       { name: 'pendingRootView', providedIn: 'toProvide' },
       function* () {
-        const users = yield* craftPrivate(query('users', {
-          params: () => true,
-          loader: async (): Promise<User[]> => {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            return [{ id: '1', name: 'Ada' }];
-          },
-        }));
+        const users = yield* craftPrivate(
+          query('users', {
+            params: () => true,
+            loader: async (): Promise<User[]> => {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              return [{ id: '1', name: 'Ada' }];
+            },
+          }),
+        );
         yield* craftComputed('firstName', function* () {
           const list = yield* settled(users);
           return list[0].name;
@@ -70,8 +80,12 @@ describe('pendingNode', () => {
 
     const root = craftComponent(
       'pendingRoot',
-      { providers: [providePendingRootView()] },
+      {
+        providers: [providePendingRootView(), ...provideSendContextSession()],
+      },
       function* () {
+        session = yield* SendContextSessionService();
+        session.startRecord('pending transition');
         const { firstName } = yield* PendingRootView();
         return section([
           div([span(firstName)]).pipe(
@@ -101,6 +115,30 @@ describe('pendingNode', () => {
 
     expect(element.textContent).toContain('Ada');
     expect(element.textContent).not.toContain('chargement');
+    expect(session.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'pending',
+          phase: 'started',
+          operationId: expect.any(String),
+          payload: expect.objectContaining({
+            source: 'users',
+            mode: 'suspended',
+            transition: 'visible',
+            fallbackRendered: true,
+          }),
+        }),
+        expect.objectContaining({
+          kind: 'pending',
+          phase: 'succeeded',
+          payload: expect.objectContaining({
+            source: 'users',
+            mode: 'suspended',
+            transition: 'settled',
+          }),
+        }),
+      ]),
+    );
 
     destroy();
   });
@@ -149,22 +187,25 @@ describe('pendingNode', () => {
   });
 
   it('shows the reloading slot while a settled source refetches', async () => {
+    let session!: import('@craft-ts/core').SendContextSession;
     const { PendingReloadingView, providePendingReloadingView } = craftService(
       { name: 'pendingReloadingView', providedIn: 'toProvide' },
       function* () {
         const reload = yield* state('reload', 0, ({ update }) => ({
           again: () => update((current) => current + 1),
         }));
-        const users = yield* craftPrivate(query('users', {
-          params: function* () {
-            const _reload = yield* reload();
-            return _reload;
-          },
-          loader: async ({ params }): Promise<User[]> => {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            return [{ id: String(params), name: `Ada ${params}` }];
-          },
-        }));
+        const users = yield* craftPrivate(
+          query('users', {
+            params: function* () {
+              const _reload = yield* reload();
+              return _reload;
+            },
+            loader: async ({ params }): Promise<User[]> => {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              return [{ id: String(params), name: `Ada ${params}` }];
+            },
+          }),
+        );
         yield* craftComputed('firstName', function* () {
           const list = yield* settled(users);
           return list[0].name;
@@ -174,8 +215,15 @@ describe('pendingNode', () => {
 
     const root = craftComponent(
       'pendingReloading',
-      { providers: [providePendingReloadingView()] },
+      {
+        providers: [
+          providePendingReloadingView(),
+          ...provideSendContextSession(),
+        ],
+      },
       function* () {
+        session = yield* SendContextSessionService();
+        session.startRecord('pending reload transitions');
         const { firstName, reload } = yield* PendingReloadingView();
         return section([
           button({ click: reload.again }, 'recharger'),
@@ -215,20 +263,48 @@ describe('pendingNode', () => {
     await flush();
     expect(element.textContent).toContain('Ada 1');
     expect(element.textContent).not.toContain('rafraichissement');
+    expect(session.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'pending',
+          phase: 'started',
+          payload: expect.objectContaining({
+            source: 'users',
+            mode: 'reloading',
+            transition: 'visible',
+            fallbackRendered: true,
+          }),
+        }),
+        expect.objectContaining({
+          kind: 'pending',
+          phase: 'succeeded',
+          payload: expect.objectContaining({
+            source: 'users',
+            mode: 'reloading',
+            transition: 'settled',
+          }),
+        }),
+      ]),
+    );
 
     destroy();
   });
 
   it('routes a source exception to the catchNode, not to the fallback', async () => {
+    let session!: import('@craft-ts/core').SendContextSession;
     const { PendingWithExceptionView, providePendingWithExceptionView } =
       craftService(
         { name: 'pendingWithExceptionView', providedIn: 'toProvide' },
         function* () {
-          const users = yield* craftPrivate(query('users', {
-            params: () =>
-              shouldFail() ? craftException({ _tag: 'MISSING_USER_ID' }) : true,
-            loader: async (): Promise<User[]> => [{ id: '1', name: 'Ada' }],
-          }));
+          const users = yield* craftPrivate(
+            query('users', {
+              params: () =>
+                shouldFail()
+                  ? craftException({ _tag: 'MISSING_USER_ID' })
+                  : true,
+              loader: async (): Promise<User[]> => [{ id: '1', name: 'Ada' }],
+            }),
+          );
           yield* craftComputed('firstName', function* () {
             const list = yield* settled(users);
             return list[0].name;
@@ -239,8 +315,15 @@ describe('pendingNode', () => {
     const shouldFail = signal(true);
     const root = craftComponent(
       'pendingWithException',
-      { providers: [providePendingWithExceptionView()] },
+      {
+        providers: [
+          providePendingWithExceptionView(),
+          ...provideSendContextSession(),
+        ],
+      },
       function* () {
+        session = yield* SendContextSessionService();
+        session.startRecord('pending source exception');
         const { firstName } = yield* PendingWithExceptionView();
         return section([
           div([span(firstName)])
@@ -267,6 +350,11 @@ describe('pendingNode', () => {
     expect(element.querySelector('[role="alert"]')?.textContent).toContain(
       'identifiant manquant',
     );
+    // The query parameter is already an exception, so the pending boundary
+    // never enters a suspended state and must not invent a pending lifecycle.
+    expect(session.events.some((event) => event.kind === 'pending')).toBe(
+      false,
+    );
     await assertAccessible(element);
 
     destroy();
@@ -277,13 +365,15 @@ describe('pendingNode', () => {
       craftService(
         { name: 'pendingExhaustiveView', providedIn: 'toProvide' },
         function* () {
-          const users = yield* craftPrivate(query('users', {
-            params: () => true,
-            loader: async (): Promise<User[]> => {
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-              return [{ id: '1', name: 'Ada' }];
-            },
-          }));
+          const users = yield* craftPrivate(
+            query('users', {
+              params: () => true,
+              loader: async (): Promise<User[]> => {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                return [{ id: '1', name: 'Ada' }];
+              },
+            }),
+          );
           // The boundary is keyed on the QUERY name, even when the template only
           // ever sees the computed derived from it.
           yield* craftComputed('firstName', function* () {
@@ -393,9 +483,11 @@ describe('pendingNode type-level contract', () => {
             loader: async (): Promise<User[]> => [],
           },
           ({ resource }) => ({
-            count: craftUse(craftComputed('count', function* () {
-              return (yield* settled(resource)).length;
-            })),
+            count: craftUse(
+              craftComputed('count', function* () {
+                return (yield* settled(resource)).length;
+              }),
+            ),
           }),
         );
       },

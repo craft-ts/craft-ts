@@ -8,6 +8,7 @@ import {
 } from '@craft-ts/core';
 import {
   captureDebugSessionEnvironment,
+  compileReplayPlan,
   environmentDifferences,
   getReplaySteps,
 } from '@craft-ts/component';
@@ -63,7 +64,7 @@ export const targetUrl = signal(
   import.meta.env['VITE_CRAFT_REPLAY_TARGET_URL'] ?? 'http://localhost:4200/',
 );
 export const startMode = signal<ReplayStartMode>('url');
-export const status = signal('Importe une session v3 pour commencer.');
+export const status = signal('Importe une session v6 pour commencer.');
 export const connected = signal(false);
 export const difference = signal<ReplayDifference | undefined>(undefined);
 const AUTO_SKIP_STORAGE_KEY =
@@ -93,6 +94,8 @@ export const autoSkipDifferences = signal(readAutoSkipPreference());
 export const partialReplay = signal<PartialReplay | undefined>(undefined);
 export const replayIndex = signal(0);
 export const replayState = signal('idle');
+/** Run playback with command/observation comparison notes enabled. */
+export const diagnosticReplay = signal(false);
 /** Every note the replay made, kept so that they can all be read again. */
 export const replayWarnings = signal<readonly string[]>([]);
 /** The notes someone has already put away; they stay in the history. */
@@ -282,6 +285,10 @@ export const eventTimelinePageCount = computed(() =>
   Math.max(1, Math.ceil(journalEvents().length / eventTimelinePageSize)),
 );
 export const replayableEvents = computed(() => getReplaySteps(visibleEvents()));
+export const replayPlan = computed(() => {
+  const current = session();
+  return current ? compileReplayPlan(current) : undefined;
+});
 /**
  * When each replayable action happens, in milliseconds from the first one: the
  * recorded timeline the replay keeps to when it plays at real speed.
@@ -417,7 +424,7 @@ export function canReplaySelectedSession(): boolean {
   return (
     slices.length > 0 &&
     (startMode() !== 'snapshot' ||
-      slices.every((item) => item.session.initialSnapshot !== undefined))
+      slices.every((item) => (item.session.snapshots?.length ?? 0) > 0))
   );
 }
 

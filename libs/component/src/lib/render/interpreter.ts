@@ -3215,6 +3215,7 @@ const fieldExceptionAccessibility = new WeakMap<
 >();
 
 let nextFieldExceptionBoundaryId = 0;
+let nextPendingBoundaryId = 0;
 
 function componentFieldExceptionSources(
   value: unknown,
@@ -3347,6 +3348,7 @@ function hasLiveRegion(children: CraftNodeChildren): boolean {
  */
 class PendingRenderedNode implements RenderedNode {
   readonly kind = 'pending';
+  private readonly boundaryId = nextPendingBoundaryId++;
   private readonly start: Comment;
   private readonly end: Comment;
   private readonly sourceView: FragmentRenderedNode;
@@ -3358,6 +3360,15 @@ class PendingRenderedNode implements RenderedNode {
   private readonly watched = new Map<string, CraftSettledReadNotice>();
   private reloadWatch: EffectRef | undefined;
   private reloadingSource: string | undefined;
+  private pendingOperation:
+    | Readonly<{
+        id: string;
+        source: string;
+        mode: 'suspended' | 'reloading';
+        correlationId?: string;
+      }>
+    | undefined;
+  private pendingOperationSequence = 0;
   private detached: DocumentFragment | undefined;
   /** Depth of an in-flight render into the source range. */
   private rendering = 0;
@@ -3470,6 +3481,7 @@ class PendingRenderedNode implements RenderedNode {
 
   destroy(): void {
     this.reloadWatch?.destroy();
+    this.closePendingOperationOnDestroy();
     this.restoreSource();
     this.fallbackView.destroy();
     this.sourceView.destroy();
@@ -3624,7 +3636,102 @@ class PendingRenderedNode implements RenderedNode {
       // A reload keeps the stale subtree on screen next to the indicator.
       this.restoreSource();
     }
-    this.fallbackView.patchChildren(this.fallbackChildren());
+    const fallback = this.fallbackChildren();
+    this.fallbackView.patchChildren(fallback);
+    this.recordPendingTransition(this.fallbackView.hasChildren());
+  }
+
+  /** Record only semantic fallback transitions, after the corresponding DOM patch. */
+  private recordPendingTransition(fallbackRendered: boolean): void {
+    const next =
+      this.held.size > 0
+        ? {
+            source: this.held.values().next().value as string,
+            mode: 'suspended' as const,
+          }
+        : this.reloadingSource
+          ? { source: this.reloadingSource, mode: 'reloading' as const }
+          : undefined;
+    const previous = this.pendingOperation;
+    if (
+      previous &&
+      next?.source === previous.source &&
+      next?.mode === previous.mode
+    )
+      return;
+
+    const session = runInInjectionContext(this.context.injector, () =>
+      ɵinjectSendContextSession(),
+    );
+    if (!session?.activeClip) return;
+    const correlationId = runInInjectionContext(this.context.injector, () =>
+      ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined,
+    );
+
+    if (previous) {
+      session.capture('pending', 'succeeded', {
+        name: `pending:${previous.mode}:${previous.source}`,
+        operationId: previous.id,
+        ...(previous.correlationId
+          ? { correlationId: previous.correlationId }
+          : {}),
+        payload: {
+          boundaryId: this.boundaryId,
+          source: previous.source,
+          mode: previous.mode,
+          transition: 'settled',
+          ...(isCraftReplaying() ? { replay: true } : {}),
+        },
+      });
+    }
+
+    this.pendingOperation = next
+      ? {
+          id: `pending:${this.boundaryId}:${++this.pendingOperationSequence}`,
+          source: next.source,
+          mode: next.mode,
+          ...(correlationId ? { correlationId } : {}),
+        }
+      : undefined;
+    if (next && this.pendingOperation) {
+      session.capture('pending', 'started', {
+        name: `pending:${next.mode}:${next.source}`,
+        operationId: this.pendingOperation.id,
+        ...(correlationId ? { correlationId } : {}),
+        payload: {
+          boundaryId: this.boundaryId,
+          source: next.source,
+          mode: next.mode,
+          transition: 'visible',
+          fallbackRendered,
+          ...(isCraftReplaying() ? { replay: true } : {}),
+        },
+      });
+    }
+  }
+
+  private closePendingOperationOnDestroy(): void {
+    const pending = this.pendingOperation;
+    if (!pending) return;
+    const session = runInInjectionContext(this.context.injector, () =>
+      ɵinjectSendContextSession(),
+    );
+    if (session?.activeClip)
+      session.capture('pending', 'failed', {
+        name: `pending:${pending.mode}:${pending.source}`,
+        operationId: pending.id,
+        ...(pending.correlationId
+          ? { correlationId: pending.correlationId }
+          : {}),
+        payload: {
+          boundaryId: this.boundaryId,
+          source: pending.source,
+          mode: pending.mode,
+          transition: 'destroyed',
+          ...(isCraftReplaying() ? { replay: true } : {}),
+        },
+      });
+    this.pendingOperation = undefined;
   }
 
   private showFallback(): void {

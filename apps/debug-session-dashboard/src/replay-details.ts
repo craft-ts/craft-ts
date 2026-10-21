@@ -11,10 +11,7 @@ import {
 import { ɵcomputed as computed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
-import {
-  recordingCaption,
-  viewportCaption,
-} from './replay-labels';
+import { recordingCaption, viewportCaption } from './replay-labels';
 import { exportTarget, scheduleReplayPreparation } from './replay-session';
 import {
   environmentWarning,
@@ -60,7 +57,7 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
       },
       [
         option({ value: 'url' }, 'Recharger l’URL enregistrée'),
-        option({ value: 'snapshot' }, 'Restaurer le snapshot initial'),
+        option({ value: 'snapshot' }, 'Restaurer le dernier snapshot'),
       ],
     ),
   ]);

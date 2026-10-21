@@ -59,7 +59,7 @@ test('keeps replay moving and shows recorded coordinates when a hover target is 
     const replay = replayModule.createReplayController(
       {
         format: 'craft-debug-session',
-        version: 5,
+        version: 6,
         startUrl: location.href,
         exportedAt: 20,
         truncated: false,

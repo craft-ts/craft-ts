@@ -2,6 +2,7 @@ import {
   provideAppInitializer,
   ɵinjectCraftPrimitiveRegistry,
   ɵinjectCraftRouterRuntime,
+  ɵinjectCraftCompiledRoutes,
   ɵinjectCraftMethodReplayRegistry,
   ɵinjectPersistedStorageSnapshotRegistry,
   ɵinjectSendContextSession,
@@ -13,6 +14,8 @@ import {
   ɵsetCraftReplayMode,
   ɵresolveCraftReplayTarget,
   ɵresolveCraftDeferReplayTarget,
+  matchCraftRoutes,
+  parseUrl,
   type CraftHttpReplayOutcome,
   type CraftReplayTarget,
   type SendContextEvent,
@@ -25,6 +28,7 @@ import {
   type ReplayValidation,
   validateReplayExport,
 } from './debug-session-replay';
+import type { ReplayTargetResolver } from './debug-session-orchestrator';
 import { startDebugSessionDialogReplay } from './debug-session-dialogs';
 import {
   isCraftDebugReplayLaunch,
@@ -50,6 +54,48 @@ type BridgeMessage = Readonly<Record<string, unknown>> & {
   channel: typeof CHANNEL;
   type: string;
 };
+
+function createReplayTargetResolver(
+  methods: ReturnType<typeof ɵinjectCraftMethodReplayRegistry>,
+  routes: ReturnType<typeof ɵinjectCraftCompiledRoutes>,
+): ReplayTargetResolver {
+  const normalizeMethodAddress = (address: string) =>
+    address
+      .split(' / ')
+      .map((part) => part.replace(/#\d+$/, ''))
+      .join(' / ');
+
+  return (kind, target) => {
+    if (kind === 'method') {
+      const normalized = normalizeMethodAddress(target);
+      const matches = methods
+        .addresses()
+        .filter((address) => normalizeMethodAddress(address) === normalized);
+      return matches.length === 1
+        ? 'resolved'
+        : matches.length > 1
+          ? 'ambiguous'
+          : 'unknown';
+    }
+    if (kind === 'activation') {
+      const resolution = ɵresolveCraftDeferReplayTarget(target);
+      return resolution.status === 'resolved'
+        ? 'resolved'
+        : resolution.status === 'ambiguous'
+          ? 'ambiguous'
+          : resolution.status === 'unstable-identity'
+            ? 'unknown'
+            : 'unknown';
+    }
+    try {
+      const url = new URL(target, window.location.href);
+      const routeLocation = parseUrl(`${url.pathname}${url.search}${url.hash}`);
+      return matchCraftRoutes(routes, routeLocation) ? 'resolved' : 'unknown';
+    } catch {
+      return 'missing';
+    }
+  };
+}
 
 /**
  * Explicitly opts an application into dashboard control from an iframe parent.
@@ -224,8 +270,7 @@ export function provideCraftDebugReplayBridge(
             registry.restore(validation.session.initialSnapshot);
           const initialStorageSnapshot = validation.session.events.find(
             (entry) =>
-              entry.kind === 'storage' &&
-              entry.name === 'initial-snapshot',
+              entry.kind === 'storage' && entry.name === 'initial-snapshot',
           )?.payload;
           if (
             isRecord(initialStorageSnapshot) &&
@@ -275,7 +320,11 @@ export function provideCraftDebugReplayBridge(
             validation.session.events,
           ).length;
           replay = createReplayController(validation.session, {
-            mode: 'invocation',
+            mode: message['mode'] === 'diagnostic' ? 'diagnostic' : 'invocation',
+            resolveTarget: createReplayTargetResolver(
+              methodReplayRegistry,
+              ɵinjectCraftCompiledRoutes(),
+            ),
             ...(typeof message['startIndex'] === 'number' &&
             Number.isSafeInteger(message['startIndex'])
               ? { startIndex: message['startIndex'] }
@@ -367,25 +416,36 @@ export function provideCraftDebugReplayBridge(
             },
             prepare: async () => {
               if (message['startMode'] === 'snapshot') {
-                if (!validation.session.initialSnapshot)
-                  throw new Error('This session has no initial snapshot.');
-                const storageSnapshot = validation.session.events.find(
-                  (entry) =>
-                    entry.kind === 'storage' &&
-                    entry.name === 'initial-snapshot',
+                const snapshot = [...(validation.session.snapshots ?? [])].sort(
+                  (left, right) => right.capturedAt - left.capturedAt,
+                )[0];
+                if (!snapshot)
+                  throw new Error(
+                    'This session has no complete, versioned replay snapshot.',
+                  );
+                await storageRegistry.restore(snapshot.storage);
+                registry.restore(snapshot.primitives);
+                if (!craftRouter)
+                  throw new Error(
+                    'The Craft router is unavailable for snapshot restoration.',
+                  );
+                const route = craftReplayRouteForSameOriginHref(
+                  snapshot.route.url,
+                  location.href,
                 );
-                const payload = storageSnapshot?.payload;
-                const entries =
-                  isRecord(payload) && Array.isArray(payload['entries'])
-                    ? (payload['entries'] as PersistedStorageSnapshotEntry[])
-                    : [];
-                await storageRegistry.restore(entries);
+                if (!(await craftRouter.navigateByUrl(route)))
+                  throw new Error(
+                    `The Craft router refused snapshot route ${route}.`,
+                  );
               }
               // URL mode must also start from the exact state captured before
               // the first interaction. This restores startup query results
               // whose network requests were denied before replay outcomes
               // arrived from the dashboard.
-              if (validation.session.initialSnapshot)
+              if (
+                message['startMode'] !== 'snapshot' &&
+                validation.session.initialSnapshot
+              )
                 registry.restore(validation.session.initialSnapshot);
             },
             onError: (error) => {
@@ -404,6 +464,12 @@ export function provideCraftDebugReplayBridge(
             },
             onWarning: (warning) => {
               send(event.origin, 'warning', { message: warning });
+            },
+            onDiagnostic: (report) => {
+              if (!report.missing.length && !report.unexpected.length) return;
+              send(event.origin, 'warning', {
+                message: `Diagnostic · ${report.commandId}: attendues absentes [${report.missing.join(', ') || 'aucune'}] · inattendues [${report.unexpected.join(', ') || 'aucune'}].`,
+              });
             },
             onInteraction: (interaction, target) => {
               const payload = isRecord(interaction.payload)
@@ -668,8 +734,10 @@ function reviveReplayArgument(value: unknown): unknown {
     if (value['$craftReplayNumber'] === '-0') return -0;
     const number = Number(value['$craftReplayNumber']);
     if (Number.isNaN(number)) return Number.NaN;
-    if (value['$craftReplayNumber'] === 'Infinity') return Number.POSITIVE_INFINITY;
-    if (value['$craftReplayNumber'] === '-Infinity') return Number.NEGATIVE_INFINITY;
+    if (value['$craftReplayNumber'] === 'Infinity')
+      return Number.POSITIVE_INFINITY;
+    if (value['$craftReplayNumber'] === '-Infinity')
+      return Number.NEGATIVE_INFINITY;
     return number;
   }
   if (isRecord(value['$craftReplayEvent'])) {

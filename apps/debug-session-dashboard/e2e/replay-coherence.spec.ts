@@ -137,8 +137,7 @@ test('restores browser storage before the replay application boots', async ({
         const session = sessionStorage.getItem(sessionKey);
         const database = await new Promise<IDBDatabase>((resolve, reject) => {
           const open = indexedDB.open(databaseName, 1);
-          open.onupgradeneeded = () =>
-            open.result.createObjectStore('values');
+          open.onupgradeneeded = () => open.result.createObjectStore('values');
           open.onsuccess = () => resolve(open.result);
           open.onerror = () => reject(open.error);
         });
@@ -186,8 +185,7 @@ test('restores browser storage before the replay application boots', async ({
       document.cookie = `${cookieName}=captured-cookie; Path=/; SameSite=Lax`;
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
         const open = indexedDB.open(databaseName, 1);
-        open.onupgradeneeded = () =>
-          open.result.createObjectStore('values');
+        open.onupgradeneeded = () => open.result.createObjectStore('values');
         open.onsuccess = () => resolve(open.result);
         open.onerror = () => reject(open.error);
       });
@@ -575,7 +573,7 @@ test('switches the visible replay iframe when the recorded active tab changes', 
         },
         session: {
           format: 'craft-debug-session',
-          version: 5,
+          version: 6,
           startUrl: `${demoOrigin}/`,
           exportedAt: base,
           viewport: { width: 1280, height: 800 },
@@ -737,7 +735,7 @@ test('dims replay tabs recorded as hidden while keeping them in the all-tabs vie
         },
         session: {
           format: 'craft-debug-session',
-          version: 5,
+          version: 6,
           startUrl: `${demoOrigin}/`,
           exportedAt: timestamp,
           viewport: { width: 1280, height: 800 },
@@ -836,7 +834,7 @@ test('opens a replay for a complete tab in a globally truncated session', async 
         participant: { title: participantId, state: 'visible' },
         session: {
           format: 'craft-debug-session',
-          version: 5,
+          version: 6,
           startUrl: `${demoOrigin}/`,
           exportedAt: timestamp,
           truncated: participantId === 'truncated-tab',
@@ -1096,7 +1094,7 @@ test('replays every recorded user action and targets the recorded user', async (
   const clickInteractions = interactions.filter(
     (event) => event.payload?.['action'] === 'click',
   );
-  expect(session!.version).toBe(5);
+  expect(session!.version).toBe(6);
   expect(interactions).toHaveLength(10);
   expect(clickInteractions).toHaveLength(5);
   expect(
@@ -1152,11 +1150,16 @@ test('replays every recorded user action and targets the recorded user', async (
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
   await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
   await expect(dashboard.locator('[data-lab="left"]')).toContainText(
-    /Format v5 · \d+ événements/,
+    /Format v6 · \d+ événements/,
   );
   await expect(dashboard.locator('[data-lab="status"]').first()).toContainText(
     'Replay · ready',
   );
+  const diagnosticMode = dashboard.getByRole('button', {
+    name: 'Mode diagnostic du replay',
+  });
+  await diagnosticMode.click();
+  await expect(diagnosticMode).toHaveAttribute('aria-pressed', 'true');
   expect(session.viewport).toBeDefined();
   await expect(
     dashboard.locator('[data-lab="viewport-caption"]'),
@@ -1446,10 +1449,15 @@ test('replays the recorded link destination through the app router', async ({
         ?.url(),
     )
     .toBe(`${DEMO_ORIGIN}/pending-node`);
-  await expect(replayApp.getByText('3 people')).toBeVisible();
+  await expect(
+    replayApp.getByRole('heading', { name: 'settledValue + pendingNode' }),
+  ).toBeVisible();
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
     /\d+ \/ \d+ étapes · terminé/,
   );
+  await expect(
+    dashboard.getByRole('region', { name: 'Notes du replay' }),
+  ).toHaveCount(0);
   await expect(dashboard.locator('[data-lab="diff"]')).toBeHidden();
 
   await context.close();
@@ -1721,6 +1729,18 @@ test('replays a pending-block route through its delayed Craft query', async ({
     })
     .not.toBe('');
 
+  const recordedSession = (await (
+    await request.get(`${SESSION_SERVER_ORIGIN}/sessions/${sessionId}`)
+  ).json()) as StoredSession;
+  expect(
+    recordedSession.events.some(
+      (event) =>
+        event.kind === 'pending' &&
+        event.phase === 'started' &&
+        event.payload?.['fallbackRendered'] === true,
+    ),
+  ).toBe(true);
+
   const dashboard = await context.newPage();
   await dashboard.goto(`${DASHBOARD_ORIGIN}/#/sessions/${sessionId}`);
   await expect(dashboard.locator('[data-lab="detail-page"]')).toBeVisible();
@@ -1739,7 +1759,6 @@ test('replays a pending-block route through its delayed Craft query', async ({
   await expect(
     replayApp.getByRole('heading', { name: 'settledValue + pendingNode' }),
   ).toBeVisible();
-  await expect(replayApp.getByText('Loading teams…')).toBeVisible();
   await expect(replayApp.getByText('3 people')).toBeVisible();
   expect(Date.now() - replayStartedAt).toBeGreaterThanOrEqual(800);
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
@@ -1763,27 +1782,24 @@ test('replays the recorded Craft HTTP result without calling the live service', 
   const context = await browser.newContext();
   const demo = await context.newPage();
   let recordedRequests = 0;
-  await demo.route('https://openlibrary.org/search.json**', async (route) => {
+  await demo.route('**/users', async (route) => {
     recordedRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        numFound: 1,
-        docs: [
-          {
-            key: '/works/OL-replay-test',
-            title: 'Recorded replay result',
-            author_name: ['Replay Author'],
-            first_publish_year: 2026,
-          },
-        ],
-      }),
+      body: JSON.stringify([{ id: 'replay-user', name: 'Replay HTTP user' }]),
     });
   });
-  await demo.goto(`${DEMO_ORIGIN}/debounced-web-search`);
-  await demo.getByRole('searchbox', { name: 'Search books' }).fill('replay');
-  await expect(demo.getByText('Recorded replay result')).toBeVisible({
+  await demo.goto(`${DEMO_ORIGIN}/`);
+  await demo.getByTestId('nav-toggle').click();
+  await demo
+    .getByTestId('nav-panel')
+    .getByRole('link', { name: 'Craft Lazy Layout', exact: true })
+    .click();
+  await expect(demo).toHaveURL(
+    `${DEMO_ORIGIN}/craft/lazy-layout/100/users/42`,
+  );
+  await expect(demo.getByText('Query status: resolved')).toBeVisible({
     timeout: 15_000,
   });
   expect(recordedRequests).toBe(1);
@@ -1832,18 +1848,18 @@ test('replays the recorded Craft HTTP result without calling the live service', 
         event.kind === 'primitive' &&
         event.name === 'primitive-change' &&
         event.payload?.['primitiveKind'] === 'query' &&
-        JSON.stringify(event.state).includes('Recorded replay result'),
+        JSON.stringify(event.state).includes('Replay HTTP user'),
     ),
   ).toBe(true);
 
   await demo.close();
   let replayLiveRequests = 0;
-  await context.route('https://openlibrary.org/**', async (route) => {
+  await context.route('**/users', async (route) => {
     replayLiveRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ numFound: 0, docs: [] }),
+      body: JSON.stringify([]),
     });
   });
   const dashboard = await context.newPage();
@@ -1855,7 +1871,7 @@ test('replays the recorded Craft HTTP result without calling the live service', 
   await dashboard
     .getByRole('button', { name: 'Lecture à vitesse réelle' })
     .click();
-  await expect(replayApp.getByText('Recorded replay result')).toBeVisible({
+  await expect(replayApp.getByText('Query status: resolved')).toBeVisible({
     timeout: 30_000,
   });
   await expect(dashboard.locator('[data-lab="replay-progress"]')).toContainText(
@@ -2019,7 +2035,7 @@ test('skips a divergent interval to a compatible checkpoint and marks the replay
   await expect(diff).toBeVisible();
 
   const skip = dashboard.getByRole('button', {
-    name: 'Ignorer jusqu’au prochain point de reprise',
+    name: 'Aller à la suite',
   });
   await expect(skip).toBeVisible();
   await skip.evaluate((button) => (button as HTMLButtonElement).click());

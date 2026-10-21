@@ -9,7 +9,10 @@ import {
 } from './craft-http-trace';
 import { provideCraftRouterTrace } from './craft-router-trace';
 import { providePrimitiveResourceRuntimeObserver } from './primitive-resource-runtime-context';
-import { ɵinjectCorrelationIdService } from './correlation-id';
+import {
+  ɵcorrelationIdForDomEvent,
+  ɵinjectCorrelationIdService,
+} from './correlation-id';
 import { ɵinjectCraftPrimitiveRegistry } from './craft-primitive-registry';
 import { ɵinjectPersistedStorageSnapshotRegistry } from './persisted-storage-snapshot';
 import {
@@ -17,6 +20,8 @@ import {
   injectCraftReplayTransports,
 } from './craft-replay-transports';
 import { ɵcaptureCraftReplayTarget } from './craft-replay-target';
+import { provideTemplateTrace } from './template-trace';
+import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
 
 const capturedReplayDomEvents = new WeakSet<Event>();
 
@@ -120,11 +125,14 @@ export interface SendContextSessionParticipant {
   readonly initialSnapshot?: Readonly<Record<string, unknown>>;
 }
 
+/** Current portable recording schema. Bump only with an explicit replay migration decision. */
+export const DEBUG_SESSION_EXPORT_VERSION = 6 as const;
+
 /** A portable, redacted recording that can be validated before replay. */
 export interface SendContextReplayExport {
   readonly format: 'craft-debug-session';
-  /** Runtime target identities and transport contracts are defined by v5. */
-  readonly version: 5;
+  /** Runtime target identities and transport contracts are defined by this schema version. */
+  readonly version: typeof DEBUG_SESSION_EXPORT_VERSION;
   readonly startUrl: string;
   /** CSS-pixel viewport dimensions when session capture is initialized. */
   readonly viewport?: Readonly<{ width: number; height: number }>;
@@ -132,10 +140,36 @@ export interface SendContextReplayExport {
   readonly truncated: boolean;
   readonly events: readonly SendContextEvent[];
   readonly clips: readonly SendContextClip[];
+  /** Stable, versioned restart points; component instances are never stored. */
+  readonly snapshots?: readonly SendContextReplaySnapshot[];
   /** Page tabs that contributed to an automatically shared local session. */
   readonly participants?: readonly SendContextSessionParticipant[];
   /** Primitive values captured immediately before the first recorded interaction. */
   readonly initialSnapshot?: Readonly<Record<string, unknown>>;
+}
+
+export interface SendContextReplaySnapshot {
+  readonly format: 'craft-debug-replay-snapshot';
+  readonly version: 1;
+  readonly appVersion: string;
+  readonly capturedAt: number;
+  readonly route: Readonly<{ url: string }>;
+  readonly primitives: Readonly<Record<string, unknown>>;
+  readonly storage: readonly Readonly<{
+    backend: string;
+    storeName: string;
+    key: string;
+    kind: 'query' | 'queryById';
+    resourceId?: string;
+    queryParams?: unknown;
+    value: unknown;
+    timestamp?: number;
+  }>[];
+  readonly capabilities: Readonly<{
+    primitives: true;
+    storage: true;
+    inFlightOperations: false;
+  }>;
 }
 
 export interface SendContextClip {
@@ -788,15 +822,24 @@ export function createSendContextSession(
         ...clip,
         eventIds: clip.eventIds.filter((id) => includedIds.has(id)),
       }));
+      const snapshots = events.flatMap((event) =>
+        event.kind === 'snapshot' &&
+        event.name === 'replay-checkpoint' &&
+        isRecord(event.payload) &&
+        event.payload['format'] === 'craft-debug-replay-snapshot'
+          ? [event.payload as unknown as SendContextReplaySnapshot]
+          : [],
+      );
       return safeJson({
         format: 'craft-debug-session',
-        version: 5,
+        version: DEBUG_SESSION_EXPORT_VERSION,
         startUrl,
         ...(viewport ? { viewport } : {}),
         exportedAt: Date.now(),
         truncated: wasTruncated || clipList.some((clip) => clip.truncated),
         events,
         clips,
+        ...(snapshots.length ? { snapshots } : {}),
         ...(initialSnapshotEvent
           ? {
               initialSnapshot: initialSnapshotEvent.state as Readonly<
@@ -917,6 +960,30 @@ export function provideSendContextSession(
         injectCraftReplayTransports(),
       ),
     ),
+    provideTemplateTrace((trace, next) => {
+      if (
+        trace.kind === 'component' &&
+        (trace.phase === 'create' || trace.phase === 'destroy')
+      ) {
+        const activeSession = ɵinjectSendContextSession();
+        if (activeSession?.activeClip) {
+          const correlationId =
+            ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+          const routeUrl = ɵinjectCraftRouterRuntime()?.url;
+          activeSession.capture('component-lifecycle', 'emitted', {
+            name: `${trace.phase}:${trace.componentName ?? 'unknown'}`,
+            ...(correlationId ? { correlationId } : {}),
+            payload: {
+              transition: trace.phase,
+              componentName: trace.componentName ?? 'unknown',
+              renderCount: trace.renderCount,
+              ...(routeUrl ? { routeUrl } : {}),
+            },
+          });
+        }
+      }
+      return next();
+    }),
     enrichers.provide!() as CraftServiceProvider,
     filters.provide!() as CraftServiceProvider,
     session.provide!() as CraftServiceProvider,
@@ -924,7 +991,11 @@ export function provideSendContextSession(
     provideCraftDomEventHook((interaction, next) => {
       const session = requireSession();
       const correlationId =
-        ɵinjectCorrelationIdService()?.lastCorrelationId() ?? undefined;
+        ɵcorrelationIdForDomEvent(
+          interaction.event,
+          ɵinjectCorrelationIdService(),
+          interaction.interactionName,
+        ) ?? undefined;
       const element = interaction.element;
       const link =
         element instanceof HTMLAnchorElement
@@ -955,6 +1026,16 @@ export function provideSendContextSession(
         form && explicitlyOptedIn && (!sensitive || sensitiveCaptureAllowed)
           ? element.value
           : undefined;
+      const replayTarget = ɵcaptureCraftReplayTarget(
+        element,
+        event instanceof MouseEvent
+          ? { clientX: event.clientX, clientY: event.clientY }
+          : undefined,
+      );
+      const selector = ɵstableReplaySelector(element);
+      const scrollAncestors = ɵreplayScrollAncestors(element);
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
       if (
         !session.events.some(
           (entry) => entry.kind === 'snapshot' && entry.name === 'initial',
@@ -991,13 +1072,8 @@ export function provideSendContextSession(
           action: event.type,
           eventName: interaction.eventName,
           interactionName: interaction.interactionName,
-          selector: ɵstableReplaySelector(element),
-          replayTarget: ɵcaptureCraftReplayTarget(
-            element,
-            event instanceof MouseEvent
-              ? { clientX: event.clientX, clientY: event.clientY }
-              : undefined,
-          ),
+          selector,
+          replayTarget,
           ...(link instanceof HTMLAnchorElement
             ? { href: redactReplayUrl(link.href) }
             : {}),
@@ -1014,14 +1090,14 @@ export function provideSendContextSession(
             : {}),
           // Keep click coordinates meaningful when the user has scrolled the
           // page: replay restores this viewport position before dispatch.
-          scrollX: window.scrollX,
-          scrollY: window.scrollY,
-          scrollAncestors: ɵreplayScrollAncestors(element),
+          scrollX,
+          scrollY,
+          scrollAncestors,
         },
         targets: [
           {
             tagName: interaction.elementTag,
-            selector: ɵstableReplaySelector(element),
+            selector,
           },
         ],
       });

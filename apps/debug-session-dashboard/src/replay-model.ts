@@ -1,6 +1,7 @@
 import type {
   SendContextEvent,
   SendContextReplayExport,
+  SendContextReplaySnapshot,
   SendContextSessionParticipant,
 } from '@craft-ts/core';
 
@@ -16,7 +17,11 @@ export const REPLAY_CHANNEL = 'craft-debug-replay';
 export const REPLAY_QUERY_MARKER = 'craft-debug-replay';
 
 export type ReplayParticipantState =
-  'visible' | 'hidden' | 'blurred' | 'closed' | 'interrupted';
+  | 'visible'
+  | 'hidden'
+  | 'blurred'
+  | 'closed'
+  | 'interrupted';
 
 /** A pending timer the replay can cancel; its clock is the Craft temporal runtime's. */
 export type ReplayTimer = Readonly<{ cancel(): void }>;
@@ -69,6 +74,7 @@ export type ReplayFrameConnection = {
   resumeIndex: number;
   session: SendContextReplayExport;
   startMode: ReplayStartMode;
+  diagnostic: boolean;
   timelineOriginMs?: number;
   startOffsetMs: number;
   pendingStep?: boolean;
@@ -89,10 +95,26 @@ export type ReplayDialogView = Readonly<{
 }>;
 
 export type LocalTarget =
-  Readonly<{ ok: true; url: URL }> | Readonly<{ ok: false; error: string }>;
+  | Readonly<{ ok: true; url: URL }>
+  | Readonly<{ ok: false; error: string }>;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isReplaySnapshot(value: unknown): value is SendContextReplaySnapshot {
+  return (
+    isRecord(value) &&
+    value['format'] === 'craft-debug-replay-snapshot' &&
+    value['version'] === 1 &&
+    typeof value['appVersion'] === 'string' &&
+    typeof value['capturedAt'] === 'number' &&
+    isRecord(value['route']) &&
+    typeof value['route']['url'] === 'string' &&
+    isRecord(value['primitives']) &&
+    Array.isArray(value['storage']) &&
+    isRecord(value['capabilities'])
+  );
 }
 
 function finiteNumber(value: unknown): number | undefined {
@@ -317,6 +339,13 @@ export function participantSession(
     ...(participant.initialSnapshot
       ? { initialSnapshot: participant.initialSnapshot }
       : {}),
+    snapshots: participantEvents.flatMap((event) =>
+      event.kind === 'snapshot' &&
+      event.name === 'replay-checkpoint' &&
+      isReplaySnapshot(event.payload)
+        ? [event.payload]
+        : [],
+    ),
     events: participantEvents,
     clips: participantClips,
   };
@@ -345,19 +374,21 @@ export function alignSharedTimeline(
         allEvents.length ? Infinity : 0,
       )
     : 0;
-  return slices.map((item): ReplaySlice => ({
-    ...item,
-    session: {
-      ...item.session,
-      events: item.session.events.map((event) => ({
-        ...event,
-        globalElapsedMs: hasGlobalTimeline
-          ? event.globalElapsedMs
-          : event.timestamp - firstTimestamp,
-      })),
-    },
-    timelineOriginMs: timelineOrigin,
-  }));
+  return slices.map(
+    (item): ReplaySlice => ({
+      ...item,
+      session: {
+        ...item.session,
+        events: item.session.events.map((event) => ({
+          ...event,
+          globalElapsedMs: hasGlobalTimeline
+            ? event.globalElapsedMs
+            : event.timestamp - firstTimestamp,
+        })),
+      },
+      timelineOriginMs: timelineOrigin,
+    }),
+  );
 }
 
 /** What the recording says about when its tabs were created. */

@@ -26,7 +26,7 @@ describe('DebugSessionStore', () => {
   function fixture(): PortableDebugSession {
     return {
       format: 'craft-debug-session',
-      version: 5,
+      version: 6,
       startUrl: 'http://localhost:4200/',
       viewport: { width: 390, height: 844 },
       exportedAt: Date.parse(createdAt),
@@ -86,7 +86,7 @@ describe('DebugSessionStore', () => {
       startUrl: 'http://localhost:4200/',
     });
     expect(store.get(id)).toMatchObject({
-      version: 5,
+      version: 6,
       viewport: { width: 390, height: 844 },
       initialSnapshot: { 'state:counter': 0 },
       events: [

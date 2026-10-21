@@ -41,6 +41,7 @@ import {
   canReplaySelectedSession,
   completedReplayEventIds,
   connected,
+  diagnosticReplay,
   continuations,
   difference,
   differenceHistoryOpen,
@@ -273,11 +274,11 @@ export function startReplay(): void {
   setNextActionCountdown(undefined);
   if (
     startMode() === 'snapshot' &&
-    slices.some((item) => !item.session.initialSnapshot)
+    slices.some((item) => !item.session.snapshots?.length)
   ) {
     endReplayLoadingIndicator();
     status.set(
-      'Au moins un onglet ne contient pas de snapshot initial. Choisis le démarrage à l’URL.',
+      'Au moins un onglet ne contient pas de snapshot versionné complet. Choisis le démarrage à l’URL.',
     );
     return;
   }
@@ -352,6 +353,7 @@ export function startReplay(): void {
       resumeIndex: 0,
       session: replaySession,
       startMode: mode,
+      diagnostic: diagnosticReplay(),
       timelineOriginMs: participantTimelineOriginMs,
       startOffsetMs,
     };

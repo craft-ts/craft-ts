@@ -43,7 +43,11 @@ const correlationIdService = ɵcraftValueService(
   (inputs: { $provided?: CorrelationIdServiceApi | null }) =>
     inputs.$provided ?? null,
 ) as unknown as {
-  CorrelationIdService: () => Generator<never, CorrelationIdServiceApi | null, unknown>;
+  CorrelationIdService: () => Generator<
+    never,
+    CorrelationIdServiceApi | null,
+    unknown
+  >;
   provideCorrelationIdService: (
     value: CorrelationIdServiceApi,
   ) => CraftServiceProvider;
@@ -55,14 +59,16 @@ const correlationIdService = ɵcraftValueService(
 export const CorrelationIdService = correlationIdService.CorrelationIdService;
 export const provideCorrelationIdService = (
   value: CorrelationIdServiceApi,
-): CraftServiceProvider => correlationIdService.provideCorrelationIdService(value);
-export const ɵinjectCorrelationIdService = (): CorrelationIdServiceApi | null => {
-  try {
-    return correlationIdService.CORRELATION_ID_SERVICE_META_DATA.inject();
-  } catch {
-    return null;
-  }
-};
+): CraftServiceProvider =>
+  correlationIdService.provideCorrelationIdService(value);
+export const ɵinjectCorrelationIdService =
+  (): CorrelationIdServiceApi | null => {
+    try {
+      return correlationIdService.CORRELATION_ID_SERVICE_META_DATA.inject();
+    } catch {
+      return null;
+    }
+  };
 export const ɵinjectCorrelationIdServiceIn = (
   injector: Injector,
 ): CorrelationIdServiceApi | null =>
@@ -131,6 +137,25 @@ function generateUUID(): string {
 // JavaScript is single-threaded: safe to use as a call-stack variable.
 // Set by the CorrelationId FnWrapper before the generator runs, reset after.
 let _currentStartCorrelationId: string | null = null;
+
+// A DOM action can pass through the debug-session hook before the correlation
+// hook, depending on provider registration order. Share the id on the native
+// event so both hooks record the same interaction instead of the session hook
+// seeing the previous interaction's ambient id.
+const domEventCorrelationIds = new WeakMap<Event, string>();
+
+export function ɵcorrelationIdForDomEvent(
+  event: Event,
+  service: CorrelationIdServiceApi | null,
+  interactionName: string,
+): string | null {
+  const known = domEventCorrelationIds.get(event);
+  if (known) return known;
+  if (!service) return null;
+  const id = service.generateAndSet(interactionName);
+  domEventCorrelationIds.set(event, id);
+  return id;
+}
 
 export function setCurrentStartCorrelationId(id: string | null): void {
   _currentStartCorrelationId = id;

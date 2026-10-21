@@ -21,6 +21,7 @@ import { pauseReplay, playReplay } from './replay-playback';
 import { startReplay, stepNextReplayAction, stopReplay } from './replay-session';
 import {
   connected,
+  diagnosticReplay,
   replayableEvents,
   replayIndex,
   replaySkeletonVisible,
@@ -69,6 +70,22 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         disabled: canStep,
       },
       'Lecture',
+    ),
+    button(
+      'diagnostic-mode',
+      {
+        type: 'button',
+        class: buttonUi.root,
+        'data-variant': 'tonal',
+        'aria-label': 'Mode diagnostic du replay',
+        'aria-pressed': diagnosticReplay,
+        'data-tooltip':
+          'Compare les observations exécutées au plan compilé et signale les écarts sans arrêter le replay.',
+        click: () => diagnosticReplay.update((enabled) => !enabled),
+      },
+      computed(() =>
+        diagnosticReplay() ? 'Diagnostic activé' : 'Diagnostic désactivé',
+      ),
     ),
     button(
       'pause',

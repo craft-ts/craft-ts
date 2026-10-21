@@ -35,6 +35,9 @@ import {
   rememberAutoSkipDifferences,
   replayState,
   replayWarnings,
+  replayPlan,
+  replayIndex,
+  startMode,
   status,
   dismissAllWarnings,
   dismissedWarnings,
@@ -348,7 +351,83 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     ],
   );
 
+  const orchestration = details({ 'data-lab': 'orchestration-plan' }, [
+    summary(
+      computed(() => {
+        const plan = replayPlan();
+        if (!plan) return 'Plan de replay';
+        const state =
+          plan.status === 'replayable'
+            ? 'rejouable'
+            : plan.status === 'partial'
+              ? 'partiellement exploitable'
+              : 'non rejouable';
+        return `Plan de replay · ${state} · ${plan.commands.length} commande(s)`;
+      }),
+    ),
+    p(
+      { class: ui.eventMeta },
+      computed(() => {
+        const plan = replayPlan();
+        return plan
+          ? `${plan.observations.length} observation(s) à comparer · ${plan.issues.length} problème(s) de prévalidation`
+          : 'Aucune archive chargée.';
+      }),
+    ),
+    ul(
+      { class: ui.events },
+      forNode(
+        computed(() => replayPlan()?.commands ?? []),
+        { track: (command) => command.id },
+        (command) =>
+          li({ class: ui.event, 'data-entry': 'replay-command' }, [
+            span({ class: ui.eventName }, function* () {
+              const item = yield* command();
+              return `${item.kind} · ${item.operationId}`;
+            }),
+            span({ class: ui.eventMeta }, function* () {
+              const item = yield* command();
+              const actionCommands = (replayPlan()?.commands ?? []).filter(
+                (entry) => entry.kind !== 'restore-snapshot',
+              );
+              if (item.kind === 'restore-snapshot')
+                return startMode() === 'snapshot'
+                  ? 'point de reprise sélectionné'
+                  : 'point de reprise disponible';
+              const commandIndex = actionCommands.indexOf(item);
+              const state =
+                commandIndex < replayIndex()
+                  ? 'réussi'
+                  : commandIndex === replayIndex()
+                    ? 'en attente'
+                    : 'à venir';
+              return `${state} · ${item.expected.length} observation(s) attendue(s)${item.dependsOn.length ? ` · après ${item.dependsOn.join(', ')}` : ''}`;
+            }),
+          ]),
+      ),
+    ),
+    ul(
+      { class: ui.events },
+      forNode(
+        computed(() => replayPlan()?.issues ?? []),
+        { track: (issue) => `${issue.code}:${issue.eventId ?? ''}` },
+        (issue) =>
+          li({ class: ui.event, 'data-entry': 'replay-plan-issue' }, [
+            span({ class: ui.eventName }, function* () {
+              const item = yield* issue();
+              return item.code;
+            }),
+            span({ class: ui.eventMeta }, function* () {
+              const item = yield* issue();
+              return item.message;
+            }),
+          ]),
+      ),
+    ),
+  ]);
+
   return div({ class: ui.notices }, [
+    orchestration,
     diff,
     differenceHistory,
     partial,

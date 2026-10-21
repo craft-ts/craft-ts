@@ -2,7 +2,11 @@ import { Injector } from './host/craft-compat';
 import { TestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { provideCorrelationIdTracking } from './correlation-id-plugin';
-import { CorrelationId, injectCorrelationIdService } from './correlation-id';
+import {
+  CorrelationId,
+  ɵcorrelationIdForDomEvent,
+  injectCorrelationIdService,
+} from './correlation-id';
 import { craftWatch } from './host/craft-signal';
 import { ɵinjectCraftDomEventHooks } from './dom-event-hook';
 import { FN_WRAPPER, type FnWrapper } from './fn-wrapper';
@@ -27,8 +31,8 @@ describe('provideCorrelationIdTracking', () => {
     TestBed.configureTestingModule({
       providers: [provideCorrelationIdTracking()],
     });
-    const wrappers = TestBed.runInInjectionContext(() =>
-      TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
+    const wrappers = TestBed.runInInjectionContext(
+      () => TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
     );
     expect(wrappers.length).toBe(1);
   });
@@ -43,12 +47,34 @@ describe('provideCorrelationIdTracking', () => {
     expect(hooks).toHaveLength(1);
   });
 
+  it('uses one fresh correlation id for each native DOM event', () => {
+    TestBed.configureTestingModule({
+      providers: [provideCorrelationIdTracking()],
+    });
+    const service = TestBed.runInInjectionContext(() =>
+      injectCorrelationIdService(),
+    );
+    const first = new Event('click');
+    const second = new Event('click');
+
+    const firstId = ɵcorrelationIdForDomEvent(first, service, 'button:click');
+    expect(ɵcorrelationIdForDomEvent(first, service, 'button:click')).toBe(
+      firstId,
+    );
+    const secondId = ɵcorrelationIdForDomEvent(second, service, 'button:click');
+
+    expect(firstId).toMatch(/^button:click:/);
+    expect(secondId).toMatch(/^button:click:/);
+    expect(secondId).not.toBe(firstId);
+    expect(service?.lastCorrelationId()).toBe(secondId);
+  });
+
   it('FN_WRAPPER drives the wrapped generator through to completion', async () => {
     TestBed.configureTestingModule({
       providers: [provideCorrelationIdTracking()],
     });
-    const [wrapper] = TestBed.runInInjectionContext(() =>
-      TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
+    const [wrapper] = TestBed.runInInjectionContext(
+      () => TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
     );
     const service = TestBed.runInInjectionContext(() =>
       injectCorrelationIdService(),
@@ -79,8 +105,8 @@ describe('provideCorrelationIdTracking', () => {
     TestBed.configureTestingModule({
       providers: [provideCorrelationIdTracking()],
     });
-    const [wrapper] = TestBed.runInInjectionContext(() =>
-      TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
+    const [wrapper] = TestBed.runInInjectionContext(
+      () => TestBed.inject(FN_WRAPPER) as readonly FnWrapper[],
     );
     const service = TestBed.runInInjectionContext(() =>
       injectCorrelationIdService(),

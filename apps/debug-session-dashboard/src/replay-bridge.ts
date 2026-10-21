@@ -132,6 +132,7 @@ function onReady(connection: ReplayFrameConnection, origin: string): void {
       type: 'start',
       session: connection.session,
       startMode: connection.startMode,
+      mode: connection.diagnostic ? 'diagnostic' : 'invocation',
       startIndex: connection.resumeIndex,
       replayRunId: connection.replayRunId,
       ...(connection.timelineOriginMs === undefined
@@ -457,7 +458,7 @@ function handle(
       if (typeof text !== 'string') break;
       importText(text);
       status.set('Session v3 exportée dans le dashboard.');
-      saveTextFile('craft-debug-session-v5.json', 'application/json', text);
+      saveTextFile('craft-debug-session-v6.json', 'application/json', text);
       break;
     }
   }

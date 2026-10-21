@@ -27,6 +27,8 @@ import {
   ɵinjectSendContextSession,
   ɵinjectTakeAppSnapshot,
   ɵinjectSendContextToAiBuffer,
+  ɵinjectPersistedStorageSnapshotRegistry,
+  ɵinjectCraftRouterRuntime,
   type SendContextTarget,
   type GetDeps,
   type SendContextPayload,
@@ -54,6 +56,7 @@ import { connectDebugSessionHoverCapture } from './debug-session-hover';
 import { connectDebugSessionPerformanceCapture } from './debug-session-performance';
 import { connectDebugSessionScrollCapture } from './debug-session-scroll';
 import { connectDebugSessionViewportCapture } from './debug-session-viewport';
+import { connectReplaySnapshotCapture } from './debug-session-orchestrator';
 import {
   CRAFT_DEBUG_REPLAY_PERSISTENCE_EVENT,
   isCraftDebugReplayLaunch,
@@ -491,6 +494,11 @@ export function provideCraftDebugSessionCapture(
     captureBrowserStorage?: boolean;
     /** EXPERIMENTAL: capture method arguments for local invocation replay. */
     captureReplayArguments?: boolean;
+    /** Capture serialized restart points after the app reaches a stable state. */
+    captureReplaySnapshots?: Readonly<{
+      appVersion: string;
+      debounceMs?: number;
+    }>;
     /** Capture prompt() answers only after explicit opt-in. */
     capturePromptValues?: boolean;
   }> = {},
@@ -581,8 +589,7 @@ export function provideCraftDebugSessionCapture(
       const disconnectFormCapture = recording
         ? connectDebugSessionFormCapture(createdSession, {
             captureInputValues: options.captureInputValues,
-            captureSensitiveInputValues:
-              options.captureSensitiveInputValues,
+            captureSensitiveInputValues: options.captureSensitiveInputValues,
           })
         : undefined;
       const disconnectFetchCapture =
@@ -639,13 +646,48 @@ export function provideCraftDebugSessionCapture(
       // continuously add rows that trigger more rendering and more long tasks.
       const disconnectPerformanceCapture =
         recording && !isCraftDebugReplayLaunch()
-        ? connectDebugSessionPerformanceCapture(createdSession)
-        : undefined;
+          ? connectDebugSessionPerformanceCapture(createdSession)
+          : undefined;
       const disconnectViewportCapture = recording
         ? connectDebugSessionViewportCapture(createdSession)
         : undefined;
+      let disconnectReplaySnapshots: (() => void) | undefined;
       if (recording) {
         createdSession.startRecord('Application session');
+        if (options.captureReplaySnapshots) {
+          const primitiveRegistry = ɵinjectCraftPrimitiveRegistry();
+          const storageRegistry = ɵinjectPersistedStorageSnapshotRegistry();
+          const craftRouter = ɵinjectCraftRouterRuntime();
+          disconnectReplaySnapshots = connectReplaySnapshotCapture({
+            session: createdSession,
+            appVersion: options.captureReplaySnapshots.appVersion,
+            debounceMs: options.captureReplaySnapshots.debounceMs,
+            route: () => craftRouter?.url,
+            primitives: () => primitiveRegistry.capture(),
+            storage: () => storageRegistry.capture(),
+            isQuiescent: () =>
+              activeCraftInvocations.size === 0 &&
+              primitiveRegistry.list().every((entry) => {
+                const status = entry.status?.().toLowerCase();
+                return (
+                  status === undefined ||
+                  !/(loading|pending|running|debouncing|refreshing)/.test(
+                    status,
+                  )
+                );
+              }),
+            subscribe: (onChange) => {
+              const unsubscribePrimitive = primitiveRegistry.onChange(onChange);
+              const eventSubscription = createdSession.events$.subscribe({
+                next: onChange,
+              });
+              return () => {
+                unsubscribePrimitive();
+                eventSubscription.unsubscribe();
+              };
+            },
+          });
+        }
         // Keep replay capture in memory for comparison without archiving a new
         // session when the dashboard reloads the target URL.
         if (options.webSocketUrl && !isCraftDebugReplayLaunch()) {
@@ -662,6 +704,7 @@ export function provideCraftDebugSessionCapture(
             disconnectPrimitiveCapture?.();
             disconnectPerformanceCapture?.();
             disconnectViewportCapture?.();
+            disconnectReplaySnapshots?.();
             disconnectPersistence();
           };
         }
@@ -675,6 +718,7 @@ export function provideCraftDebugSessionCapture(
         disconnectPrimitiveCapture?.();
         disconnectPerformanceCapture?.();
         disconnectViewportCapture?.();
+        disconnectReplaySnapshots?.();
       };
     }),
     provideSendContextEventFilter(() => session?.activeClip !== undefined),
@@ -731,11 +775,11 @@ export function provideCraftDebugSessionCapture(
               : { route: location.pathname }),
           },
         };
-        if (correlationId)
-          captureCraftEvent(activeSession, 'started', details);
+        if (correlationId) captureCraftEvent(activeSession, 'started', details);
         if (correlationId) {
           const stack = invocationStack ?? [];
-          if (!invocationStack) activeCraftInvocations.set(correlationId, stack);
+          if (!invocationStack)
+            activeCraftInvocations.set(correlationId, stack);
           stack.push(operationId);
         }
         try {
@@ -756,7 +800,8 @@ export function provideCraftDebugSessionCapture(
             if (stack) {
               const index = stack.lastIndexOf(operationId);
               if (index >= 0) stack.splice(index, 1);
-              if (stack.length === 0) activeCraftInvocations.delete(correlationId);
+              if (stack.length === 0)
+                activeCraftInvocations.delete(correlationId);
             }
           }
         }
@@ -769,7 +814,9 @@ function isLoopbackWebSocketUrl(value: string | undefined): boolean {
   if (!value) return false;
   try {
     const hostname = new URL(value).hostname.replace(/^\[|\]$/g, '');
-    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    return (
+      hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    );
   } catch {
     return false;
   }
@@ -784,7 +831,9 @@ export function ɵserializeReplayArgument(
     return { $craftReplayBigInt: value.toString() };
   if (typeof value === 'number') {
     if (!Number.isFinite(value) || Object.is(value, -0))
-      return { $craftReplayNumber: Object.is(value, -0) ? '-0' : String(value) };
+      return {
+        $craftReplayNumber: Object.is(value, -0) ? '-0' : String(value),
+      };
     return value;
   }
   if (typeof value === 'function' || typeof value === 'symbol')
@@ -796,41 +845,41 @@ export function ɵserializeReplayArgument(
       ? { $craftReplayUnsupported: 'invalid-date' }
       : { $craftReplayDate: value.toISOString() };
   if (typeof Event !== 'undefined' && value instanceof Event) {
-  const eventInit: Record<string, unknown> = {
-    bubbles: value.bubbles,
-    cancelable: value.cancelable,
-    composed: value.composed,
-  };
-  if (value instanceof MouseEvent)
-    Object.assign(eventInit, {
-      clientX: value.clientX,
-      clientY: value.clientY,
-      screenX: value.screenX,
-      screenY: value.screenY,
-      button: value.button,
-      buttons: value.buttons,
-      altKey: value.altKey,
-      ctrlKey: value.ctrlKey,
-      metaKey: value.metaKey,
-      shiftKey: value.shiftKey,
-    });
-  if (value instanceof KeyboardEvent)
-    Object.assign(eventInit, {
-      key: value.key,
-      code: value.code,
-      location: value.location,
-      repeat: value.repeat,
-      altKey: value.altKey,
-      ctrlKey: value.ctrlKey,
-      metaKey: value.metaKey,
-      shiftKey: value.shiftKey,
-    });
-  if (typeof InputEvent !== 'undefined' && value instanceof InputEvent)
-    Object.assign(eventInit, {
-      data: value.data,
-      inputType: value.inputType,
-      isComposing: value.isComposing,
-    });
+    const eventInit: Record<string, unknown> = {
+      bubbles: value.bubbles,
+      cancelable: value.cancelable,
+      composed: value.composed,
+    };
+    if (value instanceof MouseEvent)
+      Object.assign(eventInit, {
+        clientX: value.clientX,
+        clientY: value.clientY,
+        screenX: value.screenX,
+        screenY: value.screenY,
+        button: value.button,
+        buttons: value.buttons,
+        altKey: value.altKey,
+        ctrlKey: value.ctrlKey,
+        metaKey: value.metaKey,
+        shiftKey: value.shiftKey,
+      });
+    if (value instanceof KeyboardEvent)
+      Object.assign(eventInit, {
+        key: value.key,
+        code: value.code,
+        location: value.location,
+        repeat: value.repeat,
+        altKey: value.altKey,
+        ctrlKey: value.ctrlKey,
+        metaKey: value.metaKey,
+        shiftKey: value.shiftKey,
+      });
+    if (typeof InputEvent !== 'undefined' && value instanceof InputEvent)
+      Object.assign(eventInit, {
+        data: value.data,
+        inputType: value.inputType,
+        isComposing: value.isComposing,
+      });
     const replayTarget =
       value.target instanceof Element
         ? ɵcaptureCraftReplayTarget(
@@ -842,13 +891,13 @@ export function ɵserializeReplayArgument(
         : undefined;
     if (value.target instanceof Element && !replayTarget)
       return { $craftReplayUnsupported: 'event-target-without-craft-identity' };
-  return {
-    $craftReplayEvent: {
-      type: value.type,
-      eventInit,
+    return {
+      $craftReplayEvent: {
+        type: value.type,
+        eventInit,
         ...(replayTarget ? { replayTarget } : {}),
-    },
-  };
+      },
+    };
   }
   if (typeof value !== 'object')
     return { $craftReplayUnsupported: typeof value };

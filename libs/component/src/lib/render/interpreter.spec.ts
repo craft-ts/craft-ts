@@ -6,6 +6,7 @@ import {
   inject,
   Injector,
   createEnvironmentInjector,
+  computed,
   signal,
   ɵEffectScheduler,
   ɵINJECTOR_SCOPE,
@@ -18,6 +19,8 @@ import {
   craftMethod,
   craftService,
   craftUse,
+  asyncProcess,
+  craftSleep,
   HOST_TAG_LIST,
   insertDeepYieldable,
   mutation,
@@ -34,6 +37,7 @@ import {
   injectCorrelationIdService,
   ɵinjectCraftNodeEffectFactoryIn,
   query,
+  rawReactiveValue,
   state,
   type CraftDomEvent,
   craftExpose,
@@ -55,7 +59,7 @@ import {
 } from '../for-scheduling';
 import { ifNode } from '../if-node';
 import { catchNode } from '../catch-node';
-import { a, button, div, h2, li, p, section, span, ul } from '../hyperscript';
+import { a, button, div, h2, input, li, p, section, span, ul } from '../hyperscript';
 import { craftTemplate, renderTemplate } from '../template';
 import type { ContentSlot, RequiredContent } from '../types';
 import type { HostRequiredLogic, HostTemplate, Input, Output } from '../types';
@@ -1374,6 +1378,62 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
+  it('passes each native click correlation id through to its Craft method', async () => {
+    let session!: import('@craft-ts/core').SendContextSession;
+    const methodCorrelationIds: (string | null)[] = [];
+    const { CorrelatedClickView, provideCorrelatedClickView } = craftService(
+      { name: 'correlatedClickView', providedIn: 'toProvide' },
+      function* () {
+        yield* craftMethod('save', function* () {
+          methodCorrelationIds.push(
+            injectCorrelationIdService().lastCorrelationId(),
+          );
+        });
+      },
+    );
+    const component = craftComponent(
+      'correlatedClick',
+      {
+        providers: [
+          provideCorrelatedClickView(),
+          ...provideSendContextSession(),
+        ],
+      },
+      function* () {
+        session = yield* SendContextSessionService();
+        const { save } = yield* CorrelatedClickView();
+        return button({ click: save }, 'Save');
+      },
+    );
+    const {
+      nativeElement: element,
+      flush,
+      destroy,
+    } = await renderCraftComponent(component, {
+      providers: [provideCorrelationIdTracking()] as never,
+    });
+    session.startRecord('correlated DOM clicks');
+
+    const target = element.querySelector('button')!;
+    target.click();
+    await flush();
+    target.click();
+    await flush();
+
+    const clicks = session.events.filter(
+      (event) => event.kind === 'dom' && event.payload?.['action'] === 'click',
+    );
+    expect(clicks).toHaveLength(2);
+    expect(clicks.map((event) => event.correlationId)).toEqual(
+      methodCorrelationIds,
+    );
+    expect(clicks[0]?.correlationId).toEqual(expect.any(String));
+    expect(clicks[1]?.correlationId).toEqual(expect.any(String));
+    expect(clicks[0]?.correlationId).not.toBe(clicks[1]?.correlationId);
+
+    destroy();
+  });
+
   it('drives generator callbacks assigned to primitive DOM properties', async () => {
     const { YieldablePropertyView, provideYieldablePropertyView } =
       craftService(
@@ -1558,6 +1618,83 @@ describe('functional component interpreter', () => {
     await flush();
     expect(element.querySelector('.value')?.textContent).toBe('4');
     expect(element.querySelectorAll('li')).toHaveLength(2);
+    destroy();
+  });
+
+  it('updates raw state computed bindings after a DOM input event', async () => {
+    const {
+      RawStateInputView,
+      provideRawStateInputView,
+    } = craftService(
+      { name: 'rawStateInputView', providedIn: 'toProvide' },
+      function* () {
+        const searchInput = yield* state('searchInput', '', ({ state, set }) => ({
+          setSearchInput: (value: string) => set(value),
+          tooShort: computed(
+            () => rawReactiveValue(state)().trim().length < 2,
+          ),
+        }));
+        const debouncedSearch = yield* asyncProcess('debouncedSearch', {
+          params: function* () {
+            return (yield* searchInput()).trim();
+          },
+          loader: function* ({ params }) {
+            yield* craftSleep(350, { owner: 'raw-state-input-test' });
+            return { term: params };
+          },
+        });
+        yield* query('searchQuery', {
+          params: function* () {
+            return (yield* debouncedSearch.value())?.term;
+          },
+          loader: function* ({ params }) {
+            return params;
+          },
+        });
+      },
+    );
+
+    const component = craftComponent(
+      'rawStateInput',
+      {
+        providers: [
+          provideRawStateInputView(),
+          provideCorrelationIdTracking(),
+        ],
+      },
+      () => {
+        return section([
+          input('search', {
+            'aria-label': 'Search',
+            value: RawStateInputView.searchInput,
+            *input(event) {
+              yield* RawStateInputView.searchInput.setSearchInput(
+                event.target.value,
+              );
+            },
+          }),
+          ifNode(
+            RawStateInputView.searchInput.tooShort,
+            () => p('Enter at least two characters'),
+          ),
+          p(function* () {
+            return (yield* RawStateInputView.searchQuery.value()) ?? '';
+          }),
+        ]);
+      },
+    );
+    const { nativeElement: element, flush, destroy } =
+      await renderCraftComponent(component);
+
+    expect(element.textContent).toContain('Enter at least two characters');
+    const search = element.querySelector('input')!;
+    search.value = 'replay';
+    search.dispatchEvent(new Event('input', { bubbles: true }));
+    await flush();
+
+    expect(element.textContent).not.toContain('Enter at least two characters');
+    expect(search.value).toBe('replay');
+    await vi.waitFor(() => expect(element.textContent).toContain('replay'));
     destroy();
   });
 
