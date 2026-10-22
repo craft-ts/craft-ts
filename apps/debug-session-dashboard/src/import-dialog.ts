@@ -7,7 +7,7 @@ import {
   p,
   textarea,
 } from '@craft-ts/component';
-import { ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { DocDialog } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
@@ -20,8 +20,16 @@ import { importOpen, loadError, sessionText } from './replay-state';
 import { eventValue, lit } from './view-helpers';
 
 /** The sheet where a session is imported from a file or pasted as JSON. */
-export const ImportDialog = craftComponent('ImportDialog', {}, () =>
-  DocDialog({
+export const ImportDialog = craftComponent('ImportDialog', {}, function* () {
+  const loadErrorHidden = yield* craftComputed(
+    'loadErrorHidden',
+    () => loadError() === undefined,
+  );
+  const loadErrorText = yield* craftComputed(
+    'loadErrorText',
+    () => loadError() ?? '',
+  );
+  return DocDialog({
     heading: lit('Importer une session'),
     dialogId: lit('import-session'),
     open: function* () {
@@ -52,9 +60,9 @@ export const ImportDialog = craftComponent('ImportDialog', {}, () =>
           {
             class: ui.importError,
             role: 'alert',
-            hidden: computed(() => loadError() === undefined),
+            hidden: loadErrorHidden,
           },
-          computed(() => loadError() ?? ''),
+          loadErrorText,
         ),
         div({ class: ui.importActions }, [
           button(
@@ -70,5 +78,5 @@ export const ImportDialog = craftComponent('ImportDialog', {}, () =>
         ]),
       ]),
     ]),
-  }),
-);
+  });
+});

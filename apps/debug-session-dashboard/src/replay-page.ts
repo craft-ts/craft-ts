@@ -1,5 +1,5 @@
 import { craftComponent, div, headingRoot } from '@craft-ts/component';
-import { ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { ui } from './dashboard.style';
 import { ReplayHead } from './replay-head';
 import { ReplayNotices } from './replay-notices';
@@ -8,12 +8,16 @@ import { ReplayPlaybar, ReplayStage } from './replay-stage';
 import { page } from './replay-state';
 
 /** Page 2: the replay of one session, with its journal at the side. */
-export const ReplayPage = craftComponent('ReplayPage', {}, () =>
-  div(
+export const ReplayPage = craftComponent('ReplayPage', {}, function* () {
+  const pageIsHidden = yield* craftComputed(
+    'pageIsHidden',
+    () => page() !== 'detail',
+  );
+  return div(
     {
       class: ui.page,
       'data-lab': 'detail-page',
-      hidden: computed(() => page() !== 'detail'),
+      hidden: pageIsHidden,
     },
     [
       // The title is the page's own: it starts the outline at `h1` again.
@@ -27,5 +31,5 @@ export const ReplayPage = craftComponent('ReplayPage', {}, () =>
         ReplaySidePanel({}),
       ]),
     ],
-  ),
-);
+  );
+});

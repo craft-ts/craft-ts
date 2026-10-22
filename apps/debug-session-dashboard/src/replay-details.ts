@@ -8,7 +8,7 @@ import {
   select,
   type CraftNodeChild,
 } from '@craft-ts/component';
-import { ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { recordingCaption, viewportCaption } from './replay-labels';
@@ -24,6 +24,20 @@ import { eventValue } from './view-helpers';
 
 /** The details of the open session, and where its replay starts from. */
 export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
+  const environmentWarningHidden = yield* craftComputed(
+    'environmentWarningHidden',
+    () => !environmentWarning(),
+  );
+  const sessionStartUrl = yield* craftComputed(
+    'sessionStartUrl',
+    () => session()?.startUrl ?? 'Aucune session chargée.',
+  );
+  const recordingLabel = yield* craftComputed(
+    'recordingLabel',
+    recordingCaption,
+  );
+  const viewportLabel = yield* craftComputed('viewportLabel', viewportCaption);
+
   const fact = (name: string, value: CraftNodeChild, hook?: string) =>
     div({ class: ui.fact }, [
       p({ class: ui.factLabel }, name),
@@ -81,20 +95,17 @@ export const ReplayDetails = craftComponent('ReplayDetails', {}, function* () {
     {
       class: ui.lede,
       'data-lab': 'environment-warning',
-      hidden: computed(() => !environmentWarning()),
+      hidden: environmentWarningHidden,
       role: 'status',
     },
     environmentWarning,
   );
 
   return div({ class: ui.sidePane, 'data-lab': 'left' }, [
-    fact(
-      'Page de départ',
-      computed(() => session()?.startUrl ?? 'Aucune session chargée.'),
-    ),
-    fact('Enregistrement', computed(recordingCaption)),
+    fact('Page de départ', sessionStartUrl),
+    fact('Enregistrement', recordingLabel),
     fact('État du replay', status, 'status'),
-    fact('Fenêtre', computed(viewportCaption), 'viewport-caption'),
+    fact('Fenêtre', viewportLabel, 'viewport-caption'),
     environment,
     target,
     start,

@@ -8,7 +8,7 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { DocSwitch } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
@@ -36,8 +36,29 @@ function showAllEventsSwitch(next: boolean | Event): void {
 
 /** The journal: the errors of the recording, or every event, a page at a time. */
 export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
+  const journalSummaryText = yield* craftComputed(
+    'journalSummaryText',
+    journalSummary,
+  );
+  const pagerHidden = yield* craftComputed(
+    'pagerHidden',
+    () => eventTimelinePageCount() <= 1,
+  );
+  const previousDisabled = yield* craftComputed(
+    'previousDisabled',
+    () => eventTimelinePage() === 0,
+  );
+  const pageLabel = yield* craftComputed(
+    'pageLabel',
+    () => `${eventTimelinePage() + 1} / ${eventTimelinePageCount()}`,
+  );
+  const nextDisabled = yield* craftComputed(
+    'nextDisabled',
+    () => eventTimelinePage() + 1 >= eventTimelinePageCount(),
+  );
+
   const filter = div({ class: ui.pager }, [
-    p(computed(journalSummary)),
+    p(journalSummaryText),
     DocSwitch({
       label: lit('Tout afficher'),
       controlId: lit('journal-all'),
@@ -104,7 +125,7 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
   const pager = div(
     {
       class: ui.pager,
-      hidden: computed(() => eventTimelinePageCount() <= 1),
+      hidden: pagerHidden,
     },
     [
       button(
@@ -113,26 +134,20 @@ export const ReplayJournal = craftComponent('ReplayJournal', {}, function* () {
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'link',
-          disabled: computed(() => eventTimelinePage() === 0),
+          disabled: previousDisabled,
           click: () =>
             eventTimelinePage.set(Math.max(0, eventTimelinePage() - 1)),
         },
         'Événements précédents',
       ),
-      span(
-        computed(
-          () => `${eventTimelinePage() + 1} / ${eventTimelinePageCount()}`,
-        ),
-      ),
+      span(pageLabel),
       button(
         'nextTimelinePage',
         {
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'link',
-          disabled: computed(
-            () => eventTimelinePage() + 1 >= eventTimelinePageCount(),
-          ),
+          disabled: nextDisabled,
           click: () =>
             eventTimelinePage.set(
               Math.min(eventTimelinePageCount() - 1, eventTimelinePage() + 1),

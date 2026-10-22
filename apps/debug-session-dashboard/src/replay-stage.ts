@@ -1,10 +1,10 @@
 import { button, craftComponent, div, p, span } from '@craft-ts/component';
-import { ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { DocIcon } from '@craft-ts/ui';
 import { assign, unit } from '@craft-ts/style';
 import { buttonUi } from '@craft-ts/ui/style';
 import { progressVars, ui } from './dashboard.style';
-import { aiChatAvailable, openAiChat } from './replay-ai-launcher';
+import { AiChatBridge } from './replay-ai-bridge.service';
 import { seekProgressLabel, seekShare } from './replay-labels';
 import { pauseReplay, playReplay } from './replay-playback';
 import {
@@ -27,10 +27,20 @@ import { lit } from './view-helpers';
 
 /** Where the replayed pages are drawn, under a veil while they load, with their timeline over them. */
 export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
+  const skeletonHidden = yield* craftComputed(
+    'skeletonHidden',
+    () => !replaySkeletonVisible(),
+  );
+  const seekOverlayHidden = yield* craftComputed(
+    'seekOverlayHidden',
+    () => seekTarget() === undefined,
+  );
+  const seekProgress = yield* craftComputed('seekProgress', seekProgressLabel);
+
   const veil = div(
     {
       class: ui.skeleton,
-      hidden: computed(() => !replaySkeletonVisible()),
+      hidden: skeletonHidden,
       'aria-hidden': 'true',
     },
     [div({ class: ui.skeletonBlock })],
@@ -39,47 +49,44 @@ export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
   // Going to a thumbnail's moment: the replay runs fast, without the recorded
   // delays, and the stage says so until it gets there.
   // The wrapper carries `hidden`: the overlay's own `display` would win over it.
-  const seekOverlay = div(
-    { hidden: computed(() => seekTarget() === undefined) },
-    [
-      div({ class: ui.seekOverlay, 'data-lab': 'seek-overlay' }, [
-        div({ class: ui.seekCard }, [
-          div({ class: ui.seekIcons, 'aria-hidden': 'true' }, [
-            DocIcon({ name: lit('fastForward'), size: lit('lg') }),
-          ]),
-          p(
-            { class: ui.seekTitle, role: 'status' },
-            'Retour accéléré à l’étape choisie',
-          ),
-          div({ class: ui.seekBar }, [
-            div({ class: ui.progressTrack }, [
-              div({
-                class: ui.progressFill,
-                style: function* () {
-                  return assign(progressVars.done, unit.pct(seekShare()));
-                },
-              }),
-            ]),
-          ]),
-          p(
-            { class: ui.progressLabel, 'data-lab': 'seek-progress' },
-            computed(seekProgressLabel),
-          ),
-          button(
-            'cancelSeek',
-            {
-              type: 'button',
-              class: buttonUi.root,
-              'data-variant': 'secondary',
-              'data-lab': 'seek-cancel',
-              click: cancelReplaySeek,
-            },
-            [DocIcon({ name: lit('close'), size: lit('sm') }), span('Annuler')],
-          ),
+  const seekOverlay = div({ hidden: seekOverlayHidden }, [
+    div({ class: ui.seekOverlay, 'data-lab': 'seek-overlay' }, [
+      div({ class: ui.seekCard }, [
+        div({ class: ui.seekIcons, 'aria-hidden': 'true' }, [
+          DocIcon({ name: lit('fastForward'), size: lit('lg') }),
         ]),
+        p(
+          { class: ui.seekTitle, role: 'status' },
+          'Retour accéléré à l’étape choisie',
+        ),
+        div({ class: ui.seekBar }, [
+          div({ class: ui.progressTrack }, [
+            div({
+              class: ui.progressFill,
+              style: function* () {
+                return assign(progressVars.done, unit.pct(seekShare()));
+              },
+            }),
+          ]),
+        ]),
+        p(
+          { class: ui.progressLabel, 'data-lab': 'seek-progress' },
+          seekProgress,
+        ),
+        button(
+          'cancelSeek',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            'data-lab': 'seek-cancel',
+            click: cancelReplaySeek,
+          },
+          [DocIcon({ name: lit('close'), size: lit('sm') }), span('Annuler')],
+        ),
       ]),
-    ],
-  );
+    ]),
+  ]);
 
   const stage = div({ class: ui.stage, id: 'replay-stage' }, [
     veil,
@@ -93,11 +100,38 @@ export const ReplayStage = craftComponent('ReplayStage', {}, function* () {
 
 /** The transport: play, pause, restart, step, stop, and how far along it is. */
 export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
-  const canStep = computed(
+  const aiChat = yield* AiChatBridge();
+  const canStep = yield* craftComputed(
+    'canStep',
     () =>
       !connected() ||
       !replayableEvents()[replayIndex()] ||
       !['ready', 'paused'].includes(replayState()),
+  );
+  const diagnosticLabel = yield* craftComputed('diagnosticLabel', () =>
+    diagnosticReplay() ? 'Diagnostic activé' : 'Diagnostic désactivé',
+  );
+  const pauseDisabled = yield* craftComputed(
+    'pauseDisabled',
+    () => !connected() || replayState() !== 'playing',
+  );
+  const restartDisabled = yield* craftComputed(
+    'restartDisabled',
+    () =>
+      !['ready', 'playing', 'paused', 'completed', 'error'].includes(
+        replayState(),
+      ),
+  );
+  const stopDisabled = yield* craftComputed(
+    'stopDisabled',
+    () =>
+      !connected() || !['ready', 'playing', 'paused'].includes(replayState()),
+  );
+  const assistantDisabled = yield* craftComputed(
+    'assistantDisabled',
+    function* () {
+      return !(yield* aiChat.chat.available());
+    },
   );
 
   const transport = div({ class: ui.transport }, [
@@ -129,9 +163,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
           'Compare les observations exécutées au plan compilé et signale les écarts sans arrêter le replay.',
         click: () => diagnosticReplay.update((enabled) => !enabled),
       },
-      computed(() =>
-        diagnosticReplay() ? 'Diagnostic activé' : 'Diagnostic désactivé',
-      ),
+      diagnosticLabel,
     ),
     button(
       'pause',
@@ -143,7 +175,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         'data-tooltip':
           'Met en pause le replay. Tu peux le reprendre avec Lecture à vitesse réelle ou avancer avec Action suivante.',
         click: pauseReplay,
-        disabled: computed(() => !connected() || replayState() !== 'playing'),
+        disabled: pauseDisabled,
       },
       'Pause',
     ),
@@ -160,12 +192,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         'data-tooltip':
           'Recommence le replay depuis le début en rechargeant les pages enregistrées.',
         click: startReplay,
-        disabled: computed(
-          () =>
-            !['ready', 'playing', 'paused', 'completed', 'error'].includes(
-              replayState(),
-            ),
-        ),
+        disabled: restartDisabled,
       },
       'Recommencer',
     ),
@@ -196,11 +223,7 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         'data-tooltip':
           'Arrête la reproduction en cours et remet le curseur à la première interaction.',
         click: stopReplay,
-        disabled: computed(
-          () =>
-            !connected() ||
-            !['ready', 'playing', 'paused'].includes(replayState()),
-        ),
+        disabled: stopDisabled,
       },
       'Arrêter',
     ),
@@ -217,8 +240,8 @@ export const ReplayPlaybar = craftComponent('ReplayPlaybar', {}, function* () {
         'Ouvre le chat qui envoie le contexte de la session à une IA.',
       'data-tooltip':
         'Ouvre le chat pour envoyer à une IA le contexte de cette session.',
-      click: openAiChat,
-      disabled: computed(() => !aiChatAvailable()),
+      click: aiChat.open,
+      disabled: assistantDisabled,
     },
     [DocIcon({ name: lit('sparkle'), size: lit('sm') }), span('Contexte IA')],
   );

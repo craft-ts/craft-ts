@@ -104,6 +104,24 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value);
+}
+
+type ReplayToleranceKind = NonNullable<
+  ReplayDifference['tolerances']
+>[number]['kind'];
+
+function isReplayToleranceKind(value: unknown): value is ReplayToleranceKind {
+  return (
+    value === 'ignore' ||
+    value === 'redacted' ||
+    value === 'number' ||
+    value === 'unordered' ||
+    value === 'url'
+  );
+}
+
 function isReplaySnapshot(value: unknown): value is SendContextReplaySnapshot {
   return (
     isRecord(value) &&
@@ -611,17 +629,17 @@ export function parseReplayDifference(
     ? skip['checkpointEventId']
     : undefined;
   const index = isRecord(skip) ? skip['index'] : undefined;
-  const transportDetail =
+  const transportDetail: ReplayDifference['transport'] =
     isRecord(transport) &&
     typeof transport['transportId'] === 'string' &&
     typeof transport['instanceId'] === 'string' &&
     transport['direction'] === 'outgoing' &&
-    Number.isSafeInteger(transport['sequence'])
+    isSafeInteger(transport['sequence'])
       ? {
           transportId: transport['transportId'],
           instanceId: transport['instanceId'],
-          direction: 'outgoing' as const,
-          sequence: transport['sequence'] as number,
+          direction: 'outgoing',
+          sequence: transport['sequence'],
           ...(typeof transport['message'] === 'string'
             ? { message: transport['message'] }
             : {}),
@@ -638,18 +656,14 @@ export function parseReplayDifference(
               !isRecord(item) ||
               typeof item['assertionId'] !== 'string' ||
               typeof item['path'] !== 'string' ||
-              !['ignore', 'redacted', 'number', 'unordered', 'url'].includes(
-                String(item['kind']),
-              )
+              !isReplayToleranceKind(item['kind'])
             )
               return [];
             return [
               {
                 assertionId: item['assertionId'],
                 path: item['path'],
-                kind: item['kind'] as NonNullable<
-                  ReplayDifference['tolerances']
-                >[number]['kind'],
+                kind: item['kind'],
               },
             ];
           }),

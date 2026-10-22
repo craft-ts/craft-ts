@@ -10,7 +10,7 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { rawReactiveValue, ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { DocCallout } from '@craft-ts/ui';
 import { badgeUi, buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
@@ -35,17 +35,24 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
   const route = yield* ReplayRoute();
   const savedSessions = rawReactiveValue(archive.savedSessions);
   const reachable = rawReactiveValue(archive.reachable);
+  const sessionsSummary = yield* craftComputed(
+    'sessionsSummary',
+    () =>
+      `${plural(savedSessions().length, 'session')} · enregistrées sur cette machine, rien n’est envoyé.`,
+  );
+  const emptyHidden = yield* craftComputed(
+    'emptyHidden',
+    () => savedSessions().length > 0 || !reachable(),
+  );
+  const pageHidden = yield* craftComputed(
+    'pageHidden',
+    () => page() !== 'sessions',
+  );
 
   const head = div({ class: ui.listHead }, [
     div([
       heading({ class: ui.title }, 'Sessions'),
-      p(
-        { class: ui.lede },
-        computed(
-          () =>
-            `${plural(savedSessions().length, 'session')} · enregistrées sur cette machine, rien n’est envoyé.`,
-        ),
-      ),
+      p({ class: ui.lede }, sessionsSummary),
     ]),
     button(
       'openImport',
@@ -206,7 +213,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     {
       class: ui.empty,
       'data-lab': 'empty',
-      hidden: computed(() => savedSessions().length > 0 || !reachable()),
+      hidden: emptyHidden,
     },
     'Aucune session pour le moment. Lance ton application avec l’enregistrement activé : ses sessions apparaissent ici.',
   );
@@ -215,7 +222,7 @@ export const SessionsPage = craftComponent('SessionsPage', {}, function* () {
     {
       class: ui.scroll,
       'data-lab': 'list-page',
-      hidden: computed(() => page() !== 'sessions'),
+      hidden: pageHidden,
     },
     [
       div({ class: ui.listPage }, [

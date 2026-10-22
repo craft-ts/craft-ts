@@ -11,8 +11,9 @@ import {
   span,
   summary,
   ul,
+  type ReplayCommand,
 } from '@craft-ts/component';
-import { ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { DocCallout } from '@craft-ts/ui';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
@@ -47,31 +48,77 @@ import {
 } from './replay-state';
 import { lit } from './view-helpers';
 
+function replayPlanSummary(): string {
+  const plan = replayPlan();
+  if (!plan) return 'Plan de replay';
+  const planState =
+    plan.status === 'replayable'
+      ? 'rejouable'
+      : plan.status === 'partial'
+        ? 'partiellement exploitable'
+        : 'non rejouable';
+  return `Plan de replay · ${planState} · ${plan.commands.length} commande(s)`;
+}
+
+function replayCommandStatus(item: ReplayCommand): string {
+  const actionCommands = (replayPlan()?.commands ?? []).filter(
+    (entry) => entry.kind !== 'restore-snapshot',
+  );
+  if (item.kind === 'restore-snapshot')
+    return startMode() === 'snapshot'
+      ? 'point de reprise sélectionné'
+      : 'point de reprise disponible';
+  const commandIndex = actionCommands.indexOf(item);
+  const commandState =
+    commandIndex < replayIndex()
+      ? 'réussi'
+      : commandIndex === replayIndex()
+        ? 'en attente'
+        : 'à venir';
+  return `${commandState} · ${item.expected.length} observation(s) attendue(s)${item.dependsOn.length ? ` · après ${item.dependsOn.join(', ')}` : ''}`;
+}
+
 /** What the replay has to say when it leaves the recording or cannot go on. */
 export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
+  const partialMessage = yield* craftComputed('partialMessage', () => {
+    const skipped = partialReplay();
+    return skipped
+      ? `Replay partiel · portion ${skipped.from}–${skipped.to} ignorée · checkpoint ${skipped.checkpointEventId}`
+      : '';
+  });
+  const problemMessage = yield* craftComputed(
+    'problemMessage',
+    () => loadError() ?? status(),
+  );
+
   const diff = div(
     {
       class: ui.snackbar,
       'data-lab': 'diff',
       role: 'region',
       'aria-label': 'Décalage du replay',
-      hidden: computed(() => !hasDifference()),
+      hidden: yield* craftComputed('hidden', () => !hasDifference()),
     },
     [
       p(
         { 'aria-live': 'polite' },
-        computed(() =>
-          difference()?.transport
-            ? `Décalage transport ${difference()!.transport!.transportId}, instance ${difference()!.transport!.instanceId}, ${difference()!.transport!.direction} ${difference()!.transport!.sequence}.`
-            : `Décalage détecté à l’événement ${difference()?.eventId ?? '?'}.`,
-        ),
+        yield* craftComputed('differenceMessage', () => {
+          const currentDifference = difference();
+          const transport = currentDifference?.transport;
+          return transport
+            ? `Décalage transport ${transport.transportId}, instance ${transport.instanceId}, ${transport.direction} ${transport.sequence}.`
+            : `Décalage détecté à l’événement ${currentDifference?.eventId ?? '?'}.`;
+        }),
       ),
       p(
         {
-          hidden: computed(() => !difference()?.tolerances?.length),
+          hidden: yield* craftComputed(
+            'hidden',
+            () => !difference()?.tolerances?.length,
+          ),
           'data-lab': 'applied-tolerances',
         },
-        computed(() => {
+        yield* craftComputed('toleranceMessage', () => {
           const rules = difference()?.tolerances ?? [];
           return `Règles évaluées avant cet écart : ${rules
             .map((rule) => `${rule.kind} ${rule.path} (${rule.assertionId})`)
@@ -86,7 +133,8 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             class: buttonUi.root,
             'data-variant': 'primary',
             'data-lab': 'skip-to-checkpoint',
-            hidden: computed(
+            hidden: yield* craftComputed(
+              'hidden',
               () => !canSkipDifference() || autoSkipDifferences(),
             ),
             click: skipToCheckpoint,
@@ -100,19 +148,27 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
             class: buttonUi.root,
             'data-variant': 'secondary',
             'data-lab': 'force-recovery',
-            hidden: computed(() => !canForceRecovery()),
+            hidden: yield* craftComputed('hidden', () => !canForceRecovery()),
             click: forceReplayRecovery,
           },
           'Forcer l’état attendu',
         ),
         span(
-          { hidden: computed(() => !autoSkipDifferences()) },
+          {
+            hidden: yield* craftComputed(
+              'hidden',
+              () => !autoSkipDifferences(),
+            ),
+          },
           'Passage au checkpoint automatique activé.',
         ),
       ]),
       p(
         {
-          hidden: computed(() => autoSkipDifferences() || !canSkipDifference()),
+          hidden: yield* craftComputed(
+            'hidden',
+            () => autoSkipDifferences() || !canSkipDifference(),
+          ),
         },
         'Ce choix sera mémorisé pour les prochains replays.',
       ),
@@ -123,11 +179,12 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     {
       class: ui.gap,
       'data-lab': 'difference-history',
-      hidden: computed(() => !differenceHistoryOpen()),
+      hidden: yield* craftComputed('hidden', () => !differenceHistoryOpen()),
     },
     [
       p(
-        computed(
+        yield* craftComputed(
+          'differenceHistoryCount',
           () =>
             `${replayDifferences().length} décalage(s) détecté(s) dans ce replay.`,
         ),
@@ -138,7 +195,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
           type: 'button',
           class: buttonUi.root,
           'data-variant': 'secondary',
-          hidden: computed(() => !autoSkipDifferences()),
+          hidden: yield* craftComputed('hidden', () => !autoSkipDifferences()),
           click: () => rememberAutoSkipDifferences(false),
         },
         'Désactiver le passage automatique',
@@ -163,13 +220,15 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
                 div([
                   span({ class: ui.compareLabel }, 'Attendu'),
                   pre({ class: ui.code }, function* () {
-                    return JSON.stringify((yield* entry()).expected, null, 2);
+                    const item = yield* entry();
+                    return JSON.stringify(item.expected, null, 2);
                   }),
                 ]),
                 div([
                   span({ class: ui.compareLabel }, 'Observé'),
                   pre({ class: ui.code }, function* () {
-                    return JSON.stringify((yield* entry()).actual, null, 2);
+                    const item = yield* entry();
+                    return JSON.stringify(item.actual, null, 2);
                   }),
                 ]),
               ]),
@@ -184,22 +243,16 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     {
       class: ui.gap,
       'data-lab': 'partial',
-      hidden: computed(() => partialReplay() === undefined),
+      hidden: yield* craftComputed(
+        'hidden',
+        () => partialReplay() === undefined,
+      ),
     },
     [
       DocCallout({
         tone: lit('info'),
         caption: lit('Replay partiel'),
-        body: content(() => [
-          p(
-            computed(() => {
-              const skipped = partialReplay();
-              return skipped
-                ? `Replay partiel · portion ${skipped.from}–${skipped.to} ignorée · checkpoint ${skipped.checkpointEventId}`
-                : '';
-            }),
-          ),
-        ]),
+        body: content(() => [p(partialMessage)]),
       }),
     ],
   );
@@ -208,7 +261,8 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     {
       class: ui.gap,
       'data-lab': 'problem',
-      hidden: computed(
+      hidden: yield* craftComputed(
+        'hidden',
         () => loadError() === undefined && replayState() !== 'error',
       ),
     },
@@ -216,21 +270,26 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       DocCallout({
         tone: lit('danger'),
         caption: lit('Impossible de poursuivre'),
-        body: content(() => [p(computed(() => loadError() ?? status()))]),
+        body: content(() => [p(problemMessage)]),
       }),
     ],
   );
 
   // Notes float over the page: one line each, put away one by one or all at
   // once. Nothing here takes room from the replay; the history keeps them all.
-  const visibleWarnings = computed(() => pendingWarnings().slice(-2));
+  const visibleWarnings = yield* craftComputed('visibleWarnings', () =>
+    pendingWarnings().slice(-2),
+  );
   const toasts = div(
     {
       class: ui.toasts,
       'data-lab': 'replay-warning',
       role: 'region',
       'aria-label': 'Notes du replay',
-      hidden: computed(() => pendingWarnings().length === 0),
+      hidden: yield* craftComputed(
+        'hidden',
+        () => pendingWarnings().length === 0,
+      ),
     },
     [
       forNode(visibleWarnings, { track: (warning) => warning }, (warning) =>
@@ -264,11 +323,14 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       div(
         {
           class: ui.toastBar,
-          hidden: computed(() => pendingWarnings().length <= 1),
+          hidden: yield* craftComputed(
+            'hidden',
+            () => pendingWarnings().length <= 1,
+          ),
         },
         [
           span(
-            computed(() => {
+            yield* craftComputed('toastMessage', () => {
               const hidden = pendingWarnings().length - 2;
               return hidden > 0
                 ? `+${hidden} plus ancienne(s) · ${pendingWarnings().length} notes`
@@ -302,17 +364,22 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
       'data-lab': 'warning-history',
       role: 'region',
       'aria-label': 'Toutes les notes du replay',
-      hidden: computed(() => !warningHistoryOpen()),
+      hidden: yield* craftComputed('hidden', () => !warningHistoryOpen()),
     },
     [
       p(
         { class: ui.eventMeta },
-        computed(() => `${replayWarnings().length} note(s) pour ce replay`),
+        yield* craftComputed(
+          'warningHistoryCount',
+          () => `${replayWarnings().length} note(s) pour ce replay`,
+        ),
       ),
       ul(
         { class: ui.events },
         forNode(
-          computed(() => [...replayWarnings()].reverse()),
+          yield* craftComputed('warningHistory', () =>
+            [...replayWarnings()].reverse(),
+          ),
           { track: (warning) => warning },
           (warning) =>
             li(
@@ -352,22 +419,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
   );
 
   const orchestration = details({ 'data-lab': 'orchestration-plan' }, [
-    summary(
-      computed(() => {
-        const plan = replayPlan();
-        if (!plan) return 'Plan de replay';
-        const state =
-          plan.status === 'replayable'
-            ? 'rejouable'
-            : plan.status === 'partial'
-              ? 'partiellement exploitable'
-              : 'non rejouable';
-        return `Plan de replay · ${state} · ${plan.commands.length} commande(s)`;
-      }),
-    ),
+    summary(yield* craftComputed('orchestrationSummary', replayPlanSummary)),
     p(
       { class: ui.eventMeta },
-      computed(() => {
+      yield* craftComputed('orchestrationState', () => {
         const plan = replayPlan();
         return plan
           ? `${plan.observations.length} observation(s) à comparer · ${plan.issues.length} problème(s) de prévalidation`
@@ -377,7 +432,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     ul(
       { class: ui.events },
       forNode(
-        computed(() => replayPlan()?.commands ?? []),
+        yield* craftComputed(
+          'orchestrationCommands',
+          () => replayPlan()?.commands ?? [],
+        ),
         { track: (command) => command.id },
         (command) =>
           li({ class: ui.event, 'data-entry': 'replay-command' }, [
@@ -386,22 +444,7 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
               return `${item.kind} · ${item.operationId}`;
             }),
             span({ class: ui.eventMeta }, function* () {
-              const item = yield* command();
-              const actionCommands = (replayPlan()?.commands ?? []).filter(
-                (entry) => entry.kind !== 'restore-snapshot',
-              );
-              if (item.kind === 'restore-snapshot')
-                return startMode() === 'snapshot'
-                  ? 'point de reprise sélectionné'
-                  : 'point de reprise disponible';
-              const commandIndex = actionCommands.indexOf(item);
-              const state =
-                commandIndex < replayIndex()
-                  ? 'réussi'
-                  : commandIndex === replayIndex()
-                    ? 'en attente'
-                    : 'à venir';
-              return `${state} · ${item.expected.length} observation(s) attendue(s)${item.dependsOn.length ? ` · après ${item.dependsOn.join(', ')}` : ''}`;
+              return replayCommandStatus(yield* command());
             }),
           ]),
       ),
@@ -409,7 +452,10 @@ export const ReplayNotices = craftComponent('ReplayNotices', {}, function* () {
     ul(
       { class: ui.events },
       forNode(
-        computed(() => replayPlan()?.issues ?? []),
+        yield* craftComputed(
+          'orchestrationIssues',
+          () => replayPlan()?.issues ?? [],
+        ),
         { track: (issue) => `${issue.code}:${issue.eventId ?? ''}` },
         (issue) =>
           li({ class: ui.event, 'data-entry': 'replay-plan-issue' }, [

@@ -10,7 +10,7 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { craftSignal as signal, ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed, state } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { buttonUi } from '@craft-ts/ui/style';
 import { markVars, ui } from './dashboard.style';
@@ -42,57 +42,15 @@ type Mark = Readonly<{
   position: number;
   /** How far along the recording that moment is, as a percentage. */
   share: number;
+  phase: 'current' | 'passed' | undefined;
+  cardPhase: 'open' | undefined;
 }>;
 
 /**
  * The pictures the archive prepared, as far as they are ready, each at its
  * moment: where the replay is once the action it names has run.
  */
-const marks = computed((): readonly Mark[] => {
-  const steps = replayableEvents();
-  const offsets = replayActionOffsetsMs();
-  const duration = replayDurationMs();
-  return (thumbnailManifest()?.entries ?? []).map((entry) => {
-    // The thumbnail names its moment by an action; where this replay has no
-    // such action, it counts by the number of actions that had run.
-    const position =
-      entry.eventId === undefined
-        ? 0
-        : steps.findIndex((step) => step.id === entry.eventId) + 1 ||
-          entry.replayIndex;
-    const time = position === 0 ? 0 : (offsets[position - 1] ?? entry.offsetMs);
-    const share = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
-    return { entry, position, share };
-  });
-});
-
-/** The thumbnail of the moment the replay is at: the last one not yet passed. */
-const currentEntryIndex = computed(() => {
-  const done = replayIndex();
-  let current: number | undefined;
-  for (const mark of marks()) {
-    if (mark.position <= done) current = mark.entry.index;
-  }
-  return current;
-});
-
-/** The point whose picture is open: hovered, or focused from the keyboard. */
-const openEntryIndex = signal<number | undefined>(undefined);
-
 /** The point's look: the one the replay is at, or one it has already passed. */
-function markPhase(item: Mark): 'current' | 'passed' | undefined {
-  if (item.entry.index === currentEntryIndex()) return 'current';
-  return item.position <= replayIndex() ? 'passed' : undefined;
-}
-
-function markCardPhase(item: Mark): 'open' | undefined {
-  return item.entry.index === openEntryIndex() ? 'open' : undefined;
-}
-
-function openMarkCard(index: number | undefined): void {
-  openEntryIndex.set(index);
-}
-
 function goToMark(item: Mark): void {
   seekReplayToEvent(item.entry.eventId, item.entry.participantId);
 }
@@ -103,98 +61,157 @@ function markImageUrl(item: Mark): string {
   return manifest ? thumbnailImageUrl(manifest, item.entry) : '';
 }
 
-/** Only a failed preparation can be tried again. */
-const retryHidden = computed(() => thumbnailManifest()?.status !== 'failed');
-
-/**
- * What the preparation of the pictures has to say, when it is not simply done:
- * it is under way, or it ended badly and can be tried again.
- */
-const summaryHidden = computed(() => {
-  const status = thumbnailManifest()?.status;
-  return status === undefined || status === 'none' || status === 'ready';
-});
-
 /** The points on the timeline: where the replay can be taken with one click. */
 export const ReplayThumbnailMarks = craftComponent(
   'ReplayThumbnailMarks',
   {},
   function* () {
+    const marks = yield* craftComputed('marks', function* () {
+      const steps = replayableEvents();
+      const offsets = replayActionOffsetsMs();
+      const duration = replayDurationMs();
+      return (thumbnailManifest()?.entries ?? []).map((entry) => {
+        const position =
+          entry.eventId === undefined
+            ? 0
+            : steps.findIndex((step) => step.id === entry.eventId) + 1 ||
+              entry.replayIndex;
+        const time =
+          position === 0 ? 0 : (offsets[position - 1] ?? entry.offsetMs);
+        const share = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
+        return { entry, position, share };
+      });
+    });
+    const currentEntryIndex = yield* craftComputed(
+      'currentEntryIndex',
+      function* () {
+        const done = replayIndex();
+        return (yield* marks()).reduce<number | undefined>(
+          (current, mark) =>
+            mark.position <= done ? mark.entry.index : current,
+          undefined,
+        );
+      },
+    );
+    const openEntryIndex = yield* state(
+      'openEntryIndex',
+      undefined as number | undefined,
+      function* ({ state, set }) {
+        const renderedMarks = yield* craftComputed(
+          'renderedMarks',
+          function* () {
+            const current = yield* currentEntryIndex();
+            const open = yield* state();
+            const done = replayIndex();
+            return (yield* marks()).map<Mark>((mark) => ({
+              ...mark,
+              phase:
+                mark.entry.index === current
+                  ? 'current'
+                  : mark.position <= done
+                    ? 'passed'
+                    : undefined,
+              cardPhase: mark.entry.index === open ? 'open' : undefined,
+            }));
+          },
+        );
+        return {
+          setOnPointerEnter: (value: number | undefined) => set(value),
+          setOnPointerLeave: (value: number | undefined) => set(value),
+          setOnFocus: (value: number | undefined) => set(value),
+          setOnBlur: (value: number | undefined) => set(value),
+          renderedMarks,
+        };
+      },
+    );
+
     return ul(
       {
         class: ui.marks,
         'data-lab': 'thumbnails',
         'aria-label': 'Aperçus de la session',
       },
-      forNode(marks, { track: (mark: Mark) => mark.entry.index }, (mark) =>
-        li(
-          {
-            class: ui.mark,
-            'data-lab': 'thumbnail',
-            style: function* () {
-              const item = yield* mark();
-              return {
-                ...assign(markVars.at, unit.pct(item.share)),
-                ...assign(markVars.shift, unit.pct(-item.share)),
-              };
+      forNode(
+        openEntryIndex.renderedMarks,
+        { track: (mark: Mark) => mark.entry.index },
+        (mark) =>
+          li(
+            {
+              class: ui.mark,
+              'data-lab': 'thumbnail',
+              style: function* () {
+                const item = yield* mark();
+                return {
+                  ...assign(markVars.at, unit.pct(item.share)),
+                  ...assign(markVars.shift, unit.pct(-item.share)),
+                };
+              },
             },
-          },
-          [
-            button(
-              'seekToThumbnail',
-              {
+            [
+              button('seekToThumbnail', {
                 type: 'button',
                 class: ui.markPoint,
                 'data-mark': function* () {
-                  return markPhase(yield* mark());
+                  const item = yield* mark();
+                  return item.phase;
                 },
                 'aria-label': function* () {
                   const { entry } = yield* mark();
                   return `${thumbnailActionLabel(entry)} · ${thumbnailCaption(entry)}`;
                 },
                 pointerenter: function* () {
-                  openMarkCard((yield* mark()).entry.index);
+                  const item = yield* mark();
+                  yield* openEntryIndex.setOnPointerEnter(item.entry.index);
                 },
-                pointerleave: () => openMarkCard(undefined),
+                pointerleave: function* () {
+                  yield* openEntryIndex.setOnPointerLeave(undefined);
+                },
                 focus: function* () {
-                  openMarkCard((yield* mark()).entry.index);
+                  const item = yield* mark();
+                  yield* openEntryIndex.setOnFocus(item.entry.index);
                 },
-                blur: () => openMarkCard(undefined),
+                blur: function* () {
+                  yield* openEntryIndex.setOnBlur(undefined);
+                },
                 click: function* () {
                   goToMark(yield* mark());
                 },
-              },
-            ),
-            div(
-              {
-                class: ui.markCard,
-                'aria-hidden': 'true',
-                'data-mark-card': function* () {
-                  return markCardPhase(yield* mark());
+              }),
+              div(
+                {
+                  class: ui.markCard,
+                  'aria-hidden': 'true',
+                  'data-mark-card': function* () {
+                    const item = yield* mark();
+                    return item.cardPhase;
+                  },
                 },
-              },
-              [
-                img({
-                  class: ui.markImage,
-                  alt: function* () {
-                    return thumbnailReasonLabel((yield* mark()).entry);
-                  },
-                  src: function* () {
-                    return safeResourceUrl(markImageUrl(yield* mark()), {
-                      allowedOrigins: [THUMBNAIL_ORIGIN],
-                    });
-                  },
-                }),
-                span({ class: ui.markCaption }, function* () {
-                  return thumbnailCaption((yield* mark()).entry);
-                }),
-                span({ class: ui.markAction }, function* () {
-                  return thumbnailActionLabel((yield* mark()).entry);
-                }),
-              ],
-            ),
-          ],
-        ),
+                [
+                  img({
+                    class: ui.markImage,
+                    alt: function* () {
+                      const item = yield* mark();
+                      return thumbnailReasonLabel(item.entry);
+                    },
+                    src: function* () {
+                      const item = yield* mark();
+                      return safeResourceUrl(markImageUrl(item), {
+                        allowedOrigins: [THUMBNAIL_ORIGIN],
+                      });
+                    },
+                  }),
+                  span({ class: ui.markCaption }, function* () {
+                    const item = yield* mark();
+                    return thumbnailCaption(item.entry);
+                  }),
+                  span({ class: ui.markAction }, function* () {
+                    const item = yield* mark();
+                    return thumbnailActionLabel(item.entry);
+                  }),
+                ],
+              ),
+            ],
+          ),
       ),
     );
   },
@@ -206,6 +223,15 @@ export const ReplayThumbnailsStatus = craftComponent(
   {},
   function* () {
     const route = yield* ReplayRoute();
+    const retryHidden = yield* craftComputed(
+      'retryHidden',
+      () => thumbnailManifest()?.status !== 'failed',
+    );
+    const summaryHidden = yield* craftComputed('summaryHidden', () => {
+      const status = thumbnailManifest()?.status;
+      return status === undefined || status === 'none' || status === 'ready';
+    });
+    const summary = yield* craftComputed('summary', thumbnailsSummary);
 
     return div(
       {
@@ -214,10 +240,7 @@ export const ReplayThumbnailsStatus = craftComponent(
         hidden: summaryHidden,
       },
       [
-        p(
-          { 'data-lab': 'thumbnails-summary', role: 'status' },
-          computed(thumbnailsSummary),
-        ),
+        p({ 'data-lab': 'thumbnails-summary', role: 'status' }, summary),
         // The button's own display wins over `hidden`: the wrapper carries it.
         span({ hidden: retryHidden }, [
           button(

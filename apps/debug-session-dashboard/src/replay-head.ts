@@ -9,7 +9,7 @@ import {
   select,
   span,
 } from '@craft-ts/component';
-import { rawReactiveValue, ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed, rawReactiveValue } from '@craft-ts/core';
 import { buttonUi } from '@craft-ts/ui/style';
 import { ui } from './dashboard.style';
 import { goToHash, requestFrameFullscreen } from './replay-browser';
@@ -47,6 +47,33 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       ? sessionDate.format(new Date(selected.createdAt))
       : 'Session importée';
   };
+  const sessionTitleText = yield* craftComputed(
+    'sessionTitleText',
+    sessionTitle,
+  );
+  const startUrl = yield* craftComputed(
+    'startUrl',
+    () => session()?.startUrl ?? '',
+  );
+  const participantFilterHidden = yield* craftComputed(
+    'participantFilterHidden',
+    () => replayableParticipants().length <= 1,
+  );
+  const fullscreenDisabled = yield* craftComputed(
+    'fullscreenDisabled',
+    () => !connected(),
+  );
+  const debugDisabled = yield* craftComputed('debugDisabled', () => !session());
+  const differenceCount = yield* craftComputed('differenceCount', () =>
+    String(replayDifferences().length),
+  );
+  const notesHidden = yield* craftComputed(
+    'notesHidden',
+    () => replayWarnings().length === 0,
+  );
+  const warningCount = yield* craftComputed('warningCount', () =>
+    String(replayWarnings().length),
+  );
 
   const back = button(
     'backToSessions',
@@ -62,11 +89,8 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
   );
 
   const title = div({ class: ui.headTitle }, [
-    heading({ class: ui.headName }, computed(sessionTitle)),
-    p(
-      { class: ui.headUrl },
-      computed(() => session()?.startUrl ?? ''),
-    ),
+    heading({ class: ui.headName }, sessionTitleText),
+    p({ class: ui.headUrl }, startUrl),
   ]);
 
   const tabs = select(
@@ -74,7 +98,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
     {
       class: ui.tabSelect,
       value: selectedParticipantId,
-      hidden: computed(() => replayableParticipants().length <= 1),
+      hidden: participantFilterHidden,
       change: (event: Event) => selectParticipant(eventValue(event)),
       'aria-label': 'Onglets à visionner',
     },
@@ -112,7 +136,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
         const participantId = replayParticipantIds()[0];
         if (participantId) requestFrameFullscreen(participantId);
       },
-      disabled: computed(() => !connected()),
+      disabled: fullscreenDisabled,
     },
     'Plein écran',
   );
@@ -129,7 +153,7 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       'data-tooltip':
         'Ouvre l’application dans un nouvel onglet, vivante, à l’état du replay en cours, pour investiguer.',
       click: launchDebugAppAtReplay,
-      disabled: computed(() => !session()),
+      disabled: debugDisabled,
     },
     'Déboguer ici',
   );
@@ -167,16 +191,13 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
       'data-lab': 'toggle-differences',
       click: () => differenceHistoryOpen.set(!differenceHistoryOpen()),
     },
-    [
-      span({ 'aria-hidden': 'true' }, '⚠'),
-      span(computed(() => String(replayDifferences().length))),
-    ],
+    [span({ 'aria-hidden': 'true' }, '⚠'), span(differenceCount)],
   );
 
   const notes = div(
     {
       class: ui.noteAnchor,
-      hidden: computed(() => replayWarnings().length === 0),
+      hidden: notesHidden,
     },
     [
       button(
@@ -199,8 +220,12 @@ export const ReplayHead = craftComponent('ReplayHead', {}, function* () {
         span({ class: ui.noteIcon, 'aria-hidden': 'true' }, '🗒'),
       ),
       span(
-        { class: ui.noteBadge, 'data-lab': 'notes-count', 'aria-hidden': 'true' },
-        computed(() => String(replayWarnings().length)),
+        {
+          class: ui.noteBadge,
+          'data-lab': 'notes-count',
+          'aria-hidden': 'true',
+        },
+        warningCount,
       ),
     ],
   );

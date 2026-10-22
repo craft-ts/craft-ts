@@ -1,5 +1,5 @@
 import { craftComponent, div, p, span } from '@craft-ts/component';
-import { ɵcomputed as computed } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { progressVars, ui } from './dashboard.style';
 import { pointerShare } from './replay-browser';
@@ -41,82 +41,116 @@ function scrubKey(event: KeyboardEvent): void {
  * where a picture was taken (the picture opens when one is hovered), and the
  * clock, the step and the next action in one line.
  */
-export const ReplayTimeline = craftComponent('ReplayTimeline', {}, function* () {
-  const share = function* () {
-    return assign(progressVars.done, unit.pct(replayElapsedShare()));
-  };
+export const ReplayTimeline = craftComponent(
+  'ReplayTimeline',
+  {},
+  function* () {
+    const ariaValueMax = yield* craftComputed('ariaValueMax', () =>
+      Math.round(replayDurationMs() / 1000),
+    );
+    const ariaValueNow = yield* craftComputed('ariaValueNow', () =>
+      Math.round(replayElapsedMs() / 1000),
+    );
+    const ariaValueText = yield* craftComputed('ariaValueText', scrubValueText);
+    const ariaDisabled = yield* craftComputed('ariaDisabled', () =>
+      replayableEvents().length === 0 ? 'true' : 'false',
+    );
+    const timeProgress = yield* craftComputed(
+      'timeProgress',
+      timeProgressLabel,
+    );
+    const timeRemaining = yield* craftComputed(
+      'timeRemaining',
+      timeRemainingLabel,
+    );
+    const timelineProgress = yield* craftComputed(
+      'timelineProgress',
+      progressLabel,
+    );
+    const nextAction = yield* craftComputed(
+      'nextAction',
+      currentNextActionLabel,
+    );
+    const nextActionTimingHidden = yield* craftComputed(
+      'nextActionTimingHidden',
+      () => nextActionTimingLabel() === '',
+    );
+    const nextActionTimingText = yield* craftComputed(
+      'nextActionTimingText',
+      () => ` · ${nextActionTimingLabel()}`,
+    );
 
-  const slider = div(
-    'scrubSlider',
-    {
-      class: ui.scrubSlider,
-      role: 'slider',
-      tabIndex: 0,
-      'data-lab': 'replay-scrubber',
-      'aria-label': 'Position dans l’enregistrement',
-      'aria-valuemin': 0,
-      'aria-valuemax': computed(() => Math.round(replayDurationMs() / 1000)),
-      'aria-valuenow': computed(() => Math.round(replayElapsedMs() / 1000)),
-      'aria-valuetext': computed(scrubValueText),
-      'aria-disabled': computed(() =>
-        replayableEvents().length === 0 ? 'true' : 'false',
-      ),
-      click: (event: MouseEvent) => seekReplayToShare(pointerShare(event)),
-      keydown: scrubKey,
-    },
-    [
-      div({ class: ui.scrubTrack }, [
-        div({
-          class: ui.scrubFill,
-          'data-lab': 'replay-time-fill',
-          style: share,
-        }),
-      ]),
-      div({ class: ui.scrubHead, style: share }),
-    ],
-  );
+    const share = function* () {
+      return assign(progressVars.done, unit.pct(replayElapsedShare()));
+    };
 
-  const info = div({ class: ui.timelineInfo }, [
-    div({ class: ui.timelineClock }, [
-      p(
-        { class: ui.progressLabel, 'data-lab': 'replay-time' },
-        computed(timeProgressLabel),
-      ),
-      p(
-        { class: ui.progressLabel, 'data-lab': 'replay-time-remaining' },
-        computed(timeRemainingLabel),
-      ),
-    ]),
-    div({ class: ui.timelineStep }, [
-      p(
-        {
-          class: ui.progressLabel,
-          'data-lab': 'replay-progress',
-          role: 'status',
-        },
-        computed(progressLabel),
-      ),
-      p({ class: ui.next }, [
-        span(
-          { class: ui.nextName, 'data-lab': 'next-action-name' },
-          computed(currentNextActionLabel),
+    const slider = div(
+      'scrubSlider',
+      {
+        class: ui.scrubSlider,
+        role: 'slider',
+        tabIndex: 0,
+        'data-lab': 'replay-scrubber',
+        'aria-label': 'Position dans l’enregistrement',
+        'aria-valuemin': 0,
+        'aria-valuemax': ariaValueMax,
+        'aria-valuenow': ariaValueNow,
+        'aria-valuetext': ariaValueText,
+        'aria-disabled': ariaDisabled,
+        click: (event: MouseEvent) => seekReplayToShare(pointerShare(event)),
+        keydown: scrubKey,
+      },
+      [
+        div({ class: ui.scrubTrack }, [
+          div({
+            class: ui.scrubFill,
+            'data-lab': 'replay-time-fill',
+            style: share,
+          }),
+        ]),
+        div({ class: ui.scrubHead, style: share }),
+      ],
+    );
+
+    const info = div({ class: ui.timelineInfo }, [
+      div({ class: ui.timelineClock }, [
+        p({ class: ui.progressLabel, 'data-lab': 'replay-time' }, timeProgress),
+        p(
+          { class: ui.progressLabel, 'data-lab': 'replay-time-remaining' },
+          timeRemaining,
         ),
-        span(
+      ]),
+      div({ class: ui.timelineStep }, [
+        p(
           {
-            class: ui.nextTiming,
-            'data-lab': 'next-action-timing',
-            role: 'timer',
-            hidden: computed(() => nextActionTimingLabel() === ''),
+            class: ui.progressLabel,
+            'data-lab': 'replay-progress',
+            role: 'status',
           },
-          computed(() => ` · ${nextActionTimingLabel()}`),
+          timelineProgress,
         ),
+        p({ class: ui.next }, [
+          span(
+            { class: ui.nextName, 'data-lab': 'next-action-name' },
+            nextAction,
+          ),
+          span(
+            {
+              class: ui.nextTiming,
+              'data-lab': 'next-action-timing',
+              role: 'timer',
+              hidden: nextActionTimingHidden,
+            },
+            nextActionTimingText,
+          ),
+        ]),
       ]),
-    ]),
-    ReplayThumbnailsStatus({}),
-  ]);
+      ReplayThumbnailsStatus({}),
+    ]);
 
-  return div({ class: ui.timeline, 'data-lab': 'replay-timeline' }, [
-    div({ class: ui.scrubber }, [slider, ReplayThumbnailMarks({})]),
-    info,
-  ]);
-});
+    return div({ class: ui.timeline, 'data-lab': 'replay-timeline' }, [
+      div({ class: ui.scrubber }, [slider, ReplayThumbnailMarks({})]),
+      info,
+    ]);
+  },
+);

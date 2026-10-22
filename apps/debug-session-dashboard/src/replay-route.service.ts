@@ -25,6 +25,7 @@ import { endReplayLoadingIndicator } from './replay-playback';
 import {
   page,
   pendingDeleteSessionId,
+  ReplayState,
   registers,
   routeSessionId,
   thumbnailManifest,
@@ -45,6 +46,7 @@ import {
 export const { ReplayRoute } = craftService(
   { name: 'replayRoute', providedIn: 'global' },
   function* () {
+    yield* ReplayState();
     // The engine's clock, ids and hash come from Craft: the temporal runtime
     // and the browser boundaries, resolved once here for the code that is not
     // a generator (message listeners, timers, layout passes).
