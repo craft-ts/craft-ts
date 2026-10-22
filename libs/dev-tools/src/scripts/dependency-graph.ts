@@ -428,6 +428,7 @@ type RouteInfo = {
   node: DependencyGraphNode;
   sourceFile: SourceFile;
   object: ObjectLiteralExpression;
+  builderCall?: CallExpression;
   routesName: string;
   collectionName: string;
 };
@@ -1493,7 +1494,9 @@ function collectServices(
           filePath: sourceFile.getFilePath(),
           line: call.getStartLineNumber(),
           details: {
-            scope: getStringProperty(config, 'scope'),
+            scope:
+              getStringProperty(config, 'scope') ??
+              getStringProperty(config, 'providedIn'),
             appStart: getBooleanProperty(config, 'appStart') === true,
             browserBoundary:
               getBooleanProperty(config, 'browserBoundary') === true,
@@ -1846,8 +1849,26 @@ function linkComponentProviders(
     )) {
       const name = operator.getExpression().getText();
       if (!PROVIDER_OPERATORS.has(name)) continue;
-      const owner = ownerOf(operator);
-      if (owner?.kind !== 'component') continue;
+      let owner = ownerOf(operator);
+      if (!owner && name === 'withProviders') {
+        const receiver = operator
+          .getExpression()
+          .asKind(SyntaxKind.PropertyAccessExpression)
+          ?.getExpression()
+          .asKind(SyntaxKind.CallExpression);
+        if (receiver) {
+          for (const routes of builder.routeFiles.values()) {
+            const route = routes.find(
+              (candidate) => candidate.builderCall === receiver,
+            );
+            if (route) {
+              owner = route.node;
+              break;
+            }
+          }
+        }
+      }
+      if (owner?.kind !== 'component' && owner?.kind !== 'route') continue;
       for (const call of operator.getDescendantsOfKind(
         SyntaxKind.CallExpression,
       )) {
@@ -1961,6 +1982,21 @@ function collectComponents(
   }
 }
 
+function routeBuilderCall(element: Node): CallExpression | undefined {
+  let current = element.asKind(SyntaxKind.CallExpression);
+  while (current) {
+    if (current.getExpression().getText() === 'craftRoute') return current;
+    const expression = current
+      .getExpression()
+      .asKind(SyntaxKind.PropertyAccessExpression);
+    if (!expression || expression.getName() !== 'withProviders') {
+      return undefined;
+    }
+    current = expression.getExpression().asKind(SyntaxKind.CallExpression);
+  }
+  return undefined;
+}
+
 function collectRoutes(
   builder: GraphBuilder,
   sourceFiles: readonly SourceFile[],
@@ -1979,18 +2015,16 @@ function collectRoutes(
       if (!routes) continue;
       const routeInfos: RouteInfo[] = [];
       for (const element of routes.getElements()) {
-        const routeCall = element.asKind(SyntaxKind.CallExpression);
+        const builderCall = routeBuilderCall(element);
         const object =
           element.asKind(SyntaxKind.ObjectLiteralExpression) ??
-          (routeCall?.getExpression().getText() === 'craftRoute'
-            ? routeCall
-                .getArguments()[1]
-                ?.asKind(SyntaxKind.ObjectLiteralExpression)
-            : undefined);
+          builderCall
+            ?.getArguments()[1]
+            ?.asKind(SyntaxKind.ObjectLiteralExpression);
         if (!object) continue;
         const path =
           getStringProperty(object, 'path') ??
-          (routeCall ? getStringArgument(routeCall, 0) : undefined) ??
+          (builderCall ? getStringArgument(builderCall, 0) : undefined) ??
           '<dynamic>';
         const label = `${collectionName}:${path}`;
         const route: RouteInfo = {
@@ -2019,6 +2053,7 @@ function collectRoutes(
           ),
           sourceFile,
           object,
+          ...(builderCall ? { builderCall } : {}),
           routesName,
           collectionName,
         };

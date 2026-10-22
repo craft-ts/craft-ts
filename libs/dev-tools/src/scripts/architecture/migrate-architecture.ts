@@ -117,6 +117,13 @@ const RULES = [
     call: 'assertResourceParamsPreferQueryParams(graph.graph)',
   },
   {
+    file: 'query-params-route-ownership.spec.ts',
+    helper: 'assertQueryParamsRouteOwnership',
+    describe: 'assertQueryParamsRouteOwnership',
+    it: 'keeps query params owned by their route',
+    call: 'assertQueryParamsRouteOwnership(graph.graph)',
+  },
+  {
     file: 'persisted-primitive-unique.spec.ts',
     helper: 'assertPersistedPrimitiveHasUnique',
     describe: 'assertPersistedPrimitiveHasUnique',

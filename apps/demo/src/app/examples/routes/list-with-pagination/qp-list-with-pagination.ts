@@ -16,14 +16,14 @@ import {
 import {
   craftService,
   craftMethod,
+  craftExpose,
   insertPaginationPlaceholderData,
   insertQueryPipe,
   insertStoragePersister,
   craftUnique,
   query,
-  queryParams,
 } from '@craft-ts/core';
-import { paginationQueryParams } from '../../../query-params.utils';
+import { RoutePaginationQueryParams } from './qp-list-with-pagination.route';
 import { StatusComponent } from '../../../ui/status.component';
 import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
@@ -34,23 +34,8 @@ export const { QpListWithPaginationView, provideQpListWithPaginationView } =
   craftService(
     { name: 'qpListWithPaginationView', providedIn: 'toProvide' },
     function* () {
-      const pagination = yield* queryParams(
-        'pagination',
-        paginationQueryParams(),
-        ({ patch, state }) => ({
-          nextPage: function* () {
-            const _state = yield* state();
-            return yield* patch({ page: _state.page + 1 });
-          },
-          previousPage: function* () {
-            const _state = yield* state();
-            return yield* patch({ page: Math.max(1, _state.page - 1) });
-          },
-          updatePageSize: function* (pageSize: number) {
-            return yield* patch({ pageSize, page: 1 });
-          },
-        }),
-      );
+      const pagination = yield* RoutePaginationQueryParams();
+      yield* craftExpose('pagination', pagination);
       const api = yield* ApiService();
       yield* query(
         'usersQuery',
@@ -71,12 +56,9 @@ export const { QpListWithPaginationView, provideQpListWithPaginationView } =
           insertPaginationPlaceholderData({ initialValue: Array<User>() }),
         ),
       );
-      yield* craftMethod(
-        'updatePageSize',
-        function* (event: Event) {
-          yield* pagination.updatePageSize(Number(eventValue(event)));
-        },
-      );
+      yield* craftMethod('updatePageSize', function* (event: Event) {
+        yield* pagination.updatePageSize(Number(eventValue(event)));
+      });
     },
   );
 
@@ -85,49 +67,77 @@ const QpListWithPagination = craftComponent(
   {
     providers: [provideQpListWithPaginationView()],
   },
-  () => div({ class: example.panel }, [
-        heading({ class: example.title }, [
-          'Route QueryParams pagination: ',
-          StatusComponent({
-            status: QpListWithPaginationView.usersQuery.currentPageStatus,
-          }),
-        ]).pipe(
-          pendingNode({
-            fallback: () => heading({ class: example.title }, 'Route QueryParams pagination: Loading…'),
-          }),
-        ),
-        table({ class: example.table },
-          tbody(
-            forNode(
-              QpListWithPaginationView.usersQuery.currentPageData,
-              { track: (user) => user.id },
-                      (user) =>
-                        tr({ class: example.tableRow }, [
-                          td({ class: example.td }, function* () {
-                            return (yield* user()).id;
-                          }),
-                          td({ class: example.td }, function* () {
-                            return (yield* user()).name;
-                          }),
-                        ]),
+  () =>
+    div({ class: example.panel }, [
+      heading({ class: example.title }, [
+        'Route QueryParams pagination: ',
+        StatusComponent({
+          status: QpListWithPaginationView.usersQuery.currentPageStatus,
+        }),
+      ]).pipe(
+        pendingNode({
+          fallback: () =>
+            heading(
+              { class: example.title },
+              'Route QueryParams pagination: Loading…',
             ),
+        }),
+      ),
+      table(
+        { class: example.table },
+        tbody(
+          forNode(
+            QpListWithPaginationView.usersQuery.currentPageData,
+            { track: (user) => user.id },
+            (user) =>
+              tr({ class: example.tableRow }, [
+                td({ class: example.td }, function* () {
+                  return (yield* user()).id;
+                }),
+                td({ class: example.td }, function* () {
+                  return (yield* user()).name;
+                }),
+              ]),
           ),
         ),
-        div({ class: example.pagination, 'data-testid': 'pagination' }, [
-          select('pageSize',
-            {
-              class: example.pageSize,
-              'aria-label': 'Page size',
-              value: QpListWithPaginationView.pagination.pageSize,
-              change: QpListWithPaginationView.updatePageSize,
-            },
-            [2, 4, 8, 16].map((size) => option({ value: size }, size)),
-          ),
-          button('previousPage', { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: QpListWithPaginationView.pagination.previousPage }, 'Previous'),
-          span({ class: example.currentPage, 'data-testid': 'current-page' }, QpListWithPaginationView.pagination.page),
-          button('nextPage', { type: 'button', class: buttonUi.root, 'data-variant': 'secondary', click: QpListWithPaginationView.pagination.nextPage }, 'Next'),
-        ]),
+      ),
+      div({ class: example.pagination, 'data-testid': 'pagination' }, [
+        select(
+          'pageSize',
+          {
+            class: example.pageSize,
+            'aria-label': 'Page size',
+            value: QpListWithPaginationView.pagination.pageSize,
+            change: QpListWithPaginationView.updatePageSize,
+          },
+          [2, 4, 8, 16].map((size) => option({ value: size }, size)),
+        ),
+        button(
+          'previousPage',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            click: QpListWithPaginationView.pagination.previousPage,
+          },
+          'Previous',
+        ),
+        span(
+          { class: example.currentPage, 'data-testid': 'current-page' },
+          QpListWithPaginationView.pagination.page,
+        ),
+        button(
+          'nextPage',
+          {
+            type: 'button',
+            class: buttonUi.root,
+            'data-variant': 'secondary',
+            click: QpListWithPaginationView.pagination.nextPage,
+          },
+          'Next',
+        ),
       ]),
+    ]),
 );
 
 export default QpListWithPagination;

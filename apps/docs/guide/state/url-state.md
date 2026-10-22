@@ -183,7 +183,7 @@ Query parameters can live in the route rather than in a component, so they belon
 to the URL definition itself:
 
 ```typescript
-export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
+export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes(
   'demo',
   [
     {
@@ -222,6 +222,20 @@ export const { demoRoutes, injectDemoQueryParamsQueryParams } = craftRoutes(
   ],
 );
 ```
+
+The route collection exposes its route-level query params as the yieldable
+`DemoQueryParamsQueryParams()` helper. It is useful to consumers outside the
+route's provider setup:
+
+```typescript
+const pagination = yield* DemoQueryParamsQueryParams();
+```
+
+For a lazy component rendered by that same route, pass the route's local
+`QueryParams` helper through `.withProviders(...)` to a service the component
+can yield. This keeps the component independent from the route collection and
+avoids importing the route module back into its own lazy component. See
+[route providers](/guide/routing/route-providers) for the full pattern.
 
 Working source:
 [exception-query-params.ts](https://github.com/craft-ts/craft-ts/blob/main/apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts).

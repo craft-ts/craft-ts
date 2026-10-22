@@ -78,6 +78,7 @@ import {
   assertPathBoundaries,
   assertPrimitiveLoaderRequirements,
   assertQueryMutationHasServerState,
+  assertQueryParamsRouteOwnership,
   assertResourceParamsPreferQueryParams,
   assertPersistedPrimitiveHasUnique,
   assertRouteComponentsInSeparateFiles,
@@ -454,6 +455,7 @@ rules that express your application's boundaries.
 | [`assertQueryMutationHasServerState`](/guide/testing/architecture/server-state-loader)             | a `query` or `mutation` does not reach an allowed server-state boundary                                                                                                                                                                                |
 | [`assertPrimitiveLoaderRequirements`](/guide/testing/architecture/primitive-loader-requirements)   | an Effect-aware primitive does not declare an allowed dependency boundary                                                                                                                                                                              |
 | [`assertResourceParamsPreferQueryParams`](/guide/testing/architecture/resource-params-query-state) | a `query` or `asyncProcess` params graph depends on a `state` instead of URL-backed `queryParams`                                                                                                                                                      |
+| [`assertQueryParamsRouteOwnership`](/guide/testing/architecture/query-params-route-ownership) | a `queryParams` primitive is outside its route, or its service is not provided by that route                                                                                                                                                      |
 
 ### `noExclusiveLink`
 

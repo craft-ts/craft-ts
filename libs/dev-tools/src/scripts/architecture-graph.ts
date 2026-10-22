@@ -3060,6 +3060,78 @@ export function assertResourceParamsPreferQueryParams(
   );
 }
 
+export type QueryParamsRouteOwnershipOptions = {
+  /** Intentional exceptions, matched by primitive name and optional file. */
+  allow?: readonly { name: string; file?: string }[];
+};
+
+/**
+ * A queryParams primitive must be declared by a route or by a provider-scoped
+ * service that a route provides. Route `queryParams:` hooks are already
+ * declarations at their owning route and do not need a primitive node.
+ */
+export function assertQueryParamsRouteOwnership(
+  graph: DependencyGraph,
+  options: QueryParamsRouteOwnershipOptions = {},
+): void {
+  const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const violations = graph.nodes.filter((primitive) => {
+    if (
+      primitive.kind !== 'primitive' ||
+      primitive.details?.['primitive'] !== 'queryParams'
+    ) {
+      return false;
+    }
+
+    const name = String(primitive.details?.['name'] ?? primitive.label);
+    const file = relativeGraphPath(graph, primitive.filePath);
+    if (
+      options.allow?.some(
+        (entry) =>
+          entry.name === name && (!entry.file || entry.file === file),
+      )
+    ) {
+      return false;
+    }
+
+    const ownerId = primitive.details?.['ownerId'];
+    if (typeof ownerId !== 'string') return true;
+    const owner = nodesById.get(ownerId);
+    if (
+      owner?.kind !== 'service' ||
+      owner.details?.['scope'] !== 'toProvide'
+    ) {
+      return true;
+    }
+
+    return !graph.edges.some(
+      (edge) =>
+        edge.kind === 'provides' &&
+        edge.to === owner.id &&
+        nodesById.get(edge.from)?.kind === 'route',
+    );
+  });
+
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map((primitive) => {
+        const ownerId = primitive.details?.['ownerId'];
+        const owner =
+          typeof ownerId === 'string' ? nodesById.get(ownerId) : undefined;
+        const at = [
+          relativeGraphPath(graph, primitive.filePath),
+          primitive.line,
+        ]
+          .filter(Boolean)
+          .join(':');
+        const ownerAt = owner ? ` in ${owner.label}` : '';
+        return `queryParams ${primitive.label}${ownerAt}${at ? ` (${at})` : ''} is not owned by a route. Declare it on the route, or move it into a scope: 'toProvide' service provided by that route (including .withProviders(...)). Add a narrow allow entry for an intentional exception.`;
+      })
+      .join('\n'),
+  );
+}
+
 function statePrimitiveForNode(
   graph: DependencyGraph,
   nodeId: string,

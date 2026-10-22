@@ -72,7 +72,6 @@ import {
 import { CraftHttpClient, type CraftHttpRequest } from './craft-http-client';
 import { queryParams } from './query-params';
 import {
-  CraftRouteInjectHelper,
   CraftRouteYieldHelper,
   craftRoutes,
   craftRoute,
@@ -544,7 +543,7 @@ describe('craftRoutes', () => {
     expect(userId()).toBe('12');
   });
 
-  it('should expose typed inject helpers for route queryParams', () => {
+  it('should expose typed yield helpers for route queryParams', () => {
     const listQueryParams = () =>
       craftUse(
         queryParams(
@@ -585,19 +584,21 @@ describe('craftRoutes', () => {
       },
     ]);
 
-    expectTypeOf(routes.injectPlayerListQueryParams).toEqualTypeOf<
-      CraftRouteInjectHelper<
+    expectTypeOf(routes.PlayerListQueryParams).toEqualTypeOf<
+      CraftRouteYieldHelper<
         'PlayerListQueryParams',
         ReturnType<typeof listQueryParams>
       >
     >();
+    // @ts-expect-error route query params use the yieldable service name
+    routes.injectPlayerListQueryParams;
   });
 
-  it('should inject route queryParams and keep them reactive with router updates', async () => {
+  it('should yield route queryParams and keep them reactive with router updates', async () => {
     vi.useFakeTimers();
 
     try {
-      const { playerRoutes: appRoutes, injectPlayerListQueryParams } =
+      const { playerRoutes: appRoutes, PlayerListQueryParams } =
         craftRoutes('player', [
           {
             path: 'list',
@@ -653,8 +654,9 @@ describe('craftRoutes', () => {
         TestBed.inject(Injector),
         routeConfig.path,
       );
-      const routeQueryParams = runInInjectionContext(injector, () =>
-        injectPlayerListQueryParams(),
+      const routeQueryParams = resolveRouteYield(
+        runInInjectionContext(injector, () => PlayerListQueryParams()),
+        injector,
       );
 
       expect(craftUse(routeQueryParams.page())).toBe(2);
@@ -711,7 +713,7 @@ describe('craftRoutes', () => {
           componentDeps: {},
         },
       ]);
-      const { parentRoutes, injectParentLayoutQueryParams } = craftRoutes(
+      const { parentRoutes, ParentLayoutQueryParams } = craftRoutes(
         'parent',
         [
           {
@@ -764,8 +766,9 @@ describe('craftRoutes', () => {
         parentInjector,
         childRouteConfig.path,
       );
-      const routeQueryParams = runInInjectionContext(childInjector, () =>
-        injectParentLayoutQueryParams(),
+      const routeQueryParams = resolveRouteYield(
+        runInInjectionContext(childInjector, () => ParentLayoutQueryParams()),
+        childInjector,
       );
 
       expect(craftUse(routeQueryParams.page())).toBe(4);

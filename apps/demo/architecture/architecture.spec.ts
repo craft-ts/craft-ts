@@ -13,6 +13,7 @@ import {
   assertPersistedPrimitiveHasUnique,
   assertQueryMutationHasServerState,
   assertResourceParamsPreferQueryParams,
+  assertQueryParamsRouteOwnership,
   assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
   noExclusiveLink,
@@ -136,6 +137,35 @@ describe('demo architecture', () => {
         {
           name: 'searchInput',
           file: 'apps/demo/src/app/examples/primitives/debounced-web-search/debounced-web-search.ts',
+        },
+      ],
+    });
+  });
+
+  it('keeps query params route-owned outside legacy primitive examples', () => {
+    assertQueryParamsRouteOwnership(graph.graph, {
+      // These pages demonstrate the primitive directly before route ownership
+      // is introduced in the route-focused example.
+      allow: [
+        {
+          name: 'pagination',
+          file: 'apps/demo/src/app/examples/craft/list-with-pagination/list-with-pagination.ts',
+        },
+        {
+          name: 'pagination',
+          file: 'apps/demo/src/app/examples/craft/granular-mutation/granular-mutation.ts',
+        },
+        {
+          name: 'pagination',
+          file: 'apps/demo/src/app/examples/primitives/list-with-pagination/list-with-pagination.ts',
+        },
+        {
+          name: 'pagination',
+          file: 'apps/demo/src/app/examples/primitives/granular-mutation/granular-mutation.ts',
+        },
+        {
+          name: 'modeQueryParams',
+          file: 'apps/demo/src/app/examples/primitives/exceptions/exception-query-params.ts',
         },
       ],
     });

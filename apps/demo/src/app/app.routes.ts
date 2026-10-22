@@ -4,7 +4,6 @@ import {
   craftExceptionHandler,
   craftRoute,
   craftRoutes,
-  queryParams,
   type CanRun,
   type ComponentDepsOf,
   type CraftRouteExceptionType,
@@ -12,12 +11,15 @@ import {
   type ViewTransitionPayloadDef,
 } from '@craft-ts/core';
 import { authGuard } from './guard/auth.guard';
-import { paginationQueryParams } from './query-params.utils';
+import {
+  provideRoutePaginationQueryParams,
+  routePaginationQueryParams,
+} from './examples/routes/list-with-pagination/qp-list-with-pagination.route';
 import type { AppProvidedNames, AppProvidedValues } from './app.config';
 
 // SOURCE OF TRUTH FOR THE DEMO ROUTES.
 // All demo routes are served and checked by default.
-export const { demoRoutes } = craftRoutes('demo', [
+export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
   /* demo-route: query */
   {
     path: 'query/:userId',
@@ -457,8 +459,7 @@ export const { demoRoutes } = craftRoutes('demo', [
   },
 
   /* demo-route-end */ /* demo-route: query-params */
-  {
-    path: 'query-params',
+  craftRoute('query-params', {
     ...loadCraftComponent(({ withRetry }) =>
       withRetry(
         import(
@@ -466,27 +467,12 @@ export const { demoRoutes } = craftRoutes('demo', [
         ),
       ).then(({ default: component }) => component),
     ),
-    queryParams: function* () {
-      const pagination = yield* queryParams(
-        'pagination',
-        paginationQueryParams(),
-        ({ patch, state }) => ({
-          nextPage: function* () {
-            const _state = yield* state();
-            return yield* patch({ page: _state.page + 1 });
-          },
-          previousPage: function* () {
-            const _state = yield* state();
-            return yield* patch({ page: Math.max(1, _state.page - 1) });
-          },
-          updatePageSize: function* (pageSize: number) {
-            return yield* patch({ pageSize, page: 1 });
-          },
-        }),
-      );
-      return pagination;
-    },
-  },
+    queryParams: routePaginationQueryParams,
+  }).withProviders(({ QueryParams }) => [
+    provideRoutePaginationQueryParams(function* () {
+      return yield* QueryParams();
+    }),
+  ]),
 
   /* demo-route-end */ /* demo-route: guard-demo */
   craftRoute(
@@ -623,9 +609,10 @@ type DemoRouteCheckedDI<
   Component,
   RouteInputs extends string = never,
   Context extends string = 'demo route component',
+  RouteProviderNames extends string = never,
 > = RouteCheckedDI<
   ComponentDepsOf<Component>,
-  AppProvidedNames | 'CraftRouter' | 'CraftActivatedRoute',
+  AppProvidedNames | 'CraftRouter' | 'CraftActivatedRoute' | RouteProviderNames,
   AppProvidedValues,
   Context,
   RouteInputs
@@ -987,7 +974,8 @@ type _CanRunQueryParams = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/routes/list-with-pagination/qp-list-with-pagination'))['default'],
     never,
-    'path: "query-params"'
+    'path: "query-params"',
+    'RoutePaginationQueryParams'
   >
 >;
 /* demo-check-end */

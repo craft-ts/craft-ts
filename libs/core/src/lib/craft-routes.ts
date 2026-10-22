@@ -260,10 +260,10 @@ type RouteCollectionExportName<Name extends string> = Uncapitalize<
 >;
 type RoutesExportKey<Name extends string> =
   `${RouteCollectionExportName<Name>}Routes`;
-type RouteQueryParamsInjectHelperName<
+type RouteQueryParamsHelperName<
   Name extends string,
   Path extends string,
-> = InjectHelperName<RouteCollectionQueryParamsServiceName<Name, Path>>;
+> = RouteCollectionQueryParamsServiceName<Name, Path>;
 type RouteViewTransitionServiceName<Path extends string> =
   `${RouteBaseServiceName<Path>}ViewTransition`;
 type RouteCollectionViewTransitionServiceName<
@@ -1733,7 +1733,7 @@ type ParamYieldHelpers<
   >
 >;
 
-type QueryParamsInjectHelpers<
+type QueryParamsHelpers<
   Name extends string,
   Routes extends readonly AnyCraftRouteHelperDefinition[],
 > = Simplify<
@@ -1741,26 +1741,25 @@ type QueryParamsInjectHelpers<
     Routes[number] extends infer RouteDefinition
       ? RouteDefinition extends { queryParams: RouteQueryParamsFactory }
         ? {
-            [Key in RouteQueryParamsInjectHelperName<
+            [Key in RouteQueryParamsHelperName<
               Name,
               RoutePath<RouteDefinition>
-            >]: CraftRouteValueServiceApi<
+            >]: CraftRouteYieldHelper<
               RouteCollectionQueryParamsServiceName<
                 Name,
                 RoutePath<RouteDefinition>
               >,
               RouteQueryParamsOutput<RouteDefinition>
-            >[RouteQueryParamsInjectHelperName<
-              Name,
-              RoutePath<RouteDefinition>
-            >];
+            >;
           }
         : never
       : never
   >
 >;
 
-// Mirror of `QueryParamsInjectHelpers` for view transitions: generates
+// View transitions keep an imperative `injectXxxViewTransition()` helper;
+// route-level query params use their yieldable service name.
+// This helper generates
 // `injectXxxViewTransition(): Signal<T | null>` for every route that declared a
 // `viewTransitionPayload<T>()`.
 type ViewTransitionInjectHelpers<
@@ -2138,7 +2137,7 @@ type CraftRoutesSuccessResult<
   {
     [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name, ParentMount>;
   } & ParamYieldHelpers<Name, RoutesHelperShape<Routes>> &
-    QueryParamsInjectHelpers<Name, RoutesHelperShape<Routes>> &
+    QueryParamsHelpers<Name, RoutesHelperShape<Routes>> &
     ViewTransitionInjectHelpers<Name, RoutesHelperShape<Routes>> &
     GuardedDataYieldHelpers<Name, RoutesHelperShape<Routes>> &
     ResolvedDataInjectHelpers<Name, RoutesHelperShape<Routes>> &
@@ -2267,13 +2266,6 @@ function toViewTransitionInjectHelperName(
 
 function toRouteCollectionExportName(name: string): string {
   return `${uncapitalize(toRouteCollectionServiceName(name))}Routes`;
-}
-
-function toQueryParamsInjectHelperName(
-  routeCollectionName: string,
-  routePath: string,
-): string {
-  return `inject${toRouteCollectionQueryParamsServiceName(routeCollectionName, routePath)}`;
 }
 
 function toRouteCollectionServiceName(name: string): string {
@@ -2706,7 +2698,11 @@ export function craftRoutes<
           routeCollectionName,
           route.path,
         ),
-        toQueryParamsInjectHelperName(routeCollectionName, route.path),
+        toRouteCollectionQueryParamsServiceName(
+          routeCollectionName,
+          route.path,
+        ),
+        'yield',
       );
     }
 

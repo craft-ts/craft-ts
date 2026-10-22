@@ -39,7 +39,7 @@ import {
   craftRouteTarget,
 } from '@craft-ts/core';
 import { App } from './app';
-import { demoRoutes } from './app.routes.runtime';
+import { demoRoutes } from './app.routes';
 import { provideMcpExperimentation } from './function-registry-entry';
 import { provideLogForwarding, provideLogServerUrl } from './log-forwarder';
 import { MyGlobalErrorScreen } from './my-global-error-screen';
