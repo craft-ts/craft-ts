@@ -13,6 +13,9 @@ import type {
   DependencyGraphNode,
 } from './dependency-graph.ts';
 import type { ArchitectureFinding } from './architecture-style-rules.ts';
+import { routePathParamNavigationFindings } from './route-path-param-navigation.ts';
+
+export { routePathParamNavigationFindings };
 
 /**
  * A service nothing reads.
@@ -61,4 +64,5 @@ function isUnused(node: DependencyGraphNode, projectDir: string): boolean {
 
 export const SERVICE_ARCHITECTURE_RULES = [
   ['no-unused-service', unusedServiceFindings],
+  ['prefer-path-param-navigation', routePathParamNavigationFindings],
 ] as const;

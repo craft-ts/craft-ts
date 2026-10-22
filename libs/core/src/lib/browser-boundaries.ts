@@ -5,7 +5,9 @@ import {
   type GetServiceYields,
   type ServiceTrackingMetadata,
   ɵHOST_TAG_LIST,
-  ɵTRACK_TAGS_LIST, ɵcraftValueService } from './craft-service';
+  ɵTRACK_TAGS_LIST,
+  ɵcraftValueService,
+} from './craft-service';
 import { type TrackTag } from './host-tag';
 import {
   ɵinjectCorrelationIdServiceIn,
@@ -209,6 +211,7 @@ export interface BrowserDocumentServiceApi {
   setDir(value: 'ltr' | 'rtl' | 'auto' | ''): void;
   visibilityState(): DocumentVisibilityState;
   hasFocus(): boolean;
+  isValidSelector(selector: string): boolean;
 }
 
 export interface BrowserWindowServiceApi {
@@ -324,8 +327,7 @@ function createConsoleCall<Key extends ConsoleMetadataMethod>(key: Key) {
             ɵinjectCorrelationIdServiceIn(injector)?.lastCorrelationId() ??
             null,
           mayCorrelatedIds:
-            ɵinjectCorrelationIdServiceIn(injector)?.mayCorrelatedIds() ??
-            [],
+            ɵinjectCorrelationIdServiceIn(injector)?.mayCorrelatedIds() ?? [],
           startCorrelationId: getCurrentStartCorrelationId(),
         },
       }),
@@ -896,6 +898,15 @@ const browserDocumentService: BrowserBoundaryService<
     },
     visibilityState: () => getBrowserDocument().visibilityState,
     hasFocus: () => getBrowserDocument().hasFocus(),
+    isValidSelector: (selector) => {
+      if (typeof document === 'undefined') return true;
+      try {
+        document.createDocumentFragment().querySelector(selector);
+        return true;
+      } catch {
+        return false;
+      }
+    },
   }),
 );
 export const BrowserDocumentService: BrowserBoundaryService<
@@ -1123,6 +1134,7 @@ export const BrowserDocument: BrowserBoundaryDsl<
   setDir: callBrowserDocument('setDir'),
   visibilityState: callBrowserDocument('visibilityState'),
   hasFocus: callBrowserDocument('hasFocus'),
+  isValidSelector: callBrowserDocument('isValidSelector'),
 };
 
 export const BrowserWindow: BrowserBoundaryDsl<

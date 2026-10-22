@@ -20,6 +20,7 @@ export * from './lib/insert-select-resource';
 export * from './lib/linked-source';
 export * from './lib/mutation';
 export * from './lib/query-params';
+export * from './lib/path-params';
 export * from './lib/query';
 export * from './lib/render/channels';
 // Insertion authoring surface: the contexts an insertion receives, and the

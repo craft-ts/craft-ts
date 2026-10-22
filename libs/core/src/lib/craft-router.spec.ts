@@ -19,6 +19,7 @@ import { CRAFT_NODE_DIRECTIVE } from './craft-node-directive';
 import { craftRoutes } from './craft-routes';
 import type { GetServiceDependencies } from './craft-service';
 import { queryParams } from './query-params';
+import { pathParams } from './path-params';
 import { viewTransitionPayload } from './craft-view-transition';
 
 class BlankComponent {}
@@ -33,6 +34,26 @@ const { craftRouterTestRoutes } = craftRoutes('craftRouterTest', [
     path: 'users/:userId',
     component: BlankComponent,
     componentDeps: {},
+  },
+  {
+    path: 'users/:userId/page/:page',
+    component: BlankComponent,
+    componentDeps: {},
+    pathParams: {
+      page: pathParams('page', {
+        fallbackValue: 1,
+        codec: {
+          decode: (value: string) => Number(value.replace(/^p-/, '')),
+          encode: (value: number) => `p-${value}`,
+        },
+      }),
+    },
+  },
+  {
+    path: 'articles/:slug',
+    component: BlankComponent,
+    componentDeps: {},
+    pathParams: { slug: pathParams('slug') },
   },
   {
     path: 'list',
@@ -107,6 +128,28 @@ const { craftRouterNestedTestRoutes } = craftRoutes('craftRouterNestedTest', [
         ]).craftRouterNestedTestChildrenRoutes,
       ),
   },
+  {
+    path: 'parent-typed/:teamId',
+    pathParams: {
+      teamId: pathParams('teamId', {
+        fallbackValue: 0,
+        codec: {
+          decode: (value: string) => Number(value),
+          encode: (value: number) => String(value),
+        },
+      }),
+    },
+    loadChildren: () =>
+      Promise.resolve(
+        craftRoutes('craftRouterTypedNestedChildren', [
+          {
+            path: 'child/:userId',
+            component: BlankComponent,
+            componentDeps: {},
+          },
+        ]).craftRouterTypedNestedChildrenRoutes,
+      ),
+  },
 ]);
 
 declare module './craft-router' {
@@ -143,6 +186,19 @@ describe('CraftRouter', () => {
         router.navigateByUrl({
           to: 'users/:userId',
           params: { userId: '1' },
+        });
+        router.createUrlTree({
+          to: 'users/:userId/page/:page',
+          params: { userId: '1', page: 3 },
+        });
+        router.createUrlTree({
+          to: 'articles/:slug',
+          params: { slug: 'hello-world' },
+        });
+        // @ts-expect-error `page` is decoded as a number by its route codec
+        router.navigate({
+          to: 'users/:userId/page/:page',
+          params: { userId: '1', page: '3' },
         });
         router.navigate({
           to: 'query-params',
@@ -234,6 +290,26 @@ describe('CraftRouter', () => {
 
     expect(craftRouter.serializeUrl(userTree)).toBe('/users/42');
 
+    const pageTree = craftRouter.createUrlTree({
+      to: 'users/:userId/page/:page',
+      params: { userId: '42', page: 3 },
+    });
+    expect(craftRouter.serializeUrl(pageTree)).toBe('/users/42/page/p-3');
+
+    await craftRouter.navigate({
+      to: 'users/:userId/page/:page',
+      params: { userId: '42', page: 3 },
+    });
+    expect(craftRouter.url).toBe('/users/42/page/p-3');
+
+    const articleTree = craftRouter.createUrlTree({
+      to: 'articles/:slug',
+      params: { slug: 'hello-world' },
+    });
+    expect(craftRouter.serializeUrl(articleTree)).toBe(
+      '/articles/hello-world',
+    );
+
     const queryTree = craftRouter.createUrlTree({
       to: 'query-params',
       queryParams: {
@@ -309,7 +385,10 @@ describe('CraftRouter', () => {
 
     expect(craftRouter.url).toBe('/users/42');
     expect(window.location.pathname).toBe('/');
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!).get().pathname).toBe('/users/42');
+    expect(
+      TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!).get()
+        .pathname,
+    ).toBe('/users/42');
     expect(
       craftRouter.isActive(
         craftRouter.createUrlTree({
@@ -329,10 +408,12 @@ describe('CraftRouter', () => {
     // delegating to `CraftRouter` had `Yielded = unknown`, so
     // `ExtractDeps<...>` returned `{}` instead of `{ CraftRouter: ... }`.
     class GoToHome {
-      readonly navigate = craftUse(craftMethod('navigate', this, function* () {
-        const router = yield* CraftRouter();
-        return router.navigate({ to: '' });
-      }));
+      readonly navigate = craftUse(
+        craftMethod('navigate', this, function* () {
+          const router = yield* CraftRouter();
+          return router.navigate({ to: '' });
+        }),
+      );
     }
 
     type _Check = Expect<
@@ -356,6 +437,15 @@ describe('CraftRouter', () => {
         // Joined path resolves at the type level
         router.navigate({
           to: 'parent/:teamId/child/:userId',
+          params: { teamId: '1', userId: '42' },
+        });
+        router.navigate({
+          to: 'parent-typed/:teamId/child/:userId',
+          params: { teamId: 1, userId: '42' },
+        });
+        // @ts-expect-error parent route codecs type joined path parameters
+        router.navigate({
+          to: 'parent-typed/:teamId/child/:userId',
           params: { teamId: '1', userId: '42' },
         });
         // @ts-expect-error params required for the joined path
@@ -427,10 +517,12 @@ describe('CraftRouter', () => {
     // the merged deps map to a `{ [x: string]: ... }` index signature instead
     // of preserving each service's literal name.
     class MultiYield {
-      readonly run = craftUse(craftMethod('run', this, function* () {
-        yield* Console.log('navigating');
-        yield* CraftRouter();
-      }));
+      readonly run = craftUse(
+        craftMethod('run', this, function* () {
+          yield* Console.log('navigating');
+          yield* CraftRouter();
+        }),
+      );
     }
 
     type _Check = Expect<

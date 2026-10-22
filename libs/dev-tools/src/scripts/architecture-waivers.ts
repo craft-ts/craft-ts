@@ -36,6 +36,7 @@ export const ARCHITECTURE_RULE_NAMES = [
   'no-unused-service',
   'route-needs-stability-test',
   'looping-async-process-needs-budget',
+  'prefer-path-param-navigation',
 ] as const;
 
 export type ArchitectureRuleName = (typeof ARCHITECTURE_RULE_NAMES)[number];

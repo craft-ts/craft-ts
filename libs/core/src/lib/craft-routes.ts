@@ -29,7 +29,11 @@ import type {
   ComponentDepsOf,
   ExtractDeps,
 } from './branded-component/branded-component';
-import { type AnyCraftException } from './craft-exception';
+import {
+  craftException,
+  isCraftException,
+  type AnyCraftException,
+} from './craft-exception';
 import {
   GUARD_AWAIT_REQUEST_MARKER,
   isGenerator,
@@ -78,6 +82,13 @@ import type {
 import { ɵinjectCraftMatch, type CraftUrlTree } from './craft-router-tokens';
 import { craftComputed } from './host/craft-signal';
 import { provideCraftSsrPolicy, type CraftSsrPolicy } from './craft-ssr';
+import {
+  ɵcreatePathParamsPrimitive,
+  ɵisPathParamsDefinition,
+  type AnyPathParamsDefinition,
+  type PathParamsDefinition,
+  type PathParamsRefOf,
+} from './path-params';
 
 type MaybeAsync<T> = T | Promise<T> | Subscribable<T>;
 
@@ -173,6 +184,17 @@ type PathParamNames<Path extends string> =
     ? SegmentParamName<Segment> | PathParamNames<Rest>
     : SegmentParamName<Path>;
 
+type OptionalPathParamName<Segment extends string> =
+  Segment extends `:${infer Name}?` ? Name : never;
+type OptionalPathParamNames<Path extends string> =
+  Path extends `${infer Segment}/${infer Rest}`
+    ? OptionalPathParamName<Segment> | OptionalPathParamNames<Rest>
+    : OptionalPathParamName<Path>;
+type RequiredPathParamNames<Path extends string> = Exclude<
+  PathParamNames<Path>,
+  OptionalPathParamNames<Path>
+>;
+
 type RouteParamMap<Path extends string> = Simplify<{
   [Key in PathParamNames<Path>]: string;
 }>;
@@ -216,6 +238,10 @@ type RouteCollectionDataServiceName<
 > = `${RouteCollectionServiceName<Name>}${RouteDataServiceName<Path>}`;
 type RouteQueryParamsServiceName<Path extends string> =
   `${RouteBaseServiceName<Path>}QueryParams`;
+type RoutePathParamsServiceName<
+  Path extends string,
+  ParamName extends string,
+> = `${RouteBaseServiceName<Path>}${ParamServiceName<ParamName>}PathParams`;
 type RouteCollectionQueryParamsServiceName<
   Name extends string,
   Path extends string,
@@ -264,6 +290,11 @@ type RouteQueryParamsHelperName<
   Name extends string,
   Path extends string,
 > = RouteCollectionQueryParamsServiceName<Name, Path>;
+type RouteCollectionPathParamsServiceName<
+  Name extends string,
+  Path extends string,
+  ParamName extends string,
+> = `${RouteCollectionServiceName<Name>}${RoutePathParamsServiceName<Path, ParamName>}`;
 type RouteViewTransitionServiceName<Path extends string> =
   `${RouteBaseServiceName<Path>}ViewTransition`;
 type RouteCollectionViewTransitionServiceName<
@@ -720,6 +751,14 @@ type RouteAutoProvidedServiceNames<
           RoutePath<RouteDefinition>
         >
       : never)
+  | (keyof RoutePathParamsDefinitions<RouteDefinition> extends infer ParamName extends
+      string
+      ? RouteCollectionPathParamsServiceName<
+          RouteCollectionName,
+          RoutePath<RouteDefinition>,
+          ParamName
+        >
+      : never)
   | ([RouteGuardedDataOutput<RouteDefinition>] extends [never]
       ? never
       : RouteCollectionGuardedDataServiceName<
@@ -969,9 +1008,11 @@ type ShouldExposeRouteDeps<RouteDefinition> =
         ? true
         : RouteDefinition extends { queryParams: RouteQueryParamsFactory }
           ? true
-          : HasRedirectToGenerator<RouteDefinition> extends true
-            ? true
-            : false;
+          : keyof RoutePathParamsDefinitions<RouteDefinition> extends never
+            ? HasRedirectToGenerator<RouteDefinition> extends true
+              ? true
+              : false
+            : true;
 
 export type ResolveCraftRouteComponentDeps<RouteDefinition> = Simplify<
   Omit<
@@ -1085,6 +1126,7 @@ type CraftRouteMetaDataEntry<
   {
     path: ResolvedPath;
   } & RouteQueryParamsMetaDataField<RouteDefinition> &
+    RoutePathParamsMetaDataField<RouteDefinition> &
     ResolveCraftRouteMetaDataComponentDeps<
       RouteDefinition,
       RouteCollectionName,
@@ -1134,6 +1176,24 @@ type CraftRouteUxFields = {
   withLoaderViewTransitionImage?: ViewTransitionPayloadDef<any>;
 };
 
+type RoutePathParamsDefinitions<RouteDefinition> = RouteDefinition extends {
+  pathParams: infer Definitions extends object;
+}
+  ? Definitions
+  : {};
+type RoutePathParamsOutput<
+  RouteDefinition,
+  ParamName extends string,
+> = ParamName extends keyof RoutePathParamsDefinitions<RouteDefinition>
+  ? PathParamsRefOf<RoutePathParamsDefinitions<RouteDefinition>[ParamName]>
+  : never;
+type RoutePathParamsMetaData<RouteDefinition> =
+  RoutePathParamsDefinitions<RouteDefinition>;
+type RoutePathParamsMetaDataField<RouteDefinition> =
+  keyof RoutePathParamsDefinitions<RouteDefinition> extends never
+    ? {}
+    : { pathParams: RoutePathParamsMetaData<RouteDefinition> };
+
 type CraftRouteRuntimeUxFields = CraftRouteUxFields & {
   handleExceptions?: CraftRouteHandleExceptions;
 };
@@ -1153,6 +1213,7 @@ type CraftRouteSharedFields<
       data?: RouteData;
       ssr?: CraftSsrPolicy;
       queryParams?: RouteQueryParamsFactory;
+      pathParams?: Record<string, AnyPathParamsDefinition>;
       redirectTo?: string | RouteRedirectToFactory<any>;
       paramsProvider?: [PathParamNames<Path>] extends [never]
         ? never
@@ -1171,6 +1232,7 @@ type AnyCraftRouteSharedFields = Simplify<
       data?: Data;
       ssr?: CraftSsrPolicy;
       queryParams?: RouteQueryParamsFactory;
+      pathParams?: Record<string, AnyPathParamsDefinition>;
       redirectTo?: string | RouteRedirectToFactory<any>;
       paramsProvider?: (
         params: Signal<Record<string, string>>,
@@ -1183,6 +1245,7 @@ type AnyCraftRouteHelperDefinition = {
   data?: Data;
   paramsProvider?: (...args: any[]) => Record<string, unknown>;
   queryParams?: RouteQueryParamsFactory;
+  pathParams?: Record<string, AnyPathParamsDefinition>;
   canActivate?: CraftRouteCanActivateGuard;
   canMatch?: CraftRouteCanMatchGuard;
   resolve?: CraftRouteResolve;
@@ -1192,6 +1255,39 @@ type AnyCraftRouteHelperDefinition = {
 
 type CraftRouteDefinitionInput<Def extends object> =
   'handleExceptions' extends keyof Def ? never : Def;
+
+type PathParamsDefinitionCheck<Path extends string, Def> = Def extends {
+  pathParams: infer Definitions extends Record<string, AnyPathParamsDefinition>;
+}
+  ? Exclude<keyof Definitions, RequiredPathParamNames<Path>> extends never
+    ? [keyof Definitions] extends [never]
+      ? unknown
+      : false extends {
+            [Key in keyof Definitions]: Definitions[Key] extends PathParamsDefinition<
+              infer Name,
+              any,
+              any,
+              any
+            >
+              ? [Name] extends [Key]
+                ? true
+                : false
+              : false;
+          }[keyof Definitions]
+        ? never
+        : unknown
+    : never
+  : unknown;
+
+type ValidateRoutePathParams<
+  Routes extends readonly AnyCraftRouteDefinition[],
+> = {
+  [Index in keyof Routes]: Routes[Index] extends {
+    path: infer Path extends string;
+  }
+    ? Routes[Index] & PathParamsDefinitionCheck<Path, Routes[Index]>
+    : Routes[Index];
+};
 
 // Constraint (not intersection) carrying the contextual type for the lazy-loader
 // callbacks. Used as `Def`'s *constraint* in `craftRoute`, it types the `helpers`
@@ -1269,6 +1365,14 @@ type RouteHelperShape<RouteDefinition> = RouteDefinition extends {
           ? {
               queryParams: QueryParams;
             }
+          : {}) &
+        (RouteDefinition extends {
+          pathParams: infer PathParams extends Record<
+            string,
+            AnyPathParamsDefinition
+          >;
+        }
+          ? { pathParams: PathParams }
           : {}) &
         (RouteDefinition extends {
           canActivate: infer Guard extends CraftRouteCanActivateGuard;
@@ -1724,7 +1828,10 @@ type ParamYieldHelpers<
     PathParamNames<Routes[number]['path']> extends infer ParamName extends
       string
       ? {
-          [Key in RouteParamServiceName<Name, ParamName>]: CraftRouteYieldHelper<
+          [Key in RouteParamServiceName<
+            Name,
+            ParamName
+          >]: CraftRouteYieldHelper<
             RouteParamServiceName<Name, ParamName>,
             ParamOutputForRoutes<Routes, ParamName>
           >;
@@ -1750,6 +1857,33 @@ type QueryParamsHelpers<
                 RoutePath<RouteDefinition>
               >,
               RouteQueryParamsOutput<RouteDefinition>
+            >;
+          }
+        : never
+      : never
+  >
+>;
+
+type PathParamsHelpers<
+  Name extends string,
+  Routes extends readonly AnyCraftRouteHelperDefinition[],
+> = Simplify<
+  MergeObjectUnion<
+    Routes[number] extends infer RouteDefinition
+      ? RouteDefinition extends { pathParams: infer Definitions extends object }
+        ? {
+            [ParamName in keyof Definitions &
+              string as RouteCollectionPathParamsServiceName<
+              Name,
+              RoutePath<RouteDefinition>,
+              ParamName
+            >]: CraftRouteYieldHelper<
+              RouteCollectionPathParamsServiceName<
+                Name,
+                RoutePath<RouteDefinition>,
+                ParamName
+              >,
+              RoutePathParamsOutput<RouteDefinition, ParamName>
             >;
           }
         : never
@@ -1945,10 +2079,19 @@ type RouteQueryParamsProviderHelper<RouteDefinition> = RouteDefinition extends {
     }
   : {};
 
+type RoutePathParamsProviderHelpers<RouteDefinition> = {
+  [ParamName in keyof RoutePathParamsDefinitions<RouteDefinition> &
+    string as `${ParamServiceName<ParamName>}PathParams`]: CraftRouteHelper<
+    RoutePathParamsServiceName<RoutePath<RouteDefinition>, ParamName>,
+    RoutePathParamsOutput<RouteDefinition, ParamName>
+  >;
+};
+
 // The object handed to a route's `withProviders` callback: route-local short-named
 // service helpers for every auto-provisioned token that exists on the route.
 type RouteProviderHelpers<RouteDefinition> = Simplify<
   RouteParamProviderHelpers<RouteDefinition> &
+    RoutePathParamsProviderHelpers<RouteDefinition> &
     RouteGuardedDataProviderHelper<RouteDefinition> &
     RouteDataProviderHelper<RouteDefinition> &
     RouteQueryParamsProviderHelper<RouteDefinition>
@@ -1960,6 +2103,10 @@ type RouteSelfProvidedBaseNames<RouteDefinition> =
   | (PathParamNames<RoutePath<RouteDefinition>> extends infer ParamName extends
       string
       ? RouteParamBaseServiceName<ParamName>
+      : never)
+  | (keyof RoutePathParamsDefinitions<RouteDefinition> extends infer ParamName extends
+      string
+      ? RoutePathParamsServiceName<RoutePath<RouteDefinition>, ParamName>
       : never)
   | (RouteDefinition extends { data: Data }
       ? RouteDataServiceName<RoutePath<RouteDefinition>>
@@ -1992,6 +2139,7 @@ type CraftRoutePathRegistryEntry<
   ResolvedPath extends string,
 > = Simplify<
   { path: ResolvedPath } & RouteQueryParamsMetaDataField<RouteDefinition> &
+    RoutePathParamsMetaDataField<RouteDefinition> &
     RouteViewTransitionMetaDataField<RouteDefinition>
 >;
 
@@ -2138,6 +2286,7 @@ type CraftRoutesSuccessResult<
     [Key in RoutesExportKey<Name>]: CraftRoutesApp<Routes, Name, ParentMount>;
   } & ParamYieldHelpers<Name, RoutesHelperShape<Routes>> &
     QueryParamsHelpers<Name, RoutesHelperShape<Routes>> &
+    PathParamsHelpers<Name, RoutesHelperShape<Routes>> &
     ViewTransitionInjectHelpers<Name, RoutesHelperShape<Routes>> &
     GuardedDataYieldHelpers<Name, RoutesHelperShape<Routes>> &
     ResolvedDataInjectHelpers<Name, RoutesHelperShape<Routes>> &
@@ -2244,6 +2393,14 @@ function toRouteCollectionQueryParamsServiceName(
   routePath: string,
 ): string {
   return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteQueryParamsServiceName(routePath)}`;
+}
+
+function toRouteCollectionPathParamsServiceName(
+  routeCollectionName: string,
+  routePath: string,
+  paramName: string,
+): string {
+  return `${toRouteCollectionServiceName(routeCollectionName)}${toRouteBaseServiceName(routePath)}${toParamServiceName(paramName)}PathParams`;
 }
 
 function toRouteViewTransitionServiceName(path: string): string {
@@ -2378,6 +2535,54 @@ const ROUTE_QUERY_PARAMS_INVALID_YIELD_ERROR_MESSAGE =
 const ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE =
   'route queryParams generators do not support onAppStart(...).';
 
+function createPathParamsParseStep(
+  routePath: string,
+  definitions: Record<string, AnyPathParamsDefinition>,
+  canMatch?: CraftRouteCanMatchGuard,
+): CraftRouteStepFactory {
+  return function* (route, state) {
+    for (const [paramName, definition] of Object.entries(definitions)) {
+      const codec = definition.config.codec;
+      if (!codec) continue;
+      const rawValue = route.params[paramName];
+      if (rawValue === undefined) continue;
+      try {
+        const decoded = codec.decode(rawValue);
+        if (isCraftException(decoded)) {
+          if (definition.config.fallbackValue !== undefined) continue;
+          return {
+            ...decoded,
+            scope: 'parse',
+            identifier: paramName,
+            [decoded._tag]: decoded.payload,
+          };
+        }
+      } catch (error) {
+        if (definition.config.fallbackValue !== undefined) continue;
+        return craftException(
+          {
+            _tag: 'PathParamDecodeError',
+            scope: 'parse',
+            identifier: paramName,
+          },
+          { name: paramName, value: rawValue, error },
+        );
+      }
+    }
+    if (!canMatch) return true;
+    return yield* settlePublicGuardValue(
+      routePath,
+      'canMatch',
+      (
+        canMatch as unknown as (
+          route: ActivatedRouteSnapshot,
+          state: RouterStateSnapshot,
+        ) => unknown
+      )(route, state),
+    );
+  };
+}
+
 function executeRouteQueryParamsFactory<Output>(
   _routePath: string,
   factory: RouteQueryParamsFactory<Output>,
@@ -2399,6 +2604,28 @@ function executeRouteQueryParamsFactory<Output>(
       multipleAppStartErrorMessage: ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE,
       onAppStartNotSupportedErrorMessage:
         ROUTE_QUERY_PARAMS_APP_START_ERROR_MESSAGE,
+    }).value as Output;
+  });
+}
+
+function executeRoutePathParamsPrimitive<Output>(
+  name: string,
+  config: AnyPathParamsDefinition['config'],
+  insertion?: AnyPathParamsDefinition['insertion'],
+): Output {
+  const injector = inject(Injector);
+  return runInInjectionContext(injector, () => {
+    const primitive = ɵcreatePathParamsPrimitive(name, config, insertion);
+    return runCraftGenerator({
+      iterator: primitive,
+      injector,
+      hostScope: 'function',
+      invalidYieldErrorMessage:
+        'pathParams generators can only yield craftService dependencies or exposed dependency helpers.',
+      multipleAppStartErrorMessage:
+        'pathParams generators do not support onAppStart(...).',
+      onAppStartNotSupportedErrorMessage:
+        'pathParams generators do not support onAppStart(...).',
     }).value as Output;
   });
 }
@@ -2436,10 +2663,7 @@ function* settlePublicGuardValue(
     return yield {
       [GUARD_AWAIT_REQUEST_MARKER]: true,
       kind: 'promise',
-      value: firstValueFrom(
-        signalChanges(value),
-        (next) => next !== undefined,
-      ),
+      value: firstValueFrom(signalChanges(value), (next) => next !== undefined),
     };
   }
 
@@ -2609,7 +2833,7 @@ export function craftRoute<
   >,
 >(
   path: Path,
-  def: CraftRouteDefinitionInput<Def>,
+  def: CraftRouteDefinitionInput<Def> & PathParamsDefinitionCheck<Path, Def>,
   handlers: TypedExceptionHandlers<
     Extract<RouteExceptionUnion<Def>, AnyCraftException>,
     Codes,
@@ -2634,7 +2858,7 @@ export function craftRoute<
   const Def extends CraftRouteLoaderHelperConstraint,
 >(
   path: Path,
-  def: CraftRouteDefinitionInput<Def>,
+  def: CraftRouteDefinitionInput<Def> & PathParamsDefinitionCheck<Path, Def>,
 ): RouteWithProvidersBuilder<Simplify<Def & { path: Path }>>;
 export function craftRoute(
   path: string,
@@ -2665,9 +2889,7 @@ export function craftRoutes<
   const Routes extends readonly AnyCraftRouteDefinition[],
 >(
   routeCollectionName: Name,
-  routes: {
-    [Index in keyof Routes]: Routes[Index];
-  },
+  routes: ValidateRoutePathParams<Routes>,
 ): CraftRoutesResult<Routes, Name> {
   const routeValueServices = new Map<string, AnyRouteValueServiceApi>();
   const helpers: Record<string, unknown> = {};
@@ -2679,11 +2901,7 @@ export function craftRoutes<
         routeCollectionName,
         paramName,
       );
-      registerRouteValueService(
-        serviceName,
-        serviceName,
-        'yield',
-      );
+      registerRouteValueService(serviceName, serviceName, 'yield');
     }
 
     if (route.data !== undefined) {
@@ -2704,6 +2922,15 @@ export function craftRoutes<
         ),
         'yield',
       );
+    }
+
+    for (const paramName of Object.keys(route.pathParams ?? {})) {
+      const serviceName = toRouteCollectionPathParamsServiceName(
+        routeCollectionName,
+        route.path,
+        paramName,
+      );
+      registerRouteValueService(serviceName, serviceName, 'yield');
     }
 
     if (route.withLoaderViewTransitionImage !== undefined) {
@@ -2762,6 +2989,7 @@ export function craftRoutes<
 
     return {
       path: route.path,
+      ...(route.pathParams ? { pathParams: route.pathParams } : {}),
       ...restComponentDeps,
     };
   }) as unknown as CraftRoutesMetaData<Routes, Name>;
@@ -2879,6 +3107,32 @@ export function craftRoutes<
       }
     }
 
+    for (const [paramName, definition] of Object.entries(
+      route.pathParams ?? {},
+    )) {
+      const serviceName = toRouteCollectionPathParamsServiceName(
+        routeCollectionName,
+        route.path,
+        paramName,
+      );
+      const routeService = routeValueServices.get(serviceName);
+      if (!routeService) continue;
+      if (!ɵisPathParamsDefinition(definition)) {
+        throw new Error(
+          `Route "${route.path}" pathParams.${paramName} must be created with pathParams().`,
+        );
+      }
+      autoProviders.push(
+        provideRouteValueService(serviceName, routeService, () =>
+          executeRoutePathParamsPrimitive(
+            definition.name,
+            definition.config,
+            definition.insertion,
+          ),
+        ),
+      );
+    }
+
     if (route.withLoaderViewTransitionImage !== undefined) {
       const serviceName = toRouteCollectionViewTransitionServiceName(
         routeCollectionName,
@@ -2972,6 +3226,7 @@ export function craftRoutes<
       providers: routeProviders,
       providersFn,
       queryParams: _queryParams,
+      pathParams: _pathParams,
       redirectTo,
       resolve,
       handleExceptions,
@@ -2988,9 +3243,7 @@ export function craftRoutes<
       ? providersFn(buildRouteProviderHelpers(route))
       : [];
     const resolvedRouteProviders = [
-      ...(route.ssr
-        ? [provideCraftSsrPolicy(route.ssr)]
-        : []),
+      ...(route.ssr ? [provideCraftSsrPolicy(route.ssr)] : []),
       ...(routeProviders ?? []),
       ...factoryProviders,
     ];
@@ -3006,11 +3259,19 @@ export function craftRoutes<
     const hasCraftChain =
       canActivate !== undefined ||
       canMatch !== undefined ||
-      resolve !== undefined;
+      resolve !== undefined ||
+      Object.keys(route.pathParams ?? {}).length > 0;
 
     const craftMeta: CraftRouteMeta | undefined = hasCraftChain
       ? {
-          match: toCraftRouteStepFactory(route.path, 'canMatch', canMatch),
+          match:
+            Object.keys(route.pathParams ?? {}).length > 0
+              ? createPathParamsParseStep(
+                  route.path,
+                  route.pathParams as Record<string, AnyPathParamsDefinition>,
+                  canMatch,
+                )
+              : toCraftRouteStepFactory(route.path, 'canMatch', canMatch),
           guard: toCraftRouteStepFactory(
             route.path,
             'canActivate',
@@ -3019,6 +3280,9 @@ export function craftRoutes<
           resolve: resolve as unknown as CraftRouteMeta['resolve'],
           handleExceptions: (handleExceptions ??
             {}) as CraftRouteExceptionHandlerMap,
+          pathParams: route.pathParams as
+            | Record<string, AnyPathParamsDefinition>
+            | undefined,
           guardDataSink: guardDataSignal,
           resolveDataSink: resolveDataSignal,
           exceptionSinks,
@@ -3087,6 +3351,17 @@ export function craftRoutes<
         toRouteCollectionQueryParamsServiceName(
           routeCollectionName,
           route.path,
+        ),
+      );
+    }
+
+    for (const paramName of Object.keys(route.pathParams ?? {})) {
+      addHelper(
+        `${toParamServiceName(paramName)}PathParams`,
+        toRouteCollectionPathParamsServiceName(
+          routeCollectionName,
+          route.path,
+          paramName,
         ),
       );
     }

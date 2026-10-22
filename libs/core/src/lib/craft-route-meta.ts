@@ -1,9 +1,10 @@
-import type { Type, WritableSignal } from './host/craft-compat';
+import type { WritableSignal } from './host/craft-compat';
 import type {
   ActivatedRouteSnapshot,
   RouterStateSnapshot,
 } from './host/craft-router-types';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
+import type { AnyPathParamsDefinition } from './path-params';
 import type {
   CraftExceptionComponentInput,
   CraftPendingComponentInput,
@@ -26,6 +27,8 @@ export type CraftRouteStepFactory = (
 
 /** The craft-only execution metadata the outlet needs to run a route's chain. */
 export interface CraftRouteMeta {
+  /** Typed path parameter definitions carried by this route. */
+  readonly pathParams?: Readonly<Record<string, AnyPathParamsDefinition>>;
   /** `canMatch` composing generator (run first; success discarded). */
   readonly match?: CraftRouteStepFactory;
   /** `canActivate` composing generator (success = guarded data). */

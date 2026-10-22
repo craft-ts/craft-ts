@@ -28,8 +28,13 @@ import { provideCraftActivatedRoute } from './craft-activated-route';
 import {
   type ServiceTrackingMetadata,
   type ServiceYieldRequest,
-  type SERVICE_HELPER_DEPENDENCIES, ɵcraftValueService } from './craft-service';
+  type SERVICE_HELPER_DEPENDENCIES,
+  ɵcraftValueService,
+} from './craft-service';
 import type { Simplify } from './craft-service.shared';
+import type { PathParamsDefinition } from './path-params';
+import { getCraftRouteMeta } from './craft-route-meta';
+import { craftException, isCraftException } from './craft-exception';
 import {
   ɵprovideCraftViewTransitionDefaults,
   CRAFT_VIEW_TRANSITION_STATE_KEY,
@@ -149,13 +154,43 @@ type PathParamNames<Path extends string> =
     : SegmentParamName<Path>;
 
 type RouteParamMap<Path extends string> = Simplify<{
-  [Key in PathParamNames<Path>]: string;
+  [Key in PathParamNames<Path>]: RouteParamValueForPath<Path, Key>;
 }>;
 
 type RegisteredRouteMetaDataForPath<Path extends string> = Extract<
   RegisteredRouteMetaData,
   { path: Path }
 >;
+
+type RegisteredPathParamsForTarget<Path extends string> =
+  RegisteredRouteMetaData extends infer Meta
+    ? Meta extends { path: infer RegisteredPath extends string }
+      ? Path extends RegisteredPath | `${RegisteredPath}/${string}`
+        ? Meta extends {
+            pathParams: infer Definitions extends Record<
+              string,
+              PathParamsDefinition
+            >;
+          }
+          ? Definitions
+          : {}
+        : never
+      : never
+    : never;
+
+type RouteParamValueForPath<
+  Path extends string,
+  ParamName extends string,
+> = ParamName extends keyof RegisteredPathParamsForTarget<Path>
+  ? RegisteredPathParamsForTarget<Path>[ParamName] extends PathParamsDefinition<
+      string,
+      infer Value,
+      string,
+      object
+    >
+    ? Value
+    : string
+  : string;
 
 type QueryParamsNamesFromRouteMetaData<RouteMetaData> = RouteMetaData extends {
   queryParams: infer QueryParams extends object;
@@ -862,18 +897,32 @@ function provideCraftRouterRuntime(
           void matchCraftRoutesAsync(compiled, {
             ...nextLocation,
             pathname: nextLocation.pathname || '/',
-          }).then((resolved) => {
-            if (current !== generation) return;
-            commitCraftMatch(match, history, nextLocation, resolved, titleStrategy);
-          }).catch(() => {
-            // Keep the last committed match if a lazy route chunk fails. The
-            // navigation has already been recorded in history, but the outlet
-            // can still render the page it successfully mounted before this
-            // failed rematch.
-          });
+          })
+            .then((resolved) => {
+              if (current !== generation) return;
+              commitCraftMatch(
+                match,
+                history,
+                nextLocation,
+                resolved,
+                titleStrategy,
+              );
+            })
+            .catch(() => {
+              // Keep the last committed match if a lazy route chunk fails. The
+              // navigation has already been recorded in history, but the outlet
+              // can still render the page it successfully mounted before this
+              // failed rematch.
+            });
           return;
         }
-        commitCraftMatch(match, history, nextLocation, syncMatch, titleStrategy);
+        commitCraftMatch(
+          match,
+          history,
+          nextLocation,
+          syncMatch,
+          titleStrategy,
+        );
         navigation.current = null;
       });
       return match;
@@ -881,34 +930,35 @@ function provideCraftRouterRuntime(
     // The Craft router owns the activated route: it is the leaf of the
     // snapshot built from the current match, and empty before the first one.
     provideCraftActivatedRoute((): ActivatedRoute => {
-        const leafOf = (snapshot: ActivatedRouteSnapshot) => {
-          let node = snapshot;
-          while (node.firstChild) node = node.firstChild;
-          return node;
-        };
-        const snapshot = () => {
-          const current = currentMatch?.() ?? null;
-          return current
-            ? leafOf(matchToRouterStateSnapshot(current).root)
-            : emptyActivatedRouteSnapshot();
-        };
-        return {
-          get snapshot() {
-            return snapshot();
-          },
-          get pathFromRoot() {
-            return snapshot().pathFromRoot.map((node) => ({
-              snapshot: node,
-              pathFromRoot: [],
-            }));
-          },
-        };
-      }),
+      const leafOf = (snapshot: ActivatedRouteSnapshot) => {
+        let node = snapshot;
+        while (node.firstChild) node = node.firstChild;
+        return node;
+      };
+      const snapshot = () => {
+        const current = currentMatch?.() ?? null;
+        return current
+          ? leafOf(matchToRouterStateSnapshot(current).root)
+          : emptyActivatedRouteSnapshot();
+      };
+      return {
+        get snapshot() {
+          return snapshot();
+        },
+        get pathFromRoot() {
+          return snapshot().pathFromRoot.map((node) => ({
+            snapshot: node,
+            pathFromRoot: [],
+          }));
+        },
+      };
+    }),
     provideCraftRouterRuntimeValue((() =>
       createNativeCraftRouter(
         injectCraftHistory(),
         injectCraftLocation(),
         navigation,
+        injectCraftCompiledRoutes(),
         useHashLocation,
       )) as unknown as CraftRouterNavigationApi) as unknown as Provider,
   ];
@@ -926,6 +976,7 @@ function createNativeCraftRouter(
   history: CraftHistory,
   location: CraftWritableSignal<CraftLocation>,
   navigation: { current: CraftNavigation | null },
+  compiledRoutes: readonly CraftCompiledRoute[],
   useHashLocation = false,
 ): CraftRouter {
   const listeners = new Set<(event: CraftRouterEvent) => void>();
@@ -947,7 +998,10 @@ function createNativeCraftRouter(
       ? current.hash.replace(/^#/, '') || undefined
       : (input.fragment ?? undefined);
     return createUrlFromParts(
-      buildPathFromTemplate(input.to, input.params),
+      buildPathFromTemplate(
+        input.to,
+        encodeRouteParams(input.to, input.params, compiledRoutes),
+      ),
       query,
       fragment,
     );
@@ -1038,6 +1092,64 @@ function createNativeCraftRouter(
     },
     getCurrentNavigation: () => navigation.current,
   };
+}
+
+function encodeRouteParams(
+  targetPath: string,
+  params: Record<string, string> | undefined,
+  routes: readonly CraftCompiledRoute[],
+): Record<string, string> | undefined {
+  if (!params) return params;
+  const definitions = findPathParamsDefinitions(routes, targetPath);
+  if (!definitions) return params;
+  const encoded = { ...params };
+  for (const [name, definition] of Object.entries(definitions)) {
+    if (!(name in params) || !definition.config.codec) continue;
+    const value = params[name];
+    try {
+      const result = definition.config.codec.encode(value);
+      if (isCraftException(result)) throw result;
+      encoded[name] = String(result);
+    } catch (error) {
+      throw craftException(
+        {
+          _tag: 'PathParamEncodeError',
+          scope: 'serialize',
+          identifier: name,
+        },
+        { name, value, error },
+      );
+    }
+  }
+  return encoded;
+}
+
+function findPathParamsDefinitions(
+  routes: readonly CraftCompiledRoute[],
+  targetPath: string,
+  parentPath = '',
+  inherited: Record<string, PathParamsDefinition> = {},
+): Record<string, PathParamsDefinition> | undefined {
+  for (const route of routes) {
+    const joinedPath = [parentPath, route.path].filter(Boolean).join('/');
+    const current = {
+      ...inherited,
+      ...(getCraftRouteMeta(route.data)?.pathParams ?? {}),
+    } as Record<string, PathParamsDefinition>;
+    if (joinedPath === targetPath) {
+      return current;
+    }
+    const nested = route.children
+      ? findPathParamsDefinitions(
+          route.children,
+          targetPath,
+          joinedPath,
+          current,
+        )
+      : undefined;
+    if (nested) return nested;
+  }
+  return undefined;
 }
 
 export function createCraftRouterCommands(
