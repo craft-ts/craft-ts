@@ -12,6 +12,7 @@ module.exports = {
   'craft-ts/require-craft-service-input-scope': 'error',
   'craft-ts/prefer-direct-craft-service-exposure': 'error',
   'craft-ts/prefer-craft-computed-for-reactive-generator': 'error',
+  'craft-ts/no-direct-craft-reactivity': 'error',
   'craft-ts/craft-source-name-match': 'warn',
   'craft-ts/craft-signal-source-name-match': 'warn',
   'craft-ts/craft-component-name-match': 'warn',

@@ -16,6 +16,45 @@ can miss a real DI error. Run `eslint --fix` in CI.
 
 The plugin is exposed from `@craft-ts/dev-tools/eslint-rules`.
 
+## Use Craft state and computed values
+
+`craft-ts/no-direct-craft-reactivity` is enabled at `error` in the recommended
+and Effect presets, including generated apps. It rejects imports of the
+low-level `craftSignal` and `ɵcomputed` factories from `@craft-ts/core`. They
+produce signal-shaped values without the lifecycle, naming, composition, and
+runtime tracking provided by Craft primitives.
+
+Before — aliasing the factories makes them look like general purpose signals:
+
+```ts
+import { ɵcomputed as computed, craftSignal as signal } from '@craft-ts/core';
+
+const count = signal(0);
+const doubled = computed(() => count() * 2);
+```
+
+After — declare writable values with `state` and derived values with
+`craftComputed` inside a Craft service:
+
+```ts
+import { craftComputed, craftService, state } from '@craft-ts/core';
+
+const { Counter } = craftService(
+  { name: 'Counter', providedIn: 'global' },
+  function* () {
+    const count = yield* state('count', 0, ({ update }) => ({
+      increment: () => update((value) => value + 1),
+    }));
+    yield* craftComputed('doubled', function* () {
+      return (yield* count()) * 2;
+    });
+  },
+);
+```
+
+There is no autofix: the author must choose the owning service and its scope,
+then expose the state methods and computed values that consumers need.
+
 ## Scope-matched craft service inputs
 
 `craft-ts/require-craft-service-input-scope` is enabled at `error` in the

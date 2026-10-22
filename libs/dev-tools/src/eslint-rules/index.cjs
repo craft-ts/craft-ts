@@ -130,6 +130,7 @@ const noTrustForwardedHeaders = require('./no-trust-forwarded-headers.cjs');
 const noEffectImportInFrontend = require('./no-effect-import-in-frontend.cjs');
 const requireI18nText = require('./require-i18n-text.cjs');
 const noI18nComposition = require('./no-i18n-composition.cjs');
+const noDirectCraftReactivity = require('./no-direct-craft-reactivity.cjs');
 const requireCatchTagExhaustiveReaction = require('./require-catch-tag-exhaustive-reaction.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 const securityRules = require('./security-config.cjs');
@@ -279,6 +280,7 @@ const plugin = {
     'no-effect-import-in-frontend': noEffectImportInFrontend,
     'require-i18n-text': requireI18nText,
     'no-i18n-composition': noI18nComposition,
+    'no-direct-craft-reactivity': noDirectCraftReactivity,
   },
 };
 
