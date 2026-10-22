@@ -18,6 +18,7 @@ import {
   assertRouteDiProofs,
   assertLazyRouteTargetsStayLazy,
   noExclusiveLink,
+  routePathParamNavigationFindings,
 } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from './load-graph';
 import { architectureWaiverList } from './waivers';
@@ -36,11 +37,17 @@ describe('demo architecture', () => {
 
   it('indexes demo routes and provided feature services', () => {
     expect(
-      graph.route('craft/query/:userId', 'apps/demo/src/app/app.routes.ts')
+      graph.route(
+        'craft/query/:userId',
+        'apps/demo/src/app/app.routes.ts',
+      )
         .kind,
     ).toBe('route');
     expect(
-      graph.route('craft/mutation/:userId', 'apps/demo/src/app/app.routes.ts')
+      graph.route(
+        'craft/mutation/:userId',
+        'apps/demo/src/app/app.routes.ts',
+      )
         .kind,
     ).toBe('route');
     expect(graph.providedOn('UserList').map((node) => node.label)).toEqual(
@@ -49,6 +56,10 @@ describe('demo architecture', () => {
     expect(graph.providedOn('UserMutation').map((node) => node.label)).toEqual(
       expect.arrayContaining([expect.stringMatching(/Mutation/)]),
     );
+  });
+
+  it('uses pathParams for route-scoped same-route parameter updates', () => {
+    expect(routePathParamNavigationFindings(graph.graph)).toEqual([]);
   });
 
   it('indexes the users HTTP endpoint', () => {

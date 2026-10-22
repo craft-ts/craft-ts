@@ -1,4 +1,4 @@
-# queryParams
+# URL state: `queryParams` and `pathParams`
 
 `queryParams` is a state whose home is the URL's query string. Reading and
 writing look like any other state; the address bar follows, and so does the back
@@ -52,9 +52,97 @@ pagination.reset();
 
 `?page=3&showArchived=true` becomes `{ page: 3, showArchived: true }` on load.
 
-## Codecs are mandatory
+## Path parameters
 
-A URL only holds strings, so every parameter declares how it converts both ways.
+Use `pathParams` for a dynamic segment such as `:userId` or `:page`. Unlike
+`queryParams`, each path parameter is declared on its route, because its name
+and codec are part of that route's URL contract.
+
+```typescript
+import {
+  craftException,
+  craftRoute,
+  craftRoutes,
+  pathParams,
+} from '@craft-ts/core';
+import { UsersPage } from './users.page';
+
+const positiveIntegerCodec = {
+  decode(raw: string) {
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value) || value < 1) {
+      return craftException({ _tag: 'INVALID_PAGE', scope: 'parse' }, { raw });
+    }
+    return value;
+  },
+  encode(value: number) {
+    return String(value);
+  },
+};
+
+export const { usersRoutes } = craftRoutes('users', [
+  craftRoute('users/:userId/page/:page', {
+    loadComponent: async () => UsersPage,
+    componentDeps: {},
+    pathParams: {
+      userId: pathParams('userId'),
+      page: pathParams(
+        'page',
+        { codec: positiveIntegerCodec, fallbackValue: 1 },
+        ({ value, set }) => ({
+          nextPage: function* () {
+            return yield* set(value() + 1);
+          },
+        }),
+      ),
+    },
+  }).withProviders(({ PagePathParams }) => {
+    // PagePathParams() yields the route-scoped primitive to providers here.
+    void PagePathParams;
+    return [];
+  }),
+]);
+```
+
+Without a codec, the primitive reads and writes the URL segment as a `string`.
+With a codec, `value()` and `set(...)` use the decoded type. The route record's
+keys must match dynamic segment names. Optional segments (`:page?`) continue to
+use the existing raw parameter helpers; `pathParams` does not bind optional
+segments yet.
+
+`set` and `update` replace only the selected segment and preserve the other path
+segments, query string, and fragment. They add a history entry by default;
+`{ replaceUrl: true }` replaces the current entry. `skipLocationChange` is also
+available in the same options object.
+
+When `fallbackValue` is present, a decode failure uses that value and remains
+available through `hasException()` and `exception()`. Without a fallback, the
+route's exception handlers receive a codec-returned `craftException`, or a
+`PathParamDecodeError` when `decode` throws. This happens before the route
+component consumes the decoded value. An encode failure is normalized to
+`PathParamEncodeError` before the URL changes.
+
+The generated collection helper is route-scoped, like the existing raw
+`UsersUserIdParams` helpers. Descendant providers can use the short helper from
+`withProviders`, such as `PagePathParams`; app-level services should pass
+destination parameters explicitly:
+
+```typescript
+import { CraftRouter } from '@craft-ts/core';
+
+yield* CraftRouter.navigate({
+  to: 'users/:userId/page/:page',
+  params: { userId, page: 3 }, // `page` is decoded here; the codec writes "3"
+});
+```
+
+Routes that do not declare `pathParams` keep their existing raw parameter
+helpers and `params` remain strings. A declaration replaces only the matching
+parameter's type in `CraftRouter` navigation inputs.
+
+## Query string codecs are mandatory
+
+A URL only holds strings, so every query parameter declares how it converts both ways.
 The decoded type is your application type; the encoded one is what appears in the
 address bar.
 
@@ -173,7 +261,7 @@ An encode failure raises `QueryParamEncodeError` before router navigation starts
 
 ## Pitfalls
 
-**Every parameter needs a `codec`** — there is no implicit string passthrough.
+**Every query parameter needs a `codec`** — there is no implicit string passthrough.
 
 **Methods bound to a source with `on$` are not exposed** on the result, same as
 every primitive.
@@ -183,44 +271,41 @@ Query parameters can live in the route rather than in a component, so they belon
 to the URL definition itself:
 
 ```typescript
-export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes(
-  'demo',
-  [
-    {
-      path: 'query-params',
-      ...loadCraftComponent(({ withRetry }) =>
-        withRetry(import('./qp-list-with-pagination')).then(
-          ({ default: component }) => component,
-        ),
+export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
+  {
+    path: 'query-params',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./qp-list-with-pagination')).then(
+        ({ default: component }) => component,
       ),
-      queryParams: function* () {
-        const pagination = yield* queryParams(
-          'pagination',
-          {
-            state: {
-              page: { fallbackValue: 1, codec: numberCodec },
-              pageSize: { fallbackValue: 4, codec: numberCodec },
-            },
+    ),
+    queryParams: function* () {
+      const pagination = yield* queryParams(
+        'pagination',
+        {
+          state: {
+            page: { fallbackValue: 1, codec: numberCodec },
+            pageSize: { fallbackValue: 4, codec: numberCodec },
           },
-          ({ patch, state }) => ({
-            nextPage: function* () {
-              const current = yield* state();
-              return yield* patch({ page: current.page + 1 });
-            },
-            previousPage: function* () {
-              const current = yield* state();
-              return yield* patch({ page: current.page - 1 });
-            },
-            updatePageSize: function* (pageSize: number) {
-              return yield* patch({ pageSize, page: 1 });
-            },
-          }),
-        );
-        return pagination;
-      },
+        },
+        ({ patch, state }) => ({
+          nextPage: function* () {
+            const current = yield* state();
+            return yield* patch({ page: current.page + 1 });
+          },
+          previousPage: function* () {
+            const current = yield* state();
+            return yield* patch({ page: current.page - 1 });
+          },
+          updatePageSize: function* (pageSize: number) {
+            return yield* patch({ pageSize, page: 1 });
+          },
+        }),
+      );
+      return pagination;
     },
-  ],
-);
+  },
+]);
 ```
 
 The route collection exposes its route-level query params as the yieldable
@@ -228,7 +313,7 @@ The route collection exposes its route-level query params as the yieldable
 route's provider setup:
 
 ```typescript
-const pagination = yield* DemoQueryParamsQueryParams();
+const pagination = yield * DemoQueryParamsQueryParams();
 ```
 
 For a lazy component rendered by that same route, pass the route's local

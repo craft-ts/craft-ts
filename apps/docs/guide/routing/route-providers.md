@@ -1,15 +1,16 @@
 # Route providers
 
-A route can provide services built from **its own URL** — the `:userId` in the
-path, its `data`, its query params, the value its guard resolved — with full
-type-safe dependency tracking.
+A route can provide services built from **its own URL** — raw `:userId` path
+segments, decoded `pathParams`, its `data`, query params, or the value its guard
+resolved — with full type-safe dependency tracking.
 
 **Use it when** a subtree's services depend on which route rendered them: a
 "current project" service, a tenant-scoped API client.
 **Not when** the dependency is global — provide it at the app level instead.
 
-Build route-level providers from a route's **own auto-provisioned tokens** — path params,
-`data`, `queryParams`, and `canActivate` guarded data — with full, type-safe dependency tracking.
+Build route-level providers from a route's **own auto-provisioned tokens** — raw
+path params, declared `pathParams`, `data`, `queryParams`, and `canActivate`
+guarded data — with full, type-safe dependency tracking.
 
 ## The problem
 
@@ -48,12 +49,15 @@ const { UserRequirement, provideUser } = craftService(
 );
 
 // 2. A guard that resolves the user.
-const { Auth } = craftService({ name: 'Auth', providedIn: 'global' }, function* () {
-  yield* query('auth', {
-    params: () => true,
-    loader: async () => ({}) as User,
-  });
-});
+const { Auth } = craftService(
+  { name: 'Auth', providedIn: 'global' },
+  function* () {
+    yield* query('auth', {
+      params: () => true,
+      loader: async () => ({}) as User,
+    });
+  },
+);
 
 export const { demoRoutes } = craftRoutes('demo', [
   craftRoute('query/:userId', {
@@ -84,12 +88,13 @@ that the guard resolved — without ever touching the fully-qualified route help
 The `.withProviders(...)` callback receives an object with **route-local short names** for every
 auto-provisioned token present on the route:
 
-| Helper          | Present when…               | Yields                                 |
-| --------------- | --------------------------- | -------------------------------------- |
-| `GuardedData`   | the route has `canActivate` | `Signal<GuardData>`                    |
-| `<Param>Params` | per path param              | `Signal<string>` (e.g. `UserIdParams`) |
-| `QueryParams`   | the route has `queryParams` | the query-params state                 |
-| `Data`          | the route has `data`        | `Signal<RouteData>`                    |
+| Helper              | Present when…                                             | Yields                                               |
+| ------------------- | --------------------------------------------------------- | ---------------------------------------------------- |
+| `GuardedData`       | the route has `canActivate`                               | `Signal<GuardData>`                                  |
+| `<Param>Params`     | per path param                                            | `Signal<string>` (e.g. `UserIdParams`)               |
+| `<Param>PathParams` | the route declares that path param with `pathParams(...)` | decoded path-param primitive (e.g. `PagePathParams`) |
+| `QueryParams`       | the route has `queryParams`                               | the query-params state                               |
+| `Data`              | the route has `data`                                      | `Signal<RouteData>`                                  |
 
 Names are **scoped to the single route**, so the collection prefix and route path are dropped:
 `GuardedData`, not `DemoQueryUserIdGuardedData`. The path-param name is kept to keep
@@ -98,11 +103,12 @@ multiple params distinct (`UserIdParams`, `TeamIdParams`, …).
 Each helper is a generator you consume with `yield*`, exactly like a service's `X()`:
 
 ```ts
-.withProviders(({ UserIdParams, QueryParams }) => [
+.withProviders(({ UserIdParams, PagePathParams, QueryParams }) => [
   provideSomething(function* () {
     const userId = yield* UserIdParams();   // Signal<string>
+    const page = yield* PagePathParams();   // decoded page value + set/update
     const qp = yield* QueryParams();        // query-params state
-    return { userId, qp };
+    return { userId, page, qp };
   }),
 ])
 ```

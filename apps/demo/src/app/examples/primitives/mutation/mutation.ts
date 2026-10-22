@@ -12,7 +12,6 @@ import {
 } from '@craft-ts/component';
 import {
   craftService,
-  CraftRouter,
   insertStoragePersister,
   craftUnique,
   insertReactOnMutation,
@@ -29,6 +28,7 @@ import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import { example } from '../../shared/example.style';
 import { buttonUi } from '@craft-ts/ui/style';
+import { UserIdPathParams } from '../../shared/user-id-path-params';
 
 export const { MutationDemoView, provideMutationDemoView } = craftService(
   { name: 'mutationDemoView', providedIn: 'toProvide' },
@@ -77,15 +77,9 @@ export const { MutationDemoView, provideMutationDemoView } = craftService(
     yield* craftComputed('userValueJson', function* () {
       return JSON.stringify(yield* userQuery.value(), null, 2);
     });
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
-
+    const userIdPathParams = yield* UserIdPathParams();
     yield* craftMethod('goTo', function* (offset: number) {
-      void router.navigate({
-        to: 'mutation/:userId',
-        params: { userId: String(Number((yield* userId()) ?? '0') + offset) },
-      });
+      return yield* userIdPathParams.shiftUser(offset);
     });
     yield* craftMethod('update', function* (name: string | undefined) {
       if (!name) {

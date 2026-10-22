@@ -1,18 +1,19 @@
 # Which primitive should I use?
 
-There are five primitives. They share the same shape — a name, a configuration,
+There are six primitives. They share the same shape — a name, a configuration,
 optional insertions — and differ only in **where the value comes from** and
 **what triggers it**.
 
 ## The decision
 
-| Where does the value live?               | Use                                            |
-| ---------------------------------------- | ---------------------------------------------- |
-| In memory, you own it                    | [`state`](/guide/state/local-state)            |
-| On a server, read                        | [`query`](/guide/state/server-state)           |
-| On a server, written                     | [`mutation`](/guide/state/mutations)           |
-| In the URL's query string                | [`queryParams`](/guide/state/url-state)        |
-| Nowhere — it's an action with a lifecycle | [`asyncProcess`](/guide/state/async-process)   |
+| Where does the value live?                | Use                                                    |
+| ----------------------------------------- | ------------------------------------------------------ |
+| In memory, you own it                     | [`state`](/guide/state/local-state)                    |
+| On a server, read                         | [`query`](/guide/state/server-state)                   |
+| On a server, written                      | [`mutation`](/guide/state/mutations)                   |
+| In the URL's query string                 | [`queryParams`](/guide/state/url-state)                |
+| In a route's dynamic path segment         | [`pathParams`](/guide/state/url-state#path-parameters) |
+| Nowhere — it's an action with a lifecycle | [`asyncProcess`](/guide/state/async-process)           |
 
 ## The same table, by symptom
 
@@ -35,7 +36,7 @@ The URL becomes the source of truth; your query's `params` read from it.
 Use it for operations that are not a server read or write: a file export, a
 share sheet, a delay, a Web API call.
 
-## Things that are *not* a primitive
+## Things that are _not_ a primitive
 
 - **Derived values** — use `craftComputed` inside an insertion. Craft keeps the
   reader dependency visible in the graph.

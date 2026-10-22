@@ -16,6 +16,10 @@ import {
   routePaginationQueryParams,
 } from './examples/routes/list-with-pagination/qp-list-with-pagination.route';
 import type { AppProvidedNames, AppProvidedValues } from './app.config';
+import {
+  provideUserIdPathParams,
+  userIdPathParam,
+} from './examples/shared/user-id-path-params';
 
 // SOURCE OF TRUTH FOR THE DEMO ROUTES.
 // All demo routes are served and checked by default.
@@ -28,9 +32,36 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
         ({ default: component }) => component,
       ),
     ),
+    pathParams: { userId: userIdPathParam },
+    providersFn: ({ UserIdPathParams }) => [
+      provideUserIdPathParams(function* () {
+        return yield* UserIdPathParams();
+      }),
+    ],
   },
 
-  /* demo-route-end */ /* demo-route: debounced-web-search */
+  /* demo-route-end */ /* demo-route: mutation */
+  {
+    path: 'mutation/:userId',
+      ...loadCraftComponent(({ withRetry }) =>
+        withRetry(import('./examples/primitives/mutation/mutation')).then(
+          ({ default: component }) => component,
+        ),
+      ),
+      pathParams: { userId: userIdPathParam },
+      handleExceptions: {
+        UNEXPECTED_ERROR: craftExceptionHandler(function* ({ globalError }) {
+          return globalError();
+        }),
+      },
+      providersFn: ({ UserIdPathParams }) => [
+        provideUserIdPathParams(function* () {
+          return yield* UserIdPathParams();
+        }),
+      ],
+  },
+
+  /* demo-route: debounced-web-search */
   {
     path: 'debounced-web-search',
     ...loadCraftComponent(({ withRetry }) =>
@@ -207,23 +238,6 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
     ),
   },
 
-  /* demo-route-end */ /* demo-route: mutation */
-  craftRoute(
-    'mutation/:userId',
-    {
-      ...loadCraftComponent(({ withRetry }) =>
-        withRetry(import('./examples/primitives/mutation/mutation')).then(
-          ({ default: component }) => component,
-        ),
-      ),
-    },
-    {
-      UNEXPECTED_ERROR: craftExceptionHandler(function* ({ globalError }) {
-        return globalError();
-      }),
-    },
-  ),
-
   /* demo-route-end */ /* demo-route: list-with-pagination */
   {
     path: 'list-with-pagination',
@@ -304,6 +318,12 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
         ({ default: component }) => component,
       ),
     ),
+    pathParams: { userId: userIdPathParam },
+    providersFn: ({ UserIdPathParams }) => [
+      provideUserIdPathParams(function* () {
+        return yield* UserIdPathParams();
+      }),
+    ],
   },
 
   /* demo-route-end */ /* demo-route: craft-mutation */
@@ -314,6 +334,12 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
         ({ default: component }) => component,
       ),
     ),
+    pathParams: { userId: userIdPathParam },
+    providersFn: ({ UserIdPathParams }) => [
+      provideUserIdPathParams(function* () {
+        return yield* UserIdPathParams();
+      }),
+    ],
   },
 
   /* demo-route-end */ /* demo-route: craft-list-with-pagination */
@@ -618,21 +644,32 @@ type DemoRouteCheckedDI<
   RouteInputs
 >;
 
-/* demo-check: query */
-type _CanRunQuery = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/primitives/query/query'))['default'],
-    'userId',
-    'path: "query/:userId"'
-  >
->;
-/* demo-check-end */
 /* demo-check: debounced-web-search */
 type _CanRunDebouncedWebSearch = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/primitives/debounced-web-search/debounced-web-search'))['default'],
     never,
     'path: "debounced-web-search"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: query */
+type _CanRunQuery = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/query/query'))['default'],
+    'userId',
+    'path: "query/:userId"',
+    'UserIdPathParams'
+  >
+>;
+/* demo-check-end */
+/* demo-check: mutation */
+type _CanRunMutation = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/primitives/mutation/mutation'))['default'],
+    'userId',
+    'path: "mutation/:userId"',
+    'UserIdPathParams'
   >
 >;
 /* demo-check-end */
@@ -762,15 +799,6 @@ type _CanRunCssVarsProperty = CanRun<
   >
 >;
 /* demo-check-end */
-/* demo-check: mutation */
-type _CanRunMutation = CanRun<
-  DemoRouteCheckedDI<
-    (typeof import('./examples/primitives/mutation/mutation'))['default'],
-    'userId',
-    'path: "mutation/:userId"'
-  >
->;
-/* demo-check-end */
 /* demo-check: list-with-pagination */
 type _CanRunListWithPagination = CanRun<
   DemoRouteCheckedDI<
@@ -839,7 +867,8 @@ type _CanRunCraftQuery = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/craft/query/query'))['default'],
     'userId',
-    'path: "craft/query/:userId"'
+    'path: "craft/query/:userId"',
+    'UserIdPathParams'
   >
 >;
 /* demo-check-end */
@@ -848,7 +877,8 @@ type _CanRunCraftMutation = CanRun<
   DemoRouteCheckedDI<
     (typeof import('./examples/craft/mutation/mutation'))['default'],
     'userId',
-    'path: "craft/mutation/:userId"'
+    'path: "craft/mutation/:userId"',
+    'UserIdPathParams'
   >
 >;
 /* demo-check-end */

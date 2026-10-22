@@ -14,19 +14,23 @@ async action ([`asyncProcess`](/guide/state/async-process)).
 ```typescript
 import { craftComputed, state, craftUse } from '@craft-ts/core';
 
-const counter = yield* state('counter', 0, ({ state, update, set }) => ({
-  increment: () => update((value) => value + 1),
-  decrement: () => update((value) => value - 1),
-  reset: () => set(0),
-  isEven: craftUse(craftComputed('isEven', function* () {
-    return (yield* state()) % 2 === 0;
-  })),
-}));
+const counter =
+  yield *
+  state('counter', 0, ({ state, update, set }) => ({
+    increment: () => update((value) => value + 1),
+    decrement: () => update((value) => value - 1),
+    reset: () => set(0),
+    isEven: craftUse(
+      craftComputed('isEven', function* () {
+        return (yield* state()) % 2 === 0;
+      }),
+    ),
+  }));
 
-yield* counter(); // 0
-yield* counter.increment();
-yield* counter.isEven(); // false
-yield* counter.reset();
+yield * counter(); // 0
+yield * counter.increment();
+yield * counter.isEven(); // false
+yield * counter.reset();
 ```
 
 The insertion context gives you `state` (the current value as a yieldable
@@ -38,7 +42,7 @@ synchronous boundary, `craftUse(counter.increment())`.
 
 ::: tip New to the shape?
 The name, the destructuring, the `yield*` driver and the single-use rule are
-the same for all five primitives — see
+the same for all six primitives — see
 [Anatomy of a primitive](/guide/concepts/primitive-anatomy).
 :::
 
@@ -47,16 +51,20 @@ the same for all five primitives — see
 The initial value can be a Craft reader, in which case the state follows it:
 
 ```typescript
-const origin = yield* state('origin', 5);
+const origin = yield * state('origin', 5);
 
-const doubled = yield* state(
-  'doubled',
-  craftUse(craftComputed('originDoubled', function* () {
-    return (yield* origin()) * 2;
-  })),
-);
+const doubled =
+  yield *
+  state(
+    'doubled',
+    craftUse(
+      craftComputed('originDoubled', function* () {
+        return (yield* origin()) * 2;
+      }),
+    ),
+  );
 
-yield* doubled(); // 10
+yield * doubled(); // 10
 ```
 
 ## Composing several insertions
@@ -64,26 +72,35 @@ yield* doubled(); // 10
 One insertion function gets crowded. Split it and compose with `insertStatePipe`:
 
 ```typescript
-import { craftComputed, insertStatePipe, state, craftUse } from '@craft-ts/core';
+import {
+  craftComputed,
+  insertStatePipe,
+  state,
+  craftUse,
+} from '@craft-ts/core';
 
-const counter = yield* state(
-  'counter',
-  0,
-  insertStatePipe(
-    ({ update, set }) => ({
-      increment: () => update((current) => current + 1),
-      reset: () => set(0),
-    }),
-    ({ state }) => ({
-      isOdd: craftUse(craftComputed('isOdd', function* () {
-        return (yield* state()) % 2 === 1;
-      })),
-    }),
-  ),
-);
+const counter =
+  yield *
+  state(
+    'counter',
+    0,
+    insertStatePipe(
+      ({ update, set }) => ({
+        increment: () => update((current) => current + 1),
+        reset: () => set(0),
+      }),
+      ({ state }) => ({
+        isOdd: craftUse(
+          craftComputed('isOdd', function* () {
+            return (yield* state()) % 2 === 1;
+          }),
+        ),
+      }),
+    ),
+  );
 
-yield* counter.increment();
-yield* counter.isOdd(); // true
+yield * counter.increment();
+yield * counter.isOdd(); // true
 ```
 
 Each function receives the same context and contributes its own slice. See
@@ -96,21 +113,24 @@ caller, calculate a replacement there, and pass the replacement back through
 a generic method such as `replace` or `update`.
 
 ```typescript
-const todos = yield* state('todos', initialTodos, ({ update }) => ({
-  move: (todoId: string, direction: 'up' | 'down') => update((current) => {
-    const from = current.findIndex((todo) => todo.id === todoId);
-    const to = from + (direction === 'up' ? -1 : 1);
-    if (from < 0 || to < 0 || to >= current.length) return current;
-    const next = [...current];
-    const [todo] = next.splice(from, 1);
-    if (!todo) return current;
-    next.splice(to, 0, todo);
-    return next;
-  }),
-}));
+const todos =
+  yield *
+  state('todos', initialTodos, ({ update }) => ({
+    move: (todoId: string, direction: 'up' | 'down') =>
+      update((current) => {
+        const from = current.findIndex((todo) => todo.id === todoId);
+        const to = from + (direction === 'up' ? -1 : 1);
+        if (from < 0 || to < 0 || to >= current.length) return current;
+        const next = [...current];
+        const [todo] = next.splice(from, 1);
+        if (!todo) return current;
+        next.splice(to, 0, todo);
+        return next;
+      }),
+  }));
 
 // The caller supplies only the intent.
-yield* todos.move(todoId, 'up');
+yield * todos.move(todoId, 'up');
 ```
 
 The recommended and Effect ESLint presets enable
@@ -134,10 +154,12 @@ Bind a method to a [`source$`](/guide/reactivity/source) with
 const increment = source$<void>('increment');
 const reset = source$<void>('reset');
 
-const myState = yield* state('myState', 0, ({ update, set }) => ({
-  onIncrement: on$(increment, () => update((v) => v + 1)),
-  onReset: on$(reset, () => set(0)),
-}));
+const myState =
+  yield *
+  state('myState', 0, ({ update, set }) => ({
+    onIncrement: on$(increment, () => update((v) => v + 1)),
+    onReset: on$(reset, () => set(0)),
+  }));
 
 increment.emit(); // after yield* / craftUse, myState is 1
 reset.emit(); // after yield* / craftUse, myState is 0
@@ -155,7 +177,8 @@ bound to a source work internally only.
 An insertion can be a `function*`, so it can pull in services:
 
 ```typescript
-yield* state('counter', 0, function* ({ state }) {
+yield *
+  state('counter', 0, function* ({ state }) {
     const log = yield* Console.log;
     return {
       logValue: function* () {
@@ -183,21 +206,23 @@ holding five unrelated things makes every consumer depend on all five.
 Use the object form with `$self` when a state needs its own provider scope:
 
 ```typescript
-const counter = yield* state(
-  'counter',
-  {
-    $self: function* () {
-      return yield* CounterPreferences.initialValue();
+const counter =
+  yield *
+  state(
+    'counter',
+    {
+      $self: function* () {
+        return yield* CounterPreferences.initialValue();
+      },
+      providers: [provideCounterPreferences(), provideCounterAnalytics()],
     },
-    providers: [provideCounterPreferences(), provideCounterAnalytics()],
-  },
-  ({ update }) => ({
-    increment: function* () {
-      yield* CounterAnalytics.track('increment');
-      return yield* update((value) => value + 1);
-    },
-  }),
-);
+    ({ update }) => ({
+      increment: function* () {
+        yield* CounterAnalytics.track('increment');
+        return yield* update((value) => value + 1);
+      },
+    }),
+  );
 ```
 
 :::

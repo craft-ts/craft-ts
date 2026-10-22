@@ -11,7 +11,6 @@ import {
   type Input,
 } from '@craft-ts/component';
 import {
-  CraftRouter,
   craftComputed,
   craftMethod,
   craftService,
@@ -30,6 +29,7 @@ import { ApiService, type User } from './api.service';
 import { eventValue } from '../../../event-value';
 import { example } from '../../shared/example.style';
 import { buttonUi } from '@craft-ts/ui/style';
+import { UserIdPathParams } from '../../shared/user-id-path-params';
 
 export const { provideUserMutation, UserMutation } = craftService(
   { name: 'UserMutation', providedIn: 'toProvide' },
@@ -75,11 +75,7 @@ export const { provideUserMutation, UserMutation } = craftService(
 
 export const { MutationCraftView, provideMutationCraftView } = craftService(
   { name: 'mutationCraftView', providedIn: 'toProvide' },
-  function* (inputs: {
-    readonly $provided: { readonly userId: CraftServiceInput<string> };
-  }) {
-    const { userId } = inputs.$provided;
-
+  function* () {
     const store = yield* UserMutation();
     yield* state('nameInput', '', ({ set }) => ({
       setName: (value: string) => set(value),
@@ -102,14 +98,9 @@ export const { MutationCraftView, provideMutationCraftView } = craftService(
         });
       }
     });
-    const router = yield* CraftRouter(undefined, ({ navigate }) => ({
-      navigate,
-    }));
+    const userIdPathParams = yield* UserIdPathParams();
     yield* craftMethod('navigate', function* (offset: number) {
-      void router.navigate({
-        to: 'craft/mutation/:userId',
-        params: { userId: String(Number((yield* userId()) ?? '0') + offset) },
-      });
+      return yield* userIdPathParams.shiftUser(offset);
     });
     yield* craftExpose('store', store);
   },
@@ -216,7 +207,7 @@ const MutationCraft = craftComponent(
     ]),
 ).pipe(
   withComponentProviders(({ userId }) => [
-    provideMutationCraftView({ userId }),
+    provideMutationCraftView(),
     provideUserMutation({ userId }),
   ]),
 );
