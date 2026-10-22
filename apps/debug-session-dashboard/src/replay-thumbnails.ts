@@ -10,7 +10,7 @@ import {
   span,
   ul,
 } from '@craft-ts/component';
-import { craftComputed, state } from '@craft-ts/core';
+import { craftComputed } from '@craft-ts/core';
 import { assign, unit } from '@craft-ts/style';
 import { buttonUi } from '@craft-ts/ui/style';
 import { markVars, ui } from './dashboard.style';
@@ -29,6 +29,7 @@ import {
   replayableEvents,
   thumbnailManifest,
 } from './replay-state';
+import { ThumbnailPreview } from './thumbnail-preview.service';
 import {
   THUMBNAIL_ORIGIN,
   thumbnailImageUrl,
@@ -93,37 +94,22 @@ export const ReplayThumbnailMarks = craftComponent(
         );
       },
     );
-    const openEntryIndex = yield* state(
-      'openEntryIndex',
-      undefined as number | undefined,
-      function* ({ state, set }) {
-        const renderedMarks = yield* craftComputed(
-          'renderedMarks',
-          function* () {
-            const current = yield* currentEntryIndex();
-            const open = yield* state();
-            const done = replayIndex();
-            return (yield* marks()).map<Mark>((mark) => ({
-              ...mark,
-              phase:
-                mark.entry.index === current
-                  ? 'current'
-                  : mark.position <= done
-                    ? 'passed'
-                    : undefined,
-              cardPhase: mark.entry.index === open ? 'open' : undefined,
-            }));
-          },
-        );
-        return {
-          setOnPointerEnter: (value: number | undefined) => set(value),
-          setOnPointerLeave: (value: number | undefined) => set(value),
-          setOnFocus: (value: number | undefined) => set(value),
-          setOnBlur: (value: number | undefined) => set(value),
-          renderedMarks,
-        };
-      },
-    );
+    const preview = yield* ThumbnailPreview();
+    const renderedMarks = yield* craftComputed('renderedMarks', function* () {
+      const current = yield* currentEntryIndex();
+      const open = yield* preview.openEntryIndex();
+      const done = replayIndex();
+      return (yield* marks()).map<Mark>((mark) => ({
+        ...mark,
+        phase:
+          mark.entry.index === current
+            ? 'current'
+            : mark.position <= done
+              ? 'passed'
+              : undefined,
+        cardPhase: mark.entry.index === open ? 'open' : undefined,
+      }));
+    });
 
     return ul(
       {
@@ -132,7 +118,7 @@ export const ReplayThumbnailMarks = craftComponent(
         'aria-label': 'Aperçus de la session',
       },
       forNode(
-        openEntryIndex.renderedMarks,
+        renderedMarks,
         { track: (mark: Mark) => mark.entry.index },
         (mark) =>
           li(
@@ -161,17 +147,17 @@ export const ReplayThumbnailMarks = craftComponent(
                 },
                 pointerenter: function* () {
                   const item = yield* mark();
-                  yield* openEntryIndex.setOnPointerEnter(item.entry.index);
+                  yield* preview.show(item.entry.index);
                 },
                 pointerleave: function* () {
-                  yield* openEntryIndex.setOnPointerLeave(undefined);
+                  yield* preview.show(undefined);
                 },
                 focus: function* () {
                   const item = yield* mark();
-                  yield* openEntryIndex.setOnFocus(item.entry.index);
+                  yield* preview.show(item.entry.index);
                 },
                 blur: function* () {
-                  yield* openEntryIndex.setOnBlur(undefined);
+                  yield* preview.show(undefined);
                 },
                 click: function* () {
                   goToMark(yield* mark());

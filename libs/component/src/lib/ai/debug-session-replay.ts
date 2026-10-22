@@ -1042,6 +1042,57 @@ export function createReplayController(
         return undefined;
       }
     }
+    if (plannedCommand?.kind === 'navigate' && event.kind === 'navigation') {
+      const payload = isRecord(event.payload) ? event.payload : {};
+      const url = payload['url'];
+      if (typeof url !== 'string' || !options.navigateToRecordedRoute) {
+        stop(true);
+        options.onError?.(
+          typeof url !== 'string'
+            ? `Replay navigation event ${event.sequence} has no recorded URL.`
+            : 'Replay cannot apply a recorded browser history navigation in this application.',
+        );
+        return undefined;
+      }
+      if (!(await waitForPlaybackTime(timeOf(event)))) return undefined;
+      await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
+      recordedResponseResolver?.advanceTo(timeOf(event));
+      await options.onTimelineAdvance?.(timeOf(event));
+      const recordedOptions = isRecord(payload['navigationOptions'])
+        ? payload['navigationOptions']
+        : {};
+      try {
+        await options.navigateToRecordedRoute(url, {
+          ...(typeof recordedOptions['replaceUrl'] === 'boolean'
+            ? { replaceUrl: recordedOptions['replaceUrl'] }
+            : {}),
+          ...(typeof recordedOptions['skipLocationChange'] === 'boolean'
+            ? { skipLocationChange: recordedOptions['skipLocationChange'] }
+            : {}),
+        });
+      } catch (error) {
+        stop(true);
+        options.onError?.(
+          error instanceof Error ? error.message : String(error),
+        );
+        return undefined;
+      }
+      if (!(await restorePrimitiveChangesBetweenSteps(event, true)))
+        return undefined;
+      cursor += 1;
+      if (cursor >= interactions.length) {
+        stop(true, false);
+        options.onProgress?.(cursor, interactions.length, 'completed');
+      } else {
+        options.onProgress?.(
+          cursor,
+          interactions.length,
+          running ? 'playing' : 'paused',
+          nextPlaybackDelayMs(),
+        );
+      }
+      return undefined;
+    }
     if (event.kind === 'defer' && event.phase === 'started') {
       const payload = isRecord(event.payload) ? event.payload : {};
       const targetId = payload['targetId'];
@@ -2631,6 +2682,14 @@ function hasSharedReplayPrimitiveIdentity(
 }
 
 function isReplayStep(event: SendContextEvent): boolean {
+  if (
+    event.kind === 'navigation' &&
+    event.phase === 'started' &&
+    isRecord(event.payload) &&
+    isRecord(event.payload['event']) &&
+    event.payload['event']['trigger'] === 'history'
+  )
+    return true;
   return (
     (event.kind === 'defer' && event.phase === 'started') ||
     (event.phase === 'emitted' &&

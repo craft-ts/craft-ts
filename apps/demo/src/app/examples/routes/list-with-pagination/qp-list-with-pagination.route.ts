@@ -1,4 +1,4 @@
-import { craftService, queryParams } from '@craft-ts/core';
+import { abstract, craftService, queryParams } from '@craft-ts/core';
 import { paginationQueryParams } from '../../../query-params.utils';
 
 export const routePaginationQueryParams = function* () {
@@ -21,10 +21,14 @@ export const routePaginationQueryParams = function* () {
   );
 };
 
+type RoutePaginationQueryParamsRef = ReturnType<
+  typeof routePaginationQueryParams
+> extends Generator<infer _Yielded, infer Ref, infer _Next>
+  ? Ref
+  : never;
+
 export const { RoutePaginationQueryParams, provideRoutePaginationQueryParams } =
   craftService(
-    { name: 'RoutePaginationQueryParams', providedIn: 'toProvide' },
-    function* () {
-      return yield* routePaginationQueryParams();
-    },
+    { name: 'RoutePaginationQueryParams', providedIn: 'abstract' },
+    abstract<RoutePaginationQueryParamsRef>(),
   );

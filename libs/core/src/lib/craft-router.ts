@@ -981,6 +981,20 @@ function createNativeCraftRouter(
 ): CraftRouter {
   const listeners = new Set<(event: CraftRouterEvent) => void>();
 
+  // `commit` emits the router events for Craft-initiated navigations. A
+  // browser back/forward changes history without going through `commit`, so
+  // report those location changes through the same event stream.
+  history.listen((next, source) => {
+    if (source !== 'browser') return;
+    const url = serializeLocation(next);
+    for (const listener of listeners) {
+      listener({ type: 'NavigationStart', url, trigger: 'history' });
+    }
+    for (const listener of listeners) {
+      listener({ type: 'NavigationEnd', url, trigger: 'history' });
+    }
+  });
+
   const toUrl = (
     input: CraftRouterInputWithOptionalQueryParams & CraftNavigationExtras,
   ): string => {

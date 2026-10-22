@@ -4,6 +4,7 @@ import {
   craftService,
   BrowserDocumentService,
   LocalStorage,
+  LocalStorageService,
   on$,
   rawReactiveValue,
   source$,
@@ -485,8 +486,10 @@ export const { ReplayState } = craftService(
       ),
     );
     yield* craftEffect('persistAutoSkipPreference', function* () {
-      const enabled = yield* autoSkipDifferencesState();
-      yield* localStorage.setItem(AUTO_SKIP_STORAGE_KEY, String(enabled));
+      const storage = yield* LocalStorageService();
+      const enabled = rawReactiveValue(autoSkipDifferencesState);
+      return () =>
+        storage.setItem(AUTO_SKIP_STORAGE_KEY, String(enabled()));
     });
     const partialReplayWriter = createStateWriter(
       'partialReplay',

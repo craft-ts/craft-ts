@@ -1,7 +1,7 @@
 // Generated. Do not edit.
 export const architectureCatalog = {
   "version": 1,
-  "graphHash": "6bf2bac3163367dc",
+  "graphHash": "9fa8239ffa726639",
   "routes": [],
   "services": [
     "CraftFieldCheckboxControl",
@@ -26,7 +26,8 @@ export const architectureCatalog = {
     "replayRoute",
     "replayState",
     "sessionArchive",
-    "thumbnailArchive"
+    "thumbnailArchive",
+    "thumbnailPreview"
   ],
   "components": [
     "AiChatLauncherBridge",
@@ -396,6 +397,7 @@ export const architectureCatalog = {
     "replayState": "global",
     "sessionArchive": "global",
     "thumbnailArchive": "global",
+    "thumbnailPreview": "global",
     "aiContextMenuDismissal": "toProvide",
     "aiSendContextChatState": "toProvide",
     "aiSendDialogState": "toProvide",

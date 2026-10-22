@@ -7,7 +7,12 @@ export type CraftLocation = {
 export interface CraftHistory {
   get(): CraftLocation;
   getState(): unknown;
-  listen(fn: (location: CraftLocation) => void): () => void;
+  listen(
+    fn: (
+      location: CraftLocation,
+      source?: 'browser' | 'programmatic',
+    ) => void,
+  ): () => void;
   push(url: string, state?: unknown): void;
   replace(url: string, state?: unknown): void;
   skip(url: string, state?: unknown): void;
@@ -135,17 +140,19 @@ export function createBrowserHistory(
   options: { useHashLocation?: boolean } = {},
 ): CraftHistory {
   const useHashLocation = options.useHashLocation ?? false;
-  const listeners = new Set<(location: CraftLocation) => void>();
+  const listeners = new Set<
+    (location: CraftLocation, source?: 'browser' | 'programmatic') => void
+  >();
   let disposed = false;
   let current = readWindowLocation(win, useHashLocation);
   let currentState: unknown = win.history.state ?? null;
 
-  const notify = (): void => {
+  const notify = (source: 'browser' | 'programmatic'): void => {
     if (disposed) {
       return;
     }
     for (const listener of listeners) {
-      listener(current);
+      listener(current, source);
     }
   };
 
@@ -170,13 +177,13 @@ export function createBrowserHistory(
     }
     currentState = nextState;
     current = readWindowLocation(win, useHashLocation);
-    notify();
+    notify('programmatic');
   };
 
   const onPopState = (event: PopStateEvent): void => {
     current = readWindowLocation(win, useHashLocation);
     currentState = event.state ?? win.history.state ?? null;
-    notify();
+    notify('browser');
   };
   win.addEventListener('popstate', onPopState);
   const onHashChange = (): void => {
@@ -184,7 +191,7 @@ export function createBrowserHistory(
     if (serializeLocation(next) === serializeLocation(current)) return;
     current = next;
     currentState = win.history.state ?? null;
-    notify();
+    notify('browser');
   };
   if (useHashLocation) win.addEventListener('hashchange', onHashChange);
 
@@ -206,7 +213,7 @@ export function createBrowserHistory(
     skip(url, state) {
       currentState = state === undefined ? null : state;
       current = parseUrl(url);
-      notify();
+      notify('programmatic');
     },
     dispose() {
       if (disposed) {
@@ -223,11 +230,13 @@ export function createBrowserHistory(
 export function createMemoryHistory(initialUrl = '/'): CraftHistory {
   let current = parseUrl(initialUrl);
   let currentState: unknown = null;
-  const listeners = new Set<(location: CraftLocation) => void>();
+  const listeners = new Set<
+    (location: CraftLocation, source?: 'browser' | 'programmatic') => void
+  >();
 
   const notify = (): void => {
     for (const listener of listeners) {
-      listener(current);
+      listener(current, 'programmatic');
     }
   };
 

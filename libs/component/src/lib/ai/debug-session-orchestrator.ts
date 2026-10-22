@@ -649,6 +649,14 @@ export function compileReplayPlan(
 function isReplayCommandEvent(event: SendContextEvent): boolean {
   if (event.kind === 'defer' && event.phase === 'started') return true;
   if (
+    event.kind === 'navigation' &&
+    event.phase === 'started' &&
+    isRecord(event.payload) &&
+    isRecord(event.payload['event']) &&
+    event.payload['event']['trigger'] === 'history'
+  )
+    return true;
+  if (
     event.phase === 'emitted' &&
     ['dom', 'gesture', 'hover', 'scroll', 'viewport'].includes(event.kind)
   )

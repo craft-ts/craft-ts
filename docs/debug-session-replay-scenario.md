@@ -69,11 +69,11 @@ que le fallback a été rendu ; il ne contient pas la valeur métier. Le replay
 apparie ces transitions par opération et avertit si l’état visible attendu
 n’apparaît pas.
 
-Une navigation Angular associée à un lien enregistré reste une étape de replay
-via le routeur. Un reload du document ferme la session courante : le replay ne
-l’exécute pas et demande de reprendre depuis une nouvelle capture. Le routeur
-observe `NavigationStart`, mais le retour/avance navigateur n’a pas encore de
-déclencheur explicite dans le replay et reste non vérifié.
+Une navigation associée à un lien enregistré reste une étape de replay via le
+routeur. Les retours et avances du navigateur sont enregistrés comme des étapes
+de navigation puis rejoués vers l’URL enregistrée. Un reload du document ferme
+la session courante : le replay ne l’exécute pas et demande de reprendre depuis
+une nouvelle capture.
 
 Valider avec `validateReplayScenario(json)`, puis lancer
 `runReplayTest(session, json, options)`. Le résultat structuré distingue un

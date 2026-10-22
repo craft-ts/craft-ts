@@ -28,6 +28,8 @@ export type CraftUrlTree = {
 export type CraftRouterEvent = {
   readonly type: 'NavigationStart' | 'NavigationEnd';
   readonly url: string;
+  /** Set when the browser changed the active history entry. */
+  readonly trigger?: 'history';
 };
 
 export type CraftNavigationExtras = {
