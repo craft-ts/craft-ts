@@ -1189,6 +1189,310 @@ export function assertRouteComponentsInSeparateFiles(
   );
 }
 
+export type LazyRouteImportOptions = {
+  /** Application source entry points, relative to `graph.rootDir` or absolute. */
+  readonly entryPoints: readonly string[];
+};
+
+export type LazyRouteImportViolation = {
+  readonly lazyTarget: string;
+  readonly lazyRoute: string;
+  readonly importPath: readonly string[];
+};
+
+/**
+ * Finds modules loaded by route-level dynamic imports, then makes sure neither
+ * the application entry points nor another lazy route target statically
+ * imports them. This is a source-graph guarantee; bundler chunk configuration
+ * can still affect the emitted files.
+ */
+export function lazyRouteImportViolations(
+  graph: DependencyGraph,
+  options: LazyRouteImportOptions,
+): LazyRouteImportViolation[] {
+  const configFile = ts.readConfigFile(graph.tsConfigFilePath, ts.sys.readFile);
+  if (configFile.error) {
+    throw new Error(
+      `Could not read TypeScript config ${graph.tsConfigFilePath}: ${ts.flattenDiagnosticMessageText(configFile.error.messageText, '\n')}`,
+    );
+  }
+  const parsedConfig = ts.parseJsonConfigFileContent(
+    configFile.config,
+    ts.sys,
+    dirname(graph.tsConfigFilePath),
+    undefined,
+    graph.tsConfigFilePath,
+  );
+  if (parsedConfig.errors.length > 0) {
+    throw new Error(
+      `Could not parse TypeScript config ${graph.tsConfigFilePath}: ${parsedConfig.errors.map((error) => ts.flattenDiagnosticMessageText(error.messageText, '\n')).join('; ')}`,
+    );
+  }
+
+  const program = ts.createProgram({
+    rootNames: parsedConfig.fileNames,
+    options: parsedConfig.options,
+  });
+  const sourceFiles = new Map(
+    program
+      .getSourceFiles()
+      .filter((sourceFile) => !sourceFile.isDeclarationFile)
+      .map((sourceFile) => [resolve(sourceFile.fileName), sourceFile]),
+  );
+  const resolveModule = (
+    specifier: string,
+    containingFile: string,
+  ): string | undefined => {
+    const result = ts.resolveModuleName(
+      specifier,
+      containingFile,
+      parsedConfig.options,
+      ts.sys,
+    ).resolvedModule;
+    if (!result) return undefined;
+    const target = resolve(result.resolvedFileName);
+    return sourceFiles.has(target) ? target : undefined;
+  };
+  const moduleSpecifier = (
+    node: ts.Expression | undefined,
+  ): string | undefined =>
+    node && ts.isStringLiteralLike(node) ? node.text : undefined;
+
+  const staticImportCache = new Map<string, string[]>();
+  const staticImports = (sourceFile: ts.SourceFile): string[] => {
+    const cached = staticImportCache.get(sourceFile.fileName);
+    if (cached) return cached;
+    const targets = new Set<string>();
+    for (const statement of sourceFile.statements) {
+      if (ts.isImportDeclaration(statement)) {
+        const clause = statement.importClause;
+        const onlyTypes = Boolean(
+          clause &&
+            (clause.isTypeOnly ||
+              (!clause.name &&
+                clause.namedBindings &&
+                ts.isNamedImports(clause.namedBindings) &&
+                clause.namedBindings.elements.length > 0 &&
+                clause.namedBindings.elements.every(
+                  (element) => element.isTypeOnly,
+                ))),
+        );
+        if (onlyTypes) continue;
+        const specifier = moduleSpecifier(statement.moduleSpecifier);
+        const target =
+          specifier && resolveModule(specifier, sourceFile.fileName);
+        if (target) targets.add(target);
+      } else if (ts.isExportDeclaration(statement)) {
+        const onlyTypes =
+          statement.isTypeOnly ||
+          (statement.exportClause &&
+            ts.isNamedExports(statement.exportClause) &&
+            statement.exportClause.elements.length > 0 &&
+            statement.exportClause.elements.every(
+              (element) => element.isTypeOnly,
+            ));
+        if (onlyTypes) continue;
+        const specifier = moduleSpecifier(statement.moduleSpecifier);
+        const target =
+          specifier && resolveModule(specifier, sourceFile.fileName);
+        if (target) targets.add(target);
+      } else if (
+        ts.isImportEqualsDeclaration(statement) &&
+        !statement.isTypeOnly &&
+        ts.isExternalModuleReference(statement.moduleReference)
+      ) {
+        const specifier = moduleSpecifier(statement.moduleReference.expression);
+        const target =
+          specifier && resolveModule(specifier, sourceFile.fileName);
+        if (target) targets.add(target);
+      }
+    }
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === 'require' &&
+        node.arguments.length === 1
+      ) {
+        const specifier = moduleSpecifier(node.arguments[0]);
+        const target =
+          specifier && resolveModule(specifier, sourceFile.fileName);
+        if (target) targets.add(target);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+    const resolved = [...targets].sort();
+    staticImportCache.set(sourceFile.fileName, resolved);
+    return resolved;
+  };
+
+  const lazyTargets = new Map<string, Set<string>>();
+  for (const route of graph.nodes.filter((node) => node.kind === 'route')) {
+    if (!route.filePath) continue;
+    const routeFile = sourceFiles.get(resolve(route.filePath));
+    if (!routeFile) continue;
+    const routeStartLine = route.line;
+    const routeObject =
+      routeStartLine === undefined
+        ? undefined
+        : findRouteObject(
+            routeFile,
+            routeStartLine,
+            String(route.details?.['path'] ?? ''),
+          );
+    if (!routeObject) continue;
+    for (const specifier of dynamicImportSpecifiers(routeObject)) {
+      const target = resolveModule(specifier, routeFile.fileName);
+      if (target) {
+        const routes = lazyTargets.get(target) ?? new Set<string>();
+        routes.add(
+          `${route.label} (${relativeGraphPath(graph, route.filePath) ?? route.filePath})`,
+        );
+        lazyTargets.set(target, routes);
+      }
+    }
+  }
+
+  const entryFiles = options.entryPoints.map((entryPoint) => {
+    const candidate = resolve(graph.rootDir, entryPoint);
+    const sourceFile = sourceFiles.get(candidate);
+    if (!sourceFile) {
+      throw new Error(
+        `Lazy route import check entry point ${entryPoint} is not in ${graph.tsConfigFilePath}.`,
+      );
+    }
+    return candidate;
+  });
+  const violations = new Map<string, LazyRouteImportViolation>();
+  const inspectFrom = (start: string, allowSelfTarget: boolean): void => {
+    const parents = new Map<string, string | undefined>([[start, undefined]]);
+    const queue = [start];
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      if (!current) continue;
+      const lazyTarget = lazyTargets.get(current);
+      if (lazyTarget && !(allowSelfTarget && current === start)) {
+        const importPath: string[] = [];
+        let pathNode: string | undefined = current;
+        while (pathNode) {
+          importPath.unshift(relativeGraphPath(graph, pathNode) ?? pathNode);
+          pathNode = parents.get(pathNode);
+        }
+        const key = `${start}:${current}`;
+        violations.set(key, {
+          lazyTarget: relativeGraphPath(graph, current) ?? current,
+          lazyRoute: [...lazyTarget].sort().join(', '),
+          importPath,
+        });
+      }
+      const sourceFile = sourceFiles.get(current);
+      if (!sourceFile) continue;
+      for (const target of staticImports(sourceFile)) {
+        if (parents.has(target)) continue;
+        parents.set(target, current);
+        queue.push(target);
+      }
+    }
+  };
+
+  for (const entryFile of entryFiles) inspectFrom(entryFile, false);
+  for (const lazyTarget of lazyTargets.keys()) inspectFrom(lazyTarget, true);
+  return [...violations.values()].sort((left, right) =>
+    `${left.lazyRoute}:${left.importPath.join(' -> ')}`.localeCompare(
+      `${right.lazyRoute}:${right.importPath.join(' -> ')}`,
+    ),
+  );
+}
+
+export function assertLazyRouteTargetsStayLazy(
+  graph: DependencyGraph,
+  options: LazyRouteImportOptions,
+): void {
+  const violations = lazyRouteImportViolations(graph, options);
+  if (violations.length === 0) return;
+  throw new Error(
+    violations
+      .map(
+        ({ lazyRoute, lazyTarget, importPath }) =>
+          `Lazy route ${JSON.stringify(lazyRoute)} targets ${lazyTarget}, but that module is statically reachable through ${importPath.join(' -> ')}. Remove the value import/re-export that crosses the lazy boundary, or keep the dependency behind a dynamic route import.`,
+      )
+      .join('\n'),
+  );
+}
+
+function findRouteObject(
+  sourceFile: ts.SourceFile,
+  startLine: number,
+  routePath: string,
+): ts.ObjectLiteralExpression | undefined {
+  const candidates: ts.ObjectLiteralExpression[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isObjectLiteralExpression(node) &&
+      sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line +
+        1 ===
+        startLine
+    ) {
+      candidates.push(node);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return (
+    candidates.find((candidate) => routeObjectPath(candidate) === routePath) ??
+    candidates[0]
+  );
+}
+
+function routeObjectPath(
+  object: ts.ObjectLiteralExpression,
+): string | undefined {
+  const pathProperty = object.properties.find(
+    (property): property is ts.PropertyAssignment =>
+      ts.isPropertyAssignment(property) &&
+      ts.isIdentifier(property.name) &&
+      property.name.text === 'path',
+  );
+  if (pathProperty && ts.isStringLiteralLike(pathProperty.initializer)) {
+    return pathProperty.initializer.text;
+  }
+  const parent = object.parent;
+  if (
+    parent &&
+    ts.isCallExpression(parent) &&
+    ts.isIdentifier(parent.expression) &&
+    parent.expression.text === 'craftRoute' &&
+    parent.arguments[0] &&
+    ts.isStringLiteralLike(parent.arguments[0])
+  ) {
+    return parent.arguments[0].text;
+  }
+  return undefined;
+}
+
+function dynamicImportSpecifiers(node: ts.Node): string[] {
+  const specifiers = new Set<string>();
+  const visit = (current: ts.Node): void => {
+    const argument =
+      ts.isCallExpression(current) && current.arguments.length === 1
+        ? current.arguments[0]
+        : undefined;
+    if (
+      ts.isCallExpression(current) &&
+      current.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      argument &&
+      ts.isStringLiteralLike(argument)
+    ) {
+      specifiers.add(argument.text);
+    }
+    ts.forEachChild(current, visit);
+  };
+  visit(node);
+  return [...specifiers].sort();
+}
+
 export type HttpEndpointUniqueViolation = {
   id: string;
   label: string;
@@ -2323,7 +2627,8 @@ function isAllowedNode(
     (entry) =>
       entry === node.id ||
       entry === node.label ||
-      (relativePath !== undefined && matchPathGlob(entry, relativePath) !== null),
+      (relativePath !== undefined &&
+        matchPathGlob(entry, relativePath) !== null),
   );
 }
 
@@ -2356,7 +2661,9 @@ export function undocumentedNodeViolations(
 ): UndocumentedNodeViolation[] {
   const kinds = new Set(options.kinds);
   const cited = new Set(
-    graph.edges.filter((edge) => edge.kind === 'documents').map((edge) => edge.to),
+    graph.edges
+      .filter((edge) => edge.kind === 'documents')
+      .map((edge) => edge.to),
   );
   const violations: UndocumentedNodeViolation[] = [];
   for (const node of graph.nodes) {
@@ -3087,8 +3394,7 @@ export function assertQueryParamsRouteOwnership(
     const file = relativeGraphPath(graph, primitive.filePath);
     if (
       options.allow?.some(
-        (entry) =>
-          entry.name === name && (!entry.file || entry.file === file),
+        (entry) => entry.name === name && (!entry.file || entry.file === file),
       )
     ) {
       return false;
@@ -3097,10 +3403,7 @@ export function assertQueryParamsRouteOwnership(
     const ownerId = primitive.details?.['ownerId'];
     if (typeof ownerId !== 'string') return true;
     const owner = nodesById.get(ownerId);
-    if (
-      owner?.kind !== 'service' ||
-      owner.details?.['scope'] !== 'toProvide'
-    ) {
+    if (owner?.kind !== 'service' || owner.details?.['scope'] !== 'toProvide') {
       return true;
     }
 

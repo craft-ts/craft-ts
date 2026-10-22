@@ -6,7 +6,7 @@ import {
   type Input,
 } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
-import { TokenCard } from './css-vars-required-demo';
+import { TokenCard } from './css-vars-token-card';
 import { cssVarsDemo, forwarding } from './css-vars.style';
 
 /**

@@ -5,6 +5,7 @@ import {
   assertCraftEffectNoNetwork,
   assertDeclarativeArchitecture,
   assertInteractiveElementNamed,
+  assertLazyRouteTargetsStayLazy,
   assertNoDependencyCycles,
   assertPrimitiveLoaderRequirements,
 } from '@craft-ts/dev-tools/architecture-graph';
@@ -17,6 +18,12 @@ describe('quickstart architecture', () => {
   beforeAll(async () => {
     graph = await loadArchitectureGraph();
   }, 180_000);
+
+  it('keeps lazy route modules outside the eager application import graph', () => {
+    assertLazyRouteTargetsStayLazy(graph.graph, {
+      entryPoints: ['apps/quickstart-effect/src/main.ts'],
+    });
+  });
 
   it('contains the Effect operation, service and Layer', () => {
     expect(graph.nodes('effect-operation').map((node) => node.label)).toEqual(

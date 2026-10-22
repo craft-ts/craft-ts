@@ -89,6 +89,12 @@ describe('architecture migration', () => {
       existsSync(join(root, 'architecture/rules/route-di-proofs.spec.ts')),
     ).toBe(true);
     expect(
+      await readFile(
+        join(root, 'architecture/rules/lazy-route-imports.spec.ts'),
+        'utf8',
+      ),
+    ).toContain("entryPoints: ['main.ts']");
+    expect(
       existsSync(join(root, 'architecture/rules/mutation-react-on.spec.ts')),
     ).toBe(true);
     expect(

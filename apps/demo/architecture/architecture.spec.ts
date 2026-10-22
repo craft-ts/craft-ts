@@ -16,6 +16,7 @@ import {
   assertQueryParamsRouteOwnership,
   assertRouteComponentsInSeparateFiles,
   assertRouteDiProofs,
+  assertLazyRouteTargetsStayLazy,
   noExclusiveLink,
 } from '@craft-ts/dev-tools';
 import { loadDemoArchitectureGraph } from './load-graph';
@@ -85,6 +86,12 @@ describe('demo architecture', () => {
 
   it('keeps route definitions separate from page components', () => {
     assertRouteComponentsInSeparateFiles(graph.graph);
+  });
+
+  it('keeps lazy route modules outside the eager application import graph', () => {
+    assertLazyRouteTargetsStayLazy(graph.graph, {
+      entryPoints: ['apps/demo/src/main.ts'],
+    });
   });
 
   it('requires a query to react to each mutation, except pedagogical orphans', () => {

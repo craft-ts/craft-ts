@@ -1,5 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { assertDeclarativeArchitecture } from '@craft-ts/dev-tools';
+import {
+  assertDeclarativeArchitecture,
+  assertLazyRouteTargetsStayLazy,
+} from '@craft-ts/dev-tools';
 import { loadArchitectureGraph } from './load-graph';
 import { architectureWaiverList } from './waivers';
 
@@ -16,6 +19,12 @@ describe('architecture', () => {
 
   it('loads the architecture graph', () => {
     expect(graph.graph.version).toBe(1);
+  });
+
+  it('keeps lazy route modules outside the eager application import graph', () => {
+    assertLazyRouteTargetsStayLazy(graph.graph, {
+      entryPoints: ['apps/debug-session-dashboard/src/main.ts'],
+    });
   });
 
   it('keeps the base rules, the style rules included', () => {

@@ -1,40 +1,11 @@
-import {
-  article,
-  craftComponent,
-  div,
-  heading,
-  p,
-  span,
-  type Input,
-} from '@craft-ts/component';
+import { craftComponent, div, heading, p, span } from '@craft-ts/component';
 import { CssVarsPageNav } from './css-vars-demo.shared';
-import { cssVarsDemo, tokenCard } from './css-vars.style';
+import { TokenCard, type CssVarsTokenCardTone } from './css-vars-token-card';
+import { cssVarsDemo } from './css-vars.style';
 
-type Tone = 'blue' | 'pink' | 'green';
-
-const BLUE: Tone = 'blue';
-const PINK: Tone = 'pink';
-const GREEN: Tone = 'green';
-
-/**
- * A card whose colours are variables. The tone is a state axis: it sets the
- * variables it changes, and the others keep their registered initial value.
- */
-export const TokenCard = craftComponent(
-  'TokenCard',
-  {},
-  (input: {
-    readonly label: Input<string>;
-    readonly tone: Input<Tone | null>;
-  }) =>
-    article({ class: tokenCard.root, 'data-tokenCard': input.tone }, [
-      span({ class: tokenCard.label }, input.label),
-      span(
-        { class: tokenCard.contract },
-        'ink, bg, radius: typed, each with an initial value',
-      ),
-    ]),
-);
+const BLUE: CssVarsTokenCardTone = 'blue';
+const PINK: CssVarsTokenCardTone = 'pink';
+const GREEN: CssVarsTokenCardTone = 'green';
 
 export const CssVarsRequiredDemo = craftComponent(
   'CssVarsRequiredDemo',
