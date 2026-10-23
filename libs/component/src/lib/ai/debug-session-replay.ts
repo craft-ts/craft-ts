@@ -7,7 +7,7 @@ import {
   isCraftReplayTransportEvent,
   ɵresolveCraftReplayTarget,
 } from '@craft-ts/core';
-import { CRAFT_REPLAY_HOVER_ATTRIBUTE } from '@craft-ts/style';
+import { CRAFT_REPLAY_STATE_ATTRIBUTES } from '@craft-ts/style';
 import {
   compareReplayScenarioValue,
   readReplayScenarioPath,
@@ -859,35 +859,61 @@ export function createReplayController(
   let restoreReplayScrollBlock: (() => void) | undefined;
   const nativeControlPresentation =
     createDebugSessionNativeControlReplayPresentation();
-  const replayHoverTargetsByPointer = new Map<number, Map<string, Element>>();
-  const replayHoverReferenceCounts = new Map<Element, number>();
-  const clearReplayHoverState = (): void => {
-    for (const element of replayHoverReferenceCounts.keys())
-      element.removeAttribute(CRAFT_REPLAY_HOVER_ATTRIBUTE);
-    replayHoverReferenceCounts.clear();
-    replayHoverTargetsByPointer.clear();
+  type ReplayVisualState = keyof typeof CRAFT_REPLAY_STATE_ATTRIBUTES;
+  const replayVisualTargetsByPointer = new Map<
+    number,
+    Map<string, { element: Element; state: ReplayVisualState }>
+  >();
+  const replayVisualReferenceCounts = new Map<
+    Element,
+    Map<ReplayVisualState, number>
+  >();
+  const clearReplayVisualState = (): void => {
+    for (const [element, states] of replayVisualReferenceCounts) {
+      for (const state of states.keys())
+        element.removeAttribute(CRAFT_REPLAY_STATE_ATTRIBUTES[state]);
+    }
+    replayVisualReferenceCounts.clear();
+    replayVisualTargetsByPointer.clear();
   };
-  const syncReplayHoverState = (event: SendContextEvent): void => {
+  const syncReplayVisualState = (event: SendContextEvent): void => {
     if (event.kind !== 'hover' || !isRecord(event.payload)) return;
     const payload = event.payload;
     const pointerId =
       typeof payload['pointerId'] === 'number' ? payload['pointerId'] : 1;
     const activeTargets =
-      replayHoverTargetsByPointer.get(pointerId) ?? new Map<string, Element>();
-    const targets = Array.isArray(payload['craftHoverTargets'])
-      ? payload['craftHoverTargets']
+      replayVisualTargetsByPointer.get(pointerId) ??
+      new Map<string, { element: Element; state: ReplayVisualState }>();
+    const legacyTargets = Array.isArray(payload['craftHoverTargets'])
+      ? payload['craftHoverTargets'].map((target) =>
+          isRecord(target) ? { ...target, state: 'hover' } : target,
+        )
       : [];
+    const targets = Array.isArray(payload['craftStateTargets'])
+      ? payload['craftStateTargets']
+      : legacyTargets;
     for (const value of targets) {
       if (!isRecord(value)) continue;
+      if (
+        typeof value['state'] !== 'string' ||
+        !Object.prototype.hasOwnProperty.call(
+          CRAFT_REPLAY_STATE_ATTRIBUTES,
+          value['state'],
+        )
+      )
+        continue;
+      const state = value['state'] as ReplayVisualState;
+      const attribute = CRAFT_REPLAY_STATE_ATTRIBUTES[state];
       const selector =
         typeof value['selector'] === 'string' ? value['selector'] : undefined;
       const replayTarget = isCraftReplayTarget(value['replayTarget'])
         ? value['replayTarget']
         : undefined;
-      const key = replayTarget
+      const identity = replayTarget
         ? JSON.stringify(replayTarget)
         : (selector ?? '');
-      if (!key) continue;
+      if (!identity) continue;
+      const key = `${state}:${identity}`;
 
       if (payload['action'] === 'enter') {
         if (activeTargets.has(key)) continue;
@@ -901,26 +927,31 @@ export function createReplayController(
               ? safeQuerySelector(selector)
               : null;
         if (!element) continue;
-        activeTargets.set(key, element);
-        const references = replayHoverReferenceCounts.get(element) ?? 0;
-        replayHoverReferenceCounts.set(element, references + 1);
-        element.setAttribute(CRAFT_REPLAY_HOVER_ATTRIBUTE, '');
+        activeTargets.set(key, { element, state });
+        const states = replayVisualReferenceCounts.get(element) ?? new Map();
+        const references = states.get(state) ?? 0;
+        states.set(state, references + 1);
+        replayVisualReferenceCounts.set(element, states);
+        element.setAttribute(attribute, '');
       } else if (payload['action'] === 'leave') {
-        const element = activeTargets.get(key);
-        if (!element) continue;
+        const active = activeTargets.get(key);
+        if (!active) continue;
         activeTargets.delete(key);
-        const references = replayHoverReferenceCounts.get(element) ?? 0;
+        const states = replayVisualReferenceCounts.get(active.element);
+        const references = states?.get(state) ?? 0;
         if (references <= 1) {
-          replayHoverReferenceCounts.delete(element);
-          element.removeAttribute(CRAFT_REPLAY_HOVER_ATTRIBUTE);
+          states?.delete(state);
+          active.element.removeAttribute(attribute);
         } else {
-          replayHoverReferenceCounts.set(element, references - 1);
+          states?.set(state, references - 1);
         }
+        if (states?.size === 0)
+          replayVisualReferenceCounts.delete(active.element);
       }
     }
     if (activeTargets.size > 0)
-      replayHoverTargetsByPointer.set(pointerId, activeTargets);
-    else replayHoverTargetsByPointer.delete(pointerId);
+      replayVisualTargetsByPointer.set(pointerId, activeTargets);
+    else replayVisualTargetsByPointer.delete(pointerId);
   };
   const pendingScrollEvents = new Map<EventTarget, () => void>();
   const writeAndWaitForScroll = (
@@ -976,7 +1007,7 @@ export function createReplayController(
       restoreReplayScrollBlock?.();
       restoreReplayScrollBlock = undefined;
       nativeControlPresentation.dispose();
-      if (resetClock) clearReplayHoverState();
+      if (resetClock) clearReplayVisualState();
       restoreClock();
       if (resetClock) clock.reset(firstTime);
       playbackEpoch = undefined;
@@ -1100,7 +1131,7 @@ export function createReplayController(
       try {
         await options.prepare?.();
         for (const priorEvent of interactions.slice(0, cursor))
-          syncReplayHoverState(priorEvent);
+          syncReplayVisualState(priorEvent);
       } catch (error) {
         stop(true);
         options.onError?.(
@@ -1524,7 +1555,7 @@ export function createReplayController(
       // reaches the dashboard. Leaving is only marker cleanup, so it does not
       // need the old target to remain in the new route's DOM.
       await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
-      syncReplayHoverState(event);
+      syncReplayVisualState(event);
       options.onInteraction?.(event, document.body);
       if (!(await restorePrimitiveChangesBetweenSteps(event, true)))
         return undefined;
@@ -1696,7 +1727,7 @@ export function createReplayController(
       // application handlers a second time; the recorded Craft calls remain
       // the sole source of their effects during invocation replay.
       nativeControlPresentation.sync(event, target ?? document.body);
-      syncReplayHoverState(event);
+      syncReplayVisualState(event);
       options.onInteraction?.(event, target ?? document.body);
       if (!(await restorePrimitiveChangesBetweenSteps(event))) return undefined;
       cursor += 1;

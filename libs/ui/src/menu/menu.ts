@@ -15,6 +15,11 @@ import {
 } from '@craft-ts/core';
 import { DocIcon } from '../icon/icon.ts';
 import { NAVIGATED_EVENT } from './navigated.ts';
+import {
+  handleMenuItemKeydown,
+  handleMenuTriggerKeydown,
+  toggleMenuFromTrigger,
+} from './keyboard.ts';
 import { menuUi } from './menu.style.ts';
 
 export interface MenuItem {
@@ -63,7 +68,9 @@ export const { DocMenuView, provideDocMenuView } = craftService(
           if (event.key === 'Escape') open.close();
         },
       );
-      fromEventToSource$<Event>(document, NAVIGATED_EVENT).subscribe(() => open.close());
+      fromEventToSource$<Event>(document, NAVIGATED_EVENT).subscribe(() =>
+        open.close(),
+      );
     }
     yield* craftExpose('toggle', (menuId: string) => {
       activeMenuId = menuId;
@@ -102,6 +109,8 @@ export const DocMenu = craftComponent(
             role: 'menuitem',
             href: item.href,
             click: () => view.close(),
+            keydown: (event) =>
+              handleMenuItemKeydown(event, () => view.close()),
           },
           [
             span(item.label),
@@ -119,7 +128,17 @@ export const DocMenu = craftComponent(
           'aria-haspopup': 'menu',
           'aria-controls': `${id}-panel`,
           'aria-expanded': isOpen,
-          click: () => view.toggle(id),
+          click: (event) =>
+            toggleMenuFromTrigger(
+              event.currentTarget as HTMLButtonElement,
+              () => view.toggle(id),
+            ),
+          keydown: (event) =>
+            handleMenuTriggerKeydown(
+              event,
+              event.currentTarget as HTMLButtonElement,
+              () => view.toggle(id),
+            ),
         },
         [
           span(label),

@@ -482,6 +482,11 @@ export interface SendContextToAiOptions {
    * in Vite production builds and enabled in other modes.
    */
   readonly captureHover?: boolean;
+  /**
+   * Capture focus, focus-visible and active transitions for replay. Defaults
+   * to disabled in Vite production builds and enabled in other modes.
+   */
+  readonly captureFocusActive?: boolean;
 }
 
 /** Opt-in session capture without mounting the AI context menu or launcher. */
@@ -512,6 +517,11 @@ export function provideCraftDebugSessionCapture(
      * in Vite production builds and enabled in other modes.
      */
     captureHover?: boolean;
+    /**
+     * Capture focus, focus-visible and active transitions for replay. Defaults
+     * to disabled in Vite production builds and enabled in other modes.
+     */
+    captureFocusActive?: boolean;
   }> = {},
 ): Provider[] {
   const recording = options.recording ?? true;
@@ -606,8 +616,13 @@ export function provideCraftDebugSessionCapture(
           }
         ).env?.PROD === true;
       const disconnectHoverCapture =
-        recording && (options.captureHover ?? !viteProduction)
-          ? connectDebugSessionHoverCapture(createdSession)
+        recording &&
+        ((options.captureHover ?? !viteProduction) ||
+          (options.captureFocusActive ?? !viteProduction))
+          ? connectDebugSessionHoverCapture(createdSession, {
+              hover: options.captureHover ?? !viteProduction,
+              focusActive: options.captureFocusActive ?? !viteProduction,
+            })
           : undefined;
       const disconnectFormCapture = recording
         ? connectDebugSessionFormCapture(createdSession, {
@@ -965,6 +980,7 @@ export function provideSendContextToAi(
       : provideCraftDebugSessionCapture({
           recording: options.recording,
           captureHover: options.captureHover,
+          captureFocusActive: options.captureFocusActive,
         })),
     provideSendContextChatComponent(() => AiSendContextChat),
     provideSendContextContextMenuComponent(() => AiContextMenu),

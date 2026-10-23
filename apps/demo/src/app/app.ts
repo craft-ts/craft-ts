@@ -54,6 +54,7 @@ const NAV_GROUPS = [
       ['CSS Variables — Inheritance', { to: 'css-vars/inheritance' }],
       ['CSS Variables — Forwarding', { to: 'css-vars/forwarding' }],
       ['CSS Variables — @property', { to: 'css-vars/property' }],
+      ['Interaction State Replay', { to: 'interaction-replay' }],
     ],
   },
   {
@@ -125,6 +126,75 @@ const VISIBLE_NAV_GROUPS = NAV_GROUPS.map((group) => ({
   ...group,
   links: group.links.filter(([, link]) => isEnabledDemoRoute(link.to)),
 })).filter((group) => group.links.length > 0);
+
+function focusExampleLink(
+  event: KeyboardEvent,
+  direction: 'first' | 'last' | 'next' | 'previous',
+) {
+  const panel = (event.currentTarget as HTMLElement).closest(
+    '[data-testid="nav-panel"]',
+  );
+  const links = panel?.querySelectorAll<HTMLAnchorElement>(
+    '[data-testid="nav-link"]',
+  );
+  if (!links?.length) return;
+
+  event.preventDefault();
+  const currentIndex = [...links].indexOf(
+    event.currentTarget as HTMLAnchorElement,
+  );
+  const nextIndex =
+    direction === 'first'
+      ? 0
+      : direction === 'last'
+        ? links.length - 1
+        : (currentIndex + (direction === 'next' ? 1 : -1) + links.length) %
+          links.length;
+  links[nextIndex]?.focus();
+}
+
+function handleNavLinkKeydown(event: KeyboardEvent): void {
+  if (event.key === 'ArrowDown') focusExampleLink(event, 'next');
+  if (event.key === 'ArrowUp') focusExampleLink(event, 'previous');
+  if (event.key === 'Home') focusExampleLink(event, 'first');
+  if (event.key === 'End') focusExampleLink(event, 'last');
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    AppView.navOpen.close();
+    document
+      .querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')
+      ?.focus();
+  }
+}
+
+function handleNavToggleKeydown(event: KeyboardEvent): void {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    const panel = document.querySelector<HTMLElement>(
+      '[data-testid="nav-panel"]',
+    );
+    if (panel) {
+      const links = panel.querySelectorAll<HTMLAnchorElement>(
+        '[data-testid="nav-link"]',
+      );
+      links[event.key === 'ArrowDown' ? 0 : links.length - 1]?.focus();
+    } else {
+      event.preventDefault();
+      AppView.navOpen.toggle();
+      requestAnimationFrame(() => {
+        const links = document.querySelectorAll<HTMLAnchorElement>(
+          '[data-testid="nav-panel"] [data-testid="nav-link"]',
+        );
+        links[event.key === 'ArrowDown' ? 0 : links.length - 1]?.focus();
+      });
+    }
+  } else if (
+    event.key === 'Escape' &&
+    document.querySelector('[data-testid="nav-panel"]')
+  ) {
+    event.preventDefault();
+    AppView.navOpen.close();
+  }
+}
 
 /**
  * Runtime `META_PATHS` lists each `craftRoutes` entry, not the flattened
@@ -223,6 +293,7 @@ export const App = craftComponent(
             'data-testid': 'nav-toggle',
             type: 'button',
             'aria-expanded': AppView.navOpen,
+            keydown: handleNavToggleKeydown,
           },
           AppView.navToggleLabel,
         ).pipe(
@@ -259,7 +330,9 @@ export const App = craftComponent(
                         'navLink',
                         {
                           class: demoShell.navLink,
+                          'data-testid': 'nav-link',
                           click: AppView.navOpen.close,
+                          keydown: handleNavLinkKeydown,
                         },
                         function* () {
                           return (yield* entry())[0];

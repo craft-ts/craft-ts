@@ -116,8 +116,24 @@ class CraftPrimitiveRegistryState {
     this.occurrences.set(base, occurrence);
     const address = `${base}#${occurrence}`;
     const registered: CraftPrimitiveEntry = { ...entry, address };
+    const exactReplayAddress = this.replaySnapshotValues.has(address)
+      ? address
+      : undefined;
+    const normalizedAddress = normalizePrimitiveAddress(address);
+    const hasEquivalentLivePrimitive = [...this.entries.keys()].some(
+      (candidate) => normalizePrimitiveAddress(candidate) === normalizedAddress,
+    );
+    // A normalized replay address can identify a primitive only across
+    // lifetimes. While an equivalent instance is still registered, the value
+    // belongs to that instance; a route swap may create its replacement
+    // before DestroyRef releases the old instance. Exact addresses remain
+    // unambiguous and can still be restored in that case.
+    const replayAddress =
+      exactReplayAddress ??
+      (hasEquivalentLivePrimitive
+        ? undefined
+        : this.resolveReplaySnapshotAddress(address));
     this.entries.set(address, registered);
-    const replayAddress = this.resolveReplaySnapshotAddress(address);
     if (replayAddress !== undefined) {
       this.applyRestoredValue(
         registered,

@@ -162,8 +162,11 @@ describe('craft primitive registry', () => {
         },
       },
     );
+    const recordedAddress = first.address
+      .replace('componentDemo#1', 'componentDemo#99')
+      .replace(/#\d+$/, '#99');
     registry.restore({
-      [first.address]: ['Ada Lovelace', 'Grace Hopper', 'User 7'],
+      [recordedAddress]: ['Ada Lovelace', 'Grace Hopper', 'User 7'],
     });
     first.release();
 
@@ -181,7 +184,46 @@ describe('craft primitive registry', () => {
     expect(current).toEqual(['Ada Lovelace', 'Grace Hopper']);
   });
 
-  it('primes a replay snapshot for a primitive created after its event', () => {
+  it('does not restore an old instance snapshot while its primitive is still registered', () => {
+    let previous = ['Ada Lovelace', 'Grace Hopper'];
+    const first = registry.register(
+      'component:componentDemo#1 / state:users',
+      {
+        kind: 'state',
+        name: 'users',
+        hostTags: ['component:componentDemo#1'],
+        read: () => previous,
+        write: (next) => {
+          previous = next as string[];
+        },
+      },
+    );
+    const recordedAddress = first.address
+      .replace('componentDemo#1', 'componentDemo#99')
+      .replace(/#\d+$/, '#99');
+
+    registry.restore({
+      [recordedAddress]: ['Ada Lovelace', 'Grace Hopper', 'User 7'],
+    });
+    expect(previous).toEqual(['Ada Lovelace', 'Grace Hopper', 'User 7']);
+
+    let next = ['Ada Lovelace', 'Grace Hopper'];
+    registry.register('component:componentDemo#2 / state:users', {
+      kind: 'state',
+      name: 'users',
+      hostTags: ['component:componentDemo#2'],
+      read: () => next,
+      write: (value) => {
+        next = value as string[];
+      },
+    });
+
+    expect(next).toEqual(['Ada Lovelace', 'Grace Hopper']);
+    first.release();
+    expect(next).toEqual(['Ada Lovelace', 'Grace Hopper']);
+  });
+
+  it('primes a replay snapshot for a primitive registered after its event', () => {
     let current = 0;
     registry.restore({ 'state:latePrimitive#4': 7 });
 
@@ -197,9 +239,6 @@ describe('craft primitive registry', () => {
       });
     injector.run(registerLatePrimitive);
 
-    expect(current).toBe(7);
-    current = 0;
-    injector.run(registerLatePrimitive);
     expect(current).toBe(7);
   });
 

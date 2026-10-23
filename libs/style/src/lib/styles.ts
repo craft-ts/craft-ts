@@ -266,8 +266,16 @@ const atoms = new Map<string, AtomicRule>();
 const byClassName = new Map<string, string>();
 const selfStateClassNames = new Map<string, ReadonlySet<string>>();
 
-/** Attribute used by replay to activate Craft-managed hover rules visually. */
-export const CRAFT_REPLAY_HOVER_ATTRIBUTE = 'data-craft-replay-hover';
+/** Attributes used by replay to activate transient interaction styles visually. */
+export const CRAFT_REPLAY_STATE_ATTRIBUTES = {
+  hover: 'data-craft-replay-hover',
+  focus: 'data-craft-replay-focus',
+  focusVisible: 'data-craft-replay-focus-visible',
+  active: 'data-craft-replay-active',
+} as const;
+
+/** @deprecated Use `CRAFT_REPLAY_STATE_ATTRIBUTES.hover`. */
+export const CRAFT_REPLAY_HOVER_ATTRIBUTE = CRAFT_REPLAY_STATE_ATTRIBUTES.hover;
 
 export const registeredClasses = (): readonly RegisteredClass[] => [
   ...classes.values(),

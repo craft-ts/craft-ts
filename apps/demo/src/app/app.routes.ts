@@ -43,22 +43,22 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
   /* demo-route-end */ /* demo-route: mutation */
   {
     path: 'mutation/:userId',
-      ...loadCraftComponent(({ withRetry }) =>
-        withRetry(import('./examples/primitives/mutation/mutation')).then(
-          ({ default: component }) => component,
-        ),
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(import('./examples/primitives/mutation/mutation')).then(
+        ({ default: component }) => component,
       ),
-      pathParams: { userId: userIdPathParam },
-      handleExceptions: {
-        UNEXPECTED_ERROR: craftExceptionHandler(function* ({ globalError }) {
-          return globalError();
-        }),
-      },
-      providersFn: ({ UserIdPathParams }) => [
-        provideUserIdPathParams(function* () {
-          return yield* UserIdPathParams();
-        }),
-      ],
+    ),
+    pathParams: { userId: userIdPathParam },
+    handleExceptions: {
+      UNEXPECTED_ERROR: craftExceptionHandler(function* ({ globalError }) {
+        return globalError();
+      }),
+    },
+    providersFn: ({ UserIdPathParams }) => [
+      provideUserIdPathParams(function* () {
+        return yield* UserIdPathParams();
+      }),
+    ],
   },
 
   /* demo-route: debounced-web-search */
@@ -484,6 +484,16 @@ export const { demoRoutes, DemoQueryParamsQueryParams } = craftRoutes('demo', [
     ),
   },
 
+  /* demo-route-end */ /* demo-route: interaction-replay */
+  {
+    path: 'interaction-replay',
+    ...loadCraftComponent(({ withRetry }) =>
+      withRetry(
+        import('./examples/interaction-replay/interaction-replay-demo'),
+      ).then(({ InteractionReplayDemo }) => InteractionReplayDemo),
+    ),
+  },
+
   /* demo-route-end */ /* demo-route: query-params */
   craftRoute('query-params', {
     ...loadCraftComponent(({ withRetry }) =>
@@ -575,6 +585,7 @@ type DemoRoutePath =
   | 'craft-service/user-detail'
   | 'demo-send-context'
   | 'playground'
+  | 'interaction-replay'
   | 'query-params'
   | 'guard-demo';
 type DemoRoutePaths = readonly {
@@ -996,6 +1007,15 @@ type _CanRunPlayground = CanRun<
     (typeof import('./examples/playground/playground'))['default'],
     never,
     'path: "playground"'
+  >
+>;
+/* demo-check-end */
+/* demo-check: interaction-replay */
+type _CanRunInteractionReplayDemo = CanRun<
+  DemoRouteCheckedDI<
+    (typeof import('./examples/interaction-replay/interaction-replay-demo'))['InteractionReplayDemo'],
+    never,
+    'path: "interaction-replay"'
   >
 >;
 /* demo-check-end */

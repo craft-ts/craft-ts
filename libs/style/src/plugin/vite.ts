@@ -101,6 +101,11 @@ export interface CraftStyleOptions {
    */
   readonly replayHover?: boolean;
   /**
+   * Emit replay aliases for Craft-managed focus, focus-visible and active
+   * states. Defaults to enabled outside Vite's `production` mode.
+   */
+  readonly replayFocusActive?: boolean;
+  /**
    * Style modules to evaluate from outside the project root: package names
    * (`'@craft-ts/component'`, resolved from the root) or directories.
    *
@@ -295,6 +300,7 @@ export interface EmitOptions {
   readonly reset?: boolean;
   readonly base?: boolean;
   readonly replayHover?: boolean;
+  readonly replayFocusActive?: boolean;
 }
 
 export async function emitStyles(
@@ -322,6 +328,7 @@ export async function emitStyles(
   return {
     css: renderCss(registry.atoms, registry.vars, foundation, {
       replayHover: options.replayHover,
+      replayFocusActive: options.replayFocusActive,
     }),
     dump: {
       ...styleDump(registry.classes, registry.atoms, vars),
@@ -407,6 +414,7 @@ export function craftStyle(options: CraftStyleOptions = {}): CraftStylePlugin {
       reset: options.reset,
       base: options.base,
       replayHover: options.replayHover ?? mode !== 'production',
+      replayFocusActive: options.replayFocusActive ?? mode !== 'production',
     });
     if (options.dumpPath) {
       await writeFile(
