@@ -7,6 +7,7 @@ import {
   isCraftReplayTransportEvent,
   ɵresolveCraftReplayTarget,
 } from '@craft-ts/core';
+import { CRAFT_REPLAY_HOVER_ATTRIBUTE } from '@craft-ts/style';
 import {
   compareReplayScenarioValue,
   readReplayScenarioPath,
@@ -858,6 +859,69 @@ export function createReplayController(
   let restoreReplayScrollBlock: (() => void) | undefined;
   const nativeControlPresentation =
     createDebugSessionNativeControlReplayPresentation();
+  const replayHoverTargetsByPointer = new Map<number, Map<string, Element>>();
+  const replayHoverReferenceCounts = new Map<Element, number>();
+  const clearReplayHoverState = (): void => {
+    for (const element of replayHoverReferenceCounts.keys())
+      element.removeAttribute(CRAFT_REPLAY_HOVER_ATTRIBUTE);
+    replayHoverReferenceCounts.clear();
+    replayHoverTargetsByPointer.clear();
+  };
+  const syncReplayHoverState = (event: SendContextEvent): void => {
+    if (event.kind !== 'hover' || !isRecord(event.payload)) return;
+    const payload = event.payload;
+    const pointerId =
+      typeof payload['pointerId'] === 'number' ? payload['pointerId'] : 1;
+    const activeTargets =
+      replayHoverTargetsByPointer.get(pointerId) ?? new Map<string, Element>();
+    const targets = Array.isArray(payload['craftHoverTargets'])
+      ? payload['craftHoverTargets']
+      : [];
+    for (const value of targets) {
+      if (!isRecord(value)) continue;
+      const selector =
+        typeof value['selector'] === 'string' ? value['selector'] : undefined;
+      const replayTarget = isCraftReplayTarget(value['replayTarget'])
+        ? value['replayTarget']
+        : undefined;
+      const key = replayTarget
+        ? JSON.stringify(replayTarget)
+        : (selector ?? '');
+      if (!key) continue;
+
+      if (payload['action'] === 'enter') {
+        if (activeTargets.has(key)) continue;
+        const resolution = replayTarget
+          ? ɵresolveCraftReplayTarget(replayTarget)
+          : undefined;
+        const element =
+          resolution?.status === 'resolved'
+            ? resolution.element
+            : !replayTarget && selector
+              ? safeQuerySelector(selector)
+              : null;
+        if (!element) continue;
+        activeTargets.set(key, element);
+        const references = replayHoverReferenceCounts.get(element) ?? 0;
+        replayHoverReferenceCounts.set(element, references + 1);
+        element.setAttribute(CRAFT_REPLAY_HOVER_ATTRIBUTE, '');
+      } else if (payload['action'] === 'leave') {
+        const element = activeTargets.get(key);
+        if (!element) continue;
+        activeTargets.delete(key);
+        const references = replayHoverReferenceCounts.get(element) ?? 0;
+        if (references <= 1) {
+          replayHoverReferenceCounts.delete(element);
+          element.removeAttribute(CRAFT_REPLAY_HOVER_ATTRIBUTE);
+        } else {
+          replayHoverReferenceCounts.set(element, references - 1);
+        }
+      }
+    }
+    if (activeTargets.size > 0)
+      replayHoverTargetsByPointer.set(pointerId, activeTargets);
+    else replayHoverTargetsByPointer.delete(pointerId);
+  };
   const pendingScrollEvents = new Map<EventTarget, () => void>();
   const writeAndWaitForScroll = (
     target: EventTarget,
@@ -912,6 +976,7 @@ export function createReplayController(
       restoreReplayScrollBlock?.();
       restoreReplayScrollBlock = undefined;
       nativeControlPresentation.dispose();
+      if (resetClock) clearReplayHoverState();
       restoreClock();
       if (resetClock) clock.reset(firstTime);
       playbackEpoch = undefined;
@@ -1034,6 +1099,8 @@ export function createReplayController(
       prepared = true;
       try {
         await options.prepare?.();
+        for (const priorEvent of interactions.slice(0, cursor))
+          syncReplayHoverState(priorEvent);
       } catch (error) {
         stop(true);
         options.onError?.(
@@ -1363,53 +1430,51 @@ export function createReplayController(
       typeof followingPayload['href'] === 'string'
         ? followingPayload['href']
         : '';
-    const intervalEvents = session.events.filter(
-      (candidate) => {
-        const insideSequenceInterval =
-          candidate.sequence > event.sequence &&
-          (followingInteraction === undefined ||
-            candidate.sequence < followingInteraction.sequence);
-        const belongsToFollowingNavigation =
-          navigationMatchesHref(candidate, followingHref) ||
-          routeLoadMatchesHref(candidate, followingHref);
-        const belongsToThisNavigation =
-          navigationForInteraction(candidate) ||
-          routeLoadForInteraction(candidate);
-        const inCausalInterval =
-          (insideSequenceInterval && !belongsToFollowingNavigation) ||
-          belongsToThisNavigation;
-        const gestureMatches =
-          event.kind !== 'gesture' ||
-          (candidate.correlationId === event.correlationId &&
-            (candidate.kind === 'craft' || candidate.kind === 'http'));
-        const domCallMatches =
-          event.kind !== 'dom' ||
-          (candidate.kind !== 'craft' && candidate.kind !== 'http') ||
-          !event.correlationId ||
-          candidate.correlationId === event.correlationId;
-        const replayRelevantEvent =
-          candidate.kind === 'craft' ||
-          candidate.kind === 'transport' ||
-          (useInvocationReplay && candidate.kind === 'route-load') ||
-          (useInvocationReplay && candidate.kind === 'pending') ||
-          (useInvocationReplay && candidate.kind === 'http') ||
-          candidate.state !== undefined ||
-          (useInvocationReplay &&
-            (isReplayInvocationEvent(candidate) ||
-              navigationForInteraction(candidate)));
-        return (
-          inCausalInterval &&
+    const intervalEvents = session.events.filter((candidate) => {
+      const insideSequenceInterval =
+        candidate.sequence > event.sequence &&
+        (followingInteraction === undefined ||
+          candidate.sequence < followingInteraction.sequence);
+      const belongsToFollowingNavigation =
+        navigationMatchesHref(candidate, followingHref) ||
+        routeLoadMatchesHref(candidate, followingHref);
+      const belongsToThisNavigation =
+        navigationForInteraction(candidate) ||
+        routeLoadForInteraction(candidate);
+      const inCausalInterval =
+        (insideSequenceInterval && !belongsToFollowingNavigation) ||
+        belongsToThisNavigation;
+      const gestureMatches =
+        event.kind !== 'gesture' ||
+        (candidate.correlationId === event.correlationId &&
+          (candidate.kind === 'craft' || candidate.kind === 'http'));
+      const domCallMatches =
+        event.kind !== 'dom' ||
+        (candidate.kind !== 'craft' && candidate.kind !== 'http') ||
+        !event.correlationId ||
+        candidate.correlationId === event.correlationId;
+      const replayRelevantEvent =
+        candidate.kind === 'craft' ||
+        candidate.kind === 'transport' ||
+        (useInvocationReplay && candidate.kind === 'route-load') ||
+        (useInvocationReplay && candidate.kind === 'pending') ||
+        (useInvocationReplay && candidate.kind === 'http') ||
+        candidate.state !== undefined ||
+        (useInvocationReplay &&
+          (isReplayInvocationEvent(candidate) ||
+            navigationForInteraction(candidate)));
+      return (
+        inCausalInterval &&
         // Non-comparable Craft calls still mark lifecycle boundaries. In
         // particular, resource calls can be emitted when an async query
         // settles; keep their recorded timestamp in the interval so the
         // replay clock does not finish before that work has had a chance to
         // settle. Only comparable calls participate in result comparison.
-          gestureMatches &&
-          domCallMatches &&
-          replayRelevantEvent
-        );
-      },
-    );
+        gestureMatches &&
+        domCallMatches &&
+        replayRelevantEvent
+      );
+    });
     const expectedCalls = intervalEvents.filter(
       (candidate) => candidate.kind === 'craft' && isComparable(candidate),
     );
@@ -1459,6 +1524,7 @@ export function createReplayController(
       // reaches the dashboard. Leaving is only marker cleanup, so it does not
       // need the old target to remain in the new route's DOM.
       await clock.advanceTo(Math.max(clock.now(), timeOf(event)));
+      syncReplayHoverState(event);
       options.onInteraction?.(event, document.body);
       if (!(await restorePrimitiveChangesBetweenSteps(event, true)))
         return undefined;
@@ -1630,6 +1696,7 @@ export function createReplayController(
       // application handlers a second time; the recorded Craft calls remain
       // the sole source of their effects during invocation replay.
       nativeControlPresentation.sync(event, target ?? document.body);
+      syncReplayHoverState(event);
       options.onInteraction?.(event, target ?? document.body);
       if (!(await restorePrimitiveChangesBetweenSteps(event))) return undefined;
       cursor += 1;
@@ -1784,7 +1851,7 @@ export function createReplayController(
     } else if (useInvocationReplay) {
       const navigation =
         plannedCommand?.kind === 'navigate'
-          ? intervalEvents.find(
+          ? (intervalEvents.find(
               (candidate) =>
                 candidate.kind === 'navigation' &&
                 candidate.phase === 'started' &&
@@ -1795,7 +1862,7 @@ export function createReplayController(
             ) ??
             session.events.find((candidate) =>
               navigationMatchesHref(candidate, href),
-            )
+            ))
           : undefined;
       if (navigation) {
         const payload = navigation.payload as Record<string, unknown>;
@@ -1851,9 +1918,8 @@ export function createReplayController(
               (candidate.id === followingInteraction.id &&
                 followingInteraction.kind === 'defer')),
         );
-        const routeLoadRecorded = intervalEvents.some(
-          (candidate) => candidate.kind === 'route-load',
-        ) ||
+        const routeLoadRecorded =
+          intervalEvents.some((candidate) => candidate.kind === 'route-load') ||
           (typeof followingHref === 'string' &&
             session.events.some((candidate) =>
               routeLoadMatchesHref(candidate, followingHref),
@@ -1911,28 +1977,29 @@ export function createReplayController(
       if (!expectedPayload) return undefined;
       const expectedOperationId = expected.operationId;
       const findObserved = (): SendContextEvent | undefined => {
-        const routeCandidates = options
-          .observedEvents?.()
-          // Route loaders can run while the replay target resumes bootstrap,
-          // before the first interaction starts. Keep those observations in
-          // the run-wide comparison window instead of dropping them at each
-          // interaction boundary.
-          .slice(baselineEvents)
-          .filter((candidate) => {
-            const actualPayload = isRecord(candidate.payload)
-              ? candidate.payload
-              : undefined;
-            return (
-              candidate.kind === 'route-load' &&
-              candidate.phase === expected.phase &&
-              actualPayload?.['replay'] === true &&
-              actualPayload['routePath'] === expectedPayload['routePath'] &&
-              (expectedPayload['phase'] === undefined ||
-                actualPayload['phase'] === expectedPayload['phase']) &&
-              (expectedPayload['targetUrl'] === undefined ||
-                actualPayload['targetUrl'] === expectedPayload['targetUrl'])
-            );
-          }) ?? [];
+        const routeCandidates =
+          options
+            .observedEvents?.()
+            // Route loaders can run while the replay target resumes bootstrap,
+            // before the first interaction starts. Keep those observations in
+            // the run-wide comparison window instead of dropping them at each
+            // interaction boundary.
+            .slice(baselineEvents)
+            .filter((candidate) => {
+              const actualPayload = isRecord(candidate.payload)
+                ? candidate.payload
+                : undefined;
+              return (
+                candidate.kind === 'route-load' &&
+                candidate.phase === expected.phase &&
+                actualPayload?.['replay'] === true &&
+                actualPayload['routePath'] === expectedPayload['routePath'] &&
+                (expectedPayload['phase'] === undefined ||
+                  actualPayload['phase'] === expectedPayload['phase']) &&
+                (expectedPayload['targetUrl'] === undefined ||
+                  actualPayload['targetUrl'] === expectedPayload['targetUrl'])
+              );
+            }) ?? [];
         const commandCandidates = expectedOperationId
           ? routeCandidates.filter((candidate) => {
               const actualPayload = isRecord(candidate.payload)
@@ -2216,22 +2283,23 @@ export function createReplayController(
       const operationObserved =
         Boolean(navigationTask && options.navigateToRecordedRoute) ||
         options
-        .observedEvents?.()
-        .slice(observedBefore)
-        .some((candidate) => {
-          const candidatePayload = isRecord(candidate.payload)
-            ? candidate.payload
-            : undefined;
-          return (
-            candidate.kind === 'route-load' &&
-            (operationId
-              ? candidate.operationId ===
-                observedRouteOperationIds.get(operationId)
-              : candidatePayload?.['routePath'] === payload['routePath']) &&
-            (candidate.phase === 'succeeded' || candidate.phase === 'failed') &&
-            candidatePayload?.['replay'] === true
-          );
-        });
+          .observedEvents?.()
+          .slice(observedBefore)
+          .some((candidate) => {
+            const candidatePayload = isRecord(candidate.payload)
+              ? candidate.payload
+              : undefined;
+            return (
+              candidate.kind === 'route-load' &&
+              (operationId
+                ? candidate.operationId ===
+                  observedRouteOperationIds.get(operationId)
+                : candidatePayload?.['routePath'] === payload['routePath']) &&
+              (candidate.phase === 'succeeded' ||
+                candidate.phase === 'failed') &&
+              candidatePayload?.['replay'] === true
+            );
+          });
       if (!operationObserved)
         options.onWarning?.(
           `[${operationId && ambiguousRouteOperationIds.has(operationId) ? 'Corrélation ambiguë' : 'Observation absente'}] Chargement de route ${operationId ?? missingStart.sequence} (${String(payload['routePath'])}, corrélation ${missingStart.correlationId ?? 'absente'}) : aucune phase observée associable sans ambiguïté à cette opération.`,
@@ -2243,8 +2311,7 @@ export function createReplayController(
       );
       const expected = plannedCommand.expected;
       const missing = expected.filter(
-        (observation) =>
-          !replayObservationSatisfied(observation, actualEvents),
+        (observation) => !replayObservationSatisfied(observation, actualEvents),
       );
       const unexpected = actualEvents.filter(
         (candidate) =>

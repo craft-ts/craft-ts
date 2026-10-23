@@ -17,6 +17,7 @@ import type {
   PseudoElementName,
   RegisteredClass,
 } from '../lib/styles.ts';
+import { CRAFT_REPLAY_HOVER_ATTRIBUTE } from '../lib/styles.ts';
 import type { CssVarDeclaration } from '../lib/css-vars.ts';
 import type { ColorProvenance } from '../lib/tokens/units.ts';
 import type { RegisteredKeyframes } from '../lib/animation.ts';
@@ -152,6 +153,32 @@ function ruleText(atom: AtomicRule): string {
     atom.pseudoElement,
     `${atom.property}:${atom.value}`,
   );
+}
+
+/** A data-attribute twin lets replay paint Craft `:hover` rules without DOM input. */
+function replayHoverRuleText(atom: AtomicRule): string | undefined {
+  if (
+    !atom.conditions.some(
+      (point) =>
+        point.driver.kind === 'selfState' && point.driver.state === 'hover',
+    )
+  )
+    return undefined;
+  return wrapRule(
+    escapeClass(atom.className),
+    atom.conditions.map((point) =>
+      point.driver.kind === 'selfState' && point.driver.state === 'hover'
+        ? { ...point, open: `&[${CRAFT_REPLAY_HOVER_ATTRIBUTE}]` }
+        : point,
+    ),
+    atom.pseudoElement,
+    `${atom.property}:${atom.value}`,
+  );
+}
+
+function ruleTexts(atom: AtomicRule): string[] {
+  const hover = replayHoverRuleText(atom);
+  return hover ? [ruleText(atom), hover] : [ruleText(atom)];
 }
 
 const globalRuleText = (rule: GlobalRule): string =>
@@ -348,6 +375,7 @@ export function renderCss(
   atoms: readonly AtomicRule[],
   vars: readonly CssVarDeclaration[],
   foundation: FoundationInput = {},
+  options: Readonly<{ replayHover?: boolean }> = {},
 ): string {
   const layered = atoms.filter((atom) => !atom.isolated);
   const base = layered
@@ -362,7 +390,9 @@ export function renderCss(
   const isolatedRules = [
     ...isolated.filter((atom) => atom.conditions.length === 0).sort(byName),
     ...isolated.filter((atom) => atom.conditions.length > 0).sort(byName),
-  ].map(ruleText);
+  ].flatMap((atom) =>
+    options.replayHover === true ? ruleTexts(atom) : [ruleText(atom)],
+  );
   const properties = [...vars, ...(foundation.base ? CRAFT_BASE_VARS : [])]
     .sort((left, right) => left.name.localeCompare(right.name))
     .map(propertyRule);
@@ -391,7 +421,12 @@ export function renderCss(
       ...frames.map(keyframesText),
       ...base.map(ruleText),
     ]),
-    layer('craft.variants', variants.map(ruleText)),
+    layer(
+      'craft.variants',
+      variants.flatMap((atom) =>
+        options.replayHover === true ? ruleTexts(atom) : [ruleText(atom)],
+      ),
+    ),
     isolatedRules.join(''),
   ];
 

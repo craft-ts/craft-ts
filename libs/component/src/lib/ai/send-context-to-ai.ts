@@ -477,6 +477,11 @@ export interface SendContextToAiOptions {
   readonly recording: boolean;
   /** Set false when a separate `provideCraftDebugSessionCapture` is installed. */
   readonly capture?: boolean;
+  /**
+   * Capture Craft-managed hover transitions for replay. Defaults to disabled
+   * in Vite production builds and enabled in other modes.
+   */
+  readonly captureHover?: boolean;
 }
 
 /** Opt-in session capture without mounting the AI context menu or launcher. */
@@ -502,6 +507,11 @@ export function provideCraftDebugSessionCapture(
     }>;
     /** Capture prompt() answers only after explicit opt-in. */
     capturePromptValues?: boolean;
+    /**
+     * Capture Craft-managed hover transitions for replay. Defaults to disabled
+     * in Vite production builds and enabled in other modes.
+     */
+    captureHover?: boolean;
   }> = {},
 ): Provider[] {
   const recording = options.recording ?? true;
@@ -589,9 +599,16 @@ export function provideCraftDebugSessionCapture(
       const disconnectScrollCapture = recording
         ? connectDebugSessionScrollCapture(createdSession)
         : undefined;
-      const disconnectHoverCapture = recording
-        ? connectDebugSessionHoverCapture(createdSession)
-        : undefined;
+      const viteProduction =
+        (
+          import.meta as ImportMeta & {
+            readonly env?: { readonly PROD?: boolean };
+          }
+        ).env?.PROD === true;
+      const disconnectHoverCapture =
+        recording && (options.captureHover ?? !viteProduction)
+          ? connectDebugSessionHoverCapture(createdSession)
+          : undefined;
       const disconnectFormCapture = recording
         ? connectDebugSessionFormCapture(createdSession, {
             captureInputValues: options.captureInputValues,
@@ -945,7 +962,10 @@ export function provideSendContextToAi(
   return [
     ...(options.capture === false
       ? []
-      : provideCraftDebugSessionCapture({ recording: options.recording })),
+      : provideCraftDebugSessionCapture({
+          recording: options.recording,
+          captureHover: options.captureHover,
+        })),
     provideSendContextChatComponent(() => AiSendContextChat),
     provideSendContextContextMenuComponent(() => AiContextMenu),
     provideSendContextLauncherComponent(() => AiSendContextLauncher),

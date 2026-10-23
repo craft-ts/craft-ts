@@ -132,9 +132,14 @@ export const veilMode = defineStateAxis('veil', ['dim'] as const);
 /** A note that has been put away, still readable in the history. */
 export const noteState = defineStateAxis('note', ['dismissed'] as const);
 /** A thumbnail's point on the timeline: already behind the replay, or the one it is at. */
-export const markState = defineStateAxis('mark', ['passed', 'current'] as const);
+export const markState = defineStateAxis('mark', [
+  'passed',
+  'current',
+] as const);
 /** The picture that opens over the timeline while its point is hovered or focused. */
 export const markCardState = defineStateAxis('mark-card', ['open'] as const);
+/** What the marker over the page stands for: a hover is a quiet dot, a click is the loud one. */
+export const markerKind = defineStateAxis('marker-kind', ['hover'] as const);
 /** The journal row is a failure or a slow task. */
 export const entry = defineStateAxis('entry', [
   'error',
@@ -187,9 +192,17 @@ const pulse = keyframes('dashboardPulse', {
   to: [opacity(num(1))],
 });
 
+/** The dot lands on the click: a little too big, then settles. */
 const ping = keyframes('dashboardPing', {
-  from: [opacity(num(1))],
-  to: [opacity(num(0.35))],
+  from: [opacity(num(0)), scale(num(0.3))],
+  '55%': [opacity(num(1)), scale(num(1.25))],
+  to: [opacity(num(1)), scale(num(1))],
+});
+
+/** A ring leaves the click and fades as it widens. */
+const ripple = keyframes('dashboardRipple', {
+  from: [opacity(num(0.85)), scale(num(1))],
+  to: [opacity(num(0)), scale(num(3.2))],
 });
 
 /** The ink of a line of small print. */
@@ -552,11 +565,7 @@ export const ui = craftStyles('dashboard', {
     color(theme.ink),
     shadow({ y: unit.px(8), blur: unit.px(24), color: theme.shadow }),
   ],
-  noteText: [
-    flexGrow(num(1)),
-    minInlineSize(space(0)),
-    overflowWrap.anywhere,
-  ],
+  noteText: [flexGrow(num(1)), minInlineSize(space(0)), overflowWrap.anywhere],
   noteItem: [
     display.flex,
     alignItems.center,
@@ -840,6 +849,9 @@ export const ui = craftStyles('dashboard', {
     position.absolute,
     left(markerVars.x),
     top(markerVars.y),
+    // The point is the centre of the dot, not its corner.
+    marginInlineStart(unit.px(-13)),
+    marginBlockStart(unit.px(-13)),
     zIndex(int(2)),
     inlineSize(unit.px(26)),
     blockSize(unit.px(26)),
@@ -850,9 +862,51 @@ export const ui = craftStyles('dashboard', {
     bg(theme.dangerSurface),
     pointerEvents.none,
     ...animate(ping, {
-      duration: unit.ms(700),
-      easing: easing.linear,
+      duration: unit.ms(320),
+      easing: easing.easeOut,
       iterations: 1,
+      fillMode: 'both',
+    }),
+    when(markerKind.hover, [
+      marginInlineStart(unit.px(-6)),
+      marginBlockStart(unit.px(-6)),
+      inlineSize(unit.px(12)),
+      blockSize(unit.px(12)),
+      borderWidth(lineWidth.hairline),
+      borderColor(theme.inkMuted),
+      bg(theme.surface),
+    ]),
+  ],
+  // Rings around the dot; the second one follows the first.
+  markerRipple: [
+    position.absolute,
+    inset(unit.px(-2)),
+    borderRadius(radii.full),
+    borderWidth(lineWidth.thick),
+    borderStyle.solid,
+    borderColor(theme.danger),
+    pointerEvents.none,
+    ...animate(ripple, {
+      duration: unit.ms(700),
+      easing: easing.easeOut,
+      iterations: 1,
+      fillMode: 'both',
+    }),
+  ],
+  markerRippleLate: [
+    position.absolute,
+    inset(unit.px(-2)),
+    borderRadius(radii.full),
+    borderWidth(lineWidth.thick),
+    borderStyle.solid,
+    borderColor(theme.danger),
+    pointerEvents.none,
+    ...animate(ripple, {
+      duration: unit.ms(700),
+      delay: unit.ms(160),
+      easing: easing.easeOut,
+      iterations: 1,
+      fillMode: 'both',
     }),
   ],
 
@@ -894,7 +948,12 @@ export const ui = craftStyles('dashboard', {
     bgImage(gradient.linear(unit.deg(180), [theme.clear, theme.code])),
     color(herbier.text.codePlain),
   ],
-  scrubber: [position.relative, display.flex, alignItems.center, blockSize(unit.rem(1.75))],
+  scrubber: [
+    position.relative,
+    display.flex,
+    alignItems.center,
+    blockSize(unit.rem(1.75)),
+  ],
   // The whole bar is the control: a click anywhere on it goes to that moment.
   scrubSlider: [
     position.absolute,
@@ -1034,11 +1093,7 @@ export const ui = craftStyles('dashboard', {
     rowGap(space(0)),
   ],
   progressLabel: [flexShrink(num(0)), whiteSpace.nowrap],
-  next: [
-    display.flex,
-    minInlineSize(space(0)),
-    whiteSpace.nowrap,
-  ],
+  next: [display.flex, minInlineSize(space(0)), whiteSpace.nowrap],
   nextName: [
     clipOverflow.inline,
     textOverflow.ellipsis,

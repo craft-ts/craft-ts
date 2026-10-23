@@ -1,11 +1,9 @@
-import { craftNodeDirective, type CraftNodeDirectiveContext } from '@craft-ts/core';
-import { assign, num, unit } from '@craft-ts/style';
 import {
-  frameVars,
-  markerVars,
-  ui,
-  viewportVars,
-} from './dashboard.style';
+  craftNodeDirective,
+  type CraftNodeDirectiveContext,
+} from '@craft-ts/core';
+import { assign, num, unit } from '@craft-ts/style';
+import { frameVars, markerVars, ui, viewportVars } from './dashboard.style';
 import type {
   ReplayDialogView,
   ReplayTimer,
@@ -415,12 +413,24 @@ export function renderFrames(
       'replay-visibility-overlay',
     );
     hide(visibilityOverlay, true);
-    renderer.setAttribute(visibilityOverlay, 'aria-label', 'Onglet non visible');
+    renderer.setAttribute(
+      visibilityOverlay,
+      'aria-label',
+      'Onglet non visible',
+    );
     write(visibilityOverlay, 'Non visible');
     const marker = element('div', ui.marker, 'click-marker');
     renderer.setAttribute(marker, 'id', markerId(participantId));
     hide(marker, true);
     renderer.setAttribute(marker, 'aria-hidden', 'true');
+    renderer.appendChild(
+      marker,
+      element('span', ui.markerRipple, 'click-marker-ripple'),
+    );
+    renderer.appendChild(
+      marker,
+      element('span', ui.markerRippleLate, 'click-marker-ripple'),
+    );
     const dialogOverlay = element(
       'div',
       ui.pageDialog,
@@ -558,12 +568,19 @@ export function hideClickMarker(participantId: string): void {
   if (marker) marker.hidden = true;
 }
 
+/**
+ * What the marker shows: a `click` gets the rings, a `press` (the pointer going
+ * down, before the click) only the dot, a `hover` a small quiet dot.
+ */
+export type ClickMarkerKind = 'click' | 'press' | 'hover';
+
 /** Plays the ping at a point of the replayed page, in this dashboard's pixels. */
 export function showClickMarker(
   participantId: string,
   x: number,
   y: number,
   label: string,
+  kind: ClickMarkerKind = 'click',
 ): void {
   const marker = byId(markerId(participantId));
   if (!marker) return;
@@ -572,9 +589,15 @@ export function showClickMarker(
     ...assign(markerVars.y, unit.px(y)),
   });
   marker.setAttribute('aria-label', label);
+  if (kind === 'hover') marker.setAttribute('data-marker-kind', 'hover');
+  else marker.removeAttribute('data-marker-kind');
+  for (const ring of marker.querySelectorAll<HTMLElement>(
+    '[data-lab="click-marker-ripple"]',
+  ))
+    ring.hidden = kind !== 'click';
   marker.hidden = false;
-  // A second click on the same spot plays the ping again.
-  for (const ping of marker.getAnimations()) {
+  // A second click on the same spot plays the ping and its rings again.
+  for (const ping of marker.getAnimations({ subtree: true })) {
     ping.cancel();
     ping.play();
   }

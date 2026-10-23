@@ -200,7 +200,7 @@ function onInteraction(
                 : trigger === 'swipe'
                   ? 'Balayage rejoué'
                   : `Geste rejoué · ${trigger}`;
-      showClickMarker(participantId, x * scale, y * scale, label);
+      showClickMarker(participantId, x * scale, y * scale, label, 'click');
     }
     return;
   }
@@ -218,6 +218,7 @@ function onInteraction(
         x * scale,
         y * scale,
         `Survol rejoué · ${String(data['name'] ?? 'interaction')}`,
+        'hover',
       );
     } else if (action === 'leave') {
       hideClickMarker(participantId);
@@ -239,6 +240,7 @@ function onInteraction(
       x * scale,
       y * scale,
       `Clic rejoué · ${String(data['name'] ?? 'interaction')}`,
+      action === 'click' ? 'click' : 'press',
     );
   }
 }
