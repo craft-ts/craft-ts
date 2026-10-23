@@ -980,6 +980,7 @@ function createNativeCraftRouter(
   useHashLocation = false,
 ): CraftRouter {
   const listeners = new Set<(event: CraftRouterEvent) => void>();
+  let navigationId = 0;
 
   // `commit` emits the router events for Craft-initiated navigations. A
   // browser back/forward changes history without going through `commit`, so
@@ -987,11 +988,22 @@ function createNativeCraftRouter(
   history.listen((next, source) => {
     if (source !== 'browser') return;
     const url = serializeLocation(next);
+    const id = ++navigationId;
     for (const listener of listeners) {
-      listener({ type: 'NavigationStart', url, trigger: 'history' });
+      listener({
+        type: 'NavigationStart',
+        url,
+        navigationId: id,
+        trigger: 'history',
+      });
     }
     for (const listener of listeners) {
-      listener({ type: 'NavigationEnd', url, trigger: 'history' });
+      listener({
+        type: 'NavigationEnd',
+        url,
+        navigationId: id,
+        trigger: 'history',
+      });
     }
   });
 
@@ -1041,8 +1053,9 @@ function createNativeCraftRouter(
         }
       : extras;
     navigation.current = { extras: withVt };
+    const id = ++navigationId;
     for (const listener of listeners) {
-      listener({ type: 'NavigationStart', url });
+      listener({ type: 'NavigationStart', url, navigationId: id });
     }
     if (withVt?.skipLocationChange) {
       history.skip(url, withVt.state ?? null);
@@ -1052,7 +1065,7 @@ function createNativeCraftRouter(
       history.push(url, withVt?.state ?? null);
     }
     for (const listener of listeners) {
-      listener({ type: 'NavigationEnd', url });
+      listener({ type: 'NavigationEnd', url, navigationId: id });
     }
     return Promise.resolve(true);
   };

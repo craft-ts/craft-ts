@@ -21,6 +21,7 @@ import { craftException } from './craft-exception';
 import type { RouteChainOutcome } from './craft-guard-runtime';
 import { ɵinjectCraftGlobalError } from './craft-route-exceptions';
 import { CRAFT_ROUTE_META, type CraftRouteMeta } from './craft-route-meta';
+import { ɵinjectCraftRouteActivationTracker } from './craft-route-activation';
 import { craftRouteTarget, provideCraftRouteTarget } from './craft-route-target';
 import {
   SERVICE_RUNTIME_OVERRIDES,
@@ -41,6 +42,7 @@ import {
   provideCraftRouter,
   type CraftRouterNavigationApi,
 } from './craft-router';
+import type { CraftRouterEvent } from './craft-router-tokens';
 import {
   ɵinjectCraftHistory,
   ɵinjectCraftMatch,
@@ -132,9 +134,24 @@ function makeMatch(
   };
 }
 
-function stubRouter(): CraftRouterNavigationApi {
+type StubRouter = CraftRouterNavigationApi & {
+  emitNavigationStart(navigationId: number): void;
+};
+
+function stubRouter(): StubRouter {
+  const listeners = new Set<(event: CraftRouterEvent) => void>();
   return {
     url: '/',
+    events: {
+      subscribe(listener) {
+        listeners.add(listener);
+        return { unsubscribe: () => listeners.delete(listener) };
+      },
+    },
+    emitNavigationStart(navigationId) {
+      for (const listener of listeners)
+        listener({ type: 'NavigationStart', url: '/', navigationId });
+    },
     createUrlTree: (input) => ({
       toString: () => `/${input.to}`,
       __craftUrlTree: true as const,
@@ -212,6 +229,111 @@ describe('CraftRouterOutlet', () => {
     activate(outlet, undefined);
     expect(outlet.state()).toBe('loaded');
     expect(outlet.targetComponent()).toBe(TargetCmp);
+  });
+
+  it('publishes route activation only after an asynchronous component is loaded', async () => {
+    const { outlet } = setup();
+    const tracker = TestBed.runInInjectionContext(() =>
+      ɵinjectCraftRouteActivationTracker(),
+    );
+    let resolveComponent!: (component: typeof TargetCmp) => void;
+    const loadComponent = vi.fn(
+      () =>
+        new Promise<typeof TargetCmp>((resolve) => {
+          resolveComponent = resolve;
+        }),
+    );
+    const waiter = tracker.waitFor('/', 500);
+    let settled = false;
+    void waiter.promise.then(() => {
+      settled = true;
+    });
+
+    outlet.activateMatch(
+      makeMatch(undefined, undefined, {
+        component: undefined,
+        loadComponent,
+      }),
+      TestBed.inject(EnvironmentInjector),
+    );
+    await flushChain();
+
+    expect(loadComponent).toHaveBeenCalledOnce();
+    expect(settled).toBe(false);
+
+    resolveComponent(TargetCmp);
+    await flushChain();
+
+    await expect(waiter.promise).resolves.toMatchObject({
+      url: '/',
+      routePath: 'a',
+      componentName: 'TargetCmp',
+      outcome: 'activated',
+    });
+    expect(settled).toBe(true);
+  });
+
+  it('uses a nonzero default timeout when waiting for the next route activation', async () => {
+    const tracker = TestBed.runInInjectionContext(() =>
+      ɵinjectCraftRouteActivationTracker(),
+    );
+    const waiter = tracker.waitForNext('/query/1');
+
+    await vi.advanceTimersByTimeAsync(0);
+    tracker.publish({
+      url: '/query/1',
+      routePath: 'query/:id',
+      outcome: 'activated',
+    });
+
+    await expect(waiter.promise).resolves.toMatchObject({
+      url: '/query/1',
+      outcome: 'activated',
+    });
+  });
+
+  it('rejects the route activation barrier when asynchronous component loading fails', async () => {
+    const { outlet } = setup();
+    const tracker = TestBed.runInInjectionContext(() =>
+      ɵinjectCraftRouteActivationTracker(),
+    );
+    const waiter = tracker.waitFor('/', 500);
+    const loadComponent = vi.fn(async () => {
+      throw new Error('component load failed');
+    });
+
+    outlet.activateMatch(
+      makeMatch(undefined, undefined, {
+        component: undefined,
+        loadComponent,
+      }),
+      TestBed.inject(EnvironmentInjector),
+    );
+    await flushChain();
+
+    await expect(waiter.promise).rejects.toThrow();
+    expect(loadComponent).toHaveBeenCalledOnce();
+    expect(outlet.state()).toBe('error');
+  });
+
+  it('correlates route activation with its router navigation id', () => {
+    const { outlet, router } = setup();
+    const tracker = TestBed.runInInjectionContext(() =>
+      ɵinjectCraftRouteActivationTracker(),
+    );
+    const events: unknown[] = [];
+    const unsubscribe = tracker.subscribe((event) => events.push(event));
+
+    router.emitNavigationStart(42);
+    activate(outlet, undefined);
+
+    expect(events.at(-1)).toMatchObject({
+      navigationId: 42,
+      url: '/',
+      routePath: 'a',
+      outcome: 'activated',
+    });
+    unsubscribe();
   });
 
   it('publishes a routed target only after its injector and props are ready', () => {

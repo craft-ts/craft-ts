@@ -22,6 +22,7 @@ import {
 import { ɵcaptureCraftReplayTarget } from './craft-replay-target';
 import { provideTemplateTrace } from './template-trace';
 import { ɵinjectCraftRouterRuntime } from './craft-router-tokens';
+import { ɵinjectCraftRouteActivationTracker } from './craft-route-activation';
 
 const capturedReplayDomEvents = new WeakSet<Event>();
 
@@ -959,6 +960,20 @@ export function provideSendContextSession(
         createdSession,
         injectCraftReplayTransports(),
       ),
+    ),
+    provideSendContextEventSource((createdSession) =>
+      ɵinjectCraftRouteActivationTracker().subscribe((event) => {
+        if (!createdSession.activeClip) return;
+        createdSession.capture(
+          'route-activation',
+          event.outcome === 'activated' ? 'succeeded' : 'failed',
+          {
+            name: event.routePath,
+            operationId: event.activationId,
+            payload: event,
+          },
+        );
+      }),
     ),
     provideTemplateTrace((trace, next) => {
       if (

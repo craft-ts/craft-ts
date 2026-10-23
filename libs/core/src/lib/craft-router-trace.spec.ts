@@ -87,6 +87,10 @@ describe('craft router trace', () => {
       'NavigationEnd',
     ]);
     expect(events.map((event) => event.url)).toEqual(['/home', '/home']);
+    expect(events[0]?.event?.navigationId).toEqual(
+      events[1]?.event?.navigationId,
+    );
+    expect(events[0]?.event?.navigationId).toEqual(expect.any(Number));
     expect(events.map((event) => event.navigationOptions)).toEqual([
       { replaceUrl: true },
       { replaceUrl: true },

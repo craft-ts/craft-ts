@@ -2522,6 +2522,68 @@ describe('debug session replay format', () => {
     replay.stop();
   });
 
+  it('restores route primitive state only after the route activation barrier resolves', async () => {
+    let finishActivation!: () => void;
+    const activation = new Promise<void>((resolve) => {
+      finishActivation = resolve;
+    });
+    const restoreState = vi.fn();
+    const session = {
+      format: 'craft-debug-session' as const,
+      version: 6 as const,
+      startUrl: 'http://localhost/',
+      exportedAt: 100,
+      truncated: false,
+      clips: [],
+      events: [
+        {
+          id: 'history-navigation',
+          sequence: 1,
+          timestamp: 101,
+          kind: 'navigation' as const,
+          phase: 'started' as const,
+          name: 'NavigationStart',
+          payload: {
+            url: '/users',
+            event: { trigger: 'history' },
+          },
+        },
+        {
+          id: 'route-state',
+          sequence: 2,
+          timestamp: 102,
+          kind: 'primitive' as const,
+          phase: 'emitted' as const,
+          name: 'primitive-change',
+          state: { users: [{ id: 1, name: 'Ada' }] },
+        },
+      ],
+    } satisfies SendContextReplayExport;
+    const navigateToRecordedRoute = vi.fn(() => activation);
+    const replay = createReplayController(session, {
+      navigateToRecordedRoute,
+      restoreState,
+    });
+
+    const step = replay.step();
+    await vi.waitFor(() =>
+      expect(navigateToRecordedRoute).toHaveBeenCalledWith('/users', {}),
+    );
+
+    expect(restoreState).not.toHaveBeenCalled();
+    expect(replay.index()).toBe(0);
+
+    finishActivation();
+    await step;
+
+    expect(restoreState).toHaveBeenCalledWith(
+      { users: [{ id: 1, name: 'Ada' }] },
+      expect.objectContaining({ id: 'route-state' }),
+    );
+    expect(replay.index()).toBe(1);
+    replay.stop();
+  });
+
   it('advances the recorded timeline while a deferred route load is still settling', async () => {
     document.body.innerHTML = '<a id="navigate">Open route</a>';
     const replayRef: {

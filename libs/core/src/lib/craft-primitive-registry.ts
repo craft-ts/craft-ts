@@ -145,6 +145,16 @@ class CraftPrimitiveRegistryState {
       release: () => {
         if (this.entries.get(address) === registered) {
           this.entries.delete(address);
+          // A recorded value belongs to this primitive instance's lifetime.
+          // Keeping it after teardown would match the same ordinal-free
+          // address when a route recreates its component and resurrect stale
+          // local state instead of the primitive's initializer value.
+          const replaySnapshotAddress =
+            this.resolveReplaySnapshotAddress(address);
+          if (replaySnapshotAddress !== undefined) {
+            this.replaySnapshotValues.delete(replaySnapshotAddress);
+            this.replaySnapshotMetadata.delete(replaySnapshotAddress);
+          }
         }
       },
     };

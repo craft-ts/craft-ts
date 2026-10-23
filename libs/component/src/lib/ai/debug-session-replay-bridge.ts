@@ -2,6 +2,7 @@ import {
   provideAppInitializer,
   ɵinjectCraftPrimitiveRegistry,
   ɵinjectCraftRouterRuntime,
+  ɵinjectCraftRouteActivationTracker,
   ɵinjectCraftCompiledRoutes,
   ɵinjectCraftMethodReplayRegistry,
   ɵinjectPersistedStorageSnapshotRegistry,
@@ -147,6 +148,7 @@ export function provideCraftDebugReplayBridge(
       const methodReplayRegistry = ɵinjectCraftMethodReplayRegistry();
       const storageRegistry = ɵinjectPersistedStorageSnapshotRegistry();
       const craftRouter = ɵinjectCraftRouterRuntime();
+      const routeActivationTracker = ɵinjectCraftRouteActivationTracker();
       let resolveReplayBootstrap: (() => void) | undefined;
       const replayBootstrap = isCraftDebugReplayLaunch()
         ? new Promise<void>((resolve) => {
@@ -414,15 +416,27 @@ export function provideCraftDebugReplayBridge(
                   'Le routeur Craft de l’application n’est pas disponible pour le replay.',
                 );
               const currentRoute = `${location.pathname}${location.search}${location.hash}`;
-              if (currentRoute === route) return;
-              const navigated = await craftRouter.navigateByUrl(
-                route,
-                navigationOptions,
-              );
-              if (!navigated)
-                throw new Error(
-                  `Le routeur Craft a refusé la destination ${route}.`,
-                );
+              const activationWaiter =
+                currentRoute === route
+                  ? routeActivationTracker.waitFor(route)
+                  : routeActivationTracker.waitForNext(route);
+              try {
+                if (currentRoute !== route) {
+                  const navigated = await craftRouter.navigateByUrl(
+                    route,
+                    navigationOptions,
+                  );
+                  if (!navigated)
+                    throw new Error(
+                      `Le routeur Craft a refusé la destination ${route}.`,
+                    );
+                }
+                await activationWaiter.promise;
+              } catch (error) {
+                activationWaiter.cancel();
+                await activationWaiter.promise.catch(() => undefined);
+                throw error;
+              }
             },
             prepare: async () => {
               if (message['startMode'] === 'snapshot') {

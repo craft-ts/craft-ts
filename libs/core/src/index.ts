@@ -376,6 +376,11 @@ export * from './lib/craft-route-load-error';
 export * from './lib/craft-lazy';
 export * from './lib/craft-view-transition';
 export * from './lib/craft-router-outlet';
+export {
+  ɵinjectCraftRouteActivationTracker,
+  type CraftRouteActivationEvent,
+  type CraftRouteActivationWaiter,
+} from './lib/craft-route-activation';
 export * from './lib/craft-until-settled';
 export * from './lib/craft-settled';
 export * from './lib/craft-control-flow';

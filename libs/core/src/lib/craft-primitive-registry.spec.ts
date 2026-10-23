@@ -148,6 +148,39 @@ describe('craft primitive registry', () => {
     expect(entry.read()).toBe(12);
   });
 
+  it('does not carry a replay snapshot into a newly created primitive after release', () => {
+    let current = ['Ada Lovelace', 'Grace Hopper'];
+    const first = registry.register(
+      'component:componentDemo#1 / state:users',
+      {
+        kind: 'state',
+        name: 'users',
+        hostTags: ['component:componentDemo#1'],
+        read: () => current,
+        write: (next) => {
+          current = next as string[];
+        },
+      },
+    );
+    registry.restore({
+      [first.address]: ['Ada Lovelace', 'Grace Hopper', 'User 7'],
+    });
+    first.release();
+
+    current = ['Ada Lovelace', 'Grace Hopper'];
+    registry.register('component:componentDemo#2 / state:users', {
+      kind: 'state',
+      name: 'users',
+      hostTags: ['component:componentDemo#2'],
+      read: () => current,
+      write: (next) => {
+        current = next as string[];
+      },
+    });
+
+    expect(current).toEqual(['Ada Lovelace', 'Grace Hopper']);
+  });
+
   it('primes a replay snapshot for a primitive created after its event', () => {
     let current = 0;
     registry.restore({ 'state:latePrimitive#4': 7 });
