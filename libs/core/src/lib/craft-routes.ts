@@ -15,14 +15,14 @@ import {
   type SubscribableValue,
 } from './stream-kernel';
 import type {
-  ActivatedRouteSnapshot,
+  CraftRouteSnapshot,
   Data,
-  GuardResult,
-  PartialMatchRouteSnapshot,
-  Route,
-  RouterStateSnapshot,
-  UrlSegment,
-} from './host/craft-router-types';
+  CraftGuardResult,
+  CraftPartialRouteSnapshot,
+  CraftRouteConfig,
+  CraftRouterState,
+  CraftUrlSegment,
+} from './host/craft-router-model';
 import type {
   CRAFT_COMPONENT_DEPS,
   ComponentExceptionsCarrier,
@@ -105,8 +105,8 @@ export type CraftRouteAdditionalProvidersOf<Route> =
   Route extends CraftRouteAdditionalProvidersCarrier<infer Providers>
     ? Providers
     : never;
-type AngularRouteBase = Omit<
-  Route,
+type CraftHostRouteBase = Omit<
+  CraftRouteConfig,
   | 'canActivate'
   | 'canMatch'
   | 'children'
@@ -118,17 +118,17 @@ type AngularRouteBase = Omit<
   | 'providers'
   | 'redirectTo'
   // Craft's `resolve` is a generator factory (see `CraftRouteUxFields`), not
-  // Angular's `ResolveData` map. Left in, the two intersect into
+  // a host resolver map. Left in, the two intersect into
   // `Record<string, unknown> & CraftRouteResolve`, which no resolve factory
   // satisfies — and the whole route then stops being a route definition.
   | 'resolve'
 >;
-type AngularRouteProviders = NonNullable<Route['providers']>;
-type AngularRouteComponent = NonNullable<Route['component']>;
-type AngularLoadComponent = NonNullable<Route['loadComponent']>;
+type CraftHostRouteProviders = NonNullable<CraftRouteConfig['providers']>;
+type CraftHostRouteComponent = NonNullable<CraftRouteConfig['component']>;
+type CraftHostLoadComponent = NonNullable<CraftRouteConfig['loadComponent']>;
 type CraftLoadComponent = (
   helpers: CraftRouteLazyLoadHelpers,
-) => ReturnType<AngularLoadComponent>;
+) => ReturnType<CraftHostLoadComponent>;
 type ComponentDepsMap<RouteDefinition> = RouteDefinition extends {
   componentDeps: infer ComponentDeps extends object;
 }
@@ -319,11 +319,11 @@ type RouteQueryParamsFactory<Output = unknown, Yielded = never> = () =>
 type RouteRedirectToResult = string | CraftUrlTree;
 
 // A `redirectTo` that can be a plain string, a synchronous/async function (a
-// plain Angular `RedirectFunction`), or a generator factory that `yield*`s
+// plain redirect function), or a generator factory that `yield*`s
 // craftService dependencies before returning the redirect target. The generator
 // form is what makes the redirect's service usage trackable for type-safe DI.
 type RouteRedirectToFactory<Yielded = never> = (
-  redirectData: PartialMatchRouteSnapshot,
+  redirectData: CraftPartialRouteSnapshot,
 ) =>
   | MaybeAsync<RouteRedirectToResult>
   | Generator<Yielded, RouteRedirectToResult, unknown>;
@@ -383,7 +383,7 @@ type ExtractCanActivateGuardData<Guard> = Guard extends (
 ) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
-      GuardResult | AnyCraftException | undefined | null
+      CraftGuardResult | AnyCraftException | undefined | null
     >
   : never;
 
@@ -404,7 +404,7 @@ type ExtractResolveData<Resolve> = Resolve extends (
 ) => infer Result
   ? Exclude<
       UnwrapCanActivateReturn<Result>,
-      GuardResult | AnyCraftException | undefined | null
+      CraftGuardResult | AnyCraftException | undefined | null
     >
   : never;
 
@@ -808,24 +808,24 @@ type StripRouteProvidedDepsMap<
 >;
 
 type CraftRouteCanActivateResult =
-  | GuardResult
+  | CraftGuardResult
   | object
-  | Promise<GuardResult | object>
-  | Subscribable<GuardResult | object | undefined>
-  | Signal<GuardResult | object | undefined>;
+  | Promise<CraftGuardResult | object>
+  | Subscribable<CraftGuardResult | object | undefined>
+  | Signal<CraftGuardResult | object | undefined>;
 
 type CraftRouteCanActivateGuard = (
-  route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot,
+  route: CraftRouteSnapshot,
+  state: CraftRouterState,
 ) =>
   | CraftRouteCanActivateResult
   | Generator<unknown, CraftRouteCanActivateResult, unknown>;
 
 type CraftRouteCanMatchGuard = (
-  route: Route,
-  segments: UrlSegment[],
-  currentSnapshot?: PartialMatchRouteSnapshot,
-) => GuardResult | Generator<unknown, GuardResult, unknown>;
+  route: CraftRouteConfig,
+  segments: CraftUrlSegment[],
+  currentSnapshot?: CraftPartialRouteSnapshot,
+) => CraftGuardResult | Generator<unknown, CraftGuardResult, unknown>;
 
 type GuardOf<
   RouteDefinition,
@@ -1139,8 +1139,8 @@ type CraftRouteMetaDataEntry<
 
 // The optional data step of a route (`craftResolve(...)`), shaped like a guard.
 type CraftRouteResolve = (
-  route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot,
+  route: CraftRouteSnapshot,
+  state: CraftRouterState,
 ) => Generator<unknown, unknown, unknown>;
 
 // Loose runtime type for the merged `handleExceptions` map (the precise, exhaustive
@@ -1152,7 +1152,7 @@ type CraftRouteHandleExceptions = Record<string, CraftExceptionHandler<any>>;
 // param is contravariant), so `craftRoutes` still infers a precise `Routes`.
 
 // Craft-only execution + UX fields shared by every route shape. They are stripped
-// from the emitted Angular `Route` (stashed under `CRAFT_ROUTE_META`) and consumed
+// from the compiled Craft route (stashed under `CRAFT_ROUTE_META`) and consumed
 // by the non-blocking `CraftRouterOutlet`.
 type CraftRouteUxFields = {
   resolve?: CraftRouteResolve;
@@ -1201,9 +1201,9 @@ type CraftRouteRuntimeUxFields = CraftRouteUxFields & {
 type CraftRouteSharedFields<
   Path extends string = string,
   RouteData extends Data = Data,
-  Providers extends AngularRouteProviders = AngularRouteProviders,
+  Providers extends CraftHostRouteProviders = CraftHostRouteProviders,
 > = Simplify<
-  AngularRouteBase &
+  CraftHostRouteBase &
     CraftRouteUxFields & {
       canActivate?: CraftRouteCanActivateGuard;
       canMatch?: CraftRouteCanMatchGuard;
@@ -1222,13 +1222,13 @@ type CraftRouteSharedFields<
 >;
 
 type AnyCraftRouteSharedFields = Simplify<
-  AngularRouteBase &
+  CraftHostRouteBase &
     CraftRouteRuntimeUxFields & {
       canActivate?: CraftRouteCanActivateGuard;
       canMatch?: CraftRouteCanMatchGuard;
       path: string;
-      providers?: AngularRouteProviders;
-      providersFn?: (helpers: any) => AngularRouteProviders;
+      providers?: CraftHostRouteProviders;
+      providersFn?: (helpers: any) => CraftHostRouteProviders;
       data?: Data;
       ssr?: CraftSsrPolicy;
       queryParams?: RouteQueryParamsFactory;
@@ -1404,7 +1404,7 @@ type RoutesHelperShape<Routes extends readonly AnyCraftRouteDefinition[]> = {
 
 type CraftRouteComponentTarget =
   | {
-      component: AngularRouteComponent;
+      component: CraftHostRouteComponent;
       loadComponent?: never;
     }
   | {
@@ -1420,8 +1420,8 @@ type CraftRouteLoadChildrenCallback<
 ) =>
   | CraftRoutesApp<Routes, Name>
   | Promise<CraftRoutesApp<Routes, Name>>
-  | Route[]
-  | Promise<Route[]>;
+  | CraftRouteConfig[]
+  | Promise<CraftRouteConfig[]>;
 
 type CraftRouteOptionalLoadChildrenTarget<
   ChildRoutes extends
@@ -1445,7 +1445,7 @@ export type CraftRouteDefinition<
   Path extends string = string,
   ComponentDeps = unknown,
   RouteData extends Data = Data,
-  Providers extends AngularRouteProviders = AngularRouteProviders,
+  Providers extends CraftHostRouteProviders = CraftHostRouteProviders,
   ChildRoutes extends
     readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
 > = Simplify<
@@ -1462,7 +1462,7 @@ export type CraftLazyRouteDefinition<
   ChildRoutes extends
     readonly AnyCraftRouteDefinition[] = readonly AnyCraftRouteDefinition[],
   RouteData extends Data = Data,
-  Providers extends AngularRouteProviders = AngularRouteProviders,
+  Providers extends CraftHostRouteProviders = CraftHostRouteProviders,
 > = Simplify<
   CraftRouteSharedFields<Path, RouteData, Providers> & {
     component?: never;
@@ -2123,7 +2123,7 @@ type RouteSelfProvidedBaseNames<RouteDefinition> =
 // fully typed (this is impossible with an inline object-literal callback, where the
 // callback parameter cannot depend on the same literal's inferred type).
 type RouteWithProvidersBuilder<RouteDefinition> = RouteDefinition & {
-  withProviders: <Providers extends AngularRouteProviders>(
+  withProviders: <Providers extends CraftHostRouteProviders>(
     factory: (helpers: RouteProviderHelpers<RouteDefinition>) => Providers,
   ) => Simplify<
     RouteDefinition & {
@@ -2575,8 +2575,8 @@ function createPathParamsParseStep(
       'canMatch',
       (
         canMatch as unknown as (
-          route: ActivatedRouteSnapshot,
-          state: RouterStateSnapshot,
+          route: CraftRouteSnapshot,
+          state: CraftRouterState,
         ) => unknown
       )(route, state),
     );
@@ -2778,7 +2778,7 @@ function createLoadChildren(
 function createLoadComponent(
   routePath: string,
   loadComponent: CraftLoadComponent,
-): AngularLoadComponent {
+): CraftHostLoadComponent {
   return () =>
     loadRouteWithRetry(
       async (helpers) => {
@@ -3237,7 +3237,7 @@ export function craftRoutes<
       pendingMinMs,
       reactiveGuards,
       withLoaderViewTransitionImage,
-      ...angularRoute
+      ...hostRoute
     } = route;
     const factoryProviders = providersFn
       ? providersFn(buildRouteProviderHelpers(route))
@@ -3303,7 +3303,7 @@ export function craftRoutes<
         : routeData;
 
     return {
-      ...angularRoute,
+      ...hostRoute,
       ...(mergedData !== undefined ? { data: mergedData } : {}),
       ...(redirectTo !== undefined ? { redirectTo } : {}),
       loadChildren: wrappedLoadChildren,

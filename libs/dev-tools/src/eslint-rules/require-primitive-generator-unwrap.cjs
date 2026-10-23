@@ -24,7 +24,7 @@ const HELPER_MODULE = {
 
 // A component is a template, never a primitive factory: returning `state(...)`
 // from it renders a generator instead of consuming it.
-const FACTORY_HOST_CALLEES = new Set(['craftService', 'toCraftService']);
+const FACTORY_HOST_CALLEES = new Set(['craftService']);
 
 module.exports = {
   meta: {

@@ -681,16 +681,16 @@ export class CraftFieldBinding<T> {
 export function bindCraftField<T>(
   element: HTMLElement,
   field: CraftField<T>,
-  renderer: CraftDomAdapter | object,
-  injector: Injector | object,
+  renderer: CraftDomAdapter,
+  injector: Injector,
   customValueControl: CraftValueControl<unknown> | null = null,
   customCheckboxControl: CraftCheckboxControl | null = null,
   createEffect?: CraftNodeEffectFactory,
 ): () => void {
   const binding = new CraftFieldBinding(
     element,
-    renderer as CraftDomAdapter,
-    injector as Injector,
+    renderer,
+    injector,
     field,
     customValueControl,
     customCheckboxControl,

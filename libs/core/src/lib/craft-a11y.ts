@@ -1,6 +1,9 @@
 import { ɵcraftValueService } from './craft-service';
 import type { Provider } from './host/craft-compat';
-import { TitleStrategy, type RouterStateSnapshot } from './host/craft-router-types';
+import {
+  CraftTitleStrategy as CraftTitleStrategyBase,
+  type CraftRouterState,
+} from './host/craft-router-model';
 import { ɵapplyBrowserDocumentTitle } from './browser-boundaries';
 import { craftLoadingFeature, type CraftLoadingFeature } from './craft-pending';
 
@@ -41,10 +44,10 @@ export function withA11yNavigationFocus(): CraftLoadingFeature {
 }
 
 /**
- * Binds Angular route `title` to `BrowserDocument.setTitle`. Registered by
+ * Binds Craft route titles to `BrowserDocument.setTitle`. Registered by
  * default from {@link provideCraftRouter}.
  */
-export type CraftTitleStrategy = TitleStrategy;
+export type CraftTitleStrategy = CraftTitleStrategyBase;
 
 const craftTitleStrategyService = ɵcraftValueService(
   { name: 'CraftTitleStrategy', providedIn: 'global' },
@@ -59,8 +62,8 @@ export const ɵinjectCraftTitleStrategy = (): CraftTitleStrategy =>
   craftTitleStrategyService.CRAFT_TITLE_STRATEGY_META_DATA.inject();
 
 export function createCraftTitleStrategy(): CraftTitleStrategy {
-  return new (class extends TitleStrategy {
-    override updateTitle(snapshot: RouterStateSnapshot): void {
+  return new (class extends CraftTitleStrategyBase {
+    override updateTitle(snapshot: CraftRouterState): void {
       const title = this.buildTitle(snapshot);
       if (title !== undefined) {
         ɵapplyBrowserDocumentTitle(title);

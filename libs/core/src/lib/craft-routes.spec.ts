@@ -1,22 +1,22 @@
 import {
-  ActivatedRoute,
-  NavigationEnd,
-  type ActivatedRouteSnapshot,
-  type CanActivateFn,
-  type CanMatchFn,
+  CraftRouteContext,
+  CraftNavigationEnd,
+  type CraftRouteSnapshot,
+  type CraftCanActivate,
+  type CraftCanMatch,
   type Data,
-  type GuardResult,
-  type Params,
-  type PartialMatchRouteSnapshot,
-  type Route,
-  type RouterStateSnapshot,
-  type UrlSegment,
-  UrlTree,
-} from './host/craft-router-types';
+  type CraftGuardResult,
+  type CraftRouteParams,
+  type CraftPartialRouteSnapshot,
+  type CraftRouteConfig,
+  type CraftRouterState,
+  type CraftUrlSegment,
+  CraftRedirectTree,
+} from './host/craft-router-model';
 
 /**
  * A stand-in DI token. These specs never drove a real router — they only
- * needed some external service to adapt through `toCraftService`.
+ * needed some external service to adapt through the removed adapter.
  */
 class Router {
   readonly url: string = '/';
@@ -36,7 +36,7 @@ import {
   type Provider,
   type Signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   BehaviorSubject,
   combineLatest,
@@ -121,7 +121,7 @@ function activateCraftRoutes(
   url: string,
 ) {
   window.history.replaceState(null, '', url);
-  TestBed.configureTestingModule({
+  CraftTestBed.configureTestingModule({
     providers: [
       provideCraftRouter(
         routes,
@@ -129,7 +129,7 @@ function activateCraftRoutes(
       ),
     ],
   });
-  return TestBed.runInInjectionContext(() =>
+  return CraftTestBed.runInInjectionContext(() =>
     createCraftRouterOutletController(),
   );
 }
@@ -163,14 +163,14 @@ function resolveRouteYield<T>(
 
 function createActivatedRouteStub(
   initial: {
-    params?: Params;
+    params?: CraftRouteParams;
     data?: Data;
-    queryParams?: Params;
+    queryParams?: CraftRouteParams;
   } = {},
 ) {
-  const paramsSubject = new BehaviorSubject<Params>(initial.params ?? {});
+  const paramsSubject = new BehaviorSubject<CraftRouteParams>(initial.params ?? {});
   const dataSubject = new BehaviorSubject<Data>(initial.data ?? {});
-  const queryParamsSubject = new BehaviorSubject<Params>(
+  const queryParamsSubject = new BehaviorSubject<CraftRouteParams>(
     initial.queryParams ?? {},
   );
   const navigationEvents = new Subject<unknown>();
@@ -194,10 +194,10 @@ function createActivatedRouteStub(
 
   return {
     route,
-    setParams(params: Params) {
+    setParams(params: CraftRouteParams) {
       snapshot.params = params;
       paramsSubject.next(params);
-      navigationEvents.next(new NavigationEnd(1, '/', '/'));
+      navigationEvents.next(new CraftNavigationEnd(1, '/', '/'));
       match.update((current) => ({
         ...current,
         params: params as Record<string, string>,
@@ -206,7 +206,7 @@ function createActivatedRouteStub(
     setData(data: Data) {
       snapshot.data = data;
       dataSubject.next(data);
-      navigationEvents.next(new NavigationEnd(1, '/', '/'));
+      navigationEvents.next(new CraftNavigationEnd(1, '/', '/'));
       match.update((current) => {
         const nextData = data as Record<string | symbol, unknown>;
         const nextRoute = { ...current.route, data: nextData };
@@ -220,10 +220,10 @@ function createActivatedRouteStub(
         };
       });
     },
-    setQueryParams(queryParams: Params) {
+    setQueryParams(queryParams: CraftRouteParams) {
       snapshot.queryParams = queryParams;
       queryParamsSubject.next(queryParams);
-      navigationEvents.next(new NavigationEnd(1, '/', '/'));
+      navigationEvents.next(new CraftNavigationEnd(1, '/', '/'));
       match.update((current) => ({
         ...current,
         queryParams: queryParams as Record<string, string>,
@@ -235,25 +235,25 @@ function createActivatedRouteStub(
 function createNestedActivatedRouteStub(config: {
   parentPath: string;
   childPath: string;
-  parentParams?: Params;
+  parentParams?: CraftRouteParams;
   parentData?: Data;
-  parentQueryParams?: Params;
-  childParams?: Params;
+  parentQueryParams?: CraftRouteParams;
+  childParams?: CraftRouteParams;
   childData?: Data;
-  childQueryParams?: Params;
+  childQueryParams?: CraftRouteParams;
 }) {
-  const parentParamsSubject = new BehaviorSubject<Params>(
+  const parentParamsSubject = new BehaviorSubject<CraftRouteParams>(
     config.parentParams ?? {},
   );
   const parentDataSubject = new BehaviorSubject<Data>(config.parentData ?? {});
-  const parentQueryParamsSubject = new BehaviorSubject<Params>(
+  const parentQueryParamsSubject = new BehaviorSubject<CraftRouteParams>(
     config.parentQueryParams ?? {},
   );
-  const childParamsSubject = new BehaviorSubject<Params>(
+  const childParamsSubject = new BehaviorSubject<CraftRouteParams>(
     config.childParams ?? {},
   );
   const childDataSubject = new BehaviorSubject<Data>(config.childData ?? {});
-  const childQueryParamsSubject = new BehaviorSubject<Params>(
+  const childQueryParamsSubject = new BehaviorSubject<CraftRouteParams>(
     config.childQueryParams ?? {},
   );
 
@@ -270,7 +270,7 @@ function createNestedActivatedRouteStub(config: {
       queryParams: childQueryParamsSubject.value,
     },
     children: [],
-  } as unknown as ActivatedRoute;
+  } as unknown as CraftRouteContext;
 
   const parentRoute = {
     routeConfig: {
@@ -286,9 +286,9 @@ function createNestedActivatedRouteStub(config: {
     },
     children: [childRoute],
     parent: null,
-  } as unknown as ActivatedRoute;
+  } as unknown as CraftRouteContext;
 
-  (childRoute as ActivatedRoute & { parent?: ActivatedRoute }).parent =
+  (childRoute as CraftRouteContext & { parent?: CraftRouteContext }).parent =
     parentRoute;
 
   return {
@@ -309,12 +309,12 @@ function flattenProviders(
   );
 }
 
-type ActivatedRouteWithCraftMatch = ActivatedRoute & {
+type ActivatedRouteWithCraftMatch = CraftRouteContext & {
   __craftMatch?: CraftWritableSignal<CraftMatch>;
 };
 
 function buildStubMatch(
-  activatedRoute: ActivatedRoute,
+  activatedRoute: CraftRouteContext,
   routePath: string,
   pathname = '/',
 ): CraftMatch {
@@ -340,7 +340,7 @@ function buildStubMatch(
 
 function createRouteInjector(
   providers: readonly unknown[] | undefined,
-  activatedRoute: ActivatedRoute,
+  activatedRoute: CraftRouteContext,
   parent?: Injector,
   routePath = '',
   pathname = '/',
@@ -374,7 +374,7 @@ function createRouteInjector(
                 },
                 events:
                   (
-                    activatedRoute as ActivatedRoute & {
+                    activatedRoute as CraftRouteContext & {
                       events?: Observable<unknown>;
                     }
                   ).events ?? EMPTY,
@@ -413,9 +413,9 @@ function createRouteInjector(
 
 function configureRouteTestingModule(
   providers: readonly unknown[] | undefined,
-  activatedRoute: ActivatedRoute,
+  activatedRoute: CraftRouteContext,
 ) {
-  TestBed.configureTestingModule({
+  CraftTestBed.configureTestingModule({
     providers: [
       provideCraftActivatedRoute(activatedRoute),
       {
@@ -431,29 +431,29 @@ function configureRouteTestingModule(
   });
 }
 
-const activatedRouteSnapshotStub = {} as ActivatedRouteSnapshot;
-const routerStateSnapshotStub = {} as RouterStateSnapshot;
-const partialMatchRouteSnapshotStub = {} as PartialMatchRouteSnapshot;
-const urlSegmentsStub = [] as UrlSegment[];
+const activatedRouteSnapshotStub = {} as CraftRouteSnapshot;
+const routerStateSnapshotStub = {} as CraftRouterState;
+const partialMatchRouteSnapshotStub = {} as CraftPartialRouteSnapshot;
+const urlSegmentsStub = [] as CraftUrlSegment[];
 
-function getCanActivateGuard(route: Route | CraftCompiledRoute): CanActivateFn {
+function getCanActivateGuard(route: CraftRouteConfig | CraftCompiledRoute): CraftCanActivate {
   const guard = route.canActivate?.[0];
 
   if (typeof guard !== 'function') {
     throw new Error('Expected route.canActivate[0] to be a function.');
   }
 
-  return guard as CanActivateFn;
+  return guard as CraftCanActivate;
 }
 
-function getCanMatchGuard(route: Route | CraftCompiledRoute): CanMatchFn {
+function getCanMatchGuard(route: CraftRouteConfig | CraftCompiledRoute): CraftCanMatch {
   const guard = route.canMatch?.[0];
 
   if (typeof guard !== 'function') {
     throw new Error('Expected route.canMatch[0] to be a function.');
   }
 
-  return guard as CanMatchFn;
+  return guard as CraftCanMatch;
 }
 
 function fakeHttpCall<T>(
@@ -465,7 +465,7 @@ function fakeHttpCall<T>(
 }
 
 beforeEach(() => {
-  TestBed.resetTestingModule();
+  CraftTestBed.resetTestingModule();
   window.history.replaceState(null, '', '/');
 });
 
@@ -658,13 +658,13 @@ describe('craftRoutes', () => {
     const activatedRoute = createActivatedRouteStub({
       params: { userId: '42', page: 'invalid' },
     });
-    await TestBed.configureTestingModule({
+    await CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter([])],
     }).compileComponents();
     const injector = createRouteInjector(
       routeConfig.providers,
       activatedRoute.route,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
       routeConfig.path,
       '/users/42/page/invalid',
     );
@@ -709,13 +709,13 @@ describe('craftRoutes', () => {
     ]);
     const route = rawRoutes.toRoutes()[0];
     const activatedRoute = createActivatedRouteStub({ params: { slug: 'first' } });
-    await TestBed.configureTestingModule({
+    await CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter([])],
     }).compileComponents();
     const injector = createRouteInjector(
       route.providers,
       activatedRoute.route,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
       route.path,
       '/items/first',
     );
@@ -900,11 +900,11 @@ describe('craftRoutes', () => {
       );
       const compiledRoutes = appRoutes.toRoutes();
 
-      await TestBed.configureTestingModule({
+      await CraftTestBed.configureTestingModule({
         providers: [provideCraftRouter(compiledRoutes)],
       }).compileComponents();
 
-      const router = TestBed.runInInjectionContext(
+      const router = CraftTestBed.runInInjectionContext(
         () => ɵinjectCraftRouterRuntime()! as CraftRouterNavigationApi,
       );
       const routeConfig = compiledRoutes[0];
@@ -915,7 +915,7 @@ describe('craftRoutes', () => {
       const injector = createRouteInjector(
         routeConfig.providers,
         createActivatedRouteStub().route,
-        TestBed.inject(Injector),
+        CraftTestBed.inject(Injector),
         routeConfig.path,
       );
       const routeQueryParams = resolveRouteYield(
@@ -1005,11 +1005,11 @@ describe('craftRoutes', () => {
       ]);
       const parentCompiledRoutes = parentRoutes.toRoutes();
 
-      await TestBed.configureTestingModule({
+      await CraftTestBed.configureTestingModule({
         providers: [provideCraftRouter(parentCompiledRoutes)],
       }).compileComponents();
 
-      const router = TestBed.runInInjectionContext(
+      const router = CraftTestBed.runInInjectionContext(
         () => ɵinjectCraftRouterRuntime()! as CraftRouterNavigationApi,
       );
 
@@ -1019,7 +1019,7 @@ describe('craftRoutes', () => {
       const parentInjector = createRouteInjector(
         parentCompiledRoutes[0]?.providers,
         createActivatedRouteStub().route,
-        TestBed.inject(Injector),
+        CraftTestBed.inject(Injector),
         parentCompiledRoutes[0]?.path,
       );
       const childRouteConfig = childRoutes.childRoutes.toRoutes()[0];
@@ -1106,7 +1106,7 @@ describe('craftRoutes', () => {
     expect(routeConfig.loadChildren).toBeTypeOf('function');
 
     const lazyRoutes = (await routeConfig.loadChildren?.()) as
-      | Route[]
+      | CraftRouteConfig[]
       | undefined;
 
     expect(loaded).toBe(true);
@@ -1148,7 +1148,7 @@ describe('craftRoutes', () => {
     expect(loaded).toBe(false);
 
     const lazyRoutes = (await routeConfig.loadChildren?.()) as
-      | Route[]
+      | CraftRouteConfig[]
       | undefined;
 
     expect(loaded).toBe(true);
@@ -1156,9 +1156,9 @@ describe('craftRoutes', () => {
     expect(lazyRoutes?.[0]?.path).toBe('details/:teamId');
   });
 
-  it('should accept plain Angular Route[] from loadChildren and defer execution', async () => {
+  it('should accept plain Craft route config arrays from loadChildren and defer execution', async () => {
     let loaded = false;
-    const plainRoutes: Route[] = [{ path: 'child', children: [] }];
+    const plainRoutes: CraftRouteConfig[] = [{ path: 'child', children: [] }];
     const { parentRoutes: appRoutes } = craftRoutes('parent', [
       {
         path: 'profile',
@@ -1180,8 +1180,8 @@ describe('craftRoutes', () => {
     expect(result).toEqual(plainRoutes);
   });
 
-  it('should accept plain Angular Route[] wrapped in a Promise from loadChildren', async () => {
-    const plainRoutes: Route[] = [{ path: 'async-child', children: [] }];
+  it('should accept plain Craft route config arrays wrapped in a Promise from loadChildren', async () => {
+    const plainRoutes: CraftRouteConfig[] = [{ path: 'async-child', children: [] }];
     const { parentRoutes: appRoutes } = craftRoutes('parent', [
       {
         path: 'profile',
@@ -1195,14 +1195,14 @@ describe('craftRoutes', () => {
     expect(result).toEqual(plainRoutes);
   });
 
-  it('should support canActivate generator alongside plain Angular loadChildren — outlet-driven guards', async () => {
+  it('should support canActivate generator alongside Craft loadChildren — outlet-driven guards', async () => {
     const { Auth, provideAuth } = craftService(
       { name: 'Auth', providedIn: 'toProvide' },
       function* () {
         yield* craftExpose('currentUser', { id: 1 });
       },
     );
-    const plainRoutes: Route[] = [{ path: 'child', children: [] }];
+    const plainRoutes: CraftRouteConfig[] = [{ path: 'child', children: [] }];
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'profile',
@@ -1255,7 +1255,7 @@ describe('craftRoutes', () => {
 
     const produced = (
       routeConfig.redirectTo as (
-        snapshot: PartialMatchRouteSnapshot,
+        snapshot: CraftPartialRouteSnapshot,
       ) => Generator<unknown, string, unknown>
     )(partialMatchRouteSnapshotStub);
 
@@ -1336,7 +1336,7 @@ describe('craftRoutes', () => {
     expect(match?.route.path).toBe('home');
   });
 
-  it('should resolve params from the matching child ActivatedRoute in lazy contexts', () => {
+  it('should resolve params from the matching child CraftRouteContext in lazy contexts', () => {
     const routes = craftRoutes('test', [
       {
         path: 'users/:userId',
@@ -1373,7 +1373,7 @@ describe('craftRoutes', () => {
   });
 
   it('should accept craft canActivate/canMatch guard contracts', () => {
-    const pending = signal<GuardResult | undefined>(undefined);
+    const pending = signal<CraftGuardResult | undefined>(undefined);
 
     craftRoutes('test', [
       {
@@ -1387,7 +1387,7 @@ describe('craftRoutes', () => {
         loadComponent: async () => null as unknown as Type<unknown>,
         componentDeps: {},
         canActivate: () => {
-          return new BehaviorSubject<GuardResult | undefined>(
+          return new BehaviorSubject<CraftGuardResult | undefined>(
             undefined,
           ).asObservable();
         },
@@ -2322,7 +2322,7 @@ describe('craftRoutes', () => {
     const routeConfig = testRouteHostNameRoutes.toRoutes()[0];
     const activatedRoute = createActivatedRouteStub();
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const injector = createRouteInjector(
         routeConfig.providers,
         activatedRoute.route,
@@ -2390,7 +2390,7 @@ describe('craftRoutes', () => {
     });
 
     // ɵcreateHostTaggedInjector is what craftMethod uses internally; calling it directly
-    // lets us assert the merged HOST_TAG_LIST without needing TestBed or browser services.
+    // lets us assert the merged HOST_TAG_LIST without needing CraftTestBed or browser services.
     const methodInjector = ɵcreateHostTaggedInjector(
       routedComponentInjector,
       'method:load',
@@ -2495,7 +2495,7 @@ describe('craftRoutes', () => {
   });
 
   it('should wait for a defined signal result in canActivate and then accept — outlet-driven guards', async () => {
-    const guardResult = signal<GuardResult | undefined>(undefined);
+    const guardResult = signal<CraftGuardResult | undefined>(undefined);
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
@@ -2510,14 +2510,14 @@ describe('craftRoutes', () => {
     expect(outlet.state()).not.toBe('loaded');
 
     guardResult.set(true);
-    TestBed.flushEffects();
+    CraftTestBed.flushEffects();
     await flushChain();
 
     expect(outlet.state()).toBe('loaded');
   });
 
   it('should wait for a defined signal result in canActivate and then reject — outlet-driven guards', async () => {
-    const guardResult = signal<GuardResult | undefined>(undefined);
+    const guardResult = signal<CraftGuardResult | undefined>(undefined);
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
@@ -2532,7 +2532,7 @@ describe('craftRoutes', () => {
     expect(outlet.state()).not.toBe('loaded');
 
     guardResult.set(false);
-    TestBed.flushEffects();
+    CraftTestBed.flushEffects();
     await flushChain();
 
     expect(outlet.state()).not.toBe('loaded');
@@ -2631,14 +2631,14 @@ describe('craftRoutes', () => {
   });
 
   // The legacy blocking-guard describes ('craftCanActivate' / 'craftCanMatch')
-  // were removed: guards are no longer registered as Angular route guards —
+  // were removed: guards are no longer registered as Craft route guards —
   // CraftRouterOutlet drives them after the URL commits and resolves their
   // exceptions through the route-level `handleExceptions` (3rd argument of
   // `craftRoute`). Runtime coverage lives in craft-guard-runtime.spec.ts,
   // type-level exhaustiveness coverage in craft-routes-ux.spec.ts.
 
   it('should resolve an observable canMatch result once it emits a defined value — outlet-driven guards', async () => {
-    const guardResult = new BehaviorSubject<GuardResult | undefined>(undefined);
+    const guardResult = new BehaviorSubject<CraftGuardResult | undefined>(undefined);
     const { testRoutes: appRoutes } = craftRoutes('test', [
       {
         path: 'guard',
@@ -2714,7 +2714,7 @@ describe('craftRoutes', () => {
 
       expect(outlet.state()).toBe('loaded');
       const user = runInInjectionContext(
-        outlet.displayedInjector() ?? TestBed.inject(Injector),
+        outlet.displayedInjector() ?? CraftTestBed.inject(Injector),
         () => craftUse(User()),
       );
       expect(user).toEqual({ id: 9, name: 'Carol' });
@@ -2802,7 +2802,7 @@ describe('craftRoutes', () => {
       expect(outlet.state()).toBe('loaded');
       const guardData = resolveRouteYield<Signal<User>>(
         AppDashboardGuardedData(),
-        outlet.displayedInjector() ?? TestBed.inject(Injector),
+        outlet.displayedInjector() ?? CraftTestBed.inject(Injector),
       );
 
       expectTypeOf(guardData).toEqualTypeOf<Signal<User>>();
@@ -2835,7 +2835,7 @@ describe('craftRoutes', () => {
 
       const guardData = resolveRouteYield<Signal<User>>(
         AppDashboardGuardedData(),
-        outlet.displayedInjector() ?? TestBed.inject(Injector),
+        outlet.displayedInjector() ?? CraftTestBed.inject(Injector),
       );
 
       expect(guardData()).toEqual({ id: 7, name: 'Bob' });
@@ -2863,7 +2863,7 @@ describe('craftRoutes', () => {
       expect(outlet.state()).toBe('loaded');
       const guardData = resolveRouteYield<Signal<User>>(
         AppDashboardGuardedData(),
-        outlet.displayedInjector() ?? TestBed.inject(Injector),
+        outlet.displayedInjector() ?? CraftTestBed.inject(Injector),
       );
 
       expect(guardData()).toEqual({ id: 99, name: 'Carol' });

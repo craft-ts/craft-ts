@@ -1,7 +1,7 @@
 import {
   signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   afterEach,
   beforeAll,
@@ -27,28 +27,28 @@ import {
 } from './craft-view-transition';
 
 describe('withCraftViewTransitions', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => CraftTestBed.resetTestingModule());
 
   it('is a craft loading feature enabling the outlet-driven transition', () => {
     const feature = withCraftViewTransitions();
     expect(isCraftLoadingFeature(feature)).toBe(true);
 
-    TestBed.configureTestingModule({ providers: feature.providers });
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionsEnabled())).toBe(true);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionSkipBlank())).toBe(false);
+    CraftTestBed.configureTestingModule({ providers: feature.providers });
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionsEnabled())).toBe(true);
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionSkipBlank())).toBe(false);
   });
 
   it('forwards the skipBlank option', () => {
     const feature = withCraftViewTransitions({ skipBlank: true });
-    TestBed.configureTestingModule({ providers: feature.providers });
+    CraftTestBed.configureTestingModule({ providers: feature.providers });
     expect(
-      TestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionSkipBlank()),
+      CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionSkipBlank()),
     ).toBe(true);
   });
 
   it('defaults the enabled token to false without the feature', () => {
-    TestBed.configureTestingModule({ providers: [provideCraftRouter([])] });
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionsEnabled())).toBe(false);
+    CraftTestBed.configureTestingModule({ providers: [provideCraftRouter([])] });
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransitionsEnabled())).toBe(false);
   });
 });
 
@@ -72,15 +72,15 @@ describe('viewTransitionPayload', () => {
 });
 
 describe('injectCraftViewTransition', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => CraftTestBed.resetTestingModule());
 
   it('reads the payload published on CRAFT_VIEW_TRANSITION', () => {
     const sink = signal<CraftViewTransitionInput>(null);
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftViewTransition(sink)],
     });
 
-    const payload = TestBed.runInInjectionContext(() =>
+    const payload = CraftTestBed.runInInjectionContext(() =>
       injectCraftViewTransition(),
     );
 
@@ -96,7 +96,7 @@ describe('CRAFT_START_VIEW_TRANSITION (default seam)', () => {
 
   beforeEach(() => {
     vi.useRealTimers();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     docWithVt = document as unknown as typeof docWithVt;
   });
 
@@ -106,10 +106,10 @@ describe('CRAFT_START_VIEW_TRANSITION (default seam)', () => {
   });
 
   function start(): (cb: () => void) => void {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter([], withCraftViewTransitions())],
     });
-    return TestBed.runInInjectionContext(() => ɵinjectCraftStartViewTransition());
+    return CraftTestBed.runInInjectionContext(() => ɵinjectCraftStartViewTransition());
   }
 
   it('wraps document.startViewTransition when available and motion is allowed', () => {

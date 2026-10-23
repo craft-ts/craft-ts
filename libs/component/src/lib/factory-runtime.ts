@@ -5,7 +5,6 @@ import {
   type CraftInjector,
   type CraftProgramSettledStep,
   type ResolveGeneratorResult,
-  ɵcraftInjectorFromHost,
 } from '@craft-ts/core';
 import type {
   ComponentDefinition,
@@ -26,15 +25,15 @@ const APP_START_NOT_SUPPORTED =
 export function executeCraftComponentFactory<Factory extends ComponentFactory>(
   factory: Factory,
   args: Parameters<Factory>,
-  injector: CraftInjector | object,
+  injector: CraftInjector,
   onServiceResolved?: (instance: unknown) => void,
 ): ResolveGeneratorResult<ReturnType<Factory>> {
-  return ɵcraftInjectorFromHost(injector).run(
+  return injector.run(
     () =>
       executeGeneratorCompatibleFactory({
         factory,
         thisArg: undefined,
-        getInjector: () => ɵcraftInjectorFromHost(injector),
+        getInjector: () => injector,
         args,
         invalidYieldErrorMessage: INVALID_YIELD,
         multipleAppStartErrorMessage: MULTIPLE_APP_START,
@@ -49,13 +48,13 @@ export function executeCraftComponentFactoryAsync<
 >(
   factory: Factory,
   args: Parameters<Factory>,
-  injector: CraftInjector | object,
+  injector: CraftInjector,
 ): Promise<CraftProgramSettledStep> {
-  return ɵcraftInjectorFromHost(injector).run(() =>
+  return injector.run(() =>
     executeGeneratorCompatibleFactoryAsync({
       factory,
       thisArg: undefined,
-      getInjector: () => ɵcraftInjectorFromHost(injector),
+      getInjector: () => injector,
       args,
       invalidYieldErrorMessage: INVALID_YIELD,
       appStartNotSupportedErrorMessage: APP_START_NOT_SUPPORTED,
@@ -90,7 +89,7 @@ export function renderCraftComponentTemplate(
   },
   args: readonly unknown[],
   hostProps: HostProps | undefined,
-  injector: CraftInjector | object,
+  injector: CraftInjector,
   onServiceResolved?: (instance: unknown) => void,
 ): CraftNodeChildren {
   let children: unknown = executeCraftComponentFactory(

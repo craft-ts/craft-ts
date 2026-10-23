@@ -1453,7 +1453,6 @@ export function isCraftNode(value: unknown): value is CraftNode {
     value.kind === 'text' ||
     value.kind === 'service-shortcut-text' ||
     value.kind === 'component' ||
-    value.kind === 'angular' ||
     value.kind === 'directive' ||
     value.kind === 'for' ||
     value.kind === 'if' ||
@@ -1521,8 +1520,7 @@ export function pipeCraftNode(
       });
     }
 
-    // Only Craft directives are applicable; anything else is a no-op now that
-    // Angular directive definitions (`ɵdir`) are gone.
+    // Only Craft directives are applicable; other values are no-ops.
     return node;
   }
 

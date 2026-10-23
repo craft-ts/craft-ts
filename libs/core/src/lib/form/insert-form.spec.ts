@@ -5,7 +5,7 @@ import {
   Injector,
   signal,
 } from '../host/craft-compat';
-import { TestBed } from '../host/craft-test-bed';
+import { CraftTestBed } from '../host/craft-test-bed';
 import { craftException } from '../craft-exception';
 import { craftLinkedSignal } from '../host/craft-linked-signal';
 import { craftSignal } from '../host/craft-signal';
@@ -27,7 +27,7 @@ type LoginData = {
 
 describe('insertForm', () => {
   it('creates a CraftFieldTree from a state and exposes insertions', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const loginForm = craftUse(
         state(
           'loginForm',
@@ -50,7 +50,7 @@ describe('insertForm', () => {
   });
 
   it('chained insertions can read previous outputs via context.insertions', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const loginForm = craftUse(
         state(
           'loginForm',
@@ -73,7 +73,7 @@ describe('insertForm', () => {
   });
 
   it('creates a parallel form tree from an array state', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const usersForm = craftUse(
         state(
           'usersForm',
@@ -218,7 +218,7 @@ describe('insertForm', () => {
   });
 
   it('applies set/update/patch through the form tree', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const userForm = craftUse(
         state('userForm', { name: 'a', count: 0 }, insertForm()),
       );
@@ -235,7 +235,7 @@ describe('insertForm', () => {
   });
 
   it('exposes hasAttemptedSubmit and submitting signals', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const userForm = craftUse(
         state(
           'userForm',
@@ -256,7 +256,7 @@ describe('insertForm', () => {
   });
 
   it('field is a CraftField at the root', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const userForm = craftUse(state('userForm', { name: 'a' }, insertForm()));
 
       expectTypeOf(userForm.form.value).toMatchTypeOf<
@@ -269,7 +269,7 @@ describe('insertForm', () => {
   });
 
   it('exposes validatedFormValue branded with the symbol when the form is valid', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const loginForm = craftUse(
         state(
           'loginForm',
@@ -303,7 +303,7 @@ describe('insertForm', () => {
   });
 
   it('exposes setSubmitting from the insertion factory context', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const observedSubmitting: boolean[] = [];
       craftUse(
         state(
@@ -328,7 +328,7 @@ describe('insertForm', () => {
   });
 
   it('keeps hasAttemptedSubmit sticky across setSubmitting toggles and clears it on reset', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const loginForm = craftUse(
         state(
           'loginForm',
@@ -362,7 +362,7 @@ describe('insertForm', () => {
   });
 
   it('setAttemptedSubmit marks attempted without toggling submitting', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const loginForm = craftUse(
         state(
           'loginForm',
@@ -383,7 +383,7 @@ describe('insertForm', () => {
   });
 
   it('exposes setSubmitting for each parallel form independently', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const loginForms = craftUse(
         state(
           'loginForms',
@@ -416,7 +416,7 @@ describe('insertForm', () => {
   });
 
   it('exposes the form tree externally for direct sub-field access (simple and parallel)', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const myState = craftUse(
         state('myState', { id: 1, name: '1', password: '' }, insertForm()),
       );
@@ -438,7 +438,7 @@ describe('insertForm', () => {
   });
 
   it('aggregates insertion-level has*Exceptions/*Exceptions into form.exceptions/hasExceptions', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const submitException = craftException(
         { _tag: 'NAME_ALREADY_EXISTS' },
         { message: 'Name already exists' as const },

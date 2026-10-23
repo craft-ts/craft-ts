@@ -32,7 +32,7 @@ export type FromEventToSource$<
  * @remarks
  * **Automatic Cleanup:**
  * - Event listeners are automatically removed when the injection context is destroyed
- * - Uses Angular's `DestroyRef` for lifecycle management
+ * - Uses Craft `DestroyRef` for lifecycle management
  * - Manual cleanup available via `dispose()` method
  * - Prevents memory leaks from dangling event listeners
  *
@@ -56,7 +56,7 @@ export type FromEventToSource$<
  * - Coordinate multiple components via event sources
  *
  * **Injection Context:**
- * - Must be called within Angular injection context
+ * - Must be called within a Craft injection context
  * - Typically called in component constructor or class fields
  * - Uses `assertInInjectionContext()` for safety
  *
@@ -121,7 +121,7 @@ export type FromEventToSource$<
  *   scrollPosition = this.scroll$.value;
  *
  *   // Subscribe to scroll events
- *   ngOnInit() {
+ *   subscribeToScroll() {
  *     this.scroll$.subscribe((data) => {
  *       const nearBottom = data.scrollY + data.clientHeight >= data.scrollHeight - 100;
  *       if (nearBottom) {

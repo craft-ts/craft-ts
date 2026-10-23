@@ -92,7 +92,7 @@ type CraftExceptionOutcomeOf<Kind extends CraftExceptionOutcome['kind']> =
 
 /**
  * The argument handed to each `handleExceptions` handler: the typed exception
- * being handled, the navigation `phase`, the Angular-native redirect helpers,
+ * being handled, the navigation `phase`, the redirect helpers,
  * and the outcome constructors (`redirectTo`, `redirectUrl`, `renderComponent`, `globalError`,
  * `stay`, `noop`).
  */
@@ -492,7 +492,7 @@ export function injectCraftGlobalError(): Signal<CraftGlobalHandledException> {
 /**
  * Adapts the same {@link CRAFT_GLOBAL_ERROR} token as a craft dependency named
  * `CraftGlobalError`, so the global exception can be read from a generator body
- * the way a `toCraftService` dependency is — see {@link CraftGlobalError}.
+ * the way a service dependency is — see {@link CraftGlobalError}.
  * Typed as the exhaustive {@link CraftGlobalHandledException} view, matching
  * {@link injectCraftGlobalError}.
  */

@@ -7,7 +7,7 @@ import {
   runInInjectionContext,
   signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   afterEach,
   beforeAll,
@@ -57,11 +57,11 @@ import {
 import { craftExpose } from './craft-primitive-gen';
 
 function craftHistory() {
-  return TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
+  return CraftTestBed.runInInjectionContext(() => ɵinjectCraftHistory()!);
 }
 
 function craftRouter() {
-  return TestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
+  return CraftTestBed.runInInjectionContext(() => ɵinjectCraftRouterRuntime()!);
 }
 
 function serviceRuntimeOverrides(
@@ -75,8 +75,7 @@ function serviceRuntimeOverrides(
 
 // The outlet only ever stores and compares the component it is given — core
 // has no renderer — so these are plain identities. They used to carry
-// `@Component`, which is what made this whole file fail to load once Angular
-// was uninstalled.
+// `@Component`, which is what made this whole file fail to load once the renderer was removed.
 class TargetCmp {}
 class ErrCmp {}
 class ParentCmp {}
@@ -192,7 +191,7 @@ describe('CraftRouterOutlet', () => {
     runner = vi.fn(() => deferred.promise);
     const router = stubRouter();
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         ...provideCraftRouter([]),
         provideCraftRouterRuntimeValue(router),
@@ -201,7 +200,7 @@ describe('CraftRouterOutlet', () => {
     });
 
     return {
-      outlet: TestBed.runInInjectionContext(() =>
+      outlet: CraftTestBed.runInInjectionContext(() =>
         createCraftRouterOutletController(),
       ),
       router,
@@ -212,11 +211,11 @@ describe('CraftRouterOutlet', () => {
     outlet: CraftRouterOutletController,
     meta: CraftRouteMeta | undefined,
   ) {
-    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(makeMatch(meta), CraftTestBed.inject(EnvironmentInjector));
   }
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     vi.useFakeTimers();
   });
 
@@ -233,7 +232,7 @@ describe('CraftRouterOutlet', () => {
 
   it('publishes route activation only after an asynchronous component is loaded', async () => {
     const { outlet } = setup();
-    const tracker = TestBed.runInInjectionContext(() =>
+    const tracker = CraftTestBed.runInInjectionContext(() =>
       ɵinjectCraftRouteActivationTracker(),
     );
     let resolveComponent!: (component: typeof TargetCmp) => void;
@@ -254,7 +253,7 @@ describe('CraftRouterOutlet', () => {
         component: undefined,
         loadComponent,
       }),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     await flushChain();
 
@@ -274,7 +273,7 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('uses a nonzero default timeout when waiting for the next route activation', async () => {
-    const tracker = TestBed.runInInjectionContext(() =>
+    const tracker = CraftTestBed.runInInjectionContext(() =>
       ɵinjectCraftRouteActivationTracker(),
     );
     const waiter = tracker.waitForNext('/query/1');
@@ -294,7 +293,7 @@ describe('CraftRouterOutlet', () => {
 
   it('rejects the route activation barrier when asynchronous component loading fails', async () => {
     const { outlet } = setup();
-    const tracker = TestBed.runInInjectionContext(() =>
+    const tracker = CraftTestBed.runInInjectionContext(() =>
       ɵinjectCraftRouteActivationTracker(),
     );
     const waiter = tracker.waitFor('/', 500);
@@ -307,7 +306,7 @@ describe('CraftRouterOutlet', () => {
         component: undefined,
         loadComponent,
       }),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     await flushChain();
 
@@ -318,7 +317,7 @@ describe('CraftRouterOutlet', () => {
 
   it('correlates route activation with its router navigation id', () => {
     const { outlet, router } = setup();
-    const tracker = TestBed.runInInjectionContext(() =>
+    const tracker = CraftTestBed.runInInjectionContext(() =>
       ɵinjectCraftRouteActivationTracker(),
     );
     const events: unknown[] = [];
@@ -342,7 +341,7 @@ describe('CraftRouterOutlet', () => {
       injector: unknown;
       props: Readonly<Record<string, unknown>>;
     }> = [];
-    const watch = TestBed.runInInjectionContext(() =>
+    const watch = CraftTestBed.runInInjectionContext(() =>
       craftWatch(() => {
         if (outlet.displayedTarget()) {
           observations.push({
@@ -361,10 +360,10 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('activates the matched route after a Craft history push', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter([{ path: 'a', component: TargetCmp }])],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     craftHistory().push('/a');
@@ -374,7 +373,7 @@ describe('CraftRouterOutlet', () => {
 
   it('replaces the URL for a compiled redirectTo and mounts the target', () => {
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: '', redirectTo: '/home' },
@@ -382,7 +381,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
 
@@ -400,7 +399,7 @@ describe('CraftRouterOutlet', () => {
         yield* craftExpose('isAdmin', () => true);
       },
     );
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideRedirectAuth(),
         provideCraftRouter([
@@ -416,7 +415,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     await flush();
@@ -430,7 +429,7 @@ describe('CraftRouterOutlet', () => {
   it('follows an inject-backed redirectTo through the Craft injector', async () => {
     window.history.replaceState(null, '', '/');
     const DEST = new InjectionToken<string>('redirect-dest');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         { provide: DEST, useValue: '/home' },
         provideCraftRouter([
@@ -442,7 +441,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     await flush();
@@ -459,7 +458,7 @@ describe('CraftRouterOutlet', () => {
       resolveHome = resolve;
     });
     window.history.replaceState(null, '', '/a');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: 'a', component: ErrCmp },
@@ -468,7 +467,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     expect(outlet.targetComponent()).toBe(ErrCmp);
@@ -489,7 +488,7 @@ describe('CraftRouterOutlet', () => {
       resolveHome = resolve;
     });
     const { outlet } = setup();
-    const injector = TestBed.inject(EnvironmentInjector);
+    const injector = CraftTestBed.inject(EnvironmentInjector);
     const first = makeMatch(undefined, TargetCmp, {
       component: undefined,
       loadComponent: () => pending,
@@ -515,7 +514,7 @@ describe('CraftRouterOutlet', () => {
           loadComponent: () => Promise.reject(new Error('chunk failed')),
         },
       ),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     await flush();
 
@@ -530,7 +529,7 @@ describe('CraftRouterOutlet', () => {
       resolveChildren = resolve;
     });
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: '', redirectTo: '/home' },
@@ -538,7 +537,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
 
@@ -560,7 +559,7 @@ describe('CraftRouterOutlet', () => {
       resolveChildren = resolve;
     });
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -570,7 +569,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     const router = craftRouter();
@@ -595,13 +594,13 @@ describe('CraftRouterOutlet', () => {
     await flush();
 
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
     window.history.replaceState(null, '', '/');
   });
 
   it('does not republish a view-transition payload on a later navigation without viewTransition', async () => {
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: 'photos', component: TargetCmp },
@@ -609,7 +608,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     const router = craftRouter();
@@ -619,17 +618,17 @@ describe('CraftRouterOutlet', () => {
       state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
     });
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
 
     await router.navigateByUrl('/about');
     expect(outlet.targetComponent()).toBe(ParentCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
     window.history.replaceState(null, '', '/');
   });
 
   it('does not republish a view-transition payload on skipLocationChange without viewTransition', async () => {
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: 'photos', component: TargetCmp },
@@ -637,7 +636,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     const router = craftRouter();
@@ -647,23 +646,23 @@ describe('CraftRouterOutlet', () => {
       state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
     });
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
 
     await router.navigateByUrl('/about', { skipLocationChange: true });
     expect(outlet.targetComponent()).toBe(ParentCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
     expect(window.location.pathname).toBe('/photos');
     window.history.replaceState(null, '', '/');
   });
 
   it('does not republish a view-transition payload on a query-only navigation', async () => {
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([{ path: 'photos', component: TargetCmp }]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     const router = craftRouter();
@@ -673,17 +672,17 @@ describe('CraftRouterOutlet', () => {
       state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
     });
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
 
     await router.navigateByUrl('/photos?tab=info');
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
     window.history.replaceState(null, '', '/');
   });
 
   it('does not republish a view-transition payload on popstate back', async () => {
     window.history.replaceState(null, '', '/');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: 'photos', component: TargetCmp },
@@ -691,7 +690,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     const router = craftRouter();
@@ -702,7 +701,7 @@ describe('CraftRouterOutlet', () => {
       state: { [CRAFT_VIEW_TRANSITION_STATE_KEY]: payload },
     });
     expect(outlet.targetComponent()).toBe(TargetCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toEqual(payload);
 
     window.history.replaceState(null, '', '/about');
     window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
@@ -710,12 +709,12 @@ describe('CraftRouterOutlet', () => {
 
     expect(craftHistory().get().pathname).toBe('/about');
     expect(outlet.targetComponent()).toBe(ParentCmp);
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftViewTransition()())).toBeNull();
     window.history.replaceState(null, '', '/');
   });
 
   it('activates the lazy child after resolving loadChildren for /slow-page', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -725,7 +724,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
 
@@ -737,7 +736,7 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('activates a lazy child with remaining segments after loadChildren', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -750,7 +749,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
 
@@ -762,10 +761,10 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('does not remount the outlet on a query-only history update', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter([{ path: 'a', component: TargetCmp }])],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     craftHistory().push('/a');
@@ -788,7 +787,7 @@ describe('CraftRouterOutlet', () => {
     const pending = new Promise<CraftCompiledRoute[]>((resolve) => {
       resolveChildren = resolve;
     });
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: 'a', component: TargetCmp },
@@ -799,7 +798,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
 
@@ -824,7 +823,7 @@ describe('CraftRouterOutlet', () => {
     const pending = new Promise<CraftCompiledRoute[]>((resolve) => {
       resolveChildren = resolve;
     });
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: 'a', component: TargetCmp },
@@ -835,7 +834,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
 
@@ -861,7 +860,7 @@ describe('CraftRouterOutlet', () => {
     };
     window.addEventListener('unhandledrejection', onUnhandled);
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           { path: 'a', component: TargetCmp },
@@ -874,7 +873,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
 
@@ -893,7 +892,7 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('mounts the parent at the root outlet and the child at the nested outlet', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -904,7 +903,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     craftHistory().push('/parent/child');
@@ -920,7 +919,7 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('does not remount the parent in a nested outlet when only the layout matched', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -931,7 +930,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     craftHistory().push('/layout');
@@ -946,7 +945,7 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('loads a lazy empty-path child when the parent has a component', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -957,7 +956,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
 
@@ -974,7 +973,7 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('reuses the layout injector when only the child URL params change', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -985,7 +984,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     craftHistory().push('/layout/t1/users/1');
@@ -1007,17 +1006,17 @@ describe('CraftRouterOutlet', () => {
     );
   });
 
-  // Angular decides a component's lifetime on the route config alone. Craft
+  // The router decides a component's lifetime on the route config alone. Craft
   // used to fold the param values into that decision, so `/query/1` ->
   // `/query/2` tore the component down and every bit of state it held — a
   // `preservePreviousValue` query could never preserve anything.
   it('keeps the live component when only a path param changes', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([{ path: 'query/:userId', component: TargetCmp }]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     craftHistory().push('/query/1');
@@ -1039,7 +1038,7 @@ describe('CraftRouterOutlet', () => {
   });
 
   it('activates afresh on a param change when the route has a resolver', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -1050,7 +1049,7 @@ describe('CraftRouterOutlet', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     craftHistory().push('/query/1');
@@ -1067,12 +1066,12 @@ describe('CraftRouterOutlet', () => {
     expect(outlet.displayedInjector()).not.toBe(injector);
   });
 
-  it('publishes a route-scoped Craft target without replacing the Angular route contract', () => {
+  it('publishes a route-scoped Craft target without replacing the Craft route config', () => {
     const { outlet } = setup();
     const component = { name: 'FunctionalRoute' };
     const routeInjector = createEnvironmentInjector(
       [provideCraftRouteTarget(craftRouteTarget(component))],
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
 
     outlet.activateMatch(makeMatch(undefined), routeInjector);
@@ -1302,13 +1301,13 @@ describe('CraftRouterOutlet', () => {
     const previous = makeMatch(undefined);
     previous.pathname = '/home';
     (router as { url: string }).url = '/home';
-    outlet.activateMatch(previous, TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(previous, CraftTestBed.inject(EnvironmentInjector));
     expect(outlet.state()).toBe('loaded');
 
     (router as { url: string }).url = '/secret';
     outlet.activateMatch(
       makeMatch(makeMeta(), TargetCmp, {}, { pathname: '/secret' }),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     deferred.resolve({ kind: 'stay' });
     await flush();
@@ -1327,7 +1326,7 @@ describe('CraftRouterOutlet', () => {
     );
     deferred.resolve({ kind: 'global', exception });
     await flush();
-    expect(TestBed.runInInjectionContext(() => ɵinjectCraftGlobalError()())).toBe(exception);
+    expect(CraftTestBed.runInInjectionContext(() => ɵinjectCraftGlobalError()())).toBe(exception);
     expect(outlet.errorComponent()).toBe(ErrCmp);
     expect(outlet.state()).toBe('error');
     expect(outlet.targetComponent()).toBeNull();
@@ -1367,7 +1366,7 @@ describe('CraftRouterOutlet', () => {
 
 describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     vi.useFakeTimers();
   });
 
@@ -1380,14 +1379,14 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
     router: CraftRouterNavigationApi;
   } {
     const router = stubRouter();
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         ...provideCraftRouter([]),
         provideCraftRouterRuntimeValue(router),
       ],
     });
     return {
-      outlet: TestBed.runInInjectionContext(() =>
+      outlet: CraftTestBed.runInInjectionContext(() =>
         createCraftRouterOutletController(),
       ),
       router,
@@ -1405,7 +1404,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
       },
     });
 
-    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(makeMatch(meta), CraftTestBed.inject(EnvironmentInjector));
     await flushChain();
 
     expect(meta.guardDataSink?.()).toEqual({ id: 42, name: 'Alice' });
@@ -1424,7 +1423,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
       },
     });
 
-    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(makeMatch(meta), CraftTestBed.inject(EnvironmentInjector));
     await flushChain();
 
     expect(router.navigateByUrl).not.toHaveBeenCalled();
@@ -1447,7 +1446,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
         return false;
       },
     });
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -1460,7 +1459,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
     });
     const router = craftRouter();
     const navigate = vi.spyOn(router, 'navigateByUrl');
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     await flushChain();
@@ -1495,7 +1494,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
         return true;
       },
     });
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter([
           {
@@ -1512,7 +1511,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
         ]),
       ],
     });
-    const outlet = TestBed.runInInjectionContext(() =>
+    const outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     await flushChain();
@@ -1545,7 +1544,7 @@ describe('CraftRouterOutlet (meta chain via activateMatch)', () => {
 
     outlet.activateMatch(
       makeMatch(meta, TargetCmp, { providers: [provideOutletAuth()] }),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     await flushChain();
 
@@ -1572,7 +1571,7 @@ describe('CraftRouterOutlet (view transitions)', () => {
     deferred = { promise, resolve };
     vtCalls = [];
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         ...provideCraftRouter([]),
         provideCraftRouterRuntimeValue(stubRouter()),
@@ -1592,18 +1591,18 @@ describe('CraftRouterOutlet (view transitions)', () => {
     });
 
     return {
-      outlet: TestBed.runInInjectionContext(() =>
+      outlet: CraftTestBed.runInInjectionContext(() =>
         createCraftRouterOutletController(),
       ),
     };
   }
 
   function activate(outlet: CraftRouterOutletController, meta: CraftRouteMeta) {
-    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(makeMatch(meta), CraftTestBed.inject(EnvironmentInjector));
   }
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     vi.useFakeTimers();
   });
 
@@ -1635,9 +1634,9 @@ describe('CraftRouterOutlet (view transitions)', () => {
     };
     const second = makeMatch(undefined, ParentCmp, { path: '' });
 
-    outlet.activateMatch(first, TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(first, CraftTestBed.inject(EnvironmentInjector));
     await flush();
-    outlet.activateMatch(second, TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(second, CraftTestBed.inject(EnvironmentInjector));
     await flush();
 
     expect(vtCalls).toHaveLength(2);
@@ -1692,7 +1691,7 @@ describe('CraftRouterOutlet (view transitions)', () => {
     // eslint-disable-next-line prefer-const -- the provider callback closes over the controller before it is created.
     let outlet!: CraftRouterOutletController;
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         ...provideCraftRouter([]),
         provideCraftRouterRuntimeValue(stubRouter()),
@@ -1709,12 +1708,12 @@ describe('CraftRouterOutlet (view transitions)', () => {
       ],
     });
 
-    outlet = TestBed.runInInjectionContext(() =>
+    outlet = CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
     outlet.activateMatch(
       makeMatch(undefined),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     expect(host.textContent).toBe('target');
     host.remove();
@@ -1812,21 +1811,21 @@ describe('CraftRouterOutlet publishing a change', () => {
     let resolve!: (outcome: RouteChainOutcome) => void;
     const promise = new Promise<RouteChainOutcome>((r) => (resolve = r));
     deferred = { promise, resolve };
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         ...provideCraftRouter([]),
         provideCraftRouterRuntimeValue(stubRouter()),
         serviceRuntimeOverrides({ CraftRouteChainRunner: () => deferred.promise }),
       ],
     });
-    return TestBed.runInInjectionContext(() =>
+    return CraftTestBed.runInInjectionContext(() =>
       createCraftRouterOutletController(),
     );
   }
 
   function witness(read: () => string): { seen: string[]; stop(): void } {
     const seen: string[] = [];
-    const watch = TestBed.runInInjectionContext(() =>
+    const watch = CraftTestBed.runInInjectionContext(() =>
       craftWatch(() => {
         seen.push(read());
       }),
@@ -1839,7 +1838,7 @@ describe('CraftRouterOutlet publishing a change', () => {
     (value as { name?: string } | null | undefined)?.name ?? '-';
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     vi.useFakeTimers();
   });
 
@@ -1855,7 +1854,7 @@ describe('CraftRouterOutlet publishing a change', () => {
 
     outlet.activateMatch(
       makeMatch(undefined),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
 
     expect(seen).toEqual(['TargetCmp:loaded']);
@@ -1865,7 +1864,7 @@ describe('CraftRouterOutlet publishing a change', () => {
   it('publishes both data sinks of a route before the page uses either', async () => {
     const outlet = setup();
     const meta = makeMeta({ stayMs: 0, blankMs: 0 });
-    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(makeMatch(meta), CraftTestBed.inject(EnvironmentInjector));
     const { seen, stop } = witness(
       () => `${String(meta.guardDataSink?.())}/${String(meta.resolveDataSink?.())}`,
     );
@@ -1886,7 +1885,7 @@ describe('CraftRouterOutlet publishing a change', () => {
       () => `${String(first())}/${String(second())}`,
     );
 
-    outlet.activateMatch(makeMatch(meta), TestBed.inject(EnvironmentInjector));
+    outlet.activateMatch(makeMatch(meta), CraftTestBed.inject(EnvironmentInjector));
 
     expect(seen).toEqual(['null/null']);
     stop();
@@ -1897,7 +1896,7 @@ describe('CraftRouterOutlet publishing a change', () => {
     outlet.displayedComponent.set(ErrCmp);
     outlet.activateMatch(
       makeMatch(makeMeta({ stayMs: 300, blankMs: 300 })),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     const { seen, stop } = witness(
       () => `${outlet.state()}:${name(outlet.displayedComponent())}`,
@@ -1919,7 +1918,7 @@ describe('CraftRouterOutlet publishing a change', () => {
           errorComponent: { component: ErrCmp, componentDeps: {} },
         }),
       ),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     const { seen, stop } = witness(
       () =>
@@ -1940,7 +1939,7 @@ describe('CraftRouterOutlet publishing a change', () => {
     const outlet = setup();
     outlet.activateMatch(
       makeMatch(undefined),
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     const { seen, stop } = witness(
       () =>

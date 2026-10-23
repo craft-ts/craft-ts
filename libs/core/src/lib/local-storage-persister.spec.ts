@@ -937,7 +937,7 @@ describe('createStoragePersister', () => {
 
       expect(reloadSpy).toHaveBeenCalledOnce();
       // With no active params request, a restored value remains local. The
-      // reload call above is the contract; there is no Angular status mirror
+      // reload call above is the contract; there is no secondary status mirror
       // to transiently report idle here.
       expect(queryResource.status()).toBe('local');
     });

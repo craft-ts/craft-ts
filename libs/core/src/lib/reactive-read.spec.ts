@@ -2,7 +2,7 @@ import { provideCraftRouter } from './craft-router';
 import {
   signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { craftComputed } from './craft-computed';
 import { craftException } from './craft-exception';
@@ -23,10 +23,10 @@ import { asyncProcess } from './async-process';
 import { queryParams } from './query-params';
 
 describe('yieldable reactive reads', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => CraftTestBed.resetTestingModule());
 
   it('reads the root state and a chain of insertion computed values with yield*', () => {
-    const counter = TestBed.runInInjectionContext(() =>
+    const counter = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         state(
           'counter',
@@ -68,11 +68,11 @@ describe('yieldable reactive reads', () => {
 
   it('supports direct propagation and traces every computed dependency edge', () => {
     const edges: ReactiveReadEdge[] = [];
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideReactiveReadObserver((edge) => edges.push(edge))],
     });
 
-    const counter = TestBed.runInInjectionContext(() =>
+    const counter = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         state(
           'counter',
@@ -106,12 +106,12 @@ describe('yieldable reactive reads', () => {
 
   it('projects object readers lazily, stably and with the full path', () => {
     const edges: ReactiveReadEdge[] = [];
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideReactiveReadObserver((edge) => edges.push(edge))],
     });
 
     const source = signal({ id: 1, profile: { name: 'Ada' } });
-    const user = TestBed.runInInjectionContext(() =>
+    const user = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         state(
           'user',
@@ -126,7 +126,7 @@ describe('yieldable reactive reads', () => {
     expect(craftUse(id())).toBe(1);
     expect(craftUse(user.profile.name())).toBe('Ada');
 
-    const displayName = TestBed.runInInjectionContext(() =>
+    const displayName = CraftTestBed.runInInjectionContext(() =>
       craftUse(craftComputed('displayName', function* () {
         return yield* user.profile.name();
       })),
@@ -145,7 +145,7 @@ describe('yieldable reactive reads', () => {
   });
 
   it('can expose one deep-yieldable state property without deepifying the root', () => {
-    const catalog = TestBed.runInInjectionContext(() =>
+    const catalog = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         state(
           'catalog',
@@ -164,7 +164,7 @@ describe('yieldable reactive reads', () => {
   });
 
   it('preserves the named deep-yieldable property through insertStatePipe', () => {
-    const catalog = TestBed.runInInjectionContext(() =>
+    const catalog = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         state(
           'pipedCatalog',
@@ -212,7 +212,7 @@ describe('yieldable reactive reads', () => {
       params: paramsException,
       loader: loaderException,
     });
-    const exceptions = TestBed.runInInjectionContext(() =>
+    const exceptions = CraftTestBed.runInInjectionContext(() =>
       createDeepYieldableReactiveValue(source, 'exceptions', {
         primitive: 'query',
         path: 'profileQuery.exceptions',
@@ -237,7 +237,7 @@ describe('yieldable reactive reads', () => {
   });
 
   it('rejects unknown yields with the craftComputed-specific error', () => {
-    const invalid = TestBed.runInInjectionContext(() =>
+    const invalid = CraftTestBed.runInInjectionContext(() =>
       craftUse(craftComputed('invalid', function* () {
         yield { unknown: true };
         return 1;
@@ -250,8 +250,8 @@ describe('yieldable reactive reads', () => {
   });
 
   it('adapts nested reactive properties of query, mutation and asyncProcess', () => {
-    TestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
-    const refs = TestBed.runInInjectionContext(() => ({
+    CraftTestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
+    const refs = CraftTestBed.runInInjectionContext(() => ({
       query: craftUse(
         query('users', {
           params: () => 'all',

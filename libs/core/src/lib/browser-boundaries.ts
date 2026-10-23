@@ -396,7 +396,7 @@ function getActivePlatform(): CraftPlatform | undefined {
   }
 }
 
-/** @internal Angular TitleStrategy writes the document title through the same boundary as `BrowserDocument.setTitle`. */
+/** @internal CraftTitleStrategy writes the title through the browser boundary. */
 export function ɵapplyBrowserDocumentTitle(value: string): void {
   getBrowserDocument().title = value;
 }

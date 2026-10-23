@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
@@ -34,8 +34,8 @@ describe('guide/components/styles.md', () => {
   it('binds sheet classes, a data-* variant and a typed variable', () => {
     const host = document.createElement('div');
     document.body.append(host);
-    mountCraftComponent(UploadCard, host, TestBed.inject(Injector));
-    TestBed.tick();
+    mountCraftComponent(UploadCard, host, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
 
     const root = host.firstElementChild as HTMLElement;
     expect(root.className).toBe(card.root);

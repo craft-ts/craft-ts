@@ -86,7 +86,6 @@ import {
   type Yieldable,
 } from './yieldable';
 import type { BrandReactiveProperties } from './yieldable';
-import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 
 export declare const SERVICE_HELPER_DEPENDENCIES: unique symbol;
 export declare const SERVICE_YIELD_METADATA: unique symbol;
@@ -2487,175 +2486,6 @@ export type AbstractServiceApi<
   AbstractProvideHelper<Name, Contract> &
   AbstractHelper<Name, Contract>;
 
-type DependencySourceToken<Output> = Type<Output> | InjectionToken<Output>;
-type DependencySourceOutput<Token> =
-  Token extends Type<infer Output>
-    ? Output
-    : Token extends InjectionToken<infer Output>
-      ? Output
-      : never;
-
-export type DependencyApi<
-  Name extends string,
-  Scope extends ConcreteServiceScope,
-  Inputs extends object,
-  Output,
-  Metadata extends AnyServiceTrackingMetadata = ServiceTrackingMetadata<
-    Name,
-    Scope,
-    Output,
-    never
-  >,
-  ProvidedInput = ServiceProvidedInput<Inputs>,
-  ProvideArgs extends unknown[] = ProvideArguments<ProvidedInput>,
-> = YieldHelper<
-  Name,
-  Scope,
-  Inputs,
-  Output,
-  Metadata,
-  false,
-  ProvidedInput,
-  ProvideArgs
-> &
-  ServiceMetaDataHelper<
-    Name,
-    Scope,
-    Inputs,
-    Output,
-    Metadata,
-    false,
-    ProvidedInput,
-    ProvideArgs
-  > &
-  (Scope extends 'toProvide' | 'manuallyProvidedAtRoot'
-    ? ProvideHelper<
-        Name,
-        Extract<Scope, RealCapableScope>,
-        Output,
-        ProvideArgs,
-        ExtractServiceTrackingYielded<Metadata>
-      >
-    : {}) &
-  {};
-
-type GlobalTokenDependencyOptions<
-  Name extends string,
-  Token extends DependencySourceToken<any>,
-> = {
-  name: Name;
-  providedIn: 'global';
-  token: Token;
-};
-
-type GlobalInjectedDependencyOptions<Name extends string, Output> = {
-  name: Name;
-  providedIn: 'global';
-  inject: () => Output;
-};
-
-type DependencyProvideFactory<Inputs extends object> = (
-  ...args: ProvideArguments<ServiceProvidedInput<Inputs>>
-) => CraftServiceProvider;
-
-type AnyDependencyProvideFactory = (...args: any[]) => CraftServiceProvider;
-
-type DependencyProvideFactoryArgs<Provide extends AnyDependencyProvideFactory> =
-  Parameters<Provide>;
-
-type DependencyProvideFactoryInput<
-  Provide extends AnyDependencyProvideFactory,
-> = NormalizeProvidedInput<Parameters<Provide>>;
-
-type WithDependencyProvidedInput<
-  Inputs extends object,
-  Provide extends AnyDependencyProvideFactory,
-> = [DependencyProvideFactoryInput<Provide>] extends [never]
-  ? Inputs
-  : Inputs & {
-      $provided: DependencyProvideFactoryInput<Provide>;
-    };
-
-type ProviderCapableDependencyOptions<
-  Name extends string,
-  Scope extends RealCapableScope,
-  Token extends DependencySourceToken<any>,
-  Inputs extends object = {},
-  Provide extends
-    AnyDependencyProvideFactory = DependencyProvideFactory<Inputs>,
-> = {
-  name: Name;
-  providedIn: Scope;
-  token: Token;
-  provide: Provide;
-};
-
-type AnyDependencyFactory<Dependency> = (
-  dependency: Dependency,
-  inputs: any,
-) => any;
-
-type DependencyFactoryInputs<Factory> = Factory extends (
-  dependency: any,
-  inputs: infer Inputs extends object,
-) => any
-  ? Inputs
-  : {};
-
-type DependencyFactoryReturn<Factory, Output> = [Factory] extends [undefined]
-  ? Output
-  : Factory extends (...args: any[]) => infer Result
-    ? Result
-    : never;
-
-type DependencyFactoryOutput<Factory, Output> =
-  DependencyFactoryReturn<Factory, Output> extends Generator<
-    any,
-    infer Result,
-    any
-  >
-    ? Result
-    : DependencyFactoryReturn<Factory, Output>;
-
-type DependencyFactoryYields<Factory> = Factory extends (
-  ...args: any[]
-) => infer Result
-  ? Result extends Generator<infer Yielded, any, any>
-    ? Yielded
-    : never
-  : never;
-
-type DependencyFactoryOutputFromResult<Result> =
-  Result extends Generator<any, infer Output, any> ? Output : Result;
-
-type DependencyFactoryYieldsFromResult<Result> =
-  Result extends Generator<infer Yielded, any, any> ? Yielded : never;
-
-type WrappedDependencyFactory<
-  Dependency,
-  Factory extends AnyDependencyFactory<Dependency>,
-> = (
-  inputs: DependencyFactoryInputs<Factory>,
-) => DependencyFactoryReturn<Factory, Dependency>;
-
-type toCraftServiceTrackingMetadata<
-  Name extends string,
-  Scope extends ConcreteServiceScope,
-  Dependency,
-  Factory extends AnyDependencyFactory<Dependency> | undefined,
-  BrowserBoundary extends boolean = false,
-> = ServiceTrackingMetadata<
-  Name,
-  Scope,
-  DependencyFactoryOutput<Factory, Dependency>,
-  DependencyFactoryYields<NonNullable<Factory>>,
-  undefined,
-  [Factory] extends [undefined]
-    ? never
-    : ServiceProvidedInput<DependencyFactoryInputs<NonNullable<Factory>>>,
-  BrowserBoundary
->;
-
 type ConcreteRuntimeDefinition = {
   factory: AnyFactory;
   name: string;
@@ -2669,14 +2499,9 @@ type ConcreteRuntimeDefinition = {
   initialBindings?: Record<string, unknown>;
   hasPublicInput: boolean;
   hasProvidedInput: boolean;
-  externalProviders?: (...args: unknown[]) => CraftServiceProvider;
   appStartHooks: Map<unknown, () => AppStartResult>;
   startedAppStartServices: Set<unknown>;
-  /**
-   * `'auto'`: a generator factory whose API is the named primitives it yields
-   * (a `return` is an error). `'value'`: the factory's result IS the service —
-   * abstract implementations, `toCraftService` adapters, internal DI slots.
-   */
+  /** `'auto'` exposes yielded primitives; `'value'` exposes the factory result. */
   exposure: ServiceExposure;
 };
 
@@ -2688,9 +2513,7 @@ type ConcreteServiceBindings =
   | typeof OMIT_INPUTS_BINDINGS;
 
 function wrapOmitInputsHelper(value: unknown): unknown {
-  if (typeof value !== 'function') {
-    return value;
-  }
+  if (typeof value !== 'function') return value;
 
   return new Proxy(value as (...args: unknown[]) => unknown, {
     get(target, property, receiver) {
@@ -2811,8 +2634,8 @@ export const SERVICE_RUNTIME_OVERRIDES = new InjectionToken<
  * }
  * ```
  *
- * The public service helper still accepts the resolved value, an Angular
- * signal, or another Craft reader for this input.
+ * The public service helper accepts a resolved value, a Craft signal, or
+ * another Craft reader for this input.
  */
 // The reader yields a reactive read request. It must not default to
 // `unknown`: that yield would absorb the service's whole `Yielded` union, and
@@ -2888,481 +2711,7 @@ export function abstract<Contract>(): AbstractMarker<Contract> {
 }
 
 /**
- * Adapts an external Angular dependency so it can participate in the `craftService`
- * ecosystem.
- *
- * `toCraftService` is useful for external services such as `Router`,
- * `HttpClient`, `ActivatedRoute`, or any dependency resolved through
- * `inject(...)` that you want to:
- *
- * - expose through the generated `Router()` helper
- * - derive partially with the same opaque exposure tokens as `craftService`
- * - track as a leaf dependency in `GetServiceDependencies`
- * - reuse in `setupCraftServiceTest(...)`
- *
- * External instance methods are automatically bound to their source instance so
- * exposing `navigateByUrl`, `get`, or similar methods is safe.
- *
- * Use it only at an external integration boundary. Authored application
- * contracts should use `craftService` directly, with `abstract<Contract>()`
- * for requirements and the generated `X()` / `provideX()` helpers.
- *
- * @example
- * Adapt `Router` as a global dependency
- * ```ts
- * import { Router } from './host/craft-router-types';
- * import { toCraftService } from '@craft-ts/angular';
- *
- * const { Router } = toCraftService({
- *   name: 'Router',
- *   providedIn: 'global',
- *   token: Router,
- * });
- * ```
- *
- * @example
- * Define an authored requirement with generated helpers
- * ```ts
- * import { abstract, craftService } from '@craft-ts/core';
- *
- * const { CurrentRoute, CurrentRouteRequirement, provideCurrentRoute } =
- *   craftService(
- *     { name: 'CurrentRoute', providedIn: 'abstract' },
- *     abstract<{ path: string }>(),
- *   );
- * ```
- *
- * @example
- * Adapt a provider-capable dependency for explicit test coverage
- * ```ts
- * import { Router, provideRouter } from './host/craft-router-types';
- * import { toCraftService } from '@craft-ts/angular';
- *
- * const { provideAppRouter } = toCraftService({
- *   name: 'AppRouter',
- *   providedIn: 'manuallyProvidedAtRoot',
- *   token: Router,
- *   provide: () => provideRouter([]),
- * });
- * ```
- */
-export function ɵtoCraftService<const Name extends string, Output>(options: {
-  name: Name;
-  providedIn: 'global';
-  token: DependencySourceToken<Output>;
-  browserBoundary: true;
-}): DependencyApi<
-  Name,
-  'global',
-  {},
-  Output,
-  ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
->;
-export function ɵtoCraftService<const Name extends string, Output>(options: {
-  name: Name;
-  providedIn: 'global';
-  token: DependencySourceToken<Output>;
-  browserBoundary?: false;
-}): DependencyApi<
-  Name,
-  'global',
-  {},
-  Output,
-  ServiceTrackingMetadata<
-    Name,
-    'global',
-    Output,
-    never,
-    undefined,
-    never,
-    false
-  >
->;
-export function ɵtoCraftService<
-  const Name extends string,
-  Output,
-  Inputs extends object,
-  FactoryResult,
->(
-  options: {
-    name: Name;
-    providedIn: 'global';
-    token: DependencySourceToken<Output>;
-    browserBoundary: true;
-  },
-  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
-    ValidateCraftServiceInputScope<'global', Inputs> &
-    ValidateYieldedScope<
-      'global',
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
-  Name,
-  'global',
-  Inputs,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    'global',
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>,
-    undefined,
-    never,
-    true
-  >
->;
-export function ɵtoCraftService<
-  const Name extends string,
-  Output,
-  Inputs extends object,
-  FactoryResult,
->(
-  options: {
-    name: Name;
-    providedIn: 'global';
-    token: DependencySourceToken<Output>;
-    browserBoundary?: false;
-  },
-  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
-    ValidateCraftServiceInputScope<'global', Inputs> &
-    ValidateYieldedScope<
-      'global',
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
-  Name,
-  'global',
-  Inputs,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    'global',
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>,
-    undefined,
-    never,
-    false
-  >
->;
-export function ɵtoCraftService<const Name extends string, Output>(
-  options: GlobalInjectedDependencyOptions<Name, Output> & {
-    browserBoundary: true;
-  },
-): DependencyApi<
-  Name,
-  'global',
-  {},
-  Output,
-  ServiceTrackingMetadata<Name, 'global', Output, never, undefined, never, true>
->;
-export function ɵtoCraftService<const Name extends string, Output>(
-  options: GlobalInjectedDependencyOptions<Name, Output> & {
-    browserBoundary?: false;
-  },
-): DependencyApi<
-  Name,
-  'global',
-  {},
-  Output,
-  ServiceTrackingMetadata<
-    Name,
-    'global',
-    Output,
-    never,
-    undefined,
-    never,
-    false
-  >
->;
-export function ɵtoCraftService<
-  const Name extends string,
-  Output,
-  Inputs extends object,
-  FactoryResult,
->(
-  options: GlobalInjectedDependencyOptions<Name, Output> & {
-    browserBoundary: true;
-  },
-  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
-    ValidateCraftServiceInputScope<'global', Inputs> &
-    ValidateYieldedScope<
-      'global',
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
-  Name,
-  'global',
-  Inputs,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    'global',
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>,
-    undefined,
-    never,
-    true
-  >
->;
-export function ɵtoCraftService<
-  const Name extends string,
-  Output,
-  Inputs extends object,
-  FactoryResult,
->(
-  options: GlobalInjectedDependencyOptions<Name, Output> & {
-    browserBoundary?: false;
-  },
-  adaptFactory: ((dependency: Output, inputs: Inputs) => FactoryResult) &
-    ValidateCraftServiceInputScope<'global', Inputs> &
-    ValidateYieldedScope<
-      'global',
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
-  Name,
-  'global',
-  Inputs,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    'global',
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>,
-    undefined,
-    never,
-    false
-  >
->;
-export function ɵtoCraftService<
-  const Name extends string,
-  Scope extends RealCapableScope,
-  Token extends DependencySourceToken<any>,
-  Provide extends AnyDependencyProvideFactory,
->(
-  options: ProviderCapableDependencyOptions<Name, Scope, Token, {}, Provide> & {
-    browserBoundary: true;
-  },
-): DependencyApi<
-  Name,
-  Scope,
-  {},
-  DependencySourceOutput<Token>,
-  ServiceTrackingMetadata<
-    Name,
-    Scope,
-    DependencySourceOutput<Token>,
-    never,
-    undefined,
-    DependencyProvideFactoryInput<Provide>,
-    true
-  >,
-  DependencyProvideFactoryInput<Provide>,
-  DependencyProvideFactoryArgs<Provide>
->;
-export function ɵtoCraftService<
-  const Name extends string,
-  Scope extends RealCapableScope,
-  Token extends DependencySourceToken<any>,
-  Provide extends AnyDependencyProvideFactory,
->(
-  options: ProviderCapableDependencyOptions<Name, Scope, Token, {}, Provide> & {
-    browserBoundary?: false;
-  },
-): DependencyApi<
-  Name,
-  Scope,
-  {},
-  DependencySourceOutput<Token>,
-  ServiceTrackingMetadata<
-    Name,
-    Scope,
-    DependencySourceOutput<Token>,
-    never,
-    undefined,
-    DependencyProvideFactoryInput<Provide>,
-    false
-  >,
-  DependencyProvideFactoryInput<Provide>,
-  DependencyProvideFactoryArgs<Provide>
->;
-export function ɵtoCraftService<
-  const Name extends string,
-  Scope extends RealCapableScope,
-  Token extends DependencySourceToken<any>,
-  Inputs extends object,
-  Provide extends AnyDependencyProvideFactory,
-  FactoryResult,
->(
-  options: ProviderCapableDependencyOptions<
-    Name,
-    Scope,
-    Token,
-    Inputs,
-    Provide
-  > & {
-    browserBoundary: true;
-  },
-  adaptFactory: ((
-    dependency: YieldableReactiveProperties<DependencySourceOutput<Token>> &
-      DependencySourceOutput<Token>,
-    inputs: WithDependencyProvidedInput<Inputs, Provide>,
-  ) => FactoryResult) &
-    ValidateYieldedScope<
-      Scope,
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
-  Name,
-  Scope,
-  WithDependencyProvidedInput<Inputs, Provide>,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    Scope,
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>,
-    undefined,
-    DependencyProvideFactoryInput<Provide>,
-    true
-  >,
-  DependencyProvideFactoryInput<Provide>,
-  DependencyProvideFactoryArgs<Provide>
->;
-export function ɵtoCraftService<
-  const Name extends string,
-  Scope extends RealCapableScope,
-  Token extends DependencySourceToken<any>,
-  Inputs extends object,
-  Provide extends AnyDependencyProvideFactory,
-  FactoryResult,
->(
-  options: ProviderCapableDependencyOptions<
-    Name,
-    Scope,
-    Token,
-    Inputs,
-    Provide
-  > & {
-    browserBoundary?: false;
-  },
-  adaptFactory: ((
-    dependency: YieldableReactiveProperties<DependencySourceOutput<Token>> &
-      DependencySourceOutput<Token>,
-    inputs: WithDependencyProvidedInput<Inputs, Provide>,
-  ) => FactoryResult) &
-    ValidateYieldedScope<
-      Scope,
-      DependencyFactoryYieldsFromResult<FactoryResult>,
-      unknown
-    >,
-): DependencyApi<
-  Name,
-  Scope,
-  WithDependencyProvidedInput<Inputs, Provide>,
-  DependencyFactoryOutputFromResult<FactoryResult>,
-  ServiceTrackingMetadata<
-    Name,
-    Scope,
-    DependencyFactoryOutputFromResult<FactoryResult>,
-    DependencyFactoryYieldsFromResult<FactoryResult>,
-    undefined,
-    DependencyProvideFactoryInput<Provide>,
-    false
-  >,
-  DependencyProvideFactoryInput<Provide>,
-  DependencyProvideFactoryArgs<Provide>
->;
-export function ɵtoCraftService(
-  options:
-    | (GlobalTokenDependencyOptions<string, DependencySourceToken<unknown>> & {
-        browserBoundary?: boolean;
-      })
-    | (GlobalInjectedDependencyOptions<string, unknown> & {
-        browserBoundary?: boolean;
-      })
-    | (ProviderCapableDependencyOptions<
-        string,
-        RealCapableScope,
-        DependencySourceToken<unknown>,
-        object,
-        AnyDependencyProvideFactory
-      > & {
-        browserBoundary?: boolean;
-      }),
-  adaptFactory?: AnyDependencyFactory<unknown>,
-): unknown {
-  const api = (
-    adaptFactory
-      ? ɵcraftValueService(
-          {
-            name: options.name,
-            providedIn: options.providedIn,
-            browserBoundary: options.browserBoundary,
-          },
-          () => {
-            const dependencyValue = adaptExternalDependencyValue(
-              'inject' in options ? options.inject() : inject(options.token),
-              options.name,
-              true,
-            );
-
-            // A global adapted dependency has no call-site inputs. The empty
-            // object here is only the private adapter argument, not an input
-            // exposed by the generated service helper.
-            return adaptFactory(dependencyValue, {});
-          },
-        )
-      : ɵcraftValueService(
-          {
-            name: options.name,
-            providedIn: options.providedIn,
-            browserBoundary: options.browserBoundary,
-          },
-          () => {
-            const dependencyValue =
-              'inject' in options ? options.inject() : inject(options.token);
-
-            return adaptExternalDependencyValue(dependencyValue);
-          },
-        )
-  ) as Record<string, unknown>;
-
-  const internalMetaData = getServiceMetaData(
-    api[capitalize(options.name)],
-  ) as InternalServiceMetaData;
-  const runtimeDefinition = internalMetaData[SERVICE_RUNTIME_DEFINITION];
-
-  if (adaptFactory) {
-    runtimeDefinition.hasPublicInput = adaptFactory.length > 1;
-    runtimeDefinition.hasProvidedInput = factoryUsesProvidedInput(adaptFactory);
-  }
-
-  if ('provide' in options) {
-    runtimeDefinition.externalProviders = options.provide as (
-      ...args: unknown[]
-    ) => CraftServiceProvider;
-    runtimeDefinition.hasProvidedInput =
-      runtimeDefinition.hasProvidedInput ||
-      provideFactoryUsesProvidedInput(options.provide);
-  }
-
-  Reflect.set(
-    internalMetaData,
-    'usesProvidedInput',
-    runtimeDefinition.hasProvidedInput,
-  );
-
-  return api;
-}
-
-/**
- * Creates a named Angular-friendly service boundary with generated service,
+ * Creates a named Craft service boundary with generated service,
  * provider, and metadata helpers.
  *
  * `craftService` is designed for composing reactive features through explicit
@@ -4476,7 +3825,7 @@ export function getServiceMetaData(target: unknown): AnyServiceMetaData {
   }
 
   throw new Error(
-    'Expected a craftService/toCraftService service helper or a service metadata object.',
+    'Expected a craftService helper or a service metadata object.',
   );
 }
 
@@ -4503,10 +3852,6 @@ function createProviders(
 
   const providers: CraftServiceProvider[] = [];
   const providedConfig = normalizeProvidedConfig(providedArgs);
-
-  if (definition.externalProviders) {
-    providers.push(definition.externalProviders(...providedArgs));
-  }
 
   const concreteProviders: Provider[] = [
     {
@@ -4580,66 +3925,6 @@ function normalizeProvidedConfig(providedArgs: unknown[]): unknown {
   }
 
   return providedArgs.length === 1 ? providedArgs[0] : providedArgs;
-}
-
-function adaptExternalDependencyValue<Value>(
-  value: Value,
-  dependencyName = 'externalDependency',
-  trackReactiveProperties = false,
-): Value {
-  if (!isObjectLike(value)) {
-    return value;
-  }
-
-  const target = value as object;
-  const boundMethods = new Map<PropertyKey, unknown>();
-  const reactiveProperties = new Map<PropertyKey, unknown>();
-
-  return new Proxy(target, {
-    get(_proxyTarget, property) {
-      const entry = Reflect.get(target, property, target);
-
-      if (typeof entry === 'function' && !isSignal(entry)) {
-        if (!boundMethods.has(property)) {
-          boundMethods.set(property, (...args: unknown[]) =>
-            untracked(() => Reflect.apply(entry, target, args)),
-          );
-        }
-
-        return boundMethods.get(property);
-      }
-
-      if (
-        trackReactiveProperties &&
-        isSignal(entry) &&
-        !isYieldableReactiveValue(entry)
-      ) {
-        if (!reactiveProperties.has(property)) {
-          reactiveProperties.set(
-            property,
-            createYieldableReactiveValue(
-              entry,
-              `${dependencyName}.${String(property)}`,
-              {
-                primitive: 'toCraftService',
-                path: `${dependencyName}.${String(property)}`,
-              },
-            ),
-          );
-        }
-        return reactiveProperties.get(property);
-      }
-
-      return entry;
-    },
-    apply(proxyTarget, _thisArg, args) {
-      return Reflect.apply(
-        proxyTarget as (...args: unknown[]) => unknown,
-        target,
-        args,
-      );
-    },
-  }) as Value;
 }
 
 function createYieldRequest(
@@ -4769,7 +4054,7 @@ function resolveConcreteService(
           ? undefined
           : (bindings as Record<string, unknown> | undefined),
         () =>
-          ɵcraftInjectorFromHost(injector).get(
+          injector.get(
             definition.token as object,
           ),
       ),
@@ -4842,7 +4127,7 @@ function createConcreteServiceInstance(
   );
 
   return runInInjectionContext(scopedInjector, () =>
-    ɵcraftInjectorFromHost(scopedInjector).run(() => {
+    scopedInjector.run(() => {
       const omitInputs = bindingsOverride === OMIT_INPUTS_BINDINGS;
       const bindings = omitInputs
         ? {}
@@ -4882,7 +4167,7 @@ function createConcreteServiceInstance(
           ? { record: exposed, owner: `craftService("${definition.name}")` }
           : undefined,
         invalidYieldErrorMessage:
-          'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+          'craftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
         multipleAppStartErrorMessage:
           'craftService generators can only declare onAppStart(...) once.',
         createAppStartHook: (run) => () =>
@@ -4933,7 +4218,7 @@ function runAppStartCallback(
     injector,
     hostScope,
     invalidYieldErrorMessage:
-      'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+      'craftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
     multipleAppStartErrorMessage:
       'craftService generators can only declare onAppStart(...) once.',
     onAppStartNotSupportedErrorMessage:
@@ -5064,7 +4349,7 @@ function resolveExposedService(
         injector,
         hostScope,
         invalidYieldErrorMessage:
-          'craftService/toCraftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
+          'craftService generators can only yield craftService dependencies, exposed dependency helpers, or onAppStart(...).',
         multipleAppStartErrorMessage:
           'craftService generators can only declare onAppStart(...) once.',
       }).value

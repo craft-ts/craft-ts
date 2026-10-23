@@ -4,7 +4,7 @@ import {
   CraftActivatedRoute,
   provideCraftActivatedRoute,
 } from './craft-activated-route';
-import type { ActivatedRoute } from './host/craft-router-types';
+import type { CraftRouteContext } from './host/craft-router-model';
 import { craftService } from './craft-service';
 import { setupCraftServiceTest } from './setup-craft-service-test';
 import { craftExpose } from './craft-primitive-gen';
@@ -14,7 +14,7 @@ describe('CraftActivatedRoute', () => {
     const route = {
       snapshot: { params: { id: '1' } },
       pathFromRoot: [],
-    } as unknown as ActivatedRoute;
+    } as unknown as CraftRouteContext;
     const { RouteProbe } = craftService(
       { name: 'RouteProbe', providedIn: 'function' },
       function* () {

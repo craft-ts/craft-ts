@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import {
   BrowserCrypto,
@@ -34,8 +34,8 @@ function clearCookies() {
 
 describe('browser boundaries', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.runInInjectionContext(() => {
       craftUse(LocalStorageService()).clear();
       craftUse(SessionStorageService()).clear();
     });
@@ -70,7 +70,7 @@ describe('browser boundaries', () => {
       getServiceMetaData(ConsoleService).browserBoundary,
     ).toEqualTypeOf<boolean>();
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const bootLogger = craftUse(BootLogger());
 
       bootLogger.track('runtime');
@@ -118,7 +118,7 @@ describe('browser boundaries', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(craftUse(BrowserPersistence())).toEqual({
         token: 'abc',
         localLength: 1,
@@ -172,7 +172,7 @@ describe('browser boundaries', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(craftUse(BrowserSnapshot())).toEqual({
         href: window.location.href,
         pathname: '/checkout',
@@ -218,7 +218,7 @@ describe('browser boundaries', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       craftUse(BrowserDocumentFlow());
     });
 
@@ -239,7 +239,7 @@ describe('browser boundaries', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(craftUse(LeavePageFlow()).confirmed).toBe(false);
     });
 
@@ -266,7 +266,7 @@ describe('browser boundaries', () => {
         yield* craftExpose('bytes', bytes);
       },
     );
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const diagnostics = craftUse(BrowserDiagnostics());
       const digest = await diagnostics.digest;
 

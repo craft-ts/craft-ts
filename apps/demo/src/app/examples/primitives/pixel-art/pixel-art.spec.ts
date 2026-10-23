@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import {
   LocalStoragePersister,
@@ -11,7 +11,7 @@ import PixelArt from './pixel-art';
 
 describe('PixelArt', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     if (typeof localStorage.clear !== 'function') {
       const values = new Map<string, string>();
@@ -30,7 +30,7 @@ describe('PixelArt', () => {
       });
     }
     localStorage.clear();
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideLocalStoragePersister(),
         provideStoragePersister(function* () {
@@ -46,14 +46,14 @@ describe('PixelArt', () => {
     const mounted = mountCraftComponent(
       PixelArt,
       element,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await vi.waitFor(() =>
       expect(element.querySelector('[data-testid="pixel-cell"]')).toBeTruthy(),
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     const cell = element.querySelector<HTMLButtonElement>(
       '[data-testid="pixel-cell"]',
@@ -62,7 +62,7 @@ describe('PixelArt', () => {
     expect(cell?.style.getPropertyValue('--pixel-fill')).toBe('#f8fafc');
 
     cell?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(cell?.style.getPropertyValue('--pixel-fill')).toBe('#0f172a');
 

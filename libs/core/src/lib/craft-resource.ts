@@ -18,7 +18,6 @@ import {
 } from './host/craft-signal';
 import { CraftResourceRef } from './util/craft-resource-ref';
 import { ɵisCraftRestoringState } from './craft-replay';
-import { ɵcraftInjectorFromHost } from './host/craft-injector-host';
 import { ɵinjectCraftPlatform, type CraftPlatform } from './craft-platform';
 
 type CraftResourceOptions<Value, Params> = Omit<
@@ -34,7 +33,7 @@ type CraftResourceOptions<Value, Params> = Omit<
 export function craftResource<Value, Params>(
   options: CraftResourceOptions<Value, Params>,
 ): CraftResourceRef<Value, Params> {
-  const injector = ɵcraftInjectorFromHost(options.injector ?? inject(Injector));
+  const injector = options.injector ?? inject(Injector);
   const valueState = craftSignal<Value | undefined>(options.defaultValue, {
     equal: options.equal as
       | ((a: Value | undefined, b: Value | undefined) => boolean)
@@ -184,7 +183,7 @@ export function craftResource<Value, Params>(
   };
 
   // The params source is a craft signal like everything else, so one watch
-  // keeps the resource in step with it. This used to be an Angular linkedSignal,
+  // keeps the resource in step with it. This used to be a linked signal,
   // an effect reading it, and a craft watch underneath — three ways of noticing
   // the same change, needed only while two reactive systems had to agree.
   const startParamsWatch = () =>
@@ -226,7 +225,7 @@ export function craftResource<Value, Params>(
   }
 
   // Readers are the state signals themselves. They used to be wrappers that
-  // mirrored each value into an Angular signal AND re-synchronized the params on
+  // mirrored each value into a second signal and re-synchronized the params on
   // every read — a lazy pull that could restart a load from inside an unrelated
   // read, wiping whatever was being written at the time.
   const value = craftComputed(() => valueState());

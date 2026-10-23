@@ -29,8 +29,6 @@ declare interface CreateExplicitEffectOptions extends CreateEffectOptions {
  *
  * @example
  * ```typescript
- * import { explicitEffect } from 'ngxtension/explicit-effect';
- *
  * const count = signal(0);
  * const state = signal('idle');
  *

@@ -2,7 +2,7 @@
 import {
   ɵinjectCraftRouterRuntime,
   ɵrunInInjectionContext,
-  TestBed,
+  CraftTestBed,
   ɵInjector as Injector,
 } from '@craft-ts/core';
 import { loadCraftComponent, mountCraftComponent } from '@craft-ts/component';
@@ -19,7 +19,7 @@ import FullDemoCraft from './full-demo';
 
 describe('Craft Full Demo route component', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
@@ -28,11 +28,11 @@ describe('Craft Full Demo route component', () => {
     const routedHost = await lazyRoute.loadComponent(
       {} as Parameters<typeof lazyRoute.loadComponent>[0],
     );
-    TestBed.configureTestingModule({ providers: lazyRoute.providers });
+    CraftTestBed.configureTestingModule({ providers: lazyRoute.providers });
 
-    const fixture = TestBed.createComponent(routedHost);
+    const fixture = CraftTestBed.createComponent(routedHost);
     fixture.detectChanges();
-    TestBed.tick();
+    CraftTestBed.tick();
     const element = fixture.nativeElement as HTMLElement;
 
     await vi.waitFor(() =>
@@ -57,7 +57,7 @@ describe('Craft Full Demo route component', () => {
     const routedHost = await lazyRoute.loadComponent(
       {} as Parameters<typeof lazyRoute.loadComponent>[0],
     );
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         ...lazyRoute.providers,
         provideFnWrapper(
@@ -76,9 +76,9 @@ describe('Craft Full Demo route component', () => {
       ],
     });
 
-    const fixture = TestBed.createComponent(routedHost);
+    const fixture = CraftTestBed.createComponent(routedHost);
     fixture.detectChanges();
-    TestBed.tick();
+    CraftTestBed.tick();
     const element = fixture.nativeElement as HTMLElement;
     await vi.waitFor(() =>
       expect(element.textContent).toContain('Full craftService demo'),
@@ -119,7 +119,7 @@ describe('Craft Full Demo route component', () => {
       return {};
     };
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftRouter(demoRoutes.toRoutes(), withCraftViewTransitions()),
         provideFnWrapper(
@@ -144,12 +144,12 @@ describe('Craft Full Demo route component', () => {
       const mounted = mountCraftComponent(
         App,
         element,
-        TestBed.inject(Injector),
+        CraftTestBed.inject(Injector),
       );
-      TestBed.tick();
+      CraftTestBed.tick();
 
       element.querySelector<HTMLButtonElement>('[data-testid="nav-toggle"]')?.click();
-      TestBed.tick();
+      CraftTestBed.tick();
 
       const fullDemoLink = await vi.waitFor(() => {
         const link = Array.from(
@@ -165,12 +165,12 @@ describe('Craft Full Demo route component', () => {
         ),
       );
       expect(fullDemoLink?.getAttribute('href')).toContain('/craft/full-demo');
-      const router = ɵrunInInjectionContext(TestBed.inject(Injector), () =>
+      const router = ɵrunInInjectionContext(CraftTestBed.inject(Injector), () =>
         ɵinjectCraftRouterRuntime(),
       );
       if (router === null) throw new Error('Craft router was not provided');
       await router.navigateByUrl(fullDemoLink!.getAttribute('href')!);
-      TestBed.tick();
+      CraftTestBed.tick();
 
       await vi.waitFor(() =>
         expect(element.textContent).toContain('Full craftService demo'),

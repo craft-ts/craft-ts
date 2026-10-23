@@ -80,9 +80,8 @@ describe('public surface', () => {
     expect(Object.keys(project.targets)).not.toContain('test-angular');
   });
 
-  it('does not export toCraftService or injectService from the core barrel', async () => {
+  it('does not export injectService from the core barrel', async () => {
     const core = await import('@craft-ts/core');
-    expect('toCraftService' in core).toBe(false);
     expect('injectService' in core).toBe(false);
   });
 

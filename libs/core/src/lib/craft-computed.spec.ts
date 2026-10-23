@@ -2,7 +2,7 @@ import {
   computed,
   signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   beforeAll,
   beforeEach,
@@ -27,7 +27,7 @@ import { craftExpose } from './craft-primitive-gen';
 
 describe('craftComputed', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('should require an injection context', () => {
@@ -44,7 +44,7 @@ describe('craftComputed', () => {
       readonly doubled = craftUse(craftComputed('doubled', () => this.count() * 2));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new CounterComponent(),
     );
 
@@ -55,7 +55,7 @@ describe('craftComputed', () => {
 
   it('memoizes repeated reads until a dependency changes', () => {
     const computation = vi.fn(() => 42);
-    const value = TestBed.runInInjectionContext(() =>
+    const value = CraftTestBed.runInInjectionContext(() =>
       craftUse(craftComputed('value', computation)),
     );
 
@@ -66,48 +66,48 @@ describe('craftComputed', () => {
     expect(computation).toHaveBeenCalledTimes(callsAfterFirstRead);
   });
 
-  it('evaluates once per invalidation for an Angular computed consumer', () => {
+  it('evaluates once per invalidation for an computed consumer', () => {
     const craftSource = craftSignal(2);
-    const angularSource = signal(3);
-    const computation = vi.fn(() => craftSource() * angularSource());
-    const value = TestBed.runInInjectionContext(() =>
+    const otherSource = signal(3);
+    const computation = vi.fn(() => craftSource() * otherSource());
+    const value = CraftTestBed.runInInjectionContext(() =>
       craftUse(craftComputed('single-evaluation', computation)),
     );
-    const angularConsumer = computed(() => craftUse(value()));
+    const consumer = computed(() => craftUse(value()));
 
-    expect(angularConsumer()).toBe(6);
+    expect(consumer()).toBe(6);
     expect(computation).toHaveBeenCalledTimes(1);
 
-    expect(angularConsumer()).toBe(6);
+    expect(consumer()).toBe(6);
     expect(computation).toHaveBeenCalledTimes(1);
 
     craftSource.set(4);
     expect(computation).toHaveBeenCalledTimes(1);
-    expect(angularConsumer()).toBe(12);
+    expect(consumer()).toBe(12);
     expect(computation).toHaveBeenCalledTimes(2);
 
-    angularSource.set(5);
-    expect(angularConsumer()).toBe(20);
+    otherSource.set(5);
+    expect(consumer()).toBe(20);
     expect(computation).toHaveBeenCalledTimes(3);
   });
 
-  it('invalidates an Angular computed when a Craft dependency changes', () => {
+  it('invalidates an computed when a Craft dependency changes', () => {
     const source = craftSignal(2);
-    const value = TestBed.runInInjectionContext(() =>
+    const value = CraftTestBed.runInInjectionContext(() =>
       craftUse(craftComputed('value', () => source() * 3)),
     );
-    const angularConsumer = computed(() => craftUse(value()));
+    const consumer = computed(() => craftUse(value()));
 
-    expect(angularConsumer()).toBe(6);
+    expect(consumer()).toBe(6);
 
     source.set(4);
 
-    expect(angularConsumer()).toBe(12);
+    expect(consumer()).toBe(12);
   });
 
-  it('recovers an Angular consumer after a thrown first evaluation', () => {
+  it('recovers an consumer after a thrown first evaluation', () => {
     const ready = craftSignal(false);
-    const value = TestBed.runInInjectionContext(() =>
+    const value = CraftTestBed.runInInjectionContext(() =>
       craftUse(craftComputed('recover', () => {
         if (!ready()) {
           throw new Error('not ready');
@@ -115,38 +115,38 @@ describe('craftComputed', () => {
         return 'recovered';
       })),
     );
-    const angularConsumer = computed(() => craftUse(value()));
+    const consumer = computed(() => craftUse(value()));
 
-    expect(() => angularConsumer()).toThrow('not ready');
+    expect(() => consumer()).toThrow('not ready');
 
     ready.set(true);
 
-    expect(angularConsumer()).toBe('recovered');
+    expect(consumer()).toBe('recovered');
   });
 
-  it('retraces conditional Angular dependencies after a Craft branch switch', () => {
+  it('retraces conditional dependencies after a Craft branch switch', () => {
     const useSecond = craftSignal(false);
     const first = signal('first');
     const second = signal('second');
-    const value = TestBed.runInInjectionContext(() =>
+    const value = CraftTestBed.runInInjectionContext(() =>
       craftUse(craftComputed('conditional', () => (useSecond() ? second() : first()))),
     );
-    const angularConsumer = computed(() => craftUse(value()));
+    const consumer = computed(() => craftUse(value()));
 
-    expect(angularConsumer()).toBe('first');
+    expect(consumer()).toBe('first');
 
     useSecond.set(true);
-    expect(angularConsumer()).toBe('second');
+    expect(consumer()).toBe('second');
 
     second.set('updated');
 
-    expect(angularConsumer()).toBe('updated');
+    expect(consumer()).toBe('updated');
   });
 
   it('stays lazy after an unread Craft invalidation', () => {
     const source = craftSignal(1);
     const computation = vi.fn(() => source() * 2);
-    const value = TestBed.runInInjectionContext(() =>
+    const value = CraftTestBed.runInInjectionContext(() =>
       craftUse(craftComputed('lazy', computation)),
     );
 
@@ -177,7 +177,7 @@ describe('craftComputed', () => {
       }));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new CounterComponent(),
     );
 
@@ -194,7 +194,7 @@ describe('craftComputed', () => {
       }));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new InvalidComponent(),
     );
     expect(() => craftUse(component.value())).toThrow(
@@ -219,7 +219,7 @@ describe('craftComputed', () => {
       }));
     }
 
-    const component = TestBed.runInInjectionContext(
+    const component = CraftTestBed.runInInjectionContext(
       () => new CounterComponent(),
     );
 

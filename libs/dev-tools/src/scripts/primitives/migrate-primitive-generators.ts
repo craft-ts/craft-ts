@@ -47,7 +47,7 @@ export type MigratePrimitiveGeneratorsResult = {
   changedFiles: string[];
 };
 
-const FACTORY_HOST_CALLEES = new Set(['craftService', 'toCraftService']);
+const FACTORY_HOST_CALLEES = new Set(['craftService']);
 
 export async function migratePrimitiveGenerators({
   paths,

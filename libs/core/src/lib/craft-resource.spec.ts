@@ -1,5 +1,5 @@
 import { computed, signal } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { craftResource } from './craft-resource';
 import { ɵsetCraftReplayMode } from './craft-replay';
@@ -8,14 +8,14 @@ import { setupCraftServiceTest } from './setup-craft-service-test';
 
 describe('craftResource', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     vi.useRealTimers();
     ɵsetCraftReplayMode(false);
   });
 
   function createResource() {
     const params = signal({ id: 1 });
-    return TestBed.runInInjectionContext(() =>
+    return CraftTestBed.runInInjectionContext(() =>
       craftResource({
         params: () => params(),
         loader: async ({ params: p }) => ({ id: p.id, name: `item-${p.id}` }),
@@ -43,7 +43,7 @@ describe('craftResource', () => {
     }));
     ɵsetCraftReplayMode(true);
     try {
-      const resource = TestBed.runInInjectionContext(() =>
+      const resource = CraftTestBed.runInInjectionContext(() =>
         craftResource({ params: () => params(), loader }),
       );
 
@@ -67,7 +67,7 @@ describe('craftResource', () => {
 
   it('exposes paramSrc as the exact params function passed in', () => {
     const params = signal({ id: 7 });
-    const resource = TestBed.runInInjectionContext(() =>
+    const resource = CraftTestBed.runInInjectionContext(() =>
       craftResource({
         params: params,
         loader: async ({ params: p }) => p,
@@ -77,7 +77,7 @@ describe('craftResource', () => {
   });
 
   it('exposes the raw error signal as an internal channel', async () => {
-    const resource = TestBed.runInInjectionContext(() =>
+    const resource = CraftTestBed.runInInjectionContext(() =>
       craftResource({
         params: () => ({ id: 1 }),
         loader: async () => {
@@ -114,7 +114,7 @@ describe('craftResource', () => {
 
   it('cancels an in-flight load when a local value is set', async () => {
     let resolve!: (value: { id: number; name: string }) => void;
-    const resource = TestBed.runInInjectionContext(() =>
+    const resource = CraftTestBed.runInInjectionContext(() =>
       craftResource({
         params: () => ({ id: 1 }),
         loader: () =>
@@ -133,7 +133,7 @@ describe('craftResource', () => {
     expect(resource.value()).toEqual({ id: 1, name: 'local' });
   });
 
-  it('notifies Angular status consumers when destroyed', async () => {
+  it('notifies status consumers when destroyed', async () => {
     const resource = createResource();
     const status = computed(() => resource.status());
     await vi_waitForResolved(resource);

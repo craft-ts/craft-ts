@@ -61,7 +61,7 @@ export function craftUse(
   }
 
   // A generator may yield a dependency request whose resolver does not need
-  // Angular DI. Keep that valid outside an injection context while still
+  // Keep that valid outside an injection context while still
   // giving the runtime an injector for wrapper lookup and resolver shape.
   const runtimeInjector = injector ?? Injector.create({ providers: [] });
 

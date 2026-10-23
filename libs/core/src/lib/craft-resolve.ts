@@ -1,4 +1,4 @@
-import type { ActivatedRouteSnapshot, RouterStateSnapshot } from './host/craft-router-types';
+import type { CraftRouteSnapshot, CraftRouterState } from './host/craft-router-model';
 import type { StripCraftException } from './craft-exception';
 
 /**
@@ -20,8 +20,8 @@ import type { StripCraftException } from './craft-exception';
  * ```
  */
 export type CraftResolveFn = (
-  route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot,
+  route: CraftRouteSnapshot,
+  state: CraftRouterState,
 ) => Generator<unknown, unknown, unknown>;
 
 type CraftResolveYielded<Fn> = Fn extends (
@@ -44,8 +44,8 @@ type CraftResolveReturn<Fn> = Fn extends (
  * stripped) surfaced to `injectXxxResolvedData`.
  */
 export type CraftResolveResultFn<Fn> = (
-  route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot,
+  route: CraftRouteSnapshot,
+  state: CraftRouterState,
 ) => Generator<
   CraftResolveYielded<Fn>,
   StripCraftException<CraftResolveReturn<Fn>>,

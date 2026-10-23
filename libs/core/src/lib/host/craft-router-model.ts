@@ -1,17 +1,13 @@
-/**
- * Craft-owned structural stand-ins for the Angular router types that the
- * `craftRoutes` type graph still names. The DSL is unchanged; only the host
- * types are local.
- */
+/** Types used by Craft's router, route guards, and navigation state. */
 
 export type Data = Record<string, unknown>;
 
-export type UrlSegment = {
+export type CraftUrlSegment = {
   path: string;
   parameters: Record<string, string>;
 };
 
-export type ParamMap = {
+export type CraftParamMap = {
   has(name: string): boolean;
   get(name: string): string | null;
   getAll(name: string): string[];
@@ -21,34 +17,34 @@ export type ParamMap = {
 /**
  * Carries the same brand as `CraftUrlTree` — and for the same reason. Without
  * it a url tree is just `{ toString(): string }`, which EVERY object satisfies,
- * so `Exclude<…, GuardResult>` erased every object a guard returned and the
+ * so `Exclude<…, CraftGuardResult>` erased every object a guard returned and the
  * route's `GuardedData` helper silently disappeared.
  */
-export type UrlTree = {
+export type CraftRedirectTree = {
   readonly __craftUrlTree: true;
   toString(): string;
 };
 
-export type GuardResult = boolean | UrlTree;
+export type CraftGuardResult = boolean | CraftRedirectTree;
 
-/** Route params, keyed by the `:name` segments that produced them. */
-export type Params = Record<string, string>;
+/** CraftRouteConfig params, keyed by the `:name` segments that produced them. */
+export type CraftRouteParams = Record<string, string>;
 
-export type CanActivateFn = (
-  route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot,
-) => GuardResult | Promise<GuardResult>;
+export type CraftCanActivate = (
+  route: CraftRouteSnapshot,
+  state: CraftRouterState,
+) => CraftGuardResult | Promise<CraftGuardResult>;
 
-export type CanMatchFn = (
-  route: Route,
-  segments: UrlSegment[],
-) => GuardResult | Promise<GuardResult>;
+export type CraftCanMatch = (
+  route: CraftRouteConfig,
+  segments: CraftUrlSegment[],
+) => CraftGuardResult | Promise<CraftGuardResult>;
 
 /**
  * Emitted once a navigation has committed. Craft's own navigation stream
- * reports the same two moments Angular's did, so trace consumers keep working.
+ * reports the start and completion of each navigation for trace consumers.
  */
-export class NavigationEnd {
+export class CraftNavigationEnd {
   readonly id: number;
   readonly url: string;
   readonly urlAfterRedirects: string;
@@ -60,13 +56,13 @@ export class NavigationEnd {
   }
 }
 
-export type Route = {
+export type CraftRouteConfig = {
   path?: string;
   pathMatch?: 'full' | 'prefix';
   component?: unknown;
   loadComponent?: () => Promise<unknown> | unknown;
   loadChildren?: () => Promise<unknown> | unknown;
-  children?: Route[];
+  children?: CraftRouteConfig[];
   canActivate?: unknown[];
   canMatch?: unknown[];
   canActivateChild?: unknown[];
@@ -77,44 +73,44 @@ export type Route = {
   providers?: readonly unknown[];
   title?: string | (() => string | Promise<string>);
   outlet?: string;
-  redirectTo?: string | ((redirectData: PartialMatchRouteSnapshot) => unknown);
+  redirectTo?: string | ((redirectData: CraftPartialRouteSnapshot) => unknown);
 };
 
-export type ActivatedRouteSnapshot = {
-  routeConfig: Route | null;
-  url: UrlSegment[];
+export type CraftRouteSnapshot = {
+  routeConfig: CraftRouteConfig | null;
+  url: CraftUrlSegment[];
   params: Record<string, string>;
   queryParams: Record<string, string>;
   fragment: string | null;
   data: Data;
   outlet: string;
   title?: string;
-  paramMap: ParamMap;
-  queryParamMap: ParamMap;
-  parent: ActivatedRouteSnapshot | null;
-  root: ActivatedRouteSnapshot;
-  firstChild: ActivatedRouteSnapshot | null;
-  children: ActivatedRouteSnapshot[];
-  pathFromRoot: ActivatedRouteSnapshot[];
+  paramMap: CraftParamMap;
+  queryParamMap: CraftParamMap;
+  parent: CraftRouteSnapshot | null;
+  root: CraftRouteSnapshot;
+  firstChild: CraftRouteSnapshot | null;
+  children: CraftRouteSnapshot[];
+  pathFromRoot: CraftRouteSnapshot[];
 };
 
-export type RouterStateSnapshot = {
+export type CraftRouterState = {
   url: string;
-  root: ActivatedRouteSnapshot;
+  root: CraftRouteSnapshot;
 };
 
-export type PartialMatchRouteSnapshot = ActivatedRouteSnapshot;
+export type CraftPartialRouteSnapshot = CraftRouteSnapshot;
 
-export type ActivatedRoute = {
-  snapshot: ActivatedRouteSnapshot;
-  pathFromRoot: ActivatedRoute[];
+export type CraftRouteContext = {
+  snapshot: CraftRouteSnapshot;
+  pathFromRoot: CraftRouteContext[];
 };
 
 
-export abstract class TitleStrategy {
-  abstract updateTitle(snapshot: RouterStateSnapshot): void;
-  buildTitle(snapshot: RouterStateSnapshot): string | undefined {
-    let current: ActivatedRouteSnapshot | null = snapshot.root;
+export abstract class CraftTitleStrategy {
+  abstract updateTitle(snapshot: CraftRouterState): void;
+  buildTitle(snapshot: CraftRouterState): string | undefined {
+    let current: CraftRouteSnapshot | null = snapshot.root;
     let title: string | undefined;
     while (current) {
       if (typeof current.title === 'string') {

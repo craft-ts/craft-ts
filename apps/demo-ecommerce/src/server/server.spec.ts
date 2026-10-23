@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { craftException, executeGeneratorCompatibleFactoryAsync, isCraftException, provideServerFunctionTransport, readServerFunctionFailure, TestBed } from '@craft-ts/core';
+import { craftException, executeGeneratorCompatibleFactoryAsync, isCraftException, provideServerFunctionTransport, readServerFunctionFailure, CraftTestBed } from '@craft-ts/core';
 import { catalog, categoryDelete, categorySave, placeOrder, productDelete, productSave, reset } from '../client/api';
 import { createDemoApplication } from './server';
 import type { CartLine, Product } from '../shared/model';
@@ -11,11 +11,11 @@ const directories: string[] = [];
 let directory: string;
 
 beforeEach(async () => {
-  TestBed.resetTestingModule();
+  CraftTestBed.resetTestingModule();
   directory = await mkdtemp(join(tmpdir(), 'craft-ecommerce-http-'));
   directories.push(directory);
   const application = createDemoApplication(join(directory, 'store.json'));
-  TestBed.configureTestingModule({
+  CraftTestBed.configureTestingModule({
     providers: [provideServerFunctionTransport(async (request) => {
       const response = await application.handle(new Request('http://ecommerce.test/__server-functions', {
         method: 'POST',
@@ -32,13 +32,13 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  TestBed.resetTestingModule();
+  CraftTestBed.resetTestingModule();
   await Promise.all(directories.splice(0).map((item) => rm(item, { recursive: true, force: true })));
 });
 
 async function invoke<Input, Output>(client: (input: Input) => Generator<unknown, Output, unknown>, input: Input): Promise<Output> {
-  const invocation = TestBed.runInInjectionContext(() => client(input));
-  const result = await executeGeneratorCompatibleFactoryAsync({ factory: () => invocation, thisArg: undefined, getInjector: () => TestBed.rootInjector, args: [], invalidYieldErrorMessage: 'invalid e-commerce server function yield' });
+  const invocation = CraftTestBed.runInInjectionContext(() => client(input));
+  const result = await executeGeneratorCompatibleFactoryAsync({ factory: () => invocation, thisArg: undefined, getInjector: () => CraftTestBed.rootInjector, args: [], invalidYieldErrorMessage: 'invalid e-commerce server function yield' });
   if (result.kind !== 'done') throw new Error(`server function did not settle: ${result.kind}`);
   return result.value as Output;
 }

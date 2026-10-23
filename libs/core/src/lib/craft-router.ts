@@ -7,7 +7,6 @@ import {
   type EnvironmentProviders,
   type Provider,
 } from './host/craft-compat';
-import type { GetDeps } from './branded-component/branded-component';
 import {
   isCraftLoadingFeature,
   provideCraftLoading,
@@ -18,12 +17,12 @@ import {
   type CraftTitleStrategy,
 } from './craft-a11y';
 import {
-  type ActivatedRoute,
-  type ActivatedRouteSnapshot,
+  type CraftRouteContext,
+  type CraftRouteSnapshot,
   type Data,
-  type ParamMap,
-  type RouterStateSnapshot,
-} from './host/craft-router-types';
+  type CraftParamMap,
+  type CraftRouterState,
+} from './host/craft-router-model';
 import { provideCraftActivatedRoute } from './craft-activated-route';
 import {
   type ServiceTrackingMetadata,
@@ -447,8 +446,8 @@ export type CraftRouterHelper = WithInternalHelperDependencies<
  * Registers the Craft history matcher AND the non-blocking outlet's
  * pending/error surface in one call. Craft loading features
  * (`withErrorComponent()`, `withTransitionTimings()`, `withPendingComponent()`,
- * `withLoadingText()`, `withCraftViewTransitions()`) are applied; leftover
- * Angular `RouterFeatures` such as `withComponentInputBinding()` are ignored
+ * `withLoadingText()`, `withCraftViewTransitions()`) are applied; legacy
+ * router features such as `withComponentInputBinding()` are ignored
  * (input binding is owned by the outlet).
  *
  * ```ts
@@ -694,7 +693,7 @@ export function shouldHandleCraftRouterLinkClick(
   return true;
 }
 
-function emptyParamMap(): ParamMap {
+function emptyParamMap(): CraftParamMap {
   return {
     has: () => false,
     get: () => null,
@@ -703,8 +702,8 @@ function emptyParamMap(): ParamMap {
   };
 }
 
-function emptyActivatedRouteSnapshot(): ActivatedRouteSnapshot {
-  const snapshot: ActivatedRouteSnapshot = {
+function emptyActivatedRouteSnapshot(): CraftRouteSnapshot {
+  const snapshot: CraftRouteSnapshot = {
     routeConfig: null,
     url: [],
     params: {},
@@ -715,7 +714,7 @@ function emptyActivatedRouteSnapshot(): ActivatedRouteSnapshot {
     paramMap: emptyParamMap(),
     queryParamMap: emptyParamMap(),
     parent: null,
-    root: null as unknown as ActivatedRouteSnapshot,
+    root: null as unknown as CraftRouteSnapshot,
     firstChild: null,
     children: [],
     pathFromRoot: [],
@@ -725,11 +724,11 @@ function emptyActivatedRouteSnapshot(): ActivatedRouteSnapshot {
   return snapshot;
 }
 
-function matchToRouterStateSnapshot(match: CraftMatch): RouterStateSnapshot {
+function matchToRouterStateSnapshot(match: CraftMatch): CraftRouterState {
   const makeNode = (
     route: CraftCompiledRoute,
-    firstChild: ActivatedRouteSnapshot | null,
-  ): ActivatedRouteSnapshot => ({
+    firstChild: CraftRouteSnapshot | null,
+  ): CraftRouteSnapshot => ({
     routeConfig: route,
     url: [],
     params: match.params,
@@ -741,19 +740,19 @@ function matchToRouterStateSnapshot(match: CraftMatch): RouterStateSnapshot {
     paramMap: emptyParamMap(),
     queryParamMap: emptyParamMap(),
     parent: null,
-    root: null as unknown as ActivatedRouteSnapshot,
+    root: null as unknown as CraftRouteSnapshot,
     firstChild,
     children: firstChild ? [firstChild] : [],
     pathFromRoot: [],
   });
 
-  let child: ActivatedRouteSnapshot | null = null;
+  let child: CraftRouteSnapshot | null = null;
   for (let index = match.routes.length - 1; index >= 0; index -= 1) {
     child = makeNode(match.routes[index]!, child);
   }
   const root = child ?? makeNode(match.route, null);
-  const path: ActivatedRouteSnapshot[] = [];
-  let current: ActivatedRouteSnapshot | null = root;
+  const path: CraftRouteSnapshot[] = [];
+  let current: CraftRouteSnapshot | null = root;
   while (current) {
     path.push(current);
     current = current.firstChild;
@@ -929,8 +928,8 @@ function provideCraftRouterRuntime(
     }) as unknown as CraftSignal<CraftMatch | null>) as unknown as Provider,
     // The Craft router owns the activated route: it is the leaf of the
     // snapshot built from the current match, and empty before the first one.
-    provideCraftActivatedRoute((): ActivatedRoute => {
-      const leafOf = (snapshot: ActivatedRouteSnapshot) => {
+    provideCraftActivatedRoute((): CraftRouteContext => {
+      const leafOf = (snapshot: CraftRouteSnapshot) => {
         let node = snapshot;
         while (node.firstChild) node = node.firstChild;
         return node;
@@ -1239,13 +1238,3 @@ function withViewTransitionState(
     [CRAFT_VIEW_TRANSITION_STATE_KEY]: input.viewTransition,
   };
 }
-
-/** @deprecated Moved to `@craft-ts/angular`. */
-export type GenDeps_LegacyCraftRouterLink = GetDeps<{
-  deps: Record<string, never>;
-  provided: Record<never, never>;
-  missingProvider: Record<string, never>;
-}>;
-
-/** @deprecated DI metadata belongs to `LegacyCraftRouterLink` only. */
-export type GenDeps_CraftRouterLink = GenDeps_LegacyCraftRouterLink;

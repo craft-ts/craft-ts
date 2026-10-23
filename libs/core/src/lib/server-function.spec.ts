@@ -8,7 +8,7 @@ import {
   requireServerPermission,
   serverFunction,
   serverFunctionContract,
-  TestBed,
+  CraftTestBed,
   type ServerFunctionRequest,
   type StandardSchemaV1,
 } from '@craft-ts/core';
@@ -34,7 +34,7 @@ const numberSchema = (
   }) as TestSchema<number, number>;
 
 describe('server functions', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => CraftTestBed.resetTestingModule());
 
   it('keeps a server-only function local to its implementation', async () => {
     const add = serverFunction(
@@ -63,7 +63,7 @@ describe('server functions', () => {
       .handler(({ input, required }) => `${(required(CurrentUser) as { id: string }).id}:${input}`)
       .exposeErrors({});
     const requests: ServerFunctionRequest[] = [];
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideServerFunctionTransport(async (request) => {
           requests.push(request);
@@ -97,7 +97,7 @@ describe('server functions', () => {
       .exposeErrors({});
     const connectionError = new TypeError('Failed to fetch');
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideServerFunctionTransport(async () => {
           throw connectionError;
@@ -251,11 +251,11 @@ async function runServerFunction<Input, Output>(
   client: (input: Input) => Generator<unknown, Output, unknown>,
   input: Input,
 ): Promise<Output> {
-  const invocation = TestBed.runInInjectionContext(() => client(input));
+  const invocation = CraftTestBed.runInInjectionContext(() => client(input));
   const settled = await executeGeneratorCompatibleFactoryAsync({
     factory: () => invocation,
     thisArg: undefined,
-    getInjector: () => TestBed.rootInjector,
+    getInjector: () => CraftTestBed.rootInjector,
     args: [],
     invalidYieldErrorMessage: 'invalid server-function yield',
   });

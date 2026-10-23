@@ -2,7 +2,7 @@ import {
   Injector,
   runInInjectionContext,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CorrelationId,
@@ -96,7 +96,7 @@ describe('setCurrentStartCorrelationId / getCurrentStartCorrelationId', () => {
 
 describe('CorrelationId', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   afterEach(() => {
@@ -106,10 +106,10 @@ describe('CorrelationId', () => {
   it('yields a service request and resolves metadata from the injected service', () => {
     const service = createCorrelationIdService();
     service.generateAndSet('click');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCorrelationIdService(service)],
     });
-    const injector = TestBed.inject(Injector);
+    const injector = CraftTestBed.inject(Injector);
 
     setCurrentStartCorrelationId('nav-forward:start');
 
@@ -143,12 +143,12 @@ describe('CorrelationId', () => {
 
 describe('injectCorrelationIdService', () => {
     beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('returns null by default (no provider registered)', () => {
-    TestBed.configureTestingModule({});
-    const result = TestBed.runInInjectionContext(() =>
+    CraftTestBed.configureTestingModule({});
+    const result = CraftTestBed.runInInjectionContext(() =>
       injectCorrelationIdService(),
     );
     expect(result).toBeNull();
@@ -156,10 +156,10 @@ describe('injectCorrelationIdService', () => {
 
   it('returns the registered service', () => {
     const service = createCorrelationIdService();
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCorrelationIdService(service)],
     });
-    const result = TestBed.runInInjectionContext(() =>
+    const result = CraftTestBed.runInInjectionContext(() =>
       injectCorrelationIdService(),
     );
     expect(result).toBe(service);

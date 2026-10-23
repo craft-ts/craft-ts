@@ -214,7 +214,7 @@ export type SettleableResource = {
  * nothing to show suspends.
  *
  * A residual technical failure (status `'exception'` with no business exception)
- * is rethrown through the internal Angular `error` channel, mirroring
+ * is rethrown through the internal `error` channel, mirroring
  * `craftUntilSettled`.
  */
 export function craftSettledValue<Value>(

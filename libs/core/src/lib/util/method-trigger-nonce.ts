@@ -5,7 +5,7 @@ import { ValueEqualityFn } from '../host/craft-compat';
  * `asyncProcess`) to re-run its loader on every explicit call, even when the
  * `method` returns the same value or `undefined`.
  *
- * Angular's native `resource()` (a) treats an `undefined` request as idle and never
+ * The resource primitive treats an `undefined` request as idle and never
  * runs the loader, and (b) only re-runs the loader when the request changes under
  * `Object.is`. A `method: () => undefined` (e.g. a logout mutation) therefore never
  * triggers, and a `method: () => 'X'` triggers at most once.

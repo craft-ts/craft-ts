@@ -53,7 +53,6 @@ type AsyncLocalStorageLike<T> = {
 };
 
 type AsyncLocalStorageConstructor = new <T>() => AsyncLocalStorageLike<T>;
-export type CraftHostContextRunner = <T>(fn: () => T) => T;
 
 const nodeProcess = (
   globalThis as typeof globalThis & { process?: NodeProcess }
@@ -69,7 +68,6 @@ const injectorStorage = AsyncLocalStorage
   ? new AsyncLocalStorage<CraftInjector>()
   : null;
 const browserInjectorStack: CraftInjector[] = [];
-const hostInjectors = new WeakMap<object, CraftInjector>();
 export const ɵNOT_FOUND = Symbol('CraftInjector.notFound');
 
 /** A provider factory requested the same provider while it was resolving. */
@@ -108,16 +106,6 @@ export function getCurrentCraftInjector(): CraftInjector {
     );
   }
   return injector;
-}
-
-export function isCraftInjector(value: unknown): value is CraftInjector {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as CraftInjector).get === 'function' &&
-    typeof (value as CraftInjector).run === 'function' &&
-    typeof (value as CraftInjector).createChild === 'function'
-  );
 }
 
 function tokenName(token: object): string {
@@ -278,91 +266,6 @@ function createNativeCraftInjector(
     addProviderRecord(records, provider, craftInjector);
   }
 
-  return craftInjector;
-}
-
-export function ɵcreateCraftInjectorFromHost(
-  hostInjector: object,
-  runInHostContext: CraftHostContextRunner,
-): CraftInjector {
-  const existing = hostInjectors.get(hostInjector);
-  if (existing) {
-    return existing;
-  }
-
-  const host = hostInjector as {
-    get(token: object, notFoundValue?: unknown): unknown;
-    destroy?: () => void;
-    destroyed?: boolean;
-  };
-  const children: CraftInjector[] = [];
-  const defaultValues = new Map<object, unknown>();
-  let destroyed = false;
-  const resolveDefault = (token: object): unknown | typeof ɵNOT_FOUND => {
-    if (defaultValues.has(token)) return defaultValues.get(token);
-    const value = lookupDefaultFactory(token);
-    if (value !== ɵNOT_FOUND) defaultValues.set(token, value);
-    return value;
-  };
-  const craftInjector: CraftInjector = {
-    get<T>(token: object, notFoundValue?: T): T {
-      const value = host.get(token, ɵNOT_FOUND);
-      if (value !== ɵNOT_FOUND) {
-        return value as T;
-      }
-      const fallback = resolveDefault(token);
-      if (fallback !== ɵNOT_FOUND) {
-        return fallback as T;
-      }
-      if (arguments.length >= 2) {
-        return notFoundValue as T;
-      }
-      throw missingProviderError(token);
-    },
-    getOptional<T>(token: object): T | null {
-      const value = host.get(token, ɵNOT_FOUND);
-      if (value !== ɵNOT_FOUND) {
-        return value as T;
-      }
-      const fallback = resolveDefault(token);
-      return fallback === ɵNOT_FOUND ? null : (fallback as T);
-    },
-    run<T>(fn: () => T): T {
-      return runInHostContext(() => {
-        if (injectorStorage) {
-          return injectorStorage.run(craftInjector, fn);
-        }
-        browserInjectorStack.push(craftInjector);
-        try {
-          return fn();
-        } finally {
-          browserInjectorStack.pop();
-        }
-      });
-    },
-    createChild(providers: readonly CraftProvider[]): CraftInjector {
-      const child = createNativeCraftInjector(providers, craftInjector);
-      children.push(child);
-      return child;
-    },
-    destroy(): void {
-      if (destroyed) {
-        return;
-      }
-      destroyed = true;
-      for (const child of children) {
-        child.destroy();
-      }
-      host.destroy?.();
-    },
-    get destroyed() {
-      return destroyed || host.destroyed === true;
-    },
-    get ɵparent() {
-      return null;
-    },
-  };
-  hostInjectors.set(hostInjector, craftInjector);
   return craftInjector;
 }
 

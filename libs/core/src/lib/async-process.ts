@@ -1527,7 +1527,7 @@ function createAsyncProcessRef<
     ),
   );
 
-  // Capture the raw Angular status BEFORE `Object.assign` overrides
+  // Capture the raw resource status before `Object.assign` overrides
   // `resourceTarget.status` with the craft computed (avoids a computation cycle).
   const rawResourceStatus = (
     resourceTarget as CraftResourceRef<AsyncProcesstate, AsyncProcessParams>

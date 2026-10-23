@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed } from '@craft-ts/core';
+import { CraftTestBed } from '@craft-ts/core';
 import {
   installCraftEffectBridge,
   provideLayer,
@@ -13,20 +13,20 @@ describe('quickstart Effect boundary', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
   });
 
   afterEach(() => {
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('renders the domain result through queryEffect', async () => {
     const element = document.createElement('div');
     document.body.append(element);
-    const injector = TestBed.rootInjector.createChild([
+    const injector = CraftTestBed.rootInjector.createChild([
       provideLayer(TaskRepositoryLive),
     ]);
     const mounted = mountCraftComponent(
@@ -34,7 +34,7 @@ describe('quickstart Effect boundary', () => {
       element,
       injector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Understand the Effect boundary');

@@ -109,7 +109,7 @@ type EntitiesUtilsToMap<
  *   })
  * ));
  * yield* tags.addOne({ entity: 'typescript' });
- * yield* tags.addMany({ newEntities: ['angular', 'signals'] });
+ * yield* tags.addMany({ newEntities: ['craft', 'signals'] });
  *
  * @example
  * // With objects having default id property

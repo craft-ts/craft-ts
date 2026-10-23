@@ -1,5 +1,5 @@
 import { provideCraftRouter } from './craft-router';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { state } from './state';
 import { removeOne, addOne, addMany, setOne } from './util/entities-util';
 import { insertEntities } from './insert-entities';
@@ -15,7 +15,7 @@ describe('insertEntities', () => {
     vi.useRealTimers();
   });
   it('should enable to insert entities util to a state', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myState = craftUse(
         state(
           'myState',
@@ -32,10 +32,10 @@ describe('insertEntities', () => {
   });
 
   it('should enable to insert entities util to a queryParams', async () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [...provideCraftRouter([])],
     }).compileComponents();
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myState = craftUse(
         queryParams(
           'myState',
@@ -63,7 +63,7 @@ describe('insertEntities', () => {
   });
 
   it('should enable to insert entities util to a query', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myQuery = craftUse(
         query(
           'myQuery',
@@ -84,7 +84,7 @@ describe('insertEntities', () => {
     });
   });
   it('should enable to insert entities util to a query that run in paralllel', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myQuery = craftUse(
         query(
           'myQuery',
@@ -115,7 +115,7 @@ describe('insertEntities', () => {
   });
 
   it('should enable to insert entities util to a query that return an object', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myQuery = craftUse(
         query(
           'myQuery',
@@ -178,7 +178,7 @@ describe('insertEntities', () => {
     });
   });
   it('should enable to insert entities util to parallel queries that return an object', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myQuery = craftUse(
         query(
           'myQuery',
@@ -244,7 +244,7 @@ describe('insertEntities', () => {
   });
 
   it('should update a nested dotted path on state', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myState = craftUse(
         state(
           'myState',
@@ -294,7 +294,7 @@ describe('insertEntities', () => {
   });
 
   it('should forward a custom identifier to helper methods', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myState = craftUse(
         state(
           'myState',

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectI18nComponent from './effect-i18n';
@@ -16,7 +16,7 @@ describe('demo: translating inside an Effect program', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     i18nRuntime.setLocale('en-US');
     disposeBridge = installCraftEffectBridge();
@@ -25,7 +25,7 @@ describe('demo: translating inside an Effect program', () => {
   afterEach(() => {
     disposeBridge();
     i18nRuntime.setLocale('en-US');
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('renders the receipt and switches every string with the locale', async () => {
@@ -33,7 +33,7 @@ describe('demo: translating inside an Effect program', () => {
     document.body.append(element);
     const routeInjector = Injector.create({
       providers: [provideLayer(I18nLive)],
-      parent: TestBed.rootInjector,
+      parent: CraftTestBed.rootInjector,
     });
 
     const mounted = mountCraftComponent(
@@ -41,7 +41,7 @@ describe('demo: translating inside an Effect program', () => {
       element,
       routeInjector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Your receipt');
@@ -51,7 +51,7 @@ describe('demo: translating inside an Effect program', () => {
     element
       .querySelector<HTMLButtonElement>('button[aria-pressed="false"]')
       ?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Votre reçu');

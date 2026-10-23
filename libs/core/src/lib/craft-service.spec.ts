@@ -1,5 +1,5 @@
 import { inject, InjectionToken, signal } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { state } from './state';
 import { Subject } from 'rxjs';
 import { Console, ConsoleService } from './browser-boundaries';
@@ -39,7 +39,7 @@ describe('craftService', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -57,7 +57,7 @@ describe('craftService', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const user = craftUse(function* () {
         return yield* UserApi.getUser('user-42');
       });
@@ -90,7 +90,7 @@ describe('craftService', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const direct = craftUse(DirectUserQuery({ userId: () => 'user-1' }));
       expect(craftUse(direct.userQuery.status())).toBe('loading');
 
@@ -176,7 +176,7 @@ describe('craftService', () => {
       GetServiceDependencies<typeof AppStartCounter>['appStart']
     >().toEqualTypeOf<true>();
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const service = craftUse(AppStartCounter());
       const pendingStart = runServiceAppStart(AppStartCounter, service);
 
@@ -210,7 +210,7 @@ describe('craftService', () => {
       },
     );
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const service = craftUse(AppStartLog());
       const pendingStart = runServiceAppStart(AppStartLog, service);
 
@@ -304,7 +304,7 @@ describe('craftService', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() => craftUse(InvalidAppStart())).toThrow(
         'craftService("InvalidAppStart") used onAppStart(...) without enabling appStart: true.',
       );
@@ -335,7 +335,7 @@ describe('craftService', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -358,7 +358,7 @@ describe('scope', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -392,7 +392,7 @@ describe('scope', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -410,11 +410,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounter()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -441,11 +441,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounter({ initialValue: 10, step: 2 })],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
 
       expect(craftUse(counter())).toBe(10);
@@ -469,11 +469,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounter()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -496,11 +496,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounter({ initialValue: 7 })],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       const providedCounter = craftUse(Counter()).counter;
 
@@ -520,11 +520,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounter()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -542,7 +542,7 @@ describe('scope', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -563,10 +563,10 @@ describe('scope', () => {
     const providers = provideLazyCounter();
     expect(factoryRuns).toBe(0);
 
-    TestBed.configureTestingModule({ providers: [providers] });
+    CraftTestBed.configureTestingModule({ providers: [providers] });
     expect(factoryRuns).toBe(0);
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       craftUse(LazyCounter());
       expect(factoryRuns).toBe(1);
       craftUse(LazyCounter());
@@ -678,7 +678,7 @@ describe('scope', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const service = craftUse(
         FunctionService({
           requestId: 'request-3',
@@ -719,11 +719,11 @@ describe('scope', () => {
       abstract<Counter>(),
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounter(() => ({ value: 42 }))],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(craftUse(Counter())).toEqual({ value: 42 });
     });
   });
@@ -737,7 +737,7 @@ describe('scope', () => {
       abstract<{ total: number }>(),
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideScore(function* () {
           const seed = yield* Seed();
@@ -746,7 +746,7 @@ describe('scope', () => {
       ],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(craftUse(Score())).toEqual({ total: 15 });
     });
   });
@@ -765,11 +765,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideUser(() => ({ name: 'Ada' })), provideGreeting()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(craftUse(Greeting())).toEqual({ hello: 'Hi Ada' });
     });
   });
@@ -800,11 +800,11 @@ describe('scope', () => {
 
     // todo provideCounterImpl should provide CounterImpl and the source of CounterRequirement
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounterImpl()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -837,11 +837,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounterImpl()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counterImpl = craftUse(CounterImpl()).counter;
       expect(craftUse(counterImpl())).toBe(0);
       counterImpl.increment();
@@ -870,11 +870,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounterImpl()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counterImpl = craftUse(CounterImpl());
       counterImpl.increment();
       expect(increment).toHaveBeenCalledTimes(1);
@@ -903,11 +903,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounterImpl()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counterImpl = craftUse(CounterImpl()).counter;
       const counter = craftUse(Counter()).counter;
 
@@ -1032,11 +1032,11 @@ describe('scope', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounter()],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(GlobalCounter()).counter;
       expect(craftUse(counter())).toBe(0);
       counter.increment();
@@ -1063,7 +1063,7 @@ describe('injectService should enable to binding inputs', () => {
       },
     );
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCounter({ initialValue: 10, step: 2 })],
     });
 
@@ -1074,7 +1074,7 @@ describe('injectService should enable to binding inputs', () => {
       ).counter;
     }
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter()).counter;
 
       expect(craftUse(counter())).toBe(10);
@@ -1099,7 +1099,7 @@ describe('injectService should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       // todo make a test that force to pass an input, and if it's not passed, throw an error
       const counter = craftUse(Counter({ initialValue: 0 })).counter;
       expect(craftUse(counter())).toBe(0);
@@ -1128,7 +1128,7 @@ describe('injectService should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(
         Counter({ initialValue: 0, optionalProperty1: 0 }),
       ).counter;
@@ -1155,7 +1155,7 @@ describe('injectService should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const initialValue = signal(0);
       // todo make a test that force to pass an input, and if it's not passed, throw an error
       const counter = craftUse(Counter({ initialValue })).counter;
@@ -1181,7 +1181,7 @@ describe('injectService should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() => craftUse(Counter()).counter).toThrow(
         'Inputs Error, initialValue is not provided',
       );
@@ -1203,7 +1203,7 @@ describe('injectService should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const initialValue = signal(0);
       // todo make a test that force to pass an input, and if it's not passed, throw an error
       const counter = craftUse(Counter({ initialValue })).counter;
@@ -1212,7 +1212,7 @@ describe('injectService should enable to binding inputs', () => {
       expect(craftUse(counter())).toBe(1);
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       // todo make a test that force to pass an input, and if it's not passed, throw an error
       expect(() =>
         craftUse(
@@ -1262,14 +1262,14 @@ describe('service should enable to binding inputs', () => {
       ).counter;
     }
 
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCounter({ initialValue: 10, step: 2 }),
         provideCounterExtended(),
       ],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counterExtended = craftUse(CounterExtended());
 
       expect(counterExtended.read()).toBe(10);
@@ -1306,7 +1306,7 @@ describe('service should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(10);
       counter.increment();
@@ -1344,7 +1344,7 @@ describe('service should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(10);
       counter.increment();
@@ -1389,7 +1389,7 @@ describe('service should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(CounterExtended()).counter;
       expect(craftUse(counter())).toBe(10);
       counter.increment();
@@ -1420,7 +1420,7 @@ describe('service should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() => craftUse(CounterExtended())).toThrow(
         'Inputs Error, initialValue is not provided',
       );
@@ -1459,7 +1459,7 @@ describe('service should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() => craftUse(CounterExtended())).toThrow(
         'Inputs Error, initialValue is not provided',
       );
@@ -1495,7 +1495,7 @@ describe('service should enable to binding inputs', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counterHandler = craftUse(CounterExtended());
       expect(craftUse(counterHandler.counter1())).toBe(10);
       counterHandler.counter1.increment();
@@ -1521,7 +1521,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counterHandler = craftUse(
         Counter({}, ({ counter, increment }) => ({
           counter,
@@ -1556,7 +1556,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const triggerDecrementObservable = new Subject<void>();
       const counterHandler = craftUse(
         Counter({}, function* ({ state, increment, decrement }) {
@@ -1621,7 +1621,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counterHandler = craftUse(CounterExtended()).counter;
 
       //@ts-expect-error decrement should not be accessible because it is not exposed
@@ -1703,7 +1703,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       };
     }>();
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const consumer = craftUse(SinglePropertyShortcutConsumer());
 
       await expect(
@@ -1781,7 +1781,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       };
     }>();
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       await expect(craftUse(DirectMethodShortcutConsumer()).result).resolves.toEqual({
         id: '1',
         name: 'Geffrault',
@@ -1814,7 +1814,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const consumer = craftUse(InputShortcutCounterConsumer());
 
       consumer.increment();
@@ -1871,7 +1871,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       };
     }>();
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const updateItem = craftUse(SinglePropertyShortcutInjectApi.updateItem());
 
       expectTypeOf(updateItem).toEqualTypeOf<
@@ -1928,7 +1928,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       };
     }>();
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const result = craftUse(
         DirectMethodShortcutInjectApi.updateItem({
           id: '1',
@@ -1957,7 +1957,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const increment = craftUse(
         InputShortcutCounterInject.increment({
           initialValue: signal(10),
@@ -2001,7 +2001,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       };
     }>();
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const result = craftUse(NestedPropShortcutService.userQuery.isLoading());
       expectTypeOf(result).toMatchTypeOf<typeof isLoading>();
       expect(result).toBe(isLoading);
@@ -2050,7 +2050,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       };
     }>();
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const consumer = craftUse(NestedPropConsumer());
       expect(consumer.isLoading).toBe(isLoading);
     });
@@ -2064,7 +2064,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const count = craftUse(OmitInputsInjectCounter.OmitInputs.count());
       expectTypeOf(count).toEqualTypeOf<number>();
       expect(count).toBe(0);
@@ -2101,7 +2101,7 @@ describe('injectService/Service should expose an optional parameter that can be 
     // @ts-expect-error: no-arg without OmitInputs is a type error
     OmitInputsYieldCounter.count();
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const consumer = craftUse(OmitInputsYieldConsumer());
       expect(consumer.count).toBe(0);
     });
@@ -2120,7 +2120,7 @@ describe('injectService/Service should expose an optional parameter that can be 
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const result = craftUse(
         OmitInputsNestedService.OmitInputs.userQuery.isLoading(),
       );
@@ -2568,7 +2568,7 @@ describe('craftService — providers', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       craftUse(TrackedService());
       expect(callLog).toEqual(['service-factory']);
     });
@@ -2605,7 +2605,7 @@ describe('craftService — providers', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       craftUse(SiblingB());
       expect(callLog).toEqual([]);
 

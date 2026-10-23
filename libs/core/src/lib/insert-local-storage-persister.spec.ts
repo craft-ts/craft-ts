@@ -1,7 +1,7 @@
 import {
   signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asyncProcess } from './async-process';
 import { craftUnique } from './craft-unique';
@@ -58,7 +58,7 @@ describe('insertStoragePersister', () => {
 
     vi.stubGlobal('localStorage', storage);
     vi.spyOn(window, 'localStorage', 'get').mockReturnValue(storage);
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideLocalStoragePersister(),
         provideSessionStoragePersister(),
@@ -76,7 +76,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('restores a cached query value at runtime when waitForParams is disabled', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resource-myTestQuery',
         JSON.stringify({
@@ -151,7 +151,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('persists mutation results at runtime for resource and resourceById modes', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myMutation = craftUse(
         mutation(
           'myMutation',
@@ -212,7 +212,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('persists async process results at runtime for resource and resourceById modes', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myAsyncProcess = craftUse(
         asyncProcess(
           'myAsyncProcess',
@@ -277,7 +277,7 @@ describe('insertStoragePersister', () => {
   // --- staleTime integration tests ---
 
   it('staleTime: restores fresh cached query value without triggering reload', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resource-myStaleQuery',
         JSON.stringify({
@@ -314,7 +314,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('staleTime: restores stale cached query value AND triggers background reload (SWR)', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resource-mySWRQuery',
         JSON.stringify({
@@ -346,7 +346,7 @@ describe('insertStoragePersister', () => {
       );
 
       // A stale cache schedules a background reload; the exact intermediate
-      // value/status is scheduler-dependent in Angular's resource runtime.
+      // value/status is scheduler-dependent in the resource runtime.
       expect(myQuery).toBeDefined();
 
       await vi.runAllTimersAsync();
@@ -356,7 +356,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('staleTime: restores stale queryById value AND triggers reload per resource', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resourceById-myStaleQueryById',
         JSON.stringify({
@@ -406,7 +406,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('staleTime: fresh queryById value restored without reload', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resourceById-myFreshQueryById',
         JSON.stringify({
@@ -453,7 +453,7 @@ describe('insertStoragePersister', () => {
   // --- validate integration tests ---
 
   it('validate: discards cached value and loads fresh when validate returns false', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resource-myValidatedQuery',
         JSON.stringify({
@@ -501,7 +501,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('validate: restores cached value when validate returns true', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resource-myValidatedQuery2',
         JSON.stringify({
@@ -537,7 +537,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('validate: queryById discards resource value and loads fresh when validate fails', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resourceById-myValidatedQueryById',
         JSON.stringify({
@@ -588,7 +588,7 @@ describe('insertStoragePersister', () => {
   });
 
   it('persists and restores state at runtime', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const myState = craftUse(
         state('myState', 0, (context) =>
           craftPipe(
@@ -621,7 +621,7 @@ describe('insertStoragePersister', () => {
       expect(persistedState.queryValue).toBe(42);
     });
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       localStorage.setItem(
         'craft-ts-myTestStore-resource-myStateRestored',
         JSON.stringify({

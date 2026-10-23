@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
 import {
   fromEventToSource$,
@@ -22,7 +22,7 @@ describe('fromEventToSource$', () => {
 
   it('should create a readonly source that updates on event', () => {
     let eventSource$!: FromEventToSource$<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
     });
 
@@ -35,7 +35,7 @@ describe('fromEventToSource$', () => {
 
   it('should emit events to subscribers', () => {
     let eventSource$!: FromEventToSource$<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
     });
 
@@ -53,7 +53,7 @@ describe('fromEventToSource$', () => {
 
   it('should remove listener when disposed manually', () => {
     let eventSource$!: FromEventToSource$<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
     });
 
@@ -76,7 +76,7 @@ describe('fromEventToSource$', () => {
 
   it('should call dispose when DestroyRef triggers onDestroy', () => {
     let eventSource$!: FromEventToSource$<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
     });
 
@@ -87,7 +87,7 @@ describe('fromEventToSource$', () => {
     expect(eventSource$.value()).toBe(clickEvent);
 
     // Destroy the pure Craft test injector (this triggers DestroyRef.onDestroy).
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
 
     // Fire another event - it should not update the signal after component destruction
     const clickEvent2 = new MouseEvent('click');
@@ -100,7 +100,7 @@ describe('fromEventToSource$', () => {
       offsetX: number;
       offsetY: number;
     }>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$(button, 'click', {
         computedValue: (event: MouseEvent) => ({
           offsetX: event.offsetX,
@@ -121,7 +121,7 @@ describe('fromEventToSource$', () => {
 
   it('should emit computed values to subscribers', () => {
     let eventSource$!: FromEventToSource$<string>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$(button, 'click', {
         computedValue: (event: MouseEvent) =>
           `Clicked at ${event.clientX}, ${event.clientY}`,
@@ -144,7 +144,7 @@ describe('fromEventToSource$', () => {
     let captureEventSource$!: FromEventToSource$<MouseEvent>;
     const capturedEvents: MouseEvent[] = [];
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       captureEventSource$ = fromEventToSource$<MouseEvent>(button, 'click', {
         event: { capture: true },
       });
@@ -163,7 +163,7 @@ describe('fromEventToSource$', () => {
 
   it('should handle multiple subscribers', () => {
     let eventSource$!: FromEventToSource$<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
     });
 
@@ -187,7 +187,7 @@ describe('fromEventToSource$', () => {
 
   it('should not allow emitting (readonly)', () => {
     let eventSource$!: FromEventToSource$<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
     });
 
@@ -200,7 +200,7 @@ describe('fromEventToSource$', () => {
   it('should remain readonly while being consumable with yield*', () => {
     let eventSource$!: FromEventToSource$<MouseEvent>;
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource$ = fromEventToSource$<MouseEvent>(button, 'click');
       const yieldedSource$ = craftUse(eventSource$);
 
@@ -235,7 +235,7 @@ describe('fromEventToSource$', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(Counter());
       button.dispatchEvent(new MouseEvent('click'));
       expect(craftUse(counter.counter())).toBe(1);

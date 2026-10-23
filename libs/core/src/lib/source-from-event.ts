@@ -23,7 +23,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * @remarks
  * **Automatic Cleanup:**
  * - Event listeners are automatically removed when the injection context is destroyed
- * - Uses Angular's `DestroyRef` for lifecycle management
+ * - Uses Craft `DestroyRef` for lifecycle management
  * - Manual cleanup available via `dispose()` method
  * - Prevents memory leaks from dangling event listeners
  *
@@ -47,7 +47,7 @@ export type SourceFromEvent<T> = SignalSource<T> & {
  * - Coordinate multiple components via event sources
  *
  * **Injection Context:**
- * - Must be called within Angular injection context
+ * - Must be called within a Craft injection context
  * - Typically called in component constructor or class fields
  * - Uses `assertInInjectionContext()` for safety
  *

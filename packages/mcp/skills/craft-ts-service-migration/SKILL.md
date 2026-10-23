@@ -1,6 +1,6 @@
 ---
 name: craft-ts-service-migration
-description: Guides migration of existing Angular services and direct Angular DI toward @craft-ts/core craftService/toCraftService patterns. Use when editing or reviewing Angular services, @Injectable classes, inject(...), InjectionToken adapters, HttpClient/Router/Dialog usage, service tests, or route DI checks affected by service migration.
+description: Guides one-way migration of existing Angular services to @craft-ts/core craftService patterns. Use when migrating @Injectable classes, inject(...), framework services, service tests, or route DI checks.
 ---
 
 # craft-ts Service Migration
@@ -10,27 +10,25 @@ Use this skill when a task touches dependency injection, service architecture, o
 ## Target Architecture
 
 - Application/domain services are authored with `craftService(...)`.
-- Existing Angular tokens, framework services, third-party services, and `InjectionToken`s are adapted once with `toCraftService(...)`.
-- Components, route guards, resolvers, primitives, and other craft services consume the generated `X()` helper, not Angular `inject(Token)`.
-- Direct Angular DI is treated as legacy at the app boundary. Do not add new direct `inject(...)` calls.
-- Route DI checks should rely on craft service provider names. Keep `ProvidedValues = never` unless supporting legacy direct Angular tokens is explicitly required.
+- Dependencies are implemented as Craft services or replaced with Craft APIs; runtime Angular DI adapters are not part of the target architecture.
+- Components, route guards, resolvers, primitives, and other craft services consume generated `X()` helpers.
+- Route DI checks rely on Craft service provider names.
 
 ## Migration Workflow
 
 1. Inventory the current dependency:
    - Find `@Injectable`, `inject(...)`, constructor injection, `InjectionToken`, `HttpClient`, `Router`, `Dialog`, `Title`, and app-specific API services.
-   - Classify each dependency as authored business logic, external Angular/framework token, or third-party adapter.
+   - Classify each dependency as authored business logic or an external/framework dependency that needs a Craft-native replacement.
 
 2. Choose the right primitive:
    - Business/domain logic -> `craftService({ name, scope }, function* () { ... })`.
-   - Existing Angular/third-party token -> `toCraftService({ name, scope, token })`.
-   - Existing token requiring `inject(...)` internally -> `toCraftService({ name, scope: 'global', inject: () => inject(TOKEN) })`.
+   - Replace framework dependencies with Craft APIs or migrate their required behavior into a Craft service.
+   - If a dependency cannot be converted automatically, leave the source intact and report it for manual migration; do not generate an interop adapter.
    - Dependencies that must be provided per feature/route/test -> `scope: 'toProvide'` or `scope: 'manuallyProvidedAtRoot'`.
 
 3. Preserve the public interface deliberately:
-   - Expose the smallest useful surface from adapters.
-   - Prefer yielding a narrowed method/property map: `yield* Router(undefined, ({ navigateByUrl }) => ({ navigateByUrl }))`.
-   - Avoid pass-through wrappers that expose the whole Angular service unless the service is intentionally an adapter.
+   - Expose the smallest useful Craft-native service surface.
+   - Avoid pass-through wrappers around framework services.
 
 4. Replace consumption sites:
    - In components/pages and craft service generators: use the generated `X()` helper, typically as `yield* X(...)`.
@@ -61,7 +59,7 @@ type _CheckFeatureDI = RouteCheckedDI<
 type _CanRunFeature = CanRun<_CheckFeatureDI>;
 ```
 
-Use `ProvidedValues` only as a temporary legacy bridge for direct Angular tokens still injected by components. Treat unions like `Router | Dialog | Title | typeof SomeApi` in route files as migration debt unless the user explicitly wants legacy support.
+Keep `ProvidedValues` limited to Craft service values. Migrate remaining framework-token dependencies before declaring a route migration complete.
 
 ## ESLint Expectations
 
@@ -76,12 +74,12 @@ Ensure these rules are enabled for migrated projects:
 
 - [ ] No new direct Angular `inject(...)` in app code.
 - [ ] No new app-authored `@Injectable` service where `craftService` fits.
-- [ ] Angular/framework tokens adapted exactly once with `toCraftService`.
+- [ ] Framework dependencies use Craft-native APIs or have a tracked manual migration diagnostic.
 - [ ] Consumption sites use the generated `X()` helper.
 - [ ] Route checks use provider names, with `ProvidedValues = never` after migration.
 - [ ] `GenDeps_*` aliases are regenerated after dependency changes.
-- [ ] Tests use craft service testing helpers instead of TestBed-only service wiring where possible.
+- [ ] Tests use Craft service testing helpers and `CraftTestBed` where needed.
 
 ## When To Push Back
 
-Push back when a change adds a direct Angular token to `ProvidedValues` instead of adapting it with `toCraftService`, introduces a pass-through `craftService` with no meaningful interface, or disables DI checks to avoid fixing provider registration.
+Push back when a change introduces a runtime Angular DI adapter, adds a pass-through `craftService` with no meaningful interface, or disables DI checks to avoid fixing provider registration.

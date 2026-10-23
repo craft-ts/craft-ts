@@ -1,21 +1,21 @@
-import type { ActivatedRoute } from './host/craft-router-types';
+import type { CraftRouteContext } from './host/craft-router-model';
 import { type CraftServiceProvider, ɵcraftValueService } from './craft-service';
 
 const craftActivatedRouteService = ɵcraftValueService(
   { name: 'CraftActivatedRoute', providedIn: 'toProvide' },
-  (inputs: { $provided?: ActivatedRoute | (() => ActivatedRoute) }) =>
+  (inputs: { $provided?: CraftRouteContext | (() => CraftRouteContext) }) =>
     typeof inputs.$provided === 'function'
       ? inputs.$provided()
       : inputs.$provided,
 ) as unknown as {
-  CraftActivatedRoute: () => Generator<never, ActivatedRoute, unknown>;
+  CraftActivatedRoute: () => Generator<never, CraftRouteContext, unknown>;
   provideCraftActivatedRoute: (
-    value: ActivatedRoute | (() => ActivatedRoute),
+    value: CraftRouteContext | (() => CraftRouteContext),
   ) => CraftServiceProvider;
 };
 
 /**
- * Yields the current Angular `ActivatedRoute` through the Craft service
+ * Yields the current `CraftRouteContext` through the Craft service
  * dependency system.
  *
  * ```ts
@@ -25,5 +25,5 @@ const craftActivatedRouteService = ɵcraftValueService(
 export const CraftActivatedRoute =
   craftActivatedRouteService.CraftActivatedRoute;
 export const provideCraftActivatedRoute = (
-  value: ActivatedRoute | (() => ActivatedRoute),
+  value: CraftRouteContext | (() => CraftRouteContext),
 ): CraftServiceProvider => craftActivatedRouteService.provideCraftActivatedRoute(value);

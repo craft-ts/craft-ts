@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sourceFromEvent, SourceFromEvent } from './source-from-event';
 
@@ -12,7 +12,7 @@ describe('sourceFromEvent', () => {
 
   it('should create a signal source that updates on event', () => {
     let eventSource!: SourceFromEvent<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource = sourceFromEvent<MouseEvent>(button, 'click');
     });
     expect(eventSource()).toBe(undefined);
@@ -24,7 +24,7 @@ describe('sourceFromEvent', () => {
 
   it('should remove listener when disposed manually', () => {
     let eventSource!: SourceFromEvent<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource = sourceFromEvent<MouseEvent>(button, 'click');
     });
 
@@ -47,7 +47,7 @@ describe('sourceFromEvent', () => {
 
   it('should call dispose when DestroyRef triggers onDestroy', () => {
     let eventSource!: SourceFromEvent<MouseEvent>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource = sourceFromEvent<MouseEvent>(button, 'click');
     });
 
@@ -58,7 +58,7 @@ describe('sourceFromEvent', () => {
     expect(eventSource()).toBe(clickEvent);
 
     // Destroy the pure Craft test injector (this triggers DestroyRef.onDestroy).
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
 
     // Fire another event - it should not update the signal after component destruction
     const clickEvent2 = new MouseEvent('click');
@@ -71,7 +71,7 @@ describe('sourceFromEvent', () => {
       offsetX: number;
       offsetY: number;
     }>;
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       eventSource = sourceFromEvent(button, 'click', {
         computedValue: (event: MouseEvent) => ({
           offsetX: event.offsetX,

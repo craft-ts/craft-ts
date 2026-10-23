@@ -37,7 +37,6 @@ import {
   ɵfallbackComponentRegister,
   ɵinjectComponentRegister,
   ɵregisterCraftTarget,
-  ɵcraftInjectorFromHost,
   type CraftServiceProvider,
   type CraftDomAdapter,
   type CraftDomEvent,
@@ -66,6 +65,7 @@ import {
   ɵinjectCraftMatch,
   ɵinjectCraftChildMatch,
   ɵrunInInjectionContext,
+  ɵisCraftDevMode,
   ɵcraftBatch,
   craftUse,
 } from '@craft-ts/core';
@@ -80,7 +80,6 @@ import {
   ElementRef,
   EnvironmentInjector,
   Injector,
-  reflectComponentType,
   runInInjectionContext,
   signal,
   untracked,
@@ -162,7 +161,6 @@ import { HydrationMismatchError, type HydrationCursor } from './hydration';
 import { setNodeHydrationKey } from './hydration-metadata';
 import type { CraftSsrCoordinator } from './ssr-coordinator';
 
-declare const ngDevMode: boolean | undefined;
 
 type NativeNode = Node;
 type NativeParent = Node;
@@ -1239,7 +1237,7 @@ function renderCraftDirectiveNode(
  */
 function driveTemplateChildren(
   result: unknown,
-  injector: EnvironmentInjector | object,
+  injector: EnvironmentInjector,
 ): CraftNodeChildren {
   let current = result;
   while (isGenerator(current)) {
@@ -1678,8 +1676,7 @@ function applyAttribute(
         : safeUrl(value, urlOptions);
   }
   if (key.startsWith('data-craft-')) {
-    const dev = typeof ngDevMode === 'undefined' || ngDevMode;
-    if (dev) {
+    if (ɵisCraftDevMode()) {
       throw new Error(
         'data-craft-* attributes are reserved for the Craft renderer.',
       );
@@ -4162,11 +4159,11 @@ class ComponentRenderedNode implements RenderedNode {
       : undefined;
     const componentElement =
       hostTarget ?? (isElementNode(parent) ? parent : parent.parentElement);
-    // Angular's runtime accepts any Injector as the R3Injector parent even
+    // The runtime accepts any parent injector even
     // though the public helper narrows the type to EnvironmentInjector. Keep
     // the immediate parent here: unwrapping it through
     // `get(EnvironmentInjector)` would skip route-scoped providers such as
-    // ActivatedRoute and ChildrenOutletContexts.
+    // CraftRouteContext and ChildrenOutletContexts.
     const parentInjector = context.injector as EnvironmentInjector;
     if (!composition) {
       const scopeInjector = createEnvironmentInjector(
@@ -5801,10 +5798,10 @@ export type InterpretedRenderOptions = Readonly<{
 export function mountInterpretedComponent<Props extends object>(
   component: CraftComponent<Props>,
   host: Element,
-  injector: Injector | object,
+  injector: Injector,
   props: Props,
 ): MountedCraftComponent<Props> {
-  const craftInjector = ɵcraftInjectorFromHost(injector);
+  const craftInjector = injector;
   const renderer = createBrowserDomAdapter(host.ownerDocument);
   return mountInterpretedComponentWithOptions(
     component,
@@ -5818,11 +5815,11 @@ export function mountInterpretedComponent<Props extends object>(
 export function mountInterpretedComponentWithOptions<Props extends object>(
   component: CraftComponent<Props>,
   host: Element,
-  injector: Injector | object,
+  injector: Injector,
   props: Props,
   options: InterpretedRenderOptions,
 ): MountedCraftComponent<Props> {
-  const craftInjector = ɵcraftInjectorFromHost(injector);
+  const craftInjector = injector;
   const identity =
     options.identity ??
     createCraftRenderIdentity([component[CRAFT_COMPONENT].name, 0]);
@@ -5864,11 +5861,11 @@ export function mountInterpretedComponentWithOptions<Props extends object>(
 export function mountInterpretedComponentTemplate<Context>(
   component: CraftComponent<any>,
   host: Element,
-  injector: Injector | object,
+  injector: Injector,
   context: Context,
   additionalProviders: readonly CraftServiceProvider[] = [],
 ): MountedCraftTemplate<Context> {
-  const craftInjector = ɵcraftInjectorFromHost(injector);
+  const craftInjector = injector;
   const renderer = createBrowserDomAdapter(host.ownerDocument);
   let instance: ComponentRenderedNode;
   try {

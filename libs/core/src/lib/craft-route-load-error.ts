@@ -313,7 +313,7 @@ export function loadRouteWithRetry<T>(
     };
   } catch {
     // Some consumers invoke emitted loader callbacks directly in tests. Keep
-    // the original loader semantics when no Angular injection context exists.
+    // the original loader semantics when no injection context exists.
   }
 
   return (async () => {

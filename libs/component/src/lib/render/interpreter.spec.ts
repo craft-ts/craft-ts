@@ -238,7 +238,7 @@ describe('functional component interpreter', () => {
     destroy();
   });
 
-  // Angular's scheduler coalesced writes made in the same turn into a single
+  // The scheduler coalesced writes made in the same turn into a single
   // binding run. alien-signals notifies synchronously, so each write re-runs
   // the binding. Batching writes back into one run is a scheduler decision
   // tracked separately; what this spec pins is that the DOM lands on the last
@@ -2254,7 +2254,7 @@ describe('functional component interpreter', () => {
         mountedElements.push(context.element);
         expect(inject(ElementRef).nativeElement).toBe(context.element);
         // Craft directives render through `context.renderer` (the DOM adapter);
-        // there is no Angular Renderer2 anywhere on this path any more.
+        // this path uses the Craft renderer.
         inject(DestroyRef).onDestroy(destroyRefCleanups);
         ɵinjectCraftNodeEffectFactoryIn(context.injector)('marker', () => {
           context.renderer.setAttribute(
@@ -2377,7 +2377,7 @@ describe('functional component interpreter', () => {
 
     // The write is applied synchronously, so the branch throws inside the click
     // listener rather than during the later flush: the error surfaces on the
-    // window instead of rejecting `flush()` as it did on the Angular scheduler.
+    // window instead of rejecting `flush()` as it did before the scheduler settled.
     const listenerErrors: unknown[] = [];
     const captureError = (event: ErrorEvent) => {
       listenerErrors.push(event.error ?? event.message);

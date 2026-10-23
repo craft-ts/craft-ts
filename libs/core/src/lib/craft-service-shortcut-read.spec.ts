@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { craftService } from './craft-service';
 import { craftExpose } from './craft-primitive-gen';
 import { craftUse } from './craft-use';
@@ -72,7 +72,7 @@ const { Resource, provideResource } = craftService(
 
 describe('a service shortcut reads a reactive member', () => {
   it('returns the value at any depth, calls methods, keeps resources', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideStore(),
         provideHolder(),
@@ -85,7 +85,7 @@ describe('a service shortcut reads a reactive member', () => {
       ],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const one = craftUse(OneLevel());
       craftUse(TwoLevels());
       craftUse(Method());

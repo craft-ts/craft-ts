@@ -8,7 +8,7 @@ import {
   createServer,
   flattenMiddlewares,
   serverFunction,
-  TestBed,
+  CraftTestBed,
 } from '@craft-ts/core';
 
 class Trace extends Context.Service<Trace, string[]>()(
@@ -109,7 +109,7 @@ function makeServer(
 }
 
 describe('yieldable server middleware', () => {
-  beforeEach(() => TestBed.resetTestingModule());
+  beforeEach(() => CraftTestBed.resetTestingModule());
 
   it('returns the business value from yield* and runs .use before the handler', async () => {
     const trace: string[] = [];

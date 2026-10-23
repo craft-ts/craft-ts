@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { asyncProcess } from './async-process';
 import { craftUse } from './craft-use';
@@ -11,7 +11,7 @@ import { state } from './state';
 
 describe('yieldable insertion methods', () => {
   it('returns a yieldable invocation for state methods and source adapters', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(
         state('counter', 0, ({ set }) => ({
           increment: () => set(1),
@@ -33,7 +33,7 @@ describe('yieldable insertion methods', () => {
   });
 
   it('allows a later pipe member to delegate to an earlier method', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const counter = craftUse(
         state('counter', 0, (context) =>
           craftPipe(
@@ -59,7 +59,7 @@ describe('yieldable insertion methods', () => {
   });
 
   it('wraps methods added to query, mutation and asyncProcess', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const queryRef = craftUse(
         query(
           'queryRef',

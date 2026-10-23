@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { FullDemoView, provideFullDemoView } from './full-demo';
 import {
   setupCraftServiceTestingByRegister,
-  TestBed,
+  CraftTestBed,
   craftUse,
   type ValidatedFormValue,
 } from '@craft-ts/core';
@@ -19,7 +19,7 @@ describe('Full primitives demo logic', () => {
       fullDemoView: provideFullDemoView(),
     });
 
-    TestBed.tick();
+    CraftTestBed.tick();
     await vi.waitFor(() =>
       expect(craftUse(result.sut.todos.value())).toEqual([
         { id: 1, title: 'Learn Craft primitives' },

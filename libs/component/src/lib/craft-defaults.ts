@@ -14,10 +14,7 @@ import { craftPending } from './craft-defaults.style';
  * `CraftStayMs` and `CraftBlankMs`. Override them globally with
  * `withPendingComponent`, or per route via the route's `pendingComponent`.
  *
- * This used to be an Angular component shipped by `@craft-ts/angular`, which
- * made a plain loading indicator drag the whole framework in. It is a Craft
- * component now, and `@craft-ts/component` — the package that owns the
- * renderer — is where it belongs.
+ * The component package owns this default because it owns the renderer.
  */
 const DefaultCraftPendingComponent = craftComponent(
   'craftPending',
@@ -29,14 +26,11 @@ const DefaultCraftPendingComponent = craftComponent(
   craftRouteTarget(DefaultCraftPendingComponent),
 );
 
-// TODO(sortie-angular): the lazy-route recovery host has no Craft replacement
-// yet. The Angular one mounted the route-load error component through
-// NgComponentOutlet, using the failing route's own injector; the Craft DSL has
-// no equivalent dynamic mount, so writing one is its own piece of work.
+// TODO: add a dynamic route recovery host that uses the failing route's injector.
 // Until then core's fallback is null: a failed lazy load reports through
 // CraftRouteLoadError and renders nothing, rather than throwing.
 
-// Lets TestBed.createComponent(...) mount a Craft component: only this package
+// Lets CraftTestBed.createComponent(...) mount a Craft component: only this package
 // owns the renderer.
 ɵsetCraftTestMounter((component, host, injector) => {
   const mounted = mountCraftComponent(component as never, host, injector);

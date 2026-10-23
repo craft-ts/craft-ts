@@ -303,21 +303,21 @@ function testSource(name: string, type: string, advanced: boolean): string {
   const formName = `${name}Form`;
   return `// @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import ${formName} from './${name}-form';
 
 describe('${type} form', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
   it('renders the generated form and exposes validation controls', () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const mounted = mountCraftComponent(${formName}, host, TestBed.inject(Injector));
-    TestBed.tick();
+    const mounted = mountCraftComponent(${formName}, host, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
     expect(host.querySelector('form')).not.toBeNull();
     expect(host.querySelectorAll('input').length).toBeGreaterThanOrEqual(${advanced ? 2 : 2});
     mounted.destroy();
@@ -326,10 +326,10 @@ describe('${type} form', () => {
   it('submits through the form boundary and renders validation feedback', () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const mounted = mountCraftComponent(${formName}, host, TestBed.inject(Injector));
-    TestBed.tick();
+    const mounted = mountCraftComponent(${formName}, host, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
     host.querySelector('form')?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }));
-    TestBed.tick();
+    CraftTestBed.tick();
     expect(host.textContent).toContain('required');
     mounted.destroy();
   });

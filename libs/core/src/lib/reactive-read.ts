@@ -383,7 +383,7 @@ export type RawReactiveProperties<Shape> =
             }
           : Shape;
 
-/** Recursively replaces exposed Angular signals while preserving methods/plain values. */
+/** Recursively unwraps exposed Craft signals while preserving methods and plain values. */
 export type YieldableReactiveProperties<Shape> = Shape extends SourceBranded
   ? Shape extends Signal<any>
     ? YieldableReactiveSignal<Shape, string>

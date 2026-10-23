@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed } from '@craft-ts/core';
+import { CraftTestBed } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectSyncMembersComponent from './effect-sync-members';
@@ -10,20 +10,20 @@ describe('demo: synchronous and asynchronous members of one Effect service', () 
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
   });
 
   afterEach(() => {
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   const mount = () => {
     const element = document.createElement('div');
     document.body.append(element);
-    const injector = TestBed.rootInjector.createChild([
+    const injector = CraftTestBed.rootInjector.createChild([
       provideLayer(CartPricingLive),
     ]);
     const mounted = mountCraftComponent(
@@ -31,7 +31,7 @@ describe('demo: synchronous and asynchronous members of one Effect service', () 
       element,
       injector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
     return { element, injector, mounted };
   };
 
@@ -41,7 +41,7 @@ describe('demo: synchronous and asynchronous members of one Effect service', () 
     );
     if (!target) throw new Error(`No interactive element named "${name}".`);
     target.click();
-    TestBed.tick();
+    CraftTestBed.tick();
   };
 
   it('renders the total on the very first tick — no await', () => {

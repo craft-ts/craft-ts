@@ -2,7 +2,7 @@ import type { ResourceStatus } from '../host/craft-compat';
 
 /**
  * The status a craft primitive (`query` / `mutation` / `asyncProcess`) exposes
- * on its public façade. Mirrors Angular's {@link ResourceStatus} but replaces the
+ * on its public façade. Maps {@link ResourceStatus} and replaces the
  * technical `'error'` state with the craft-business `'exception'` state: a
  * resource reaches `'exception'` when a loader/params `craftException` is present.
  */
@@ -15,7 +15,7 @@ export type CraftResourceStatus =
   | 'exception';
 
 /**
- * Maps a raw Angular {@link ResourceStatus} to the craft-facing
+ * Maps a raw resource {@link ResourceStatus} to the Craft-facing
  * {@link CraftResourceStatus}. `hasException` is the business discriminant and is
  * checked first; a residual technical `'error'` is also surfaced as `'exception'`
  * to keep the public type sound (in the expected craft model errors are left to

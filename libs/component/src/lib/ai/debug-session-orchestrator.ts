@@ -358,7 +358,7 @@ export function compileReplayPlan(
           typeof event.payload['url'] !== 'string'
         )
           return false;
-        // Angular can emit NavigationStart and route-load observations before
+        // Navigation start and route-load observations can precede
         // the delegated anchor click is captured. When the next interaction's
         // href matches, retain that navigation for the link command.
         return !(

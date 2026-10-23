@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Equal, Expect } from 'test-type';
@@ -162,7 +162,7 @@ declare module './craft-router' {
 class CraftRouterLinkHostComponent {}
 
 beforeEach(() => {
-  TestBed.resetTestingModule();
+  CraftTestBed.resetTestingModule();
   vi.useRealTimers();
 });
 
@@ -174,11 +174,11 @@ describe('CraftRouter', () => {
   });
 
   it('should expose type-safe route inputs', () => {
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
     });
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const router = craftUse(CraftRouter());
 
       if (false) {
@@ -275,11 +275,11 @@ describe('CraftRouter', () => {
   }, 30_000);
 
   it('should create and navigate to typed absolute urls', async () => {
-    await TestBed.configureTestingModule({
+    await CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
     }).compileComponents();
 
-    const craftRouter = TestBed.runInInjectionContext(() =>
+    const craftRouter = CraftTestBed.runInInjectionContext(() =>
       craftUse(CraftRouter()),
     );
 
@@ -342,7 +342,7 @@ describe('CraftRouter', () => {
   it('uses hash URLs for links, navigation and active checks', async () => {
     window.history.replaceState(null, '', '/');
     const platform = createBrowserPlatform(window);
-    await TestBed.configureTestingModule({
+    await CraftTestBed.configureTestingModule({
       providers: [
         provideCraftPlatform(platform),
         provideCraftRouter(
@@ -352,7 +352,7 @@ describe('CraftRouter', () => {
       ],
     }).compileComponents();
 
-    const router = TestBed.runInInjectionContext(() => craftUse(CraftRouter()));
+    const router = CraftTestBed.runInInjectionContext(() => craftUse(CraftRouter()));
     const userTree = router.createUrlTree({
       to: 'users/:userId',
       params: { userId: '42' },
@@ -373,11 +373,11 @@ describe('CraftRouter', () => {
 
   it('skipLocationChange updates url without changing the address bar', async () => {
     window.history.replaceState(null, '', '/');
-    await TestBed.configureTestingModule({
+    await CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter(craftRouterTestRoutes.toRoutes())],
     }).compileComponents();
 
-    const craftRouter = TestBed.runInInjectionContext(() =>
+    const craftRouter = CraftTestBed.runInInjectionContext(() =>
       craftUse(CraftRouter()),
     );
 
@@ -386,7 +386,7 @@ describe('CraftRouter', () => {
     expect(craftRouter.url).toBe('/users/42');
     expect(window.location.pathname).toBe('/');
     expect(
-      TestBed.runInInjectionContext(() => ɵinjectCraftHistory()!).get()
+      CraftTestBed.runInInjectionContext(() => ɵinjectCraftHistory()!).get()
         .pathname,
     ).toBe('/users/42');
     expect(
@@ -432,7 +432,7 @@ describe('CraftRouter', () => {
     expect(NestedHost).toBeDefined();
 
     if (false) {
-      TestBed.runInInjectionContext(() => {
+      CraftTestBed.runInInjectionContext(() => {
         const router = craftUse(CraftRouter());
         // Joined path resolves at the type level
         router.navigate({
@@ -535,11 +535,11 @@ describe('CraftRouter', () => {
 
   it('disposes the browser history popstate listener when the injector is destroyed', () => {
     const removeSpy = vi.spyOn(window, 'removeEventListener');
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftRouter([])],
     });
-    TestBed.runInInjectionContext(() => ɵinjectCraftHistory());
-    TestBed.resetTestingModule();
+    CraftTestBed.runInInjectionContext(() => ɵinjectCraftHistory());
+    CraftTestBed.resetTestingModule();
 
     expect(removeSpy.mock.calls.some((call) => call[0] === 'popstate')).toBe(
       true,

@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   componentMonitoring,
@@ -8,30 +8,30 @@ import { SERVICE_YIELD_REQUEST_MARKER } from './craft-generator-runtime';
 
 describe('componentMonitoring', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('is a no-op by default (no provider registered)', () => {
-    TestBed.configureTestingModule({});
+    CraftTestBed.configureTestingModule({});
     expect(() =>
-      TestBed.runInInjectionContext(() => componentMonitoring()),
+      CraftTestBed.runInInjectionContext(() => componentMonitoring()),
     ).not.toThrow();
   });
 
   it('calls a sync monitor factory registered via provideComponentMonitoring', () => {
     let called = false;
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideComponentMonitoring(() => {
         called = true;
       })],
     });
-    TestBed.runInInjectionContext(() => componentMonitoring());
+    CraftTestBed.runInInjectionContext(() => componentMonitoring());
     expect(called).toBe(true);
   });
 
   it('drives a generator monitor factory through the craft generator runtime', () => {
     const resolvedValues: unknown[] = [];
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideComponentMonitoring(function* (): Generator<
           unknown,
@@ -47,7 +47,7 @@ describe('componentMonitoring', () => {
         }),
       ],
     });
-    TestBed.runInInjectionContext(() => componentMonitoring());
+    CraftTestBed.runInInjectionContext(() => componentMonitoring());
     expect(resolvedValues).toEqual(['monitored']);
   });
 
@@ -57,12 +57,12 @@ describe('componentMonitoring', () => {
 });
 
 describe('provideComponentMonitoring', () => {
-  it('returns a provider accepted by the Angular host', () => {
+  it('returns a provider accepted by the Craft injector', () => {
     const fn = () => undefined;
     const provider = provideComponentMonitoring(fn);
-    TestBed.configureTestingModule({ providers: [provider] });
+    CraftTestBed.configureTestingModule({ providers: [provider] });
     expect(() =>
-      TestBed.runInInjectionContext(() => componentMonitoring()),
+      CraftTestBed.runInInjectionContext(() => componentMonitoring()),
     ).not.toThrow();
   });
 });

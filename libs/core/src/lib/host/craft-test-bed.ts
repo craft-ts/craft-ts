@@ -41,28 +41,24 @@ function ɵmountCraftTestComponent(
 ): { instance: unknown; destroy(): void } {
   if (!mounter) {
     throw new Error(
-      'TestBed.createComponent needs @craft-ts/component; import it in the spec.',
+      'CraftTestBed.createComponent needs @craft-ts/component; import it in the spec.',
     );
   }
   return mounter(component, host, injector);
 }
 
 /**
- * The Craft stand-in for Angular's `TestBed`.
+ * Minimal test harness for Craft services and components.
  *
- * Specs only ever used six of its methods, and every one of them is really a
- * question about a root injector: configure providers, resolve a token, run a
- * callback in context. This keeps that call shape so the suites read the same,
- * while the thing underneath is a plain `CraftInjector` — no platform, no
- * testing module, no compiler.
+ * Configure providers, resolve a token, run a callback in context, or mount a
+ * component through the renderer registered by `@craft-ts/component`.
  */
-class CraftTestBed {
+class CraftTestBedRuntime {
   private providers: unknown[] = [];
   private injector: (CraftInjector & { destroy?(): void }) | undefined;
 
   /**
-   * Angular needed a platform booted once per process. Craft does not, so this
-   * exists purely so the `beforeAll` blocks in the ported specs keep compiling.
+   * Kept as a no-op so test runners can share setup across suites.
    */
   initTestEnvironment(..._args: unknown[]): void {
     // no platform to boot
@@ -117,14 +113,14 @@ class CraftTestBed {
     // effects are synchronous
   }
 
-  /** Angular's change-detection pump. Same story as {@link flushEffects}. */
+  /** Flushes pending Craft updates, like {@link flushEffects}. */
   tick(): void {
     // effects are synchronous
   }
 
   /**
-   * Mounts a Craft component and returns an Angular-shaped fixture, so the
-   * specs written against `TestBed.createComponent(...)` keep their shape.
+   * Mounts a Craft component and returns a fixture, so the
+   * specs written against `CraftTestBed.createComponent(...)` keep their shape.
    * `detectChanges` has nothing to do — the mount already rendered.
    */
   createComponent<T = unknown>(component: unknown): CraftComponentFixture<T> {
@@ -166,4 +162,4 @@ class CraftTestBed {
   }
 }
 
-export const TestBed = new CraftTestBed();
+export const CraftTestBed = new CraftTestBedRuntime();

@@ -233,7 +233,7 @@ export type TemplateContractAssertions<
 };
 
 /**
- * Type-only template setup contract. It never creates an Angular fixture or
+ * Type-only template setup contract. It never creates a test fixture or
  * touches the DOM; invalid child registrations resolve to a diagnostic type.
  */
 export type SetupTestComponentTemplate<

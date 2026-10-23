@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import {
   provideCraftTemporalRuntime,
@@ -21,10 +21,10 @@ describe('PixelArtMatrix', () => {
   let clock: VirtualCraftTemporalRuntime;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     clock = new VirtualCraftTemporalRuntime();
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [provideCraftTemporalRuntime(clock)],
     });
   });
@@ -35,16 +35,16 @@ describe('PixelArtMatrix', () => {
     const mounted = mountCraftComponent(
       PixelArtMatrix,
       element,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     const cell = element.querySelector<HTMLButtonElement>('[data-testid="matrix-cell"]');
     expect(cell).toBeTruthy();
     expect(cell?.style.getPropertyValue('--pixel-fill')).toBe(EMPTY);
 
     cell?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(cell?.style.getPropertyValue('--pixel-fill')).toBe(PAINTED);
 
@@ -57,19 +57,19 @@ describe('PixelArtMatrix', () => {
     const mounted = mountCraftComponent(
       PixelArtMatrix,
       element,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     const origin = cellsInColumn(element, 0)[0];
     expect(origin).toBeTruthy();
     origin?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
     expect(origin?.style.getPropertyValue('--pixel-fill')).toBe(PAINTED);
 
     origin?.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     await clock.advanceBy(LONG_PRESS_DURATION_MS);
-    TestBed.tick();
+    CraftTestBed.tick();
 
     const column = cellsInColumn(element, 0);
     expect(column.length).toBe(16);
@@ -82,7 +82,7 @@ describe('PixelArtMatrix', () => {
 
     origin?.dispatchEvent(new Event('pointerup', { bubbles: true }));
     origin?.click();
-    TestBed.tick();
+    CraftTestBed.tick();
     expect(origin?.style.getPropertyValue('--pixel-fill')).toBe(PAINTED);
 
     mounted.destroy();

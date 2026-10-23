@@ -9,8 +9,8 @@ import {
 } from './craft-service';
 import { CRAFT_SERVICE_PROVIDER_BRAND } from './craft-service.shared';
 
-type AngularApplicationProvider = ApplicationConfig['providers'][number] | object;
-type AngularApplicationProviders = readonly AngularApplicationProvider[];
+type CraftApplicationProvider = ApplicationConfig['providers'][number];
+type CraftApplicationProviders = readonly CraftApplicationProvider[];
 export type AppConfigProvidedServiceNamesKey =
   '__craftAppProvidedServiceNames__';
 export type AppConfigProvidedDependencyValuesKey =
@@ -95,9 +95,9 @@ type ConfigProvidedServiceNames<Providers> =
 
 export type CraftAppConfigResult<
   Providers extends
-    AngularApplicationProviders = readonly AngularApplicationProvider[],
+    CraftApplicationProviders = readonly CraftApplicationProvider[],
 > = {
-  readonly providers: readonly AngularApplicationProvider[];
+  readonly providers: readonly CraftApplicationProvider[];
   /** @internal phantom — compile-time app provider registry */
   readonly __craftAppProvidedServiceNames__?: ConfigProvidedServiceNames<Providers>;
   /** @internal phantom — compile-time app provider values */
@@ -105,7 +105,7 @@ export type CraftAppConfigResult<
 };
 
 export function craftAppConfig<
-  const Providers extends AngularApplicationProviders = readonly [],
+  const Providers extends CraftApplicationProviders = readonly [],
 >(
   config: {
     providers?: Providers;
@@ -115,7 +115,7 @@ export function craftAppConfig<
   const providers = [
     ...getCraftRootDefaultProviders(),
     ...(config.providers ?? []),
-  ] as AngularApplicationProvider[];
+  ] as CraftApplicationProvider[];
   const providerNames = collectProvidedServiceNames(providers);
 
   for (const reference of getRegisteredAppStartServices()) {

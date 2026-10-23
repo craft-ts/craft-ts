@@ -917,7 +917,7 @@ it('propagates an Effect service used by transitionGuardEffect into the route DI
   expectTypeOf<CanRun<ProvidedRouteCheck>>().toEqualTypeOf<true>();
 });
 
-it('does not treat unbranded Angular providers as Craft service providers', () => {
+it('does not treat unbranded objects as Craft service providers', () => {
   const { MissingProvider } = craftService(
     { name: 'MissingProvider', providedIn: 'toProvide' },
     function* () {

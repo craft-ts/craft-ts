@@ -1,8 +1,8 @@
 import type { WritableSignal } from './host/craft-compat';
 import type {
-  ActivatedRouteSnapshot,
-  RouterStateSnapshot,
-} from './host/craft-router-types';
+  CraftRouteSnapshot,
+  CraftRouterState,
+} from './host/craft-router-model';
 import type { CraftRouteExceptionHandlerMap } from './craft-guard-runtime';
 import type { AnyPathParamsDefinition } from './path-params';
 import type {
@@ -12,7 +12,7 @@ import type {
 
 /**
  * Symbol key under which `craftRoutes` stashes a route's craft-only execution
- * metadata onto the Angular `Route.data`. The
+ * metadata onto the compiled route's `data`. The
  * {@link CraftRouterOutletController} reads it
  * to drive the route's guard/resolve chain *after* the URL commits; it is never
  * a real `data` value the component sees.
@@ -21,8 +21,8 @@ export const CRAFT_ROUTE_META = Symbol('craft-route-meta');
 
 /** A guard/resolve generator factory — the outlet creates a fresh iterator per run. */
 export type CraftRouteStepFactory = (
-  route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot,
+  route: CraftRouteSnapshot,
+  state: CraftRouterState,
 ) => Generator<unknown, unknown, unknown>;
 
 /** The craft-only execution metadata the outlet needs to run a route's chain. */

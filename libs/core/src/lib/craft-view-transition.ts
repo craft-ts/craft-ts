@@ -49,7 +49,7 @@ export function viewTransitionPayload<T>(): ViewTransitionPayloadDef<T> {
 export type CraftViewTransitionInput = unknown;
 
 /**
- * Key under which the view-transition payload travels in Angular's navigation
+ * Key under which the view-transition payload travels in Craft navigation
  * `state` (history state). The outlet reads it from the current navigation and
  * republishes it through {@link CRAFT_VIEW_TRANSITION}.
  */
@@ -210,7 +210,7 @@ function defaultStartViewTransition(cb: () => void): void {
 /**
  * Hands the {@link CraftRouterOutletController} control of the browser View
  * Transitions
- * API. Unlike Angular's `withViewTransitions()` — which brackets only the
+ * API. The browser's `withViewTransitions()` — which brackets only the
  * synchronous URL commit — this drives `document.startViewTransition()` around
  * the outlet's *own* swaps (`previous page → skeleton → target`), so a
  * shared-element morph survives a slow guard/resolve chain.

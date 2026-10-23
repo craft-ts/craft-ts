@@ -38,7 +38,7 @@ export type StoragePersisterOptions<
 
 /**
  * Persists query, mutation, async-process, or state data through the
- * StoragePersister selected by the current Angular/Craft injector.
+ * StoragePersister selected by the current Craft injector.
  *
  * The identity (`key` + `storeName`) must be wrapped with `craftUnique` so the
  * static graph can guarantee it appears only once in the project.

@@ -187,8 +187,8 @@ const { AiSendDialogState, provideAiSendDialogState } = craftService(
     };
 
     // This component ships in a published package, so its inferred type goes
-    // through declaration emit. Reactive values (craft `state()`, Angular
-    // signals) carry `unique symbol`s that the emitter cannot name (TS4023),
+    // through declaration emit. Reactive values carry `unique symbol`s that
+    // the emitter cannot name (TS4023),
     // so the signals stay local and the context exposes plain accessors only.
     const instruction = (yield* craftPrivate(
       state('instruction', '', ({ set }) => ({

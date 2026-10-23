@@ -33,7 +33,7 @@ import { SourceBranded } from './util/util';
  * - computedSource maintains source lazy behavior
  *
  * **Equality Comparison:**
- * - Default: Uses Angular's default equality check
+ * - Default: Uses the default equality check
  * - Custom: Provide `equal` option for custom comparison
  * - Prevents unnecessary emissions when computed value hasn't changed
  *
@@ -158,10 +158,10 @@ import { SourceBranded } from './util/util';
  * }));
  *
  * // Single input triggers entire chain
- * inputSource.set('  Angular  Signals  ');
- * // -> normalizedSource emits 'angular signals'
- * // -> searchTermsSource emits ['angular', 'signals']
- * // -> searchQuerySource emits { terms: ['angular', 'signals'], operator: 'AND' }
+ * inputSource.set('  Craft  Signals  ');
+ * // -> normalizedSource emits 'craft signals'
+ * // -> searchTermsSource emits ['craft', 'signals']
+ * // -> searchQuerySource emits { terms: ['craft', 'signals'], operator: 'AND' }
  * // -> search executes
  * ```
  *

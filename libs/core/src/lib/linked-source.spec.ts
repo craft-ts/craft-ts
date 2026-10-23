@@ -1,7 +1,7 @@
 import {
   computed,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { SignalSource, signalSource } from './signal-source';
 import { linkedSource } from './linked-source';
 
@@ -14,7 +14,7 @@ describe('linkedSource', () => {
     vi.resetAllMocks();
   });
   it('should generate a linkedSource', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = signalSource<{ text: string }>('mySource');
       const myLinkedSource = linkedSource(
         mySource,
@@ -38,9 +38,9 @@ describe('linkedSource', () => {
       myLinkedSource.set('Hello CraftTS');
       expect(myListener()).toBe('Hello CraftTS');
       console.log('mySource set');
-      mySource.set({ text: 'Hello Angular' });
+      mySource.set({ text: 'Hello Craft' });
       console.log('myListener()', myListener());
-      expect(myListener()).toBe('Hello Angular');
+      expect(myListener()).toBe('Hello Craft');
     });
   });
 });

@@ -2,7 +2,7 @@
 import {
   provideStorageService,
   SessionStorageService,
-  TestBed,
+  CraftTestBed,
   ɵInjector as Injector,
 } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
@@ -15,14 +15,14 @@ function mount() {
   const mounted = mountCraftComponent(
     TaskBoardStateMachineList,
     element,
-    TestBed.inject(Injector),
+    CraftTestBed.inject(Injector),
   );
-  TestBed.tick();
+  CraftTestBed.tick();
   return { element, mounted };
 }
 
 function configureStorageService() {
-  TestBed.configureTestingModule({
+  CraftTestBed.configureTestingModule({
     providers: [
       provideStorageService(function* () {
         return yield* SessionStorageService();
@@ -41,7 +41,7 @@ function click(row: HTMLElement, name: string) {
   );
   expect(button, `no button named "${name}"`).not.toBeNull();
   button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  TestBed.tick();
+  CraftTestBed.tick();
 }
 
 function badge(row: HTMLElement) {
@@ -61,12 +61,12 @@ function type(row: HTMLElement, value: string) {
     input.value = value;
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  TestBed.tick();
+  CraftTestBed.tick();
 }
 
 describe('TaskBoardStateMachineList', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     sessionStorage.clear();
     configureStorageService();
@@ -141,7 +141,7 @@ describe('TaskBoardStateMachineList', () => {
 
     // A reload: new components, new machines, new primitives. Session storage
     // survives, and each history finds its own row again by task id.
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     configureStorageService();
     const after = mount();

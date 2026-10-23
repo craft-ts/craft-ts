@@ -1,6 +1,6 @@
 import { provideCraftRouter } from './craft-router';
 import { computed, Signal } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import {
   insertAsyncProcessPipe,
   insertMutationPipe,
@@ -24,7 +24,7 @@ import {
 
 describe('typed insertion pipes', () => {
   it('resolves a replay method when host instance ordinals changed after reload', () => {
-    const registry = TestBed.runInInjectionContext(() =>
+    const registry = CraftTestBed.runInInjectionContext(() =>
       ɵinjectCraftMethodReplayRegistry(),
     );
     const calls: unknown[][] = [];
@@ -44,7 +44,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('does not guess between replay methods with the same ordinal-free address', () => {
-    const registry = TestBed.runInInjectionContext(() =>
+    const registry = CraftTestBed.runInInjectionContext(() =>
       ɵinjectCraftMethodReplayRegistry(),
     );
     const unregisterFirst = registry.register(
@@ -68,7 +68,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('reports an unknown replay method instead of invoking an approximate address', () => {
-    const registry = TestBed.runInInjectionContext(() =>
+    const registry = CraftTestBed.runInInjectionContext(() =>
       ɵinjectCraftMethodReplayRegistry(),
     );
 
@@ -82,7 +82,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes state insertions, exposes previous outputs, and supports generators', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const executionOrder: string[] = [];
       const counter = craftUse(
         state(
@@ -113,7 +113,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes query insertions without an explicit context', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const users = craftUse(
         query(
           'users',
@@ -137,7 +137,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes mutation insertions without an explicit context', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const save = craftUse(
         mutation(
           'save',
@@ -160,8 +160,8 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes queryParams insertions without an explicit context', () => {
-    TestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
+    CraftTestBed.runInInjectionContext(() => {
       const pagination = craftUse(
         queryParams(
           'pagination',
@@ -195,7 +195,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes asyncProcess insertions without an explicit context', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const process = craftUse(
         asyncProcess(
           'process',
@@ -218,13 +218,13 @@ describe('typed insertion pipes', () => {
   });
 
   it('registers methods from every stateful primitive insertion for replay', async () => {
-    TestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
+    CraftTestBed.configureTestingModule({ providers: [...provideCraftRouter([])] });
     const calls: Array<readonly [string, unknown]> = [];
     const insertion = (primitive: string) => ({
       replayCall: (payload: unknown) => calls.push([primitive, payload]),
     });
 
-    const { registry, before } = TestBed.runInInjectionContext(() => {
+    const { registry, before } = CraftTestBed.runInInjectionContext(() => {
       const registry = ɵinjectCraftMethodReplayRegistry();
       const before = new Set(registry.addresses());
       craftUse(state('replay-state', 0, () => insertion('state')));
@@ -302,7 +302,7 @@ describe('typed insertion pipes', () => {
   });
 
   it('composes state machine insertions and exposes previous outputs', () => {
-    const machine = TestBed.runInInjectionContext(() =>
+    const machine = CraftTestBed.runInInjectionContext(() =>
       craftUse(
         craftStateMachine(
           'pipe-machine',

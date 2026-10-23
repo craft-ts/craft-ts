@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { describe, expect, it } from 'vitest';
 import { useSnippetHarness } from '../../../snippet-harness';
@@ -33,8 +33,8 @@ describe('guide/components/customization.md #card-2', () => {
   it('lets a parent drive a child through an inherited variable only', () => {
     const host = document.createElement('div');
     document.body.append(host);
-    mountCraftComponent(Card, host, TestBed.inject(Injector));
-    TestBed.tick();
+    mountCraftComponent(Card, host, CraftTestBed.inject(Injector));
+    CraftTestBed.tick();
 
     const card = host.firstElementChild;
     expect(card?.getAttribute('data-cardActive')).toBe('true');

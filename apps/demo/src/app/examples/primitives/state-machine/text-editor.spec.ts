@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { mountCraftComponent } from '@craft-ts/component';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import TextEditorStateMachine from './text-editor';
@@ -10,9 +10,9 @@ function mount() {
   const mounted = mountCraftComponent(
     TextEditorStateMachine,
     element,
-    TestBed.inject(Injector),
+    CraftTestBed.inject(Injector),
   );
-  TestBed.tick();
+  CraftTestBed.tick();
 
   return { element, mounted };
 }
@@ -23,7 +23,7 @@ function click(element: HTMLElement, name: string) {
   );
   expect(button, `no button named "${name}"`).not.toBeNull();
   button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  TestBed.tick();
+  CraftTestBed.tick();
 }
 
 function type(element: HTMLElement, value: string) {
@@ -35,7 +35,7 @@ function type(element: HTMLElement, value: string) {
     input.value = value;
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  TestBed.tick();
+  CraftTestBed.tick();
 }
 
 afterEach(() => {
@@ -44,7 +44,7 @@ afterEach(() => {
 
 describe('TextEditorStateMachine', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('commits a changed value and cancels a later draft', () => {

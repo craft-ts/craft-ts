@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mutation } from './mutation';
 import { query } from './query';
@@ -18,7 +18,7 @@ describe('insertion reload', () => {
   });
 
   it('query: is not part of the public type unless an insertion publishes it', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const users = craftUse(
         query('users', {
           params: () => 'x',
@@ -34,7 +34,7 @@ describe('insertion reload', () => {
   });
 
   it('query: an insertion can publish reload, which re-runs the loader', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => ({ id: 'x' }));
       const users = craftUse(
         query(
@@ -54,7 +54,7 @@ describe('insertion reload', () => {
   });
 
   it('query: reload keeps the value while it reloads', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const users = craftUse(
         query(
           'users',
@@ -78,7 +78,7 @@ describe('insertion reload', () => {
   });
 
   it('query: reload resolves to false when no request has been made yet', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => ({ id: 'x' }));
       const users = craftUse(
         query(
@@ -95,7 +95,7 @@ describe('insertion reload', () => {
   });
 
   it('query: reload re-runs a method-based query after its first call', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => ({ id: 'x' }));
       const users = craftUse(
         query(
@@ -116,7 +116,7 @@ describe('insertion reload', () => {
   });
 
   it('mutation: an insertion can publish reload', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const loader = vi.fn(async () => undefined);
       const save = craftUse(
         mutation(
@@ -137,7 +137,7 @@ describe('insertion reload', () => {
   });
 
   it('mutation: is not part of the public type unless an insertion publishes it', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const save = craftUse(
         mutation('save', {
           method: (_: undefined) => undefined,

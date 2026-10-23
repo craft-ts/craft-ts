@@ -40,7 +40,7 @@ function guardAwaitPromise(value: PromiseLike<unknown>): RuntimeGuardAwaitReques
 /**
  * Runs a lazy import with the shared retry engine. The first attempt uses the
  * identity helpers; on failure it re-invokes the loader up to the configured
- * attempts with cache-busting helpers. Outside an Angular injection context
+ * attempts with cache-busting helpers. Outside an injection context
  * (e.g. a hand-driven test) it degrades to a single attempt and rethrows.
  */
 function injectLazyLoad(): <T>(

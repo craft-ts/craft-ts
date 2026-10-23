@@ -3,7 +3,7 @@ import {
   createEnvironmentInjector,
   EnvironmentInjector,
   inject,
-  runInInjectionContext as runInAngularInjectionContext,
+  runInInjectionContext,
   signal,
   type EffectCleanupRegisterFn,
 } from './host/craft-compat';
@@ -71,20 +71,20 @@ describe('craftEffect', () => {
     expect(component.seen).toEqual([0, 1]);
   });
 
-  it('tracks Angular and Craft signal dependencies together', async () => {
-    const angularCount = signal(0);
+  it('tracks multiple Craft signal dependencies together', async () => {
+    const otherCount = signal(0);
     const craftCount = craftSignal(0);
     const seen: number[] = [];
 
     runInInjectionContext(() =>
       craftUse(craftEffect('mixed', () => {
-        seen.push(angularCount() + craftCount());
+        seen.push(otherCount() + craftCount());
       })),
     );
 
     flushHost();
     expect(seen).toEqual([0]);
-    angularCount.set(1);
+    otherCount.set(1);
     flushHost();
     expect(seen).toEqual([0, 1]);
 
@@ -93,7 +93,7 @@ describe('craftEffect', () => {
     expect(seen).toEqual([0, 1, 3]);
   });
 
-  it('retraces conditional Angular dependencies after a Craft-triggered run', async () => {
+  it('retraces conditional Craft dependencies after a Craft-triggered run', async () => {
     const useSecond = craftSignal(false);
     const first = signal('first');
     const second = signal('second');
@@ -148,7 +148,7 @@ describe('craftEffect', () => {
     const seen: number[] = [];
     const injector = createEnvironmentInjector([], hostEnvironmentInjector());
 
-    runInAngularInjectionContext(injector, () =>
+    runInInjectionContext(injector, () =>
       craftUse(craftEffect('destroyed', () => {
         seen.push(source());
       })),

@@ -151,7 +151,7 @@ describe('state', () => {
     });
   });
 
-  it('keeps an Angular readonly computed state live', async () => {
+  it('keeps an readonly computed state live', async () => {
     runInInjectionContext(() => {
       const origin = signal(5);
       const readonlyState = computed(() => origin() * 2);

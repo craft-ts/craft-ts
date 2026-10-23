@@ -1,4 +1,4 @@
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { craftUse } from './craft-use';
 import { vi } from 'vitest';
 import { provideCraftHttpTrace, type CraftHttpTraceContext } from './craft-http-trace';
@@ -102,8 +102,8 @@ let fetchTesting: FetchTestingController;
 
 describe('CraftHttpClient', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({});
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.configureTestingModule({});
     vi.restoreAllMocks();
     fetchTesting = new FetchTestingController();
     vi.stubGlobal('fetch', fetchTesting.fetch);
@@ -113,7 +113,7 @@ describe('CraftHttpClient', () => {
 
   it('passes a stable replayKey through the traced HTTP request context', async () => {
     const contexts: CraftHttpTraceContext[] = [];
-    TestBed.configureTestingModule({
+    CraftTestBed.configureTestingModule({
       providers: [
         provideCraftHttpTrace(async (context, next) => {
           contexts.push(context);
@@ -136,7 +136,7 @@ describe('CraftHttpClient', () => {
       new Response(JSON.stringify({ ok: true }), { status: 200 }),
     );
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const api = craftUse(ReplayKeyApi());
       await api.load();
     });
@@ -188,7 +188,7 @@ describe('CraftHttpClient', () => {
       User[] | CraftHttpClientError
     >();
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const usersApi = craftUse(UsersApi());
       vi.mocked(fetch).mockResolvedValueOnce(
         new Response(
@@ -254,7 +254,7 @@ describe('CraftHttpClient', () => {
     >();
 
     const httpTesting = fetchTesting;
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const usersApi = craftUse(UsersDecodedApi());
       const resultPromise = usersApi.getUser();
       const request = httpTesting.expectOne('/api/user');
@@ -288,7 +288,7 @@ describe('CraftHttpClient', () => {
     );
 
     const httpTesting = fetchTesting;
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const api = craftUse(InvalidDecodedApi());
       const resultPromise = api.getUser();
       const request = httpTesting.expectOne('/api/user');
@@ -329,7 +329,7 @@ describe('CraftHttpClient', () => {
     );
 
     const httpTesting = fetchTesting;
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const api = craftUse(AsyncDecodedApi());
       const resultPromise = api.getValue();
       const request = httpTesting.expectOne('/api/value');
@@ -362,7 +362,7 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const usersApi = craftUse(UsersFilterApi());
       const resultPromise = usersApi.getUsers();
 
@@ -406,7 +406,7 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const usersApi = craftUse(UsersUrlSearchParamsApi());
       const resultPromise = usersApi.getUsers();
 
@@ -444,7 +444,7 @@ describe('CraftHttpClient', () => {
       },
     );
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const usersApi = craftUse(UsersParamsIdentityApi());
 
       expect(usersApi.getUsers.params).toEqual({
@@ -520,7 +520,7 @@ describe('CraftHttpClient', () => {
       observedExceptions.push(detail);
     };
     try {
-      await TestBed.runInInjectionContext(async () => {
+      await CraftTestBed.runInInjectionContext(async () => {
         const usersApi = craftUse(UsersApiOnCustomError());
         const resultPromise = usersApi.getUsers();
 
@@ -571,7 +571,7 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const usersApi = craftUse(UsersApiOnError());
       const resultPromise = usersApi.getUsers();
 
@@ -627,7 +627,7 @@ describe('CraftHttpClient', () => {
       },
     );
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       vi.mocked(fetch).mockResolvedValueOnce(
         new Response(null, { status: 304, statusText: 'Not Modified' }),
       );
@@ -717,7 +717,7 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const authApi = craftUse(AuthApi());
       const resultPromise = authApi.login();
 
@@ -785,7 +785,7 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const authApi = craftUse(AuthApiOnBodyRule());
       const resultPromise = authApi.login();
 
@@ -849,7 +849,7 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const authApi = craftUse(AuthApiOnHeaderRule());
       const resultPromise = authApi.login();
 
@@ -923,7 +923,7 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const authApi = craftUse(AuthApiOnRulePriority());
       const resultPromise = authApi.login();
 
@@ -965,7 +965,7 @@ describe('CraftHttpClient', () => {
 
     const httpTesting = fetchTesting;
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const usersApi = craftUse(UsersApiPost());
       const resultPromise = usersApi.createUser();
 
@@ -1193,7 +1193,7 @@ describe('CraftHttpClient', () => {
         }
     >();
 
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const usersFeature = craftUse(UsersFeatureForDependencies());
 
       expect(
@@ -1241,8 +1241,8 @@ describe('CraftHttpClient', () => {
 
 describe('CraftBinaryHttpClient', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({});
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.configureTestingModule({});
     vi.restoreAllMocks();
     fetchTesting = new FetchTestingController();
     vi.stubGlobal('fetch', fetchTesting.fetch);
@@ -1267,7 +1267,7 @@ describe('CraftBinaryHttpClient', () => {
       },
     );
 
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const api = craftUse(UploadApi());
       const resultPromise = api.upload();
       const pending = fetchTesting.expectOne('/api/uploads/1');

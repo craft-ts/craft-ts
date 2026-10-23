@@ -5,7 +5,7 @@ import type { PersistedStorageSnapshotEntry } from '../persisted-storage-snapsho
 /**
  * The resource surface the persister actually drives: it reads `status` and
  * `value`, restores a cached value with `set`, and can trigger a background
- * reload. Both Angular's `ResourceRef` and craft's `CraftResourceRef` — what
+ * reload. The `CraftResourceRef` produced by `craftResource(...)` and `query(...)` — what
  * `craftResource(...)`/`query(...)` produce — satisfy it.
  */
 export interface PersistedQueryResource {

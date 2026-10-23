@@ -1302,7 +1302,7 @@ export function query<
  * console.log(searchQuery.status()); // 'idle'
  *
  * // Manually trigger the query
- * searchQuery.call('angular');
+ * searchQuery.call('craft');
  * console.log(searchQuery.status()); // 'loading'
  * ```
  *

@@ -60,7 +60,7 @@ and are packaged as an [Agent Plugin](https://agent-plugins.org/) (`plugin.json`
 - `craft-ts-architecture-tests` — scaffold or run `architecture/`, freeze a graph smell
 - `craft-ts-routes` — type-safe `craftRoutes` files
 - `translate-spec-to-craft-ts` — map a spec onto primitives
-- `craft-ts-service-migration` — `craftService` / `toCraftService`
+- `craft-ts-service-migration` — migrate services to `craftService`
 - `migrate-to-craft-ts` — `craft-migrate` then manual follow-up
 
 Point your agent at `node_modules/@craft-ts/mcp/skills`, or copy the `AGENTS.md`

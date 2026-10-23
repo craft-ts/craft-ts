@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import {
   installCraftEffectBridge,
   provideLayer,
@@ -14,20 +14,20 @@ describe('demo: team overview with global and route Layers', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
   });
 
   afterEach(() => {
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('inherits the global session and adds the route context', async () => {
     const element = document.createElement('div');
     document.body.append(element);
-    const globalInjector = TestBed.rootInjector.createChild([
+    const globalInjector = CraftTestBed.rootInjector.createChild([
       provideLayer(SessionLive),
     ]);
     // This is the same Angular-style route injector shape used by the router.
@@ -44,7 +44,7 @@ describe('demo: team overview with global and route Layers', () => {
       element,
       routeInjector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Support Team');

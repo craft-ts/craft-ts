@@ -7,7 +7,7 @@ import {
   runInInjectionContext,
   type EnvironmentInjector,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { CraftRouter, provideCraftRouter } from './craft-router';
 import { ɵinjectCraftRouterRuntime, provideCraftRouterRuntimeValue } from './craft-router-tokens';

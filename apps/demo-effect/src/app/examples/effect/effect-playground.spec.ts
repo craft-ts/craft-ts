@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed } from '@craft-ts/core';
+import { CraftTestBed } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { Cause, Effect } from 'effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,20 +15,20 @@ describe('demo: Effect playground', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
   });
 
   afterEach(() => {
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('loads and adds a todo through Effect resources', async () => {
     const element = document.createElement('div');
     document.body.append(element);
-    const injector = TestBed.rootInjector.createChild([
+    const injector = CraftTestBed.rootInjector.createChild([
       provideLayer(TodoStoreLive),
     ]);
     const mounted = mountCraftComponent(
@@ -36,7 +36,7 @@ describe('demo: Effect playground', () => {
       element,
       injector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Learn @craft-ts/effect');
@@ -53,9 +53,9 @@ describe('demo: Effect playground', () => {
 
     title!.value = 'Try mutationEffect';
     title!.dispatchEvent(new Event('input', { bubbles: true }));
-    TestBed.tick();
+    CraftTestBed.tick();
     add!.click();
-    TestBed.tick();
+    CraftTestBed.tick();
 
     await vi.waitFor(() => {
       expect(element.textContent).toContain('Try mutationEffect');

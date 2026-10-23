@@ -127,14 +127,12 @@ export {
   CraftCircularDependencyError,
   createCraftInjector,
   getCurrentCraftInjector,
-  ɵcreateCraftInjectorFromHost,
   type CraftInjector,
   type CraftProvider,
 } from './lib/host/craft-injector';
-export { ɵcraftInjectorFromHost } from './lib/host/craft-compat';
 // The DI and reactivity surface an application authors against. These are
-// generic concepts, not Angular ones — an app needs a token, an injector, a
-// teardown hook and a way to run something at startup, whatever renders it.
+// generic concepts — an app needs a token, an injector, a teardown hook and a
+// way to run something at startup, whatever renders it.
 export {
   DestroyRef,
   provideAppInitializer,
@@ -145,21 +143,19 @@ export {
   type Signal,
   type EffectRef,
 } from './lib/host/craft-compat';
-// Craft's stand-in for TestBed: a root injector with the six methods specs
-// actually used. Exported so apps can test against the same harness.
+// Shared test harness for service and component specs.
 export {
-  TestBed,
+  CraftTestBed,
   ɵsetCraftTestMounter,
   type CraftComponentFixture,
 } from './lib/host/craft-test-bed';
 export {
   APP_INITIALIZER,
   getCraftRootDefaultProviders as ɵgetCraftRootDefaultProviders,
+  isDevMode as ɵisCraftDevMode,
   DestroyRef as ɵDestroyRef,
   Injector as ɵInjector,
   ɵsetCraftDevMode,
-  ɵsetCraftHostInjectorRunner,
-  ɵsetCraftInjectFallback,
   inject as ɵinject,
   createEnvironmentInjector as ɵcreateEnvironmentInjector,
   ElementRef as ɵElementRef,
@@ -363,7 +359,7 @@ export * from './lib/branded-component/branded-component';
 export * from './lib/craft-app-config';
 export * from './lib/craft-router';
 export * from './lib/craft-activated-route';
-export type { ActivatedRoute } from './lib/host/craft-router-types';
+export type { CraftRouteContext } from './lib/host/craft-router-model';
 export * from './lib/craft-routes';
 export * from './lib/craft-resolve';
 export * from './lib/craft-route-exceptions';

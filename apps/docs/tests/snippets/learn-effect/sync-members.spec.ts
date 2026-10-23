@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { installCraftEffectBridge, provideLayer } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -117,20 +117,20 @@ describe('Effect synchronous members snippet', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
   });
 
   afterEach(() => {
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('computes the label on the same tick — no await anywhere', () => {
     const element = document.createElement('div');
     document.body.append(element);
-    const injector = TestBed.rootInjector.createChild([
+    const injector = CraftTestBed.rootInjector.createChild([
       provideLayer(CartPricingLive),
     ]);
 
@@ -139,7 +139,7 @@ describe('Effect synchronous members snippet', () => {
       element,
       injector as unknown as Injector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     // The assertion is the absence of `await`: a `craftComputed` runs on the
     // synchronous driver, so anything it reads must settle on this tick.

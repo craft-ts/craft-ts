@@ -154,7 +154,7 @@ describe('disclosureControl', () => {
         yield* DisclosureOpenView();
         return [
           button(faq.button, 'What is Craft?'),
-          div(faq.panel, 'A typed Angular framework.'),
+          div(faq.panel, 'A typed reactive framework.'),
         ];
       },
     );

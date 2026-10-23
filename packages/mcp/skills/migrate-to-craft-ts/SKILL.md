@@ -98,13 +98,13 @@ cannot be inferred safely. Preserve unrelated user changes.
 ### Services and dependency injection
 
 - Author application/domain services with `craftService`.
-- Adapt Angular, framework, and third-party tokens once with `toCraftService`.
+- Replace framework and third-party dependencies with Craft-native APIs or migrate their required behavior into Craft services. Leave unsupported cases for manual migration; do not generate runtime interop adapters.
 - Use the generated `X()` helper in components and `yield* X(...)` in generators.
 - Use `CraftRouter` directly instead of wrapping Angular Router.
 - Prefer `scope: 'function'` for a dependency used by one function and
   `scope: 'toProvide'` for feature-owned services.
 - Place `provideX(...)` near the route or feature owning the instance.
-- Resolve every generated `CRAFT_IMPLEMENTATION_REQUIRED` companion.
+- Resolve every manual migration diagnostic before treating the migration as complete.
 - Wrap dependent primitives in `yield* track(...)`.
 - Use `query` for reads and `mutation` for writes. Keep mutations with the
   lifecycle owner when moving subscription callbacks would alter semantics.

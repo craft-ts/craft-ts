@@ -2,7 +2,7 @@ import {
   computed,
   type Signal,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { asyncProcess } from './async-process';
 import { craftUse } from './craft-use';
 import { craftPipe } from './craft-pipe';
@@ -55,7 +55,7 @@ describe('insertSelectResource types', () => {
   afterEach(() => vi.useRealTimers());
 
   it('preserves array item and nested object types for query', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const _users = craftUse(
         query(
           'users',
@@ -95,7 +95,7 @@ describe('insertSelectResource types', () => {
   });
 
   it('preserves object property types for mutation', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const _saveUser = craftUse(
         mutation(
           'saveUser',
@@ -123,7 +123,7 @@ describe('insertSelectResource types', () => {
   });
 
   it('preserves array item types for asyncProcess', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const _processUsers = craftUse(
         asyncProcess(
           'processUsers',
@@ -153,7 +153,7 @@ describe('insertSelectResource types', () => {
   });
 
   it('updates a selected query array item and keeps the query runtime kind', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const users = craftUse(
         query(
           'runtimeUsers',
@@ -210,7 +210,7 @@ describe('insertSelectResource types', () => {
   });
 
   it('updates a selected mutation object property and keeps the mutation runtime kind', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const saveUser = craftUse(
         mutation(
           'runtimeSaveUser',
@@ -248,7 +248,7 @@ describe('insertSelectResource types', () => {
   });
 
   it('updates a selected asyncProcess array item and keeps the asyncProcess runtime kind', async () => {
-    await TestBed.runInInjectionContext(async () => {
+    await CraftTestBed.runInInjectionContext(async () => {
       const processUsers = craftUse(
         asyncProcess(
           'runtimeProcessUsers',
@@ -285,7 +285,7 @@ describe('insertSelectResource types', () => {
   });
 
   it('does not accept grouped resources until per-resource selection is defined', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       expect(() =>
         craftUse(
           query(
@@ -313,7 +313,7 @@ describe('insertSelectResource types', () => {
 
 describe('resource select aliases', () => {
   it('keeps the selector factory type on all aliases', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const users = craftUse(
         query(
           'querySelectAlias',

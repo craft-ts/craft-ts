@@ -165,7 +165,7 @@ function runRegisteredSyncTemplateFlush(): void {
 /**
  * Runs inside `startViewTransition`'s callback after Craft signals commit, so
  * the displayed DOM is patched before the callback returns. Templates driven by
- * `craftEffect` otherwise bump an Angular signal asynchronously.
+ * `craftEffect` otherwise bump a signal asynchronously.
  */
 const craftSyncTemplateFlushService = ɵcraftValueService(
   { name: 'CraftSyncTemplateFlush', providedIn: 'global' },
@@ -719,7 +719,7 @@ export class CraftRouterOutletController {
       return;
     }
     const target = resolved ? normalizeCraftRouteTarget(resolved) : null;
-    // Removing the Angular interop left this pinned at `null`, which silently
+    // Keeping this pinned at `null` would silently
     // emptied the error surface: nothing was reported through
     // `errorComponent()` and nothing was mounted. The component IS the
     // normalized target's — everything Craft renders is a Craft component.
@@ -1104,13 +1104,9 @@ function paramsForActivatedRoute(
 /**
  * Whether the live component survives this navigation.
  *
- * Angular decides this on the route config ALONE — `RouteReuseStrategy` keeps
- * the instance when `future.routeConfig === curr.routeConfig`, and a separate
- * `runGuardsAndResolvers` decides whether the chain re-runs on a param change.
- * Craft drove both from one comparison, so changing `:userId` tore the
- * component down and took with it whatever state it held — which is why a
- * `preservePreviousValue` query could never preserve anything across a
- * navigation.
+ * Craft reuses a component while its route configuration is the same. A
+ * parameter change can rerun guards and resolvers without tearing down the
+ * component or its local state.
  *
  * Craft keeps the component and lets reactivity carry the new params: the
  * fast-path publishes them on the live match signal, `injectRouteParamsSignal`

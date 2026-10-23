@@ -2,9 +2,7 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import {
-  basename,
   dirname,
-  extname,
   isAbsolute,
   join,
   relative,
@@ -36,8 +34,6 @@ import type {
 import { migrateEslintConfig } from '../migration-workspace.js';
 
 const execFileAsync = promisify(execFile);
-const MANUAL_SCOPE = 'CRAFT_IMPLEMENTATION_REQUIRED';
-
 export type MigrateServicesOptions = {
   rootDir?: string;
   tsConfigFilePath?: string;
@@ -56,7 +52,6 @@ export type MigratedServiceFile = {
   filePath: string;
   changed: boolean;
   symbols: string[];
-  companions: string[];
 };
 
 export type MigrateServicesResult = {
@@ -76,7 +71,6 @@ type ServiceDescriptor = {
   scope: ServiceMigrationScope;
   strategy: ServiceMigrationStrategy;
   override?: ServiceMigrationOverride;
-  helperSourceFile?: SourceFile;
   httpOperations?: HttpOperationDescriptor[];
 };
 
@@ -135,6 +129,28 @@ export async function runServicesMigration(
   inferFunctionScopes(descriptors, projectSourceFiles);
   diagnoseCycles(descriptors, diagnostics);
 
+  for (const descriptor of descriptors) {
+    if (descriptor.strategy === 'ignore') continue;
+    const unsafe =
+      getUnsafeReason(descriptor) ??
+      getUnsupportedExternalDependency(descriptor, descriptors);
+    if (!unsafe) continue;
+    diagnose(diagnostics, unsafe.code, descriptor, unsafe.message);
+    descriptor.strategy = 'ignore';
+  }
+  let skippedDependency: boolean;
+  do {
+    skippedDependency = false;
+    for (const descriptor of descriptors) {
+      if (descriptor.strategy === 'ignore') continue;
+      const unsafe = getUnsupportedExternalDependency(descriptor, descriptors);
+      if (!unsafe) continue;
+      diagnose(diagnostics, unsafe.code, descriptor, unsafe.message);
+      descriptor.strategy = 'ignore';
+      skippedDependency = true;
+    }
+  } while (skippedDependency);
+
   const files = new Map<string, MigratedServiceFile>();
   const touched = new Set<SourceFile>();
   for (const descriptor of descriptors) {
@@ -142,15 +158,6 @@ export async function runServicesMigration(
     const report = getFileReport(files, file.getFilePath());
     report.symbols.push(descriptor.symbol);
     if (descriptor.strategy === 'ignore') continue;
-    const unsafe = getUnsafeReason(descriptor);
-    if (unsafe) {
-      diagnose(diagnostics, unsafe.code, descriptor, unsafe.message);
-      const companion = createCompanion(project, descriptor);
-      descriptor.helperSourceFile = companion.file;
-      report.companions.push(companion.file.getFilePath());
-      if (companion.changed) touched.add(companion.file);
-      continue;
-    }
     migrateSimpleClass(descriptor, descriptors, diagnostics);
     touched.add(file);
   }
@@ -337,11 +344,6 @@ function getUnsafeReason(
   descriptor: ServiceDescriptor,
 ): { code: ServiceMigrationDiagnosticCode; message: string } | undefined {
   const value = descriptor.classDeclaration;
-  if (descriptor.strategy === 'companion')
-    return {
-      code: 'NON_CONVERTIBLE_CLASS',
-      message: 'Stratégie companion imposée par la configuration.',
-    };
   if (value.getExtends())
     return {
       code: 'NON_CONVERTIBLE_CLASS',
@@ -385,6 +387,78 @@ function getUnsafeReason(
       code: 'INJECTION_FLAGS',
       message: `${descriptor.symbol} utilise des flags d'injection.`,
     };
+  return undefined;
+}
+
+function getUnsupportedExternalDependency(
+  descriptor: ServiceDescriptor,
+  descriptors: readonly ServiceDescriptor[],
+): { code: ServiceMigrationDiagnosticCode; message: string } | undefined {
+  const knownServices = new Set(descriptors.map((item) => item.symbol));
+  const tokens = new Set<string>();
+  for (const parameter of descriptor.classDeclaration
+    .getConstructors()
+    .flatMap((constructor) => constructor.getParameters())) {
+    const token = parameter.getTypeNode()?.getText();
+    if (token) tokens.add(token);
+  }
+  for (const property of descriptor.classDeclaration.getProperties()) {
+    const initializer = property.getInitializer();
+    if (
+      initializer &&
+      Node.isCallExpression(initializer) &&
+      initializer.getExpression().getText() === 'inject'
+    ) {
+      const token = initializer.getArguments()[0]?.getText();
+      if (token) tokens.add(token);
+    }
+  }
+
+  for (const token of tokens) {
+    const dependency = descriptors.find((item) => item.symbol === token);
+    if (dependency?.strategy === 'ignore') {
+      return {
+        code: 'NON_CONVERTIBLE_CLASS',
+        message: `${descriptor.symbol} dépend de ${token}, qui nécessite une réécriture manuelle.`,
+      };
+    }
+    if (knownServices.has(token) || token === 'Router') continue;
+    if (token === 'HttpClient') {
+      const operations = collectHttpOperations(descriptor);
+      const injectedNames = descriptor.classDeclaration
+        .getConstructors()
+        .flatMap((constructor) => constructor.getParameters())
+        .filter((parameter) => parameter.getTypeNode()?.getText() === token)
+        .map((parameter) => parameter.getName());
+      for (const property of descriptor.classDeclaration.getProperties()) {
+        const initializer = property.getInitializer();
+        if (
+          initializer &&
+          Node.isCallExpression(initializer) &&
+          initializer.getExpression().getText() === 'inject' &&
+          initializer.getArguments()[0]?.getText() === token
+        ) {
+          injectedNames.push(property.getName());
+        }
+      }
+      const hasUnmigratedUsage = injectedNames.some((name) =>
+          hasHttpClientUsageOutsideMigratedMethods(
+            descriptor.classDeclaration,
+            name,
+            operations,
+          ),
+        );
+      if (!hasUnmigratedUsage) continue;
+      return {
+        code: 'HTTP_CLIENT_REWRITE_REQUIRED',
+        message: `${descriptor.symbol} conserve des appels HttpClient impératifs; migrez-les vers mutation/CraftHttpClient avant de convertir le service.`,
+      };
+    }
+    return {
+      code: 'THIRD_PARTY_SCOPE_REQUIRED',
+      message: `${descriptor.symbol} dépend de ${token}; réécrivez cette dépendance sous forme de service Craft avant de convertir ce service.`,
+    };
+  }
   return undefined;
 }
 
@@ -433,7 +507,7 @@ function migrateSimpleClass(
     )
       continue;
     yields.push(
-      makeYield(toInternalName(parameter.getName()), token, descriptor, all, diagnostics),
+      makeYield(toInternalName(parameter.getName()), token, descriptor, all),
     );
   }
   for (const property of value.getProperties()) {
@@ -460,7 +534,7 @@ function migrateSimpleClass(
       )
         continue;
       if (token)
-        yields.push(makeYield(internalName, token, descriptor, all, diagnostics));
+        yields.push(makeYield(internalName, token, descriptor, all));
     } else {
       const shouldYield = isPrimitiveCreation(initializer);
       if (shouldYield) {
@@ -773,7 +847,6 @@ function makeYield(
   token: string,
   owner: ServiceDescriptor,
   all: readonly ServiceDescriptor[],
-  diagnostics: ServiceMigrationDiagnostic[],
 ): string {
   const dependency = all.find((item) => item.symbol === token);
   if (token === 'Router') {
@@ -781,24 +854,9 @@ function makeYield(
     return `const ${localName} = yield* CraftRouter();`;
   }
   if (!dependency) {
-    if (token === 'HttpClient') {
-      diagnose(
-        diagnostics,
-        'HTTP_CLIENT_REWRITE_REQUIRED',
-        owner,
-        'Les appels HttpClient impératifs restants doivent être migrés vers mutation/CraftHttpClient.',
-      );
-      ensureExternalAdapter(owner, token);
-      return `const ${localName} = yield* ${token}(); // HTTP_CLIENT_REWRITE_REQUIRED`;
-    }
-    diagnose(
-      diagnostics,
-      'THIRD_PARTY_SCOPE_REQUIRED',
-      owner,
-      `${token} requiert un adapter toCraftService avec scope CRAFT_SCOPE_REQUIRED.`,
+    throw new Error(
+      `Migration guard failed: unsupported dependency ${token} in ${owner.symbol}.`,
     );
-    ensureExternalAdapter(owner, token);
-    return `const ${localName} = yield* ${token}(); // CRAFT_SCOPE_REQUIRED`;
   }
   ensureRelativeImport(
     owner.sourceFile,
@@ -806,53 +864,6 @@ function makeYield(
     dependency.name,
   );
   return `const ${localName} = yield* ${dependency.name}();`;
-}
-
-function ensureExternalAdapter(owner: ServiceDescriptor, token: string): void {
-  const file = owner.sourceFile;
-  if (
-    file.getFullText().includes(`const { ${token} } = toCraftService(`)
-  )
-    return;
-  const statementIndex = file.getStatements().indexOf(owner.classDeclaration);
-  file.insertStatements(
-    Math.max(0, statementIndex),
-    `const { ${token} } = toCraftService({ name: '${token}', providedIn: 'global', token: ${token} }); // HTTP_CLIENT_REWRITE_REQUIRED`,
-  );
-  ensureAngularImports(file, ['toCraftService']);
-}
-
-function createCompanion(
-  project: Project,
-  descriptor: ServiceDescriptor,
-): { file: SourceFile; changed: boolean } {
-  const originalPath = descriptor.sourceFile.getFilePath();
-  const companionPath =
-    originalPath.slice(0, -extname(originalPath).length) + '.craft.ts';
-  const module = `./${basename(originalPath, extname(originalPath))}`;
-  const companionScope =
-    descriptor.scope === 'abstract' ? 'toProvide' : descriptor.scope;
-  const helpers = `${descriptor.name}${isProviderCapableScope(companionScope) ? `, provide${descriptor.name}` : ''}`;
-  const provide =
-    isProviderCapableScope(companionScope)
-      ? `  provide: () => [${descriptor.symbol}],\n`
-      : '';
-  const text = `// Generated by craft-migrate-services. ${MANUAL_SCOPE}: keep the legacy class until it can be rewritten.\nimport { toCraftService } from '@craft-ts/angular';\nimport { ${descriptor.symbol} } from '${module}';\n\nexport const { ${helpers} } = toCraftService({\n  name: '${descriptor.name}',\n  providedIn: '${companionScope}',\n  token: ${descriptor.symbol},\n${provide}});\n`;
-  const existing = project.getSourceFile(companionPath);
-  if (existing) {
-    if (
-      existing.getFullText().includes(MANUAL_SCOPE) &&
-      existing.getFullText().includes(`token: ${descriptor.symbol}`)
-    ) {
-      return { file: existing, changed: false };
-    }
-    existing.replaceWithText(text);
-    return { file: existing, changed: true };
-  }
-  return {
-    file: project.createSourceFile(companionPath, text, { overwrite: false }),
-    changed: true,
-  };
 }
 
 function rewriteConsumers(
@@ -867,7 +878,7 @@ function rewriteConsumers(
         continue;
       const token = call.getArguments()[0]?.getText();
       const service = descriptors.find((item) => item.symbol === token);
-      if (!service) continue;
+      if (!service || service.strategy === 'ignore') continue;
       call.replaceWithText(`inject${service.name}()`);
       ensureRelativeImport(file, service, `inject${service.name}`);
       touched.add(file);
@@ -998,7 +1009,7 @@ function collectInjectedCraftServices(
   descriptors: readonly ServiceDescriptor[],
 ): Map<string, ServiceDescriptor> {
   const byInjectHelper: Map<string, ServiceDescriptor> = new Map(
-    descriptors.map((descriptor) => [
+    descriptors.filter((descriptor) => descriptor.strategy !== 'ignore').map((descriptor) => [
       `inject${descriptor.name}`,
       descriptor,
     ] as const),
@@ -1107,7 +1118,12 @@ function rewriteProviders(
         const service = descriptors.find(
           (item) => item.symbol === element.getText(),
         );
-        if (!service || service.scope === 'global') continue;
+        if (
+          !service ||
+          service.strategy === 'ignore' ||
+          service.scope === 'global'
+        )
+          continue;
         if (service.scope === 'function') {
           array.removeElement(element);
           touched.add(file);
@@ -1192,10 +1208,6 @@ function ensureCoreImports(file: SourceFile, names: string[]): void {
   ensureNamedImports(file, '@craft-ts/core', names);
 }
 
-function ensureAngularImports(file: SourceFile, names: string[]): void {
-  ensureNamedImports(file, '@craft-ts/angular', names);
-}
-
 function ensureNamedImports(
   file: SourceFile,
   moduleSpecifier: string,
@@ -1218,10 +1230,9 @@ function ensureRelativeImport(
   name: string,
 ): void {
   if (file === service.sourceFile) return;
-  const helperFile = service.helperSourceFile ?? service.sourceFile;
   let specifier = relative(
     dirname(file.getFilePath()),
-    helperFile.getFilePath(),
+    service.sourceFile.getFilePath(),
   )
     .replace(/\\/g, '/')
     .replace(/\.ts$/, '');
@@ -1279,7 +1290,7 @@ function getFileReport(
 ): MigratedServiceFile {
   let report = map.get(filePath);
   if (!report) {
-    report = { filePath, changed: false, symbols: [], companions: [] };
+    report = { filePath, changed: false, symbols: [] };
     map.set(filePath, report);
   }
   return report;

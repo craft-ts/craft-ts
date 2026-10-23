@@ -4,14 +4,14 @@
 // Drives the demo page for real: mounts it, clicks each scenario button, and
 // reads the DOM. This is what would otherwise be eyeballed in the browser.
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed, ɵInjector as Injector } from '@craft-ts/core';
+import { CraftTestBed, ɵInjector as Injector } from '@craft-ts/core';
 import { installCraftEffectBridge } from '@craft-ts/effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import EffectYieldComponent from './effect-profile-lookup';
 
 describe('demo: profile lookup with Effect', () => {
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
   });
 
@@ -31,9 +31,9 @@ describe('demo: profile lookup with Effect', () => {
     const mounted = mountCraftComponent(
       EffectYieldComponent,
       element,
-      TestBed.inject(Injector),
+      CraftTestBed.inject(Injector),
     );
-    TestBed.tick();
+    CraftTestBed.tick();
     return { element, mounted };
   };
 
@@ -49,7 +49,7 @@ describe('demo: profile lookup with Effect', () => {
       throw new Error(`Scenario button not found: ${label}`);
     }
     target.click();
-    TestBed.tick();
+    CraftTestBed.tick();
   };
 
   it('loads the profile when the lookup succeeds', async () => {

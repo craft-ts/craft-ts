@@ -61,7 +61,7 @@ Options:
   --root <dir>           Source root. Defaults to cwd.
   --config <path>        craft-dev-tools.config.ts override.
   --dry-run              Analyze without writing (default).
-  --write                Write migrated and companion files.
+  --write                Write migrated service files.
   --check                Fail while legacy services remain.
   --json [path]          Print JSON, or write it to path.
   --fail-on-manual       Fail when manual diagnostics are emitted.

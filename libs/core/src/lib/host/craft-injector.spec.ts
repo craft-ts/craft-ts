@@ -1,10 +1,9 @@
-import { InjectionToken, Injector } from './craft-compat';
+import { InjectionToken } from './craft-compat';
 import { describe, expect, it } from 'vitest';
 import {
   createCraftInjector,
   getCurrentCraftInjector,
 } from './craft-injector';
-import { ɵcraftInjectorFromHost } from './craft-injector-host';
 
 describe('CraftInjector', () => {
   it('resolves a factory provider from the same injector', () => {
@@ -127,19 +126,6 @@ describe('CraftInjector', () => {
       await Promise.resolve();
       expect(getCurrentCraftInjector()).toBe(root);
     });
-  });
-
-  it('resolves host injector tokens through Craft get()', () => {
-    const Value = new InjectionToken<string>('Value');
-    const angularInjector = Injector.create({
-      providers: [{ provide: Value, useValue: 'angular' }],
-    });
-
-    const value = ɵcraftInjectorFromHost(angularInjector).run(() =>
-      ɵcraftInjectorFromHost(angularInjector).get(Value),
-    );
-
-    expect(value).toBe('angular');
   });
 
   it('scopes default token factories to one root injector', () => {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { mountCraftComponent } from '@craft-ts/component';
-import { TestBed } from '@craft-ts/core';
+import { CraftTestBed } from '@craft-ts/core';
 import {
   installCraftEffectBridge,
   provideLayer,
@@ -13,21 +13,21 @@ describe('demo: using an Effect function with an injected Database', () => {
   let disposeBridge: () => void;
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
     document.body.replaceChildren();
     disposeBridge = installCraftEffectBridge();
   });
 
   afterEach(() => {
     disposeBridge();
-    TestBed.resetTestingModule();
+    CraftTestBed.resetTestingModule();
   });
 
   it('shows pending state and renders the typed database failure', async () => {
     const element = document.createElement('div');
     document.body.append(element);
 
-    const injector = TestBed.rootInjector.createChild([
+    const injector = CraftTestBed.rootInjector.createChild([
       provideLayer(InMemoryDatabaseLive),
     ]);
 
@@ -36,7 +36,7 @@ describe('demo: using an Effect function with an injected Database', () => {
       element,
       injector,
     );
-    TestBed.tick();
+    CraftTestBed.tick();
 
     expect(element.textContent).toContain(
       'Connecting to the in-memory database…',

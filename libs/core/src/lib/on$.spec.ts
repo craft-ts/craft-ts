@@ -4,7 +4,7 @@ import {
   EventEmitter,
   runInInjectionContext,
 } from './host/craft-compat';
-import { TestBed } from './host/craft-test-bed';
+import { CraftTestBed } from './host/craft-test-bed';
 import { on$ } from './on$';
 import { source$ } from './source$';
 import { Subject } from 'rxjs';
@@ -20,7 +20,7 @@ describe('on$', () => {
   });
 
   it('should call the callback when the source emits a value', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = source$<string>('mySource');
       const callbackResults: string[] = [];
 
@@ -40,7 +40,7 @@ describe('on$', () => {
   });
 
   it('should return a branded source', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = source$<number>('mySource');
 
       const brandedSource = on$(mySource, (value) => value * 2);
@@ -56,11 +56,11 @@ describe('on$', () => {
     const callbackResults: string[] = [];
     let mySource: ReturnType<typeof source$<string>>;
 
-    // Was an @Component destroyed through a TestBed fixture. What the test is
+    // Was an @Component destroyed through a CraftTestBed fixture. What the test is
     // actually about is the injection context's lifetime, so own one directly.
     const injector = createEnvironmentInjector(
       [],
-      TestBed.inject(EnvironmentInjector),
+      CraftTestBed.inject(EnvironmentInjector),
     );
     runInInjectionContext(injector, () => {
       mySource = source$<string>('mySource');
@@ -81,7 +81,7 @@ describe('on$', () => {
   });
 
   it('should work with complex objects', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       interface User {
         id: number;
         name: string;
@@ -106,7 +106,7 @@ describe('on$', () => {
   });
 
   it('should allow the callback to perform side effects', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySource = source$<number>('mySource');
       let total = 0;
 
@@ -127,7 +127,7 @@ describe('on$', () => {
   });
 
   it('should allow to pass an EventEmitter as source', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySourceEventEmitter = new EventEmitter<number>();
 
       const callbackResults: number[] = [];
@@ -145,7 +145,7 @@ describe('on$', () => {
     });
   });
   it('should allow to pass an Observable as source', () => {
-    TestBed.runInInjectionContext(() => {
+    CraftTestBed.runInInjectionContext(() => {
       const mySourceEventEmitter = new Subject<number>();
 
       const callbackResults: number[] = [];

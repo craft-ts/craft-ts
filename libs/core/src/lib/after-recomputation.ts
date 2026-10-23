@@ -13,7 +13,7 @@ import {
  * This function binds queries, mutations, and async methods to sources for automatic execution by:
  * - Listening to source emissions and computing new values
  * - Providing a readonly source suitable for method binding
- * - Maintaining reactivity through Angular's effect system
+ * - Maintaining reactivity through Craft effects
  * - Enabling source-based triggering patterns
  *
  * @remarks
@@ -209,10 +209,10 @@ import {
  *
  * // Data is transformed before query execution
  * store.searchParams.set({
- *   query: '  Angular  ',
+ *   query: '  Craft  ',
  *   filters: ['tutorial', 'advanced'],
  * });
- * // -> query receives { q: 'angular', f: 'tutorial,advanced' }
+ * // -> query receives { q: 'craft', f: 'tutorial,advanced' }
  * ```
  *
  * @example
@@ -285,8 +285,8 @@ import {
  * const store = SearchResultsStore();
  *
  * // Quick search with a simple string
- * store.quickSearch.set('angular');
- * // -> query receives { query: 'angular', mode: 'quick' }
+ * store.quickSearch.set('craft');
+ * // -> query receives { query: 'craft', mode: 'quick' }
  * ```
  *
  * @example
