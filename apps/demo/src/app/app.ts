@@ -21,6 +21,7 @@ import {
   craftMethod,
   CraftRouterLink,
   GlobalPersisterHandlerService,
+  fromEventToSource$,
   type CraftRouterLinkInput,
   state,
   craftService,
@@ -225,6 +226,20 @@ export const { AppView, provideAppView } = craftService(
         close: () => set(false),
       }),
     );
+    if (typeof document !== 'undefined') {
+      fromEventToSource$<PointerEvent>(document, 'pointerdown').subscribe(
+        (event) => {
+          const target = event.target;
+          if (!(target instanceof Node)) return;
+
+          const panel = document.querySelector('[data-testid="nav-panel"]');
+          const toggle = document.querySelector('[data-testid="nav-toggle"]');
+          if (!panel?.contains(target) && !toggle?.contains(target)) {
+            navOpen.close();
+          }
+        },
+      );
+    }
     yield* craftComputed('navToggleLabel', function* () {
       return (yield* navOpen()) ? 'Close examples' : 'Browse examples';
     });
