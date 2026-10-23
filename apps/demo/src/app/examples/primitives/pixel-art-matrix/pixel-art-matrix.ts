@@ -126,7 +126,7 @@ const PixelArtMatrix = craftComponent(
           heading({ class: example.title }, 'Pixel Art Workshop (Matrix)'),
           p(
             { class: example.text, 'data-exampleText': 'muted' },
-            '2D matrix: click paints, right-click paints a row, long-press paints a column.',
+            `Click a cell to paint it. Right-click it to copy its color across the row; press and hold for ${LONG_PRESS_DURATION_MS} ms to copy its color down the column.`,
           ),
         ]),
         div(

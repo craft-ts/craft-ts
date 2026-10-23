@@ -7,6 +7,7 @@ import { FN_WRAP_OBSERVER, FN_WRAPPER } from './fn-wrapper';
 import {
   craftSleep,
   activateCraftTemporalRuntime,
+  CRAFT_TEMPORAL_RUNTIME,
   exponentialTemporalSchedule,
   fixedTemporalSchedule,
   provideCraftTemporalRuntime,
@@ -17,6 +18,15 @@ import {
 } from './temporal-runtime';
 
 describe('VirtualCraftTemporalRuntime', () => {
+  it('provides a cached real runtime when no runtime override is configured', () => {
+    const injector = Injector.create({ providers: [] });
+
+    const runtime = injector.get(CRAFT_TEMPORAL_RUNTIME);
+
+    expect(runtime).toBeInstanceOf(RealCraftTemporalRuntime);
+    expect(injector.get(CRAFT_TEMPORAL_RUNTIME)).toBe(runtime);
+  });
+
   it('routes previously captured real Craft runtimes through the active replay clock', async () => {
     const capturedRuntime = new RealCraftTemporalRuntime();
     const replayClock = new VirtualCraftTemporalRuntime(100);

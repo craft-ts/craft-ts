@@ -197,6 +197,10 @@ function normalizeMaxAttempts(value: number | undefined): number {
 // A host injection token keeps it separate from Craft's generator-based services.
 export const CRAFT_TEMPORAL_RUNTIME = new InjectionToken<CraftTemporalRuntime>(
   'CRAFT_TEMPORAL_RUNTIME',
+  {
+    providedIn: 'root',
+    factory: () => new RealCraftTemporalRuntime(),
+  },
 );
 
 export function provideCraftTemporalRuntime(

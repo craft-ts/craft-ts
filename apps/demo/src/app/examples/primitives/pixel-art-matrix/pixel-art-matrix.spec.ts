@@ -16,6 +16,9 @@ const cellsInColumn = (root: HTMLElement, columnIndex: number) =>
   Array.from(root.querySelectorAll('[data-testid="matrix-row"]')).map(
     (row) => row.querySelectorAll<HTMLButtonElement>('[data-testid="matrix-cell"]')[columnIndex],
   );
+const cellsInRow = (root: HTMLElement, rowIndex: number) =>
+  root.querySelectorAll<HTMLButtonElement>('[data-testid="matrix-row"]')[rowIndex]
+    ?.querySelectorAll<HTMLButtonElement>('[data-testid="matrix-cell"]');
 
 describe('PixelArtMatrix', () => {
   let clock: VirtualCraftTemporalRuntime;
@@ -27,6 +30,24 @@ describe('PixelArtMatrix', () => {
     CraftTestBed.configureTestingModule({
       providers: [provideCraftTemporalRuntime(clock)],
     });
+  });
+
+  it('mounts without an explicitly provided temporal runtime', () => {
+    CraftTestBed.resetTestingModule();
+    CraftTestBed.configureTestingModule({});
+    const element = document.createElement('div');
+    document.body.append(element);
+
+    const mounted = mountCraftComponent(
+      PixelArtMatrix,
+      element,
+      CraftTestBed.inject(Injector),
+    );
+    CraftTestBed.tick();
+
+    expect(element.querySelector('[data-testid="matrix-cell"]')).toBeTruthy();
+
+    mounted.destroy();
   });
 
   it('paints a cell background when the cell is clicked', () => {
@@ -47,6 +68,40 @@ describe('PixelArtMatrix', () => {
     CraftTestBed.tick();
 
     expect(cell?.style.getPropertyValue('--pixel-fill')).toBe(PAINTED);
+
+    mounted.destroy();
+  });
+
+  it('copies a painted cell color across its row on right-click', () => {
+    const element = document.createElement('div');
+    document.body.append(element);
+    const mounted = mountCraftComponent(
+      PixelArtMatrix,
+      element,
+      CraftTestBed.inject(Injector),
+    );
+    CraftTestBed.tick();
+
+    const origin = cellsInRow(element, 0)?.[0];
+    expect(origin).toBeTruthy();
+
+    origin?.click();
+    CraftTestBed.tick();
+    expect(origin?.style.getPropertyValue('--pixel-fill')).toBe(PAINTED);
+
+    const contextMenu = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      button: 2,
+    });
+    expect(origin?.dispatchEvent(contextMenu)).toBe(false);
+    CraftTestBed.tick();
+
+    expect(
+      Array.from(cellsInRow(element, 0) ?? []).map((cell) =>
+        cell.style.getPropertyValue('--pixel-fill'),
+      ),
+    ).toEqual(Array.from({ length: 16 }, () => PAINTED));
 
     mounted.destroy();
   });
