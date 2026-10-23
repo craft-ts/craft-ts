@@ -66,7 +66,7 @@ function logTrace(label: string, value: unknown, injector?: Injector): void {
       }),
     );
   } catch {
-    // Tracing must never throw into the app (NG0205 after destroy, NG0203, …).
+    // Tracing must never leak teardown or injection-context failures into the app.
   } finally {
     logging = false;
   }

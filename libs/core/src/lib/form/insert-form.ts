@@ -1012,7 +1012,7 @@ export function insertForm(...args: any[]): any {
 
       // `buildSimpleForm` may create effects (e.g. via insertFormSubmit). When
       // `getOrCreateEntry` is invoked from within a reactive context (such as
-      // the `linkedSignal` below), Angular forbids effect creation (NG0602).
+      // the `linkedSignal` below), where effect creation is forbidden.
       // We wrap construction in `untracked` to detach from the surrounding
       // reactive context.
       const form = untracked(() =>

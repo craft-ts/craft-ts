@@ -251,7 +251,7 @@ function createCraftFieldInternals<T>(
   // ---------- State sources (hidden / disabled / readonly) ----------
   // Plain mutable arrays + a single revision signal so that registration
   // (which can happen lazily during template render) does not write to a
-  // tracked signal — Angular forbids signal writes during render (NG0600).
+  // tracked signal because signal writes during render are forbidden.
   // The first read of any computed below captures whatever has been registered
   // so far, and subsequent reads track the inner source signals individually.
   const hiddenSources: Signal<boolean>[] = [];
@@ -522,7 +522,7 @@ function createCraftFieldInternals<T>(
   const bumpRevision = () => {
     // The revision signal exists to invalidate computed signals when the
     // registration set changes AFTER it has already been observed. Writing
-    // to a signal during template render is forbidden (NG0600), so we defer
+    // to a signal during template render is forbidden, so we defer
     // the bump to a microtask. In the common case (registration happens
     // before any read), the bump is harmless; the first read will already
     // have captured the registered entries.

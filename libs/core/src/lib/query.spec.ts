@@ -219,9 +219,10 @@ describe('query', () => {
   // ran — relying on the AMBIENT injection context at read time. A non-blocking
   // route guard awaits such a query via `craftUntilSettled(...)`, which subscribes
   // OUTSIDE an injection context, so the params source (`resourceParamsSrc`,
-  // i.e. the wrapped params fn) first ran with no ambient context and threw
-  // NG0203. The injector is now captured eagerly at construction.
-  it('regression(NG0203): non-generator query params source is callable from OUTSIDE an injection context', () => {
+  // i.e. the wrapped params fn) first ran with no ambient context and failed
+  // while resolving the injector. The injector is now captured eagerly at
+  // construction.
+  it('regression: non-generator query params source is callable from OUTSIDE an injection context', () => {
     let readParamsSrc: (() => unknown) | undefined;
 
     // Construct inside an injection context (the normal case).
@@ -236,8 +237,8 @@ describe('query', () => {
     });
 
     // Read the params source from OUTSIDE any injection context — this is the
-    // exact call (the wrapped params fn / `resourceParamsSrc`) that threw
-    // NG0203 before the fix.
+    // exact call (the wrapped params fn / `resourceParamsSrc`) that failed
+    // while resolving the injector before the fix.
     expect(() => readParamsSrc?.()).not.toThrow();
     expect(readParamsSrc?.()).toBe('user-1');
   });
