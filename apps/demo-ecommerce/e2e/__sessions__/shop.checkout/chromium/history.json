@@ -1,0 +1,26 @@
+{
+  "format": "craft-e2e-session-history",
+  "id": "shop.checkout",
+  "keep": 1,
+  "project": "chromium",
+  "runs": [
+    {
+      "dirty": true,
+      "durationMs": 1661,
+      "environment": {
+        "browser": "chromium",
+        "browserVersion": "156.0.8078.4",
+        "platform": "darwin"
+      },
+      "file": "2026-10-24T16-27-32-701Z-bf5250.session.json.gz",
+      "gitSha": "f40a123cb",
+      "recordedAt": "2026-10-24T16:27:32.701Z",
+      "retry": 0,
+      "sizeBytes": 9105,
+      "specFile": "checkout.spec.ts",
+      "title": "parcourt boutique, panier et confirmation de commande",
+      "traceHash": "f301dc84cbd80bb1ba931fe99f4690c06a4e1dbed09098ebd398a3c62acdd539"
+    }
+  ],
+  "schemaVersion": 1
+}

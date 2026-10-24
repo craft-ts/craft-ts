@@ -1,0 +1,20 @@
+{
+  "name": "playwright-sessions",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "libs/playwright-sessions/src",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npx vitest run --config libs/playwright-sessions/vitest.config.ts" }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": { "lintFilePatterns": ["libs/playwright-sessions/src/**/*.ts"] }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": { "command": "npx tsc -p libs/playwright-sessions/tsconfig.json --noEmit --pretty false" }
+    }
+  }
+}

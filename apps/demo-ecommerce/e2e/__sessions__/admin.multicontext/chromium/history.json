@@ -1,0 +1,26 @@
+{
+  "format": "craft-e2e-session-history",
+  "id": "admin.multicontext",
+  "keep": 3,
+  "project": "chromium",
+  "runs": [
+    {
+      "dirty": true,
+      "durationMs": 950,
+      "environment": {
+        "browser": "chromium",
+        "browserVersion": "156.0.8078.4",
+        "platform": "darwin"
+      },
+      "file": "2026-10-24T16-29-21-150Z-6c2464.session.json.gz",
+      "gitSha": "f40a123cb",
+      "recordedAt": "2026-10-24T16:29:21.150Z",
+      "retry": 0,
+      "sizeBytes": 6837,
+      "specFile": "multicontext.spec.ts",
+      "title": "rattache les contextes boutique et administration à une session",
+      "traceHash": "b3d95030868d7f03cc130f9028c64c6f8cbc07024580cef0bb64fa05206ef950"
+    }
+  ],
+  "schemaVersion": 1
+}

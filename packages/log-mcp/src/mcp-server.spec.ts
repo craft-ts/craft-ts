@@ -3,6 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LogReader } from './log-reader.js';
 import { createLogMcpServer } from './mcp-server.js';
@@ -63,7 +64,36 @@ describe('logs MCP server', () => {
       'logs.tail',
       'logs.stats',
       'logs.clear',
+      'sessions.compare',
     ]);
+  });
+
+  it('compares a failed session with the test history and returns a dashboard link', async () => {
+    const previousFetch = globalThis.fetch;
+    const previousUrl = process.env['LOG_SERVER_URL'];
+    process.env['LOG_SERVER_URL'] = 'http://log.test';
+    const baseline = {
+      events: [{ sequence: 1, timestamp: 1000, kind: 'route', payload: { url: '/checkout' } }],
+    };
+    const observed = {
+      events: [{ sequence: 1, timestamp: 1000, kind: 'route', payload: { url: '/catalog' } }],
+    };
+    globalThis.fetch = async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/e2e-sessions') return Response.json({ sessions: [{ root: 0, id: 'shop.checkout', project: 'chromium', runs: [{ file: 'run.session.json.gz' }] }] });
+      if (url.pathname === '/sessions/00000000-0000-4000-8000-000000000001') return Response.json(observed);
+      if (url.pathname.endsWith('/run.session.json.gz')) return new Response(gzipSync(Buffer.from(JSON.stringify(baseline))));
+      return new Response(null, { status: 404 });
+    };
+    try {
+      const result = await client.callTool({ name: 'sessions.compare', arguments: { testId: 'shop.checkout', project: 'chromium', sessionId: '00000000-0000-4000-8000-000000000001' } });
+      const payload = result.structuredContent as { result: { dashboardUrl: string; comparison: { firstDivergence?: { kind: string } } } };
+      expect(payload.result.comparison.firstDivergence?.kind).toBe('missing-invariant');
+      expect(payload.result.dashboardUrl).toContain('#/compare?');
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousUrl === undefined) delete process.env['LOG_SERVER_URL']; else process.env['LOG_SERVER_URL'] = previousUrl;
+    }
   });
 
   it('searches with filters', async () => {

@@ -36,6 +36,10 @@ export type StoredEnvironmentProfile = Readonly<{
   screen?: Readonly<{ width: number; height: number }>;
 }>;
 
+export type DebugSessionTestMetadata = Readonly<{
+  id: string; title: string; specFile: string; project: string; retry: number; gitSha: string;
+}>;
+
 export type StoredDebugSessionSummary = Readonly<{
   id: string;
   startUrl: string;
@@ -48,6 +52,7 @@ export type StoredDebugSessionSummary = Readonly<{
   eventCount: number;
   truncated: boolean;
   participantCount: number;
+  test?: DebugSessionTestMetadata;
 }>;
 
 export type StoredDebugSessionParticipant = Readonly<{
@@ -56,6 +61,7 @@ export type StoredDebugSessionParticipant = Readonly<{
   startUrl: string;
   viewport?: Readonly<{ width: number; height: number }>;
   environment?: StoredEnvironmentProfile;
+  test?: DebugSessionTestMetadata;
   state: 'visible' | 'hidden' | 'blurred';
   status: 'recording' | 'completed' | 'interrupted';
   createdAt: string;
@@ -67,6 +73,7 @@ type StoredSession = Omit<StoredDebugSessionSummary, 'participantCount'> & {
   endedAt?: string;
   viewport?: Readonly<{ width: number; height: number }>;
   environment?: StoredEnvironmentProfile;
+  test?: DebugSessionTestMetadata;
   initialSnapshot?: Readonly<Record<string, unknown>>;
   clips: readonly unknown[];
   participants: readonly StoredDebugSessionParticipant[];
@@ -85,6 +92,7 @@ export type PortableDebugSession = Readonly<{
   initialSnapshot?: Readonly<Record<string, unknown>>;
   participants?: readonly StoredDebugSessionParticipant[];
   environment?: StoredEnvironmentProfile;
+  test?: DebugSessionTestMetadata;
 }>;
 
 const DEFAULT_MAX_SESSIONS = 100;
@@ -155,8 +163,9 @@ export class DebugSessionStore {
     this.prune();
   }
 
-  list(): readonly StoredDebugSessionSummary[] {
+  list(testId?: string): readonly StoredDebugSessionSummary[] {
     return [...this.sessions.values()]
+      .filter((session) => testId === undefined || session.test?.id === testId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map(
         ({
@@ -171,6 +180,7 @@ export class DebugSessionStore {
           eventCount,
           truncated,
           participants,
+          test,
         }) => ({
           id,
           startUrl,
@@ -183,6 +193,7 @@ export class DebugSessionStore {
           eventCount,
           truncated,
           participantCount: participants.length,
+          ...(test ? { test } : {}),
         }),
       );
   }
@@ -297,6 +308,7 @@ export class DebugSessionStore {
       replayVersion: current?.replayVersion ?? session.replayVersion ?? 1,
       eventCount: events.length,
       truncated: Boolean(current?.truncated) || session.truncated,
+      ...((current?.test ?? session.test) ? { test: current?.test ?? session.test } : {}),
       clips,
       participants,
       ...((current?.viewport ?? session.viewport)
@@ -609,6 +621,7 @@ export class DebugSessionStore {
       clips,
       ...(initialSnapshot ? { initialSnapshot } : {}),
       participants: stored.participants,
+      ...(stored.test ? { test: stored.test } : {}),
     };
   }
 
@@ -805,6 +818,7 @@ function assertPortableSession(
         (value['replayVersion'] as number) < 1)) ||
     typeof value['startUrl'] !== 'string' ||
     (value['viewport'] !== undefined && !isValidViewport(value['viewport'])) ||
+    (value['test'] !== undefined && !isDebugSessionTestMetadata(value['test'])) ||
     !Array.isArray(value['events']) ||
     !Array.isArray(value['clips']) ||
     typeof value['truncated'] !== 'boolean'
@@ -827,10 +841,15 @@ function isStoredSession(value: unknown): value is StoredSession {
     (value['viewport'] === undefined || isValidViewport(value['viewport'])) &&
     typeof value['eventCount'] === 'number' &&
     typeof value['truncated'] === 'boolean' &&
+    (value['test'] === undefined || isDebugSessionTestMetadata(value['test'])) &&
     Array.isArray(value['clips']) &&
     (value['participants'] === undefined ||
       Array.isArray(value['participants']))
   );
+}
+
+export function isDebugSessionTestMetadata(value: unknown): value is DebugSessionTestMetadata {
+  return isRecord(value) && ['id', 'title', 'specFile', 'project', 'gitSha'].every((key) => typeof value[key] === 'string' && value[key].length <= 512) && Number.isInteger(value['retry']) && Number(value['retry']) >= 0;
 }
 
 function mergeParticipant(

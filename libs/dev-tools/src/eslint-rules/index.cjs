@@ -137,12 +137,14 @@ const noEffectImportInFrontend = require('./no-effect-import-in-frontend.cjs');
 const requireI18nText = require('./require-i18n-text.cjs');
 const noI18nComposition = require('./no-i18n-composition.cjs');
 const noDirectCraftReactivity = require('./no-direct-craft-reactivity.cjs');
+const e2eSessionContract = require('./e2e-session-contract.cjs');
 const requireCatchTagExhaustiveReaction = require('./require-catch-tag-exhaustive-reaction.cjs');
 const recommendedRules = require('./recommended-config.cjs');
 const securityRules = require('./security-config.cjs');
 
 const plugin = {
   rules: {
+    'e2e-session-contract': e2eSessionContract,
     'app-start-registry-match': appStartRegistryMatch,
     'global-exception-registry-match': globalExceptionRegistryMatch,
     'craft-method-name-match': craftMethodNameMatch,
@@ -314,6 +316,10 @@ const a11yRuleSeverity = {
 };
 
 plugin.configs = {
+  e2e: {
+    plugins: { 'craft-ts': plugin },
+    rules: { 'craft-ts/e2e-session-contract': 'error' },
+  },
   recommended: {
     plugins: { 'craft-ts': plugin },
     rules: { ...recommendedRules, ...securityRules },

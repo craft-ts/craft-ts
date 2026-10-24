@@ -30,7 +30,7 @@ export default defineConfig({
   cacheDir: '../../node_modules/.vite/apps/demo-ecommerce',
   publicDir: false,
   plugins: [craftTextLoaderPlugin(), serverFunctionsPlugin(), craftStyle({ include: [path.resolve(root, '../../libs/component/src')], alias: { '@craft-ts/style': path.resolve(root, '../../libs/style/src/index.ts'), '@craft-ts/core': path.resolve(root, '../../libs/core/src/index.ts'), '@craft-ts/component': path.resolve(root, '../../libs/component/src/index.ts') } })],
-  server: { port: 4204, forwardConsole: true, fs: { allow: [path.resolve(root, '../..')] } },
+  server: { port: Number(process.env['CRAFT_DEMO_ECOMMERCE_PORT'] ?? 4204), forwardConsole: true, fs: { allow: [path.resolve(root, '../..')] } },
   resolve: { tsconfigPaths: true, mainFields: ['module', 'browser', 'jsnext:main', 'jsnext'] },
   build: craftProductionBuildOptions(path.resolve(root, '../../dist/apps/demo-ecommerce')),
 });

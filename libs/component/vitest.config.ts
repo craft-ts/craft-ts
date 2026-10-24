@@ -21,6 +21,10 @@ export default defineConfig({
         workspaceRoot,
         'libs/component/src/index.ts',
       ),
+      '@craft-ts/component/session-trace': path.join(
+        workspaceRoot,
+        'libs/component/src/lib/ai/session-trace.ts',
+      ),
       // The internal components' sheets are written with the style vocabulary.
       '@craft-ts/style': path.join(workspaceRoot, 'libs/style/src/index.ts'),
       'test-type': path.join(workspaceRoot, 'libs/test-type/src/index.ts'),

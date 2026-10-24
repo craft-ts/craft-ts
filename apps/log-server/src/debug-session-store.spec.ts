@@ -101,6 +101,14 @@ describe('DebugSessionStore', () => {
     expect(readFileSync(join(directory, 'index.json'), 'utf8')).toContain(id);
   });
 
+  it('retains Playwright test metadata and filters session summaries by test id', () => {
+    const test = { id: 'cart.checkout', title: 'checkout', specFile: 'e2e/cart.spec.ts', project: 'chromium', retry: 1, gitSha: 'f40a123cb' };
+    store.begin(id, { ...fixture(), test }, createdAt);
+    expect(store.list('cart.checkout')).toHaveLength(1);
+    expect(store.list('another-test')).toHaveLength(0);
+    expect(store.get(id)?.test).toEqual(test);
+  });
+
   it('marks sessions interrupted after a server restart', () => {
     store.begin(id, fixture(), createdAt, 'tab-a');
 
